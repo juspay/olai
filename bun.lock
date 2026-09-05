@@ -270,6 +270,7 @@
       "name": "olai-plugin-layout",
       "version": "0.1.0",
       "dependencies": {
+        "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/web": "workspace:*",
         "effect": "4.0.0-rc.112",

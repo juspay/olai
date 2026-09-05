@@ -31,50 +31,50 @@ import {
   Switch,
 } from "solid-js"
 
-import { AppHeader } from "./AppHeader.tsx"
-import { PluginBanners } from "./plugins/Chrome.tsx"
-import { createToday } from "./clock.ts"
-import { createInboxHeld } from "./inbox.ts"
-import { Offline } from "./connection/Offline.tsx"
-import { createDirectory } from "./directory.ts"
-import { AirProvider, createAir } from "./drag/air.ts"
-import { createFields, FieldsProvider } from "./drag/fields.ts"
-import { reachable } from "./connection/reaching.ts"
-import { createRefiling } from "./fold/refiling.ts"
-import { createDocuments, DocumentsProvider } from "./document/documents.tsx"
-import { createUndo, UndoContext } from "./edit/undoing.ts"
-import { UndoSaid } from "./edit/UndoSaid.tsx"
-import { troubleIn } from "./errors/banner.ts"
-import { Page as ErrorPage } from "./errors/Page.tsx"
-import { desktop } from "./layout/media.ts"
-import { panelOpen, sidebarOpen, toggleSidebar } from "./layout/prefs.ts"
-import { Rail } from "./layout/Rail.tsx"
-import { only } from "./narrow.ts"
-import { OpensProvider } from "./opens.tsx"
-import { fileOf, opensAt, requestFor } from "./page.ts"
-import { fileNamed } from "./routes.ts"
-import { createReadings, ReadingsProvider } from "./reading.tsx"
-import { Palette } from "./palette/Palette.tsx"
-import { PinsProvider } from "./pins/answered.tsx"
-import { pinSaid } from "./pins/pinning.ts"
-import { Panes } from "./pane/Panes.tsx"
-import { KEYS_SETTLING, quiescence } from "./quiescence.ts"
-import { SHEET, SHELL_LONE, SHELL_SPLIT } from "./layout/sheet.ts"
-import { createRouter, RouterProvider } from "./router.tsx"
-import { runAsync } from "./run.ts"
-import { ServedProvider } from "./served.tsx"
-import { PluginsMounted } from "./plugins/Mounted.tsx"
-import { PluginPanel } from "./plugins/Seats.tsx"
-import { Plugins } from "./plugins/Plugins.tsx"
-import { pageFileOf } from "./settings/done.ts"
-import { Preferences } from "./settings/Preferences.tsx"
-import { Sidebar } from "./Sidebar.tsx"
-import { TodayProvider } from "./today.tsx"
-import { connectionReadout, olai } from "./wire.ts"
-import { isLone } from "./workspace.ts"
+import { Header } from "./Header.tsx"
+import { PluginBanners } from "@olai/web/client/plugins/Chrome.tsx"
+import { createToday } from "@olai/web/client/clock.ts"
+import { createInboxHeld } from "@olai/web/client/inbox.ts"
+import { Offline } from "@olai/web/client/connection/Offline.tsx"
+import { createDirectory } from "@olai/web/client/directory.ts"
+import { AirProvider, createAir } from "@olai/web/client/drag/air.ts"
+import { createFields, FieldsProvider } from "@olai/web/client/drag/fields.ts"
+import { reachable } from "@olai/web/client/connection/reaching.ts"
+import { createRefiling } from "@olai/web/client/fold/refiling.ts"
+import { createDocuments, DocumentsProvider } from "@olai/web/client/document/documents.tsx"
+import { createUndo, UndoContext } from "@olai/web/client/edit/undoing.ts"
+import { UndoSaid } from "@olai/web/client/edit/UndoSaid.tsx"
+import { troubleIn } from "@olai/web/client/errors/banner.ts"
+import { Page as ErrorPage } from "@olai/web/client/errors/Page.tsx"
+import { desktop } from "@olai/web/client/layout/media.ts"
+import { panelOpen, sidebarOpen, toggleSidebar } from "@olai/web/client/layout/prefs.ts"
+import { Rail } from "@olai/web/client/layout/Rail.tsx"
+import { only } from "@olai/web/client/narrow.ts"
+import { OpensProvider } from "@olai/web/client/opens.tsx"
+import { fileOf, opensAt, requestFor } from "@olai/web/client/page.ts"
+import { fileNamed } from "@olai/web/client/routes.ts"
+import { createReadings, ReadingsProvider } from "@olai/web/client/reading.tsx"
+import { Palette } from "@olai/web/client/palette/Palette.tsx"
+import { PinsProvider } from "@olai/web/client/pins/answered.tsx"
+import { pinSaid } from "@olai/web/client/pins/pinning.ts"
+import { Panes } from "@olai/web/client/pane/Panes.tsx"
+import { KEYS_SETTLING, quiescence } from "@olai/web/client/quiescence.ts"
+import { SHEET, SHELL_LONE, SHELL_SPLIT } from "@olai/web/client/layout/sheet.ts"
+import { createRouter, RouterProvider } from "@olai/web/client/router.tsx"
+import { runAsync } from "@olai/web/client/run.ts"
+import { ServedProvider } from "@olai/web/client/served.tsx"
+import { PluginsMounted } from "@olai/web/client/plugins/Mounted.tsx"
+import { PluginPanel } from "@olai/web/client/plugins/Seats.tsx"
+import { Plugins } from "@olai/web/client/plugins/Plugins.tsx"
+import { pageFileOf } from "@olai/web/client/settings/done.ts"
+import { Preferences } from "@olai/web/client/settings/Preferences.tsx"
+import { Sidebar } from "@olai/web/client/Sidebar.tsx"
+import { TodayProvider } from "@olai/web/client/today.tsx"
+import { connectionReadout, olai } from "@olai/web/client/wire.ts"
+import { isLone } from "@olai/web/client/workspace.ts"
 
-export default function App() {
-  // App outlives plugin provider changes; its undo history needs no outer store.
+export default function Frame() {
+  // The frame outlives plugin provider changes; its undo history needs no outer store.
   const undo = createUndo((edit) => runAsync(olai.procedures.edit.apply(edit)))
   /** THE DIRECTORY — every served file's path, title and breakage, and nothing
    *  else about the vault (`./directory.ts`). What this replaced was a
@@ -343,7 +343,7 @@ export default function App() {
             shell.setAttribute(KEYS_SETTLING, String(quiescence.count()))
           )}
       >
-        <AppHeader
+        <Header
           docked={loaded()}
           menu={
             loaded()

@@ -10,10 +10,11 @@ the current application. Headless profiles select neither. If either is
 disabled through the panel, use the authorized non-UI plugin-management
 interface or restart with the desired selection to restore the UI.
 
-This row currently mounts the existing application composition. Navigation,
-outline and document state, and the remaining feature observers have **not**
-yet been extracted into their Phase 18 owners. It is an intermediate state,
-not the completed replaceable shell boundary.
+The frame and header implementations live in this plugin; `web/App.tsx` and
+`web/AppHeader.tsx` are removed. The frame still composes navigation, outline
+and document providers through implementation imports from web. Those providers
+and the remaining shell components must move to independent capabilities and
+owned locations before this is the completed replaceable shell boundary.
 
 The root entry's integration owns visual-viewport and breakpoint listeners,
 layout preference subscriptions, and the Solid effect publishing panel/sidebar

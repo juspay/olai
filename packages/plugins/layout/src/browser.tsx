@@ -4,14 +4,14 @@
  * They start before the face is published and reread storage on reactivation;
  * no resize or cross-tab listener is left in the permanent browser entry point.
  *
- * The face still delegates content composition to App during the remaining
+ * The frame still composes notebook-specific providers during the remaining
  * extraction. Owning these resources does not yet establish the final layout,
  * navigation and independent content boundaries documented in Phase 18.
  */
 import { definePlugin } from "@olai/plugin-api"
 import { rendererSlots, root } from "olai-plugin-ui-renderer/contract"
 import { Effect } from "effect"
-import App from "@olai/web/client/App.tsx"
+import Frame from "./Frame.tsx"
 import { Fault } from "@olai/web/client/errors/Fault.tsx"
 import { trackVisibleViewport } from "@olai/web/client/viewport.ts"
 import { trackDesktop } from "@olai/web/client/layout/media.ts"
@@ -27,7 +27,7 @@ export default definePlugin({
     yield* (yield* rendererSlots).contribute(root, () => <ErrorBoundary fallback={(error) => {
       console.error(error)
       return <Fault text={String(error)} />
-    }}><App /></ErrorBoundary>, {
+    }}><Frame /></ErrorBoundary>, {
       activate: Effect.gen(function*() {
         for (const start of [trackVisibleViewport, trackDesktop, followLayout]) {
           yield* Effect.acquireRelease(Effect.sync(start), (stop) => Effect.sync(stop))

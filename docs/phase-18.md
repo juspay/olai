@@ -9,8 +9,8 @@ Implemented foundations:
 - Scope-owned locations, with only root permanent, late owners, ancestor
   withdrawal, conflict and cycle diagnostics, and stable contribution identity.
 - A browser-only `ui-renderer` row owning the Solid root and generic registry.
-- An initial `layout` row occupying root, with its current extraction limit
-  stated in its plugin documentation.
+- A `layout` row owning the frame and header implementations and occupying root.
+  Its remaining content-provider coupling is stated in its plugin documentation.
 - Bundle generation and loading for rows without server implementations;
   host selection is distinguished from actual browser activation.
 

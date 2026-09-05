@@ -99,22 +99,22 @@
 
 import { Show } from "solid-js"
 
-import { Leaf } from "./Leaf.tsx"
-import { WORDMARK } from "./look.ts"
-import { calledApp } from "./named.ts"
-import { Uptime } from "./Uptime.tsx"
-import { Indicator } from "./connection/Indicator.tsx"
-import { PluginHeaders } from "./plugins/Chrome.tsx"
-import { LAYER } from "./layer.ts"
-import { desktop } from "./layout/media.ts"
-import { connectionReadout } from "./wire.ts"
-import { Plugins } from "./plugins/Plugins.tsx"
-import { Preferences } from "./settings/Preferences.tsx"
-import { TESTID } from "./testids.ts"
-import { TARGET_BOX } from "./touch.ts"
-import { PluginViewer } from "./plugins/Seats.tsx"
+import { Leaf } from "@olai/web/client/Leaf.tsx"
+import { WORDMARK } from "@olai/web/client/look.ts"
+import { calledApp } from "@olai/web/client/named.ts"
+import { Uptime } from "@olai/web/client/Uptime.tsx"
+import { Indicator } from "@olai/web/client/connection/Indicator.tsx"
+import { PluginHeaders } from "@olai/web/client/plugins/Chrome.tsx"
+import { LAYER } from "@olai/web/client/layer.ts"
+import { desktop } from "@olai/web/client/layout/media.ts"
+import { connectionReadout } from "@olai/web/client/wire.ts"
+import { Plugins } from "@olai/web/client/plugins/Plugins.tsx"
+import { Preferences } from "@olai/web/client/settings/Preferences.tsx"
+import { TESTID } from "@olai/web/client/testids.ts"
+import { TARGET_BOX } from "@olai/web/client/touch.ts"
+import { PluginViewer } from "@olai/web/client/plugins/Seats.tsx"
 
-export function AppHeader(props: {
+export function Header(props: {
   /** When a sidebar exists: whether its sheet is open, and the way to toggle
    *  it. Absent on the screens with no sidebar (error report, waiting), where
    *  there is nothing to put away and no burger to draw. */

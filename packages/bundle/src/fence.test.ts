@@ -1721,7 +1721,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/mcp/src/tools.ts",
       "server/src/runtime.ts",
       "surface/src/index.ts",
-      "web/src/client/AppHeader.tsx",
       "web/src/client/viewport.ts",
       "web/src/client/workspace.ts",
     ],
