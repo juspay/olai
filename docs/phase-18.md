@@ -111,6 +111,10 @@ be complete before this PR is ready to merge.
 - [ ] Investigate intermittent keyboard/draft e2e failures: parked-draft ordering
   in `keyboard_editing.feature:129` failed at `3a8629ad`, and keyboard status after
   moving a row failed at `8f077cd7`. Passing reruns alone do not explain them.
+- [ ] Investigate the agent-migration contract failure in
+  `node_agents.feature:377`: the browser rerun at `3a8629ad` observed zero initial
+  contract messages instead of one. The draft-ordering scenario passed that run;
+  five of six browser shards passed, so validation is still incomplete.
 - [ ] Finish plugin, architecture, profile/running and dynamic-plugin docs for
   the final ownership and absence behavior. Existing extracted rows have docs.
 - [ ] Pass the complete PR's required checks and acceptance coverage. A green
