@@ -89,3 +89,57 @@ Feature: Fresh node sessions have distinct identities and durable history
     And I open the past session "cabinet first session"
     Then the panel is in the remembered conversation "first"
     And the agent has answered "cabinet first session" exactly once
+
+  Scenario: Resuming a node's past session keeps its subtree write boundary
+    When I open the session picker
+    And I start a fresh session
+    Then the panel has a different conversation from "first"
+    When I ask the agent "cabinet second session"
+    Then the agent has answered "cabinet second session" exactly once
+    When I open the session picker
+    And I open the past session "cabinet first session"
+    Then the panel is in the remembered conversation "first"
+    When I ask the agent "done order"
+    Then the agent is idle
+    And the chat shows a refusal
+    And node "order" is not done
+
+  Scenario: Restarting while reading node history restores its write boundary
+    When I open the session picker
+    And I start a fresh session
+    Then the panel has a different conversation from "first"
+    When I ask the agent "cabinet second session"
+    Then the agent has answered "cabinet second session" exactly once
+    When I open the session picker
+    And I open the past session "cabinet first session"
+    Then the panel is in the remembered conversation "first"
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the panel is in the remembered conversation "first"
+    And the panel header names the node agent "install the cabinets"
+    When I ask the agent "done order"
+    Then the agent is idle
+    And the chat shows a refusal
+    And node "order" is not done
+
+  Scenario: A current node turn keeps running while its history is read and continued
+    When I show the done nodes
+    And I open the session picker
+    And I start a fresh session
+    Then the panel has a different conversation from "first"
+    When I remember this conversation as "current"
+    And I ask the agent "hold"
+    Then the agent "install" stands "working"
+    When I open the session picker
+    And I open the past session "cabinet first session"
+    Then the panel is in the remembered conversation "first"
+    And the agent "install" stands "working"
+    When I ask the agent "done hinges"
+    Then node "hinges" is done
+    And the agent "install" stands "working"
+    When I press the agent "install"
+    Then the agent is working
+    When the agent is released
+    Then the panel is in the remembered conversation "current"

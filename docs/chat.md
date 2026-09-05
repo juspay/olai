@@ -69,7 +69,7 @@ The note lives with this machine's other state (`~/.local/state/olai/`, or where
 
 **Where the stored conversations are.** They are in the sidebar, not in the header: the panel's own list of them was retired when migration gave the column two better doors onto the same set. A conversation some node agent claims is reached by [pressing that agent](#the-agents-roster); one no node claims is a row of [Unassigned](#unassigned), which is the same list — every installed agent's, grouped under whose they are — with the gesture that gives one a home. A row there says how many messages its conversation holds (the transcript's own count — tool traffic in both directions counts too, so 2913 messages is not 2913 of your sentences: it is the same kind of answer file size used to be, honest about *that* it knows the size), when it was last touched to the minute, and — for Claude conversations — when a `/clear` left it behind, **which conversation replaced it**. That last one the agent never wrote down, so it is inference rather than a reported fact: a conversation that begins with `/clear` replaces the one last touched at that moment, and when two share that moment, or none is there, the row says nothing rather than guesses. The minute stays beside it for the same reason as ever — two rows of one name can share a story too — and the count for the one question neither answers: how big each side of a `/clear` got. Picking one loads it — and makes it the conversation you come back to.
 
-**Picking another agent's conversation switches the panel to that agent**, exactly as `+ new` would: a session id belongs to one agent and means nothing to the other, so opening one is a change of both. One agent at a time stays true of the *process* — olai still runs one — and was never true of the history. Before this the list was asked of whichever agent the panel happened to be talking to, so a single opencode chat took every Claude conversation in the directory off the screen, and the way back to one was to start a new Claude chat purely so the list would name them again.
+**Picking another agent's conversation switches the panel to that agent**, exactly as `+ new` would: a session id belongs to one agent and means nothing to the other, so opening one is a change of both. The panel shows one conversation at a time; node sessions can keep running in their own processes while another conversation is shown. The listing includes every installed harness's stored conversations.
 
 The agent you are talking to is asked every time the list is opened, because it is already running and its list is the one most likely to have just changed. The others are *started* to answer, asked, and stopped again, one at a time — so opening the list is not a reason to start three subprocesses at once — and what they said is reused for a few seconds, which is why opening it twice in a row is instant. **An agent that could not be asked is named in the list, with its reason**, and the others' conversations stay where they are: "there are none" and "we could not find out" are different answers, and so are "this agent is broken" and "there is no list".
 
@@ -670,6 +670,13 @@ Opening a past session keeps the node's name and **sessions (n)** control in the
 header, including after a page reload. The open history row is selected; **current
 session** returns to the conversation the node's property names. Reading history
 does not rewrite that property or replace the node's current conversation.
+
+A past session opens in its own node-scoped process, including when restored
+after a server restart. It keeps the same subtree write boundary; continuing
+history cannot write a sibling outside that subtree. The current session can
+keep working while history is open, and the sidebar continues to report the
+current session's standing. Historical processes share the scheduler's capacity
+and idle-reaping policy.
 
 **That same control offers *fresh session*, labelled with what it means**: memory is the subtree, the transcript becomes history. It opens a new conversation with that node's engine and re-points the property at it — the same two acts *start an agent session* runs, in the same order, so the vault never names a session that was not opened.
 

@@ -111,7 +111,7 @@ import {
 import { createChatState } from "../chat/state.ts"
 import { run } from "@olai/web/client/run.ts"
 import { olai } from "@olai/web/client/wire.ts"
-import { type Chatting, chatKey, claimedIn, unassignedIn } from "./lineage.ts"
+import { type Chatting, chatKey, claimedIn, unassignedIn } from "../../lineage.ts"
 import type { Row } from "./roster.ts"
 import { chatWire } from "../wire.ts"
 
