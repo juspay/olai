@@ -419,12 +419,14 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
 
         // The barrier: a body asked for by a reader who IS here, which the
         // serial reader cannot answer before anything the revision asked for.
+        // The write and the cheap refresh can land as one revision or two, so
+        // the number is not the claim — the body is, and that there were only
+        // the two reads a holder asked for.
         const again = yield* opening(wired.bound, "report.html")
-        expect(yield* again.take).toEqual({
-          rev: 2,
-          text: "<h1>After</h1>\n",
-          refused: false,
-        })
+        const body = yield* again.take
+        expect(body.text).toBe("<h1>After</h1>\n")
+        expect(body.refused).toBe(false)
+        expect(body.rev).toBeGreaterThanOrEqual(2)
         expect(reads).toEqual(["report.html", "report.html"])
       }),
   ))
