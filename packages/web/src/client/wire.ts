@@ -6,6 +6,7 @@
  */
 
 import { bootstrapSelected } from "./plugins/bootstrap.ts"
+import { loadRows } from "./plugins/loading.ts"
 import { BROWSER_BOOT_PATH } from "@olai/plugin-api/mount"
 import { connectSurfaces } from "@kolu/surface-app/solid"
 import type { Surface, SurfaceSpec } from "@kolu/surface/define"
@@ -119,15 +120,11 @@ let composed = ""
  *   3. **compose** the fibers, which is where a plugin's faces are registered
  *      and its own client is first reachable.
  *
- * ## A FAILURE COSTS THE PAGE NOTHING
- *
- * A chunk that will not load and a dial that throws are the same case, and
- * `redial` owns it: the replacement is dialled first and this connection
- * released only once that has resolved, so a throw leaves the working wire
- * exactly as it was. What this function does about it is say so on the console
- * and leave `composed` where it was — so the next roster frame tries again
- * rather than the page being stuck holding a wire it thinks is newer than it
- * is.
+ * Module failures are contained per row and carried to the browser inspector.
+ * Successful halves still redial before mounting, preserving Surface readiness.
+ * A failed redial leaves the previous composition intact and is retried when
+ * the roster next changes. Loading a module is not proof of activation: the
+ * browser runtime reports initialization and dependency failures separately.
  */
 /** A switch can publish its new state before the browser finishes replacing
  * its socket. Keep controls that change the roster frozen through the entire
@@ -213,16 +210,16 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
   // the frame ahead of us in the queue may have been for the same roster.
   if (signature === composed) return
   try {
-    const halves = await Promise.all(
+    const { loaded: halves, failed } = await loadRows(
       want.flatMap((one) => {
         // A PLUGIN THE VAULT DEFINES is fetched from the serve that compiled
         // it; everything else is a chunk of this bundle, and a name with
         // neither is skipped rather than thrown on — a serve running a plugin
         // this build does not have is a tab talking to a newer server, and the
         // honest answer is that its faces are absent.
-        if (one.chunk !== null) return [chunkAt(one.chunk)]
+        if (one.chunk !== null) return [{ id: one.id, load: () => chunkAt(one.chunk!) }]
         const row = rows.find((each) => each.id === one.id)
-        return row === undefined ? [] : [row.load()]
+        return row === undefined ? [] : [row]
       }),
     )
     // The cast is what a tab that follows the roster costs at the type level,
@@ -261,7 +258,7 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
         clearTimeout(deadline)
       }
     }
-    await composeTo(halves, (plugin) => (live.clients as Record<string, unknown>)[plugin])
+    await composeTo(halves, (plugin) => (live.clients as Record<string, unknown>)[plugin], failed)
     composed = signature
   } catch (refused) {
     console.error(

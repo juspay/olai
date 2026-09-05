@@ -6,18 +6,24 @@ Solid root, its disposal and the location registry. It provides
 `ui-renderer.slots`. Its static `/contract` export carries the typed root
 location and service contract without importing presentation code.
 
-Only `root` is permanent, and it permits one contribution. Other locations
-are declarations acquired on a plugin's scope, with a named parent and either
-one or many occupants. A contribution made before its location is declared
-waits without blocking independent work by its plugin. Withdrawing an
-ancestor hides dependent contributions; restoring the ancestor makes them
-eligible again. Duplicate declarations, ownership cycles and incompatible
-cardinality fail with the responsible owners named.
+Only `root` is permanent, and it permits one contribution. Register a face
+with `contribute(location, face, { children, activate })`. Child declarations
+belong to that particular entry, not merely to a plugin or a parent name.
+Their names are reserved while waiting, but they become available only when
+the owning entry activates successfully.
 
-The registry preserves surviving contribution identity across unrelated
-changes. Registrations and declarations release with their scopes; a failed
-initialization leaves neither behind. `inspect()` distinguishes active and
-waiting contributions and names the missing location.
+Put location-dependent subscriptions, listeners and other resources in the
+scoped `activate` effect. Cordis starts that integration when its location
+arrives, revokes child locations and drains dependent cleanup when it leaves,
+and starts a fresh scope when an owner returns. Independent plugin work stays
+outside this effect. Unrelated active contributions preserve their identity.
+Failures and hanging initialization are contained by the same lifecycle bridge
+as ordinary service consumers. Renderer withdrawal closes the entire registry.
+
+Duplicate declarations, ownership cycles and incompatible cardinality fail
+with the responsible owners named, including registrations still waiting.
+`inspect()` distinguishes active, waiting and failed integrations; reserving a
+child name alone never reports a dependent integration active.
 
 The server does not import this plugin's browser module. Its loader fiber
 records selection, and its roster says `browserOnly: true`. The plugin panel

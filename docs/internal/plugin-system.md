@@ -1259,3 +1259,20 @@ these rows without importing their browser code; each tab reports activation
 separately. Generic locations have scope-owned declarations and only `root` is
 permanent. Application-slot migration and content extraction are still in
 progress; [phase-18.md](../phase-18.md) records the remaining acceptance work.
+
+Cross-plugin imports must use a static `/contract` export. That door may carry
+service tags, location descriptors, types and static data; its transitive graph
+must not reach a browser/server implementation or JSX. Declare the provider as
+a package dependency and express runtime availability through `needs`. Importing
+a contract does not activate its provider. The bundle fence checks both direct
+imports and the transitive contract graph.
+
+Owned locations use the same Cordis activation bridge as services. Register an
+entry with `contribute(location, value, { children, activate })`. The registration
+belongs to the caller; `activate` acquires location-dependent resources in a
+separate scope, and `children` become available only from that active entry.
+Removing the entry revokes its children and drains dependent cleanup before
+closing its own resources. Independent provider work belongs outside `activate`.
+A returning owner starts fresh dependent integrations; surviving siblings retain
+their identity. Reserved child names prevent duplicate declarations and ownership
+cycles even while integrations wait for a provider.

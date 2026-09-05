@@ -215,6 +215,7 @@ const mounted = new Map<string, Mounted>()
  * change when a fiber is mounted, retried or released.
  */
 const failures = new Map<string, Extract<RowReport, { readonly state: "failed" }>>()
+let loadFailures: ReadonlyMap<string, string> = new Map()
 const [browserReports, setReports] = createSignal<ReadonlyMap<string, RowReport>>(new Map())
 /** Reading a fault can await the runtime's error promise. A later host change
  * may finish its snapshot first; the generation keeps an older read from
@@ -224,7 +225,11 @@ let reporting = 0
 const refreshReports = async (): Promise<void> => {
   const generation = ++reporting
   const snapshot = await Promise.all([...mounted].map(async ([name, row]) => [name, await run(row.report)] as const))
-  if (generation === reporting) setReports(new Map([...snapshot, ...failures]))
+  if (generation === reporting) setReports(new Map([
+    ...snapshot,
+    ...failures,
+    ...[...loadFailures].map(([name, fault]) => [name, { state: "failed" as const, fault: `Module load failed: ${fault}` }] as const),
+  ]))
 }
 
 await run(Effect.forkScoped(Stream.runForEach(app.changes, () =>
@@ -262,8 +267,10 @@ await run(Effect.forkScoped(Stream.runForEach(app.changes, () =>
 export const composeTo = async (
   halves: ReadonlyArray<BrowserHalf>,
   clientFor: (plugin: string) => unknown,
+  failedLoads: ReadonlyMap<string, string> = new Map(),
 ): Promise<void> => {
   clients = clientFor
+  loadFailures = failedLoads
   // NOTHING IS DRAWN FROM A HALF-COMPOSED TABLE. Every claim and every release
   // below tells the runtime, and each of those told the page; a plugin's faces
   // therefore arrived one at a time and — far worse — LEFT one at a time, in

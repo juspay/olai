@@ -1,142 +1,190 @@
 /**
- * Scope-owned UI locations. Only root is permanent. Contracts are ordinary
- * values owned by their consumers; the host knows neither JSX nor app nouns.
- * A contribution can wait for a declaration without suspending its plugin.
- * Readers see it only while the entire chain of declaring locations exists.
+ * Locations are scoped capabilities, not a visibility filter. Only root is
+ * supplied by the renderer. An entry offers its child locations from its own
+ * activation; withdrawing that entry revokes the offers, drains dependent
+ * activations, and only then closes its resources. Cordis owns that ordering
+ * through the same bridge used by ordinary plugin services.
+ *
+ * A registration lives in the caller's scope, but its integration runs in a
+ * separate activation. Waiting for a shell therefore leaves independent plugin
+ * work alone. Returning owners start fresh integrations; unrelated entries keep
+ * their identity. Put listeners and subscriptions in `activate`, not beside the
+ * registration, when they require that location to exist.
+ *
+ * Child contracts are declared with the registration, so conflicts and cycles
+ * can be rejected even before providers arrive. Reserving a name does not make
+ * it available: only the particular active entry which owns it can do that.
+ * Cardinality includes waiting entries, preventing ambiguous later activation.
  */
-import { Effect, type Scope } from "effect"
+import { Cause, Effect, Exit, Scope, Stream } from "effect"
+import { hostChanges, mountPlugin, openHost, provide, settled, type Mounted, type RowReport } from "./host.ts"
+import { offer } from "./lifecycle.ts"
+import { definePlugin } from "./plugin.ts"
 import { registry, roster } from "./registry.ts"
+import { serviceTag } from "./service.ts"
 
 export interface Location<T> {
   readonly name: string
   readonly cardinality: "one" | "many"
-  /** Carries the contribution type without requiring a runtime instance. */
   readonly _value?: (_: T) => T
 }
+type Contract = Pick<Location<never>, "name" | "cardinality">
+const validName = (name: string): boolean => /^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*$/.test(name)
 
 export const location = <T>(name: string, cardinality: Location<T>["cardinality"] = "many"): Location<T> => {
-  if (!/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*$/.test(name)) {
-    throw new Error(`Invalid location name: "${name}"`)
-  }
+  if (!validName(name)) throw new Error(`Invalid location name: "${name}"`)
   return Object.freeze({ name, cardinality })
 }
-
 export interface Contribution<T> {
   readonly owner: string
   readonly value: T
 }
-
-interface Declaration {
-  readonly owner: string
-  readonly parent: string
-  readonly cardinality: "one" | "many"
-}
-
-interface Entry {
-  readonly contribution: Contribution<unknown>
-  readonly location: string
-  readonly cardinality: "one" | "many"
-}
-
 export interface LocationOwner {
-  readonly declare: <T>(slot: Location<T>, parent: string) => Effect.Effect<void, never, Scope.Scope>
-  readonly contribute: <T>(slot: Location<T>, value: T) => Effect.Effect<void, never, Scope.Scope>
+  /** Register one independently activated integration. Child locations belong
+   * to this entry, including when its registration ends before its plugin does.
+   * `activate` acquires location-dependent resources in a fresh scoped lifetime.
+   * It may fail or be interrupted; children are offered only after it succeeds. */
+  readonly contribute: <T>(slot: Location<T>, value: T, options?: {
+    readonly children?: ReadonlyArray<Contract>
+    readonly activate?: Effect.Effect<void, never, Scope.Scope>
+  }) => Effect.Effect<void, never, Scope.Scope>
 }
-
 export interface LocationReport {
   readonly name: string
   readonly owner: string
-  readonly state: "active" | "waiting"
+  readonly state: "active" | "waiting" | "failed" | "off"
   readonly waitingFor?: string
+  readonly fault?: string
 }
-
 export interface Locations {
-  /** The host binds this name from the calling fiber, never from plugin input. */
   readonly forOwner: (owner: string) => LocationOwner
   readonly read: <T>(slot: Location<T>) => ReadonlyArray<Contribution<T>>
   readonly inspect: () => ReadonlyArray<LocationReport>
+  /** Join current activations, including asynchronous initialization/cleanup. */
+  readonly settled: Effect.Effect<void>
+}
+interface Declaration {
+  readonly owner: string
+  readonly parent: string
+  readonly cardinality: Contract["cardinality"]
+}
+interface Registration {
+  readonly id: string
+  readonly owner: string
+  readonly slot: Contract
+  mounted?: Mounted
+  report: RowReport
+  cleanupFault?: string
 }
 
+/** The renderer owns the host and closes it with its own activation. No global
+ * scheduler, root, declarations, or integration scopes survive that close. */
 export const locations = (config: {
   readonly changed?: () => void
   readonly reading?: () => void
-} = {}): Locations => {
-  const declarations = registry<string, Declaration>(config.changed)
-  const entries = roster<Entry>(config.changed)
+} = {}): Effect.Effect<Locations, never, Scope.Scope> => Effect.gen(function*() {
+  const host = yield* openHost
+  const key = (name: string) => serviceTag<true>(`location:${name}`)
+  yield* provide(host, key("root"), () => true as const)
+  const declarations = registry<string, Declaration>()
+  const registrations = roster<Registration>()
+  const entries = roster<{ readonly slot: string; readonly contribution: Contribution<unknown> }>(config.changed)
+  let serial = 0
 
-  const waitingFor = (name: string): string | undefined => {
-    while (name !== "root") {
-      const declaration = declarations.read().get(name)
-      if (!declaration) return name
-      name = declaration.parent
+  const refresh = Effect.gen(function*() {
+    let changed = false
+    for (const registration of registrations.read()) {
+      if (!registration.mounted) continue
+      const report: RowReport = registration.cleanupFault === undefined
+        ? yield* registration.mounted.report
+        : { state: "failed", fault: registration.cleanupFault }
+      if (JSON.stringify(report) !== JSON.stringify(registration.report)) {
+        registration.report = report
+        changed = true
+      }
     }
-    return undefined
-  }
-
-  const validate = <T>(slot: Location<T>, owner: string): void => {
-    if (!/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*$/.test(slot.name)
-      || (slot.cardinality !== "one" && slot.cardinality !== "many")) {
+    if (changed) yield* Effect.sync(() => config.changed?.())
+  })
+  yield* Effect.forkScoped(Stream.runForEach(hostChanges(host), () => refresh))
+  const joined = Effect.gen(function*() {
+    yield* settled(host, registrations.read().map((entry) => entry.id))
+    yield* refresh
+  })
+  const validate = (slot: Contract, owner: string): void => {
+    if (!validName(slot.name) || (slot.cardinality !== "one" && slot.cardinality !== "many")) {
       throw new Error(`Locations: "${owner}" supplied an invalid location contract for "${slot.name}"`)
     }
     const declaration = declarations.read().get(slot.name)
-    const prior = entries.read().find((entry) => entry.location === slot.name)
-    const cardinality = slot.name === "root" ? "one" : declaration?.cardinality ?? prior?.cardinality
+    const prior = registrations.read().find((entry) => entry.slot.name === slot.name)
+    const cardinality = slot.name === "root" ? "one" : declaration?.cardinality ?? prior?.slot.cardinality
     if (cardinality !== undefined && cardinality !== slot.cardinality) {
-      throw new Error(`Locations: "${owner}" disagrees with "${declaration?.owner ?? prior?.contribution.owner ?? "host"}" about cardinality of "${slot.name}"`)
+      throw new Error(`Locations: "${owner}" disagrees with "${declaration?.owner ?? prior?.owner ?? "host"}" about cardinality of "${slot.name}"`)
     }
   }
-
   return {
     forOwner: (owner) => ({
-      declare: (slot, parent) => Effect.suspend(() => {
+      contribute: (slot, value, options = {}) => Effect.gen(function*() {
         validate(slot, owner)
-        if (slot.name === "root") return Effect.die(new Error(`Locations: "${owner}" cannot redeclare host location "root"`))
-        // Check the proposed graph before claiming anything. This also catches
-        // a cycle closed by a late provider whose parent was previously absent.
-        if (!/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*$/.test(parent)) {
-          return Effect.die(new Error(`Locations: "${owner}" supplied invalid parent "${parent}" for "${slot.name}"`))
-        }
-        let cursor = parent
-        const path = [`${slot.name} (${owner})`]
-        while (cursor !== "root") {
-          const declaration = declarations.read().get(cursor)
-          path.push(`${cursor} (${declaration?.owner ?? owner})`)
-          if (cursor === slot.name) return Effect.die(new Error(`Locations: ownership cycle ${path.join(" -> ")}`))
-          if (!declaration) break
-          cursor = declaration.parent
-        }
-        return declarations.claim(slot.name, { owner, parent, cardinality: slot.cardinality },
-          (held) => `Locations: "${owner}" and "${held.owner}" both declare "${slot.name}"`)
-      }),
-      contribute: (slot, value) => Effect.suspend(() => {
-        validate(slot, owner)
-        const prior = entries.read().find((entry) => entry.location === slot.name)
+        const prior = registrations.read().find((entry) => entry.slot.name === slot.name)
         if (slot.cardinality === "one" && prior) {
-          return Effect.die(new Error(`Locations: "${owner}" and "${prior.contribution.owner}" both occupy single location "${slot.name}"`))
+          return yield* Effect.die(new Error(`Locations: "${owner}" and "${prior.owner}" both occupy single location "${slot.name}"`))
         }
-        return entries.hold({ contribution: { owner, value }, location: slot.name, cardinality: slot.cardinality })
+        // An acquisition scope rolls back all reservations if any child is
+        // invalid. Its finalizer drains the activation before freeing names.
+        const scope = yield* Effect.acquireRelease(Scope.make(), (scope, exit) => Scope.close(scope, exit))
+        yield* Scope.provide(Effect.gen(function*() {
+          for (const child of options.children ?? []) {
+            validate(child, owner)
+            if (child.name === "root") return yield* Effect.die(new Error(`Locations: "${owner}" cannot redeclare host location "root"`))
+            let cursor = slot.name
+            const path = [`${child.name} (${owner})`]
+            while (true) {
+              const declaration = declarations.read().get(cursor)
+              path.push(`${cursor} (${declaration?.owner ?? owner})`)
+              if (cursor === child.name) return yield* Effect.die(new Error(`Locations: ownership cycle ${path.join(" -> ")}`))
+              if (!declaration) break
+              cursor = declaration.parent
+            }
+            yield* declarations.claim(child.name, { owner, parent: slot.name, cardinality: child.cardinality },
+              (held) => `Locations: "${owner}" and "${held.owner}" both declare "${child.name}"`)
+          }
+          const registration: Registration = { id: `entry-${++serial}`, owner, slot, report: { state: "waiting" } }
+          yield* registrations.hold(registration)
+          const mounted = yield* Effect.acquireRelease(mountPlugin(host, definePlugin({
+            name: registration.id,
+            needs: [key(slot.name)],
+            apply: Effect.gen(function*() {
+              delete registration.cleanupFault
+              const integration = yield* Effect.acquireRelease(Scope.make(), (scope, exit) =>
+                Scope.close(scope, exit).pipe(Effect.onError((cause) => Effect.sync(() => {
+                  registration.cleanupFault = Cause.pretty(cause)
+                }))),
+              )
+              yield* Scope.provide(options.activate ?? Effect.void, integration)
+              yield* entries.hold({ slot: slot.name, contribution: { owner, value } })
+              for (const child of options.children ?? []) yield* offer(key(child.name), () => true as const)
+            }),
+          }), { wait: false }), (mounted) => mounted.dispose)
+          registration.mounted = mounted
+          yield* refresh
+        }), scope).pipe(Effect.onError((cause) => Scope.close(scope, Exit.failCause(cause))))
       }),
     }),
     read: <T>(slot: Location<T>): ReadonlyArray<Contribution<T>> => {
       config.reading?.()
       validate(slot, "reader")
-      if (waitingFor(slot.name)) return []
-      // Preserve entry identity when an unrelated location changes. Keyed UI
-      // readers must not remount surviving contributions (and lose drafts).
-      return entries.read().filter((entry) => entry.location === slot.name)
-        .map((entry) => entry.contribution as Contribution<T>)
+      return entries.read().filter((entry) => entry.slot === slot.name).map((entry) => entry.contribution as Contribution<T>)
     },
     inspect: () => {
       config.reading?.()
-      return entries.read().map((entry) => {
-        const missing = waitingFor(entry.location)
-        return {
-          name: entry.location,
-          owner: entry.contribution.owner,
-          state: missing === undefined ? "active" : "waiting",
-          ...(missing === undefined ? {} : { waitingFor: missing }),
-        }
-      })
+      return registrations.read().map(({ slot, owner, report }) => ({
+        name: slot.name,
+        owner,
+        state: report.state === "running" ? "active" : report.state,
+        ...(report.state === "waiting" ? { waitingFor: report.missing?.map((name) => name.replace(/^location:/, "")).join(", ") || slot.name } : {}),
+        ...(report.state === "failed" ? { fault: report.fault } : {}),
+      }))
     },
+    settled: joined,
   }
-}
+})
