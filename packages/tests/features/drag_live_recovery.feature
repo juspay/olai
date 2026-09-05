@@ -1,0 +1,60 @@
+@scratch:good
+Feature: Held drags remain safe when their source or destination disappears
+  Scenario: Removing the dragged row makes release harmless and a restored row can be dragged again
+    Given I rewrite "drag-recovery.olai" as:
+      """
+      {"id":"drag-source","ord":"a0","title":"Source row"}
+      {"id":"drag-parent","ord":"a1","title":"Destination parent"}
+      {"id":"drag-anchor","parent":"drag-parent","ord":"a0","title":"Destination child"}
+      """
+    And I open the outline "drag-recovery.olai"
+    And I mark the page
+    When I remember the served bytes of "drag-recovery.olai"
+    And I pick up the bullet of "drag-source" and hold it above the title of "drag-anchor"
+    Then the drop line would put it under "drag-parent"
+    When I rewrite "drag-recovery.olai" as:
+      """
+      {"id":"drag-parent","ord":"a1","title":"Destination parent"}
+      {"id":"drag-anchor","parent":"drag-parent","ord":"a0","title":"Destination child"}
+      """
+    Then the node "drag-source" is not shown
+    When I let go
+    Then the outline "drag-recovery.olai" shows exactly the nodes "drag-parent, drag-anchor"
+    When I restore the remembered served bytes of "drag-recovery.olai"
+    Then the outline "drag-recovery.olai" shows exactly the nodes "drag-source, drag-parent, drag-anchor"
+    When I drag the bullet of "drag-source" above the title of "drag-anchor"
+    Then the node "drag-source" is a child of "drag-parent"
+    When I press "ControlOrMeta+z"
+    Then the node "drag-source" is not a child of "drag-parent"
+    And the outline "drag-recovery.olai" shows exactly the nodes "drag-source, drag-parent, drag-anchor"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: Removing the destination branch prevents a stale drop and restoration permits a new drag
+    Given I rewrite "drag-recovery.olai" as:
+      """
+      {"id":"drag-source","ord":"a0","title":"Source row"}
+      {"id":"drag-parent","ord":"a1","title":"Destination parent"}
+      {"id":"drag-anchor","parent":"drag-parent","ord":"a0","title":"Destination child"}
+      """
+    And I open the outline "drag-recovery.olai"
+    And I mark the page
+    When I remember the served bytes of "drag-recovery.olai"
+    And I pick up the bullet of "drag-source" and hold it above the title of "drag-anchor"
+    Then the drop line would put it under "drag-parent"
+    When I rewrite "drag-recovery.olai" as:
+      """
+      {"id":"drag-source","ord":"a0","title":"Source row"}
+      """
+    Then the node "drag-anchor" is not shown
+    When I let go
+    Then the outline "drag-recovery.olai" shows exactly the nodes "drag-source"
+    When I restore the remembered served bytes of "drag-recovery.olai"
+    Then the outline "drag-recovery.olai" shows exactly the nodes "drag-source, drag-parent, drag-anchor"
+    When I drag the bullet of "drag-source" above the title of "drag-anchor"
+    Then the node "drag-source" is a child of "drag-parent"
+    When I press "ControlOrMeta+z"
+    Then the node "drag-source" is not a child of "drag-parent"
+    And the outline "drag-recovery.olai" shows exactly the nodes "drag-source, drag-parent, drag-anchor"
+    And the page has not reloaded
+    And there should be no page errors
