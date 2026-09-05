@@ -36,8 +36,23 @@
 # that will not typecheck here is a blocker rather than a nuisance. That is the
 # whole reason this arrangement is worth its cost, and it is unchanged.
 #
-# THE PIN TRACKS MASTER, and it has been off it twice for the same kind of
-# reason. First for the ROOTED BUNDLE (`mergeDisjointGroups`,
+# THE PIN IS OFF MASTER RIGHT NOW, AND THAT IS A MERGE GATE. It is frozen at
+# `fea23365`, the head of juspay/kolu#2229's `surface-app-live-upgrade-headers`
+# branch, for the capability this tree's identity row needs: `upgradeHeaders`
+# takes a THUNK read at each accept, so a row switched on at the panel names its
+# headers on the next upgrade instead of at the next start. The `branch` field
+# in `npins/sources.json` still says `master` — the revision is what a fetch
+# uses, and the branch is where the pin goes home — so `just update-pins` will
+# walk this forward onto master and must not be run to land this change.
+#
+# THE GATE IS THE SAME ONE THE TWO FREEZES BELOW DESCRIBED, in the same words:
+# olai must not MERGE a tree whose framework pin is on a branch, because the
+# branch goes away with the merge and the revision stops being fetchable. So
+# this PR waits for #2229, is re-pinned to whatever sha master carries it as,
+# and this block is deleted in the same commit.
+#
+# THE PIN TRACKS MASTER OTHERWISE, and it has been off it twice before for the
+# same kind of reason. First for the ROOTED BUNDLE (`mergeDisjointGroups`,
 # `exposeRootedFaces`, and `connectSurfaces`' `core` slot — juspay/kolu#2222),
 # then for the LIVE one (`implementRootedSurfaces`, `mount(key, surface, deps)`
 # handing back its own undo, and `SurfacesConnection.redial(surfaces)` —

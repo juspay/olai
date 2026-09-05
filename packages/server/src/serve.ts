@@ -23,6 +23,11 @@
  * log span, so every line says how far into this serve it was emitted.
  */
 
+// THE ALLOWLIST'S GRAMMAR, from the seam that applies it — spent once at the
+// bind below, on the list this serve is coming up with. The upgrade reads the
+// names per accept now, so this is the composition root's own reading of a
+// question that used to be answered for it.
+import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers"
 import { surface } from "@olai/surface"
 import { type GitPin, type PageRequest } from "@olai/format"
 import {
@@ -460,9 +465,10 @@ export const serve = (options: ServeOptions) =>
      * not already say every day.
      *
      * Read PER CALL by the READING below, so a flip at the plugins panel
-     * reaches the next request; read ONCE at the bind for the header
-     * allowlist, which is the seam and is spelled at the `listen` call
-     * where it is spent rather than hidden in a thunk.
+     * reaches the next request — and per ACCEPT for the header allowlist,
+     * which was the one seam of the whole move and is closed: both reads
+     * go through this one function, so the names a socket may carry and
+     * the reading over them can never name two different rows.
      */
     const currentIdentity = (): Identity =>
       (offered(plugins.host, Identity) as Identity | undefined) ?? NOBODY
@@ -677,6 +683,43 @@ export const serve = (options: ServeOptions) =>
       transport,
     })
 
+    /*
+     * WHAT THIS SERVE CAME UP WITH MUST BE SERVABLE — the one thing the bind
+     * used to do for free, kept.
+     *
+     * `upgradeHeaders` is a thunk now, so the framework no longer checks the
+     * list at the bind: it checks at each accept, where a bad name refuses the
+     * ALLOWLIST rather than the socket (the connection is served anonymously
+     * and `./report.ts` says so). That is the right blast radius for a row
+     * switched on mid-serve, and the wrong loudness for the case an operator
+     * actually meets — `OLAI_IDENTITY_LOGIN_HEADER="Remote User"`, typed into a
+     * unit file, on a serve that is coming up right now. Before this change
+     * that stopped the boot with the framework's own sentence; it would
+     * otherwise have become a warning per accept and a chip that never draws.
+     *
+     * So the check is spent HERE, once, on the list this serve is starting
+     * with — the framework's own `checkUpgradeHeaders`, never a second opinion
+     * about what a header name is. An empty list passes, which is what a serve
+     * with no identity row hands over and what makes this safe to do before
+     * anything has been switched on.
+     *
+     * WHAT IT DELIBERATELY DOES NOT COVER is the row switched on LATER with a
+     * bad name: nothing is bound to refuse at, the accept-time arm is upstream's
+     * answer, and a second check inside the thunk would run on every accept to
+     * say what that arm already says.
+     *
+     * UNDER THE SAME `onError` THE BIND IS UNDER, which is why this is an
+     * Effect rather than a bare call: a refusal here has to unwind everything a
+     * refusal at the bind unwinds. The rows are mounted and running by now —
+     * one of them is dialling an appliance — so a throw that skipped
+     * `runtime.stopped` would leave those fibers to fail into a process that is
+     * already on its way out.
+     */
+    yield* Effect.onError(
+      Effect.sync(() => checkUpgradeHeaders(currentIdentity().headers)),
+      () => runtime.stopped,
+    )
+
     // Port 0 asks the OS every boot.
     const url = yield* Effect.onError(
       listen({
@@ -687,12 +730,19 @@ export const serve = (options: ServeOptions) =>
         // plugins are on is the boot refusal `restrictHandlers` exists to raise.
         expose: () => wired.faces.browser,
         hostname: theMachine,
-        // WHICH HEADERS A SOCKET MAY CARRY, read HERE and once: the seam
-        // fixes the allowlist at the bind, so this is the line the whole
-        // "a row switched on mid-serve names its headers at the next start"
-        // sentence is about. A serve with no identity row hands over none,
-        // which is a socket that carries nothing to read.
-        upgradeHeaders: currentIdentity().headers,
+        // WHICH HEADERS A SOCKET MAY CARRY, asked of the SAME door the
+        // reading below is asked of, and on the same terms: per accept
+        // rather than once here (juspay/kolu#2229). This is the line the
+        // whole "a row switched on mid-serve names its headers at the next
+        // start" sentence used to be about, and there is no such sentence
+        // any more — a serve that came up without the row and switched it
+        // on at the panel names its headers on the next upgrade.
+        //
+        // ONE DOOR, TWO READS, and that is what closes the gap upstream
+        // names: the names and the reading are derived from the same
+        // `currentIdentity`, so a roster that moved cannot leave the two
+        // disagreeing about which row is standing behind them.
+        upgradeHeaders: () => currentIdentity().headers,
         // ...and WHO IS LOOKING, on that socket and on the two HTTP doors —
         // one reading, handed to all three, so a chip in a browser and a
         // capture from a terminal cannot disagree.

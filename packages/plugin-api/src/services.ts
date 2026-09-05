@@ -773,25 +773,30 @@ export const Search = serviceTag<Search>("search")
  * DEPLOYMENT is wired, and core knowing any of it is the second place that
  * decides it.
  *
- * ## `headers` IS READ ONCE, AT THE BIND, and that is the one seam
+ * ## `headers` IS READ PER ACCEPT, and there is no seam left
  *
  * A websocket carries what the upgrade was allowed to keep, and that allowlist
- * is fixed when the port binds (`@kolu/surface-app`'s `upgradeHeaders`, checked
- * there so a name no header can match is a defect at the bind rather than at
- * the first connection hours later). So a row offering this door mid-serve
- * names its headers at the NEXT START — the same bargain {@link Agents} takes
- * one door up, and for the same reason: a promise this door could not keep is
- * worse than the one it can. Flipping the row OFF is immediate and needs no
- * such bargain, because every reading goes back through {@link Identity.who}
- * and there is nobody behind it any more. The two doors that read a raw request
- * — `GET /olai/who` and `/mcp` — have no allowlist at all and follow the row
- * both ways.
+ * used to be fixed when the port bound — so a row offering this door mid-serve
+ * named its headers at the NEXT START, the bargain {@link Agents} still takes
+ * one door up. juspay/kolu#2229 closed it: `@kolu/surface-app`'s
+ * `upgradeHeaders` takes a thunk read at each accept, core hands it
+ * `() => identity().headers`, and a row switched on at the panel is read by the
+ * next upgrade. Flipping the row OFF was always immediate, because every
+ * reading goes back through {@link Identity.who} and there is nobody behind it
+ * any more; switching it ON is now immediate too, for the socket as well as for
+ * the two doors that read a raw request (`GET /olai/who` and `/mcp`, which have
+ * no allowlist at all and always followed the row both ways).
  *
- * THE DOOR IS THE SAME SHAPE on either side of that seam, which is why it is
- * declared this way rather than around the limitation: closing it upstream
- * changes how often a consumer reads {@link Identity.headers} — once at the
- * bind today, per accept when an allowlist can be re-read — and nothing at all
- * about what a row offers.
+ * WHAT A LIVE LIST COSTS is worth knowing where the door is declared: a list
+ * this seam cannot serve — a name outside HTTP's grammar, one wire header named
+ * twice — cannot take a socket down without one row's defect reaching every
+ * other tenant of the wire, so upstream serves that connection with NO named
+ * headers and narrates the refusal. What is NOT quiet is the serve that came up
+ * that way: the composition root spends the framework's own
+ * `checkUpgradeHeaders` on the list it starts with, so an operator's typo stops
+ * the boot rather than every socket. A row is asked for names, never for a
+ * check — the grammar is the framework's, and a row holding an opinion about it
+ * would be a second one to keep in step.
  */
 export interface Identity {
   /** The header names this deployment trusts, unique — the allowlist the
