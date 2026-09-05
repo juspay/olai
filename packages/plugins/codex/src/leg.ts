@@ -11,7 +11,7 @@
  * but it identifies threads rather than the one spawning call Leg needs. This
  * first integration draws those calls flat instead of inventing parentage.
  */
-import { namedExactly, type Leg, type Meta } from "@olai/acp/engine"
+import { namedExactly, type Leg, type Meta, type Reported } from "@olai/acp/engine"
 
 const fieldIn = (value: unknown, key: string): unknown =>
   typeof value === "object" && value !== null && !Array.isArray(value)
@@ -33,7 +33,28 @@ const steerTaken = (answered: unknown): boolean => {
   return outcome === "injected" || outcome === "startedNewTurn"
 }
 
+/** codex-acp 1.10 forwards failed/cancelled MCP startup as a synthetic tool
+ * call. Match both its reserved id and title; ordinary failed tools are not
+ * evidence that their entire server disconnected. Keep the adapter's reason. */
+export const serversInUpdate = (update: unknown): ReadonlyArray<Reported> | null => {
+  if (fieldIn(update, "sessionUpdate") !== "tool_call" || fieldIn(update, "status") !== "failed") return null
+  const id = fieldIn(update, "toolCallId")
+  if (typeof id !== "string" || !id.startsWith("mcp_startup.")) return null
+  let name: string
+  try { name = decodeURIComponent(id.slice("mcp_startup.".length)) } catch { return null }
+  if (name === "" || fieldIn(update, "title") !== `mcp__${name}__startup`) return null
+  const content = fieldIn(update, "content")
+  const words = Array.isArray(content) ? content.flatMap((block) => {
+    const inner = fieldIn(block, "content")
+    const text = fieldIn(inner, "text")
+    return fieldIn(block, "type") === "content" && fieldIn(inner, "type") === "text" && typeof text === "string"
+      ? [text] : []
+  }) : []
+  return [{ name, attached: false, said: words.join("\n") || "MCP startup failed" }]
+}
+
 export const CODEX: Leg = {
+  serversInUpdate,
   toolNameIn: (_meta: Meta) => null,
   toolNameOf: () => null,
   allowedWithoutAsking: () => null,

@@ -285,6 +285,9 @@ export interface Reported {
  * can start, and its `agent.ts` does the talking.
  */
 export interface Leg {
+  /** Connection reports carried by ordinary session updates, where an adapter
+   * exposes them. Display only: this must never grant tool permissions. */
+  readonly serversInUpdate?: (update: unknown) => ReadonlyArray<Reported> | null
   /** Advertise/read the terminal-output metadata extension. */
   readonly terminalOutput?: boolean
   /**
