@@ -19,6 +19,8 @@
  * watcher. A row started later then says which directory it belongs to under
  * the same log settings as everything that booted eagerly.
  */
+// The upgrade seam owns header-name grammar; boot validates its initial list.
+import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers"
 import { type GitPin, type PageRequest } from "@olai/format"
 import {
   make as makeOps,
@@ -417,16 +419,17 @@ export const serve = (options: ServeOptions) =>
      * not already say every day.
      *
      * Read PER CALL by the READING below, so a flip at the plugins panel
-     * reaches the next request; read ONCE at the bind for the header
-     * allowlist, which is the seam and is spelled at the `listen` call
-     * where it is spent rather than hidden in a thunk.
+     * reaches the next request — and per ACCEPT for the header allowlist,
+     * which was the one seam of the whole move and is closed: both reads
+     * go through this one function, so the names a socket may carry and
+     * the reading over them can never name two different rows.
      */
     const currentIdentity = (): Identity =>
       (offered(plugins.host, Identity) as Identity | undefined) ?? NOBODY
 
     /** ...and the one thing the three readers share, minted once over that
      *  door: headers in, a person or nobody out (`./identity.ts`). Nothing
-     *  downstream is handed the door itself — the names are the bind's and
+     *  downstream is handed the door itself — the names are each upgrade's and
      *  the reading is everyone's. */
     const who = readingOf(currentIdentity)
 
@@ -505,7 +508,8 @@ export const serve = (options: ServeOptions) =>
       bound: wired.bound,
       expose: () => wired.faces.browser,
       hostname: theMachine,
-      upgradeHeaders: currentIdentity().headers,
+      // Names and readings follow the same live row, per upgrade and per request.
+      upgradeHeaders: () => currentIdentity().headers,
       who,
       mcp: mcp.route(who),
       resync: Effect.andThen(ops.idle, store.refresh("verified")),
@@ -548,7 +552,44 @@ export const serve = (options: ServeOptions) =>
     yield* settled(plugins.host, built)
     report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
     onChange.run()
-    const url = yield* transports.start
+    /*
+     * WHAT THIS SERVE CAME UP WITH MUST BE SERVABLE — the one thing the bind
+     * used to do for free, kept.
+     *
+     * `upgradeHeaders` is a thunk now, so the framework no longer checks the
+     * list at the bind: it checks at each accept, where a bad name refuses the
+     * ALLOWLIST rather than the socket (the connection is served anonymously
+     * and `./report.ts` says so). That is the right blast radius for a row
+     * switched on mid-serve, and the wrong loudness for the case an operator
+     * actually meets — `OLAI_IDENTITY_LOGIN_HEADER="Remote User"`, typed into a
+     * unit file, on a serve that is coming up right now. Before this change
+     * that stopped the boot with the framework's own sentence; it would
+     * otherwise have become a warning per accept and a chip that never draws.
+     *
+     * So the check is spent HERE, once, on the list this serve is starting
+     * with — the framework's own `checkUpgradeHeaders`, never a second opinion
+     * about what a header name is. An empty list passes, which is what a serve
+     * with no identity row hands over and what makes this safe to do before
+     * anything has been switched on.
+     *
+     * WHAT IT DELIBERATELY DOES NOT COVER is the row switched on LATER with a
+     * bad name: nothing is bound to refuse at, the accept-time arm is upstream's
+     * answer, and a second check inside the thunk would run on every accept to
+     * say what that arm already says.
+     *
+     * UNDER THE SAME `onError` THE BIND IS UNDER, which is why this is an
+     * Effect rather than a bare call: a refusal here has to unwind everything a
+     * refusal at the bind unwinds. The rows are mounted and running by now —
+     * one of them is dialling an appliance — so a throw that skipped
+     * `runtime.stopped` would leave those fibers to fail into a process that is
+     * already on its way out.
+     */
+    yield* Effect.onError(
+      Effect.sync(() => checkUpgradeHeaders(currentIdentity().headers)),
+      () => runtime.stopped,
+    )
+
+    const url = yield* Effect.onError(transports.start, () => runtime.stopped)
     // A deliberate close must be marked before any finalizer reaches the
     // runtime; otherwise watchFault would report our own shutdown as damage.
     yield* Effect.addFinalizer(() => runtime.stopped)

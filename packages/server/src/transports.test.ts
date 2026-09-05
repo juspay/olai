@@ -30,7 +30,7 @@ test("transport registrations release and restore browser assets, sockets and th
       const listener = yield* transportListener({
         bound: wired.bound, expose: () => wired.faces.browser, root, clientDist: root,
         hostname: "test", host: "127.0.0.1", port: 0, allowedOrigins: [],
-        upgradeHeaders: [], who: () => null,
+        upgradeHeaders: () => [], who: () => null,
         mcp: endpoint.route(() => null),
         resync: Effect.void, plugins: null,
       })
