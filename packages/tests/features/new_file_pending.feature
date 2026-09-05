@@ -1,5 +1,45 @@
 @scratch:good
 Feature: New-file forms keep the next filename while an earlier write is pending
+  Scenario Outline: Browser Back during creation keeps the restored history entry
+    Given incoming updates to this browser tab can be held
+    And I open the outline "house.olai"
+    When I click the outline "garden.olai"
+    And I open the new <kind> box
+    And I fill the new <kind> box with "created.<suffix>"
+    And I hold incoming updates to the original browser tab
+    And I submit the new <kind> box while updates are delayed
+    And I go back
+    And I release incoming updates to the original browser tab
+    Then the new <kind> box is gone
+    And the address is "/house.olai"
+    And the file "created.<suffix>" has been created
+    And there should be no page errors
+
+    Examples:
+      | kind     | suffix |
+      | outline  | olai   |
+      | document | md     |
+
+  Scenario Outline: Closing the initiating pane does not redirect its surviving neighbor
+    Given incoming updates to this browser tab can be held
+    And I open the address "/s/house.olai/garden.olai"
+    When I focus pane 0
+    And I open the new <kind> box
+    And I fill the new <kind> box with "created.<suffix>"
+    And I hold incoming updates to the original browser tab
+    And I submit the new <kind> box while updates are delayed
+    And I close the focused pane
+    And I release incoming updates to the original browser tab
+    Then the new <kind> box is gone
+    And the address is "/garden.olai"
+    And the file "created.<suffix>" has been created
+    And there should be no page errors
+
+    Examples:
+      | kind     | suffix |
+      | outline  | olai   |
+      | document | md     |
+
   Scenario: A document created after leaving opens for reading on a later visit
     Given incoming updates to this browser tab can be held
     And I open the outline "house.olai"
