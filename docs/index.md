@@ -14,6 +14,7 @@ Each plugin documents itself, in its own package, and this list is the door to i
 
 The first four are **engines** — the ACP agents the chat panel can seat, one plugin each, enabled by default. What a conversation IS, for all of them, is [chat.md](chat.md); these pages are what is only true of one wire.
 
+- [plugins/vault.md](plugins/vault.md) — the directory, write gate, lock lifetime and format config as a normal bundle plugin.
 - [plugins/chat.md](plugins/chat.md) — the conversation as a row: what `--plugins` without it leaves (an outliner, and every engine, doorbell and mirror `waiting` on a door it names), the `chat-agent-session` kind and the one declaration row an older vault needs, the seats the shell reserves and the two slots chat is the reader of, and why the MCP face did not move.
 - [plugins/journal.md](plugins/journal.md) — the calendar, day page and agenda as one default plugin: its three routes, four browser-only readings, narrow daily-note mint, and exactly what disappears when the row is omitted.
 - [plugins/claude.md](plugins/claude.md) — Claude Code, the engine olai ships: the pinned adapter every documented start bakes in, the two meanings of `OLAI_ACP_AGENT`, the `_meta` corner its subagent lanes and tool names are read out of, the `mcp__server__tool` spelling the auto-allow rule turns on, the forwarded `init` that says which model a turn runs on and which servers it reached, the alias table its picker needs, and the two patches its pin carries.

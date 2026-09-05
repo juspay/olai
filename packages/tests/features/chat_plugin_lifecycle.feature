@@ -21,7 +21,7 @@ Feature: Chat remains usable as the plugin runtime changes
     And the page has not reloaded
     And there should be no page errors
 
-  @scratch:chat @plugins:chat
+  @scratch:chat @plugins:vault,chat
   Scenario: The first engine enabled after startup can hold a conversation
     Given I open the app
     And I mark the page
@@ -37,7 +37,7 @@ Feature: Chat remains usable as the plugin runtime changes
     And the page has not reloaded
     And there should be no page errors
 
-  @scratch:chat @plugins:chat,claude
+  @scratch:chat @plugins:vault,chat,claude
   Scenario: Switching the last engine back on restores conversation choices
     Given I open the app
     And I mark the page
@@ -122,7 +122,7 @@ Feature: Chat remains usable as the plugin runtime changes
     And the page has not reloaded
     And there should be no page errors
 
-  @scratch:chat @plugins:chat
+  @scratch:chat @plugins:vault,chat
   Scenario: Chat can be stopped while waiting for its first engine
     Given I open the app
     And I mark the page

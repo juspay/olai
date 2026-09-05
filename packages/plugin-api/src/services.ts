@@ -255,6 +255,17 @@ export interface Directory {
 }
 export const Directory = serviceTag<Directory>("directory")
 
+/** Core supplies these after mounting declarations. Floor-specific values are
+ * opaque here; the provider checks them against @olai/ops’s typed half. */
+export interface VaultSettings {
+  readonly runtime: unknown
+  readonly root: string
+  readonly kinds: unknown
+  readonly ledger: unknown
+  readonly search: unknown
+}
+export const VaultSettings = serviceTag<VaultSettings>("vault-settings")
+
 /** A provider owns both buses. Registration replays its current reading so a
  * tenant activated after the first disk read still receives the vault. */
 export const vaultEvents = (served: string) => {

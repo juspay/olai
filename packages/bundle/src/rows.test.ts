@@ -20,7 +20,7 @@
 import { expect, test } from "bun:test"
 
 import { pluginsPatch } from "./bundle.ts"
-import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, inBundleOrder, ROWS } from "./rows.ts"
+import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, inBundleOrder, profilePlugins, ROWS } from "./rows.ts"
 
 /** What a patch says about one row, as a reader would ask it. `undefined` is a
  *  row the patch does not mention, which is what "nobody said" writes. */
@@ -140,4 +140,11 @@ test("the input is not reordered under its owner", () => {
   const arrived = [{ id: "zeta-x" }, { id: BUNDLE_NAMES[0] ?? "claude" }]
   inBundleOrder(arrived, (one) => one.id)
   expect(arrived.map((one) => one.id)).toEqual(["zeta-x", BUNDLE_NAMES[0] ?? "claude"])
+})
+
+ test("default profiles select bundle data, while an explicit empty flag disables every row", () => {
+  expect(profilePlugins("web")).toBeNull()
+  expect(profilePlugins("surface")).toEqual(["vault"])
+  expect(profilePlugins("test-minimal")).toEqual(["vault"])
+  expect(pluginsPatch([]).every((row) => row.disabled)).toBe(true)
 })

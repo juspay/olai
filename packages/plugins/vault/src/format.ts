@@ -8,5 +8,4 @@ import { Schema } from "effect"
 export const FORMATS = ["olai"] as const
 export const Config = Schema.Struct({ format: Schema.Literals(FORMATS) })
 export type Config = typeof Config.Type
-export const DEFAULT_VAULT_CONFIG: Config = { format: "olai" }
 export const codecs = { olai: codecFor } satisfies Record<Config["format"], typeof codecFor>

@@ -12,8 +12,8 @@ Nothing. It is on by default, like the appliances and the engines. Two things ta
 
 ```
 olai web ~/outlines                                  # the panel, as always
-olai web ~/outlines --plugins=kolu,odu               # the outliner alone
-olai web ~/outlines --plugins=chat,claude            # a conversation and one engine
+olai web ~/outlines --plugins=vault,kolu,odu               # the outliner alone
+olai web ~/outlines --plugins=vault,chat,claude            # a conversation and one engine
 ```
 
 The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag, the nix option, or the row's own default. It is the switch to reach for when the answer is *not on this machine right now*; the flag is a deployment's word.
@@ -91,7 +91,7 @@ surface/chat/saying/deltas             the row still being said
 surface/chat/conversation/send         …and the fourteen verbs
 ```
 
-**The MCP face is unchanged.** Not one chat member was ever on it: an agent talking to this store reads the vault through `surface://` and the ops tools, and the conversation is the human's session at the other end of that. So no client's tool names or URIs moved, and `--plugins=chat` changes nothing an agent can see.
+**The MCP face is unchanged.** Not one chat member was ever on it: an agent talking to this store reads the vault through `surface://` and the ops tools, and the conversation is the human's session at the other end of that. So no client's tool names or URIs moved, and `--plugins=vault,chat` changes nothing an agent can see.
 
 ## Turning it off is not the same as turning the agent off
 

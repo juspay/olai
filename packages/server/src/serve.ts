@@ -1,6 +1,6 @@
 /**
  * The composition root's argument is its order. Mount the bundle, including
- * olai:vault, before the first report so every infrastructure row is visible.
+ * the directory provider, before the first report so every row is visible.
  * VaultSettings is supplied after declared kinds are read: the vault row then
  * acquires its directory and gate and offers Vault, Directory and Ops.
  * Kinds stays a host registry and its live vocabulary follows those tenants.
@@ -36,13 +36,13 @@ import {
   rowsNaming,
   setRow,
 } from "@olai/bundle/bundle"
-import { bundleRank } from "@olai/bundle"
+import { bundleRank, profilePlugins } from "@olai/bundle"
 import { emitter } from "@olai/log"
 import {
   Directory,
+  VaultSettings,
   Identity,
   Ledger,
-  NOWHERE_TO_WRITE,
   openPlugins,
   Ops as OpsDoor,
   Search,
@@ -53,18 +53,20 @@ import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
 
 import { localStateFor } from "./localState.ts"
-import type { Directory as OpenDirectory } from "./directory.ts"
+import type { Directory as OpenDirectory } from "@olai/ops"
+import { runtimePaths } from "./runtime-paths.ts"
+import { pruneGone } from "@olai/state"
 import { liveStore } from "./store-source.ts"
-import { vaultModule, VaultSettings } from "./vault.ts"
 import { openDynamic } from "./dynamic/runtime.ts"
 import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { NOBODY, readingOf } from "./who.ts"
-import { PROFILES, profileRows, INFRASTRUCTURE_ROWS, type Profile } from "./profiles.ts"
+import { profileRows, INFRASTRUCTURE_ROWS, type Profile } from "./profiles.ts"
 import { transportListener, transportModules, TransportSurface } from "./transports.ts"
 import { mcpEndpoint } from "./mcp/endpoint.ts"
 import { gitConfigPatch } from "./gitPolicy.ts"
+import { resyncDirectory } from "./resync.ts"
 import { bind } from "./runtime.ts"
 
 export interface ServeOptions {
@@ -124,6 +126,12 @@ export interface ServeOptions {
 export const serve = (options: ServeOptions) =>
   Effect.gen(function*() {
 
+    // Persistent records belong to core’s LocalState service, independently of
+    // whether this serve selects a directory provider.
+    yield* Effect.forkScoped(Effect.suspend(() => {
+      const count = pruneGone()
+      return count > 0 ? Effect.annotateLogs(Effect.logInfo("pruned state records for directories that are gone"), { count }) : Effect.void
+    }))
     const profile = options.profile ?? "web"
     const built = [...BUNDLE_NAMES, ...INFRASTRUCTURE_ROWS]
     /** The re-compose, filled in by `bind` — `./runtime.ts`'s `PluginRuntime`
@@ -138,7 +146,7 @@ export const serve = (options: ServeOptions) =>
     /** WHERE A RELATIVE PATH RESOLVES FROM, resolved the way `openDirectory`
      *  resolves it and BEFORE it, because the plugin runtime is opened first.
      *  One spelling of `resolve` in two places is a hazard; two answers to which
-     *  directory this serve is about is a worse one, and `./directory.ts` must
+     *  directory this serve is about is a worse one, and the provider must
      *  be handed the same resolved string. */
     const served = resolve(options.root)
 
@@ -237,9 +245,9 @@ export const serve = (options: ServeOptions) =>
       changed: () => onChange.run(),
       // NO `dials`: the injectables are a test's, and this is the product.
     })
-    yield* mountBundle(plugins.host, options.plugins ?? (PROFILES[profile].tenants ? null : []), gitConfigPatch(options.pin), {
+    yield* mountBundle(plugins.host, options.plugins ?? profilePlugins(profile), gitConfigPatch(options.pin), {
       rows: profileRows(profile),
-      resolve: async (name) => name === "olai:vault" ? vaultModule : transportModules[name],
+      resolve: async (name) => transportModules[name],
     })
 
     /**
@@ -386,8 +394,9 @@ export const serve = (options: ServeOptions) =>
     const who = readingOf(currentIdentity)
 
     // This adapter owns no gate: every call resolves the row's current Ops.
-    const ops = liveOps(() => offered(plugins.host, OpsDoor)?.gate as Ops | undefined)
-    yield* provide(plugins.host, VaultSettings, () => ({ root, kinds, ledger, search }))
+    const currentGate = () => offered(plugins.host, OpsDoor)?.gate as Ops | undefined
+    const ops = liveOps(currentGate)
+    yield* provide(plugins.host, VaultSettings, () => ({ root, kinds, ledger, search, runtime: runtimePaths }))
     yield* settled(plugins.host, built)
     report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
     /** Minted once for the serve: app.get and the install manifest must name
@@ -457,8 +466,7 @@ export const serve = (options: ServeOptions) =>
       upgradeHeaders: () => currentIdentity().headers,
       who,
       mcp: mcp.route(who),
-      resync: Effect.andThen(ops.idle, Effect.suspend<void, import("@olai/store").PlatformFailure | { readonly reason: string }, never>(() =>
-        currentDirectory()?.store.refresh("verified") ?? Effect.fail(NOWHERE_TO_WRITE))),
+      resync: resyncDirectory(currentDirectory, currentGate),
       plugins: dynamic,
     })
     /**

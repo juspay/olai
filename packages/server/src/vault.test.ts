@@ -1,3 +1,4 @@
+import { runtimePaths } from "./runtime-paths.ts"
 import { expect, test } from "bun:test"
 import { configsOf, mountBundle, offered, provide, reportBundle, setRow, settled } from "@olai/bundle/bundle"
 import { definePlugin, Directory, Ops as OpsDoor, openPlugins, Vault, mountPlugin, rowReport } from "@olai/plugin-api/services"
@@ -8,21 +9,20 @@ import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { profileRows } from "./profiles.ts"
-import { vaultModule, VaultSettings } from "./vault.ts"
+import { VaultSettings } from "@olai/plugin-api/services"
 
 const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
   Effect.andThen(setRow(host, id, on), settled(host, ["vault", "observer"]))
 
 const opening = (root: string, options: { readonly format?: string; readonly ledger?: Ledger } = {}) => Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "" })
-  yield* mountBundle(plugins.host, [], [], {
-    rows: profileRows("test-minimal").map((row) => row.id === "vault" && options.format !== undefined
-      ? { ...row, config: { format: options.format } } : row),
-    resolve: async (name) => name === "olai:vault" ? vaultModule : undefined,
+  yield* mountBundle(plugins.host, ["vault"], options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }], {
+    rows: profileRows("test-minimal"),
+    resolve: async () => undefined,
   })
   const store = () => (offered(plugins.host, Directory)?.store as Store | undefined)
   const ops = liveOps(() => offered(plugins.host, OpsDoor)?.gate as Ops | undefined)
-  yield* provide(plugins.host, VaultSettings, () => ({ root, kinds: NO_KINDS, ledger: options.ledger ?? NO_LEDGER, search: NO_SEARCH }))
+  yield* provide(plugins.host, VaultSettings, () => ({ root, runtime: runtimePaths, kinds: NO_KINDS, ledger: options.ledger ?? NO_LEDGER, search: NO_SEARCH }))
   yield* settled(plugins.host, ["vault"])
   return { plugins, store, ops }
 })

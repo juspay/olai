@@ -53,7 +53,10 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { BOOT_TIMEOUT, startWeb, type WebChild } from "./child.testlib.ts"
-import { lockFor, sweepRuntime } from "./lock.ts"
+import { lockFor as lockPath, sweepRuntime as sweep } from "olai-plugin-vault/testlib"
+import { runtimePaths } from "./runtime-paths.ts"
+const lockFor = (root: string) => lockPath(root, runtimePaths)
+const sweepRuntime = () => sweep(runtimePaths)
 import { served } from "./serve.testlib.ts"
 
 /** A test may take three waits (boot, stop, boot) before it is a hang.

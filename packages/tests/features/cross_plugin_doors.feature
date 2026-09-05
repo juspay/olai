@@ -3,7 +3,7 @@ Feature: Plugins depend on doors
   The Spaces mirror consumes chat.seating. Its reading disappears with its
   provider and returns on reactivation, without importing the provider package.
 
-  @plugins:chat,claude,xyne-spaces
+  @plugins:vault,chat,claude,xyne-spaces
   Scenario: A mirror follows its seating provider off and back on
     Given I open the app
     And I mark the page
@@ -20,7 +20,7 @@ Feature: Plugins depend on doors
     And the page has not reloaded
     And there should be no page errors
 
-  @plugins:xyne-spaces
+  @plugins:vault,xyne-spaces
   Scenario: A mirror waiting at startup activates when chat first arrives
     Given I open the app
     When I open the plugins panel
@@ -29,7 +29,7 @@ Feature: Plugins depend on doors
     Then the plugins panel says nothing more about "xyne-spaces"
     And there should be no page errors
 
-  @plugins:chat,claude,identity
+  @plugins:vault,chat,claude,identity
   Scenario: The transcript follows the shared viewer when identity leaves and returns
     Given I am the Tailscale user "ada@example.com"
     And I open the app
@@ -47,7 +47,7 @@ Feature: Plugins depend on doors
     Then my transcript speaker is "ada@example.com"
     And there should be no page errors
 
-  @git:repo @plugins:git
+  @git:repo @plugins:vault,git
   Scenario: An MCP client records the transport writer without chat
     Given I open the app
     And a terminal agent is connected to the served directory
@@ -56,7 +56,7 @@ Feature: Plugins depend on doors
     Then the last commit is "olai: record the transport write" by "mcp"
     And there should be no page errors
 
-  @plugins:chat,claude
+  @plugins:vault,chat,claude
   Scenario: The speaker waits visibly while the conversation remains usable
     Given I am the Tailscale user "ada@example.com"
     And I open the app

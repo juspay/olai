@@ -104,6 +104,7 @@
 
 import type { RowReport } from "@olai/plugin-api"
 import type { BuiltPlugin, PluginRoster } from "@olai/surface"
+import { ROWS } from "@olai/bundle"
 import { pluginState } from "@olai/surface"
 
 /** The rows to draw, in the order the build lists its plugins. A build with no
@@ -235,16 +236,20 @@ export const pluginConfig = (
  * and a true one — where a cap would be this panel deciding which of somebody's
  * plugins was worth telling them about.
  */
+const switchHints = new Map(ROWS.map((row) => [row.id, row.switchHint]))
+
 export const pluginHint = (plugin: BuiltPlugin): string | null => {
   switch (pluginState(plugin)) {
-    case "running":
-      if (plugin.name === "vault") return "Turning it off clears the served files and stops plugins that need the vault. Turn it on to reopen the directory."
+    case "running": {
+      const hint = switchHints.get(plugin.name)
+      if (hint !== undefined) return hint
       // NOTHING, on the ordinary row: the switch reads On and there is no
       // second thing to know. A row that carries others has one, and it is
       // about the press rather than about the state.
       return carries(plugin) === undefined
         ? null
         : `Turning it off also stops ${carries(plugin)}.`
+    }
     case "optIn":
       // THE BUILD'S OWN DEFAULT, and the flag value that changes it. This is
       // the row the per-row line was always for: under no flag its neighbour's

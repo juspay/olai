@@ -90,7 +90,7 @@ Feature: The `terminal` property is a DOOR
     And "claimed-mine" wears no terminal door at all
     And there should be no page errors
 
-  @scratch:lanes @padi:lanes @plugins:odu
+  @scratch:lanes @padi:lanes @plugins:vault,odu
   Scenario: A serve that did not compose kolu is the machine that never had it
     # THE DISABLED STATE, and it is not the same picture as the one below. There
     # a padi is missing and the page says so, which is news. Here an operator

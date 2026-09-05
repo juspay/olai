@@ -754,12 +754,13 @@ describe("only the registry knows a plugin's name", () => {
     ],
     server: [
       "server/src/headless.test.ts: olai-plugin-git/testlib",
+      "server/src/lock.test.ts: olai-plugin-vault/testlib",
       "server/src/who.test.ts: olai-plugin-identity/who",
     ],
   }
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
     tests: ["olai-plugin-chat", "olai-plugin-identity", "olai-plugin-kolu"],
-    server: ["olai-plugin-git", "olai-plugin-identity"],
+    server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-vault"],
   }
 
   test("plugins consume services and never import another plugin", () => {
@@ -1267,6 +1268,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       opencode: ["plugins/opencode"],
       pi: ["plugins/pi"],
       search: ["plugins/search"],
+      vault: ["plugins/vault"],
       "xyne-spaces": ["plugins/xyne-spaces"],
     })
     // ...and each APPLIANCE tenant has a TIER, which is the other way this
@@ -1300,6 +1302,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       // olai's own floor — a table on `bun:sqlite` and a walk over the format's
       // matcher — rather than over somebody else's vendored client.
       search: false,
+      vault: false,
       "xyne-spaces": false,
     })
   })
@@ -1673,6 +1676,51 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * claim can fail in are not symmetric.
    */
   const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = {
+    /** Vault is also the domain noun and the core Vault/VaultSettings service
+     * vocabulary. These compiled spellings predate the provider package and
+     * do not select or import it; record the exact collision set. */
+    vault: [
+      "format/src/conventions.bench.ts",
+      "format/src/dates.bench.ts",
+      "format/src/filter.bench.ts",
+      "format/src/meaning.ts",
+      "format/src/page.ts",
+      "format/src/patch.bench.ts",
+      "format/src/pointing.bench.ts",
+      "format/src/scope.bench.ts",
+      "format/src/searching.ts",
+      "format/src/typing.ts",
+      "format/src/validate.bench.ts",
+      "format/src/vocabulary.bench.ts",
+      "format/src/writing.ts",
+      "ops/src/documents.bench.ts",
+      "ops/src/plan.ts",
+      "ops/src/standing.bench.ts",
+      "ops/src/tools.ts",
+      "ops/src/walks.bench.ts",
+      "plugin-api/src/services.ts",
+      "plugin-build/src/bind.ts",
+      "plugin-build/src/imports.ts",
+      "plugins/chat/src/server.ts",
+      "plugins/git/src/server.ts",
+      "plugins/journal/src/agenda.ts",
+      "plugins/journal/src/server.ts",
+      "plugins/kolu/src/server.ts",
+      "plugins/odu/src/appliance/index.ts",
+      "plugins/odu/src/server.ts",
+      "plugins/search/src/table.bench.ts",
+      "plugins/xyne-spaces/src/server.ts",
+      "server/src/dynamic/source.ts",
+      "server/src/main.ts",
+      "server/src/mcp/tools.ts",
+      "server/src/published.bench.ts",
+      "server/src/runtime.ts",
+      "server/src/serve.ts",
+      "surface/src/seal.ts",
+      "web/src/client/Sidebar.tsx",
+      "web/src/client/opens.tsx",
+      "web/src/client/testids.ts",
+    ],
     claude: [
       "format/src/filter.ts",
       "format/src/searching.ts",
@@ -1734,13 +1782,13 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/chat/src/browser/chat/completion.ts",
       "plugins/chat/src/testids.ts",
       "plugins/journal/src/browser.tsx",
+      "plugins/vault/src/server.ts",
       "server/src/faces.ts",
       "server/src/main.ts",
       "server/src/mcp/face.ts",
       "server/src/mcp/tools.ts",
       "server/src/runtime.ts",
       "server/src/serve.ts",
-      "server/src/vault.ts",
       "surface/src/index.ts",
       "surface/src/media.ts",
       "surface/src/search.ts",

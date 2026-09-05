@@ -23,8 +23,8 @@
 #   disabled  OFF UNLESS THE FLAG NAMES IT. Absent is the ordinary case and
 #             means on; `true` is a plugin that is opt-in.
 #   config    THE PLUGIN'S OWN SETTINGS. Absent is the ordinary case. Validated
-#             at load against a `Config` schema the plugin exports beside
-#             `apply`; an invalid value fails the load with a sentence.
+#             inside activation against the plugin’s `Config` schema before
+#             `apply`; an invalid value fails the row with a sentence.
 #             `--commit` / `--push` are a CLI patch onto the git row's config,
 #             the way `--plugins` is a patch onto `disabled`.
 #
@@ -53,6 +53,13 @@
 # read by people, and the thing everything else waits on reads first.
 - id: chat
   name: olai-plugin-chat/server
+# THE DIRECTORY — an ordinary plugin, selected in every default profile.
+- id: vault
+  name: olai-plugin-vault/server
+  profiles: [surface, test-minimal]
+  switchHint: Turning it off clears the served files and stops plugins that need the vault. Turn it on to reopen the directory.
+  config:
+    format: olai
 # THE LEDGER — git as a row. Off is "no provider mounted": writes land and
 # nobody records them. `--commit` / `--push` are a CLI patch onto this row's
 # config, not a mode of core. It sits next to chat so the pill stays in the

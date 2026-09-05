@@ -26,3 +26,19 @@ export interface Directory {
   readonly root: string
   readonly store: Store
 }
+
+/** Typed half of core’s late settings door. Optional providers are live views,
+ * avoiding an injection cycle with a ledger that itself needs the directory. */
+export interface RuntimePaths {
+  readonly home: () => string
+  readonly canonical: (root: string) => string
+  readonly digest: (canonicalRoot: string) => string
+}
+
+export interface VaultSettings {
+  readonly runtime: RuntimePaths
+  readonly root: string
+  readonly kinds: import("@olai/format").KindVocabulary
+  readonly ledger: import("./ops.ts").Ledger
+  readonly search: import("./ops.ts").Search
+}

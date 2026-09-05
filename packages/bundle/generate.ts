@@ -68,6 +68,8 @@ interface Row {
   readonly id: string
   readonly name: string
   readonly disabled?: boolean
+  readonly profiles?: ReadonlyArray<string>
+  readonly switchHint?: string
 }
 
 /** The rows, from the one file. It is read here rather than imported from
@@ -83,7 +85,9 @@ function readRows(): ReadonlyArray<Row> {
     if (typeof one?.id !== "string" || typeof one?.name !== "string") {
       throw new Error(`bundle: row ${at} of ${file} needs an \`id\` and a \`name\``)
     }
-    return { id: one.id, name: one.name, ...(one.disabled === true ? { disabled: true } : {}) }
+    if (one.profiles !== undefined && (!Array.isArray(one.profiles) || one.profiles.some((profile) => typeof profile !== "string"))) throw new Error(`bundle: ${one.id} profiles must be words`)
+    if (one.switchHint !== undefined && typeof one.switchHint !== "string") throw new Error(`bundle: ${one.id} switchHint must be a sentence`)
+    return { id: one.id, name: one.name, ...(one.disabled === true ? { disabled: true } : {}), ...(one.profiles === undefined ? {} : { profiles: one.profiles }), ...(one.switchHint === undefined ? {} : { switchHint: one.switchHint }) }
   })
 }
 
@@ -131,6 +135,9 @@ const packageOf = (row: Row): string => {
   return at === -1 ? row.name : row.name.slice(0, at)
 }
 
+/** Prose is a source string too; JSON’s two raw line separators need escaping. */
+const prose = (value: string): string => JSON.stringify(value).replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029")
+
 const HEADER = (from: string) =>
   `// GENERATED from packages/bundle/olai.yml by packages/bundle/generate.ts.\n` +
   `// Do not edit: \`just install\` rewrites it, and the nix build rewrites it in\n` +
@@ -156,7 +163,7 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
     .map((row) =>
       `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${
         row.disabled === true ? ", disabled: true" : ""
-      } },`
+      }${row.profiles === undefined ? "" : `, profiles: [${row.profiles.map(quoted).join(", ")}]`}${row.switchHint === undefined ? "" : `, switchHint: ${prose(row.switchHint)}`} },`
     )
     .join("\n")
   const entries = rows

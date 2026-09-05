@@ -22,3 +22,16 @@ Feature: The vault is a row
     When I switch the plugin "vault" on
     Then the MCP vault can read an outline
     And there should be no page errors
+
+  @plugins:none
+  Scenario: An empty plugin selection can enable the vault from the control panel
+    Given I open the app
+    When I open the plugins panel
+    Then the plugins panel says "vault" is "was not asked for"
+    And the MCP vault refuses a write because no directory is served
+    When I switch the plugin "vault" on
+    Then the plugins panel says "vault" is "Turning it off clears the served files"
+    And the MCP vault can read an outline
+    When I switch the plugin "vault" off
+    Then the MCP vault refuses a write because no directory is served
+    And there should be no page errors

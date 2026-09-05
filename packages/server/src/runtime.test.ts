@@ -1,8 +1,9 @@
+import { runtimePaths } from "./runtime-paths.ts"
 import { fixedStore } from "./store-source.ts"
 import { mountBundle, offered as door, provide, settled } from "@olai/bundle/bundle"
 import { openPlugins as openHostPlugins, Directory, Ops as OpsDoor } from "@olai/plugin-api/services"
 import { profileRows } from "./profiles.ts"
-import { vaultModule, VaultSettings } from "./vault.ts"
+import { VaultSettings } from "@olai/plugin-api/services"
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * One runtime, several faces, several writers — the rebinding, as a fence.
@@ -111,11 +112,11 @@ const withRuntime = <A>(
   return Effect.gen(function*() {
     const onChange = { run: (): void => {} }
     const mounted = yield* openHostPlugins({ vars: {}, now: () => STARTED, changed: () => onChange.run() })
-    yield* mountBundle(mounted.host, [], [], {
+    yield* mountBundle(mounted.host, ["vault"], [], {
       rows: profileRows("test-minimal"),
-      resolve: async (name) => name === "olai:vault" ? vaultModule : undefined,
+      resolve: async () => undefined,
     })
-    yield* provide(mounted.host, VaultSettings, () => ({ root, kinds: NO_KINDS, ledger: NO_LEDGER, search: NO_SEARCH }))
+    yield* provide(mounted.host, VaultSettings, () => ({ root, runtime: runtimePaths, kinds: NO_KINDS, ledger: NO_LEDGER, search: NO_SEARCH }))
     yield* settled(mounted.host, ["vault"])
     const directory = door(mounted.host, Directory) as { readonly store: OutlineStore } | undefined
     if (!directory) throw new Error("test-minimal did not open its vault row")
