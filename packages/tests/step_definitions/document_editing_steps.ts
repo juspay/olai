@@ -136,6 +136,32 @@ Then(
  *  belongs to is torn down with the scenario either way. */
 let other: Page | undefined;
 
+When("I switch to the other document tab", async function (this: OlaiWorld) {
+  assert.ok(other !== undefined, "no second tab was opened");
+  [this.page, other] = [other, this.page];
+});
+
+When("I draft {string} in document pane {int}", async function (this: OlaiWorld, text: string, index: number) {
+  const pane = this.pane(index);
+  await this.press(pane.locator(DOCUMENT_EDIT));
+  await pane.locator(DOCUMENT_EDITOR).fill(text);
+});
+
+Then("document pane {int} holds draft {string}", async function (this: OlaiWorld, index: number, text: string) {
+  const editor = this.pane(index).locator(DOCUMENT_EDITOR);
+  await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(await editor.inputValue(), text);
+});
+
+When("I save document pane {int}", async function (this: OlaiWorld, index: number) {
+  await this.press(this.pane(index).locator(DOCUMENT_SAVE));
+});
+
+Then("document pane {int} has no editor", async function (this: OlaiWorld, index: number) {
+  await this.pane(index).locator(DOCUMENT_EDITOR)
+    .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+});
+
 Given(
   "a second tab opens the document {string}",
   async function (this: OlaiWorld, file: string) {
@@ -173,6 +199,14 @@ Then("the + day note button is shown", async function (this: OlaiWorld) {
   await this.page
     .locator(DAY_MINT)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+Then("the + day note button is waiting for its write", async function (this: OlaiWorld) {
+  assert.strictEqual(await this.page.locator(DAY_MINT).isDisabled(), true);
+});
+
+Then("the + day note button is ready", async function (this: OlaiWorld) {
+  assert.strictEqual(await this.page.locator(DAY_MINT).isEnabled(), true);
 });
 
 Then("the + day note button is gone", async function (this: OlaiWorld) {

@@ -1,7 +1,9 @@
 /**
  * A page whose rows can be typed in, picked and moved.
  *
- * The LIFETIME of all three is a page, and that is the whole of what this
+ * The LIFETIME of all three is a page. An editor's draft state survives a
+ * rebuild of that same page; its listeners and readers are recreated here.
+ * That is what this
  * component decides. It was the app's, and the app is not a thing a draft can
  * belong to: a caret left in a row and then navigated away from would still be
  * open on a day page, whose rows are a query rather than a tree, and the
@@ -56,8 +58,8 @@
  * the chat composer or in the palette's own input.
  */
 
-import type { Row } from "@olai/format"
-import { type Accessor, type JSX, onCleanup, onMount } from "solid-js"
+import { printAddress, type Row } from "@olai/format"
+import { type Accessor, createMemo, type JSX, onCleanup, onMount, Show } from "solid-js"
 
 import { createFoldReading } from "../fold/reading.ts"
 import { Aiming } from "../drag/Aiming.tsx"
@@ -68,13 +70,15 @@ import { createSweeping } from "../drag/sweeping.ts"
 import { isEditingTarget, type SelectAction, selectKey } from "../keys.ts"
 import { createMoving, MovingProvider } from "../move/moving.tsx"
 import { useFrames } from "../reading.tsx"
-import { useGo } from "../router.tsx"
+import { useGo, useHere, useRouter } from "../router.tsx"
+import { panesOf } from "../workspace.ts"
 import { atFile, atNode } from "../routes.ts"
 import { createSelection, type Selection, SelectionProvider } from "../select/selection.ts"
 import { SelectionBar } from "../select/SelectionBar.tsx"
 import { createEditor, EditorProvider, type Zooming } from "./editing.tsx"
+import { keepEditor, takeEditor } from "./memory.ts"
 
-export function Editable(props: {
+interface EditableProps {
   /** What is drawn — half of where `↑`/`↓` go, of where a row that has moved
    *  is found again, and of what a drop can land beside. The other half is what
    *  is FOLDED, which is not a prop because it is not this page's: it belongs
@@ -96,7 +100,28 @@ export function Editable(props: {
    *  second pane can ask for. */
   readonly within: ReadonlyArray<string>
   readonly children: JSX.Element
-}) {
+}
+
+export function Editable(props: EditableProps) {
+  const here = useHere()
+  const identity = createMemo(() => JSON.stringify([here(), props.file, props.within]))
+  return <Show when={identity()} keyed>{(_identity) => <EditablePage {...props} />}</Show>
+}
+
+function EditablePage(props: EditableProps) {
+  const pane = useHere()()
+  const router = useRouter()
+  const route = panesOf(router.workspace())[pane]?.route
+  const identity = JSON.stringify([props.file, props.within])
+  const memory = takeEditor(pane, identity, route)
+  onCleanup(() => {
+    const now = panesOf(router.workspace())[pane]?.route
+    if (now?.kind === "at" && route?.kind === "at"
+      && (now.address === null ? null : printAddress(now.address))
+        === (route.address === null ? null : printAddress(route.address))) {
+      keepEditor(pane, identity, now, memory)
+    }
+  })
   const page = {
     rows: () => props.rows(),
     // What is folded FOR THIS READING rather than what this browser has folded
@@ -112,13 +137,13 @@ export function Editable(props: {
     // array (`../reading.tsx`'s `useFrames`).
     frames: useFrames(),
   }
-  const selection = createSelection(page)
+  const selection = createSelection(page, memory.selection)
   // The two know each other one way round each: the editor's `⌘⇧M` opens the
   // picker, and the picker hands the caret back to the row when it is
   // dismissed. The second is a thunk rather than a value because the editor is
   // made on the next line — a keyboard door that left focus on `<body>` is the
   // gap both reviews of #245 named, and this is the one line that closes it.
-  const moving = createMoving(page, (row) => editor.open(row, "title"))
+  const moving = createMoving(page, (row) => editor.open(row, "title"), memory.moving)
   /**
    * The two ZOOM keys' destinations — the editor knows how to leave a row
    * and not where that goes, so the ROUTES are spelled here: the node a
@@ -140,7 +165,7 @@ export function Editable(props: {
         )
     },
   }
-  const editor = createEditor(page, selection, moving, zooming)
+  const editor = createEditor(page, selection, moving, zooming, memory)
   const dragging = createDragging({ selection })
   const sweeping = createSweeping(selection, () => surface)
 

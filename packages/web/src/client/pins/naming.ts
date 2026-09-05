@@ -139,7 +139,7 @@ export const namedEdit = (
   const title = pinTitle(naming.pin.at, name)
   return title === undefined
     ? Result.fail(PIN_NAME_UNWRITABLE)
-    : Result.succeed({ verb: "title", id: naming.pin.id, title })
+    : Result.succeed({ verb: "title", id: naming.pin.id, title, was: naming.pin.title, pinned: true })
 }
 
 /**

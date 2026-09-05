@@ -55,7 +55,7 @@ import { type Call, run } from "@olai/web/client/run.ts"
 import { attaching } from "./attach.ts"
 import { createRows } from "./order.ts"
 import { createTail, grownText } from "./growing.ts"
-import { forget, remember } from "./previews.ts"
+import { previewScope, remember } from "./previews.ts"
 import { closePreview } from "./previewing.ts"
 
 /**
@@ -236,6 +236,10 @@ export const createChatState = (): Accessor<ChatState> => {
   return () => cell.value() ?? CHAT_OFF
 }
 
+// A procedure can settle after the drawer that started it was remounted. Its
+// refusal belongs to this tab's gesture, not to that discarded panel instance.
+const [refused, setRefused] = createSignal<OpFailure | null>(null)
+
 export const createChat = (): Chat => {
   const served = createChatState()
   const transcript = chatWire().collections.transcript.use()
@@ -244,7 +248,6 @@ export const createChat = (): Chat => {
   // socket the answer rather than three hundred copies of its prefixes
   // ({@link ./growing.ts}).
   const said = createTail(chatWire().collections.saying.use().fold)
-  const [refused, setRefused] = createSignal<OpFailure | null>(null)
 
   /**
    * THE ROW STILL BEING SAID, joined — computed ONCE per frame however many
@@ -374,10 +377,7 @@ export const createChat = (): Chat => {
     )
   }
 
-  // A conversation ended, so what belonged to it did too, and there are two
-  // such things now. The thumbnails this tab was keeping are of files that no
-  // longer exist, under names the next conversation will mint again — the
-  // server threw its tmp directory away. And an open PREVIEW is addressed by a
+  // An open transcript PREVIEW is addressed by a
   // transcript key ({@link ./previewing.ts}), which is exactly the kind of name
   // the next conversation re-mints: a fresh transcript counts from `tool:1`, so
   // a key left over from the last one does not merely go stale, it can COLLIDE —
@@ -386,15 +386,15 @@ export const createChat = (): Chat => {
   // transcript. The shelf's own guard hides a MISSING row and cannot see that
   // one, which is why the fix is here and not there.
   //
-  // Here rather than in a component because this is where the session is known —
-  // the cell is the only thing that says a conversation changed — and both are
-  // in one effect because they are one event.
+  // The transcript preview closes on a session change. Attachment thumbnails
+  // instead follow the live upload scope, so remounting does not discard them.
   createEffect(
     on(() => state().session?.id, () => {
-      forget()
       closePreview()
     }, { defer: true }),
   )
+
+  createEffect(() => previewScope(state().uploadScope))
 
   return {
     state,
@@ -416,6 +416,7 @@ export const createChat = (): Chat => {
           // shape for it: an ordinary send says nothing about interrupting,
           // the way an ordinary row says nothing about a delivery.
           chatWire().procedures.conversation.send({
+            scope: state().uploadScope,
             text,
             attachments,
             context,
@@ -441,24 +442,25 @@ export const createChat = (): Chat => {
         // below has cleared what belonged to it. Answering `gone` then is the
         // honest thing: the file is gone, and a chip for it would offer a send
         // the server would refuse.
-        const asked = state().session?.id
+        const asked = state().uploadScope
+        if (asked === null) return resolve({ _tag: "gone" })
         run(
-          attaching(file, (chunk) => chatWire().procedures.conversation.attach(chunk)),
+          attaching(file, (chunk) => chatWire().procedures.conversation.attach({ ...chunk, uploadScope: asked })),
           (failure) => resolve({ _tag: "refused", failure }),
           (stored) => {
-            if (state().session?.id !== asked) return resolve({ _tag: "gone" })
+            if (state().uploadScope !== asked) return resolve({ _tag: "gone" })
             // The Blob is the one already in hand — this tab is the only
             // reader that will ever have it, and the name it is filed under is
             // the SERVER's, which is what the transcript row will carry.
-            remember(stored.name, file)
+            remember(stored.name, file, asked)
             resolve({ _tag: "stored", stored })
           },
         )
       }),
-    resend: (id) => verb(chatWire().procedures.conversation.resend({ id })),
+    resend: (id) => verb(chatWire().procedures.conversation.resend({ scope: state().uploadScope, id })),
     setSetting: (agent, session, config, value, done) => verb(chatWire().procedures.conversation.setSetting({ agent, session, config, value }), done),
     setModel: (agent, session, value, done) => verb(chatWire().procedures.conversation.setModel({ agent, session, value }), done),
-    cancel: () => verb(chatWire().procedures.conversation.cancel()),
+    cancel: () => verb(chatWire().procedures.conversation.cancel({ scope: state().uploadScope })),
     // The three doors that OPEN a conversation, and the fourth that reopens
     // a refused one. Each says so from the click ({@link opens}).
     newSession: (agent) => opens(chatWire().procedures.conversation.newSession({ agent })),
@@ -470,7 +472,7 @@ export const createChat = (): Chat => {
     // is where somebody who just picked a file is already looking.
     scope: (agent, session, plugin, file) =>
       verb(chatWire().procedures.conversation.scope({ agent, session, plugin, file })),
-    reopen: () => opens(chatWire().procedures.conversation.reopen()),
+    reopen: () => opens(chatWire().procedures.conversation.reopen({ scope: state().uploadScope })),
     answer: (id, answers, done) =>
       verb(chatWire().procedures.conversation.answer({ id, answers }), done),
     decline: (id, done) => verb(chatWire().procedures.conversation.decline({ id }), done),

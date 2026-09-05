@@ -837,7 +837,7 @@ function Face(props: {
 function Clamped(props: { readonly value: string; readonly says?: string }) {
   return (
     <span
-      class="inline-block max-w-[22rem] truncate align-bottom"
+      class="inline-block max-w-[min(22rem,100%)] truncate align-bottom"
       title={props.says ?? props.value}
     >
       {props.value}

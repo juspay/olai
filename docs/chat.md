@@ -6,6 +6,8 @@ What you type sits on the right, in a tinted bubble. What the agent answers sits
 
 ## Who is talking
 
+**Engine switches work without restarting the server.** If the serve started with no enabled engine, enabling an installed engine initializes chat. Turning the last engine off ends its conversation; turning an engine back on shows the agent picker so you can start another. The e2e lifecycle scenarios send a message after each recovery, including after chat itself is remounted.
+
 **Every stretch of messages is named, with a face and a name over it.** There are three parties in this panel — you, the agent, and any plugin allowed to ring this conversation — and shape alone stopped being enough to tell them apart the moment there was a third. So each *run* of one party's messages opens with a small line saying whose it is.
 
 **It is once per run, not once per message.** An answer that is a paragraph, four tool calls and another paragraph is one turn by one party, and it is named once. Your next message starts a new run and is named again.
@@ -20,7 +22,7 @@ What you type sits on the right, in a tinted bubble. What the agent answers sits
 
 The panel speaks [ACP](https://agentclientprotocol.com), and it talks to whichever agents this machine has. It finds them itself: pinned **Claude Code** and **Codex** adapters, which come with olai — `nix run`, the packaged binary and `just serve` all bake them in, so there is nothing to install or put on PATH — an **opencode** on the server's own PATH, and **pi**, whose adapter is pinned and shipped but whose agent is found the way opencode is: a `pi` on the server's agent search path is the machine saying it has one, and without it there is no pi row.
 
-**Each of them is a PLUGIN** — [claude](plugins/claude.md), [codex](plugins/codex.md), [opencode](plugins/opencode.md), [pi](plugins/pi.md), one row each, enabled by default — which is what makes the next paragraph's list a thing the server ANSWERS rather than a table olai keeps in two places. An engine can be turned off without turning chat off: `olai web --plugins=codex,opencode,pi` serves a panel with no Claude row, no probe for one, and no mark for one anywhere, and the same is a press away on a running serve — the plugins panel draws all four with the same five states, and the same switch, as any other plugin ([running.md](running.md#the-switch-and-how-long-it-lasts)). The picker follows within the frame: an engine switched off leaves the *which agent?* question, and one switched on joins it. Each engine's own page is what is only true of ITS wire; everything below is true of all of them.
+**Each of them is a PLUGIN** — [claude](plugins/claude.md), [codex](plugins/codex.md), [opencode](plugins/opencode.md), [pi](plugins/pi.md), one row each, enabled by default — which is what makes the next paragraph's list a thing the server ANSWERS rather than a table olai keeps in two places. An engine can be turned off without turning chat off: `olai web --plugins=chat,codex,opencode,pi` serves a panel with no Claude row, no probe for one, and no mark for one anywhere, and the same is a press away on a running serve — the plugins panel draws all four with the same five states, and the same switch, as any other plugin ([running.md](running.md#the-switch-and-how-long-it-lasts)). The picker follows within the frame: an engine switched off leaves the *which agent?* question, and one switched on joins it. Each engine's own page is what is only true of ITS wire; everything below is true of all of them.
 
 **A conversation is with ONE agent, and you choose it when the chat starts.** Not a setting, and not something a conversation can be moved to afterwards: the way to talk to the other agent is to start a chat with it. What you choose is remembered *for that conversation* and nowhere else, so a new chat asks again — there is no default quietly deciding for you, and no way to find yourself in a conversation with an agent you did not pick.
 
@@ -33,7 +35,7 @@ The list itself:
 - Setting it to the empty string turns chat off — the whole panel, not one row of it: nothing is looked for, and the panel says there is no agent and how to get one. The outlines are served the same either way.
 - `OLAI_AGENT_PATH` is where the probes look, and defaults to `PATH`. It is worth knowing about because **olai's PATH is not your shell's**: run as a systemd user service (the home-manager unit) it inherits neither your profile nor your login shell, so an `opencode` you can run in a terminal is not necessarily one this process can see. Set it and it REPLACES the search path. For pi it answers a second question too: the `pi` the probe finds there is handed to the pinned adapter as the one it wraps, so the pi the row runs is the pi the probe found rather than one the adapter resolved against its own environment.
 
-With no agent at all the panel still draws, and says which agents olai can talk to and where to get one — because a feature that is silently absent cannot be told apart from one that is broken. That list is the ENABLED ENGINES and each one's own sentence about how it is got, answered by the server: a serve started `--plugins=opencode` says how to install opencode and does not offer a Claude Code it could not mount.
+With no agent at all the panel still draws, and says which agents olai can talk to and where to get one — because a feature that is silently absent cannot be told apart from one that is broken. That list is the ENABLED ENGINES and each one's own sentence about how it is got, answered by the server: a serve started `--plugins=chat,opencode` says how to install opencode and does not offer a Claude Code it could not mount.
 
 **And it says which of three things happened**, rather than guessing between them. There are exactly three ways to have no agent, a person has a different thing to do about each, and only the server can tell them apart — so it sends which, and the panel's opening sentence is that one:
 
@@ -77,7 +79,7 @@ The note lives with this machine's other state (`~/.local/state/olai/`, or where
 
 **Where the stored conversations are.** They are in the sidebar, not in the header: the panel's own list of them was retired when migration gave the column two better doors onto the same set. A conversation some node agent claims is reached by [pressing that agent](#the-agents-roster); one no node claims is a row of [Unassigned](#unassigned), which is the same list — every installed agent's, grouped under whose they are — with the gesture that gives one a home. A row there says how many messages its conversation holds (the transcript's own count — tool traffic in both directions counts too, so 2913 messages is not 2913 of your sentences: it is the same kind of answer file size used to be, honest about *that* it knows the size), when it was last touched to the minute, and — for Claude conversations — when a `/clear` left it behind, **which conversation replaced it**. That last one the agent never wrote down, so it is inference rather than a reported fact: a conversation that begins with `/clear` replaces the one last touched at that moment, and when two share that moment, or none is there, the row says nothing rather than guesses. The minute stays beside it for the same reason as ever — two rows of one name can share a story too — and the count for the one question neither answers: how big each side of a `/clear` got. Picking one loads it — and makes it the conversation you come back to.
 
-**Picking another agent's conversation switches the panel to that agent**, exactly as `+ new` would: a session id belongs to one agent and means nothing to the other, so opening one is a change of both. One agent at a time stays true of the *process* — olai still runs one — and was never true of the history. Before this the list was asked of whichever agent the panel happened to be talking to, so a single opencode chat took every Claude conversation in the directory off the screen, and the way back to one was to start a new Claude chat purely so the list would name them again.
+**Picking another agent's conversation switches the panel to that agent**, exactly as `+ new` would: a session id belongs to one agent and means nothing to the other, so opening one is a change of both. The panel shows one conversation at a time; node sessions can keep running in their own processes while another conversation is shown. The listing includes every installed harness's stored conversations.
 
 The agent you are talking to is asked every time the list is opened, because it is already running and its list is the one most likely to have just changed. The others are *started* to answer, asked, and stopped again, one at a time — so opening the list is not a reason to start three subprocesses at once — and what they said is reused for a few seconds, which is why opening it twice in a row is instant. **An agent that could not be asked is named in the list, with its reason**, and the others' conversations stay where they are: "there are none" and "we could not find out" are different answers, and so are "this agent is broken" and "there is no list".
 
@@ -88,6 +90,8 @@ With one agent on the machine the list is exactly what it always was — no head
 **A conversation opens on its newest line.** The panel jumps there at once, so a long transcript is not something you have to scroll down. While you read, new text only follows if you were already at the bottom; scroll up and it stays put.
 
 **The transcript is the pane that scrolls.** The composer, and the strips above it (which servers this conversation has, what is still running, what it wakes on), stay put. A long turn does not carry the box away with the rows.
+
+Unsent words and nodes chosen through `@` stay with their conversation in this tab. Closing the drawer, switching conversations, or changing an unrelated plugin does not discard them. Sending clears that draft. Drafts are kept in memory, so reloading or closing the tab discards them.
 
 ## Who, and which model, the header names
 
@@ -155,6 +159,12 @@ That is the same thing pressing send does when the agent is idle. **One verb, on
 **While anything is happening, a line under the transcript says so** — *opencode is working…*, *starting opencode…*, or *waiting on your answer* when the turn has stopped on a form. It sits between the last row and the box, which is where you are looking after you press enter, and it is gone the instant the panel is idle. The header says the same fact up in the chrome; this is the copy you can see without moving your eyes. (The box's own border turning is focus styling — it is the border a click into the box draws — and it never meant anything else.)
 
 The button says **send** the whole time, because that is what it does the whole time. Cancel sits beside it rather than replacing it: sending and stopping are two things you can want at the same moment, and while a turn runs they are usually the two you are choosing between. `interrupt` appears between them while a turn is running, on an agent that takes one.
+
+**Sending belongs to the conversation shown when you press it.** A delayed tab cannot send, interrupt or retry a message in a different node selected by another tab. Retry controls carry the conversation identity as well as the message ID, since each transcript numbers its messages independently. Refused text, chosen `@` handles and uploaded files return to their original conversation, including after a drawer remount; text typed while the refusal was in flight is retained after the recovered message. Refusals also remain visible when a response arrives after the drawer was reopened. The palette’s `>` command checks the same conversation identity and keeps a refused command in its input.
+
+**Cancel belongs to the conversation shown when you press it.** If another tab has switched to a different node while this tab is behind on updates, the old control refuses with “the conversation changed”. Neither node’s turn is stopped by that stale click.
+
+**Try again on a refused session belongs to that conversation too.** A delayed tab cannot reopen the failed session of a node selected elsewhere. The stale click refuses, and each node keeps its own attempt available for a current retry.
 
 **Cancel stops the agent, and only that.** There is nothing else for it to do — every message you have typed already went. Anything waiting behind the turn you stopped is at the agent, not here, so it survives and runs next: cancel is about the turn in flight and nothing else. This is a change worth knowing about if you used olai in early 2026: a message sent mid-turn used to be held *by olai* until the turn ended, and cancelling threw away everything that was waiting. Those words were nowhere else. Nothing is held here now, so there is nothing to throw away.
 
@@ -228,6 +238,8 @@ A node row reads its **title**, and beside it the **id it writes** and where it 
 - an `@` whose word matches **no file and no node** draws nothing at all, so `@alice` types straight through and Enter sends;
 - if one *does* match something you did not mean, **Escape** puts the list away and leaves the word alone — nothing is ever rewritten that you did not choose;
 - and typing a word that happens to be an id **arms nothing**. Only a row you took off the list puts a node on your message; the panel reads back its own words and never yours.
+
+A dismissed completion stays dismissed with that conversation’s draft when the panel is closed, another node chat is selected, or the plugin runtime rebuilds. Returning to the draft preserves Enter as Send. A different token or a new message can offer completions again.
 
 While the list is up the keys are the list's: ↑/↓ walk it — through both blocks, one cursor — Enter or Tab take the row, Escape closes it. A click does the same for a hand already on the mouse. It is the same box the `/` commands use, because it is the same gesture.
 
@@ -420,6 +432,8 @@ Nothing above is guessed from a tool's name. Whether a call sent an agent out, a
 
 A turn that stops on a question does not time out and does not carry on. It hangs — for as long as it takes you to notice — so the panel's job is to make sure you do.
 
+Each question keeps its own draft answer. Switching between node agents, closing the drawer or changing an unrelated plugin preserves the unfinished answer for the agent that asked it. Another agent asking the same fields starts empty, and restarting the harness does not carry an abandoned answer into a new question.
+
 **If the conversation is in front of you, the form appearing is the whole of it.** It arrives where you are already looking, the composer says the agent is waiting on you, and nothing rings. A notification about something already on your screen is nagging, and the surest way to make somebody switch these off.
 
 The one place *where you are already looking* is not the conversation is the shelf that previews one agent's work, and that is why it carries the notice itself — see [when it is a subagent that asks](#when-it-is-a-subagent-that-asks). A surface that takes your eye off the transcript owes you the sentence the transcript would have given you.
@@ -450,6 +464,13 @@ You can paste a file into the box — a screenshot, a photo of a whiteboard — 
 **On a phone the `+` has a camera beside it.** One tap opens the camera itself rather than a picker: shoot, the photo lands in the strip above the box like any other attachment, and you can shoot again — tap the camera, one more photo joins the strip — until one send carries them all into the same message. It is drawn only where there is a finger to press it: a desktop has no button at all, because a "camera" that opened a file dialog would be a control that lies, and the roll is exactly as reachable there either way. A picture the list above does not take — say a camera that answers with a `.heic` — is named in the refusal, the same as a drop that misses the gate.
 
 The bytes go into a temporary directory belonging to that conversation, never under the directory being served, and the agent is handed the PATH: it reads the file itself, so nothing rides the prompt into the stored session, and nothing attached here can end up committed with your outlines. The files go away when you start a new conversation or stop the server.
+
+Closing the chat drawer or changing an unrelated plugin preserves pending files,
+including uploads still being read. Each live node conversation keeps its own
+attachments when you switch nodes. Sending removes the pending chips; the sent
+message keeps its attachment list. Restarting chat clears temporary uploads even
+when it resumes the same stored session, and delayed uploads cannot cross into a
+different conversation.
 
 A picture shows itself in the strip above the box. Anything else shows its name and how big it is, because a PDF has no thumbnail worth drawing and a broken image icon is a lie about a file that arrived perfectly.
 
@@ -565,7 +586,7 @@ Each row says the node's title, the engine, **how the agent stands**, and how ma
 | **asleep** | it has a session on disk and no live scope right now |
 | **no session bound** | nobody has started a session for it yet |
 
-The last two are worth reading twice. **Node agents run independently**: several rows may be working or waiting on you at once, while *asleep* means the durable session has no process right now. A scope is acquired lazily on the first press or wake, up to `DEFAULT_CAPACITY` live scopes; an idle background scope is reaped after `DEFAULT_IDLE` and the next wake resumes the same session from disk. Both defaults live beside the scheduler in `packages/plugins/chat/src/scoped.ts`. The count beside each row is that node's own unanswered questions, including while another conversation is in the panel.
+The last two are worth reading twice. **Node agents run independently**: several rows may be working or waiting on you at once, while *asleep* means the durable session has no process right now. A scope is acquired lazily on the first press or wake, up to `DEFAULT_CAPACITY` live scopes; an idle background scope is reaped after `DEFAULT_IDLE` and the next wake resumes the same session from disk. Both defaults live beside the scheduler in `packages/plugins/chat/src/scoped.ts`. The idle default is 15 minutes. `OLAI_CHAT_IDLE_MS` optionally sets the node idle lifetime in whole milliseconds, from 1 through 2147483647; unset or empty preserves the default, and an invalid value fails explicitly during chat startup. Selected conversations, pending questions and active background tasks prevent timed eviction. If every live scope is busy or waiting for an answer, starting another node session refuses beside that row and asks you to let an agent become idle. No existing conversation is replaced; retrying after an idle background scope becomes available can evict that scope and proceed. The count beside each row is that node's own unanswered questions, including while another conversation is in the panel.
 
 ### The door on the row
 
@@ -591,7 +612,7 @@ An agent with no session can only do half of that, and does the half that exists
 
 ### Starting a session
 
-**Any row's `•••` menu offers *Start an agent session*.** Pressing it opens a fresh conversation and writes it onto that node's `chat-agent-session` property, in that order, so the vault never names a session that was not opened. **The press writes the property; it does not require one** — so this is how a node agent is created, not only how an existing one is given a session.
+**Any row's `•••` menu offers *Start an agent session*.** A successful start opens the chat panel (the chat sheet on a phone). On a phone, hold a finger on the row to open its menu; the menu scrolls above the minimized chat strip so its final entry stays reachable. Pressing it opens a fresh conversation and writes it onto that node's `chat-agent-session` property, in that order, so the vault never names a session that was not opened. **The press writes the property; it does not require one** — so this is how a node agent is created, not only how an existing one is given a session.
 
 ```
 (no property)               →  chat-agent-session: claude:0f3c…
@@ -667,13 +688,33 @@ agent-session: grok         →  agent-session: claude:0f3c8d21-…
 
 ### fresh session
 
-**That same control offers *fresh session*, labelled with what it means**: memory is the subtree, the transcript becomes history. It opens a new conversation with that node's engine and re-points the property at it — the same two acts *start an agent session* runs, in the same order, so the vault never names a session that was not opened.
+Creating a fresh node session refreshes session counts and history in every open browser tab after the replacement and its history link are recorded. A tab does not need to send a message or reopen the picker to learn the new count.
+
+A fresh-session request disables its button until the server replies, so repeated presses cannot replace the conversation twice. A refusal leaves the button available for retry. If a turn is waiting for an answer, its question and draft remain intact; finish or cancel that turn before trying again.
+
+Opening a past session keeps the node's name and **sessions (n)** control in the
+header, including after a page reload. The open history row is selected; **current
+session** returns to the conversation the node's property names. Reading history
+does not rewrite that property or replace the node's current conversation.
+
+A past session opens in its own node-scoped process, including when restored
+after a server restart. It keeps the same subtree write boundary; continuing
+history cannot write a sibling outside that subtree. The current session can
+keep working while history is open, and the sidebar continues to report the
+current session's standing. Historical processes share the scheduler's capacity
+and idle-reaping policy.
+
+**That same control offers *fresh session*, labelled with what it means**: memory is the subtree, the transcript becomes history. It opens a new conversation with that node's engine and re-points the property at it — the same two acts *start an agent session* runs, in the same order, so the vault never names a session that was not opened. If the node has disappeared before the request reaches the server, the request is refused before opening a chat or changing the selected conversation. Restoring the node permits a fresh request without an extra unassigned conversation left by the refusal.
 
 What it costs is what the contract has been saying all along: nothing that was written into the subtree, and everything that was only ever in the transcript. **The conversation it replaces is not orphaned** — olai writes down what replaced it, so it becomes one of that agent's past sessions rather than reappearing under *Unassigned* as a chat nobody claims. That note is this machine's, like the rest of what olai overheard.
 
+Starting fresh again before sending a message also keeps earlier history. An
+unused session has no transcript to list; Olai follows its recorded replacement
+to the next session instead of losing the conversations before it.
+
 ### The header lists a node agent's sessions, and nothing else
 
-**`sessions (n)` is drawn only where the conversation belongs to a node agent**, and it holds that agent's own history and its fresh session. The `chats` button that used to stand there — every stored conversation in the directory — is **retired**: the sidebar is that list twice over (an agent's conversation by pressing the agent, everything else under Unassigned), and the last thing keeping it was that it was the only face that named an agent whose disk could not be read. Unassigned names those now, which is what made the retirement safe rather than merely tidy. `+ new` stays where it was: which agent a fresh conversation is with is not a question about a node agent's history.
+**`sessions (n)` is drawn only where the conversation belongs to a node agent**, and it holds that agent's own history and its fresh session. The `chats` button that used to stand there — every stored conversation in the directory — is **retired**: the sidebar is that list twice over (an agent's conversation by pressing the agent, everything else under Unassigned), and the last thing keeping it was that it was the only face that named an agent whose disk could not be read. Unassigned names those now, which is what made the retirement safe rather than merely tidy. `+ new` opens an unassigned chat, even when pressed from a node’s current or historical session. It uses its own tools and leaves the node’s session and pending questions running. To replace the node’s current session, use **fresh session** inside its sessions menu.
 
 A conversation no node claims has no such control at all — it has no history of its own, and its siblings are one press away in the column.
 
@@ -691,3 +732,5 @@ The rest is a plan rather than a list of gaps:
 
 1. **Agency** — a node agent creates child nodes and puts agents on them; the lifecycle and write boundary are in place, but the dispatch gesture is not.
 2. **Relocation** — the scheduler is deliberately implemented in place in `olai-plugin-chat`; moving it behind its eventual plugin boundary is the next architectural phase, not part of this one.
+
+Concurrent attachments share one conversation upload directory. Repeated filenames receive distinct suffixes even when separate drops or browser tabs overlap; writing and cleanup are serialized within that conversation.

@@ -2,7 +2,7 @@
 
 Git is a plugin ([plugins/git.md](plugins/git.md)): one row in the build, on by default. A serve that does not name it has no pill and nobody records a write. This page is what the row *does*.
 
-Git is how you see what olai did to your files — an audit trail, not sync and not undo. Writes land on disk and WAIT to be committed: from the pill in the app header (or, on a phone, from a banner when there is something to record), or by the agent's own `commit` tool, which is the better one to use — it knows where a train of thought ended, so its message can say `olai: reconcile the roadmap with the #70–#81 merges` instead of describing edits. The server can also press that button for you when the writes stop arriving — [Auto-commit](#committing-on-its-own), below.
+Git is how you see what olai did to your files — an audit trail, not sync and not undo. Writes land on disk and WAIT to be committed: from the pill in the app header (or, on a phone, from a banner directly below the header when there is something to record), or by the agent's own `commit` tool, which is the better one to use — it knows where a train of thought ended, so its message can say `olai: reconcile the roadmap with the #70–#81 merges` instead of describing edits. The server can also press that button for you when the writes stop arriving — [Auto-commit](#committing-on-its-own), below.
 
 **The two places that "not undo" is load-bearing are the emptied Trash and a deleted file** — one unit each of the two that destroy ([editing.md](editing.md)). Emptying the archive is a write like any other — the file is rewritten holding no records — and deleting a file is the same write with the rewrite step missing. So history holds them to exactly the extent it had already recorded them, and no further. A directory that is not a repository, or one served `--no-commit`, holds none of them. A directory whose file had been committed holds all of them — `git show HEAD:_olai/Trash.olai` reads a trashed row back, and the same door is the whole undo story of a deleted file. Olai will not do that for you: nothing in the app reads a commit onto disk.
 
@@ -61,6 +61,8 @@ A `renamed` row names BOTH halves (`old/name.md → name.olai`) and is one row w
 ## Committing some of it
 
 Every row has a tick and they all start ticked, so the ordinary sweep is still one click. Untick a file and it stays waiting, for a commit and a message of its own; the suggested message and the button rewrite themselves as you go, so what you are about to record is what the panel says you are.
+
+Your typed message and excluded files stay prepared in this tab when you close the panel or plugins rebuild it. A successful commit resets that preparation for the remaining work; a refused commit keeps it. A reply from an earlier submission does not clear a newer preparation.
 
 **A selection is never git's index.** olai commits exactly the paths you ticked, naming each one, so anything you staged by hand is exactly as you left it afterwards — and a commit git REFUSES (a signature it cannot make, a hook, an identity nobody set) puts the index back bit-identical rather than leaving its own staging behind for your next commit to sweep up. Nothing here ever runs a bare `git add`, and nothing is staged for a path that has already left the working tree — that is what a `git mv` you staged yourself looks like, and it is recorded rather than refused.
 

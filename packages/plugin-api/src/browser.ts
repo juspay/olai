@@ -265,6 +265,7 @@ export interface SlotFaces {
   "sidebar.section": SidebarSection
   "app.panel": () => JSX.Element
   "app.header": BarSeat
+  "app.banner": () => JSX.Element
   "app.viewer": () => JSX.Element
   "app.keys": AppChord
   "app.command": AppCommand
@@ -405,12 +406,9 @@ export interface AppPalette {
  * A plugin that needs the node's FILE asks its own server half, which is where a
  * node's file is a fact it already holds.
  *
- * `run` answers nothing where core's own entries may answer a `Said`, and that
- * is this phase's limit rather than a ruling: a plugin's own faces are where it
- * says what happened, and threading core's message shape through this table
- * would put it in the door of every plugin that never says anything. The day a
- * plugin's verb needs to report a refusal in the menu, this is the line that
- * grows.
+ * `run` may return a refusal sentence for the menu to display beside the row.
+ * The plugin owns its wording; core supplies the alarm presentation. Successful
+ * actions return nothing and let their visible effect speak for itself.
  */
 export type RowActions = (node: string) => ReadonlyArray<RowAction>
 
@@ -435,8 +433,8 @@ export interface RowAction {
    * neither would say anything at the moment it was written.
    */
   readonly writes: boolean
-  /** ...and what a press does, on the node the row shows. */
-  readonly run: (node: string) => void | Promise<void>
+  /** Act on the node shown; return a sentence when the action is refused. */
+  readonly run: (node: string) => string | void | Promise<string | void>
 }
 
 /**

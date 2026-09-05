@@ -69,7 +69,7 @@
  */
 
 import { bodyKind, type Custom } from "@olai/format"
-import { createSignal, Show } from "solid-js"
+import { createMemo, onCleanup, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
 import { DeleteFile } from "../file/DeleteFile.tsx"
@@ -81,11 +81,14 @@ import { Referrers } from "./Referrers.tsx"
 import { isServed, useDocument } from "./documents.tsx"
 import { FACES } from "./faces.tsx"
 import { consumeMinted } from "./minted.ts"
+import { keepDraft, takeDraft } from "./drafts.ts"
+import { useHere, useRouter } from "../router.tsx"
+import { panesOf } from "../workspace.ts"
 
 /**
  * A document page is a page OF A FILE, and this is what makes that true.
  *
- * KEYED, on the path, and it is not belt-and-braces: without it, going from
+ * KEYED, on the path and pane: without it, going from
  * one document to another is not a mount at all. The route's arm is a `<Match>`
  * whose condition is an object, and Solid compares those as booleans
  * (`!a === !b`), so the arm stays true across `/a.md` → `/b.md` and the
@@ -97,7 +100,9 @@ import { consumeMinted } from "./minted.ts"
  * document could be saved over it, and where the two texts happen to match
  * (two empty notes, two copies of one file) the `was` guard would let it.
  *
- * So identity is the PATH, and a different path is a different page. It is
+ * Phone tabs can reuse this component for the same file in another pane.
+ * That pane has its own draft, so the pane is part of the identity too.
+ * A different path or pane is a different editor. It is
  * keyed HERE rather than at the router's arm because it is this component's own
  * invariant: a caller that forgot would put the bug back, and callers should
  * not have to know. Same spelling as ./Toc.tsx one level down, for the same
@@ -110,9 +115,13 @@ export function DocumentPage(props: {
    *  the body. Empty when the file wrote none. */
   readonly custom: Custom
 }) {
+  const here = useHere()
+  const identity = createMemo(() => ({ file: props.file, pane: here() }), undefined, {
+    equals: (a, b) => a.file === b.file && a.pane === b.pane,
+  })
   return (
-    <Show when={props.file} keyed>
-      {(file) => <OneDocument file={file} custom={props.custom} />}
+    <Show when={identity()} keyed>
+      {({ file }) => <OneDocument file={file} custom={props.custom} />}
     </Show>
   )
 }
@@ -136,16 +145,26 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
   // HTTP. That is what a `.html` preview costs this tab: nothing
   // (./documents.tsx, and ./faces.tsx's `edits`).
   const served = useDocument(() => (face().edits ? props.file : undefined))
-  // Fresh per page mount — and a page is one FILE (see above), so navigating
-  // anywhere else, another document included, closes the editor and the draft
-  // goes with it: a draft is an editor's, never a file's.
-  const [editing, setEditing] = createSignal(consumeMinted(props.file))
+  const pane = useHere()()
+  const router = useRouter()
+  const route = panesOf(router.workspace())[pane]?.route
+  const editor = takeDraft(props.file, pane, route)
+  const editing = editor.editing
+  if (consumeMinted(props.file)) editor.open()
+  onCleanup(() => {
+    // Navigation discards the departing editor as before. Rebuilding this
+    // same pane keeps its draft, including when another tab changed plugins.
+    const now = panesOf(router.workspace())[pane]?.route
+    if (now?.kind === "at" && now.address !== null && "path" in now.address && now.address.path === props.file) {
+      keepDraft(props.file, pane, now, editor)
+    }
+  })
 
   return (
     <section data-testid={TESTID.documentPage} data-file={props.file}>
       <header class="mb-8">
-        <div class="flex items-baseline justify-between gap-2">
-          <h1 class="m-0 font-mono text-sm tracking-tight text-muted">{props.file}</h1>
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <h1 class="m-0 max-w-full break-all font-mono text-sm tracking-tight text-muted">{props.file}</h1>
           {/* The control and the draft it opens read ONE value, so a page cannot
               offer an editor it has nothing to open: `served()` is both the
               condition here and the baseline below. The delete beside it reads
@@ -153,22 +172,20 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
               the op's guards can judge (outlines get theirs beside Start, one
               page over), so neither control exists without the other. */}
           <Show when={isServed(served()) && !editing()}>
-            {/* flex-1 + justify-end so the QUESTION banding the delete
-                draws on the row's own width beside the pills rather than
-                squashing them. The sibling door (OutlinePage's emptied
-                outline) has no such row and stacks one line over the pills —
-                the sentence is the same, the rooms differ. */}
-            <span class="flex flex-1 items-baseline justify-end gap-2">
+            {/* On narrow screens the controls get a full row and the
+                confirmation wraps above its choices. The path and question
+                must not push either choice outside the viewport. */}
+            <div class="flex min-w-0 flex-1 basis-full flex-wrap items-baseline justify-end gap-2 sm:basis-auto">
               <button
                 type="button"
                 class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
                 data-testid={TESTID.documentEdit}
-                onClick={() => setEditing(true)}
+                onClick={editor.open}
               >
                 Edit
               </button>
               <DeleteFile file={props.file} />
-            </span>
+            </div>
           </Show>
         </div>
         {/* THE RECORD, as the same run a node's own page draws — under the
@@ -202,7 +219,8 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
           <DocEditor
             file={props.file}
             served={body().text ?? ""}
-            onDone={() => setEditing(false)}
+            draft={editor.draft(body().text ?? "")}
+            onDone={editor.close}
           />
         )}
       </Show>

@@ -12,8 +12,8 @@
  * person meant to make. A replayed inverse either fits the outline in front of
  * them or is refused naming what moved.
  *
- * **The stack is one PAGE's, and one SESSION's.** It is created beside the
- * open outline and cleared when the reader opens another, because the entries
+ * **The stack is one PAGE's, and one SESSION's.** It survives plugin-driven app rebuilds
+ * and is cleared when the reader opens another outline, because the entries
  * name rows in it — and it holds only what this tab wrote, because "undo my
  * last op" is a promise about the person's own hands. An agent's write is not
  * in it, and neither is another window's.
@@ -42,7 +42,9 @@ export interface Undo {
    *  answer, verbatim, `undefined` and all — which write has an inverse is the
    *  server's to say, and the one place that is decided is here rather than at
    *  every call site. */
-  readonly record: (step: Step | undefined) => void
+  // Reserve the entry before awaiting a write so a subsequent Undo waits for
+  // its inverse instead of spending an older entry or reporting an empty stack.
+  readonly record: (step: Step | undefined | Promise<Step | undefined>) => void
   readonly undo: () => void
   readonly redo: () => void
   /** Another outline is open: the entries name rows in the one that is not. */
@@ -105,10 +107,10 @@ export const createUndo = (apply: Apply): Undo => {
    *
    * The EDITOR's queue is still a different queue, and deliberately so — its
    * writes are derived from each other over a draft, and none of these are.
-   * Where the two genuinely meet is a title commit still in flight when the
-   * caret leaves and ⌘Z takes back the row it was on, and that meeting ends
-   * the way every collision at this gate ends: the loser is refused, and the
-   * reason is shown.
+   * An editor reserves its inverse here before awaiting a commit. If the
+   * caret leaves and ⌘Z is pressed while that reply is pending, the replay
+   * waits behind it. A later navigation clear waits there too, so a late
+   * inverse cannot repopulate the stack of the file the reader left.
    */
   const enqueue = serial()
 
@@ -182,9 +184,11 @@ export const createUndo = (apply: Apply): Undo => {
   const press = (side: Side) => () => enqueue(() => replay(side))
 
   return {
-    record: (step) => {
-      if (step === undefined || step.length === 0) return
-      enqueue(() => {
+    record: (pending) => {
+      if (pending === undefined) return
+      enqueue(async () => {
+        const step = await pending
+        if (step === undefined || step.length === 0) return
         setStack((current) => recorded(current, step))
         // And whatever the last ⌘Z had to say goes with it. The sentence was
         // about an edit that is now two edits ago, and a refusal left standing

@@ -42,6 +42,7 @@ export function NewRow(props: {
   readonly active?: boolean
   /** Clicking a parked ghost puts the caret in it. */
   readonly onActivate?: () => void
+  readonly onParkedInput?: (text: string) => void
 }) {
   return (
     <div class="my-0.5">
@@ -75,6 +76,7 @@ export function NewRow(props: {
           onBlur={props.onBlur}
           active={props.active}
           onActivate={props.onActivate}
+          onParkedInput={props.onParkedInput}
           placeholder="a new line — type it, and Enter makes the next one"
         />
       </div>

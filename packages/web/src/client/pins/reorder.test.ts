@@ -15,6 +15,7 @@ import { gapAt, placing } from "./reorder.ts"
 
 const pin = (id: string): Pin => ({
   id,
+  title: "/trash",
   route: { kind: "trash" },
   name: "Trash",
   at: "/trash",

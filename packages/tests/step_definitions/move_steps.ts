@@ -285,3 +285,9 @@ When("the move's sentence has gone", async function (this: OlaiWorld) {
     "the move's said line to take itself away",
   );
 });
+
+Then("the move picker search reads {string}", async function (this: OlaiWorld, query: string) {
+  const box = (await pickerOf(this)).locator(MOVE_SEARCH);
+  await this.waitUntil(async () => (await box.inputValue()) === query,
+    `the move picker to retain the query ${JSON.stringify(query)}`);
+});

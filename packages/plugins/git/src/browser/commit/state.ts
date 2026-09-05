@@ -38,6 +38,7 @@ import { type Accessor, createSignal } from "solid-js"
 
 import { gitWire } from "../wire.ts"
 import { waitingIn } from "./said.ts"
+import { submittedPreparation } from "./preparation.ts"
 import { run } from "@olai/web/client/run.ts"
 
 /**
@@ -208,6 +209,7 @@ export const createCommit = (): Commit => {
     working,
     commit: (message, paths) => {
       if (!canRecord(working(), pushing())) return
+      const complete = submittedPreparation()
       setWorking(true)
       setRefused(null)
       run(
@@ -219,7 +221,10 @@ export const createCommit = (): Commit => {
           setWorking(false)
           setRefused(failure.message)
         },
-        (_result: CommitResult) => setWorking(false),
+        (result: CommitResult) => {
+          if (result._tag === "Committed") complete()
+          setWorking(false)
+        },
       )
     },
     pushing,

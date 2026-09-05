@@ -94,7 +94,7 @@ just build-client
 export OLAI_BIN="$(just dev-bin)"
 ```
 
-`just dev-bin` writes `.olai-dev/bin` inside THIS worktree. `/tmp/olai-dev` is a path every checkout shares, and two e2e lanes used to drive one tree through it. The wrapper takes the same argv AND the same first answer: it re-spells the nix wrapper's `OLAI_ODU_BIN` default with its own splice, so which odu the server resolves is the build's pin on both shapes — the harness cannot tell the difference. It serves `packages/web/dist`, so a client change needs the `just build-client` first. `just e2e` always uses the nix-built binary, which is what a user runs.
+`just dev-bin` writes `.olai-dev/bin` inside THIS worktree. `/tmp/olai-dev` is a path every checkout shares, and two e2e lanes used to drive one tree through it. The wrapper takes the same argv AND the same first answer: it re-spells the nix wrapper's `OLAI_ODU_BIN` default with its own splice, so which odu the server resolves is the build's pin on both shapes — the harness cannot tell the difference. It defaults `OLAI_DIST_DIR` to this worktree’s `packages/web/dist` (an explicit environment override wins), so a client change needs the `just build-client` first. `just e2e` always uses the nix-built binary, which is what a user runs.
 
 Bun hosts the runner. Bun executes `.ts` directly, so there is no tsx, no ts-node and no build step between a step definition and the browser — which is also why the dev shell needs no node.
 
@@ -464,6 +464,8 @@ The names are not written down twice. `support/world.ts` imports the client's ow
 5. If it needs to CHANGE a file, tag it `@scratch:<corpus>` and write through `world.writeServed`. Put `@share-scratch` at the top of the feature rather than paying a process spawn per scenario — overlapping writers share too, because After restores the fixture. Tag `@own-scratch` only when restore cannot make the next scenario's baseline true (a server restart, conversation state, git). The assertions that follow such a write usually need to wait for something to change or disappear, which a Playwright selector cannot state — `world.waitUntil` is what those steps are built on.
 6. If the edit changes WHICH records exist — an insert, a delete, a reorder — assert the id multiset (`the outline "x.olai" shows exactly the nodes "…"`), not that some title eventually reads a certain way. A tree that has lost one node and drawn another twice still has all the right titles in it, which is how a broken live view stayed green through a whole feature file.
 7. Read the section below before writing a step that reads the disk or presses a key. All three mistakes it names pass on an idle laptop.
+
+The `ime_confirmation` feature uses Chromium’s `Input.imeSetComposition` and native key dispatch to confirm candidate text. The step asserts that Chromium reports `isComposing` on the confirming key; it does not fabricate a composition flag. Confirmation uses a raw keydown followed by the committed candidate, since ordinary Playwright Enter also emits a newline. This exercises browser composition handling, not an operating system candidate-picker UI.
 
 ## Waiting, which is the whole of being honest under load
 

@@ -7,7 +7,7 @@
  * the cheap `chat` cell via createChatState.
  */
 
-import { Show } from "solid-js"
+import { onCleanup, Show } from "solid-js"
 
 import { panelOpen, setPanelOpen } from "@olai/web/client/layout/prefs.ts"
 import { desktop } from "@olai/web/client/layout/media.ts"
@@ -35,6 +35,20 @@ export function Minimized() {
         when={onDesktop()}
         fallback={
           <button
+            ref={(element) => {
+              // Menus stay below chrome in the stacking order. Publish the
+              // phone strip's actual height so their scrollable area ends
+              // above it, including font scaling and the safe-area inset.
+              const root = document.documentElement
+              const observer = new ResizeObserver(() => {
+                root.style.setProperty("--height-bottom-chrome", `${element.getBoundingClientRect().height}px`)
+              })
+              observer.observe(element)
+              onCleanup(() => {
+                observer.disconnect()
+                root.style.removeProperty("--height-bottom-chrome")
+              })
+            }}
             type="button"
             class={`fixed inset-x-0 bottom-0 ${LAYER.chrome} flex items-center gap-2 border-t bg-paper px-4 py-3 text-left font-mono text-xs ${
               working()

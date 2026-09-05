@@ -232,6 +232,11 @@ Then(
 const paletteNode = (world: OlaiWorld, id: string) =>
   world.page.locator(`${PALETTE_ITEM}${attr("data-id", `hit-#${id}`)}`);
 
+Then("the palette lists no node with id {string}", async function (this: OlaiWorld, id: string) {
+  await this.waitUntil(async () => (await paletteNode(this, id).count()) === 0,
+    `the palette to remove node ${JSON.stringify(id)}`);
+});
+
 Then(
   "the palette item for node {string} lights {string}",
   async function (this: OlaiWorld, id: string, said: string) {
@@ -487,6 +492,14 @@ Then(
 );
 
 // ── quick capture ──────────────────────────────────────────────────────
+
+When("I wait for the palette write to finish", async function (this: OlaiWorld) {
+  await keysSettled(this);
+});
+
+Then("the palette has no write response", async function (this: OlaiWorld) {
+  assert.strictEqual(await this.page.locator(PALETTE_SAID).count(), 0);
+});
 
 /**
  * The whole gesture, as a person makes it: the `+` prefix, the line, Enter —

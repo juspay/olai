@@ -45,15 +45,20 @@
  * appears in both, which is what it is doing.
  */
 
-import type { Backlink } from "@olai/format"
-import { createMemo, createSignal, For, Show } from "solid-js"
+import { type Backlink, printAddress } from "@olai/format"
+import { createMemo, createSignal, For, onCleanup, Show } from "solid-js"
 
 import { only } from "../narrow.ts"
 import { NodeRefs } from "../NodeRefs.tsx"
 import { useReading } from "../reading.tsx"
 import { TESTID } from "../testids.ts"
+import { useHere, useRouter } from "../router.tsx"
+import type { Route } from "../routes.ts"
+import { panesOf } from "../workspace.ts"
 import { rowsOf } from "./refs.ts"
 import { REFERRINGS } from "./way.ts"
+
+const opened = new WeakMap<Route, Map<string, boolean>>()
 
 export function Backlinks(props: {
   /** The node the page is about — canonical, since a zoom resolves a mirror's
@@ -76,7 +81,7 @@ export function Backlinks(props: {
     // reader's answer about the first node. Two nested `Show`s said the same
     // thing in two places and left the second free to stop keying.
     <Show when={found().length > 0 ? props.id : undefined} keyed>
-      <Section found={found} />
+      <Section id={props.id} found={found} />
     </Show>
   )
 }
@@ -87,11 +92,29 @@ export function Backlinks(props: {
  * one node's answer onto the next, which is the very thing the key is for.
  */
 function Section(props: {
+  readonly id: string
   readonly found: () => ReadonlyArray<Backlink>
 }) {
-  const [open, setOpen] = createSignal(false)
+  const router = useRouter()
+  const pane = useHere()()
+  const route = panesOf(router.workspace())[pane]?.route
+  const key = JSON.stringify([pane, props.id])
+  const saved = route === undefined ? undefined : opened.get(route)
+  const initiallyOpen = saved?.get(key) ?? false
+  saved?.delete(key)
+  const [open, setOpen] = createSignal(initiallyOpen)
+  onCleanup(() => {
+    const now = panesOf(router.workspace())[pane]?.route
+    if (route?.kind !== "at" || now?.kind !== "at" || props.found().length === 0) return
+    if ((route.address === null ? null : printAddress(route.address))
+      !== (now.address === null ? null : printAddress(now.address))) return
+    const states = opened.get(now) ?? new Map<string, boolean>()
+    states.set(key, open())
+    opened.set(now, states)
+  })
   return (
     <details
+      ref={(element) => { element.open = initiallyOpen }}
       class="mt-3 border-t border-rule pt-2"
       data-testid={TESTID.backlinks}
       data-count={props.found().length}

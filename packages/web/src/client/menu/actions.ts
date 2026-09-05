@@ -311,7 +311,10 @@ export const nodeMenuActions = (args: {
       const entry = {
         id: `${plugin}:${verb.id}`,
         label: verb.label,
-        run: () => verb.run(foldIdOf(args.row)),
+        run: async () => {
+          const refusal = await verb.run(foldIdOf(args.row))
+          if (typeof refusal === "string") return { tone: "alarm" as const, text: refusal }
+        },
       }
       if (verb.writes) writes.push(entry)
       else items.push(entry)

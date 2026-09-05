@@ -83,8 +83,9 @@ import { Handle } from "./drag/Handle.tsx"
 import { useSelection } from "./select/selection.ts"
 import { DatePicker } from "./date/DatePicker.tsx"
 import { RepeatPicker } from "./date/RepeatPicker.tsx"
-import { datePick } from "./date/pick.ts"
-import { repeatPick } from "./date/repeat.ts"
+import { RowForms, useRowForms } from "./date/memory.tsx"
+import { datePick, startsAt as dateStartsAt } from "./date/pick.ts"
+import { repeatPick, startsAt as repeatStartsAt } from "./date/repeat.ts"
 
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { useEditor } from "./edit/editing.tsx"
@@ -157,38 +158,40 @@ export function Tree(props: {
   // for nothing. ./touch.ts keeps the argument, and the 62ch that IS kept, on
   // the note.
   return (
-    <ul
-      // `olai-tree` is the PRODUCT's own hook: `styles.css` reserves a jump's
-      // band on pages that draw a tree (the pinned section row below the bar),
-      // and that rule must not hang off the suite's testid — a rename of one
-      // should not unmate the other.
-      class={`olai-tree my-0 list-none ${ROOT_RAIL}`}
-      data-sweep=""
-      data-testid={TESTID.outlineTree}
-    >
-      {/* `<Key>`, not `<For>`, and `Row.key` is why it can be. `<For>` compares
-          by REFERENCE, and what arrives is a value off the wire: a page reading
-          is re-derived on the server per published revision, so the rows in a
-          frame are not the objects the last frame carried. Keyed by the id the
-          format already mints per PLACE, each row is held across the frame —
-          its DOM, its collapse memo and its rendered note with it — and only
-          the bindings whose values actually moved re-run.
+    <RowForms>
+      <ul
+        // `olai-tree` is the PRODUCT's own hook: `styles.css` reserves a jump's
+        // band on pages that draw a tree (the pinned section row below the bar),
+        // and that rule must not hang off the suite's testid — a rename of one
+        // should not unmate the other.
+        class={`olai-tree my-0 list-none ${ROOT_RAIL}`}
+        data-sweep=""
+        data-testid={TESTID.outlineTree}
+      >
+        {/* `<Key>`, not `<For>`, and `Row.key` is why it can be. `<For>` compares
+            by REFERENCE, and what arrives is a value off the wire: a page reading
+            is re-derived on the server per published revision, so the rows in a
+            frame are not the objects the last frame carried. Keyed by the id the
+            format already mints per PLACE, each row is held across the frame —
+            its DOM, its collapse memo and its rendered note with it — and only
+            the bindings whose values actually moved re-run.
 
-          WHAT THE STORE DOES UNDER THAT MOVED, and the comment used to say the
-          opposite: the merge REPLACED every element of every array, so a fresh
-          object arrived per row per frame even when the frame repeated itself,
-          and `keyArray` handed every `Branch` a new one — the DOM survived and
-          all ~25 bindings per row re-ran anyway (the audit's 2.11). Since
-          `@olai/surface`'s `page` stream declares `arrayKey: "key"`, the merge
-          recycles a row by that same key: an identical frame notifies nothing,
-          a changed row notifies that row, and a REORDER moves the objects this
-          `<Key>` is following. `Tree.browsertest.ts` measures both sides. The
-          key here is what makes that possible and is not made redundant by it —
-          it is the same identity, now agreed on at the merge as well as here. */}
-      <Key each={props.rows} by="key">
-        {(row) => <Branch row={row()} depth={0} />}
-      </Key>
-    </ul>
+            WHAT THE STORE DOES UNDER THAT MOVED, and the comment used to say the
+            opposite: the merge REPLACED every element of every array, so a fresh
+            object arrived per row per frame even when the frame repeated itself,
+            and `keyArray` handed every `Branch` a new one — the DOM survived and
+            all ~25 bindings per row re-ran anyway (the audit's 2.11). Since
+            `@olai/surface`'s `page` stream declares `arrayKey: "key"`, the merge
+            recycles a row by that same key: an identical frame notifies nothing,
+            a changed row notifies that row, and a REORDER moves the objects this
+            `<Key>` is following. `Tree.browsertest.ts` measures both sides. The
+            key here is what makes that possible and is not made redundant by it —
+            it is the same identity, now agreed on at the merge as well as here. */}
+        <Key each={props.rows} by="key">
+          {(row) => <Branch row={row()} depth={0} />}
+        </Key>
+      </ul>
+    </RowForms>
   )
 }
 
@@ -304,19 +307,18 @@ function Branch(props: {
    *  the two things that open it — the pill on the line, and the `•••` menu's
    *  `Set date…` — because it is one picker and the menu panel is closed by the
    *  time it has been chosen from (./date/DatePicker.tsx). */
-  const [picking, setPicking] = createSignal(false)
+  const forms = useRowForms(props.row.key)
   /** ...and one opener for both of them, so the two triggers cannot drift. */
   const openPicker = (): void => {
-    setPicking(true)
+    forms.setDay(dateStartsAt(shown()?.node.date))
   }
 
   /** Is this row's REPEAT picker open? The date picker's arrangement one field
    *  along, and separate from it on purpose: they are two writes at the gate,
    *  and one signal holding "which panel" would make opening the second an act
    *  that closes the first for a reason nobody asked for. */
-  const [repeating, setRepeating] = createSignal(false)
   const openRepeat = (): void => {
-    setRepeating(true)
+    forms.setRule(repeatStartsAt(shown()?.node.repeat))
   }
 
   /**
@@ -343,7 +345,7 @@ function Branch(props: {
    *  panel belongs to the ROW, and the `•••` menu that opened it is closed by
    *  the time anything has been chosen in it. Over the node the row SHOWS,
    *  because edges are facts about a node and a placement carries none. */
-  const edges = createEdgeEditing(() => shown()?.node)
+  const edges = createEdgeEditing(() => shown()?.node, forms.edges)
 
   /** The PAGE's move-to picker (./move/moving.tsx), which this row opens from
    *  its `•••` and draws when it is the row being moved. The one panel here
@@ -730,13 +732,16 @@ function Branch(props: {
           the row is collapsed or not: it is about THIS node, not about what is
           under it. The id it names is the node the row SHOWS, so a pick at a
           mirror lands on its target, exactly as the mark verbs do. */}
-      <Show when={picking() ? shown() : undefined}>
+      <Show when={forms.day() !== null ? shown() : undefined}>
         {(shows) => (
           <div class={PAST_CONTROLS}>
             <DatePicker
+              submission={forms.dateSubmission}
               date={shows().node.date}
+              day={forms.day() ?? ""}
+              onChange={forms.setDay}
               onPick={(day) => applying(datePick(shows().node.id, day), undo.record)}
-              onClose={() => setPicking(false)}
+              onClose={() => forms.setDay(null)}
             />
           </div>
         )}
@@ -746,13 +751,16 @@ function Branch(props: {
           opened from that row's pill or from the `•••`, drawn under the line,
           about the node the row SHOWS — a placement carries no rule of its own,
           so one chosen at a mirror lands on its target as a mark does. */}
-      <Show when={repeating() ? shown() : undefined}>
+      <Show when={forms.rule() !== null ? shown() : undefined}>
         {(shows) => (
           <div class={PAST_CONTROLS}>
             <RepeatPicker
+              submission={forms.repeatSubmission}
               repeat={shows().node.repeat}
+              rule={forms.rule() ?? ""}
+              onChange={forms.setRule}
               onPick={(rule) => applying(repeatPick(shows().node.id, rule), undo.record)}
-              onClose={() => setRepeating(false)}
+              onClose={() => forms.setRule(null)}
             />
           </div>
         )}

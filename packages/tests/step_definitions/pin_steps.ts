@@ -29,6 +29,10 @@ const PIN_LINK = selector(TESTID.pinLink);
 const PIN_REMOVE = selector(TESTID.pinRemove);
 const PIN_RENAME = selector(TESTID.pinRename);
 
+Then("no pin drop line is shown", async function (this: OlaiWorld) {
+  await this.page.locator(selector(TESTID.pinDropLine)).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
 /** The file the shelf IS. Named once here, from the format's own constant, so
  *  a scenario naming it and a step reading it cannot disagree. */
 const PINS_FILE = "Pins.olai";
@@ -156,6 +160,35 @@ When("I name the pin {string}", async function (this: OlaiWorld, name: string) {
  * the gap above it (`client/pins/reorder.ts`). Moved in steps so the
  * intermediate `pointermove`s the gesture is built on actually arrive.
  */
+When(
+  "I drag the pin {string} above {string} with the secondary mouse button",
+  async function (this: OlaiWorld, address: string, target: string) {
+    await this.showSidebar();
+    const from = await pinAt(this, address).boundingBox();
+    const onto = await pinAt(this, target).boundingBox();
+    assert.ok(from !== null && onto !== null, "both pins must be laid out");
+    await this.page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await this.page.mouse.down({ button: "right" });
+    await this.page.mouse.move(onto.x + onto.width / 2, onto.y + 2, { steps: 10 });
+    await this.page.mouse.up({ button: "right" });
+    await this.waitForFrame();
+  },
+);
+
+When(
+  "I hold the pin {string} above {string}",
+  async function (this: OlaiWorld, address: string, target: string) {
+    await this.showSidebar();
+    const from = await pinAt(this, address).boundingBox();
+    const onto = await pinAt(this, target).boundingBox();
+    assert.ok(from !== null && onto !== null, "both pins must be laid out");
+    await this.page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await this.page.mouse.down();
+    await this.page.mouse.move(onto.x + onto.width / 2, onto.y + 2, { steps: 10 });
+    await this.waitForFrame();
+  },
+);
+
 When(
   "I drag the pin {string} above {string}",
   async function (this: OlaiWorld, address: string, target: string) {

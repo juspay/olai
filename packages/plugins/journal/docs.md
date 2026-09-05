@@ -29,6 +29,8 @@ The Agenda entry and its owed badge sit beside Inbox. The month calendar sits be
 
 An empty day may mint its daily note. The browser sends only the date through `journal`'s `note.mint` procedure; the server derives the path from the vault's existing daily-note convention and returns the file it created. That write never travels through core's general `edit.apply` vocabulary.
 
+The button shows **Creating…** and disables repeat presses while that request is pending. A refusal re-enables it. If the reader navigates or changes panes before the answer arrives, the note is still created, but the response does not replace their newer view or leave an automatic editing request for a later visit.
+
 ## On the wire
 
 Journal is a sibling surface, exposed only to the browser:

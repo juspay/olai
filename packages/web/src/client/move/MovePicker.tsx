@@ -54,7 +54,7 @@
  */
 
 import type { Edit } from "@olai/surface"
-import type { Accessor } from "solid-js"
+import type { Accessor, Signal } from "solid-js"
 
 import type { Moved } from "@olai/format"
 
@@ -79,6 +79,7 @@ export function MovePicker(props: {
   /** The row being moved, as the set says it NOW — re-read per frame by the
    *  host, so a panel standing open while another writer moves the row is
    *  judging against where it has actually got to. */
+  readonly query: Signal<string>
   readonly moved: Moved
   /** Why each destination cannot take the row, by id — the server's verdicts,
    *  for the hits this list is drawing (`./moving.tsx`, which owns the one
@@ -153,6 +154,7 @@ export function MovePicker(props: {
       </p>
 
       <Shortlist
+        query={props.query}
         label="search every outline for a new parent"
         testids={MOVE_LIST}
         refusing={{

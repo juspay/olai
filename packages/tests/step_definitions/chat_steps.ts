@@ -34,9 +34,14 @@ import { completingIn, NEAR } from "olai-plugin-chat/testlib";
 
 import { retypedAndTaken } from "../support/atonce.ts";
 import { MARKER } from "../support/scripted.ts";
+import { SESSION_STORE_MARKER } from "../agent/session-store.ts";
 import { keysSettled } from "../support/settling.ts";
 import { saysThat } from "../support/said.ts";
 import { answered } from "../support/shortlist.ts";
+
+Given("the harness keeps distinct sessions on disk", function (this: OlaiWorld) {
+  fs.mkdirSync(path.join(this.scratch(), SESSION_STORE_MARKER), { recursive: true });
+});
 
 import {
   attr,
@@ -3271,7 +3276,7 @@ Then(
   "the composer is holding the picture {string}",
   async function (this: OlaiWorld, name: string) {
     await this.waitUntil(
-      async () => (await this.page.locator(pictureChip(name)).count()) > 0,
+      async () => (await this.page.locator(pendingChip(name)).count()) > 0,
       `the composer to hold "${name}"`,
     );
   },
@@ -3282,14 +3287,14 @@ Then(
   async function (this: OlaiWorld, names: string) {
     const wanted = named(names);
     await this.waitUntil(
-      async () => (await this.page.locator(CHAT_ATTACHMENT).count()) === wanted.length,
+      async () => (await this.page.locator(PENDING_ATTACHMENTS).count()) === wanted.length,
       `the composer to hold ${wanted.length} pictures`,
     );
     // ORDER, and it is the claim the scenario is about: the chips are in the
     // order the files were dropped, which is the order they will ride the next
     // message in — and therefore the order the agent reads them in.
     assert.deepStrictEqual(
-      await this.page.locator(CHAT_ATTACHMENT).evaluateAll((chips) =>
+      await this.page.locator(PENDING_ATTACHMENTS).evaluateAll((chips) =>
         chips.map((chip) => chip.getAttribute("data-name"))
       ),
       [...wanted],
@@ -3325,10 +3330,10 @@ Then(
   "the composer is holding {string}, showing how big it is",
   async function (this: OlaiWorld, name: string) {
     await this.waitUntil(
-      async () => (await this.page.locator(pictureChip(name)).count()) > 0,
+      async () => (await this.page.locator(pendingChip(name)).count()) > 0,
       `the composer to hold "${name}"`,
     );
-    const chip = this.page.locator(pictureChip(name));
+    const chip = this.page.locator(pendingChip(name));
     // A PDF has no thumbnail worth drawing, and an <img> pointed at one is a
     // broken-image icon — a component lying about a file that uploaded
     // perfectly. What it says instead is the fact a name does not carry.
@@ -3347,14 +3352,10 @@ Then(
 );
 
 Then("the composer is holding nothing", async function (this: OlaiWorld) {
-  // Nowhere in the panel: the scenario that asks this has sent no message, so
-  // every chip on screen would be one the composer is holding.
-  assert.strictEqual(
-    await this.page.locator(CHAT_ATTACHMENT).count(),
-    0,
-    "a refused picture was left in the composer, so sending would try again " +
-      "with the file the server has already said no to",
-  );
+  // Sent attachments remain in the transcript; only removable chips are
+  // pending in the composer. Wait for the send or session change to land.
+  await this.waitUntil(async () => await this.page.locator(PENDING_ATTACHMENTS).count() === 0,
+    "the composer to have no pending attachments");
 });
 
 Then(
@@ -3381,6 +3382,8 @@ Then(
 );
 
 const pictureChip = (name: string): string => `${CHAT_ATTACHMENT}${attr("data-name", name)}`;
+const PENDING_ATTACHMENTS = `${CHAT_ATTACHMENT}:has(${selector(PLUGIN_TESTID.chatAttachmentRemove)})`;
+const pendingChip = (name: string): string => `${PENDING_ATTACHMENTS}${attr("data-name", name)}`;
 
 /** How full the context is, as the header draws it. The whole string — `22k/1M`
  *  rather than a substring — because the two halves are the claim: a scenario
@@ -3812,6 +3815,50 @@ Then("there is somewhere to type into", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
+When("reading the next attachment file is held", async function (this: OlaiWorld) {
+  await this.page.evaluate(() => {
+    const read = File.prototype.arrayBuffer;
+    File.prototype.arrayBuffer = async function () {
+      File.prototype.arrayBuffer = read;
+      document.documentElement.setAttribute("data-test-file-reading", "held");
+      await new Promise<void>((resolve) => document.addEventListener("test-release-file-read", () => resolve(), { once: true }));
+      document.documentElement.removeAttribute("data-test-file-reading");
+      return read.call(this);
+    };
+  });
+});
+
+Then("the attachment file is still being read", async function (this: OlaiWorld) {
+  await this.page.locator('html[data-test-file-reading="held"]').waitFor({ timeout: POLL_TIMEOUT });
+});
+
+When("the attachment file read finishes", async function (this: OlaiWorld) {
+  await this.page.evaluate(() => document.dispatchEvent(new Event("test-release-file-read")));
+});
+
+When("I remove the pending attachment {string}", async function (this: OlaiWorld, name: string) {
+  await this.page.getByRole("button", { name: `remove ${name}`, exact: true }).click();
+});
+
+When("I attach a text file named {string} containing {string}", async function (this: OlaiWorld, name: string, text: string) {
+  const choosing = this.page.waitForEvent("filechooser");
+  await this.page.locator(CHAT_ATTACH_BUTTON).click();
+  await (await choosing).setFiles({ name, mimeType: "text/plain", buffer: Buffer.from(text) });
+});
+
+Then("the pending attachment {string} shows size {string}", async function (this: OlaiWorld, name: string, size: string) {
+  await this.waitUntil(async () =>
+    await this.page.locator(pendingChip(name)).locator(CHAT_ATTACHMENT_SIZE).innerText() === size,
+    `the pending ${name} to show ${size}`);
+});
+
+When("I reopen the agent panel during a turn", async function (this: OlaiWorld) {
+  await this.page.locator(CHAT_TOGGLE).click();
+  await this.page.locator(CHAT_PANEL).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => await this.page.locator(CHAT_PANEL).getAttribute("data-status") === "thinking",
+    "the reopened panel to show the running turn");
+});
+
 When("I choose the chat model {string}", async function (this: OlaiWorld, name: string) {
   await this.page.getByRole("button", { name: "Change model", exact: true }).click();
   await this.page.getByRole("list", { name: "Models", exact: true })
@@ -3854,4 +3901,11 @@ Then("there is no execution plan", async function (this: OlaiWorld) {
 });
 Then("terminal output contains {string}", async function (this: OlaiWorld, text: string) {
   await this.waitUntil(async () => (await this.page.getByRole("region", { name: "Terminal output", exact: true }).allTextContents()).some(output => output.includes(text)), "terminal output: " + text, HYDRATION_TIMEOUT);
+});
+
+Then("there is no terminal output", async function (this: OlaiWorld) {
+  await this.page.getByRole("region", { name: "Terminal output", exact: true }).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
+});
+Then("terminal output omits {string}", async function (this: OlaiWorld, text: string) {
+  await this.waitUntil(async () => (await this.page.getByRole("region", { name: "Terminal output", exact: true }).allTextContents()).every(output => !output.includes(text)), "terminal output to omit: " + text, HYDRATION_TIMEOUT);
 });

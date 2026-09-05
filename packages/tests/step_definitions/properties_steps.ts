@@ -48,6 +48,20 @@ const line = (world: OlaiWorld, id: string, key: string) =>
  *  step earlier lands on the frame the SERVER publishes, and a scenario that
  *  read the run the instant it typed would be reading the value it typed over. */
 Then(
+  "the property {string} on {string} stays within the screen",
+  async function (this: OlaiWorld, key: string, id: string) {
+    const chip = line(this, id, key);
+    await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const bounds = await chip.locator("a").evaluateAll((links) => links.map((link) => {
+      const rect = link.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, width: innerWidth };
+    }));
+    assert.ok(bounds.length > 0);
+    for (const found of bounds) assert.ok(found.left >= 0 && found.right <= found.width, JSON.stringify(found));
+  },
+);
+
+Then(
   "the node {string} shows the property {string} holding {string}",
   async function (this: OlaiWorld, id: string, key: string, value: string) {
     const found = line(this, id, key).locator(PROP_VALUE);
@@ -419,6 +433,15 @@ When("I add a property on {string}", async function (this: OlaiWorld, id: string
     .first()
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
+
+When(
+  "I draft the property {string} holding {string} on {string}",
+  async function (this: OlaiWorld, key: string, value: string, id: string) {
+    const keyBox = this.page.locator(`${nodeSelector(id)} ${PROP_EDIT_KEY}`).first();
+    await keyBox.fill(key);
+    await box(this, id).fill(value);
+  },
+);
 
 When(
   "I write the property {string} holding {string} on {string}",

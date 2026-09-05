@@ -1904,6 +1904,9 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
      * `captured-by` is written from "the identity this door already has" —
      * words in a sentence an agent reads.
      *
+     * **AN EDITOR's identity.** Outline and document panes key their draft
+     * lifetime by file and pane. These local keys do not name the plugin.
+     *
      * RECORDED AS AN EQUALITY for the reason the four entries above are: a
      * twelfth file is red, and the day one of these stops spelling the word
      * this entry is red until the line is deleted.
@@ -1919,6 +1922,8 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/odu/src/browser/words.ts",
       "plugins/odu/src/doorbell.ts",
       "server/src/serve.ts",
+      "web/src/client/document/DocumentPage.tsx",
+      "web/src/client/edit/Editable.tsx",
     ],
   }
 

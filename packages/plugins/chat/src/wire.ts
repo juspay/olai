@@ -77,6 +77,8 @@ export const name = "chat"
  */
 export const surface = defineSurface({
   cells: {
+    /** Completed node-session replacements invalidate every tab's history. */
+    sessionsRevision: { schema: Schema.Number, default: 0, verbs: ["get"] },
     state: {
       schema: ChatState,
       default: CHAT_OFF,
@@ -176,6 +178,7 @@ export const surface = defineSurface({
        *  open tab stays in step and a slow turn does not hold a call open. */
       send: {
         input: Schema.Struct({
+          scope: Schema.NullOr(Schema.String),
           text: Schema.String,
           /**
            * INTERRUPT the turn the agent is already running with this, rather
@@ -245,7 +248,7 @@ export const surface = defineSurface({
        * able to produce.
        */
       resend: {
-        input: Schema.Struct({ id: Schema.String }),
+        input: Schema.Struct({ scope: Schema.NullOr(Schema.String), id: Schema.String }),
         error: ChatFailure,
       },
       /** One chunk of a picture, into the conversation's tmp directory.
@@ -262,9 +265,13 @@ export const surface = defineSurface({
         output: Attached,
         error: ChatFailure,
       },
-      /** Stop the turn in flight. Legal while the agent is still booting — the
-       *  cancel is remembered and sent with the prompt. */
-      cancel: { error: ChatFailure },
+      /** Stop the turn in the live conversation this control was drawn for.
+       *  Legal while the agent is still booting — the cancel is remembered
+       *  and sent with the prompt. An outdated tab cannot cancel another node. */
+      cancel: {
+        input: Schema.Struct({ scope: Schema.NullOr(Schema.String) }),
+        error: ChatFailure,
+      },
       setSetting: {
         input: Schema.Struct({ agent: Schema.String, session: Schema.String, config: Schema.String,
           value: Schema.Union([Schema.String, Schema.Boolean]) }),
@@ -402,12 +409,14 @@ export const surface = defineSurface({
       /** Try the OPEN that was refused again — the one the panel is holding a
        *  {@link ChatState.unopened} for, whichever it was.
        *
-       *  It takes no argument, and that is the point rather than an omission: a
-       *  boot chooses its own conversation, so a browser naming one would be
-       *  asking for something nobody asked for. The server kept the attempt,
+       *  The browser supplies the lifetime it was showing, so a delayed tab
+       *  cannot retry another node's attempt. The server kept the attempt,
        *  the way it keeps the prompt behind an undelivered message. Refuses
        *  when there is nothing waiting to be opened again. */
-      reopen: { error: ChatFailure },
+      reopen: {
+        input: Schema.Struct({ scope: Schema.NullOr(Schema.String) }),
+        error: ChatFailure,
+      },
       /** EVERY installed agent's stored conversations for this directory,
        *  merged newest-first, each row saying whose it is.
        *
@@ -520,6 +529,7 @@ export const surface = defineSurface({
  */
 export const faces = {
   browser: {
+    sessionsRevision: "resource",
     state: "resource",
     agents: "resource",
     // ...AND WHAT THE BOARD IS OWED to get those agents back, which is the

@@ -34,6 +34,7 @@
  * a refusal leaves the row exactly where it was with the reason under it.
  */
 
+import { moveMemory } from "./memory.ts"
 import { type Moved, type MovingRequest, type Row, sameMovingRequest } from "@olai/format"
 import type { Edit } from "@olai/surface"
 import {
@@ -101,7 +102,7 @@ export interface Moving {
  * ("picking, and it already went there") and leave the one it does have to a
  * rule nobody enforces.
  */
-type Standing =
+export type Standing =
   /** The picker is up on this row. */
   | { readonly kind: "picking"; readonly record: string; readonly place: string }
   /**
@@ -170,9 +171,10 @@ export const createMoving = (
    * and this module holds the place to find one at.
    */
   back: (row: Row) => void,
+  memory = moveMemory(),
 ): Moving => {
   const undo = useUndo()
-  const [standing, setStanding] = createSignal<Standing | null>(null)
+  const [standing, setStanding] = memory.standing
   /**
    * THE DESTINATIONS BEING JUDGED — the ids the picker's shortlist is drawing
    * right now.
@@ -216,7 +218,7 @@ export const createMoving = (
   /** How long the line lingers, and what clears it, is the client's ONE
    *  receptacle for that (`../saying.ts`) rather than a fourth timer here. */
   const saying = createSaying()
-  const [sending, setSending] = createSignal(false)
+  const [sending, setSending] = memory.sending
 
   /**
    * The row the panel is under, found again when it has moved.
@@ -418,6 +420,7 @@ export const createMoving = (
         // `() => NONE` and not `NONE`: a function handed to a setter is an
         // updater, so an accessor is set through one that answers with it.
         setHitIds(() => NONE)
+        memory.query[1]("")
         setStanding({ kind: "picking", ...at })
       })
     },
@@ -437,6 +440,7 @@ export const createMoving = (
             {(at) => (
               <MovePicker
                 moved={at()}
+                query={memory.query}
                 refusals={refusals()}
                 // The accessor, held as a VALUE — Solid reads a function passed
                 // to a setter as an updater, so a signal whose value is a

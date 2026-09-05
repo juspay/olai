@@ -26,9 +26,10 @@
  * reader is drawn from, so what it lists after a write is what landed.
  */
 
+import { edgeMemory } from "./memory.ts"
 import type { RegularNode } from "@olai/format"
 import type { Edit } from "@olai/surface"
-import { type Accessor, createSignal, type JSX, Show } from "solid-js"
+import { type Accessor, type JSX, Show } from "solid-js"
 
 import { SaidLine } from "../SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
@@ -68,13 +69,14 @@ export const createEdgeEditing = (
    *  that draws none (a placement whose chain died). An accessor because a live
    *  page redraws it under the panel. */
   node: Accessor<RegularNode | undefined>,
+  memory = edgeMemory(),
 ): EdgeEditing => {
   const undo = useUndo()
-  const [openFor, setOpenFor] = createSignal<Relation | null>(null)
+  const [openFor, setOpenFor] = memory.open
   /** How long the line lingers, and what clears it, is the client's ONE
    *  receptacle for that (`../saying.ts`) rather than a fourth timer here. */
   const saying = createSaying()
-  const [sending, setSending] = createSignal(false)
+  const [sending, setSending] = memory.sending
 
   const write = (edit: Edit): void => {
     if (sending()) return
@@ -96,6 +98,7 @@ export const createEdgeEditing = (
       // has just opened to make another one, is a sentence about nothing they
       // can see.
       saying.say(null)
+      memory.query[1]("")
       setOpenFor(relation)
     },
     drop: (relation, target) => {
@@ -116,6 +119,7 @@ export const createEdgeEditing = (
               {(at) => (
                 <EdgePanel
                   node={at()}
+                  query={memory.query}
                   relation={relation()}
                   onWrite={write}
                   onClose={() => setOpenFor(null)}

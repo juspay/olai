@@ -35,10 +35,11 @@
  * parent is folded — are places the tree draws no body under.
  */
 
-import { createEffect, createSignal, on, Show } from "solid-js"
+import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
 
+import { takingOfflineFocus } from "../connection/focus.ts"
 import { createCompletion } from "../complete/completing.tsx"
-import type { Draft } from "./draft.ts"
+import { type Draft, slotOf } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { SaidLine } from "../SaidLine.tsx"
 import { type Caret, type EditAction, type EditField, editKey } from "../keys.ts"
@@ -71,6 +72,7 @@ export function TitleEditor(props: {
   readonly active?: boolean
   /** The parked input was focused: put the caret here. */
   readonly onActivate?: () => void
+  readonly onParkedInput?: (text: string) => void
 }) {
   let element!: HTMLInputElement
 
@@ -109,7 +111,9 @@ export function TitleEditor(props: {
    *  draft is told in the same breath so the two cannot disagree about what the
    *  line says. */
   const editor = useEditor()
+  const draft = editor.draft()
   const completion = createCompletion({
+    dismissal: editor.completionDismissal(draft === null ? undefined : slotOf(draft)),
     text: () => props.text,
     caret,
     rewrite: (next) => {
@@ -142,10 +146,12 @@ export function TitleEditor(props: {
         spellcheck={false}
         onInput={(event) => {
           readCaret()
-          // A parked ghost is an input so it can be clicked back into, not
-          // so it can type into the live draft while resume is still on
-          // the queue.
-          if (props.active === false) return
+          // Activation can wait on the previous row's write. Keep these
+          // keystrokes with the clicked slot while that write settles.
+          if (props.active === false) {
+            props.onParkedInput?.(event.currentTarget.value)
+            return
+          }
           props.onInput(event.currentTarget.value)
         }}
         onKeyDown={(event) => {
@@ -170,7 +176,7 @@ export function TitleEditor(props: {
           readCaret()
           if (props.active === false) props.onActivate?.()
         }}
-        onBlur={() => props.onBlur(element.isConnected)}
+        onBlur={() => { if (!takingOfflineFocus()) props.onBlur(element.isConnected) }}
       />
       <completion.Panel />
     </span>
@@ -219,7 +225,7 @@ export function DescEditor(props: {
         props.onInput(event.currentTarget.value)
       }}
       onKeyDown={(event) => props.onKey(event)}
-      onBlur={() => props.onBlur(element.isConnected)}
+      onBlur={() => { if (!takingOfflineFocus()) props.onBlur(element.isConnected) }}
     />
   )
 }
@@ -396,15 +402,43 @@ const takeCaret = (
 ): void => {
   const editor = useEditor()
   let opening = true
+  const draft = editor.draft()
+  const slot = draft === null ? undefined : slotOf(draft)
+  // Only a new editor instance consumes a retained range. Ordinary caret
+  // bumps and structural row redraws keep their existing placement rules.
+  const retained = editor.takeRange(slot)
+  const remember = () => {
+    if (said.armed?.() === false || slot === undefined) return
+    const field = element()
+    editor.rememberRange({ slot, start: field.selectionStart ?? 0,
+      end: field.selectionEnd ?? 0, direction: field.selectionDirection ?? "none" })
+  }
+  onMount(() => {
+    const field = element()
+    // `select` covers explicit ranges, but typing and ordinary arrow movement
+    // also change the caret that a rebuilt field must restore.
+    field.addEventListener("select", remember)
+    field.addEventListener("input", remember)
+    const selectionChanged = () => {
+      if (document.activeElement === field) remember()
+    }
+    document.addEventListener("selectionchange", selectionChanged)
+    onCleanup(() => {
+      field.removeEventListener("select", remember)
+      field.removeEventListener("input", remember)
+      document.removeEventListener("selectionchange", selectionChanged)
+    })
+  })
   createEffect(on(editor.caret, () => {
     if (said.armed?.() === false) return
     const field = element()
+    const range = opening ? retained : undefined
     const at = opening
       ? said.at?.() ?? field.value.length
       : field.selectionStart ?? field.value.length
     opening = false
     field.focus()
-    field.setSelectionRange(at, at)
+    field.setSelectionRange(range?.start ?? at, range?.end ?? at, range?.direction)
     said.then?.()
   }))
 }

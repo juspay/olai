@@ -280,3 +280,5 @@ The panels under a row are deliberately not part of that. They cap at eight as w
 ## Not yet: finding a note you cannot name
 
 Searching by MEANING — "the first page load is too heavy" finding a note that never uses those words — is parked rather than shipped. The implementation that was written for it needed a model server (Ollama) running on the reader's machine, and olai requires no dependency outside Nix itself. It returns when it can be nix-native.
+
+Open palette and header searches follow vault changes without another keystroke. Removed matches leave the shortlist, new matches arrive, and counts update with the same answer. Search is still performed on the server; closing or clearing the query ends its subscription.

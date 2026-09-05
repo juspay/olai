@@ -15,8 +15,9 @@
  */
 
 import * as assert from "node:assert";
-import { Then, When } from "@cucumber/cucumber";
+import { Given, Then, When } from "@cucumber/cucumber";
 import type { Page } from "playwright";
+
 
 import { fileKind } from "@olai/format";
 
@@ -60,6 +61,17 @@ import {
   WORDMARK,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
+
+Given("this browser refuses local storage", async function (this: OlaiWorld) {
+  await this.page.addInitScript(() => {
+    for (const method of ["getItem", "setItem", "removeItem"] as const) {
+      Object.defineProperty(Storage.prototype, method, {
+        configurable: true,
+        value() { throw new DOMException("Storage is unavailable", "SecurityError"); },
+      });
+    }
+  });
+});
 
 /** Open the panel unless it is already open. Idempotent, because a scenario
  *  that opened it to pick a theme should not have to know whether the step
@@ -901,6 +913,11 @@ When("I open the plugins panel", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+When("I close the plugins panel", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(PLUGINS_TRIGGER));
+  await this.page.locator(PLUGINS_PANEL).waitFor({ state: "detached" });
+});
+
 /**
  * WHAT ONE PLUGIN'S ROW SAYS IT IS DOING — the hint, which is the half of the
  * row a person can act on.
@@ -1141,6 +1158,15 @@ const switchOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
  *  a claim about this product's slowest deliberate gesture and not a nudge
  *  somebody tuned to make a suite pass. */
 const FLIP_STEP_TIMEOUT = 90_000;
+
+// A requested plugin may remain waiting on a dependency. Its switch reports
+// whether it is running, so these scenarios wait for the explanatory row next.
+When(
+  "I request that the plugin {string} be {word}",
+  async function (this: OlaiWorld, plugin: string, pick: string) {
+    await this.press(rowFor(this, plugin).locator(`${PREFS_CHOICE}${attr("data-value", pick)}`));
+  },
+);
 
 When(
   "I switch the plugin {string} {word}",

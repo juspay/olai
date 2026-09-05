@@ -30,15 +30,21 @@
  */
 
 import { mediaHref } from "@olai/surface"
-import type { Accessor } from "solid-js"
+import { type Accessor, createMemo } from "solid-js"
 
 import { useHead } from "../served.tsx"
 
 export const usePointed = (file: Accessor<string>): Accessor<string> => {
   const rev = useHead(file)
-  return () => {
+  const pointed = createMemo<{ readonly file: string; readonly href: string }>((previous) => {
+    const name = file()
     const at = rev()
-    const href = mediaHref(file())
-    return at === undefined ? href : `${href}?rev=${String(at)}`
-  }
+    // A removed file loses its head before the page is replaced by the
+    // missing-file view. Keep its last URL instead of fetching the bare path
+    // again in that gap. A different file still gets its own initial URL.
+    if (at === undefined && previous?.file === name) return previous
+    const href = mediaHref(name)
+    return { file: name, href: at === undefined ? href : `${href}?rev=${String(at)}` }
+  })
+  return () => pointed().href
 }

@@ -25,7 +25,7 @@
  */
 
 import { composed, type NodeChange, type Other, type Pending } from "@olai/format"
-import { type Accessor, createSignal } from "solid-js"
+import { type Accessor, createSignal, type Signal } from "solid-js"
 
 export interface Selection {
   /** Whether this path is going in. */
@@ -62,8 +62,11 @@ export interface Selection {
  * worth protecting: what a commit is about to name is not a thing to find out
  * by pressing the button.
  */
-export const createSelection = (pending: Accessor<Pending>): Selection => {
-  const [dropped, setDropped] = createSignal<ReadonlySet<string>>(new Set())
+export const createSelection = (
+  pending: Accessor<Pending>,
+  excluded: Signal<ReadonlySet<string>> = createSignal<ReadonlySet<string>>(new Set()),
+): Selection => {
+  const [dropped, setDropped] = excluded
   const ticked = (path: string): boolean => !dropped().has(path)
 
   const toggle = (path: string) => {

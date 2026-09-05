@@ -61,7 +61,7 @@ export function DeleteFile(props: { readonly file: string }) {
       <Switch>
         <Match when={confirm.where() === "asking"}>
           <p
-            class="m-0 flex-1 text-sm text-ink"
+            class="m-0 min-w-0 flex-1 basis-full [overflow-wrap:anywhere] text-sm text-ink sm:basis-auto"
             data-testid={TESTID.fileDeleteConfirm}
           >
             {deleteQuestion(props.file)}

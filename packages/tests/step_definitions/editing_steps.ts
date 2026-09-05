@@ -350,6 +350,17 @@ When("I click the first new row", async function (this: OlaiWorld) {
   await this.press(row);
 });
 
+When("I focus the first parked row and type {string} immediately", async function (this: OlaiWorld, text: string) {
+  // One browser task: the previous row's asynchronous save cannot finish
+  // between the focus event and this input. No editor internals are touched.
+  await this.page.locator(`${NEW_ROW} ${TITLE_EDITOR}`).first().evaluate((element, value) => {
+    const input = element as HTMLInputElement;
+    input.focus();
+    input.value = value;
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
+  }, text);
+});
+
 When("I click the page away from the drafts", async function (this: OlaiWorld) {
   // Not `I click away from the editor`: that wait names the caret by the
   // first title-editor in the document, and parked ghosts keep one of those
@@ -407,6 +418,10 @@ Then("the row being typed has the focus", async function (this: OlaiWorld) {
       ),
     "the caret to be in the row being typed",
   );
+});
+
+When("I return to the row being typed", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(TITLE_EDITOR).first());
 });
 
 /** Where a line's text starts, on screen. What "the same depth" means to a
@@ -1066,3 +1081,36 @@ Then(
     } while (Date.now() < deadline);
   },
 );
+
+Then("the selected text in the line is {string}", async function (this: OlaiWorld, expected: string) {
+  const field = await openEditor(this);
+  const selected = () => field.evaluate((element) => {
+    const input = element as HTMLInputElement;
+    return input.value.slice(input.selectionStart ?? 0, input.selectionEnd ?? 0);
+  });
+  await this.waitUntil(async () => await selected() === expected,
+    `the selected text to remain ${JSON.stringify(expected)}`).catch(async () => {
+      assert.strictEqual(await selected(), expected);
+    });
+});
+
+When("I select {string} backwards in the note", async function (this: OlaiWorld, text: string) {
+  const field = this.page.locator(DESC_EDITOR).first();
+  await field.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await field.evaluate((element, wanted) => {
+    const input = element as HTMLTextAreaElement;
+    const start = input.value.indexOf(wanted);
+    if (start < 0) throw new Error(`the note does not contain ${JSON.stringify(wanted)}`);
+    input.setSelectionRange(start, start + wanted.length, "backward");
+  }, text);
+});
+
+Then("the note retains the backward selection {string}", async function (this: OlaiWorld, expected: string) {
+  const field = this.page.locator(DESC_EDITOR).first();
+  await field.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(() => field.evaluate((element, text) => {
+    const input = element as HTMLTextAreaElement;
+    return input.value.slice(input.selectionStart, input.selectionEnd) === text
+      && input.selectionDirection === "backward";
+  }, expected), `the note to retain its backward selection of ${JSON.stringify(expected)}`);
+});

@@ -23,7 +23,7 @@
  */
 
 import type { Attached } from "olai-plugin-chat/wire"
-import { type Accessor, createEffect, createSignal, on } from "solid-js"
+import { type Accessor, createMemo, createSignal } from "solid-js"
 
 import { refusalFor } from "./attach.ts"
 import type { Chat } from "./state.ts"
@@ -73,27 +73,39 @@ export interface Holding {
   readonly remove: (name: string) => void
   /** Hand over everything held and empty the strip: what a send does. */
   readonly release: () => ReadonlyArray<Attached>
-  /** Put back what a REFUSED send threw away — and only into a strip that is
-   *  still empty, so an attachment picked up while the answer was in flight
-   *  wins over the one being restored. */
-  readonly restore: (attachments: ReadonlyArray<Attached>) => void
+  /** Restore refused files to their original lifetime, even after a switch. */
+  readonly restore: (scope: string | null, attachments: ReadonlyArray<Attached>) => void
 }
 
-export const createHolding = (chat: Chat): Holding => {
+const bin = () => {
   const [pending, setPending] = createSignal<ReadonlyArray<Attached>>([])
   const [sending, setSending] = createSignal(0)
+  return { pending, setPending, sending, setSending }
+}
+const held = new Map<string, ReturnType<typeof bin>>()
 
-  // The conversation these belong to is over and the server has already
-  // deleted the files: keeping the chips would offer a send it would refuse,
-  // naming files that are gone.
-  createEffect(
-    on(() => chat.state().session?.id, () => setPending([]), { defer: true }),
-  )
+export const createHolding = (chat: Chat): Holding => {
+  // A drawer mount is not an upload lifetime. The server's token survives
+  // remounts and node switches, but changes when its temporary files go away,
+  // even if a restart reopens the same durable harness session.
+  const empty = bin()
+  const current = createMemo(() => {
+    const scope = chat.state().uploadScope
+    if (scope == null) return empty
+    let value = held.get(scope)
+    if (value === undefined) {
+      value = bin()
+      held.set(scope, value)
+    }
+    return value
+  })
 
   return {
-    pending,
-    sending,
+    pending: () => current().pending(),
+    sending: () => current().sending(),
     take: async (files) => {
+      const owner = current()
+      const scope = chat.state().uploadScope
       const { taking, refusals } = sorting(files)
       // One gesture, one answer: the last one's is cleared as this one starts,
       // and everything this one has to say is said when it ends. Said file by
@@ -101,29 +113,40 @@ export const createHolding = (chat: Chat): Holding => {
       // which is the drop losing a file with nothing on screen about it.
       const reasons = [...refusals]
       chat.refuse([])
-      setSending((count) => count + taking.length)
+      owner.setSending((count) => count + taking.length)
       // Sequential, and that is the promise: several files in one drop
       // attach in the order they were dropped, which is the order they will
       // ride the next message in.
-      for (const file of taking) {
+      for (const [index, file] of taking.entries()) {
+        if (chat.state().uploadScope !== scope) {
+          owner.setSending((count) => count - (taking.length - index))
+          break
+        }
         const answer = await chat.attach(file)
-        setSending((count) => count - 1)
+        owner.setSending((count) => count - 1)
         if (answer._tag === "refused") reasons.push(answer.failure.reason)
         // `gone` is not a refusal and says nothing: the conversation this was
         // being attached to was left while it uploaded, so there is no chip to
         // draw and nothing anybody needs telling.
         if (answer._tag !== "stored") continue
-        setPending((already) => [...already, answer.stored])
+        owner.setPending((already) => [...already, answer.stored])
       }
-      chat.refuse(reasons)
+      if (chat.state().uploadScope === scope) chat.refuse(reasons)
     },
     remove: (name) =>
-      setPending((already) => already.filter((attachment) => attachment.name !== name)),
+      current().setPending((already) => already.filter((attachment) => attachment.name !== name)),
     release: () => {
-      const held = pending()
-      setPending([])
-      return held
+      const owner = current()
+      const attachments = owner.pending()
+      owner.setPending([])
+      return attachments
     },
-    restore: (attachments) => setPending((now) => (now.length === 0 ? attachments : now)),
+    restore: (scope, attachments) => {
+      if (scope === null) return
+      held.get(scope)?.setPending((now) => [
+        ...attachments.filter((file) => !now.some((later) => later.path === file.path)),
+        ...now,
+      ])
+    },
   }
 }

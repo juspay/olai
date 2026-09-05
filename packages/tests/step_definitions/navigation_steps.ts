@@ -368,6 +368,11 @@ When("I go back", async function (this: OlaiWorld) {
   await this.waitForFrame();
 });
 
+When("I go forward", async function (this: OlaiWorld) {
+  await this.page.goForward();
+  await this.waitForFrame();
+});
+
 Then("the page is back where I left it", async function (this: OlaiWorld) {
   const left = this.scrolledTo;
   assert.ok(left !== undefined, "nothing scrolled the page first");

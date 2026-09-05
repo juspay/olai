@@ -11,7 +11,7 @@
 import { expect, test } from "bun:test"
 
 import type { Agents, SessionInfo } from "olai-plugin-chat/wire"
-import { claimedIn, pastOf, unassignedIn } from "./lineage.ts"
+import { claimedIn, pastOf, unassignedIn } from "../../lineage.ts"
 
 /** One stored conversation. The fields a lineage reads are the id, the agent
  *  and the link; the rest is what a row DRAWS and is spelled once here. */

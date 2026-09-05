@@ -2,6 +2,11 @@
  * A QUESTION THE SERVER IS ASKED AS SOMEBODY TYPES — the settle, the
  * latest-answer-wins rule, and the one failure slot, named once.
  *
+ * Search now uses a debounced subscription (`search/nodes.ts`) so its open
+ * results follow vault changes. This request primitive still serves the row
+ * editor’s vocabulary completion; the shared `Taking` contract below serves
+ * both kinds of query.
+ *
  * ## Why this exists
  *
  * Since `vault-in-browser` the browser answers less and less for itself, so

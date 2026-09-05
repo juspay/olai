@@ -98,7 +98,9 @@
  *     no media query in this file at all.
  */
 
-import { DropdownMenu } from "@kobalte/core/dropdown-menu"
+import { DropdownMenu, type DropdownMenuContentProps } from "@kobalte/core/dropdown-menu"
+import { useMenuContext } from "@kobalte/core/menu"
+import type { PolymorphicProps } from "@kobalte/core/polymorphic"
 
 import type { MenuAction } from "./action.ts"
 import type { MenuDoor } from "./door.ts"
@@ -247,7 +249,7 @@ export function Dropdown(props: {
         •••
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal mount={overlayRoot()}>
-      <DropdownMenu.Content
+      <ViewportContent
         ref={(el: HTMLElement) => {
           // AND THE CARET GOES IN. Kobalte's own mount focus
           // (`onOpenAutoFocus`) is the same job, and a portal makes it
@@ -290,7 +292,7 @@ export function Dropdown(props: {
         // Without it, Chromium rings the whole panel for a menu opened with
         // a mouse.
         // A PANEL TALLER THAN THE WINDOW STILL REACHES ITS LAST ENTRY, and the
-        // two utilities that do it are the popper's own answer rather than a
+        // height limit and scroll use the popper's own answer rather than a
         // measurement taken here. Floating-ui already flips this list to
         // whichever side of the row has more room; when NEITHER side has
         // enough — seventeen verbs on a node with children, and a laptop window
@@ -302,7 +304,7 @@ export function Dropdown(props: {
         // `max-height`, which `fitViewport` would set, is a limit its
         // overflowing child ignores), and the scroll is what turns a cap into a
         // list somebody can still reach the end of.
-        class={`relative ${LAYER.row} min-w-[10.5rem] max-h-[var(--kb-popper-content-available-height)] overflow-y-auto rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md focus:outline-none`}
+        class={`relative ${LAYER.row} min-w-[10.5rem] overflow-y-auto rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md focus:outline-none`}
         // The primitive restores the trigger on every close. A KEY still
         // gets the caret back (`handBack`); a pointer that landed somewhere
         // else must not be pulled off it.
@@ -326,8 +328,22 @@ export function Dropdown(props: {
         onPointerUp={tappedInPanel}
       >
         <Panel actions={props.actions} onPick={props.onPick} onGone={handBack} />
-      </DropdownMenu.Content>
+      </ViewportContent>
       </DropdownMenu.Portal>
     </DropdownMenu>
   )
+}
+
+/** The placement belongs to the menu context inside the dropdown provider. */
+function ViewportContent(props: PolymorphicProps<"div", DropdownMenuContentProps<"div">>) {
+  const menu = useMenuContext()
+  return <DropdownMenu.Content
+    {...props}
+    // The primitive measures from the viewport edge. An upward menu must
+    // reserve the app header as well, or its first entries sit behind it.
+    // Downward menus reserve any bottom chrome reported by the phone strip.
+    style={{ "max-height": menu.currentPlacement().startsWith("top")
+      ? "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-header)))"
+      : "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-bottom-chrome, 0px)))" }}
+  />
 }

@@ -67,13 +67,17 @@ export const consumeMinted = (file: string): boolean => {
 export const mintAndOpen = async (
   edit: Extract<Edit, { verb: "docNew" }>,
   record: Undo["record"],
-  go: Router["go"],
+  router: Router,
 ): Promise<string | null> => {
+  const started = router.workspace()
   const outcome = await applied(edit, record)
   if (Result.isFailure(outcome)) return outcome.failure.message
+  // Creation still landed, but a subsequent navigation or pane gesture owns
+  // the screen now. Do not leave an editor hand-off for a later unrelated visit.
+  if (router.workspace() !== started) return null
   const file = outcome.success.id
   mintedDocument(file)
-  go(atFile(file))
+  router.go(atFile(file))
   return null
 }
 
@@ -81,11 +85,13 @@ export const mintAndOpen = async (
  * files have no inverse, so the plugin answer carries only its path. */
 export const openMintedFile = async (
   asked: Promise<Result.Result<{ readonly file: string }, OpFailure>>,
-  go: Router["go"],
+  router: Router,
 ): Promise<string | null> => {
+  const started = router.workspace()
   const outcome = await asked
   if (Result.isFailure(outcome)) return outcome.failure.message
+  if (router.workspace() !== started) return null
   mintedDocument(outcome.success.file)
-  go(atFile(outcome.success.file))
+  router.go(atFile(outcome.success.file))
   return null
 }

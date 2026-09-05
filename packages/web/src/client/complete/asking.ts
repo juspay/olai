@@ -1,62 +1,16 @@
 /**
- * The tag completion's list, ASKED — which of the set's tags a prefix means,
- * answered by the server, latest answer wins.
- *
- * ## Why this file exists at all
- *
- * It used to be a walk, and then a read: the tab held every node of every
- * outline, so the vocabulary was the keys of the derivation's own tag index and
- * the widget counted them locally, once per frame. That copy is what
- * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md` is taking away — the browser may
- * hold at most the page in front of somebody — so there is no `taggedBy` here
- * to enumerate any more. The counting moved beside the index it reads
- * (`@olai/format`'s `vocabulary.ts`, which carries the argument for every rule
- * in it), and what is left on this side is when to ask.
- *
- * The file it replaces spent two paragraphs arguing that this list, unlike the
- * node search next door, was NOT the server's — "the enumeration is already in
- * the value this tab is holding". The argument was sound and its premise is
- * gone. What it also predicted is what happened: "if a tag facet ever becomes a
- * REPORT — every tag, most used first, across a corpus this tab does not hold —
- * that is a reading, it belongs on both faces, and this file becomes its
- * caller."
- *
- * ## A SHORTLIST, so the asking is `../settled.ts`'s and not the filter's
- *
- * The settle, the latest-answer-wins rule and the failure slot are the
- * primitive's — this door was the third to want them, which is what moved them
- * out of `../search/nodes.ts` into a file of their own. What is left here is
- * the two things that are this widget's: WHICH question is worth asking, and
- * what the rows mean.
- *
- * The page filter (`../filter/asking.ts`) is not that primitive's caller and
- * says why: it is a STANDING VIEW that re-asks on every published revision,
- * where a shortlist under a caret is a question somebody opened, answered once
- * and closed by choosing a row or typing past it. So nothing here carries the
- * set's generation and nothing re-asks on a revision — exactly like the `((`
- * search this widget's third trigger already calls.
- *
- * NO MINIMUM LENGTH, which is where it parts from the node search: a bare `#`
- * is a question with an answer — "what does this set even use" — where two
- * characters of a node query match half an outline. The whole (capped) list is
- * what an empty prefix means, and it always was.
- *
- * ## What a dead wire does
- *
- * Nothing special, deliberately. A refused call is a refusal in its own words,
- * drawn on the popup where the `((` search's already is (`./Completions.tsx`),
- * and a dead socket is not this door's question at all: the app freezes under
- * an overlay while the wire cannot carry one (`../connection/Offline.tsx`,
- * §5b's ruling), so nothing is typed at this popup and no keystroke of it ever
- * meets a dead wire. The filter's inert box was the other answer to that, and
- * the overlay deleted it.
+ * Tag completions subscribe to the current vocabulary while a trigger is open.
+ * Queries debounce; vault revisions refresh their rows without another key.
+ * Answers retain their query and sigil so Enter cannot spend an older prefix,
+ * and switching namespaces cannot offer a hash tag as an at-tag.
  */
 
-import type { Accessor } from "solid-js"
+import { type Accessor, createEffect, createMemo, createSignal } from "solid-js"
+import { debounce } from "@solid-primitives/scheduled"
 
-import type { TagCompletion, TagsRequest } from "@olai/surface"
+import type { TagCompletion, TagsAnswer, TagsRequest } from "@olai/surface"
 
-import { createSettled, type Taking } from "../settled.ts"
+import { SETTLE_MS, type Taking } from "../settled.ts"
 import { olai } from "../wire.ts"
 
 /** How many rows the widget offers. A row's popup is a shortlist — and the
@@ -119,14 +73,38 @@ const same = (was: Asking | null, is: Asking | null): boolean =>
  * the list from before.
  */
 export const createTags = (asking: Accessor<Asking | null>): Tags => {
-  const asked = createSettled(
-    asking,
-    (one) => olai.procedures.vocabulary.tags({ ...one, limit: LIMIT }),
-    same,
-  )
+  const wanted = createMemo(asking, null, { equals: same })
+  const [asked, setAsked] = createSignal<Asking | null>(null, { equals: same })
+  const settle = debounce(setAsked, SETTLE_MS)
+  createEffect(() => {
+    const query = wanted()
+    if (query !== null) settle(query)
+    else {
+      settle.clear()
+      setAsked(null)
+    }
+  })
+  const input = createMemo(() => {
+    const query = asked()
+    return query === null ? null : { ...query, limit: LIMIT }
+  })
+  const answer = olai.streams.tagCompletions.use(input)
+  const held = createMemo<{ query: Asking; value: TagsAnswer } | undefined>((previous) => {
+    const query = asked()
+    const current = wanted()
+    if (current === null || query === null || answer.error() !== undefined) return undefined
+    // Prefixes may retain earlier rows while waiting; namespaces may not.
+    if (query.sigil !== current.sigil) return undefined
+    const value = answer()
+    if (value !== undefined) return { query, value }
+    return previous?.query.sigil === query.sigil ? previous : undefined
+  }, undefined)
   return {
-    rows: () => asked.answer()?.tags ?? [],
-    failure: asked.failure,
-    taking: asked.taking,
+    rows: () => held()?.value.tags ?? [],
+    failure: () => answer.error()?.message ?? null,
+    taking: (act) => {
+      const got = held()
+      if (got !== undefined && same(got.query, wanted())) act()
+    },
   }
 }

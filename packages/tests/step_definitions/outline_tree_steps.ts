@@ -1321,3 +1321,8 @@ Then(
     );
   },
 );
+
+Then("the node titled {string} is shown", async function (this: OlaiWorld, title: string) {
+  await this.waitUntil(async () => (await this.page.locator(NODE_TITLE).allInnerTexts()).includes(title),
+    `a node titled ${JSON.stringify(title)} to be shown`);
+});

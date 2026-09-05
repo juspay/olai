@@ -73,6 +73,7 @@
 import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
 import { createEffect, createMemo, onCleanup, Show } from "solid-js"
 
+import { withOfflineFocus } from "./focus.ts"
 import { reachable } from "./reaching.ts"
 import { lookOf, type SurfaceReadout } from "./status.ts"
 import { Reload } from "../Reload.tsx"
@@ -109,7 +110,7 @@ export function Offline(props: { readonly readout: SurfaceReadout }) {
   // `open` because a second call on an open dialog throws.
   createEffect(() => {
     if (frozen()) {
-      if (!overlay.open) overlay.showModal()
+      if (!overlay.open) withOfflineFocus(() => overlay.showModal())
       return
     }
     // The wire came back. Closing hands focus back to whatever had it when the

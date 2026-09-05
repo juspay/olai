@@ -14,18 +14,22 @@
  * CACHE and nothing more — a reload empties it and the bare name takes over,
  * which is the honest thing for it to do.
  *
- * Keyed by file NAME, because the name is what the row carries and the server
- * makes it unique inside a conversation (a collision gets a `-1`). Inside ONE
- * conversation, which is why {@link forget} exists: names are re-minted from
- * scratch in the next one, so a cache that outlived the conversation would
- * answer a new row with an old picture. {@link ./state.ts} empties it when the
- * session changes, where that is known.
+ * Keyed by the live upload scope and file name. Names are unique within that
+ * scope; another conversation can use the same name for different bytes.
+ * Switching nodes or remounting the drawer can return to a still-live scope,
+ * while a server restart creates a new one even for the same stored session.
  *
  * Bounded twice, and by BYTES as well as by count: the policy lets one file be
  * 50 MB, so twenty-four of them is a bound of "up to a gigabyte" — a number
  * nobody meant to write. The oldest go first, and losing one costs a thumbnail
  * or a size, never the chip.
  */
+
+import { createSignal } from "solid-js"
+
+const [scope, setScope] = createSignal<string | null>(null)
+export const previewScope = (value: string | null): void => { setScope(value) }
+const key = (scope: string | null, name: string) => JSON.stringify([scope, name])
 
 /** How many files a tab remembers, and how much of them. Enough that a
  *  conversation's recent rows are all drawn in full; small enough that a tab
@@ -36,11 +40,11 @@ const KEPT_BYTES = 64 * 1024 * 1024
 const blobs = new Map<string, Blob>()
 
 /** Hold on to what was just sent. */
-export const remember = (name: string, blob: Blob): void => {
+export const remember = (name: string, blob: Blob, owner: string | null = scope()): void => {
   // A file larger than the whole budget would evict everything and then sit
   // there alone; the bare name is the better answer for one of those.
   if (blob.size > KEPT_BYTES) return
-  blobs.set(name, blob)
+  blobs.set(key(owner, name), blob)
   // Map iterates in insertion order, so the first key is the oldest.
   while (blobs.size > KEPT || held() > KEPT_BYTES) {
     const oldest = blobs.keys().next()
@@ -50,7 +54,7 @@ export const remember = (name: string, blob: Blob): void => {
 }
 
 /** The Blob for a named attachment, if this tab is the one that sent it. */
-export const previewOf = (name: string): Blob | undefined => blobs.get(name)
+export const previewOf = (name: string): Blob | undefined => blobs.get(key(scope(), name))
 
 /**
  * How big it is, in the shortest true words.
@@ -77,12 +81,6 @@ export const sizeText = (bytes: number): string => {
   }
   const shown = size >= 10 || Number.isInteger(size) ? Math.round(size) : size.toFixed(1)
   return `${shown} ${units[unit]}`
-}
-
-/** The conversation these belonged to is over. The next one starts naming its
- *  files from `shot.png` again, and none of them are these. */
-export const forget = (): void => {
-  blobs.clear()
 }
 
 const held = (): number => {

@@ -18,6 +18,8 @@
  */
 
 import * as assert from "node:assert";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 import { Then, When } from "@cucumber/cucumber";
 
@@ -74,6 +76,33 @@ When(
     await (await boxOf(this, kind)).fill(file);
   },
 );
+
+When(
+  "I submit the new {word} box while updates are delayed",
+  async function (this: OlaiWorld, kind: string) {
+    await this.page.locator(selector(making(kind).testids.path)).press("Enter");
+  },
+);
+
+Then("the file {string} has not been created", function (this: OlaiWorld, file: string) {
+  assert.strictEqual(fs.existsSync(path.join(this.scratch(), file)), false);
+});
+
+Then("the file {string} has been created", async function (this: OlaiWorld, file: string) {
+  await this.waitUntil(async () => fs.existsSync(path.join(this.scratch(), file)), `${file} to exist`);
+});
+
+When("I follow the outline {string} while updates are delayed", async function (this: OlaiWorld, file: string) {
+  await this.outlineLink(file).click();
+});
+
+Then("the new {word} box is ready", async function (this: OlaiWorld, kind: string) {
+  await this.expectAttribute(selector(making(kind).testids.path), "aria-busy", "false", `new ${kind} box`);
+});
+
+Then("the new {word} box has no refusal", async function (this: OlaiWorld, kind: string) {
+  assert.strictEqual(await this.page.locator(selector(making(kind).testids.said)).count(), 0);
+});
 
 When(
   "I create the {word} {string} from the sidebar",
