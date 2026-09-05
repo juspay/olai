@@ -265,6 +265,7 @@ export interface SlotFaces {
   "sidebar.section": SidebarSection
   "app.panel": () => JSX.Element
   "app.header": () => JSX.Element
+  "app.banner": () => JSX.Element
   "app.viewer": () => JSX.Element
   "app.keys": AppChord
   "app.command": AppCommand

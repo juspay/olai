@@ -32,6 +32,7 @@ import {
 } from "solid-js"
 
 import { AppHeader } from "./AppHeader.tsx"
+import { PluginBanners } from "./plugins/Chrome.tsx"
 import { createToday } from "./clock.ts"
 import { createInboxHeld } from "./inbox.ts"
 import { Offline } from "./connection/Offline.tsx"
@@ -359,6 +360,7 @@ export default function App() {
               : undefined
           }
         />
+        <PluginBanners />
         <div
           class="flex-1"
           classList={{

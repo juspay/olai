@@ -22,6 +22,7 @@
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 import { PLUGIN_TESTID } from "@olai/bundle/testids";
+import { selector } from "@olai/web/testlib";
 
 import {
   APP_CHROME,
@@ -53,6 +54,27 @@ import {
   TIP,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
+
+const COMMIT_BANNER = selector(PLUGIN_TESTID.gitNews);
+
+Then("the phone commit banner says {int} uncommitted", async function (this: OlaiWorld, count: number) {
+  await this.expectAttribute(COMMIT_BANNER, "data-uncommitted", String(count), "the phone commit banner");
+});
+
+When("I tap the commit banner", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(COMMIT_BANNER), "tap");
+});
+
+Then("the phone commit banner is gone", async function (this: OlaiWorld) {
+  await this.page.locator(COMMIT_BANNER).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+Then("the phone commit banner sits below the header", async function (this: OlaiWorld) {
+  const header = await this.box(this.page.locator(APP_HEADER), "app header");
+  const banner = await this.box(this.page.locator(COMMIT_BANNER), "commit banner");
+  assert.ok(Math.abs(banner.y - header.y - header.height) <= 1,
+    `commit banner starts at ${banner.y}, header ends at ${header.y + header.height}`);
+});
 
 // ── the chrome ─────────────────────────────────────────────────────────
 
@@ -277,7 +299,7 @@ When("I resume auto-commit", async function (this: OlaiWorld) {
 
 When("I open the commit panel", async function (this: OlaiWorld) {
   const panel = this.page.locator(COMMIT_PANEL);
-  if (!(await panel.isVisible())) await this.page.locator(COMMIT_PILL).click();
+  if (!(await panel.isVisible())) await this.page.locator(`${COMMIT_PILL}, ${COMMIT_BANNER}`).click();
   await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 

@@ -116,6 +116,8 @@ export const SLOTS = {
    *  in the bar — a different question, asked by whatever wants that, against the
    *  cluster's own width. */
   "app.header": { keyedBy: "plugin" },
+  /** In-flow notices directly below the header, outside its desktop cluster. */
+  "app.banner": { keyedBy: "plugin" },
   /**
    * WHO IS LOOKING AT THIS PAGE — the last seat in the bar, top right, and the
    * one seat a phone keeps.

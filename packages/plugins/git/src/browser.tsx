@@ -26,16 +26,11 @@ export default definePlugin({
     holdGitWire(() => wired.client() as GitClient)
 
     yield* slots.register("app.header", () => <Commit />)
-    // THE PHONE BANNER, outside the desktop cluster PluginHeaders lives in.
-    // The same control, news-only: a healthy phone is silent. app.mount wraps
-    // the page so the banner is drawn even when the header cluster is not.
-    yield* slots.register("app.mount", (props) => (
-      <>
-        {props.children}
-        <Show when={!desktop()}>
-          <Commit />
-        </Show>
-      </>
+    // The phone's news belongs below the header, before the page content.
+    yield* slots.register("app.banner", () => (
+      <Show when={!desktop()}>
+        <Commit />
+      </Show>
     ))
   }),
 })
