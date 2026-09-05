@@ -580,7 +580,8 @@ export default definePlugin({
         withChat((open) => open.chooseAgent(input.agent)),
       loadSession: ({ input }: { input: { agent: string; id: string } }) =>
         withChat((open) => open.loadSession(input.agent, input.id)),
-      reopen: () => withChat((open) => open.reopen),
+      reopen: ({ input }: { input: { scope: string | null } }) =>
+        withChat((open) => open.inConversation(input.scope, (panel) => panel.reopen)),
       sessions: () => withChat((open) => open.sessions),
       answer: ({ input }: { input: { id: string; answers: Parameters<Chat.Chat["answer"]>[1] } }) =>
         withChat((open) => open.answer(input.id, input.answers)),

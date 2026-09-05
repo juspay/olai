@@ -472,7 +472,7 @@ export const createChat = (): Chat => {
     // is where somebody who just picked a file is already looking.
     scope: (agent, session, plugin, file) =>
       verb(chatWire().procedures.conversation.scope({ agent, session, plugin, file })),
-    reopen: () => opens(chatWire().procedures.conversation.reopen()),
+    reopen: () => opens(chatWire().procedures.conversation.reopen({ scope: state().uploadScope })),
     answer: (id, answers, done) =>
       verb(chatWire().procedures.conversation.answer({ id, answers }), done),
     decline: (id, done) => verb(chatWire().procedures.conversation.decline({ id }), done),

@@ -407,12 +407,14 @@ export const surface = defineSurface({
       /** Try the OPEN that was refused again — the one the panel is holding a
        *  {@link ChatState.unopened} for, whichever it was.
        *
-       *  It takes no argument, and that is the point rather than an omission: a
-       *  boot chooses its own conversation, so a browser naming one would be
-       *  asking for something nobody asked for. The server kept the attempt,
+       *  The browser supplies the lifetime it was showing, so a delayed tab
+       *  cannot retry another node's attempt. The server kept the attempt,
        *  the way it keeps the prompt behind an undelivered message. Refuses
        *  when there is nothing waiting to be opened again. */
-      reopen: { error: ChatFailure },
+      reopen: {
+        input: Schema.Struct({ scope: Schema.NullOr(Schema.String) }),
+        error: ChatFailure,
+      },
       /** EVERY installed agent's stored conversations for this directory,
        *  merged newest-first, each row saying whose it is.
        *

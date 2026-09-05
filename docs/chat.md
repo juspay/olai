@@ -164,6 +164,8 @@ The button says **send** the whole time, because that is what it does the whole 
 
 **Cancel belongs to the conversation shown when you press it.** If another tab has switched to a different node while this tab is behind on updates, the old control refuses with “the conversation changed”. Neither node’s turn is stopped by that stale click.
 
+**Try again on a refused session belongs to that conversation too.** A delayed tab cannot reopen the failed session of a node selected elsewhere. The stale click refuses, and each node keeps its own attempt available for a current retry.
+
 **Cancel stops the agent, and only that.** There is nothing else for it to do — every message you have typed already went. Anything waiting behind the turn you stopped is at the agent, not here, so it survives and runs next: cancel is about the turn in flight and nothing else. This is a change worth knowing about if you used olai in early 2026: a message sent mid-turn used to be held *by olai* until the turn ended, and cancelling threw away everything that was waiting. Those words were nowhere else. Nothing is held here now, so there is nothing to throw away.
 
 **A message waiting its turn says *queued* under it**, and stops when the agent picks it up. Nothing has gone wrong with it — it is at the agent, next in line — so the bubble is drawn exactly as any other message of yours, and what you get is an answer to "is anything happening about this". The mark comes off by itself when the turns in front of it end.
