@@ -105,6 +105,48 @@ Feature: A plugin the vault defines
     And that swatch is round
     And there should be no page errors
 
+  @scratch:plugin-services
+  Scenario: A plugin-owned service connects two approved definitions
+    Given I open the outline "colours.olai"
+    When I open the plugins panel
+    And I approve the plugin "swatch"
+    Then the plugins panel says "swatch" is "palette.colours"
+    And no row wears a swatch
+    And the agent service catalog excludes "palette.colours"
+
+    When I approve the plugin "palette"
+    Then the row "amber" wears a swatch for "#ff8800"
+    And the agent service catalog includes "palette.colours"
+
+    And the palette accepts the colour "#0088ff"
+    And the row "amber" wears a swatch for "#0088ff"
+    And the palette accepts the colour "#ff8800"
+
+    When I switch the plugin "palette" off
+    Then the plugins panel says "swatch" is "palette.colours"
+    And no row wears a swatch
+    And the agent service catalog excludes "palette.colours"
+
+    When I switch the plugin "palette" on
+    Then the row "amber" wears a swatch for "#ff8800"
+
+    When the palette provider is replaced
+    Then the plugins panel says "palette" is "read the source below and approve it"
+    And the plugins panel says "swatch" is "palette.colours"
+    And no row wears a swatch
+    And the agent service catalog excludes "palette.colours"
+
+    When I read the plugin "palette" again
+    And I approve the plugin "palette"
+    Then the row "amber" wears a swatch for "#ff8800"
+    And the agent service catalog includes "palette.colours"
+    And the palette rejects the colour "#0088ff"
+    And the row "amber" wears a swatch for "#ff8800"
+    And the palette accepts the colour "#00ff00"
+    And the row "amber" wears a swatch for "#00ff00"
+    And there should be no page errors
+    And no member of this page has gone silent
+
   @scratch:plugins
   Scenario: Trashing the definition takes the row with it
     # Retracting one is `trash_node`. The records stay regular nodes and still

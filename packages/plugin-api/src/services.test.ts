@@ -21,6 +21,8 @@ import { Cause, Effect, Layer, Logger, type Scope } from "effect"
 import {
   Deliveries,
   LocalState,
+  Ledger,
+  SERVICE_KEYS,
   definePlugin,
   Kinds,
   type Mounted,
@@ -30,6 +32,7 @@ import {
   Ops,
   type PluginsConfig,
   SessionStart,
+  serviceTag,
   Surfaces,
   Vault,
   Wakes,
@@ -619,20 +622,6 @@ const rowOf = (mounted: Mounted) =>
   ] as const)
 
 /**
- * A PLUGIN MAY NOT SPELL A KEY OUTSIDE THE TABLE, and the fence is not the type.
- *
- * {@link Offers.offer} is four overloads, so a plugin cannot WRITE this line —
- * which is the whole reason the shape is overloads rather than a generic. The
- * cast below is what it would take to get past that, and the point of the case is
- * that getting past the compiler buys nothing: the table is read at the call, in
- * olai's own words, and the offering row is the only thing that falls over.
- *
- * `kinds` is the key it tries for on purpose. A row standing behind the
- * VOCABULARY would be a row deciding what every vault in this serve validates
- * against, which is the worst thing on the page and the reason the table is
- * closed rather than merely documented.
- */
-/**
  * A REFUSED WRITE REACHES WHOEVER IS WATCHING WRITES — and the seam is new, so
  * this is the claim that says it is connected at all.
  *
@@ -737,37 +726,47 @@ test("a plugin that offers a door core keeps is refused, and only that plugin fa
 })
 
 /** Cordis refuses the duplicate; olai names both rows and preserves ownership. */
-test("two plugins standing behind one door: refusal names both rows and the key", async () => {
+test("core doors accept alternative providers, refuse collisions and permit replacement", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
+    const seen: Array<string> = []
+    const consumer = yield* mountPlugin(plugins.host, definePlugin({
+      name: "observer", needs: [Watching], apply: Effect.gen(function*() {
+        yield* (yield* Watching).subscribe(() => Effect.void)
+      }),
+    }))
+    expect((yield* consumer.report).state).toBe("waiting")
     const offering = (name: string) =>
       definePlugin({
         name,
         needs: [Offers],
         apply: Effect.gen(function*() {
-          yield* (yield* Offers).offer(Watching, () => ({ subscribe: () => Effect.void }))
+          yield* (yield* Offers).offer(Watching, () => ({ subscribe: () => Effect.sync(() => { seen.push(name) }) }))
         }),
       })
-    const first = yield* mountPlugin(plugins.host, offering("chat"))
-    const second = yield* mountPlugin(plugins.host, offering("mirror"))
+    const first = yield* mountPlugin(plugins.host, offering("first-provider"))
+    const second = yield* mountPlugin(plugins.host, offering("replacement-provider"))
 
     expect((yield* first.report).state).toBe("running")
     const [state, fault] = yield* rowOf(second)
     expect(state).toBe("failed")
     expect(fault).toBe(
-      'plugins: "chat" and "mirror" both offer "watching" — a '
+      'plugins: "first-provider" and "replacement-provider" both offer "watching" — a '
         + "service stands behind one row, and the second would leave every "
         + "plugin that named it holding whichever was mounted last.",
     )
-    expect([...plugins.offers()]).toEqual([["watching", "chat"]])
+    expect([...plugins.offers()]).toEqual([["watching", "first-provider"]])
     yield* second.dispose
-    expect([...plugins.offers()]).toEqual([["watching", "chat"]])
+    expect([...plugins.offers()]).toEqual([["watching", "first-provider"]])
 
     yield* first.dispose
+    expect((yield* consumer.report).state).toBe("waiting")
     expect([...plugins.offers()]).toEqual([])
-    const replacement = yield* mountPlugin(plugins.host, offering("mirror"))
+    const replacement = yield* mountPlugin(plugins.host, offering("replacement-provider"))
     expect((yield* replacement.report).state).toBe("running")
-    expect([...plugins.offers()]).toEqual([["watching", "mirror"]])
+    expect([...plugins.offers()]).toEqual([["watching", "replacement-provider"]])
+    expect((yield* consumer.report).state).toBe("running")
+    expect(seen).toEqual(["first-provider", "replacement-provider"])
   })))
 })
 
@@ -909,7 +908,7 @@ test("offer preserves a lifecycle defect when the service already has an owner",
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
     let escaped: Effect.Effect<void, never, Scope.Scope> = Effect.void
-    yield* mountPlugin(plugins.host, definePlugin({ name: "owner", needs: [Offers], apply: Effect.gen(function*() {
+    yield* mountPlugin(plugins.host, definePlugin({ name: "chat", needs: [Offers], apply: Effect.gen(function*() {
       const offers = yield* Offers
       escaped = offers.offer(Watching, () => ({ subscribe: () => Effect.void }))
       yield* escaped
@@ -921,6 +920,139 @@ test("offer preserves a lifecycle defect when the service already has an owner",
       Effect.catchCause((cause) => Effect.succeed(String(Cause.squash(cause)))),
     )
     expect(fault).toBe("Error: effect-cordis: offer requires a plugin activation")
-    expect([...plugins.offers()]).toEqual([["watching", "owner"]])
+    expect([...plugins.offers()]).toEqual([["watching", "chat"]])
+  })))
+})
+
+test("plugin-owned keys wait, activate, unwind before their provider, and use its replacement", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const Fleet = serviceTag<{ read: () => string }>("fleet-source.fleet")
+    const seen: Array<string> = []
+    const mirror = yield* mountPlugin(plugins.host, definePlugin({
+      name: "mirror", needs: [Fleet], apply: Effect.gen(function*() {
+        const fleet = yield* Fleet
+        seen.push(fleet.read())
+        yield* Effect.addFinalizer(() => Effect.gen(function*() {
+          yield* Effect.sleep("5 millis")
+          seen.push(`release:${fleet.read()}`)
+        }))
+      }),
+    }))
+    expect(yield* mirror.report).toEqual({ state: "waiting", missing: ["fleet-source.fleet"] })
+    const provider = (version: string) => definePlugin({
+      name: "fleet-source", needs: [Offers], apply: Effect.gen(function*() {
+        let alive = true
+        yield* Effect.addFinalizer(() => Effect.sync(() => { alive = false; seen.push(`closed:${version}`) }))
+        yield* (yield* Offers).own("fleet", (consumer) => ({
+          read: () => { expect(alive).toBe(true); return `${version}:${consumer}` },
+        }))
+      }),
+    })
+    const first = yield* mountPlugin(plugins.host, provider("v1"))
+    expect((yield* mirror.report).state).toBe("running")
+    expect([...plugins.offers()]).toEqual([["fleet-source.fleet", "fleet-source"]])
+    yield* first.dispose
+    expect((yield* mirror.report).state).toBe("waiting")
+    expect([...plugins.offers()]).toEqual([])
+    expect(seen).toEqual(["v1:mirror", "release:v1:mirror", "closed:v1"])
+    const second = yield* mountPlugin(plugins.host, provider("v2"))
+    expect((yield* mirror.report).state).toBe("running")
+    expect(seen.at(-1)).toBe("v2:mirror")
+    yield* second.dispose
+  })))
+})
+
+for (const [name, word] of [["source", ""], ["source", "other.fleet"], ["source.other", "fleet"], ["source", "Fleet"], ["source", "../vault"]]) {
+  test(`invalid plugin service segments are refused: ${name}/${word}`, async () => {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+      const plugins = yield* runtime()
+      const row = yield* mountPlugin(plugins.host, definePlugin({
+        name: name!, needs: [Offers], apply: Effect.gen(function*() {
+          yield* (yield* Offers).own(word!, () => ({}))
+        }),
+      }))
+      expect((yield* row.report).state).toBe("failed")
+      expect([...plugins.offers()]).toEqual([])
+    })))
+  })
+}
+
+test("a failed plugin-owned offer never activates its consumer and releases its claim", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const Key = serviceTag<{ version: number }>("source.value")
+    const seen: Array<number> = []
+    const consumer = yield* mountPlugin(plugins.host, definePlugin({
+      name: "consumer", needs: [Key], apply: Effect.gen(function*() { seen.push((yield* Key).version) }),
+    }))
+    for (const duplicate of [false, true]) {
+      const failed = yield* mountPlugin(plugins.host, definePlugin({
+        name: "source", needs: [Offers], apply: Effect.gen(function*() {
+          const offers = yield* Offers
+          yield* offers.own("value", () => ({ version: 1 }))
+          if (duplicate) yield* offers.own("value", () => ({ version: 2 }))
+          else yield* Effect.die("initialization failed")
+        }),
+      }))
+      expect((yield* failed.report).state).toBe("failed")
+      expect((yield* consumer.report).state).toBe("waiting")
+      expect(seen).toEqual([])
+      expect([...plugins.offers()]).toEqual([])
+      yield* failed.dispose
+    }
+    yield* mountPlugin(plugins.host, definePlugin({
+      name: "source", needs: [Offers], apply: Effect.gen(function*() {
+        yield* (yield* Offers).own("value", () => ({ version: 3 }))
+      }),
+    }))
+    expect((yield* consumer.report).state).toBe("running")
+    expect(seen).toEqual([3])
+  })))
+})
+
+test("equal local words in different plugins stay distinct and cannot shadow core", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    for (const name of ["one", "two"]) {
+      yield* mountPlugin(plugins.host, definePlugin({
+        name, needs: [Offers], apply: Effect.gen(function*() {
+          yield* (yield* Offers).own("vault", () => ({ owner: name }))
+        }),
+      }))
+    }
+    const One = serviceTag<{ owner: string }>("one.vault")
+    const Two = serviceTag<{ owner: string }>("two.vault")
+    const reader = yield* mountPlugin(plugins.host, definePlugin({
+      name: "reader", needs: [One, Two, Vault], apply: Effect.gen(function*() {
+        expect((yield* One).owner).toBe("one")
+        expect((yield* Two).owner).toBe("two")
+        expect((yield* Vault).served).toBe("/tmp/x")
+      }),
+    }))
+    expect((yield* reader.report).state).toBe("running")
+    expect([...plugins.offers()]).toEqual([["one.vault", "one"], ["two.vault", "two"]])
+  })))
+})
+
+test("discovery follows plugin-owned offers without publishing internal core doors", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    expect(plugins.serviceKeys()).toEqual([...SERVICE_KEYS].sort())
+    const provider = yield* mountPlugin(plugins.host, definePlugin({
+      name: "alternative", needs: [Offers], apply: Effect.gen(function*() {
+        const offers = yield* Offers
+        yield* offers.offer(Ledger, () => ({
+          wrote: () => {}, whyWaiting: () => Effect.succeed(""),
+          record: () => Effect.void, push: Effect.void, resume: Effect.void,
+        }))
+        yield* offers.own("history", () => ({}))
+      }),
+    }))
+    expect((yield* provider.report).state).toBe("running")
+    expect([...plugins.offers()]).toEqual([["ledger", "alternative"], ["alternative.history", "alternative"]])
+    expect(plugins.serviceKeys()).toEqual([...SERVICE_KEYS, "alternative.history"].sort())
+    yield* provider.dispose
+    expect(plugins.serviceKeys()).toEqual([...SERVICE_KEYS].sort())
   })))
 })

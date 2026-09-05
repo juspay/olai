@@ -420,6 +420,10 @@
     sit above today. A birthday isn’t a task — it stays on its day and never
     turns red. The journal is a default plugin, so deployments that do not need
     dates can leave the whole calendar and agenda out.</p>
+    <p>Plugins can also share services with other plugins. Dependent plugins wait
+    for their provider, stop when it leaves, and resume when it returns.
+    Core service providers can be replaced by other plugins, one at a time.
+    <a href="https://github.com/juspay/olai/blob/master/docs/dynamic-plugins.md#sharing-a-plugin-owned-service">Write a plugin that shares a service</a>.</p>
     <div class="cols">
       <div class="panel">
         <div class="file">/agenda · 2026-08-12</div>
