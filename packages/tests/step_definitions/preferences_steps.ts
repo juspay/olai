@@ -15,8 +15,9 @@
  */
 
 import * as assert from "node:assert";
-import { Then, When } from "@cucumber/cucumber";
+import { Given, Then, When } from "@cucumber/cucumber";
 import type { Page } from "playwright";
+
 
 import { fileKind } from "@olai/format";
 
@@ -60,6 +61,17 @@ import {
   WORDMARK,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
+
+Given("this browser refuses local storage", async function (this: OlaiWorld) {
+  await this.page.addInitScript(() => {
+    for (const method of ["getItem", "setItem", "removeItem"] as const) {
+      Object.defineProperty(Storage.prototype, method, {
+        configurable: true,
+        value() { throw new DOMException("Storage is unavailable", "SecurityError"); },
+      });
+    }
+  });
+});
 
 /** Open the panel unless it is already open. Idempotent, because a scenario
  *  that opened it to pick a theme should not have to know whether the step
