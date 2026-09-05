@@ -1248,3 +1248,7 @@ Then("the plugin {string} has no browser warning", async function (this: OlaiWor
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.waitUntil(async () => !(await row.innerText()).includes("Browser"), `${plugin}'s browser components to recover`);
 });
+
+Then("the plugins panel shows no refusal", async function (this: OlaiWorld) {
+  await this.page.locator(`${PLUGINS_PANEL} ${PLUGINS_REFUSED}`).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});

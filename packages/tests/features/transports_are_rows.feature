@@ -15,6 +15,7 @@ Feature: Transports are rows
     When I switch the plugin "mcp" off
     And I switch the plugin "mcp" on
     Then the MCP transport answers with status 200
+    And the plugins panel shows no refusal
     And there should be no page errors
 
 
@@ -32,6 +33,7 @@ Feature: Transports are rows
     Then the browser build answers with status 404
     When I switch the plugin "web-app" on
     Then the browser build answers with status 200
+    And the plugins panel shows no refusal
     And there should be no page errors
 
   Scenario: Removing the browser socket leaves the MCP endpoint available
