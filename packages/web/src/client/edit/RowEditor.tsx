@@ -39,7 +39,7 @@ import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-
 
 import { takingOfflineFocus } from "../connection/focus.ts"
 import { createCompletion } from "../complete/completing.tsx"
-import { type Draft, slotOf } from "./draft.ts"
+import { type Draft, type Slot, slotOf } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { SaidLine } from "../SaidLine.tsx"
 import { type Caret, type EditAction, type EditField, editKey } from "../keys.ts"
@@ -47,6 +47,7 @@ import { TESTID } from "../testids.ts"
 import { ROW_NOTE as AS_NOTE, ROW_TITLE, SECTION_TITLE } from "../touch.ts"
 
 export function TitleEditor(props: {
+  readonly slot?: Slot
   readonly text: string
   readonly onInput: (text: string) => void
   readonly onKey: (event: KeyboardEvent) => void
@@ -99,6 +100,7 @@ export function TitleEditor(props: {
   }
 
   takeCaret(() => element, {
+    slot: props.slot,
     at: () => props.caret,
     then: readCaret,
     armed: () => props.active !== false,
@@ -113,7 +115,7 @@ export function TitleEditor(props: {
   const editor = useEditor()
   const draft = editor.draft()
   const completion = createCompletion({
-    dismissal: editor.completionDismissal(draft === null ? undefined : slotOf(draft)),
+    dismissal: editor.completionDismissal(props.slot ?? (draft === null ? undefined : slotOf(draft))),
     text: () => props.text,
     caret,
     rewrite: (next) => {
@@ -387,6 +389,8 @@ const takeCaret = (
    *  of them and a positional `undefined` in the middle is a call site that
    *  reads as a mistake. */
   said: {
+    /** Parked inputs name themselves, independently of the draft being saved. */
+    readonly slot?: Slot
     /** Where the caret goes when the editor OPENS, when the draft says. */
     readonly at?: () => number | undefined
     /** Anything else the caret arriving implies: the note's box growing to fit
@@ -403,7 +407,7 @@ const takeCaret = (
   const editor = useEditor()
   let opening = true
   const draft = editor.draft()
-  const slot = draft === null ? undefined : slotOf(draft)
+  const slot = said.slot ?? (draft === null ? undefined : slotOf(draft))
   // Only a new editor instance consumes a retained range. Ordinary caret
   // bumps and structural row redraws keep their existing placement rules.
   const retained = editor.takeRange(slot)
@@ -429,8 +433,11 @@ const takeCaret = (
       document.removeEventListener("selectionchange", selectionChanged)
     })
   })
-  createEffect(on(editor.caret, () => {
-    if (said.armed?.() === false) return
+  createEffect(on([editor.caret, editor.resuming], () => {
+    const pending = editor.resuming()
+    if (pending !== null) {
+      if (slot?.field !== "new" || slot.row !== pending) return
+    } else if (said.armed?.() === false) return
     const field = element()
     const range = opening ? retained : undefined
     const at = opening

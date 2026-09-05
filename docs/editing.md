@@ -532,3 +532,12 @@ An agent's `delete_file` is the same op at the same gate — minted paths and re
 An open palette keeps its typed input and question through plugin changes, including a pin name or an unsent capture. Escape still backs out of the question, then closes the palette; reopening starts a new draft.
 
 A pin rename is conditional on the stored title the question was opened on. The planner also requires the row to remain on the active pinned shelf. If another writer removes the pin or changes its name or destination, the rename is refused and the draft remains; dismiss and reopen the question to rename the reviewed pin.
+
+A clicked parked draft owns focus while the preceding draft's save is pending.
+Each parked input carries its own slot identity; it must not inherit the slot of
+the draft still being saved. Parked and active drafts share one keyed list, so
+activation at the same anchor preserves the actual input element. If a save
+re-anchors the draft, the replacement input restores focus to that clicked slot.
+The transition from parked to active is batched, and Escape or a newer selection
+cancels an obsolete pending focus request. `draft_handoff.feature` covers input
+identity and typing across a held save reply.

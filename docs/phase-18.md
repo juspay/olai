@@ -119,7 +119,10 @@ be complete before this PR is ready to merge.
   leak coverage across the extracted capabilities.
 - [ ] Investigate intermittent keyboard/draft e2e failures: parked-draft ordering
   in `keyboard_editing.feature:129` failed at `3a8629ad`, and keyboard status after
-  moving a row failed at `8f077cd7`. Passing reruns alone do not explain them.
+  moving a row failed at `8f077cd7`. At `ef33309d`, the failure screenshot showed
+  missing text, not a misplaced record. Parked slots now own pending focus and
+  retain their input across activation; new identity/held-reply scenarios await
+  validation. The keyboard-status case is still unexplained.
 - [ ] Investigate the agent-migration contract failure in
   `node_agents.feature:377`: the browser rerun at `3a8629ad` observed zero initial
   contract messages instead of one. Assignment now keeps its list busy until

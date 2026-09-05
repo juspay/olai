@@ -100,7 +100,7 @@ Feature: The renderer and layout are browser rows
 
   Scenario: A cached dependency failure offers an honest reload without disturbing surviving content
     Given a static dependency of the browser module for "sidebar" cannot be fetched
-    When I open the outline "house.olai"
+    When I open the address "/house.olai"
     And I mark the page
     And I mark the screen
     And I open the plugins panel

@@ -1105,3 +1105,15 @@ Then("the note retains the backward selection {string}", async function (this: O
       && input.selectionDirection === "backward";
   }, expected), `the note to retain its backward selection of ${JSON.stringify(expected)}`);
 });
+
+const parkedInputs = new WeakMap<OlaiWorld, import("playwright").ElementHandle<HTMLElement | SVGElement>>();
+When("I remember the first parked input", async function (this: OlaiWorld) {
+  const input = await this.page.locator(`${NEW_ROW} ${TITLE_EDITOR}`).first().elementHandle();
+  assert.ok(input);
+  parkedInputs.set(this, input);
+});
+Then("the remembered parked input still holds the caret", async function (this: OlaiWorld) {
+  const input = parkedInputs.get(this);
+  assert.ok(input);
+  assert.equal(await input.evaluate((element) => element.isConnected && document.activeElement === element), true);
+});

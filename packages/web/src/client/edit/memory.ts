@@ -19,11 +19,12 @@ export const editorMemory = () => {
   const [draft, setDraft] = createSignal<Draft | null>(null)
   const [ghosts, setGhosts] = createSignal<ReadonlyArray<Pending>>([])
   const [caret, setCaret] = createSignal(0)
+  const [resuming, setResuming] = createSignal<string | null>(null)
   let slots = 0
   return {
     range: undefined as EditorRange | undefined,
     completion: { slot: undefined as Slot | undefined, dismissed: createSignal<string | null>(null) },
-    draft, setDraft, ghosts, setGhosts, caret, setCaret,
+    draft, setDraft, ghosts, setGhosts, caret, setCaret, resuming, setResuming,
     mintSlot: () => `d${++slots}`,
     enqueue: serial(),
     selection: selectionMemory(),

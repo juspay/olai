@@ -70,6 +70,7 @@ export function NewRow(props: {
           />
         </span>
         <TitleEditor
+          slot={{ row: props.draft.slot, field: "new" }}
           text={props.draft.text}
           onInput={props.onInput}
           onKey={props.onKey}

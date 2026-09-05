@@ -53,6 +53,7 @@ import {
   createEffect,
   createMemo,
   type JSX,
+  batch,
   untrack,
   useContext,
 } from "solid-js"
@@ -119,6 +120,8 @@ export interface Editor {
   /** Put the caret in a parked empty draft. Clicking a ghost that is already
    *  on screen is how a skeleton gets filled in. */
   readonly resume: (slot: string) => void
+  /** The clicked ghost owns focus while the preceding save settles. */
+  readonly resuming: Accessor<string | null>
   /** WHERE the caret is, and nothing about what is being typed there: the
    *  `Row.key` of the row being edited, the row a new line is drawn after or
    *  before, and which field. Primitives, so they answer the same value while
@@ -288,7 +291,7 @@ export const createEditor = (
   zooming: Zooming,
   memory: EditorMemory = editorMemory(),
 ): Editor => {
-  const { draft, setDraft, ghosts, setGhosts, caret, setCaret, mintSlot, enqueue } = memory
+  const { draft, setDraft, ghosts, setGhosts, caret, setCaret, resuming, setResuming, mintSlot, enqueue } = memory
   let retainedRange = memory.range
   memory.range = undefined
   createEffect(() => {
@@ -897,6 +900,7 @@ export const createEditor = (
     // is abandoning. A commit already in flight still answers — to the slot it
     // was sent for, which is no longer open, so nothing lands anywhere.
     cancel: () => {
+      setResuming(null)
       idle.clear()
       setDraft(null)
     },
@@ -1192,10 +1196,16 @@ export const createEditor = (
 
   const take = (slot: string): void => {
     const found = ghosts().find((g) => g.slot === slot)
-    if (found === undefined) return
-    setGhosts((list) => list.filter((g) => g.slot !== slot))
-    setDraft(found)
-    setCaret((n) => n + 1)
+    if (found === undefined) {
+      if (resuming() === slot) setResuming(null)
+      return
+    }
+    batch(() => {
+      setGhosts((list) => list.filter((g) => g.slot !== slot))
+      setDraft(found)
+      setResuming(null)
+      setCaret((n) => n + 1)
+    })
     if (found.text.trim() !== "") idle()
   }
 
@@ -1203,13 +1213,17 @@ export const createEditor = (
     if (ghosts().every((g) => g.slot !== slot)) return
     const held = draft()
     if (held?.kind === "new" && held.slot === slot) return
+    if (resuming() === slot) return
+    setResuming(slot)
     if (emptyPendingOf(held) !== null) {
       parkIfEmpty(held)
       take(slot)
       return
     }
     enqueue(async () => {
+      if (resuming() !== slot) return
       if (!(await commit())) {
+        setResuming(null)
         // The write that would have let this ghost take the caret was
         // refused. Focus is still in the parked input, whose keys we
         // swallow — put the caret back on the draft that is holding the
@@ -1221,7 +1235,7 @@ export const createEditor = (
       // ghosts onto the row that just landed. Capturing the ghost before
       // it would install a stale anchor — the blank above the new row
       // drawn below it.
-      take(slot)
+      if (resuming() === slot) take(slot)
     })
   }
 
@@ -1244,6 +1258,7 @@ export const createEditor = (
     draft,
     ghosts,
     resume,
+    resuming,
     where,
     caret,
     open: (at, field, here) => {
@@ -1255,6 +1270,7 @@ export const createEditor = (
       // and leaving them up while a commit is in flight would be exactly the
       // state this invariant exists to make unreachable.
       selection.clear()
+      setResuming(null)
       enqueue(async () => {
         // Whatever was being typed is committed on the way out, and a REFUSAL
         // stops the move: the row that would not save is the row to stay in,

@@ -8,7 +8,7 @@
  */
 
 import { Key } from "@solid-primitives/keyed"
-import { Show } from "solid-js"
+import { createMemo } from "solid-js"
 
 import type { Pending } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
@@ -19,15 +19,13 @@ export function Ghosts(props: {
   readonly parked: ReadonlyArray<Pending>
   readonly live: Pending | undefined
 }) {
+  // One keyed list preserves the input when its slot changes from parked to
+  // active. Removing from one list and adding to another loses browser focus.
+  const drafts = createMemo(() => props.live === undefined ? props.parked : [...props.parked.filter((draft) => draft.slot !== props.live!.slot), props.live])
   return (
-    <>
-      <Key each={props.parked} by="slot">
-        {(draft) => <GhostRow draft={draft()} active={false} />}
-      </Key>
-      <Show when={props.live}>
-        {(draft) => <GhostRow draft={draft()} />}
-      </Show>
-    </>
+    <Key each={drafts()} by="slot">
+      {(draft) => <GhostRow draft={draft()} active={props.live?.slot === draft().slot} />}
+    </Key>
   )
 }
 
