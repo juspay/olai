@@ -34,7 +34,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
-import type { Reading } from "../identity.ts"
+import type { Reading } from "../who.ts"
 import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { hostname } from "../hostname.ts"
@@ -186,6 +186,7 @@ const withRoute = <A>(
         mintTicket: (under) => tickets.mint(
           () => ({ under, forbidden: [] }),
           () => null,
+          "chat-agent",
         ),
         post: (message, headers) =>
           fetch(url, {

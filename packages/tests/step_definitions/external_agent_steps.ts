@@ -766,3 +766,7 @@ When(
     });
   },
 );
+
+When("the terminal agent commits as {string}", async function (this: OlaiWorld, message: string) {
+  this.toolAnswer = await callTool(agentOf(this), "commit", { message });
+});

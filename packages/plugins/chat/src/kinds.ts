@@ -69,12 +69,7 @@
 
 import { sessionIn } from "@olai/format"
 
-/** THE TWO WORDS, from the door that publishes them. They are `./binding.ts`'s
- *  and not this module's because ANOTHER PLUGIN reads them — a Spaces mirror
- *  has to know which column a node agent's binding is in — and that module
- *  imports nothing at all, so naming the word costs a consumer one file rather
- *  than this one's graph. Re-exported here because everything on THIS side of
- *  the wall reaches for the vocabulary, not the door. */
+/** Internal words; other plugins ask chat.seating for the reading. */
 export { SESSION_KIND, SESSION_TYPE } from "./binding.ts"
 import { SESSION_KIND, SESSION_TYPE } from "./binding.ts"
 

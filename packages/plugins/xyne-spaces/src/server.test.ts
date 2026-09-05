@@ -38,6 +38,7 @@ import {
 import { expect, test } from "bun:test"
 import { Effect, Scope } from "effect"
 
+import { seatingIn } from "./seating.testlib.ts"
 import spaces from "./server.ts"
 import { listen } from "./testlib/fake-spaces.ts"
 
@@ -119,6 +120,7 @@ const mounted = async (doubles: Doubles) => {
       needs: [Offers],
       apply: Effect.gen(function*() {
         const offers = yield* Offers
+        yield* offers.own("seating", () => ({ in: seatingIn }))
         yield* offers.offer(DeliveriesDoor, () => ({
           scopes: () => [],
           ringing: () => [],

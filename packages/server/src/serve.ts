@@ -62,7 +62,7 @@ import { openDynamic } from "./dynamic/runtime.ts"
 import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
-import { NOBODY, readingOf } from "./identity.ts"
+import { NOBODY, readingOf } from "./who.ts"
 import { PROFILES, profileRows, TRANSPORT_ROWS, type Profile } from "./profiles.ts"
 import { transportListener, transportModules, TransportSurface } from "./transports.ts"
 import { mcpEndpoint } from "./mcp/endpoint.ts"
@@ -428,7 +428,7 @@ export const serve = (options: ServeOptions) =>
       (offered(plugins.host, Identity) as Identity | undefined) ?? NOBODY
 
     /** ...and the one thing the three readers share, minted once over that
-     *  door: headers in, a person or nobody out (`./identity.ts`). Nothing
+     *  door: headers in, a person or nobody out (`./who.ts`). Nothing
      *  downstream is handed the door itself — the names are each upgrade's and
      *  the reading is everyone's. */
     const who = readingOf(currentIdentity)
@@ -455,7 +455,7 @@ export const serve = (options: ServeOptions) =>
      * listener a group from one generation and a face from another is a gate
      * failure, not a way to partially serve a roster. Both transports consume
      * this same binding; their maps decide which vocabulary each may reach.
-     * The root chooses writers: web for a button, chat-agent for MCP below. */
+     * The root chooses writers: web for a button, mcp for MCP below. */
     const wired = yield* bind({
       store,
       ops,
@@ -535,7 +535,7 @@ export const serve = (options: ServeOptions) =>
         face: wired.faces.agent,
         ops,
         root,
-        writer: "chat-agent",
+        writer: "mcp",
         // Verified READ, not REFRESH: a tool read must remain independent of
         // the publish-loop permit, so a wedged loop is observable as stale
         // vintage rather than hanging the diagnostic tool too. Refresh would

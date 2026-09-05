@@ -61,7 +61,6 @@
 
 import type { Conversing, LiveSession, Overheard } from "olai-plugin-chat"
 import {
-  agentsIn,
   customText,
   declarationsOf,
   type Derived,
@@ -86,6 +85,7 @@ import {
   NO_AGENT_ROSTER,
 } from "olai-plugin-chat/wire"
 
+import { seatingIn } from "../seating.ts"
 import { ownKinds, SESSION_KIND, SESSION_TYPE } from "../kinds.ts"
 
 
@@ -287,7 +287,7 @@ export const roster = (): Roster => {
       // the rows and the keys cannot come from two different readings of one
       // revision, which is the whole reason they are assigned together.
       const declarations = declarationsOf(derived, ownKinds)
-      held = agentsIn(derived, declarations, SESSION_TYPE)
+      held = seatingIn(derived)
       const declared = keysDeclaredAs(declarations, SESSION_TYPE)
       keys = declared.length === 0 ? [SESSION_TYPE] : declared
       owed = migrationOwed(derived, declarations)

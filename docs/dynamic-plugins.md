@@ -343,13 +343,8 @@ provider can take its place without a core edit. Other host services remain
 closed: `own("vault", ...)` means `your-plugin.vault` and cannot replace
 core's `vault`.
 
-**A shipped one to read.** `journal.agenda`
-([the journal](plugins/journal.md#the-agenda-as-a-service)) is worth reading
-beside the worked example above, because it is the case a key like this exists
-for: its consumer is a plugin somebody wrote into a vault, which nothing rebuilds
-when the provider changes. Three things follow, and all three are visible in the
-door. The journal takes the reading IN, so the answer is about one snapshot and
-the caller says which. The ask is opaque, because the consumer cannot name a
-`Reading` and does not have to — it passes on what the revision door gave it. And
-the answer is the door's OWN shape rather than the type the journal happens to
-build it out of, so the page model behind it stays free to move.
+**Two shipped ones to read, and they are the two cases.**
+
+The Spaces mirror uses this mechanism between two rows this build compiles together: chat offers `chat.seating`, whose `in(derived)` returns the node seating for that snapshot, including nodes without a session. The mirror declares that key in `needs`; switching chat off removes the mirror's registrations and switching it on restores them. Plugin packages have no dependencies on other plugin packages.
+
+`journal.agenda` ([the journal](plugins/journal.md#the-agenda-as-a-service)) is the other case, and the one a key like this exists for: its consumer is a plugin somebody wrote into a vault, which nothing rebuilds when the provider changes. Three things follow, and all three are visible in the door. The journal takes the reading IN, so the answer is about one snapshot and the caller says which. The ask is opaque, because the consumer cannot name a `Reading` and does not have to — it passes on what the revision door gave it. And the answer is the door's OWN shape rather than the type the journal happens to build it out of, so the page model behind it stays free to move.

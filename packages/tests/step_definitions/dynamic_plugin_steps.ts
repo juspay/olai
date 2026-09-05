@@ -218,7 +218,8 @@ Then("that swatch is round", async function (this: OlaiWorld) {
  * panel's, while the chip goes when the roster republishes, the tab redials and
  * the tree is built again. A count read on the frame the sentence arrived in was
  * therefore asking a question whose answer was still in flight, and CI answered
- * it with `1 !== 0` on a loaded shard.
+ * it with `1 !== 0` on a loaded shard. (Phase 12c reached the same conclusion
+ * from the other end, and the two changes met in a merge.)
  *
  * The first use — before anybody has approved anything — is unaffected: the
  * count is zero already and the wait returns on its first pass.
@@ -226,7 +227,7 @@ Then("that swatch is round", async function (this: OlaiWorld) {
 Then("no row wears a swatch", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.page.locator("[data-swatch]").count()) === 0,
-    "every swatch to leave the page with the plugin that drew it",
+    "every swatch to leave after the plugin is stopped or loses approval",
   );
 });
 

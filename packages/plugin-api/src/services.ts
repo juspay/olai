@@ -939,6 +939,9 @@ export interface Tools {
    * vault that moves — which is exactly the reading the plugin holding the
    * sessions has and core does not.
    *
+   * `writer` is the session provider’s attribution, validated by the host’s
+   * ledger vocabulary; the transport does not choose a plugin’s name.
+   *
    * `release` is the session's own teardown, and it is the whole point of the
    * ticket being a value: reaping a node scope drops its MCP footprint in the
    * same breath rather than leaving a bearer alive for a session that is gone.
@@ -946,6 +949,7 @@ export interface Tools {
   readonly ticket: (
     seated: () => Seated,
     above: (node: string) => string | null,
+    writer: string,
   ) => MintedTicket
 }
 export const Tools = serviceTag<Tools>("tools")
@@ -1172,6 +1176,7 @@ export interface PluginsConfig {
   readonly ticketFor?: (
     seated: () => Seated,
     above: (node: string) => string | null,
+    writer: string,
   ) => MintedTicket | null
   /**
    * THE VAULT'S NARROW OPS DOOR — see
@@ -1384,7 +1389,7 @@ export const openPlugins = (
       // per session and a caller has somewhere to put the absence: a root with
       // no MCP face seats a session unfenced, which is the state it was already
       // in ({@link PluginsConfig.ticketFor}).
-      ticket: (seated, above) => config.ticketFor?.(seated, above) ?? NO_TICKET,
+      ticket: (seated, above, writer) => config.ticketFor?.(seated, above, writer) ?? NO_TICKET,
     }))
 
     // THE WRITE GATE, or a process that is writing nothing. Both arms are real

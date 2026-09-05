@@ -110,6 +110,7 @@ import { openLocalState } from "./local.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { forLocalState as memoryIn } from "./memory.ts"
+import { seatingIn } from "./seating.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
 import { assignSession, type Binding, startAgentSession } from "./server/binding.ts"
@@ -203,6 +204,7 @@ export default definePlugin({
     const kindsDoor = yield* Kinds
     const localState = yield* openLocalState(yield* LocalState)
     const offers = yield* Offers
+    yield* offers.own("seating", () => ({ in: seatingIn }))
     const ops = yield* Ops
     const surfaces = yield* Surfaces
     const tools = yield* Tools
@@ -825,6 +827,7 @@ export default definePlugin({
               forbidden: nodeAgents.keys().map((key) => ({ key, says: SEATS })),
             }),
             nodeAgents.above,
+            "chat-agent",
           ),
         onState: publishState,
         ...(nodeIdle === undefined ? {} : { idle: nodeIdle }),

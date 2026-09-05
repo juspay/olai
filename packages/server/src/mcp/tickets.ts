@@ -1,5 +1,7 @@
 /** Per-node session credentials. The ticket registry owns the narrowed door,
  * so releasing a node scope drops its whole MCP footprint at once. */
+import { Schema } from "effect"
+import { Writer } from "@olai/format"
 import type { FaceExposure } from "@kolu/surface/expose"
 import type { Fence, Ops } from "@olai/ops"
 import { randomBytes } from "node:crypto"
@@ -71,7 +73,7 @@ export interface Ticket {
 }
 
 export interface Tickets {
-  readonly mint: (fence: () => Seated, above: (node: string) => string | null) => Ticket
+  readonly mint: (fence: () => Seated, above: (node: string) => string | null, writer: string) => Ticket
   readonly doorAt: (held: OlaiSurfaceClient) => OlaiSurfaceClient
 }
 
@@ -84,15 +86,15 @@ export const ticketing = (options: {
   const prefix = "olai-node-"
   const tickets = new Map<string, OlaiSurfaceClient>()
 
-  const composed = (fence: Fence): OlaiSurfaceClient => clientOver({
+  const composed = (fence: Fence, writer: Writer): OlaiSurfaceClient => clientOver({
     group: options.bound.group,
-    handlers: writerAt(options.bound, options.ops, { writer: "chat-agent", fence }),
+    handlers: writerAt(options.bound, options.ops, { writer, fence }),
   }, options.face)
 
-  const closed = composed({ under: null, ask: () => null, forbidden: new Map() })
+  const closed = composed({ under: null, ask: () => null, forbidden: new Map() }, "mcp")
 
   return {
-    mint: (seated, above) => {
+    mint: (seated, above, writer) => {
       const bearer = `${prefix}${randomBytes(24).toString("hex")}`
       const fence: Fence = {
         get under() {
@@ -105,7 +107,7 @@ export const ticketing = (options: {
           )
         },
       }
-      tickets.set(bearer, composed(fence))
+      tickets.set(bearer, composed(fence, Schema.decodeUnknownSync(Writer)(writer)))
       let released = false
       return {
         bearer,

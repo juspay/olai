@@ -35,6 +35,7 @@ import {
   bindOf,
   DEFAULT_TRIM,
   spacesConfigIn,
+  Seating,
   type SpacesReading,
 } from "./config.ts"
 import { openLocalState } from "./local.ts"
@@ -133,7 +134,7 @@ const linkFromEnv = (
  */
 export default definePlugin({
   name,
-  needs: [Clock, Deliveries, Env, LocalState, Surfaces, Vault, Watching],
+  needs: [Seating, Clock, Deliveries, Env, LocalState, Surfaces, Vault, Watching],
   apply: Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against each
@@ -144,6 +145,7 @@ export default definePlugin({
     const localState = yield* openLocalState(yield* LocalState)
     const surfaces = yield* Surfaces
     const vault = yield* Vault
+    const seating = yield* Seating
     const watching = yield* Watching
     /** THE ONE SEAM ACROSS THE BOUNDARY — `@olai/effect-cordis`'s `detached`.
      *  `makeMirror` is not written in Effect: it calls back to save a snapshot
@@ -343,7 +345,7 @@ export default definePlugin({
      */
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
-        reading = spacesConfigIn(revision.value.derived)
+        reading = spacesConfigIn(revision.value.derived, seating.in(revision.value.derived))
         if (!missingEnv) return
         if (reading.named.length > 0) run(deliverFault(sayUnconfigured(), "fault"))
         else if (current.status !== "absent") paint(env.link)
