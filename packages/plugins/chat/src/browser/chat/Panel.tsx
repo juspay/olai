@@ -439,6 +439,7 @@ function DesktopDock() {
       style={{ width: `${panelWidth()}px` }}
       data-testid={TESTID.chatPanel}
       data-status={chat.state().status}
+      data-session-id={chat.state().session?.id}
       data-layout="dock"
       aria-label="agent"
     >
@@ -544,6 +545,7 @@ function MobileSheet() {
         }}
         data-testid={TESTID.chatPanel}
         data-status={chat.state().status}
+        data-session-id={chat.state().session?.id}
         data-layout="sheet"
         data-snap={panelSnap()}
         aria-label="agent"

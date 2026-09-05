@@ -76,6 +76,7 @@ import { memoryOf } from "@olai/format"
 import { agentIn, type ChatState } from "olai-plugin-chat/wire"
 import { useAgents } from "../agents/answered.tsx"
 import { rowOf } from "../agents/focus.ts"
+import { pastOf } from "../agents/lineage.ts"
 import { QUIET_PILL } from "@olai/web/client/pill.ts"
 import { Link } from "@olai/web/client/router.tsx"
 import { TESTID } from "../../testids.ts"
@@ -116,7 +117,17 @@ export function Header(props: {
    */
   const node = createMemo(() => {
     const at = state().bound
-    return at === null ? undefined : roster.at(at)
+    if (at !== null) return roster.at(at)
+    // History still belongs to its node even though it is no longer the
+    // bound, working conversation. Keep its navigation without changing the
+    // server binding or waking the node's current session.
+    const open = roster.openChat()
+    const listed = roster.chats()
+    if (open === null || listed === null) return undefined
+    return roster.rows().find((row) =>
+      row.engine === open.agent && row.session !== null
+      && pastOf(listed.sessions, row.engine, row.session).some((past) => past.id === open.session)
+    )
   })
 
   return (

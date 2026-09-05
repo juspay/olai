@@ -659,6 +659,11 @@ agent-session: grok         →  agent-session: claude:0f3c8d21-…
 
 ### fresh session
 
+Opening a past session keeps the node's name and **sessions (n)** control in the
+header, including after a page reload. The open history row is selected; **current
+session** returns to the conversation the node's property names. Reading history
+does not rewrite that property or replace the node's current conversation.
+
 **That same control offers *fresh session*, labelled with what it means**: memory is the subtree, the transcript becomes history. It opens a new conversation with that node's engine and re-points the property at it — the same two acts *start an agent session* runs, in the same order, so the vault never names a session that was not opened.
 
 What it costs is what the contract has been saying all along: nothing that was written into the subtree, and everything that was only ever in the transcript. **The conversation it replaces is not orphaned** — olai writes down what replaced it, so it becomes one of that agent's past sessions rather than reappearing under *Unassigned* as a chat nobody claims. That note is this machine's, like the rest of what olai overheard.

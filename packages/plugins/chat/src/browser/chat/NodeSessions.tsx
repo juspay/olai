@@ -73,6 +73,7 @@ import { createMemo, For, Show } from "solid-js"
 import { chatWire } from "../wire.ts"
 
 import { memoryOf } from "@olai/format"
+import { agentIn } from "olai-plugin-chat/wire"
 import type { SessionInfo } from "olai-plugin-chat/wire"
 import { useAgents } from "../agents/answered.tsx"
 import { pastOf, successorIn } from "../agents/lineage.ts"
@@ -115,6 +116,10 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
    *  every other step of a lineage. */
   const successorOf = (session: SessionInfo): SessionInfo | undefined =>
     successorIn(chats()?.sessions ?? [], session)
+
+  const isOpen = (session: string): boolean =>
+    agentIn(props.chat.state())?.id === props.agent.engine
+    && props.chat.state().session?.id === session
 
   /** What *fresh session* said, where it was refused — an engine this machine
    *  does not have, an agent that would not start, a record the ops layer will
@@ -167,6 +172,25 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
           class={`absolute inset-x-3 top-full ${WITHIN.pop} mt-1 max-h-80 list-none overflow-x-hidden overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
           data-testid={TESTID.chatSessionList}
         >
+          <Show when={props.agent.session}>
+            {(session) => (
+              <li>
+                <button
+                  type="button"
+                  class="block w-full rounded px-2 py-1 text-left text-xs hover:bg-rule disabled:text-accent"
+                  disabled={isOpen(session())}
+                  data-session-id={session()}
+                  onClick={() => {
+                    picker.shut()
+                    hideUnassigned()
+                    props.chat.loadSession(props.agent.engine, session())
+                  }}
+                >
+                  current session
+                </button>
+              </li>
+            )}
+          </Show>
           <Show when={past().length > 0}>
             <li
               class="px-2 pt-1 pb-1 text-[0.625rem] text-muted"
@@ -181,7 +205,7 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
                   <Conversation
                     session={session}
                     successor={successorOf(session)}
-                    current={false}
+                    current={isOpen(session.id)}
                     testid={TESTID.chatPastSession}
                     onPick={() => {
                       picker.shut()

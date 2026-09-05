@@ -654,3 +654,32 @@ When("I paste that row into the declarations", async function (this: OlaiWorld) 
     .trimEnd();
   this.writeServed("_olai/Properties.olai", [kept, row].join("\n"));
 });
+
+When("I open the past session {string}", async function (this: OlaiWorld, title: string) {
+  const row = this.page.locator(PAST_SESSION, { hasText: title }).first();
+  const session = await row.getAttribute("data-session-id");
+  assert.ok(session);
+  await row.click();
+  await this.waitUntil(async () =>
+    await this.page.locator(selector(PLUGIN_TESTID.chatPanel)).getAttribute("data-session-id") === session,
+    "the selected past conversation to open",
+  );
+});
+
+Then("the past session {string} is selected", async function (this: OlaiWorld, title: string) {
+  const row = this.page.locator(PAST_SESSION, { hasText: title }).first();
+  await this.waitUntil(async () => await row.getAttribute("data-current") === "true", "the past conversation to be selected");
+  assert.ok(await row.isDisabled());
+});
+
+When("I return to the node agent's current session", async function (this: OlaiWorld) {
+  const button = this.page.getByRole("button", { name: "current session", exact: true });
+  const session = await button.getAttribute("data-session-id");
+  assert.ok(session);
+  await button.click();
+  await this.waitUntil(async () => {
+    const panel = this.page.locator(selector(PLUGIN_TESTID.chatPanel));
+    return await panel.getAttribute("data-session-id") === session
+      && await panel.getAttribute("data-status") === "idle";
+  }, "the node's current conversation to be ready");
+});
