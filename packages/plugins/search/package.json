@@ -1,0 +1,36 @@
+{
+  "name": "olai-plugin-search",
+  "//name": "UNSCOPED, like every other row. `@olai/*` is the scope for the packages that ARE olai; this one is a plugin the loader mounts by name off a row in `packages/bundle/olai.yml`. The directory is the plugin word (`search`), which is the row's `id`, the word `--plugins` takes, and the address of its docs page.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "//exports": "FIVE, and the split is the tree's three-door rule with nothing added. `./server` is what the row mounts: the trigram table, the matcher over it, and the one door this row stands behind — no `solid-js` anywhere on that graph, because a process that renders nothing must not pull a UI runtime. `./browser` is the chunk the tab fetches when the roster names this row, and it carries exactly one face: the header's search box, which used to be imported by `@olai/web`'s `AppHeader.tsx`. The ROOT is the plugin's word — this row composes no sibling surface, because `search.nodes` is CORE's member and stays on core's three faces (a row that renamed it would rename a tool an agent already calls). `./testids` and `./all.css` are the two contracts the generated bundle files need of every row.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./browser": "./src/browser.tsx",
+    "./testids": "./src/testids.ts",
+    "./all.css": "./src/browser/all.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//": "SEARCH — the trigram table, the matcher that spends it, and the header's box. `@olai/index` was a general package and `@olai/ops` held the walk; they are this row now. A serve that does not name it answers every one of the five doors with a refusal in words: `search_nodes` for an agent, and the palette, the composer's `@` list, the edges panel and the move picker for a person. The FILTER over a page is not in this at all — it is `Query.narrowing`, a reading of one page, and it stays core.",
+  "//dependencies": "@olai/format is the floor: the grammar, the matcher, the fold this table holds and the shapes an answer is made of. @olai/ops is the layer this row answers FOR — its `Search` door is the type both ends spell, and `Query.foundOf` is the situating every read of the set shares (a second copy here would be a second answer to `where does this node live`). @olai/plugin-api is the door: the `Offers` tag the server half stands behind and the slot service the browser half hangs the box in. @olai/web is the shell the box draws with — the shortlist kit four core doors already share (`Shortlist`, `Result`, `nodes`, `cursor`, `props`, `place`) stays core furniture, and this face borrows it exactly as it did when it lived there. effect because a plugin's `apply` is one; solid-js because the box is a component. The engine is `bun:sqlite`, which is the runtime's own and therefore not a line here.",
+  "dependencies": {
+    "@olai/format": "workspace:*",
+    "@olai/ops": "workspace:*",
+    "@olai/plugin-api": "workspace:*",
+    "@olai/web": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "solid-js": "^1.9.0"
+  },
+  "//devDependencies": "@olai/store for the differential test that drives the real write gate across a series of writes (src/matcher.index.test.ts, which was `@olai/ops`' `search.index.test.ts` and moved with the table it is about). @effect/platform-node is that test's file system. @types/node is the path and fs it stages a directory with.",
+  "devDependencies": {
+    "@effect/platform-node": "4.0.0-rc.112",
+    "@olai/store": "workspace:*",
+    "@types/node": "^22.0.0"
+  }
+}

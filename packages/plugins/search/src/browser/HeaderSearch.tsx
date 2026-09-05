@@ -7,15 +7,15 @@
  * this app keeps what is true about the app rather than about the page, and a
  * box you can see is the difference between a feature and a feature somebody
  * told you about. What it must NOT be is a second implementation: it asks
- * `createSearch` (`./nodes.ts`) exactly as the palette does, draws
- * `./Result.tsx` exactly as the palette does, and presses a result the same
+ * `createSearch` (`@olai/web`'s `search/nodes.ts`) exactly as the palette does,
+ * draws its `search/Result.tsx` exactly as the palette does, and presses a result the same
  * way — so the two doors cannot answer differently, in the same sense that
  * the browser and an agent cannot (the consistency rule, one layer
  * in).
  *
  * That rule is why the DOCUMENT ROWS are here too. They are the palette's
  * block, built by the palette's own module over the served list
- * (`../palette/items.ts`), in the same order and drawn with the same
+ * (`@olai/web`'s `palette/items.ts`), in the same order and drawn with the same
  * glyph: a box that found `finishes.md` while the chord next to it did not
  * would be the drift above, inside one client, with nothing to blame it on but
  * which surface somebody happened to think about.
@@ -23,7 +23,7 @@
  * ## Where it sits, and what gives way
  *
  * In the right-hand cluster, FIRST, before the pills. The bar's documented
- * give-way order (`../AppHeader.tsx`) is about what a reader loses when the
+ * give-way order (`@olai/web`'s `AppHeader.tsx`) is about what a reader loses when the
  * width runs out; this box takes what is left after the pills have their
  * floors — it is `min-w-0` with a `max-w`, so it shrinks to nothing before
  * the connection state or the commit pill loses a character. It is the one
@@ -37,7 +37,7 @@
  * the ⌘K palette, which is a full-width modal built for exactly this and
  * drawing exactly these rows. One more door, still one reading, and no
  * surface that exists only on a phone. The pills that used to crowd it out
- * of the bar are gone from the phone header (`../AppHeader.tsx`); the
+ * of the bar are gone from the phone header (`@olai/web`'s `AppHeader.tsx`); the
  * magnifier stays because it is the door.
  *
  * ## The panel PORTALS
@@ -45,58 +45,69 @@
  * The header is `sticky` with a `z-index`, which makes it a stacking context
  * three rem tall — "not somewhere a panel can hang out of", as the bar's own
  * header says, which is why the commit and preferences panels portal. This
- * one does the same, positioned by the shared geometry (`../anchor.ts`) so a
+ * one does the same, positioned by the shared geometry (`@olai/web`'s `anchor.ts`) so a
  * box near the right edge is pushed back inside rather than clipped.
  *
  * Focus, not a click-away, is what closes it: the results are up while the
  * box has the caret, and pressing one keeps the caret where it is
- * (`Result.tsx`'s `mousedown` guard) so the press lands before the blur.
+ * (`@olai/web`'s `search/Result.tsx` `mousedown` guard) so the press lands
+ * before the blur.
  */
 
 import { needlesFrom } from "@olai/format"
 import { createEffect, createMemo, createSignal, Index, onCleanup, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
-import { type Anchor, anchoredTo, styleOf } from "../anchor.ts"
-import { ALARM_BAND, SaidLine } from "../SaidLine.tsx"
-import { LAYER } from "../layer.ts"
-import { hitItems, type PaletteItem } from "../palette/items.ts"
-import { openPalette } from "../palette/open.ts"
-import { Refusals } from "../refusals.tsx"
-import type { Route } from "../routes.ts"
-import { listKey } from "../keys.ts"
+import { type Anchor, anchoredTo, styleOf } from "@olai/web/client/anchor.ts"
+import { ALARM_BAND, SaidLine } from "@olai/web/client/SaidLine.tsx"
+import { LAYER } from "@olai/web/client/layer.ts"
+import { hitItems, type PaletteItem } from "@olai/web/client/palette/items.ts"
+import { openPalette } from "@olai/web/client/palette/open.ts"
+import { Refusals } from "@olai/web/client/refusals.tsx"
+import { useMaybeGo } from "@olai/web/client/router.tsx"
+import { listKey } from "@olai/web/client/keys.ts"
+import { TESTID as SHELL } from "@olai/web/client/testids.ts"
 import { TESTID } from "../testids.ts"
-import { TARGET } from "../touch.ts"
-import { useToday } from "../today.tsx"
-import { SearchCount } from "./Count.tsx"
-import { createCursor } from "./cursor.ts"
-import { createSearch } from "./nodes.ts"
-import { Result, type RowTestids } from "./Result.tsx"
-import { spend } from "../settled.ts"
+import { TARGET } from "@olai/web/client/touch.ts"
+import { useToday } from "@olai/web/client/today.tsx"
+import { SearchCount } from "@olai/web/client/search/Count.tsx"
+import { createCursor } from "@olai/web/client/search/cursor.ts"
+import { createSearch } from "@olai/web/client/search/nodes.ts"
+import { Result, type RowTestids } from "@olai/web/client/search/Result.tsx"
+import { spend } from "@olai/web/client/settled.ts"
 
 /** WHERE an alarm sits in this panel: a full-width band above the rows, at
  *  this door's own gutter — narrower than the palette's because the panel is.
- *  The alarm's SKIN is `../SaidLine.tsx`'s (`ALARM_BAND`). */
+ *  The alarm's SKIN is `@olai/web`'s `SaidLine.tsx` (`ALARM_BAND`). */
 const ALERT_ROW = `${ALARM_BAND} px-3`
 
-/** What this door calls its rows (`./Result.tsx`'s `RowTestids`). */
+/** What this door calls its rows (`@olai/web`'s `search/Result.tsx`). */
 const HEADER_ROW: RowTestids = {
   row: TESTID.headerSearchItem,
   place: TESTID.headerSearchItemPlace,
   prop: TESTID.headerSearchItemProp,
 }
 
-export function HeaderSearch(props: {
-  readonly go: (route: Route) => void
-}) {
+export function HeaderSearch() {
+  /**
+   * WHERE A PRESS GOES, or `null` on the two screens with no router beneath the
+   * bar — the error report and the waiting page.
+   *
+   * `AppHeader` used to carry that fact as an optional `go` and simply not draw
+   * this box. A slot face has no props to be handed one through, so the absence
+   * is asked for here (`@olai/web`'s `useMaybeGo`) and the whole face is gated
+   * on it below: a door that could not open anywhere is worse than no door,
+   * which is the sentence that prop's own comment carried.
+   */
+  const go = useMaybeGo()
   const [query, setQuery] = createSignal("")
   const [caret, setCaret] = createSignal(false)
   const today = useToday()
   const needles = createMemo(() => needlesFrom(query(), today()))
   // WHICH row Enter takes — the one cursor every shortlist in this client
-  // shares (`./cursor.ts`), so the arrows here, in the ⌘K palette and in the
-  // row editor's completions cannot disagree about what the bottom of a list
-  // does. It also keeps a list the SERVER shortened under somebody honest,
+  // shares (`@olai/web`'s `search/cursor.ts`), so the arrows here, in the ⌘K
+  // palette and in the row editor's completions cannot disagree about what the
+  // bottom of a list does. It also keeps a list the SERVER shortened under somebody honest,
   // which is what the clamp-after-the-fact here used to be for.
   const cursor = createCursor(() => items().length)
   const [at, setAt] = createSignal<Anchor | null>(null)
@@ -104,9 +115,9 @@ export function HeaderSearch(props: {
 
   /** WHAT THIS BOX IS ASKING — the query, or `null` while nobody has the caret
    *  in it. One accessor for both lists below, exactly as the palette keeps one
-   *  (`../palette/Palette.tsx`): a box that stopped asking is a box neither
-   *  list may still be answering, and gated per list that is a rule each of
-   *  them could stop keeping on its own. */
+   *  (`@olai/web`'s `palette/Palette.tsx`): a box that stopped asking is a box
+   *  neither list may still be answering, and gated per list that is a rule
+   *  each of them could stop keeping on its own. */
   const asked = () => (caret() ? query() : null)
 
   const nodes = createSearch(asked)
@@ -131,7 +142,8 @@ export function HeaderSearch(props: {
   // The panel is up when there is anything to say — rows, a refused call, or a
   // query the grammar could not read. That last one is why a typo in an
   // operator opens the panel at all rather than looking like an empty
-  // directory (`./nodes.ts` says why the two refusals are separate slots).
+  // directory (`@olai/web`'s `search/nodes.ts` says why the two refusals are
+  // separate slots).
   const showing = () =>
     caret() &&
     (items().length > 0 || nodes.failure() !== null || nodes.refusals().length > 0)
@@ -160,13 +172,19 @@ export function HeaderSearch(props: {
   const open = (item: PaletteItem) => {
     const action = item.action
     // Every row this box draws is a route by construction — every hit is
-    // somewhere to go (`../palette/items.ts`'s `hitItems`); the guard is what
+    // somewhere to go (`@olai/web`'s `palette/items.ts`); the guard is what
     // keeps that true rather than assumed.
     if (action.kind !== "route") return
-    props.go(action.route)
+    go?.(action.route)
     setQuery("")
     box?.blur()
   }
+
+  // NOTHING AT ALL where there is no router — see {@link go}. Above the return
+  // rather than a `<Show>` around it, because the answer cannot change while
+  // this face is mounted: a screen either has a router under the bar or it does
+  // not, and the two screens that do not never become one that does.
+  if (go === null) return null
 
   return (
     <>
@@ -190,7 +208,7 @@ export function HeaderSearch(props: {
             measure()
           }}
           onBlur={() => setCaret(false)}
-          // WHICH key is the registry's (`../keys.ts`'s list layer, the same
+          // WHICH key is the registry's (`@olai/web`'s `keys.ts`, the same
           // one the palette and the row editor's completions ask); what each
           // answer MEANS is this box's — `dismiss` empties it and gives the
           // caret back to the page.
@@ -200,7 +218,7 @@ export function HeaderSearch(props: {
             event.preventDefault()
             if (action === "next") cursor.step(1)
             if (action === "prev") cursor.step(-1)
-            // THROUGH THE ANSWER THE ROW CAME FROM (`../settled.ts`): the rows
+            // THROUGH THE ANSWER THE ROW CAME FROM (`@olai/web`'s `settled.ts`): the rows
             // hold still through the settle and the round trip after it, so
             // for a moment after every keystroke the row under the cursor
             // answers a query the reader has typed past — and opening it would
@@ -210,7 +228,7 @@ export function HeaderSearch(props: {
             //
             // OFF THE ROW rather than off this door's search, even though
             // every row here IS that search's: this box and the ⌘K palette
-            // draw ONE row type (`../palette/items.ts`), and two doors over
+            // draw ONE row type (`@olai/web`'s `palette/items.ts`), and two doors over
             // one row gating differently is the drift this file's header is
             // about. A POINTER never comes through here: `onSelect` opens the
             // row it pressed.
@@ -245,7 +263,7 @@ export function HeaderSearch(props: {
               // `styleOf` rather than a style object of this file's own: a
               // COMPUTED key (`[at.side]`) compiles away silently in Solid and
               // leaves the panel with no vertical position at all — which is
-              // documented in `../anchor.ts` because it already cost the
+              // documented in `@olai/web`'s `anchor.ts` because it already cost the
               // Commit panel its placement once, and cost this one an
               // afternoon before the shared answer was used.
               style={styleOf(box_())}
@@ -263,11 +281,11 @@ export function HeaderSearch(props: {
                   name of and not the value. Its own row rather than the one
                   above, for the reason that one has its own: a refused call
                   and a refused query are two different pieces of news. Drawn
-                  by `../refusals.tsx`, the same rows the other two doors get. */}
+                  by `@olai/web`'s `refusals.tsx`, the same rows the other two doors get. */}
               <Refusals
                 of={nodes.refusals()}
                 class={ALERT_ROW}
-                testid={TESTID.searchRefusal}
+                testid={SHELL.searchRefusal}
               />
               {/* Down, never sideways — the rows are built not to overflow
                   and this is what keeps that a property of the container. */}
@@ -275,7 +293,7 @@ export function HeaderSearch(props: {
                 class="m-0 max-h-72 list-none overflow-x-hidden overflow-y-auto p-1"
                 data-asked={nodes.answering() ?? undefined}
               >
-                {/* `<Index>` rather than `<For>`, which is `./Shortlist.tsx`'s
+                {/* `<Index>` rather than `<For>`, which is the shell's `search/Shortlist.tsx`'s
                     rule over the identical rows: they are positional, there
                     are at most eight, and every answer mints fresh items —
                     which by reference meant all eight rows torn down and
@@ -303,7 +321,7 @@ export function HeaderSearch(props: {
               {/* WHAT IS BEHIND THE ROWS — under the list rather than inside
                   it, so a reader who has scrolled the eight rows still has it
                   in front of them, and absent entirely when the eight are all
-                  there was (`./count.ts`). */}
+                  there was (`@olai/web`'s `search/count.ts`). */}
               <SearchCount
                 of={nodes}
                 class="m-0 border-t border-rule/40 px-3 py-1.5 font-mono text-xs text-muted"

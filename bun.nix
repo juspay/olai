@@ -1770,7 +1770,6 @@
   "@olai/effect-cordis" = copyPathToStore ./packages/effect-cordis;
   "@olai/fonts" = copyPathToStore ./packages/fonts;
   "@olai/format" = copyPathToStore ./packages/format;
-  "@olai/index" = copyPathToStore ./packages/index;
   "@olai/log" = copyPathToStore ./packages/log;
   "@olai/ops" = copyPathToStore ./packages/ops;
   "@olai/plugin-api" = copyPathToStore ./packages/plugin-api;
@@ -7637,6 +7636,7 @@
   "olai-plugin-odu" = copyPathToStore ./packages/plugins/odu;
   "olai-plugin-opencode" = copyPathToStore ./packages/plugins/opencode;
   "olai-plugin-pi" = copyPathToStore ./packages/plugins/pi;
+  "olai-plugin-search" = copyPathToStore ./packages/plugins/search;
   "olai-plugin-xyne-spaces" = copyPathToStore ./packages/plugins/xyne-spaces;
   "on-finished@2.4.1" = fetchurl
     {

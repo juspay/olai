@@ -346,7 +346,6 @@ export default function App() {
       >
         <AppHeader
           docked={loaded()}
-          go={(route) => router.go(route)}
           menu={
             loaded()
               ? {

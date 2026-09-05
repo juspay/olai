@@ -57,6 +57,7 @@
         "olai-plugin-odu": "workspace:*",
         "olai-plugin-opencode": "workspace:*",
         "olai-plugin-pi": "workspace:*",
+        "olai-plugin-search": "workspace:*",
         "olai-plugin-xyne-spaces": "workspace:*",
       },
     },
@@ -89,13 +90,6 @@
         "yaml": "^2.9.0",
       },
     },
-    "packages/index": {
-      "name": "@olai/index",
-      "version": "0.1.0",
-      "dependencies": {
-        "@olai/format": "workspace:*",
-      },
-    },
     "packages/log": {
       "name": "@olai/log",
       "version": "0.1.0",
@@ -108,7 +102,6 @@
       "version": "0.1.0",
       "dependencies": {
         "@olai/format": "workspace:*",
-        "@olai/index": "workspace:*",
         "@olai/store": "workspace:*",
         "effect": "4.0.0-rc.112",
       },
@@ -300,6 +293,23 @@
         "@olai/plugin-api": "workspace:*",
         "effect": "4.0.0-rc.112",
         "solid-js": "^1.9.0",
+      },
+    },
+    "packages/plugins/search": {
+      "name": "olai-plugin-search",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/format": "workspace:*",
+        "@olai/ops": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "@olai/web": "workspace:*",
+        "effect": "4.0.0-rc.112",
+        "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@effect/platform-node": "4.0.0-rc.112",
+        "@olai/store": "workspace:*",
+        "@types/node": "^22.0.0",
       },
     },
     "packages/plugins/xyne-spaces": {
@@ -607,8 +617,6 @@
     "@olai/fonts": ["@olai/fonts@workspace:packages/fonts"],
 
     "@olai/format": ["@olai/format@workspace:packages/format"],
-
-    "@olai/index": ["@olai/index@workspace:packages/index"],
 
     "@olai/log": ["@olai/log@workspace:packages/log"],
 
@@ -1241,6 +1249,8 @@
     "olai-plugin-opencode": ["olai-plugin-opencode@workspace:packages/plugins/opencode"],
 
     "olai-plugin-pi": ["olai-plugin-pi@workspace:packages/plugins/pi"],
+
+    "olai-plugin-search": ["olai-plugin-search@workspace:packages/plugins/search"],
 
     "olai-plugin-xyne-spaces": ["olai-plugin-xyne-spaces@workspace:packages/plugins/xyne-spaces"],
 

@@ -576,10 +576,13 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
 
 test("a read answers over parsed nodes, with file:line and the marks", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
-    const hits = (await call(client, "search_nodes", { text: "cabinets" })).structured
-    expect(hits["total"]).toBe(1)
-    const hit = (hits["hits"] as ReadonlyArray<Record<string, unknown>>)[0]
-    expect(hit).toMatchObject({
+    // `read_node` rather than `search_nodes`, which this used to lead with: the
+    // matcher is a ROW now and this harness mounts none, so a hit is not a
+    // shape reachable from this package at all (see the search test below).
+    // What is claimed here is unchanged — an agent reads NODES, with the file
+    // and line a person can be pointed at, and never a byte.
+    const order = (await call(client, "read_node", { id: "order" })).structured
+    expect(order).toMatchObject({
       id: "order",
       file: "house.olai",
       line: 3,
@@ -588,7 +591,7 @@ test("a read answers over parsed nodes, with file:line and the marks", async () 
     // `order` carries no mark, so it has no status — and the answer says that by
     // leaving the field out rather than by inventing a word for it. An agent
     // reading a corpus of notes gets nodes, not to-dos.
-    expect(hit).not.toHaveProperty("status")
+    expect(order).not.toHaveProperty("status")
 
     // `kitchen` carries no mark either, so what an agent learns instead is the
     // ROLLUP: two of its children are tasks, one of them done. An annotation,
@@ -599,7 +602,37 @@ test("a read answers over parsed nodes, with file:line and the marks", async () 
   })
 })
 
-test("search and subtree carry a node's see so an agent can traverse", async () => {
+/**
+ * ...AND WHAT `search_nodes` ANSWERS WITH NOBODY BEHIND THE MATCHER — the
+ * ledger's arrangement one door over (`push`, below), for the same reason: this
+ * harness mounts no plugin, so the row that answers this tool is absent.
+ *
+ * NOT an error. `isError` is for a refused write; a serve with no provider is
+ * something a caller is entitled to READ, and the reason rides on `refusals` —
+ * the field this answer already carries for a query the grammar could not read,
+ * which every door onto search already draws.
+ *
+ * What each query FINDS, and which fields a hit carries, is
+ * `olai-plugin-search`'s own suite: it runs `@olai/ops`' tool walk with the
+ * matcher mounted and puts every answer through the same `answers` schema this
+ * face is projected from, strictly — which catches the same two drops this
+ * layer's own walk catches, a field produced and undeclared and a field
+ * declared and no longer produced.
+ */
+test("search_nodes answers the reason when nobody stands behind the matcher", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
+    const answered = await call(client, "search_nodes", { text: "cabinets" })
+    expect(answered.isError).toBe(false)
+    expect(answered.structured).toMatchObject({ hits: [], total: 0 })
+    expect((answered.structured["refusals"] as ReadonlyArray<Record<string, unknown>>)[0])
+      .toMatchObject({ token: "cabinets" })
+  })
+})
+
+/** The hit's half of this claim went with the matcher (`olai-plugin-search`);
+ *  the walk's half is core's and is here, through the encoder that is the
+ *  reason either half is spelled at this layer at all. */
+test("a subtree carries a node's see so an agent can traverse", async () => {
   const SEEING = [
     `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
     `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","see":["install"]}`,
@@ -608,12 +641,6 @@ test("search and subtree carry a node's see so an agent can traverse", async () 
   ].join("\n")
 
   await withTools({ "house.olai": SEEING }, async ({ client }) => {
-    const hits = (await call(client, "search_nodes", { text: "cabinets" })).structured
-    expect((hits["hits"] as ReadonlyArray<unknown>)[0]).toMatchObject({
-      id: "order",
-      see: ["install"],
-    })
-
     const tree = (await call(client, "read_subtree", { id: "kitchen", depth: 1 })).structured
     const children = tree["children"] as ReadonlyArray<Record<string, unknown>>
     expect(children.find((child) => child["id"] === "order")).toMatchObject({
@@ -626,13 +653,19 @@ test("search and subtree carry a node's see so an agent can traverse", async () 
 
 /**
  * The same fence for `custom`, and it has to be HERE as well as in the ops
- * layer: this is the only test that goes through the encoder, which is where a
+ * layer: this is the only test that goes through THIS encoder, which is where a
  * field produced by `foundOf` and unknown to the schema is silently DROPPED. It
  * happened once, to `matched` (`@olai/format`'s `searching.ts` header), and
  * `custom` is now on `Found` — one declaration both sides spread — so the drop
- * cannot recur. This is what makes that a checked fact rather than a claim.
+ * cannot recur.
+ *
+ * The HIT's half of the claim left with the matcher (`olai-plugin-search`'s
+ * `tools.test.ts`, which puts every answer of the same walk through the same
+ * schema). The WALK's half is core's and is here, over the same `Found`: a
+ * declaration both arms spread is a declaration either arm's test catches a
+ * drop from.
  */
-test("search and subtree carry a node's properties, so a board is one query", async () => {
+test("a subtree carries a node's properties, so a board is one read", async () => {
   const PROPPED = [
     `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
     `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets",` +
@@ -642,28 +675,6 @@ test("search and subtree carry a node's properties, so a board is one query", as
   ].join("\n")
 
   await withTools({ "house.olai": PROPPED }, async ({ client }) => {
-    // Selected BY the property, and the answer already holds the other one —
-    // the read-per-hit this field exists to remove.
-    const hits = (await call(client, "search_nodes", { text: "prop:agent=claude-opus" }))
-      .structured
-    expect(hits["total"]).toBe(1)
-    expect((hits["hits"] as ReadonlyArray<unknown>)[0]).toMatchObject({
-      id: "order",
-      custom: { pr: "https://github.com/juspay/olai/pull/179", agent: "claude-opus" },
-      // …and WHICH property put it there, through the encoder — the seam that
-      // once dropped `matched`, now carrying its sibling too.
-      matchedProps: ["agent"],
-    })
-
-    // Both halves of "why is this here" on one hit, since both can be true:
-    // the title carried the word, the map carried the key.
-    const both = (await call(client, "search_nodes", { text: "cabinets prop:pr" })).structured
-    expect((both["hits"] as ReadonlyArray<unknown>)[0]).toMatchObject({
-      id: "order",
-      matched: "title",
-      matchedProps: ["pr"],
-    })
-
     const tree = (await call(client, "read_subtree", { id: "kitchen", depth: 1 })).structured
     const children = tree["children"] as ReadonlyArray<Record<string, unknown>>
     expect(children.find((child) => child["id"] === "order")).toMatchObject({
@@ -961,16 +972,14 @@ test("read_subtree refuses a call naming both ways in, or neither", async () => 
   })
 })
 
-test("a node read, a hit and a subtree row all carry the parent's id", async () => {
+/** The hit is the third reader of this field and its case went with the matcher
+ *  (`olai-plugin-search`); the two core reads are here. */
+test("a node read and a subtree row both carry the parent's id", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const order = (await call(client, "read_node", { id: "order" })).structured
     expect(order).toMatchObject({ id: "order", parent: "kitchen" })
     const kitchen = (await call(client, "read_node", { id: "kitchen" })).structured
     expect(kitchen).not.toHaveProperty("parent")
-
-    const hit = ((await call(client, "search_nodes", { text: "cabinets" }))
-      .structured["hits"] as ReadonlyArray<Record<string, unknown>>)[0]
-    expect(hit).toMatchObject({ id: "order", parent: "kitchen" })
 
     const tree = (await call(client, "read_subtree", { id: "kitchen", depth: 1 }))
       .structured
@@ -981,36 +990,11 @@ test("a node read, a hit and a subtree row all carry the parent's id", async () 
   })
 })
 
-/**
- * A SELECTION WITH ITS NOTES — the other half of the same item, through the
- * encoder, which is where a field the schema has never heard of is silently
- * dropped (`matched`, once).
- */
-test("search_nodes carries the notes when the query asks for them", async () => {
-  await withTools({ "plan.olai": PLAN }, async ({ client }) => {
-    const asked = (await call(client, "search_nodes", { text: "joiner", withDesc: true }))
-      .structured["hits"] as ReadonlyArray<Record<string, unknown>>
-    expect(asked[0]).toMatchObject({
-      id: "call",
-      desc: "about the hinges, and the delivery slot",
-    })
-
-    // …and not otherwise. A note is unbounded prose, so a query that will not
-    // read one does not pay for twelve of them — which is the whole reason
-    // this is the one record field a hit asks for.
-    const plain = (await call(client, "search_nodes", { text: "joiner" }))
-      .structured["hits"] as ReadonlyArray<Record<string, unknown>>
-    expect(plain[0]).toMatchObject({ id: "call" })
-    expect(plain[0]).not.toHaveProperty("desc")
-
-    // A node with no note says nothing either way, on the format's own rule for
-    // absence — so a caller reads `desc` the same way whether it asked or not.
-    const bare = (await call(client, "search_nodes", { text: "Later", withDesc: true }))
-      .structured["hits"] as ReadonlyArray<Record<string, unknown>>
-    expect(bare[0]).toMatchObject({ id: "later" })
-    expect(bare[0]).not.toHaveProperty("desc")
-  })
-})
+// A SELECTION WITH ITS NOTES went with the matcher too — `withDesc` is a
+// dial on a HIT, and `olai-plugin-search`'s own suite asks it through the
+// same encoder this face uses. What is left of that item at this layer is
+// the walk's `withDesc`, which `a `fields` walk answers the caller's exact
+// rows` above already pins through this encoder.
 
 // ── the documents, read back ───────────────────────────────────────────
 //

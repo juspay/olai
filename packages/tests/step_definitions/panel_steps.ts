@@ -17,6 +17,7 @@ import { countsNothing, foundCount } from "../support/counted.ts";
 import { keysSettled, pressed } from "../support/settling.ts";
 import { answered } from "../support/shortlist.ts";
 import {
+  APP_CHROME,
   APP_HEADER,
   attr,
   CHAT_PANEL,
@@ -246,6 +247,32 @@ const headerBox = async (world: OlaiWorld) => {
   await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   return box;
 };
+
+/**
+ * ...AND THE SEAT EMPTY, which is what a serve that did not name the `search`
+ * row draws.
+ *
+ * The box is a ROW's face now (`olai-plugin-search`), hung in the bar's `lead`
+ * seat, so with the row absent the plugin's chunk was never fetched, its fiber
+ * never mounted and the face never registered. Nothing in the bar is hiding a
+ * box; there is no box.
+ *
+ * It waits for the chrome first, the way the identity chip's twin does
+ * (`./identity_steps.ts`), so an empty seat is an answer rather than a page
+ * that has not drawn its bar yet.
+ */
+Then("the header has no search box", async function (this: OlaiWorld) {
+  await this.waitForFrame();
+  const header = this.page.locator(APP_HEADER);
+  await header
+    .locator(APP_CHROME)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.equal(
+    await header.locator(HEADER_SEARCH).count(),
+    0,
+    "the search box is still in the header of a serve that did not mount the row",
+  );
+});
 
 When(
   "I search the header for {string}",

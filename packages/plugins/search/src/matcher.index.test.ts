@@ -1,12 +1,18 @@
 /**
- * THE SAME CLAIM AS `@olai/index`'s OWN TEST, made where the writes are real.
+ * THE SAME CLAIM AS `./table.test.ts`, made where the writes are real.
  *
- * That package compares the two answers over readings a test assembles by hand;
+ * That file compares the two answers over readings a test assembles by hand;
  * this compares them over readings the WRITE GATE produced — a temp directory, a
  * store watching it, ops planning and committing into it, and after every op the
- * question asked twice: once through `Ops.search`, which is the door with the
- * index behind it, and once through {@link Query.search} over the very snapshot
- * that door read, with no index at all.
+ * question asked twice: once through `ops.search`, which is core's member with
+ * this row's door behind it and the index behind that, and once through
+ * {@link ./matcher.ts}'s `search` over the very snapshot that door read, with no
+ * index at all.
+ *
+ * IT STANDS THE ROW UP THE WAY A SERVE DOES, minus the loader: the door handed
+ * to `makeOps` is the same object {@link ./server.ts} offers, over a table
+ * opened here. So this is also the one place the DOOR's own shape is exercised
+ * — a reading handed in, an answer handed back — rather than only the walk's.
  *
  * Why it is worth a second suite. What the unit test cannot reach is the SEAM:
  * that the reading a search is answered from is the reading the index was
@@ -17,7 +23,7 @@
  * and nowhere else.
  *
  * It is deliberately SHORT on grammar and long on writes. Which queries the two
- * paths must agree about is `@olai/index`'s table; what is varied here is what
+ * paths must agree about is `./table.ts`; what is varied here is what
  * happened to the directory in between.
  */
 
@@ -35,18 +41,17 @@ import {
   type WriteRequest,
 } from "@olai/format"
 import * as StoreModule from "@olai/store"
+import { codecFor, make as makeOps, type Ops, Query, type Store } from "@olai/ops"
+import { STAMP, steady } from "@olai/ops/testlib"
 import { expect, test } from "bun:test"
 import { Effect, SubscriptionRef } from "effect"
 
-import { codecFor } from "./codec.ts"
-import type { Store } from "./deps.ts"
-import { STAMP, steady } from "./fixtures.testlib.ts"
-import * as Ops from "./ops.ts"
-import * as Query from "./query.ts"
+import { search } from "./matcher.ts"
+import { open } from "./table.ts"
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
- *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
+ *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
 const codec = codecFor(NO_KINDS)
 
 const HOUSE = [
@@ -65,7 +70,7 @@ const GARDEN = [
 ].join("\n")
 
 /** What is re-asked after every write. A short pool on purpose — the long one
- *  is `@olai/index`'s — chosen so that between them they reach every path the
+ *  is `./table.test.ts`'s — chosen so that between them they reach every path the
  *  door has: a narrowed query, a narrowed query that finds nothing, one the
  *  trigram floor sends to the corpus, one of operators alone, a phrase, an
  *  `OR`, a scope, and a document. */
@@ -96,14 +101,14 @@ const POOL: ReadonlyArray<SearchRequest> = [
  *  handed the SNAPSHOT the door just read and the same clock the layer gave the
  *  door (`steady`), so the only difference between the two calls is the index. */
 const same = (
-  ops: Ops.Ops,
+  ops: Ops,
   store: Store,
   request: SearchRequest,
 ): Effect.Effect<SearchAnswer> =>
   Effect.gen(function*() {
     const snapshot = yield* Effect.map(store.read("cheap"), (aged) => aged.snapshot)
     if (snapshot === null) throw new Error("the fixture directory never loaded")
-    const walked = Query.search(snapshot.value, request, STAMP, NO_KINDS)
+    const walked = search(snapshot.value, request, STAMP, NO_KINDS)
     const indexed = yield* Effect.orDie(ops.search(request))
     expect(indexed).toEqual(walked)
     return walked
@@ -181,10 +186,17 @@ test("every write leaves the indexed door answering what the corpus walk does", 
 
   return Effect.gen(function*() {
     const store = yield* StoreModule.make({ root, codec, watch: false, settle: "10 millis" })
-    const ops = Ops.make({
+    // THE ROW'S DOOR, exactly as `./server.ts` offers it — one table, and the
+    // reading handed in per ask rather than read on this side.
+    const index = open()
+    const ops = makeOps({
       store,
       root,
       context: steady(),
+      search: {
+        nodes: ({ at, query, now, kinds }) =>
+          Effect.sync(() => search(at, query, now, kinds, index)),
+      },
     })
 
     // BEFORE anything is written, which is also the first time the index is
@@ -203,6 +215,7 @@ test("every write leaves the indexed door answering what the corpus walk does", 
     // The pool is not all misses: a run where every query found nothing would
     // satisfy every comparison above and prove nothing about either path.
     expect(found).toBeGreaterThan(50)
+    index.close()
   }).pipe(
     Effect.scoped,
     Effect.provide(NodeServices.layer),

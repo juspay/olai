@@ -1,9 +1,10 @@
 /**
- * @olai/index — the maintained search index, and NOTHING that decides.
+ * olai-plugin-search's TABLE — the maintained search index, and NOTHING that decides.
  *
  * Every door that searches the directory used to read every record and every
  * body in it, once per query: `search_nodes`, the ⌘K palette, the header's box
- * and the chat composer's `@` list are one procedure (`@olai/ops`' `Query`),
+ * and the chat composer's `@` list are one door (`./matcher.ts`, behind core's
+ * `Search`),
  * and that procedure was a walk of the corpus per settled keystroke. This
  * package is what it walks INSTEAD — a table of the same folded text, kept up
  * to date from what a revision actually moved, asked for the small set of
@@ -31,7 +32,7 @@
  *     corpus walk goes through, which resolves the ids, applies the scope, the
  *     archive rule and the mirror rule, and puts the answer in the set's order.
  *
- * The property this leaves is pinned rather than argued: `./index.test.ts`
+ * The property this leaves is pinned rather than argued: `./table.test.ts`
  * compares the two answers over a fixture vault, over a generated one and over
  * a soak of random writes, and fails on the first pair that differs.
  *
@@ -55,7 +56,8 @@
  * ## Where it lives, and how it stays true
  *
  * IN MEMORY, in the process that holds the store, opened once per served
- * directory (`@olai/ops`' `make`). Not on disk: an index file beside somebody's
+ * directory (`./server.ts`, on the plugin's own scope). Not on disk: an index
+ * file beside somebody's
  * vault is a file to invalidate, to version, to garbage-collect and to explain,
  * for a table that is rebuilt from a directory already in RAM.
  *
@@ -180,7 +182,7 @@ const longEnough = (word: string): boolean => {
  * incrementally maintained table, above the threshold and then below it" has to
  * size its corpus off the real number, and a `1024` written out in the test
  * would be a second spelling that goes on passing after this one moves
- * (`./index.test.ts`, on both reviewers' finding about `cca1b21`).
+ * (`./table.test.ts`, on both reviewers' finding about `cca1b21`).
  */
 export const CROWD = 4
 export const CROWD_FLOOR = 1024

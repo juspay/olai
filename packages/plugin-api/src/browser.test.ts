@@ -189,7 +189,7 @@ test("two plugins asking the same service get two different clients, held or cal
  *  `Kinds` composes it. */
 test("a face is keyed by the plugin, and a kind by the composed word", async () => {
   const { app, run } = await opened()
-  const face = () => null
+  const face = { place: "cluster", body: () => null } as const
   await run(mountPlugin(
     app.host,
     definePlugin({
@@ -215,7 +215,7 @@ test("a face is keyed by the plugin, and a kind by the composed word", async () 
  *  plugin's faces are untouched. */
 test("a plugin that hangs two faces in one slot fails alone", async () => {
   const { app, run } = await opened()
-  const face = () => null
+  const face = { place: "cluster", body: () => null } as const
   await run(mountPlugin(
     app.host,
     definePlugin({
@@ -251,7 +251,7 @@ test("a plugin that hangs two faces in one slot fails alone", async () => {
 test("a face goes when its plugin does, and the app is told", async () => {
   const moved: Array<number> = []
   const { app, run } = await opened(() => moved.push(1))
-  const face = () => null
+  const face = { place: "cluster", body: () => null } as const
   const leaver = await run(mountPlugin(
     app.host,
     definePlugin({
@@ -276,7 +276,7 @@ test("a face goes when its plugin does, and the app is told", async () => {
  *  would refuse the second pass and take a plugin down for coming back. */
 test("a plugin that unwinds and re-registers is not refused", async () => {
   const { app, run } = await opened()
-  const face = () => null
+  const face = { place: "cluster", body: () => null } as const
   const cycler = definePlugin({
     name: "cycler",
     needs: [Slots],
@@ -315,7 +315,7 @@ test("a plugin that unwinds and re-registers is not refused", async () => {
  * and this is the case that says so on the side that was missing it.
  */
 test("a face the app refused leaves the table, and takes only its own plugin down", async () => {
-  const face = () => null
+  const face = { place: "cluster", body: () => null } as const
   let refusing = false
   const { app, run } = await opened(() => {
     if (refusing) throw new Error("the app refuses this frame")

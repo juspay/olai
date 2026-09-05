@@ -34,7 +34,15 @@
 export { codecFor } from "./codec.ts"
 export type { Store } from "./deps.ts"
 export { type Caller, type Fence, type Outside, outsideFence } from "./fenced.ts"
-export { make, NO_LEDGER, type Ledger, type Ops, type Options } from "./ops.ts"
+export {
+  make,
+  NO_LEDGER,
+  NO_SEARCH,
+  type Ledger,
+  type Ops,
+  type Options,
+  type Search,
+} from "./ops.ts"
 export { standing, type Standing } from "./standing.ts"
 /** The two refusals a caller ABOVE this layer meets too, about an id: one the
  *  set does not declare, and one that names a PLACEMENT rather than a node.

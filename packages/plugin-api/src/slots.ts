@@ -103,7 +103,21 @@ export const SLOTS = {
    *  given. */
   "app.panel": { keyedBy: "app" },
   /** A readout in the app's bar. WHERE it sits in the cluster is the app's
-   *  decision and always was; what a plugin gets is a seat.
+   *  decision and always was; what a plugin gets is a seat — and, since search
+   *  became a row, a PLACEMENT WORD for which of the bar's two seats it wants.
+   *
+   *  Two words, `lead` and `cluster`, interpreted by the shell exactly as
+   *  `sidebar.entry`'s `top` and `bottom` are: the app decides what each means
+   *  and what it costs when the width runs out, and a plugin cannot spell an
+   *  ordering of its own. `cluster` is the standing row of pills — desktop
+   *  only, after the connection state, in mount order. `lead` is the one seat
+   *  ahead of them that may shrink to nothing and that a phone still draws, and
+   *  it exists because the search box has always been that seat and a box that
+   *  gave way after the pills, or vanished on a phone, would be a regression
+   *  dressed as a refactor.
+   *
+   *  IT IS STILL ONE SEAT PER PLUGIN. The word says which; it does not buy a
+   *  second.
    *
    *  ONE SEAT PER PLUGIN, and it stays one seat in the lane that added the five
    *  above. The plan for the chat panel asks for TWO entries here — the wake

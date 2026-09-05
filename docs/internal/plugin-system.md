@@ -428,6 +428,16 @@ components the plugin owns; the app hands them its own *furniture* (the clock, t
 pill's geometry, a popover, a link to a served file) so a plugin never imports
 `@olai/web`, which would be a cycle.
 
+`app.header` (the slot `chrome` became) takes a **placement word** as well as a
+face: `cluster` is the standing row of pills, desktop only, after the connection
+state; `lead` is the one seat ahead of them, drawn on a phone too, that may
+shrink to nothing before any pill loses a character. What each word MEANS is the
+shell's — `client/AppHeader.tsx` spends it, `client/plugins/Chrome.tsx` reads the
+slot twice — and a plugin cannot spell an ordering of its own. It arrived with
+the search box (`olai-plugin-search`), which has always been that seat and has
+always had a phone arm, and it is the same small vocabulary `sidebar.entry`
+already takes.
+
 ### mark
 
 `mark` is the third browser hook and the smallest: the shapes drawn over a sentence
