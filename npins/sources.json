@@ -22,9 +22,9 @@
       },
       "branch": "add-olai-hosted-fonts",
       "submodules": false,
-      "revision": "96122d400bd19156fc1ef1ad29eaeeae86ad1f53",
-      "url": "https://github.com/srid/ekapkgs/archive/96122d400bd19156fc1ef1ad29eaeeae86ad1f53.tar.gz",
-      "hash": "sha256-hqIOmYKl0ZGfC/3I4QhNKV++M1HUwy0EDs+j08qT4M4="
+      "revision": "d78cd92c5220b2cdf80ef213a059df2a5bf0ed42",
+      "url": "https://github.com/srid/ekapkgs/archive/d78cd92c5220b2cdf80ef213a059df2a5bf0ed42.tar.gz",
+      "hash": "sha256-XlnM6/hA6GAO7yfQ2o5+Qom+SCTKMiwn7kStH4N8CKc="
     },
     "kolu": {
       "type": "Git",
@@ -39,7 +39,6 @@
       "url": "https://github.com/juspay/kolu/archive/4b1758afad90b15624030e0fd00e1116586b4054.tar.gz",
       "hash": "sha256-hQ+yq4GnYp7homn9iVXzyRpElGRSxoh52YAqO/lMp9E="
     },
-
     "npins": {
       "type": "Git",
       "repository": {

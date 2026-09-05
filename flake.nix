@@ -2,9 +2,7 @@
 # convention). ekapkgs and the kolu source are pinned by npins
 # (npins/sources.json) and imported via fetchTarball, which keeps `nix
 # develop` cold eval near a second instead of the several the flake input
-# system costs per input. Add a pin, not an input. bun 1.4.1 is overlaid
-# from the official prebuilt zip (`nix/bun.nix`); drop that overlay when
-# the ekapkgs pin's default bun is >= 1.4.1.
+# system costs per input. Add a pin, not an input.
 #
 # `bun2nix` is the ONE documented exception: ekapkgs has no fetchBunDeps /
 # buildBunPackage. Upstream (nix-community/bun2nix) is flake-parts-shaped

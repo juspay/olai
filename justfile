@@ -810,7 +810,6 @@ bun-nix-fresh:
 # own formatter's style, so normalize it here — same rule as bun.nix, and
 # the reason fmt-check needs no exception list. `just check` then names
 # anything the new kolu revision expects that this repo has not moved with
-# it. bun 1.4.1 is overlaid from `nix/bun.nix`, not a pin; drop that overlay
-# when the ekapkgs pin's default bun is >= 1.4.1.
+# it.
 update-pins:
     {{ nix_shell }} sh -c 'npins update && nixpkgs-fmt npins/default.nix'
