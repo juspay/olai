@@ -670,6 +670,10 @@ accessor to refresh the answer derived from the socket’s upgrade headers. Kolu
 skips an unchanged surface map. Olai still refreshes an unchanged open socket when the
 plugin roster changes, because plugins without a surface can change which
 headers the next upgrade is allowed to retain (identity’s first activation).
+This refresh waits for the next usable socket before mounting arriving providers;
+otherwise their initial requests can target the closing socket. The wait releases
+its listener on success, retirement or timeout and cannot block the roster queue
+indefinitely.
 The router keeps its app lifetime and reinterprets the current URL when plugin
 route claims change, preserving unchanged pane
 identities and browser history. Undo history belongs to App again; it no longer

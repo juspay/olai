@@ -213,7 +213,25 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
     // Refresh an unchanged, open socket so its next accept reads that policy.
     // A replacement still connecting already reads it on its own next open.
     if (live.connectionEpoch() === established && live.link.wire.status() === "open") {
-      live.link.wire.forceReconnect()
+      // forceReconnect only initiates a close. An arriving provider (identity
+      // in particular) may ask immediately when composed, so do not mount it
+      // against the closing socket. Bound the wait so an unreachable server
+      // cannot hold the roster queue forever.
+      let detach = () => {}
+      let deadline: ReturnType<typeof setTimeout> | undefined
+      try {
+        await new Promise<void>((resolve, reject) => {
+          deadline = setTimeout(() => reject(new Error("plugin roster socket refresh timed out")), 10_000)
+          detach = live.link.wire.onStatus((status) => {
+            if (status === "open") resolve()
+            else if (status === "retired") reject(new Error("plugin roster socket retired during refresh"))
+          })
+          live.link.wire.forceReconnect()
+        })
+      } finally {
+        detach()
+        clearTimeout(deadline)
+      }
     }
     await composeTo(halves, (plugin) => (live.clients as Record<string, unknown>)[plugin])
     composed = signature
