@@ -136,11 +136,11 @@ const headerOf = (
  * The header names this config trusts, unique, in the order login / email
  * / name / picture.
  *
- * THE ALLOWLIST `serveSurfaceApp` takes. A name that is `null` is a claim
- * the operator turned off and is not named. Login and email often SHARE a
- * name (Tailscale's login is the email claim by default), and a repeated
- * name is a bind-time defect upstream — so the second spelling of one
- * wire header is dropped, not listed twice.
+ * THE ALLOWLIST `serveSurfaceApp` takes, re-read at every upgrade. A name
+ * that is `null` is a claim the operator turned off and is not named. Login
+ * and email often SHARE a name (Tailscale's login is the email claim by
+ * default), and one wire header named twice is a defect upstream refuses —
+ * so the second spelling is dropped here, not listed twice.
  */
 export const headerNamesOf = (
   headers: IdentityHeaders,

@@ -27,19 +27,24 @@
  * `Identity` carries the header NAMES and the READING over them, together,
  * because a name nobody reads and a reading of a name nobody kept are the
  * same defect and one door is what makes them agree. But they are not
- * asked on the same schedule: the names are spent ONCE, when the port
- * binds and the socket's allowlist is fixed, and the reading is spent PER
- * REQUEST, so a row switched off mid-serve stops naming anybody from the
- * next one on.
+ * asked on the same schedule: the names are spent PER ACCEPT, because a
+ * socket carries what its upgrade was allowed to keep and that is settled
+ * once per socket, and the reading is spent PER REQUEST, so a row switched
+ * off mid-serve stops naming anybody from the next one on.
+ *
+ * BOTH FOLLOW THE ROW, which is what changed and is the whole of 14a. The
+ * names were spent ONCE, at the bind, because `@kolu/surface-app` fixed
+ * the allowlist there; a serve that came up without the row and switched
+ * it on at the panel therefore answered the two HTTP doors at once while
+ * every socket stayed anonymous until a restart. juspay/kolu#2229 made
+ * `upgradeHeaders` a thunk read at each accept, so the composition root
+ * hands the listener `() => identity().headers` and the difference between
+ * the two clocks is now only what a CONNECTION is.
  *
  * So nothing downstream of here is handed the door. The composition root
- * reads the names as a VALUE at the bind and mints a {@link Reading} for
- * the rest, and the listener and the MCP route take those two — a value
- * and a function, one clock each, neither of them knowing that a plugin is
- * behind either. That is also what makes the seam legible rather than
- * hidden: the once-only read is one line in `./serve.ts`, at the moment it
- * happens, instead of a `.headers` inside a thunk that reads live
- * everywhere else it is touched.
+ * mints a {@link Reading} for the readers and a thunk for the names, and
+ * the listener and the MCP route take those — two functions, one schedule
+ * each, neither of them knowing that a plugin is behind either.
  *
  * The per-connection service is what `who.get` yields. `serveSurfaceApp`'s
  * `services` layer provides it from the upgrade; a handler that required
