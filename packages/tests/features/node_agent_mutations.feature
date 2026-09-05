@@ -54,7 +54,8 @@ Feature: Node session ownership follows changes to the node
     And I put back "install" from the Trash
     Then "house.olai" holds the node "install"
     When I press the agent "install"
-    And I show the done nodes
+    Then the node "hinges" is shown
+    When I show the done nodes
     Then the panel is in the remembered conversation "current"
     When I open the session picker
     And I open the past session "first cabinet history"
