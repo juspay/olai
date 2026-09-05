@@ -143,6 +143,7 @@ import { CompletionMenu, type MenuRow } from "./CompletionMenu.tsx"
 import { type Chip, ContextChips } from "./ContextChips.tsx"
 import type { Holding } from "./holding.ts"
 import { offers } from "./naming.ts"
+import { createMessageDraft } from "./message-draft.ts"
 import type { Chat } from "./state.ts"
 
 /** Every control on the toolbar, the same height and the same corners. Written
@@ -157,20 +158,15 @@ export function Composer(props: {
    *  panel is where a drop is caught and this row is where the chips go. */
   readonly holding: Holding
 }) {
-  const [draft, setDraft] = createSignal("")
-  /**
-   * WHERE THE CARET IS, which is the one fact a draft does not carry and the
-   * `@` list cannot be armed without: what is being completed is a word inside
-   * the message rather than the whole of it.
-   *
-   * Read off the element rather than tracked alongside it, for
-   * `../edit/RowEditor.tsx`'s reason — the caret moves for reasons no handler
-   * here sees (a click in the middle of a sentence, `Home`, a drag-selection,
-   * an IME), so every event that could have moved it re-reads it and the value
-   * is the element's own answer rather than this component's arithmetic about
-   * what the last key should have done.
-   */
-  const [caret, setCaret] = createSignal(0)
+  // Keep the words, caret and chosen @ handles together across remounts.
+  // `taken` grants node context only while its word remains in the draft.
+  const { draft, setDraft, taken, setTaken, caret, setCaret } = createMessageDraft(() => {
+    const state = props.chat.state()
+    const agent = agentIn(state)
+    return agent === null || state.session === null
+      ? null
+      : JSON.stringify([agent.id, state.session.id])
+  })
   /** The one piece of MEMORY in the completion, and it remembers a token
    *  rather than a mood: Escape over one `@` keeps that one shut while it is
    *  being typed, and starting another `@` — or moving the caret to one — is a
@@ -181,21 +177,6 @@ export function Composer(props: {
   /** Opened by the BUTTON rather than by typing a slash — the difference is
    *  only which prefix the list is filtered by. */
   const [asked, setAsked] = createSignal(false)
-  /**
-   * The nodes TAKEN off the `@` list, which is not the same as the nodes this
-   * message is about: what it is about is these, minus the ones whose word is
-   * no longer in the draft ({@link namedIn}). A person who deletes `@hinges`
-   * has said the message is not about that node — and a chip that outlived its
-   * word would send a subject the sentence never mentions.
-   *
-   * A SET rather than a list, because order is the draft's: `compare @a with
-   * @b` says which is which, and this remembers only which rows were chosen.
-   *
-   * This composer's, like the draft it is read against — where the strip the
-   * `•••` menu fills is the app's (`./armed.ts`), because that gesture happens
-   * in a pane on the other side of the screen and belongs to no box.
-   */
-  const [taken, setTaken] = createSignal<ReadonlySet<string>>(new Set())
   let input: HTMLTextAreaElement | undefined
   let picker: HTMLInputElement | undefined
   let shutter: HTMLInputElement | undefined

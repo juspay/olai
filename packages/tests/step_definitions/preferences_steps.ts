@@ -1147,6 +1147,15 @@ const switchOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
  *  somebody tuned to make a suite pass. */
 const FLIP_STEP_TIMEOUT = 90_000;
 
+// A requested plugin may remain waiting on a dependency. Its switch reports
+// whether it is running, so these scenarios wait for the explanatory row next.
+When(
+  "I request that the plugin {string} be {word}",
+  async function (this: OlaiWorld, plugin: string, pick: string) {
+    await this.press(rowFor(this, plugin).locator(`${PREFS_CHOICE}${attr("data-value", pick)}`));
+  },
+);
+
 When(
   "I switch the plugin {string} {word}",
   // A LONGER STEP THAN THE ORDINARY ONE, and the number is the flip's own
