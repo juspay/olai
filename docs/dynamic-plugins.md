@@ -69,7 +69,7 @@ approve source nobody has read. Look again, read what it says, and approve that.
 
 Three tools, on the agent face:
 
-- **`inspect_plugins`** — what a plugin may name: the three modules, the service keys a server half may put in its `needs`, the slots a browser half may register a face into with what keys each, the node layout above, and the words already taken. Read this before writing code; it is the live registry rather than a description of one. `taken` is every word this serve has — the build's rows **and** every definition in the vault, including ones other agents wrote — because a definition may take neither.
+- **`inspect_plugins`** — what a plugin may name: the three modules, service records marked by half (including declared browser-owned keys), the slots a browser half may register a face into with what keys each, the node layout above, and the words already taken. Read this before writing code; server provisions and browser declarations are distinguished by `availability`. `taken` is every word this serve has — the build's rows **and** every definition in the vault, including ones other agents wrote — because a definition may take neither.
 - **`run_plugin`** — ask olai to look at a definition now and say what became of it: the state, the version, and the fault sentence where there is one. A definition nobody has approved answers `pending`, which is the boundary said back to the author.
 - **`stop_plugin`** — unmount one, for as long as this serve runs. It reaches **definitions only**: an agent cannot turn off the row that seats it, the row that watches its writes, or the row whose tools it is holding.
 
@@ -91,10 +91,15 @@ A half that will not compile, a module that exports no plugin, a half that calls
 
 A plugin that reads the journal's agenda each morning and puts it into the node agent's own conversation — which is the shape most of these are: a service somebody else offers, a clock, and a sentence.
 
-**Ask first what may be named.** `inspect_plugins` lists the service keys a server half may put in its `needs`, and a plugin-owned key is on it exactly while the row that offers it is running:
+**Ask first what may be named.** `inspect_plugins` lists service records by half. A server-owned key appears while its provider is running; a browser key is advertised by its server declaration:
 
 ```
-"services": ["clock", "deliveries", "env", "journal.agenda", "kinds", …]
+"services": [
+  { "key": "clock", "half": "server", "availability": "core" },
+  { "key": "journal.agenda", "half": "server", "availability": "provided" },
+  { "key": "identity.viewer", "half": "browser", "availability": "declared" },
+  …
+]
 ```
 
 `journal.agenda` is the journal row's own — offered with `Offers.own`, so the key is stamped from that fiber's name and no other row can take it. Naming it in `needs` is all a consumer does: the plugin waits while the journal is switched off, saying so on its row, activates when it returns, and unloads if it leaves. Nothing in core knows these two are connected.
