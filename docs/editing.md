@@ -467,6 +467,8 @@ Either way the row is **born `todo`**: the badge reads marks and nothing else, s
 
 **The sidebar's `+ New outline`** asks for a path — relative, under the served directory — and mints the file there. Enter creates it, Escape puts the box away, and the page it lands on is the new outline's, with the same *write the first line* the empty-outline page has always offered.
 
+Both new-file boxes show **Creating…** while their write is pending. You can type the next filename, but Enter does not submit another write until the first finishes. Its response cannot clear the newer name or put an old refusal under it. Escape dismisses the box without undoing an already submitted creation; reopening it starts a new draft.
+
 **The suffix is the door's half, so you may leave it off.** `Foo` and `Foo.olai` are the same ask at `+ New outline`, and `notes/plan` mints `notes/plan.olai` — the folders you typed are yours, and only the last few characters were ever in question. Only the suffixes olai actually claims count as one, so a dot inside a name is part of the name: `plan v1.2` is `plan v1.2.olai`, never `plan v1.olai`. `+ New document` is the same door with `.md` in it.
 
 **What names a PLACE rather than a file is not completed at all.** Every suffix begins with a dot, so adding one to a `..` would quietly make `...olai` — an ordinary filename — out of the one thing the operation would have refused. So `..`, `.` and a path ending in `/` go to the ops layer exactly as you typed them, and come back in its own sentence naming what you wrote. A name that merely ends in a dot is a name (`Foo.` is `Foo..olai`), and one that begins with a dot is an ordinary hidden file (`.plan` is `.plan.olai`, which the sidebar lists — olai skips dot-*directories*, not dot-files).

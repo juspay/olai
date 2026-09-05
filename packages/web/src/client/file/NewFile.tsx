@@ -57,14 +57,18 @@ export function NewFile(props: {
   const [open, setOpen] = createSignal(false)
   const [path, setPath] = createSignal("")
   const [said, setSaid] = createSignal<string | null>(null)
+  const [sending, setSending] = createSignal(false)
+  let revision = 0
 
   const close = (): void => {
+    revision++
     setOpen(false)
     setPath("")
     setSaid(null)
   }
 
   const send = async (): Promise<void> => {
+    if (sending()) return
     // THREE THINGS the box does with what is in it, and which of them is
     // `./completing.ts`'s answer rather than a reading of its own: an empty box
     // is not a refusal to draw — nobody has asked for anything yet.
@@ -77,9 +81,18 @@ export function NewFile(props: {
       setSaid(meant.refused)
       return
     }
-    const refused = await props.create(meant.file)
-    if (refused === null) close()
-    else setSaid(refused)
+    setSending(true)
+    const submitted = revision
+    try {
+      const refused = await props.create(meant.file)
+      // Typing another name, or dismissing and reopening the box, gives it
+      // a new draft. An earlier response cannot clear or annotate that draft.
+      if (revision !== submitted) return
+      if (refused === null) close()
+      else setSaid(refused)
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -111,6 +124,7 @@ export function NewFile(props: {
           class="w-full rounded border border-rule bg-panel px-2 py-1 font-mono text-[0.8125rem] text-ink outline-none focus:border-accent"
           data-testid={props.making.testids.path}
           aria-label={props.making.aria}
+          aria-busy={sending()}
           placeholder={props.making.placeholder}
           spellcheck={false}
           value={path()}
@@ -120,6 +134,7 @@ export function NewFile(props: {
           ref={(box) => queueMicrotask(() => box.focus())}
           onClick={(event) => event.stopPropagation()}
           onInput={(event) => {
+            revision++
             setPath(event.currentTarget.value)
             setSaid(null)
           }}
@@ -135,6 +150,7 @@ export function NewFile(props: {
           }}
         />
         <div class="mt-1">
+          <Show when={sending()}><span role="status" class="text-xs text-muted">Creating…</span></Show>
           <Refused said={said()} testid={props.making.testids.said} compact />
         </div>
       </Show>
