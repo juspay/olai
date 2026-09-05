@@ -1,0 +1,12 @@
+/* THIS PLUGIN'S SHEET — a `@source` at this directory and nothing else.
+ *
+ * Every row of `olai.yml` contributes one of these and the generated chain
+ * imports them all (`packages/bundle/generate.ts`), because Tailwind emits ONLY
+ * the utilities it can SEE and `@olai/web`'s own `@source "./"` covers the app's
+ * tree alone. A face that moved out of that tree and that nothing points at
+ * renders with no layout and nothing errors — which is why this is a file per
+ * plugin rather than a note in a README, and it is exactly what this row would
+ * have hit: the chip is Tailwind classes throughout (`size-4`, `rounded-full`,
+ * the borders and opacities it wears in the bar), and it drew unstyled in the
+ * app's last seat the moment it left `packages/web/src/client/`. */
+@source "./";

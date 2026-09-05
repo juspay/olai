@@ -11,14 +11,18 @@
  *
  * ## Three kinds, three answers, and none of them hardcoded
  *
- *   - THE PERSON wears their own picture, resolved down `@olai/identity`'s
+ *   - THE PERSON wears their own picture, resolved down the identity row's
  *     ladder — the proxy's IdP avatar, the operator's template, the gravatar of
  *     a real email claim, and the silhouette when no rung had one. It is the
  *     same answer the header chip draws, through the same single ask
- *     ({@link ../who/mine.ts}), because a header saying one thing about who is
- *     looking and a transcript saying another would be two answers to one
- *     question. There is no default picture anywhere in this file: `null` from
- *     the ladder is the silhouette, which is a rung and not a fallback.
+ *     (`olai-plugin-identity/person`, which is that row's own door and the one
+ *     edge from this plugin to another), because a header saying one thing
+ *     about who is looking and a transcript saying another would be two answers
+ *     to one question. There is no default picture anywhere in this file:
+ *     `null` from the ladder is the silhouette, which is a rung and not a
+ *     fallback — and it is also what a serve running no identity row draws
+ *     here, since `who.get` answers nobody with nothing standing behind that
+ *     row's door.
  *   - THE AGENT wears the {@link ./AgentMark.tsx} family, the marks the header
  *     and the picker already draw, so the agent in the title bar and the agent
  *     in the transcript are visibly one thing. An agent olai has no shape for
@@ -55,10 +59,12 @@ import { Match, Show, Switch } from "solid-js"
 
 import type { AgentChoice } from "olai-plugin-chat/wire"
 import { TESTID } from "../../testids.ts"
-import type { Who as Person } from "@olai/web/client/who/asking.ts"
-import { whoAmI } from "@olai/web/client/who/mine.ts"
-import { saying } from "@olai/web/client/who/saying.ts"
-import { UserIcon } from "@olai/web/client/who/UserIcon.tsx"
+import {
+  saying,
+  UserIcon,
+  whoAmI,
+  type Who as Person,
+} from "olai-plugin-identity/person"
 import { AgentMark, MARK } from "./AgentMark.tsx"
 import { PluginMark } from "./PluginMark.tsx"
 import { onTheRight, type Speaker as Party } from "./speakers.ts"
