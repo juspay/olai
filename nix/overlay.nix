@@ -1,7 +1,7 @@
 # Packages ekapkgs does not yet ship, plus bun 1.4.1 (`bun install --offline`).
 # Drop each overlay as the pin grows the attribute. Hosted typefaces come
-# from the pin (ekapkgs#5, rebased onto master). Playwright is a FOD;
-# npins and nixpkgs-fmt are rust builds, realised on CI hosts.
+# from the pin (ekapkgs#5, rebased onto master). Node is `pkgs.nodejs.v24`.
+# Playwright is a FOD; npins and nixpkgs-fmt are rust builds, realised on CI hosts.
 final: prev:
 let
   sources = import ../npins;
@@ -13,9 +13,6 @@ in
   mkShellNoCC = final.callPackage ./vendor/mk-shell.nix {
     stdenv = final.stdenvNoCC;
   };
-
-  # Pin's default `nodejs` is 24; the `nodejs_24` alias is still missing.
-  nodejs_24 = prev.nodejs;
 
   npins = final.callPackage "${sources.npins}/npins.nix" { pkgs = final; };
 

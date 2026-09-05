@@ -124,7 +124,7 @@ pkgs.mkShell {
     just
     jq # scripts/check-hydrated-deps.sh — the one thing that reads a pin's JSON
     nixpkgs-fmt
-    nodejs_24
+    nodejs.v24
     npins
   ];
 }
