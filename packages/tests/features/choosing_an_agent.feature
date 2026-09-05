@@ -602,3 +602,15 @@ Feature: Choosing an agent
     Then the panel does not ask which agent
     And the header names the agent "pi"
     And the chat eventually shows "pi remembers this conversation"
+
+  @pi @scratch:chat @acp-session-features
+  Scenario: Adapter-owned terminal metadata streams into a retained tool output
+    When I choose the agent "pi"
+    And I ask the agent "slow"
+    Then terminal output contains "pi command started"
+    And terminal output contains "Running"
+    When the agent is released
+    Then the agent is idle
+    And terminal output contains "Exit 0"
+    And terminal output contains "pi command started"
+    And terminal output contains "(no output)"

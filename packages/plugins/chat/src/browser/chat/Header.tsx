@@ -174,9 +174,14 @@ export function Header(props: {
           <Show
             when={state().model}
             fallback={
-              <Show when={statusWord(state().status, doing())}>
-                {(word) => <span>{word()}</span>}
+              <Show when={state().settings.length > 0} fallback={
+                <Show when={statusWord(state().status, doing())}>
+                  {(word) => <span>{word()}</span>}
+                </Show>
+              }>
+                <Model chat={props.chat} name="settings" />
               </Show>
+
             }
           >
             {(model) => <Model chat={props.chat} name={model()} />}

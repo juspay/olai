@@ -33,3 +33,5 @@ Readiness (the serving line, the ACP handshake), transport (how pipes become JSO
 ## Why a receptacle
 
 The same four facts were spelled in `chat/pipes.ts`, `chat/agent.ts`, `git`'s runner, `web/build.ts`, and `server`'s process-boundary tests — each with its own spawn, its own miss of the exec-after-spawn event, its own undrained pipe, its own `kill()` without a grace, its own clock where an event would have done. The weekend flake campaign (#347/#359/#361/#364) traced three test-race families to exactly that ad-hoc plumbing: wait on the event, attach at spawn, throw with what the child said. This package makes those the default so the next caller does not re-earn them.
+
+`start(command, args, { processGroup: true })` gives a client-owned command its own process group. `stop()` terminates the group and kills remaining descendants when the leader exits; ordinary callers retain the existing single-process behavior.

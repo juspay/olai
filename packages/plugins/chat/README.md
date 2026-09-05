@@ -306,3 +306,9 @@ Successful startup operations carry a rounded millisecond `duration`, measured w
 | tool probe result | that probe's own request, including a missing or not-running result | debug |
 
 Concurrent probe durations overlap; do not add them together. These are operation durations, not server uptime or a total time-to-interactive metric. Failed opens keep their existing failure logs and do not emit successful completion events.
+
+## ACP session controls and progress
+
+`agents/settings.ts` normalizes advertised select and boolean options; the panel serializes setting requests against session changes and prompting. Responses and config updates replace the available options. `plan` notifications replace the session plan, which is cleared on session departure.
+
+`terminals.ts` owns client-created command handles and bounded UTF-8 output snapshots. Tool references bind those snapshots to transcript rows; release invalidates the agent handle while retaining its output. Codex and pi opt into metadata decoding through their legs and feed the same snapshots without transferring process ownership. Standard terminal requests validate the active session, and cancellation/session teardown stop client-owned process groups. See [chat documentation](../../../docs/chat.md#session-controls-and-progress) for user-visible behavior and limits.

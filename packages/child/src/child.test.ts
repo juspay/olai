@@ -195,3 +195,15 @@ test("run throws Hung on a hang, with what the child said", async () => {
     expect(cause.message).toContain("did not finish")
   }
 })
+
+test("process groups stop descendants that ignore SIGTERM", async () => {
+  const script = `const {spawn}=require('node:child_process');
+    spawn(process.execPath,['-e','process.on("SIGTERM",()=>{}); process.stdout.write("ready"); setInterval(()=>{},1000)'],{stdio:['ignore',1,2]});
+    setInterval(()=>{},1000);`
+  const child = start(process.execPath, ["-e", script], { processGroup: true })
+  try {
+    await new Promise<void>((resolve) => child.stdout!.once("data", () => resolve()))
+    const close = await child.stop({ graceMs: 50 })
+    expect(close.signal).toBe("SIGTERM")
+  } finally { child.kill("SIGKILL") }
+})
