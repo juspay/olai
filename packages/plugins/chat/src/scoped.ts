@@ -12,6 +12,7 @@ import { BusyFailure, type NodeAgent, type NodeAgents, UsageFailure } from "@ola
 import type { OpFailure } from "@olai/format"
 import { Duration, Effect, Exit, Fiber, Scope, Semaphore } from "effect"
 
+import type { StopReason } from "./agent.ts"
 import type { Panel, PanelOptions, WakeScope } from "./chat.ts"
 import { makePanel } from "./chat.ts"
 import * as Memory from "./memory.ts"
@@ -82,6 +83,7 @@ interface NodeSlot {
   touched: number
   generation: number
   closing: boolean
+  closeReason: StopReason
   timer: Fiber.Fiber<void, never> | null
 }
 
@@ -167,10 +169,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       publishSwitch(before, slot.panel)
     }
 
-    const close = (slot: NodeSlot): Effect.Effect<void> =>
+    const close = (slot: NodeSlot, reason: StopReason = "scope released"): Effect.Effect<void> =>
       Effect.suspend(() => {
         if (slot.closing || nodes.get(slot.node) !== slot) return Effect.void
         slot.closing = true
+        slot.closeReason = reason
         nodes.delete(slot.node)
         if (active.kind === "node" && active.slot === slot) activateRoot()
         onLive?.()
@@ -205,7 +208,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           return
         }
         slot.timer = null
-        yield* close(slot)
+        yield* close(slot, "idle eviction")
       }).pipe(Effect.ensuring(Effect.sync(() => {
         if (slot.timer === fiber) slot.timer = null
       })))
@@ -227,7 +230,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         ? Effect.fail(new BusyFailure({
           reason: `${capacity} node agents are already live; let one become idle before waking another`,
         }))
-        : close(reaper)
+        : close(reaper, "capacity eviction")
     }
 
     /**
@@ -317,8 +320,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               if (active.kind === "node" && active.slot === slot) panelOptions.onTranscript(change)
             },
           }),
-          (made) => made.stop,
-        ).pipe(Effect.provideService(Scope.Scope, scope))
+          (made) => made.stopWithReason(slot?.closeReason ?? "scope released"),
+        ).pipe(Effect.provideService(Scope.Scope, scope), Effect.annotateLogs({ node }))
         slot = {
           node,
           scope,
@@ -327,6 +330,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           touched: Date.now(),
           generation: 0,
           closing: false,
+          closeReason: "scope released",
           timer: null,
         }
         nodes.set(node, slot)
@@ -418,7 +422,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             return
           }
           activate(slot)
-          yield* old.stop
+          yield* Effect.annotateLogs(Effect.logInfo("moving conversation into node scope"), {
+            agent: to.agent, session: to.session, node: node.id, reason: "node scope handoff",
+          })
+          yield* old.stopWithReason("node scope handoff")
           root = yield* rootPanel()
           const held = slot.panel.state()
           if (held.session?.id !== to.session || held.status === "gone") {
@@ -504,6 +511,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }
     }
 
+    const stopWithReason = (reason: StopReason) => Effect.gen(function*() {
+      stopped = true
+      pending.clear()
+      yield* root.stopWithReason(reason)
+      yield* Effect.forEach([...nodes.values()], (slot) => close(slot, reason), { discard: true })
+    })
+
     return {
       entries: () => panelOf().entries(),
       state: () => panelOf().state(),
@@ -555,6 +569,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       attach: (chunk) => foreground((panel) => panel.attach(chunk)),
       resend: (id) => foreground((panel) => panel.resend(id)),
       cancel: foreground((panel) => panel.cancel),
+      setSetting: (agent, session, config, value) => foreground((panel) => panel.setSetting(agent, session, config, value)),
       setModel: (agent, session, value) => foreground((panel) => panel.setModel(agent, session, value)),
       newSession: (agent) => foreground((panel) => panel.newSession(agent)),
       /**
@@ -629,11 +644,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       faults: (served, sayable) => root.faults(served, sayable),
       recordRefusal: (tool, failure) => panelOf().recordRefusal(tool, failure),
       start,
-      stop: Effect.gen(function*() {
-        stopped = true
-        pending.clear()
-        yield* root.stop
-        yield* Effect.forEach([...nodes.values()], close, { discard: true })
-      }),
+      stop: stopWithReason("shutdown"),
+      stopWithReason,
     }
   })

@@ -70,6 +70,8 @@ export interface Close {
 }
 
 export interface Start {
+  /** Give a command its own POSIX process group and stop its descendants too. */
+  readonly processGroup?: boolean
   readonly cwd?: string
   readonly env?: NodeJS.ProcessEnv
   /** Default `["ignore", "pipe", "pipe"]`. */
@@ -163,6 +165,7 @@ export const start = (
     cwd: options.cwd,
     env: options.env,
     stdio,
+    detached: options.processGroup === true,
   })
 
   const drainStdout = options.drain?.stdout ?? false
@@ -214,9 +217,10 @@ export const start = (
   const collected = () => ({ said: `${out}${err}`, out, err })
 
   const kill = (signal: NodeJS.Signals = "SIGTERM"): void => {
-    if (gone(child)) return
+    if (!options.processGroup && gone(child)) return
     try {
-      child.kill(signal)
+      if (options.processGroup && child.pid !== undefined) process.kill(-child.pid, signal)
+      else child.kill(signal)
     } catch (cause) {
       if (!isEsrch(cause)) throw cause
     }
@@ -241,11 +245,14 @@ export const start = (
     readonly graceMs?: number
     readonly signal?: NodeJS.Signals
   } = {}): Promise<Close> => {
-    if (gone(child)) return closed
+    if (!options.processGroup && gone(child)) return closed
     const grace = opts.graceMs ?? GRACE_MS
     kill(opts.signal ?? "SIGTERM")
     try {
-      return await wait(grace, `${file} did not stop after ${opts.signal ?? "SIGTERM"}`)
+      const result = await wait(grace, `${file} did not stop after ${opts.signal ?? "SIGTERM"}`)
+      // The leader can exit while a descendant keeps running with redirected I/O.
+      if (options.processGroup) kill("SIGKILL")
+      return result
     } catch (cause) {
       if (!(cause instanceof Hung)) throw cause
       kill("SIGKILL")
@@ -306,6 +313,7 @@ export const run = async (
   const child = start(file, args, {
     cwd: options.cwd,
     env: options.env,
+    processGroup: options.processGroup,
     stdio: options.stdio ?? ["ignore", "pipe", "pipe"],
     drain: { stdout: true, stderr: true },
     maxBuffer: options.maxBuffer,

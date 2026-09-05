@@ -127,7 +127,12 @@ describe("chat lifecycle lines", () => {
     const exited = findSaid(said, "chat agent exited")
     expect(exited?.level).toBe("Info")
     expect(exited?.annotations.agent).toBe("opencode")
+    expect(exited?.annotations.pid).toBeNumber()
 
+    expect(exited?.annotations.reason).toBe("stopped by app")
+    expect(exited?.annotations.expected).toBe(true)
+    expect(exited?.annotations.session).toBe("sess-1")
+    expect(exited?.annotations.pid).toBe(spawned?.annotations.pid)
     expect(findSaid(said, "lifecycle-agent: started")).toBeUndefined()
   }, 15_000)
 
@@ -206,6 +211,8 @@ describe("chat lifecycle lines", () => {
     const exited = findSaid(said, "chat agent exited")
     expect(exited?.level).toBe("Info")
     expect(exited?.annotations.code).toBe(7)
+    expect(exited?.annotations.expected).toBe(false)
+    expect(exited?.annotations.reason).toBe("process exited")
     expect(exited?.annotations.session).toBe("sess-1")
     expect(exited?.annotations.agent).toBe("opencode")
   }, 15_000)

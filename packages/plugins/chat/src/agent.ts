@@ -1,3 +1,5 @@
+import { Terminals } from "./terminals.ts"
+import { terminalMetaIn } from "@olai/acp"
 /**
  * The ACP client: one subprocess, one protocol, no browser.
  *
@@ -105,9 +107,11 @@ import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
 import type { ChatServer } from "olai-plugin-chat/wire"
 import type { AskAnswer } from "@olai/acp/wire"
-import { Data, type Duration, Effect, Semaphore } from "effect"
+import { Data, type Duration, Effect, References, Semaphore } from "effect"
 
 import type { Leg, Meta, ModelReading } from "@olai/acp/engine"
+import { acceptsSetting, settingsIn } from "./agents/settings.ts"
+import type { SessionSetting } from "olai-plugin-chat/wire"
 import { modelPickerIn, type Picker, pickerValueFor, sameModel } from "./agents/models.ts"
 import { Calls } from "./calls.ts"
 import { sameDirectory } from "./directory.ts"
@@ -319,6 +323,7 @@ export interface Agent {
    *  other verb. */
   readonly cancel: Effect.Effect<void, AgentGone>
   /** Apply an advertised model value to the conversation the caller selected. */
+  readonly setSetting: (session: string, config: string, value: string | boolean) => Effect.Effect<void, AgentGone>
   readonly setModel: (session: string, value: string) => Effect.Effect<void, AgentGone>
   readonly newSession: Effect.Effect<void, AgentGone>
   readonly loadSession: (id: string) => Effect.Effect<void, AgentGone>
@@ -345,7 +350,20 @@ export interface Agent {
     answers: ReadonlyArray<AskAnswer> | null,
   ) => Effect.Effect<boolean, UsageFailure>
   readonly stop: Effect.Effect<void>
+  readonly stopWithReason: (reason: StopReason) => Effect.Effect<void>
 }
+
+/** Why the owner deliberately releases a subprocess. */
+export type StopReason =
+  | "shutdown"
+  | "agent switched"
+  | "plugin disabled"
+  | "session list complete"
+  | "node scope handoff"
+  | "idle eviction"
+  | "capacity eviction"
+  | "scope released"
+  | "stopped by app"
 
 /** The ACP major version this client speaks. */
 const PROTOCOL = 1
@@ -432,7 +450,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     /** Annotations that belong on a lifecycle line: the session when we have
      *  one, plus whatever the event itself carries. */
+    const logContext = yield* Effect.service(References.CurrentLogAnnotations)
     const about = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
+      ...logContext,
       agent: options.id,
       ...(activeSession === null ? {} : { session: activeSession }),
       ...extra,
@@ -477,6 +497,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     let stopped = false
+    const requestedStops = new WeakMap<Child, { reason: StopReason; session: string | null }>()
     /** A cancel that arrived before the prompt was on the wire. Remembered so
      *  every cancelled turn ends the same way, whichever half of the handshake
      *  it landed in. */
@@ -484,6 +505,17 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     const emit = (event: AgentEvent) => {
       options.onEvent(event)
+    }
+
+    const terminalTools = new Map<string, readonly string[]>()
+    const terminals = new Terminals((id) => {
+      for (const [tool, ids] of terminalTools) if (ids.includes(id)) {
+        emit({ _tag: "toolTerminals", id: tool, terminals: ids.map((key) => terminals.view(key)) })
+      }
+    }, options.cwd)
+    let terminalCleanup = Promise.resolve()
+    const terminalSession = (session: string): void => {
+      if (session !== activeSession || replaying) throw RequestError.invalidParams("inactive terminal session")
     }
 
     const trouble = (message: string) => {
@@ -558,6 +590,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // set a no-op. {@link fromElsewhere} is what a leftover is recognised
       // by, and it reads this set.
       if (activeSession !== null) closed.add(activeSession)
+      terminalCleanup = Promise.all([terminalCleanup, terminals.clear()]).then(() => undefined)
+      terminalTools.clear()
       questions.withdrawAll()
       calls.forget()
       forgetModel()
@@ -790,6 +824,22 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // agent is read.
             armed: options.leg.backgroundTask(update._meta) ?? undefined,
           })
+          {
+            const meta = options.leg.terminalOutput ? terminalMetaIn(update._meta) : []
+            const refs = update.content?.flatMap((item) => item.type === "terminal" ? [item.terminalId] : [])
+            const ids = [...new Set([...(refs ?? terminalTools.get(update.toolCallId) ?? []), ...meta.map((item) => item.id)])]
+            terminalTools.set(update.toolCallId, ids)
+            for (const item of meta) {
+              if (item.kind === "begin") terminals.begin(item.id)
+              else if (item.kind === "output") terminals.append(item.id, item.data)
+              else terminals.finish(item.id, item.code, item.signal)
+            }
+            if (refs !== undefined || ids.length > 0) emit({ _tag: "toolTerminals", id: update.toolCallId,
+              terminals: ids.map((id) => terminals.view(id)) })
+          }
+          return
+        case "plan":
+          emit({ _tag: "plan", entries: update.entries })
           return
         case "available_commands_update":
           emit({
@@ -909,6 +959,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * adapter's spelling; the arithmetic over them is still this package's.
      */
     const models = options.leg.models
+    let settings: ReadonlyArray<SessionSetting> = []
+    const readSettings = (config: ReadonlyArray<SessionConfigOption> | null | undefined): void => {
+      settings = settingsIn(config)
+      emit({ _tag: "settings", settings: settings.filter((option) => option.id !== models?.config) })
+    }
 
     /** What this agent calls the model with that id, or `null` — nothing at all
      *  for an agent with no picker, where the caller says the raw id. */
@@ -935,6 +990,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const forgetModel = (): void => {
       picked = null
       announced = null
+      readSettings([])
       labels = new Map()
       emit({ _tag: "models", choices: [] })
     }
@@ -1008,6 +1064,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // An agent with NO picker is not read at all — there is no entry to look
       // for, so `labels` stays empty and the header names whatever the agent
       // reports, raw.
+      readSettings(configOptions)
       if (models !== null) observePicker(modelPickerIn(models, configOptions))
     }
 
@@ -1166,7 +1223,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // that was never a process (#367 NIT 6).
           if (child.failed() !== undefined) return
           const ours = live?.child === child
-          const id = ours ? activeSession : null
+          const requested = requestedStops.get(child)
+          requestedStops.delete(child)
+          const id = requested?.session ?? (ours ? activeSession : null)
           if (ours) {
             live = null
             // Before anything else it emits: a form left live on a dead wire is a
@@ -1182,7 +1241,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               ...(id === null ? {} : { session: id }),
               ...(code === null ? {} : { code }),
               ...(signal === null ? {} : { signal }),
-              ...(stopped ? { reason: "stopped by app" } : {}),
+              pid: child.pid,
+              reason: requested?.reason ?? (signal === null ? "process exited" : "process signaled"),
+              expected: requested !== undefined,
             },
           )
           if (stopped || !ours) return
@@ -1242,6 +1303,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // ask because `initialize` said we can draw one.
           .onRequest(methods.client.elicitation.create, (context) =>
             onElicitation(context.params, context.signal))
+          .onRequest(methods.client.terminal.create, ({ params }) => {
+            terminalSession(params.sessionId)
+            return terminals.create(params)
+          })
+          .onRequest(methods.client.terminal.output, ({ params }) => { terminalSession(params.sessionId); return terminals.output(params) })
+          .onRequest(methods.client.terminal.waitForExit, ({ params }) => { terminalSession(params.sessionId); return terminals.wait(params) })
+          .onRequest(methods.client.terminal.kill, ({ params }) => { terminalSession(params.sessionId); return terminals.kill(params) })
+          .onRequest(methods.client.terminal.release, ({ params }) => { terminalSession(params.sessionId); return terminals.release(params) })
           .connect(streamOver(child))
 
         const initialized = (yield* Effect.raceFirst(
@@ -1259,6 +1328,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 // about, which is a different bargain and its own decision. An
                 // empty object is how the protocol spells "yes" here.
                 elicitation: { form: {} },
+                terminal: true,
+                ...(options.leg.terminalOutput ? { _meta: { terminal_output: true } } : {}),
+                session: { configOptions: { boolean: {} } },
                 // WHAT IS NOT ASKED FOR, named here because this is where it
                 // would be asked for and a decision recorded anywhere else is a
                 // decision nobody finds: `_meta["subagent-transcript"]: true`.
@@ -1322,7 +1394,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           Effect.logDebug("chat agent command"),
           { command: options.command, args: options.args.join(" ") },
         )
-        yield* lifecycle(Effect.logInfo("chat agent ready"))
+        yield* lifecycle(Effect.logInfo("chat agent ready"), { pid: child.pid })
         return {
           child,
           connection,
@@ -1732,6 +1804,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // option to address the request to and no vocabulary to say it in, so
         // the conversation opens on whatever the agent chose — which is what it
         // did before any of this existed.
+        readSettings(configOptions)
         if (models === null) return
         const picker = modelPickerIn(models, configOptions)
         const settled = wanted === null || picker === null ||
@@ -1777,7 +1850,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         ask(at.connection, methods.agent.session.setConfigOption, {
           sessionId: id, configId: models.config, value,
         }),
-        (answer) => modelPickerIn(models, (answer as SetSessionConfigOptionResponse).configOptions),
+        (answer) => {
+          const config = (answer as SetSessionConfigOptionResponse).configOptions
+          readSettings(config)
+          return modelPickerIn(models, config)
+        },
       )
 
     /**
@@ -1969,7 +2046,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               Effect.onError(
                 Effect.andThen(
                   Effect.sleep("10 millis"),
-                  notify(at, methods.agent.session.cancel, { sessionId: id }),
+                  Effect.ensuring(notify(at, methods.agent.session.cancel, { sessionId: id }), Effect.promise(() => terminals.cancel())),
                 ),
                 (cause) => Effect.sync(() => trouble(notCancelled(reasonOf(cause)))),
               ),
@@ -2079,38 +2156,51 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // they pressed, and "`session/cancel` failed" names our transport where
       // their sentence is "the turn is still running".
       return Effect.mapError(
-        notify(at, methods.agent.session.cancel, { sessionId: id }),
+        Effect.ensuring(notify(at, methods.agent.session.cancel, { sessionId: id }), Effect.promise(() => terminals.cancel())),
         // The sentence is re-worded and the READING is not: whether the cancel
         // could have taken effect is what the transport has already decided.
         (gone) => new AgentGone({ gone: gone.gone, why: notCancelled(gone.why) }),
       )
     })
 
-    const stop = Effect.promise(async () => {
+    const stopWithReason = (reason: StopReason) => Effect.promise(async () => {
       stopped = true
       const at = live
+      if (at !== null) requestedStops.set(at.child, { reason, session: activeSession })
       live = null
       leaving()
       activeSession = null
+      await terminalCleanup
       if (at === null) return
       at.connection.close()
       await at.child.stop()
     })
 
+    const setSetting = (session: string, config: string, value: string | boolean) =>
+      withSession((at, id) => Effect.gen(function*() {
+        const setting = settings.find((option) => option.id === config)
+        if (id !== session || setting === undefined || !acceptsSetting(setting, value)) {
+          return yield* new AgentGone({ gone: "refused", why: "that setting is no longer available in this conversation" })
+        }
+        if (models !== null && config === models.config && typeof value === "string") {
+          const model = acceptPicker(yield* requestModel(at, models, id, value), "selected")
+          if (model !== null) yield* note({ agent: options.id, session: id, model },
+            (why) => "the model this conversation is on will not survive a restart: " + why)
+        } else {
+          const answer = (yield* ask(at.connection, methods.agent.session.setConfigOption, {
+            sessionId: id, configId: config,
+            ...(typeof value === "boolean" ? { type: "boolean" as const, value } : { value }),
+          })) as SetSessionConfigOptionResponse
+          readModel(answer.configOptions)
+        }
+      }))
+
     return {
       boot,
       prompt,
       steer,
-      setModel: (session, value) => withSession((at, id) => Effect.gen(function*() {
-        if (id !== session || models === null || !labels.has(value)) {
-          return yield* new AgentGone({ gone: "refused", why: "that model is no longer available in this conversation" })
-        }
-        const model = acceptPicker(yield* requestModel(at, models, id, value), "selected")
-        if (model !== null) {
-          yield* note({ agent: options.id, session: id, model },
-            (why) => "the model this conversation is on will not survive a restart: " + why)
-        }
-      })),
+      setSetting,
+      setModel: (session, value) => setSetting(session, models?.config ?? "", value),
       cancel,
       newSession: opening((at) =>
         Effect.gen(function*() {
@@ -2159,7 +2249,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           if (took instanceof UsageFailure) return Effect.fail(took)
           return Effect.succeed(took === "settled")
         }),
-      stop,
+      stop: stopWithReason("stopped by app"),
+      stopWithReason,
     }
   })
 
@@ -2362,8 +2453,7 @@ const textOf = (content: ContentBlock): string => {
  *
  * The protocol's three block kinds are read for the one thing a transcript row
  * can show as a line: text. `content` is prose or an embedded resource, and
- * `terminal` is an id whose output arrives over a separate member this client
- * does not open.
+ * `terminal` is an id whose output is handled separately by the terminal ledger.
  *
  * A `diff` is NOT read here any more, and that inversion is the whole of
  * `chat-edit-diffs`. It used to be flattened to the sentence `— <path>` on the
