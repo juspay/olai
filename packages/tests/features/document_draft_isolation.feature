@@ -1,5 +1,26 @@
 @scratch:good
 Feature: Document drafts stay with their reader through a plugin rebuild
+  Scenario: A neighbouring plugin route is reparsed while the document keeps its draft
+    Given I open the address "/s/finishes.md/d%2F2019-11-05"
+    When I draft "**mixed draft**" in document pane 0
+    And I focus pane 1
+    And I open the plugins panel
+    And I switch the plugin "journal" off
+    And I close the plugins panel
+    Then document pane 0 holds draft "**mixed draft**"
+    And pane 1 is focused
+    And no journal page is drawn
+    When I open the plugins panel
+    And I switch the plugin "journal" on
+    And I close the plugins panel
+    Then the day open is "2019-11-05"
+    And document pane 0 holds draft "**mixed draft**"
+    And pane 1 is focused
+    When I save document pane 0
+    Then document pane 0 has no editor
+    And the document renders bold text "mixed draft"
+    And there should be no page errors
+
   Scenario: Navigating another phone tab preserves the inactive document draft
     Given I open the address "/s/finishes.md/finishes.md"
     When I shrink the window to a phone

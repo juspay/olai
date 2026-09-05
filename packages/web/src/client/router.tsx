@@ -56,6 +56,7 @@ import {
   isLone,
   navigateIn,
   openRight,
+  panesOf,
   reorder as reorderPanes,
   resizeTo,
   type Workspace,
@@ -151,7 +152,20 @@ const here = (): string =>
 let remembered: { readonly href: string; readonly workspace: Workspace } | undefined
 
 export const createRouter = (): Router => {
-  const first = remembered?.href === here() ? remembered.workspace : workspaceOf(here())
+  const parsed = workspaceOf(here())
+  let first = parsed
+  if (remembered?.href === here()) {
+    const previous = panesOf(remembered.workspace)
+    for (const [index, pane] of panesOf(parsed).entries()) {
+      const before = previous[index]?.route
+      // Plugin routes must be parsed against the new roster. Only the core
+      // pages whose addresses still agree can keep their draft identity.
+      if (before?.kind === "at" && pane.route.kind === "at" && hrefOf(before) === hrefOf(pane.route)) {
+        first = navigateIn(first, index, before)
+      }
+    }
+    first = { ...first, focus: parsed.focus }
+  }
   const [workspace, setWorkspace] = createSignal<Workspace>(first)
   onCleanup(() => {
     remembered = { href: here(), workspace: workspace() }
