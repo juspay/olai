@@ -91,11 +91,15 @@ import {
 } from "./draft.ts"
 import { flatten, reanchored, refound, seated } from "./order.ts"
 import type { Standing } from "./order.ts"
-import { editorMemory, type EditorMemory } from "./memory.ts"
+import { editorMemory, type EditorMemory, type EditorRange } from "./memory.ts"
 import { redraws, rekeys } from "./redraws.ts"
 import { useUndo } from "./undoing.ts"
 
 export interface Editor {
+  /** Consume the range inherited from a previous instance of this editor. */
+  readonly takeRange: (slot: Slot | undefined) => EditorRange | undefined
+  /** Record the browser selection for a later rebuild of the same draft. */
+  readonly rememberRange: (range: EditorRange) => void
   /** The draft, or `null` when nothing is being typed. It carries what the
    *  last write said, refused or not — one value, so replacing it cannot leave
    *  a stale reason on screen.
@@ -282,6 +286,8 @@ export const createEditor = (
   memory: EditorMemory = editorMemory(),
 ): Editor => {
   const { draft, setDraft, ghosts, setGhosts, caret, setCaret, mintSlot, enqueue } = memory
+  let retainedRange = memory.range
+  memory.range = undefined
   /** Leave an empty pending on screen without it holding the caret. Same
    *  slot is a no-op, so parking twice cannot duplicate a ghost. A titled
    *  draft, or nothing, is left alone — parking is not how a write happens. */
@@ -1212,6 +1218,13 @@ export const createEditor = (
   }
 
   return {
+    takeRange: (slot) => {
+      if (retainedRange === undefined || slot === undefined || !sameSlot(retainedRange.slot, slot)) return undefined
+      const range = retainedRange
+      retainedRange = undefined
+      return range
+    },
+    rememberRange: (range) => { memory.range = range },
     draft,
     ghosts,
     resume,

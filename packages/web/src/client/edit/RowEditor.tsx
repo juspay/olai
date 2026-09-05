@@ -35,10 +35,11 @@
  * parent is folded — are places the tree draws no body under.
  */
 
-import { createEffect, createSignal, on, Show } from "solid-js"
+import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
 
+import { takingOfflineFocus } from "../connection/focus.ts"
 import { createCompletion } from "../complete/completing.tsx"
-import type { Draft } from "./draft.ts"
+import { type Draft, slotOf } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { SaidLine } from "../SaidLine.tsx"
 import { type Caret, type EditAction, type EditField, editKey } from "../keys.ts"
@@ -173,7 +174,7 @@ export function TitleEditor(props: {
           readCaret()
           if (props.active === false) props.onActivate?.()
         }}
-        onBlur={() => props.onBlur(element.isConnected)}
+        onBlur={() => { if (!takingOfflineFocus()) props.onBlur(element.isConnected) }}
       />
       <completion.Panel />
     </span>
@@ -222,7 +223,7 @@ export function DescEditor(props: {
         props.onInput(event.currentTarget.value)
       }}
       onKeyDown={(event) => props.onKey(event)}
-      onBlur={() => props.onBlur(element.isConnected)}
+      onBlur={() => { if (!takingOfflineFocus()) props.onBlur(element.isConnected) }}
     />
   )
 }
@@ -399,15 +400,32 @@ const takeCaret = (
 ): void => {
   const editor = useEditor()
   let opening = true
+  const draft = editor.draft()
+  const slot = draft === null ? undefined : slotOf(draft)
+  // Only a new editor instance consumes a retained range. Ordinary caret
+  // bumps and structural row redraws keep their existing placement rules.
+  const retained = editor.takeRange(slot)
+  const remember = () => {
+    if (said.armed?.() === false || slot === undefined) return
+    const field = element()
+    editor.rememberRange({ slot, start: field.selectionStart ?? 0,
+      end: field.selectionEnd ?? 0, direction: field.selectionDirection ?? "none" })
+  }
+  onMount(() => {
+    const field = element()
+    field.addEventListener("select", remember)
+    onCleanup(() => field.removeEventListener("select", remember))
+  })
   createEffect(on(editor.caret, () => {
     if (said.armed?.() === false) return
     const field = element()
+    const range = opening ? retained : undefined
     const at = opening
       ? said.at?.() ?? field.value.length
       : field.selectionStart ?? field.value.length
     opening = false
     field.focus()
-    field.setSelectionRange(at, at)
+    field.setSelectionRange(range?.start ?? at, range?.end ?? at, range?.direction)
     said.then?.()
   }))
 }

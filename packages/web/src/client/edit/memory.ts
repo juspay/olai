@@ -3,10 +3,17 @@
  * dispatched write settle before the remounted editor sends another one. */
 import { moveMemory } from "../move/memory.ts"
 import { createSignal } from "solid-js"
-import type { Draft, Pending } from "./draft.ts"
+import type { Draft, Pending, Slot } from "./draft.ts"
 import { selectionMemory } from "../select/memory.ts"
 import { serial } from "./queue.ts"
 import type { Route } from "../routes.ts"
+
+export interface EditorRange {
+  readonly slot: Slot
+  readonly start: number
+  readonly end: number
+  readonly direction: "forward" | "backward" | "none"
+}
 
 export const editorMemory = () => {
   const [draft, setDraft] = createSignal<Draft | null>(null)
@@ -14,6 +21,7 @@ export const editorMemory = () => {
   const [caret, setCaret] = createSignal(0)
   let slots = 0
   return {
+    range: undefined as EditorRange | undefined,
     draft, setDraft, ghosts, setGhosts, caret, setCaret,
     mintSlot: () => `d${++slots}`,
     enqueue: serial(),

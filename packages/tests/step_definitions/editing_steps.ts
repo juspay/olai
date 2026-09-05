@@ -1081,3 +1081,15 @@ Then(
     } while (Date.now() < deadline);
   },
 );
+
+Then("the selected text in the line is {string}", async function (this: OlaiWorld, expected: string) {
+  const field = await openEditor(this);
+  const selected = () => field.evaluate((element) => {
+    const input = element as HTMLInputElement;
+    return input.value.slice(input.selectionStart ?? 0, input.selectionEnd ?? 0);
+  });
+  await this.waitUntil(async () => await selected() === expected,
+    `the selected text to remain ${JSON.stringify(expected)}`).catch(async () => {
+      assert.strictEqual(await selected(), expected);
+    });
+});

@@ -37,6 +37,8 @@ Nothing has a mode: the title becomes an input in the same place, at the same si
 
 ## A row is its title
 
+The reconnect dialog can take focus without committing or closing the row editor. A rebuild of the same page preserves the selected text range as well as the draft, so typing replaces the selected words and Enter splits around the same selection. Clicking away still commits normally.
+
 An outline is a column of titles, so that is what it draws — that, and the short facts a node carries, which are drawn as a run of chips under the title whether the row is open or not (*What a node says about itself*, below). What waits behind the small dim **¶** beside the title is the node's **note** and what it points at. Press the ¶ (or **Space**, with it focused) and the row opens: the title line says so, its tags brighten, and the note appears in full under the facts. Press it again, click away, or press **Escape**, and the row folds back. A node with nothing behind it wears no ¶ at all, so the mark is always a promise there is something there — and a node whose only body is properties has none, because the properties are already on the row.
 
 **How much a row starts as is yours**, in *prefs → Notes*:
