@@ -52,11 +52,11 @@ The two faces (`OLAI_LOG`) are a different question and stay a different variabl
 
 | when | face |
 |---|---|
-| destination is a TTY | **pretty** — Effect's `Logger.consolePretty`: local time, coloured level, message first, key=values after |
+| destination is a TTY | **pretty** — Effect's `formatStructured` composed with `Logger.map`: local time, coloured level, message and inline key=values |
 | piped / systemd / tests | **logfmt** — byte-identical to Effect's `formatLogFmt`, what it always was |
 | `OLAI_LOG=pretty` or `OLAI_LOG=logfmt` | that face, regardless of the TTY |
 
-Pretty is for a human watching a terminal. Logfmt is for everything that parses a line — the `@olai/log` testlib decoder, the e2e suite reading the bound address off stdout, any agent grepping `url=`. Pretty may only exist where no machine reads; colour and multi-line pretty layout would break those readers.
+Pretty is for a human watching a terminal. Logfmt is for everything that parses a line — the `@olai/log` testlib decoder, the e2e suite reading the bound address off stdout, any agent grepping `url=`. Pretty may only exist where no machine reads; colour and abbreviated terminal fields would break those readers.
 
 Colour follows the **destination** stream (stdout for `toStdout`, stderr for `toStderr`), not always stdout — otherwise a stderr sink would never colour, since its stdout is the protocol pipe. `NO_COLOR` (set and non-empty) turns colour off on a TTY.
 
@@ -65,23 +65,23 @@ Colour follows the **destination** stream (stdout for `toStdout`, stderr for `to
 One line per event, `key=value`, quoted only where it has to be:
 
 ```
-timestamp=2026-08-10T17:45:36.770Z level=INFO fiber=#5 message=serving serve=12ms root=/home/you/outlines url=http://127.0.0.1:7714
-timestamp=2026-08-10T17:45:36.812Z level=WARN fiber=#8 message="the agent is running a model its picker does not offer" serve=54ms root=/home/you/outlines agent=claude-code-acp model=opus-5
+timestamp=2026-08-10T17:45:36.770Z level=INFO fiber=#5 message=serving root=/home/you/outlines url=http://127.0.0.1:7714
+timestamp=2026-08-10T17:45:36.812Z level=WARN fiber=#8 message="the agent is running a model its picker does not offer" root=/home/you/outlines agent=claude-code-acp model=opus-5
 ```
 
 The message is a short, stable sentence; every value that varies is an annotation. That is what makes a line greppable by field rather than by substring — `url=` is the address, wherever the message went — and it is why a relayed multi-line agent message is still ONE line: the value is escaped, not wrapped.
 
-`serve=12ms` is a log SPAN: `Effect.withLogSpan` around the boot, so every line emitted during it says how far in it was. Annotations set with `Effect.annotateLogsScoped` (`root=`) are inherited by everything forked under that scope, which is how the store's own probe warning ends up saying which directory it was probing.
+Use `Effect.withLogSpan` only around bounded operations; the server lifetime is not an operation duration. Annotations set with `Effect.annotateLogsScoped` (`root=`) are inherited by everything forked under that scope, which is how the store's own probe warning ends up saying which directory it was probing.
 
 ### pretty (humans)
 
 Same event on a TTY looks more like:
 
 ```
-[13:45:36.770] INFO (#5) serve=12ms: serving
-  root: /home/you/outlines
-  url: http://127.0.0.1:7714
+13:45:36 INFO  serving root=/home/you/outlines url=http://127.0.0.1:7714
 ```
+
+Routine events occupy one line; errors retain Effect-rendered causes on indented lines. The terminal omits fiber IDs and empty fields, abbreviates UUID session IDs to eight characters, and shows the root when it changes (always for warnings, errors and debug events). Machine logs retain full annotations. Agent names and readiness are info events; executable paths, arguments and successful tool probes are debug diagnostics.
 
 Force either face when the auto pick is wrong (a TTY you want to pipe from, or a non-TTY you still want to read):
 

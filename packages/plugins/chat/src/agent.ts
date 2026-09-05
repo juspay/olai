@@ -1180,8 +1180,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             Effect.logInfo("chat agent exited"),
             {
               ...(id === null ? {} : { session: id }),
-              code: code ?? "none",
-              signal: signal ?? "none",
+              ...(code === null ? {} : { code }),
+              ...(signal === null ? {} : { signal }),
+              ...(stopped ? { reason: "stopped by app" } : {}),
             },
           )
           if (stopped || !ours) return
@@ -1318,9 +1319,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // is the silent-send class of lie — a line that says the process is
         // up when the next line is the ENOENT.
         yield* lifecycle(
-          Effect.logInfo("chat agent spawned"),
+          Effect.logDebug("chat agent command"),
           { command: options.command, args: options.args.join(" ") },
         )
+        yield* lifecycle(Effect.logInfo("chat agent ready"))
         return {
           child,
           connection,
