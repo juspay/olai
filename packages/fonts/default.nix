@@ -23,8 +23,8 @@ let
 
   sources = builtins.fromJSON (builtins.readFile ./src/hosted.json);
 
-  # `pkg` is an attribute PATH so a nested set can be named the way nixpkgs
-  # nests it (`ibm-plex.mono`). An unknown one fails eval here, by name.
+  # `pkg` is an attribute PATH so a nested set can be named the way the
+  # package set nests it (`ibm-plex.mono`). An unknown one fails eval here, by name.
   packageAt = path: lib.getAttrFromPath (lib.splitString "." path) pkgs;
 
   filesOf = source:

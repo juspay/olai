@@ -1,8 +1,7 @@
-# Official bun prebuilt zip, the nixpkgs `pkgs/by-name/bu/bun/package.nix`
-# spelling, vendored so this tree does not pin a second nixpkgs just for
-# one file. 1.4.1 is the first bun with `bun install --offline` (juspay/olai#503).
-# Drop this overlay when NixOS/nixpkgs#556047 (or a 1.4.1 follow-up) reaches
-# the nixpkgs-unstable pin — bun-nixpkgs-catchup.
+# Official bun prebuilt zip, the corepkgs bun/generic.nix spelling, vendored
+# so this tree does not wait on ekapkgs' 1.3.14. 1.4.1 is the first bun with
+# `bun install --offline` (juspay/olai#503). Drop this overlay when the
+# ekapkgs pin's default bun is >= 1.4.1.
 { lib
 , stdenvNoCC
 , fetchurl
@@ -15,9 +14,9 @@
 , curl
 , jq
 , common-updater-scripts
-, cctools
-, darwin
-, rcodesign
+, cctools ? null
+, darwin ? { }
+, rcodesign ? null
 ,
 }:
 
@@ -57,7 +56,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
   postPhases = [ "postPatchelf" ];
   postPatchelf =
-    lib.optionalString stdenvNoCC.hostPlatform.isDarwin ''
+    lib.optionalString (stdenvNoCC.hostPlatform.isDarwin && cctools != null && rcodesign != null) ''
       '${lib.getExe' cctools "${cctools.targetPrefix}install_name_tool"}' $out/bin/bun \
         -change /usr/lib/libicucore.A.dylib '${lib.getLib darwin.ICU}/lib/libicucore.A.dylib'
       '${lib.getExe rcodesign}' sign --code-signature-flags linker-signed $out/bin/bun
@@ -116,13 +115,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
       lgpl21Only # javascriptcore and webkit
     ];
     mainProgram = "bun";
-    maintainers = with lib.maintainers; [
-      DAlperin
-      jk
-      thilobillerbeck
-      cdmistman
-      diogomdp
-    ];
     platforms = builtins.attrNames finalAttrs.passthru.sources;
     # Broken for Musl at 2024-01-13, tracking issue:
     # https://github.com/NixOS/nixpkgs/issues/280716

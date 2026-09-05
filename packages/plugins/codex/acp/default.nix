@@ -34,12 +34,21 @@ buildNpmPackage {
 
   postInstall =
     let
-      package = "$out/lib/node_modules/@agentclientprotocol/codex-acp";
-      mods = "${package}/node_modules";
-      adapter = "${package}/dist/index.js";
-      codex = "${mods}/@openai/codex-${platform.npm}/vendor/${platform.target}/bin/codex";
+      # nixpkgs npmInstallHook uses package.json `name`; ekapkgs copies to
+      # `$out/lib/node_modules/${pname}`. `$package` is resolved in the builder.
+      adapter = "$package/dist/index.js";
+      codex = "$package/node_modules/@openai/codex-${platform.npm}/vendor/${platform.target}/bin/codex";
     in
     ''
+      if [ -d "$out/lib/node_modules/@agentclientprotocol/codex-acp" ]; then
+        package="$out/lib/node_modules/@agentclientprotocol/codex-acp"
+      elif [ -d "$out/lib/node_modules/$pname" ]; then
+        package="$out/lib/node_modules/$pname"
+      else
+        echo "codex-agent: package layout not found under @agentclientprotocol/codex-acp or $pname" >&2
+        ls -la "$out/lib/node_modules" >&2 || true
+        exit 1
+      fi
       test -f "${adapter}"
       test -x "${codex}"
       makeWrapper ${nodejs}/bin/node "$out/bin/codex-acp" \

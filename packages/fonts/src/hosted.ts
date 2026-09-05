@@ -4,7 +4,7 @@
  * The table is `./hosted.json`, and it is JSON for one reason: `default.nix`
  * reads THE SAME FILE. A hosted face is one thing — where its bytes come from
  * and what CSS identity they carry — and it used to be two lists in two
- * languages, a nixpkgs list here and a family/weight/style list there, joined
+ * languages, a package-set list here and a family/weight/style list there, joined
  * on a basename by a test that noticed when they drifted. Noticing drift is
  * not the same as being unable to drift. One list, two readers, nothing to
  * keep in step.

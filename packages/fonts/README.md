@@ -5,10 +5,10 @@ A typeface in olai is a **pick with a name**, the same shape as a theme: the tab
 | file | what it owns |
 |---|---|
 | `src/typefaces.ts` | the picks: every typeface a person can choose — name, label, group, hint, and the three stacks |
-| `src/hosted.json` | the faces on disk: where each file comes from in nixpkgs, and the family, weight and style it carries. Read by `src/hosted.ts` AND by `default.nix` — one list, two languages |
+| `src/hosted.json` | the faces on disk: where each file comes from in the package set, and the family, weight and style it carries. Read by `src/hosted.ts` AND by `default.nix` — one list, two languages |
 | `src/hosted.ts` | that list, as the table the sheet generator reads |
 | `src/css.ts` | the sheet the two become — one `@font-face` per hosted file, one `:root[data-font="…"]` block per pick |
-| `default.nix` | the faces themselves: nixpkgs sources, converted to woff2 **once, in the Nix store** |
+| `default.nix` | the faces themselves: package-set sources, converted to woff2 **once, in the Nix store** |
 
 Two entry points, one per reader. `@olai/fonts` is what a PAGE reads — the picks, and nothing else, because a browser drawing a picker has no use for a filename. `@olai/fonts/build` is what a client BUILD takes: the generated sheet, and the list of woff2 files that sheet's `src: url(…)` needs under `/fonts/`. One entry rather than two, because they are one obligation — a build that took the sheet and not the files would ship a page whose every face 404s.
 
@@ -21,7 +21,7 @@ The default is **Olai** — titles in Literata, chrome in iA Writer Quattro, cod
 ## Adding a typeface
 
 1. A row in `TABLE` (`src/typefaces.ts`).
-2. If it is hosted rather than generic: a group in `src/hosted.json` — the nixpkgs package its files come from, the directory under `share/fonts/`, the family the CSS will name, and one entry per file.
+2. If it is hosted rather than generic: a group in `src/hosted.json` — the package-set package its files come from, the directory under `share/fonts/`, the family the CSS will name, and one entry per file.
 
 Two edits, and the second is one place rather than two: the derivation and the sheet read the same JSON, so there is no way to give a face to one and not the other. The picker then draws one option per row, and the sheet grows its `@font-face` and its block.
 
