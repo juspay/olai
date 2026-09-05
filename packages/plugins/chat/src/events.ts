@@ -227,6 +227,7 @@ export type AgentEvent =
   | { readonly _tag: "servers"; readonly servers: ReadonlyArray<ChatServer> }
   /** The model this session runs, labelled the way the agent labels its own. */
   | { readonly _tag: "model"; readonly name: string | null }
+  | { readonly _tag: "models"; readonly choices: ReadonlyArray<{ readonly value: string; readonly name: string }> }
   /** How full this conversation's context is, as the agent last reported it.
    *  Arrives several times a turn — the agent revises both halves as it goes —
    *  and the panel holds the newest. */
