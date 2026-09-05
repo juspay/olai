@@ -9,7 +9,7 @@ import { connectSurfaces } from "@kolu/surface-app/solid"
 import type { Surface, SurfaceSpec } from "@kolu/surface/define"
 import type { BrowserHalf, BrowserRow } from "@olai/bundle"
 import { surface } from "@olai/surface"
-import { createEffect, createRoot } from "solid-js"
+import { createEffect, createRoot, createSignal } from "solid-js"
 
 import { composeTo } from "./plugins/runtime.ts"
 
@@ -127,6 +127,12 @@ let composed = ""
  * rather than the page being stuck holding a wire it thinks is newer than it
  * is.
  */
+/** A switch can publish its new state before the browser finishes replacing
+ * its socket. Keep controls that change the roster frozen through the entire
+ * queue, so a second press cannot be sent on a connection about to be closed. */
+const [rosterChanges, setRosterChanges] = createSignal(0)
+export const rosterChanging = (): boolean => rosterChanges() > 0
+
 const rerost = async (want: ReadonlyArray<Named>): Promise<void> => {
   const signature = signatureOf(want)
   // ONE AT A TIME, and it is the roster's own shape that makes this reachable
@@ -144,9 +150,14 @@ const rerost = async (want: ReadonlyArray<Named>): Promise<void> => {
   // roster the server has already moved off — silently, since nothing would
   // republish to correct it. Chaining costs one more redial in a window that
   // is one round trip wide.
+  setRosterChanges((count) => count + 1)
   const mine = inFlight.then(() => rerostNow(want, signature), () => rerostNow(want, signature))
   inFlight = mine.then(() => {}, () => {})
-  return mine
+  try {
+    await mine
+  } finally {
+    setRosterChanges((count) => count - 1)
+  }
 }
 
 /** The tail of {@link rerost}, entered only when no other redial is running. */

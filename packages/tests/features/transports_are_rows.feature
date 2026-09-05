@@ -28,6 +28,10 @@ Feature: Transports are rows
     When I switch the plugin "web-app" on
     Then the browser build answers with status 200
     And the MCP transport answers with status 200
+    When I switch the plugin "web-app" off
+    Then the browser build answers with status 404
+    When I switch the plugin "web-app" on
+    Then the browser build answers with status 200
     And there should be no page errors
 
   Scenario: Removing the browser socket leaves the MCP endpoint available
