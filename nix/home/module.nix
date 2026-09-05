@@ -14,18 +14,27 @@ let
   gitArgs = lib.optionals (cfg.commit != null) [ "--commit" cfg.commit ]
     ++ lib.optionals (cfg.push != null) [ "--push" cfg.push ];
 
-  # ...and `--plugins`, on exactly the same terms. `null` is nobody having said,
-  # which is not the same as saying NONE: an omitted flag applies the built-in
-  # default and an empty list passes `--plugins ""`, which is somebody saying
-  # none out loud. The preferences panel reads the two differently — one names
-  # the flag under the row, the other names the default — so a module that
+  # ...and the plugin flags, on exactly the same terms. `null` is nobody having
+  # said, which is not the same as saying NONE: an omitted flag applies the
+  # built-in default and an empty list passes `--plugins ""`, which is somebody
+  # saying none out loud. The preferences panel reads the two differently — one
+  # names the flag under the row, the other names the default — so a module that
   # helpfully expanded `null` into a list would claim a flag nobody typed,
-  # exactly as `gitArgs` above refuses to.
+  # exactly as `gitArgs` above refuses to. extraPlugins and withoutPlugins are
+  # the same three-way, rendered only when set.
   #
   # A COMMA LIST because that is what the flag takes; `concatStringsSep` and not a
   # repeated flag, since the CLI reads one value.
   pluginArgs = lib.optionals (cfg.plugins != null)
-    [ "--plugins" (lib.concatStringsSep "," cfg.plugins) ];
+    [ "--plugins" (lib.concatStringsSep "," cfg.plugins) ]
+  ++ lib.optionals (cfg.extraPlugins != null)
+    [ "--extra-plugins" (lib.concatStringsSep "," cfg.extraPlugins) ]
+  ++ lib.optionals (cfg.withoutPlugins != null)
+    [ "--without-plugins" (lib.concatStringsSep "," cfg.withoutPlugins) ];
+
+  pluginOverlap =
+    if cfg.extraPlugins == null || cfg.withoutPlugins == null then [ ]
+    else lib.intersectLists cfg.extraPlugins cfg.withoutPlugins;
 
   # Pure argv for both supervisors. The package bakes OLAI_DIST_DIR (the
   # browser bundle); host/port/dataDir, the git policy and the plugin list are
@@ -151,6 +160,33 @@ in
         appliances.
 
         Run `olai web --help` for the names this build has.
+
+        Cannot be set beside extraPlugins or withoutPlugins: the exact set
+        already says everything.
+      '';
+    };
+
+    extraPlugins = lib.mkOption {
+      type = lib.types.nullOr (lib.types.listOf lib.types.str);
+      default = null;
+      example = lib.literalExpression ''[ "xyne-spaces" ]'';
+      description = ''
+        Rows to turn on in addition to the built-in default (`--extra-plugins`).
+        Nothing else moves. null (the default) passes no flag.
+
+        Cannot be set beside plugins: the exact set already says everything.
+      '';
+    };
+
+    withoutPlugins = lib.mkOption {
+      type = lib.types.nullOr (lib.types.listOf lib.types.str);
+      default = null;
+      example = lib.literalExpression ''[ "journal" ]'';
+      description = ''
+        Rows to turn off from the built-in default (`--without-plugins`).
+        Nothing else moves. null (the default) passes no flag.
+
+        Cannot be set beside plugins: the exact set already says everything.
       '';
     };
 
@@ -210,10 +246,22 @@ in
     # values, which is not a file and not a secret. So the option is refused
     # there rather than silently doing nothing, which is the failure it exists
     # to prevent one layer down.
-    assertions = [{
-      assertion = cfg.environmentFile == null || pkgs.stdenv.hostPlatform.isLinux;
-      message = "services.olai.environmentFile is systemd-only; launchd has no equivalent.";
-    }];
+    assertions = [
+      {
+        assertion = cfg.environmentFile == null || pkgs.stdenv.hostPlatform.isLinux;
+        message = "services.olai.environmentFile is systemd-only; launchd has no equivalent.";
+      }
+      {
+        assertion = cfg.plugins == null || (cfg.extraPlugins == null && cfg.withoutPlugins == null);
+        message = "services.olai.plugins already names the exact set, so extraPlugins and withoutPlugins have nothing left to say.";
+      }
+      {
+        assertion = pluginOverlap == [ ];
+        message = "services.olai: ${lib.concatStringsSep ", " pluginOverlap} ${
+          if builtins.length pluginOverlap == 1 then "is" else "are"
+        } named in both extraPlugins and withoutPlugins.";
+      }
+    ];
 
     # Put the same binary the service runs on PATH, so a shell `olai web`
     # cannot skew from the unit it is meant to inspect.

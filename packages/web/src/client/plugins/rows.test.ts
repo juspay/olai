@@ -71,7 +71,7 @@ const row = (
 ): PluginRoster => ({
   built: [{
     name: "alpha",
-    running: state === "running",
+    running: state === "running" || state === "extra",
     state,
     ...(fault === undefined ? {} : { fault }),
     ...(missing === undefined ? {} : { missing }),
@@ -150,6 +150,8 @@ test("every arm core writes in full is one short line", () => {
     pluginHint(only(row("off"))),
     pluginHint(only(row("waiting"))),
     pluginHint(only(row("running", undefined, undefined, ["kolu"]))),
+    pluginHint(only(row("extra"))),
+    pluginHint(only(row("without"))),
   ]
   for (const said of every) {
     expect([said, said !== null && said.length < 100]).toEqual([said, true])
@@ -173,24 +175,26 @@ test("every arm core writes in full is one short line", () => {
  * told a person who had just pressed the switch that the BUILD ships this off by
  * default, with a flag to go and type.
  */
-test("each absence says its own why, and they are five different whys", () => {
+test("each absence says its own why, and they are six different whys", () => {
   const optIn = row("optIn")
   const failed = row("failed", "no socket at /run/nothing")
   const waiting = row("waiting")
   const off = row("off")
   const switched = row("switched")
+  const without = row("without")
 
   expect(pluginHint(only(optIn))).toContain("by default")
   expect(pluginHint(only(off))).toContain("was not asked for")
   expect(pluginHint(only(waiting))).toContain("waiting for something it needs")
   expect(pluginHint(only(failed))).toContain("Failed to start")
   expect(pluginHint(only(switched))).toContain("Switched off here")
+  expect(pluginHint(only(without))).toContain("--without-plugins")
 
-  // FIVE DISTINCT SENTENCES, asserted as a set rather than one at a time: the
+  // DISTINCT SENTENCES, asserted as a set rather than one at a time: the
   // way this collapses back is two arms drifting into one wording, which every
   // `toContain` above would still pass.
-  const said = [optIn, off, waiting, failed, switched].map((sent) => pluginHint(only(sent)))
-  expect(new Set(said).size).toBe(5)
+  const said = [optIn, off, waiting, failed, switched, without].map((sent) => pluginHint(only(sent)))
+  expect(new Set(said).size).toBe(6)
 })
 
 /**
@@ -385,7 +389,8 @@ test("a running row that carries nobody says nothing", () => {
  */
 test("the switch shows what is running, not which of five mornings it is having", () => {
   expect(pluginSwitch(only(row("running")), false).value).toBe("on")
-  for (const state of ["waiting", "failed", "optIn", "off"]) {
+  expect(pluginSwitch(only(row("extra")), false).value).toBe("on")
+  for (const state of ["waiting", "failed", "optIn", "off", "without"]) {
     expect([state, pluginSwitch(only(row(state)), false).value]).toEqual([state, "off"])
   }
 })
@@ -477,6 +482,49 @@ test("an empty flag is somebody saying none, and says so as itself", () => {
   expect(none).not.toContain("built-in default")
 })
 
+test("an extra-plugins row names the flag that turned it on", () => {
+  const said = pluginHint(only(row("extra")))
+  expect(said).toContain("--extra-plugins")
+  expect(said).not.toContain("--plugins=")
+  expect(pluginSwitch(only(row("extra")), false).value).toBe("on")
+})
+
+test("a without-plugins row names the flag that turned it off", () => {
+  const said = pluginHint(only(row("without")))
+  expect(said).toContain("--without-plugins")
+  expect(said).not.toContain("by default")
+  expect(pluginSwitch(only(row("without")), false).value).toBe("off")
+})
+
+test("the panel foot quotes extra and without the way they were typed", () => {
+  const extra = pluginsStarted({
+    built: [{ name: "alpha", running: true, state: "extra" }],
+    pinned: null,
+    extra: ["alpha"],
+  })
+  expect(extra).toContain("--extra-plugins=alpha")
+  expect(extra).not.toContain("built-in default")
+
+  const without = pluginsStarted({
+    built: [{ name: "alpha", running: false, state: "without" }],
+    pinned: null,
+    without: ["alpha"],
+  })
+  expect(without).toContain("--without-plugins=alpha")
+
+  const both = pluginsStarted({
+    built: [
+      { name: "alpha", running: true, state: "extra" },
+      { name: "beta", running: false, state: "without" },
+    ],
+    pinned: null,
+    extra: ["alpha"],
+    without: ["beta"],
+  })
+  expect(both).toContain("--extra-plugins=alpha")
+  expect(both).toContain("--without-plugins=beta")
+})
+
 /**
  * ...AND IT SAYS HOW LONG A FLIP LASTS, which is the other half of the one
  * thing this panel owes a person before they close the tab.
@@ -508,6 +556,8 @@ test("no row repeats what the panel says once", () => {
     pluginHint(only(row("off"))),
     pluginHint(only(row("waiting", undefined, ["deliveries"]))),
     pluginHint(only(row("failed", "no socket"))),
+    pluginHint(only(row("extra"))),
+    pluginHint(only(row("without"))),
   ]
   for (const said of every) {
     if (said === null) continue

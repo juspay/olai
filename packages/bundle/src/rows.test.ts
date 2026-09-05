@@ -98,6 +98,28 @@ test("a named pin writes BOTH directions, which is how an opt-in row is opted in
   for (const row of ROWS) expect(patched([...BUNDLE_NAMES], row.id)).toBe(false)
 })
 
+test("extra and without patch only the rows they name", () => {
+  const optedOut = ROWS.filter((row) => row.disabled === true).map((row) => row.id)
+  const optedIn = ROWS.filter((row) => row.disabled !== true).map((row) => row.id)
+  const off = optedOut[0] as string
+  const on = optedIn[0] as string
+
+  const extra = pluginsPatch(null, [off], null)
+  expect(extra).toEqual([{ id: off, disabled: false }])
+  const without = pluginsPatch(null, null, [on])
+  expect(without).toEqual([{ id: on, disabled: true }])
+  const both = pluginsPatch(null, [off], [on])
+  expect(both).toEqual([
+    { id: off, disabled: false },
+    { id: on, disabled: true },
+  ])
+  // An omitted pair is still nobody having said.
+  expect(pluginsPatch(null, null, null)).toEqual([])
+  // An exact set still writes every row, and the patches beside it are ignored
+  // because the CLI refuses that combination before it gets here.
+  expect(pluginsPatch([on], [off], [on]).every((one) => "disabled" in one)).toBe(true)
+})
+
 /**
  * THE ORDER THREE READERS TAKE, and the two properties it is not obvious about.
  *

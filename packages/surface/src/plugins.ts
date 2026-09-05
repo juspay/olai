@@ -337,11 +337,15 @@ export const PLUGIN_SERVER_NODE = "server.ts"
 export const PLUGIN_BROWSER_NODE = "browser.tsx"
 
 /**
- * THE SEVEN WORDS A ROW CAN BE IN, and each is a different morning.
+ * THE WORDS A ROW CAN BE IN, and each is a different morning.
  *
  *   - `running`  composed: members on the wire, faces drawn, probe run, kinds
  *                held. The ordinary state and the only one that is good news.
- *   - `off`      the operator's flag did not name it. Total absence, asked for.
+ *   - `extra`    composed because `--extra-plugins` named it. A refinement of
+ *                `running`: the row is up, and the panel says which flag did it.
+ *   - `off`      the operator's `--plugins` did not name it. Total absence, asked for.
+ *   - `without`  `--without-plugins` named it. Total absence, asked for, and
+ *                a different flag from `off`.
  *   - `optIn`    this BUILD leaves it off until somebody asks — the row's own
  *                `disabled`, which is the built-in default living in the file
  *                the loader reads. Also total absence, and NOBODY ASKED, which
@@ -389,11 +393,21 @@ export const PLUGIN_BROWSER_NODE = "browser.tsx"
  * the narrowing's own vocabulary. One `as const` array, the type read off it,
  * and a seventh word is one edit that cannot be half-made.
  */
-const STATES = ["running", "off", "optIn", "failed", "waiting", "switched", "pending"] as const
+const STATES = [
+  "running",
+  "off",
+  "optIn",
+  "failed",
+  "waiting",
+  "switched",
+  "pending",
+  "extra",
+  "without",
+] as const
 
 export type PluginState = (typeof STATES)[number]
 
-/** The seven, as a set — what {@link pluginState} asks. */
+/** The nine, as a set — what {@link pluginState} asks. */
 const KNOWN: ReadonlySet<string> = new Set<string>(STATES)
 
 /**
@@ -418,14 +432,18 @@ const KNOWN: ReadonlySet<string> = new Set<string>(STATES)
  * stories about the same plugin — a chip in the bar, and a row saying it is not
  * there. So this refines `running` and can never contradict it.
  */
+/** Words that refine `running: true`. `extra` is `--extra-plugins` naming a
+ *  row that is up; the boolean still wins if a serve disagrees. */
+const LIVE: ReadonlySet<PluginState> = new Set(["running", "extra"])
+
 export const pluginState = (plugin: BuiltPlugin): PluginState => {
   const word = plugin.state
   if (word !== undefined && KNOWN.has(word)) {
     // ...and a serve that says `running` while `running` is false, or the other
     // way round, is not a state this can carry either: the boolean wins, for
-    // the reason above. Only the four ABSENT words are refinements of `false`.
+    // the reason above. Only the ABSENT words are refinements of `false`.
     const claimed = word as PluginState
-    if ((claimed === "running") === plugin.running) return claimed
+    if (LIVE.has(claimed) === plugin.running) return claimed
   }
   return plugin.running ? "running" : "off"
 }
@@ -459,6 +477,16 @@ export const PluginRoster = Schema.Struct({
    * were looking at.
    */
   pinned: Schema.NullOr(Schema.Array(Schema.String)),
+  /**
+   * `--extra-plugins` as given. OPTIONAL so a serve too old to send it still
+   * decodes; `null` is nobody having said, the same three-way {@link pinned}
+   * keeps.
+   */
+  extra: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
+  /**
+   * `--without-plugins` as given. OPTIONAL for {@link extra}'s reason.
+   */
+  without: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
 })
 export type PluginRoster = typeof PluginRoster.Type
 

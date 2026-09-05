@@ -6,6 +6,7 @@ The difference is ownership. Those screens and their wire readings now arrive wi
 
 ```
 olai web ~/outlines                         # journal included
+olai web ~/outlines --without-plugins=journal  # the default, minus the journal
 olai web ~/outlines --plugins=chat,claude  # no journal UI or routes
 ```
 

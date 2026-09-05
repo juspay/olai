@@ -1837,6 +1837,8 @@ export class OlaiWorld extends World {
    *  a restart has to reproduce the first boot, and a server that came back
    *  running a different set is a different server. */
   pluginPin: string | undefined = undefined;
+  extraPluginPin: string | undefined = undefined;
+  withoutPluginPin: string | undefined = undefined;
 
   /** The avatar URL template this scenario's server was started with
    *  (`@avatar-template`), or `undefined` for the ordinary server, which has

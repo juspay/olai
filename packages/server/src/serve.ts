@@ -108,6 +108,12 @@ export interface ServeOptions {
    *  binary was built with). `./pluginPolicy.ts` argues why omission stays
    *  distinguishable from the default typed out loud. */
   readonly plugins: ReadonlyArray<string> | null
+  /** `--extra-plugins` — rows to turn on in addition to the default. `null`
+   *  is nobody having said. */
+  readonly extraPlugins?: ReadonlyArray<string> | null
+  /** `--without-plugins` — rows to turn off from the default. `null` is
+   *  nobody having said. */
+  readonly withoutPlugins?: ReadonlyArray<string> | null
 }
 
 
@@ -290,6 +296,8 @@ export const serve = (options: ServeOptions) =>
     yield* mountBundle(plugins.host, options.plugins ?? (PROFILES[profile].tenants ? null : []), gitConfigPatch(options.pin), {
       rows: profileRows(profile),
       resolve: async (name) => transportModules[name],
+      extraPlugins: options.extraPlugins ?? null,
+      withoutPlugins: options.withoutPlugins ?? null,
     })
 
     /**
@@ -467,6 +475,8 @@ export const serve = (options: ServeOptions) =>
         onChange,
         built,
         pinned: options.plugins,
+        extra: options.extraPlugins ?? null,
+        without: options.withoutPlugins ?? null,
         report: () => report,
         names: () => rowsNaming(plugins.host, TRANSPORT_ROWS),
         configs: () => configsOf(plugins.host),

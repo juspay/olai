@@ -20,7 +20,13 @@ import { expect, test } from "bun:test"
 import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle"
 import { BUNDLE_NAMES as PLUGIN_NAMES } from "@olai/bundle"
 
-import { pluginsPin, pluginsSaid } from "./pluginPolicy.ts"
+import {
+  extraPluginsSaid,
+  pluginPin,
+  pluginsPin,
+  pluginsSaid,
+  withoutPluginsSaid,
+} from "./pluginPolicy.ts"
 
 test("nobody having said is not the same answer as saying none", () => {
   // THE DISTINCTION THE WHOLE FLAG IS SHAPED AROUND. A browser draws this row
@@ -65,4 +71,61 @@ test("the sentence names every plugin this build has", () => {
   // they cannot change it — they can — but that what they change there goes with
   // the process, and this flag is what a restart comes back to.
   expect(said).toContain("restart comes back to this flag")
+  expect(said).toContain("--extra-plugins")
+  expect(said).toContain("--without-plugins")
+})
+
+test("the two patch flags name every plugin this build has, and refuse --plugins", () => {
+  for (const said of [extraPluginsSaid(), withoutPluginsSaid()]) {
+    for (const name of PLUGIN_NAMES) expect(said).toContain(name)
+    expect(said).toContain("Cannot be given beside --plugins")
+    expect(said).toContain("restart comes back to this flag")
+  }
+})
+
+test("the three flags compose as one pin, and refuse the two collisions", () => {
+  const [first, second] = PLUGIN_NAMES
+  if (first === undefined || second === undefined) {
+    throw new Error("this claim needs a build with two plugins")
+  }
+
+  expect(pluginPin(null, null, null)).toEqual({
+    plugins: null,
+    extra: null,
+    without: null,
+  })
+  expect(pluginPin(first, null, null)).toEqual({
+    plugins: [first],
+    extra: null,
+    without: null,
+  })
+  expect(pluginPin(null, first, second)).toEqual({
+    plugins: null,
+    extra: [first],
+    without: [second],
+  })
+  expect(pluginPin("", null, null)).toEqual({
+    plugins: [],
+    extra: null,
+    without: null,
+  })
+
+  expect(() => pluginPin(first, second, null)).toThrow(
+    /already names the exact set/,
+  )
+  expect(() => pluginPin(first, null, second)).toThrow(
+    /already names the exact set/,
+  )
+  expect(() => pluginPin(null, first, first)).toThrow(
+    new RegExp(`${first} is named in both`),
+  )
+})
+
+test("an unknown name is refused on whichever flag it arrived", () => {
+  expect(() => pluginPin("nope", null, null)).toThrow(/--plugins names nope/)
+  expect(() => pluginPin(null, "nope", null)).toThrow(/--extra-plugins names nope/)
+  expect(() => pluginPin(null, null, "nope")).toThrow(/--without-plugins names nope/)
+  for (const name of PLUGIN_NAMES) {
+    expect(() => pluginPin(null, "nope", null)).toThrow(new RegExp(name))
+  }
 })

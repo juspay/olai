@@ -244,6 +244,15 @@ export const pluginHint = (plugin: BuiltPlugin): string | null => {
       return carries(plugin) === undefined
         ? null
         : `Turning it off also stops ${carries(plugin)}.`
+    case "extra":
+      // `--extra-plugins` TURNED THIS ROW ON, and the ordinary running row
+      // says nothing. This one names the flag, which is why the row is up
+      // against the file's own default.
+      return `On — --extra-plugins named it.`
+    case "without":
+      // `--without-plugins` TURNED THIS ROW OFF. Not the build's default and
+      // not the exact set: the panel names the flag that did it.
+      return `Off — --without-plugins named it.`
     case "optIn":
       // THE BUILD'S OWN DEFAULT, and the flag value that changes it. This is
       // the row the per-row line was always for: under no flag its neighbour's
@@ -350,7 +359,7 @@ const carries = (plugin: BuiltPlugin): string | undefined =>
  * per-row line kept, moved rather than dropped.
  */
 export const pluginsStarted = (roster: PluginRoster): string =>
-  `${startedWith(roster.pinned)} ${PLUGINS_SESSION_ONLY}`
+  `${startedWith(roster)} ${PLUGINS_SESSION_ONLY}`
 
 /** WHAT THE SERVE WAS STARTED WITH — the flag as an operator would type it, or
  *  the built-in defaults, with the flag still NAMED where nobody gave one: the
@@ -358,12 +367,31 @@ export const pluginsStarted = (roster: PluginRoster): string =>
  *  read as a claim that somebody gave it, because the sentence says nobody did.
  *  (`../settings/instance.ts` made that argument first, for the rows that still
  *  borrow it.) */
-const startedWith = (pinned: ReadonlyArray<string> | null): string =>
-  pinned === null
+const startedWith = (roster: PluginRoster): string => {
+  if (roster.pinned !== null) {
+    return roster.pinned.length === 0
+      ? `Started with --plugins= (none).`
+      : `Started with --plugins=${roster.pinned.join(",")}.`
+  }
+  const flags: string[] = []
+  if (roster.extra !== undefined && roster.extra !== null) {
+    flags.push(
+      roster.extra.length === 0
+        ? `--extra-plugins=`
+        : `--extra-plugins=${roster.extra.join(",")}`,
+    )
+  }
+  if (roster.without !== undefined && roster.without !== null) {
+    flags.push(
+      roster.without.length === 0
+        ? `--without-plugins=`
+        : `--without-plugins=${roster.without.join(",")}`,
+    )
+  }
+  return flags.length === 0
     ? `Started with the built-in defaults: no --plugins given.`
-    : pinned.length === 0
-    ? `Started with --plugins= (none).`
-    : `Started with --plugins=${pinned.join(",")}.`
+    : `Started with ${flags.join(" ")}.`
+}
 
 /**
  * ...AND HOW LONG A FLIP LASTS — the half of {@link pluginsStarted} that does

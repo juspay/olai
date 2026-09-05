@@ -122,6 +122,12 @@ export type { RowReport, RowState } from "@olai/plugin-api"
  * file left it on. `--plugins=` — somebody saying NONE out loud — is that with an
  * empty list, and disables every row.
  *
+ * `--extra-plugins` and `--without-plugins` are the other two patches over the
+ * same field: each names only the rows it moves, so the file's answer stands
+ * for everything else. They compose with the default and with each other; the
+ * exact set does not compose with either, and that refusal lives where a person
+ * typed the flags.
+ *
  * That is exactly the shape the include's own patch algorithm takes: `{ id,
  * …overrides }` copied onto the matching row. The flag refuses an unknown name
  * where a person types one, so a patch for a row that does not exist is not this
@@ -130,8 +136,17 @@ export type { RowReport, RowState } from "@olai/plugin-api"
  */
 export const pluginsPatch = (
   names: ReadonlyArray<string> | null,
-): ReadonlyArray<{ readonly id: string; readonly disabled?: boolean }> =>
-  names === null ? [] : ROWS.map((row) => ({ id: row.id, disabled: !names.includes(row.id) }))
+  extra: ReadonlyArray<string> | null = null,
+  without: ReadonlyArray<string> | null = null,
+): ReadonlyArray<{ readonly id: string; readonly disabled?: boolean }> => {
+  if (names !== null) {
+    return ROWS.map((row) => ({ id: row.id, disabled: !names.includes(row.id) }))
+  }
+  return [
+    ...(extra ?? []).map((id) => ({ id, disabled: false as const })),
+    ...(without ?? []).map((id) => ({ id, disabled: true as const })),
+  ]
+}
 
 /**
  * WHAT EVERY BUILT PLUGIN TEACHES THE VAULT, running or not — the declarations a
@@ -320,13 +335,15 @@ export const mountBundle = (
   extra?: {
     readonly rows: ReadonlyArray<{ readonly id: string; readonly name: string; readonly disabled?: boolean }>
     readonly resolve: (name: string) => Promise<unknown>
+    readonly extraPlugins?: ReadonlyArray<string> | null
+    readonly withoutPlugins?: ReadonlyArray<string> | null
   },
 ): Effect.Effect<void> =>
   Effect.flatMap(
     mountRows(host, {
       baseUrl: BASE_URL,
       path: BUNDLE,
-      patches: [...pluginsPatch(names), ...configs],
+      patches: [...pluginsPatch(names, extra?.extraPlugins ?? null, extra?.withoutPlugins ?? null), ...configs],
       rows: extra?.rows,
       resolve: (name) => extra?.rows.some((row) => row.name === name)
         ? extra.resolve(name)

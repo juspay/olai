@@ -104,7 +104,20 @@ export const pluginsSaid = (): string =>
   } (the default is ${DEFAULT_BUNDLE_NAMES.join(", ")}). ` +
   `A plugin left out is not there at all — it never probes, mounts nothing on the wire, ` +
   `draws no face, and the file it would own is an ordinary outline. ` +
-  `Pass an empty value to run none. ${INSTANCE}`
+  `Pass an empty value to run none. ` +
+  `Cannot be given beside --extra-plugins or --without-plugins. ${INSTANCE}`
+
+/** `--extra-plugins`: turn ON rows the file ships off, and nothing else moves. */
+export const extraPluginsSaid = (): string =>
+  `turn on these built-in integrations in addition to the default, comma-separated: ${
+    PLUGIN_NAMES.join(", ")
+  }. Nothing else moves. Cannot be given beside --plugins. ${INSTANCE}`
+
+/** `--without-plugins`: turn OFF rows the file ships on, and nothing else moves. */
+export const withoutPluginsSaid = (): string =>
+  `turn off these built-in integrations from the default, comma-separated: ${
+    PLUGIN_NAMES.join(", ")
+  }. Nothing else moves. Cannot be given beside --plugins. ${INSTANCE}`
 
 /** The clause the sentence ends with. Spelled once, because it is one fact
  *  about the flag and two copies of it is one place for it to be softened.
@@ -124,7 +137,7 @@ const INSTANCE =
 /**
  * The flag, as one thing.
  *
- * A SET of one, which looks like ceremony and is the same discipline
+ * A SET of three, which looks like ceremony and is the same discipline
  * `gitFlags` keeps: handing a caller a bare flag to spread into its own options
  * makes "which flags does a face take" a question answered at each call site,
  * and that is one call site away from two faces taking different ones. There is
@@ -137,6 +150,14 @@ const INSTANCE =
 export const pluginFlags = () => ({
   plugins: Flag.string("plugins").pipe(
     Flag.withDescription(pluginsSaid()),
+    Flag.withDefault(null),
+  ),
+  extraPlugins: Flag.string("extra-plugins").pipe(
+    Flag.withDescription(extraPluginsSaid()),
+    Flag.withDefault(null),
+  ),
+  withoutPlugins: Flag.string("without-plugins").pipe(
+    Flag.withDescription(withoutPluginsSaid()),
     Flag.withDefault(null),
   ),
 })
@@ -161,17 +182,68 @@ export const pluginFlags = () => ({
  * nothing, because a filter that also validated would be a second sentence
  * about one mistake, in a function tests call with lists they built themselves.
  */
-export const pluginsPin = (given: string | null): ReadonlyArray<string> | null => {
+export const pluginsPin = (given: string | null): ReadonlyArray<string> | null =>
+  namesOf(given, "--plugins")
+
+/** One comma list, as the flag a person typed it on. Unknown names are refused
+ *  HERE, with the legal words beside them — the same sentence `--plugins` has
+ *  always given, on whichever of the three doors the typo arrived. */
+const namesOf = (given: string | null, flag: string): ReadonlyArray<string> | null => {
   if (given === null) return null
   const names = given.split(",").map((one) => one.trim()).filter((one) => one !== "")
   const unknown = names.filter((one) => !PLUGIN_NAMES.includes(one))
   if (unknown.length > 0) {
     throw new Error(
-      `olai web: --plugins names ${unknown.join(", ")}, which this build does not have. ` +
+      `olai web: ${flag} names ${unknown.join(", ")}, which this build does not have. ` +
         `It was built with ${PLUGIN_NAMES.join(", ")}.`,
     )
   }
   return names
+}
+
+/**
+ * THE THREE FLAGS AS ONE PIN — exact set, extra, without.
+ *
+ * `--plugins` is still the exact set. The two new flags compose with the
+ * default and with each other; naming a row in both is refused with a
+ * sentence, and naming `--plugins` beside either is refused too, since the
+ * exact set already says everything.
+ *
+ * `null` on a half is nobody having said that half. An empty list is somebody
+ * saying none of THAT patch out loud, which is a no-op next to the default and
+ * is still a given flag — the panel quotes it.
+ */
+export type PluginPin = {
+  readonly plugins: ReadonlyArray<string> | null
+  readonly extra: ReadonlyArray<string> | null
+  readonly without: ReadonlyArray<string> | null
+}
+
+export const pluginPin = (
+  plugins: string | null,
+  extra: string | null,
+  without: string | null,
+): PluginPin => {
+  const exact = namesOf(plugins, "--plugins")
+  const extraNames = namesOf(extra, "--extra-plugins")
+  const withoutNames = namesOf(without, "--without-plugins")
+  if (exact !== null && (extraNames !== null || withoutNames !== null)) {
+    throw new Error(
+      "olai web: --plugins already names the exact set, so --extra-plugins and " +
+        "--without-plugins have nothing left to say.",
+    )
+  }
+  if (extraNames !== null && withoutNames !== null) {
+    const both = extraNames.filter((one) => withoutNames.includes(one))
+    if (both.length > 0) {
+      throw new Error(
+        `olai web: ${both.join(", ")} ${
+          both.length === 1 ? "is" : "are"
+        } named in both --extra-plugins and --without-plugins.`,
+      )
+    }
+  }
+  return { plugins: exact, extra: extraNames, without: withoutNames }
 }
 
 /** The built-in list, re-exported beside the flag that declines to apply it —

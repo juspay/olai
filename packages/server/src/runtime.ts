@@ -312,6 +312,16 @@ export interface PluginRuntime {
    */
   readonly pinned: ReadonlyArray<string> | null
   /**
+   * `--extra-plugins` as given, unexpanded — `null` for a flag nobody typed.
+   * Travels the same way {@link pinned} does, so the panel can name the flag
+   * that turned an opt-in row on.
+   */
+  readonly extra: ReadonlyArray<string> | null
+  /**
+   * `--without-plugins` as given, unexpanded — `null` for a flag nobody typed.
+   */
+  readonly without: ReadonlyArray<string> | null
+  /**
    * WHAT BECAME OF EACH ROW — the word a panel row wears, and the plugin's own
    * words when its start threw.
    *
@@ -648,7 +658,7 @@ export const rosterOf = (
       // `rowReport`).
       const report = offered.report().get(name) ?? { state: "off" as const }
       const said = stateOf(offered, name, report)
-      const live = said.state === "running"
+      const live = said.state === "running" || said.state === "extra"
       const wake = live ? wakes.get(name) : undefined
       const carrying = live ? carriedBy(name, offered.built, names, offers) : []
       const config = offered.configs().get(name)
@@ -704,6 +714,8 @@ export const rosterOf = (
       }
     }), ...defined],
     pinned: offered.pinned,
+    extra: offered.extra,
+    without: offered.without,
   }))(offered.names())
 
 /**
@@ -805,7 +817,9 @@ const whoTurnedItOff = (
   name: string,
 ): PluginState => {
   if (offered.switched().has(name)) return "switched"
-  return offered.pinned === null ? "optIn" : "off"
+  if (offered.pinned !== null) return "off"
+  if ((offered.without ?? []).includes(name)) return "without"
+  return "optIn"
 }
 
 const stateOf = (
@@ -843,7 +857,9 @@ const stateOf = (
       //
       return { state: whoTurnedItOff(offered, name) }
     case "running":
-      return { state: "running" }
+      return {
+        state: (offered.extra ?? []).includes(name) ? "extra" : "running",
+      }
   }
   // NO `default` ARM, and that is the guard rather than an omission: the four
   // words are `@olai/effect-cordis`'s `RowState`, and a catch-all here would

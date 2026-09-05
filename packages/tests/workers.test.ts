@@ -127,6 +127,12 @@ test("PIN (spawn shape): fingerprints differ when the server would start differe
   expect(spawnFingerprint(base)).not.toBe(
     spawnFingerprint({ ...base, pi: true }),
   );
+  expect(spawnFingerprint(base)).not.toBe(
+    spawnFingerprint({ ...base, extraPlugins: "xyne-spaces" }),
+  );
+  expect(spawnFingerprint(base)).not.toBe(
+    spawnFingerprint({ ...base, withoutPlugins: "journal" }),
+  );
 });
 
 // What a server under test trusts for who is looking — and what it pictures
