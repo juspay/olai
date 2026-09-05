@@ -1191,11 +1191,13 @@ Browser services are unchanged; these are server-half dependencies. See
 [the authoring contract](../dynamic-plugins.md#sharing-a-plugin-owned-service)
 and the two-definition lifecycle scenario in `a_plugin_the_vault_defines.feature`.
 
-### `journal.agenda`, the first shipped plugin-owned key (12d)
+### `journal.agenda`, a plugin-owned key with an un-recompilable consumer (12d)
 
-12b built the mechanism with two vault-defined fixtures behind it. This is the
-first key a plugin **in this build** offers, and it is the shape the mechanism
-was built for rather than a demonstration of it.
+12b built the mechanism with two vault-defined fixtures behind it; 12c gave it
+its first shipped tenant, `chat.seating`, between two rows this build compiles
+together. This one is the other case, and it is why the mechanism was worth
+building: the consumer is a plugin somebody wrote **into a vault**, which we
+never rebuild.
 
 `olai-plugin-journal`'s `agenda.ts` declares the door and `server.ts` offers it
 with `offers.own("agenda", …)` — the bare word, because the runtime composes it

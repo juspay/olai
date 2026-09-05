@@ -270,37 +270,20 @@ Then(
 );
 
 /**
- * ... and that it is about the terminal the board claims.
+ * ... and WHAT THE SENTENCE SAYS — one step, because every doorbell's proof has
+ * the same shape.
  *
- * The id is asserted and not the wording: every word of the sentence is the
- * plugin's own and `doorbell.test.ts` pins them. What this claim is for is the
- * JOIN — the file a person picked, the un-done step in it, and a terminal on the
- * far end of a real socket are three separate facts, and this is the one place
- * they meet.
- */
-Then(
-  "that sentence names the terminal {string}",
-  async function (this: OlaiWorld, terminal: string) {
-    await this.waitUntil(
-      async () => ((await rungRow(this).first().textContent()) ?? "").includes(terminal),
-      `the machine's message to name the terminal ${terminal}`,
-    );
-  },
-);
-
-/**
- * ...AND THE SAME CLAIM WITHOUT A NOUN OF KOLU'S IN IT — what the sentence
- * SAYS, for a doorbell whose subject is not a terminal.
+ * The words are asserted and never the wording around them: every word of a
+ * delivery is the plugin's own and its own bench pins them. What a claim like
+ * this is for is the JOIN — some fact the plugin could only have got through the
+ * door it named, arriving in a sentence it wrote itself. kolu's is a terminal id
+ * on the far end of a real socket, joined against the file a person picked and
+ * the un-done step in it; the morning agenda's is an overdue node's title, read
+ * through `journal.agenda` out of a reading it never looked inside. Two subjects,
+ * one question, and it was two steps with identical bodies for one commit.
  *
- * The step above is the terminal join and reads as one; this is the general
- * form, and it is a general form rather than a second special one because every
- * doorbell's proof has the same shape: some fact the plugin could only have got
- * through the door it named, arriving in words the plugin wrote. The morning
- * agenda's is an overdue node's title, which it read through `journal.agenda`
- * out of a reading it never looked inside.
- *
- * WAITED FOR, like its neighbour: a delivery is composed at the moment it
- * enters the conversation, which is some frames after whatever caused it.
+ * WAITED FOR: a delivery is composed at the moment it enters the conversation,
+ * which is some frames after whatever caused it.
  */
 Then(
   "that sentence names {string}",

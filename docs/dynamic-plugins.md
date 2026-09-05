@@ -101,6 +101,8 @@ A plugin that reads the journal's agenda each morning and puts it into the node 
 
 **Both ends spell the shape.** A plugin the vault defines cannot import `@olai/format`, so it writes the fields it reads and the provider's own types satisfy them structurally. The string key names a dependency; it does not check a shape (see [Sharing a plugin-owned service](#sharing-a-plugin-owned-service)).
 
+Which is why a door worth naming answers in **its own** shape rather than in whatever type it happens to build the answer out of. `journal.agenda`'s row is four fields the journal promises; the page model behind it is free to move, and a plugin in somebody's vault does not find out about it on a Tuesday morning.
+
 `server.ts`:
 
 ```ts
@@ -110,11 +112,17 @@ import { Effect, Schedule } from "effect"
 // WHEN, and HOW OFTEN THIS LOOKS. The source is the configuration — a plugin a
 // vault defines has no settings file — so changing either is an edit, and an
 // edit is a fresh approval.
+//
+// THE HOUR IS THE SERVER'S OWN, which is the machine olai is serving from and
+// not the machine you are reading on: `Clock` answers an instant and `Date`
+// turns it into local time where the process runs. For a vault you serve on
+// your own laptop those are the same place. For one you reach from another
+// zone they are not, and seven o'clock means seven where the serve is.
 const AT_HOUR = 7
 const EVERY = "5 minutes"
 
 // What `journal.agenda` answers, in the fields this plugin reads.
-interface Row { readonly shows: { readonly node: { readonly title: string } } }
+interface Row { readonly title: string }
 interface Group { readonly file: string; readonly nodes: ReadonlyArray<Row> }
 interface Day { readonly date: string; readonly groups: ReadonlyArray<Group> }
 interface Answer {
@@ -138,11 +146,11 @@ const two = (value: number): string => String(value).padStart(2, "0")
 const words = (answer: Answer): string | null => {
   const late = answer.agenda.overdue.flatMap((day) =>
     day.groups.flatMap((group) =>
-      group.nodes.map((row) => `- ${row.shows.node.title} — owed ${day.date}, in ${group.file}`)
+      group.nodes.map((row) => `- ${row.title} — owed ${day.date}, in ${group.file}`)
     )
   )
   const on = answer.dated.flatMap((group) =>
-    group.nodes.map((row) => `- ${row.shows.node.title}, in ${group.file}`)
+    group.nodes.map((row) => `- ${row.title}, in ${group.file}`)
   )
   if (late.length === 0 && on.length === 0) return null
   return [
@@ -335,10 +343,13 @@ provider can take its place without a core edit. Other host services remain
 closed: `own("vault", ...)` means `your-plugin.vault` and cannot replace
 core's `vault`.
 
-**A shipped one to read.** `journal.agenda` is the first key a plugin in this
-build offers ([the journal](plugins/journal.md#the-agenda-as-a-service)). It is
-worth reading beside the worked example above, because the two halves of the
-bargain are both visible: the journal takes the reading IN, so the answer is
-about one snapshot and the caller says which; and the ask is opaque while the
-answer is not, because the consumer this exists for cannot name a `Reading` and
-does not have to — it passes on what the vault's revision door gave it.
+**A shipped one to read.** `journal.agenda`
+([the journal](plugins/journal.md#the-agenda-as-a-service)) is worth reading
+beside the worked example above, because it is the case a key like this exists
+for: its consumer is a plugin somebody wrote into a vault, which nothing rebuilds
+when the provider changes. Three things follow, and all three are visible in the
+door. The journal takes the reading IN, so the answer is about one snapshot and
+the caller says which. The ask is opaque, because the consumer cannot name a
+`Reading` and does not have to — it passes on what the revision door gave it. And
+the answer is the door's OWN shape rather than the type the journal happens to
+build it out of, so the page model behind it stays free to move.

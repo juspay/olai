@@ -63,12 +63,38 @@ const halvesIn = (page: string, label: string): ReadonlyArray<string> => {
   return found
 }
 
+/**
+ * ...AND THE ONE HALF THAT SAYS A GIVEN THING, by what is IN it.
+ *
+ * The claims below are each about one example, and the page's ORDER is not how
+ * to find it — which is this file's own rule (see {@link halvesIn}) and which
+ * the commit that added the second example proved: the swatch was the first
+ * worked example on the page and is now the second. A destructured `[first]`
+ * would have retargeted every assertion silently.
+ *
+ * EXACTLY ONE, asserted, because "the block that mentions X" is only an identity
+ * while one block mentions X. Two would mean the marker stopped identifying an
+ * example, which is a thing to be told about rather than to resolve by taking
+ * whichever came first.
+ */
+const halfNaming = (label: string, marker: string): string => {
+  const found = halvesIn(page, label).filter((one) => one.includes(marker))
+  if (found.length !== 1) {
+    throw new Error(
+      `docs/dynamic-plugins.md has ${found.length} \`${label}\` blocks mentioning `
+        + `${JSON.stringify(marker)}; this claim is about the one that does.`,
+    )
+  }
+  return found[0] as string
+}
+
 const page = readFileSync(DOC, "utf8")
 
 test("every server half on the page builds", async () => {
   const halves = halvesIn(page, "server.ts")
   // A FLOOR, so a page that lost its examples to a rewrite cannot pass by
-  // having none: two worked examples, and the second one is the swatch.
+  // having none. A count and not an order: which example is which is asked by
+  // {@link halfNaming}, and the page is free to rearrange itself.
   expect(halves.length).toBeGreaterThanOrEqual(2)
   for (const source of halves) {
     const built = await buildHalf("server", source)
@@ -88,19 +114,19 @@ test("every browser half on the page builds", async () => {
 })
 
 /**
- * THE FIRST EXAMPLE NAMES THE JOURNAL'S KEY, and nothing else on the page says
+ * THE MORNING AGENDA NAMES THE JOURNAL'S KEY, and nothing else on the page says
  * so.
  *
  * It is the one fact a build cannot check: `serviceTag<Shape>("journal.agenda")`
  * with the word misspelled compiles, mounts, and leaves the row `waiting` for
  * ever on a key nobody offers — which reads exactly like a journal that is
  * switched off. The provider's own bench holds the other end of this string
- * (`olai-plugin-journal`'s `agenda.test.ts`).
+ * (`olai-plugin-journal`'s `agenda.test.ts`), and `@olai/tests` holds the
+ * fixture that runs it to this very block (`morning_agenda.test.ts`).
  */
 test("...and the morning agenda names the door it waits on", () => {
-  const [morning] = halvesIn(page, "server.ts")
+  const morning = halfNaming("server.ts", "journal.agenda")
   expect(morning).toContain(`serviceTag<`)
-  expect(morning).toContain(`"journal.agenda"`)
   // The delivery is the point of it: a reader copying this gets a plugin that
   // puts a sentence into a conversation, not one that computes one and drops it.
   expect(morning).toContain("deliveries.deliver")
@@ -113,10 +139,16 @@ test("...and the morning agenda names the door it waits on", () => {
  * exactly as well as `context.entry.value` does. What is asserted is that the
  * example reads the slot's own shape — which is the fact a copy of it would
  * silently stop keeping.
+ *
+ * ASKED OF THE CHIP'S FACE ALONE, and not of every browser half on the page.
+ * `context.entry.value` is `outline.row.chip`'s contract, not a rule about
+ * faces: the next example that draws a pane or a header would go red for no
+ * reason, and the repair a person reaches for under that pressure is to weaken
+ * this assertion — losing the guard it exists to be. Compiling is asked of all
+ * of them, above; this is asked of the one it is about.
  */
 test("...and the swatch's face reads the chip's context rather than a bare value", () => {
-  for (const face of halvesIn(page, "browser.tsx")) {
-    expect(face).toContain("context.entry.value")
-    expect(face).not.toContain("props.value")
-  }
+  const face = halfNaming("browser.tsx", "outline.row.chip")
+  expect(face).toContain("context.entry.value")
+  expect(face).not.toContain("props.value")
 })

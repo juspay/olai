@@ -72,7 +72,19 @@ late where the asker is standing. `at` is the vault reading the answer is to be
 about, passed on unchanged from the reader's own `Vault.revision` or `Ops.reading`.
 
 The answer carries `dated`, everything on that day grouped by outline, and
-`agenda`, the same three stretches the Agenda page draws — both as located rows.
+`agenda`, the same three stretches the Agenda page draws — both as located rows,
+and a row is four fields: `id`, `title`, `date`, and `status` (`null` for a row
+carrying no mark, which is an occurrence and is nobody's late work).
+
+**Those four are the door's own shape, not the page's.** The reading is built out
+of `@olai/format`'s `DayGroup` and `Agenda` and then projected down to them,
+which costs three lines and buys the thing a boundary is for. Those types are the
+journal's *page* model and have moved for drawing reasons — `overdue` became days
+rather than groups when the Agenda page became a spine — and every reader of them
+in this repository is rebuilt in the same commit. The readers of this door are
+not: they are notes in somebody's vault, spelling the shape by hand, carrying no
+version. Widening `DayGroup` is now invisible to them; moving a field is a type
+error in the journal, where a person decides whether the door moves with it.
 
 **The reading comes in, and that is the contract.** A door that read the vault
 for itself would answer about a revision of its own choosing, and a caller

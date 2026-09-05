@@ -374,6 +374,12 @@ plugin.
 The source is `docs/dynamic-plugins.md`'s worked example with **two lines
 changed, both of them the clock**: it looks from midnight rather than seven and
 beats every second rather than every five minutes, because a scenario cannot sit
-out either. The key it names (`journal.agenda`), the shape both ends spell, the
-delivery and the once-a-day guard are the source a person would paste.
+out either.
+
+That sentence is checked rather than promised. `../morning_agenda.test.ts` reads
+the note, substitutes the two lines back, and asks the page whether it carries
+the result — so **this file is not edited by hand**: change the page and
+regenerate it, or the suite says which line wandered. Everything else — the key
+it names (`journal.agenda`), the shape both ends spell, the delivery, the
+once-a-day guard — is the source a person would paste.
 `features/the_morning_agenda.feature` is what it is for.

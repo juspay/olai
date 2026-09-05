@@ -207,11 +207,26 @@ Then("that swatch is round", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+/**
+ * NO CHIP, and it is a WAIT rather than a count read once.
+ *
+ * The claim is unchanged — nothing a plugin nobody has approved drew may be on
+ * the page — but the moment it becomes true is not the moment the PANEL says so.
+ * Every use of this step but the first is asked across a transition (an edit put
+ * the row back to pending; a provider left and took its consumer with it), and
+ * the two halves travel by different routes: the row's own sentence is the
+ * panel's, while the chip goes when the roster republishes, the tab redials and
+ * the tree is built again. A count read on the frame the sentence arrived in was
+ * therefore asking a question whose answer was still in flight, and CI answered
+ * it with `1 !== 0` on a loaded shard.
+ *
+ * The first use — before anybody has approved anything — is unaffected: the
+ * count is zero already and the wait returns on its first pass.
+ */
 Then("no row wears a swatch", async function (this: OlaiWorld) {
-  assert.strictEqual(
-    await this.page.locator("[data-swatch]").count(),
-    0,
-    "a swatch is drawn by a plugin nobody has approved",
+  await this.waitUntil(
+    async () => (await this.page.locator("[data-swatch]").count()) === 0,
+    "every swatch to leave the page with the plugin that drew it",
   );
 });
 

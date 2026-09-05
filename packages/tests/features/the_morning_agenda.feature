@@ -14,14 +14,15 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
   `needs` and gets the reactive half for free: it waits while the journal is
   off, saying which key it is waiting on, and comes back when the journal does.
 
-  THE CONSUMER IS `docs/dynamic-plugins.md`'s worked example, near enough to
-  read side by side: a morning agenda that reads the journal's answer about the
-  reading the vault handed it and puts one message into every node agent's own
-  conversation. Two lines of the fixture's copy differ from the doc's, and both
-  are the clock: it looks from midnight rather than seven, and it beats every
-  second rather than every five minutes, because a scenario cannot sit out
-  either. Everything else — the key, the shape both ends spell, the delivery, the
-  once-a-day guard — is the source a person would paste.
+  THE CONSUMER IS `docs/dynamic-plugins.md`'s worked example — not a copy of it
+  written to look like one: the fixture's source is that page's block with two
+  lines swapped, both of them the clock (it looks from midnight rather than
+  seven, and beats every second rather than every five minutes, because a
+  scenario cannot sit out either). That is not a promise made in prose. It is
+  `morning_agenda.test.ts`, which substitutes the two lines back and asks the
+  page whether it carries the result — so an improvement to the doc that never
+  reaches this corpus is red, rather than quietly making the scenario evidence
+  for source nobody is being shown.
 
   WHY A NODE AGENT AND NO PICKER. A conversation seated on a node is in every
   plugin's delivery scope by derivation, from its own subtree
@@ -70,6 +71,12 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
     # inside, in a sentence it wrote itself.
     Then that sentence names "dig the post holes"
     And that sentence names "pull the permit"
+    # ...AND THE FILE, which is the field only a structural consumer reads. The
+    # fixture's plugin spells the answer's shape by hand — it cannot import the
+    # format — so it is the one reader in this tree that a renamed field would
+    # break silently: the title is asserted by the journal's own bench, and
+    # `in undefined` on this line would be asserted by nothing else at all.
+    And that sentence names "work.olai"
     # ...and an OCCURRENCE is not owed. A date with no mark is a thing that
     # happened, not work somebody is late on, so the timber does not appear on
     # an overdue line — the format's own rule, spent one plugin further out.
