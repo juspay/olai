@@ -39,6 +39,13 @@ Then("there should be no page errors", function (this: OlaiWorld) {
   );
 });
 
+Then("the browser mount has no rendered application", async function (this: OlaiWorld) {
+  await this.page.waitForFunction((selector) => {
+    const mount = document.querySelector(selector);
+    return mount !== null && mount.childElementCount === 0;
+  }, ROOT, { timeout: HYDRATION_TIMEOUT });
+});
+
 Given("I mark the page", async function (this: OlaiWorld) {
   await this.markPage();
 });
