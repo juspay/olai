@@ -2,6 +2,17 @@ import * as assert from "node:assert";
 import { When } from "@cucumber/cucumber";
 import type { OlaiWorld } from "../support/world.ts";
 
+When("I start composing the IME text {string} in the focused field", async function (this: OlaiWorld, text: string) {
+  const session = await this.context.newCDPSession(this.page);
+  try {
+    await session.send("Input.imeSetComposition", {
+      text, selectionStart: text.length, selectionEnd: text.length,
+    });
+  } finally {
+    await session.detach();
+  }
+});
+
 When("I confirm the IME text {string} in the focused field", async function (this: OlaiWorld, text: string) {
   const session = await this.context.newCDPSession(this.page);
   try {
