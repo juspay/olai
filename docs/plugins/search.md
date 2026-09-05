@@ -1,0 +1,1 @@
+../../packages/plugins/search/docs.md

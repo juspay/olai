@@ -55,13 +55,24 @@ import { Dynamic } from "solid-js/web"
 
 import { hung } from "./runtime.ts"
 
-/** Every plugin's header readout, in mount order — for the plugins THIS SERVE
- *  COMPOSED, which is now the only kind of plugin this tab has. */
-export function PluginHeaders() {
-  const headers = createMemo(() => hung("app.header"))
+/**
+ * Every plugin's header readout IN ONE OF THE BAR'S TWO SEATS, in mount order —
+ * for the plugins THIS SERVE COMPOSED, which is now the only kind of plugin this
+ * tab has.
+ *
+ * The `place` word is the SHELL's to interpret and `../AppHeader.tsx` is where
+ * it is spent: `cluster` is the standing row of pills, desktop only, after the
+ * connection state; `lead` is the seat ahead of them that gives way first and
+ * that a phone still draws. It arrived with the search box — the one face in
+ * this bar that has always been in front of the pills and has always had a
+ * phone arm — and it is the same small vocabulary `sidebar.entry` already takes
+ * rather than an ordering a plugin could write for itself.
+ */
+export function PluginHeaders(props: { readonly place: "lead" | "cluster" }) {
+  const headers = createMemo(() => hung("app.header").filter((one) => one.face.place === props.place))
   return (
     <For each={headers()}>
-      {(one) => <Dynamic component={one.face} />}
+      {(one) => <Dynamic component={one.face.body} />}
     </For>
   )
 }

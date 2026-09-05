@@ -212,18 +212,24 @@ test("a tool call goes through and comes back as one reply", async () => {
     const ack = await post({ jsonrpc: "2.0", method: "notifications/initialized" })
     expect(ack.status).toBe(202)
 
+    // `read_node` rather than `search_nodes`, which this used to call: the
+    // matcher is a ROW now (`olai-plugin-search`) and this harness mounts none,
+    // so a search here answers "nobody is searching here" — one reply, which is
+    // all this test claims, but a payload about an absent plugin rather than
+    // about the transport. A read core answers for itself keeps the claim about
+    // the thing under test: arguments in, one JSON reply out.
     const response = await post({
       jsonrpc: "2.0",
       id: 2,
       method: "tools/call",
-      params: { name: "search_nodes", arguments: { text: "Kitchen" } },
+      params: { name: "read_node", arguments: { id: "kitchen" } },
     })
 
     expect(response.status).toBe(200)
     const body = await response.json() as {
-      result?: { structuredContent?: { total?: number } }
+      result?: { structuredContent?: { title?: string } }
     }
-    expect(body.result?.structuredContent?.total).toBe(1)
+    expect(body.result?.structuredContent?.title).toBe("Kitchen remodel")
   })
 })
 

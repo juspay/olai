@@ -26,7 +26,15 @@
 import { surface } from "@olai/surface"
 import { type GitPin, type PageRequest } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
-import { make as makeOps, NO_LEDGER, type Ledger as OpsLedger, type Ops, TOOLS } from "@olai/ops"
+import {
+  make as makeOps,
+  NO_LEDGER,
+  NO_SEARCH,
+  type Ledger as OpsLedger,
+  type Ops,
+  type Search as OpsSearch,
+  TOOLS,
+} from "@olai/ops"
 import {
   BUNDLE_NAMES,
   configsOf,
@@ -43,6 +51,7 @@ import {
   NOWHERE_TO_WRITE,
   openPlugins,
   type PropWrite,
+  Search,
   type ToolServer,
 } from "@olai/plugin-api/services"
 import { Deferred, Effect } from "effect"
@@ -393,10 +402,30 @@ export const serve = (options: ServeOptions) =>
     const currentLedger = (): OpsLedger =>
       (offered(plugins.host, Ledger) as OpsLedger | undefined) ?? NO_LEDGER
 
+    /**
+     * THE MATCHER, ASKED PER QUERY — the ledger's arrangement one door over, and
+     * for the same reason: an `Ops` is built once and a row is mounted, unmounted
+     * and mounted again while it lives. So this is a thin door that reads the
+     * offer table at the moment of the ask; a serve whose `search` row is off,
+     * or has not mounted yet, answers with {@link NO_SEARCH} — no hits and the
+     * reason, in words, at all five doors onto search at once.
+     *
+     * THE CAST IS THE SEAM, and this is the one file that holds both spellings:
+     * the tag's payloads are `unknown` because `@olai/plugin-api` may not import
+     * the floor, and `@olai/ops`' `Search` is the same door with the floor's own
+     * types on it. A drift between them is a type error here.
+     */
+    const search: OpsSearch = {
+      nodes: (ask) => currentSearch().nodes(ask),
+    }
+    const currentSearch = (): OpsSearch =>
+      (offered(plugins.host, Search) as OpsSearch | undefined) ?? NO_SEARCH
+
     const ops: Ops = makeOps({
       store,
       root,
       ledger,
+      search,
       // THE SAME TABLE THE STORE VALIDATES WITH, so a value a page draws, a
       // value the validator reports and a value `set_prop` refuses are one
       // question asked three times. Two tables here would be the bug family

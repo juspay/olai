@@ -37,7 +37,7 @@ import { assemble, nodesIn, parseOutline, reading, verdictOf } from "@olai/forma
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { type Index, open } from "./index.ts"
+import { type Index, open } from "./table.ts"
 
 /** The moment the grammar's relative words count from — a constant, for the
  *  reason every fixture here has one. */
@@ -64,7 +64,7 @@ const QUERIES: ReadonlyArray<string> = [
 ]
 
 /** Opened per test and closed after it, so a failing case leaves no table
- *  behind and no case is answered out of another's rows — `./index.test.ts`'s
+ *  behind and no case is answered out of another's rows — `./table.test.ts`'s
  *  rule, for its reason. */
 const opened = (): Index => open()
 

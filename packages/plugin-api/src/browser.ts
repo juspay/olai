@@ -262,7 +262,7 @@ export interface SlotFaces {
   "sidebar.entry": SidebarEntry
   "sidebar.section": SidebarSection
   "app.panel": () => JSX.Element
-  "app.header": () => JSX.Element
+  "app.header": BarSeat
   "app.keys": AppChord
   "app.command": AppCommand
   "app.palette": AppPalette
@@ -311,6 +311,16 @@ export interface AppPage {
     readonly drawn: unknown
     readonly today: string
   }) => JSX.Element
+}
+
+/** A plugin's one seat in the app's bar, and which of the two the shell should
+ * put it in. `cluster` is the standing row of pills — desktop only, after the
+ * connection state; `lead` is the seat ahead of them that may shrink to nothing
+ * and that a phone still draws. The shell decides what either costs when the
+ * width runs out; a plugin cannot spell an ordering of its own. */
+export interface BarSeat {
+  readonly place: "lead" | "cluster"
+  readonly body: () => JSX.Element
 }
 
 /** A plugin-owned directory entry. The shell decides where the two supported

@@ -49,6 +49,8 @@ import {
   type PageRequest,
   type PushResult,
   type Reading,
+  type SearchAnswer,
+  type SearchRequest,
   serializeOutline,
   stampOf,
   type TagsAnswer,
@@ -60,7 +62,6 @@ import {
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
-import { open as openIndex } from "@olai/index"
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
@@ -89,6 +90,61 @@ export interface Ledger {
   readonly resume: Effect.Effect<void>
 }
 
+/**
+ * THE MATCHER DOOR, as this layer calls it — this query, over this reading,
+ * answered. Core does not stand behind it; the search plugin does.
+ *
+ * Absent is "no provider mounted": every one of the five doors onto search —
+ * `search_nodes` for an agent, and the ⌘K palette, the header's box, the
+ * composer's `@` list, the edges panel and the move picker for a person — is
+ * answered with no hits AND WITH THE REASON ({@link NO_SEARCH}), which is the
+ * one shape every one of them already draws for a query the grammar could not
+ * read. The FILTER over a page is not on this door at all: it is
+ * {@link ./query.ts}'s `narrowing`, a reading of the page in front of somebody,
+ * and it goes on working with no row mounted.
+ *
+ * THE READING COMES IN, which is the correctness argument rather than a
+ * convention. A door that read the vault for itself would answer a revision of
+ * its own choosing, and the candidates a table hands back are only ever right
+ * about the snapshot they were brought level with (`olai-plugin-search`'s
+ * `table.ts`). So the caller hands over the very reading the answer is about.
+ */
+export interface Search {
+  readonly nodes: (ask: {
+    readonly at: Reading
+    readonly query: SearchRequest
+    readonly now: string
+    readonly kinds: KindVocabulary
+  }) => Effect.Effect<SearchAnswer>
+}
+
+/**
+ * WHAT A SERVE WITH NO MATCHER ANSWERS — no hits, and the reason, in words.
+ *
+ * On {@link SearchAnswer.refusals} rather than a failure channel, and that is
+ * the honest place rather than the convenient one: `refusals` is what the wire
+ * already carries for *the reader typed something this search cannot answer*,
+ * and every door onto search already draws it (`@olai/web`'s `refusals.tsx`,
+ * and an agent reads it in the tool result). A failure would have been a red
+ * connection error about a plugin nobody asked about.
+ *
+ * The token is the query AS TYPED, for `Refusal`'s own reason: a refusal that
+ * quoted something else would be telling somebody they wrote something they did
+ * not.
+ */
+export const NO_SEARCH: Search = {
+  nodes: ({ query }) =>
+    Effect.succeed({
+      hits: [],
+      total: 0,
+      refusals: [{
+        token: query.text,
+        reason: "nobody is searching here — this serve mounts no matcher, "
+          + "so there is nothing to look this up in",
+      }],
+    }),
+}
+
 export const NO_LEDGER: Ledger = {
   wrote: () => {},
   whyWaiting: () =>
@@ -112,6 +168,10 @@ export interface Options {
   readonly root: string
   /** The ledger, or nobody. Absent is {@link NO_LEDGER}. */
   readonly ledger?: Ledger
+  /** The matcher, or nobody. Absent is {@link NO_SEARCH}, and a test that
+   *  builds an `Ops` without one gets a search that refuses in words rather
+   *  than a walk of the corpus — the row is where a matcher lives now. */
+  readonly search?: Search
   /** Overridable so tests are deterministic: the id a new node gets and the
    *  instant a mark is stamped with are the only two things about an op that
    *  are not a function of the snapshot. */
@@ -410,40 +470,25 @@ export const make = (options: Options): Ops => {
   }
 
   /**
-   * ONE SEARCH INDEX FOR THIS DIRECTORY, opened where the store is named.
-   *
-   * Here rather than a layer up because a table is a fact about a served
-   * directory, exactly as the write gate and the commit loop below are, and
-   * because the one door that spends it is inside this package. A server
-   * serving two directories builds two of these and never has to say so; a
-   * test that builds an `Ops` gets one for free, which is deliberate — the
-   * indexed path is then what this package's own suite exercises, rather than
-   * a path only production takes.
-   *
-   * IT THROWS IF IT CANNOT BE OPENED, which is that package's own decision
-   * (`@olai/index`'s `open`) and is why nothing here has a fallback in it: a
-   * runtime whose SQLite cannot make the table would otherwise serve a
-   * quietly slower vault and tell nobody, and the corpus walk is still exactly
-   * what `Query.search` does for every query the table declines.
-   *
-   * NOTHING CLOSES IT, and that is the truth rather than an omission. An `Ops`
-   * has no teardown — the store's scope owns the directory's lifetime — and
-   * what this holds is an in-memory table that goes when the process does.
-   */
-  const index = openIndex()
-
-  /**
    * THE FIVE STANDING VIEWS, sharing per revision ({@link ./standing.ts}).
    *
-   * Here for the search index's reason one line up: what it holds is a fact
-   * about THIS served directory — the answers its open subscriptions are
-   * looking at — so it is built where the store is named, a server serving two
-   * directories builds two without saying so, and a test that builds an `Ops`
-   * gets the shared path rather than a path only production takes.
+   * Here rather than a layer up because what they hold is a fact about THIS
+   * served directory — the answers its open subscriptions are looking at —
+   * exactly as the write gate and the commit loop below are, so they are built
+   * where the store is named, a server serving two directories builds two
+   * without saying so, and a test that builds an `Ops` gets the shared path
+   * rather than a path only production takes.
+   *
+   * THE SEARCH INDEX used to be opened right here, on that same argument, and
+   * it is a ROW's now (`olai-plugin-search`). What moved with it is the whole
+   * of the table's lifetime question — one per served directory, in memory,
+   * closed when its fiber unloads — and what is left here is a door
+   * ({@link Search}) and the sentence for a serve that mounts nobody behind it.
    */
   const views = standing(context.now, kinds)
 
   const ledger = options.ledger ?? NO_LEDGER
+  const search = options.search ?? NO_SEARCH
 
   const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
     const { snapshot } = yield* options.store.read("cheap")
@@ -847,7 +892,7 @@ export const make = (options: Options): Ops => {
     // each envelope ({@link ./tools.ts}'s `asking`), so the answer an agent
     // gets through a surface procedure and the answer a local tool call gets
     // are the same statement rather than two that agree.
-    ...asking(read, context.now, kinds, index),
+    ...asking(read, context.now, kinds, search),
     // The BROWSER's half of the same matcher, over the same gated read — and
     // over the WHOLE reading rather than the derivation alone, for `page`'s
     // reason: what a query selects is asked of one page, and which page an
