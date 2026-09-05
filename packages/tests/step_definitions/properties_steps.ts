@@ -421,6 +421,15 @@ When("I add a property on {string}", async function (this: OlaiWorld, id: string
 });
 
 When(
+  "I draft the property {string} holding {string} on {string}",
+  async function (this: OlaiWorld, key: string, value: string, id: string) {
+    const keyBox = this.page.locator(`${nodeSelector(id)} ${PROP_EDIT_KEY}`).first();
+    await keyBox.fill(key);
+    await box(this, id).fill(value);
+  },
+);
+
+When(
   "I write the property {string} holding {string} on {string}",
   async function (this: OlaiWorld, key: string, value: string, id: string) {
     const keyBox = this.page.locator(`${nodeSelector(id)} ${PROP_EDIT_KEY}`).first();
