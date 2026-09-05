@@ -32,3 +32,19 @@ test("legacy and native entries share occupancy, child withdrawal, and one diagn
   expect(legacy.faces.hung("delivery.mark")).toEqual([])
   expect(store.inspect()).toHaveLength(2)
 }))))
+
+
+test("native contributions cannot bypass compatibility owner and kind key rules", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+  const store = yield* locations()
+  const facade = slotFacade(store)
+  const header = slotLocation("app.header")
+  const chips = slotLocation("outline.row.chip")
+  const owner = store.forOwner("alpha")
+  yield* owner.contribute(header, { plugin: "alpha", face: { place: "cluster", body: () => null } })
+  expect(Exit.isFailure(yield* Effect.exit(facade.forOwner("alpha").register("app.header", { place: "cluster", body: () => null })))).toBe(true)
+  expect(Exit.isFailure(yield* Effect.exit(owner.contribute(chips, { plugin: "alpha", face: () => null })))).toBe(true)
+  yield* owner.contribute(chips, { plugin: "alpha", face: () => null }, { key: "alpha-terminal" })
+  yield* store.forOwner("shell").contribute(location("root", "one"), null, { children: [header, chips] })
+  yield* store.settled
+  expect([...facade.faces.dressed("outline.row.chip").keys()]).toEqual(["alpha-terminal"])
+}))))

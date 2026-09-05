@@ -5,6 +5,7 @@
  * publishes plugin registrations after the new siblings are available.
  */
 
+import { connectSocket } from "./connection/socket.ts"
 import { bootstrapSelected } from "./plugins/bootstrap.ts"
 import { loadRows, retryableModule } from "./plugins/loading.ts"
 import type { bootStatus } from "./plugins/boot-status.ts"
@@ -45,6 +46,7 @@ const CORE = "olai"
  * when the `core` slot landed, and core is always here.
  */
 const live = await connectSurfaces({
+  connect: connectSocket,
   // OLAI'S OWN SURFACE AS THE ROOT — unprefixed, so its tags are unchanged and
   // the two reserved round-trips address them. That is what makes them
   // trustworthy on a wire whose SIBLING set varies per serve, and now varies

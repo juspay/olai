@@ -1293,3 +1293,9 @@ and `sidebar.section`. Chat's `app.panel` entry owns `delivery.mark` and
 `engine.install`. Other notebook locations remain frame-owned pending the
 navigation and content extraction. The fixed catalog remains a compatibility
 type vocabulary, not a host-owned registry or a promise that its owner is active.
+
+Native and compatibility registrations also share key policy: owner-keyed
+locations derive keys from the bound contributor, and kind-keyed locations
+require a key. Native contributions cannot shadow an existing legacy face or
+create a kind dressing without a lookup key. Browser composition joins both
+plugin dependency transitions and their location integrations before publishing.

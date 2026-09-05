@@ -100,10 +100,6 @@ export default definePlugin({
     // reader of.
     holdFaces(faces)
 
-    // WHETHER THIS DEVICE HAS A CAMERA to offer, watched once for the tab. It
-    // was `main.tsx`'s, a statement in core's boot about a control that only
-    // this panel's composer draws.
-
     // THE PANEL, in the seat the shell reserves for one. What travels with it is
     // everything that draws INSIDE that seat — the dock, the mobile sheet, the
     // minimized strip and the wake strip — because none of those is a bar

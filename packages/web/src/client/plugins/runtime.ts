@@ -292,6 +292,7 @@ export const composeTo = async (
   composing += 1
   try {
     await recompose(halves)
+    await run(app.settlePlugins([...mounted.keys()]))
     await run(app.retryIntegrations)
     await run(app.settled)
   } finally {

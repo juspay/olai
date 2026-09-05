@@ -26,14 +26,19 @@ import { serviceTag } from "./service.ts"
 export interface Location<T> {
   readonly name: string
   readonly cardinality: "one" | "many"
+  readonly keyedBy?: "owner" | "key"
   readonly _value?: (_: T) => T
 }
-type Contract = Pick<Location<never>, "name" | "cardinality">
+type Contract = Pick<Location<never>, "name" | "cardinality" | "keyedBy">
 const validName = (name: string): boolean => /^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*$/.test(name)
 
-export const location = <T>(name: string, cardinality: Location<T>["cardinality"] = "many"): Location<T> => {
+export const location = <T>(
+  name: string,
+  cardinality: Location<T>["cardinality"] = "many",
+  keyedBy?: Location<T>["keyedBy"],
+): Location<T> => {
   if (!validName(name)) throw new Error(`Invalid location name: "${name}"`)
-  return Object.freeze({ name, cardinality })
+  return Object.freeze({ name, cardinality, ...(keyedBy === undefined ? {} : { keyedBy }) })
 }
 export interface Contribution<T> {
   readonly owner: string
@@ -72,6 +77,7 @@ interface Declaration {
   readonly owner: string
   readonly parent: string
   readonly cardinality: Contract["cardinality"]
+  readonly keyedBy?: Contract["keyedBy"]
 }
 interface Registration {
   readonly id: string
@@ -126,6 +132,16 @@ export const locations = (config: {
     }
     const declaration = declarations.read().get(slot.name)
     const prior = registrations.read().find((entry) => entry.slot.name === slot.name)
+    if (slot.name === "root" && slot.keyedBy !== undefined) {
+      throw new Error(`Locations: "${owner}" cannot change the host root's key rules`)
+    }
+    const rules = declaration ?? prior?.slot
+    if (rules && rules.keyedBy !== slot.keyedBy) {
+      throw new Error(`Locations: "${owner}" disagrees with "${declaration?.owner ?? prior?.owner}" about keys of "${slot.name}"`)
+    }
+    if (slot.keyedBy !== undefined && !["owner", "key"].includes(slot.keyedBy)) {
+      throw new Error(`Locations: "${owner}" supplied invalid key rules for "${slot.name}"`)
+    }
     const cardinality = slot.name === "root" ? "one" : declaration?.cardinality ?? prior?.slot.cardinality
     if (cardinality !== undefined && cardinality !== slot.cardinality) {
       throw new Error(`Locations: "${owner}" disagrees with "${declaration?.owner ?? prior?.owner ?? "host"}" about cardinality of "${slot.name}"`)
@@ -139,9 +155,16 @@ export const locations = (config: {
         if (slot.cardinality === "one" && prior) {
           return yield* Effect.die(new Error(`Locations: "${owner}" and "${prior.owner}" both occupy single location "${slot.name}"`))
         }
-        if (options.key !== undefined) {
-          const held = registrations.read().find((entry) => entry.slot.name === slot.name && entry.key === options.key)
-          if (held) return yield* Effect.die(new Error(`Locations: "${owner}" and "${held.owner}" both occupy "${slot.name}" under "${options.key}"`))
+        const entryKey = slot.keyedBy === "owner" ? owner : options.key
+        if (slot.keyedBy === "key" && entryKey === undefined) {
+          return yield* Effect.die(new Error(`Locations: "${owner}" must supply a key for "${slot.name}"`))
+        }
+        if (slot.keyedBy === "owner" && options.key !== undefined && options.key !== owner) {
+          return yield* Effect.die(new Error(`Locations: "${owner}" cannot choose another owner's key in "${slot.name}"`))
+        }
+        if (entryKey !== undefined) {
+          const held = registrations.read().find((entry) => entry.slot.name === slot.name && entry.key === entryKey)
+          if (held) return yield* Effect.die(new Error(`Locations: "${owner}" and "${held.owner}" both occupy "${slot.name}" under "${entryKey}"`))
         }
         // An acquisition scope rolls back all reservations if any child is
         // invalid. Its finalizer drains the activation before freeing names.
@@ -159,10 +182,10 @@ export const locations = (config: {
               if (!declaration) break
               cursor = declaration.parent
             }
-            yield* declarations.claim(child.name, { owner, parent: slot.name, cardinality: child.cardinality },
+            yield* declarations.claim(child.name, { owner, parent: slot.name, cardinality: child.cardinality, keyedBy: child.keyedBy },
               (held) => `Locations: "${owner}" and "${held.owner}" both declare "${child.name}"`)
           }
-          const registration: Registration = { id: `entry-${++serial}`, owner, slot, key: options.key, report: { state: "waiting" } }
+          const registration: Registration = { id: `entry-${++serial}`, owner, slot, key: entryKey, report: { state: "waiting" } }
           yield* registrations.hold(registration)
           const start = mountPlugin(host, definePlugin({
             name: registration.id,
@@ -175,7 +198,7 @@ export const locations = (config: {
                 }))),
               )
               yield* Scope.provide(options.activate ?? Effect.void, integration)
-              yield* entries.hold({ slot: slot.name, contribution: { owner, value, ...(options.key === undefined ? {} : { key: options.key }) } })
+              yield* entries.hold({ slot: slot.name, contribution: { owner, value, ...(entryKey === undefined ? {} : { key: entryKey }) } })
               for (const child of options.children ?? []) yield* offer(key(child.name), () => true as const)
             }),
           }), { wait: false })

@@ -1,3 +1,4 @@
+import type { JSX } from "solid-js"
 import { TARGET_BOX } from "../touch.ts"
 
 export function RailButton(props: {
@@ -8,7 +9,7 @@ export function RailButton(props: {
    * button any tenant's vocabulary. */
   readonly data?: { readonly [key: `data-${string}`]: string | undefined }
   readonly onClick: () => void
-  readonly children: import("solid-js").JSX.Element
+  readonly children: JSX.Element
 }) {
   return (
     <button

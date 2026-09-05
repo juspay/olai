@@ -538,7 +538,6 @@ test("every dynamic import() the client spells takes a literal the bundler can r
     // hoisted above the mock, which is that file's own header argument.
     "declared.browsertest.ts",
     "inlinePicker.test.ts",
-    path.join("layout", "Rail.tsx"),
     path.join("markdown", "chunk.ts"),
     path.join("menu", "chunk.ts"),
     // ...and the one that computes one, which is {@link COMPUTED_BY_DESIGN}'s

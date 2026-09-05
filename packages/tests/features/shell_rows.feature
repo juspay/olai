@@ -75,11 +75,16 @@ Feature: The renderer and layout are browser rows
     And I select all and type "abcde"
     And I press "ArrowLeft"
     And I press "ArrowLeft"
-    And I request that the plugin "sidebar" be off
+    And I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "sidebar" off
+    And I use the original browser tab
     Then the sidebar plugin has no rendered column or rail
     And the node "handles" was never taken away
     When I type "|"
-    And I request that the plugin "sidebar" be on
+    And I use the other browser tab
+    And I switch the plugin "sidebar" on
+    And I use the original browser tab
     Then the sidebar plugin has a rendered column
     And the node "handles" was never taken away
     When I click away from the editor

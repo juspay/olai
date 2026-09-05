@@ -320,7 +320,7 @@ test("a plugin that unwinds and re-registers is not refused", async () => {
  * `registry` for both now, so the rule is mechanical rather than remembered —
  * and this is the case that says so on the side that was missing it.
  */
-test("a face the app refused leaves the table, and takes only its own plugin down", async () => {
+test("a refused face leaves the registry and fails only its integration", async () => {
   const face = { place: "cluster", body: () => null } as const
   let refusing = false
   const { app, store, run } = await opened(() => {

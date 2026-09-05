@@ -18,6 +18,7 @@ import {
   OfferConflict,
   provide,
   offered,
+  settled,
   location,
   type Locations,
   type Location,
@@ -630,6 +631,7 @@ export const Wired = serviceTag<Wired>("wired")
  * {@link Faces.hung}, with the read it is about.
  */
 export interface App extends Faces {
+  readonly settlePlugins: (ids: ReadonlyArray<string>) => Effect.Effect<void>
   readonly settled: Effect.Effect<void>
   readonly integrations: Locations["inspect"]
   readonly retryIntegrations: Effect.Effect<void>
@@ -723,6 +725,7 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
 
     return {
       ...faces,
+      settlePlugins: (ids) => settled(host, ids),
       settled: Effect.suspend(() => offered(host, SlotManagement)?.settled ?? Effect.void),
       integrations: () => offered(host, SlotManagement)?.inspect() ?? [],
       retryIntegrations: Effect.suspend(() => offered(host, SlotManagement)?.retry ?? Effect.void),
@@ -744,7 +747,8 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
  * locations in the renderer's sole registry, never independent tables. The
  * owning UI entry must declare them before registered faces become active. */
 export const slotLocation = <S extends SlotName>(slot: S): Location<Hung<SlotFaces[S]>> =>
-  location(slot, SLOTS[slot].keyedBy === "app" ? "one" : "many")
+  location(slot, SLOTS[slot].keyedBy === "app" ? "one" : "many",
+    SLOTS[slot].keyedBy === "plugin" ? "owner" : SLOTS[slot].keyedBy === "kind" ? "key" : undefined)
 
 /** Adapter only: key rules and face types are notebook API policy. Reservation,
  * activation, cleanup, identity, and diagnostics all belong to Locations. */

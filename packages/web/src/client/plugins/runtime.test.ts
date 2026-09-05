@@ -1,9 +1,22 @@
 import { afterEach, expect, test } from "bun:test"
-import { definePlugin, Offers, serviceTag, Slots, Wired } from "@olai/plugin-api"
+import { definePlugin, Offers, serviceTag, Slots, Wired, locations, location, slotFacade, slotLocation, SLOTS } from "@olai/plugin-api"
 import { Effect } from "effect"
-import { app, browserReports, composeTo } from "./runtime.ts"
+import { app, browserReports, composeTo as compose } from "./runtime.ts"
 
 import { browserHint } from "./rows.ts"
+
+const renderer = { default: definePlugin({ name: "ui-renderer", needs: [Offers], apply: Effect.gen(function*() {
+  const store = yield* locations()
+  const facade = slotFacade(store)
+  const offers = yield* Offers
+  yield* offers.own("legacy-slots", facade.forOwner)
+  yield* offers.own("faces", () => facade.faces)
+  yield* offers.own("integrations", () => facade.management)
+  yield* store.forOwner("test-shell").contribute(location("root", "one"), null, {
+    children: (Object.keys(SLOTS) as Array<keyof typeof SLOTS>).map(slotLocation),
+  })
+}) }) }
+const composeTo: typeof compose = (halves, client) => compose(halves.length ? [renderer, ...halves] : [], client)
 
 const hint = (plugin: string) => browserHint(plugin, browserReports())
 const client = () => null
@@ -110,4 +123,18 @@ test("component lifetimes spend their owning plugin's wire, slot and service nam
   expect(app.hung("app.header")).toEqual([])
   expect(reading).toBeNull()
   expect(hint("reader")).toContain("source.value")
+})
+
+
+test("a legacy contribution waits for the renderer and uses the same location failure ledger", async () => {
+  const half = { default: definePlugin({ name: "legacy", needs: [Slots], apply: Effect.gen(function*() {
+    yield* (yield* Slots).register("app.viewer", () => "ready", {
+      activate: Effect.die(new Error("integration refused")),
+    })
+  }) }) }
+  await compose([half], client)
+  expect(hint("legacy")).toContain("ui-renderer.legacy-slots")
+  await composeTo([half], client)
+  expect(hint("legacy")).toContain("integration refused")
+  expect(app.only("app.viewer")).toBeNull()
 })
