@@ -357,3 +357,23 @@ because the fleet resolves a prefix and the block says so when one names
 several. They are hex, which is what that kind admits — a value with a remark
 stapled to it is refused, and `typed/`'s `far` is where that mistake is kept, on
 a key deliberately left undeclared.
+
+## `morning-agenda/` — a plugin the vault defines, standing on one the build ships
+
+`work.olai` is four dated rows and a node to seat an agent on: two pieces of
+un-done work owed in 2019 (so they are overdue whenever this runs) and one
+OCCURRENCE — a dated row with no mark — which is on the day and is nobody's late
+work. That third row is the assertion, not the padding: it must not appear on an
+overdue line.
+
+`morning-agenda.olai` is the definition — one node carrying `plugin:
+morning-agenda` and one child, `server.ts`, holding the whole source in its
+note. There is no `browser.tsx`, because a plugin that draws nothing is a whole
+plugin.
+
+The source is `docs/dynamic-plugins.md`'s worked example with **two lines
+changed, both of them the clock**: it looks from midnight rather than seven and
+beats every second rather than every five minutes, because a scenario cannot sit
+out either. The key it names (`journal.agenda`), the shape both ends spell, the
+delivery and the once-a-day guard are the source a person would paste.
+`features/the_morning_agenda.feature` is what it is for.

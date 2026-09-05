@@ -289,6 +289,46 @@ Then(
 );
 
 /**
+ * ...AND THE SAME CLAIM WITHOUT A NOUN OF KOLU'S IN IT — what the sentence
+ * SAYS, for a doorbell whose subject is not a terminal.
+ *
+ * The step above is the terminal join and reads as one; this is the general
+ * form, and it is a general form rather than a second special one because every
+ * doorbell's proof has the same shape: some fact the plugin could only have got
+ * through the door it named, arriving in words the plugin wrote. The morning
+ * agenda's is an overdue node's title, which it read through `journal.agenda`
+ * out of a reading it never looked inside.
+ *
+ * WAITED FOR, like its neighbour: a delivery is composed at the moment it
+ * enters the conversation, which is some frames after whatever caused it.
+ */
+Then(
+  "that sentence names {string}",
+  async function (this: OlaiWorld, words: string) {
+    await this.waitUntil(
+      async () => ((await rungRow(this).first().textContent()) ?? "").includes(words),
+      `the machine's message to name ${JSON.stringify(words)}`,
+    );
+  },
+);
+
+/**
+ * ...and the negative, which is a different claim and not the same one read
+ * backwards: a row that has not arrived yet names nothing, so this is asked
+ * AFTER a positive one on the same row and is a read rather than a wait.
+ */
+Then(
+  "that sentence does not name {string}",
+  async function (this: OlaiWorld, words: string) {
+    const said = (await rungRow(this).first().textContent()) ?? "";
+    assert.ok(
+      !said.includes(words),
+      `the machine's message names ${JSON.stringify(words)}:\n${said}`,
+    );
+  },
+);
+
+/**
  * IT IS NOT DRAWN AS MINE, and that is the whole of the face.
  *
  * A delivered sentence travels down the human's lane because that is the lane a

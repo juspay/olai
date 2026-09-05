@@ -1190,3 +1190,35 @@ free. Cordis refuses simultaneous providers; core never names the provider.
 Browser services are unchanged; these are server-half dependencies. See
 [the authoring contract](../dynamic-plugins.md#sharing-a-plugin-owned-service)
 and the two-definition lifecycle scenario in `a_plugin_the_vault_defines.feature`.
+
+### `journal.agenda`, the first shipped plugin-owned key (12d)
+
+12b built the mechanism with two vault-defined fixtures behind it. This is the
+first key a plugin **in this build** offers, and it is the shape the mechanism
+was built for rather than a demonstration of it.
+
+`olai-plugin-journal`'s `agenda.ts` declares the door and `server.ts` offers it
+with `offers.own("agenda", …)` — the bare word, because the runtime composes it
+with the fiber's own name. It is stateless: the caller hands over the reading the
+answer is to be about, so there is nothing to acquire and nothing to release
+beyond the offer, and the row's scope revokes that.
+
+Two decisions are worth carrying to the next one:
+
+- **The reading travels in.** `Search`'s argument, one plugin over: a door that
+  read the vault for itself answers about a revision of its own choosing, and a
+  caller composing a sentence out of the answer cannot say which one it meant.
+- **The ask is `unknown` and the answer is typed.** The consumers this exists for
+  are plugins the vault defines, which may import `@olai/plugin-api`, `effect`
+  and `solid-js` and nothing else. They cannot name a `Reading` — they pass one
+  through — but they can read the fields off an answer the provider spells with
+  the format's own types. Both ends agree structurally; the string key names a
+  dependency and checks no shape.
+
+`the_morning_agenda.feature` is the lifecycle end to end: a definition approved
+on the panel, waiting on the key while the journal row is switched off, running
+when it returns, and one delivery reaching a node agent's own conversation
+through `Deliveries` — with the key appearing on and disappearing from
+`plugins.inspect` as the journal moves. The worked example it is a near-copy of
+is in [plugins the vault defines](../dynamic-plugins.md#a-worked-example-the-morning-agenda),
+compiled from the page itself by `@olai/server`'s `dynamic/worked.test.ts`.

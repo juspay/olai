@@ -87,9 +87,131 @@ The browser half is compiled to a chunk and served at `/_olai/plugins/<name>-<ve
 
 A half that will not compile, a module that exports no plugin, a half that calls itself a different word, and an `apply` that throws all land the row on `failed` with the sentence that explains it, and touch no sibling.
 
-## A worked example
+## A worked example: the morning agenda
 
-A dressing for a `hex` property — a swatch beside the value.
+A plugin that reads the journal's agenda each morning and puts it into the node agent's own conversation — which is the shape most of these are: a service somebody else offers, a clock, and a sentence.
+
+**Ask first what may be named.** `inspect_plugins` lists the service keys a server half may put in its `needs`, and a plugin-owned key is on it exactly while the row that offers it is running:
+
+```
+"services": ["clock", "deliveries", "env", "journal.agenda", "kinds", …]
+```
+
+`journal.agenda` is the journal row's own — offered with `Offers.own`, so the key is stamped from that fiber's name and no other row can take it. Naming it in `needs` is all a consumer does: the plugin waits while the journal is switched off, saying so on its row, activates when it returns, and unloads if it leaves. Nothing in core knows these two are connected.
+
+**Both ends spell the shape.** A plugin the vault defines cannot import `@olai/format`, so it writes the fields it reads and the provider's own types satisfy them structurally. The string key names a dependency; it does not check a shape (see [Sharing a plugin-owned service](#sharing-a-plugin-owned-service)).
+
+`server.ts`:
+
+```ts
+import { Clock, definePlugin, Deliveries, serviceTag, Vault } from "@olai/plugin-api"
+import { Effect, Schedule } from "effect"
+
+// WHEN, and HOW OFTEN THIS LOOKS. The source is the configuration — a plugin a
+// vault defines has no settings file — so changing either is an edit, and an
+// edit is a fresh approval.
+const AT_HOUR = 7
+const EVERY = "5 minutes"
+
+// What `journal.agenda` answers, in the fields this plugin reads.
+interface Row { readonly shows: { readonly node: { readonly title: string } } }
+interface Group { readonly file: string; readonly nodes: ReadonlyArray<Row> }
+interface Day { readonly date: string; readonly groups: ReadonlyArray<Group> }
+interface Answer {
+  readonly date: string
+  readonly dated: ReadonlyArray<Group>
+  readonly agenda: { readonly overdue: ReadonlyArray<Day> }
+}
+
+const Agenda = serviceTag<{
+  readonly read: (
+    ask: { readonly at: unknown; readonly date: string },
+  ) => Effect.Effect<Answer, { readonly reason: string }>
+}>("journal.agenda")
+
+const two = (value: number): string => String(value).padStart(2, "0")
+
+// THE WORDS ARE THE PLUGIN'S, whole, and they say who is speaking: a
+// conversation resumed from the agent's own store rebuilds its rows out of
+// message chunks and core's mark is not among them, so a body that did not name
+// its author would be put in the person's mouth on replay.
+const words = (answer: Answer): string | null => {
+  const late = answer.agenda.overdue.flatMap((day) =>
+    day.groups.flatMap((group) =>
+      group.nodes.map((row) => `- ${row.shows.node.title} — owed ${day.date}, in ${group.file}`)
+    )
+  )
+  const on = answer.dated.flatMap((group) =>
+    group.nodes.map((row) => `- ${row.shows.node.title}, in ${group.file}`)
+  )
+  if (late.length === 0 && on.length === 0) return null
+  return [
+    `Morning agenda for ${answer.date}, from your journal.`,
+    ...(late.length === 0 ? [] : ["", "Overdue:", ...late]),
+    ...(on.length === 0 ? [] : ["", "On today:", ...on]),
+  ].join("\n")
+}
+
+export default definePlugin({
+  name: "morning-agenda",
+  needs: [Agenda, Clock, Deliveries, Vault],
+  apply: Effect.gen(function*() {
+    const agenda = yield* Agenda
+    const clock = yield* Clock
+    const deliveries = yield* Deliveries
+    const vault = yield* Vault
+
+    // The reading every answer will be about, kept as the vault publishes it
+    // and handed back unchanged. This plugin never looks inside it.
+    let at: unknown
+    yield* vault.revision((snapshot: { readonly value: unknown }) =>
+      Effect.sync(() => {
+        at = snapshot.value
+      })
+    )
+    yield* vault.unloaded(Effect.sync(() => {
+      at = undefined
+    }))
+
+    // The day already spoken for, so a morning is one message rather than one
+    // per tick.
+    let said: string | null = null
+
+    const consider = Effect.gen(function*() {
+      const now = new Date(clock.now())
+      const day = `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`
+      if (at === undefined || day === said || now.getHours() < AT_HOUR) return
+      // Every node agent with a live session, derived from its own subtree —
+      // nobody has to pick a file for one.
+      const scopes = deliveries.scopes()
+      if (scopes.length === 0) return
+      const answer = yield* Effect.catch(
+        agenda.read({ at, date: day }),
+        () => Effect.succeed(null),
+      )
+      if (answer === null) return
+      const body = words(answer)
+      if (body === null) return
+      for (const scope of scopes) {
+        yield* deliveries.deliver({ agent: scope.agent, session: scope.session }, () => body)
+      }
+      said = day
+    })
+
+    yield* Effect.forkScoped(Effect.repeat(consider, Schedule.spaced(EVERY)))
+  }),
+})
+```
+
+**The beat is forked onto the plugin's own scope**, so stopping the row — the panel's switch, `stop_plugin`, an edit that puts it back to pending — interrupts it with everything else the plugin acquired. There is no timer to clear.
+
+**A morning that reaches nobody is not a morning that has passed.** `said` is set after a delivery went out, so a serve with no conversation open at seven o'clock still says it when one is opened. And `deliveries.deliver` takes a thunk rather than a string: the words are composed at the moment they enter the conversation, which for a message that may wait through a running turn is the only time they are true.
+
+**This ships as nothing.** The source above is not in the binary and is not meant to be: a morning agenda somebody actually reads is written into their own vault by their own agent, or pasted from here, and approved on their own panel. It is vault content.
+
+## A second example: a face
+
+A dressing for a `hex` property — a swatch beside the value. Where the first example does something, this one draws something, which is the other half of what a definition can be.
 
 `server.ts`:
 
@@ -212,3 +334,11 @@ both rows and the contested key. Once the first leaves, a differently named
 provider can take its place without a core edit. Other host services remain
 closed: `own("vault", ...)` means `your-plugin.vault` and cannot replace
 core's `vault`.
+
+**A shipped one to read.** `journal.agenda` is the first key a plugin in this
+build offers ([the journal](plugins/journal.md#the-agenda-as-a-service)). It is
+worth reading beside the worked example above, because the two halves of the
+bargain are both visible: the journal takes the reading IN, so the answer is
+about one snapshot and the caller says which; and the ask is opaque while the
+answer is not, because the consumer this exists for cannot name a `Reading` and
+does not have to — it passes on what the vault's revision door gave it.

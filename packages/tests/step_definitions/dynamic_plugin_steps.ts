@@ -63,6 +63,29 @@ Then(
 );
 
 /**
+ * ...AND A DEFINITION THAT IS ONLY A SERVER HALF, which is a whole plugin.
+ *
+ * `browser.tsx` is optional — a plugin that only teaches the vault a word, or
+ * only rings a doorbell, draws nothing — and the ABSENCE is asserted beside the
+ * presence because a block that quietly drew an empty second half would be the
+ * panel inventing a file the author did not write, in the one place a person is
+ * being asked to say yes to what they can see.
+ */
+Then(
+  "the plugins panel shows only the server half of {string}",
+  async function (this: OlaiWorld, plugin: string) {
+    const block = blockFor(this, plugin);
+    await block.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const said = await block.innerText();
+    assert.ok(said.includes("server.ts"), `the block for "${plugin}" draws no server half:\n${said}`);
+    assert.ok(
+      !said.includes("browser.tsx"),
+      `the block for "${plugin}" draws a browser half it does not have:\n${said}`,
+    );
+  },
+);
+
+/**
  * SAY YES TO IT, the way a person does.
  *
  * `Approve this version` rather than `Approve always`, because the version is

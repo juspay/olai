@@ -1,6 +1,7 @@
 import { type ImplementSurfaceDeps, inMemoryChannel } from "@kolu/surface/server"
 import {
   definePlugin,
+  Offers,
   Ops,
   Surfaces,
   Vault,
@@ -19,6 +20,7 @@ import {
 } from "@olai/format"
 import { Effect } from "effect"
 
+import { door as agendaDoor, WORD as AGENDA_WORD } from "./agenda.ts"
 import { dated, owed } from "./readings.ts"
 import { faces, name, surface } from "./wire.ts"
 
@@ -38,8 +40,9 @@ interface VaultRevision {
 
 export default definePlugin({
   name,
-  needs: [Ops, Surfaces, Vault],
+  needs: [Offers, Ops, Surfaces, Vault],
   apply: Effect.gen(function*() {
+    const offers = yield* Offers
     const ops = yield* Ops
     const surfaces = yield* Surfaces
     const vault = yield* Vault
@@ -69,6 +72,18 @@ export default definePlugin({
         Effect.mapError(ops.page(request), (failure) => failure as OpFailure),
         (answer) => answer as PageReading,
       )
+    /**
+     * THE READINGS, OFFERED TO OTHER PLUGINS — `journal.agenda` ({@link ./agenda.ts}).
+     *
+     * The bare word, because the runtime composes it with this fiber's own
+     * name: a plugin cannot spell another's namespace and this file does not
+     * spell its own. It carries no state and takes the reading in, so there is
+     * nothing here to acquire and nothing to release beyond the offer itself —
+     * which the row's scope revokes when it leaves, taking the key off
+     * `plugins.inspect` and putting every consumer back to `waiting`.
+     */
+    yield* offers.own(AGENDA_WORD, () => agendaDoor)
+
     yield* surfaces.register({
       surface,
       faces,

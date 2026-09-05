@@ -50,3 +50,48 @@ the answer and use the same composed property-kind vocabulary as validation.
 The small calendar and owed readings remain in the plugin and read its retained
 vault revision directly; no second ops standing cache or vocabulary service is
 created for them.
+
+## The agenda as a service
+
+The wire above is drawn for the browser. Another **plugin** reaches the same two
+readings through `journal.agenda`, a service this row offers with `Offers.own`,
+so the key is stamped from the journal's own fiber name and no other row can
+take it:
+
+```ts
+const Agenda = serviceTag<{
+  readonly read: (
+    ask: { readonly at: unknown; readonly date: string },
+  ) => Effect.Effect<Answer, { readonly reason: string }>
+}>("journal.agenda")
+```
+
+One verb. `date` is the day the answer is about — the CALLER's day, because
+the dates in the files are what a person wrote down and what counts as late is
+late where the asker is standing. `at` is the vault reading the answer is to be
+about, passed on unchanged from the reader's own `Vault.revision` or `Ops.reading`.
+
+The answer carries `dated`, everything on that day grouped by outline, and
+`agenda`, the same three stretches the Agenda page draws — both as located rows.
+
+**The reading comes in, and that is the contract.** A door that read the vault
+for itself would answer about a revision of its own choosing, and a caller
+composing a sentence from it could not say which. Handing the reading over makes
+the answer about one snapshot; a value that is not a reading, and a date that is
+not a day, are refused with a sentence rather than guessed at.
+
+**The ask is opaque and the answer is not.** The consumer this was built for is a
+[plugin the vault defines](../dynamic-plugins.md), which may import
+`@olai/plugin-api`, `effect` and `solid-js` and nothing else — so it cannot name
+a `Reading`, and does not have to. What it can do is pass one through. The
+answer is spelled with the format's own types because the journal produces it;
+a consumer that cannot name `DayGroup` writes the fields it reads and the two
+agree structurally.
+
+**Switching the journal off takes the key with it.** It leaves
+`plugins.inspect`'s catalog, every consumer's row reads `waiting` naming
+`journal.agenda`, and switching the journal back on reactivates them. Nothing in
+core knows which rows are connected by this key.
+
+The worked example in [plugins the vault defines](../dynamic-plugins.md) is a
+morning agenda written against it.
