@@ -154,6 +154,17 @@ When("I press the repeat picker's button", async function (this: OlaiWorld) {
   await this.press(button(this));
 });
 
+Then("the repeat controls fit the phone width", async function (this: OlaiWorld) {
+  const bounds = await panel(this).locator("select, button").evaluateAll((controls) =>
+    controls.map((control) => {
+      const rect = control.getBoundingClientRect();
+      return { label: control.getAttribute("data-testid"), left: rect.left, right: rect.right, width: innerWidth };
+    }),
+  );
+  assert.ok(bounds.length >= 3);
+  for (const bound of bounds) assert.ok(bound.left >= 0 && bound.right <= bound.width, JSON.stringify(bound));
+});
+
 Then("the repeat picker refuses with {string}", async function (this: OlaiWorld, reason: string) {
   const said = this.page.locator(REPEAT_PICKER_SAID);
   await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

@@ -77,10 +77,10 @@ export function RepeatPicker(props: {
       {/* The label WRAPS the control rather than naming it by id: a row owns
           its own picker, so two of them can be open at once and a fixed id
           would be the same id twice in one document. */}
-      <label class="flex items-center gap-2 text-xs text-muted">
+      <label class="flex max-w-full flex-wrap items-center gap-2 text-xs text-muted">
         Repeats
         <select
-          class={`${TARGET} md:min-h-0 rounded border border-rule bg-paper px-2 py-1 text-sm text-ink`}
+          class={`${TARGET} min-w-0 max-w-full md:min-h-0 rounded border border-rule bg-paper px-2 py-1 text-sm text-ink`}
           data-testid={TESTID.repeatPickerRule}
           value={rule()}
           ref={(element) => queueMicrotask(() => element.focus())}

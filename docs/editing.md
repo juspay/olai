@@ -247,6 +247,8 @@ An unsubmitted date or repeat choice stays with its row and pane when plugins re
 
 A pending submission stays disabled across pane switches, and a refused choice keeps its explanation. While a write waits, keyboard focus stays in the form so Escape still dismisses it. Dismissing an already submitted form does not undo its write; its late response cannot close a newly opened draft.
 
+On a phone, picker labels wrap and controls fit the space left by the row's indentation, including nested rows and long repeat options.
+
 A node scheduled for a time of day rather than a bare day keeps whatever it says on disk until you pick — the box shows the day that time falls on, and the panel says what picking one would replace, because a picker picks days.
 
 The row moves the moment the file says so: a task given a day that has gone is above now on the agenda’s spine and on that day's page, without a reload and without this page deciding anything for itself.

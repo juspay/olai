@@ -1,5 +1,24 @@
 @scratch:good
 Feature: Row forms retain drafts and submission state across page changes
+  Scenario Outline: Date and repeat controls stay within a narrow phone screen
+    Given I open the outline "house.olai"
+    When I shrink the window to a phone
+    And I hold a finger on the node "<node>"
+    And I choose "<date menu>" from the node menu
+    Then the date controls fit the phone width
+    When I pick the date "2026-10-14"
+    And I hold a finger on the node "<node>"
+    And I choose "Set repeat…" from the node menu
+    Then the repeat controls fit the phone width
+    When I pick the repeat rule "every week on wednesday"
+    Then the node "<node>" shows the repeat rule "every week on wednesday"
+    And there should be no page errors
+
+    Examples:
+      | node   | date menu    |
+      | order  | Change date… |
+      | hinges | Set date…    |
+
   Scenario: A refused repeat keeps its choice and reason across phone pane switches
     Given I open the address "/s/house.olai/house.olai"
     When I shrink the window to a phone

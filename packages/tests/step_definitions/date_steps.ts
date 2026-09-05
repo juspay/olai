@@ -104,6 +104,17 @@ Then("the date picker's button is dead", async function (this: OlaiWorld) {
   );
 });
 
+Then("the date controls fit the phone width", async function (this: OlaiWorld) {
+  const bounds = await panel(this).locator("input, button").evaluateAll((controls) =>
+    controls.map((control) => {
+      const rect = control.getBoundingClientRect();
+      return { label: control.getAttribute("data-testid"), left: rect.left, right: rect.right, width: innerWidth };
+    }),
+  );
+  assert.ok(bounds.length >= 3);
+  for (const bound of bounds) assert.ok(bound.left >= 0 && bound.right <= bound.width, JSON.stringify(bound));
+});
+
 // ── using it ───────────────────────────────────────────────────────────
 
 /** Type a day and send it. `fill` on an `<input type="date">` is the same
