@@ -103,6 +103,7 @@
  */
 
 import type { RowReport } from "@olai/plugin-api"
+import { pluginPinOf } from "@olai/format"
 import type { BuiltPlugin, PluginRoster } from "@olai/surface"
 import { ROWS } from "@olai/bundle"
 import { pluginState } from "@olai/surface"
@@ -238,24 +239,37 @@ export const pluginConfig = (
  */
 const switchHints = new Map(ROWS.map((row) => [row.id, row.switchHint]))
 
-export const pluginHint = (plugin: BuiltPlugin): string | null => {
+export const pluginHint = (
+  plugin: BuiltPlugin,
+  roster: PluginRoster = { built: [], pinned: null },
+): string | null => {
+  const pin = pluginPinOf(roster)
   switch (pluginState(plugin)) {
     case "running": {
       const hint = switchHints.get(plugin.name)
-      if (hint !== undefined) return hint
       // NOTHING, on the ordinary row: the switch reads On and there is no
       // second thing to know. A row that carries others has one, and it is
-      // about the press rather than about the state.
-      return carries(plugin) === undefined
+      // about the press rather than about the state. `--extra-plugins`
+      // naming this row is the pin, sitting next to the row, not a second
+      // fiber word — so the carrying sentence still rides.
+      const extra = pin.kind === "delta" && namedBy(pin.extra, plugin.name)
+        ? `On — --extra-plugins named it.`
+        : null
+      if (hint !== undefined) return extra === null ? hint : `${extra} ${hint}`
+      const carry = carries(plugin) === undefined
         ? null
         : `Turning it off also stops ${carries(plugin)}.`
+      return extra === null ? carry : carry === null ? extra : `${extra} ${carry}`
     }
     case "optIn":
       // THE BUILD'S OWN DEFAULT, and the flag value that changes it. This is
       // the row the per-row line was always for: under no flag its neighbour's
       // built-in default is ON and this one's is OFF, so a panel-wide sentence
-      // could only ever name one of them.
-      return `Off by default — --plugins=${plugin.name} starts it at boot.`
+      // could only ever name one of them. `--without-plugins` is the pin
+      // naming this row, not a new morning.
+      return pin.kind === "delta" && namedBy(pin.without, plugin.name)
+        ? `Off — --without-plugins named it.`
+        : `Off by default — --plugins=${plugin.name} starts it at boot.`
     case "pending":
       // A PERSON HAS NOT DECIDED, and this is the one absence whose answer is
       // on this very panel: the source is drawn under the rows and the verb is
@@ -317,6 +331,11 @@ const carries = (plugin: BuiltPlugin): string | undefined =>
     ? undefined
     : plugin.carrying.join(", ")
 
+const namedBy = (
+  names: ReadonlyArray<string> | null,
+  id: string,
+): boolean => names !== null && names.includes(id)
+
 /**
  * HOW THIS SERVE STARTED, AND HOW LONG A FLIP LASTS — ONE line, for the whole
  * panel.
@@ -330,7 +349,7 @@ const carries = (plugin: BuiltPlugin): string | undefined =>
  * that an argument for having no panel-wide line, on the grounds that every row
  * already said it. That is a repetition noticed and then defended.
  *
- * A fact is per row when the rows DIFFER. This one does not: `pinned` is one
+ * A fact is per row when the rows DIFFER. This one does not: `pin` is one
  * value for the serve, so the sentence about it is one sentence for the serve.
  * What genuinely differs — the opt-in row's own built-in default, and the flag
  * value that changes it — stayed per row, in {@link pluginHint}, which is the
@@ -351,12 +370,12 @@ const carries = (plugin: BuiltPlugin): string | undefined =>
  * ## Why a reading and not a constant
  *
  * For the reason every other sentence on this panel is a reading: it is read
- * off the same `pinned` the rows are, so the flag it quotes and the rows it
+ * off the same `pin` the rows are, so the flag it quotes and the rows it
  * sits under cannot come from two different frames — the pairing the old
  * per-row line kept, moved rather than dropped.
  */
 export const pluginsStarted = (roster: PluginRoster): string =>
-  `${startedWith(roster.pinned)} ${PLUGINS_SESSION_ONLY}`
+  `${startedWith(roster)} ${PLUGINS_SESSION_ONLY}`
 
 /** WHAT THE SERVE WAS STARTED WITH — the flag as an operator would type it, or
  *  the built-in defaults, with the flag still NAMED where nobody gave one: the
@@ -364,12 +383,37 @@ export const pluginsStarted = (roster: PluginRoster): string =>
  *  read as a claim that somebody gave it, because the sentence says nobody did.
  *  (`../settings/instance.ts` made that argument first, for the rows that still
  *  borrow it.) */
-const startedWith = (pinned: ReadonlyArray<string> | null): string =>
-  pinned === null
-    ? `Started with the built-in defaults: no --plugins given.`
-    : pinned.length === 0
-    ? `Started with --plugins= (none).`
-    : `Started with --plugins=${pinned.join(",")}.`
+const startedWith = (roster: PluginRoster): string => {
+  const pin = pluginPinOf(roster)
+  switch (pin.kind) {
+    case "exact":
+      return pin.names.length === 0
+        ? `Started with --plugins= (none).`
+        : `Started with --plugins=${pin.names.join(",")}.`
+    case "delta": {
+      const flags: string[] = []
+      if (pin.extra !== null) {
+        flags.push(
+          pin.extra.length === 0
+            ? `--extra-plugins=`
+            : `--extra-plugins=${pin.extra.join(",")}`,
+        )
+      }
+      if (pin.without !== null) {
+        flags.push(
+          pin.without.length === 0
+            ? `--without-plugins=`
+            : `--without-plugins=${pin.without.join(",")}`,
+        )
+      }
+      return flags.length === 0
+        ? `Started with the built-in defaults: no --plugins given.`
+        : `Started with ${flags.join(" ")}.`
+    }
+    case "omitted":
+      return `Started with the built-in defaults: no --plugins given.`
+  }
+}
 
 /**
  * ...AND HOW LONG A FLIP LASTS — the half of {@link pluginsStarted} that does

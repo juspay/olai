@@ -96,7 +96,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
   Effect.gen(function*() {
     const root = served()
     const plugins = yield* openPlugins({ vars: {}, now: () => "" })
-    yield* mountBundle(plugins.host, ["vault"])
+    yield* mountBundle(plugins.host, { kind: "exact", names: ["vault"] })
     yield* provide(plugins.host, VaultSettings, () => ({ root, runtime: runtimePaths, kinds: NO_KINDS, ledger: NO_LEDGER, search: NO_SEARCH }))
     yield* settled(plugins.host, ["vault"])
     const store = offered(plugins.host, Directory)!.store as Store

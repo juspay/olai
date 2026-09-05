@@ -58,7 +58,7 @@ import { dieWithParent } from "./dieWithParent.ts"
 import { MCP } from "./faces.ts"
 import { remoteFrom } from "./mcp/tools.ts"
 import { gitFlags, gitPin } from "./gitPolicy.ts"
-import { pluginFlags, pluginsPin } from "./pluginPolicy.ts"
+import { pluginFlags, pluginPin } from "./pluginPolicy.ts"
 import { serve } from "./serve.ts"
 import { installSigtermGuard } from "@olai/sigterm"
 
@@ -105,7 +105,18 @@ const web = Command.make("web", {
   ),
   ...webGit,
   ...webPlugins,
-}, ({ commits, directory, host, noCommit, plugins, port, profile, pushes }) =>
+}, ({
+  commits,
+  directory,
+  extraPlugins,
+  host,
+  noCommit,
+  plugins,
+  port,
+  profile,
+  pushes,
+  withoutPlugins,
+}) =>
   Effect.gen(function*() {
     // The SIGTERM guard (@olai/sigterm): `web` is the server a stray pkill
     // wants — `surface` is a client and its TERM is an ordinary stop —
@@ -113,13 +124,14 @@ const web = Command.make("web", {
     // the arm asks for (Bun's listener-armed disposition, a settled
     // parent) is true by the time ANY command handler runs.
     yield* Effect.promise(() => installSigtermGuard())
+    const pin = pluginPin(plugins, extraPlugins, withoutPlugins)
     const faulted = yield* serve({
       root: directory,
       profile,
       port,
       host,
       pin: gitPin(commits, noCommit, pushes),
-      plugins: pluginsPin(plugins),
+      pluginPin: pin,
       clientDist: profile === "web" ? yield* clientDist : "",
       allowedOrigins: allowedOrigins(),
     })

@@ -263,7 +263,7 @@ Theme, typeface, size, note density and finished work are untouched by any of th
 
 ## Which integrations this serve runs
 
-Almost everything olai does beyond reading and writing your outlines is a plugin. There are two doors onto which of them are running, and they answer two different questions: `--plugins` says what a serve COMES UP with, and the plugins panel — `⧉` in the header, or a row at the foot of the directory drawer on a phone — turns one on or off *while it runs*. olai does not know the difference between the integrations themselves.
+Almost everything olai does beyond reading and writing your outlines is a plugin. There are two doors onto which of them are running, and they answer two different questions: the plugin flags say what a serve COMES UP with, and the plugins panel — `⧉` in the header, or a row at the foot of the directory drawer on a phone — turns one on or off *while it runs*. olai does not know the difference between the integrations themselves.
 
 **The CONVERSATION is one** ([plugins/chat.md](plugins/chat.md)) — the panel, the transcript, the agents section, the door on an agent's row, *Ask agent* and the palette's `>`. It is on by default like the rest, and it is the row everything else on this list leans on: an engine, a doorbell and a mirror each name a door the chat row stands behind, so a serve that leaves chat out leaves those `waiting`, and the plugins panel says so per row.
 
@@ -276,6 +276,9 @@ Almost everything olai does beyond reading and writing your outlines is a plugin
 Beside them are the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)) — and the ACP ENGINES the panel can seat: Claude Code ([plugins/claude.md](plugins/claude.md)), Codex ([plugins/codex.md](plugins/codex.md)), opencode ([plugins/opencode.md](plugins/opencode.md)) and pi ([plugins/pi.md](plugins/pi.md)).
 
 ```
+olai web ~/outlines --extra-plugins=xyne-spaces          # the default, plus Spaces
+olai web ~/outlines --without-plugins=journal            # the default, minus the journal
+olai web ~/outlines --extra-plugins=xyne-spaces --without-plugins=journal
 olai web ~/outlines --plugins=vault,odu                        # odu only — and no panel at all
 olai web ~/outlines --plugins=vault,chat,claude,kolu,odu       # a conversation, one engine, the usual appliances — and no pill
 olai web ~/outlines --plugins=vault,journal,chat,claude,kolu,odu # journal, a conversation, one engine and the appliances — and nothing searching
@@ -283,6 +286,8 @@ olai web ~/outlines --plugins=vault,search,chat,claude          # a matcher, a c
 olai web ~/outlines --plugins=vault,chat,codex,opencode,pi     # no Claude row, no probe for one
 olai web ~/outlines --plugins=                          # none
 ```
+
+**Reach for `--extra-plugins` or `--without-plugins` when the default is almost right.** `--plugins` is the exact set: `--plugins=chat,claude` also turns off search, identity, the journal and git, which nobody typing it meant. `--extra-plugins=xyne-spaces` turns on the one row `olai.yml` ships off, and nothing else moves. `--without-plugins=journal` turns off the one row the default ships on. The two compose with the default and with each other; naming a row in both is refused; naming `--plugins` beside either is refused too, since the exact set already says everything. The plugins panel names the flag that decided each row.
 
 **Naming no engine leaves the panel with no agent**, and that is the flag doing exactly what it says rather than a trap: an engine is a row like any other, so a serve that composed none has nothing to talk to. The panel still DRAWS — it says this serve has no agent engine, and that every one of them is a plugin that is on by default — because a capability that is silently absent cannot be told apart from one that is broken.
 
@@ -292,17 +297,21 @@ olai web ~/outlines --plugins=                          # none
 you set by hand on the command line is a policy you set once and forget:
 
 ```nix
-  services.olai.plugins = [ "odu" ];              # odu only — and no panel at all
-  services.olai.plugins = [ "chat" "claude" "kolu" "odu" ];
+  services.olai.extraPlugins = [ "xyne-spaces" ]; # the default, plus Spaces
+  services.olai.withoutPlugins = [ "journal" ];   # the default, minus the journal
+  services.olai.plugins = [ "vault" "odu" ];              # odu only — and no panel at all
+  services.olai.plugins = [ "vault" "chat" "claude" "kolu" "odu" ];
   services.olai.plugins = [ ];                    # none
   # omit it entirely                              — the built-in default
 ```
+
+`plugins` cannot be set beside `extraPlugins` or `withoutPlugins`: the module refuses at evaluation with the same sentence the CLI gives.
 
 **Where a serve STARTS is the operator's**, which is why it is a CLI flag and a home-manager option — the two doors an instance's opening position is set through in this repo, exactly as `commit` and `push` are — rather than an env var. An env var names a resource to reach (`OLAI_ACP_AGENT`); this names what the instance comes up running, and that belongs on the `--help` page beside the other policies, where it can be read without knowing it exists.
 
 Include `vault` in an explicit list to serve files. `--plugins=` leaves the control plane running without a directory or write gate; the panel can enable the vault later.
 
-**Omitting the flag is not the same as writing an empty one.** No flag means the built-in default (every row but `xyne-spaces`, which is opt-in and must be named); `--plugins=` with nothing after it means none, and the panel's row says which of the two you did. The nix option keeps the same three answers apart: omitted is `null`, none is `[ ]`. A name the build does not have is refused at startup, naming the words it does have — a typo is never a silently disabled integration.
+**Omitting `--plugins` is not the same as writing an empty one.** No flag means the built-in default (every row but `xyne-spaces`, which is opt-in and must be named — `--extra-plugins=xyne-spaces` is the flag that does that without listing everything else); `--plugins=` with nothing after it means none, and the panel's row says which of the two you did. The nix options keep the same answers apart: omitted is `null`, none is `[ ]`. A name the build does not have is refused at startup, naming the words it does have — a typo is never a silently disabled integration.
 
 ### The switch, and how long it lasts
 

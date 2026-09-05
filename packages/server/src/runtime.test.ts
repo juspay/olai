@@ -112,7 +112,7 @@ const withRuntime = <A>(
   return Effect.gen(function*() {
     const onChange = { run: (): void => {} }
     const mounted = yield* openHostPlugins({ vars: {}, now: () => STARTED, changed: () => onChange.run() })
-    yield* mountBundle(mounted.host, ["vault"], [], {
+    yield* mountBundle(mounted.host, { kind: "exact", names: ["vault"] }, [], {
       rows: profileRows("test-minimal"),
       resolve: async () => undefined,
     })
@@ -148,7 +148,7 @@ const withRuntime = <A>(
         plugins: mounted,
         onChange,
         built: extra.plugins === undefined ? ["vault"] : extra.plugins.map((one) => one.name),
-        pinned: null,
+        pin: { kind: "omitted" },
         // THE DOUBLES' OWN FIBERS, asked the way a serve asks the bundle's.
         // These runtimes mount doubles directly rather than through the loader,
         // so `reportBundle` (which walks `BUNDLE_NAMES`) has nothing to say
@@ -419,12 +419,14 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
 
         // The barrier: a body asked for by a reader who IS here, which the
         // serial reader cannot answer before anything the revision asked for.
+        // The write and the cheap refresh can land as one revision or two, so
+        // the number is not the claim — the body is, and that there were only
+        // the two reads a holder asked for.
         const again = yield* opening(wired.bound, "report.html")
-        expect(yield* again.take).toEqual({
-          rev: 2,
-          text: "<h1>After</h1>\n",
-          refused: false,
-        })
+        const body = yield* again.take
+        expect(body.text).toBe("<h1>After</h1>\n")
+        expect(body.refused).toBe(false)
+        expect(body.rev).toBeGreaterThanOrEqual(2)
         expect(reads).toEqual(["report.html", "report.html"])
       }),
   ))
@@ -667,11 +669,17 @@ const mounted = (names: ReadonlyArray<string>): ReadonlyMap<string, RowReport> =
 const offering = (
   pinned: ReadonlyArray<string> | null = null,
   report: ReadonlyMap<string, RowReport> = new Map(),
+  extra: ReadonlyArray<string> | null = null,
+  without: ReadonlyArray<string> | null = null,
 ): PluginRuntime => ({
   plugins: EMPTY_PLUGINS,
   onChange: { run: () => {} },
   built: PLUGIN_NAMES,
-  pinned,
+  pin: pinned !== null
+    ? { kind: "exact", names: pinned }
+    : extra !== null || without !== null
+    ? { kind: "delta", extra, without }
+    : { kind: "omitted" },
   report: () => report,
   // NOTHING NAMES ANYTHING in these cases, so no row carries another — which is
   // the state every row of a real bundle but the chat row is in. The `carrying`
@@ -709,8 +717,9 @@ test("every plugin the build has is on the roster, running or not", () => {
   // ...and an opt-in row is a row that is THERE and off, which is the state a
   // panel has to be able to draw and a filter over the running set could not.
   expect(all.built.length).toBeGreaterThanOrEqual(DEFAULT_BUNDLE_NAMES.length)
-  // `pinned` stays `null` rather than expanding into that list, because the row
+  // `pin` stays `omitted` rather than expanding into that list, because the row
   // under it has to say whether a person typed this policy or got the default.
+  expect(all.pin).toEqual({ kind: "omitted" })
   expect(all.pinned).toBeNull()
 
   // ...and one name out of the list leaves every other row present and off,
@@ -723,6 +732,7 @@ test("every plugin the build has is on the roster, running or not", () => {
   const one = rosterOf(offering([first], mounted([first])))
   expect(one.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(one.built.filter((row) => row.running).map((row) => row.name)).toEqual([first])
+  expect(one.pin).toEqual({ kind: "exact", names: [first] })
   expect(one.pinned).toEqual([first])
 })
 
@@ -744,6 +754,7 @@ test("a plugin the flag left on but nothing mounted draws as off", () => {
   expect(roster.built.some((row) => row.running)).toBe(false)
   // ...and the flag is still reported as nobody having said, because nobody
   // did: the two facts are independent and the panel draws both.
+  expect(roster.pin).toEqual({ kind: "omitted" })
   expect(roster.pinned).toBeNull()
 })
 
@@ -765,6 +776,7 @@ test("a row's config travels on the roster as data, and a row without one sends 
 
 test("an empty flag crosses as an empty list, not as nobody having said", () => {
   const none = rosterOf(offering([]))
+  expect(none.pin).toEqual({ kind: "exact", names: [] })
   expect(none.pinned).toEqual([])
   expect(none.built.some((row) => row.running)).toBe(false)
   expect(none.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
@@ -809,7 +821,7 @@ test("a row that is not running says which of the four absences it is", () => {
   expect(optIn.built.find((row) => row.name === first)?.running).toBe(false)
 
   // ...and the SAME snapshot under a flag is `off`, because somebody asked and
-  // did not ask for this. One field, two layers, and `pinned` is the only thing
+  // did not ask for this. One field, two layers, and `pin` is the only thing
   // that can say which of them wrote it.
   const off = rosterOf(offering([second], new Map([[first, { state: "off" }], [second, { state: "running" }]])))
   expect(off.built.find((row) => row.name === first)?.state).toBe("off")
@@ -1060,6 +1072,32 @@ test("a row a person switched off is not the build's default", () => {
     switched: () => new Set([first]),
   })
   expect(back.built.find((row) => row.name === first)?.state).toBe("running")
+})
+
+test("the pin travels onto the roster, and does not mint extra fiber words", () => {
+  const [first, second] = PLUGIN_NAMES
+  if (first === undefined || second === undefined) {
+    throw new Error("this claim needs a build with two rows")
+  }
+
+  const extra = rosterOf(offering(null, mounted([first]), [first], null))
+  expect(extra.built.find((row) => row.name === first)?.state).toBe("running")
+  expect(extra.built.find((row) => row.name === first)?.running).toBe(true)
+  expect(extra.pin).toEqual({ kind: "delta", extra: [first], without: null })
+  expect(extra.pinned).toBeNull()
+
+  const without = rosterOf(
+    offering(null, new Map([[second, { state: "off" as const }]]), null, [second]),
+  )
+  expect(without.built.find((row) => row.name === second)?.state).toBe("optIn")
+  expect(without.built.find((row) => row.name === second)?.running).toBe(false)
+  expect(without.pin).toEqual({ kind: "delta", extra: null, without: [second] })
+
+  const pressed = rosterOf({
+    ...offering(null, new Map([[second, { state: "off" as const }]]), null, [second]),
+    switched: () => new Set([second]),
+  })
+  expect(pressed.built.find((row) => row.name === second)?.state).toBe("switched")
 })
 
 /**

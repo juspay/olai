@@ -16,7 +16,7 @@ const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
 
 const opening = (root: string, options: { readonly format?: string; readonly ledger?: Ledger } = {}) => Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "" })
-  yield* mountBundle(plugins.host, ["vault"], options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }], {
+  yield* mountBundle(plugins.host, { kind: "exact", names: ["vault"] }, options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }], {
     rows: profileRows("test-minimal"),
     resolve: async () => undefined,
   })

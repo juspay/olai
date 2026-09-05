@@ -265,6 +265,12 @@ test("a page that has heard nothing has no plugin rows and no flag to name", () 
   expect(NO_ROSTER.pinned).toBeNull()
   expect(Schema.is(PluginRoster)(NO_ROSTER)).toBe(true)
   expect(Schema.is(PluginRoster)({ built: [], pinned: [] })).toBe(true)
+  // A serve too old to send `pin` still decodes; a new one writes the sum.
+  expect(Schema.is(PluginRoster)({
+    built: [],
+    pinned: null,
+    pin: { kind: "delta", extra: ["xyne-spaces"], without: null },
+  })).toBe(true)
 })
 
 /**

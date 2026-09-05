@@ -699,7 +699,7 @@ THREE lists, and the distance between them is the whole of what `--plugins` mean
 
 ```
 olai web ~/outlines                    # the built-in default
-olai web ~/outlines --plugins=vault,odu      # odu only
+olai web ~/outlines --plugins=vault,odu      # odu only — name vault to serve files
 olai web ~/outlines --plugins=         # none — said out loud
 ```
 
@@ -707,7 +707,7 @@ olai web ~/outlines --plugins=         # none — said out loud
 once and forgotten:
 
 ```nix
-  services.olai.plugins = [ "odu" ];   # odu only
+  services.olai.plugins = [ "vault" "odu" ];   # odu only — name vault to serve files
   services.olai.plugins = [ ];         # none
   # omit it                            — the built-in default
 ```
