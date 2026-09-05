@@ -52,3 +52,16 @@ Then("browser startup reports its failure", async function (this: OlaiWorld) {
 When("I retry browser startup", async function (this: OlaiWorld) {
   await this.page.getByRole("button", { name: "Retry browser startup", exact: true }).click();
 });
+
+Then("layout has released its document styles and viewport observers", async function (this: OlaiWorld) {
+  const values = await this.page.evaluate(() => {
+    // Fire the events after withdrawal: a lingering callback would republish
+    // the properties even if disposal had initially cleared them.
+    window.visualViewport?.dispatchEvent(new Event("resize"));
+    window.visualViewport?.dispatchEvent(new Event("scroll"));
+    window.dispatchEvent(new Event("resize"));
+    return ["--visible-h", "--visible-bottom", "--width-sidebar", "--width-panel"]
+      .map((name) => document.documentElement.style.getPropertyValue(name));
+  });
+  assert.deepStrictEqual(values, ["", "", "", ""]);
+});

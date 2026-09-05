@@ -16,8 +16,9 @@ Implemented foundations:
 
 Required before this PR can be considered complete:
 
-- Move layout state and observers out of the permanent entry point; extract
-  navigation and sidebar providers with acyclic integration components.
+- Finish extracting layout state and its frame; extract navigation and sidebar
+  providers with acyclic integration components. Viewport, breakpoint, layout
+  preference and CSS observers now belong to the root entry activation.
 - Extract independent outlines and Markdown server bindings, wire adapters,
   browser models, routes and editing/reading state. Preserve unprefixed tags.
 - Extract files, theme, preferences, inspector, pins, capture and trash;

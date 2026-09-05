@@ -46,7 +46,6 @@ import { createUndo, UndoContext } from "./edit/undoing.ts"
 import { UndoSaid } from "./edit/UndoSaid.tsx"
 import { troubleIn } from "./errors/banner.ts"
 import { Page as ErrorPage } from "./errors/Page.tsx"
-import { publishLayoutCss } from "./layout/css.ts"
 import { desktop } from "./layout/media.ts"
 import { panelOpen, sidebarOpen, toggleSidebar } from "./layout/prefs.ts"
 import { Rail } from "./layout/Rail.tsx"
@@ -107,7 +106,6 @@ export default function App() {
 
   const [menuOpen, setMenuOpen] = createSignal(false)
 
-  publishLayoutCss()
 
   createEffect(() => {
     if (desktop()) setMenuOpen(false)

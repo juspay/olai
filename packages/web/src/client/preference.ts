@@ -149,24 +149,24 @@ export const preferenceChanged = (
 }
 
 /**
- * Follow a preference for as long as this document lives: `apply` is called
+ * Follow a preference until the returned disposer runs: `apply` is called
  * with what ANOTHER tab left under `key`, and never with this tab's own writes.
  *
- * No teardown, for the same reason `viewport.ts` has none: what this belongs to
- * is the document, a preference outlives every component that reads one, and
- * the only thing that could end the listener also ends the page.
+ * The owning capability decides the lifetime, independently of any settings UI.
  */
 export const watchPreference = (
   key: string,
   apply: (value: string | null) => void,
-): void => {
+): (() => void) => {
   // `window.` spelled out: the bare global resolves to the untyped overload,
   // which hands a listener a plain `Event` and loses the whole point of asking
   // for this one.
-  window.addEventListener("storage", (event) => {
+  const listener = (event: StorageEvent) => {
     const value = preferenceChanged(event, key)
     if (value !== undefined) apply(value)
-  })
+  }
+  window.addEventListener("storage", listener)
+  return () => window.removeEventListener("storage", listener)
 }
 
 /**
@@ -208,10 +208,8 @@ export interface Preference<T> {
    *  may have written since. For a preference that is a set of independent
    *  facts rather than one pick, a write starts from this. */
   readonly stored: () => T
-  /** Follow the browser's other tabs for as long as this document lives —
-   *  started once, from `main.tsx`, because a preference belongs to the
-   *  browser and a browser is more than one tab. */
-  readonly follow: () => void
+  /** Refresh from storage and follow other tabs until disposed. */
+  readonly follow: () => () => void
 }
 
 /**
@@ -242,7 +240,8 @@ export const createPreference = <T>(
       if (opts?.persist !== false) writePreference(key, codec.print(next))
     },
     follow: () => {
-      watchPreference(key, (raw) => hold(codec.parse(raw)))
+      hold(codec.parse(readPreference(key)))
+      return watchPreference(key, (raw) => hold(codec.parse(raw)))
     },
   }
 }

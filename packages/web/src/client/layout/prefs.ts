@@ -246,12 +246,8 @@ export const setPanelSnap = (snap: ChatSnap): void => panelSnapPref.set(snap)
  * re-fits widths when the viewport resizes so a laptop undock cannot leave
  * the outline under the dock.
  */
-export const followLayout = (): void => {
-  sidebarOpenPref.follow()
-  sidebarWidthPref.follow()
-  panelOpenPref.follow()
-  panelWidthPref.follow()
-  panelSnapPref.follow()
+export const followLayout = (): (() => void) => {
+  const stop = [sidebarOpenPref, sidebarWidthPref, panelOpenPref, panelWidthPref, panelSnapPref].map((preference) => preference.follow())
 
   // Re-fit on resize: accessors re-run when signals change, but a bare window
   // resize does not touch a signal, so each width is nudged with its own value
@@ -265,4 +261,8 @@ export const followLayout = (): void => {
     panelWidthPref.set(panelWidthPref.value(), { persist: false })
   }
   window.addEventListener("resize", onResize)
+  return () => {
+    window.removeEventListener("resize", onResize)
+    for (const dispose of stop) dispose()
+  }
 }

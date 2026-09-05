@@ -8,12 +8,20 @@
  * a constant 26rem).
  */
 
-import { createEffect } from "solid-js"
+import { createEffect, onCleanup } from "solid-js"
 
 import { panelWidth, sidebarOpen, sidebarWidth, RAIL_WIDTH_PX } from "./prefs.ts"
 
 /** Keep `--width-sidebar` / `--width-panel` in step with the preferences. */
 export const publishLayoutCss = (): void => {
+  const style = document.documentElement.style
+  const previous = ["--width-sidebar", "--width-panel"].map((name) => [name, style.getPropertyValue(name), style.getPropertyPriority(name)] as const)
+  onCleanup(() => {
+    for (const [name, value, priority] of previous) {
+      if (value) style.setProperty(name, value, priority)
+      else style.removeProperty(name)
+    }
+  })
   createEffect(() => {
     const root = document.documentElement
     const side = sidebarOpen() ? sidebarWidth() : RAIL_WIDTH_PX

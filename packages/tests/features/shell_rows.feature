@@ -10,6 +10,7 @@ Feature: The renderer and layout are browser rows
     And the plugins panel says "<owner>" is "Browser: running."
     When I request that the plugin "<owner>" be off
     Then the browser mount has no rendered application
+    And layout has released its document styles and viewport observers
     And the MCP vault can read an outline
     And the MCP transport answers with status 200
     And there should be no page errors

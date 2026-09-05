@@ -63,20 +63,19 @@ const HEIGHT = "--visible-h"
 const BOTTOM = "--visible-bottom"
 
 /**
- * Track the visible viewport for as long as the page lives, publishing it on
- * the document element.
- *
- * There is no teardown, because there is nothing that could call one: the
- * listeners belong to the document and die with it. A browser that has no
+ * Track the visible viewport for the owning layout activation, publishing it
+ * on the document element and restoring prior properties on disposal.
+ * A browser that has no
  * `visualViewport` publishes nothing at all, and every reader supplies its own
  * fallback (`var(--visible-bottom, 0px)`) — which is also the state of the
  * very first paint, before this has run.
  */
-export const trackVisibleViewport = (): void => {
+export const trackVisibleViewport = (): (() => void) => {
   const visual = window.visualViewport
-  if (visual == null) return
+  if (visual == null) return () => {}
 
   const style = document.documentElement.style
+  const previous = [HEIGHT, BOTTOM].map((name) => [name, style.getPropertyValue(name), style.getPropertyPriority(name)] as const)
   // Both properties INHERIT, so writing one costs every node on the page a
   // style recalc — and this fires on every frame of a keyboard sliding up and
   // of an address bar sliding away, most of which move nothing. So the last
@@ -101,11 +100,20 @@ export const trackVisibleViewport = (): void => {
   }
 
   publish()
-  visual.addEventListener("resize", () => {
+  const resize = () => {
     layout = document.documentElement.clientHeight
     publish()
-  })
+  }
+  visual.addEventListener("resize", resize)
   // A page scrolled while the keyboard is up moves the visible strip without
   // resizing it, which changes `offsetTop` and nothing else.
   visual.addEventListener("scroll", publish)
+  return () => {
+    visual.removeEventListener("resize", resize)
+    visual.removeEventListener("scroll", publish)
+    for (const [name, value, priority] of previous) {
+      if (value) style.setProperty(name, value, priority)
+      else style.removeProperty(name)
+    }
+  }
 }

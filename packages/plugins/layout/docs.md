@@ -14,3 +14,10 @@ This row currently mounts the existing application composition. Navigation,
 outline and document state, and the remaining feature observers have **not**
 yet been extracted into their Phase 18 owners. It is an intermediate state,
 not the completed replaceable shell boundary.
+
+The root entry's integration owns visual-viewport and breakpoint listeners,
+layout preference subscriptions, and the Solid effect publishing panel/sidebar
+CSS widths. Removing the entry detaches those listeners and restores the prior
+inline CSS declarations. A fresh activation re-reads preferences from storage,
+including changes made by another tab while layout was absent. These observers
+are no longer started by the permanent browser entry point.

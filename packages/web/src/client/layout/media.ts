@@ -6,7 +6,7 @@
  * the finger-size rule cannot disagree about where "phone" starts.
  *
  * Module-scoped signal so every reader (drawer, bottom sheet, rail) shares one
- * listener for the document's life.
+ * reading, with its listener owned by the layout activation.
  */
 
 import { type Accessor, createSignal } from "solid-js"
@@ -18,16 +18,14 @@ const [isDesktop, setIsDesktop] = createSignal(
   typeof window !== "undefined" && window.matchMedia(DESKTOP_MQ).matches,
 )
 
-let watching = false
-
-/** Start the media listener. Idempotent; called from `main.tsx`. */
-export const trackDesktop = (): void => {
-  if (watching || typeof window === "undefined") return
-  watching = true
+/** The layout activation owns this listener and refreshes it on reactivation. */
+export const trackDesktop = (): (() => void) => {
+  if (typeof window === "undefined") return () => {}
   const mq = window.matchMedia(DESKTOP_MQ)
   const apply = () => setIsDesktop(mq.matches)
   apply()
   mq.addEventListener("change", apply)
+  return () => mq.removeEventListener("change", apply)
 }
 
 export const desktop: Accessor<boolean> = isDesktop
