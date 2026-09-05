@@ -21,6 +21,7 @@ const NARROWED = { kind: "trash", filter: "is:todo" } as const
  *  parsed, because what a rename writes is about the fields it carries. */
 const pinned = (over: Partial<Pin> = {}): Pin => ({
   id: "p1",
+  title: "/trash?q=is%3Atodo",
   route: NARROWED,
   name: "Trash",
   at: "/trash?q=is%3Atodo",
@@ -76,6 +77,7 @@ test("the box opens EMPTY over a derived name, and holds a written one", () => {
       verb: "title",
       id: "p1",
       title: "[What is late](/trash?q=is%3Atodo)",
+      was: "/trash?q=is%3Atodo",
     }))
 })
 
@@ -96,13 +98,13 @@ test("Enter with nothing is the BARE pin — the write this app always made", ()
 test("a rename is `set_title` on the pin's own row, keeping the address", () => {
   // The address as the FILE holds it, not the one this app would mint: the
   // gesture was about the name.
-  expect(wrote({ kind: "rename", pin: pinned({ at: "/trash?q=is:todo" }) }, "What is late"))
-    .toEqual({ verb: "title", id: "p1", title: "[What is late](/trash?q=is:todo)" })
+  expect(wrote({ kind: "rename", pin: pinned({ at: "/trash?q=is:todo", title: "/trash?q=is:todo" }) }, "What is late"))
+    .toEqual({ verb: "title", id: "p1", title: "[What is late](/trash?q=is:todo)", was: "/trash?q=is:todo" })
 })
 
 test("typing the name away puts the BARE address back — one box does all three", () => {
-  expect(wrote({ kind: "rename", pin: pinned({ name: "What is late", written: true }) }, ""))
-    .toEqual({ verb: "title", id: "p1", title: "/trash?q=is%3Atodo" })
+  expect(wrote({ kind: "rename", pin: pinned({ name: "What is late", title: "[What is late](/trash?q=is%3Atodo)", written: true }) }, ""))
+    .toEqual({ verb: "title", id: "p1", title: "/trash?q=is%3Atodo", was: "[What is late](/trash?q=is%3Atodo)" })
 })
 
 test("a name the link cannot hold is refused HERE, where the title is spelled", () => {

@@ -514,3 +514,5 @@ Beside **Edit** on a document page's header, and beside the *write the first lin
 An agent's `delete_file` is the same op at the same gate — minted paths and refusals alike — which is the consistency rule doing what it always does: nothing this face can reach is out of an agent's reach.
 
 An open palette keeps its typed input and question through plugin changes, including a pin name or an unsent capture. Escape still backs out of the question, then closes the palette; reopening starts a new draft.
+
+A pin rename is conditional on the stored title the question was opened on. If another writer changes its name or destination, the rename is refused and the draft remains; dismiss and reopen the question to rename the reviewed pin.
