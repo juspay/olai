@@ -245,6 +245,8 @@ What you get is your browser's own date picker, and what is written is the day y
 
 An unsubmitted date or repeat choice stays with its row and pane when plugins rebuild the page or you switch phone pane tabs. Filtering that same outline does not change its ownership. Leaving the page, cancelling, or collapsing the parent discards the draft; opening the picker again starts from the stored value. Two panes of the same outline keep independent choices.
 
+A pending submission stays disabled across pane switches, and a refused choice keeps its explanation. While a write waits, keyboard focus stays in the form so Escape still dismisses it. Dismissing an already submitted form does not undo its write; its late response cannot close a newly opened draft.
+
 A node scheduled for a time of day rather than a bare day keeps whatever it says on disk until you pick — the box shows the day that time falls on, and the panel says what picking one would replace, because a picker picks days.
 
 The row moves the moment the file says so: a task given a day that has gone is above now on the agenda’s spine and on that day's page, without a reload and without this page deciding anything for itself.

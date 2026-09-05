@@ -5,11 +5,12 @@ import { createContext, createSignal, onCleanup, useContext, type JSX } from "so
 import { useHere, useRouter } from "../router.tsx"
 import type { Route } from "../routes.ts"
 import { panesOf } from "../workspace.ts"
+import { createSubmission } from "../edit/submission.ts"
 
 const form = () => {
   const [day, setDay] = createSignal<string | null>(null)
   const [rule, setRule] = createSignal<string | null>(null)
-  return { day, setDay, rule, setRule }
+  return { day, setDay, rule, setRule, dateSubmission: createSubmission(), repeatSubmission: createSubmission() }
 }
 type Form = ReturnType<typeof form>
 type Rows = Map<string, Form>

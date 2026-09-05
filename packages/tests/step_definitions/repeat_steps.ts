@@ -34,6 +34,7 @@ import {
   REPEAT_PICKER_CANCEL,
   REPEAT_PICKER_RULE,
   REPEAT_PICKER_SET,
+  REPEAT_PICKER_SAID,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 import { standingSelector } from "./agenda_steps.ts";
@@ -147,6 +148,17 @@ When("I empty the repeat picker", async function (this: OlaiWorld) {
 
 When("I draft the repeat rule {string}", async function (this: OlaiWorld, rule: string) {
   await rules(this).selectOption(rule);
+});
+
+When("I press the repeat picker's button", async function (this: OlaiWorld) {
+  await this.press(button(this));
+});
+
+Then("the repeat picker refuses with {string}", async function (this: OlaiWorld, reason: string) {
+  const said = this.page.locator(REPEAT_PICKER_SAID);
+  await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const actual = await said.innerText();
+  assert.ok(actual.includes(reason), `expected refusal containing ${reason}, got ${actual}`);
 });
 
 When("I cancel the repeat picker", async function (this: OlaiWorld) {

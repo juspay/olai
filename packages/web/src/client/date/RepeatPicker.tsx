@@ -30,6 +30,7 @@ import { REPEAT_RULES } from "@olai/format"
 import { For } from "solid-js"
 
 import type { Press } from "../edit/panel.ts"
+import type { Submission } from "../edit/submission.ts"
 import { RowPanel } from "../edit/RowPanel.tsx"
 import type { Said } from "../saying.ts"
 import { TESTID } from "../testids.ts"
@@ -51,6 +52,7 @@ export function RepeatPicker(props: {
   readonly repeat: string | undefined
   readonly rule: string
   readonly onChange: (value: string) => void
+  readonly submission: Submission
   /** Send it. The host is what knows the write gate and the undo stack
    *  ({@link ../writes.ts}); this is what knows the rule. */
   readonly onPick: (rule: string) => Promise<Said | undefined>
@@ -63,6 +65,7 @@ export function RepeatPicker(props: {
 
   return (
     <RowPanel
+      submission={props.submission}
       ids={IDS}
       press={press}
       send={() => props.onPick(rule())}

@@ -42,6 +42,7 @@
  * which is a fact about THIS control rather than about panels.
  */
 import type { Press } from "../edit/panel.ts"
+import type { Submission } from "../edit/submission.ts"
 import { RowPanel } from "../edit/RowPanel.tsx"
 import type { Said } from "../saying.ts"
 import { TESTID } from "../testids.ts"
@@ -63,6 +64,7 @@ export function DatePicker(props: {
   readonly date: string | undefined
   readonly day: string
   readonly onChange: (value: string) => void
+  readonly submission: Submission
   /** Send it. The host is what knows the write gate and the undo stack
    *  ({@link ../writes.ts}); this is what knows the day. Answering with a
    *  {@link Said} keeps the panel open saying it; answering with nothing is the
@@ -84,6 +86,7 @@ export function DatePicker(props: {
 
   return (
     <RowPanel
+      submission={props.submission}
       ids={IDS}
       press={press}
       send={() => props.onPick(day())}

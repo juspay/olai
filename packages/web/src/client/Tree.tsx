@@ -736,6 +736,7 @@ function Branch(props: {
         {(shows) => (
           <div class={PAST_CONTROLS}>
             <DatePicker
+              submission={forms.dateSubmission}
               date={shows().node.date}
               day={forms.day() ?? ""}
               onChange={forms.setDay}
@@ -754,6 +755,7 @@ function Branch(props: {
         {(shows) => (
           <div class={PAST_CONTROLS}>
             <RepeatPicker
+              submission={forms.repeatSubmission}
               repeat={shows().node.repeat}
               rule={forms.rule() ?? ""}
               onChange={forms.setRule}

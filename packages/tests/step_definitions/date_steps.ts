@@ -122,6 +122,11 @@ When("I draft the date {string}", async function (this: OlaiWorld, day: string) 
   await box(this).fill(day);
 });
 
+When("I submit the date while updates are delayed", async function (this: OlaiWorld) {
+  // Deliberately leave the response pending so the scenario can change panes.
+  await button(this).click();
+});
+
 When("I empty the date picker", async function (this: OlaiWorld) {
   await box(this).fill("");
   await this.waitForFrame();
