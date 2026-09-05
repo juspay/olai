@@ -450,16 +450,15 @@ export const createEditor = (
    * above makes that rare and this makes it impossible.
    */
   const send = async (edit: Edit, from: Slot): Promise<Landed | null> => {
-    const outcome = await runAsync(olai.procedures.edit.apply(edit))
+    const pending = runAsync(olai.procedures.edit.apply(edit))
+    // A blur can leave focus on the page before this reply arrives. Reserve
+    // its place now so Undo pressed there follows this write, including when
+    // there are older edits already on the stack.
+    undo.record(pending.then((outcome) =>
+      Result.isSuccess(outcome) ? outcome.success.undo : undefined
+    ))
+    const outcome = await pending
     if (Result.isSuccess(outcome)) {
-      // What would take this back, straight onto the stack ⌘Z spends — the
-      // server's own answer, derived from the snapshot this write was judged
-      // against ({@link ./undoing.ts}). EVERY write that has an inverse, the
-      // text ones included: a draft that has committed is an op like any
-      // other, and the DRAFT is what Escape and blur own. The two were
-      // conflated once, and what it cost was ⌘Z answering "nothing to undo" to
-      // somebody who had just retyped a title.
-      undo.record(outcome.success.undo)
       return outcome.success
     }
     setDraft((held) =>

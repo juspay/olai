@@ -345,7 +345,7 @@ Both are facts about the node a row SHOWS, so choosing one at a mirror writes th
 
 Which is what makes it safe to share an outline. An undo cannot quietly take back what the agent, another tab or a `git pull` did in the meantime; one that no longer fits — the row moved, somebody filed work under it, somebody retyped the line — says so instead of guessing, in the words the write gate would use. It is your own edits, on the outline in front of you: a hundred of them, this session, this tab. Changing plugins preserves both undo and redo history, including the checks against other writers’ changes. Open another outline and it starts again.
 
-While you are still typing, ⌘Z is the text box's own, exactly as it is anywhere else. The outline's undo starts once the line is committed, which is the moment it became something anybody else can see.
+While you are still typing, ⌘Z is the text box's own, exactly as it is anywhere else. The outline's undo starts once the line is committed, which is the moment it became something anybody else can see. If you click away and immediately undo while the save reply is still pending, Undo waits for that save; it cannot spend an older edit instead. Navigating to another file also discards any inverse still awaiting its reply.
 
 **There is no delete key.** What ⌘Z can take back is a row you have just made — the un-create, which is the inverse of the `Enter` that made it. Where it goes is the Trash, keeping its id, which is what putting anything away does: a trash rather than a shredder, refused outright once anything has been filed under it, and not something a key of its own can ask for.
 
