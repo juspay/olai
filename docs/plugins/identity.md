@@ -1,0 +1,1 @@
+../../packages/plugins/identity/docs.md

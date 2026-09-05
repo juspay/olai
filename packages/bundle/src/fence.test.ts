@@ -724,31 +724,44 @@ describe("only the registry knows a plugin's name", () => {
   /**
    * THE FOLDED TESTLIB DOORS, recorded rather than widened.
    *
-   * `@olai/tests` reaches two plugins by name, and each is a claim rather than a
-   * hole. KOLU's is the fake padi the e2e spawn stands on. CHAT's is the panel's
-   * own two constants — how close to the foot of the transcript still counts as
-   * following, and which trigger the composer has armed — which were on
-   * `@olai/web`'s curated list until the panel became a row, and which a step
+   * `@olai/tests` reaches three plugins by name, and each is a claim rather than
+   * a hole. KOLU's is the fake padi the e2e spawn stands on. CHAT's is the
+   * panel's own two constants — how close to the foot of the transcript still
+   * counts as following, and which trigger the composer has armed — which were
+   * on `@olai/web`'s curated list until the panel became a row, and which a step
    * must read from the client rather than re-decide (a number typed twice
-   * eventually disagrees).
+   * eventually disagrees). IDENTITY's is the same case for the same reason, one
+   * row over: the header names a Given injects and the gravatar URL a Then
+   * expects to see drawn were `@olai/identity`'s while that was a general
+   * package, and a suite that re-typed either would go on passing after the
+   * default header moved or the hash spelling changed. `olai-plugin-identity/who`
+   * is the READING with no runtime in it — no Effect, no plugin API, no browser
+   * — which is what makes it importable from a cucumber process at all.
    *
    * An equality against those lines and declarations is the opposite of
-   * letting a general package import a plugin: a fourth file, a different
-   * subpath, or a third plugin is red. `packages/server` carves the git
-   * testlib the same way, so `headless.test.ts` does not copy `gitIn`.
+   * letting a general package import a plugin: a fifth file, a different
+   * subpath, or a fourth plugin is red. `packages/server` carves two doors the
+   * same way — the git testlib, so `headless.test.ts` does not copy `gitIn`,
+   * and identity's reading, so the gravatar URL its two-door test asserts a
+   * chip drew is the hash the row itself computes rather than a second
+   * spelling of it.
    */
   const TESTLIB_IMPORTS: Readonly<Record<string, ReadonlyArray<string>>> = {
     tests: [
       "tests/step_definitions/chat_steps.ts: olai-plugin-chat/testlib",
+      "tests/step_definitions/identity_steps.ts: olai-plugin-identity/who",
       "tests/support/hooks.ts: olai-plugin-kolu/appliance/testlib",
       "tests/support/world.ts: olai-plugin-chat/testlib",
       "tests/support/world.ts: olai-plugin-kolu/appliance/testlib",
     ],
-    server: ["server/src/headless.test.ts: olai-plugin-git/testlib"],
+    server: [
+      "server/src/headless.test.ts: olai-plugin-git/testlib",
+      "server/src/identity.test.ts: olai-plugin-identity/who",
+    ],
   }
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    tests: ["olai-plugin-chat", "olai-plugin-kolu"],
-    server: ["olai-plugin-git"],
+    tests: ["olai-plugin-chat", "olai-plugin-identity", "olai-plugin-kolu"],
+    server: ["olai-plugin-git", "olai-plugin-identity"],
   }
 
   /**
@@ -763,7 +776,7 @@ describe("only the registry knows a plugin's name", () => {
    * line is still standing on the far side of the wall — so an equality here is
    * the only reading that stays exact when the sources move.
    *
-   * ONE EDGE, and it is the one the Cordis phase named. `olai-plugin-xyne-spaces`
+   * TWO EDGES. The first is the one the Cordis phase named. `olai-plugin-xyne-spaces`
    * mirrors what a node agent's conversation says, so it has to know which column
    * that binding is in — and the column is chat's kind (`chat-agent-session`),
    * composed from chat's own name. The alternative was a hand-copied constant in
@@ -773,10 +786,25 @@ describe("only the registry knows a plugin's name", () => {
    *
    * The subpath is `olai-plugin-chat/binding`, which is two strings behind a door
    * that imports nothing — so what crosses is a name, not a graph, and the tenant
-   * claim below is what holds that. A second plugin declaring chat, or this one
-   * declaring a second plugin, is red on this line with the argument beside it.
+   * claim below is what holds that.
+   *
+   * THE SECOND IS A GRAPH, and it is a MOVE rather than a new coupling. The chat
+   * panel names the person over each run of their own messages, wearing the
+   * picture the identity row's ladder resolved and asking through the SAME single
+   * `who.get` the header chip asks through — a header saying one thing about who
+   * is looking and a transcript saying another is the drift one ask exists to
+   * prevent. That edge existed before this phase pointing at
+   * `@olai/web/client/who/*`, because the chip was core's; it points at the row
+   * that owns the subject now. What crosses is `olai-plugin-identity/person` —
+   * three browser modules, no wire, no server half — and it is deliberately NOT
+   * in chat's `needs`: with no identity row mounted, `who.get` is still core's
+   * and answers nobody, so the face draws its silhouette rather than waiting.
+   *
+   * A third plugin declaring one of these, or either of these declaring a second,
+   * is red on this line with the argument beside it.
    */
   const PLUGIN_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
+    "plugins/chat": ["olai-plugin-identity"],
     "plugins/xyne-spaces": ["olai-plugin-chat"],
   }
 
@@ -1293,6 +1321,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       claude: ["plugins/claude"],
       codex: ["plugins/codex"],
       git: ["plugins/git"],
+      identity: ["plugins/identity"],
       journal: ["plugins/journal"],
       kolu: ["plugins/kolu"],
       odu: ["plugins/odu"],
@@ -1322,6 +1351,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       claude: false,
       codex: false,
       git: false,
+      identity: false,
       journal: false,
       kolu: true,
       odu: true,
@@ -1841,6 +1871,56 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "web/src/client/settings/Preferences.tsx",
        "web/src/client/trash/question.ts",
      ],
+    /**
+     * `identity` IS AN ENGLISH WORD, and it is the most ordinary one on this
+     * list — which is why the entry is long and why every line of it is a
+     * different sense of it than the row.
+     *
+     * **THE DOOR, which is core's.** `Identity` is a service tag
+     * `@olai/plugin-api` declares and `@olai/server`'s composition root reads;
+     * the row is the PROVIDER behind it. That is the `git` case one entry up,
+     * exactly — a reading core defines and a plugin stands behind — and the
+     * interface and `serve.ts` are spelling the tag, never the row.
+     *
+     * TWO SERVER FILES AND A THIRD LEFT THIS LIST, and that is the fence
+     * measuring a refactor rather than tolerating one: the listener and the
+     * MCP route used to be handed the DOOR and now take a header list and a
+     * reading, and `server/src/identity.ts` mints that reading from a type
+     * import. None of the three can name the tag any more, so the word is
+     * gone from what they compile to — which is the claim this table exists
+     * to be able to notice in either direction.
+     *
+     * **THE PROCESS's identity, which is the framework's.** `system/identity`
+     * is the reserved member every kolu surface answers with its process id —
+     * the stale-tab handshake — and it is a different question from who is
+     * looking, argued at length in `@olai/surface`'s README. kolu's dial and
+     * probe spell it, and its probe also reports on "the daemon's identity",
+     * which is a third sense again.
+     *
+     * **A RUN's identity, which is odu's.** `identityOf(run)` is that
+     * appliance's own `<sha7>#<seq>` spelling of which commit a run is of.
+     *
+     * **AN ATTRIBUTION RULE, in prose.** The capture tool's description says
+     * `captured-by` is written from "the identity this door already has" —
+     * words in a sentence an agent reads.
+     *
+     * RECORDED AS AN EQUALITY for the reason the four entries above are: a
+     * twelfth file is red, and the day one of these stops spelling the word
+     * this entry is red until the line is deleted.
+     */
+    identity: [
+      "ops/src/tools.ts",
+      "plugin-api/src/services.ts",
+      "plugins/kolu/src/client/detect.ts",
+      "plugins/kolu/src/client/fleet.ts",
+      "plugins/kolu/src/client/link.ts",
+      "plugins/kolu/src/probe.ts",
+      "plugins/odu/src/appliance/wire/index.ts",
+      "plugins/odu/src/browser/RunMatrix.tsx",
+      "plugins/odu/src/browser/words.ts",
+      "plugins/odu/src/doorbell.ts",
+      "server/src/serve.ts",
+    ],
   }
 
   test("no package outside the registry and the plugin's own tenant spells it", () => {

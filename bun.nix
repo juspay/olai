@@ -1770,7 +1770,6 @@
   "@olai/effect-cordis" = copyPathToStore ./packages/effect-cordis;
   "@olai/fonts" = copyPathToStore ./packages/fonts;
   "@olai/format" = copyPathToStore ./packages/format;
-  "@olai/identity" = copyPathToStore ./packages/identity;
   "@olai/log" = copyPathToStore ./packages/log;
   "@olai/ops" = copyPathToStore ./packages/ops;
   "@olai/plugin-api" = copyPathToStore ./packages/plugin-api;
@@ -7631,6 +7630,7 @@
   "olai-plugin-claude" = copyPathToStore ./packages/plugins/claude;
   "olai-plugin-codex" = copyPathToStore ./packages/plugins/codex;
   "olai-plugin-git" = copyPathToStore ./packages/plugins/git;
+  "olai-plugin-identity" = copyPathToStore ./packages/plugins/identity;
   "olai-plugin-journal" = copyPathToStore ./packages/plugins/journal;
   "olai-plugin-kolu" = copyPathToStore ./packages/plugins/kolu;
   "olai-plugin-odu" = copyPathToStore ./packages/plugins/odu;

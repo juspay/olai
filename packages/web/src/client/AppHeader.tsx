@@ -112,7 +112,7 @@ import { Plugins } from "./plugins/Plugins.tsx"
 import { Preferences } from "./settings/Preferences.tsx"
 import { TESTID } from "./testids.ts"
 import { TARGET_BOX } from "./touch.ts"
-import { Who } from "./who/Who.tsx"
+import { PluginViewer } from "./plugins/Seats.tsx"
 
 export function AppHeader(props: {
   /** When a sidebar exists: whether its sheet is open, and the way to toggle
@@ -245,11 +245,20 @@ export function AppHeader(props: {
         <Show when={!desktop() && props.menu === undefined}>
           <Preferences />
         </Show>
-        {/* LAST: who is looking, top right. Every answer has a face —
-            anonymous, the person, a failed door — wearing the same pill
-            the rest of this cluster wears, so items-center has one
-            height. */}
-        <Who />
+        {/* LAST: who is looking, top right — the one seat in this bar that
+            is about the READER rather than about the app, which is why it
+            is out here rather than inside the desktop cluster above: it is
+            drawn on a phone too, and `on_a_phone.feature` says so.
+
+            The SEAT is this line and the FACE is a plugin's
+            (`plugins/Seats.tsx`, the `app.viewer` slot). It used to be
+            `<Who />` spelled here over a `who/` folder of this client's
+            own, which was the app holding a reading — header names, an
+            avatar template, a picture ladder — that belongs to whoever
+            decides how a deployment is wired. A serve with no identity row
+            draws nothing here, beside a server on which every request is
+            nobody. */}
+        <PluginViewer />
       </div>
     </header>
     {/* Phone: the same two controls, news-only faces, in flow under the bar.

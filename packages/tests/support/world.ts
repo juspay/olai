@@ -865,8 +865,11 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   TESTID.uptime,
   PLUGIN_TESTID.chatToggle,
   TESTID.prefsTrigger,
-  // Who is looking, last — an icon about the request, not about git.
-  TESTID.identity,
+  // Who is looking, last — an icon about the request, not about git. A
+  // PLUGIN's id since identity became a row: it hangs in the app.viewer
+  // seat, so a serve without that row has one fewer chip here and the
+  // fence below is about what the ROW draws when it is running.
+  PLUGIN_TESTID.identity,
 ];
 
 /** The attribute that readout carried. Kept as a selector so the fence catches

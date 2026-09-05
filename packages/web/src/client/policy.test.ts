@@ -1,6 +1,15 @@
 /**
  * The app page's image policy admits a person's picture, by SCHEME.
  *
+ * IT STAYS IN THE SHELL though the chip left it: `index.html` is this
+ * package's file, and a policy is a claim about the PAGE rather than about
+ * whoever draws into it. What the identity row owns is the ladder that
+ * decides which host a `src` comes from (`packages/plugins/identity/`);
+ * what this file holds is that the page will fetch one at all — and it has
+ * to go on holding it for a serve that composes no identity row today and
+ * one tomorrow, since a policy is baked into the shell at build time and a
+ * roster is not.
+ *
  * The chip's picture is a remote `<img>`, and #330's three gravatar
  * origins were the whole list only while gravatar was the only rung. It is
  * not any more: a proxy's IdP avatar host, an operator's avatar template
@@ -29,7 +38,7 @@
 import { expect, test } from "bun:test"
 
 const shell = (): Promise<string> =>
-  Bun.file(new URL("../index.html", import.meta.url)).text()
+  Bun.file(new URL("./index.html", import.meta.url)).text()
 
 const policyOf = async (): Promise<string | undefined> =>
   /http-equiv="Content-Security-Policy"\s+content="([^"]+)"/.exec(

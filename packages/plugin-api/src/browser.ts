@@ -25,9 +25,9 @@
  * a plugin the roster stops naming unwinds its own faces on the way out and the
  * app re-reads what is left.
  *
- * ## THE SIXTEEN SLOTS, and why the table is data
+ * ## THE SEVENTEEN SLOTS, and why the table is data
  *
- * A slot is a place in this app where a plugin's face may hang. There are sixteen
+ * A slot is a place in this app where a plugin's face may hang. There are seventeen
  * and they are DECLARED ({@link SLOTS}) rather than implied by four hooks on an
  * interface, because a registration has to be checkable against something: a
  * plugin hanging a chip in the header is a mistake somebody should be told
@@ -67,7 +67,7 @@
  * this very table — so it is gone until something wants it, and it comes back
  * as a walk beside `PluginHeaders` on the day one does.
  *
- * ## FIVE OF THE SIXTEEN HAD NO OCCUPANT AND NO READER YET, deliberately
+ * ## FIVE OF THEM HAD NO OCCUPANT AND NO READER YET, deliberately
  *
  * `app.panel`, `sidebar.section`, `outline.row.door`, `outline.row.action` and
  * `app.keys` are where the CHAT PANEL is going to hang: the right panel, the
@@ -113,11 +113,13 @@
  *     the server, so the word a face is looked up by and the word a vault
  *     declares cannot be two spellings.
  *   - **`app`** — ONE FACE IN THE WHOLE APP, whoever hangs it, keyed by the slot
- *     itself. The right panel, which is a place rather than a list: two panels
- *     docked over one another is not a layout anybody meant, and the honest
- *     failure is the second plugin refused by name at the moment it registers
- *     rather than a reader picking a winner out of an array of two. It is the
- *     one refusal that names BOTH plugins, because the key carries neither.
+ *     itself. The right panel and the seat that says who is looking, both of
+ *     which are a place rather than a list: two panels docked over one another
+ *     is not a layout anybody meant, and two chips answering "who am I" is not
+ *     an answer. The honest failure is the second plugin refused by name at the
+ *     moment it registers rather than a reader picking a winner out of an array
+ *     of two. It is the one refusal that names BOTH plugins, because the key
+ *     carries neither.
  *   - **`nothing`** — a LIST, in registration order, held by the scope that made
  *     each entry, which is {@link @olai/effect-cordis}'s `roster` and its own
  *     words for why an entry there needs no key. This is the mode the old table
@@ -195,7 +197,7 @@ export * from "./runtime.ts"
  *  header carries the argument. */
 export { SLOTS, type SlotKey } from "./slots.ts"
 
-/** One of the sixteen. */
+/** One of the seventeen. */
 export type SlotName = keyof typeof SLOTS
 
 /** The rows of {@link SLOTS} one key rule holds — the four names below are this
@@ -263,6 +265,7 @@ export interface SlotFaces {
   "sidebar.section": SidebarSection
   "app.panel": () => JSX.Element
   "app.header": BarSeat
+  "app.viewer": () => JSX.Element
   "app.keys": AppChord
   "app.command": AppCommand
   "app.palette": AppPalette
@@ -824,10 +827,10 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
   Effect.gen(function*() {
     const host = yield* openHost
     /**
-     * ONE TABLE PER SLOT, and a slot IS a table — the sixteen are declared
+     * ONE TABLE PER SLOT, and a slot IS a table — the seventeen are declared
      * ({@link SLOTS}), so they are opened here rather than grown on demand.
      *
-     * They are `@olai/effect-cordis`'s tables rather than sixteen hand-written
+     * They are `@olai/effect-cordis`'s tables rather than seventeen hand-written
      * `Map`s, which is what makes the rules mechanical instead of remembered. The
      * one that had gone missing here is the last: this table told the app it had
      * changed from INSIDE `acquire`, and an app that refuses throws out of that

@@ -18,7 +18,6 @@
  * pipe the chat panel's agent reads its refusals through.
  */
 
-import { DEFAULT_IDENTITY_CONFIG, DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
 import {
   codecFor,
   make as makeOps,
@@ -35,6 +34,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
+import type { Reading } from "../identity.ts"
 import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { hostname } from "../hostname.ts"
@@ -52,6 +52,30 @@ const codec = codecFor(NO_KINDS)
 const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n`
 
 const TOKEN = "test-token"
+
+/** The header this bench's pretend proxy injects. Spelled here because the
+ *  requests below spell it too, and a name a test writes and a name a test
+ *  reads under must be one string. */
+const LOGIN = "tailscale-user-login"
+
+/**
+ * A STAND-IN FOR THE IDENTITY ROW'S READING, and deliberately a bare one.
+ *
+ * What this bench is about is that the route asks per request and carries the
+ * answer on the request's own stack — not what any particular deployment's
+ * ladder makes of a login. So it takes a login and hands back a person with no
+ * picture, which is all the attribution below reads, rather than mounting the
+ * real row for two fields it never looks at.
+ *
+ * A serve mints this over whatever row offers `Identity` (`../serve.ts`'s
+ * `readingOf`, answering nobody when none does); this bench builds its own
+ * listener by hand, so it hands over its own.
+ */
+const PROXY: Reading = (headers) => {
+  const raw = headers[LOGIN]
+  const login = (Array.isArray(raw) ? raw[0] : raw)?.trim() ?? ""
+  return login === "" ? null : { login, name: null, picture: null }
+}
 
 interface Served {
   /** The directory this route is serving — so a case can read back what a call
@@ -142,8 +166,9 @@ const withRoute = <A>(
       host: listenOn.host,
       port: 0,
       allowedOrigins: [],
-      identity: DEFAULT_IDENTITY_CONFIG,
-      mcp: { transport, token: TOKEN, identity: DEFAULT_IDENTITY_CONFIG },
+      upgradeHeaders: [LOGIN],
+      who: PROXY,
+      mcp: { transport, token: TOKEN, who: PROXY },
       resync: Effect.void,
       // No vault-defined plugins in this bench: the route binds and answers 404,
       // which is the same thing it does on a serve that has none.

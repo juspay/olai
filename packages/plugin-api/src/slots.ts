@@ -28,7 +28,7 @@
 export type SlotKey = "plugin" | "kind" | "app" | "nothing"
 
 /**
- * WHERE A FACE CAN HANG — the sixteen, and what keys each.
+ * WHERE A FACE CAN HANG — the seventeen, and what keys each.
  *
  * DATA rather than a union alone, because the key rule is the thing a reader
  * and the service both need and a union could only carry the names. The gloss
@@ -130,6 +130,31 @@ export const SLOTS = {
    *  in the bar — a different question, asked by whatever wants that, against the
    *  cluster's own width. */
   "app.header": { keyedBy: "plugin" },
+  /**
+   * WHO IS LOOKING AT THIS PAGE — the last seat in the bar, top right, and the
+   * one seat a phone keeps.
+   *
+   * KEYED BY THE APP, like the panel, because there is ONE of it: two faces
+   * answering "who am I" in one bar is the disagreement the whole reading
+   * exists to prevent, so a second claim is refused where a second panel is.
+   *
+   * ITS OWN SLOT RATHER THAN A SEAT IN `app.header`, and the difference is the
+   * app's geometry rather than the plugin's. Every readout in that cluster is
+   * about the app's HEALTH — is this page still reading, is what is written to
+   * it kept, can this olai see kolu's terminals — and the cluster leaves the
+   * bar entirely on a phone, which is WhatsApp's rule and a scenario
+   * (`on_a_phone.feature`). This seat is about the READER, it is last on every
+   * viewport, and it survives that rule: a phone's header is this face and
+   * search. Hanging it in the cluster would have moved it left of the uptime
+   * chip on a desktop and off the bar altogether on a phone, which is a
+   * different face in a different place wearing the same name.
+   *
+   * What the app keeps is the SEAT — where it sits, that it is last, that it
+   * stays on a phone — and what the plugin brings is the face and every word
+   * in it. A serve that composes no identity row has nobody in it and draws
+   * nothing there, which is the same sentence every other slot's absence has.
+   */
+  "app.viewer": { keyedBy: "app" },
   /** A KEYBOARD CHORD and what it does — ⌘J, "show or hide the agent". A list,
    *  because a plugin with three chords is one plugin.
    *

@@ -21,11 +21,13 @@ export const WHO_PATH = "/olai/who"
  * Who is looking, when somebody is. `null` (the procedure) or 204 (the
  * HTTP door) otherwise.
  *
- * ONE READING, and it is the server's: which picture a person wears is
- * resolved there, down `@olai/identity`'s ladder (a picture header, an
- * avatar template, the gravatar of a real email claim), because header
- * names and templates are the operator's config and a browser has no
- * business knowing either. What arrives here is the answer.
+ * ONE READING, and it is the server's — the identity ROW's, through the
+ * `Identity` door core defines: which picture a person wears is resolved
+ * there, down that row's ladder (a picture header, an avatar template, the
+ * gravatar of a real email claim), because header names and templates are
+ * the operator's config and a browser has no business knowing either. What
+ * arrives here is the answer, and `null` is also what arrives when no such
+ * row is mounted.
  */
 export const Who = Schema.Struct({
   login: Schema.String,
