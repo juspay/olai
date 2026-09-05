@@ -30,6 +30,8 @@ from `broken/` and `tangled/`.
 Only an ignored `.gitkeep` keeps this directory tracked. `empty_vault.feature`
 starts a fresh server here before creating its first outline or document, and
 checks discovery of a first external outline without reloading.
+`first_outline_recovery.feature` uses the same scratch base to open a vault
+whose only outline is broken, then correct it or create healthy content beside it.
 
 ## `good/` — a set that validates
 
