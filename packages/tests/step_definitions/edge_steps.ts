@@ -474,3 +474,14 @@ Then(
     );
   },
 );
+
+Then("the edge panel search reads {string}", async function (this: OlaiWorld, query: string) {
+  const box = (await panelOf(this)).locator(EDGE_SEARCH);
+  await this.waitUntil(async () => (await box.inputValue()) === query,
+    `the edge panel to retain the query ${JSON.stringify(query)}`);
+});
+
+Then("no edge panel is open", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => (await this.page.locator(EDGE_PANEL).count()) === 0,
+    "the edge panel to be closed");
+});

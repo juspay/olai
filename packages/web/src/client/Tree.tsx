@@ -345,7 +345,7 @@ function Branch(props: {
    *  panel belongs to the ROW, and the `•••` menu that opened it is closed by
    *  the time anything has been chosen in it. Over the node the row SHOWS,
    *  because edges are facts about a node and a placement carries none. */
-  const edges = createEdgeEditing(() => shown()?.node)
+  const edges = createEdgeEditing(() => shown()?.node, forms.edges)
 
   /** The PAGE's move-to picker (./move/moving.tsx), which this row opens from
    *  its `•••` and draws when it is the row being moved. The one panel here

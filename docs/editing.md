@@ -331,6 +331,8 @@ Anything else stays the text it is. A value with a URL *inside* it is not a URL 
 
 ## What a node points at
 
+Open link and prerequisite panels retain their relation and search query when plugins rebuild the same page, both on outline rows and zoomed headings. Cancelling or opening a fresh relation clears the search; navigating away discards the prepared panel.
+
 A node carries two lists of other nodes ([format.md](format.md)): `see`, which is a link and nothing more, and `after`, which is what it must come after. The page has drawn both for a long time — the links under a node, and, for a blocked row, the dim, the mark column's glyph and the **blocked by** line on its own page. Both can be written now, from either end.
 
 **The `•••` menu has the two verbs**: *Link to a node…* and *Wait for a node…*. Each opens a panel under the row holding what the node says now, with an `×` on each of them, and a box that searches the whole directory — the server's own search, the same one ⌘K, the header box and `((` use, so what this finds and what an agent's `search_nodes` finds cannot drift. Walk the hits with the arrows, take one with **Enter**, leave with **Escape** or **Done**. Choosing one sends the same `set_see` / `set_after` an agent sends, and ⌘Z takes it back.

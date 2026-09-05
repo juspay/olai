@@ -17,6 +17,7 @@
  * heading that already has one, meaning something else.
  */
 
+import { RowForms, useRowForms } from "./date/memory.tsx"
 import { isOverdue, type Row, type Zoomed } from "@olai/format"
 import { Show } from "solid-js"
 
@@ -57,7 +58,7 @@ export function NodePage(props: {
       when={only(props.zoomed, "node")}
       fallback={<NotFound zoomed={props.zoomed} />}
     >
-      {(zoomed) => <Zoom zoomed={zoomed()} rows={props.rows} />}
+      {(zoomed) => <RowForms namespace="zoom"><Zoom zoomed={zoomed()} rows={props.rows} /></RowForms>}
     </Show>
   )
 }
@@ -75,7 +76,8 @@ function Zoom(props: {
    *  that says what came of them (./edges/editing.tsx). A zoom always lands on
    *  a regular node however it was addressed, so the node is never absent
    *  here. */
-  const edges = createEdgeEditing(() => props.zoomed.shows.node)
+  const forms = useRowForms(`heading:${props.zoomed.shows.node.id}`)
+  const edges = createEdgeEditing(() => props.zoomed.shows.node, forms.edges)
   /**
    * ⌘Z is one stack for this page, whichever hand wrote: the run of chips files
    * what would take a property back exactly as a keystroke does (./writes.ts).
