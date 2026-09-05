@@ -35,7 +35,7 @@
  * do not.
  */
 
-import type { Identity, Person } from "@olai/plugin-api/services"
+import type { Identity, Person, RequestHeaders } from "@olai/plugin-api/services"
 import { WHO_PATH, type Who } from "@olai/surface"
 import { Context, Effect } from "effect"
 import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
@@ -71,9 +71,7 @@ export const asWho = (person: Person | null): Who | null => person
  *  door right now — read per call rather than captured, so a row switched
  *  off mid-serve stops naming anybody from the next request on. */
 export const whoOf = (
-  headers: {
-    readonly [name: string]: string | ReadonlyArray<string> | undefined
-  },
+  headers: RequestHeaders,
   identity: () => Identity,
 ): Who | null => asWho(identity().who(headers))
 
