@@ -658,7 +658,7 @@ starting a second redial on one connection.
 
 Olai currently pins [Kolu PR #2228](https://github.com/juspay/kolu/pull/2228)
 directly through npins: `refs/pull/2228/head`, frozen at
-`6203d126d58ec39171f150ecc3f399b809ee1b98`. Its `redial` returns the same
+`457a577bb153043f68dc0e4524710b7a411c8d9a`. Its `redial` returns the same
 connection, retaining the root and unchanged sibling clients and reopening their
 subscriptions over the replacement wire. Removed or replaced sibling clients
 refuse further calls. Olai keeps one constant connection and renders the app once;
