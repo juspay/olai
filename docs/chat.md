@@ -686,6 +686,8 @@ agent-session: grok         →  agent-session: claude:0f3c8d21-…
 
 ### fresh session
 
+A fresh-session request disables its button until the server replies, so repeated presses cannot replace the conversation twice. A refusal leaves the button available for retry. If a turn is waiting for an answer, its question and draft remain intact; finish or cancel that turn before trying again.
+
 Opening a past session keeps the node's name and **sessions (n)** control in the
 header, including after a page reload. The open history row is selected; **current
 session** returns to the conversation the node's property names. Reading history

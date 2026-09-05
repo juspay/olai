@@ -69,7 +69,7 @@
  * otherwise land on `<body>`.
  */
 
-import { createMemo, For, Show } from "solid-js"
+import { createMemo, createSignal, For, Show } from "solid-js"
 import { chatWire } from "../wire.ts"
 
 import { memoryOf } from "@olai/format"
@@ -126,16 +126,23 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
    *  not write. The popover shuts on success, so this line is only ever about a
    *  press that did not land. */
   const saying = createSaying()
+  const [starting, setStarting] = createSignal(false)
 
   const fresh = (): void => {
+    if (starting()) return
+    setStarting(true)
     saying.say(undefined)
     run(
       chatWire().procedures.conversation.startAgentSession({
         node: props.agent.id,
         agent: props.agent.engine,
       }),
-      (failure) => saying.say({ tone: "alarm", text: failure.message, kind: failure._tag }),
+      (failure) => {
+        setStarting(false)
+        saying.say({ tone: "alarm", text: failure.message, kind: failure._tag })
+      },
       () => {
+        setStarting(false)
         // ASKED AGAIN, on the frame the re-point lands. The roster cell moves
         // at once — the property is written — so without this the pill walks a
         // listing taken before the new session existed: `past()` finds no link
@@ -222,9 +229,11 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
           <li class="px-2 pt-1 pb-2">
             <button
               type="button"
-              class="block w-full rounded px-2 py-1 text-left text-xs text-accent hover:bg-rule"
+              class="block w-full rounded px-2 py-1 text-left text-xs text-accent hover:bg-rule disabled:opacity-50"
               data-testid={TESTID.chatFreshSession}
               data-agent={props.agent.id}
+              disabled={starting()}
+              aria-busy={starting()}
               onClick={() => fresh()}
             >
               fresh session

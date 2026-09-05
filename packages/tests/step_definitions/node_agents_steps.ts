@@ -722,3 +722,24 @@ Then("the panel has a different conversation from {string}", async function (thi
     return current !== null && current !== id && await panel.getAttribute("data-status") === "idle";
   }, `a fresh conversation replacing ${name}`);
 });
+
+When("I press the fresh-session button position again", async function (this: OlaiWorld) {
+  const button = this.page.locator(FRESH).first();
+  const box = await button.boundingBox();
+  assert.ok(box, "the pending fresh-session button must remain visible");
+  // A physical repeat press must land even if the control is now disabled.
+  await this.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+});
+
+Then("the fresh-session request is pending", async function (this: OlaiWorld) {
+  const button = this.page.locator(FRESH).first();
+  await this.waitUntil(() => button.isDisabled(), "the fresh-session button to block repeat submissions");
+  assert.equal(await button.getAttribute("aria-busy"), "true");
+});
+
+Then("the fresh-session control refuses {string} and allows retry", async function (this: OlaiWorld, text: string) {
+  const refusal = this.page.locator(selector(PLUGIN_TESTID.chatFreshSaid));
+  await refusal.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => (await refusal.innerText()).includes(text), "the fresh-session refusal to explain the failed request");
+  await this.waitUntil(async () => !(await this.page.locator(FRESH).first().isDisabled()), "the fresh-session button to allow retry");
+});
