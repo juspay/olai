@@ -1803,6 +1803,8 @@ export const ChatState = Schema.Struct({
   /** The model a turn actually runs on, labelled the way the agent labels its
    *  own models. `null` until the agent has said. */
   model: Schema.NullOr(Schema.String),
+  /** Model choices advertised by this session. Empty when unsupported. */
+  models: Schema.Array(Schema.Struct({ value: Schema.String, name: Schema.String })),
   /**
    * How full this conversation's context is — see {@link Usage}.
    *
@@ -1994,6 +1996,7 @@ export const CHAT_OFF: ChatState = {
   session: null,
   bound: null,
   model: null,
+  models: [],
   usage: null,
   commands: [],
   roster: [],

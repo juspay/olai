@@ -3811,3 +3811,17 @@ Then("there is somewhere to type into", async function (this: OlaiWorld) {
     .locator(CHAT_INPUT)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
+
+When("I choose the chat model {string}", async function (this: OlaiWorld, name: string) {
+  await this.page.getByRole("button", { name: "Change model", exact: true }).click();
+  await this.page.getByRole("list", { name: "Models", exact: true })
+    .getByRole("button", { name, exact: true }).click();
+});
+
+Given("the agent refuses model changes", async function (this: OlaiWorld) {
+  fs.writeFileSync(path.join(this.scratch(), ".agent-refuse-model"), "");
+});
+
+Then("the model picker is disabled", async function (this: OlaiWorld) {
+  assert.strictEqual(await this.page.getByRole("button", { name: "Change model", exact: true }).isDisabled(), true);
+});

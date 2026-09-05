@@ -317,6 +317,7 @@ export interface Agent {
    *  cancel button doing nothing while the turn went on streaming. It is on the
    *  channel now, so a cancel that could not be delivered refuses like every
    *  other verb. */
+  readonly setModel: (session: string, value: string) => Effect.Effect<void, AgentGone>
   readonly cancel: Effect.Effect<void, AgentGone>
   readonly newSession: Effect.Effect<void, AgentGone>
   readonly loadSession: (id: string) => Effect.Effect<void, AgentGone>
@@ -933,6 +934,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const forgetModel = (): void => {
       picked = null
       announced = null
+      labels = new Map()
+      emit({ _tag: "models", choices: [] })
     }
 
     /**
@@ -981,6 +984,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  to look at one before it can decide whether to say anything, and parsing
      *  the same options twice is how the two readings come to differ. */
     const readPicker = (picker: Picker | null): void => {
+      emit({ _tag: "models", choices: picker === null ? [] :
+        [...picker.labels].map(([value, name]) => ({ value, name })) })
       if (picker === null) return
       labels = picker.labels
       if (picker.picked === picked) return
@@ -2088,6 +2093,23 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       boot,
       prompt,
       steer,
+      setModel: (session, value) => withSession((at, id) => Effect.gen(function*() {
+        if (id !== session || models === null || !labels.has(value)) {
+          return yield* new AgentGone({ gone: "refused", why: "that model is no longer available in this conversation" })
+        }
+        const answer = (yield* ask(at.connection, methods.agent.session.setConfigOption, {
+          sessionId: id, configId: models.config, value,
+        })) as SetSessionConfigOptionResponse
+        const picker = modelPickerIn(models, answer.configOptions)
+        readPicker(picker)
+        // Explicit selection supersedes a live slash-command model even when
+        // the config option repeats its previous value.
+        if (picker?.picked != null) {
+          show(nameFor(picker.picked) ?? picker.picked)
+          yield* note({ agent: options.id, session: id, model: picker.picked },
+            (why) => "the model this conversation is on will not survive a restart: " + why)
+        }
+      })),
       cancel,
       newSession: opening((at) =>
         Effect.gen(function*() {
