@@ -26,7 +26,7 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { startWeb } from "./child.testlib.ts"
+import { BOOT_TIMEOUT, startWeb } from "./child.testlib.ts"
 import { served } from "./serve.testlib.ts"
 
 const writeRecord = (at: string, cwd: string): void => {
@@ -50,6 +50,11 @@ const until = async (predicate: () => boolean, timeout = 10_000): Promise<boolea
   }
   return predicate()
 }
+
+// The enclosing test must outlive the child's startup deadline, the sweep
+// observation window and shutdown. Bun's five-second default killed the child
+// before its own ten-second boot deadline and produced an unhandled rejection.
+const TEST_TIMEOUT = BOOT_TIMEOUT + 15_000
 
 test("a spawned server never touches a state home it was not handed", async () => {
   const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-fake-home-")))
@@ -85,7 +90,7 @@ test("a spawned server never touches a state home it was not handed", async () =
     fs.rmSync(home, { recursive: true, force: true })
     fs.rmSync(ambient, { force: true })
   }
-})
+}, TEST_TIMEOUT)
 
 test("a boot prunes the state home it was handed, once it is serving", async () => {
   const mine = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-state-home-")))
@@ -109,4 +114,4 @@ test("a boot prunes the state home it was handed, once it is serving", async () 
     await web.exited()
     fs.rmSync(mine, { recursive: true, force: true })
   }
-})
+}, TEST_TIMEOUT)
