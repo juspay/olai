@@ -37,7 +37,7 @@
  * a type error on that line.
  */
 
-import { Effect } from "effect"
+import { Duration, Effect } from "effect"
 
 import type { NotHere } from "./servers.ts"
 
@@ -147,20 +147,19 @@ export const probed = (
 ): Effect.Effect<ReadonlyArray<Probed>> =>
   Effect.forEach(
     probes,
-    (one) => Effect.tap(one.ask, (found) => said(one.name, found)),
+    (one) => Effect.gen(function*() {
+      const [duration, found] = yield* Effect.timed(one.ask)
+      yield* said(one.name, found).pipe(Effect.annotateLogs({
+        duration: `${Math.round(Duration.toMillis(duration))}ms`,
+      }))
+      return found
+    }),
     { concurrency: AT_ONCE },
   )
 
 /**
- * The line for one answer — and the arm that gets no line is the point of it.
- *
- * A host that is simply not running the tool had nothing go wrong, so it says
- * nothing: a debug line per absent plugin per conversation is the log's version
- * of the permanent complaint the `missing` row exists to not be. What IS said is
- * what was handed over, at debug, because which servers a conversation got is the
- * fact somebody reads a log to find; and what was NOT, at debug, carrying the
- * plugin's own sentence rather than a word of this file's — the same words the
- * panel draws, so a person reading either finds the same one.
+ * One debug line per completed probe, including an absent tool: even a
+ * negative answer can explain a slow conversation open.
  */
 const said = (name: string, found: Probed): Effect.Effect<void> => {
   if (found.server !== null) {
@@ -174,7 +173,7 @@ const said = (name: string, found: Probed): Effect.Effect<void> => {
       why: found.missing.why,
     })
   }
-  return Effect.void
+  return Effect.logDebug(`${name} is not running`)
 }
 
 /** The servers to hand a session, out of what the probes found. */

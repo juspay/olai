@@ -99,7 +99,7 @@ import {
 } from "@olai/plugin-api/services"
 import type { Engine, Registering } from "@olai/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
-import { Effect } from "effect"
+import { Duration, Effect } from "effect"
 
 import { type Cadence, cadence } from "./cadence.ts"
 import type { Change } from "./transcript.ts"
@@ -740,14 +740,19 @@ export default definePlugin({
        * fibers ({@link ./agents/roster.ts}'s `detecting` argues both).
        */
       const detect = detecting(env.vars, vault.served)
-      const found = detect(mounted())
+      const [discoveryDuration, found] = yield* Effect.timed(Effect.sync(() => detect(mounted())))
+      const duration = `${Math.round(Duration.toMillis(discoveryDuration))}ms`
       const installed = found.kind === "here" ? found.installed : []
       noAgent = found.kind === "none" ? found.because : null
       if (noAgent !== null) {
         mine?.cells.state.set({ ...CHAT_OFF, off: noAgent })
-        yield* Effect.logInfo(whyNoAgent(noAgent))
+        yield* Effect.annotateLogs(Effect.logInfo(whyNoAgent(noAgent)), { duration })
         return
       }
+
+      yield* Effect.annotateLogs(Effect.logInfo("chat agents detected"), {
+        agents: installed.map((row) => row.id).join(", "), duration,
+      })
 
       chat = yield* Chat.make({
         // BOTH HALVES OF THE TABLE, READ WHEN ASKED. What this hands over is the
@@ -815,9 +820,6 @@ export default definePlugin({
       yield* Effect.annotateLogs(Effect.logDebug("chat agent commands"), {
         agents: installed.map((row) => `${row.id}=${row.adapter.command}`).join(" "),
         mcp: address.url,
-      })
-      yield* Effect.annotateLogs(Effect.logInfo("chat agents detected"), {
-        agents: installed.map((row) => row.id).join(", "),
       })
     }))
 

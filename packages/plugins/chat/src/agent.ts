@@ -105,7 +105,7 @@ import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
 import type { ChatServer } from "olai-plugin-chat/wire"
 import type { AskAnswer } from "@olai/acp/wire"
-import { Data, type Duration, Effect, References, Semaphore } from "effect"
+import { Clock, Data, type Duration, Effect, References, Semaphore } from "effect"
 
 import type { Leg, Meta, ModelReading } from "@olai/acp/engine"
 import { modelPickerIn, type Picker, pickerValueFor, sameModel } from "./agents/models.ts"
@@ -1111,8 +1111,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         why: `could not start the agent \`${options.command}\`: ${why}`,
       })
 
+    // Nanosecond clock readings measure only this operation, never server uptime.
+    const elapsedSince = (started: bigint) => Effect.map(Clock.monotonicTimeNanos,
+      now => `${Math.round(Number(now - started) / 1_000_000)}ms`)
+
     const start = (): Effect.Effect<Live, AgentGone> =>
       Effect.gen(function*() {
+        const started = yield* Clock.monotonicTimeNanos
         const child = yield* Effect.try({
           try: () =>
             startChild(options.command, [...options.args], {
@@ -1342,7 +1347,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           Effect.logDebug("chat agent command"),
           { command: options.command, args: options.args.join(" ") },
         )
-        yield* lifecycle(Effect.logInfo("chat agent ready"), { pid: child.pid })
+        yield* lifecycle(Effect.logInfo("chat agent ready"), {
+          pid: child.pid, duration: yield* elapsedSince(started),
+        })
         return {
           child,
           connection,
@@ -1514,6 +1521,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       id: string,
       title: string | null,
       how: "new" | "loaded",
+      started: bigint,
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
         activeSession = id
@@ -1522,7 +1530,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // frames land before this runs.
         closed.delete(id)
         emit({ _tag: "session", id, title })
-        yield* lifecycle(Effect.logInfo("conversation opened"), { how })
+        yield* lifecycle(Effect.logInfo("conversation opened"), { how, duration: yield* elapsedSince(started) })
         yield* note(
           // The model is a fact ABOUT a conversation, so it travels with one:
           // coming back into the conversation we remember keeps what it was
@@ -1599,6 +1607,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     const fresh = (at: Live): Effect.Effect<void, AgentGone> =>
       Effect.gen(function*() {
+        const started = yield* Clock.monotonicTimeNanos
         // WHAT IS BEING OPENED, before it is asked for — `null` because a fresh
         // conversation picks its own and belongs to nobody until it exists.
         // Said even so: what this clears is the LAST attempt's subject, and a
@@ -1618,7 +1627,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // that reorders ships the banner to the transcript instead, which is
         // the safe direction.
         prologue = options.leg.prologueIn(made)
-        yield* entered(made.sessionId, null, "new")
+        yield* entered(made.sessionId, null, "new", started)
         readModel(made.configOptions)
         yield* askForBypass(at, made.sessionId)
       })
@@ -1632,6 +1641,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       wanted: string | null,
     ): Effect.Effect<void, AgentGone> =>
       Effect.gen(function*() {
+        const started = yield* Clock.monotonicTimeNanos
         // WHICH CONVERSATION THIS OPEN IS FOR, before the request that can be
         // refused ({@link ./events.ts}'s `opening`). It is the only line the
         // BOOT's adopted conversation is named on: nothing above this call ever
@@ -1687,7 +1697,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // they are rows, and `replayStarted` has already emptied the transcript
         // for them — so what the panel is short of in between is the title,
         // which it gets a moment later along with everything else.
-        yield* entered(id, title, "loaded")
+        yield* entered(id, title, "loaded", started)
         yield* restore(at, id, loaded?.configOptions, wanted)
         yield* askForBypass(at, id)
       })

@@ -293,3 +293,16 @@ A path that arrives over the wire is checked, never believed. A chunk's `appendT
 The header also exposes the advertised model options as a picker. It sends `conversation.setModel` with the agent/session pair and an exact option value, and the server serializes the change against opening a conversation and sending a turn. Only an idle, matching conversation can change. ACP confirms the displayed model and the remembered selection; refusals use the existing per-gesture error line. This makes model selection available to Codex without relying on an adapter slash command.
 
 Model reconciliation returns the confirmed value to remember, with observations and explicit choices distinguished at that boundary. The observer enqueues its note; a selection awaits one write. Restoration and selection share only the ACP request/response exchange, keeping best-effort restore recovery separate from a user gesture's refusal.
+
+### Startup timing
+
+Successful startup operations carry a rounded millisecond `duration`, measured with Effect v4's monotonic clock:
+
+| event | measured interval | level |
+|---|---|---|
+| `chat agents detected` (or the no-agent result) | initial engine detection only; logged before chat startup | info |
+| `chat agent ready` | subprocess startup through the ACP initialization handshake | info |
+| `conversation opened` | new/load attempt, including tool probes and the ACP reply/replay; excludes process startup, later memory writes, model restoration and permission setup | info |
+| tool probe result | that probe's own request, including a missing or not-running result | debug |
+
+Concurrent probe durations overlap; do not add them together. These are operation durations, not server uptime or a total time-to-interactive metric. Failed opens keep their existing failure logs and do not emit successful completion events.
