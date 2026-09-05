@@ -161,6 +161,9 @@ Then("the header has no identity chip", async function (this: OlaiWorld) {
   await header
     .locator(APP_CHROME)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  // A switch acknowledgement precedes the browser's asynchronous roster
+  // composition. Require removal, allowing that transition to finish.
+  await header.locator(IDENTITY).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
   assert.equal(
     await header.locator(IDENTITY).count(),
     0,
