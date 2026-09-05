@@ -103,25 +103,8 @@
  * have held the signal anyway. What DID move out is the part a test can ask —
  * `./rows.ts`'s `pluginSwitch`, which is the whole decision the signal feeds.
  *
- * ## IT DOES NOT SURVIVE THE REBUILD, and that is the decision rather than the
- * leftover
- *
- * A successful flip moves the roster, which redials, which rebuilds this
- * component — so `flipping` comes back `null` and the strip un-freezes. That is
- * the right outcome and not an accident of where the signal sits: the freeze
- * exists to stop a SECOND press landing on a value the server has not answered
- * about yet, and by the time the tree is rebuilt the roster has moved, so the
- * strip is already drawing the new answer. Freezing past that would be a
- * control held shut after the thing it was waiting for arrived.
- *
- * It is the open state — {@link ./opened.ts} — that had to be hoisted, and only
- * that. The two are opposite cases on purpose: which door is open is a fact
- * about the page and must outlive the rebuild; whose press is in the air is a
- * fact about a request the rebuild is the ANSWER to, and must not.
- *
- * The `setFlipping(null)` in the callback below can therefore land on a
- * component that no longer exists, which costs nothing: it writes a signal
- * nobody is reading, on a disposed owner, and the rebuilt panel has its own.
+ * The pending flag is cleared when the switch request settles. Roster changes
+ * retain this component unless the plugin provider tree itself changes.
  *
  * ## Where the panel goes is not this file's decision
  *

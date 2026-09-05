@@ -661,11 +661,15 @@ directly through npins: `refs/pull/2228/head`, frozen at
 `ff4c6f1521da5a1ca70cd9e86be9f33fbd740205`. Its `redial` returns the same
 connection, retaining the root and unchanged sibling clients and reopening their
 subscriptions over the replacement wire. Removed or replaced sibling clients
-refuse further calls. The existing assignment of the returned connection remains
-valid. This dependency upgrade leaves Olai's generation-keyed app remount in
-place; removing that remount and reconsidering its retained UI state are separate
-consumer changes. After the upstream merge, return the pin to master and unfreeze
-it explicitly.
+refuse further calls. Olai keeps one constant connection and renders the app once;
+roster changes no longer recreate its tree or roster subscription. The core
+client and connection readout are exported directly, without a proxy or a
+synthetic reconnecting state.
+
+Plugin provider changes still update the provider tree: removing chat must remove
+its context and faces together. Pane and conversation draft stores remain needed
+for those changes and for navigation between panes and sessions. After the
+upstream merge, return the pin to master and unfreeze it explicitly.
 
 
 ---

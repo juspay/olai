@@ -146,7 +146,7 @@ const nameHere = (): string => {
 const here = (): string =>
   location.pathname + location.search + location.hash
 
-// A wire rebuild recreates the router's listeners, but it is still the same
+// A plugin provider change recreates the router's listeners, but it is still the same
 // workspace. Preserve its route objects so inactive panes retain the drafts
 // they own even when navigation in a neighbour changed the history entry.
 let remembered: { readonly href: string; readonly workspace: Workspace } | undefined

@@ -4,7 +4,6 @@
 
 import { registerOrRetireServiceWorker } from "@kolu/surface-app/lifecycle"
 import { SurfaceFaultBoundary } from "@kolu/surface-app/solid"
-import { Show } from "solid-js"
 import { render } from "solid-js/web"
 
 import App from "./App.tsx"
@@ -25,7 +24,7 @@ import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
 import { provideFurniture } from "./plugins/furniture.tsx"
-import { connectionReadout, firstRoster, olai, useBrowserRows, wireGeneration } from "./wire.ts"
+import { connectionReadout, firstRoster, olai, useBrowserRows } from "./wire.ts"
 import { useBundleOrder } from "./plugins/runtime.ts"
 // FOR ITS SIDE EFFECT, and above the first render: this app's Solid, Effect and
 // plugin interface, put where a plugin the SERVE compiled out of somebody's
@@ -147,32 +146,13 @@ if (root === null) throw new Error("no #root element")
 // somebody has to reason about (`./plugins/furniture.tsx`).
 await provideFurniture()
 
-// ...AND THE FIRST ROSTER, bounded. Without this the boot draws twice on every
-// load: render with no siblings, the roster arrives,  redials, and the
-// tree rebuilds keyed on the generation below. Waiting costs one round trip the
-// page was making anyway; the deadline inside  is what stops a
-// roster that never answers turning that wait into a blank tab.
+// Wait briefly for initial plugin providers before drawing the shell.
 await firstRoster
 
 render(
   () => (
     <SurfaceFaultBoundary fault={(text) => <Fault text={text} />}>
-      {/* KEYED ON THE WIRE, and this is what a tab that follows the roster
-          costs. A roster change is a `redial`: a NEW wire, with everything the
-          superseded one handed out dead — `clients`, `core`, `transport`,
-          `readout`, `health` — so every standing subscription in the tree
-          below has to be opened again, which means the tree has to be built
-          again. State that belongs to the ongoing workflow survives outside
-          that tree: plugin-panel visibility, conversation drafts and uploads,
-          document drafts, outline drafts and the workspace route identities
-          that keep inactive panes associated with those drafts. Subscriptions
-          and DOM listeners are recreated against the new wire.
-
-          `keyed`, so the rebuild happens exactly when the wire moves and never
-          when a signal inside it does. */}
-      <Show when={wireGeneration()} keyed>
-        <App />
-      </Show>
+      <App />
     </SurfaceFaultBoundary>
   ),
   root,
