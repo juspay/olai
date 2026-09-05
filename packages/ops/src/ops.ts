@@ -171,7 +171,7 @@ export const NO_LEDGER: Ledger = {
 }
 
 export interface Options {
-  readonly store: Store | (() => Store | undefined)
+  readonly store: Store
   /** Absolute path of the served directory — kept because every call site
    *  already has it, and the write gate's fence reads paths against it. */
   readonly root: string
@@ -470,11 +470,9 @@ const aboutFiles = (findings: ReadonlyArray<OutlineError>): ReadonlyArray<string
 /** A directory provider is absent; reads and writes share one refusal. */
 export const NO_DIRECTORY = new UsageFailure({ reason: "this process is serving no directory, so there is nothing to write to" })
 
-export const make = (options: Options): Ops => {
-  const currentStore = Effect.suspend(() => {
-    const store = typeof options.store === "function" ? options.store() : options.store
-    return store ? Effect.succeed(store) : Effect.fail(NO_DIRECTORY)
-  })
+export const make = (options: Options): Ops & { readonly close: Effect.Effect<void> } => {
+  let closed = false
+  const currentStore = Effect.suspend(() => closed ? Effect.fail(NO_DIRECTORY) : Effect.succeed(options.store))
   const kinds = options.kinds ?? NO_KINDS
   const context: Context = options.context ?? {
     mint: () => Math.random().toString(36).slice(2, 10),
@@ -904,6 +902,10 @@ export const make = (options: Options): Ops => {
 
   return {
     run: tracked,
+    // Closing first stops fresh calls through a retained handle, then drains
+    // accepted writes. The row acquires this after its store, so this release
+    // completes before the watcher and directory lock can leave.
+    close: Effect.andThen(Effect.sync(() => { closed = true }), idle),
     idle,
     read,
     // The four query answers, over the gated read above — one declaration of
@@ -955,8 +957,12 @@ export const make = (options: Options): Ops => {
     // and what the trash does to a count, is `@olai/format`'s `vocabulary.ts`.
     tags: (request) =>
       Effect.map(read, (at) => Query.tags(at.derived, request)),
-    commit: (request, writer) => ledger.record(request, writer),
-    push: Effect.suspend(() => ledger.push),
-    resume: Effect.suspend(() => ledger.resume),
+    commit: (request, writer) => Effect.suspend(() => closed
+      ? Effect.succeed({ _tag: "Failed" as const, said: NO_DIRECTORY.reason })
+      : ledger.record(request, writer)),
+    push: Effect.suspend(() => closed
+      ? Effect.succeed({ _tag: "Failed" as const, said: NO_DIRECTORY.reason })
+      : ledger.push),
+    resume: Effect.suspend(() => closed ? Effect.void : ledger.resume),
   }
 }

@@ -853,17 +853,7 @@ export const Identity = serviceTag<Identity>("identity")
  * who is looking. The set of core keys is closed; their providers are replaceable.
  * Plugins contribute new keys through Offers.own, under their own namespace.
  */
-export const OFFERABLE = [
-  Vault,
-  Directory,
-  Agents,
-  Deliveries,
-  SessionStart,
-  Watching,
-  Ledger,
-  Search,
-  Identity,
-] as const
+
 
 /**
  * PROVIDING A SERVICE WITHOUT HANDING OVER THE HOST.
@@ -892,6 +882,7 @@ export interface Offers {
   readonly own: <Shape>(word: string, door: Provision<Shape>) => Effect.Effect<void, never, Scope.Scope>
   /** Stand behind one door, for as long as the calling plugin is loaded. */
   readonly offer: {
+    (key: typeof Ops, door: Provision<Ops>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Vault, door: Provision<Vault>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Directory, door: Provision<Directory>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Agents, door: Provision<Agents>): Effect.Effect<void, never, Scope.Scope>
@@ -1004,9 +995,10 @@ export const Tools = serviceTag<Tools>("tools")
  * because that was the only place both halves were in hand — and a plugin that
  * owns the conversation owns one of the halves.
  *
- * It is NOT `Ops` handed over. {@link PropWrite} is one key on one node, and
+ * The complete gate is carried opaquely for core’s readers; the convenience
+ * methods retain the gestures plugins already use. {@link PropWrite} is one key on one node, and
  * {@link reading} answers a value rather than the layer that produced it, so
- * nothing behind this door can trash, move or commit. What judges the write is
+ * those convenience methods do not add a second planner. What judges the write is
  * unchanged: the same planner, the same validator, the same ledger commit a
  * keystroke goes through, under the writer the composition root bound.
  *
@@ -1020,6 +1012,11 @@ export const Tools = serviceTag<Tools>("tools")
  * nobody has to find that out.
  */
 export interface Ops {
+  /** The complete gate, opaque here because its vocabulary belongs to the
+   * floor. Core checks this against @olai/ops; plugin gestures use the typed
+   * convenience methods below. Absence is no gate, never a replacement gate. */
+  readonly gate: unknown
+
   /** THE READING every write is resolved against — one answer to "there is
    *  nothing loaded yet", shared with the tools and with a keystroke. */
   readonly reading: Effect.Effect<unknown>
@@ -1048,6 +1045,22 @@ export interface Ops {
   ) => Effect.Effect<void, never, Scope.Scope>
 }
 export const Ops = serviceTag<Ops>("ops")
+
+export const OFFERABLE = [
+  Ops,
+  Vault,
+  Directory,
+  Agents,
+  Deliveries,
+  SessionStart,
+  Watching,
+  Ledger,
+  Search,
+  Identity,
+] as const
+
+/** The vault row owns refusal subscriptions with its gate. */
+export const opsEvents = () => broadcast<Refused>("a refused write")
 
 /**
  * WHERE A PLUGIN SITS IN THE BUILD'S OWN LIST OF ROWS.
@@ -1124,10 +1137,6 @@ export interface Plugins {
    * plugin-owned keys. Ownership also tracks internal core doors, which this
    * catalog deliberately does not expose. */
   readonly serviceKeys: () => ReadonlyArray<string>
-  /** ONE REFUSED WRITE to every subscriber, in subscription order — see
-   *  {@link Ops.refused}. Rung by whoever owns the write gate, which is the
-   *  composition root; nothing on this page can refuse a write. */
-  readonly refused: (refusal: Refused) => Effect.Effect<void>
 }
 
 /**
@@ -1209,16 +1218,6 @@ export interface PluginsConfig {
     above: (node: string) => string | null,
     writer: string,
   ) => MintedTicket | null
-  /**
-   * THE VAULT'S NARROW OPS DOOR — see
-   * {@link Ops}.
-   *
-   * OPTIONAL, and absent means NO VAULT IS BEING WRITTEN: a root with no store
-   * behind it (every bench that only wants the table) answers a reading of
-   * nothing and refuses a write, which is what a plugin asking one of a process
-   * that serves no directory should be told.
-   */
-  readonly ops?: Pick<Ops, "reading" | "page" | "prop" | "document">
   /**
    * WHERE EACH PLUGIN SITS IN THE BUILD'S LIST OF ROWS — see {@link Bundle}.
    *
@@ -1396,24 +1395,6 @@ export const openPlugins = (
       ticket: (seated, above, writer) => config.ticketFor?.(seated, above, writer) ?? NO_TICKET,
     }))
 
-    // THE WRITE GATE, or a process that is writing nothing. Both arms are real
-    // states: a serve has a store behind it, and every bench that only wants the
-    // table has none — which answers a reading of nothing and refuses a write in
-    // the vocabulary the caller already speaks rather than throwing at it.
-    //
-    // The REFUSALS half is a bus here rather than a field on the root's door, so
-    // it is contained like its three neighbours: a handler that dies is caught
-    // with the registering plugin's word on the line, and a mirror that threw on
-    // one refusal cannot take down the write whose answer it was about.
-    const refusals = broadcast<Refused>("a refused write")
-    yield* provide(host, Ops, (plugin) => ({
-      reading: config.ops?.reading ?? Effect.succeed(null),
-      page: (request) => config.ops?.page(request) ?? Effect.fail(NOWHERE_TO_WRITE),
-      prop: (write) => config.ops?.prop(write) ?? Effect.fail(NOWHERE_TO_WRITE),
-      document: (file) => config.ops?.document(file) ?? Effect.fail(NOWHERE_TO_WRITE),
-      refused: refusals.listen(plugin),
-    }))
-
     yield* provide(host, Bundle, () => ({ rank: config.rank ?? (() => 0) }))
 
     // ...AND ONE LOCAL-STATE DOOR PER PLUGIN NAME, not per activation. The write chain
@@ -1450,7 +1431,6 @@ export const openPlugins = (
       serviceKeys: () => [...SERVICE_KEYS, ...[...offered.keys()].filter((key) => key.includes("."))].sort(),
       changes: hostChanges(host),
       close: closeHost(host),
-      refused: refusals.tell,
     }
   })
 

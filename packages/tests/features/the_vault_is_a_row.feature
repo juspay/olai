@@ -7,7 +7,8 @@ Feature: The vault is a row
     Given I open the outline "garden.olai"
     Then the node "mint" is shown
     When I open the plugins panel
-    Then the plugins panel says "vault" is "Turning it off clears the served files"
+    Then the plugins panel shows "vault" configured "format" as "olai"
+    And the plugins panel says "vault" is "Turning it off clears the served files"
     When I switch the plugin "vault" off
     Then the node "mint" is not shown
     And the MCP vault refuses a write because no directory is served

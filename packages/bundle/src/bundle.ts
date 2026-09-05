@@ -318,7 +318,7 @@ export const mountBundle = (
   names: ReadonlyArray<string> | null,
   configs: ReadonlyArray<{ readonly id: string; readonly config: unknown }> = [],
   extra?: {
-    readonly rows: ReadonlyArray<{ readonly id: string; readonly name: string; readonly disabled?: boolean }>
+    readonly rows: ReadonlyArray<{ readonly id: string; readonly name: string; readonly disabled?: boolean; readonly config?: unknown }>
     readonly resolve: (name: string) => Promise<unknown>
   },
 ): Effect.Effect<void> =>

@@ -1,9 +1,6 @@
 /**
- * The served directory, opened — the four lines the composition root starts
- * with, and the ordering rules between them.
- *
- * `olai web` is the one transport over a directory: it resolves the path,
- * annotates it onto the log, CLAIMS the directory, and opens a store over it.
+ * The served directory, opened on the vault row’s scope. Resolve the path,
+ * annotate it onto the log, claim the directory, then open its store.
  *
  * The claim is `./lock.ts`, and this is where it goes because this is where a
  * store over somebody's vault is born: every path that opens one comes through
@@ -26,8 +23,8 @@
  * the shape of a thing that wants to be structural instead.
  */
 
-import type { KindVocabulary } from "@olai/format"
-import { codecFor, type Directory } from "@olai/ops"
+import type { Document, Reading, Verdict } from "@olai/format"
+import { type Directory } from "@olai/ops"
 import * as Store from "@olai/store"
 import { Effect } from "effect"
 import { resolve } from "node:path"
@@ -42,20 +39,16 @@ export type { Directory } from "@olai/ops"
  *  closing the scope releases the claim, and so does the process ending by any
  *  route at all (`./lock.ts`).
  *
- *  `kinds` IS WHAT THE STORE VALIDATES WITH: which property kinds the enabled
- *  plugins taught this vault's vocabulary, assembled at the composition root
- *  and handed down as data (`./propKinds.ts`). It is a parameter and not a
- *  module-level default for the reason `@olai/ops`' `codecFor` takes one — a
- *  root that forgot it would validate every vault as though this binary had
- *  never heard of a terminal, silently. */
-export const openDirectory = (root: string, kinds: KindVocabulary) =>
+ *  The vault row selects the codec from its validated format config. This
+ *  acquisition knows how to own a directory, not which format it should read. */
+export const openDirectory = (root: string, codec: Store.Codec<Document, Reading, Verdict>) =>
   Effect.gen(function*() {
     const resolved = resolve(root)
     yield* Effect.annotateLogsScoped({ root: resolved })
     yield* holdVault(resolved)
     const directory: Directory = {
       root: resolved,
-      store: yield* Store.make({ root: resolved, codec: codecFor(kinds) }),
+      store: yield* Store.make({ root: resolved, codec }),
     }
     return directory
   })

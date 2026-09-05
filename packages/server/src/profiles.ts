@@ -11,6 +11,8 @@
  * resolved by the root into modules, not npm packages. The loader still mounts
  * ordinary fibers on the same host, and the panel reports their real states.
  */
+import { DEFAULT_VAULT_CONFIG } from "./vault-format.ts"
+
 export const TRANSPORT_ROWS = ["ws", "mcp", "web-app"] as const
 export const INFRASTRUCTURE_ROWS = ["vault", ...TRANSPORT_ROWS] as const
 export type TransportRow = typeof TRANSPORT_ROWS[number]
@@ -31,7 +33,7 @@ export type Profile = keyof typeof PROFILES
  * the same flip verb as a tenant; dropping it from this list would make that
  * name impossible to turn back on. --plugins patches tenants independently,
  * so --plugins= cannot accidentally remove the panel's own transport. */
-export const profileRows = (profile: Profile) => [{ id: "vault", name: "olai:vault" }, ...TRANSPORT_ROWS.map((id) => ({
+export const profileRows = (profile: Profile) => [{ id: "vault", name: "olai:vault", config: DEFAULT_VAULT_CONFIG }, ...TRANSPORT_ROWS.map((id) => ({
   id,
   name: transportModuleName(id),
   disabled: !(PROFILES[profile].rows as ReadonlyArray<TransportRow>).includes(id),

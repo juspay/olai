@@ -2,12 +2,12 @@
  * The composition root's argument is its order. Mount the bundle, including
  * olai:vault, before the first report so every infrastructure row is visible.
  * VaultSettings is supplied after declared kinds are read: the vault row then
- * acquires its directory and offers Vault and Directory, waking its tenants.
+ * acquires its directory and gate and offers Vault, Directory and Ops.
  * Kinds stays a host registry and its live vocabulary follows those tenants.
  *
- * The write gate remains one root-owned gate over a Directory lookup. Each
- * operation captures its store; vault teardown withdraws the doors and waits
- * for accepted writes before releasing the watcher and lock. bind follows
+ * Core owns only lookup adapters: each call resolves the current Directory or
+ * Ops offer. The vault row owns the gate and its write drain, so a serve with
+ * no vault has no gate. Scope teardown releases it before the store. bind follows
  * Directory changes, while the transports wait only for TransportSurface.
  * A failed vault therefore leaves the panel and MCP available for diagnosis.
  *
@@ -16,9 +16,9 @@
  */
 // The upgrade seam owns header-name grammar; boot validates its initial list.
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers"
-import { type GitPin, type PageRequest } from "@olai/format"
+import { type GitPin } from "@olai/format"
 import {
-  make as makeOps,
+  liveOps,
   NO_LEDGER,
   NO_SEARCH,
   type Ledger as OpsLedger,
@@ -44,7 +44,7 @@ import {
   Ledger,
   NOWHERE_TO_WRITE,
   openPlugins,
-  type PropWrite,
+  Ops as OpsDoor,
   Search,
   type ToolServer,
 } from "@olai/plugin-api/services"
@@ -134,12 +134,6 @@ export const serve = (options: ServeOptions) =>
 
     const mcp = mcpEndpoint(token)
 
-    /** THE WRITE GATE, filled the moment it is built. Held rather than passed,
-     *  because the plugin runtime is opened BEFORE the store the layer is over —
-     *  the vocabulary a store validates with is what the rows contribute — so
-     *  the door a row names is asked per call. */
-    let opsLayer: Ops | null = null
-
     /** WHERE A RELATIVE PATH RESOLVES FROM, resolved the way `openDirectory`
      *  resolves it and BEFORE it, because the plugin runtime is opened first.
      *  One spelling of `resolve` in two places is a hazard; two answers to which
@@ -222,47 +216,6 @@ export const serve = (options: ServeOptions) =>
       // because the endpoint has no mint until its row is active — and the row
       // that seats sessions is mounted long before that.
       ticketFor: mcp.ticketFor,
-      // THE NARROW OPS DOOR: the reading a message's armed ids are resolved
-      // against, a page read through core's standing cache, one property on one
-      // node, and a document mint. The ops layer is built below, so all are asked
-      // per call — the same shape the doorbell's door had before it became the
-      // chat row's own.
-      ops: {
-        // THE REFUSAL IS NOT THE PLUGIN'S TO SEE. A reading that failed is a
-        // store that has never loaded, which reaches a plugin as the same
-        // "nothing yet" a process with no directory answers — the door has one
-        // arm for both because a plugin has nothing different to do about them.
-        reading: Effect.suspend(() =>
-          opsLayer === null
-            ? Effect.succeed(null)
-            : Effect.catch(opsLayer.read, () => Effect.succeed(null))
-        ),
-        page: (request: unknown) =>
-          Effect.suspend(() =>
-            opsLayer === null
-              ? Effect.fail(NOWHERE_TO_WRITE)
-              : opsLayer.page(request as PageRequest)
-          ),
-        prop: (write: PropWrite) =>
-          Effect.suspend(() =>
-            opsLayer === null
-              ? Effect.fail(NOWHERE_TO_WRITE)
-              // A KEYSTROKE HAS NO SESSION, and neither does this: the gesture
-              // is a person's in the panel, so the write is recorded under this
-              // face's own writer and is fenced by nothing. A session's own
-              // writes reach the gate through the MCP face and its ticket.
-              : Effect.asVoid(opsLayer.run(
-                { op: "prop", id: write.node, key: write.key, value: write.value },
-                "web",
-              ))
-          ),
-        document: (file: string) =>
-          Effect.suspend(() =>
-            opsLayer === null
-              ? Effect.fail(NOWHERE_TO_WRITE)
-              : Effect.asVoid(opsLayer.run({ op: "create-doc", file }, "web"))
-          ),
-      },
       // WHERE EACH ROW SITS IN THIS BUILD'S OWN LIST, handed over as the function
       // `@olai/bundle` already exports rather than as the list itself: a plugin
       // that owns a table a person reads has to be able to order it, and nothing
@@ -355,7 +308,7 @@ export const serve = (options: ServeOptions) =>
     const currentDirectory = (): OpenDirectory | undefined =>
       offered(plugins.host, Directory) as OpenDirectory | undefined
 
-    /** The write gate outlives any provider row. Each operation reads the
+    /** The vault gate may outlive a ledger activation. Each operation reads the
      * current ledger offer, so stopping git also stops recording for callers
      * that held this Ops before the flip. The absent provider answers with
      * NO_LEDGER's refusal; it does not install a second ledger implementation. */
@@ -431,19 +384,9 @@ export const serve = (options: ServeOptions) =>
      *  the reading is everyone's. */
     const who = readingOf(currentIdentity)
 
-    const ops: Ops = makeOps({
-      store: () => currentDirectory()?.store,
-      root,
-      ledger,
-      search,
-      // The write gate and the store judge against the same vocabulary.
-      kinds,
-      // Refusal is a write fact, so every face reports through this hook;
-      // keeping it on MCP would omit refusals from the browser's own writes.
-      onRefusal: (request, failure) => plugins.refused({ op: request.op, failure }),
-    })
-    opsLayer = ops
-    yield* provide(plugins.host, VaultSettings, () => ({ root, kinds, idle: ops.idle }))
+    // This adapter owns no gate: every call resolves the row's current Ops.
+    const ops = liveOps(() => offered(plugins.host, OpsDoor)?.gate as Ops | undefined)
+    yield* provide(plugins.host, VaultSettings, () => ({ root, kinds, ledger, search }))
     yield* settled(plugins.host, built)
     report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
     /** Minted once for the serve: app.get and the install manifest must name

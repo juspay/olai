@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test"
-import { mountBundle, offered, provide, reportBundle, setRow, settled } from "@olai/bundle/bundle"
-import { definePlugin, Directory, Kinds, Offers, openPlugins, Vault, mountPlugin, rowReport } from "@olai/plugin-api/services"
+import { configsOf, mountBundle, offered, provide, reportBundle, setRow, settled } from "@olai/bundle/bundle"
+import { definePlugin, Directory, Ops as OpsDoor, openPlugins, Vault, mountPlugin, rowReport } from "@olai/plugin-api/services"
 import { NO_KINDS } from "@olai/format"
-import { NO_DIRECTORY, make as makeOps, type Store } from "@olai/ops"
-import { Effect, Result } from "effect"
+import { NO_DIRECTORY, NO_LEDGER, NO_SEARCH, liveOps, type Ledger, type Ops, type Store } from "@olai/ops"
+import { Deferred, Effect, Fiber, Result, Stream } from "effect"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -13,15 +13,16 @@ import { vaultModule, VaultSettings } from "./vault.ts"
 const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
   Effect.andThen(setRow(host, id, on), settled(host, ["vault", "observer"]))
 
-const opening = (root: string) => Effect.gen(function*() {
+const opening = (root: string, options: { readonly format?: string; readonly ledger?: Ledger } = {}) => Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "" })
   yield* mountBundle(plugins.host, [], [], {
-    rows: profileRows("test-minimal"),
+    rows: profileRows("test-minimal").map((row) => row.id === "vault" && options.format !== undefined
+      ? { ...row, config: { format: options.format } } : row),
     resolve: async (name) => name === "olai:vault" ? vaultModule : undefined,
   })
   const store = () => (offered(plugins.host, Directory)?.store as Store | undefined)
-  const ops = makeOps({ root, store })
-  yield* provide(plugins.host, VaultSettings, () => ({ root, kinds: NO_KINDS, idle: ops.idle }))
+  const ops = liveOps(() => offered(plugins.host, OpsDoor)?.gate as Ops | undefined)
+  yield* provide(plugins.host, VaultSettings, () => ({ root, kinds: NO_KINDS, ledger: options.ledger ?? NO_LEDGER, search: NO_SEARCH }))
   yield* settled(plugins.host, ["vault"])
   return { plugins, store, ops }
 })
@@ -35,8 +36,10 @@ const rootWithNote = () => {
 test("minimal profile has one active row; its offers and listeners leave and return", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const root = rootWithNote()
   const { plugins, store, ops } = yield* opening(root)
+  const firstGate = offered(plugins.host, OpsDoor)?.gate as Ops
   const first = store()
   expect(first).toBeDefined()
+  expect(configsOf(plugins.host).get("vault")).toEqual({ format: "olai" })
   const report = yield* reportBundle(plugins.host, ["vault", "ws", "mcp", "web-app"])
   expect([...report].filter(([, row]) => row.state === "running").map(([name]) => name)).toEqual(["vault"])
   let revisions = 0
@@ -51,6 +54,8 @@ test("minimal profile has one active row; its offers and listeners leave and ret
   for (let i = 0; i < 2; i++) {
     yield* flip(plugins.host, "vault", false)
     expect(store()).toBeUndefined()
+    expect(offered(plugins.host, OpsDoor)).toBeUndefined()
+    expect(yield* Effect.result(firstGate.run({ op: "title", id: "a", title: "retired" }, "web"))).toEqual(Result.fail(NO_DIRECTORY))
     expect(offered(plugins.host, Vault)).toBeUndefined()
     expect((yield* rowReport(plugins.host, ["observer"])).get("observer")?.state).toBe("waiting")
     expect((yield* Effect.result(ops.run({ op: "title", id: "a", title: "no" }, "web")))._tag).toBe("Failure")
@@ -62,6 +67,7 @@ test("minimal profile has one active row; its offers and listeners leave and ret
     expect(revisions).toBe(before)
     yield* flip(plugins.host, "vault", true)
     expect(store()).not.toBe(first)
+    expect(offered(plugins.host, OpsDoor)?.gate).not.toBe(firstGate)
     expect((yield* rowReport(plugins.host, ["observer"])).get("observer")?.state).toBe("running")
     expect(revisions).toBeGreaterThan(before)
     expect(JSON.stringify(yield* ops.read)).toContain(`activation ${i}`)
@@ -90,4 +96,52 @@ test("a non-directory root fails only its vault row", () => Effect.runPromise(Ef
   expect(row?.state).toBe("failed")
   expect(row?.state === "failed" ? row.fault : undefined).toContain("is not a directory")
   expect(store()).toBeUndefined()
+}))))
+
+test("an unsupported format fails the row before it acquires a directory or gate", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+  const root = rootWithNote()
+  const invalid = yield* opening(root, { format: "org" })
+  const row = (yield* reportBundle(invalid.plugins.host, ["vault"])).get("vault")
+  expect(row?.state).toBe("failed")
+  expect(row?.state === "failed" ? row.fault : undefined).toContain("olai")
+  expect(invalid.store()).toBeUndefined()
+  expect(offered(invalid.plugins.host, OpsDoor)).toBeUndefined()
+  // A supported row can still acquire the same directory: schema refusal did
+  // not claim its lock, even briefly, or leave a store behind.
+  const valid = yield* opening(root)
+  expect(valid.store()).toBeDefined()
+}))))
+
+test("vault teardown drains an accepted write before releasing the directory lock", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+  const root = rootWithNote()
+  const writing = yield* Deferred.make<void>()
+  const finish = yield* Deferred.make<void>()
+  const ledger: Ledger = {
+    ...NO_LEDGER,
+    whyWaiting: () => Effect.gen(function*() {
+      yield* Deferred.succeed(writing, undefined)
+      yield* Deferred.await(finish)
+      return "recording is off"
+    }),
+  }
+  const { plugins, ops } = yield* opening(root, { ledger })
+  const write = yield* Effect.forkScoped(ops.run({ op: "title", id: "a", title: "accepted" }, "web"))
+  yield* Deferred.await(writing)
+  const stopped = yield* Deferred.make<void>()
+  const stop = yield* Effect.forkScoped(Effect.andThen(flip(plugins.host, "vault", false), Deferred.succeed(stopped, undefined)))
+  yield* plugins.changes.pipe(
+    Stream.filter(() => offered(plugins.host, OpsDoor) === undefined),
+    Stream.take(1), Stream.runDrain,
+  )
+  expect(yield* Deferred.isDone(stopped)).toBe(false)
+  expect(yield* Effect.result(ops.run({ op: "title", id: "a", title: "too late" }, "web"))).toEqual(Result.fail(NO_DIRECTORY))
+  // The lock is still held while the accepted operation completes.
+  const contender = yield* opening(root)
+  expect(contender.store()).toBeUndefined()
+  yield* Deferred.succeed(finish, undefined)
+  yield* Fiber.join(write)
+  yield* Fiber.join(stop)
+  yield* flip(contender.plugins.host, "vault", false)
+  yield* flip(contender.plugins.host, "vault", true)
+  expect(JSON.stringify(yield* contender.ops.read)).toContain("accepted")
 }))))

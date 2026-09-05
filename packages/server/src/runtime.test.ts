@@ -1,5 +1,5 @@
 import { mountBundle, offered as door, provide, settled } from "@olai/bundle/bundle"
-import { openPlugins as openHostPlugins, Directory } from "@olai/plugin-api/services"
+import { openPlugins as openHostPlugins, Directory, Ops as OpsDoor } from "@olai/plugin-api/services"
 import { profileRows } from "./profiles.ts"
 import { vaultModule, VaultSettings } from "./vault.ts"
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
@@ -24,7 +24,8 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  */
 
 import {
-  make as makeOps,
+  NO_LEDGER,
+  NO_SEARCH,
   type Ops,
   type Store as OutlineStore,
 } from "@olai/ops"
@@ -113,8 +114,7 @@ const withRuntime = <A>(
       rows: profileRows("test-minimal"),
       resolve: async (name) => name === "olai:vault" ? vaultModule : undefined,
     })
-    let ops: Ops | undefined
-    yield* provide(mounted.host, VaultSettings, () => ({ root, kinds: NO_KINDS, idle: Effect.suspend(() => ops?.idle ?? Effect.void) }))
+    yield* provide(mounted.host, VaultSettings, () => ({ root, kinds: NO_KINDS, ledger: NO_LEDGER, search: NO_SEARCH }))
     yield* settled(mounted.host, ["vault"])
     const directory = door(mounted.host, Directory) as { readonly store: OutlineStore } | undefined
     if (!directory) throw new Error("test-minimal did not open its vault row")
@@ -123,8 +123,8 @@ const withRuntime = <A>(
       ...opened,
       body: (path) => { reads.push(path); return opened.body(path) },
     }
-    const gate = makeOps({ store, root })
-    ops = gate
+    const gate = door(mounted.host, OpsDoor)?.gate as Ops | undefined
+    if (!gate) throw new Error("test-minimal did not offer its gate")
     for (const one of extra.plugins ?? []) yield* mountPlugin(mounted.host, one.plugin)
     const wired = yield* bind({
       store,

@@ -76,3 +76,5 @@ export {
 } from "./tools.ts"
 
 export * as Query from "./query.ts"
+
+export { liveOps } from "./live.ts"
