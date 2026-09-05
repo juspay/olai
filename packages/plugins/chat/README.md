@@ -307,6 +307,8 @@ Successful startup operations carry a rounded millisecond `duration`, measured w
 
 Concurrent probe durations overlap; do not add them together. These are operation durations, not server uptime or a total time-to-interactive metric. Failed opens keep their existing failure logs and do not emit successful completion events.
 
+After `tools.server` settles, `server.ts` seeds the node roster from `Ops.reading` before building chat. HTTP readiness can precede delivery of the initial vault revision; routing against the empty subscriber roster would load a remembered node session at root, then repeat initialization, probes and replay during a node scope handoff. Subsequent revisions continue to update the roster. A null reading retains the existing unbound startup path, including recovery when a later revision identifies the node.
+
 ## ACP session controls and progress
 
 `agents/settings.ts` normalizes advertised select and boolean options; the panel serializes setting requests against session changes and prompting. Responses and config updates replace the available options. `plan` notifications replace the session plan, which is cleared on session departure.

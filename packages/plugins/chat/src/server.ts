@@ -723,6 +723,11 @@ export default definePlugin({
       // THE ONE SIGNAL THAT THE SERVE IS UP, and the reason the roster is read
       // here rather than at the top of `apply` — see the header.
       const address = yield* tools.server
+      // The listener can settle before the first revision reaches this
+      // subscriber. Seed routing from the current reading used by writes so a
+      // remembered node session starts with its final MCP credential.
+      const initialReading = (yield* ops.reading) as Reading | null
+      if (initialReading !== null) nodeAgents.seen(initialReading.derived)
       /**
        * THE ENGINES MOUNTED RIGHT NOW, in the build's order — asked, not
        * captured.

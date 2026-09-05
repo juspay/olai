@@ -145,6 +145,8 @@ Successful startup operations carry a rounded millisecond `duration`, measured w
 
 Concurrent probe durations overlap; do not add them together. These are operation durations, not server uptime or a total time-to-interactive metric. Failed opens keep their existing failure logs and do not emit successful completion events.
 
+At startup, chat reads the current vault before routing a remembered session. A session already assigned to a node opens directly with that node's tools, avoiding a second agent launch, session replay, and round of probes. A newly identified node can still require a `node scope handoff`. Optional tool availability is checked afresh for each open.
+
 Two knobs, both environment variables, both facts of the running instance rather than of a browser:
 
 | variable | what it picks | default |
