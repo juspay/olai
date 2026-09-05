@@ -1314,3 +1314,25 @@ history independently of its `layout.tools` contribution, so a shell remount
 cannot silently acknowledge a changed definition. The host imports no inspector
 implementation or contract. Dynamic-source approval policy remains a pending
 `vault-plugins` extraction.
+
+### Browser dependency failures and feature preferences
+
+Browser module loading retries a failed entry once under a fresh entry URL. If
+that also fails, recovery offers **Reload page**: Chromium may retain a failed
+static dependency in its module map, which an entry-only retry cannot invalidate.
+Successful modules keep their identities. The inspector and renderer-free startup
+diagnostic explain this recovery; neither automatically discards the document.
+
+Chat now owns an independent `chat.alerts` provider with fresh preference state
+and two scoped storage listeners. Its preferences integration waits on the
+renderer and `preferences.sections`; disabling preferences does not withdraw the
+provider. Disabling chat retracts its controls and listeners. Re-enabling it reads
+persisted choices again. Notes and Done remain in preferences pending outlines
+extraction.
+
+`Clocks` and `Bar` are compatibility exports for `ui-renderer.clocks` and
+`layout.bar`. The renderer row supplies clock factories; each factory's timers
+belong to the consuming Solid owner. Layout publishes its actual popover and
+pill geometry inside the root entry scope, so renderer or layout withdrawal
+retracts the service. The permanent host no longer has an `App.furnish` API.
+The remaining file-link adapter still belongs to the navigation extraction.

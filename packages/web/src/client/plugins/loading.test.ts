@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { loadRows, retryableModule } from "./loading.ts"
+import { loadRows, retryableModule, ModuleReloadRequired } from "./loading.ts"
 
 test("optional module failures leave independent shell modules available in roster order", async () => {
   const result = await loadRows([
@@ -20,7 +20,7 @@ test("a later acquisition retries failed rows and clears their fault", async () 
   } }]
   expect((await loadRows(rows)).failed.has("optional")).toBe(true)
   unavailable = false
-  expect(await loadRows(rows)).toEqual({ loaded: ["recovered"], failed: new Map() })
+  expect(await loadRows(rows)).toEqual({ loaded: ["recovered"], failed: new Map(), reloadRequired: new Set() })
 })
 
 test("recovery changes only the failed entry URL and retains the recovered module", async () => {
@@ -30,16 +30,30 @@ test("recovery changes only the failed entry URL and retains the recovered modul
   const load = retryableModule(async () => { initial++; throw new Error("cached import failure") },
     () => "https://olai.example/_olai/assets/browser-hash.js", async (url) => {
       urls.push(url)
-      if (urls.length === 1) throw new Error("still unavailable")
       return module
     })
   await expect(load()).rejects.toThrow("cached import failure")
-  await expect(load()).rejects.toThrow("still unavailable")
   expect(await load()).toBe(module)
   expect(await load()).toBe(module)
   expect(initial).toBe(1)
   expect(urls).toEqual([
     "https://olai.example/_olai/assets/browser-hash.js?olai-import-attempt=1",
-    "https://olai.example/_olai/assets/browser-hash.js?olai-import-attempt=2",
   ])
+})
+
+
+test("a failed retry requires reload without repeatedly importing its cached dependency graph", async () => {
+  const dependency = new Error("dependency fetch failed")
+  let retries = 0
+  const load = retryableModule(async () => { throw dependency }, () => "/entry.js", async () => {
+    retries++
+    throw dependency
+  })
+  await expect(load()).rejects.toBe(dependency)
+  await expect(load()).rejects.toBeInstanceOf(ModuleReloadRequired)
+  const result = await loadRows([{ id: "optional", load }, { id: "survivor", load: async () => "kept" }])
+  expect(result.loaded).toEqual(["kept"])
+  expect(result.reloadRequired).toEqual(new Set(["optional"]))
+  expect(result.failed.get("optional")).toContain("Reload the page")
+  expect(retries).toBe(1)
 })

@@ -47,3 +47,12 @@ export default definePlugin({
     )
   }),
 })
+
+// Clock consumers can wait for their locations independently of the renderer
+// root. Withdrawal of this row releases the service and its consumers.
+import { clocks } from "./clocks.ts"
+export const components = {
+  clocks: definePlugin({ name: "clocks", needs: [Offers], apply: Effect.gen(function*() {
+    yield* (yield* Offers).own("clocks", () => clocks)
+  }) }),
+}

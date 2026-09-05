@@ -670,3 +670,19 @@ Feature: A node with an `agent-session` property IS an agent
     When I paste that row into the declarations
     Then the agents roster lists "door-live"
     And the door on "door-live" reads "claude"
+
+  @agent-stored @scratch:lanes
+  Scenario: Assignment keeps the composer closed until the session handoff replies
+    Given incoming updates to this browser tab can be held
+    And I open the outline "lanes.olai"
+    And the agent panel is open
+    When I open the unassigned chats
+    And I look for a node to give "the last conversation" to, with "lane nobody"
+    And I hold incoming updates to the original browser tab
+    And I give the conversation to the offered node titled "a lane nobody has put an agent on"
+    Then the unassigned list waits for the assignment to finish
+    When I release incoming updates to the original browser tab
+    And I close the unassigned chats
+    And I ask the agent "where were we?"
+    Then the agent was told its contract 1 time
+    And the contract says the conversation was assigned

@@ -77,11 +77,9 @@ const opened = async (changed?: () => void, reading?: () => void) => {
     openApp({ changed, reading, clientFor: (plugin) => `client:${plugin}` }),
   )
   const store = await run(installTestRenderer(app, changed, reading))
-  await run(app.furnish({
-    clocks: CLOCKS,
-    bar: { desktop: () => true, pill: PILL, popover: () => ({}) as never },
-    links: { File: (() => null) as never },
-  }))
+  await run(app.supply(Clocks, CLOCKS))
+  await run(app.supply(Bar, { desktop: () => true, pill: PILL, popover: () => ({}) as never }))
+  await run(app.supply(Links, { File: (() => null) as never }))
   return { app, store, run: async <A>(effect: Effect.Effect<A, never, Scope.Scope>) => {
     const result = await run(effect)
     await run(store.settled)

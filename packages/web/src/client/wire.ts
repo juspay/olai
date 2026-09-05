@@ -17,7 +17,7 @@ import type { BrowserHalf, BrowserRow } from "@olai/bundle"
 import { surface } from "@olai/surface"
 import { createEffect, createRoot, createSignal } from "solid-js"
 
-import { browserReports, composeTo } from "./plugins/runtime.ts"
+import { browserReports, browserRequiresReload, composeTo } from "./plugins/runtime.ts"
 
 /**
  * The word a degraded readout calls olai's own floor.
@@ -228,7 +228,7 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
   // the frame ahead of us in the queue may have been for the same roster.
   if (signature === composed) return
   try {
-    const { loaded: halves, failed } = await loadRows(
+    const { loaded: halves, failed, reloadRequired } = await loadRows(
       want.flatMap((one) => {
         // A PLUGIN THE VAULT DEFINES is fetched from the serve that compiled
         // it; everything else is a chunk of this bundle, and a name with
@@ -276,10 +276,13 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
         clearTimeout(deadline)
       }
     }
-    await composeTo(halves, (plugin) => (live.clients as Record<string, unknown>)[plugin], failed)
+    await composeTo(halves, (plugin) => (live.clients as Record<string, unknown>)[plugin], failed, reloadRequired)
     composed = signature
     const failures = [...browserReports()].filter(([, report]) => report.state === "failed").map(([name]) => name)
-    if (failures.length) boot?.failed(`Browser plugins could not start: ${failures.join(", ")}.`, retryBrowser)
+    if (failures.length) boot?.failed(`Browser plugins could not start: ${failures.join(", ")}.`
+      + (reloadRequired.size ? " Retry could not recover a browser module. Reload the page to recover its dependencies." : ""),
+      reloadRequired.size ? async () => { globalThis.location.reload() } : retryBrowser,
+      reloadRequired.size ? "reload" : "retry")
     else boot?.clear()
   } catch (refused) {
     boot?.failed(`Browser startup could not follow the host selection: ${String(refused)}`, retryBrowser)
@@ -395,4 +398,6 @@ await supplyManagement({
   set: (name, enabled) => olai.procedures.plugins.set({ name, enabled }),
   approve: (name, version, forever) => olai.procedures.plugins.approve({ name, version, forever }),
   retry: retryBrowser,
+  requiresReload: browserRequiresReload,
+  reload: () => globalThis.location.reload(),
 })

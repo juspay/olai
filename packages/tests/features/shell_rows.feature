@@ -97,3 +97,51 @@ Feature: The renderer and layout are browser rows
     Then "house.olai" holds a node titled "abc|de"
     And the page has not reloaded
     And there should be no page errors
+
+  Scenario: A cached dependency failure offers an honest reload without disturbing surviving content
+    Given a static dependency of the browser module for "sidebar" cannot be fetched
+    When I open the outline "house.olai"
+    And I mark the page
+    And I mark the screen
+    And I open the plugins panel
+    Then the plugins panel says "sidebar" is "Module load failed"
+    When the static dependency can be fetched again
+    And I retry the failed browser activation
+    Then browser recovery offers a reload for the cached dependency failure
+    And the page has not reloaded
+    And the node "handles" was never taken away
+    When I reload using browser recovery
+    And I open the plugins panel
+    Then the plugins panel says "sidebar" is "Browser: running."
+    And there should be no page errors
+
+  Scenario: A cached renderer dependency can recover through the startup reload action
+    Given a static dependency of the browser module for "ui-renderer" cannot be fetched
+    When I open the browser before an application can mount
+    Then browser startup reports its failure
+    When I mark the page
+    And the static dependency can be fetched again
+    And I retry browser startup
+    Then browser recovery offers a reload for the cached dependency failure
+    And the page has not reloaded
+    When I reload using browser recovery
+    And I open the plugins panel
+    Then the plugins panel says "ui-renderer" is "Browser: running."
+    And there should be no page errors
+
+  Scenario: Chat owns its alert controls and remembers their values when restored
+    Given I open the app
+    When I set Alerts to "off"
+    And I press Escape on the preferences
+    And I open the plugins panel
+    And I switch the plugin "chat" off
+    And I open the preferences
+    Then the preferences have no chat alert controls
+    And the preferences retain their Notes control
+    When I press Escape on the preferences
+    And I open the plugins panel
+    And I switch the plugin "chat" on
+    And I open the preferences
+    Then the Alerts row explains "silent"
+    And the alert sound cannot be set
+    And there should be no page errors

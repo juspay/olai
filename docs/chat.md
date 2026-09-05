@@ -736,3 +736,12 @@ The rest is a plan rather than a list of gaps:
 2. **Relocation** — the scheduler is deliberately implemented in place in `olai-plugin-chat`; moving it behind its eventual plugin boundary is the next architectural phase, not part of this one.
 
 Concurrent attachments share one conversation upload directory. Repeated filenames receive distinct suffixes even when separate drops or browser tabs overlap; writing and cleanup are serialized within that conversation.
+
+Assignment keeps the unassigned list busy until the server finishes its session
+handoff, even if the property update has already removed the conversation from
+the list. Done and further assignment gestures wait for that reply; a refusal
+re-enables the controls and remains visible in the list.
+
+Chat owns the Alerts and Alert sound preferences and their storage observers.
+Their controls retract when chat is disabled and return with the stored choices.
+The preference provider remains active when the shell or preferences UI leaves.

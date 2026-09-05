@@ -134,6 +134,9 @@ export function Unassigned(props: { readonly chat: Chat }) {
    *  conversation. One rather than a flag per row because two open searches
    *  would be two boxes competing for the arrow keys, and because assigning is
    *  a thing you do to one chat at a time. */
+  // A published property can precede the completed session handoff. Keep
+  // the list busy until the procedure replies, including after its row leaves.
+  const [pending, setPending] = createSignal(false)
   const [assigning, setAssigning] = createSignal<string | null>(null)
 
 
@@ -159,6 +162,8 @@ export function Unassigned(props: { readonly chat: Chat }) {
 
   /** Give this conversation to that node. */
   const assign = (chat: SessionInfo, hit: NodeHit): void => {
+    if (pending()) return
+    setPending(true)
     saying.say(undefined)
     run(
       chatWire().procedures.conversation.assignSession({
@@ -166,11 +171,15 @@ export function Unassigned(props: { readonly chat: Chat }) {
         agent: chat.agent,
         session: chat.id,
       }),
-      (failure) => saying.say({ tone: "alarm", text: failure.message, kind: failure._tag }),
+      (failure) => {
+        setPending(false)
+        saying.say({ tone: "alarm", text: failure.message, kind: failure._tag })
+      },
       () => {
         // The row is gone from this list on the frame the property lands — the
         // roster cell moves and the difference is derived — so what is left to
         // say is which node took it, in the one place that outlives the row.
+        setPending(false)
         setAssigning(null)
         saying.say({
           tone: "aside",
@@ -201,6 +210,7 @@ export function Unassigned(props: { readonly chat: Chat }) {
    * whole feature polices.
    */
   const open = (chat: SessionInfo): void => {
+    if (pending()) return
     saying.say(undefined)
     hideUnassigned()
     props.chat.loadSession(chat.agent, chat.id)
@@ -233,9 +243,10 @@ export function Unassigned(props: { readonly chat: Chat }) {
           type="button"
           class="text-xs text-muted underline underline-offset-2"
           data-testid={TESTID.unassignedDone}
+          disabled={pending()}
           onClick={() => hideUnassigned()}
         >
-          done
+          {pending() ? "assigning…" : "done"}
         </button>
       </div>
       <p class="m-0 mb-4 text-xs text-muted">
@@ -244,6 +255,7 @@ export function Unassigned(props: { readonly chat: Chat }) {
         and its own history comes with it.
       </p>
 
+      <fieldset disabled={pending()} class="m-0 min-w-0 border-0 p-0">
       <For each={groups()}>
         {(group) => (
           <>
@@ -276,6 +288,8 @@ export function Unassigned(props: { readonly chat: Chat }) {
           </>
         )}
       </For>
+
+      </fieldset>
 
       {/* AN AGENT THAT COULD NOT BE ASKED, named and not dropped — AFTER the
           conversations, because they are what somebody opened this for, and

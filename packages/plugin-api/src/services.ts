@@ -1184,9 +1184,8 @@ export interface Plugins {
  *
  * ## ONE ANSWER TO "NOT READY YET", and this file no longer holds a second
  *
- * `./browser.ts` answers it with a SECOND PROVIDE — `App.furnish` provides the
- * chrome services later, and a half that beat the call simply sits `waiting` on
- * the runtime.s own PENDING mechanism. This file used to answer it a second way,
+ * Browser providers publish their scoped services through Offers; a half that
+ * precedes its provider simply sits `waiting` on the runtime's own mechanism. This file used to answer it a second way,
  * with a LOOKUP ASKED PER CALL, so `deliveries` was always present and answered
  * `[]` and a no-op where there was no chat.
  *

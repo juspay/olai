@@ -8,7 +8,7 @@
  * extraction. Owning these resources does not yet establish the final layout,
  * navigation and independent content boundaries documented in Phase 18.
  */
-import { definePlugin, slotLocation } from "@olai/plugin-api"
+import { definePlugin, Offers, slotLocation } from "@olai/plugin-api"
 import { rendererSlots, root } from "olai-plugin-ui-renderer/contract"
 import { Effect } from "effect"
 import Frame from "./Frame.tsx"
@@ -22,9 +22,10 @@ import { name, sidebar, tools } from "./index.ts"
 
 export default definePlugin({
   name,
-  needs: [rendererSlots],
+  needs: [rendererSlots, Offers],
   apply: Effect.gen(function*() {
     const slots = yield* rendererSlots
+    const offers = yield* Offers
     yield* slots.contribute(root, () => <ErrorBoundary fallback={(error) => {
       console.error(error)
       return <Fault text={String(error)} />
@@ -36,6 +37,7 @@ export default definePlugin({
         "outline.row.block", "outline.row.door", "outline.row.action",
       ] as const).map(slotLocation)],
       activate: Effect.gen(function*() {
+        yield* offers.own("bar", () => bar)
         for (const start of [trackVisibleViewport, trackDesktop, followLayout]) {
           yield* Effect.acquireRelease(Effect.sync(start), (stop) => Effect.sync(stop))
         }
@@ -47,3 +49,5 @@ export default definePlugin({
     })
   }),
 })
+
+import { bar } from "./bar.tsx"

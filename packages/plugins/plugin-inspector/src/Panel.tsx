@@ -281,9 +281,14 @@ export function Panel(props: {
                 <Config values={pluginConfig(plugin)} />
                 <Show when={plugin.running && [...props.management.reports()].some(([name, report]) =>
                   (name === plugin.name || name.startsWith(plugin.name + "/")) && report.state === "failed") }>
-                  <button type="button" disabled={props.management.changing()} onClick={() => { void props.management.retry() }}>
-                    Retry browser activation
-                  </button>
+                  <Show when={props.management.requiresReload(plugin.name)} fallback={
+                    <button type="button" disabled={props.management.changing()} onClick={() => { void props.management.retry() }}>
+                      Retry browser activation
+                    </button>
+                  }>
+                    <p>Reload to recover this browser module. Save any unfinished edits first.</p>
+                    <button type="button" onClick={() => props.management.reload()}>Reload page</button>
+                  </Show>
                 </Show>
               </>}
             >

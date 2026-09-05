@@ -57,7 +57,7 @@
  * write one.
  */
 
-import { definePlugin, Faces, Slots, Wired, slotLocation } from "@olai/plugin-api"
+import { definePlugin, Faces, Slots, Wired, Offers, slotLocation } from "@olai/plugin-api"
 import { Effect } from "effect"
 
 import { AgentDoor } from "./browser/agents/Door.tsx"
@@ -87,7 +87,7 @@ const SECTION = "Agents"
 
 export default definePlugin({
   name,
-  needs: [Faces, Slots, Wired],
+  needs: [Faces, Slots, Wired, alertSettings],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
     const faces = yield* Faces
@@ -136,4 +136,21 @@ export default definePlugin({
 
 /** The speaker waits for identity without taking the conversation away. */
 import { speaker } from "./browser/viewer.ts"
-export const components = { speaker }
+// The alert provider lives with the chat row, independently of its panel and
+// preferences. Each UI component names its own dependencies; the section waits
+// for preferences to return without discarding the stored state or listeners.
+import { alertSettings, createAlerts, holdAlerts } from "./browser/alerts.ts"
+import { AlertRows } from "./browser/AlertRows.tsx"
+import { rendererSlots } from "olai-plugin-ui-renderer/contract"
+import { sections } from "olai-plugin-preferences/contract"
+export const components = {
+  speaker,
+  alerts: definePlugin({ name: "alerts", needs: [Offers], apply: Effect.gen(function*() {
+    const state = yield* createAlerts
+    yield* holdAlerts(state)
+    yield* (yield* Offers).own("alerts", () => state)
+  }) }),
+  "alert-controls": definePlugin({ name: "alert-controls", needs: [alertSettings, rendererSlots], apply: Effect.gen(function*() {
+    yield* (yield* rendererSlots).contribute(sections, AlertRows)
+  }) }),
+}

@@ -33,7 +33,8 @@
  * tables, and `@olai/plugin-api`'s `Faces` is where the fence on what a reader
  * may learn is argued.
  *
- * Core services are provided before plugins. Browser Offers lets a plugin
+ * Host capabilities are provided before plugins. Renderer clocks and layout
+ * bar geometry arrive through their owning rows. Browser Offers lets a plugin
  * publish its own keys; consumers name those keys in needs and remain waiting
  * until a provider arrives. Withdrawal removes their faces and reactivation
  * reinstalls them. The panel shows each browser component’s waiting or failed
@@ -57,6 +58,7 @@
 import type { BrowserHalf } from "@olai/bundle"
 import {
   type App,
+  Links,
   type Hung,
   type KindSlot,
   type ListSlot,
@@ -217,6 +219,11 @@ const mounted = new Map<string, Mounted>()
  */
 const failures = new Map<string, Extract<RowReport, { readonly state: "failed" }>>()
 let loadFailures: ReadonlyMap<string, string> = new Map()
+let reloadRequired: ReadonlySet<string> = new Set()
+export const browserRequiresReload = (name: string): boolean => {
+  browserReports()
+  return reloadRequired.has(name)
+}
 const [browserReports, setReports] = createSignal<ReadonlyMap<string, RowReport>>(new Map())
 /** Reading a fault can await the runtime's error promise. A later host change
  * may finish its snapshot first; the generation keeps an older read from
@@ -275,9 +282,11 @@ export const composeTo = async (
   halves: ReadonlyArray<BrowserHalf>,
   clientFor: (plugin: string) => unknown,
   failedLoads: ReadonlyMap<string, string> = new Map(),
+  reloads: ReadonlySet<string> = new Set(),
 ): Promise<void> => {
   clients = clientFor
   loadFailures = failedLoads
+  reloadRequired = reloads
   // NOTHING IS DRAWN FROM A HALF-COMPOSED TABLE. Every claim and every release
   // below tells the runtime, and each of those told the page; a plugin's faces
   // therefore arrived one at a time and — far worse — LEFT one at a time, in
@@ -483,19 +492,8 @@ export const only = <S extends SingleSlot>(slot: S): Hung<SlotFaces[S]> | null =
   return app.only(slot)
 }
 
-/**
- * THE APP'S OWN THREE, PROVIDED — `./furniture.tsx`'s one call.
- *
- * A second entry rather than a field on {@link composeTo}, and the reason is a
- * GRAPH rather than taste: the clock, the bar and the file door are assembled in
- * a `.tsx` (a link is a component and a popover portals one), and this module is
- * a `.ts` reached by `./marks.ts`, which is reached by the chat panel, which is
- * imported by suites that run under a process with no Solid transform. A static
- * import of that module from here would put a JSX factory on the graph of a test
- * that only wanted a lookup.
- */
-export const furnish = (furniture: Parameters<App["furnish"]>[0]): Promise<void> =>
-  run(app.furnish(furniture))
+/** Transitional navigation publication; other furniture belongs to plugins. */
+export const provideFileLinks = (links: Links): Promise<void> => run(app.supply(Links, links))
 
 export { browserReports }
 

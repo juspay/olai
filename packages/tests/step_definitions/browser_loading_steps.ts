@@ -104,3 +104,48 @@ Then("the sidebar plugin has no rendered column or rail", async function (this: 
 Then("the sidebar plugin has a rendered column", async function (this: OlaiWorld) {
   await this.page.getByTestId(TESTID.sidebar).waitFor({ state: "visible" });
 });
+
+const dependencyFailures = new WeakMap<OlaiWorld, { requests: number; available: boolean }>();
+Given("a static dependency of the browser module for {string} cannot be fetched", async function (this: OlaiWorld, plugin: string) {
+  const html = await (await this.page.request.get(this.baseUrl)).text();
+  const manifest = html.match(new RegExp(`<script id="${BROWSER_MODULES_ID}" type="application/json">([^<]+)</script>`));
+  assert.ok(manifest);
+  const entry = new URL((JSON.parse(manifest[1]!) as Record<string, string>)[plugin]!, this.baseUrl);
+  const source = await (await this.page.request.get(entry.href)).text();
+  const dependency = new URL("./unavailable-test-dependency.js", entry);
+  const record = { requests: 0, available: false };
+  dependencyFailures.set(this, record);
+  // Keep every real import unchanged, including the successful shared runtime.
+  // A static edge on the actual entry exercises Chromium's module-map caching.
+  await this.page.route((url) => url.pathname === entry.pathname, (route) => route.fulfill({
+    contentType: "text/javascript", body: `import ${JSON.stringify(dependency.href)};\n${source}`,
+  }));
+  await this.page.route(dependency.href, async (route) => {
+    record.requests++;
+    if (!record.available) await route.abort("failed");
+    else await route.fulfill({ contentType: "text/javascript", body: "export const recovered = true;" });
+  });
+});
+
+When("the static dependency can be fetched again", function (this: OlaiWorld) {
+  const record = dependencyFailures.get(this);
+  assert.ok(record && record.requests > 0);
+  record.available = true;
+  const expected = "console.error: Failed to load resource: net::ERR_FAILED";
+  assert.equal(this.errors.filter((error) => error === expected).length, record.requests);
+  this.errors = this.errors.filter((error) => error !== expected);
+});
+
+Then("browser recovery offers a reload for the cached dependency failure", async function (this: OlaiWorld) {
+  await this.page.getByRole("button", { name: "Reload page", exact: true }).waitFor({ state: "visible" });
+  await this.page.getByRole("button", { name: /^Retry browser/ }).waitFor({ state: "detached" });
+  assert.equal(dependencyFailures.get(this)?.requests, 1, "retrying an entry cannot refetch its cached failed dependency");
+});
+
+When("I reload using browser recovery", async function (this: OlaiWorld) {
+  await Promise.all([
+    this.page.waitForEvent("load"),
+    this.page.getByRole("button", { name: "Reload page", exact: true }).click(),
+  ]);
+  await this.waitUntil(async () => dependencyFailures.get(this)?.requests === 2, "a new document to refetch the previously failed dependency");
+});

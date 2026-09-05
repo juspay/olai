@@ -772,3 +772,10 @@ Then("the agent {string} remains {string} across two idle deadlines", async func
     await this.page.waitForTimeout(100);
   } while (Date.now() < until);
 });
+
+When("I give the conversation to the offered node titled {string}", async function (this: OlaiWorld, node: string) {
+  await this.page.locator(ASSIGN_HIT, { hasText: node }).first().click();
+});
+Then("the unassigned list waits for the assignment to finish", async function (this: OlaiWorld) {
+  await this.waitUntil(() => this.page.locator(DONE).isDisabled(), "the list to wait for the session handoff");
+});

@@ -6,8 +6,8 @@
  * until those entries activate. The host binds contributor identity and batches
  * notifications across roster changes to preserve provider/editor lifetimes.
  *
- * Clocks, Bar and Links are the remaining furniture contracts being extracted
- * into their owning plugins during Phase 18.
+ * Clocks and Bar are compatibility names for renderer/layout-owned services.
+ * Links remains a transitional host service pending navigation extraction.
  */
 
 import {
@@ -543,7 +543,7 @@ export const Faces = serviceTag<Faces>("ui-renderer.faces")
  * no line for a new field to fail to appear on.
  */
 export type Clocks = AppClocks
-export const Clocks = serviceTag<Clocks>("clocks")
+export const Clocks = serviceTag<Clocks>("ui-renderer.clocks")
 
 /**
  * THE BAR — its geometry, its breakpoint and the popover that shares its one
@@ -567,7 +567,7 @@ export interface Bar {
    *  anchor and the focus cycle already spent. */
   readonly popover: () => AppPopover
 }
-export const Bar = serviceTag<Bar>("bar")
+export const Bar = serviceTag<Bar>("layout.bar")
 
 /** A DOOR ONTO A SERVED FILE — the app's router and its address grammar as the
  *  one thing a plugin wants out of them. Its own service rather than a field on
@@ -643,21 +643,7 @@ export interface App extends Faces {
   readonly host: Host
   /** Install an explicitly supplied host capability in the caller's scope. */
   readonly supply: <T>(key: ServiceKey<T>, value: T) => Effect.Effect<void, never, Scope.Scope>
-  /**
-   * ...AND THE APP'S OWN FURNITURE, provided in a SECOND call.
-   *
-   * Two calls rather than one config, and the reason is a GRAPH rather than
-   * taste: the clock, the bar and the file door are assembled in a `.tsx` (a
-   * link is a component and a popover portals one), and the module that opens
-   * this runtime is a `.ts` reached by the chat panel — so a static import from
-   * there would put a JSX factory on the graph of a suite that only wanted a
-   * lookup. A plugin that beats this call sits `waiting` on the service it named
-   * and starts when it arrives, which is the runtime's own guarantee rather than
-   * something an ordering has to be careful about.
-   */
-  readonly furnish: (
-    furniture: { readonly clocks: Clocks; readonly bar: Bar; readonly links: Links },
-  ) => Effect.Effect<void, never, Scope.Scope>
+
 }
 
 /** WHAT THE TAB SUPPLIES — everything a plugin must not reach for itself. */
@@ -738,12 +724,7 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
       supply: (key, value) => provide(host, key, () => value),
       host,
       changes: hostChanges(host),
-      furnish: (furniture) =>
-        Effect.gen(function*() {
-          yield* provide(host, Clocks, () => furniture.clocks)
-          yield* provide(host, Bar, () => furniture.bar)
-          yield* provide(host, Links, () => furniture.links)
-        }),
+
     }
   })
 

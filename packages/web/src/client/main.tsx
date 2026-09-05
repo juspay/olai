@@ -11,10 +11,9 @@ import { followFolds } from "./fold/memory.ts"
 import { followName } from "./named.ts"
 import { followKeys } from "./quiescence.ts"
 import { runAsync } from "./run.ts"
-import { followAlerts } from "./settings/alerts.ts"
 import { followDensity } from "./settings/density.ts"
 import { followDonePrefs } from "./settings/done.ts"
-import { provideFurniture } from "./plugins/furniture.tsx"
+import { provideNavigationLinks } from "./plugins/furniture.tsx"
 import { bootstrapBrowser, connectionReadout, firstRoster, olai, useBrowserRows, useBootStatus } from "./wire.ts"
 import { bootStatus } from "./plugins/boot-status.ts"
 import { attachRenderer, useBundleOrder } from "./plugins/runtime.ts"
@@ -69,8 +68,7 @@ followName({
   ask: () => runAsync(olai.procedures.app.get()),
 })
 
-// Whether the agent's questions are announced and whether that makes a sound, how much of a
-// row is drawn by default, which pages draw their finished work (each outline
+// How much of a row is drawn by default, which pages draw their finished work (each outline
 // keeps its own pick), whether the file tree draws the outlines olai named for
 // itself, what this browser has folded — of the outline and of the directory —
 // — document-lifetime until their capability owners are extracted.
@@ -79,7 +77,6 @@ followName({
 useBrowserRows(BROWSER_ROWS)
 useBundleOrder(bundleRank)
 
-followAlerts()
 followDensity()
 followDonePrefs()
 followFolds()
@@ -90,7 +87,7 @@ if (root === null) throw new Error("no #root element")
 useBootStatus(bootStatus(root))
 
 // Providers may arrive before the browser mount; their needs keep them waiting.
-await provideFurniture()
+await provideNavigationLinks()
 await attachRenderer(root)
 await firstRoster
 await bootstrapBrowser()

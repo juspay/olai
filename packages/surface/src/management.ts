@@ -16,5 +16,7 @@ export interface BrowserManagement {
   readonly set: (name: string, enabled: boolean) => Effect.Effect<unknown, unknown>
   readonly approve: (name: string, version: string, forever: boolean) => Effect.Effect<unknown, unknown>
   readonly retry: () => Promise<void>
+  readonly requiresReload: (name: string) => boolean
+  readonly reload: () => void
 }
 export const browserManagement = serviceTag<BrowserManagement>("browser-management")

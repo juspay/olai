@@ -50,3 +50,9 @@ Then("the preferences have no appearance controls", async function (this: OlaiWo
 Then("the preferences retain their Notes control", async function (this: OlaiWorld) {
   await this.page.locator(`${attr("data-testid", TESTID.prefsRow)}${attr("data-pref", "density")}`).waitFor({ state: "visible" });
 });
+
+Then("the preferences have no chat alert controls", async function (this: OlaiWorld) {
+  for (const pref of ["alerts", "alert-sound"]) {
+    await this.page.locator(`${attr("data-testid", TESTID.prefsRow)}${attr("data-pref", pref)}`).waitFor({ state: "detached" });
+  }
+});

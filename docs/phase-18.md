@@ -22,7 +22,11 @@ be complete before this PR is ready to merge.
 - [x] Generate and load browser-only bundle rows, distinguishing host selection
   from actual browser activation.
 - [x] Contain browser chunk failures per row, expose startup diagnostics without
-  a renderer, and retry failed imports without reloading the page.
+  a renderer, and retry failed entry imports without reloading the page.
+- [x] Offer explicit page reload recovery when a retry cannot recover a cached
+  failed dependency, preserving successful shared runtime identity.
+- [ ] Validate dependency-chunk recovery through both inspector and renderer-free
+  startup in Chromium; scenarios added in the current review batch.
 - [x] Keep the live roster authoritative over a late bootstrap response or failure.
 - [x] Document static `/contract` imports and fence them against implementations.
 - [ ] Move all application-specific slot contracts to their capability owners.
@@ -31,8 +35,11 @@ be complete before this PR is ready to merge.
 
 ## Shell and presentation plugins
 
-- [x] `ui-renderer`: own the Solid root and generic location registry.
+- [x] `ui-renderer`: own the Solid root, generic location registry and clock
+  factory provider; remove the host clock publication.
 - [x] `layout`: own the frame/header implementations and occupy `root`.
+- [x] `layout`: own bar geometry and popover factories in the root integration
+  scope; remove the host bar publication and `App.furnish` API.
 - [x] `layout`: scope viewport, breakpoint, layout preference and CSS observers
   to the root entry activation.
 - [x] `layout`: read sidebar and tool contributions through static contracts.
@@ -45,7 +52,9 @@ be complete before this PR is ready to merge.
   dependencies; consume files, pins, capture and trash contributions.
 - [x] `preferences`: contribute UI through `layout.tools` and own
   `preferences.sections`.
-- [ ] `preferences`: move Notes/Done/Alerts controls to feature-owned integrations.
+- [x] `chat`: own fresh alert state and scoped storage listeners independently
+  of the shell, and contribute Alerts/Sound through `preferences.sections`.
+- [ ] `preferences`: move remaining Notes/Done controls to their content owner.
 - [x] `theme`: own fresh theme/font/size state, storage observers and scoped DOM
   presentation, independently of preferences; contribute controls separately.
 - [x] `theme`: restore prior HTML attributes and palette metadata, revoke icon
@@ -113,7 +122,10 @@ be complete before this PR is ready to merge.
   moving a row failed at `8f077cd7`. Passing reruns alone do not explain them.
 - [ ] Investigate the agent-migration contract failure in
   `node_agents.feature:377`: the browser rerun at `3a8629ad` observed zero initial
-  contract messages instead of one. The draft-ordering scenario passed that run;
+  contract messages instead of one. Assignment now keeps its list busy until
+  the session handoff replies, with a held-reply regression scenario awaiting CI.
+  This closes a concrete race; the original failure is not yet proven resolved.
+  The draft-ordering scenario passed that run;
   five of six browser shards passed, so validation is still incomplete.
 - [ ] Finish plugin, architecture, profile/running and dynamic-plugin docs for
   the final ownership and absence behavior. Existing extracted rows have docs.
