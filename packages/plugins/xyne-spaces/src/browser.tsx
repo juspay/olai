@@ -70,7 +70,7 @@ export default definePlugin({
     // NAMES the two services it wants and composes its own reading of them here,
     // once.
     const app: SpacesApp = { desktop: bar.desktop, pill: bar.pill }
-    yield* slots.register("app.header", () => <Spaces app={app} />)
+    yield* slots.register("app.header", { place: "cluster", body: () => <Spaces app={app} /> })
     yield* slots.register("delivery.mark", SpacesMark)
     yield* slots.register("app.mount", (props) => (
       // INSIDE the component: `use()` opens a subscription and wants an owner.

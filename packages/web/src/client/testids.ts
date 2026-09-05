@@ -1044,18 +1044,15 @@ export const TESTID = {
    *  (`client/search/count.ts`). A scenario reads it inside the door it means,
    *  since only one of the two is ever up. */
   searchCount: "search-count",
-  // ── the header's search box, the other door to the same reading ──────
-  headerSearch: "header-search",
-  /** The phone's door: opens the palette, which is the same modal. */
-  headerSearchOpen: "header-search-open",
-  /** The results panel. `data-asked` is WHICH query the rows answer — the
-   *  same attribute the palette list and the shortlist publish. */
-  headerSearchResults: "header-search-results",
-  headerSearchItem: "header-search-item",
-  headerSearchItemPlace: "header-search-item-place",
-  /** One `key value` pair on a header result row's third line. */
-  headerSearchItemProp: "header-search-item-prop",
-  headerSearchError: "header-search-error",
+  // ── the header's search box is a ROW's now ───────────────────────────
+  //
+  // Seven ids stood here — `headerSearch`, its phone door, its results panel
+  // and the three parts of a row — and they left with the face that draws them
+  // (`olai-plugin-search/testids`). The two above did NOT, and the split is the
+  // scope ruling of phase 13: the shortlist kit under every box is core
+  // furniture four core doors share, so what it says about a refusal and about
+  // "8 of 90" is one sentence for all of them and stays here. A scenario reaches
+  // the seven through `@olai/bundle/testids`, which is how it reaches any row's.
   /** Refusal from a `>` ask that the palette surfaces instead of swallowing. */
   paletteAskError: "palette-ask-error",
   /** Refusal from the NODE SEARCH — a different question from the ask, so a

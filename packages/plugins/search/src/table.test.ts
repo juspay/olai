@@ -50,7 +50,7 @@ import {
 import { seeded, vaultOf } from "@olai/format/testlib"
 import { Result } from "effect"
 
-import { CROWD_FLOOR, type Index, open } from "./index.ts"
+import { CROWD_FLOOR, type Index, open } from "./table.ts"
 
 /** The day the grammar's relative words count from. A constant, so a `date:`
  *  case says the same thing in January. */

@@ -117,7 +117,7 @@ import {
   type WriteResult as Applied,
 } from "@olai/format"
 import type { KindVocabulary } from "@olai/format"
-import type { Index } from "@olai/index"
+import type { Search } from "./ops.ts"
 
 import * as Query from "./query.ts"
 
@@ -266,21 +266,25 @@ export interface Asking {
 export const asking = (
   read: Effect.Effect<Reading, OpFailure>,
   now: () => string,
-  /** THE DIRECTORY'S SEARCH INDEX, when there is one — carried through to the
-   *  one question of the six that reads the whole corpus to answer
-   *  ({@link ./query.ts}'s `search`, which says what it does with it). It is
-   *  here for the clock's reason exactly: this is a table over ONE served
-   *  directory, and the layer that owns a directory's long-lived things is the
-   *  one that builds this envelope. Absent is a working search that walks. */
   /** WHAT A PLUGIN TAUGHT THIS VAULT, for the one question here whose GRAMMAR
    *  reads a declaration: `prop:` decides between a span and an equality by what
    *  a key is declared as, and a declaration is two layers now — a vault's rows
    *  over an enabled plugin's claimed keys.
    *
-   *  REQUIRED, and before the optional index for that reason: defaulted, this
-   *  site forgot it for a round, and the two doors onto one query parted. */
+   *  REQUIRED, and before the matcher for that reason: defaulted, this site
+   *  forgot it for a round, and the two doors onto one query parted.
+   *
+   *  IT IS HANDED THROUGH rather than read by the matcher, because the door is
+   *  a row's and the vocabulary is this serve's — a row that read the kinds for
+   *  itself would be a second answer to what a vault declares. */
   kinds: KindVocabulary,
-  index?: Index | undefined,
+  /** THE MATCHER, or nobody ({@link ./ops.ts}'s `Search` and `NO_SEARCH`). It
+   *  is here for the clock's reason exactly: the door is a fact about one served
+   *  directory, and the layer that owns a directory's long-lived things is the
+   *  one that builds this envelope. Absent is a search that refuses in words —
+   *  which is what a serve minus the `search` row answers with, at every door
+   *  onto it at once. */
+  search: Search,
 ): Asking => ({
   outlines: Effect.map(read, (at) => ({
     outlines: Query.outlines(at.set, at.derived),
@@ -304,7 +308,13 @@ export const asking = (
   // path that is not an outline is a refusal carrying the closest one that is.
   subtree: (request) =>
     Effect.flatMap(read, (at) => Effect.fromResult(Query.subtree(at, request))),
-  search: (request) => Effect.map(read, (at) => Query.search(at, request, now(), kinds, index)),
+  // THE ONE READ THIS LAYER DOES NOT ANSWER ITSELF. The walk is a row's
+  // (`olai-plugin-search`); what is core's is the gated read it is asked over,
+  // the clock it is asked at, and the vocabulary its grammar reads. So the
+  // reading is taken here and handed through, which is what makes the answer
+  // and the candidates behind it one snapshot.
+  search: (request) =>
+    Effect.flatMap(read, (at) => search.nodes({ at, query: request, now: now(), kinds })),
   documents: Effect.map(read, (at) => ({ documents: Query.documents(at.set) })),
   // THE OTHER READ THAT CAN REFUSE FROM THE WALK ITSELF. Four of the six answer
   // from the snapshot alone, so their envelope is a `map` and the failure

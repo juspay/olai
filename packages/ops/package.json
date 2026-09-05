@@ -5,18 +5,18 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//exports": "Two entries, and the second is not product. `./testlib` is the planner context this package's own tests run on — ids counted from `n1`, one fixed instant — published so the package ABOVE can drive the ops layer the same way; the alternative was @olai/server keeping its own copy of that instant, which is a fixture drifting from the one the assertions in here are written against. Same argument, and the same shape, as @olai/format's.",
+  "//exports": "Three entries, and only the first is product. `./testlib` is the planner context this package's own tests run on — ids counted from `n1`, one fixed instant — published so the package ABOVE can drive the ops layer the same way; the alternative was @olai/server keeping its own copy of that instant, which is a fixture drifting from the one the assertions in here are written against. Same argument, and the same shape, as @olai/format's. `./testlib/tools` is the second door for the same reason one layer up: the walk over the tool table has to be run TWICE now — once here with no matcher and once in olai-plugin-search with one — and two copies of a maximal fixture is two things to keep maximal. Its own door rather than a re-export, because a harness is not a fixture.",
   "exports": {
     ".": "./src/index.ts",
-    "./testlib": "./src/fixtures.testlib.ts"
+    "./testlib": "./src/fixtures.testlib.ts",
+    "./testlib/tools": "./src/tools.testlib.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "Between `format` and `server` (docs/architecture.md): the ops layer knows what an edit MEANS and how a write is made durable, and nothing about a listener, a socket or a browser. @olai/format supplies the records, the rules, the canonical bytes and the refusal vocabulary; @olai/store supplies the one write gate. The ledger is a plugin now: this layer calls through a door and refuses in words when nobody stands behind it. @olai/index is the same kind of sibling one question over: it holds the trigram table a directory search takes its candidates from and decides nothing either, which is why the door that spends it is `Query.search` and the thing that opens it is `make` — one table per served directory, beside the one store. @olai/surface is deliberately absent — an op does not know it is being called over a wire.",
+  "//dependencies": "Between `format` and `server` (docs/architecture.md): the ops layer knows what an edit MEANS and how a write is made durable, and nothing about a listener, a socket or a browser. @olai/format supplies the records, the rules, the canonical bytes and the refusal vocabulary; @olai/store supplies the one write gate. TWO doors this layer defines and does not stand behind, both of them plugins: the LEDGER (git) and the MATCHER (search). Each is called through and refuses in words when nobody is mounted. @olai/index used to be a dependency here — the trigram table a directory search takes its candidates from — and it left with the walk that spends it, so this package holds no index at all now. @olai/surface is deliberately absent — an op does not know it is being called over a wire.",
   "dependencies": {
     "@olai/format": "workspace:*",
-    "@olai/index": "workspace:*",
     "@olai/store": "workspace:*",
     "effect": "4.0.0-rc.112"
   },

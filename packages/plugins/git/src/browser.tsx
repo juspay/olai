@@ -25,7 +25,7 @@ export default definePlugin({
     const wired = yield* Wired
     holdGitWire(() => wired.client() as GitClient)
 
-    yield* slots.register("app.header", () => <Commit />)
+    yield* slots.register("app.header", { place: "cluster", body: () => <Commit /> })
     // THE PHONE BANNER, outside the desktop cluster PluginHeaders lives in.
     // The same control, news-only: a healthy phone is silent. app.mount wraps
     // the page so the banner is drawn even when the header cluster is not.
