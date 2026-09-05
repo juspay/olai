@@ -1006,7 +1006,7 @@ start.
 
 And the degenerate case is the same code as every other: a runtime with **no**
 plugins mounts no sibling on the rooted bundle, which leaves core's own surface
-byte for byte what it was. The `surface` server profile selects the shared vault/kinds base and the `mcp` infrastructure row, with no tenant rows enabled by default. `test-minimal` selects no transports. Both use the same plugin host and composition as the web profile; `olai surface` itself remains a client of the running server.
+byte for byte what it was. The `surface` server profile selects the `vault` row over the host kind registry and the `mcp` infrastructure row, with no tenant rows enabled by default. `test-minimal` selects no transports. Both use the same plugin host and composition as the web profile; `olai surface` itself remains a client of the running server.
 
 ---
 
@@ -1224,3 +1224,13 @@ through `Deliveries` — with the key appearing on and disappearing from
 `plugins.inspect` as the journal moves. The worked example it is a near-copy of
 is in [plugins the vault defines](../dynamic-plugins.md#a-worked-example-the-morning-agenda),
 compiled from the page itself by `@olai/server`'s `dynamic/worked.test.ts`.
+
+### Vault provider
+
+Every profile inserts `olai:vault` before the first row report. It waits on `VaultSettings`, supplied after the bundle’s declared vocabulary is available, and acquires the one-brain lock before the store. The row owns its watcher and revision publisher and offers `Vault`, `Directory` and `Ops`; `Kinds` remains core-provided. Late revision subscribers receive the current snapshot. Tenants naming `Vault` wait while it is absent and reactivate when it returns.
+
+Core reads `Directory` and the complete gate carried by `Ops` per call. `makeOps` runs inside the vault row after the store acquisition. The gate owns its caches and count of accepted writes; its scope release closes it to fresh calls and drains accepted writes before the store watcher and lock are released. A serve without the row has no gate and no `Ops` offer. Core’s lookup adapter answers `NO_DIRECTORY`, the same UsageFailure sentence as `NOWHERE_TO_WRITE`; it acquires nothing. Existing plugin gestures remain typed on `Ops`, while core interprets its opaque `gate` at the floor boundary. `VaultSettings` carries the root, vocabulary and optional-provider views, with no `idle` callback.
+
+The vault row carries `config: { format: "olai" }`, validated by its `Config` schema. The codec table is the place to add another supported format; Org is not implemented by this PR. The Effect bridge decodes row config before user `apply`, inside the same contained activation as every other initializer. This avoids the pinned Cordis constructor-validation path that could leave an invalid row pending and reject an unobserved loader promise.
+
+The vault switch remains available and explains its cost. Disabling it clears served collections and removes vault-defined plugins, while the transports remain available. A lock conflict or non-directory root lands as a failed row, including its own failure sentence, so the panel can retry it after the cause is resolved. `runtime.test.ts` now opens the test-minimal profile and reads its store through `Directory`.

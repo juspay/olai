@@ -1,29 +1,24 @@
 /**
- * One directory, read and served: the composition root's argument is its order.
+ * The composition root's argument is its order. Mount the bundle, including
+ * olai:vault, before the first report so every infrastructure row is visible.
+ * VaultSettings is supplied after declared kinds are read: the vault row then
+ * acquires its directory and gate and offers Vault, Directory and Ops.
+ * Kinds stays a host registry and its live vocabulary follows those tenants.
  *
- * The tenant runtime opens before the store because it supplies the vocabulary
- * the first disk read validates against. The store and write gate stand before
- * the composed surface; the surface stands before a transport may expose it.
- * Only after a listener has bound can a session be told where its tools are.
- * These are dependencies between owners, so they belong here even when the
- * acquisitions themselves live behind a smaller module's door.
+ * Core owns only lookup adapters: each call resolves the current Directory or
+ * Ops offer. The vault row owns the gate and its write drain, so a serve with
+ * no vault has no gate. Scope teardown releases it before the store. bind follows
+ * Directory changes, while the transports wait only for TransportSurface.
+ * A failed vault therefore leaves the panel and MCP available for diagnosis.
  *
- * Profiles change which rows are present, not this sequence. Infrastructure
- * rows mount beside tenants on the same host and wait for TransportSurface.
- * Providing that door after bind lets the existing needs/activation mechanism
- * express the dependency. The store and kinds are still this shared base;
- * making the store acquisition a row is Phase 17, not a special headless path.
- *
- * Logging is inherited through Effect: the root annotation must be established
- * before openPlugins captures the environment and before the store forks its
- * watcher. A row started later then says which directory it belongs to under
- * the same log settings as everything that booted eagerly.
+ * Logging is annotated before openPlugins captures the environment. Readiness
+ * follows transport activation; only then may a session learn its tool URL.
  */
 // The upgrade seam owns header-name grammar; boot validates its initial list.
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers"
-import { type GitPin, type PageRequest } from "@olai/format"
+import { type GitPin } from "@olai/format"
 import {
-  make as makeOps,
+  liveOps,
   NO_LEDGER,
   NO_SEARCH,
   type Ledger as OpsLedger,
@@ -44,11 +39,12 @@ import {
 import { bundleRank } from "@olai/bundle"
 import { emitter } from "@olai/log"
 import {
+  Directory,
   Identity,
   Ledger,
   NOWHERE_TO_WRITE,
   openPlugins,
-  type PropWrite,
+  Ops as OpsDoor,
   Search,
   type ToolServer,
 } from "@olai/plugin-api/services"
@@ -57,13 +53,14 @@ import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
 
 import { localStateFor } from "./localState.ts"
-import { openDirectory } from "./directory.ts"
+import type { Directory as OpenDirectory } from "./directory.ts"
+import { vaultModule, VaultSettings } from "./vault.ts"
 import { openDynamic } from "./dynamic/runtime.ts"
 import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { NOBODY, readingOf } from "./who.ts"
-import { PROFILES, profileRows, TRANSPORT_ROWS, type Profile } from "./profiles.ts"
+import { PROFILES, profileRows, INFRASTRUCTURE_ROWS, type Profile } from "./profiles.ts"
 import { transportListener, transportModules, TransportSurface } from "./transports.ts"
 import { mcpEndpoint } from "./mcp/endpoint.ts"
 import { gitConfigPatch } from "./gitPolicy.ts"
@@ -127,7 +124,7 @@ export const serve = (options: ServeOptions) =>
   Effect.gen(function*() {
 
     const profile = options.profile ?? "web"
-    const built = [...BUNDLE_NAMES, ...TRANSPORT_ROWS]
+    const built = [...BUNDLE_NAMES, ...INFRASTRUCTURE_ROWS]
     /** The re-compose, filled in by `bind` — `./runtime.ts`'s `PluginRuntime`
      *  argues why it is a holder rather than a callback passed here. */
     const onChange = { run: (): void => {} }
@@ -136,12 +133,6 @@ export const serve = (options: ServeOptions) =>
     const token = randomBytes(24).toString("hex")
 
     const mcp = mcpEndpoint(token)
-
-    /** THE WRITE GATE, filled the moment it is built. Held rather than passed,
-     *  because the plugin runtime is opened BEFORE the store the layer is over —
-     *  the vocabulary a store validates with is what the rows contribute — so
-     *  the door a row names is asked per call. */
-    let opsLayer: Ops | null = null
 
     /** WHERE A RELATIVE PATH RESOLVES FROM, resolved the way `openDirectory`
      *  resolves it and BEFORE it, because the plugin runtime is opened first.
@@ -220,53 +211,11 @@ export const serve = (options: ServeOptions) =>
     const plugins = yield* openPlugins({
       vars: options.vars ?? process.env,
       now: () => new Date().toISOString(),
-      served,
       tools: toolsReady,
       // ...AND THE FENCE MINTED OFF IT. Read per call rather than captured,
       // because the endpoint has no mint until its row is active — and the row
       // that seats sessions is mounted long before that.
       ticketFor: mcp.ticketFor,
-      // THE NARROW OPS DOOR: the reading a message's armed ids are resolved
-      // against, a page read through core's standing cache, one property on one
-      // node, and a document mint. The ops layer is built below, so all are asked
-      // per call — the same shape the doorbell's door had before it became the
-      // chat row's own.
-      ops: {
-        // THE REFUSAL IS NOT THE PLUGIN'S TO SEE. A reading that failed is a
-        // store that has never loaded, which reaches a plugin as the same
-        // "nothing yet" a process with no directory answers — the door has one
-        // arm for both because a plugin has nothing different to do about them.
-        reading: Effect.suspend(() =>
-          opsLayer === null
-            ? Effect.succeed(null)
-            : Effect.catch(opsLayer.read, () => Effect.succeed(null))
-        ),
-        page: (request: unknown) =>
-          Effect.suspend(() =>
-            opsLayer === null
-              ? Effect.fail(NOWHERE_TO_WRITE)
-              : opsLayer.page(request as PageRequest)
-          ),
-        prop: (write: PropWrite) =>
-          Effect.suspend(() =>
-            opsLayer === null
-              ? Effect.fail(NOWHERE_TO_WRITE)
-              // A KEYSTROKE HAS NO SESSION, and neither does this: the gesture
-              // is a person's in the panel, so the write is recorded under this
-              // face's own writer and is fenced by nothing. A session's own
-              // writes reach the gate through the MCP face and its ticket.
-              : Effect.asVoid(opsLayer.run(
-                { op: "prop", id: write.node, key: write.key, value: write.value },
-                "web",
-              ))
-          ),
-        document: (file: string) =>
-          Effect.suspend(() =>
-            opsLayer === null
-              ? Effect.fail(NOWHERE_TO_WRITE)
-              : Effect.asVoid(opsLayer.run({ op: "create-doc", file }, "web"))
-          ),
-      },
       // WHERE EACH ROW SITS IN THIS BUILD'S OWN LIST, handed over as the function
       // `@olai/bundle` already exports rather than as the list itself: a plugin
       // that owns a table a person reads has to be able to order it, and nothing
@@ -289,7 +238,7 @@ export const serve = (options: ServeOptions) =>
     })
     yield* mountBundle(plugins.host, options.plugins ?? (PROFILES[profile].tenants ? null : []), gitConfigPatch(options.pin), {
       rows: profileRows(profile),
-      resolve: async (name) => transportModules[name],
+      resolve: async (name) => name === "olai:vault" ? vaultModule : transportModules[name],
     })
 
     /**
@@ -321,7 +270,7 @@ export const serve = (options: ServeOptions) =>
      * synchronously by the roster, so a Ref would buy nothing but two more
      * `yield*` on a path that has no concurrency to protect against.
      */
-    let report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
+    let report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
 
     /**
      * WHICH ROWS A PERSON HAS TURNED OFF HERE — the third author of a row's
@@ -347,7 +296,7 @@ export const serve = (options: ServeOptions) =>
       Effect.gen(function*() {
         const found = yield* setRow(plugins.host, id, enabled)
         yield* settled(plugins.host, built)
-        report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
+        report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
         if (found) {
           if (enabled) switched.delete(id)
           else switched.add(id)
@@ -355,9 +304,11 @@ export const serve = (options: ServeOptions) =>
         return found
       })
     const kinds = yield* propKinds(plugins)
-    const { root, store } = yield* openDirectory(served, kinds)
+    const root = served
+    const currentDirectory = (): OpenDirectory | undefined =>
+      offered(plugins.host, Directory) as OpenDirectory | undefined
 
-    /** The write gate outlives any provider row. Each operation reads the
+    /** The vault gate may outlive a ledger activation. Each operation reads the
      * current ledger offer, so stopping git also stops recording for callers
      * that held this Ops before the flip. The absent provider answers with
      * NO_LEDGER's refusal; it does not install a second ledger implementation. */
@@ -433,18 +384,11 @@ export const serve = (options: ServeOptions) =>
      *  the reading is everyone's. */
     const who = readingOf(currentIdentity)
 
-    const ops: Ops = makeOps({
-      store,
-      root,
-      ledger,
-      search,
-      // The write gate and the store judge against the same vocabulary.
-      kinds,
-      // Refusal is a write fact, so every face reports through this hook;
-      // keeping it on MCP would omit refusals from the browser's own writes.
-      onRefusal: (request, failure) => plugins.refused({ op: request.op, failure }),
-    })
-    opsLayer = ops
+    // This adapter owns no gate: every call resolves the row's current Ops.
+    const ops = liveOps(() => offered(plugins.host, OpsDoor)?.gate as Ops | undefined)
+    yield* provide(plugins.host, VaultSettings, () => ({ root, kinds, ledger, search }))
+    yield* settled(plugins.host, built)
+    report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
     /** Minted once for the serve: app.get and the install manifest must name
      * the same machine even if the host is renamed underneath us. The start
      * instant is process start rather than this function's return, so the
@@ -457,7 +401,7 @@ export const serve = (options: ServeOptions) =>
      * this same binding; their maps decide which vocabulary each may reach.
      * The root chooses writers: web for a button, mcp for MCP below. */
     const wired = yield* bind({
-      store,
+      store: () => currentDirectory()?.store,
       ops,
       writer: "web",
       hostname: theMachine,
@@ -468,11 +412,11 @@ export const serve = (options: ServeOptions) =>
         built,
         pinned: options.plugins,
         report: () => report,
-        names: () => rowsNaming(plugins.host, TRANSPORT_ROWS),
+        names: () => rowsNaming(plugins.host, INFRASTRUCTURE_ROWS),
         configs: () => configsOf(plugins.host),
         set: flipped,
         reread: Effect.gen(function*() {
-          report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
+          report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
         }),
         switched: () => switched,
         dynamic,
@@ -512,7 +456,8 @@ export const serve = (options: ServeOptions) =>
       upgradeHeaders: () => currentIdentity().headers,
       who,
       mcp: mcp.route(who),
-      resync: Effect.andThen(ops.idle, store.refresh("verified")),
+      resync: Effect.andThen(ops.idle, Effect.suspend<void, import("@olai/store").PlatformFailure | { readonly reason: string }, never>(() =>
+        currentDirectory()?.store.refresh("verified") ?? Effect.fail(NOWHERE_TO_WRITE))),
       plugins: dynamic,
     })
     /**
@@ -542,7 +487,12 @@ export const serve = (options: ServeOptions) =>
         // also reread and republish every file on every tool read. A verified
         // read checks stamps; it cannot detect a rewrite that preserved both
         // length and mtime. /olai/resync is the explicit stronger operation.
-        vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+        vintage: Effect.suspend(() => {
+          const directory = currentDirectory()
+          return directory
+            ? Effect.map(directory.store.read("verified"), (aged) => aged.vintage)
+            : Effect.succeed(undefined)
+        }),
       }),
     }))
     yield* Effect.addFinalizer(() => transports.stop)
@@ -550,7 +500,7 @@ export const serve = (options: ServeOptions) =>
     // readiness. Binding earlier could hand a newly spawned session a port
     // whose mcp row was still loading.
     yield* settled(plugins.host, built)
-    report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
+    report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
     onChange.run()
     /*
      * WHAT THIS SERVE CAME UP WITH MUST BE SERVABLE — the one thing the bind

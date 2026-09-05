@@ -8,7 +8,7 @@ How to serve a directory and configure the server. The git story is [git.md](git
 
 For an MCP-only server, run `olai web path/to/outlines --profile surface`. It opens the same vault and write gate, serves only `/mcp`, and needs no browser build. It mounts no integrations by default; `--plugins` can explicitly add them. `olai surface <verb>` remains the terminal client of a running server.
 
-`--profile test-minimal` opens the vault with no integrations or transports and logs `no transport rows enabled`. It holds the ordinary directory lock until stopped. The store and kinds are still the shared base composition; moving their acquisition into a row is Phase 17.
+`--profile test-minimal` opens the vault with no integrations or transports and logs `no transport rows enabled`. Its only running row is `vault`, which holds the ordinary directory lock until stopped. The `vault` row owns the directory lock, store watcher, write gate and revision publisher; kinds remain a host registry.
 
 Turning `mcp` off makes its endpoint return 404 and closes its protocol server; turning it on creates a fresh server. The browser socket stays open. Changing `ws` or `web-app` rebuilds the shared listener on the same port and disconnects existing sockets. Turning off `ws` removes the panel's connection, so restart the process to restore browser control. Switches last only for the current process.
 
@@ -39,7 +39,7 @@ The page it serves follows the disk — save a file, `git pull`, drop in a new o
 
 ### One olai per directory
 
-A directory has one olai over it, and a second one refuses to boot:
+A directory has one active vault row over it. A second process keeps its panel available, but its vault row refuses the directory:
 
 ```
 $ olai web ~/notes
@@ -482,3 +482,18 @@ Finding a thread again is `olai surface --url … search_nodes --text '"<abc@mai
 **Anything else, same verb.** A cron job, a script that notices something, a shell function. `olai surface --help` lists every verb the server offers.
 
 **Files are not in this door yet** — a photo or a PDF is a separate piece of work, because writing binary into the vault is a path olai does not have (only chat attachments, which land in a tmp directory, and `.md` documents). Capture a link to it in the note for now.
+
+The plugins panel includes a **vault** switch. Turning it off clears the served files and stops plugins that need the vault; reads and writes refuse until it is turned on again. The panel and enabled transports remain available. Turning it back on opens a fresh store from disk. Like other switches, this lasts only for the current serve.
+
+If another olai holds the directory, this process still serves its panel and MCP endpoint: the vault row is **failed**, with the lock holder's sentence, and writes answer that no directory is being served. After the other owner stops, turn the failed vault row off and on to retry. A root that is not a directory likewise fails only the vault row.
+
+The file format is the vault row’s config. Every profile inserts this loader entry:
+
+```yaml
+- id: vault
+  name: olai:vault
+  config:
+    format: olai
+```
+
+The plugins panel shows `format: olai`. The row’s `Config` schema validates the choice before acquiring the directory; unsupported values fail that row. Only `olai` is supported now. This makes the codec selection the place for a future Org implementation, without adding Org or migrating any files today. A different storage backend would instead be another provider behind `Directory`. The write gate is created and released with the vault row; without that row, there is no gate.

@@ -1,3 +1,8 @@
+import { mountBundle, offered as door, provide, settled } from "@olai/bundle/bundle"
+import { openPlugins as openHostPlugins, Directory, Ops as OpsDoor } from "@olai/plugin-api/services"
+import { profileRows } from "./profiles.ts"
+import { vaultModule, VaultSettings } from "./vault.ts"
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * One runtime, several faces, several writers — the rebinding, as a fence.
  *
@@ -19,8 +24,8 @@
  */
 
 import {
-  codecFor,
-  make as makeOps,
+  NO_LEDGER,
+  NO_SEARCH,
   type Ops,
   type Store as OutlineStore,
 } from "@olai/ops"
@@ -36,7 +41,7 @@ import {
   definePlugin,
   mountPlugin,
   Offers,
-  openPlugins,
+
   rowReport,
   standing,
   Surfaces,
@@ -48,7 +53,6 @@ import { restrictHandlers } from "@kolu/surface/expose"
 import { facesOf } from "./faces.ts"
 import { inMemoryStore } from "@kolu/surface/server"
 import { NO_KINDS } from "@olai/format"
-import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, mock, test } from "bun:test"
 import { Effect, Fiber, Queue, Schema, Scope, Stream } from "effect"
@@ -59,11 +63,6 @@ import * as path from "node:path"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { type Bound, bind, type PluginRuntime, rosterOf, writerAt } from "./runtime.ts"
-
-/** The codec this suite validates through — the vocabulary of a build that
- *  composed no plugin, which is what these fixtures declare nothing about
- *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
 
 /** A known start instant, so `app.get` is asserted against a mint rather
  *  than against whatever clock the suite happened to read. */
@@ -91,27 +90,10 @@ const withRuntime = <A>(
      *  `@olai/store`.s `body`, which is the one door `./bodies.ts` may use.
      *  Recorded rather than mocked: the real read still happens. */
     readonly reads: ReadonlyArray<string>
-    /** THE PLUGIN CONTEXT this runtime was handed, or `null` where a case took
-     *  no plugin slot — for the one case that mounts a plugin AFTER the bundle
-     *  is composed, which is the only way to reach the live re-compose from
-     *  here. Every other case gets its plugins mounted before `bind` and has no
-     *  use for it. */
-    readonly plugins: Plugins | null
+    /** The live host, including the vault row and any test doubles. */
+    readonly plugins: Plugins
   }) => Effect.Effect<A, unknown>,
-  /**
-   * The two slots the doorbell's gates need and no other test here does —
-   * OPTIONAL, so the ten cases above say nothing about either and get exactly
-   * the boot they always got.
-   *
-   * `chat` is the panel this runtime answers for, absent by default because a
-   * directory is readable whether or not an agent is installed and every
-   * reading test here is that machine. `plugins` is WHICH DOUBLES to mount:
-   * `undefined` is no plugin runtime at all ({@link rosterOf}'s `NO_ROSTER`),
-   * `[]` is a mounted runtime with nothing in it, and a list is the doubles a
-   * case built. What is behind a name is a plugin with no
-   * appliance under it ({@link doubleCalled}) — this harness mounts what the
-   * runtime is handed and never looks inside it.
-   */
+  /** Additional rows mounted beside the test-minimal vault provider. */
   extra: {
     readonly plugins?: ReadonlyArray<{
       readonly name: string
@@ -126,31 +108,27 @@ const withRuntime = <A>(
   const reads: Array<string> = []
 
   return Effect.gen(function*() {
-    const opened: OutlineStore = yield* Store.make({
-      root,
-      codec,
-      watch: false,
-      settle: "10 millis",
+    const onChange = { run: (): void => {} }
+    const mounted = yield* openHostPlugins({ vars: {}, now: () => STARTED, changed: () => onChange.run() })
+    yield* mountBundle(mounted.host, [], [], {
+      rows: profileRows("test-minimal"),
+      resolve: async (name) => name === "olai:vault" ? vaultModule : undefined,
     })
+    yield* provide(mounted.host, VaultSettings, () => ({ root, kinds: NO_KINDS, ledger: NO_LEDGER, search: NO_SEARCH }))
+    yield* settled(mounted.host, ["vault"])
+    const directory = door(mounted.host, Directory) as { readonly store: OutlineStore } | undefined
+    if (!directory) throw new Error("test-minimal did not open its vault row")
+    const opened = directory.store
     const store: OutlineStore = {
       ...opened,
-      body: (path) => {
-        reads.push(path)
-        return opened.body(path)
-      },
+      body: (path) => { reads.push(path); return opened.body(path) },
     }
-    const ops = makeOps({ store, root })
-    /** The re-compose holder `bind` fills in — one per boot, as `./serve.ts`
-     *  makes one per serve. */
-    const onChange = { run: (): void => {} }
-    /** The plugin context this boot was handed, held so the body can reach it —
-     *  see the `plugins` field the harness yields. */
-    const mounted = extra.plugins === undefined
-      ? null
-      : yield* mounting(extra.plugins ?? [], onChange)
+    const gate = door(mounted.host, OpsDoor)?.gate as Ops | undefined
+    if (!gate) throw new Error("test-minimal did not offer its gate")
+    for (const one of extra.plugins ?? []) yield* mountPlugin(mounted.host, one.plugin)
     const wired = yield* bind({
       store,
-      ops,
+      ops: gate,
       writer: "web",
       hostname: hostname(),
       startedAt: STARTED,
@@ -165,10 +143,10 @@ const withRuntime = <A>(
       // The doorbell's cases DO take the slot, and they still dial nothing:
       // what stands behind their names is a double with no appliance under it
       // ({@link doubleCalled}).
-      plugins: mounted === null ? null : {
+      plugins: {
         plugins: mounted,
         onChange,
-        built: (extra.plugins ?? []).map((one) => one.name),
+        built: extra.plugins === undefined ? ["vault"] : extra.plugins.map((one) => one.name),
         pinned: null,
         // THE DOUBLES' OWN FIBERS, asked the way a serve asks the bundle's.
         // These runtimes mount doubles directly rather than through the loader,
@@ -177,7 +155,7 @@ const withRuntime = <A>(
         // and asking it here is what makes these cases exercise the same
         // derivation a real boot does rather than a hand-made map.
         report: yield* Effect.map(
-          rowReport(mounted.host, (extra.plugins ?? []).map((one) => one.name)),
+          rowReport(mounted.host, extra.plugins === undefined ? ["vault"] : extra.plugins.map((one) => one.name)),
           (read) => () => read,
         ),
         // THESE DOUBLES ARE NOT LOADER ROWS, so there is nothing to name and
@@ -197,7 +175,7 @@ const withRuntime = <A>(
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => runtime.stopped)
-    return yield* use({ wired, ops, store, reads, root, plugins: mounted })
+    return yield* use({ wired, ops: gate, store, reads, root, plugins: mounted })
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
 }
 
@@ -1162,7 +1140,7 @@ test("the roster is served on the plugins cell", () =>
       const get = wired.bound.handlers["surface/plugins/get"]
       if (get === undefined) throw new Error("the plugins cell has no `get`")
       const open = yield* watching(get({}) as Stream.Stream<PluginRoster>)
-      expect(yield* open.take).toEqual(NO_ROSTER)
+      expect((yield* open.take).built.map((row) => [row.name, row.state])).toEqual([["vault", "running"]])
       yield* Fiber.interrupt(open.reader)
     })))
 
@@ -1491,35 +1469,3 @@ const engineCalled = (name: string) => ({
     }),
   }),
 })
-
-/**
- * A PLUGIN RUNTIME WITH `doubles` MOUNTED — what a composition root is handed,
- * built for one case.
- *
- * The whole runtime is opened, exactly as `./serve.ts` opens one: the doubles
- * name what they name and see what they named, which is the harness saying that
- * out loud rather than assembling a subset by hand.
- *
- * NO `doorFor`, and its absence is the lane: where a doorbell may deliver is a
- * promise the chat ROW keeps, so there is nothing here for a composition root to
- * hand over.
- *
- * SCOPED to the case: the scope is never closed, because a runtime.test's
- * runtimes live as long as the case does and there is nothing here to hold open
- * against a second one.
- */
-const mounting = (
-  doubles: ReadonlyArray<{ readonly plugin: ReturnType<typeof definePlugin> }>,
-  onChange: { run: () => void },
-): Effect.Effect<Plugins, never, Scope.Scope> =>
-  Effect.gen(function*() {
-    const plugins = yield* openPlugins({
-      vars: {},
-      now: () => STARTED,
-      // The double's own directory, which none of these cases reads.
-      served: "/tmp",
-      changed: () => onChange.run(),
-    })
-    for (const one of doubles) yield* mountPlugin(plugins.host, one.plugin)
-    return plugins
-  })

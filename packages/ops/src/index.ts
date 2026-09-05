@@ -32,10 +32,11 @@
  */
 
 export { codecFor } from "./codec.ts"
-export type { Store } from "./deps.ts"
+export type { Directory, Store } from "./deps.ts"
 export { type Caller, type Fence, type Outside, outsideFence } from "./fenced.ts"
 export {
   make,
+  NO_DIRECTORY,
   NO_LEDGER,
   NO_SEARCH,
   type Ledger,
@@ -75,3 +76,5 @@ export {
 } from "./tools.ts"
 
 export * as Query from "./query.ts"
+
+export { liveOps } from "./live.ts"

@@ -238,6 +238,7 @@ export const pluginConfig = (
 export const pluginHint = (plugin: BuiltPlugin): string | null => {
   switch (pluginState(plugin)) {
     case "running":
+      if (plugin.name === "vault") return "Turning it off clears the served files and stops plugins that need the vault. Turn it on to reopen the directory."
       // NOTHING, on the ordinary row: the switch reads On and there is no
       // second thing to know. A row that carries others has one, and it is
       // about the press rather than about the state.

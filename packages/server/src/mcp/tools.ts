@@ -258,7 +258,7 @@ export interface Served {
    * taken comes back as an arm of the proof rather than as a defect a tool
    * handler would have to word.
    */
-  readonly vintage: Effect.Effect<Vintage>
+  readonly vintage: Effect.Effect<Vintage | undefined>
   /** Select the per-request write door before the adapter starts a fresh Effect
    * fiber and request-local context is no longer available. */
   readonly fenced: (client: OlaiSurfaceClient) => OlaiSurfaceClient

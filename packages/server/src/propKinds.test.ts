@@ -1,3 +1,4 @@
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * THE VOCABULARY FOLLOWS THE FIBERS — the loader surface's other half, benched
  * where the join is made.
@@ -38,7 +39,7 @@ import {
   definePlugin,
   Kinds,
   mountPlugin,
-  openPlugins,
+
   type Plugins,
   standing,
 } from "@olai/plugin-api/services"

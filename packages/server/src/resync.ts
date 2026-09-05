@@ -40,7 +40,7 @@ import { fromLoopback } from "./mcp/route.ts"
 export const RESYNC_PATH = "/olai/resync"
 
 export const resyncRoute = (
-  resync: Effect.Effect<void, PlatformFailure>,
+  resync: Effect.Effect<void, PlatformFailure | { readonly reason: string }>,
 ) =>
   HttpRouter.add(
     "POST",
@@ -53,7 +53,7 @@ export const resyncRoute = (
         }
         const ran = yield* Effect.result(resync)
         if (ran._tag === "Failure") {
-          return HttpServerResponse.text(ran.failure.message, { status: 500 })
+          return HttpServerResponse.text("message" in ran.failure ? ran.failure.message : ran.failure.reason, { status: 500 })
         }
         return HttpServerResponse.empty({ status: 204 })
       }),
