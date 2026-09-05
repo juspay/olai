@@ -7,6 +7,7 @@ export const bootstrapSelected = async (options: {
 }): Promise<void> => {
   if (options.authoritative()) return
   const response = await options.request()
+  if (options.authoritative()) return
   if (!response.ok) throw new Error(`Browser bootstrap returned HTTP ${response.status}`)
   const selected: unknown = await response.json()
   if (!Array.isArray(selected) || !selected.every((id) => typeof id === "string")) {

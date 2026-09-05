@@ -210,6 +210,7 @@ export const bootstrapBrowser = async (): Promise<void> => {
       apply: (selected) => rerost(selected.map((id) => ({ id, chunk: null }))),
     })
   } catch (error) {
+    if (receivedRoster) return
     console.warn("olai: browser bootstrap could not be read", error)
     boot?.failed(`Browser startup could not read the host selection: ${String(error)}`, retryBrowser)
   }

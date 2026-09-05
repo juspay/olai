@@ -38,6 +38,9 @@ export default definePlugin({
     const clientDist = yield* shared.clientDist
     yield* shared.register({ routes: Layer.mergeAll(
       surfaceAppLayer({ clientDist, assetPrefix: ASSET_PREFIX, manifest: manifestOf(shared.hostname), serviceWorker: "notify" }),
+      // This is the host's current selection, not another default roster. It
+      // lets a cold tab load its selected browser-only shell while the socket
+      // is connecting. No caching: a live roster supersedes a late HTTP answer.
       HttpRouter.add("GET", BROWSER_BOOT_PATH, () => Effect.orDie(HttpServerResponse.json(
         shared.browserBoot?.() ?? [], { headers: { "cache-control": "no-store" } },
       ))),

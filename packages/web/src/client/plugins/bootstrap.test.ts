@@ -41,3 +41,12 @@ test("an established roster does not request a bootstrap", async () => {
   await bootstrapSelected({ authoritative: () => true, request: async () => { requested = true; return Response.json([]) }, apply: async () => { throw new Error("should not apply") } })
   expect(requested).toBe(false)
 })
+
+test("an authoritative roster supersedes an unsuccessful bootstrap response", async () => {
+  let authoritative = false
+  await bootstrapSelected({
+    authoritative: () => authoritative,
+    request: async () => { authoritative = true; return new Response("unavailable", { status: 503 }) },
+    apply: async () => { throw new Error("must not replace the live roster") },
+  })
+})
