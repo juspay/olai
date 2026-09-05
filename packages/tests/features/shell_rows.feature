@@ -34,7 +34,7 @@ Feature: The renderer and layout are browser rows
 
   Scenario: A renderer module failure has a startup diagnostic and can recover
     Given the browser module for "ui-renderer" cannot be fetched
-    When I open the app
+    When I open the browser before an application can mount
     Then browser startup reports its failure
     Given I mark the page
     When the browser module can be fetched again
@@ -53,7 +53,7 @@ Feature: The renderer and layout are browser rows
 
   Scenario: A bootstrap failure is visible before a socket roster and retries without reload
     Given the browser cannot obtain its initial selection
-    When I open the app
+    When I open the browser before an application can mount
     Then browser startup reports its failure
     Given I mark the page
     When the browser selection endpoint recovers

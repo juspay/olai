@@ -517,3 +517,9 @@ The web defaults include `ui-renderer` and `layout`. Exact `--plugins` lists
 must select both to draw the current application; `--plugins=` remains empty.
 The headless surface and test-minimal defaults select neither. A browser-only
 row selected by the host is not proof of successful activation in a tab.
+
+If a browser plugin fails to load, its row in the plugins panel shows the error
+and offers **Retry browser activation**. Successfully running browser plugins
+keep their state. If startup cannot mount a shell, **Retry browser startup**
+appears in the startup error view and retries the host's selection. Neither
+retry changes the server's configured selection.

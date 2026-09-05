@@ -45,3 +45,10 @@ surviving plugins. If startup cannot render an application, the host displays a
 small error view with **Retry browser startup**, including when the renderer
 itself cannot load or the bootstrap request fails. Retry uses the latest host
 selection and does not infer a default shell.
+
+The browser build embeds entry URLs derived from Bun's output metadata in the
+uncached shell. These URLs describe available code, not selected plugins. Retry
+uses a fresh query on a failed entry to bypass the browser's cached import
+failure; relative dependencies retain their original URLs and shared runtime
+identity. Successfully loaded modules, including recovered ones, are retained
+across later roster changes.

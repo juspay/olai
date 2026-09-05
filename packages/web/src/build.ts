@@ -53,6 +53,8 @@ import babelSolid from "babel-preset-solid"
 import { buildSurfaceClient } from "@kolu/surface-app/bun"
 import { ASSET_PREFIX, chunkFile } from "@olai/surface"
 import type { BunPlugin } from "bun"
+import { BROWSER_ROWS } from "@olai/bundle"
+import { BROWSER_MODULES_ID } from "@olai/plugin-api/mount"
 
 import { fontCss, FONTS_DIR, HOSTED_WOFF2 } from "@olai/fonts/build"
 import { paletteCss } from "./client/theme/css.ts"
@@ -259,6 +261,26 @@ const preloadPipeline = async (
 }
 
 const buildClient = async (distDir: string): Promise<void> => {
+  const resolver = createRequire(import.meta.resolve("@olai/bundle"))
+  const entries = new Map(BROWSER_ROWS.map((row) => [resolver.resolve(row.specifier), row.id]))
+  const browserModules: Record<string, string> = {}
+  const moduleManifest: BunPlugin = {
+    name: "olai-browser-module-urls",
+    setup(build) {
+      build.onEnd((result) => {
+        if (!result.success) return
+        if (!result.metafile) throw new Error("Browser module URLs require a build metafile")
+        const meta = typeof result.metafile === "string" ? JSON.parse(result.metafile) : result.metafile
+        for (const [file, output] of Object.entries(meta.outputs)) {
+          const entry = (output as { entryPoint?: string }).entryPoint
+          if (!entry) continue
+          const id = entries.get(resolve(entry))
+          if (id) browserModules[id] = `${ASSET_PREFIX}${basename(file)}`
+        }
+        for (const row of BROWSER_ROWS) if (!browserModules[row.id]) throw new Error(`No emitted browser entry for ${row.id}`)
+      })
+    },
+  }
   const { assets } = await buildSurfaceClient({
     entrypoint: resolve(CLIENT, "main.tsx"),
     distDir,
@@ -284,7 +306,7 @@ const buildClient = async (distDir: string): Promise<void> => {
     // the server's manifest can name (packages/server/src/listener.ts) and
     // must not change with their bytes.
     publicDir: resolve(CLIENT, "public"),
-    plugins: [solidJsx],
+    plugins: [solidJsx, moduleManifest],
   })
   // What the helper emitted, reported rather than re-walked: one row per
   // compressible file in the hashed dir — the entry, the markdown chunk the
@@ -298,6 +320,13 @@ const buildClient = async (distDir: string): Promise<void> => {
     console.log(`asset: ${asset.file} ${asset.bytes}B${siblings}`)
   }
   console.log(`preload: ${await preloadPipeline(distDir, assets)}`)
+  // Keep the bundler's immutable files intact. The uncached shell carries only
+  // their URLs, derived from entryPoint metadata rather than parsed JS or guessed
+  // hashes. A retry adds a query to the failed entry while sharing dependencies
+  // with the original graph, preserving singleton runtimes and surviving state.
+  const shell = join(distDir, "index.html")
+  const html = await Bun.file(shell).text()
+  await Bun.write(shell, html.replace("</head>", `<script id="${BROWSER_MODULES_ID}" type="application/json">${JSON.stringify(browserModules).replaceAll("<", "\\u003c")}</script></head>`))
   // Fonts after the surface client so a wipe of dist does not strand them,
   // and so /fonts/* is a sibling of the icons at the dist root.
   installFonts(distDir)

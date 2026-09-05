@@ -94,3 +94,5 @@ export { customProperty } from "./client/theme/css.ts"
 // on the plugin's own door, recorded in `@olai/bundle`'s `fence.test.ts` the
 // way kolu's fake padi is.
 
+
+export { BROWSER_MODULES_ID } from "@olai/plugin-api/mount"

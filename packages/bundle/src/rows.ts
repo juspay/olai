@@ -107,6 +107,8 @@ export interface BrowserHalf {
  */
 export interface BrowserRow {
   readonly id: string
+  /** Build metadata: resolve the same entry named by the literal import. */
+  readonly specifier: string
   readonly load: () => Promise<BrowserHalf>
 }
 

@@ -1875,6 +1875,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "web/src/client/palette/items.ts",
       "web/src/client/palette/ops.ts",
       "web/src/client/pins/palette.ts",
+      "web/src/client/plugins/loading.ts",
       "web/src/client/router.tsx",
       "web/src/client/routes.ts",
       "web/src/client/search/Count.tsx",

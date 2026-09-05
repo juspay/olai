@@ -182,9 +182,7 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
   const entries = rows
     .filter((row) => hasDoor(row, "./browser"))
     .map((row) =>
-      `  { id: ${quoted(row.id)}, load: () => import(${
-        quoted(`${packageOf(row)}/browser`)
-      }) },`
+      `  { id: ${quoted(row.id)}, specifier: ${quoted(`${packageOf(row)}/browser`)}, load: () => import(${quoted(`${packageOf(row)}/browser`)}) },`
     )
     .join("\n")
   return `${HEADER("Every server row, and only the browser exports the tab can load.")}

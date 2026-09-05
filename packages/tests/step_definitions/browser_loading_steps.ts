@@ -1,38 +1,22 @@
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
+import { BROWSER_MODULES_ID } from "@olai/web/testlib";
 import type { OlaiWorld } from "../support/world.ts";
 
 const refused = new WeakMap<OlaiWorld, { url: string; requests: number }>();
 
+When("I open the browser before an application can mount", async function (this: OlaiWorld) {
+  await this.page.goto(this.baseUrl);
+});
+
 Given("the browser module for {string} cannot be fetched", async function (this: OlaiWorld, plugin: string) {
   const shell = await this.page.request.get(this.baseUrl);
   const html = await shell.text();
-  const entry = html.match(/src="([^"]*\/main-[^"]+\.js)"/);
-  assert.ok(entry, "the built shell must name its hashed module entry");
-  const entryUrl = new URL(entry[1]!, this.baseUrl).href;
-  // Resolve the generated row's literal import from the actual build. No hash
-  // or ambiguous browser-*.js filename is assumed by this scenario.
-  assert.match(plugin, /^[a-z][a-z0-9-]*$/);
-  const pattern = new RegExp(`id:\\s*"${plugin}",\\s*load:[^{}]*?\\bimport\\("([^"]+)"\\)`);
-  const pending = [entryUrl];
-  const visited = new Set<string>();
-  let moduleUrl: string | undefined;
-  while (pending.length && moduleUrl === undefined) {
-    const url = pending.pop()!;
-    if (visited.has(url)) continue;
-    visited.add(url);
-    const response = await this.page.request.get(url);
-    assert.ok(response.ok(), `could not read built module ${url}`);
-    const source = await response.text();
-    const row = source.match(pattern);
-    if (row) moduleUrl = new URL(row[1]!, url).href;
-    // Bun may put the generated table in a shared static chunk. Follow that
-    // closure without evaluating modules or requesting any dynamic entry.
-    else for (const imported of source.matchAll(/(?:\bfrom\s*|\bimport\s*)["']([^"']+)["']/g)) {
-      if (imported[1]!.startsWith(".")) pending.push(new URL(imported[1]!, url).href);
-    }
-  }
-  assert.ok(moduleUrl, `the built entry graph must contain the browser row for ${plugin}`);
+  const manifest = html.match(new RegExp(`<script id="${BROWSER_MODULES_ID}" type="application/json">([^<]+)</script>`));
+  assert.ok(manifest, "the built shell must carry its browser module URLs");
+  const urls = JSON.parse(manifest[1]!) as Record<string, string>;
+  assert.ok(urls[plugin], `the build must name the browser module for ${plugin}`);
+  const moduleUrl = new URL(urls[plugin]!, this.baseUrl).href;
   const record = { url: moduleUrl, requests: 0 };
   refused.set(this, record);
   await this.page.route(record.url, async (route) => {

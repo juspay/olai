@@ -15,3 +15,27 @@ export const loadRows = async <T>(rows: ReadonlyArray<{
   })
   return { loaded, failed }
 }
+
+/** Browsers retain a rejected import by URL. Retry just that entry with a new
+ * query; its relative imports keep the original singleton dependency graph.
+ * Retain successful modules across compositions, including a recovered module,
+ * so a sibling retry never re-evaluates working plugin code. */
+export const retryableModule = <T>(
+  initial: () => Promise<T>,
+  url: () => string | undefined,
+  imported: (url: string) => Promise<T>,
+): (() => Promise<T>) => {
+  let attempts = 0
+  let pending: Promise<T> | undefined
+  return () => pending ??= Promise.resolve().then(() => {
+    const target = attempts > 0 ? url() : undefined
+    if (target === undefined) return initial()
+    const retry = new URL(target, globalThis.location?.href ?? "http://localhost")
+    retry.searchParams.set("olai-import-attempt", String(attempts))
+    return imported(retry.href)
+  }).catch((error) => {
+    attempts++
+    pending = undefined
+    throw error
+  })
+}

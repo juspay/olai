@@ -6,9 +6,9 @@
  */
 
 import { bootstrapSelected } from "./plugins/bootstrap.ts"
-import { loadRows } from "./plugins/loading.ts"
+import { loadRows, retryableModule } from "./plugins/loading.ts"
 import type { bootStatus } from "./plugins/boot-status.ts"
-import { BROWSER_BOOT_PATH } from "@olai/plugin-api/mount"
+import { BROWSER_BOOT_PATH, BROWSER_MODULES_ID } from "@olai/plugin-api/mount"
 import { connectSurfaces } from "@kolu/surface-app/solid"
 import type { Surface, SurfaceSpec } from "@kolu/surface/define"
 import type { BrowserHalf, BrowserRow } from "@olai/bundle"
@@ -186,7 +186,9 @@ let rows: ReadonlyArray<BrowserRow> = []
  * so it is the one place in this package that may still name the registry.
  */
 export const useBrowserRows = (built: ReadonlyArray<BrowserRow>): void => {
-  rows = built
+  const raw = document.getElementById(BROWSER_MODULES_ID)?.textContent
+  const urls: Record<string, string> = raw ? JSON.parse(raw) : {}
+  rows = built.map((row) => ({ ...row, load: retryableModule(row.load, () => urls[row.id], importModule) }))
 }
 
 /** The socket is authoritative once it has answered. A slow bootstrap reply
@@ -303,8 +305,17 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
  * reason a face an agent wrote can sit inside a provider a shipped plugin
  * registered.
  */
-const chunkAt = (url: string): Promise<BrowserHalf> =>
+const importModule = (url: string): Promise<BrowserHalf> =>
   import(/* @vite-ignore */ url) as Promise<BrowserHalf>
+const dynamicModules = new Map<string, () => Promise<BrowserHalf>>()
+const chunkAt = (url: string): Promise<BrowserHalf> => {
+  let load = dynamicModules.get(url)
+  if (!load) {
+    load = retryableModule(() => importModule(url), () => url, importModule)
+    dynamicModules.set(url, load)
+  }
+  return load()
+}
 
 /** The halves' surfaces, keyed by name — the shape every composition door
  *  takes. Built here rather than through `@olai/plugin-api`'s `surfacesOf`
