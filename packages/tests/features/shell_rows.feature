@@ -50,3 +50,14 @@ Feature: The renderer and layout are browser rows
     And the desktop window narrows to 900 pixels
     Then layout reserves at least 280 pixels for content
     And there should be no page errors
+
+  Scenario: A bootstrap failure is visible before a socket roster and retries without reload
+    Given the browser cannot obtain its initial selection
+    When I open the app
+    Then browser startup reports its failure
+    Given I mark the page
+    When the browser selection endpoint recovers
+    And I retry browser startup
+    Then browser startup has recovered
+    And the page has not reloaded
+    And there should be no page errors

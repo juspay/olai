@@ -94,3 +94,20 @@ Then("layout reserves at least {int} pixels for content", async function (this: 
     return window.innerWidth - side - panel >= minimum;
   }, width);
 });
+
+Given("the browser cannot obtain its initial selection", async function (this: OlaiWorld) {
+  // Accept the browser socket without forwarding messages, so no live roster
+  // can mask the bootstrap failure or supply an inferred default selection.
+  await this.page.routeWebSocket("**/rpc/ws", () => {});
+  await this.page.route("**/olai/browser-boot", (route) => route.fulfill({ status: 503, body: "unavailable" }));
+});
+
+When("the browser selection endpoint recovers", async function (this: OlaiWorld) {
+  await this.page.unroute("**/olai/browser-boot");
+  this.errors = this.errors.filter((error) => error !== "console.error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)");
+});
+
+Then("browser startup has recovered", async function (this: OlaiWorld) {
+  await this.page.getByRole("alert", { name: "Browser startup failed" }).waitFor({ state: "hidden" });
+  await this.page.waitForFunction(() => (document.getElementById("root")?.childElementCount ?? 0) > 0);
+});
