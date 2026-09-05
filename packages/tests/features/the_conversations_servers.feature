@@ -78,14 +78,13 @@ Feature: The panel says which MCP servers a conversation has
     And the panel says the agent attached "olai"
 
   @scratch:chat
-  Scenario: The one that never arrived is on the roster too, with its reason
-    # #140's fact, in its new place. This host's `kolu` reaches no daemon, so
-    # olai never handed one over — and the row for it is on the same strip as
-    # the server that did arrive, because "which servers does this conversation
-    # have?" is one question with one answer.
+  Scenario: An installed command is handed over without probing daemon health
+    # The default fake kolu cannot read daemon identity. Discovery must still
+    # hand it over and must not claim its actual connection has succeeded.
     Then the panel says this conversation has "olai"
-    And the panel says "kolu" is missing from this conversation
-    And the reason it gives is "padi transport down"
+    And the panel says this conversation has "kolu"
+    And the panel does not claim the agent attached "kolu"
+    And the panel says nothing about a missing server
 
   @scratch:chat @kolu
   Scenario: The roster belongs to the conversation, not to the boot

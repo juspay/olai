@@ -53,3 +53,23 @@ describe("Codex's conservative wire readings", () => {
       .toBe("GPT-5.3 Codex")
   })
 })
+
+describe("Codex MCP startup reports", () => {
+  const failed = {
+    sessionUpdate: "tool_call", toolCallId: "mcp_startup.my%20server",
+    title: "mcp__my server__startup", kind: "other", status: "failed",
+    content: [{ type: "content", content: { type: "text", text: "connection refused" } }],
+  }
+  test("preserves the server and actual startup error", () => {
+    expect(CODEX.serversInUpdate?.(failed)).toEqual([
+      { name: "my server", attached: false, said: "connection refused" },
+    ])
+  })
+  test("does not interpret ordinary failed tools, malformed ids, or silence as connection failure", () => {
+    for (const update of [null, {}, { ...failed, toolCallId: "ordinary" },
+      { ...failed, title: "mcp__my server__read" }, { ...failed, status: "completed" },
+      { ...failed, toolCallId: "mcp_startup.%" }]) {
+      expect(CODEX.serversInUpdate?.(update)).toBeNull()
+    }
+  })
+})

@@ -1917,7 +1917,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/kolu/src/client/detect.ts",
       "plugins/kolu/src/client/fleet.ts",
       "plugins/kolu/src/client/link.ts",
-      "plugins/kolu/src/probe.ts",
       "plugins/odu/src/appliance/wire/index.ts",
       "plugins/odu/src/browser/RunMatrix.tsx",
       "plugins/odu/src/browser/words.ts",

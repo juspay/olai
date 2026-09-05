@@ -106,6 +106,7 @@ import {
 import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
 import type { ChatServer } from "olai-plugin-chat/wire"
+import type { Reported } from "@olai/acp/engine"
 import type { AskAnswer } from "@olai/acp/wire"
 import { Clock, Data, type Duration, Effect, References, Semaphore } from "effect"
 
@@ -716,6 +717,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // land.
       if (fromElsewhere(notification.sessionId, activeSession, closed)) return
       const update = notification.update
+      reportServers(options.leg.serversInUpdate?.(update) ?? null)
       switch (update.sessionUpdate) {
         case "agent_message_chunk": {
           const text = textOf(update.content)
@@ -1134,10 +1136,24 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     const readLiveServers = (params: unknown): void => {
-      const said = options.leg.rawMessages?.serversIn(params) ?? null
+      reportServers(options.leg.rawMessages?.serversIn(params) ?? null)
+    }
+
+    const reportServers = (said: ReadonlyArray<Reported> | null): void => {
       if (said === null) return
       const next = movedBy(roster, said)
-      if (next !== null) announce(next)
+      if (next === null) return
+      for (const [index, server] of next.entries()) {
+        if (server === roster[index]) continue
+        if (server.standing.kind === "unattached") {
+          tell(Effect.logWarning("MCP server connection problem"), {
+            server: server.name, reason: server.standing.why,
+          })
+        } else if (server.standing.kind === "connected") {
+          tell(Effect.logDebug("MCP server connected"), { server: server.name })
+        }
+      }
+      announce(next)
     }
 
     /** The agent's own file would not run, said once for the two doors that

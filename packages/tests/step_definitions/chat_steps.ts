@@ -2942,13 +2942,13 @@ Then(
  *  question — a `kolu` on PATH is not necessarily the host's kolu — so the
  *  path is asserted as a path rather than as a string the scenario spells: it
  *  is a temporary directory's, and only the running server knows it. */
-Then("it names the file it probed", async function (this: OlaiWorld) {
+Then("it names the configured executable", async function (this: OlaiWorld) {
   const said = oneLine(
     await this.page.locator(CHAT_MISSING_SERVER).first().innerText(),
   );
   assert.ok(
     /\/[^\s]*\/kolu\b/.test(said),
-    `the panel does not say WHICH kolu it probed, which is the question the ` +
+    `the panel does not say WHICH kolu it configured, which is the question the ` +
       `incident behind this feature started from. It reads: ${said}`,
   );
 });

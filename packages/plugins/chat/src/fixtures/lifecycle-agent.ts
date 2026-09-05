@@ -55,6 +55,16 @@ process.stdin.on("data", (chunk: string) => {
         continue
       case "session/prompt": {
         const text = message.params?.prompt?.[0]?.text ?? ""
+        if (text === "mcp-report") {
+          const update = { sessionUpdate: "tool_call", toolCallId: "mcp_startup.optional",
+            title: "mcp__optional__startup", kind: "other", status: "failed",
+            content: [{ type: "content", content: { type: "text", text: "connection refused" } }] }
+          for (const sessionId of ["other-session", "sess-1", "sess-1"]) {
+            write({ jsonrpc: "2.0", method: "session/update", params: { sessionId, update } })
+          }
+          respond(message.id, { stopReason: "end_turn" })
+          continue
+        }
         if (text === "fail") {
           process.stderr.write("lifecycle-agent: json-rpc boom\n")
           refuse(message.id, "the model said no")
