@@ -9,8 +9,10 @@ Other pane and conversation stores still serve navigation and provider changes.
 
 The identity lifecycle scenario changes proxy headers before a journal surface
 change and again before a socket reconnect. Kolu’s connection-epoch accessor
-refreshes identity after both establishments. Identity-only toggles do not change
-the surface roster and therefore do not require another socket.
+refreshes identity after both establishments. The identity switch-on
+scenario from #528 is also retained: when the plugin roster changes without a
+surface-map change, Olai refreshes the socket so its upgrade can retain the
+newly allowed headers.
 
 The journal lifecycle cases also cover a route-equality bug exposed by the
 stable app lifetime: a removed plugin printed the home URL, so the page memo

@@ -206,7 +206,15 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
     // — core cannot type a plugin's client without learning its members — and
     // every plugin narrows it once, at its own edge, against a shape it
     // declares itself.
+    const established = live.connectionEpoch()
     await live.redial(surfaceMapOf(halves))
+    // Kolu skips an unchanged surface map, but a changed plugin roster can
+    // also change the upgrade-header policy (a plugin need not own a surface).
+    // Refresh an unchanged, open socket so its next accept reads that policy.
+    // A replacement still connecting already reads it on its own next open.
+    if (live.connectionEpoch() === established && live.link.wire.status() === "open") {
+      live.link.wire.forceReconnect()
+    }
     await composeTo(halves, (plugin) => (live.clients as Record<string, unknown>)[plugin])
     composed = signature
   } catch (refused) {

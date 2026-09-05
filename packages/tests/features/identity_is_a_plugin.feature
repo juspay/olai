@@ -26,8 +26,10 @@ Feature: Who is looking is a plugin
     When I open the app
     Then the header has no identity chip
     When I open the plugins panel
+    And I mark the page
     And I switch the plugin "identity" on
     Then the header shows the identity "ada@example.com"
+    And the page has not reloaded
     And there should be no page errors
 
   Scenario: Identity follows plugin restoration and socket reconnection
@@ -43,8 +45,7 @@ Feature: Who is looking is a plugin
     Then the header has no identity chip
     When I switch the plugin "identity" on
     Then the header shows the identity "ada@example.com"
-    # Identity has no sibling surface, so restoring it needs no new socket.
-    # A journal surface change does replace the socket and must refresh identity.
+    # A surface-roster replacement must also refresh identity from the new upgrade.
     When I am the Tailscale user "grace@example.com"
     And I switch the plugin "journal" off
     Then the header shows the identity "grace@example.com"

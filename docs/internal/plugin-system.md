@@ -658,17 +658,19 @@ starting a second redial on one connection.
 
 Olai currently pins [Kolu PR #2228](https://github.com/juspay/kolu/pull/2228)
 directly through npins: `refs/pull/2228/head`, frozen at
-`457a577bb153043f68dc0e4524710b7a411c8d9a`. Its `redial` returns the same
+`f7be52281cd586aca257f855fbe5c4b3cb44b2ab`. Its `redial` returns the same
 connection, retaining the root and unchanged sibling clients and reopening their
 subscriptions over the replacement wire. Removed or replaced sibling clients
 refuse further calls. Olai keeps one constant connection and renders the app once;
 roster changes no longer recreate its tree or roster subscription. The core
 client and connection readout are exported directly, without a proxy or a
 synthetic reconnecting state. Identity alone uses Kolu’s `connectionEpoch`
-accessor to refresh the answer derived from the socket’s upgrade headers. An
-unchanged surface roster does not redial. The router keeps its app lifetime and
-reinterprets
-the current URL when plugin route claims change, preserving unchanged pane
+accessor to refresh the answer derived from the socket’s upgrade headers. Kolu
+skips an unchanged surface map. Olai still refreshes an unchanged open socket when the
+plugin roster changes, because plugins without a surface can change which
+headers the next upgrade is allowed to retain (identity’s first activation).
+The router keeps its app lifetime and reinterprets the current URL when plugin
+route claims change, preserving unchanged pane
 identities and browser history. Undo history belongs to App again; it no longer
 needs a module-level store to survive roster changes.
 

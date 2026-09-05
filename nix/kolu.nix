@@ -37,7 +37,7 @@
 # whole reason this arrangement is worth its cost, and it is unchanged.
 #
 # The kolu pin is frozen directly to PR #2228's refs/pull/2228/head at
-# 457a577bb153043f68dc0e4524710b7a411c8d9a. That PR makes redial retain the
+# f7be52281cd586aca257f855fbe5c4b3cb44b2ab. That PR makes redial retain the
 # connection and surviving clients while replacing their underlying wire.
 # npins records the immutable archive and hash; ordinary updates skip this pin.
 # After adopting the upstream merge, point it back at master and unfreeze it.
