@@ -730,3 +730,5 @@ The rest is a plan rather than a list of gaps:
 
 1. **Agency** — a node agent creates child nodes and puts agents on them; the lifecycle and write boundary are in place, but the dispatch gesture is not.
 2. **Relocation** — the scheduler is deliberately implemented in place in `olai-plugin-chat`; moving it behind its eventual plugin boundary is the next architectural phase, not part of this one.
+
+Concurrent attachments share one conversation upload directory. Repeated filenames receive distinct suffixes even when separate drops or browser tabs overlap; writing and cleanup are serialized within that conversation.

@@ -274,3 +274,32 @@ test("an upload cannot cross a discarded lifetime even before its first chunk", 
   expect(Result.isSuccess(accepted)).toBe(true)
   await Effect.runPromise(files.discard)
 })
+
+for (const initial of [true, false]) {
+  test(`simultaneous same-name uploads share one ${initial ? "new" : "existing"} directory without overwriting`, async () => {
+    const files = make()
+    const paths: string[] = []
+    try {
+      if (!initial) {
+        const warm = await Effect.runPromise(files.receive({ name: "warm.txt", data: "eA==" }))
+        paths.push(warm.path)
+      }
+      const texts = Array.from({ length: 12 }, (_, i) => `independent upload ${i}`)
+      const results = await Promise.all(texts.map((text) => Effect.runPromise(files.receive({
+        name: "collision.txt", data: Buffer.from(text).toString("base64"),
+      }))))
+      paths.push(...results.map((one) => one.path))
+      expect(new Set(paths.map(dirname)).size).toBe(1)
+      expect(new Set(results.map((one) => one.path)).size).toBe(texts.length)
+      for (const [i, result] of results.entries()) {
+        expect(readFileSync(result.path, "utf8")).toBe(texts[i]!)
+        expect(Result.isSuccess(await outcome(files.claim(result.path)))).toBe(true)
+      }
+      await Effect.runPromise(files.discard)
+      expect(paths.every((path) => !existsSync(path))).toBe(true)
+    } finally {
+      await Effect.runPromise(files.discard)
+      for (const dir of new Set(paths.map(dirname))) rmSync(dir, { recursive: true, force: true })
+    }
+  })
+}

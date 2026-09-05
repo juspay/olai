@@ -38,7 +38,7 @@ import { base64DecodedLength } from "@kolu/surface/frame-chunking"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { attachmentRejection } from "@olai/surface"
 import { type Attached, type AttachChunk } from "olai-plugin-chat/wire"
-import { Effect } from "effect"
+import { Effect, Semaphore } from "effect"
 import { randomUUID } from "node:crypto"
 import { appendFile, mkdtemp, realpath, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -64,6 +64,9 @@ export interface Attachments {
 }
 
 export const make = (): Attachments => {
+  // Directory creation, collision naming, appends and cleanup share one lane.
+  // Uploads from separate gestures or tabs can otherwise race their fs awaits.
+  const writing = Semaphore.makeUnsafe(1)
   /** Made on first use rather than on boot: a conversation that never has a
    *  file attached to it should leave nothing behind at all. */
   let dir: string | null = null
@@ -141,14 +144,14 @@ export const make = (): Attachments => {
 
   return {
     scope: () => scope,
-    receive: (chunk) => Effect.map(stored(chunk), named),
-    claim: (path) => Effect.asVoid(claim(path)),
-    discard: Effect.promise(async () => {
+    receive: (chunk) => writing.withPermit(Effect.map(stored(chunk), named)),
+    claim: (path) => writing.withPermit(Effect.asVoid(claim(path))),
+    discard: writing.withPermit(Effect.promise(async () => {
       const going = dir
       dir = null
       scope = randomUUID()
       if (going !== null) await rm(going, { recursive: true, force: true })
-    }),
+    })),
   }
 }
 
