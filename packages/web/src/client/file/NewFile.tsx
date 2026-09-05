@@ -45,6 +45,18 @@ import { meantAt } from "./completing.ts"
 import { Glyph } from "./icons.tsx"
 import type { Making } from "./making.ts"
 
+const newDraft = () => ({
+  open: createSignal(false),
+  path: createSignal(""),
+  said: createSignal<string | null>(null),
+  sending: createSignal(false),
+  revision: 0,
+})
+
+// Sidebar components rebuild when plugins change. Each file kind keeps its
+// draft and pending response identity until the user closes or submits it.
+const drafts = new Map<Making["of"], ReturnType<typeof newDraft>>()
+
 export function NewFile(props: {
   /** What this door is called, and the names the browser tests find it by. */
   readonly making: Making
@@ -54,14 +66,15 @@ export function NewFile(props: {
    *  itself away. */
   readonly create: (file: string) => Promise<string | null>
 }) {
-  const [open, setOpen] = createSignal(false)
-  const [path, setPath] = createSignal("")
-  const [said, setSaid] = createSignal<string | null>(null)
-  const [sending, setSending] = createSignal(false)
-  let revision = 0
+  const draft = drafts.get(props.making.of) ?? newDraft()
+  drafts.set(props.making.of, draft)
+  const [open, setOpen] = draft.open
+  const [path, setPath] = draft.path
+  const [said, setSaid] = draft.said
+  const [sending, setSending] = draft.sending
 
   const close = (): void => {
-    revision++
+    draft.revision++
     setOpen(false)
     setPath("")
     setSaid(null)
@@ -82,12 +95,12 @@ export function NewFile(props: {
       return
     }
     setSending(true)
-    const submitted = revision
+    const submitted = draft.revision
     try {
       const refused = await props.create(meant.file)
       // Typing another name, or dismissing and reopening the box, gives it
       // a new draft. An earlier response cannot clear or annotate that draft.
-      if (revision !== submitted) return
+      if (draft.revision !== submitted) return
       if (refused === null) close()
       else setSaid(refused)
     } finally {
@@ -134,7 +147,7 @@ export function NewFile(props: {
           ref={(box) => queueMicrotask(() => box.focus())}
           onClick={(event) => event.stopPropagation()}
           onInput={(event) => {
-            revision++
+            draft.revision++
             setPath(event.currentTarget.value)
             setSaid(null)
           }}

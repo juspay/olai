@@ -471,7 +471,7 @@ Either way the row is **born `todo`**: the badge reads marks and nothing else, s
 
 **The sidebar's `+ New outline`** asks for a path — relative, under the served directory — and mints the file there. Enter creates it, Escape puts the box away, and the page it lands on is the new outline's, with the same *write the first line* the empty-outline page has always offered.
 
-Both new-file boxes show **Creating…** while their write is pending. You can type the next filename, but Enter does not submit another write until the first finishes. Its response cannot clear the newer name or put an old refusal under it. Escape dismisses the box without undoing an already submitted creation; reopening it starts a new draft.
+Both new-file boxes show **Creating…** while their write is pending. You can type the next filename, but Enter does not submit another write until the first finishes. Its response cannot clear the newer name or put an old refusal under it. Escape dismisses the box without undoing an already submitted creation; reopening it starts a new draft. Plugin changes preserve each box’s filename, refusal and pending state independently, including changes made in another tab.
 
 If you navigate or change panes while creation is pending, the file still lands, but the response leaves your newer view in place. A later visit to such a document opens it for reading; **Edit** starts writing as usual.
 
