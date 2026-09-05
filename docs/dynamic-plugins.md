@@ -69,7 +69,7 @@ approve source nobody has read. Look again, read what it says, and approve that.
 
 Three tools, on the agent face:
 
-- **`inspect_plugins`** — what a plugin may name: the three modules, the service keys a server half may put in its `needs`, the slots a browser half may register a face into with what keys each, the node layout above, and the words already taken. Read this before writing code; it is the live registry rather than a description of one. `taken` is every word this serve has — the build's rows **and** every definition in the vault, including ones other agents wrote — because a definition may take neither.
+- **`inspect_plugins`** — what a plugin may name: the three modules, service records marked by half (including declared browser-owned keys), the slots a browser half may register a face into with what keys each, the node layout above, and the words already taken. Read this before writing code; server provisions and browser declarations are distinguished by `availability`. `taken` is every word this serve has — the build's rows **and** every definition in the vault, including ones other agents wrote — because a definition may take neither.
 - **`run_plugin`** — ask olai to look at a definition now and say what became of it: the state, the version, and the fault sentence where there is one. A definition nobody has approved answers `pending`, which is the boundary said back to the author.
 - **`stop_plugin`** — unmount one, for as long as this serve runs. It reaches **definitions only**: an agent cannot turn off the row that seats it, the row that watches its writes, or the row whose tools it is holding.
 
@@ -91,10 +91,15 @@ A half that will not compile, a module that exports no plugin, a half that calls
 
 A plugin that reads the journal's agenda each morning and puts it into the node agent's own conversation — which is the shape most of these are: a service somebody else offers, a clock, and a sentence.
 
-**Ask first what may be named.** `inspect_plugins` lists the service keys a server half may put in its `needs`, and a plugin-owned key is on it exactly while the row that offers it is running:
+**Ask first what may be named.** `inspect_plugins` lists service records by half. A server-owned key appears while its provider is running; a browser key is advertised by its server declaration:
 
 ```
-"services": ["clock", "deliveries", "env", "journal.agenda", "kinds", …]
+"services": [
+  { "key": "clock", "half": "server", "availability": "core" },
+  { "key": "journal.agenda", "half": "server", "availability": "provided" },
+  { "key": "identity.viewer", "half": "browser", "availability": "declared" },
+  …
+]
 ```
 
 `journal.agenda` is the journal row's own — offered with `Offers.own`, so the key is stamped from that fiber's name and no other row can take it. Naming it in `needs` is all a consumer does: the plugin waits while the journal is switched off, saying so on its row, activates when it returns, and unloads if it leaves. Nothing in core knows these two are connected.
@@ -288,7 +293,7 @@ Run it from a package that depends on `@olai/plugin-build` (`packages/server` do
 
 - **Not sandboxed.** See above. Approval is the boundary.
 - **Not a lock, and the fence has a shape.** olai refuses a session's write of the `approved` property at its own door — that is a real refusal, with a sentence, and it is what stops an agent approving the plugin it just wrote *through olai*. It is not a claim about the file. `approved` is an ordinary property in a `.olai` in the served directory, the store watches that directory, and an approval that simply *appears* there is an ordinary revision. The agents this is about are processes on the same host with their own file and shell tools. The vault is the owner's directory: treating it as an attack surface leads somewhere silly, and olai does not pretend to police what it does not serve. What the fence covers is writes through olai's door (ruled, 2026-09-04).
-- **Not a report of what the FACE did.** A half whose `apply` throws lands the row on `failed` with its own sentence, on the server. A face that throws while it is being *drawn* does not: the tab's fault boundary contains it the way it contains a shipped plugin's, the console says which plugin it was, and the row goes on saying `running` — because on the server it is. That is the same gap every built plugin has, and closing it wants a field on the roster row's browser reading rather than a console line, so it is written down here rather than built in this lane.
+- **Not a report of what the FACE did.** A half whose `apply` throws lands the row on `failed` with its own sentence, on the server. A face that throws while it is being *drawn* does not: the tab's fault boundary contains it the way it contains a shipped plugin's, the console says which plugin it was, and the row goes on saying `running` — because on the server it is. Initialization failures and missing browser dependencies are reported beside the server state in the plugins panel. Render-time faults remain the drawing boundary’s responsibility.
 - **Not persisted enablement.** A `plugins.stop`, or the panel's switch on a definition, lasts as long as the process. What survives a restart is the definition and its approval, which are in the vault.
 - **Not a package.** There is no `olai plugin add`, no npins pin and no out-of-tree build. A definition is two notes in a directory olai is already serving.
 
@@ -348,3 +353,46 @@ core's `vault`.
 The Spaces mirror uses this mechanism between two rows this build compiles together: chat offers `chat.seating`, whose `in(derived)` returns the node seating for that snapshot, including nodes without a session. The mirror declares that key in `needs`; switching chat off removes the mirror's registrations and switching it on restores them. Plugin packages have no dependencies on other plugin packages.
 
 `journal.agenda` ([the journal](plugins/journal.md#the-agenda-as-a-service)) is the other case, and the one a key like this exists for: its consumer is a plugin somebody wrote into a vault, which nothing rebuilds when the provider changes. Three things follow, and all three are visible in the door. The journal takes the reading IN, so the answer is about one snapshot and the caller says which. The ask is opaque, because the consumer cannot name a `Reading` and does not have to — it passes on what the revision door gave it. And the answer is the door's OWN shape rather than the type the journal happens to build it out of, so the page model behind it stays free to move.
+
+### Browser-owned services
+
+Browser halves import `Offers` from `@olai/plugin-api` and publish with
+`yield* (yield* Offers).own("palette", consumer => ({ ... }))`. A browser
+consumer declares `serviceTag<Shape>("provider.palette")` in `needs` and
+yields that tag in `apply`, just like a server consumer. Each local segment
+must start with a lowercase letter and contain only lowercase letters, digits
+or hyphens; the provider name comes from the owning plugin’s binding.
+
+Browser `Offers` has only `own`: plugins cannot replace `Slots`, `Wired`, or
+the shell furniture. Keys live in the tab host, independently of identically
+named server keys. Providers
+publish only after successful initialization. A missing provider keeps the
+consumer waiting with no faces; withdrawal releases those faces before the
+provider resources, and reactivation receives a fresh service. The plugins
+panel shows browser waiting and failed states beside the server's state,
+including the missing service key and the component's name. Shapes remain a
+contract between the two authors.
+
+To make a browser key discoverable, the server half names `Offers` in `needs`
+and calls `yield* (yield* Offers).browser(["palette"])`. These local words
+use the same namespace grammar and fiber stamp as `own`, and their declarations
+leave when the server provider unloads. This call does not provide a server
+service or execute browser code on the server.
+
+`plugins.inspect` returns service records with `key`, `half` (`server` or
+`browser`) and `availability`: `core` for core server vocabulary, `provided`
+for server-owned keys, and `declared` for browser contracts. A browser declaration
+can be discovered without a connected tab; the panel reports whether this tab
+actually activated the provider. In a built plugin, keep the local word list in
+the shared definition and use it in both `Offers.browser` and `Offers.own`.
+
+Identity offers `identity.viewer`, including the resource over `who.get`,
+`saying` and `UserIcon`. Chat exports a `components` record containing its
+speaker's plugin definition. Each browser component gets a separate dependency
+lifecycle, a name stamped as `parent/component`, and is removed with its parent
+row. The activation name is separate from the owning plugin: components share
+the row’s service namespace, sibling client and slot ownership, while each
+registration still closes with its component. A service factory receives the
+consuming plugin’s owner name, including when that consumer is a component.
+A waiting speaker leaves chat's anonymous face available. Components have no
+host access and cannot offer a different row's keys.

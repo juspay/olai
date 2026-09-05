@@ -429,7 +429,7 @@ test("a node ticket can list and call the three plugin verbs", async () => {
     }, bearer)).json() as { result?: { structuredContent?: Record<string, unknown> } }
     const said = inspected.result?.structuredContent
     expect(said?.modules).toEqual(["@olai/plugin-api", "effect", "solid-js"])
-    expect(said?.services).toContain("kinds")
+    expect(said?.services).toContainEqual({ key: "kinds", half: "server", availability: "core" })
     expect((said?.slots as ReadonlyArray<{ name: string }>).map((one) => one.name))
       .toContain("outline.row.chip")
     expect(said?.layout).toEqual({

@@ -95,6 +95,7 @@ import {
 } from "@olai/effect-cordis"
 import { Deferred, Effect, Exit, Scope, type Stream } from "effect"
 
+import { ownedKey, ownService, type OwnServices } from "./owned.ts"
 import {
   type ConversationSeen,
   type Deliveries as DeliveryDoor,
@@ -850,10 +851,21 @@ export const OFFERABLE = [
  * no provision or host access. Offering remains a stamped capability the
  * provider must explicitly name in needs.
  */
-export interface Offers {
-  /** Offer `<this plugin>.<word>`, stamped with the calling fiber's name.
-   * Consumers name `serviceTag<Shape>("provider.word")` in their needs. */
-  readonly own: <Shape>(word: string, door: Provision<Shape>) => Effect.Effect<void, never, Scope.Scope>
+export interface Offers extends OwnServices {
+  /**
+   * A browser contract discoverable without running browser code on the server.
+   * The declaration promises that this plugin authors these local words; the
+   * same namespace grammar and owner stamp apply as for own. It does not
+   * provide a server dependency, validate the browser implementation's shape,
+   * or prove that any tab loaded or activated that implementation.
+   *
+   * This is why inspect says `declared`, not `provided`. Browser activation
+   * belongs to each tab's host and its panel; discovery belongs to the server
+   * an agent can ask without opening a tab. Unloading the declaring scope
+   * withdraws its entries, so discovery does not retain a stopped author's
+   * claims. Built plugins share their word constants between both halves.
+   */
+  readonly browser: (words: ReadonlyArray<string>) => Effect.Effect<void, never, Scope.Scope>
   /** Stand behind one door, for as long as the calling plugin is loaded. */
   readonly offer: {
     (key: typeof Agents, door: Provision<Agents>): Effect.Effect<void, never, Scope.Scope>
@@ -1086,6 +1098,8 @@ export interface Plugins {
    * plugin-owned keys. Ownership also tracks internal core doors, which this
    * catalog deliberately does not expose. */
   readonly serviceKeys: () => ReadonlyArray<string>
+  /** Browser declarations owned by running server providers. */
+  readonly browserKeys: () => ReadonlyArray<string>
   /** TELL EVERY PLUGIN A REVISION LANDED, and wait for each of them — see
    *  {@link Vault}. */
   readonly published: (snapshot: unknown) => Effect.Effect<void>
@@ -1339,6 +1353,7 @@ export const openPlugins = (
 
     // This table reports ownership; Cordis itself refuses duplicate providers.
     const offered = new Map<string, { readonly plugin: string }>()
+    const browserKeys = registry<string, string>()
     yield* provide(host, Offers, (plugin) => {
       const stand = <Shape>(key: ServiceKey<Shape>, door: Provision<Shape>) =>
         Effect.suspend(() => {
@@ -1358,15 +1373,13 @@ export const openPlugins = (
           )
         })
       return {
-        own: <Shape>(word: string, door: Provision<Shape>) => Effect.suspend(() => {
-          if (![plugin, word].every((part) => /^[a-z][a-z0-9-]*$/.test(part))) {
-            return Effect.die(new Error(
-              `plugins: "${plugin}" cannot offer local service word "${word}"; `
-                + "each segment must start with a lowercase letter and contain only lowercase letters, digits or hyphens.",
-            ))
-          }
-          return stand(serviceTag<Shape>(`${plugin}.${word}`), door)
-        }),
+        own: ownService(plugin, stand),
+        browser: (words) => Effect.forEach(words, (word) =>
+          Effect.flatMap(ownedKey(plugin, word), (key) => browserKeys.claim(key, plugin, () =>
+            `plugins: "${plugin}" declared browser service "${key}" twice`,
+          )),
+          { discard: true },
+        ),
         offer: <Shape>(key: ServiceKey<Shape>, door: Provision<Shape>) => Effect.suspend(() => {
           if (!OFFERABLE.some((one) => one.cordis === key.cordis)) {
             return Effect.die(new Error(
@@ -1444,6 +1457,7 @@ export const openPlugins = (
       declared: wakes.read,
       offers: () => new Map([...offered].map(([key, owner]) => [key, owner.plugin])),
       serviceKeys: () => [...SERVICE_KEYS, ...[...offered.keys()].filter((key) => key.includes("."))].sort(),
+      browserKeys: () => [...browserKeys.read().keys()].sort(),
       changes: hostChanges(host),
       close: closeHost(host),
       published: revisions.tell,

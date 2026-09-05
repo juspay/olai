@@ -18,16 +18,10 @@
  * stands in, and the person is still `yes` (they have a login, and now
  * often a name).
  *
- * THE ASK IS THE TAB'S rather than this chip's (`@olai/web/client/who`). It used
- * to be `createWho()` called here, which was right while the header was the
- * only reader; the transcript names the person over each run of their
- * messages too (through core’s shared viewer kit), and a resource per face would be one `who.get` per run
- * of a conversation for an answer that does not move for the life of the
- * socket.
- *
- * THE SILHOUETTE moved out for the same reason (`@olai/web/client/who`): the
- * ladder's bottom rung is drawn in two places now, and two traced outlines
- * of one shape is the drift nobody can see.
+ * The identity activation owns one resource, shared with every consumer of
+ * identity.viewer. Closing that activation disposes the resource; a new
+ * activation reads the current connection again. The chip is handed that
+ * resource rather than creating a second ask for its own face.
  */
 
 import { Match, Show, Switch, type JSX } from "solid-js"
@@ -36,15 +30,15 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { ICON_BUTTON } from "@olai/web/client/readout.ts"
 import { TESTID } from "../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
-import type { Who as Person } from "@olai/web/client/who/asking.ts"
-import { whoAmI, saying, UserIcon } from "@olai/web/client/who/index.ts"
+import type { Who as Person } from "./viewer/asking.ts"
+import { type Viewer, saying, UserIcon } from "./viewer/index.ts"
 
 /** The four faces the slot can draw. Closed so a typo is a missing
  *  `Match` rather than a chip that draws nothing. */
 export type Face = "asking" | "none" | "yes" | "error"
 
-export function Who() {
-  const asking = whoAmI()
+export function Who(props: { readonly viewer: Viewer }) {
+  const asking = props.viewer
   const person = () => asking.who()
   const face = (): Face => {
     if (!asking.heard()) return "asking"

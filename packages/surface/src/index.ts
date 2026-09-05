@@ -1162,8 +1162,13 @@ export const surface = defineSurface({
         output: Schema.Struct({
           /** The bare module names a plugin's source may import. */
           modules: Schema.Array(Schema.String),
-          /** The service keys a server half may name in its `needs`. */
-          services: Schema.Array(Schema.String),
+          /** Browser declarations are discoverable without claiming that a
+           * particular tab has activated them. */
+          services: Schema.Array(Schema.Struct({
+            key: Schema.String,
+            half: Schema.Literals(["server", "browser"]),
+            availability: Schema.Literals(["core", "provided", "declared"]),
+          })),
           /** Where a browser half's faces may hang, and what keys each slot. */
           slots: Schema.Array(Schema.Struct({
             name: Schema.String,

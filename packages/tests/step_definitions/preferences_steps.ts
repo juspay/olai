@@ -1242,3 +1242,9 @@ Then(
     );
   },
 );
+
+Then("the plugin {string} has no browser warning", async function (this: OlaiWorld, plugin: string) {
+  const row = rowFor(this, plugin);
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => !(await row.innerText()).includes("Browser"), `${plugin}'s browser components to recover`);
+});

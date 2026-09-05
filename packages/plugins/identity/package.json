@@ -6,7 +6,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//exports": "Server reading, browser chip, wire identity, test identifiers and stylesheet. Shared person rendering lives in @olai/web/client/who.",
+  "//exports": "Server reading, browser chip, wire identity, test identifiers and stylesheet. The scoped viewer kit is offered as identity.viewer by the browser half.",
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",

@@ -43,6 +43,6 @@ What the row stands behind is the `Identity` door (`@olai/plugin-api`): the head
 
 There is one seat and one occupant: two chips answering "who am I" in one bar is not an answer, so a second row claiming it is refused by name at the moment it registers.
 
-The chat panel draws the same person over each run of their own messages, wearing the same picture, through core’s `@olai/web/client/who` furniture — one ask for the whole tab, so a header saying one thing about who is looking and a transcript saying another cannot happen. With the row off, that face falls back to the silhouette, the way it does behind a proxy that names nobody.
+The browser half offers `identity.viewer`: one scoped resource over `who.get`, the name formatter and the user icon. Its header chip and chat's transcript speaker share that reading. Chat's speaker component names the key in `needs`; with identity off it reads **waiting for identity.viewer** in the plugins panel while the conversation keeps its anonymous silhouette. Re-enabling identity creates a fresh resource and restores the person's name and picture without reloading the page.
 
-The shared viewer resource belongs to the tab’s connection and refreshes when its connection epoch changes. The identity row owns the provider’s header and picture rules and its header chip; removing that row removes the chip while other faces continue reading core’s `who.get` answer.
+The resource follows the connection epoch and closes with the identity provider. The server half declares its browser service words through `Offers.browser`, so `plugins.inspect` lists the key with `half: "browser"` and `availability: "declared"`. That advertises a contract, not a claim about any particular tab's state.
