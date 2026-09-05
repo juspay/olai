@@ -190,6 +190,12 @@ export function Palette(props: {
     queryRevision++
     writeQuery(value)
   }
+  /** A late action can answer only the opening and input that invoked it. */
+  const currentInteraction = () => {
+    const opened = paletteRevision
+    const submitted = queryRevision
+    return () => paletteRevision === opened && queryRevision === submitted
+  }
   const today = useToday()
   const needles = createMemo(() => needlesFrom(query(), today()))
   // WHICH row Enter takes, and the arrows that walk it — the one cursor every
@@ -538,7 +544,9 @@ export function Palette(props: {
     if (action.kind === "pin") {
       // The palette STAYS UP while this one is in flight, exactly as an op row
       // does, because the answer belongs in the box the reader is looking at.
+      const current = currentInteraction()
       pinPage((line) => {
+        if (!current()) return
         if (line === undefined) close()
         else setSaid(line)
       })
@@ -565,10 +573,12 @@ export function Palette(props: {
    */
   const sendEdit = (edit: Edit) => {
     if (sending()) return
+    const current = currentInteraction()
     setSending(true)
     setSaid(null)
     void applying(edit, undo.record).then((line) => {
       setSending(false)
+      if (!current()) return
       if (line === undefined) {
         close()
         return
@@ -751,9 +761,11 @@ export function Palette(props: {
    */
   const runCommand = (command: AppCommand, text: string) => {
     if (text.trim() === "") return
+    const current = currentInteraction()
     setAskError(null)
     void command.run(text).then(
       (refusal) => {
+        if (!current()) return
         if (refusal === null) {
           close()
           return
@@ -761,7 +773,7 @@ export function Palette(props: {
         setAskError(refusal)
       },
       (fault: unknown) => {
-        setAskError(`“${command.said}” could not be reached — see the console.`)
+        if (current()) setAskError(`“${command.said}” could not be reached — see the console.`)
         console.error(`olai: the palette command "${command.prefix}" threw`, fault)
       },
     )

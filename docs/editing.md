@@ -439,6 +439,8 @@ On any other page there are none of them. A command read out of context must not
 
 A refusal, or a nudge from a write that landed, is drawn in the palette and the palette stays up: a modal that closed on top of the reason would be exactly the silent failure this app is written against. A write that landed with nothing to add closes it, which is what choosing a command means. Either way ⌘Z takes it back — one undo stack, whichever hand made the edit.
 
+Those responses belong to the query that sent them. Typing a newer query or closing and reopening the palette prevents an older write or plugin command from closing it or displaying its old response there. The original action still takes effect.
+
 ## Quick capture
 
 **`⌘K`, `+`, the line, Enter** — and nothing moves. The page you were reading, your scroll and the address stay exactly where they were; the line becomes a node; the box empties for the next one, so several thoughts arriving at once cost one chord.
