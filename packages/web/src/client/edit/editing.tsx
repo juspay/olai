@@ -424,7 +424,11 @@ export const createEditor = (
     // blur in the session. What this is waiting for is a FRAME, and that is
     // what it now reads (`../reading.tsx`'s `Reading.at`).
     page.frames()
-    if (!settling) return
+    // A save can publish its file frame before replying. Inserting that row
+    // moves an already-focused parked input without remounting it, so its
+    // mount effect cannot restore focus. The clicked slot owes the same
+    // frame-driven restoration until its queued activation has completed.
+    if (!settling && resuming() === null) return
     settling = false
     setCaret((n) => n + 1)
   }

@@ -540,6 +540,8 @@ activation at the same anchor preserves the actual input element. If a save
 re-anchors the draft, the replacement input restores focus to that clicked slot.
 The transition from parked to active is batched. A blur emitted by moving that
 input within the keyed list cannot close the newly active draft; a removed
-input also cannot enqueue a commit for an unrelated current slot. Escape or a newer selection
+input also cannot enqueue a commit for an unrelated current slot. A file frame
+that moves the clicked input before the RPC reply restores focus to that slot,
+including when the input was moved without being remounted. Escape or a newer selection
 cancels an obsolete pending focus request. `draft_handoff.feature` covers input
 identity and typing across a held save reply.
