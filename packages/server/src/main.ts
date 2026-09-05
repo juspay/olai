@@ -56,7 +56,7 @@ import { clientDist } from "./clientDist.ts"
 import { dialOlai, endpointFlags } from "./dial.ts"
 import { dieWithParent } from "./dieWithParent.ts"
 import { MCP } from "./faces.ts"
-import { remoteFrom } from "./mcp/tools.ts"
+import { remoteFrom } from "@olai/bundle/remote"
 import { gitFlags, gitPin } from "./gitPolicy.ts"
 import { pluginFlags, pluginPin } from "./pluginPolicy.ts"
 import { serve } from "./serve.ts"
@@ -132,7 +132,7 @@ const web = Command.make("web", {
       host,
       pin: gitPin(commits, noCommit, pushes),
       pluginPin: pin,
-      clientDist: profile === "web" ? yield* clientDist : "",
+      clientDist: clientDist.pipe(Effect.provide(NodeServices.layer), Effect.orDie),
       allowedOrigins: allowedOrigins(),
     })
     // Wait to be interrupted — or for the surface runtime to fault, which is

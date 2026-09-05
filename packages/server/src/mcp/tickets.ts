@@ -8,8 +8,7 @@ import { randomBytes } from "node:crypto"
 
 import { APPROVED_KEY } from "../dynamic/source.ts"
 import { type Bound, writerAt } from "../runtime.ts"
-import { clientOver, type OlaiSurfaceClient } from "./face.ts"
-import { currentTicket } from "./route.ts"
+import { clientOver, type OlaiSurfaceClient } from "@olai/surface/client"
 
 /**
  * THE WORDS NO SESSION MAY WRITE, whatever it is seated on.
@@ -81,6 +80,7 @@ export const ticketing = (options: {
   readonly bound: Pick<Bound, "group" | "handlers">
   readonly face: FaceExposure
   readonly ops: Ops
+  readonly currentTicket: () => string | null
   readonly token: string
 }): Tickets => {
   const prefix = "olai-node-"
@@ -119,7 +119,7 @@ export const ticketing = (options: {
       }
     },
     doorAt: (held) => {
-      const bearer = currentTicket()
+      const bearer = options.currentTicket()
       if (bearer === null || bearer === options.token) return held
       const door = tickets.get(bearer)
       // Preserve the route's existing loopback affordance for arbitrary tokens.

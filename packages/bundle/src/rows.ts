@@ -42,7 +42,8 @@
  * NOT FETCHED. The bundle ships every built plugin's code, in its own chunk, and
  * the tab loads only the chunks the ROSTER names — so a plugin this serve did
  * not compose is not merely undrawn, it is never evaluated, registers nothing
- * and costs one entry in this array. That is the browser's exact twin of *no
+ * and costs one entry in this array. A server-only package has no browser
+ * export and no entry in this table at all. That is the browser's exact twin of *no
  * fiber, no surface, no handler*, and it is what retired the two mount licences
  * `@olai/web` used to carry: a licence is only needed for something you are
  * holding, and the tab is no longer holding it.
@@ -151,11 +152,6 @@ import { ROWS } from "./rows.generated.ts"
  * the report — is a heavier graph for a heavier question, and nothing that
  * wants a list of strings has to open it.
  */
-/** Profiles select ordinary bundle rows; explicit --plugins overrides this. */
-export const profilePlugins = (profile: string): ReadonlyArray<string> | null => profile === "web"
-  ? null
-  : ROWS.filter((row) => row.disabled !== true && row.profiles?.includes(profile)).map((row) => row.id)
-
 export const BUNDLE_NAMES: ReadonlyArray<string> = ROWS.map((row) => row.id)
 
 /** ...as a lookup, built once, so {@link bundleRank} is not a linear scan run

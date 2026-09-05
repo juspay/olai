@@ -1,8 +1,8 @@
+import { TestClock } from "effect/testing"
 import { runtimePaths } from "./runtime-paths.ts"
 import { fixedStore } from "./store-source.ts"
 import { mountBundle, offered as door, provide, settled } from "@olai/bundle/bundle"
 import { openPlugins as openHostPlugins, Directory, Ops as OpsDoor } from "@olai/plugin-api/services"
-import { profileRows } from "./profiles.ts"
 import { VaultSettings } from "@olai/plugin-api/services"
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
@@ -112,10 +112,7 @@ const withRuntime = <A>(
   return Effect.gen(function*() {
     const onChange = { run: (): void => {} }
     const mounted = yield* openHostPlugins({ vars: {}, now: () => STARTED, changed: () => onChange.run() })
-    yield* mountBundle(mounted.host, { kind: "exact", names: ["vault"] }, [], {
-      rows: profileRows("test-minimal"),
-      resolve: async () => undefined,
-    })
+    yield* mountBundle(mounted.host, { kind: "exact", names: ["vault"] }, [], "test-minimal")
     yield* provide(mounted.host, VaultSettings, () => ({ root, runtime: runtimePaths, kinds: NO_KINDS, ledger: NO_LEDGER, search: NO_SEARCH }))
     yield* settled(mounted.host, ["vault"])
     const directory = door(mounted.host, Directory) as { readonly store: OutlineStore } | undefined
@@ -145,7 +142,12 @@ const withRuntime = <A>(
       // what stands behind their names is a double with no appliance under it
       // ({@link doubleCalled}).
       plugins: {
-        plugins: mounted,
+        // These cases drive registration changes through onChange and read
+        // fiber reports directly. Status notifications also force verified
+        // store refreshes; keep that independent background stream out of the
+        // fixture so exact body-frame assertions have one revision producer.
+        // Live status reconciliation is covered by the serve/profile tests.
+        plugins: { ...mounted, changes: Stream.empty },
         onChange,
         built: extra.plugins === undefined ? ["vault"] : extra.plugins.map((one) => one.name),
         pin: { kind: "omitted" },
@@ -177,7 +179,15 @@ const withRuntime = <A>(
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => runtime.stopped)
     return yield* use({ wired, ops: gate, store, reads, root, plugins: mounted })
-  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
+  }).pipe(
+    Effect.scoped,
+    Effect.provide(NodeServices.layer),
+    // These connector tests advance disk through explicit refreshes. The vault
+    // row also starts a watcher and backstop; hold their timers so an incidental
+    // probe cannot add a revision between the exact frames asserted below.
+    Effect.provide(TestClock.layer()),
+    Effect.runPromise,
+  )
 }
 
 /** Every CORE member whose answer records WHO asked, as the wire spells them.

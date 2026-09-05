@@ -55,7 +55,8 @@ import { Effect, Layer, Option } from "effect"
 import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { AsyncLocalStorage } from "node:async_hooks"
 
-import type { Reading } from "../who.ts"
+import type { TransportSurface } from "@olai/plugin-api/transport"
+type Reading = TransportSurface["who"]
 
 /** Where the route lives. Named once: `session/new` is told the same URL. */
 export const MCP_PATH = "/mcp"
@@ -229,10 +230,8 @@ export interface Options {
  * form are the same host, and a client that reached us that way is no less
  * local.
  */
-export const fromLoopback = (address: string): boolean => {
-  const host = address.replace(/^::ffff:/i, "")
-  return host === "127.0.0.1" || host === "::1"
-}
+export { fromLoopback } from "@olai/plugin-api/http"
+import { fromLoopback } from "@olai/plugin-api/http"
 
 /**
  * Whether this request may reach the tools.

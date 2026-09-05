@@ -14,6 +14,9 @@ Each plugin documents itself, in its own package, and this list is the door to i
 
 The first four are **engines** — the ACP agents the chat panel can seat, one plugin each, enabled by default. What a conversation IS, for all of them, is [chat.md](chat.md); these pages are what is only true of one wire.
 
+- [plugins/ws.md](plugins/ws.md) — the browser websocket, with scoped registration on the shared listener.
+- [plugins/mcp.md](plugins/mcp.md) — the MCP protocol server, its activation lifetime and session tickets.
+- [plugins/web-app.md](plugins/web-app.md) — the browser build, served independently of websocket and MCP registrations.
 - [plugins/vault.md](plugins/vault.md) — the directory, write gate, lock lifetime and format config as a normal bundle plugin.
 - [plugins/chat.md](plugins/chat.md) — the conversation as a row: what `--plugins` without it leaves (an outliner, and every engine, doorbell and mirror `waiting` on a door it names), the `chat-agent-session` kind and the one declaration row an older vault needs, the seats the shell reserves and the two slots chat is the reader of, and why the MCP face did not move.
 - [plugins/journal.md](plugins/journal.md) — the calendar, day page and agenda as one default plugin: its three routes, four browser-only readings, narrow daily-note mint, and exactly what disappears when the row is omitted.

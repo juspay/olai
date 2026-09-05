@@ -26,6 +26,7 @@
  * subscription test is a sequence and not a race.
  */
 
+import { MCP } from "../faces.ts"
 import { runtimePaths } from "../runtime-paths.ts"
 import { fixedStore } from "../store-source.ts"
 import { type Store, type Ops, NO_LEDGER, NO_SEARCH } from "@olai/ops"
@@ -45,7 +46,8 @@ import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
-import { clientOver, serveFace } from "./face.ts"
+import { clientOver } from "@olai/surface/client"
+import { serveFace } from "olai-plugin-mcp/testlib"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -131,6 +133,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
+      expose: MCP,
       // The group AND the face, from the one call that composed both: an
       // exposure describes a group as a set equality, so a gate built from a
       // second reading of which plugins are on refuses to bind.

@@ -23,8 +23,8 @@ Feature: The vault is a row
     Then the MCP vault can read an outline
     And there should be no page errors
 
-  @plugins:none
-  Scenario: An empty plugin selection can enable the vault from the control panel
+  @plugins:ws,web-app,mcp
+  Scenario: A transport-only selection can enable the vault from the control panel
     Given I open the app
     When I open the plugins panel
     Then the plugins panel says "vault" is "was not asked for"

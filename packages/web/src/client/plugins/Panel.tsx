@@ -103,8 +103,11 @@
  * have held the signal anyway. What DID move out is the part a test can ask —
  * `./rows.ts`'s `pluginSwitch`, which is the whole decision the signal feeds.
  *
- * The pending flag is cleared when the switch request settles. Roster changes
- * retain this component unless the plugin provider tree itself changes.
+ * The pending flag is cleared when the switch request settles. Controls also
+ * stay frozen while the browser reconciles the roster: a state frame may land
+ * before its socket replacement finishes, and a second press on that old socket
+ * would be interrupted. Server-only rows retain this component, so remounting
+ * it cannot be relied on to supply that barrier.
  *
  * ## Where the panel goes is not this file's decision
  *
@@ -132,7 +135,7 @@ import { Segmented } from "../settings/Segmented.tsx"
 import { Row } from "../settings/Row.tsx"
 import { pluginPref, TESTID } from "../testids.ts"
 import { browserReports } from "./runtime.ts"
-import { olai } from "../wire.ts"
+import { olai, rosterChanging } from "../wire.ts"
 
 import {
   type PluginPick,
@@ -233,7 +236,7 @@ export function Panel(props: {
    *  aiming, and a "flip" verb read against a roster either of them might have
    *  been drawn from could land on the state neither asked for. */
   const set = (name: string, pick: PluginPick): void => {
-    if (flipping() !== null) return
+    if (flipping() !== null || rosterChanging()) return
     setFlipping(name)
     setRefused(null)
     run(
@@ -299,7 +302,7 @@ export function Panel(props: {
     >
       <For each={rows()}>
         {(plugin) => {
-          const strip = () => pluginSwitch(plugin, flipping() === plugin.name)
+          const strip = () => pluginSwitch(plugin, flipping() === plugin.name || rosterChanging())
           return (
             <Row
               label={plugin.name}

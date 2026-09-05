@@ -113,7 +113,7 @@ import {
   type SurfaceHandlers,
   type SurfaceRuntime,
 } from "@kolu/surface/server"
-import { Effect, Result, type Scope, Stream } from "effect"
+import { Effect, Fiber, Result, type Scope, Stream } from "effect"
 
 /**
  * THE ONLY PLACE THIS FILE MEETS AN APPLIANCE, and it meets none of them by
@@ -882,6 +882,7 @@ export const bind = (
   Scope.Scope
 > =>
   Effect.gen(function*() {
+    const runtimeScope = yield* Effect.scope
     // Seeded empty and filled by `connect`: `SubscriptionRef.changes` delivers
     // the current value before any update, so peeking at the ref here as well
     // would be the same read twice with a window between them.
@@ -1982,7 +1983,13 @@ export const bind = (
                   named: input.name,
                 }),
               )
-            }),
+            }).pipe(
+              // A transport switch can close the socket that requested it.
+              // Finish the mutation and roster publication in the runtime's
+              // scope even when that caller disconnects during the rebind.
+              Effect.forkIn(runtimeScope),
+              Effect.flatMap(Fiber.join),
+            ),
         },
         /**
          * Who is looking on THIS connection. The value is the per-connection

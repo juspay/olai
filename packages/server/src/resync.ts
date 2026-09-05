@@ -35,7 +35,7 @@ import type { PlatformFailure } from "@olai/store"
 import { Effect, Option } from "effect"
 import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 
-import { fromLoopback } from "./mcp/route.ts"
+import { fromLoopback } from "@olai/plugin-api/http"
 
 /** Where the route lives. Named once: the e2e harness POSTs the same path. */
 export const RESYNC_PATH = "/olai/resync"

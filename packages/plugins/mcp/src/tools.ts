@@ -7,7 +7,7 @@
  * second list: the table stays the single place a tool is described, and
  * everything below is mechanical.
  *
- * **Why this lives in `@olai/server` and not beside the table.** It used to:
+ * **Why this lives in the MCP plugin and not beside the table.** It used to:
  * `@olai/ops/src/mcp.ts` was the dispatch, deliberately SDK-free, and the table
  * was kept unexported because "what a consumer wants is the server, and the list
  * is what the server is made of". Both halves of that stopped being true at
@@ -59,8 +59,8 @@ import { type BespokeTool, ToolFailure, type ToolInputSchema } from "@kolu/surfa
 import { Effect, Result, Schema } from "effect"
 
 import type { Request } from "@olai/ops"
-import { resolvedWrite } from "../resolving.ts"
-import { type OlaiSurfaceClient } from "./face.ts"
+import { resolvedWrite } from "@olai/ops/resolved"
+import { type OlaiSurfaceClient } from "@olai/surface/client"
 
 /** The three ops-layer doors a tool call needs, together. `@olai/ops` names
  *  them one per tool arm; nothing but this projection ever wants all three, so

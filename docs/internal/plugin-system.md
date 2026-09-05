@@ -209,7 +209,7 @@ Skim the table; the sections after it give one example each.
 | --- | --- |
 | **plugin** | one integration, two halves, one shape: each is a `definePlugin` over an Effect. TWO KINDS of them today — a **tenant** (olai's judgement about somebody else's appliance: kolu, odu, xyne-spaces) and an **engine** (an ACP agent the chat panel can seat: claude, codex, opencode, pi) — and nothing in the system tells them apart |
 | **name** | the plugin's one word — `"kolu"`, `"claude"`. Also the **sibling key**, the **row id**, the **fiber's name** and the address of its docs page |
-| **row** | an `id` and the module the loader mounts. Tenant rows come from `packages/bundle/olai.yml`; infrastructure rows come from the server profile |
+| **row** | an `id` and the module the loader mounts. Every shipped row comes from `packages/bundle/olai.yml`; profiles apply disabled patches over that catalogue |
 | **fiber** | one mounted plugin, with a lifecycle. A composition root sees four words for it — `running`, `waiting`, `failed`, `off` — and the engine's six states are `@olai/effect-cordis`'s business |
 | **service** | an Effect tag a plugin yields — `Vault`, `Kinds`, `Ops`, `Surfaces`. What `PluginServices` dissolved into. The tag carries the engine's key, so `needs` and the requirement channel are one declaration |
 | **needs** | the services a plugin names. The runtime holds it `waiting` until they exist and unloads it when one leaves; the compiler computes `apply`'s requirements from the same list |
@@ -1006,7 +1006,7 @@ start.
 
 And the degenerate case is the same code as every other: a runtime with **no**
 plugins mounts no sibling on the rooted bundle, which leaves core's own surface
-byte for byte what it was. The `surface` server profile selects the `vault` row over the host kind registry and the `mcp` infrastructure row, with no other bundle plugins enabled by default. `test-minimal` selects no transports. Both use the same plugin host and composition as the web profile; `olai surface` itself remains a client of the running server.
+byte for byte what it was. The `surface` server profile selects the `vault` row over the host kind registry and the `mcp` plugin row, with no other bundle plugins enabled by default. `test-minimal` selects no transports. Both use the same plugin host and composition as the web profile; `olai surface` itself remains a client of the running server.
 
 ---
 
@@ -1062,11 +1062,13 @@ that matters.
    register comes back out when your plugin unloads, and you write no teardown
    for any of it — unless you hold something the runtime cannot see, which is an
    `Effect.addFinalizer` and is what `xyne-spaces` does for its mirrors.
-3. **`packages/plugins/<name>/src/browser.tsx`** — the browser half, the same
+3. **`packages/plugins/<name>/src/browser.tsx`**, if the plugin draws UI — the browser half, the same
    shape: a `name` and a `surface` re-exported off `./wire.ts`, and a `default`
    `definePlugin` whose Effect registers your faces into `Slots`. Browser graph,
    and its own chunk. An ENGINE re-exports only its `name` and registers TWO
-   faces: its mark and its install sentence (step 6).
+   faces: its mark and its install sentence (step 6). A server-only plugin
+   omits `./browser` and `./all.css` from its package exports; no empty modules
+   are needed, and the generator emits neither a chunk nor a stylesheet import.
 4. **`packages/plugins/<name>/docs.md`** — the user page, plus a
    symlink at `docs/plugins/<name>.md` and a line in `docs/index.md`.
    `packages/tests/plugin_docs.test.ts` fails if you skip either.
@@ -1171,8 +1173,6 @@ names the file.
 
 Browser row actions (`outline.row.action`) may return a refusal sentence from `run(node)`. The menu displays it beside the originating row; successful actions return nothing. This lets plugin procedures explain expected failures, such as a full node-agent pool, without depending on core’s presentation types.
 
-Infrastructure rows (`ws`, `mcp`, `web-app`) are inserted into the same loader tree by the composition root. Their modules live in `@olai/server`, not the tenant bundle, so the dependency direction stays downward. They wait for the composed `transport-surface` service, appear in the same panel report, and release their registrations when their scopes close. See [architecture.md](../architecture.md) for shared-listener ownership and [running.md](../running.md) for profiles.
-
 ### Plugin-owned service keys (12b)
 
 `Offers.own(word, provision)` composes `<fiber name>.<word>` inside the keyed
@@ -1236,3 +1236,18 @@ Core composes directory changes through `server/src/store-source.ts`: the bindin
 The vault row carries `config: { format: "olai" }`, validated by its `Config` schema. The codec table is the place to add another supported format; Org is not implemented by this PR. The Effect bridge decodes row config before user `apply`, inside the same contained activation as every other initializer. This avoids the pinned Cordis constructor-validation path that could leave an invalid row pending and reject an unobserved loader promise.
 
 The vault switch remains available and explains its cost. Disabling it clears served collections and removes vault-defined plugins, while the transports remain available. A lock conflict or non-directory root lands as a failed row, including its own failure sentence, so the panel can retry it after the cause is resolved. `runtime.test.ts` now opens the test-minimal profile and reads its store through `Directory`.
+
+
+### Transport plugins and profiles
+
+`ws`, `mcp` and `web-app` are ordinary bundle plugins with optional browser exports; these three and vault export no browser half or stylesheet. They wait on the composed surface before acquiring their contributions.
+
+`TransportSurface.register` accepts scoped HTTP route layers and upgrade handlers. Core’s `listener.ts` owns one port and rebuilds HTTP dispatch from those contributions; it has no transport flags or transport-specific branch. Each registration owns only its contribution. The ws plugin owns origin checks, header admission, stale-tab checks, heartbeat enrollment and connection cleanup using the framework’s socket primitives. The web-app plugin owns static routes, the service worker and manifest. The MCP plugin owns its route, carrier, protocol server and tool projection; core’s binding and tickets keep writer attribution and the write fence. Route changes preserve existing websocket connections. With only MCP registered, the same listener serves only its HTTP route.
+
+`mountBundle` resolves only the modules in `olai.yml`. Profiles cannot insert rows or supply a special resolver. The default `web` profile preserves the catalogue defaults, while `surface` and `test-minimal` disable rows without their `profiles` membership. An explicit `--plugins` list overrides the profile for every row, including transports: `--plugins=` mounts nothing and opens no listener. The browser test harness explicitly composes its socket, assets and MCP carrier for nonempty test tags. `BUNDLE_NAMES` includes every transport, so dynamic definitions cannot replace those reserved names. The generator reads package exports: only a declared `./browser` gets a browser-table entry and chunk, and only a declared `./all.css` enters the style chain. Server-only packages require neither stub.
+
+
+The plugins panel holds its switches while the browser reconciles a roster. A server-only row can change without remounting that panel; its state may arrive before the socket replacement finishes. Waiting for the whole queued reconciliation prevents a second press from being sent on a connection that is about to close. The browser-asset scenario covers two consecutive off/on cycles through that boundary.
+
+
+Profile policy has one interpreter (`profilePatch`), and every served route has a registration owner. Websocket admission uses the framework’s `restrictServedGeneration` over its narrow generation contract. An accepted HTTP response survives another route provider’s arrival and withdrawal; the platform protects that response, while the routing scope controls which handlers new requests reach. Shutdown rejects new connections and upgrades during the drain and waits for observed socket closes before closing the port.

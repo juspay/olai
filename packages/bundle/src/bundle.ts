@@ -117,7 +117,7 @@ export type { RowReport, RowState } from "@olai/plugin-api"
  * row is drawn from it, and a patch that had already expanded `omitted` could not
  * tell a reader which of the two they were looking at.
  *
- * A flag that WAS given writes a `disabled` onto EVERY row, set from whether the
+ * A flag that WAS given writes a `disabled` onto every row, set from whether the
  * flag named it. Both directions, deliberately: a name the flag gives turns a
  * row ON even where the file left it off, which is the whole of how an opt-in
  * plugin is opted into, and a name the flag omits turns a row off even where the
@@ -335,24 +335,25 @@ export const mountBundle = (
   host: Host,
   pin: PluginPin,
   configs: ReadonlyArray<{ readonly id: string; readonly config: unknown }> = [],
-  extra?: {
-    readonly rows: ReadonlyArray<{ readonly id: string; readonly name: string; readonly disabled?: boolean; readonly config?: unknown }>
-    readonly resolve: (name: string) => Promise<unknown>
-  },
+  profile: string = "web",
 ): Effect.Effect<void> =>
   Effect.flatMap(
     mountRows(host, {
       baseUrl: BASE_URL,
       path: BUNDLE,
-      patches: [...pluginsPatch(pin), ...configs],
-      rows: extra?.rows,
-      resolve: (name) => extra?.rows.some((row) => row.name === name)
-        ? extra.resolve(name)
-        : importByName(name),
+      patches: [...profilePatch(profile), ...pluginsPatch(pin), ...configs],
+      resolve: importByName,
     }),
     // EVERY ROW THIS BUILD HAS, and not only the ones the flag left on: a row
     // the patch disabled never entered the registry, so it holds no inertia and
     // costs the walk one `has` — while a list narrowed to the enabled ones would
     // be a second reading of the flag beside {@link pluginsPatch}'s.
-    () => settled(host, [...BUNDLE_NAMES, ...(extra?.rows.map((row) => row.id) ?? [])]),
+    () => settled(host, BUNDLE_NAMES),
   )
+
+/** Profiles disable rows from the catalogue; they never insert a second list.
+ * An explicit --plugins selection overrides those defaults for every row. */
+export const profilePatch = (profile: string) => profile === "web" ? [] : ROWS.map((row) => ({
+  id: row.id,
+  disabled: row.disabled === true || !row.profiles?.includes(profile),
+}))

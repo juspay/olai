@@ -19,8 +19,8 @@
 
 import { expect, test } from "bun:test"
 
-import { type PluginPin, pluginsPatch } from "./bundle.ts"
-import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, inBundleOrder, profilePlugins, ROWS } from "./rows.ts"
+import { type PluginPin, pluginsPatch, profilePatch } from "./bundle.ts"
+import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, inBundleOrder, ROWS } from "./rows.ts"
 
 const exact = (names: ReadonlyArray<string> | null): PluginPin =>
   names === null ? { kind: "omitted" } : { kind: "exact", names }
@@ -164,9 +164,28 @@ test("the input is not reordered under its owner", () => {
   expect(arrived.map((one) => one.id)).toEqual(["zeta-x", BUNDLE_NAMES[0] ?? "claude"])
 })
 
- test("default profiles select bundle data, while an explicit empty flag disables every row", () => {
-  expect(profilePlugins("web")).toBeNull()
-  expect(profilePlugins("surface")).toEqual(["vault"])
-  expect(profilePlugins("test-minimal")).toEqual(["vault"])
-  expect(pluginsPatch({ kind: "exact", names: [] }).every((row) => row.disabled)).toBe(true)
+test("profiles only patch catalogue rows and an exact flag overrides every row", () => {
+  for (const profile of ["web", "surface", "test-minimal"]) {
+    for (const names of [null, [], ["vault"], ["chat", "mcp", "ws", "web-app"]]) {
+      const patches = [...profilePatch(profile), ...pluginsPatch(exact(names))]
+      expect(patches.every((patch) => BUNDLE_NAMES.includes(patch.id))).toBe(true)
+      const on = ROWS.filter((row) => {
+        const last = patches.filter((patch) => patch.id === row.id).at(-1)
+        return !(last?.disabled ?? row.disabled)
+      }).map((row) => row.id)
+      if (names !== null) expect([...on].sort()).toEqual([...names].sort())
+      else expect<ReadonlyArray<string>>(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "mcp"] : ["vault"])
+    }
+  }
+})
+
+test("transport modifiers apply over each profile's defaults", () => {
+  for (const profile of ["web", "surface", "test-minimal"]) {
+    const patches = [...profilePatch(profile), ...pluginsPatch({ kind: "delta", extra: ["ws"], without: ["mcp"] })]
+    const enabled = (id: string) => !(patches.filter((row) => row.id === id).at(-1)?.disabled ?? ROWS.find((row) => row.id === id)?.disabled)
+    expect(enabled("ws")).toBe(true)
+    expect(enabled("mcp")).toBe(false)
+    expect(enabled("web-app")).toBe(profile === "web")
+    expect(enabled("vault")).toBe(true)
+  }
 })

@@ -12,7 +12,7 @@ Nothing. It is on by default, like chat and the appliances. Two things take it a
 
 ```
 olai web ~/outlines                                  # the pill, as always
-olai web ~/outlines --plugins=vault,chat,kolu,odu          # writes land, recorded by nobody
+olai web ~/outlines --plugins=vault,chat,kolu,odu,ws,web-app,mcp          # writes land, recorded by nobody
 ```
 
 The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag. Switched off at the panel, the pill leaves while you are watching, and `ops.commit` refuses in words.

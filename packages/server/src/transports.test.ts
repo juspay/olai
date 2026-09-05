@@ -1,87 +1,58 @@
-import { fixedStore } from "./store-source.ts"
 import { expect, test } from "bun:test"
-import { Effect, Exit, Scope } from "effect"
-import * as fs from "node:fs"
-import { join } from "node:path"
-import * as Store from "@olai/store"
-import { codecFor, make as makeOps } from "@olai/ops"
-import { NO_KINDS } from "@olai/format"
-import { bind } from "./runtime.ts"
-import { watchFault } from "./fault.ts"
-import { served, SERVER_LAYERS } from "./serve.testlib.ts"
-import { transportListener } from "./transports.ts"
-import { mcpEndpoint } from "./mcp/endpoint.ts"
+import { Deferred, Effect, Exit, Scope } from "effect"
+import { HttpRouter, HttpServerResponse } from "effect/unstable/http"
+import { listener } from "./listener.ts"
 
-// Exercise resource withdrawal directly: once ws is gone there is deliberately
-// no browser control socket through which a test could turn it back on.
-test("transport registrations release and restore browser assets, sockets and the last port", async () => {
-  const root = served()
-  fs.writeFileSync(join(root, "index.html"), "<!doctype html><p>browser build</p>")
-  try {
-    await Effect.gen(function*() {
-      const store = yield* Store.make({ root, codec: codecFor(NO_KINDS), watch: false })
-      const ops = makeOps({ store, root })
-      const wired = yield* bind({ store: fixedStore(store), ops, plugins: null, writer: "web", hostname: "test", startedAt: new Date().toISOString() })
-      const fault = yield* watchFault(wired.bound)
-      yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
-      yield* Effect.addFinalizer(() => fault.stopped)
-      const endpoint = mcpEndpoint("test")
-      const ticket = () => endpoint.ticketFor(() => ({ under: "a", forbidden: [] }), () => null, "mcp")
-      expect(ticket()).toBeNull()
-      const listener = yield* transportListener({
-        bound: wired.bound, expose: () => wired.faces.browser, root, clientDist: root,
-        hostname: "test", host: "127.0.0.1", port: 0, allowedOrigins: [],
-        upgradeHeaders: () => [], who: () => null,
-        mcp: endpoint.route(() => null),
-        resync: Effect.void, plugins: null,
-      })
-      const parent = yield* Effect.scope
-      let mcp = yield* Scope.fork(parent)
-      const startMcp = endpoint.serve({ bound: wired.bound, face: wired.faces.agent, ops, root, writer: "mcp", vintage: Effect.map(store.read("verified"), (aged) => aged.vintage) })
-      let ws = yield* Scope.fork(parent)
-      let app = yield* Scope.fork(parent)
-      yield* startMcp.pipe(Scope.provide(mcp))
-      yield* listener.register("mcp").pipe(Scope.provide(mcp))
-      const first = ticket()
-      expect(first).not.toBeNull()
-      yield* listener.register("ws").pipe(Scope.provide(ws))
-      yield* listener.register("web-app").pipe(Scope.provide(app))
-      const url = (yield* listener.start)!
-      const status = (path: string) => Effect.promise(async () => (await fetch(url + path, { signal: AbortSignal.timeout(3000) })).status)
-      expect(yield* status("/")).toBe(200)
-      yield* Scope.close(app, Exit.void)
-      expect(yield* status("/")).toBe(404)
-      expect(yield* status("/mcp")).toBe(405)
-      app = yield* Scope.fork(parent)
-      yield* listener.register("web-app").pipe(Scope.provide(app))
-      expect(yield* status("/")).toBe(200)
-      yield* Scope.close(ws, Exit.void)
-      expect(yield* status("/olai/who")).toBe(404)
-      expect(yield* status("/mcp")).toBe(405)
-      ws = yield* Scope.fork(parent)
-      yield* listener.register("ws").pipe(Scope.provide(ws))
-      expect(yield* status("/olai/who")).toBe(204)
-      expect(yield* status("/")).toBe(200)
-      yield* Scope.close(ws, Exit.void)
-      yield* Scope.close(mcp, Exit.void)
-      expect(ticket()).toBeNull()
-      yield* Effect.promise(async () => { await expect(fetch(url)).rejects.toThrow() })
-      // Re-activating MCP gets a fresh ticket table while reusing the serve's
-      // address. Releasing an old ticket cannot affect that new activation.
-      mcp = yield* Scope.fork(parent)
-      yield* startMcp.pipe(Scope.provide(mcp))
-      yield* listener.register("mcp").pipe(Scope.provide(mcp))
-      const second = ticket()
-      expect(second).not.toBeNull()
-      expect(second!.bearer).not.toBe(first!.bearer)
-      first!.release()
-      expect(yield* status("/mcp")).toBe(405)
-      second!.release()
-      yield* Scope.close(mcp, Exit.void)
-      expect(ticket()).toBeNull()
-      yield* Scope.close(app, Exit.void)
-    }).pipe(Effect.scoped, Effect.provide(SERVER_LAYERS), Effect.runPromise)
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true })
-  }
+// No known transport names: any scoped route provider can share the port.
+test("independent route providers can leave and return without withdrawing another provider", async () => {
+  await Effect.gen(function*() {
+    const shared = yield* listener({ host: "127.0.0.1", port: 0 })
+    const parent = yield* Effect.scope
+    const one = yield* Scope.fork(parent)
+    const two = yield* Scope.fork(parent)
+    const route = (path: `/${string}`) => ({ routes: HttpRouter.add("GET", path, HttpServerResponse.text(path)) })
+    yield* shared.register(route("/one")).pipe(Scope.provide(one))
+    yield* shared.register(route("/two")).pipe(Scope.provide(two))
+    const url = (yield* shared.start)!
+    const status = (path: string) => Effect.promise(async () => (await fetch(url + path, { signal: AbortSignal.timeout(3000) })).status)
+    expect(yield* status("/one")).toBe(200)
+    expect(yield* status("/two")).toBe(200)
+    yield* Scope.close(one, Exit.void)
+    expect(yield* status("/one")).toBe(404)
+    expect(yield* status("/two")).toBe(200)
+    const again = yield* Scope.fork(parent)
+    yield* shared.register(route("/one")).pipe(Scope.provide(again))
+    expect(yield* status("/one")).toBe(200)
+    yield* Scope.close(two, Exit.void)
+    expect(yield* status("/one")).toBe(200)
+    expect(yield* status("/two")).toBe(404)
+    yield* Scope.close(again, Exit.void)
+    yield* Effect.promise(async () => { await expect(fetch(url)).rejects.toThrow() })
+    const last = yield* Scope.fork(parent)
+    yield* shared.register(route("/three")).pipe(Scope.provide(last))
+    expect(yield* status("/three")).toBe(200)
+  }).pipe(Effect.scoped, Effect.runPromise)
+})
+
+test("an accepted HTTP request survives another provider arriving and leaving", async () => {
+  await Effect.gen(function*() {
+    const shared = yield* listener({ host: "127.0.0.1", port: 0 })
+    const entered = yield* Deferred.make<void>()
+    const release = yield* Deferred.make<void>()
+    yield* shared.register({ routes: HttpRouter.add("GET", "/slow", Effect.gen(function*() {
+      yield* Deferred.succeed(entered, undefined)
+      yield* Deferred.await(release)
+      return HttpServerResponse.text("finished on its original request")
+    })) })
+    const url = (yield* shared.start)!
+    const response = fetch(url + "/slow", { signal: AbortSignal.timeout(5000) })
+      .then(async (reply) => ({ status: reply.status, text: await reply.text() }))
+      .catch((error: unknown) => ({ status: 0, text: String(error) }))
+    yield* Deferred.await(entered)
+    const other = yield* Scope.fork(yield* Effect.scope)
+    yield* shared.register({ routes: HttpRouter.add("GET", "/other", HttpServerResponse.text("other")) }).pipe(Scope.provide(other))
+    yield* Scope.close(other, Exit.void)
+    yield* Deferred.succeed(release, undefined)
+    expect(yield* Effect.promise(() => response)).toEqual({ status: 200, text: "finished on its original request" })
+  }).pipe(Effect.scoped, Effect.runPromise)
 })

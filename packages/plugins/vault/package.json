@@ -8,9 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
-    "./browser": "./src/browser.tsx",
     "./testids": "./src/testids.ts",
-    "./all.css": "./src/browser/all.css",
     "./testlib": "./src/testlib.ts"
   },
   "scripts": {

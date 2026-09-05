@@ -22,8 +22,8 @@
  *
  * ## Three files, because a plugin's name is spellable in three grammars
  *
- *   - `src/rows.generated.ts` — one row per plugin with a dynamic `import()` of
- *     its browser half. The literal specifier is what makes each plugin its own
+ *   - `src/rows.generated.ts` — the catalogue, plus a dynamic `import()` for each
+ *     declared browser export. The literal specifier is what makes each plugin its own
  *     CHUNK, which is the browser's form of *no fiber, no surface, no handler*:
  *     a plugin the roster does not name is never fetched, never evaluated and
  *     registers nothing.
@@ -50,7 +50,7 @@
  */
 
 import { load } from "js-yaml"
-import { readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -135,6 +135,19 @@ const packageOf = (row: Row): string => {
   return at === -1 ? row.name : row.name.slice(0, at)
 }
 
+/** Exports describe which graphs exist. A server-only package needs no empty
+ * browser module or stylesheet, and the generator never imports server code. */
+const hasDoor = (row: Row, door: string): boolean => {
+  let directory = dirname(Bun.resolveSync(row.name, HERE))
+  while (!existsSync(join(directory, "package.json"))) {
+    const parent = dirname(directory)
+    if (parent === directory) throw new Error(`bundle: no manifest for ${row.name}`)
+    directory = parent
+  }
+  const manifest = JSON.parse(readFileSync(join(directory, "package.json"), "utf8"))
+  return Object.hasOwn(manifest.exports ?? {}, door)
+}
+
 /** Prose is a source string too; JSON’s two raw line separators need escaping. */
 const prose = (value: string): string => JSON.stringify(value).replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029")
 
@@ -167,13 +180,14 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
     )
     .join("\n")
   const entries = rows
+    .filter((row) => hasDoor(row, "./browser"))
     .map((row) =>
       `  { id: ${quoted(row.id)}, load: () => import(${
         quoted(`${packageOf(row)}/browser`)
       }) },`
     )
     .join("\n")
-  return `${HEADER("Every row, twice: what a composition root mounts and what the tab loads.")}
+  return `${HEADER("Every server row, and only the browser exports the tab can load.")}
 import type { BrowserRow, BundleRow } from "./rows.ts"
 
 export const ROWS: ReadonlyArray<BundleRow> = [
@@ -188,6 +202,7 @@ ${entries}
 
 function styleChain(rows: ReadonlyArray<Row>): string {
   const imports = rows
+    .filter((row) => hasDoor(row, "./all.css"))
     .map((row) => `@import ${quoted(`${packageOf(row)}/all.css`)};`)
     .join("\n")
   return `/* GENERATED from packages/bundle/olai.yml by packages/bundle/generate.ts.
