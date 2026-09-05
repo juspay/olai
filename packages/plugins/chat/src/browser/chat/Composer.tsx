@@ -158,22 +158,15 @@ export function Composer(props: {
    *  panel is where a drop is caught and this row is where the chips go. */
   readonly holding: Holding
 }) {
-  // Keep the words, caret and chosen @ handles together across remounts.
+  // Keep words, caret, chosen @ handles and the dismissed token together across remounts.
   // `taken` grants node context only while its word remains in the draft.
-  const { draft, setDraft, taken, setTaken, caret, setCaret, recover } = createMessageDraft(() => {
+  const { draft, setDraft, taken, setTaken, caret, setCaret, dismissed, setDismissed, recover } = createMessageDraft(() => {
     const state = props.chat.state()
     const agent = agentIn(state)
     return agent === null || state.session === null
       ? null
       : JSON.stringify([agent.id, state.session.id])
   })
-  /** The one piece of MEMORY in the completion, and it remembers a token
-   *  rather than a mood: Escape over one `@` keeps that one shut while it is
-   *  being typed, and starting another `@` — or moving the caret to one — is a
-   *  fresh offer (`./completion.ts`'s `tokenOf`). Without it, Escape could
-   *  only mean "throw the sentence away", which is the wrong of the two
-   *  answers to a key pressed to make a popup go away. */
-  const [dismissed, setDismissed] = createSignal<string | null>(null)
   /** Opened by the BUTTON rather than by typing a slash — the difference is
    *  only which prefix the list is filtered by. */
   const [asked, setAsked] = createSignal(false)

@@ -239,6 +239,8 @@ A node row reads its **title**, and beside it the **id it writes** and where it 
 - if one *does* match something you did not mean, **Escape** puts the list away and leaves the word alone — nothing is ever rewritten that you did not choose;
 - and typing a word that happens to be an id **arms nothing**. Only a row you took off the list puts a node on your message; the panel reads back its own words and never yours.
 
+A dismissed completion stays dismissed with that conversation’s draft when the panel is closed, another node chat is selected, or the plugin runtime rebuilds. Returning to the draft preserves Enter as Send. A different token or a new message can offer completions again.
+
 While the list is up the keys are the list's: ↑/↓ walk it — through both blocks, one cursor — Enter or Tab take the row, Escape closes it. A click does the same for a hand already on the mouse. It is the same box the `/` commands use, because it is the same gesture.
 
 **And Enter takes a row of the list you are looking at.** The node half is asked of the server, so it settles for a fifth of a second before it asks and those rows hold still until the next ones land. Enter inside that gap writes nothing rather than putting the word before last's node into your sentence and arming it; the rows catch up a moment later, and the same key takes the one you meant ([editing.md](editing.md) says it where the other lists in this app say it). The FILE rows are matched in your own tab, so they are never behind anything: `@cab` and Enter writes a path at once, as it always has. And a click is never held back at either half — your hand is on the row you can see.

@@ -8,6 +8,7 @@ interface Draft {
   readonly text: string
   readonly taken: ReadonlySet<string>
   readonly caret: number
+  readonly dismissed: string | null
 }
 
 const held = new Map<string, Draft>()
@@ -16,20 +17,22 @@ const mounted = new Map<string, (draft: Draft) => void>()
 const restored = (failed: Draft, current?: Draft): Draft => {
   if (current === undefined || current.text === "") return failed
   const text = failed.text === "" ? current.text : `${failed.text}\n${current.text}`
-  return { text, taken: new Set([...failed.taken, ...current.taken]), caret: text.length }
+  return { text, taken: new Set([...failed.taken, ...current.taken]), caret: text.length, dismissed: null }
 }
 
 export const createMessageDraft = (conversation: Accessor<string | null>) => {
   const [draft, setDraft] = createSignal("")
   const [taken, setTaken] = createSignal<ReadonlySet<string>>(new Set())
   const [caret, setCaret] = createSignal(0)
+  const [dismissed, setDismissed] = createSignal<string | null>(null)
   let owner: string | null = null
 
-  const read = (): Draft => ({ text: draft(), taken: taken(), caret: caret() })
+  const read = (): Draft => ({ text: draft(), taken: taken(), caret: caret(), dismissed: dismissed() })
   const put = (value: Draft) => batch(() => {
     setDraft(value.text)
     setTaken(value.taken)
     setCaret(value.caret)
+    setDismissed(value.dismissed)
   })
   const restoreHere = (failed: Draft) => put(restored(failed, read()))
   const detach = () => {
@@ -39,7 +42,7 @@ export const createMessageDraft = (conversation: Accessor<string | null>) => {
   const save = () => {
     if (owner === null) return
     if (draft() === "" && taken().size === 0) held.delete(owner)
-    else held.set(owner, { text: draft(), taken: taken(), caret: caret() })
+    else held.set(owner, read())
   }
 
   createEffect(on(conversation, (key) => {
@@ -59,6 +62,7 @@ export const createMessageDraft = (conversation: Accessor<string | null>) => {
       setDraft(stored?.text ?? "")
       setTaken(stored?.taken ?? new Set<string>())
       setCaret(stored?.caret ?? 0)
+      setDismissed(stored?.dismissed ?? null)
     })
   }))
   onCleanup(() => { save(); detach() })
@@ -76,5 +80,5 @@ export const createMessageDraft = (conversation: Accessor<string | null>) => {
     }
   }
 
-  return { draft, setDraft, taken, setTaken, caret, setCaret, recover }
+  return { draft, setDraft, taken, setTaken, caret, setCaret, dismissed, setDismissed, recover }
 }
