@@ -31,7 +31,6 @@ import {
   HYDRATION_TIMEOUT,
   oneLine,
   POLL_TIMEOUT,
-  PANE,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -143,23 +142,23 @@ When("I switch to the other document tab", async function (this: OlaiWorld) {
 });
 
 When("I draft {string} in document pane {int}", async function (this: OlaiWorld, text: string, index: number) {
-  const pane = this.page.locator(`${PANE}[data-pane="${index}"]`);
+  const pane = this.pane(index);
   await this.press(pane.locator(DOCUMENT_EDIT));
   await pane.locator(DOCUMENT_EDITOR).fill(text);
 });
 
 Then("document pane {int} holds draft {string}", async function (this: OlaiWorld, index: number, text: string) {
-  const editor = this.page.locator(`${PANE}[data-pane="${index}"] ${DOCUMENT_EDITOR}`);
+  const editor = this.pane(index).locator(DOCUMENT_EDITOR);
   await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.strictEqual(await editor.inputValue(), text);
 });
 
 When("I save document pane {int}", async function (this: OlaiWorld, index: number) {
-  await this.press(this.page.locator(`${PANE}[data-pane="${index}"] ${DOCUMENT_SAVE}`));
+  await this.press(this.pane(index).locator(DOCUMENT_SAVE));
 });
 
 Then("document pane {int} has no editor", async function (this: OlaiWorld, index: number) {
-  await this.page.locator(`${PANE}[data-pane="${index}"] ${DOCUMENT_EDITOR}`)
+  await this.pane(index).locator(DOCUMENT_EDITOR)
     .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
 });
 
