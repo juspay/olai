@@ -78,11 +78,9 @@
         let default = import ./shell.nix { inherit pkgs; };
         in {
           inherit default;
-          e2e = default.overrideAttrs (prev: {
+          e2e = default.overrideAttrs (_prev: {
             name = "olai-shell-e2e";
-            env = (prev.env or { }) // {
-              PLAYWRIGHT_BROWSERS_PATH = pkgs.playwright-driver.browsers;
-            };
+            PLAYWRIGHT_BROWSERS_PATH = pkgs.playwright-driver.browsers;
           });
         });
 

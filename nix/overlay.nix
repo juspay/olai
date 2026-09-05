@@ -9,11 +9,6 @@ in
 {
   bun = final.callPackage ./bun.nix { };
 
-  mkShell = final.callPackage ./vendor/mk-shell.nix { };
-  mkShellNoCC = final.callPackage ./vendor/mk-shell.nix {
-    stdenv = final.stdenvNoCC;
-  };
-
   npins = final.callPackage "${sources.npins}/npins.nix" { pkgs = final; };
 
   # ekapkgs ships nixfmt; this tree's *.nix are still nixpkgs-fmt-shaped.
