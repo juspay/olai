@@ -414,6 +414,8 @@ Nothing above is guessed from a tool's name. Whether a call sent an agent out, a
 
 A turn that stops on a question does not time out and does not carry on. It hangs — for as long as it takes you to notice — so the panel's job is to make sure you do.
 
+Each question keeps its own draft answer. Switching between node agents, closing the drawer or changing an unrelated plugin preserves the unfinished answer for the agent that asked it. Another agent asking the same fields starts empty, and restarting the harness does not carry an abandoned answer into a new question.
+
 **If the conversation is in front of you, the form appearing is the whole of it.** It arrives where you are already looking, the composer says the agent is waiting on you, and nothing rings. A notification about something already on your screen is nagging, and the surest way to make somebody switch these off.
 
 The one place *where you are already looking* is not the conversation is the shelf that previews one agent's work, and that is why it carries the notice itself — see [when it is a subagent that asks](#when-it-is-a-subagent-that-asks). A surface that takes your eye off the transcript owes you the sentence the transcript would have given you.

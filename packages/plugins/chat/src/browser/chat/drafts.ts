@@ -7,7 +7,7 @@
  * question is the worst possible thing to lose that way — the turn is stopped
  * on it, so the only way forward is to type it all again.
  *
- * Keyed by the ask's row id and the field's key, flat, with a separator no key
+ * Keyed by the ask's globally unique row id and the field's key, flat, with a separator no key
  * can contain. Nothing is stored and nothing is sent: a draft belongs to a
  * reading, and the moment it is submitted the answer on the row is the truth.
  */

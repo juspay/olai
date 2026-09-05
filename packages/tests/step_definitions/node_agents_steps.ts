@@ -705,6 +705,16 @@ Then("the panel is in the remembered conversation {string}", async function (thi
   }, `the panel to open ${name}`);
 });
 
+Then("the panel is in the working conversation {string}", async function (this: OlaiWorld, name: string) {
+  const id = notedSessions.get(this)?.get(name);
+  assert.ok(id, `no conversation remembered as ${name}`);
+  await this.waitUntil(async () => {
+    const panel = this.page.locator(selector(PLUGIN_TESTID.chatPanel));
+    return await panel.getAttribute("data-session-id") === id
+      && await panel.getAttribute("data-status") === "thinking";
+  }, `the panel to show the running conversation ${name}`);
+});
+
 Then("the panel has a different conversation from {string}", async function (this: OlaiWorld, name: string) {
   const id = notedSessions.get(this)?.get(name);
   assert.ok(id, `no conversation remembered as ${name}`);
