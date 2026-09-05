@@ -146,6 +146,9 @@ test("nothing outside connection/status.ts reads the readout's raw states", () =
     path.join("connection", "status.ts"),
     "declared.browsertest.ts",
     "named.test.ts",
+    // The connection owner handles the transport's terminal status while
+    // awaiting socket refresh. It does not interpret the UI readout.
+    "wire.ts",
   ])
 })
 

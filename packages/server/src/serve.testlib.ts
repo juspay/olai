@@ -75,6 +75,7 @@ export const served = (): string => {
  */
 export const withServe = async <A>(
   options: {
+    readonly profile?: import("./profiles.ts").Profile
     readonly root: string
     /** How writes reach git. `off` unless a test is ABOUT committing — a temp
      *  directory is not a repository, and the tests that do not care should not
@@ -103,6 +104,7 @@ export const withServe = async <A>(
   const { layer, said } = collector()
   return Effect.gen(function*() {
     yield* serve({
+      profile: options.profile,
       root: options.root,
       port: 0,
       host: "127.0.0.1",
@@ -146,6 +148,7 @@ export const withServe = async <A>(
  */
 export const withServing = <A>(
   options: {
+    readonly profile?: import("./profiles.ts").Profile
     readonly root: string
     readonly commits?: "off" | "manual" | "auto"
     readonly clientDist?: string

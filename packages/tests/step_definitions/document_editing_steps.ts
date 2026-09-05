@@ -249,3 +249,17 @@ Then(
     );
   },
 );
+
+When("I mark the document editor element", async function (this: OlaiWorld) {
+  await this.page.locator(DOCUMENT_EDITOR).evaluate((element) => {
+    element.setAttribute("data-e2e-retained-editor", "original");
+  });
+});
+
+Then("the original document editor element is still mounted", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(DOCUMENT_EDITOR).getAttribute("data-e2e-retained-editor"),
+    "original",
+    "a roster change replaced the editor DOM element",
+  );
+});

@@ -17,13 +17,13 @@ Feature: Ending a panel resize releases its pointer listeners and retains the re
     Then the sidebar is at least 20px wider than the default
     And there should be no page errors
 
-  Scenario: A plugin rebuild ends the old resize and leaves its replacement usable
+  Scenario: Removing a plugin provider ends the old resize and leaves its replacement usable
     When I open another browser tab
     And I open the plugins panel
-    And I switch the plugin "journal" off
+    And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the journal chrome is absent
+    Then the conversation is gone-from the header
     When I move the held resize pointer another 80px
     And I let go
     Then the sidebar retains the width reached before cancellation

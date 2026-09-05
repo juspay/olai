@@ -704,6 +704,19 @@ Then("the panel is in the remembered conversation {string}", async function (thi
   }, `the panel to open ${name}`);
 });
 
+Then("the panel is ready in a new conversation after {string}", async function (this: OlaiWorld, name: string) {
+  const previous = notedSessions.get(this)?.get(name);
+  assert.ok(previous, `no conversation remembered as ${name}`);
+  // Clicking fresh starts an asynchronous switch. Idle on its own can still
+  // describe the old conversation; require the new identity before typing.
+  await this.waitUntil(async () => {
+    const panel = this.page.locator(selector(PLUGIN_TESTID.chatPanel));
+    const current = await panel.getAttribute("data-session-id");
+    return current !== null && current !== "" && current !== previous
+      && await panel.getAttribute("data-status") === "idle";
+  }, "the fresh conversation to replace the old one and become ready");
+});
+
 Then("the panel is in the working conversation {string}", async function (this: OlaiWorld, name: string) {
   const id = notedSessions.get(this)?.get(name);
   assert.ok(id, `no conversation remembered as ${name}`);

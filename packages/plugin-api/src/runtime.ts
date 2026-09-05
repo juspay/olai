@@ -43,12 +43,15 @@
  *
  * A plugin that genuinely has to stand behind a service does not get either one.
  * It gets {@link ./services.ts}'s `Offers`, which is the VOCABULARY form of the
- * same capability and narrower in every direction that matters: the key set is
- * CLOSED, so core's own services can never be shadowed; the offer is REFUSABLE,
+ * same capability and narrower in every direction that matters: offer admits
+ * only core-defined offerable keys, while own stamps a local word with the
+ * calling fiber's name. Host services cannot be shadowed. An offer is REFUSABLE,
  * with a sentence naming both authors; it is DECLARED, because `Offers` is a tag
  * a plugin names in its `needs` like any other; and it never holds a host — the
  * host is closed over inside `openPlugins`, in the one package that is allowed to
  * spend the capability at all.
+ * serviceTag lets a consumer name either kind of dependency without obtaining
+ * a host or the capability to provide it.
  *
  * Everything else the bridge exports is either what a plugin writes with or what
  * a root reads afterwards, and neither is a capability: `rowReport` needs a host

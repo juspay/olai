@@ -11,7 +11,8 @@ Feature: Node session ownership follows changes to the node
     When I remember this conversation as "first"
     And I open the session picker
     And I start a fresh session
-    And I ask the agent "current cabinet conversation"
+    Then the panel is ready in a new conversation after "first"
+    When I ask the agent "current cabinet conversation"
     Then the agent has answered "current cabinet conversation" exactly once
     When I remember this conversation as "current"
     And I open the session picker

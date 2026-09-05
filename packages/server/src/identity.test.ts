@@ -263,8 +263,7 @@ test("the upgrade's identity is per connection, not a process cell", async () =>
  * this drives: switch the row off and the two doors answer nobody for a request
  * carrying a login a moment ago read as Ada; switch it back on and the same
  * request is Ada again. The second half is the half worth having — it is what
- * says the header ALLOWLIST survived the flip, since the socket's names were
- * fixed at the bind and nothing re-read them.
+ * says the header ALLOWLIST survived the flip.
  *
  * A SOCKET PER ASK, because who is looking is stamped at the upgrade: a
  * connection opened before the flip is holding an answer from before it, which
@@ -304,15 +303,91 @@ test("a serve that did not name the identity row is nobody, whoever asks", async
 })
 
 test("...and a tab on that serve is nobody on its own upgrade", async () => {
-  // The other door, and the one a flip could not have reached anyway: the
-  // upgrade named no headers at the bind, because nobody was standing behind
-  // the door to name any, so the socket is carrying nothing to read.
+  // The other door: nobody is standing behind the door to name a header, so
+  // the upgrade keeps none and the socket is carrying nothing to read.
   await withServing(
     { root: served(), vars: TAILSCALE, plugins: ["chat", "git"] },
     async (url) => {
       expect(await whoOn(url, { "Tailscale-User-Login": ADA })).toBeNull()
     },
   )
+})
+
+/**
+ * ...AND THE ROW SWITCHED ON AFTER THE BIND IS READ BY THE NEXT UPGRADE — 14a,
+ * and the one claim the two tests above could not make between them.
+ *
+ * This is the state the seam used to get wrong, and it is worth stating as the
+ * state rather than as the sequence: a serve that came up WITHOUT the identity
+ * row and had it switched on at the panel must be indistinguishable, from the
+ * next socket on, from a serve that booted with it. It was not. The allowlist
+ * was fixed when the port bound, so `GET /olai/who` started answering Ada at
+ * once while every socket — the open ones AND every new one — stayed anonymous
+ * until somebody restarted the process.
+ *
+ * The header is the only thing under test here. The reading was already live
+ * (the flip test above), so what this asks is whether the upgrade KEPT the
+ * header for the reading to read: an allowlist still empty from the bind is a
+ * socket carrying nothing, and `whoOn` answers `null` no matter how correct
+ * everything downstream of it is.
+ *
+ * A NEW SOCKET, because a connection holds the headers its own upgrade
+ * carried — the tab that redials when the roster moves is where a person meets
+ * this — and the HTTP door is asked beside it so the two answers are compared
+ * on one serve rather than assumed to agree.
+ */
+test("a row switched on after the bind names its headers on the next upgrade", async () => {
+  await withServing(
+    { root: served(), vars: TAILSCALE, plugins: ["chat", "git"] },
+    async (url) => {
+      const ada = { "Tailscale-User-Login": ADA }
+      const someone = { login: ADA, name: null, picture: gravatarOf(ADA) }
+
+      expect(await whoOn(url, ada)).toBeNull()
+
+      await flip(url, "identity", true)
+
+      expect(await whoOn(url, ada)).toEqual(someone)
+      expect(JSON.parse((await get(url, WHO_PATH, ada)).body)).toEqual(someone)
+    },
+  )
+})
+
+/**
+ * A HEADER NAME NO REQUEST CAN CARRY STILL REFUSES THE BOOT — the loudness the
+ * bind used to provide, kept on purpose, and the reason the accept-time read is
+ * safe to have.
+ *
+ * A list read per accept CANNOT refuse a socket for a bad name: one row's typo
+ * would take down every other tenant of the wire, so upstream serves that
+ * connection with nothing named and narrates it. That is the right answer for a
+ * row switched on mid-serve and the wrong loudness for the case an operator
+ * actually meets — a space in `OLAI_IDENTITY_LOGIN_HEADER`, in a unit file, on
+ * a serve that is starting right now — which is why `./serve.ts` spends the
+ * framework's own check on the list this serve comes up with.
+ *
+ * The MESSAGE is the framework's and is asserted as such: it is the one thing
+ * an operator has to act on, and a serve that refused with a sentence about
+ * something else would send them to the wrong file.
+ */
+test("a header name no request can carry refuses the serve, in the framework's words", async () => {
+  const refusal = await withServing(
+    {
+      root: served(),
+      vars: { ...TAILSCALE, OLAI_IDENTITY_LOGIN_HEADER: "Remote User" },
+      // THE ROW UNDER TEST AND NOTHING ELSE, which is the one place in this
+      // file a narrow composition is about the harness rather than about a
+      // claim: a refused boot unwinds rows that are already running, and the
+      // appliance row dials a socket on its way down whether or not anything
+      // is listening. What is being asked here is what the serve refuses WITH,
+      // not what a teardown says while it happens.
+      plugins: ["identity"],
+    },
+    async () => "the serve came up",
+  ).then(() => null, (error: unknown) => String(error))
+
+  expect(refusal).toContain("Remote User")
+  expect(refusal).toContain("is not an HTTP header name")
 })
 
 test("a sealed page keeps its own policy, with no picture hole", async () => {

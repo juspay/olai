@@ -36,25 +36,11 @@
 # that will not typecheck here is a blocker rather than a nuisance. That is the
 # whole reason this arrangement is worth its cost, and it is unchanged.
 #
-# THE PIN TRACKS MASTER, and it has been off it twice for the same kind of
-# reason. First for the ROOTED BUNDLE (`mergeDisjointGroups`,
-# `exposeRootedFaces`, and `connectSurfaces`' `core` slot — juspay/kolu#2222),
-# then for the LIVE one (`implementRootedSurfaces`, `mount(key, surface, deps)`
-# handing back its own undo, and `SurfacesConnection.redial(surfaces)` —
-# juspay/kolu#2223), which is what this tree's server composition and its tab
-# are both built on: a plugin is a fiber, so the sibling set MOVES, and
-# re-implementing the whole map over the survivors forks every one of their
-# runtimes silently.
-#
-# Both were frozen at an exact sha on their branch while they were unmerged (the
-# odu#94 precedent next door), and both notes said the freeze was a MERGE GATE
-# rather than a preference: olai must not merge a tree whose framework pin is on
-# a branch, because the branch goes away with the merge and the revision stops
-# being fetchable. #2223 merged as `a1e62231` and the gate is discharged, so the
-# pin is home and this is the note that replaces the block.
-#
-# `npins/sources.json` records the revision either way, so what this tree
-# compiled against is always in the diff.
+# The kolu pin tracks master at PR #2228's merge commit,
+# 4b1758afad90b15624030e0fd00e1116586b4054. That PR makes redial retain the
+# connection and surviving clients while replacing their underlying wire.
+# npins records the immutable archive and hash; ordinary updates advance it.
+# https://github.com/juspay/kolu/pull/2228
 #
 # NOTE THE ATTR RENAME. Members are `kolu-surface`, not `kolu-src-surface`:
 # the slug is kolu's now, and a consumer inventing its own would be one more

@@ -4,6 +4,14 @@ How to serve a directory and configure the server. The git story is [git.md](git
 
 ## `olai web`
 
+`--profile web` (the default) stacks the tenant bundle with three infrastructure rows: `ws` for the browser socket, `mcp` for `/mcp`, and `web-app` for the browser build. They appear in the plugins panel alongside integrations. `--plugins` continues to select integrations; it does not turn the transports off.
+
+For an MCP-only server, run `olai web path/to/outlines --profile surface`. It opens the same vault and write gate, serves only `/mcp`, and needs no browser build. It mounts no integrations by default; `--plugins` can explicitly add them. `olai surface <verb>` remains the terminal client of a running server.
+
+`--profile test-minimal` opens the vault with no integrations or transports and logs `no transport rows enabled`. It holds the ordinary directory lock until stopped. The store and kinds are still the shared base composition; moving their acquisition into a row is Phase 17.
+
+Turning `mcp` off makes its endpoint return 404 and closes its protocol server; turning it on creates a fresh server. The browser socket stays open. Changing `ws` or `web-app` rebuilds the shared listener on the same port and disconnects existing sockets. Turning off `ws` removes the panel's connection, so restart the process to restore browser control. Switches last only for the current process.
+
 ```sh
 nix run github:juspay/olai -- web path/to/outlines
 ```

@@ -45,7 +45,10 @@
  *     and nothing else, and `serve.ts` closes what it made.
  */
 
-import { serveSurfaceApp, type SurfaceAppListenFailed } from "@kolu/surface-app/serve"
+import { serveSurfaceApp, SurfaceAppListenFailed } from "@kolu/surface-app/serve"
+import { NodeHttpServer } from "@effect/platform-node"
+import { createServer } from "node:http"
+import { HttpRouter, HttpServer } from "effect/unstable/http"
 import type { FaceExposure } from "@kolu/surface/expose"
 import { codeOf, type Emit, emitter } from "@olai/log"
 import { ASSET_PREFIX } from "@olai/surface"
@@ -100,7 +103,9 @@ export interface ListenOptions {
    */
   readonly expose: () => FaceExposure
   /** The built browser bundle. */
-  readonly clientDist: string
+  readonly clientDist?: string
+  /** Absent preserves the web listener used by existing callers. */
+  readonly websocket?: boolean
   /** The directory being served — where `/media/*` reads its pictures from. */
   readonly root: string
   /** The machine this server says it runs on, ALREADY MINTED — the
@@ -112,41 +117,51 @@ export interface ListenOptions {
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
   /**
-   * WHICH HEADERS A SOCKET MAY CARRY — a VALUE, because the seam fixes the
-   * allowlist when the port binds and there is no re-reading it.
+   * WHICH HEADERS A SOCKET MAY CARRY — a THUNK, read at each accept, for
+   * {@link ListenOptions.bound}'s reason exactly: the roster MOVES, and a
+   * serve that came up without the identity row and switched it on at the
+   * panel must name that row's headers on the next upgrade rather than at
+   * the next start.
    *
-   * It is read where it is spent, which is `./serve.ts`: this file takes
-   * the answer rather than a way to ask, so the once-only read is one line
-   * in the composition root at the moment it happens rather than a
-   * `.headers` inside a thunk everything else reads live. A row offered
-   * mid-serve therefore names its headers at the NEXT START
-   * (`@olai/plugin-api`'s `Identity` argues why the seam is shaped that
-   * way, and `packages/plugins/identity/docs.md` says what it costs an open
-   * tab).
+   * This field WAS a value, and the paragraph that stood here said why —
+   * the seam fixed the allowlist when the port bound, so a value was the
+   * honest spelling of a name that could not be re-read. juspay/kolu#2229
+   * closed it (`upgradeHeaders` takes an array OR a thunk, read per accept
+   * the way the served generation is), and the one edit that promise was
+   * always going to cost is this one: the field is a thunk, and the seam
+   * sentence comes out of `@olai/plugin-api`'s `Identity` and
+   * `packages/plugins/identity/docs.md` with it.
    *
-   * A VALUE is what is TRUE today, and it is meant to be read as a claim
-   * rather than as a style: a thunk here would say the names are re-read
-   * and they are not. The day the seam closes upstream — the allowlist read
-   * per accept, the way the served generation already is — this field
-   * becomes a thunk and this paragraph goes with it, which is one edit in
-   * two files and no new vocabulary.
+   * WHAT A BAD LIST COSTS is upstream's ruling and worth knowing here: a
+   * live list this seam cannot serve — a name outside HTTP's grammar, one
+   * wire header named twice — does NOT take the socket or the bind down.
+   * The connection is served with no named headers, which is the state
+   * every request on a serve with no identity row is already in, and the
+   * refusal is narrated on `./report.ts`'s own arm. The loudness a bind
+   * used to give that list for free is bought back one file over:
+   * `./serve.ts` spends `checkUpgradeHeaders` on the list this serve COMES
+   * UP with, so an operator's typo still stops the boot with the
+   * framework's own sentence.
    */
-  readonly upgradeHeaders: ReadonlyArray<string>
+  readonly upgradeHeaders: () => ReadonlyArray<string>
   /**
-   * ...AND WHO A REQUEST IS, which is the other clock: read per request,
-   * for {@link ListenOptions.bound}'s reason. The roster MOVES, and a serve
-   * that switched the identity row off holds a socket whose every later
-   * request must read as nobody.
+   * ...AND WHO A REQUEST IS, which is the other clock: read per REQUEST,
+   * where the names above are read per ACCEPT. Both follow the row now —
+   * what is left is that a socket keeps the headers it was accepted with
+   * (that is what a connection IS), while every request through it is read
+   * by whichever door is standing this instant, so a serve that switched
+   * the identity row off holds a socket whose every later request reads as
+   * nobody.
    *
    * A function of headers and nothing more — this file never learns that a
-   * plugin is behind it, which is what keeps the two clocks from being one
-   * parameter that reads live in one place and once in another.
+   * plugin is behind it, which is what keeps the two schedules two
+   * parameters rather than one door read on two clocks.
    */
   readonly who: Reading
   /** The internal MCP server, mounted beside the static routes — see
    *  {@link ./mcp/route.ts} for why it rides this listener rather than a
    *  transport of its own. */
-  readonly mcp: Parameters<typeof mcpRoute>[0]
+  readonly mcp?: Parameters<typeof mcpRoute>[0]
   /** `POST /olai/resync` — look at the disk now, ignoring mtime+size stamps.
    *  See {@link ./resync.ts}. */
   readonly resync: Parameters<typeof resyncRoute>[0]
@@ -201,7 +216,7 @@ export const listen = (
  *  scope here would be a field that is right at one call site and wrong at the
  *  other. */
 const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
-  serveSurfaceApp({
+  options.websocket === false ? httpApp(options, port) : serveSurfaceApp({
     // THE GENERATION, READ AT EACH ACCEPT AND NEVER HERE — one `live`, which is
     // what a `ServedGenerationSource` is: a caller with a fixed surface passes
     // the triple itself, and one whose served set MOVES passes a function that
@@ -265,7 +280,7 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     // `HttpRouter` ranks by specificity, so each of those beats the shell's
     // catch-all whichever went in first.
     routes: Layer.mergeAll(
-      mcpRoute(options.mcp),
+      options.mcp ? mcpRoute(options.mcp) : Layer.empty,
       mediaLayer(options.root),
       resyncRoute(options.resync),
       whoRoute(options.who),
@@ -278,11 +293,15 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     host: options.host,
     port,
     allowedOrigins: options.allowedOrigins,
-    // The identity headers this serve trusts, as the composition root read
-    // them off the mounted row — unique, so a login that doubles as the
-    // email claim is named once (a repeated name is a bind defect
-    // upstream). Empty is what a serve with no identity row hands over: no
-    // name is trusted because nothing is reading one.
+    // The identity headers this serve trusts, ASKED AT EACH ACCEPT through
+    // the door as it stands then — unique, so a login that doubles as the
+    // email claim is named once. Empty is what a serve with no identity row
+    // answers: no name is trusted because nothing is reading one, and a row
+    // switched on at the panel is named on the next upgrade.
+    //
+    // The thunk goes over UNCHANGED rather than being wrapped: what this
+    // file has to say about the schedule it says on the field, and a
+    // closure here would be a second place the same read happens.
     upgradeHeaders: options.upgradeHeaders,
     // ...and the READING is per connection, through the door as it stands
     // when the socket is accepted — so a row switched off mid-serve makes
@@ -291,9 +310,22 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     onEvent: (event) => report(event, say),
   })
 
+/** MCP-only profiles use the platform HTTP server without a surface socket
+ * or browser routes. Its scope owns the port and all in-flight requests. */
+const httpApp = (options: Omit<ListenOptions, "port">, port: number) =>
+  Effect.gen(function*() {
+    const server = yield* NodeHttpServer.make(createServer, {
+      host: options.host,
+      port,
+      gracefulShutdownTimeout: "1 second",
+    }).pipe(Effect.mapError((failure) => new SurfaceAppListenFailed({ host: options.host, port, cause: failure.cause })))
+    const handler = yield* HttpRouter.toHttpEffect(options.mcp ? mcpRoute(options.mcp) : Layer.empty)
+    yield* server.serve(handler)
+    return HttpServer.formatAddress(server.address)
+  })
+
 /** What the OS reports for a port that is already listening. */
 const IN_USE = "EADDRINUSE"
 
 /** Ask the OS for a port. Not a magic number: `0` IS the request. */
 const ANY_PORT = 0
-

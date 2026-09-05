@@ -64,6 +64,45 @@ export const report = (event: SurfaceAppEvent, say: Emit): void => {
         }),
       )
       return
+    // THE LIVE GENERATION `restrictHandlers` refused — the face and the group
+    // this accept was handed disagree about which plugins are composed, so the
+    // socket is TERMINATED upstream rather than served narrowed. An ERROR
+    // rather than a warning, and the only one in this file: nobody's tab is
+    // reconnecting into anything until the roster and the gate agree again,
+    // which is a boot-class refusal that happened to arrive at an accept.
+    //
+    // It had no arm at all until the arm below needed one, and the two are
+    // written together because their DIFFERENCE is the design: this one takes
+    // the socket, that one serves it anonymously.
+    case "GenerationRefused":
+      say(
+        Effect.annotateLogs(Effect.logError("surface generation refused — this socket was dropped"), {
+          url: event.url.pathname,
+          why: prettyCause(event.error),
+        }),
+      )
+      return
+    // THE LIVE ALLOWLIST COULD NOT BE PRODUCED for this accept, so the socket
+    // is served with no named headers and every request on it reads as
+    // nobody. A WARNING rather than an error on {@link report}'s own terms:
+    // nothing is broken — anonymous is a state this app already defines, and
+    // the next accept re-reads the list — but somebody is looking at a serve
+    // that cannot name them, which is not a thing to find out from a chip.
+    //
+    // A SERVE THAT BOOTED WITH A BAD NAME never gets this far — `./serve.ts`
+    // checks the list it comes up with — so what lands here is the row
+    // switched on MID-SERVE with a name no request can carry, and the race
+    // upstream names between an offer and an accept. Both are cases where
+    // there is no bind left to refuse at, which is why the line has to say
+    // enough to act on: what was wrong, and which connection paid for it.
+    case "UpgradeHeadersRefused":
+      say(
+        Effect.annotateLogs(Effect.logWarning("upgrade headers refused — this socket is anonymous"), {
+          url: event.url.pathname,
+          why: prettyCause(event.error),
+        }),
+      )
+      return
     case "SocketError":
       say(
         Effect.annotateLogs(Effect.logWarning("surface socket failed"), {
@@ -82,6 +121,17 @@ export const report = (event: SurfaceAppEvent, say: Emit): void => {
         }),
       )
       return
+    // AN ARM THIS FILE HAS NOT HEARD OF IS A COMPILE ERROR, and it is here
+    // because the alternative was tried: `GenerationRefused` shipped upstream,
+    // this switch went on compiling, and a terminated socket was narrated by
+    // nothing until the arm above was written. A `never` is the only thing
+    // that makes "the framework's event union grew an arm" — this module's own
+    // reason to change, one paragraph up — arrive as a red build rather than
+    // as a silence somebody notices from a log that is missing a line.
+    default: {
+      const unreported: never = event
+      return unreported
+    }
   }
 }
 

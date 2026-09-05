@@ -367,6 +367,7 @@
       <p class="sub">Indent, check off, search. Markdown sits beside the
       outline. Git records every edit.</p>
       <pre class="run" id="install" title="click to copy"><code>nix run github:juspay/olai -- web path/to/outlines</code></pre>
+      <p>Only need MCP? Add <code>--profile surface</code> to serve your vault without the browser. <code>olai surface</code> remains the terminal client.</p>
       <p class="run-hint">one directory. a browser. that’s the whole install.</p>
       <p class="run-hint">Remembered node conversations restore directly into their node. Kolu no longer needs a preflight connection; reported MCP connection problems appear in chat and warning logs. Compact terminal logs show startup timings, chat activity, and why an agent was stopped. Set <code>OLAI_LOG_LEVEL=debug</code> for diagnostics. <a href="https://github.com/juspay/olai/blob/main/docs/running.md#logging">Logging options</a>.</p>
     </div>
@@ -420,6 +421,10 @@
     sit above today. A birthday isn’t a task — it stays on its day and never
     turns red. The journal is a default plugin, so deployments that do not need
     dates can leave the whole calendar and agenda out.</p>
+    <p>Plugins can also share services with other plugins. Dependent plugins wait
+    for their provider, stop when it leaves, and resume when it returns.
+    Core service providers can be replaced by other plugins, one at a time.
+    <a href="https://github.com/juspay/olai/blob/master/docs/dynamic-plugins.md#sharing-a-plugin-owned-service">Write a plugin that shares a service</a>.</p>
     <div class="cols">
       <div class="panel">
         <div class="file">/agenda · 2026-08-12</div>

@@ -12,7 +12,27 @@ Feature: Who is looking is a plugin
     Then the header has no identity chip
     And there should be no page errors
 
-  Scenario: Switching the row off takes the chip out of the bar while you watch
+  @plugins:chat,claude,git
+  Scenario: Switching the row on names its headers without a restart
+    # THE OTHER DIRECTION, on a serve that came up WITHOUT the row — which is
+    # the half that needed a restart until the allowlist could follow the live
+    # row (juspay/kolu#2229). The socket this tab opened at boot was allowed to
+    # keep no headers, because nobody was standing behind the door to name any;
+    # switching the row on moves the roster, the tab redials, and the upgrade
+    # that redial performs is where the names arrive. So the chip drawing Ada
+    # is the whole claim: not that the reading works, but that the header
+    # reached a socket that was accepted after the press.
+    Given I am the Tailscale user "ada@example.com"
+    When I open the app
+    Then the header has no identity chip
+    When I open the plugins panel
+    And I mark the page
+    And I switch the plugin "identity" on
+    Then the header shows the identity "ada@example.com"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: Identity follows plugin restoration and socket reconnection
     # THE FLIP, on the half a unit test cannot reach. The server's side is
     # `identity.test.ts` (both doors answer nobody from the next request on,
     # and Ada again when it is switched back); this is the bar, where a person
@@ -23,9 +43,19 @@ Feature: Who is looking is a plugin
     When I open the plugins panel
     And I switch the plugin "identity" off
     Then the header has no identity chip
-    # ...and back, in the same process: the headers this socket may carry were
-    # fixed when the port bound and nobody took them away, so the reading
-    # returning is the whole of what has to happen for Ada to be Ada again.
     When I switch the plugin "identity" on
     Then the header shows the identity "ada@example.com"
+    # A surface-roster replacement must also refresh identity from the new upgrade.
+    When I am the Tailscale user "grace@example.com"
+    And I switch the plugin "journal" off
+    Then the header shows the identity "grace@example.com"
     And there should be no page errors
+    When I close the plugins panel
+    And I mark the page
+    And the browser goes offline
+    Then the connection is "reconnecting"
+    When I am the Tailscale user "lin@example.com"
+    And the browser comes back online
+    Then the connection is "live"
+    And the header shows the identity "lin@example.com"
+    And the page has not reloaded

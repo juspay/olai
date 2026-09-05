@@ -1,29 +1,26 @@
 /**
- * One directory, read and served.
+ * One directory, read and served: the composition root's argument is its order.
  *
- * This is the composition root, and it should read as one: a store over the
- * directory, the ops layer over the store, an internal MCP server over the ops,
- * an agent handed that server, the surface bound to both, a listener in front.
- * Each of those lives in its own file with its own reason to change; what is
- * left here is the ORDER they go in, and the one thing that is genuinely this
- * layer's business — the warning you get for binding somewhere the world can
- * reach.
+ * The tenant runtime opens before the store because it supplies the vocabulary
+ * the first disk read validates against. The store and write gate stand before
+ * the composed surface; the surface stands before a transport may expose it.
+ * Only after a listener has bound can a session be told where its tools are.
+ * These are dependencies between owners, so they belong here even when the
+ * acquisitions themselves live behind a smaller module's door.
  *
- * The order is not arbitrary. The chat is built before the surface because the
- * surface's transcript collection is seeded from it; the surface is what the
- * chat publishes through, so its publishers are handed back and installed once
- * it exists. Nothing publishes in between: the agent is not started until the
- * listener is up.
+ * Profiles change which rows are present, not this sequence. Infrastructure
+ * rows mount beside tenants on the same host and wait for TransportSurface.
+ * Providing that door after bind lets the existing needs/activation mechanism
+ * express the dependency. The store and kinds are still this shared base;
+ * making the store acquisition a row is Phase 17, not a special headless path.
  *
- * It says what it is doing through Effect's own logging rather than a `log`
- * callback a caller passes in — see `@olai/log`. Two settings are established
- * here and inherited by everything below, including fibers the store and the
- * agent fork for themselves: the `root` annotation (`./directory.ts`, which
- * owns the reason it has to be set before the store is opened) and the `serve`
- * log span, so every line says how far into this serve it was emitted.
+ * Logging is inherited through Effect: the root annotation must be established
+ * before openPlugins captures the environment and before the store forks its
+ * watcher. A row started later then says which directory it belongs to under
+ * the same log settings as everything that booted eagerly.
  */
-
-import { surface } from "@olai/surface"
+// The upgrade seam owns header-name grammar; boot validates its initial list.
+import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers"
 import { type GitPin, type PageRequest } from "@olai/format"
 import {
   make as makeOps,
@@ -32,12 +29,13 @@ import {
   type Ledger as OpsLedger,
   type Ops,
   type Search as OpsSearch,
-  TOOLS,
 } from "@olai/ops"
 import {
   BUNDLE_NAMES,
   configsOf,
   mountBundle,
+  provide,
+  settled,
   offered,
   reportBundle,
   rowsNaming,
@@ -61,20 +59,20 @@ import { resolve } from "node:path"
 import { localStateFor } from "./localState.ts"
 import { openDirectory } from "./directory.ts"
 import { openDynamic } from "./dynamic/runtime.ts"
-import { pluginChunks } from "./dynamic/route.ts"
 import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { NOBODY, readingOf } from "./identity.ts"
-import { listen } from "./listener.ts"
-import { clientOver, serveFace } from "./mcp/face.ts"
-import { currentLogin, MCP_PATH, mcpTransport } from "./mcp/route.ts"
-import { ticketing, type Tickets } from "./mcp/tickets.ts"
-import { bespokeFrom, pluginTools } from "./mcp/tools.ts"
+import { PROFILES, profileRows, TRANSPORT_ROWS, type Profile } from "./profiles.ts"
+import { transportListener, transportModules, TransportSurface } from "./transports.ts"
+import { mcpEndpoint } from "./mcp/endpoint.ts"
 import { gitConfigPatch } from "./gitPolicy.ts"
-import { bind, writerAt } from "./runtime.ts"
+import { bind } from "./runtime.ts"
 
 export interface ServeOptions {
+  /** Which row bundle the instance starts with; omission selects web.
+   * `--plugins` still patches integrations, independently of transport rows. */
+  readonly profile?: Profile
   /** The directory to serve, recursively. */
   readonly root: string
   readonly port: number
@@ -112,6 +110,7 @@ export interface ServeOptions {
   readonly plugins: ReadonlyArray<string> | null
 }
 
+
 /**
  * Serves until the enclosing scope closes. Everything it opens is registered
  * as a finalizer of that scope, so shutting down is closing the scope and no
@@ -123,32 +122,34 @@ export interface ServeOptions {
  * and it is why an unrecoverable fault now unwinds this scope like every other
  * shutdown instead of exiting the process from under its finalizers.
  */
+
 export const serve = (options: ServeOptions) =>
   Effect.gen(function*() {
+
+    const profile = options.profile ?? "web"
+    const built = [...BUNDLE_NAMES, ...TRANSPORT_ROWS]
     /** The re-compose, filled in by `bind` — `./runtime.ts`'s `PluginRuntime`
      *  argues why it is a holder rather than a callback passed here. */
     const onChange = { run: (): void => {} }
-    /** Minted per process and handed only to the sessions a row spawns: the
-     *  write surface is not something any page that can reach loopback may
-     *  call. */
+
+    // A process credential; session tickets are minted only while the MCP row stands.
     const token = randomBytes(24).toString("hex")
-    /** THE FENCED CREDENTIAL MINT, filled once the MCP face exists — see the
-     *  line beside `ticketing` below. `null` until then, which the door hands
-     *  a plugin verbatim: a session spawned before the listener bound has
-     *  nothing to be fenced against, and inventing a bearer for it would be a
-     *  credential onto a face that does not exist yet. */
-    let mintTicket: Tickets["mint"] | null = null
+
+    const mcp = mcpEndpoint(token)
+
     /** THE WRITE GATE, filled the moment it is built. Held rather than passed,
      *  because the plugin runtime is opened BEFORE the store the layer is over —
      *  the vocabulary a store validates with is what the rows contribute — so
      *  the door a row names is asked per call. */
     let opsLayer: Ops | null = null
+
     /** WHERE A RELATIVE PATH RESOLVES FROM, resolved the way `openDirectory`
      *  resolves it and BEFORE it, because the plugin runtime is opened first.
      *  One spelling of `resolve` in two places is a hazard; two answers to which
-     *  directory this serve is about is a worse one, and `./directory.ts` is
-     *  handed the same string. */
+     *  directory this serve is about is a worse one, and `./directory.ts` must
+     *  be handed the same resolved string. */
     const served = resolve(options.root)
+
     /**
      * WHICH DIRECTORY EVERY LINE BELOW IS ABOUT, annotated BEFORE the plugin
      * runtime rather than only inside `openDirectory`.
@@ -166,6 +167,7 @@ export const serve = (options: ServeOptions) =>
      * once, above — so the two cannot disagree.
      */
     yield* Effect.annotateLogsScoped({ root: served })
+
     /**
      * CORE'S OWN LINE FROM A CHAIN THAT IS NOT AN EFFECT — the one emitter this
      * file still holds, and what is left of a `let ring` that used to carry every
@@ -181,68 +183,39 @@ export const serve = (options: ServeOptions) =>
      * carries a callback any more.
      */
     const say = yield* emitter
+
     /**
-     * THE VAULT'S OWN MCP SERVER, PROMISED HERE AND ADDRESSED AT THE BOTTOM.
+     * The tool address is promised before any row mounts and answered only
+     * after the OS supplies the bound URL. A Deferred expresses that once-only
+     * fact; a mutable slot would require each session to invent its own wait.
      *
-     * A `Deferred` and not a mutable slot, because the two facts about this
-     * address are "not knowable until `listen` returns" and "knowable exactly
-     * once", and that is what a Deferred is. `let tools` below is the mutable
-     * slot, and it survives only because the chat this file still builds reads it
-     * through a thunk it was handed before either existed.
+     * Tools must already stand when tenants mount: a row needing it otherwise
+     * stays pending, and the kind registry read before opening the store would
+     * miss that tenant's vocabulary for the lifetime of the codec. Providing
+     * the promise does not start an agent. The session row awaits the answer.
      *
-     * MADE BEFORE `openPlugins` because the SERVICE has to stand before any row
-     * is mounted: a plugin naming a key nobody has provided sits PENDING, and the
-     * vocabulary is read two statements after `mountBundle` — so a `tools` that
-     * only appeared down there would leave a tenant's property kind out of the
-     * store's codec for the life of the process, silently. Provided early,
-     * completed late.
+     * A profile with no transport never completes the promise. It announces its
+     * absence of listeners and holds the vault; closing its scope interrupts
+     * any waiting work. There is no invented URL for an unbound process.
      */
     const toolsReady = yield* Deferred.make<ToolServer>()
+
     /**
-     * THE PLUGIN RUNTIME, OPENED — before the store, before the chat, before
-     * anything reads a file.
+     * The runtime opens before the directory, because kinds are registrations.
+     * A disabled integration still contributes its built declaration through
+     * propKinds, but no live handler or admission rule. An empty tenant roster
+     * is the same mounted host with its rows disabled, not a null runtime.
      *
-     * ## Why this is the first thing that happens
+     * This is also where a process reaches for its environment on behalf of
+     * the rows. Services mint each plugin's keyed doors from its registered
+     * name; no root callback hands a tenant somebody else's identity. Effects
+     * keep the captured logging and scope rather than escaping to runPromise.
      *
-     * A plugin teaches the vault its VOCABULARY, and the store validates through
-     * it ({@link ./propKinds.ts}): a codec built without it would judge the
-     * boot's own load against a vocabulary that has never heard of a terminal,
-     * and every value under a contributed kind would be text until something
-     * re-validated. That ordering was already here — `propKinds` ran first — and
-     * what changed is where the words come from. They used to be a static field
-     * on a compiled-in list; they are registrations a mounted plugin makes, so
-     * the plugins have to be up.
-     *
-     * Nothing in an `apply` touches the disk or dials anything: each half is MADE
-     * eagerly and STARTED lazily, and starting is a cell's connector, which the
-     * framework runs when the surface binds. So mounting here costs the import of
-     * two modules and a handful of `Map.set`s.
-     *
-     * ## The ONE place a process reaches for the real world
-     *
-     * This is it, which is the rule every seam in this tree is built on: a plugin
-     * that read `process.env` or called `new Date()` would be a plugin a test
-     * cannot drive. What changed is only that the values arrive once, at the
-     * runtime, instead of once per plugin — and that the KEYED ones (the
-     * doorbell's door, the machine-local record, a test's injectable dial) are
-     * minted from the CALLING PLUGIN'S OWN WORD inside the service rather than
-     * from a name a composition root closed over.
-     *
-     * ## No `Effect.promise`, and no callbacks back out
-     *
-     * Both are the phase. Opening the runtime and mounting the bundle are
-     * Effects; every service a plugin names is an Effect service; and the two log
-     * channels that used to be `ring(Effect.logDebug(line))` callbacks on a `Log`
-     * service are Effect's own logger, reached by the plugin from inside its own
-     * fiber. The one bridge that survives is the chat's `deliver`, which is an
-     * Effect a plugin now `yield*`s rather than a promise core forks for it.
-     *
-     * THERE IS ALWAYS A RUNTIME HERE, and `--plugins=` is not the exception:
-     * saying NONE out loud is every row patched `disabled`, so the services stand
-     * and nothing mounts into them, which is exactly the state the roster has to
-     * be able to draw. The face that composes no runtime at all is the one that
-     * never calls this function — `olai surface`, the headless faces, every test
-     * in this package — and it passes `null` to `bind` directly.
+     * The transport rows are allowed to stay pending here. They teach no vault
+     * vocabulary and need the composed surface, which cannot exist until the
+     * store and ops layer do. TransportSurface is intentionally absent until
+     * that later point; awaiting a late Deferred inside apply would instead
+     * leave mountBundle waiting for an acquisition that it must precede.
      */
     const plugins = yield* openPlugins({
       vars: options.vars ?? process.env,
@@ -250,9 +223,9 @@ export const serve = (options: ServeOptions) =>
       served,
       tools: toolsReady,
       // ...AND THE FENCE MINTED OFF IT. Read per call rather than captured,
-      // because the mint does not exist until the MCP face does — and the row
+      // because the endpoint has no mint until its row is active — and the row
       // that seats sessions is mounted long before that.
-      ticketFor: (seated, above) => mintTicket?.(seated, above) ?? null,
+      ticketFor: mcp.ticketFor,
       // THE NARROW OPS DOOR: the reading a message's armed ids are resolved
       // against, a page read through core's standing cache, one property on one
       // node, and a document mint. The ops layer is built below, so all are asked
@@ -314,28 +287,23 @@ export const serve = (options: ServeOptions) =>
       changed: () => onChange.run(),
       // NO `dials`: the injectables are a test's, and this is the product.
     })
-    yield* mountBundle(plugins.host, options.plugins, gitConfigPatch(options.pin))
+    yield* mountBundle(plugins.host, options.plugins ?? (PROFILES[profile].tenants ? null : []), gitConfigPatch(options.pin), {
+      rows: profileRows(profile),
+      resolve: async (name) => transportModules[name],
+    })
+
     /**
-     * THE PLUGINS THIS VAULT ITSELF DEFINES — phase 12
-     * ([dynamic-plugins.md](../../../docs/dynamic-plugins.md)).
+     * The vault's own definitions mount on this host too. Open their manager
+     * before the first report so there is one asynchronous reading of one
+     * registry, including both shipped and approved definitions. Two reports
+     * on different clocks made dynamic rows stick at their mounting state.
      *
-     * Opened HERE because this is where the host is: mounting a plugin nobody
-     * compiled in is `mountPlugin` on the same registry the rows are on, and
-     * that capability is the composition root's — a plugin holding a host could
-     * mount a fiber under any word it liked (`@olai/plugin-api`'s `runtime.ts`
-     * argues it at length). `BUNDLE_NAMES` is what a definition may NOT take.
-     *
-     * BEFORE THE REPORT, and that ordering is the one thing about this line
-     * worth reading twice: a definition's fiber is on this host under its own
-     * word, so it belongs in the SAME reading the bundle's rows are reported
-     * from — and a second reading on a second clock is exactly what made a
-     * definition's row stick at whatever it said when it mounted.
-     *
-     * It mounts NOTHING until a revision has been followed and a person has
-     * approved a version, so at this point it names no rows and the reading
-     * below is the bundle's alone.
+     * Nothing is mounted until a revision supplies approved source. The full
+     * built list is reserved here, including infrastructure ids: a vault may
+     * not replace ws merely because its module is not a tenant package.
      */
-    const dynamic = openDynamic(plugins.host, BUNDLE_NAMES)
+    const dynamic = openDynamic(plugins.host, built)
+
     /**
      * WHAT BECAME OF EACH ROW, read once the bundle has settled — the word a
      * panel row wears when a plugin is not running, and the plugin's own
@@ -345,7 +313,7 @@ export const serve = (options: ServeOptions) =>
      * ASYNCHRONOUS — a failed fiber's error is private and reachable only by
      * awaiting it — and the roster is republished synchronously, from inside a
      * re-compose that a registry change drove. So it is re-read at every moment
-     * a row can have moved, which is here and after a flip ({@link flipped}),
+     * a row can have moved, which is here, after activation and after a flip ({@link flipped}),
      * and `./runtime.ts` reads this holder through a thunk.
      *
      * `let` rather than a `Ref`, deliberately: it is written by exactly one
@@ -353,21 +321,8 @@ export const serve = (options: ServeOptions) =>
      * synchronously by the roster, so a Ref would buy nothing but two more
      * `yield*` on a path that has no concurrency to protect against.
      */
-    let report = yield* reportBundle(plugins.host, dynamic.names())
-    /**
-     * ...AND THE FLIP, which is the only thing that can move it.
-     *
-     * `setRow` flips the loader's own `disabled` for that row and then settles
-     * the WHOLE bundle — because what a flip is for is the rows around it —
-     * so by the time this re-reads, every row that was going to unload or come
-     * back has. `./runtime.ts` recomposes and republishes afterwards, and holds
-     * the roster back while this runs.
-     *
-     * IT IS SPELLED HERE rather than in `./runtime.ts` for that file's own
-     * fence: the composition root is where `@olai/bundle` and the host are both
-     * in hand, and a runtime that could reach a loader would be a second package
-     * that knows what the plugin runtime is written on.
-     */
+    let report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
+
     /**
      * WHICH ROWS A PERSON HAS TURNED OFF HERE — the third author of a row's
      * `disabled`, and the only one downstream of the patch cannot infer.
@@ -383,16 +338,16 @@ export const serve = (options: ServeOptions) =>
      * one fiber, read synchronously by the roster.
      */
     const switched = new Set<string>()
+    /** A flip belongs at the root, which holds both the host and bundle.
+     * setRow settles the tenant bundle; the following settle includes the
+     * infrastructure rows inserted by this profile. Only then may runtime.ts
+     * recompose and publish the report. A loading mcp row is not yet a working
+     * endpoint, even when every tenant has already finished moving. */
     const flipped = (id: string, enabled: boolean) =>
       Effect.gen(function*() {
         const found = yield* setRow(plugins.host, id, enabled)
-        report = yield* reportBundle(plugins.host, dynamic.names())
-        // ...AND WHO ASKED — see {@link switched}, declared above it.
-        //
-        // WRITTEN ONLY WHEN THE FLIP TOOK, so a refused press about a row this
-        // build does not have leaves nothing behind. Cleared on the way back on,
-        // rather than kept as a log: what a row says is about its state now, and
-        // a row somebody switched off and then on again is simply running.
+        yield* settled(plugins.host, built)
+        report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
         if (found) {
           if (enabled) switched.delete(id)
           else switched.add(id)
@@ -400,8 +355,12 @@ export const serve = (options: ServeOptions) =>
         return found
       })
     const kinds = yield* propKinds(plugins)
-    const { root, store } = yield* openDirectory(options.root, kinds)
+    const { root, store } = yield* openDirectory(served, kinds)
 
+    /** The write gate outlives any provider row. Each operation reads the
+     * current ledger offer, so stopping git also stops recording for callers
+     * that held this Ops before the flip. The absent provider answers with
+     * NO_LEDGER's refusal; it does not install a second ledger implementation. */
     const ledger: OpsLedger = {
       wrote: (writer) => currentLedger().wrote(writer),
       whyWaiting: (writer) => currentLedger().whyWaiting(writer),
@@ -460,15 +419,17 @@ export const serve = (options: ServeOptions) =>
      * not already say every day.
      *
      * Read PER CALL by the READING below, so a flip at the plugins panel
-     * reaches the next request; read ONCE at the bind for the header
-     * allowlist, which is the seam and is spelled at the `listen` call
-     * where it is spent rather than hidden in a thunk.
+     * reaches the next request — and per ACCEPT for the header allowlist,
+     * which was the one seam of the whole move and is closed: both reads
+     * go through this one function, so the names a socket may carry and
+     * the reading over them can never name two different rows.
      */
     const currentIdentity = (): Identity =>
       (offered(plugins.host, Identity) as Identity | undefined) ?? NOBODY
+
     /** ...and the one thing the three readers share, minted once over that
      *  door: headers in, a person or nobody out (`./identity.ts`). Nothing
-     *  downstream is handed the door itself — the names are the bind's and
+     *  downstream is handed the door itself — the names are each upgrade's and
      *  the reading is everyone's. */
     const who = readingOf(currentIdentity)
 
@@ -477,253 +438,163 @@ export const serve = (options: ServeOptions) =>
       root,
       ledger,
       search,
-      // THE SAME TABLE THE STORE VALIDATES WITH, so a value a page draws, a
-      // value the validator reports and a value `set_prop` refuses are one
-      // question asked three times. Two tables here would be the bug family
-      // `@olai/format`'s `meaning.ts` is a list of, rebuilt at the root.
+      // The write gate and the store judge against the same vocabulary.
       kinds,
-      // A refusal reaches the agent as its tool result AND whoever is watching
-      // writes. On OPS rather than on the MCP server, because it is writes this
-      // is a property of — a second writer would report nothing. What a plugin
-      // makes of it is its own: the chat row draws a row in the transcript.
+      // Refusal is a write fact, so every face reports through this hook;
+      // keeping it on MCP would omit refusals from the browser's own writes.
       onRefusal: (request, failure) => plugins.refused({ op: request.op, failure }),
     })
-    // ...AND THE DOOR THE ROWS ASK THROUGH, filled the moment the layer exists.
-    // See the holder above on why it is a slot rather than an argument.
     opsLayer = ops
-
-    // The surface is bound to everything it reports on or writes through: the
-    // store it reads, the chat it draws, what git is doing for the directory,
-    // and the ops layer its edit procedures write through — the same one the
-    // MCP face below hands the agent, because there is one writer.
-    //
-    // `web` is the writer for the button's door; the panel's agent reaches the
-    // tools as `chat-agent` below. Which face a caller is, is decided HERE and
-    // never claimed by a transport about itself. A keystroke is the same web
-    // writer: it goes through the ops layer this line hands over.
-    //
-    // And the word the whole deployment is served AS: the machine's name,
-    // read HERE and read ONCE — `app.get` answers it, the install manifest
-    // was made of it at listen, and a box renamed under a running process
-    // must not drift the two (`./hostname.ts` argues the mint being the
-    // root's). The start instant is the other half of that same ask.
+    /** Minted once for the serve: app.get and the install manifest must name
+     * the same machine even if the host is renamed underneath us. The start
+     * instant is process start rather than this function's return, so the
+     * uptime chip reports the lifetime of the answering process. */
     const theMachine = hostname()
-    // Process start, not serve() return: the chip in the header is how
-    // long THIS process has been the one answering, and `process.uptime`
-    // is that number. Minted here, once, so every `app.get` of this serve
-    // answers the same instant.
     const startedAt = new Date(Date.now() - process.uptime() * 1000).toISOString()
+    /** The surface and its exposure maps are composed together. Handing a
+     * listener a group from one generation and a face from another is a gate
+     * failure, not a way to partially serve a roster. Both transports consume
+     * this same binding; their maps decide which vocabulary each may reach.
+     * The root chooses writers: web for a button, chat-agent for MCP below. */
     const wired = yield* bind({
       store,
       ops,
       writer: "web",
       hostname: theMachine,
       startedAt,
-
-      // THE PLUGINS, already mounted — and this is no longer the place a
-      // process reaches for the real environment on their behalf. That happens
-      // at the top of this function, where the services are constructed, and
-      // what crosses here is the runtime's own doors plus the two facts a
-      // BROWSER has to be told: which plugins the build has, and whether
-      // anybody typed the flag.
-      //
-      // `olai web` is the face every plugin's door is drawn on, so it is the
-      // face that composes them; the headless and one-shot faces never call this
-      // function and pass `null` to `bind` directly, carrying no
-      // `surface/<name>/` on the wire at all — the true answer for a process
-      // that has no business dialing somebody's daemon on its way to printing a
-      // node.
       plugins: {
         plugins,
         onChange,
-        built: BUNDLE_NAMES,
+        built,
         pinned: options.plugins,
-        // A THUNK over the holder above, so the roster is drawn from the last
-        // reading rather than from the boot's — see it, and the flip beside it.
         report: () => report,
-        // WHICH DOORS EACH ROW NAMES, live off the registry — one half of the
-        // join that answers "what stops if I turn this off"; the other half is
-        // the offers table, which the runtime reads through `Plugins`.
-        names: () => rowsNaming(plugins.host),
+        names: () => rowsNaming(plugins.host, TRANSPORT_ROWS),
         configs: () => configsOf(plugins.host),
         set: flipped,
-        // ...AND THE SAME RE-READ WITHOUT A FLIP, for the movements a plugin the
-        // vault defines makes: mounted on approval, disposed when its node goes,
-        // replaced when its source is edited. Each of those puts a fiber on this
-        // host and none of them is a press.
         reread: Effect.gen(function*() {
-          report = yield* reportBundle(plugins.host, dynamic.names())
+          report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
         }),
         switched: () => switched,
-        // ...AND THE PLUGINS THIS VAULT ITSELF DEFINES (phase 12). It is opened
-        // HERE because this is where the host is: mounting a plugin nobody
-        // compiled in is `mountPlugin` on the same registry the rows are on, and
-        // the capability to do that is the composition root's — a plugin
-        // holding a host could mount a fiber under any word it liked
-        // (`@olai/plugin-api`'s `runtime.ts` argues that at length).
-        //
-        // `BUNDLE_NAMES` is what it may NOT take: a definition claiming a word
-        // this build already has is a fault rather than an override.
         dynamic,
       },
     })
-
-    // A faulted runtime is unrecoverable structural damage, and telling that
-    // apart from the ordinary settle of a shutdown is `fault.ts`'s whole job.
+    /**
+     * The root owns the composed runtime; transports only borrow its group
+     * and handlers. Register its close before the row drain, so reverse scope
+     * order unloads rows while the surface and store still answer releases.
+     *
+     * The transport coordinator is acquired next. Its stop is also registered
+     * after the service provision below: it must stop accepting before that
+     * provision is revoked, or the resulting row unloads would keep asking an
+     * active coordinator to rebuild the listener during process shutdown.
+     */
     const runtime = yield* watchFault(wired.bound)
-
-    // This file built the runtime, so this file closes it. The listener takes
-    // its `group` and its `handlers` and never its lifetime — a transport that
-    // also closed it would be two owners of one thing — which is why the line
-    // is here and not there. Registered BEFORE the listener so it runs AFTER
-    // it: finalizers run in reverse, and every serving stack the listener
-    // drains is answered by this runtime while it drains.
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
-    // Drain plugin scopes while the store and bound surface still exist.
-    // The listener is acquired next, so it stops accepting calls first.
     yield* Effect.addFinalizer(() => plugins.close)
-
-    // The agent's face onto this process: the same surface the browser reads,
-    // plus the ops layer's tools, over the Streamable HTTP transport the route
-    // below drives. ONE face rather than two projections of the ops layer —
-    // which is the whole point of the surface-mcp adoption, and the reason the
-    // hand-rolled dispatch this replaced is gone.
-    const transport = mcpTransport()
-    // Built ONCE and handed back on every ask: this face has no transport to
-    // drop, so re-dialling would only re-run the gate over the same handlers.
-    const panel = clientOver(
-      {
-        group: wired.bound.group,
-        handlers: writerAt(wired.bound, ops, { writer: "chat-agent", fence: null }),
-      },
-      wired.faces.agent,
-    )
-    const tickets = ticketing({ bound: wired.bound, face: wired.faces.agent, ops, token })
-    // ...AND THE MINT, HANDED TO WHOEVER HOLDS THE SESSIONS. What a bearer
-    // stands for is asked per request of the plugin that seated the session —
-    // its subtree, and the ancestor a refusal names — and the composition root
-    // is the only thing that may compose a door out of the answer. It is filled
-    // HERE, after the face exists, and reads `null` before that: a plugin that
-    // spawned a session before the listener bound would be asking for a bearer
-    // onto nothing.
-    mintTicket = tickets.mint
-    yield* serveFace({
-      client: () => panel,
-      /**
-       * WHAT THIS FACE KNOWS ABOUT ITSELF: which directory it is serving, so
-       * every answer names the vault it came from; who the request is, so a
-       * capture through a reverse proxy is attributed to the person the proxy
-       * named — and to nobody when it named nobody; and how current what it
-       * serves is, at the class an agent's tool result deserves.
-       *
-       * THE CLASS IS `verified`, because an agent acts on what it reads: one
-       * walk of the tree per read, taken outside the publish loop's permit, so
-       * a wedged loop shows up as a stale vintage on the answer rather than as
-       * an answer that looks fine.
-       *
-       * AND IT IS THE READ RATHER THAN THE LOOK, which is the one real choice
-       * on this line and was argued on #406. `@olai/store` has two verbs at
-       * that class: `read("verified")` checks the disk against the standing
-       * answer and publishes nothing, and `refresh("verified")` forgets the
-       * stamp table, re-reads every file and publishes what it finds. The
-       * second is strictly stronger about BYTES — it is the only thing that
-       * sees a rewrite which kept the length and put the mtime back — and it
-       * is the wrong verb here, for three reasons that all point the same way:
-       *
-       *   - IT SITS BEHIND THE PERMIT. `refresh` takes the gate, so every
-       *     agent read would wait on whatever the publish loop is doing — and
-       *     a loop wedged behind a held permit would hang the tool calls
-       *     outright. That is the exact condition the vintage exists to make
-       *     legible, and the MCP face is the surface the 2026-08-25 incident
-       *     was finally diagnosed through: a disk-vs-MCP diff of one node.
-       *     Putting the diagnostic door behind the thing being diagnosed is
-       *     the trade nobody would take twice. It would also stand the red
-       *     line on its head — the verification path is the one thing all
-       *     three seats signed must not share `cycle`'s permit.
-       *   - IT PUBLISHES. A forget-and-re-read mints a revision every time,
-       *     because every file comes back stale by construction. An agent
-       *     working through a vault makes tens of reads a minute, and each
-       *     would push a byte-identical frame to every open browser.
-       *   - IT COSTS THE CORPUS. Every read tool call would re-read and
-       *     re-validate every file in the directory. The debate specified the
-       *     cheaper thing on purpose ("an independent stamp check against
-       *     disk, no cycle permit needed"), and the read is that.
-       *
-       * WHAT THE READ THEREFORE CANNOT SAY is pinned rather than promised:
-       * `Confirmed` is exactly as strong as a stamp, and a same-length rewrite
-       * that restored the mtime reads `stale: false` over the old bytes
-       * (`./mcp/tools.test.ts`'s "what `stale: false` is worth", and
-       * `@olai/store`'s sibling pin). The caller who cannot take that trade
-       * has the other verb, one route over: `POST /olai/resync` below is the
-       * look, and it is where the one real-world producer of the invisible
-       * shape — a harness putting a fixture back under a live server — already
-       * knocks.
-       */
-      tools: {
-        ...bespokeFrom(TOOLS, {
-          login: currentLogin,
-          root,
-          vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
-          fenced: tickets.doorAt,
-          record: (request) => ops.commit(request, "chat-agent"),
-          push: ops.push,
-        }),
-        // ...AND CORE'S OWN THREE, which are not operations on a vault and so
-        // are not rows in the ops layer's table (`./mcp/tools.ts` argues where
-        // they live). Without them the section of `docs/dynamic-plugins.md`
-        // written FOR a node agent named three verbs no node agent could call.
-        ...pluginTools(),
-      },
-      transport,
+    /** The shared port is acquired only once the rows have registered their
+     * choices. Its websocket and shell options are bind-time facts; MCP is a
+     * request-time source so stopping that row leaves the control socket up.
+     * The identity header allowlist is likewise read once here, while who is
+     * asked per request. A later identity flip cannot renegotiate the names
+     * trusted by an existing listener (the Phase 14a seam).
+     *
+     * Resync waits for ops to become idle before forcing a disk refresh: a
+     * probe among staged temporary files would read a partially applied write.
+     * It is the explicit, publishing refresh; ordinary MCP reads below use
+     * the cheaper independent verification path instead.
+     */
+    const transports = yield* transportListener({
+      ...options,
+      bound: wired.bound,
+      expose: () => wired.faces.browser,
+      hostname: theMachine,
+      // Names and readings follow the same live row, per upgrade and per request.
+      upgradeHeaders: () => currentIdentity().headers,
+      who,
+      mcp: mcp.route(who),
+      resync: Effect.andThen(ops.idle, store.refresh("verified")),
+      plugins: dynamic,
     })
-
-    // Port 0 asks the OS every boot.
-    const url = yield* Effect.onError(
-      listen({
-        ...options,
+    /**
+     * The bundle came first; this provision now wakes its transport fibers.
+     * A transport needs the composed surface, not the authority to bind a
+     * second store or mount arbitrary tenants. The door gives each row only
+     * the scoped acquisition it installs over this serve.
+     *
+     * ws and web-app register choices because the framework binds their one
+     * listener together. mcp has a second lifetime of its own: the protocol
+     * server, waiters and session-ticket table. Its Effect runs on that row's
+     * scope, so an off/on cycle gets a fresh protocol server. The coordinator
+     * owns the shared port, and no row can close another row's endpoint merely
+     * by disposing its own server. transports.ts owns that reconciliation.
+     */
+    yield* provide(plugins.host, TransportSurface, () => ({
+      register: transports.register,
+      mcp: mcp.serve({
         bound: wired.bound,
-        // The face for the group on the line above, from the one call that
-        // composed both (`./runtime.ts`'s `bind`) — a second reading of which
-        // plugins are on is the boot refusal `restrictHandlers` exists to raise.
-        expose: () => wired.faces.browser,
-        hostname: theMachine,
-        // WHICH HEADERS A SOCKET MAY CARRY, read HERE and once: the seam
-        // fixes the allowlist at the bind, so this is the line the whole
-        // "a row switched on mid-serve names its headers at the next start"
-        // sentence is about. A serve with no identity row hands over none,
-        // which is a socket that carries nothing to read.
-        upgradeHeaders: currentIdentity().headers,
-        // ...and WHO IS LOOKING, on that socket and on the two HTTP doors —
-        // one reading, handed to all three, so a chip in a browser and a
-        // capture from a terminal cannot disagree.
-        who,
-        mcp: { transport, token, who },
-        // `POST /olai/resync` — force a re-read of the disk. Waits for
-        // in-flight writes first (`ops.idle`): a probe while a `run` is
-        // still staging is a look at `.olai-*.tmp`, not at the tree the
-        // next reader will be served. Then the store's one look verb, at the
-        // class this door exists for: `verified` is "a look nobody may be
-        // entitled to see nothing from", and what it costs to be that is the
-        // store's business rather than this line's.
-        // Nothing about it is on the surface: no tab draws it and no agent
-        // calls it. It is for the case the watcher cannot see, which is a
-        // change made where no inotify reaches.
-        resync: Effect.andThen(ops.idle, store.refresh("verified")),
-        // `GET /_olai/plugins/<name>-<version>.js` — the browser half of a
-        // plugin this vault defines, compiled by this serve. The tab loads it
-        // exactly as it loads a compiled-in plugin's chunk; what differs is that
-        // its source did not exist when the bundle was built.
-        plugins: dynamic,
+        face: wired.faces.agent,
+        ops,
+        root,
+        writer: "chat-agent",
+        // Verified READ, not REFRESH: a tool read must remain independent of
+        // the publish-loop permit, so a wedged loop is observable as stale
+        // vintage rather than hanging the diagnostic tool too. Refresh would
+        // also reread and republish every file on every tool read. A verified
+        // read checks stamps; it cannot detect a rewrite that preserved both
+        // length and mtime. /olai/resync is the explicit stronger operation.
+        vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
       }),
+    }))
+    yield* Effect.addFinalizer(() => transports.stop)
+    // Wait for both the rows and their protocol acquisitions before publishing
+    // readiness. Binding earlier could hand a newly spawned session a port
+    // whose mcp row was still loading.
+    yield* settled(plugins.host, built)
+    report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
+    onChange.run()
+    /*
+     * WHAT THIS SERVE CAME UP WITH MUST BE SERVABLE — the one thing the bind
+     * used to do for free, kept.
+     *
+     * `upgradeHeaders` is a thunk now, so the framework no longer checks the
+     * list at the bind: it checks at each accept, where a bad name refuses the
+     * ALLOWLIST rather than the socket (the connection is served anonymously
+     * and `./report.ts` says so). That is the right blast radius for a row
+     * switched on mid-serve, and the wrong loudness for the case an operator
+     * actually meets — `OLAI_IDENTITY_LOGIN_HEADER="Remote User"`, typed into a
+     * unit file, on a serve that is coming up right now. Before this change
+     * that stopped the boot with the framework's own sentence; it would
+     * otherwise have become a warning per accept and a chip that never draws.
+     *
+     * So the check is spent HERE, once, on the list this serve is starting
+     * with — the framework's own `checkUpgradeHeaders`, never a second opinion
+     * about what a header name is. An empty list passes, which is what a serve
+     * with no identity row hands over and what makes this safe to do before
+     * anything has been switched on.
+     *
+     * WHAT IT DELIBERATELY DOES NOT COVER is the row switched on LATER with a
+     * bad name: nothing is bound to refuse at, the accept-time arm is upstream's
+     * answer, and a second check inside the thunk would run on every accept to
+     * say what that arm already says.
+     *
+     * UNDER THE SAME `onError` THE BIND IS UNDER, which is why this is an
+     * Effect rather than a bare call: a refusal here has to unwind everything a
+     * refusal at the bind unwinds. The rows are mounted and running by now —
+     * one of them is dialling an appliance — so a throw that skipped
+     * `runtime.stopped` would leave those fibers to fail into a process that is
+     * already on its way out.
+     */
+    yield* Effect.onError(
+      Effect.sync(() => checkUpgradeHeaders(currentIdentity().headers)),
       () => runtime.stopped,
     )
-    // Registered AFTER the listener's own, so it runs BEFORE it: finalizers
-    // run in reverse, and this one has to be true by the time anything starts
-    // closing the runtime.
+
+    const url = yield* Effect.onError(transports.start, () => runtime.stopped)
+    // A deliberate close must be marked before any finalizer reaches the
+    // runtime; otherwise watchFault would report our own shutdown as damage.
     yield* Effect.addFinalizer(() => runtime.stopped)
 
-    yield* Effect.annotateLogs(Effect.logInfo("serving"), { url })
-    if (!LOOPBACK.has(options.host)) {
+    if (url && !LOOPBACK.has(options.host)) {
       yield* Effect.annotateLogs(
         Effect.logWarning(
           "bound off loopback — the surface is unauthenticated, so anyone who can reach this port can read every outline here, and edit them",
@@ -732,30 +603,11 @@ export const serve = (options: ServeOptions) =>
       )
     }
 
-    /**
-     * THE ADDRESS, now that we know what we bound — and the promise made before
-     * `openPlugins` kept.
-     *
-     * TOLD UNCONDITIONALLY, and deliberately not from inside the `chat !== null`
-     * arm below. Whether THIS process has an ACP agent is a fact about the
-     * machine; whether the vault's own tools are reachable is a fact about the
-     * SERVE, and a plugin waiting on the second must not be held for ever by the
-     * first. The chat's own slot is still filled below, out of the same value, so
-     * the name a session is handed and the name a plugin is handed cannot drift.
-     *
-     * `name: "olai"` is load-bearing beyond this line: every engine's auto-allow
-     * prefix is built from it (`@olai/acp`'s `leg.ts`), so a machine where this
-     * word changed is a machine where a person approves every write olai makes.
-     */
-    const address: ToolServer = { name: "olai", url: `${url}${MCP_PATH}`, token }
-    // ...AND THAT IS THE WHOLE OF THE BOOT CONVERSATION'S ORDER NOW. It was
-    // fourteen lines here — detect the roster, build the chat, hold its stop,
-    // start it, and say what was found — and every one of them is
-    // `olai-plugin-chat`'s. What core has left is this settle: the row's own
-    // `apply` awaits `Tools.server`, which is what "the surface is bound and
-    // only then is the agent started" became when it stopped being a comment
-    // guarded by a loud throw.
-    yield* Deferred.succeed(toolsReady, address)
+    /** Complete the once-only address only after listen returned the OS's
+     * answer, including a busy-port fallback. The name and bearer come from
+     * the endpoint shared with the row; a session must not guess either one.
+     * No transport means no address and no agent started against a fiction. */
+    if (url) yield* Deferred.succeed(toolsReady, mcp.address(url))
 
     return runtime.faulted
   })

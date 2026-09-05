@@ -4,7 +4,7 @@ Feature: Undo history survives plugin changes without overwriting other work
     Given I open the outline "house.olai"
     And I mark the page
 
-  Scenario: One undo after a plugin change takes back only the latest of two text edits
+  Scenario: One undo after a provider change takes back only the latest of two text edits
     When I click the title of "handles"
     And I select all and type "first retained edit"
     And I press "Enter"
@@ -17,10 +17,10 @@ Feature: Undo history survives plugin changes without overwriting other work
     Then the node "knobs" has the title "second retained edit"
     When I open another browser tab
     And I open the plugins panel
-    And I switch the plugin "journal" off
+    And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the journal chrome is absent
+    Then the conversation is gone-from the header
     When I press "ControlOrMeta+z"
     Then the node "knobs" has the title "pick the knobs"
     And the node "handles" has the title "first retained edit"

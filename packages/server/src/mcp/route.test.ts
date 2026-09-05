@@ -166,7 +166,10 @@ const withRoute = <A>(
       host: listenOn.host,
       port: 0,
       allowedOrigins: [],
-      upgradeHeaders: [LOGIN],
+      // A THUNK for the same reason `expose` is one: the names follow the row
+      // that offers them, so the listener asks at each accept. A bench with a
+      // fixed proxy header answers the same list every time it is asked.
+      upgradeHeaders: () => [LOGIN],
       who: PROXY,
       mcp: { transport, token: TOKEN, who: PROXY },
       resync: Effect.void,
