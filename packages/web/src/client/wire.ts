@@ -7,6 +7,7 @@
 
 import { bootstrapSelected } from "./plugins/bootstrap.ts"
 import { loadRows } from "./plugins/loading.ts"
+import type { bootStatus } from "./plugins/boot-status.ts"
 import { BROWSER_BOOT_PATH } from "@olai/plugin-api/mount"
 import { connectSurfaces } from "@kolu/surface-app/solid"
 import type { Surface, SurfaceSpec } from "@kolu/surface/define"
@@ -14,7 +15,7 @@ import type { BrowserHalf, BrowserRow } from "@olai/bundle"
 import { surface } from "@olai/surface"
 import { createEffect, createRoot, createSignal } from "solid-js"
 
-import { composeTo } from "./plugins/runtime.ts"
+import { browserReports, composeTo } from "./plugins/runtime.ts"
 
 /**
  * The word a degraded readout calls olai's own floor.
@@ -103,7 +104,7 @@ interface Named {
 }
 
 /** THE PLUGINS THIS WIRE CARRIES, as that signature. */
-let composed = ""
+let composed: string | undefined = ""
 
 /**
  * BRING THE WIRE INTO LINE WITH THE ROSTER — load, dial, then mount.
@@ -191,6 +192,16 @@ export const useBrowserRows = (built: ReadonlyArray<BrowserRow>): void => {
 /** The socket is authoritative once it has answered. A slow bootstrap reply
  * cannot re-enable a row which a newer roster switched off. */
 let receivedRoster = false
+let boot: ReturnType<typeof bootStatus> | undefined
+let selectedRows: ReadonlyArray<Named> = []
+export const useBootStatus = (status: ReturnType<typeof bootStatus>): void => { boot = status }
+/** An explicit retry retains the host's last selection and does not restart
+ * surviving activations. Failed imports and failed activations get another try. */
+export const retryBrowser = async (): Promise<void> => {
+  composed = undefined
+  if (!receivedRoster) return bootstrapBrowser()
+  await rerost(selectedRows)
+}
 export const bootstrapBrowser = async (): Promise<void> => {
   try {
     await bootstrapSelected({
@@ -200,6 +211,7 @@ export const bootstrapBrowser = async (): Promise<void> => {
     })
   } catch (error) {
     console.warn("olai: browser bootstrap could not be read", error)
+    boot?.failed(`Browser startup could not read the host selection: ${String(error)}`, retryBrowser)
   }
 }
 
@@ -260,7 +272,11 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
     }
     await composeTo(halves, (plugin) => (live.clients as Record<string, unknown>)[plugin], failed)
     composed = signature
+    const failures = [...browserReports()].filter(([, report]) => report.state === "failed").map(([name]) => name)
+    if (failures.length) boot?.failed(`Browser plugins could not start: ${failures.join(", ")}.`, retryBrowser)
+    else boot?.clear()
   } catch (refused) {
+    boot?.failed(`Browser startup could not follow the host selection: ${String(refused)}`, retryBrowser)
     console.error(
       "olai: this tab could not follow the server's plugin roster, so it is still serving the previous one",
       refused,
@@ -339,6 +355,7 @@ createRoot(() => {
     const want = value.built
       .filter((row) => row.running)
       .map((row) => ({ id: row.name, chunk: row.source?.chunk ?? null }))
+    selectedRows = want
     if (signatureOf(want) === composed) {
       settle()
       return

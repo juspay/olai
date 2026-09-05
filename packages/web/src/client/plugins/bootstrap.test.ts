@@ -26,7 +26,7 @@ test("only the server-selected names bootstrap, including an empty selection", a
 
 test("an unavailable bootstrap invents no default selection", async () => {
   const applied: ReadonlyArray<string>[] = []
-  await bootstrapSelected({ authoritative: () => false, request: async () => new Response("absent", { status: 404 }), apply: async (names) => { applied.push(names) } })
+  await expect(bootstrapSelected({ authoritative: () => false, request: async () => new Response("absent", { status: 404 }), apply: async (names) => { applied.push(names) } })).rejects.toThrow("HTTP 404")
   expect(applied).toEqual([])
 })
 

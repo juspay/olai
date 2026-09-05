@@ -21,7 +21,8 @@ import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
 import { provideFurniture } from "./plugins/furniture.tsx"
-import { bootstrapBrowser, connectionReadout, firstRoster, olai, useBrowserRows } from "./wire.ts"
+import { bootstrapBrowser, connectionReadout, firstRoster, olai, useBrowserRows, useBootStatus } from "./wire.ts"
+import { bootStatus } from "./plugins/boot-status.ts"
 import { attachRenderer, useBundleOrder } from "./plugins/runtime.ts"
 // FOR ITS SIDE EFFECT, and above the first render: this app's Solid, Effect and
 // plugin interface, put where a plugin the SERVE compiled out of somebody's
@@ -112,6 +113,7 @@ trackDesktop()
 
 const root = document.getElementById("root")
 if (root === null) throw new Error("no #root element")
+useBootStatus(bootStatus(root))
 
 // Providers may arrive before the browser mount; their needs keep them waiting.
 await provideFurniture()

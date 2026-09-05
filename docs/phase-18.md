@@ -35,3 +35,11 @@ The current registry tests exercise waiting descendants, replacement owners,
 stable identity, duplicate declarations and occupants, contract disagreement,
 cycles, failed acquisition rollback and failed plugin activation cleanup.
 They do not establish the complete application boundary above.
+
+Review corrections now give each location integration a Cordis activation;
+child availability is offered by its owning entry, and removal drains dependent
+resources before that entry closes. Tests cover asynchronous and failed cleanup,
+hanging initialization, fresh reacquisition, and unrelated identity preservation.
+Browser chunk acquisition is contained per row, with failed loads reported in
+the inspector. Cold-start recovery and further shell extraction remain under
+active validation; these corrections do not complete Phase 18.

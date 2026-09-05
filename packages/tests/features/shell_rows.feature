@@ -18,3 +18,27 @@ Feature: The renderer and layout are browser rows
       | owner       |
       | layout      |
       | ui-renderer |
+
+  Scenario: An optional module failing during cold startup leaves the shell usable
+    Given the browser module for "pi" cannot be fetched
+    When I open the app
+    And I open the plugins panel
+    Then the plugins panel says "pi" is "Module load failed"
+    Given I mark the page
+    When the browser module can be fetched again
+    And I retry the failed browser activation
+    Then the browser activation has recovered
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A renderer module failure has a startup diagnostic and can recover
+    Given the browser module for "ui-renderer" cannot be fetched
+    When I open the app
+    Then browser startup reports its failure
+    Given I mark the page
+    When the browser module can be fetched again
+    And I retry browser startup
+    And I open the plugins panel
+    Then the plugins panel says "ui-renderer" is "Browser: running."
+    And the page has not reloaded
+    And there should be no page errors

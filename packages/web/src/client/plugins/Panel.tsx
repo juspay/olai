@@ -135,7 +135,7 @@ import { Segmented } from "../settings/Segmented.tsx"
 import { Row } from "../settings/Row.tsx"
 import { pluginPref, TESTID } from "../testids.ts"
 import { browserReports } from "./runtime.ts"
-import { olai, rosterChanging } from "../wire.ts"
+import { olai, retryBrowser, rosterChanging } from "../wire.ts"
 
 import {
   type PluginPick,
@@ -312,7 +312,15 @@ export function Panel(props: {
               // one fact for the panel and is at the foot. Neither prop being
               // passed is why these rows are a name and a switch on one line.
               hint={[pluginHint(plugin, plugins()), plugin.running ? browserHint(plugin.name, browserReports(), plugin.browserOnly) : null].filter(Boolean).join(" ") || null}
-              under={<Config values={pluginConfig(plugin)} />}
+              under={<>
+                <Config values={pluginConfig(plugin)} />
+                <Show when={plugin.running && [...browserReports()].some(([name, report]) =>
+                  (name === plugin.name || name.startsWith(plugin.name + "/")) && report.state === "failed") }>
+                  <button type="button" disabled={rosterChanging()} onClick={() => { void retryBrowser() }}>
+                    Retry browser activation
+                  </button>
+                </Show>
+              </>}
             >
               <Segmented
                 choices={PLUGIN_CHOICES}
@@ -546,4 +554,3 @@ function Defined(props: {
     </Show>
   )
 }
-
