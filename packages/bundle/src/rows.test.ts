@@ -174,7 +174,7 @@ test("profiles only patch catalogue rows and an exact flag overrides every row",
         return !(last?.disabled ?? row.disabled)
       }).map((row) => row.id)
       if (names !== null) expect([...on].sort()).toEqual([...names].sort())
-      else expect(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "mcp"] : ["vault"])
+      else expect<ReadonlyArray<string>>(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "mcp"] : ["vault"])
     }
   }
 })
