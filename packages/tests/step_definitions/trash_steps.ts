@@ -227,6 +227,15 @@ When("I confirm emptying the Trash", async function (this: OlaiWorld) {
   await this.waitForFrame();
 });
 
+When("I confirm emptying the Trash while updates are delayed", async function (this: OlaiWorld) {
+  await this.page.locator(TRASH_EMPTY_CONFIRM).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await pressEmptyTrash(this);
+});
+
+Then("the Trash is not asking for confirmation", async function (this: OlaiWorld) {
+  await expectGone(this, TRASH_EMPTY_CONFIRM, "the old Trash question is still shown");
+});
+
 When("I cancel emptying the Trash", async function (this: OlaiWorld) {
   await this.page.locator(TRASH_EMPTY_CANCEL).click();
   await expectGone(
