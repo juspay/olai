@@ -92,6 +92,7 @@ import { type Applied, type BuiltPlugin, type CorePageReading, type Edit, LOADED
 import { type OpFailure } from "@olai/format"
 import {
   customText,
+  isPutAway,
   isRegular,
   type Located,
   NotFoundFailure,
@@ -1876,6 +1877,13 @@ export const bind = (
            * revision is followed, and the definition mounts there
            * ({@link followed}). One path, whether an approval or an edit is what
            * moved.
+           *
+           * A NODE THAT WAS PUT AWAY is not a definition. `definedIn` already
+           * skips those, so after the trash's own revision this is the
+           * not-found arm. The check below is the window between that write
+           * landing and the follow that would drop the row: a press on a panel
+           * that still draws it would otherwise write `approved` onto code
+           * nobody means to keep.
            */
           approve: ({ input }) =>
             Effect.gen(function*() {
@@ -1884,6 +1892,21 @@ export const bind = (
                 return yield* Effect.fail(
                   new NotFoundFailure({
                     reason: `this vault defines no plugin called "${input.name}"`,
+                    named: input.name,
+                  }),
+                )
+              }
+              // CURRENT FILE, not the last follow's: a trash that landed since
+              // the panel drew this row would otherwise approve source in a
+              // file the rest of the tree treats as absent.
+              const current = yield* Effect.catch(wiring.ops.read, () => Effect.succeed(null))
+              const at = current?.derived.byId.get(one.node)
+              if (isPutAway(one.file) || (at !== undefined && isPutAway(at.file))) {
+                return yield* Effect.fail(
+                  new NotFoundFailure({
+                    reason:
+                      `"${input.name}" was put away, so approving it now would approve `
+                      + `code nobody means to keep.`,
                     named: input.name,
                   }),
                 )

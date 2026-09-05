@@ -10,6 +10,7 @@
  * because that is what the tab is handed.
  */
 
+import { TRASH_FILE } from "@olai/format"
 import { readingOfVault } from "@olai/format/testlib/scope"
 import {
   Agents,
@@ -56,6 +57,9 @@ const vault = (options: {
   readonly browser?: string | null
   readonly approved?: string | null
   readonly word?: string
+  /** Where the records sit — `plugins.olai` unless a case is moving them to
+   *  the trash. */
+  readonly into?: string
 }) => {
   const custom = options.approved == null
     ? { plugin: options.word ?? "swatch" }
@@ -73,7 +77,7 @@ const vault = (options: {
       }}`,
     )
   }
-  return readingOfVault(new Map([["plugins.olai", rows.join("\n")]])).derived
+  return readingOfVault(new Map([[options.into ?? "plugins.olai", rows.join("\n")]])).derived
 }
 
 /**
@@ -436,6 +440,20 @@ describe("a definition that goes away takes its fiber with it", () => {
       Effect.gen(function*() {
         yield* dynamic.follow(vault({ approved: ALWAYS }))
         yield* dynamic.follow(readingOfVault(new Map([["plugins.olai", ""]])).derived)
+        return yield* now()
+      })
+    )
+    expect(rows).toEqual([])
+  })
+
+  test("moved to the trash is gone the same way — the file is put away, not empty", async () => {
+    const rows = await bench((dynamic, now) =>
+      Effect.gen(function*() {
+        yield* dynamic.follow(vault({ approved: ALWAYS }))
+        // THE SAME RECORDS, in `_olai/Trash.olai`. They still carry the
+        // `plugin` property; what makes them not a definition is the file,
+        // asked of `isPutAway` the way every other live reading asks it.
+        yield* dynamic.follow(vault({ approved: ALWAYS, into: TRASH_FILE }))
         return yield* now()
       })
     )
