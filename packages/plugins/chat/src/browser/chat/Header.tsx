@@ -82,6 +82,7 @@ import { TESTID } from "../../testids.ts"
 import { AgentMark } from "./AgentMark.tsx"
 import { type Busy, busyIn } from "./busy.ts"
 import { LIVE_DOT } from "./live.ts"
+import { Model } from "./Model.tsx"
 import { NodeSessions } from "./NodeSessions.tsx"
 import type { Chat } from "./state.ts"
 import { usageOf } from "./usage.ts"
@@ -178,7 +179,7 @@ export function Header(props: {
               </Show>
             }
           >
-            {(model) => <span data-testid={TESTID.chatModel}>{model()}</span>}
+            {(model) => <Model chat={props.chat} name={model()} />}
           </Show>
           {/* The other half of the model's own sentence: what a turn runs on,
               and how much room is left to run it in. Drawn only once the agent

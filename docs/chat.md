@@ -85,7 +85,9 @@ Under the conversation's title, the header names **the agent** — its mark and 
 
 An agent olai has no mark for gets a plain one, and its name in full beside it. It never borrows another agent's mark.
 
-It names the model the agent is **running**, which is not always the one the session was started on: `/model` is handled inside the CLI the adapter wraps, so the adapter never learns of it and its own picker goes on reporting the starting model for the life of the session. What the header follows instead is the CLI's own message, forwarded because olai asks for it whenever it opens a conversation — a new one and a stored one alike.
+**Press the model name to choose another model.** The menu uses the options supplied by the current agent and is available while the conversation is idle. Olai sends the selection through ACP configuration, so this works with Codex even though its adapter has no `/model` command. The header changes when the agent confirms the choice; a refusal leaves the current model in place and shows the reason. The choice is remembered for the restored conversation. Agents that supply no model options keep a plain model label.
+
+Claude also supports its own `/model` command. For that command, the header names the model the agent is **running**, which is not always the one the session was started on: `/model` is handled inside the CLI the adapter wraps, so the adapter never learns of it and its own picker goes on reporting the starting model for the life of the session. What the header follows instead is the CLI's own message, forwarded because olai asks for it whenever it opens a conversation — a new one and a stored one alike.
 
 Two consequences, both of them the adapter's shape rather than a choice:
 
@@ -96,7 +98,7 @@ Two consequences, both of them the adapter's shape rather than a choice:
 
 ## The model you switched to survives a restart
 
-**Switch the chat with `/model` and it stays switched**, across an olai restart and a new deploy — the conversation comes back on the model you put it on, and the header names it before you type anything.
+**Choose a model in the header, or switch Claude with `/model`, and it stays switched**, across an olai restart and a new deploy — the conversation comes back on the model you put it on, and the header names it before you type anything.
 
 That is a fix rather than a given, and what it is a fix for is worth knowing about because it happens at the agent's end, not olai's. The agent resolves a session's model in a fixed order — the `ANTHROPIC_MODEL` variable, then `settings.json`, then the model the conversation was actually running — and on *resuming* a conversation it deliberately re-asserts the first two over the third. So a machine whose settings pin `"model": "sonnet"` puts every restored conversation back on Sonnet, however it ended. A `/model` lives only in the conversation itself, which is the half that loses. The chat was on Fable on Friday and on Sonnet on Monday, and nothing said why.
 

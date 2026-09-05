@@ -1978,3 +1978,49 @@ Feature: Talking to the agent
     When I unfold the tool call
     Then the spawn's fold carries "I have thorough coverage"
     And the spawn's fold carries "Findings"
+
+  @agent-stored @scratch:chat
+  Scenario: Choosing a model through ACP reaches the agent and survives a restart
+    # The double advertises config options but no /model command, like Codex.
+    Then the panel header names the model "Fake One"
+    When I choose the chat model "Fake Two"
+    Then the panel header names the model "Fake Two"
+    When I ask the agent "hello"
+    Then the panel header names the model "Fake Two"
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the conversation is titled "the last conversation"
+    And the panel header names the model "Fake Two"
+    When I ask the agent "hello"
+    Then the panel header names the model "Fake Two"
+
+  @scratch:chat
+  Scenario: A refused model selection leaves the current model usable
+    Given the agent refuses model changes
+    When I choose the chat model "Fake Two"
+    Then the chat shows a refusal
+    And the panel header names the model "Fake One"
+    When I ask the agent "hello"
+    Then the panel header names the model "Fake One"
+
+  @scratch:chat
+  Scenario: Model selection waits for the running turn to finish
+    When I ask the agent "hold"
+    Then the agent is working
+    And the model picker is disabled
+    When the agent is released
+    Then the agent is idle
+    When I choose the chat model "Fake Two"
+    Then the panel header names the model "Fake Two"
+
+  @scratch:chat
+  Scenario: The model picker can undo a model changed through the CLI
+    When I ask the agent "model claude-sonnet-5"
+    And I ask the agent "hello"
+    Then the panel header names the model "Fake Sonnet"
+    When I choose the chat model "Fake One"
+    Then the panel header names the model "Fake One"
+    When I ask the agent "hello"
+    Then the panel header names the model "Fake One"

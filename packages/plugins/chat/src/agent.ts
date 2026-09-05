@@ -318,6 +318,8 @@ export interface Agent {
    *  channel now, so a cancel that could not be delivered refuses like every
    *  other verb. */
   readonly cancel: Effect.Effect<void, AgentGone>
+  /** Apply an advertised model value to the conversation the caller selected. */
+  readonly setModel: (session: string, value: string) => Effect.Effect<void, AgentGone>
   readonly newSession: Effect.Effect<void, AgentGone>
   readonly loadSession: (id: string) => Effect.Effect<void, AgentGone>
   /** The stored conversations for this directory, newest first. */
@@ -933,6 +935,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const forgetModel = (): void => {
       picked = null
       announced = null
+      labels = new Map()
+      emit({ _tag: "models", choices: [] })
     }
 
     /**
@@ -977,17 +981,25 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       ))
     }
 
-    /** The picker as read — taken already-parsed, because {@link restore} has
-     *  to look at one before it can decide whether to say anything, and parsing
-     *  the same options twice is how the two readings come to differ. */
-    const readPicker = (picker: Picker | null): void => {
-      if (picker === null) return
-      labels = picker.labels
-      if (picker.picked === picked) return
-      const switched = picked !== null
+    /** Reconcile picker facts and return a model worth remembering. Observations
+     *  only move when their source changes; a confirmed selection also overrides
+     *  a CLI model when the picker repeats its old value. Persistence belongs to
+     *  the caller: observations enqueue a note, selections await their own. */
+    const acceptPicker = (picker: Picker | null, source: "observed" | "selected"): string | null => {
+      emit({ _tag: "models", choices: picker === null ? [] :
+        [...picker.labels].map(([value, name]) => ({ value, name })) })
+      labels = picker?.labels ?? new Map()
+      if (picker === null) return null
+      const changed = picker.picked !== picked
+      const switched = picked !== null && changed
       picked = picker.picked
-      if (switched && picked !== null) moved(picked)
-      show(picked === null ? null : nameFor(picked) ?? picked)
+      if (changed || source === "selected") show(picked === null ? null : nameFor(picked) ?? picked)
+      return switched || source === "selected" ? picked : null
+    }
+
+    const observePicker = (picker: Picker | null): void => {
+      const model = acceptPicker(picker, "observed")
+      if (model !== null) moved(model)
     }
 
     const readModel = (
@@ -996,7 +1008,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // An agent with NO picker is not read at all — there is no entry to look
       // for, so `labels` stays empty and the header names whatever the agent
       // reports, raw.
-      if (models !== null) readPicker(modelPickerIn(models, configOptions))
+      if (models !== null) observePicker(modelPickerIn(models, configOptions))
     }
 
     const readLiveModel = (params: unknown): void => {
@@ -1727,7 +1739,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // ONE TAIL, whichever of the three ways it got here: what the header
         // names is read from the picker that had the last word — the one the
         // load answered with, or the one the agent answered our request with.
-        readPicker(settled)
+        observePicker(settled)
       })
 
     /** The request half of {@link restore}, and what a refusal costs: a row,
@@ -1741,14 +1753,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     ): Effect.Effect<Picker | null> =>
       Effect.gen(function*() {
         const answered = yield* Effect.result(
-          ask(at.connection, methods.agent.session.setConfigOption, {
-            sessionId: id,
-            // THE LEG'S OWN ENTRY ID — read to find the picker and written to
-            // move it, which is why the engine spells it once and both ends of
-            // that take it from there.
-            configId: models.config,
-            value: pickerValueFor(models, picker.labels, wanted) ?? wanted,
-          }),
+          requestModel(at, models, id, pickerValueFor(models, picker.labels, wanted) ?? wanted),
         )
         if (answered._tag === "Failure") {
           trouble(
@@ -1757,15 +1762,21 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           )
           return picker
         }
-        // The answer carries the WHOLE set with its new current value, so the
-        // header is read off what the agent CONFIRMED rather than off what we
-        // asked for: an agent that resolved our row onto another of its own —
-        // an alias, a context lane — is naming the model it actually landed on.
-        return modelPickerIn(
-          models,
-          (answered.success as SetSessionConfigOptionResponse).configOptions,
-        )
+        return answered.success
       })
+
+    /** The ACP exchange shared by restoration and selection. It accepts an exact
+     *  picker value and returns what the agent confirmed; each caller owns its
+     *  alias translation, refusal handling, and persistence policy. */
+    const requestModel = (
+      at: Live, models: ModelReading, id: string, value: string,
+    ): Effect.Effect<Picker | null, AgentGone> =>
+      Effect.map(
+        ask(at.connection, methods.agent.session.setConfigOption, {
+          sessionId: id, configId: models.config, value,
+        }),
+        (answer) => modelPickerIn(models, (answer as SetSessionConfigOptionResponse).configOptions),
+      )
 
     /**
      * Ask for the permission mode that makes the backstop above unnecessary.
@@ -2088,6 +2099,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       boot,
       prompt,
       steer,
+      setModel: (session, value) => withSession((at, id) => Effect.gen(function*() {
+        if (id !== session || models === null || !labels.has(value)) {
+          return yield* new AgentGone({ gone: "refused", why: "that model is no longer available in this conversation" })
+        }
+        const model = acceptPicker(yield* requestModel(at, models, id, value), "selected")
+        if (model !== null) {
+          yield* note({ agent: options.id, session: id, model },
+            (why) => "the model this conversation is on will not survive a restart: " + why)
+        }
+      })),
       cancel,
       newSession: opening((at) =>
         Effect.gen(function*() {

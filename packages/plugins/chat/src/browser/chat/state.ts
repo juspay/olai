@@ -148,6 +148,7 @@ export interface Chat {
    *  the row carries its pictures by name, and a retry assembled from what is
    *  on screen would be a different message. */
   readonly resend: (id: string) => void
+  readonly setModel: (agent: string, session: string, value: string, done: () => void) => void
   readonly cancel: () => void
   /** Start a fresh conversation with one of {@link ChatState.roster}'s agents.
    *  The id is REQUIRED because every new chat asks which one — see the
@@ -454,6 +455,7 @@ export const createChat = (): Chat => {
         )
       }),
     resend: (id) => verb(chatWire().procedures.conversation.resend({ id })),
+    setModel: (agent, session, value, done) => verb(chatWire().procedures.conversation.setModel({ agent, session, value }), done),
     cancel: () => verb(chatWire().procedures.conversation.cancel()),
     // The three doors that OPEN a conversation, and the fourth that reopens
     // a refused one. Each says so from the click ({@link opens}).
