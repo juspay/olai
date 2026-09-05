@@ -120,7 +120,7 @@ import { kinds, ownKinds } from "./kinds.ts"
 export { faces, name, surface } from "./wire.ts"
 
 /**
- * WHETHER THIS HOST IS RUNNING KOLU, on the same door and for the same graph
+ * THE KOLU EXECUTABLE TO HAND OVER, on the same door and for the same graph
  * reason ({@link ./probe.ts}).
  *
  * It is not part of the plugin's own installation, and the two are asked at
@@ -837,7 +837,7 @@ export default definePlugin({
       half.unloaded()
     }))
 
-    /** IS KOLU'S MCP SERVER HERE, asked once per conversation opening — the
+    /** RESOLVE KOLU'S MCP COMMAND, asked once per conversation opening — the
      *  `chat/session-start` door, and what is registered is the ASKING rather
      *  than an answer, so the asking stays `olai-plugin-chat`'s to schedule and the
      *  list is read per session rather than once per boot. THE PLUGIN'S NAME IS

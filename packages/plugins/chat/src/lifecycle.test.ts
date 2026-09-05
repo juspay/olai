@@ -387,3 +387,41 @@ test("startup durations measure separate operations and include tool probes in o
     await run(agent.stop)
   }
 }, 15_000)
+
+test("actual MCP reports update the roster and warn once, fenced to this session", async () => {
+  const { layer, said } = collector()
+  const run: Run = (effect) => Effect.runPromise(effect.pipe(Effect.provide(layer)))
+  const rosters: unknown[] = []
+  let reportsRead = 0
+  const agent = await run(make({
+    ...options(),
+    leg: { ...QUEUES, serversInUpdate: (update) => {
+      if ((update as { toolCallId?: string }).toolCallId !== "mcp_startup.optional") return null
+      reportsRead++
+      return [{ name: "optional", attached: false, said: "connection refused" },
+        { name: "agent-owned", attached: false, said: "must not create a row" }]
+    } },
+    probes: () => Effect.succeed([{ name: "optional", ask: Effect.succeed({
+      server: { name: "optional", command: "/optional", args: [], env: {} }, missing: null,
+    }) }]),
+    onEvent: (event) => { if (event._tag === "servers") rosters.push(event.servers) },
+  }))
+  try {
+    await run(agent.boot)
+    await run(agent.prompt("mcp-report"))
+    const deadline = Date.now() + 2000
+    while (!findSaid(said, "MCP server connection problem") && Date.now() < deadline) {
+      await run(Effect.sleep("10 millis"))
+    }
+    expect(reportsRead).toBe(2) // The other session never reaches the leg.
+    expect(rosters).toHaveLength(2) // Handed, then failed; duplicate report changes nothing.
+    expect(rosters[1]).toEqual([{ name: "optional", where: "/optional",
+      standing: { kind: "unattached", why: "the agent did not attach it: connection refused" } }])
+    const warnings = said.filter((line) => line.message.includes("MCP server connection problem"))
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toMatchObject({ level: "Warn", annotations: {
+      agent: "opencode", session: "sess-1", server: "optional",
+      reason: "the agent did not attach it: connection refused",
+    } })
+  } finally { await run(agent.stop) }
+})

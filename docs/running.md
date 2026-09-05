@@ -143,9 +143,11 @@ Successful startup operations carry a rounded millisecond `duration`, measured w
 | `conversation opened` | new/load attempt, including tool probes and the ACP reply/replay; excludes process startup, later memory writes, model restoration and permission setup | info |
 | tool probe result | that probe's own request, including a missing or not-running result | debug |
 
+Kolu discovery only resolves its executable and forwards the socket setting; it does not launch an MCP process. A handed-over server is unconfirmed until the agent reports otherwise. Claude connection reports and Codex startup-failure events update the tool-server strip. Changed negative reports also produce `MCP server connection problem` warnings with the server and reason. Adapters without these reports leave status unconfirmed; daemon/tool errors remain visible in actual tool results.
+
 Concurrent probe durations overlap; do not add them together. These are operation durations, not server uptime or a total time-to-interactive metric. Failed opens keep their existing failure logs and do not emit successful completion events.
 
-At startup, chat reads the current vault before routing a remembered session. A session already assigned to a node opens directly with that node's tools, avoiding a second agent launch, session replay, and round of probes. A newly identified node can still require a `node scope handoff`. Optional tool availability is checked afresh for each open.
+At startup, chat reads the current vault before routing a remembered session. A session already assigned to a node opens directly with that node's tools, avoiding a second agent launch, session replay, and round of probes. A newly identified node can still require a `node scope handoff`. Optional tool configuration is collected afresh for each open. Kolu is resolved on PATH without a preflight MCP connection; odu retains its capability check.
 
 Two knobs, both environment variables, both facts of the running instance rather than of a browser:
 
