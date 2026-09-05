@@ -466,7 +466,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           }
           activate(slot)
           yield* Effect.annotateLogs(Effect.logInfo("moving conversation into node scope"), {
-            agent: to.agent, session: to.session, node: node.id, reason: "node scope handoff",
+            agent: to.agent, session: to.session, node: place.node.id, reason: "node scope handoff",
           })
           yield* old.stopWithReason("node scope handoff")
           root = yield* rootPanel()
