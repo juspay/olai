@@ -98,6 +98,12 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     await run(chat.startAgentSession("one", "alpha"))
     const oneSession = chat.state().session?.id
     expect(oneSession).toBeString()
+    const missing = await run(Effect.result(chat.startAgentSession("not-a-node", "beta")))
+    expect(missing._tag).toBe("Failure")
+    if (missing._tag === "Failure") {
+      expect(missing.failure.message).toContain("no longer available")
+    }
+    expect(chat.state().session?.id).toBe(oneSession)
     nodes = nodes.map((node) => node.id === "one" ? { ...node, session: oneSession ?? null } : node)
     chat.reread()
 
@@ -278,7 +284,7 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
 
     // Leave the first slot idle and off-screen. The second acquisition must
     // make room by closing that whole scope, ticket included.
-    await run(chat.startAgentSession("not-a-node", "beta"))
+    await run(chat.newSession("beta"))
     await run(chat.startAgentSession("two", "beta"))
     const twoSession = chat.state().session?.id ?? ""
     nodes = nodes.map((node) => node.id === "two" ? { ...node, session: twoSession } : node)
@@ -287,7 +293,7 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
 
     await run(chat.send("wait:2000", [], []))
     await until("the only slot to be busy", () => chat.live().get("two")?.status === "thinking")
-    await run(chat.startAgentSession("not-a-node", "alpha"))
+    await run(chat.newSession("alpha"))
 
     const refused = await run(Effect.result(chat.loadSession("alpha", oneSession)))
     expect(refused._tag).toBe("Failure")

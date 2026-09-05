@@ -654,12 +654,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        */
       startAgentSession: (node, agent) =>
         !seatableAt(node)
-          // A node this vault has not got. Nothing is seated, and the
-          // conversation is the unscoped panel's — which is where it went
-          // before and is what the write that follows will refuse over.
-          ? Effect.sync(() => {
-            activateRoot()
-          }).pipe(Effect.andThen(root.newSession(agent)))
+          ? Effect.fail(new UsageFailure({
+            reason: `node ${node} is no longer available for an agent session`,
+          }))
           : Effect.flatMap(
             acquire(node),
             ({ slot }) => Effect.gen(function*() {

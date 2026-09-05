@@ -704,7 +704,7 @@ keep working while history is open, and the sidebar continues to report the
 current session's standing. Historical processes share the scheduler's capacity
 and idle-reaping policy.
 
-**That same control offers *fresh session*, labelled with what it means**: memory is the subtree, the transcript becomes history. It opens a new conversation with that node's engine and re-points the property at it — the same two acts *start an agent session* runs, in the same order, so the vault never names a session that was not opened.
+**That same control offers *fresh session*, labelled with what it means**: memory is the subtree, the transcript becomes history. It opens a new conversation with that node's engine and re-points the property at it — the same two acts *start an agent session* runs, in the same order, so the vault never names a session that was not opened. If the node has disappeared before the request reaches the server, the request is refused before opening a chat or changing the selected conversation. Restoring the node permits a fresh request without an extra unassigned conversation left by the refusal.
 
 What it costs is what the contract has been saying all along: nothing that was written into the subtree, and everything that was only ever in the transcript. **The conversation it replaces is not orphaned** — olai writes down what replaced it, so it becomes one of that agent's past sessions rather than reappearing under *Unassigned* as a chat nobody claims. That note is this machine's, like the rest of what olai overheard.
 
