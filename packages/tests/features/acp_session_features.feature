@@ -99,15 +99,15 @@ Feature: Agent session controls and progress
   Scenario: Reopening the page retains the running plan and command output
     When I ask the agent "execution-plan"
     Then the execution plan contains "Inspect the outline" as "in_progress"
-    When I open the app
-    And the agent panel is open
+    When I reload the page
+    Then the agent is working
     Then the execution plan contains "Inspect the outline" as "in_progress"
     When the agent is released
     Then the agent is idle
     When I ask the agent "terminal live"
     Then terminal output contains "stdout ready"
-    When I open the app
-    And the agent panel is open
+    When I reload the page
+    Then the agent is working
     Then terminal output contains "stdout ready"
     When the agent is released
     Then the agent is idle
