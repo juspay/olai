@@ -157,14 +157,14 @@ export const probed = (
  * A host that is simply not running the tool had nothing go wrong, so it says
  * nothing: a debug line per absent plugin per conversation is the log's version
  * of the permanent complaint the `missing` row exists to not be. What IS said is
- * what was handed over, at info, because which servers a conversation got is the
+ * what was handed over, at debug, because which servers a conversation got is the
  * fact somebody reads a log to find; and what was NOT, at debug, carrying the
  * plugin's own sentence rather than a word of this file's — the same words the
  * panel draws, so a person reading either finds the same one.
  */
 const said = (name: string, found: Probed): Effect.Effect<void> => {
   if (found.server !== null) {
-    return Effect.annotateLogs(Effect.logInfo(`${name} is on this session`), {
+    return Effect.annotateLogs(Effect.logDebug(`${name} is on this session`), {
       command: found.server.command,
     })
   }

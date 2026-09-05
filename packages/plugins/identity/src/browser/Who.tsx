@@ -4,23 +4,27 @@
  *
  * Four constructors, a closed set. `asking` while the door has not
  * answered; `none` when this request is anonymous; `yes` when a login
- * arrived; `error` when the door failed. LAST in the chrome row — top
- * right — wearing the same icon-button the agent and prefs wear, so the
- * bar's items-center has one height.
+ * arrived; `error` when the door failed. It hangs in `app.viewer`, which
+ * is the app's last seat — top right, on a phone as well as a desktop —
+ * wearing the same icon-button the agent and prefs wear, so the bar's
+ * items-center has one height. WHERE it sits is the app's; every word and
+ * stroke in it is this row's.
  *
- * A person's PICTURE is the server's answer, already resolved down
- * `@olai/identity`'s ladder — a proxy's IdP avatar, an operator's avatar
- * template, the gravatar of a real email claim, or none. This file draws
- * what it was handed and knows nothing about headers or templates; when
- * the answer is none, the same silhouette anonymous wears stands in, and
- * the person is still `yes` (they have a login, and now often a name).
+ * A person's PICTURE is the server's answer, already resolved down this
+ * row's own ladder ({@link ../who/picture.ts}) — a proxy's IdP avatar, an
+ * operator's avatar template, the gravatar of a real email claim, or none.
+ * This file draws what it was handed and knows nothing about headers or
+ * templates; when the answer is none, the same silhouette anonymous wears
+ * stands in, and the person is still `yes` (they have a login, and now
+ * often a name).
  *
  * THE ASK IS THE TAB'S rather than this chip's ({@link ./mine.ts}). It used
  * to be `createWho()` called here, which was right while the header was the
- * only reader; the transcript now names the person over each run of their
- * messages ({@link ../chat/Speaker.tsx}), and a resource per face would be
- * one `who.get` per run of a conversation for an answer that does not move
- * for the life of the socket.
+ * only reader; the transcript names the person over each run of their
+ * messages too (`olai-plugin-chat`'s `Speaker.tsx`, through this row's
+ * `./person` door), and a resource per face would be one `who.get` per run
+ * of a conversation for an answer that does not move for the life of the
+ * socket.
  *
  * THE SILHOUETTE moved out for the same reason ({@link ./UserIcon.tsx}): the
  * ladder's bottom rung is drawn in two places now, and two traced outlines
@@ -29,10 +33,10 @@
 
 import { Match, Show, Switch, type JSX } from "solid-js"
 
-import { LAYER } from "../layer.ts"
-import { ICON_BUTTON } from "../readout.ts"
+import { LAYER } from "@olai/web/client/layer.ts"
+import { ICON_BUTTON } from "@olai/web/client/readout.ts"
 import { TESTID } from "../testids.ts"
-import { Tip } from "../Tip.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import type { Who as Person } from "./asking.ts"
 import { whoAmI } from "./mine.ts"
 import { saying } from "./saying.ts"

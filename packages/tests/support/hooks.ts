@@ -1274,6 +1274,18 @@ Before(
     // still a scratch: this scenario owns the write, even if it shares the
     // process with the rest of its feature.
     const writes = asked.mode !== "corpus";
+    // ...and the same rule for WHICH ROWS a serve composes, said here for the
+    // reason the two below are said here: a shared corpus server is serving
+    // every other scenario too, so the plugins it runs are not this one's to
+    // choose — and the pin was simply DROPPED when it was (`writes` gates the
+    // spawn options), which is the worst of both, a scenario that reads as a
+    // claim about an absent row and is green against a server running it.
+    if (this.pluginPin !== undefined && !writes) {
+      throw new Error(
+        `@plugins: decides which rows its server composes, so the scenario must own ` +
+          `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
+      );
+    }
     if (this.gitMode !== undefined && !writes) {
       throw new Error(
         `@git:${this.gitMode} decides what its server commits to, so the scenario must own ` +

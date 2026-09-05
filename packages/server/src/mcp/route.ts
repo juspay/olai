@@ -51,12 +51,11 @@
 
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js"
-import type { IdentityConfig } from "@olai/identity"
 import { Effect, Layer, Option } from "effect"
 import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { AsyncLocalStorage } from "node:async_hooks"
 
-import { whoOf } from "../identity.ts"
+import type { Reading } from "../identity.ts"
 
 /** Where the route lives. Named once: `session/new` is told the same URL. */
 export const MCP_PATH = "/mcp"
@@ -213,11 +212,15 @@ export interface Options {
   /** The bearer token a non-loopback request must present. Minted per process.
    *  Loopback may omit it; a request that carries it is accepted either way. */
   readonly token: string
-  /** Which headers name the person in front of the proxy — the operator's
-   *  configuration, read by the same {@link whoOf} the page and `GET /olai/who`
-   *  read. Here so that a write through this door can be attributed to whoever
-   *  the proxy says made it, and to nobody when it says nothing. */
-  readonly identity: IdentityConfig
+  /** Who a request is — the SAME reading the page and `GET /olai/who` get,
+   *  minted once by the composition root over whatever row stands behind the
+   *  identity door (`../identity.ts`). Here so that a write through this
+   *  door can be attributed to whoever the proxy says made it, and to nobody
+   *  when it says nothing. A function of headers and nothing more: this file
+   *  does not learn that a plugin is behind it, and the reading it is handed
+   *  asks the door per call, so a row switched off mid-serve stops naming
+   *  anybody from the next dispatch on. */
+  readonly who: Reading
 }
 
 /**
@@ -296,7 +299,7 @@ export const mcpRoute = (options: Options): Layer.Layer<never, never, HttpRouter
           // off the same headers the page reads, by the same function, so a
           // capture from a terminal and a chip in a browser cannot disagree
           // about who is looking.
-          const who = whoOf(request.headers, options.identity)
+          const who = options.who(request.headers)
           const held = bearerIn(request.headers["authorization"])
           const reply = yield* Effect.promise(() =>
             WHOSE.run(

@@ -18,7 +18,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { Effect, Layer, Logger } from "effect"
+import { Cause, Effect, Layer, Logger, Redacted } from "effect"
 import { TestConsole } from "effect/testing"
 
 import {
@@ -173,7 +173,7 @@ test("OLAI_LOG=pretty forces pretty even when the stream is not a TTY", async ()
     expect(formatFor({ isTTY: true })).toBe("pretty")
 
     const { out } = await written(toStdout)
-    // Pretty is message-first, local time in brackets — not logfmt's
+    // Pretty is message-first with local time — not logfmt's
     // `timestamp=… level=INFO message=…` field order. One line at least
     // carries the message; none is a bare logfmt line.
     const joined = out.map(String).join("\n")
@@ -370,4 +370,79 @@ test("unrecognised OLAI_LOG is diagnosed once then ignored", () => {
     else process.env["OLAI_LOG"] = prev
     resetInvalidOlaiLogWarning()
   }
+})
+
+test("compact output keeps context inline, abbreviates UUIDs, and names root changes", async () => {
+  const lines = await Effect.gen(function*() {
+    for (const root of ["/vault/a", "/vault/a", "/vault/b", "/vault/a"]) {
+      yield* Effect.logInfo("conversation opened").pipe(Effect.annotateLogs({
+        root,
+        agent: "claude",
+        session: "9b618f09-62d4-406d-bf8f-6e88bd8b3f89",
+        args: "",
+        detail: "first\nsecond",
+      }))
+    }
+    return yield* TestConsole.logLines
+  }).pipe(
+    Effect.provide(Logger.layer([prettyFor({ isTTY: false })])),
+    Effect.provide(TestConsole.layer),
+    Effect.runPromise,
+  )
+  expect(lines).toHaveLength(4)
+  const rendered = lines.map(String)
+  for (const line of rendered) {
+    expect(line).not.toContain("\n")
+    expect(line).toContain("agent=claude session=9b618f09")
+    expect(line).toContain('detail="first\\nsecond"')
+    expect(line).not.toContain("args=")
+    expect(line).not.toContain("fiber")
+    expect(line).not.toContain("62d4")
+  }
+  expect(rendered[0]).toContain("root=/vault/a")
+  expect(rendered[1]).not.toContain("root=")
+  expect(rendered[2]).toContain("root=/vault/b")
+  expect(rendered[3]).toContain("root=/vault/a")
+})
+
+test("compact errors retain the cause and root on the selected stream", async () => {
+  await withOlaiLog("pretty", async () => {
+    const { out, err } = await Effect.gen(function*() {
+      yield* Effect.logInfo("ready")
+      yield* Effect.logError("turn failed", Cause.fail(new Error("connection lost\nretry exhausted")))
+      return { out: yield* TestConsole.logLines, err: yield* TestConsole.errorLines }
+    }).pipe(
+      Effect.annotateLogs({ root: "/vault/failure" }),
+      Effect.provide(toStderr),
+      Effect.provide(TestConsole.layer),
+      Effect.runPromise,
+    )
+    expect(out).toEqual([])
+    expect(err).toHaveLength(2)
+    const failure = String(err[1])
+    expect(failure).toContain("turn failed")
+    expect(failure).toContain("root=/vault/failure")
+    expect(failure).toContain("connection lost")
+    expect(failure).toContain("retry exhausted")
+    expect(failure).toContain("\n")
+  })
+})
+
+test("compact messages handle errors, circular values, bigint and redaction", async () => {
+  const circular: Record<string, unknown> = { count: 1n }
+  circular["self"] = circular
+  const lines = await Effect.gen(function*() {
+    yield* Effect.logInfo("details", new Error("ordinary error"), circular, Redacted.make("secret-value"))
+    return yield* TestConsole.logLines
+  }).pipe(
+    Effect.provide(Logger.layer([prettyFor({ isTTY: false })])),
+    Effect.provide(TestConsole.layer),
+    Effect.runPromise,
+  )
+  expect(lines).toHaveLength(1)
+  const line = String(lines[0])
+  expect(line).toContain("ordinary error")
+  expect(line).toContain("Circular")
+  expect(line).not.toContain("secret-value")
+  expect(line).not.toContain("\n")
 })

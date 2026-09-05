@@ -98,11 +98,11 @@ describe("chat lifecycle lines", () => {
       await run(agent.prompt(secret))
     })
 
-    const spawned = findSaid(said, "chat agent spawned")
+    const spawned = findSaid(said, "chat agent ready")
     expect(spawned?.level).toBe("Info")
     expect(spawned?.annotations.agent).toBe("opencode")
-    expect(spawned?.annotations.command).toBe(process.execPath)
-    expect(String(spawned?.annotations.args)).toContain("lifecycle-agent.ts")
+    expect(spawned?.annotations.command).toBeUndefined()
+    expect(spawned?.annotations.args).toBeUndefined()
 
     const opened = findSaid(said, "conversation opened")
     expect(opened?.level).toBe("Info")
@@ -127,7 +127,12 @@ describe("chat lifecycle lines", () => {
     const exited = findSaid(said, "chat agent exited")
     expect(exited?.level).toBe("Info")
     expect(exited?.annotations.agent).toBe("opencode")
+    expect(exited?.annotations.pid).toBeNumber()
 
+    expect(exited?.annotations.reason).toBe("stopped by app")
+    expect(exited?.annotations.expected).toBe(true)
+    expect(exited?.annotations.session).toBe("sess-1")
+    expect(exited?.annotations.pid).toBe(spawned?.annotations.pid)
     expect(findSaid(said, "lifecycle-agent: started")).toBeUndefined()
   }, 15_000)
 
@@ -138,6 +143,9 @@ describe("chat lifecycle lines", () => {
     })
 
     const stderr = findSaid(said, "lifecycle-agent: started")
+    const command = findSaid(said, "chat agent command")
+    expect(command?.annotations.command).toBe(process.execPath)
+    expect(String(command?.annotations.args)).toContain("lifecycle-agent.ts")
     expect(stderr?.level).toBe("Debug")
     expect(stderr?.annotations.agent).toBe("opencode")
   }, 15_000)
@@ -203,6 +211,8 @@ describe("chat lifecycle lines", () => {
     const exited = findSaid(said, "chat agent exited")
     expect(exited?.level).toBe("Info")
     expect(exited?.annotations.code).toBe(7)
+    expect(exited?.annotations.expected).toBe(false)
+    expect(exited?.annotations.reason).toBe("process exited")
     expect(exited?.annotations.session).toBe("sess-1")
     expect(exited?.annotations.agent).toBe("opencode")
   }, 15_000)

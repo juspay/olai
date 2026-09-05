@@ -94,7 +94,7 @@ import { type OpFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
 import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
 import { emitter } from "@olai/log"
-import { Deferred, Effect, Fiber, Semaphore } from "effect"
+import { Deferred, Effect, Fiber, References, Semaphore } from "effect"
 
 import * as AcpAgent from "./agent.ts"
 import type { Conversing, Overheard, Sessions } from "./sessions.ts"
@@ -628,6 +628,7 @@ export interface Panel {
    *  it and the next prompt tries again, exactly as a crash does. */
   readonly start: Effect.Effect<void>
   readonly stop: Effect.Effect<void>
+  readonly stopWithReason: (reason: AcpAgent.StopReason) => Effect.Effect<void>
 }
 
 /**
@@ -904,7 +905,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *  passed in because the two are mutually referential: the agent needs
      *  somewhere to send its events, and the thing that consumes them needs the
      *  agent to drive. */
-    const spawn = (row: Installed, onEvent: (event: AgentEvent) => void) =>
+    const logContext = yield* Effect.service(References.CurrentLogAnnotations)
+    const spawn = (row: Installed, onEvent: (event: AgentEvent) => void, purpose = "conversation") =>
       AcpAgent.make({
         id: row.id,
         leg: row.leg,
@@ -916,7 +918,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         probes: options.probes,
         memory,
         onEvent,
-      })
+      }).pipe(Effect.annotateLogs({ ...logContext, purpose }))
 
     const transcript = new Transcript()
     /** The conversation's own tmp directory, for pictures pasted into it.
@@ -1803,7 +1805,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // between one place that knows which fields go with a session and
           // two that have to be kept in step.
           receive({ _tag: "sessionOver", why: "new" })
-          yield* already.agent.stop
+          yield* already.agent.stopWithReason("agent switched")
         }
         // ... and the three that do NOT go with a session, because they are
         // about the AGENT: the model is a different agent's answer, a refused
@@ -1852,7 +1854,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         listings.forget(at.row.id)
         talking = null
         receive({ _tag: "sessionOver", why: "gone" })
-        yield* at.agent.stop
+        yield* at.agent.stopWithReason("plugin disabled")
         advertises = SAYS_NOTHING
       }
       // ...AND THE FACE, which is one decision over two facts: whether anything
@@ -2047,11 +2049,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // whose list this panel is changing.
             return { stored: yield* at.agent.sessions, keep: false }
           }
-          const probe = yield* spawn(row, () => {})
+          const probe = yield* spawn(row, () => {}, "session list")
           // STOPPED whichever way the question went, INTERRUPTION included. A
           // probe left running is the same stray process one line up, arrived
           // at from the other direction.
-          const stored = yield* Effect.ensuring(probe.sessions, probe.stop)
+          const stored = yield* Effect.ensuring(probe.sessions, probe.stopWithReason("session list complete"))
           return { stored, keep: true }
         })),
       now: () => Date.now(),
@@ -3206,6 +3208,22 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         yield* onAgent((at) => Effect.mapError(at.setSetting(session, config, value), asFailure))
       })))
 
+    const stopWithReason = (reason: AcpAgent.StopReason) => Effect.gen(function*() {
+      closing = true
+      // EVERY turn, not the newest ({@link ./turns.ts}).
+      const running = turns.drain().flatMap((ticket) => ticket.fiber ?? [])
+      for (const fiber of running) yield* Fiber.interrupt(fiber)
+      const at = talking
+      talking = null
+      if (at !== null) yield* at.agent.stopWithReason(reason)
+      // Registered as a finalizer of the serve scope, so this is also what
+      // takes the pasted pictures with the server when it shuts down. Behind
+      // the same permit as everything else that touches the directory: a
+      // chunk still being written is a write into a directory this line is
+      // about to remove.
+      yield* switching.withPermit(files.discard)
+    })
+
     return {
       entries: () => transcript.entries(),
       state: () => state,
@@ -3522,20 +3540,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           yield* Effect.forkDetach(flushing)
         })
       }),
-      stop: Effect.gen(function*() {
-        closing = true
-        // EVERY turn, not the newest ({@link ./turns.ts}).
-        const running = turns.drain().flatMap((ticket) => ticket.fiber ?? [])
-        for (const fiber of running) yield* Fiber.interrupt(fiber)
-        const at = talking
-        talking = null
-        if (at !== null) yield* at.agent.stop
-        // Registered as a finalizer of the serve scope, so this is also what
-        // takes the pasted pictures with the server when it shuts down. Behind
-        // the same permit as everything else that touches the directory: a
-        // chunk still being written is a write into a directory this line is
-        // about to remove.
-        yield* switching.withPermit(files.discard)
-      }),
+      stop: stopWithReason("shutdown"),
+      stopWithReason,
     }
   })

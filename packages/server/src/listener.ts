@@ -47,12 +47,11 @@
 
 import { serveSurfaceApp, type SurfaceAppListenFailed } from "@kolu/surface-app/serve"
 import type { FaceExposure } from "@kolu/surface/expose"
-import { headerNamesOf, type IdentityConfig } from "@olai/identity"
 import { codeOf, type Emit, emitter } from "@olai/log"
 import { ASSET_PREFIX } from "@olai/surface"
 import { Effect, Layer, type Scope } from "effect"
 
-import { CurrentWho, whoOf, whoRoute } from "./identity.ts"
+import { CurrentWho, type Reading, whoRoute } from "./identity.ts"
 import { manifestOf } from "./manifest.ts"
 import { pluginChunks } from "./dynamic/route.ts"
 import { mcpRoute } from "./mcp/route.ts"
@@ -112,9 +111,38 @@ export interface ListenOptions {
   readonly port: number
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
-  /** What this server trusts for who is looking: the header names, and the
-   *  avatar template the picture ladder may use. */
-  readonly identity: IdentityConfig
+  /**
+   * WHICH HEADERS A SOCKET MAY CARRY — a VALUE, because the seam fixes the
+   * allowlist when the port binds and there is no re-reading it.
+   *
+   * It is read where it is spent, which is `./serve.ts`: this file takes
+   * the answer rather than a way to ask, so the once-only read is one line
+   * in the composition root at the moment it happens rather than a
+   * `.headers` inside a thunk everything else reads live. A row offered
+   * mid-serve therefore names its headers at the NEXT START
+   * (`@olai/plugin-api`'s `Identity` argues why the seam is shaped that
+   * way, and `packages/plugins/identity/docs.md` says what it costs an open
+   * tab).
+   *
+   * A VALUE is what is TRUE today, and it is meant to be read as a claim
+   * rather than as a style: a thunk here would say the names are re-read
+   * and they are not. The day the seam closes upstream — the allowlist read
+   * per accept, the way the served generation already is — this field
+   * becomes a thunk and this paragraph goes with it, which is one edit in
+   * two files and no new vocabulary.
+   */
+  readonly upgradeHeaders: ReadonlyArray<string>
+  /**
+   * ...AND WHO A REQUEST IS, which is the other clock: read per request,
+   * for {@link ListenOptions.bound}'s reason. The roster MOVES, and a serve
+   * that switched the identity row off holds a socket whose every later
+   * request must read as nobody.
+   *
+   * A function of headers and nothing more — this file never learns that a
+   * plugin is behind it, which is what keeps the two clocks from being one
+   * parameter that reads live in one place and once in another.
+   */
+  readonly who: Reading
   /** The internal MCP server, mounted beside the static routes — see
    *  {@link ./mcp/route.ts} for why it rides this listener rather than a
    *  transport of its own. */
@@ -240,7 +268,7 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
       mcpRoute(options.mcp),
       mediaLayer(options.root),
       resyncRoute(options.resync),
-      whoRoute(options.identity),
+      whoRoute(options.who),
       // ...and the fifth, which is the only one that answers with something
       // this SERVE compiled: the browser half of a plugin the vault defines
       // (`./dynamic/route.ts`). It is a route rather than a chunk in the
@@ -250,13 +278,16 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     host: options.host,
     port,
     allowedOrigins: options.allowedOrigins,
-    // The identity headers this process trusts — unique, so a login that
-    // doubles as the email claim is named once (a repeated name is a bind
-    // defect upstream). Empty-by-default on the seam; naming them HERE is
-    // the app saying the proxy in front owns them.
-    upgradeHeaders: headerNamesOf(options.identity.headers),
-    services: (connection) =>
-      Layer.succeed(CurrentWho)(whoOf(connection.headers, options.identity)),
+    // The identity headers this serve trusts, as the composition root read
+    // them off the mounted row — unique, so a login that doubles as the
+    // email claim is named once (a repeated name is a bind defect
+    // upstream). Empty is what a serve with no identity row hands over: no
+    // name is trusted because nothing is reading one.
+    upgradeHeaders: options.upgradeHeaders,
+    // ...and the READING is per connection, through the door as it stands
+    // when the socket is accepted — so a row switched off mid-serve makes
+    // every socket opened afterwards anonymous with no rebind.
+    services: (connection) => Layer.succeed(CurrentWho)(options.who(connection.headers)),
     onEvent: (event) => report(event, say),
   })
 

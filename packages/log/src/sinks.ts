@@ -1,55 +1,9 @@
 /**
- * One format-or-pretty decision, two streams.
- *
- * **The machine format is [logfmt](https://brandur.org/logfmt)**, Effect's own
- * `formatLogFmt` rather than anything of ours: one line per event, every value
- * a `key=value` pair, quoted only when it has to be. It is what makes the
- * pieces this codebase asks for legible at the same time — the level, the log
- * spans a boot is timed with, and the annotations a line carries — without any
- * of them being interpolated into a sentence. A line is greppable by field
- * (`url=`, `root=`), a multi-line agent message stays ONE line (the value is
- * escaped, not wrapped), and there is no colour to strip: the e2e suite reads
- * the server's address off stdout, and an ANSI escape inside the value it is
- * matching is a bug nobody would look for.
- *
- * **Humans get a different face when nothing machine is reading.** When the
- * destination stream is a TTY, the sink writes Effect's `Logger.consolePretty`
- * — local time, coloured level, message first, key=values after. When the
- * stream is piped, under systemd, or in tests, the sink stays on logfmt
- * **byte-identical to what it always was**, because the `@olai/log` testlib
- * decoder and any agent parsing depend on that shape. Pretty may only exist
- * where no machine reads.
- *
- * Colour follows the *destination* stream, not stdout: Effect's
- * `consolePretty` defaults colour off `process.stdout.isTTY` at construction,
- * which is wrong for a sink pointed at stderr (the human is on that stream,
- * not on stdout). {@link prettyFor} builds a pretty logger that re-reads colour from
- * its stream at emit time (and honours `NO_COLOR`), same discipline as
- * {@link formatFor}.
- *
- * `OLAI_LOG=logfmt|pretty` forces either face regardless of the TTY. The check
- * lives here, inside the sink layer, so `toStdout` / `toStderr` call sites do
- * not change and do not re-decide the format.
- *
- * Nothing here formats anything itself beyond picking which Effect logger
- * speaks. A bespoke renderer would be a fourth thing to keep consistent with
- * `store`'s probe warning, `ops`'s git warning and everything `server` says —
- * whereas every package in the tree already speaks `Effect.log*`, so they
- * arrive in one shape by construction.
- *
- * **The stream is the decision.** `olai web` logs to stdout, which is where a
- * person watching a server looks. `toStderr` is the other layer, for a
- * process whose stdout is already spoken for — a test, a pipe, a host that
- * wants the log off the protocol. That is a whole-program property rather
- * than one module's, which is why it is a layer the composition root provides
- * and not a rule every writer has to remember.
- *
- * `tracerLogger` rides along in both. It is the default set's other member, it
- * is a no-op with no tracer configured, and dropping it here would silently
- * stop log events attaching to spans the day one is.
+ * Effect v4 logging: compact terminal presentation, unchanged logfmt for machines.
+ * The destination stream controls format and colour at emit time. Both sinks
+ * retain tracerLogger so events also reach any configured tracing backend.
  */
-
-import { Context, type Layer, Logger } from "effect"
+import { Formatter, type Layer, Logger } from "effect"
 
 /** Stream shape we need for the TTY check — Node's stdout/stderr, or a stub. */
 export type Stream = { readonly isTTY?: boolean }
@@ -96,28 +50,52 @@ export const colorsFor = (stream: Stream): boolean => {
   return stream.isTTY === true
 }
 
-// The only two colour states consolePretty can take. Built once; picked at
-// emit by {@link prettyFor} so colour stays emit-time without a fresh logger
-// per line (agent-stderr debug can be chatty).
-const prettyColored = Logger.consolePretty({ colors: true })
-const prettyPlain = Logger.consolePretty({ colors: false })
+/** Keep routine events on one physical line, including multiline annotations. */
+const inline = (value: unknown): string => {
+  const text = typeof value === "string" ? value : Formatter.format(value)
+  return /[\s=\x00-\x1f\x7f]/.test(text) ? JSON.stringify(text) : text
+}
 
 /**
- * Pretty logger for `stream`, with colour re-read at **emit** time from that
- * stream (and `NO_COLOR`) — same discipline as {@link formatFor}. Binding
- * colour once at module load is what left a stderr sink monochrome when stdout
- * was not a TTY.
+ * Only presentation is ours: Effect serializes messages, annotations and causes.
+ * Remember the last displayed root, per sink, so a directory switch remains
+ * visible without repeating the same path on every event. Errors always name it.
  */
-export const prettyFor = (stream: Stream): Logger.Logger<unknown, void> =>
-  Logger.make((options) => {
-    ;(colorsFor(stream) ? prettyColored : prettyPlain).log(options)
+const prettyFormat = (stream: Stream) => {
+  let lastRoot: unknown
+  return Logger.map(Logger.formatStructured, (event) => {
+    const color = colorsFor(stream)
+    const paint = (code: number, text: string) => color ? `\x1b[${code}m${text}\x1b[0m` : text
+    const time = new Date(event.timestamp).toTimeString().slice(0, 8)
+    const level = event.level
+    const trouble = level === "WARN" || level === "ERROR" || level === "FATAL"
+    const fields = Object.entries(event.annotations).flatMap(([key, value]) => {
+      if (value === undefined || value === null || value === "") return []
+      if (key === "root") {
+        if (value === lastRoot && !trouble && level !== "DEBUG" && level !== "TRACE") return []
+        lastRoot = value
+      }
+      const shown = key === "session" && typeof value === "string"
+        && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value) ? value.slice(0, 8) : value
+      return [`${inline(key)}=${inline(shown)}`]
+    })
+    for (const [name, duration] of Object.entries(event.spans)) {
+      fields.push(`${inline(name)}=${duration}ms`)
+    }
+    const messages = Array.isArray(event.message) ? event.message : [event.message]
+    const message = messages.map(value => typeof value === "string"
+      ? value.replace(/[\x00-\x1f\x7f]/g, c => JSON.stringify(c).slice(1, -1))
+      : inline(value)).join(" ")
+    const heading = `${paint(2, time)} ${paint(trouble ? (level === "WARN" ? 33 : 31) : 36, level.padEnd(5))} ${message}`
+    const line = fields.length === 0 ? heading : `${heading} ${paint(2, fields.join(" "))}`
+    return event.cause ? `${line}\n${event.cause.split("\n").map(line => `  ${line}`).join("\n")}` : line
   })
+}
 
-/**
- * Pick pretty or logfmt at emit time so a test can flip `OLAI_LOG` without
- * re-importing the module, and so a process whose streams change (or that
- * never had a TTY) always answers the current fact.
- */
+/** Exported for testing the destination stream's colour policy. */
+export const prettyFor = (stream: Stream): Logger.Logger<unknown, void> =>
+  Logger.withConsoleLog(prettyFormat(stream))
+
 const adaptive = (
   stream: Stream,
   pretty: Logger.Logger<unknown, void>,
@@ -127,49 +105,18 @@ const adaptive = (
     ;(formatFor(stream) === "pretty" ? pretty : logfmt).log(options)
   })
 
-/**
- * Run `self` with `LogToStderr` true only for this logger call. `consolePretty`
- * reads that reference; providing it via `Layer.succeed` would force *every*
- * logger on the fiber (including ones later merged with `mergeWithExisting`)
- * onto stderr. Setting it on the fiber context for the duration of our own
- * `.log` keeps the routing local to this sink's pretty face.
- */
-const withLogToStderr = (
-  self: Logger.Logger<unknown, void>,
-): Logger.Logger<unknown, void> =>
-  Logger.make((options) => {
-    const { fiber } = options
-    const prev = fiber.context
-    fiber.setContext(Context.add(prev, Logger.LogToStderr, true))
-    try {
-      self.log(options)
-    } finally {
-      fiber.setContext(prev)
-    }
-  })
-
-// One pretty logger per destination stream. Colour is chosen at emit via
-// prettyFor(stream) — not from a shared consolePretty() keyed off stdout.
-const prettyStdout = prettyFor(process.stdout)
-const prettyStderr = withLogToStderr(prettyFor(process.stderr))
-const logfmtStdout = Logger.consoleLogFmt
-const logfmtStderr = Logger.withConsoleError(Logger.formatLogFmt)
-
-/** Logs on stdout — `olai web`, and the default for anything else. */
+/** Logs on stdout — olai web, and the default for anything else. */
 export const toStdout: Layer.Layer<never> = Logger.layer([
-  adaptive(process.stdout, prettyStdout, logfmtStdout),
+  adaptive(process.stdout, prettyFor(process.stdout), Logger.consoleLogFmt),
   Logger.tracerLogger,
 ])
 
-/**
- * Logs on stderr, for a transport that owns stdout.
- *
- * Pretty is wrapped so only this logger sees `LogToStderr` (see
- * {@link withLogToStderr}); logfmt uses `withConsoleError` so the non-pretty
- * path stays the same one-line write it always was. No program-wide
- * `LogToStderr` layer.
- */
+/** Logs on stderr for a transport that owns stdout; routing is sink-local. */
 export const toStderr: Layer.Layer<never> = Logger.layer([
-  adaptive(process.stderr, prettyStderr, logfmtStderr),
+  adaptive(
+    process.stderr,
+    Logger.withConsoleError(prettyFormat(process.stderr)),
+    Logger.withConsoleError(Logger.formatLogFmt),
+  ),
   Logger.tracerLogger,
 ])

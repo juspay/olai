@@ -20,6 +20,16 @@ import type { Installed } from "./agents/roster.ts"
 import { ephemeralLocalState } from "./local.ts"
 import { forLocalState } from "./memory.ts"
 import { make } from "./scoped.ts"
+import { makePanel } from "./chat.ts"
+
+
+const logging = () => {
+  const { layer, said } = collector()
+  const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(
+    effect.pipe(Effect.provideService(References.MinimumLogLevel, "Info"), Effect.provide(layer)),
+  )
+  return { run, said }
+}
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "doorbell-agent.ts")
 
@@ -57,6 +67,7 @@ afterEach(() => {
 })
 
 test("two node scopes work together, then an idle one is reaped and woken in place", async () => {
+  const { run, said } = logging()
   let nodes: ReadonlyArray<NodeAgent> = [
     { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
     { id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
@@ -125,6 +136,8 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
   }
 
   expect(released.toSorted()).toEqual(["one", "one", "two"])
+  expect(said.some(line => line.message.includes("chat agent exited")
+    && line.annotations.reason === "idle eviction" && line.annotations.node === "one")).toBe(true)
 })
 
 test("boot routes a remembered node session before spawning any panel", async () => {
@@ -172,7 +185,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
     await logged(chat.start)
     await until("the remembered node session to load", () =>
       chat.state().bound === "one" && chat.state().status === "idle")
-    expect(said.filter((line) => line.message.includes("chat agent spawned"))).toHaveLength(1)
+    expect(said.filter((line) => line.message.includes("chat agent ready"))).toHaveLength(1)
     expect(said.filter((line) => line.message.includes("conversation opened"))).toHaveLength(1)
   } finally {
     await logged(chat.stop)
@@ -180,6 +193,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
 })
 
 test("boot moves a newly identified node session into its scope", async () => {
+  const { run, said } = logging()
   const node: NodeAgent = {
     id: "one",
     file: "Work.olai",
@@ -216,9 +230,22 @@ test("boot moves a newly identified node session into its scope", async () => {
   }
 
   expect(released).toEqual(["one"])
+  const handoff = said.find(line => line.message.includes("moving conversation into node scope"))
+  expect(handoff?.annotations.node).toBe("one")
+  const exits = said.filter(line => line.message.includes("chat agent exited"))
+  expect(exits.map(line => line.annotations.reason)).toEqual(["node scope handoff", "shutdown"])
+  expect(exits[0]?.annotations.session).toBe("sess-1")
+  expect(exits[0]?.annotations.expected).toBe(true)
+  const ready = said.filter(line => line.message.includes("chat agent ready"))
+  expect(ready).toHaveLength(2)
+  expect(ready[0]?.annotations.pid).toBe(exits[0]?.annotations.pid)
+  expect(ready[1]?.annotations.pid).not.toBe(ready[0]?.annotations.pid)
+  expect(ready[1]?.annotations.node).toBe("one")
+  expect(ready[1]?.annotations.purpose).toBe("conversation")
 })
 
 test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wake", async () => {
+  const { run, said } = logging()
   let nodes: ReadonlyArray<NodeAgent> = [
     { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
     { id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
@@ -281,5 +308,40 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
     expect(released).toEqual(["one", "two"])
   } finally {
     await run(chat.stop)
+  }
+  expect(said.some(line => line.message.includes("chat agent exited")
+    && line.annotations.reason === "capacity eviction" && line.annotations.expected === true)).toBe(true)
+
+})
+
+test("agent switches, disabled plugins and listing probes have distinct exit reasons", async () => {
+  const { run, said } = logging()
+  let roster = [installed("alpha"), installed("beta")]
+  const panel = await run(makePanel({
+    roster: () => roster,
+    engines: () => roster.map(row => row.id),
+    cwd,
+    tools: () => null,
+    onState: () => {},
+    onTranscript: () => {},
+  }))
+  try {
+    await run(panel.chooseAgent("alpha"))
+    await run(panel.loadSession("alpha", "another-session"))
+    // A conversation change on the same agent reuses its subprocess.
+    expect(said.filter(line => line.message.includes("chat agent ready"))).toHaveLength(1)
+    await run(panel.sessions)
+    const probe = said.find(line => line.message.includes("chat agent exited")
+      && line.annotations.purpose === "session list")
+    expect(probe?.annotations.reason).toBe("session list complete")
+    expect(probe?.annotations.expected).toBe(true)
+    await run(panel.chooseAgent("beta"))
+    roster = [installed("alpha")]
+    await run(panel.enginesMoved)
+    const reasons = said.filter(line => line.message.includes("chat agent exited"))
+      .map(line => line.annotations.reason)
+    expect(reasons).toEqual(["session list complete", "agent switched", "plugin disabled"])
+  } finally {
+    await run(panel.stop)
   }
 })
