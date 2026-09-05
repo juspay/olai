@@ -164,13 +164,16 @@ test("an exact MCP selection can override the profile's transports", async () =>
 
 
 test("an exact MCP CLI selection does not require a browser build in web profile", async () => {
+  for (let cycle = 0; cycle < 3; cycle += 1) {
   const child = startWeb({ root: served(), extra: ["--plugins=vault,mcp"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
   try {
     const url = await child.address()
     expect((await request(url)).status).toBe(200)
     expect((await fetch(url)).status).toBe(404)
   } finally {
-    expect(await child.stop()).toBe(130)
+    const code = await child.stop()
+    expect(code, `MCP-only shutdown cycle ${cycle}: ${child.said()}`).toBe(130)
+  }
   }
 }, 15000)
 

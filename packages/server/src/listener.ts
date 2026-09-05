@@ -1,6 +1,40 @@
-/** One port for scoped HTTP routes and upgrade handlers. The listener does not
- * know which plugins contributed them. Route changes replace HTTP dispatch;
- * an upgrade belongs to its provider's scope and survives unrelated changes. */
+/**
+ * One port, with HTTP routes and upgrades contributed on their owners' scopes.
+ *
+ * The server object survives a route refresh because the address and the
+ * routing table have different lifetimes. An asset provider can leave while
+ * a browser keeps its websocket and an agent keeps using another route. A
+ * refresh replaces HTTP dispatch; it does not create a second server or make
+ * the provider that happened to register first own everyone else's transport.
+ * The listener never recognizes a transport name or synthesizes its behavior.
+ *
+ * An upgrade is selected by its registered path before the handler runs. Node
+ * broadcasts an upgrade event to all listeners, so letting each provider attach
+ * its own listener would let several handlers answer the same raw socket. This
+ * single dispatcher chooses one owner; that owner applies its origin, protocol
+ * and identity policy. An unclaimed path receives an HTTP refusal. The socket
+ * plugin's scope, rather than the HTTP routing scope, owns accepted connections.
+ *
+ * Each acquisition has a unique token. Withdrawing it removes only that entry;
+ * it cannot erase another provider because they happen to serve the same kind
+ * of traffic. The semaphore orders refreshes and stop: a released provider must
+ * not reopen a port while the process is shutting down. Before start, entries
+ * accumulate without binding so the root can finish composing its surface.
+ * With no entries there is no port. A later acquisition can reopen the same
+ * address, including the OS-selected port returned at the first successful bind.
+ *
+ * Busy-port fallback is process policy and belongs here. Only EADDRINUSE retries
+ * on an OS-assigned port; other bind failures retain their own cause. Both the
+ * fallback notice and readiness report use the actual bound address.
+ *
+ * Shutdown drops connections rather than waiting for clients to volunteer.
+ * Websockets and HTTP keep-alives can outlive a tab's last visible activity, so
+ * waiting for them would make a stopped process retain its directory lock.
+ * The close events are awaited before asking Bun to close the server: merely
+ * initiating socket destruction can leave its server.close callback unreported.
+ * Plugin finalizers still release their protocol and serving-stack resources;
+ * this file owns only the shared network resource and HTTP dispatch scopes.
+ */
 import { NodeHttpServer } from "@effect/platform-node"
 import { codeOf } from "@olai/log"
 import type { ListenerContribution, Routes } from "@olai/plugin-api/transport"
@@ -36,11 +70,17 @@ export const listener = (options: ListenOptions) => Effect.gen(function*() {
     const old = server
     server = undefined
     if (old) {
-      yield* Effect.promise(() => new Promise<void>((resolve) => {
-        for (const connection of connections) connection.destroy()
+      yield* Effect.promise(async () => {
+        // Bun can miss the server.close callback when a socket is still
+        // closing. Await the connection close events before closing the port;
+        // destroying them only initiates that release.
+        await Promise.all([...connections].map((connection) => new Promise<void>((resolve) => {
+          connection.once("close", () => resolve())
+          connection.destroy()
+        })))
         old.closeAllConnections()
-        old.close(() => resolve())
-      }))
+        await new Promise<void>((resolve) => old.close(() => resolve()))
+      })
     }
     if (httpScope) yield* Scope.close(httpScope, Exit.void)
     httpScope = undefined
