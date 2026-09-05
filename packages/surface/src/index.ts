@@ -839,6 +839,11 @@ export const surface = defineSurface({
       inputSchema: NarrowingRequest,
       outputSchema: NarrowingAnswer,
     },
+    /** An open search follows vault revisions until its query is dismissed. */
+    searchResults: {
+      inputSchema: SearchRequest,
+      outputSchema: SearchAnswer,
+    },
     /**
      * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — the move-to picker's
      * preview of the planner's verdict, for the destinations its search just

@@ -232,6 +232,11 @@ Then(
 const paletteNode = (world: OlaiWorld, id: string) =>
   world.page.locator(`${PALETTE_ITEM}${attr("data-id", `hit-#${id}`)}`);
 
+Then("the palette lists no node with id {string}", async function (this: OlaiWorld, id: string) {
+  await this.waitUntil(async () => (await paletteNode(this, id).count()) === 0,
+    `the palette to remove node ${JSON.stringify(id)}`);
+});
+
 Then(
   "the palette item for node {string} lights {string}",
   async function (this: OlaiWorld, id: string, said: string) {

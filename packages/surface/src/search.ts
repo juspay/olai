@@ -39,9 +39,9 @@
  * fields the old arrangement would have needed spelling twice and keeping in
  * step by hand. They are spelled once.
  *
- * A PROCEDURE and not a collection or cell: a search is a question with an
- * answer, not a value the server owns — there is nothing to subscribe to, and
- * ten open tabs asking ten different things is exactly what a procedure is.
+ * The one-shot procedure and the browser’s `searchResults` stream use this
+ * same request and answer. An open search is keyed by its query and refreshes
+ * when vault revisions change the matching results.
  */
 
 export {
