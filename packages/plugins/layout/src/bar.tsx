@@ -1,5 +1,5 @@
 /** Layout owns popover placement, chrome geometry and the desktop reading.
- * This value is published only inside its root integration scope. Factories
+ * This value is published in its renderer-dependent plugin scope. Factories
  * allocate component resources under their callers' Solid owners. */
 import { Show } from "solid-js"
 import { Portal } from "solid-js/web"

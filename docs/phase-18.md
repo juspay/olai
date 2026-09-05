@@ -38,8 +38,8 @@ be complete before this PR is ready to merge.
 - [x] `ui-renderer`: own the Solid root, generic location registry and clock
   factory provider; remove the host clock publication.
 - [x] `layout`: own the frame/header implementations and occupy `root`.
-- [x] `layout`: own bar geometry and popover factories in the root integration
-  scope; remove the host bar publication and `App.furnish` API.
+- [x] `layout`: own bar geometry and popover factories in its renderer-dependent
+  provider scope; remove the host bar publication and `App.furnish` API.
 - [x] `layout`: scope viewport, breakpoint, layout preference and CSS observers
   to the root entry activation.
 - [x] `layout`: read sidebar and tool contributions through static contracts.

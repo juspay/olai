@@ -25,7 +25,11 @@ export default definePlugin({
   needs: [rendererSlots, Offers],
   apply: Effect.gen(function*() {
     const slots = yield* rendererSlots
-    const offers = yield* Offers
+    // Offers publishes in the outer plugin activation. Location activations
+    // run in their own Cordis host; publishing there would make the bar
+    // invisible to the plugins that consume it. This provider needs the
+    // renderer, so either row leaving revokes the service.
+    yield* (yield* Offers).own("bar", () => bar)
     yield* slots.contribute(root, () => <ErrorBoundary fallback={(error) => {
       console.error(error)
       return <Fault text={String(error)} />
@@ -37,7 +41,6 @@ export default definePlugin({
         "outline.row.block", "outline.row.door", "outline.row.action",
       ] as const).map(slotLocation)],
       activate: Effect.gen(function*() {
-        yield* offers.own("bar", () => bar)
         for (const start of [trackVisibleViewport, trackDesktop, followLayout]) {
           yield* Effect.acquireRelease(Effect.sync(start), (stop) => Effect.sync(stop))
         }

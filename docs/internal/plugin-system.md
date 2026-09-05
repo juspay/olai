@@ -1333,6 +1333,6 @@ extraction.
 `Clocks` and `Bar` are compatibility exports for `ui-renderer.clocks` and
 `layout.bar`. The renderer row supplies clock factories; each factory's timers
 belong to the consuming Solid owner. Layout publishes its actual popover and
-pill geometry inside the root entry scope, so renderer or layout withdrawal
+pill geometry in its renderer-dependent provider scope, so renderer or layout withdrawal
 retracts the service. The permanent host no longer has an `App.furnish` API.
 The remaining file-link adapter still belongs to the navigation extraction.
