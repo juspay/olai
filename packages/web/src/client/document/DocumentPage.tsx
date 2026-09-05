@@ -163,8 +163,8 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
   return (
     <section data-testid={TESTID.documentPage} data-file={props.file}>
       <header class="mb-8">
-        <div class="flex items-baseline justify-between gap-2">
-          <h1 class="m-0 font-mono text-sm tracking-tight text-muted">{props.file}</h1>
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <h1 class="m-0 max-w-full break-all font-mono text-sm tracking-tight text-muted">{props.file}</h1>
           {/* The control and the draft it opens read ONE value, so a page cannot
               offer an editor it has nothing to open: `served()` is both the
               condition here and the baseline below. The delete beside it reads
@@ -172,12 +172,10 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
               the op's guards can judge (outlines get theirs beside Start, one
               page over), so neither control exists without the other. */}
           <Show when={isServed(served()) && !editing()}>
-            {/* flex-1 + justify-end so the QUESTION banding the delete
-                draws on the row's own width beside the pills rather than
-                squashing them. The sibling door (OutlinePage's emptied
-                outline) has no such row and stacks one line over the pills —
-                the sentence is the same, the rooms differ. */}
-            <span class="flex flex-1 items-baseline justify-end gap-2">
+            {/* On narrow screens the controls get a full row and the
+                confirmation wraps above its choices. The path and question
+                must not push either choice outside the viewport. */}
+            <div class="flex min-w-0 flex-1 basis-full flex-wrap items-baseline justify-end gap-2 sm:basis-auto">
               <button
                 type="button"
                 class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
@@ -187,7 +185,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
                 Edit
               </button>
               <DeleteFile file={props.file} />
-            </span>
+            </div>
           </Show>
         </div>
         {/* THE RECORD, as the same run a node's own page draws — under the

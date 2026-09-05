@@ -505,6 +505,8 @@ A save is ONE op at the same gate as everything else: validated, published on it
 
 ## Deleting a file
 
+On phones, the confirmation wraps above its Delete and Cancel controls; both remain reachable even for a long filename. Plugin rebuilds dismiss an armed confirmation, so deleting afterward requires a fresh confirmation.
+
 Beside **Edit** on a document page's header, and beside the *write the first line* an emptied outline offers, sits **Delete…**. It asks first, naming the path — the file's name IS its address here, so the question is the address — and the second press is the write: the file is gone from the directory, the sidebar and every open tab on the write's own revision. **Cancel** writes nothing at all.
 
 **There is no file-level trash, and that is the sentence the question says.** A record's undo story is the Trash's — a `Put back` puts the subtree back with its ids. A file's undo story is git's: the delete rides the same gate and the same commit door as every other write ([git.md](git.md)), so the bytes are recoverable to exactly the extent git had already recorded them. A directory served `--no-commit`, or one whose file was never committed, keeps nothing. ⌘Z does not take a delete back either — what would take it back is a git command, and this app does not shell one for you.
