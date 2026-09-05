@@ -41,11 +41,11 @@ import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
-import { clientOver } from "./face.ts"
+import { clientOver } from "@olai/surface/client"
 import { serveFace } from "olai-plugin-mcp/testlib"
-import { currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "./route.ts"
+import { mcpRoute, currentTicket, currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "olai-plugin-mcp/testlib"
 import { type Ticket, ticketing } from "./tickets.ts"
-import { bespokeFrom, pluginTools } from "./tools.ts"
+import { bespokeFrom, pluginTools } from "olai-plugin-mcp/testlib"
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about
@@ -130,7 +130,7 @@ const withRoute = <A>(
       { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },
       wired.faces.agent,
     )
-    const tickets = ticketing({ bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN })
+    const tickets = ticketing({ bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket })
     yield* serveFace({
       expose: MCP,
       client: () => panel,
@@ -157,29 +157,10 @@ const withRoute = <A>(
     // `listen` rather than `serve` for one reason: the token is minted inside
     // `serve` and handed only to the session it spawns, so a test that wanted
     // to present a valid one could not get it.
-    const base = yield* Effect.orDie(listen({
-      bound: wired.bound,
-      // A THUNK, as the listener takes it now: a face is derived from the
-      // sibling set, so it is read at each accept beside the group it describes
-      // rather than once at bind (`../listener.ts`).
-      expose: () => wired.faces.browser,
-      clientDist: root,
-      root,
-      hostname: hostname(),
-      host: listenOn.host,
-      port: 0,
-      allowedOrigins: [],
-      // A THUNK for the same reason `expose` is one: the names follow the row
-      // that offers them, so the listener asks at each accept. A bench with a
-      // fixed proxy header answers the same list every time it is asked.
-      upgradeHeaders: () => [LOGIN],
-      who: PROXY,
-      mcp: { transport, token: TOKEN, who: PROXY },
-      resync: Effect.void,
-      // No vault-defined plugins in this bench: the route binds and answers 404,
-      // which is the same thing it does on a serve that has none.
-      plugins: null,
-    }))
+    const base = yield* listen({
+      host: listenOn.host, port: 0,
+      contributions: [{ routes: mcpRoute({ transport, token: TOKEN, who: PROXY }) }],
+    })
 
     const url = `${base}${MCP_PATH}`
     return yield* Effect.promise(() =>

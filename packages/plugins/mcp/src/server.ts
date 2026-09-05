@@ -17,6 +17,5 @@ export default definePlugin({
   apply: Effect.gen(function*() {
     const surface = yield* TransportSurface
     yield* endpoint(surface)
-    yield* surface.protocol()
   }),
 })

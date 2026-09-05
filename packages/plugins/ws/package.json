@@ -8,16 +8,19 @@
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
-    "./testids": "./src/testids.ts"
+    "./testids": "./src/testids.ts",
+    "./testlib": "./src/server.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@olai/plugin-api": "workspace:*",
-    "effect": "4.0.0-rc.112"
+    "effect": "4.0.0-rc.112",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.1"
   }
 }

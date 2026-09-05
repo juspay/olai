@@ -1,3 +1,4 @@
+import * as http from "node:http";
 import * as assert from "node:assert";
 import { Then } from "@cucumber/cucumber";
 import type { OlaiWorld } from "../support/world.ts";
@@ -60,6 +61,23 @@ Then("the browser build answers with status {int}", async function (this: OlaiWo
 });
 
 Then("the browser socket route answers with status {int}", async function (this: OlaiWorld, status: number) {
-  // This route is installed with websocket admission, independently of assets.
-  await waitForStatus(new URL("/olai/who", this.baseUrl), status);
+  const target = new URL("/rpc/ws", this.baseUrl);
+  const deadline = Date.now() + 10000;
+  let actual = 0;
+  do {
+    actual = await new Promise<number>((resolve) => {
+      const request = http.request(target, { headers: {
+        Connection: "Upgrade", Upgrade: "websocket",
+        "Sec-WebSocket-Version": "13", "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==",
+      } });
+      request.on("response", (response) => { response.resume(); resolve(response.statusCode ?? 0); });
+      request.on("upgrade", (_response, socket) => { socket.destroy(); resolve(101); });
+      request.on("error", () => resolve(0));
+      request.setTimeout(1000, () => request.destroy());
+      request.end();
+    });
+    if (actual === status) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  } while (Date.now() < deadline);
+  assert.equal(actual, status, "websocket upgrade after transport withdrawal");
 });

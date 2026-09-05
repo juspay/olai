@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
     "./testids": "./src/testids.ts",
-    "./testlib": "./src/endpoint.ts"
+    "./testlib": "./src/testlib.ts",
+    "./client": "./src/tools.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -17,7 +18,10 @@
   "dependencies": {
     "@olai/plugin-api": "workspace:*",
     "effect": "4.0.0-rc.112",
-    "@olai/surface": "workspace:*"
+    "@olai/surface": "workspace:*",
+    "@olai/ops": "workspace:*",
+    "@olai/format": "workspace:*",
+    "@olai/store": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"

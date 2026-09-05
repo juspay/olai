@@ -1,5 +1,9 @@
+import { TOOLS } from "@olai/ops"
+import type { OlaiSurfaceClient } from "@olai/surface/client"
+import { currentLogin, currentTicket, mcpTransport, mcpRoute } from "./route.ts"
+import { bespokeFrom, pluginTools } from "./tools.ts"
 /** MCP protocol acquisition belongs to the plugin's activation scope. Core
- * supplies the composed, writer-bound face and the shared HTTP transport. */
+ * supplies the composed, writer-bound face; this plugin owns the HTTP carrier. */
 import { surface } from "@olai/surface"
 import { type BespokeTool, type ClientOrConnection, serveSurfaceAsMcp } from "@kolu/surface-mcp"
 import type { ExposeMap } from "@kolu/surface/expose"
@@ -8,9 +12,14 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import type { TransportSurface } from "@olai/plugin-api/transport"
 import { Effect, type Scope } from "effect"
 
-export const endpoint = (surface: TransportSurface) => Effect.gen(function*() {
-  const options = yield* surface.prepareProtocol
-  yield* serveFace(options)
+export const endpoint = (shared: TransportSurface) => Effect.gen(function*() {
+  const policy = yield* shared.prepareAgent(currentTicket)
+  const transport = mcpTransport()
+  yield* serveFace({
+    client: policy.client, expose: policy.expose, transport,
+    tools: { ...bespokeFrom(TOOLS, { ...policy, login: currentLogin, fenced: (held) => policy.fenced(held) as OlaiSurfaceClient }), ...pluginTools() },
+  })
+  yield* shared.register({ routes: mcpRoute({ transport, token: shared.token, who: shared.who }) })
 })
 
 /** What this server calls itself. The version is the binary's, spelled here

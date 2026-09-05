@@ -12,7 +12,7 @@ For an MCP-only server, run `olai web path/to/outlines --profile surface`. It op
 
 For changes relative to the profile defaults, use `--extra-plugins` and `--without-plugins`. These modifiers apply to transports too: `--without-plugins=mcp` removes agent tools while keeping the browser. They cannot be combined with the exact `--plugins` flag.
 
-Turning `mcp` off makes its endpoint return 404 and closes its protocol server; turning it on creates a fresh server. The browser socket stays open. Changing `ws` or `web-app` rebuilds the shared listener on the same port and disconnects existing sockets. Turning off `ws` removes the panel's connection, so restart the process to restore browser control. Switches last only for the current process.
+Turning `mcp` off makes its endpoint return 404 and closes its protocol server; turning it on creates a fresh server. The browser socket stays open. Changing `web-app` replaces its asset routes without disconnecting existing sockets. Turning off `ws` withdraws websocket admission and drains its connections. Turning off `ws` removes the panel's connection, so restart the process to restore browser control. Switches last only for the current process.
 
 ```sh
 nix run github:juspay/olai -- web path/to/outlines

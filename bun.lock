@@ -45,6 +45,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@olai/effect-cordis": "workspace:*",
+        "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "effect": "4.0.0-rc.112",
         "olai-plugin-chat": "workspace:*",
@@ -121,6 +122,8 @@
       "dependencies": {
         "@olai/acp": "workspace:*",
         "@olai/effect-cordis": "workspace:*",
+        "@olai/format": "workspace:*",
+        "@olai/store": "workspace:*",
         "effect": "4.0.0-rc.112",
         "solid-js": "^1.9.0",
       },
@@ -265,7 +268,10 @@
       "name": "olai-plugin-mcp",
       "version": "0.1.0",
       "dependencies": {
+        "@olai/format": "workspace:*",
+        "@olai/ops": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "@olai/store": "workspace:*",
         "@olai/surface": "workspace:*",
         "effect": "4.0.0-rc.112",
       },
@@ -348,6 +354,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@olai/plugin-api": "workspace:*",
+        "@olai/surface": "workspace:*",
         "effect": "4.0.0-rc.112",
       },
       "devDependencies": {
@@ -360,9 +367,11 @@
       "dependencies": {
         "@olai/plugin-api": "workspace:*",
         "effect": "4.0.0-rc.112",
+        "ws": "^8.21.0",
       },
       "devDependencies": {
         "@types/node": "^22.0.0",
+        "@types/ws": "^8.18.1",
       },
     },
     "packages/plugins/xyne-spaces": {
@@ -400,6 +409,7 @@
         "olai-plugin-identity": "workspace:*",
         "olai-plugin-mcp": "workspace:*",
         "olai-plugin-vault": "workspace:*",
+        "olai-plugin-web-app": "workspace:*",
       },
     },
     "packages/sigterm": {

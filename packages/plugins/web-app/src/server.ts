@@ -1,19 +1,20 @@
-/** Browser assets share the surface listener's address and lifetime.
- * This row names TransportSurface rather than the port: assets alone do not
- * open a listener, and a second socket would compete with the transports that
- * serve the same app. Its scoped registration controls whether the shared
- * listener serves the build; unloading withdraws only this acquisition. */
+/** The browser build is an HTTP contribution on the shared port. Resolve it
+ * only when this plugin starts, then withdraw its routes before releasing the
+ * scope. Other providers keep their routes and existing connections. */
 import { definePlugin } from "@olai/plugin-api"
 import { TransportSurface } from "@olai/plugin-api/transport"
+import { surfaceAppLayer } from "@kolu/surface-app/server"
+import { ASSET_PREFIX } from "@olai/surface"
 import { Effect } from "effect"
+import { manifestOf } from "./manifest.ts"
 import { name } from "./index.ts"
 export { name } from "./index.ts"
-
 export default definePlugin({
   name,
   needs: [TransportSurface],
   apply: Effect.gen(function*() {
-    const surface = yield* TransportSurface
-    yield* surface.assets()
+    const shared = yield* TransportSurface
+    const clientDist = yield* shared.clientDist
+    yield* shared.register({ routes: surfaceAppLayer({ clientDist, assetPrefix: ASSET_PREFIX, manifest: manifestOf(shared.hostname), serviceWorker: "notify" }) })
   }),
 })

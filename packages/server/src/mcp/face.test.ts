@@ -46,7 +46,7 @@ import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
-import { clientOver } from "./face.ts"
+import { clientOver } from "@olai/surface/client"
 import { serveFace } from "olai-plugin-mcp/testlib"
 
 const HOUSE = [

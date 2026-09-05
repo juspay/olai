@@ -1,36 +1,8 @@
-/**
- * The surface, spoken as MCP — over whichever surface it is handed.
- *
- * `@kolu/surface-mcp` adapts a declared surface into an MCP server: the cells
- * and collections named in {@link ../faces.ts} become readable and SUBSCRIBABLE
- * resources, so an agent watches the same rows the browser draws instead of
- * polling a second projection of them. This module is the composition — the
- * adapter, its expose map, and the typed client the tools and the resources
- * both read through.
- *
- * **The adapter's client is a direct dispatch at a runtime this process
- * built.** Same expose map, same tools, same instructions, whether the
- * caller is the panel's agent or a `.mcp.json` HTTP client — which is the
- * reason an agent's tool list cannot depend on who is asking.
- *
- * There is no wire under the direct dispatch and that is the point of it:
- * the same consumer code that a test drives in memory is the code the HTTP
- * route runs, so what an agent reads and writes is one implementation.
- *
- * **The tools ride here too**, as bespoke tools projected from `@olai/ops`'
- * table ({@link ./tools.ts}). That waited on juspay/kolu#2155, because olai's
- * refusal contract is that a refused write arrives as `isError` WITH its
- * structured detail — "these three children are not done" as data the agent can
- * act on, not a sentence it has to parse — and the adapter's result shape
- * carried prose only. `ToolFailure` is that gap closed; `instructions` below is
- * the other half of the same PR.
- *
- * So this is now the WHOLE of olai's MCP face, resources and tools together, and
- * the transport is Streamable HTTP for every client of the running server
- * ({@link ./route.ts}). The hand-rolled JSON-RPC dispatch this replaced is gone.
- */
+/** The typed in-process client of the declared surface. Both core's writer
+ * binding and transport tool projections use this same face; it opens no
+ * listener and acquires no protocol server. */
 
-import { surface } from "@olai/surface"
+import { surface } from "./index.ts"
 import { buildSurfaceFace, type StreamingProcedure } from "@kolu/surface/client"
 import type { SurfaceSpec } from "@kolu/surface/define"
 import { directDispatch } from "@kolu/surface/links/direct"
@@ -40,7 +12,9 @@ import type { SurfaceReadFace } from "@kolu/surface/project"
 
 import type { FaceExposure } from "@kolu/surface/expose"
 
-import type { Bound } from "../runtime.ts"
+import type { SurfaceHandlers } from "@kolu/surface/server"
+import type { Rpc, RpcGroup } from "effect/unstable/rpc"
+type Bound = { readonly group: RpcGroup.RpcGroup<Rpc.Any>; readonly handlers: SurfaceHandlers }
 
 // ── The client, typed ────────────────────────────────────────────────────
 

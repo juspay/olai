@@ -14,6 +14,11 @@
  * Logging is annotated before openPlugins captures the environment. Readiness
  * follows transport activation; only then may a session learn its tool URL.
  */
+import { report as reportTransport } from "./report.ts"
+import { CurrentWho, whoRoute } from "./who.ts"
+import { mediaLayer } from "./media.ts"
+import { resyncRoute } from "./resync.ts"
+import { pluginChunks } from "./dynamic/route.ts"
 // The upgrade seam owns header-name grammar; boot validates its initial list.
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers"
 import { type GitPin, type PluginPin } from "@olai/format"
@@ -48,7 +53,7 @@ import {
   Search,
   type ToolServer,
 } from "@olai/plugin-api/services"
-import { Deferred, Effect } from "effect"
+import { Deferred, Effect, Layer } from "effect"
 import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
 
@@ -63,7 +68,7 @@ import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { NOBODY, readingOf } from "./who.ts"
 import { type Profile } from "./profiles.ts"
-import { transportListener } from "./transports.ts"
+import { listener } from "./listener.ts"
 import { mcpBinding } from "./mcp/binding.ts"
 import { TransportSurface } from "@olai/plugin-api/transport"
 import { gitConfigPatch } from "./gitPolicy.ts"
@@ -72,7 +77,7 @@ import { bind } from "./runtime.ts"
 
 export interface ServeOptions {
   /** Which row bundle the instance starts with; omission selects web.
-   * `--plugins` still patches integrations, independently of transport rows. */
+   * `--plugins` replaces every profile row, including transports. */
   readonly profile?: Profile
   /** The directory to serve, recursively. */
   readonly root: string
@@ -441,48 +446,27 @@ export const serve = (options: ServeOptions) =>
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => plugins.close)
-    /** The shared port is acquired only once the rows have registered their
-     * choices. Its websocket and shell options are bind-time facts; MCP is a
-     * request-time source so stopping that row leaves the control socket up.
-     * The identity header allowlist is likewise read once here, while who is
-     * asked per request. A later identity flip cannot renegotiate the names
-     * trusted by an existing listener (the Phase 14a seam).
-     *
-     * Resync waits for ops to become idle before forcing a disk refresh: a
-     * probe among staged temporary files would read a partially applied write.
-     * It is the explicit, publishing refresh; ordinary MCP reads below use
-     * the cheaper independent verification path instead.
-     */
-    const transports = yield* transportListener({
-      ...options,
-      bound: wired.bound,
-      expose: () => wired.faces.browser,
-      hostname: theMachine,
-      // Names and readings follow the same live row, per upgrade and per request.
-      upgradeHeaders: () => currentIdentity().headers,
-      who,
-      mcp: mcp.route(who),
-      resync: resyncDirectory(currentDirectory, currentGate),
-      plugins: dynamic,
-    })
-    /**
-     * The bundle came first; this provision now wakes its transport fibers.
-     * A transport needs the composed surface, not the authority to bind a
-     * second store or mount arbitrary tenants. The door gives each row only
-     * the scoped acquisition it installs over this serve.
-     *
-     * ws and web-app register choices because the framework binds their one
-     * listener together. mcp has a second lifetime of its own: the protocol
-     * server, waiters and session-ticket table. Its Effect runs on that row's
-     * scope, so an off/on cycle gets a fresh protocol server. The coordinator
-     * owns the shared port, and no row can close another row's endpoint merely
-     * by disposing its own server. transports.ts owns that reconciliation.
-     */
+    /** Plugins receive the composed surface and core's HTTP and writer policy.
+     * The listener accepts their scoped routes and upgrades without selecting
+     * transport behavior. Resync waits for the current write gate to idle. */
+    const transports = yield* listener({ host: options.host, port: options.port })
+
+    // Wake transport plugins only after the shared policy is ready. Their own
+    // scopes acquire protocol/socket resources before publishing routes.
     yield* provide(plugins.host, TransportSurface, () => ({
-      websocket: transports.websocket,
-      assets: transports.assets,
-      protocol: transports.protocol,
-      prepareProtocol: mcp.prepare({
+      register: transports.register,
+      live: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.browser }),
+      services: (connection) => Layer.succeed(CurrentWho)(who(connection.headers)),
+      routes: Layer.mergeAll(mediaLayer(root), whoRoute(who), resyncRoute(resyncDirectory(currentDirectory, currentGate)), pluginChunks(dynamic)),
+      upgradeHeaders: () => currentIdentity().headers,
+      allowedOrigins: options.allowedOrigins,
+      report: (event) => reportTransport(event, say),
+      who,
+      clientDist: typeof options.clientDist === "string" ? Effect.succeed(options.clientDist) : options.clientDist,
+      hostname: theMachine,
+      token,
+      prepareAgent: (ticket) => mcp.prepare({
+        ticket,
         bound: wired.bound,
         face: wired.faces.agent,
         ops,

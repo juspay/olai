@@ -1,3 +1,5 @@
+import { writeFileSync, rmSync } from "node:fs"
+import { join } from "node:path"
 import { expect, test } from "bun:test"
 import { createSurfaceSocket } from "@kolu/surface-app/connect"
 import { SURFACE_WS_PATH } from "@kolu/surface-app"
@@ -171,3 +173,21 @@ test("an exact MCP CLI selection does not require a browser build in web profile
     expect(await child.stop()).toBe(130)
   }
 }, 15000)
+
+test("an exact asset-only selection serves its build without websocket admission or MCP", async () => {
+  const build = served()
+  writeFileSync(join(build, "index.html"), "<!doctype html><p>standalone build</p>")
+  try {
+  await withServing({ root: served(), clientDist: build, plugins: ["web-app"] }, async (url) => {
+    expect((await fetch(url)).status).toBe(200)
+    expect((await request(url)).status).toBe(404)
+    const status = await new Promise<number>((resolve, reject) => {
+      const socket = new WsClient(url.replace("http://", "ws://") + SURFACE_WS_PATH)
+      socket.on("unexpected-response", (_req, response) => { response.resume(); resolve(response.statusCode ?? 0); socket.terminate() })
+      socket.on("open", () => { socket.close(); reject(new Error("asset-only selection admitted a socket")) })
+      socket.on("error", () => {})
+    })
+    expect(status).toBe(404)
+  })
+  } finally { rmSync(build, { recursive: true, force: true }) }
+})

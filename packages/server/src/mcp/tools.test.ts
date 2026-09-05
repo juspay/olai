@@ -57,9 +57,9 @@ import * as path from "node:path"
 import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
-import { clientOver } from "./face.ts"
+import { clientOver } from "@olai/surface/client"
 import { serveFace } from "olai-plugin-mcp/testlib"
-import { bespokeFrom } from "./tools.ts"
+import { bespokeFrom } from "olai-plugin-mcp/testlib"
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about

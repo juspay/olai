@@ -12,7 +12,7 @@ This package decides one more thing about committing, and it is not the mode —
 
 This package composes the shared vault/kinds base, the selected tenant bundle and transport rows. `profiles.ts` selects `web` (tenants plus `ws`, `mcp`, `web-app`), `surface` (MCP only), or `test-minimal` (no transports). Select a server profile with `olai web DIR --profile NAME`; `olai surface` remains the MCP client.
 
-Rows mount before the store builds its codec, so contributed kinds are available at the first read. Transport rows wait on `transport-surface` until `bind()` has composed the surface and write gate. `transports.ts` owns the shared listener scope; the MCP row owns its protocol server and ticket mint. Shutdown closes the listener before unloading rows and releasing the surface and store.
+Rows mount before the store builds its codec, so contributed kinds are available at the first read. Transport rows wait on `transport-surface` until `bind()` has composed the surface and write gate. `listener.ts` owns the shared port and composes plugin-contributed routes and upgrades. Transport behavior lives in the plugins; core retains writer binding and ticket policy. Shutdown closes the listener before unloading rows and releasing the surface and store.
 
 Talking to the agent is not here. It was, and it was four modules of domain inside a file whose whole job is the ORDER things go in — so it left, as `olai-plugin-chat`. What is left of it here is a workspace dependency and one call: resolve the adapter from the environment, build, wire the two publishers, and register `stop` as a finalizer.
 
@@ -25,7 +25,6 @@ Talking to the agent is not here. It was, and it was four modules of domain insi
 | `serve.ts` | shared base composition, profile mounting, and the warning for binding off loopback |
 | `profiles.ts` | profile names; the bundle applies disabled patches over its catalogue |
 | `mcp/endpoint.ts` | per-serve MCP rendezvous and per-activation protocol/ticket lifetime |
-| `transports.ts` | transport row modules and the shared listener lifecycle |
 | `fault.ts` | which runtime failures are news, and how the one that is stops the server — a typed failure the scope unwinds through, never `process.exit` |
 | `mcp/face.ts` | THE MCP face: the surface re-exposed through `@kolu/surface-mcp` — cells and collections as subscribable resources, the ops table beside them as tools |
 | `faces.ts` | the THREE faces of one surface, and what each may reach: the MCP adapter's map (default-deny, and written against a rule about wire COST — a cell is exposable iff it is O(1)-ish), the BROWSER's (everything a page draws or presses, and no `ops.*`), and the AGENT's (derived from the first, plus the members the tool table lands through). Core's members are decided here; a PLUGIN's are decided in the plugin, against its own spec, and `facesOf` composes the two — so the wire faces are a function of which plugins a runtime composed rather than a module constant, because `restrictHandlers` compares an exposure with the group it gates as a set EQUALITY and refuses at boot when two readings of "which plugins are on" disagree. No branch here says plugins are browser-only: neither writes an agent map, and an absent map is a full denial |

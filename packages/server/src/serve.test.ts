@@ -29,7 +29,7 @@ import * as path from "node:path"
 import * as net from "node:net"
 
 import { BOOT_TIMEOUT, startWeb } from "./child.testlib.ts"
-import { manifestOf } from "./manifest.ts"
+import { manifestOf } from "olai-plugin-web-app/testlib"
 import { serve } from "./serve.ts"
 import { served, SERVER_LAYERS, withServing } from "./serve.testlib.ts"
 

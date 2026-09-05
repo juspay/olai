@@ -1,43 +1,33 @@
-/**
- * The host binding for MCP: stable routing plus a fresh writer-bound face
- * and ticket table for each plugin activation.
- *
- * The listener and the sessions must agree on a credential and transport even
- * though the listener binds after the rows mount. This factory opens no server:
- * it makes the stable rendezvous the root can hand both sides. `prepare` is the
- * acquisition, run on the row's scope, and every activation makes fresh tickets
- * for the plugin’s MCP server. Turning the row off closes pending protocol requests
- * and removes the ticket mint; the shared HTTP listener remains somebody else's
- * resource. Keeping this here lets the protocol/tool projection change without
- * changing profile selection or the root's acquisition order.
- */
+/** Core's writer-bound agent client and ticket policy. The protocol plugin
+ * supplies its request-local credential reader and owns the carrier and tools.
+ * Each activation gets a fresh ticket table; existing sessions read the current
+ * table through ticketFor, so unloading withdraws their ability to mint. */
 import type { FaceExposure } from "@kolu/surface/expose"
 import type { Writer } from "@olai/format"
-import { type Ops, TOOLS } from "@olai/ops"
+import { type Ops } from "@olai/ops"
 import type { ToolServer } from "@olai/plugin-api/services"
 import type { Vintage } from "@olai/store"
 import { Effect } from "effect"
 
 import { MCP } from "../faces.ts"
-import type { Reading } from "../who.ts"
 import { type Bound, writerAt } from "../runtime.ts"
-import { clientOver } from "./face.ts"
-import { currentLogin, MCP_PATH, mcpTransport } from "./route.ts"
+import { clientOver } from "@olai/surface/client"
+import type { AgentBinding } from "@olai/plugin-api/transport"
+import type { OlaiSurfaceClient } from "@olai/surface/client"
 import { type Tickets, ticketing } from "./tickets.ts"
-import { bespokeFrom, pluginTools } from "./tools.ts"
+
 
 export const mcpBinding = (token: string) => {
-  const transport = mcpTransport()
   let tickets: Tickets | undefined
   return {
     /** A missing row cannot mint a credential onto a face that does not exist.
      * Read per call, so sessions holding this door observe unload and reload. */
     ticketFor: (...args: Parameters<Tickets["mint"]>) => tickets?.mint(...args) ?? null,
-    route: (who: Reading) => ({ transport, token, who }),
     /** The name is part of engine auto-allow prefixes. The root supplies the
      * bound URL; no protocol code guesses which port the OS assigned. */
-    address: (url: string): ToolServer => ({ name: "olai", url: `${url}${MCP_PATH}`, token }),
+    address: (url: string): ToolServer => ({ name: "olai", url: `${url}/mcp`, token }),
     prepare: (options: {
+      readonly ticket: () => string | null
       readonly bound: Pick<Bound, "group" | "handlers">
       readonly face: FaceExposure
       readonly ops: Ops
@@ -45,7 +35,7 @@ export const mcpBinding = (token: string) => {
       readonly writer: Writer
       /** The root chooses the store's observation class; MCP only projects it. */
       readonly vintage: Effect.Effect<Vintage | undefined>
-    }) => Effect.gen(function*() {
+    }): Effect.Effect<AgentBinding, never, import("effect").Scope.Scope> => Effect.gen(function*() {
       const { bound, face, ops, root, writer, vintage } = options
       // This client has no connection to close. Make it once per activation,
       // over the composed face that exists then, rather than redial per tool.
@@ -53,26 +43,17 @@ export const mcpBinding = (token: string) => {
         group: bound.group,
         handlers: writerAt(bound, ops, { writer, fence: null }),
       }, face)
-      const seated = ticketing({ bound, face, ops, token })
+      const seated = ticketing({ bound, face, ops, token, currentTicket: options.ticket })
       tickets = seated
       yield* Effect.addFinalizer(() => Effect.sync(() => { tickets = undefined }))
       return {
         expose: MCP,
         client: () => panel,
-        tools: {
-          ...bespokeFrom(TOOLS, {
-            login: currentLogin,
-            root,
-            vintage,
-            fenced: seated.doorAt,
-            record: (request) => ops.commit(request, writer),
-            push: ops.push,
-          }),
-          // These are core plugin-management verbs, not operations on files;
-          // keeping the two tables joined here keeps them on every MCP start.
-          ...pluginTools(),
-        },
-        transport,
+        root,
+        vintage,
+        fenced: (held) => seated.doorAt(held as OlaiSurfaceClient),
+        record: (request) => ops.commit(request, writer),
+        push: ops.push,
       }
     }),
   }
