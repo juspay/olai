@@ -75,6 +75,7 @@ import { Choose } from "./Choose.tsx"
 import { Composer } from "./Composer.tsx"
 import { DropTarget } from "./DropTarget.tsx"
 import { ElapsedProvider } from "./elapsing.tsx"
+import { Plan } from "./Plan.tsx"
 import { Header } from "./Header.tsx"
 import { faceOf } from "./face.ts"
 import { createHolding } from "./holding.ts"
@@ -311,6 +312,7 @@ function Face(props: { readonly chat: Chat }) {
   return (
     <>
       <Header chat={props.chat} onNew={onNew} />
+      <Plan chat={props.chat} />
       <Roster chat={props.chat} />
       {/* ... and what is still RUNNING in it, on the same shelf and for the
           same reason ({@link ./Watching.tsx}): a background task's own row is

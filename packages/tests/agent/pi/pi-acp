@@ -157,6 +157,8 @@ const turn = async (text: string): Promise<string> => {
       sessionId,
       update: { sessionUpdate: "tool_call_update", toolCallId, status: "in_progress" },
     });
+    notify("session/update", { sessionId, update: { sessionUpdate: "tool_call_update", toolCallId,
+      _meta: { terminal_output: { terminal_id: toolCallId, data: "pi command started\n" } } } });
     await released(cwd, () => {
       if (cancelled) throw new Cancelled();
     });

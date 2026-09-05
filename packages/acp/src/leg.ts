@@ -285,6 +285,8 @@ export interface Reported {
  * can start, and its `agent.ts` does the talking.
  */
 export interface Leg {
+  /** Advertise/read the terminal-output metadata extension. */
+  readonly terminalOutput?: boolean
   /**
    * The PROGRAMMATIC name of the tool, out of what a FRAME said — or `null`
    * when this agent says it somewhere else, or not at all.

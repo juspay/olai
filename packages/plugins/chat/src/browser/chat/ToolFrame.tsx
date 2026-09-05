@@ -1,3 +1,4 @@
+import { Terminals } from "./Terminals.tsx"
 /**
  * A tool call: one line, foldable.
  *
@@ -405,6 +406,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
         )}
       </Key>
 
+      <Terminals entries={props.entry.terminals ?? []} />
       <Show when={open()}>
         {/* Progress FIRST: it is the live half, and a reader who unfolded a
             running call did it to see this rather than to re-read what was

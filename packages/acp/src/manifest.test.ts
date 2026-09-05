@@ -232,6 +232,7 @@ describe("the manifest", () => {
       "formOf",
       "permissionFormOf",
       "relativeTo",
+      "terminalMetaIn",
       "usageIn",
     ])
     // ... and the wire half carries the vocabulary alone: no payload reader
