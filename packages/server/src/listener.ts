@@ -1,6 +1,13 @@
 /**
  * One port, with HTTP routes and upgrades contributed on their owners' scopes.
  *
+ * The platform's HTTP handler protects an accepted request through its response.
+ * A replacement table governs new requests; withdrawing another provider must
+ * not cancel an answer already in progress. A regression test holds a request
+ * across registration and withdrawal to keep that library contract visible.
+ * Protocol resources are acquired by providers before registration and released
+ * by their own scopes, not by rebuilding the route table.
+ *
  * The server object survives a route refresh because the address and the
  * routing table have different lifetimes. An asset provider can leave while
  * a browser keeps its websocket and an agent keeps using another route. A
@@ -37,7 +44,7 @@
  */
 import { NodeHttpServer } from "@effect/platform-node"
 import { codeOf } from "@olai/log"
-import type { ListenerContribution, Routes } from "@olai/plugin-api/transport"
+import type { ListenerContribution } from "@olai/plugin-api/transport"
 import { Data, Effect, Exit, Layer, Scope, Semaphore } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import type { Socket } from "node:net"
@@ -52,7 +59,6 @@ export class ListenFailed extends Data.TaggedError("ListenFailed")<{
 export interface ListenOptions {
   readonly host: string
   readonly port: number
-  readonly routes?: Routes
 }
 
 export const listener = (options: ListenOptions) => Effect.gen(function*() {
@@ -74,7 +80,7 @@ export const listener = (options: ListenOptions) => Effect.gen(function*() {
         // Bun can miss the server.close callback when a socket is still
         // closing. Await the connection close events before closing the port;
         // destroying them only initiates that release.
-        await Promise.all([...connections].map((connection) => new Promise<void>((resolve) => {
+        while (connections.size > 0) await Promise.all([...connections].map((connection) => new Promise<void>((resolve) => {
           connection.once("close", () => resolve())
           connection.destroy()
         })))
@@ -93,9 +99,9 @@ export const listener = (options: ListenOptions) => Effect.gen(function*() {
       return
     }
     const next = yield* Scope.make()
-    const layers = [options.routes ?? Layer.empty, ...[...entries.values()].flatMap((entry) => entry.routes ? [entry.routes] : [])]
+    const layers = [...entries.values()].flatMap((entry) => entry.routes ? [entry.routes] : [])
     const nextHandler = yield* Effect.gen(function*() {
-      const app = yield* HttpRouter.toHttpEffect(Layer.mergeAll(layers[0]!, ...layers.slice(1)))
+      const app = yield* HttpRouter.toHttpEffect(Layer.mergeAll(Layer.empty, ...layers))
       return yield* NodeHttpServer.makeHandler(app, { scope: next })
     }).pipe(Scope.provide(next), Effect.provide(NodeHttpServer.layerHttpServices), Effect.orDie)
     const previous = httpScope
@@ -105,8 +111,13 @@ export const listener = (options: ListenOptions) => Effect.gen(function*() {
     if (server) return
     const opened = createServer((request, response) => handler(request, response))
     server = opened
-    opened.on("connection", (socket) => { connections.add(socket); socket.once("close", () => connections.delete(socket)) })
+    opened.on("connection", (socket) => {
+      connections.add(socket)
+      socket.once("close", () => connections.delete(socket))
+      if (server !== opened) socket.destroy()
+    })
     opened.on("upgrade", (request, socket, head) => {
+      if (server !== opened) { socket.destroy(); return }
       const path = new URL(request.url ?? "/", "http://listener").pathname
       const contribution = [...entries.values()].find((entry) => entry.upgrade?.path === path)
       if (contribution?.upgrade) contribution.upgrade.handle(request, socket, head)

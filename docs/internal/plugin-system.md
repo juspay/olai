@@ -1248,3 +1248,6 @@ The vault switch remains available and explains its cost. Disabling it clears se
 
 
 The plugins panel holds its switches while the browser reconciles a roster. A server-only row can change without remounting that panel; its state may arrive before the socket replacement finishes. Waiting for the whole queued reconciliation prevents a second press from being sent on a connection that is about to close. The browser-asset scenario covers two consecutive off/on cycles through that boundary.
+
+
+Profile policy has one interpreter (`profilePatch`), and every served route has a registration owner. Websocket admission uses the framework’s `restrictServedGeneration` over its narrow generation contract. An accepted HTTP response survives another route provider’s arrival and withdrawal; the platform protects that response, while the routing scope controls which handlers new requests reach. Shutdown rejects new connections and upgrades during the drain and waits for observed socket closes before closing the port.

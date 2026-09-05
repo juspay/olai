@@ -6,8 +6,8 @@ import type { HttpPlatform, HttpRouter, HttpServerRequest } from "effect/unstabl
 import type { IncomingMessage } from "node:http"
 import type { Duplex } from "node:stream"
 import type { ClientOrConnection } from "@kolu/surface-mcp"
-import type { ExposeMap } from "@kolu/surface/expose"
-import type { ServeSurfaceAppOptions, SurfaceAppConnection, SurfaceAppEvent } from "@kolu/surface-app/serve"
+import type { ExposeMap, ServedGeneration } from "@kolu/surface/expose"
+import type { SurfaceAppConnection, SurfaceAppEvent } from "@kolu/surface-app/serve"
 import type { CommitRequest, CommitResult, PushResult } from "@olai/format"
 import type { Vintage } from "@olai/store"
 
@@ -32,7 +32,7 @@ export interface TransportSurface {
   /** Acquisitions are independent; each scope withdraws only what it added. */
   readonly register: (contribution: ListenerContribution) => Effect.Effect<void, never, Scope.Scope>
   readonly routes: Routes
-  readonly live: NonNullable<ServeSurfaceAppOptions<unknown, string>["live"]>
+  readonly live: () => ServedGeneration & { readonly expose: NonNullable<ServedGeneration["expose"]> }
   readonly services: (connection: SurfaceAppConnection<string>) => Layer.Layer<never>
   readonly upgradeHeaders: () => ReadonlyArray<string>
   readonly allowedOrigins: ReadonlyArray<string>

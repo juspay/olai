@@ -12,7 +12,7 @@
  * The generation and the header allowlist have different failure contracts.
  * Both are read at each accept because plugin registrations can change while
  * the process keeps its port. A group and exposure that disagree cannot serve
- * an honest socket: restrictHandlers refuses that generation and the peer is
+ * an honest socket: restrictServedGeneration refuses that generation and the peer is
  * terminated. An invalid header allowlist does not invalidate the surface.
  * It is reported as UpgradeHeadersRefused, and that connection carries no named
  * headers. Core then resolves its writer identity as anonymous. Catching both
@@ -36,7 +36,7 @@ import { TransportSurface } from "@olai/plugin-api/transport"
 import { SURFACE_WS_PATH } from "@kolu/surface-app"
 import { acceptSurfaceSocket, serveSurfaceSocket, type ServableSocket, type SurfaceSocketServing } from "@kolu/surface-app/server"
 import { checkUpgradeHeaders, pickUpgradeHeaders } from "@kolu/surface-app/upgrade-headers"
-import { restrictHandlers } from "@kolu/surface/expose"
+import { restrictServedGeneration } from "@kolu/surface/expose"
 import { RPC_MAX_FRAME_BYTES } from "@kolu/surface/frame-limit"
 import { gateWsOrigin } from "@kolu/surface/ws-origin"
 import { toError } from "@kolu/surface/run-stream"
@@ -73,8 +73,7 @@ export const upgrade = (shared: TransportSurface) => Effect.gen(function*() {
           acceptor.accept(peer, url, () => {
             let served
             try {
-              const source = typeof shared.live === "function" ? shared.live() : shared.live
-              served = { group: source.group, handlers: restrictHandlers(source.group, source.handlers, source.expose) }
+              served = restrictServedGeneration({ live: shared.live })
             } catch (cause) {
               peer.terminate()
               report({ _tag: "GenerationRefused", error: toError(cause), url })

@@ -20,7 +20,7 @@
 import { expect, test } from "bun:test"
 
 import { type PluginPin, pluginsPatch, profilePatch } from "./bundle.ts"
-import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, inBundleOrder, profilePlugins, ROWS } from "./rows.ts"
+import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, inBundleOrder, ROWS } from "./rows.ts"
 
 const exact = (names: ReadonlyArray<string> | null): PluginPin =>
   names === null ? { kind: "omitted" } : { kind: "exact", names }
@@ -164,14 +164,6 @@ test("the input is not reordered under its owner", () => {
   expect(arrived.map((one) => one.id)).toEqual(["zeta-x", BUNDLE_NAMES[0] ?? "claude"])
 })
 
-test("default profiles select bundle data, while an empty flag disables every row", () => {
-  expect(profilePlugins("web")).toBeNull()
-  expect(profilePlugins("surface")).toEqual(["vault", "mcp"])
-  expect(profilePlugins("test-minimal")).toEqual(["vault"])
-  expect(pluginsPatch({ kind: "exact", names: [] }).every((row) => row.disabled)).toBe(true)
-})
-
-
 test("profiles only patch catalogue rows and an exact flag overrides every row", () => {
   for (const profile of ["web", "surface", "test-minimal"]) {
     for (const names of [null, [], ["vault"], ["chat", "mcp", "ws", "web-app"]]) {
@@ -182,8 +174,7 @@ test("profiles only patch catalogue rows and an exact flag overrides every row",
         return !(last?.disabled ?? row.disabled)
       }).map((row) => row.id)
       if (names !== null) expect([...on].sort()).toEqual([...names].sort())
-      else expect(on.filter((id) => ["ws", "mcp", "web-app"].includes(id)))
-        .toEqual(profile === "web" ? ["ws", "mcp", "web-app"] : profile === "surface" ? ["mcp"] : [])
+      else expect(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "mcp"] : ["vault"])
     }
   }
 })
