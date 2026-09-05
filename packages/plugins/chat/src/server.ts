@@ -113,6 +113,7 @@ import { forLocalState as memoryIn } from "./memory.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
 import { assignSession, type Binding, startAgentSession } from "./server/binding.ts"
+import { idleMillis } from "./idle.ts"
 import { faultedIn, scopeThrough } from "./server/doorbell.ts"
 import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
@@ -198,6 +199,7 @@ export default definePlugin({
     // each other by looking at one screen.
     const bundle = yield* Bundle
     const env = yield* Env
+    const nodeIdle = idleMillis(env.vars["OLAI_CHAT_IDLE_MS"])
     const kindsDoor = yield* Kinds
     const localState = yield* openLocalState(yield* LocalState)
     const offers = yield* Offers
@@ -811,6 +813,7 @@ export default definePlugin({
             nodeAgents.above,
           ),
         onState: publishState,
+        ...(nodeIdle === undefined ? {} : { idle: nodeIdle }),
         onTranscript: publishTranscript,
         onLive: republishAgents,
       })

@@ -1789,6 +1789,7 @@ export class OlaiWorld extends World {
    *  the world because a restart mid-scenario has to spawn the SAME shape of
    *  server the first boot had. */
   storedSessions = false;
+  fastNodeIdle = false;
   /** Whether this scenario's server has an agent at all — false for
    *  `@no-agent`, which is how the panel's no-agent state is reached. Carried
    *  for the same reason: a restart has to reproduce the first boot. */

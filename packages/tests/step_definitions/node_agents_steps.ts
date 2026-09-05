@@ -37,6 +37,7 @@ import path from "node:path";
 
 import { POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
+import { FAST_NODE_IDLE_MS } from "../support/node_idle.ts";
 
 const ROSTER = selector(PLUGIN_TESTID.agentRoster);
 const ROW = selector(PLUGIN_TESTID.agentRow);
@@ -747,4 +748,14 @@ Then("the fresh-session control refuses {string} and allows retry", async functi
 Then("the node session control counts {int} conversations", async function (this: OlaiWorld, count: number) {
   const button = this.page.locator(CHAT_SESSIONS);
   await this.waitUntil(async () => (await button.innerText()).trim() === `sessions (${count})`, "the node's session count to reflect its current history");
+});
+
+Then("the agent {string} remains {string} across two idle deadlines", async function (this: OlaiWorld, node: string, standing: string) {
+  assert.ok(this.fastNodeIdle, "this observation requires @node-idle-fast");
+  const row = this.page.locator(`${ROW}${attr("data-agent", node)}`);
+  const until = Date.now() + FAST_NODE_IDLE_MS * 2;
+  do {
+    assert.equal(await row.getAttribute("data-standing"), standing);
+    await this.page.waitForTimeout(100);
+  } while (Date.now() < until);
 });
