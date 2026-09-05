@@ -113,6 +113,8 @@ Feature: A delayed tab cannot apply a chat control to another node's turn
     Then the agent is working
     When I interrupt the agent with "only for install"
     Then the chat shows my message "only for install" as "refused"
+    When the agent is released
+    Then the agent is idle
     When I hold incoming updates to the original chat tab
     And I open another chat tab
     And I open the node menu of "order"
