@@ -2908,7 +2908,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     // CLI moves with it, so the next turn's `init` announces the new model and
     // a client that never sent this hears the pin instead.
     case "session/set_config_option": {
-      if (existsSync(cwd + "/.agent-refuse-model")) {
+      if (existsSync(`${cwd}/${MARKER.refuseModel}`)) {
         refuse(id, -32602, "model changes are unavailable")
         return
       }

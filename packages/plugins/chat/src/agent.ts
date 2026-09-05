@@ -986,8 +986,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const readPicker = (picker: Picker | null): void => {
       emit({ _tag: "models", choices: picker === null ? [] :
         [...picker.labels].map(([value, name]) => ({ value, name })) })
+      labels = picker?.labels ?? new Map()
       if (picker === null) return
-      labels = picker.labels
       if (picker.picked === picked) return
       const switched = picked !== null
       picked = picker.picked

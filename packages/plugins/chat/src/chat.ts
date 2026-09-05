@@ -774,6 +774,7 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
   advertised: "neither",
   servers: "neither",
   model: "neither",
+  models: "neither",
   session: "neither",
   // OLAI'S OWN, and said before the request that could be answered at all: it
   // is this end announcing what it is about to ask for, so it is evidence of

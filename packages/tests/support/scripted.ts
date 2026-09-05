@@ -106,6 +106,8 @@ export const speaking = (emit: (message: unknown) => void, prefix: string) => {
  * the wrong reason.
  */
 export const MARKER = {
+  /** Refuse model configuration without changing the active model. */
+  refuseModel: ".agent-refuse-model",
   /** Let a held turn — or a held open — go on. */
   release: ".agent-release",
   /** Make the next `session/load` sit on the wire. */

@@ -3819,7 +3819,7 @@ When("I choose the chat model {string}", async function (this: OlaiWorld, name: 
 });
 
 Given("the agent refuses model changes", async function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), ".agent-refuse-model"), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER.refuseModel), "");
 });
 
 Then("the model picker is disabled", async function (this: OlaiWorld) {
