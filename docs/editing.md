@@ -425,7 +425,7 @@ A name the link cannot hold is refused rather than mangled, in the palette's own
 
 **A pinned node says its name now, not the name it was pinned under.** Rename it from its own row, from another pane, from an agent, from vim — the shelf follows on the frame the file arrives, because there is no copy of the title stored beside the pin ([format.md](format.md#pins)).
 
-**Drag a pin to reorder the shelf**, exactly as a row is dragged in the tree: press, travel, and a line shows where it will land. What it sends is the same `place` a drop in an outline sends. A press that does not travel is the click it always was. Escape cancels a held pin drag. If another writer changes which pins are present or their order, the drop indicator disappears and the old gesture is cancelled; start a new drag against the updated shelf.
+**Drag a pin to reorder the shelf**, exactly as a row is dragged in the tree: press, travel, and a line shows where it will land. What it sends is the same `place` a drop in an outline sends. A press that does not travel is the click it always was. Pin reordering uses the primary mouse button; a secondary-button gesture does not move pins. Escape cancels a held pin drag. If another writer changes which pins are present or their order, the drop indicator disappears and the old gesture is cancelled; start a new drag against the updated shelf.
 
 **The `×` takes one off**, and so does the verb it was put up with. Unpinning is the set's own removal — the pin's row goes to the Trash keeping its id — so `⌘Z` takes it back and **Put back** is there if you find it later.
 

@@ -166,6 +166,7 @@ export function Shelf() {
   const listTop = (): number => list?.getBoundingClientRect().top ?? 0
 
   const grab = (at: number, event: PointerEvent) => {
+    if (event.button !== 0) return
     travelled = false
     const was = order()
     drags.start(event, {

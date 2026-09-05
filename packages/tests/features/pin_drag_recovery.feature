@@ -8,6 +8,16 @@ Feature: A held pin drag never reorders a different pin
       | /agenda |
     Then the pinned shelf reads "/#order /#demo /agenda"
 
+  Scenario: The secondary mouse button cannot reorder pins
+    When I drag the pin "/agenda" above "/#order" with the secondary mouse button
+    Then the pinned shelf reads "/#order /#demo /agenda"
+    When I press "Escape"
+    And I drag the pin "/agenda" above "/#order"
+    Then the pinned shelf reads "/agenda /#order /#demo"
+    When I press "ControlOrMeta+z"
+    Then the pinned shelf reads "/#order /#demo /agenda"
+    And there should be no page errors
+
   Scenario: Removing the pin above the carried pin cancels the old drop
     When I hold the pin "/#demo" above "/#order"
     And I rewrite "Pins.olai" as:
@@ -33,6 +43,26 @@ Feature: A held pin drag never reorders a different pin
     Then the pinned shelf reads "/#order /#demo /agenda"
     When I drag the pin "/agenda" above "/#order"
     Then the pinned shelf reads "/agenda /#order /#demo"
+    When I press "ControlOrMeta+z"
+    Then the pinned shelf reads "/#order /#demo /agenda"
+    And there should be no page errors
+
+  Scenario: Removing the carried pin cancels its drop and restoration permits a new reorder
+    When I remember the served bytes of "Pins.olai"
+    And I hold the pin "/#demo" above "/#order"
+    And I rewrite "Pins.olai" as:
+      """
+      {"id":"p0","ord":"a0","title":"/#order"}
+      {"id":"p2","ord":"a2","title":"/agenda"}
+      """
+    Then the pinned shelf reads "/#order /agenda"
+    And no pin drop line is shown
+    When I let go
+    Then the pinned shelf reads "/#order /agenda"
+    When I restore the remembered served bytes of "Pins.olai"
+    Then the pinned shelf reads "/#order /#demo /agenda"
+    When I drag the pin "/#demo" above "/#order"
+    Then the pinned shelf reads "/#demo /#order /agenda"
     When I press "ControlOrMeta+z"
     Then the pinned shelf reads "/#order /#demo /agenda"
     And there should be no page errors

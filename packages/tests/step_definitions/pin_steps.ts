@@ -161,6 +161,21 @@ When("I name the pin {string}", async function (this: OlaiWorld, name: string) {
  * intermediate `pointermove`s the gesture is built on actually arrive.
  */
 When(
+  "I drag the pin {string} above {string} with the secondary mouse button",
+  async function (this: OlaiWorld, address: string, target: string) {
+    await this.showSidebar();
+    const from = await pinAt(this, address).boundingBox();
+    const onto = await pinAt(this, target).boundingBox();
+    assert.ok(from !== null && onto !== null, "both pins must be laid out");
+    await this.page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await this.page.mouse.down({ button: "right" });
+    await this.page.mouse.move(onto.x + onto.width / 2, onto.y + 2, { steps: 10 });
+    await this.page.mouse.up({ button: "right" });
+    await this.waitForFrame();
+  },
+);
+
+When(
   "I hold the pin {string} above {string}",
   async function (this: OlaiWorld, address: string, target: string) {
     await this.showSidebar();
