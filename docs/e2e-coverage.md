@@ -9,6 +9,11 @@ Full-suite validation uses `just ci` or `just e2e-fast-remote`. Targeted browser
 runs use the worktree's dev server. Real-harness exploration uses Claude/Sonnet
 in a disposable vault; deterministic ACP fixtures make regressions repeatable in CI.
 
+The post-merge [redundancy audit](e2e-economy.md) consolidates four scenario
+executions while preserving their workflow assertions, and removes unnecessary
+key-settling waits during deliberately delayed file-creation replies. Counts
+below describe the original audit additions, before that consolidation.
+
 At the September 5 status review against master `4b90ba9f6`, this PR adds
 258 scenario declarations across 87 new feature files (89 feature files changed),
 including 41 node-agent scenarios. These counts are not a coverage percentage:

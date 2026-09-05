@@ -7,7 +7,7 @@ Feature: A node agent keeps its session navigation while reading history
     And I assign the conversation "the last conversation" to the node titled "a lane nobody has put an agent on", searching for "lane nobody"
     And I close the unassigned chats
 
-  Scenario: Reading an older session keeps the node and a way back to its current conversation
+  Scenario: History navigation works before and after reloading without changing the node binding
     When I open the session picker
     And I open the past session "an older conversation"
     Then the panel header names the node agent "a lane nobody has put an agent on"
@@ -18,8 +18,6 @@ Feature: A node agent keeps its session navigation while reading history
     And the node "lane-fresh" shows the property "agent-session" holding "claude:fake-stored-new"
     When I ask the agent "back in the current node conversation"
     Then the agent has answered "back in the current node conversation" exactly once
-
-  Scenario: Session history stays navigable after a page reload
     When I open the session picker
     And I open the past session "an older conversation"
     And I reload the page

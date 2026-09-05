@@ -273,6 +273,11 @@ Feature: Documents become writable
     Then the + day note button is shown
     When I press + day note
     Then the day-note mint is refused saying "not a day"
+    And the + day note button is ready
+    When I press + day note
+    Then the day-note mint is refused saying "not a day"
+    And the + day note button is ready
+    And there should be no page errors
 
   @scratch:good
   Scenario: A document's page deletes it, behind one question in its own path

@@ -1,15 +1,5 @@
 @scratch:journal
 Feature: Daily-note creation respects later user actions
-  Scenario: A refused daily-note creation re-enables its control
-    Given I open the day "hello"
-    When I press + day note
-    Then the day-note mint is refused saying "not a day"
-    And the + day note button is ready
-    When I press + day note
-    Then the day-note mint is refused saying "not a day"
-    And the + day note button is ready
-    And there should be no page errors
-
   Scenario: A pending daily-note write cannot be submitted twice
     Given incoming updates to this browser tab can be held
     And I open the day "2019-11-20"

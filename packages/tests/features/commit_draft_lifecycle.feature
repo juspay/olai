@@ -7,24 +7,7 @@ Feature: A prepared commit survives a neighboring plugin rebuild
     And I press "Enter"
     Then the commit pill says 1 uncommitted
 
-  Scenario: The message remains editable and can be committed after rebuilding
-    When I open the commit panel
-    And I draft the commit message "describe the prepared work"
-    And I open another browser tab
-    And I open the plugins panel
-    And I switch the plugin "journal" off
-    And I close the plugins panel
-    And I use the original browser tab
-    Then the journal chrome is absent
-    When I open the commit panel
-    Then the commit message still reads "describe the prepared work"
-    When I submit the drafted commit
-    Then the commit pill says "committed"
-    And the last commit is "olai: describe the prepared work" by "web"
-    And the repository is clean
-    And there should be no page errors
-
-  Scenario: A file excluded from the prepared commit stays excluded after rebuilding
+  Scenario: The prepared message and excluded file both survive rebuilding
     When I rewrite "separate.md" as:
       """
       Work for a separate commit
@@ -32,6 +15,7 @@ Feature: A prepared commit survives a neighboring plugin rebuild
     Then the commit pill says 2 uncommitted
     When I open the commit panel
     And I untick "separate.md"
+    And I draft the commit message "only the outline work"
     And I open another browser tab
     And I open the plugins panel
     And I switch the plugin "journal" off
@@ -39,8 +23,10 @@ Feature: A prepared commit survives a neighboring plugin rebuild
     And I use the original browser tab
     Then the journal chrome is absent
     When I open the commit panel
-    And I commit with the message "only the outline work"
+    Then the commit message still reads "only the outline work"
+    When I submit the drafted commit
     Then the commit pill says 1 uncommitted
+    And the last commit is "olai: only the outline work" by "web"
     And the last commit touched exactly "house.olai"
     When I open the commit panel
     Then the commit button offers "Commit 1 file"

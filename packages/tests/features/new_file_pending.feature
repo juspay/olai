@@ -51,6 +51,7 @@ Feature: New-file forms keep the next filename while an earlier write is pending
     And I release incoming updates to the original browser tab
     Then the new document box is gone
     And the address is "/garden.olai"
+    And the file "created.md" has been created
     When I click the document "created.md"
     Then the document open is "created.md"
     And the document editor is gone
@@ -80,24 +81,19 @@ Feature: New-file forms keep the next filename while an earlier write is pending
       | outline  | olai   |
       | document | md     |
 
-  Scenario Outline: A late creation response does not replace explicit navigation
+  Scenario: A late outline creation response does not replace explicit navigation
     Given incoming updates to this browser tab can be held
     And I open the outline "house.olai"
-    When I open the new <kind> box
-    And I fill the new <kind> box with "created.<suffix>"
+    When I open the new outline box
+    And I fill the new outline box with "created.olai"
     And I hold incoming updates to the original browser tab
-    And I submit the new <kind> box while updates are delayed
+    And I submit the new outline box while updates are delayed
     And I follow the outline "garden.olai" while updates are delayed
     And I release incoming updates to the original browser tab
-    Then the new <kind> box is gone
+    Then the new outline box is gone
     And the address is "/garden.olai"
-    And the file "created.<suffix>" has been created
+    And the file "created.olai" has been created
     And there should be no page errors
-
-    Examples:
-      | kind     | suffix |
-      | outline  | olai   |
-      | document | md     |
 
   Scenario Outline: A late refusal does not annotate the corrected filename
     Given incoming updates to this browser tab can be held
@@ -128,7 +124,7 @@ Feature: New-file forms keep the next filename while an earlier write is pending
     And I fill the new <kind> box with "first.<suffix>"
     And I hold incoming updates to the original browser tab
     And I submit the new <kind> box while updates are delayed
-    And I press "Escape"
+    And I press "Escape" without waiting
     Then the new <kind> box is gone
     When I open the new <kind> box
     And I fill the new <kind> box with "second.<suffix>"
