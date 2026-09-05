@@ -265,6 +265,10 @@ export const surface = defineSurface({
       /** Stop the turn in flight. Legal while the agent is still booting — the
        *  cancel is remembered and sent with the prompt. */
       cancel: { error: ChatFailure },
+      setModel: {
+        input: Schema.Struct({ agent: Schema.String, session: Schema.String, value: Schema.String }),
+        error: ChatFailure,
+      },
       /** Start a fresh conversation WITH the named agent — one of
        *  {@link ChatState.roster}'s ids. The agent-side context goes away and
        *  the transcript is emptied.
@@ -522,6 +526,7 @@ export const faces = {
     "conversation.resend": "tool",
     "conversation.attach": "tool",
     "conversation.cancel": "tool",
+    "conversation.setModel": "tool",
     "conversation.newSession": "tool",
     "conversation.startAgentSession": "tool",
     "conversation.assignSession": "tool",

@@ -417,6 +417,7 @@ export interface Panel {
    *  when that row is not waiting to be sent, which two tabs can genuinely
    *  race. */
   readonly resend: (id: string) => Effect.Effect<void, OpFailure>
+  readonly setModel: (agent: string, session: string, value: string) => Effect.Effect<void, OpFailure>
   readonly cancel: Effect.Effect<void, OpFailure>
   /** Start a fresh conversation with the named agent
    *  ({@link ./agents/roster.ts}). The agent is an ARGUMENT because every new
@@ -773,6 +774,7 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
   advertised: "neither",
   servers: "neither",
   model: "neither",
+  models: "neither",
   session: "neither",
   // OLAI'S OWN, and said before the request that could be answered at all: it
   // is this end announcing what it is about to ask for, so it is evidence of
@@ -1574,6 +1576,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // model and the commands rather than as a row: a notice scrolls away
           // and this is true for as long as the session is.
           move({ servers: event.servers })
+          return
+        case "models":
+          move({ models: event.choices })
           return
         case "model":
           move({ model: event.name })
@@ -3216,6 +3221,12 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // `sessions` gets, and for the same reason: a verb that could not be
       // done says so where it was asked.
       cancel,
+      setModel: (agent, session, value) => opening.withPermit(sending.withPermit(Effect.gen(function*() {
+        if (state.status !== "idle" || talking?.row.id !== agent || state.session?.id !== session) {
+          return yield* new UsageFailure({ reason: "wait for this conversation to be idle before changing its model" })
+        }
+        yield* onAgent((at) => Effect.mapError(at.setModel(session, value), asFailure))
+      }))),
       // WITH the agent that was chosen, always: every new chat asks, so there
       // is no arm here that picks one. An id off a stale tab is refused in
       // words rather than started.
