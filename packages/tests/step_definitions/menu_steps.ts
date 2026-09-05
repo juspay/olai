@@ -26,7 +26,7 @@
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
-import { TESTID } from "@olai/web/testlib";
+import { selector, TESTID } from "@olai/web/testlib";
 
 import { chunkOf } from "../support/chunks.ts";
 import { pressed } from "../support/settling.ts";
@@ -339,7 +339,12 @@ Then(
 When(
   "I choose {string} from the node menu",
   async function (this: OlaiWorld, label: string) {
-    await this.press(await entry(this, label));
+    const item = await entry(this, label);
+    // A tall menu scrolls independently of the outline. Reveal the item in
+    // that scrollport before the page's sticky-cover check hit-tests it.
+    await item.scrollIntoViewIfNeeded({ timeout: POLL_TIMEOUT });
+    await this.waitForFrame();
+    await this.press(item);
   },
 );
 
@@ -606,3 +611,11 @@ Then(
     );
   },
 );
+
+Then("the node menu stays below the app header", async function (this: OlaiWorld) {
+  const panel = await panelOf(this);
+  await this.waitUntil(async () => {
+    const [menu, header] = await Promise.all([panel.boundingBox(), this.page.locator(selector(TESTID.appHeader)).boundingBox()]);
+    return menu !== null && header !== null && menu.y >= header.y + header.height;
+  }, "the menu to leave its first entry below the app header");
+});

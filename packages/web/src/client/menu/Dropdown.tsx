@@ -99,6 +99,7 @@
  */
 
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
+import { createSignal } from "solid-js"
 
 import type { MenuAction } from "./action.ts"
 import type { MenuDoor } from "./door.ts"
@@ -149,6 +150,7 @@ export function Dropdown(props: {
 }) {
   /** The `•••` once this row is armed — where the caret goes back to. */
   let trigger: HTMLElement | undefined
+  const [above, setAbove] = createSignal(false)
   /** What last touched this menu: the two gestures leave the caret in
    *  different places, and only one of them wants it back (see `handBack`). */
   let lastGesture: "key" | "pointer" = "pointer"
@@ -196,6 +198,7 @@ export function Dropdown(props: {
     <DropdownMenu
       modal={false}
       placement="bottom-start"
+      onCurrentPlacementChange={(placement) => setAbove(placement.startsWith("top"))}
       gutter={2}
       open={props.door.open()}
       // ...and AN ASK TO SHUT IS ONLY HEARD WHILE THIS MENU IS THE PANEL A
@@ -290,7 +293,7 @@ export function Dropdown(props: {
         // Without it, Chromium rings the whole panel for a menu opened with
         // a mouse.
         // A PANEL TALLER THAN THE WINDOW STILL REACHES ITS LAST ENTRY, and the
-        // two utilities that do it are the popper's own answer rather than a
+        // height limit and scroll use the popper's own answer rather than a
         // measurement taken here. Floating-ui already flips this list to
         // whichever side of the row has more room; when NEITHER side has
         // enough — seventeen verbs on a node with children, and a laptop window
@@ -302,7 +305,12 @@ export function Dropdown(props: {
         // `max-height`, which `fitViewport` would set, is a limit its
         // overflowing child ignores), and the scroll is what turns a cap into a
         // list somebody can still reach the end of.
-        class={`relative ${LAYER.row} min-w-[10.5rem] max-h-[var(--kb-popper-content-available-height)] overflow-y-auto rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md focus:outline-none`}
+        class={`relative ${LAYER.row} min-w-[10.5rem] overflow-y-auto rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md focus:outline-none`}
+        // The primitive measures from the viewport edge. An upward menu must
+        // reserve the app header as well, or its first entries sit behind it.
+        style={{ "max-height": above()
+          ? "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-header)))"
+          : "var(--kb-popper-content-available-height)" }}
         // The primitive restores the trigger on every close. A KEY still
         // gets the caret back (`handBack`); a pointer that landed somewhere
         // else must not be pulled off it.
