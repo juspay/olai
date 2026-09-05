@@ -201,6 +201,8 @@ Two panes showing **different files** cannot, and the pane says so before you le
 
 ## Picking several rows
 
+A plugin rebuild of the same page preserves the picked rows and the anchor used by Shift-click and Shift-arrow. Bulk actions continue to use those rows. Explicit navigation clears the pick, and returning to the outline starts with nothing selected.
+
 Everything above works on more than one row at a time. All five of Workflowy's ways to pick them:
 
 | | |

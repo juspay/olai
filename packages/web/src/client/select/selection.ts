@@ -40,12 +40,11 @@ import {
   createContext,
   createEffect,
   createMemo,
-  createSignal,
   useContext,
 } from "solid-js"
 
 import { flatten, neighbour, refound } from "../edit/order.ts"
-import { serial } from "../edit/queue.ts"
+import { selectionMemory } from "./memory.ts"
 import type { Said } from "../saying.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { applyingAll } from "../writes.ts"
@@ -110,29 +109,27 @@ export const createSelection = (
     readonly rows: Accessor<ReadonlyArray<Row>>
     readonly collapsed: Accessor<ReadonlySet<string>>
   },
+  memory = selectionMemory(),
 ): Selection => {
-  const [keys, setKeys] = createSignal<ReadonlySet<string>>(new Set())
-  const [said, setSaid] = createSignal<Said | null>(null)
+  const [keys, setKeys] = memory.keys
+  const [said, setSaid] = memory.said
   /** The two ends of the range gestures: where the selection was started, and
    *  which end an arrow or a shift-click moves. Held apart from `keys` because
    *  a modifier-click can leave a set no span describes, and the next
    *  shift-click still has to know where to measure from. */
-  const [anchor, setAnchor] = createSignal<string | null>(null)
-  const [focus, setFocus] = createSignal<string | null>(null)
-  /** How far ⌘A has been pressed on this selection. Reset by every other
-   *  gesture, which is what makes the ladder a ladder rather than a mode. */
-  let widened = 0
+  const [anchor, setAnchor] = memory.anchor
+  const [focus, setFocus] = memory.focus
   const undo = useUndo()
   /** One bulk run at a time, and one edit at a time inside it — the editor's
    *  own queue, for the editor's own reason: each edit is judged against what
    *  the one before it did, and two in flight are two writes derived from a
    *  state neither can see. */
-  const enqueue = serial()
+  const enqueue = memory.enqueue
 
   const drawn = (): ReadonlyArray<Row> => flatten(page.rows(), page.collapsed())
 
   const pick = (chosen: Iterable<string>, at: string | null, end: string | null) => {
-    widened = 0
+    memory.widened = 0
     setKeys(new Set(chosen))
     setAnchor(at)
     setFocus(end)
@@ -227,14 +224,14 @@ export const createSelection = (
       pick(spanning(rows, at, next.key), at, next.key)
     },
     widen: (from) => {
-      const step = widened
+      const step = memory.widened
       const at = anchor() ?? from ?? null
       if (at === null) return
       const chosen = step === 0
         ? alongside(drawn(), at)
         : drawn().map((row) => row.key)
       pick(chosen, at, at)
-      widened = step + 1
+      memory.widened = step + 1
     },
     clear: () => pick([], null, null),
     run: (verb) => enqueue(() => run(verb)),

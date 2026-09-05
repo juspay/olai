@@ -137,7 +137,7 @@ function EditablePage(props: EditableProps) {
     // array (`../reading.tsx`'s `useFrames`).
     frames: useFrames(),
   }
-  const selection = createSelection(page)
+  const selection = createSelection(page, memory.selection)
   // The two know each other one way round each: the editor's `⌘⇧M` opens the
   // picker, and the picker hands the caret back to the row when it is
   // dismissed. The second is a thunk rather than a value because the editor is
