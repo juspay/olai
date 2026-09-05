@@ -3112,6 +3112,10 @@ readMessages(
       // rather than when the running turn ends, and nothing about the turn in
       // flight changes.
       if (busyRefused && running) {
+        // Output belongs to the still-running earlier turn. Put it before the
+        // refusal deterministically: a conversation-wide output counter must
+        // not make the queued prompt appear delivered because its sibling spoke.
+        say("still working on the earlier turn")
         refuse(message["id"], -32603, "this agent cannot take a message while it is working")
         return
       }

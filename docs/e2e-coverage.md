@@ -18,6 +18,10 @@ initial idle state cannot satisfy setup before the requested mode is active.
 They also wait for the held turn's own "working on it" response: the browser's
 optimistic working state alone does not prove the fixture is already inside
 the turn that must refuse a concurrent prompt.
+The fixture now emits output from that earlier turn immediately before refusing
+the queued prompt. This reproduces a delivery bug deterministically: the shared
+output counter hid the refused row's retry action. Queue order now preserves
+the refusal and attachment retry even while the older turn continues streaming.
 
 The post-merge CI follow-up also makes the node-mutation setup wait for a new
 session id and idle state before sending its first message. The phone Git
