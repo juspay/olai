@@ -443,6 +443,8 @@ A refusal, or a nudge from a write that landed, is drawn in the palette and the 
 
 **`⌘K`, `+`, the line, Enter** — and nothing moves. The page you were reading, your scroll and the address stay exactly where they were; the line becomes a node; the box empties for the next one, so several thoughts arriving at once cost one chord.
 
+If you type the next thought before the first capture answers, those newer words stay in the box. The confirmation still names the line that landed. A refusal does not label corrected input as invalid, and closing and reopening the palette prevents an earlier capture from changing its new query or message.
+
 It lands at the top level of the directory's **inbox** — the outline called `Inbox.olai`, wherever the directory already keeps one, and a new `_olai/Inbox.olai` when it has none. Minting it is part of the same single operation as the line, so a capture that is refused leaves no file behind. Which file that is is decided on the server, against the same reading the write is judged on, exactly as a daily note's path is.
 
 **Where a new one is minted moved to `_olai/`** (ruled 2026-08-20, reversing a ruling of the day before that kept it at the top level): an inbox olai made because somebody pressed `⌘K` goes where the shelf and the trash go. Only the mint moved. A directory that already keeps an `Inbox.olai` at its root, or a `notes/inbox.olai`, goes on capturing into the file it has, nothing is migrated, and the **Inbox** entry in the sidebar opens whichever file that is.

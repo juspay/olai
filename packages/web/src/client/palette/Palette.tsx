@@ -183,7 +183,13 @@ export function Palette(props: {
   const pins = usePins()
   const router = useRouter()
   const [keys, setKeys] = createSignal(false)
-  const [query, setQuery] = createSignal("")
+  const [query, writeQuery] = createSignal("")
+  let queryRevision = 0
+  let paletteRevision = 0
+  const setQuery = (value: string) => {
+    queryRevision++
+    writeQuery(value)
+  }
   const today = useToday()
   const needles = createMemo(() => needlesFrom(query(), today()))
   // WHICH row Enter takes, and the arrows that walk it — the one cursor every
@@ -436,6 +442,7 @@ export function Palette(props: {
    *  list kept at two sites is a signal somebody forgets to add to one of
    *  them. `text` is what the box starts with: empty, or a primed prefix. */
   const blank = (text = "") => {
+    paletteRevision++
     setQuery(text)
     cursor.top()
     setChosen(false)
@@ -683,15 +690,20 @@ export function Palette(props: {
    */
   const sendCapture = (text: string) => {
     if (sending()) return
+    const submitted = queryRevision
+    const opened = paletteRevision
     setSending(true)
     setSaid(null)
     void applied({ verb: "capture", title: text }, undo.record).then((outcome) => {
       setSending(false)
+      // A response belongs to the palette opening that sent it. A new
+      // search or question after dismissal must not hear from this capture.
+      if (paletteRevision !== opened) return
       if (Outcome.isFailure(outcome)) {
-        setSaid({ tone: "alarm", text: outcome.failure.message })
+        if (queryRevision === submitted) setSaid({ tone: "alarm", text: outcome.failure.message })
         return
       }
-      prime(`${CAPTURE_PREFIX} `)
+      if (queryRevision === submitted) prime(`${CAPTURE_PREFIX} `)
       // The op's own remark if it made one, and otherwise this app's: a write
       // whose whole point is that nothing on screen moves has to say that it
       // happened, or it is indistinguishable from a key that did nothing.

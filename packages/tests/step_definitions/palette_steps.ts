@@ -488,6 +488,14 @@ Then(
 
 // ── quick capture ──────────────────────────────────────────────────────
 
+When("I wait for the palette write to finish", async function (this: OlaiWorld) {
+  await keysSettled(this);
+});
+
+Then("the palette has no write response", async function (this: OlaiWorld) {
+  assert.strictEqual(await this.page.locator(PALETTE_SAID).count(), 0);
+});
+
 /**
  * The whole gesture, as a person makes it: the `+` prefix, the line, Enter —
  * and then the palette's own answer, which is what makes a SECOND capture a
