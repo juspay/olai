@@ -41,16 +41,17 @@ import {
 import { pluginPref, PLUGIN_PREF } from "../testids.ts"
 
 /** A build with two plugins, and whichever of them this case is about running.
- *  `pinned` defaults to nobody having said, which is the ordinary serve. */
+ *  `pin` defaults to omitted, which is the ordinary serve. */
 const roster = (
   running: ReadonlyArray<string>,
-  pinned: ReadonlyArray<string> | null = null,
+  names: ReadonlyArray<string> | null = null,
 ): PluginRoster => ({
   built: [
     { name: "alpha", running: running.includes("alpha") },
     { name: "beta", running: running.includes("beta") },
   ],
-  pinned,
+  pinned: names,
+  pin: names === null ? { kind: "omitted" } : { kind: "exact", names },
 })
 
 /**
@@ -78,6 +79,7 @@ const row = (
     ...(carrying === undefined ? {} : { carrying }),
   }],
   pinned: null,
+  pin: { kind: "omitted" },
 })
 
 /** That row, for the readings that take one. */

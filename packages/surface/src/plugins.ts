@@ -351,7 +351,7 @@ export const PLUGIN_BROWSER_NODE = "browser.tsx"
  *   - `switched` A PERSON TURNED IT OFF HERE, at the panel, on this serve. Also
  *                total absence, and the third author of it — which is the whole
  *                reason it needed a word. Absence used to have exactly two
- *                authors, the flag and the build, and `pinned` told them apart;
+ *                authors, the flag and the build, and `pin` told them apart;
  *                the switch is a third, and without this the panel told a person
  *                who had just pressed the switch that the BUILD ships this off
  *                by default and named a flag they should type. It is the one of
