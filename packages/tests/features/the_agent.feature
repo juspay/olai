@@ -1169,7 +1169,8 @@ Feature: Talking to the agent
     # marked, with one press to send them again — the same face a refused
     # interruption wears, reached down the other lane.
     When I ask the agent "refuse busy"
-    Then the agent is idle
+    Then the agent's answer mentions "a second message while working will be refused from here on."
+    And the agent is idle
     When I ask the agent "hold"
     Then the agent is working
     When I ask the agent "done order"

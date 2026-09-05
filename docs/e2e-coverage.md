@@ -9,6 +9,13 @@ Full-suite validation uses `just ci` or `just e2e-fast-remote`. Targeted browser
 runs use the worktree's dev server. Real-harness exploration uses Claude/Sonnet
 in a disposable vault; deterministic ACP fixtures make regressions repeatable in CI.
 
+The Phase 16 CI follow-up reproduced a delayed document body stealing focus
+from a reopened filename box. `new_file_pending` now waits for that editor,
+checks that the box retains focus, and submits the next filename with the
+keyboard. The regression fails before the focus fix. Busy-refusal scenarios
+also wait for the fixture's acknowledgement before checking idle, so the
+initial idle state cannot satisfy setup before the requested mode is active.
+
 The post-merge [redundancy audit](e2e-economy.md) consolidates four scenario
 executions while preserving their workflow assertions, and removes unnecessary
 key-settling waits during deliberately delayed file-creation replies. Counts

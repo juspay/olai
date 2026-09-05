@@ -128,7 +128,8 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
 
   Scenario: An undelivered message keeps its attachment for retry after the drawer closes
     When I ask the agent "refuse busy"
-    Then the agent is idle
+    Then the agent's answer mentions "a second message while working will be refused from here on."
+    And the agent is idle
     When I ask the agent "hold"
     Then the agent is working
     When I drop "notes.txt" on the chat panel
