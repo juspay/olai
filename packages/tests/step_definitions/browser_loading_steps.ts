@@ -13,7 +13,7 @@ Given("the browser module for {string} cannot be fetched", async function (this:
   // Resolve the generated row's literal import from the actual build. No hash
   // or ambiguous browser-*.js filename is assumed by this scenario.
   assert.match(plugin, /^[a-z][a-z0-9-]*$/);
-  const pattern = new RegExp(`id:\\s*"${plugin}",\\s*load:\\s*\\(\\)\\s*=>\\s*import\\("([^"]+)"\\)`);
+  const pattern = new RegExp(`id:\\s*"${plugin}",\\s*load:[^{}]*?\\bimport\\("([^"]+)"\\)`);
   const pending = [entryUrl];
   const visited = new Set<string>();
   let moduleUrl: string | undefined;
