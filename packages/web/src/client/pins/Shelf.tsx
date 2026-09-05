@@ -39,7 +39,7 @@
  */
 
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, createSelector, createSignal, Show } from "solid-js"
+import { createEffect, createMemo, createSelector, createSignal, Show } from "solid-js"
 
 import { useUndo } from "../edit/undoing.ts"
 import { REGION, REGION_LABEL } from "../layout/entry.ts"
@@ -78,12 +78,13 @@ interface Measured {
  * no drag without a measurement, and no gap that is not this drag's.
  */
 interface Carrying {
+  /** Identity/order of the rows whose indexes and geometry were captured. */
+  readonly order: string
   /** Which row was picked up, as its index in the shelf as drawn. */
   readonly from: number
-  /** Where the rows were at the LIFT, in the list's own coordinates. Nothing
-   *  on screen moves while a row is carried — the shelf redraws when the file
-   *  says so, which is after the drop — and a scroll moves the list and its
-   *  rows together, so this is measured once rather than per frame. */
+  /** Where the rows were at the lift, in list coordinates. A change to their
+   *  identity/order cancels this measurement; scrolling moves the list and
+   *  its rows together, so it does not require measuring again. */
   readonly rows: Measured
   /** Which gap the pointer is over now — the only one of the three that
    *  changes per move. */
@@ -100,8 +101,13 @@ export function Shelf() {
   // than whenever this column redraws — and so the drag's arithmetic is over
   // one list rather than a fresh one per frame.
   const pins = createMemo(() => pinsOf(shelf()))
+  const order = createMemo(() => JSON.stringify(pins().map((pin) => pin.id)))
 
   const [carrying, setCarrying] = createSignal<Carrying | undefined>(undefined)
+  createEffect(() => {
+    const held = carrying()
+    if (held !== undefined && held.order !== order()) setCarrying(undefined)
+  })
   /**
    * Has the press that is still down TRAVELLED far enough to be a drag?
    *
@@ -161,11 +167,12 @@ export function Shelf() {
 
   const grab = (at: number, event: PointerEvent) => {
     travelled = false
+    const was = order()
     drags.start(event, {
       threshold: TRAVEL_PX,
       onStart: () => {
         travelled = true
-        setCarrying({ from: at, rows: measure(), gap: at })
+        setCarrying({ from: at, rows: measure(), gap: at, order: was })
       },
       // `onMove` and not `onPage`: the page-following half of that primitive
       // scrolls the WINDOW, which is the right help for a drag over the
@@ -185,7 +192,7 @@ export function Shelf() {
         // rather than released — so nothing is written, which is the
         // distinction `../pointer.ts` hands over and the one a caller must not
         // read past.
-        if (ended === null || held === undefined) return
+        if (ended === null || held === undefined || held.order !== order()) return
         const edit = placing(pins(), held.from, held.gap)
         if (edit === undefined) return
         void applying(edit, undo.record).then(sayPin)
