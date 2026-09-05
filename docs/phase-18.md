@@ -52,3 +52,11 @@ and rail plus their extension locations. Chat owns its panel's delivery/engine
 locations and scopes its camera observer to that entry. The frame no longer
 imports Sidebar or Rail implementations. This establishes live sidebar removal
 without replacing the editor, while the notebook model extraction remains open.
+
+Preferences now contributes its UI through `layout.tools` and owns
+`preferences.sections`. Theme/font/size state and observers have moved out of
+permanent main startup into a `theme` provider with a separate preferences
+integration. Provider withdrawal restores HTML attributes and palette metadata,
+revokes generated icon URLs, and detaches storage listeners; reactivation creates
+fresh state from storage. Shared appearance build assets and early boot code,
+plus the remaining notebook settings integrations, are still outstanding.

@@ -18,7 +18,7 @@ import { trackDesktop } from "@olai/web/client/layout/media.ts"
 import { followLayout } from "@olai/web/client/layout/prefs.ts"
 import { publishLayoutCss } from "@olai/web/client/layout/css.ts"
 import { createRoot, ErrorBoundary } from "solid-js"
-import { name, sidebar } from "./index.ts"
+import { name, sidebar, tools } from "./index.ts"
 
 export default definePlugin({
   name,
@@ -29,7 +29,7 @@ export default definePlugin({
       console.error(error)
       return <Fault text={String(error)} />
     }}><Frame slots={slots} /></ErrorBoundary>, {
-      children: [sidebar, ...([
+      children: [sidebar, tools, ...([
         "app.panel", "app.header", "app.banner", "app.viewer", "app.mount",
         "app.keys", "app.command", "app.palette", "app.route",
         "outline.row.chip", "outline.row.pane",

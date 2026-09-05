@@ -24,17 +24,17 @@
 
 import { createSelector, For } from "solid-js"
 
-import { PALETTES } from "./palettes.ts"
-import { currentTheme, pickTheme } from "./state.ts"
-import { TESTID } from "../testids.ts"
-import { TARGET_BOX } from "../touch.ts"
+import { PALETTES } from "@olai/web/client/theme/palettes.ts"
+import type { Appearance } from "./index.ts"
+import { TESTID } from "@olai/web/client/testids.ts"
+import { TARGET_BOX } from "@olai/web/client/touch.ts"
 
-export function ThemeChips() {
+export function ThemeChips(props: { readonly state: Appearance }) {
   // `createSelector` rather than `currentTheme() === palette.name`, which is
   // what this was: that form subscribes every chip to the theme, so a pick
   // re-runs every chip to change two attributes — and the table is meant
   // to grow. This notifies exactly the chip that lit and the one that went out.
-  const isInForce = createSelector(currentTheme)
+  const isInForce = createSelector(() => props.state.theme.current().name)
 
   return (
     <For each={PALETTES}>
@@ -68,7 +68,7 @@ export function ThemeChips() {
           // strip used to live in: a palette is judged by looking at the page
           // it paints, and shutting the surface after every press would make
           // comparing two of them a matter of reopening it.
-          onClick={() => pickTheme(palette)}
+          onClick={() => props.state.theme.pick(palette)}
         >
           {palette.name}
         </button>

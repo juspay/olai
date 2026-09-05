@@ -109,12 +109,14 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { desktop } from "@olai/web/client/layout/media.ts"
 import { connectionReadout } from "@olai/web/client/wire.ts"
 import { Plugins } from "@olai/web/client/plugins/Plugins.tsx"
-import { Preferences } from "@olai/web/client/settings/Preferences.tsx"
+import { Tools } from "./Tools.tsx"
+import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { TESTID } from "@olai/web/client/testids.ts"
 import { TARGET_BOX } from "@olai/web/client/touch.ts"
 import { PluginViewer } from "@olai/web/client/plugins/Seats.tsx"
 
 export function Header(props: {
+  readonly slots: RendererSlots
   /** When a sidebar exists: whether its sheet is open, and the way to toggle
    *  it. Absent on the screens with no sidebar (error report, waiting), where
    *  there is nothing to put away and no burger to draw. */
@@ -232,7 +234,7 @@ export function Header(props: {
               a pair and preferences is the one a reader reaches for by habit:
               the habitual door stays where the hand already goes. */}
           <Plugins />
-          <Preferences />
+          <Tools slots={props.slots} where="header" />
         </Show>
         {/* Phone screens with no directory drawer (the error report, the
             waiting page) still need a door into preferences. When the
@@ -243,7 +245,7 @@ export function Header(props: {
             an instance runs is not actionable on a page that could not draw
             itself, and the phone bar has no room for a chip that is not. */}
         <Show when={!desktop() && props.menu === undefined}>
-          <Preferences />
+          <Tools slots={props.slots} where="header" mobileWithoutSidebar />
         </Show>
         {/* LAST: who is looking, top right — the one seat in this bar that
             is about the READER rather than about the app, which is why it

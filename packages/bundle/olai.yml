@@ -144,3 +144,7 @@
   name: olai-plugin-layout
 - id: sidebar
   name: olai-plugin-sidebar
+- id: preferences
+  name: olai-plugin-preferences
+- id: theme
+  name: olai-plugin-theme

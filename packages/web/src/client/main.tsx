@@ -14,9 +14,6 @@ import { runAsync } from "./run.ts"
 import { followAlerts } from "./settings/alerts.ts"
 import { followDensity } from "./settings/density.ts"
 import { followDonePrefs } from "./settings/done.ts"
-import { followStoredFont } from "./theme/fontState.ts"
-import { followStoredSize } from "./theme/sizeState.ts"
-import { followStoredTheme } from "./theme/state.ts"
 import { provideFurniture } from "./plugins/furniture.tsx"
 import { bootstrapBrowser, connectionReadout, firstRoster, olai, useBrowserRows, useBootStatus } from "./wire.ts"
 import { bootStatus } from "./plugins/boot-status.ts"
@@ -51,15 +48,6 @@ import { BROWSER_ROWS, bundleRank } from "@olai/bundle"
 // not serve one), the framework RETIRES instead, so the origin is never left
 // with a legacy caching worker and no banner.
 void registerOrRetireServiceWorker()
-
-// The theme the shell's boot script already put on `<html>`, taken up by the
-// app: a stored name no palette offers is forgotten here, and the browser
-// chrome catches up with the paper the page is actually painted in. Started
-// here for the same reason as the line above — it belongs to the document, and
-// it outlives every component.
-followStoredTheme()
-followStoredFont()
-followStoredSize()
 
 // How many keys this tab has not finished with, counted from a capture-phase
 // listener on the window so a hold is open before anything in this app decides

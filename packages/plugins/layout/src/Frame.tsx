@@ -69,7 +69,7 @@ import { PluginsMounted } from "@olai/web/client/plugins/Mounted.tsx"
 import { PluginPanel } from "@olai/web/client/plugins/Seats.tsx"
 import { Plugins } from "@olai/web/client/plugins/Plugins.tsx"
 import { pageFileOf } from "@olai/web/client/settings/done.ts"
-import { Preferences } from "@olai/web/client/settings/Preferences.tsx"
+import { Tools } from "./Tools.tsx"
 import { TodayProvider } from "@olai/web/client/today.tsx"
 import { connectionReadout, olai } from "@olai/web/client/wire.ts"
 import { isLone } from "@olai/web/client/workspace.ts"
@@ -345,6 +345,7 @@ export default function Frame(props: { readonly slots: RendererSlots }) {
           )}
       >
         <Header
+          slots={props.slots}
           docked={loaded()}
           menu={
             loaded() && props.slots.read(sidebar).length > 0
@@ -403,7 +404,7 @@ export default function Frame(props: { readonly slots: RendererSlots }) {
                           // arrangement does not have to learn a second.
                           desktop() ? undefined : (
                             <>
-                              <Preferences where="closet" />
+                              <Tools slots={props.slots} where="closet" />
                               <Plugins where="closet" />
                             </>
                           )

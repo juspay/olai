@@ -1299,3 +1299,10 @@ locations derive keys from the bound contributor, and kind-keyed locations
 require a key. Native contributions cannot shadow an existing legacy face or
 create a kind dressing without a lookup key. Browser composition joins both
 plugin dependency transitions and their location integrations before publishing.
+
+The preferences UI owns `preferences.sections` through its `layout.tools`
+entry. The theme row offers `theme.appearance`; its separate preferences
+component consumes that service and registers a location integration. Disabling
+preferences leaves theme's provider running. Disabling theme drains its controls
+before closing state and observers. This is the provider/integration pattern for
+feature settings; the preferences UI never owns another feature's state.

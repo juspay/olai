@@ -49,25 +49,21 @@
  * worse than two words for one. This is the surface; that is the mechanism.
  */
 
-import { Show } from "solid-js"
+import type { Contribution } from "@olai/plugin-api"
+import type { JSX } from "solid-js"
+import { For, Show } from "solid-js"
 
-import { type Anchor, styleOf } from "../anchor.ts"
-import { PANEL_BOX } from "../readout.ts"
-import { askToNotify, notifyConsent } from "../notify.ts"
-import { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } from "./alerts.ts"
-import { density, type Density, setDensity } from "./density.ts"
-import { doneHidden, setDoneHidden } from "./done.ts"
+import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
+import { PANEL_BOX } from "@olai/web/client/readout.ts"
+import { askToNotify, notifyConsent } from "@olai/web/client/notify.ts"
+import { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } from "@olai/web/client/settings/alerts.ts"
+import { density, type Density, setDensity } from "@olai/web/client/settings/density.ts"
+import { doneHidden, setDoneHidden } from "@olai/web/client/settings/done.ts"
 
-import { Row } from "./Row.tsx"
-import { Segmented } from "./Segmented.tsx"
-import { TARGET } from "../touch.ts"
-import { TESTID } from "../testids.ts"
-import { FontSelect } from "../theme/FontSelect.tsx"
-import { currentTypeface } from "../theme/fontState.ts"
-import { currentSize, currentTypeSize, pickSize } from "../theme/sizeState.ts"
-import { SIZES, type SizeName, sizeNamed } from "../theme/sizes.ts"
-import { ThemeChips } from "../theme/Chips.tsx"
-import { currentTheme } from "../theme/state.ts"
+import { Row } from "@olai/web/client/settings/Row.tsx"
+import { Segmented } from "@olai/web/client/settings/Segmented.tsx"
+import { TARGET } from "@olai/web/client/touch.ts"
+import { TESTID } from "@olai/web/client/testids.ts"
 
 /** Done: Visible / Hidden — the words the setting has always said, from the
  *  outline pill through the reader-wide row to this one. What changed with
@@ -76,12 +72,6 @@ const DONE_CHOICES = [
   { value: "visible", label: "Visible" },
   { value: "hidden", label: "Hidden" },
 ] as const
-
-/** Size: the strip is the size TABLE, read (../theme/sizes.ts) — three sizes
- *  that must not be spelled twice, since the sheet's blocks are generated from
- *  the same rows. */
-const SIZE_CHOICES: ReadonlyArray<{ value: SizeName; label: string }> = SIZES
-  .map((size) => ({ value: size.name, label: size.label }))
 
 /** Notes: how much of a row this browser draws by default (./density.ts). The
  *  words are the three the design names, in the order they open up. */
@@ -100,6 +90,7 @@ const ALERT_CHOICES = [
 ] as const
 
 export function Panel(props: {
+  readonly sections: () => ReadonlyArray<Contribution<() => JSX.Element>>
   /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
    *  a matter of CSS alone. */
   readonly at: Anchor
@@ -125,28 +116,7 @@ export function Panel(props: {
       data-testid={TESTID.prefsPanel}
       aria-label="preferences"
     >
-      <Row label="Theme" pref="theme" hint={themeHint()}>
-        <ThemeChips />
-      </Row>
-
-      <Row label="Font" pref="font" hint={fontHint()}>
-        <FontSelect />
-      </Row>
-
-      {/* Under Font, because it is the other half of "how this page is set" —
-          and a segmented strip rather than a select, because three sizes are
-          three, and the whole page moves under the press so a reader judges it
-          by looking rather than by reading the option. */}
-      <Row label="Size" pref="size" hint={currentTypeSize().hint}>
-        <Segmented
-          choices={SIZE_CHOICES}
-          value={currentSize()}
-          onPick={(name) => {
-            const size = sizeNamed(name)
-            if (size !== undefined) pickSize(size)
-          }}
-        />
-      </Row>
+      <For each={props.sections()}>{(entry) => entry.value()}</For>
 
       <Row label="Notes" pref="density" hint={densityHint()}>
         <Segmented
@@ -246,15 +216,6 @@ function AllowNotify() {
     </Show>
   )
 }
-
-/** The theme row NAMES the theme in force, which is the promise the retired
- *  header pill carried (`../theme/Chips.tsx`): chips wearing their palettes
- *  say which is which and not which is ON, and the ring that says so
- *  is a ring on a chip the size of a word. */
-const themeHint = (): string =>
-  `${currentTheme()} is in use. Every colour on the page comes from it.`
-
-const fontHint = (): string => currentTypeface().hint
 
 /** What the density in force MEANS — the row's own promise (./Row.tsx): a
  *  sentence read off the choice rather than a label describing the switch. Each

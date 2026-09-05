@@ -1295,6 +1295,8 @@ describe("an appliance's product tier stays inside its tenant", () => {
       journal: ["plugins/journal"],
       layout: ["plugins/layout"],
       sidebar: ["plugins/sidebar"],
+      preferences: ["plugins/preferences"],
+      theme: ["plugins/theme"],
       "ui-renderer": ["plugins/ui-renderer"],
       kolu: ["plugins/kolu"],
       odu: ["plugins/odu"],
@@ -1332,6 +1334,8 @@ describe("an appliance's product tier stays inside its tenant", () => {
       journal: false,
       layout: false,
       sidebar: false,
+      preferences: false,
+      theme: false,
       "ui-renderer": false,
       kolu: true,
       odu: true,
@@ -1718,6 +1722,25 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * claim can fail in are not symmetric.
    */
   const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = {
+    /** Existing UI nouns, style vocabulary and capability integration words.
+     * Exact sets preserve the implementation-import fences above. */
+    preferences: [
+      "plugins/chat/src/browser/chat/NoAgent.tsx",
+      "plugins/theme/src/browser.tsx",
+    ],
+    theme: [
+      "plugins/kolu/src/appliance/props/LivePane.tsx",
+      "plugins/kolu/src/appliance/props/TerminalDoor.tsx",
+      "plugins/kolu/src/client/fleet.ts",
+      "plugins/kolu/src/client/wire/kolu.ts",
+      "plugins/preferences/src/Preferences.tsx",
+      "plugins/web-app/src/manifest.ts",
+      "web/src/client/testids.ts",
+      "web/src/client/theme/chrome.ts",
+      "web/src/client/theme/css.ts",
+      "web/src/client/theme/palettes.ts",
+      "web/src/client/theme/scale.ts",
+    ],
     /** Sidebar is also a UI noun in compatibility contracts, stored preference
      * keys, test ids, and user-facing instructions. These exact spellings grant
      * no implementation import; contract and package fences above still apply. */
@@ -1926,12 +1949,12 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "format/src/writing.ts",
       "ops/src/tools.ts",
       "plugins/kolu/src/client/fleet.ts",
+      "plugins/preferences/src/Preferences.tsx",
       "server/src/gitPolicy.ts",
       "server/src/main.ts",
       "server/src/published.bench.ts",
       "server/src/serve.ts",
       "web/src/client/file/delete.ts",
-      "web/src/client/settings/Preferences.tsx",
        "web/src/client/trash/question.ts",
      ],
     /**
@@ -1991,20 +2014,17 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
   }
 
   test("no package outside the registry and the plugin's own tenant spells it", () => {
-    for (const name of PLUGIN_NAMES) {
+    const actual = Object.fromEntries(PLUGIN_NAMES.map((name) => {
       const mine = TENANTS.get(name) ?? new Set<string>()
       const spelled = packages
         .filter((pkg) => pkg !== REGISTRY && !mine.has(pkg))
-        .flatMap((pkg) =>
-          (compiled.get(pkg) ?? [])
-            .filter((one) => spellingOf(name).test(one.code))
-            .map((one) => one.file)
-        )
-      // An EQUALITY against the recorded answer — `[]` for all but the two
-      // collisions above — never a filter asserted empty: a pattern that rotted
-      // would report nothing and pass.
-      expect(spelled.sort(), name).toEqual([...(NOT_A_PLUGIN[name] ?? [])])
-    }
+        .flatMap((pkg) => (compiled.get(pkg) ?? [])
+          .filter((one) => spellingOf(name).test(one.code)).map((one) => one.file))
+      return [name, spelled.sort()]
+    }))
+    // Compare every name together so one moved file cannot mask a second
+    // boundary violation in the same extraction.
+    expect(actual).toEqual(Object.fromEntries(PLUGIN_NAMES.map((name) => [name, [...(NOT_A_PLUGIN[name] ?? [])]])))
   })
 
   test("every recorded collision is a plugin and a file that still exist", () => {

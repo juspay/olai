@@ -32,3 +32,7 @@ renderer contract and imports no sidebar implementation. The sidebar row owns
 its two extension locations; chat's panel entry owns delivery marks and engine
 installation entries. Remaining outline and navigation compatibility locations
 still belong to the frame until those providers are extracted.
+
+`layout.tools` accepts controls with explicit desktop and mobile ordering. The
+preferences row contributes there, so the frame and header no longer import its
+implementation. Tools may opt into the mobile header when there is no sidebar.

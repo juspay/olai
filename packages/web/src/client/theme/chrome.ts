@@ -183,3 +183,33 @@ const paintTitle = (): void => {
   name ??= document.title
   document.title = waiting ? `${MARK} ${name}` : name
 }
+
+/** Palette painting is owned by the theme provider; deployment naming and
+ * attention marks can continue independently. Restore inherited metadata and
+ * revoke the last generated icon when that provider leaves. */
+let paletteClaimed = false
+export const ownPaletteChrome = (): (() => void) => {
+  if (paletteClaimed) throw new Error("Browser palette chrome already has an owner")
+  paletteClaimed = true
+  const previousMeta = document.querySelector(`meta[name="${THEME_COLOR}"]`)
+  const previousColor = previousMeta?.getAttribute("content") ?? null
+  const previousIcon = document.querySelector(`link[rel="${ICON_REL}"]`)
+  const previousHref = previousIcon?.getAttribute("href") ?? null
+  let active = true
+  return () => {
+    if (!active) return
+    active = false
+    shown = undefined
+    if (iconUrl !== undefined) URL.revokeObjectURL(iconUrl)
+    iconUrl = undefined
+    if (previousMeta === null) meta?.remove()
+    else if (previousColor === null) previousMeta.removeAttribute("content")
+    else previousMeta.setAttribute("content", previousColor)
+    if (previousIcon === null) iconLink?.remove()
+    else if (previousHref === null) previousIcon.removeAttribute("href")
+    else previousIcon.setAttribute("href", previousHref)
+    meta = undefined
+    iconLink = undefined
+    paletteClaimed = false
+  }
+}

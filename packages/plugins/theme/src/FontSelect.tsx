@@ -20,20 +20,20 @@
 import { For } from "solid-js"
 
 import { FONT_GROUPS, typefaceNamed } from "@olai/fonts"
-import { currentFont, currentTypeface, pickFont } from "./fontState.ts"
-import { TESTID } from "../testids.ts"
+import type { Appearance } from "./index.ts"
+import { TESTID } from "@olai/web/client/testids.ts"
 
-export function FontSelect() {
+export function FontSelect(props: { readonly state: Appearance }) {
   return (
     <select
       class="max-w-full rounded border border-rule bg-paper px-2 py-1.5 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-      style={{ "font-family": currentTypeface().sans }}
+      style={{ "font-family": props.state.font.current().sans }}
       data-testid={TESTID.fontSelect}
-      value={currentFont()}
+      value={props.state.font.current().name}
       aria-label="Font"
       onChange={(event) => {
         const face = typefaceNamed(event.currentTarget.value)
-        if (face !== undefined) pickFont(face)
+        if (face !== undefined) props.state.font.pick(face)
       }}
     >
       <For each={FONT_GROUPS}>

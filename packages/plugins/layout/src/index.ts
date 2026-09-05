@@ -19,3 +19,13 @@ export interface SidebarSeat {
   readonly Rail: (props: { readonly home: () => void }) => JSX.Element
 }
 export const sidebar = location<SidebarSeat>("layout.sidebar", "one")
+
+/** Application tools can be drawn in the header or mobile directory footer.
+ * Placement is shell policy; each entry owns its own controls and child seats. */
+export interface LayoutTool {
+  readonly body: (props: { readonly where: "header" | "closet" }) => JSX.Element
+  readonly headerOrder: number
+  readonly closetOrder: number
+  readonly mobileWithoutSidebar?: boolean
+}
+export const tools = location<LayoutTool>("layout.tools")

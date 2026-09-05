@@ -4,7 +4,7 @@ How to serve a directory and configure the server. The git story is [git.md](git
 
 ## `olai web`
 
-`--profile web` (the default) selects the bundle’s integrations and three transport plugins: `ws` for the browser socket, `mcp` for `/mcp`, and `web-app` for the browser build. They live under `packages/plugins/` and appear in the plugins panel alongside integrations. Every mountable row is declared in `packages/bundle/olai.yml`; profiles only patch its `disabled` fields. `--plugins` selects the exact set of bundle plugins, including the vault and transports. To get a tab, an exact set must include `ws` and `web-app`; include `vault` to serve files and `mcp` for agent tools. For example, `--plugins=vault,ws,web-app,mcp,ui-renderer,layout,sidebar` serves the outliner and MCP without chat. `--plugins=` mounts nothing and opens no listener.
+`--profile web` (the default) selects the bundle’s integrations and three transport plugins: `ws` for the browser socket, `mcp` for `/mcp`, and `web-app` for the browser build. They live under `packages/plugins/` and appear in the plugins panel alongside integrations. Every mountable row is declared in `packages/bundle/olai.yml`; profiles only patch its `disabled` fields. `--plugins` selects the exact set of bundle plugins, including the vault and transports. To get a tab, an exact set must include `ws` and `web-app`; include `vault` to serve files and `mcp` for agent tools. For example, `--plugins=vault,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme` serves the outliner and MCP without chat. `--plugins=` mounts nothing and opens no listener.
 
 For an MCP-only server, run `olai web path/to/outlines --profile surface`. It opens the same vault and write gate, serves only `/mcp`, and needs no browser build. Its default bundle plugins are `vault` and `mcp`; an explicit `--plugins` list replaces that entire selection. `olai surface <verb>` remains the terminal client of a running server.
 
@@ -281,11 +281,11 @@ Beside them are the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), od
 olai web ~/outlines --extra-plugins=xyne-spaces          # the default, plus Spaces
 olai web ~/outlines --without-plugins=journal            # the default, minus the journal
 olai web ~/outlines --extra-plugins=xyne-spaces --without-plugins=journal
-olai web ~/outlines --plugins=vault,odu,ws,web-app,mcp,ui-renderer,layout,sidebar                        # odu only — and no panel at all
-olai web ~/outlines --plugins=vault,chat,claude,kolu,odu,ws,web-app,mcp,ui-renderer,layout,sidebar       # a conversation, one engine, the usual appliances — and no pill
-olai web ~/outlines --plugins=vault,journal,chat,claude,kolu,odu,ws,web-app,mcp,ui-renderer,layout,sidebar # journal, a conversation, one engine and the appliances — and nothing searching
-olai web ~/outlines --plugins=vault,search,chat,claude,ws,web-app,mcp,ui-renderer,layout,sidebar          # a matcher, a conversation, one engine
-olai web ~/outlines --plugins=vault,chat,codex,opencode,pi,ws,web-app,mcp,ui-renderer,layout,sidebar     # no Claude row, no probe for one
+olai web ~/outlines --plugins=vault,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme                        # odu only — and no panel at all
+olai web ~/outlines --plugins=vault,chat,claude,kolu,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme       # a conversation, one engine, the usual appliances — and no pill
+olai web ~/outlines --plugins=vault,journal,chat,claude,kolu,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme # journal, a conversation, one engine and the appliances — and nothing searching
+olai web ~/outlines --plugins=vault,search,chat,claude,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme          # a matcher, a conversation, one engine
+olai web ~/outlines --plugins=vault,chat,codex,opencode,pi,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme     # no Claude row, no probe for one
 olai web ~/outlines --plugins=                          # none
 ```
 
@@ -311,7 +311,7 @@ you set by hand on the command line is a policy you set once and forget:
 
 **Where a serve STARTS is the operator's**, which is why it is a CLI flag and a home-manager option — the two doors an instance's opening position is set through in this repo, exactly as `commit` and `push` are — rather than an env var. An env var names a resource to reach (`OLAI_ACP_AGENT`); this names what the instance comes up running, and that belongs on the `--help` page beside the other policies, where it can be read without knowing it exists.
 
-Include `vault` in an explicit list to serve files. `--plugins=` opens no listener. Use `--plugins=ws,web-app,mcp,ui-renderer,layout,sidebar` for a control plane without a directory or write gate; its panel can enable the vault later.
+Include `vault` in an explicit list to serve files. `--plugins=` opens no listener. Use `--plugins=ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme` for a control plane without a directory or write gate; its panel can enable the vault later.
 
 **Omitting `--plugins` is not the same as writing an empty one.** No flag means the built-in default (every row but `xyne-spaces`, which is opt-in and must be named — `--extra-plugins=xyne-spaces` is the flag that does that without listing everything else); `--plugins=` with nothing after it means none, with no panel or listener. The nix options keep the same answers apart: omitted is `null`, none is `[ ]`. A name the build does not have is refused at startup, naming the words it does have — a typo is never a silently disabled integration.
 
@@ -323,7 +323,7 @@ Include `vault` in an explicit list to serve files. `--plugins=` opens no listen
 
 **It follows the flag rather than replacing it.** Nothing about `--plugins` changed: it is still what a serve starts with, still what nix passes, still refused at startup for a name the build does not have. What the switch adds is the ability to change your mind without stopping the server — and the panel goes on naming, at its foot, exactly what this serve was started with, so what is on screen never stops being traceable to what somebody typed. It is said once for the panel rather than under every row, because under a given flag it is the same sentence about every one of them.
 
-**It goes both ways, including against the flag.** A row the flag left out, and a row this build ships off until you ask for it, can be switched *on* from the panel — the flag and the row's own default write the same `disabled` field, and the switch writes that field too, so there is no state the panel can reach that a flag could not have started you in. That is the one thing to reach for when you started a serve with `--plugins=vault,kolu,ws,web-app,mcp,ui-renderer,layout,sidebar` and then wanted the conversation after all.
+**It goes both ways, including against the flag.** A row the flag left out, and a row this build ships off until you ask for it, can be switched *on* from the panel — the flag and the row's own default write the same `disabled` field, and the switch writes that field too, so there is no state the panel can reach that a flag could not have started you in. That is the one thing to reach for when you started a serve with `--plugins=vault,kolu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme` and then wanted the conversation after all.
 
 **Every browser sees it**, because it is not this browser's setting. A flip made in one tab moves the roster the server publishes, and every other tab pointed at the same server follows it — the same standing as the connection dot, and the reason these rows are not on the preferences panel with the theme.
 
@@ -513,9 +513,10 @@ The plugins panel shows `format: olai`. The row’s `Config` schema validates th
 
 ### Browser shell selection
 
-The web defaults include `ui-renderer`, `layout`, and `sidebar`. Exact `--plugins`
+The web defaults include `ui-renderer`, `layout`, `sidebar`, `preferences`, and `theme`. Exact `--plugins`
 lists need the first two to draw an application, and `sidebar` for its directory
-column and rail; `--plugins=` remains empty.
+column and rail. `preferences` supplies the settings UI and `theme` its
+appearance provider; `--plugins=` remains empty.
 The headless surface and test-minimal defaults select none of these. A browser-only
 row selected by the host is not proof of successful activation in a tab.
 

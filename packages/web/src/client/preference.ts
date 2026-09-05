@@ -28,7 +28,7 @@
  * `@solid-primitives/storage`'s `makePersisted` was the other candidate here
  * and does sync across tabs. It is not adopted, for two reasons that are one
  * reason: the theme is not a signal that happens to be stored — `<html>` is
- * the state and the signal MIRRORS it (theme/state.ts), written first by a
+ * the state and the signal MIRRORS it (the theme provider), written first by a
  * boot script in the shell that has no modules to import — and this file's
  * contract is that storage may throw and the preference stands anyway, which
  * is a promise made here rather than one taken on trust from a dependency.
@@ -37,14 +37,10 @@
  *
  * The CIRCUIT over these primitives — read the entry into a signal, write a
  * change back, follow the browser's other tabs — is {@link createPreference},
- * and every stored value this browser keeps runs on it, with TWO exceptions.
- * The theme and the typeface cannot: their first read belongs to the shell's
- * boot script, which runs before any module exists, because a first paint
- * cannot wait for one — and `<html>` is the state their signals mirror, so a
- * second copy in a signal here would be the disagreement theme/state.ts and
- * theme/fontState.ts exist to prevent. So those two keep their own wiring and
- * import the primitives, and a test beside this file holds the line: nothing
- * else may.
+ * and remaining web preferences use that factory. The theme provider owns a
+ * separate scoped appearance circuit: HTML attributes are seeded before first
+ * paint, and provider activation rereads storage after any period of absence.
+ * Its storage watchers and DOM restoration belong to that provider's scope.
  */
 
 import { type Accessor, createSignal } from "solid-js"

@@ -60,8 +60,10 @@
         "olai-plugin-odu": "workspace:*",
         "olai-plugin-opencode": "workspace:*",
         "olai-plugin-pi": "workspace:*",
+        "olai-plugin-preferences": "workspace:*",
         "olai-plugin-search": "workspace:*",
         "olai-plugin-sidebar": "workspace:*",
+        "olai-plugin-theme": "workspace:*",
         "olai-plugin-ui-renderer": "workspace:*",
         "olai-plugin-vault": "workspace:*",
         "olai-plugin-web-app": "workspace:*",
@@ -332,6 +334,18 @@
         "solid-js": "^1.9.0",
       },
     },
+    "packages/plugins/preferences": {
+      "name": "olai-plugin-preferences",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/plugin-api": "workspace:*",
+        "@olai/web": "workspace:*",
+        "effect": "4.0.0-rc.112",
+        "olai-plugin-layout": "workspace:*",
+        "olai-plugin-ui-renderer": "workspace:*",
+        "solid-js": "^1.9.0",
+      },
+    },
     "packages/plugins/search": {
       "name": "olai-plugin-search",
       "version": "0.1.0",
@@ -360,6 +374,19 @@
         "@solid-primitives/keyed": "^1.5.2",
         "effect": "4.0.0-rc.112",
         "olai-plugin-layout": "workspace:*",
+        "olai-plugin-ui-renderer": "workspace:*",
+        "solid-js": "^1.9.0",
+      },
+    },
+    "packages/plugins/theme": {
+      "name": "olai-plugin-theme",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/fonts": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "@olai/web": "workspace:*",
+        "effect": "4.0.0-rc.112",
+        "olai-plugin-preferences": "workspace:*",
         "olai-plugin-ui-renderer": "workspace:*",
         "solid-js": "^1.9.0",
       },
@@ -1358,9 +1385,13 @@
 
     "olai-plugin-pi": ["olai-plugin-pi@workspace:packages/plugins/pi"],
 
+    "olai-plugin-preferences": ["olai-plugin-preferences@workspace:packages/plugins/preferences"],
+
     "olai-plugin-search": ["olai-plugin-search@workspace:packages/plugins/search"],
 
     "olai-plugin-sidebar": ["olai-plugin-sidebar@workspace:packages/plugins/sidebar"],
+
+    "olai-plugin-theme": ["olai-plugin-theme@workspace:packages/plugins/theme"],
 
     "olai-plugin-ui-renderer": ["olai-plugin-ui-renderer@workspace:packages/plugins/ui-renderer"],
 

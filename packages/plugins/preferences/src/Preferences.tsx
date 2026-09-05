@@ -24,11 +24,14 @@
  * was written as a copy of it; the shared half moved out from under both.
  */
 
-import { BarDoor } from "../BarDoor.tsx"
+import { BarDoor } from "@olai/web/client/BarDoor.tsx"
 import { Panel } from "./Panel.tsx"
-import { TESTID } from "../testids.ts"
+import { TESTID } from "@olai/web/client/testids.ts"
 
+import type { Contribution } from "@olai/plugin-api"
+import type { JSX } from "solid-js"
 export function Preferences(props: {
+  readonly sections: () => ReadonlyArray<Contribution<() => JSX.Element>>
   /** `closet` is the phone drawer row. Default is the header chip. */
   readonly where?: "header" | "closet"
 }) {
@@ -40,7 +43,7 @@ export function Preferences(props: {
       closet="preferences"
       testid={TESTID.prefsTrigger}
       title="preferences: theme, type, finished work, and whether git commits and pushes on its own"
-      panel={(at, inside) => <Panel at={at} inside={inside} />}
+      panel={(at, inside) => <Panel at={at} inside={inside} sections={props.sections} />}
     />
   )
 }
