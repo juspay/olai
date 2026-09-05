@@ -48,6 +48,7 @@ import type { Anchor, Edit } from "@olai/surface"
 import { debounce } from "@solid-primitives/scheduled"
 import {
   type Accessor,
+  type Signal,
   createContext,
   createEffect,
   createMemo,
@@ -100,6 +101,8 @@ export interface Editor {
   readonly takeRange: (slot: Slot | undefined) => EditorRange | undefined
   /** Record the browser selection for a later rebuild of the same draft. */
   readonly rememberRange: (range: EditorRange) => void
+  /** Keep Escape's completion dismissal with its draft; a fresh edit resets it. */
+  readonly completionDismissal: (slot: Slot | undefined) => Signal<string | null>
   /** The draft, or `null` when nothing is being typed. It carries what the
    *  last write said, refused or not — one value, so replacing it cannot leave
    *  a stale reason on screen.
@@ -288,6 +291,11 @@ export const createEditor = (
   const { draft, setDraft, ghosts, setGhosts, caret, setCaret, mintSlot, enqueue } = memory
   let retainedRange = memory.range
   memory.range = undefined
+  createEffect(() => {
+    if (draft() !== null) return
+    memory.completion.slot = undefined
+    memory.completion.dismissed[1](null)
+  })
   /** Leave an empty pending on screen without it holding the caret. Same
    *  slot is a no-op, so parking twice cannot duplicate a ghost. A titled
    *  draft, or nothing, is left alone — parking is not how a write happens. */
@@ -1225,6 +1233,14 @@ export const createEditor = (
       return range
     },
     rememberRange: (range) => { memory.range = range },
+    completionDismissal: (slot) => {
+      if (slot === undefined || memory.completion.slot === undefined
+        || !sameSlot(slot, memory.completion.slot)) {
+        memory.completion.slot = slot
+        memory.completion.dismissed[1](null)
+      }
+      return memory.completion.dismissed
+    },
     draft,
     ghosts,
     resume,

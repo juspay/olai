@@ -22,6 +22,7 @@ export const editorMemory = () => {
   let slots = 0
   return {
     range: undefined as EditorRange | undefined,
+    completion: { slot: undefined as Slot | undefined, dismissed: createSignal<string | null>(null) },
     draft, setDraft, ghosts, setGhosts, caret, setCaret,
     mintSlot: () => `d${++slots}`,
     enqueue: serial(),

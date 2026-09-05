@@ -111,7 +111,9 @@ export function TitleEditor(props: {
    *  draft is told in the same breath so the two cannot disagree about what the
    *  line says. */
   const editor = useEditor()
+  const draft = editor.draft()
   const completion = createCompletion({
+    dismissal: editor.completionDismissal(draft === null ? undefined : slotOf(draft)),
     text: () => props.text,
     caret,
     rewrite: (next) => {
@@ -413,8 +415,19 @@ const takeCaret = (
   }
   onMount(() => {
     const field = element()
+    // `select` covers explicit ranges, but typing and ordinary arrow movement
+    // also change the caret that a rebuilt field must restore.
     field.addEventListener("select", remember)
-    onCleanup(() => field.removeEventListener("select", remember))
+    field.addEventListener("input", remember)
+    const selectionChanged = () => {
+      if (document.activeElement === field) remember()
+    }
+    document.addEventListener("selectionchange", selectionChanged)
+    onCleanup(() => {
+      field.removeEventListener("select", remember)
+      field.removeEventListener("input", remember)
+      document.removeEventListener("selectionchange", selectionChanged)
+    })
   })
   createEffect(on(editor.caret, () => {
     if (said.armed?.() === false) return

@@ -80,3 +80,31 @@ Feature: A rebuilt editor preserves the selected text before a structural key
     Then "note-range.olai" holds a node whose note ends "choose the handles"
     And the page has not reloaded
     And there should be no page errors
+
+  Scenario: Typing and arrow movement in a note survive rebuilding its editor
+    Given I rewrite "note-caret.olai" as:
+      """
+      {"id":"note-caret","ord":"a0","title":"a note to continue","desc":"first line\nchoose the handles"}
+      """
+    And I open the outline "note-caret.olai"
+    And I mark the page
+    When I open the note of "note-caret"
+    And I click the note of "note-caret"
+    And I type " and more"
+    And I press "ArrowLeft"
+    And I press "ArrowLeft"
+    And I press "ArrowLeft"
+    And I press "ArrowLeft"
+    And I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "journal" off
+    And I close the plugins panel
+    And I use the original browser tab
+    Then the journal chrome is absent
+    When I type "even "
+    And I click away from the editor
+    Then "note-caret.olai" holds a node whose note ends "choose the handles and even more"
+    When I press "ControlOrMeta+z"
+    Then "note-caret.olai" holds a node whose note ends "choose the handles"
+    And the page has not reloaded
+    And there should be no page errors
