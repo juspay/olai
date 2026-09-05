@@ -6,6 +6,8 @@ What you type sits on the right, in a tinted bubble. What the agent answers sits
 
 ## Who is talking
 
+**Engine switches work without restarting the server.** If the serve started with no enabled engine, enabling an installed engine initializes chat. Turning the last engine off ends its conversation; turning an engine back on shows the agent picker so you can start another. The e2e lifecycle scenarios send a message after each recovery, including after chat itself is remounted.
+
 **Every stretch of messages is named, with a face and a name over it.** There are three parties in this panel — you, the agent, and any plugin allowed to ring this conversation — and shape alone stopped being enough to tell them apart the moment there was a third. So each *run* of one party's messages opens with a small line saying whose it is.
 
 **It is once per run, not once per message.** An answer that is a paragraph, four tool calls and another paragraph is one turn by one party, and it is named once. Your next message starts a new run and is named again.

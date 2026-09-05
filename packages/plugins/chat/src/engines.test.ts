@@ -157,6 +157,7 @@ test("an engine switched off leaves the picker, and one switched on enters it", 
 
   await switched([CODEX])
   expect(last().roster.map((one) => one.id)).toEqual(["codex"])
+  expect(last().talking).toEqual({ kind: "asking" })
 
   await switched([CLAUDE, CODEX])
   expect(last().roster.map((one) => one.id)).toEqual(["claude", "codex"])

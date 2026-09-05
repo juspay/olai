@@ -901,6 +901,11 @@ When("I open the plugins panel", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+When("I close the plugins panel", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(PLUGINS_TRIGGER));
+  await this.page.locator(PLUGINS_PANEL).waitFor({ state: "detached" });
+});
+
 /**
  * WHAT ONE PLUGIN'S ROW SAYS IT IS DOING — the hint, which is the half of the
  * row a person can act on.

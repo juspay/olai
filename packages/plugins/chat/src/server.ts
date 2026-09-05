@@ -99,7 +99,7 @@ import {
 } from "@olai/plugin-api/services"
 import type { Engine, Registering } from "@olai/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
-import { Effect } from "effect"
+import { Deferred, Effect } from "effect"
 
 import { type Cadence, cadence } from "./cadence.ts"
 import type { Change } from "./transcript.ts"
@@ -222,6 +222,7 @@ export default definePlugin({
      * `failed` with its siblings untouched.
      */
     const engines = new Map<string, Engine>()
+    let engineChange: Deferred.Deferred<void> | null = null
     /**
      * ...AND WHO IS TOLD WHEN IT MOVES, which is the half that was missing.
      *
@@ -250,6 +251,7 @@ export default definePlugin({
      */
     const enginesMoved = (): void => {
       if (chat !== null) ring(chat.enginesMoved)
+      else if (engineChange !== null) ring(Deferred.succeed(engineChange, undefined))
     }
     yield* offers.offer(AgentsDoor, (who) => ({
       register: (engine: Registering) =>
@@ -351,21 +353,9 @@ export default definePlugin({
 
     // ── what this row holds while it is up ───────────────────────────────
 
-    /** The chat, once the listener has bound and the roster has been read. A
-     *  machine with no ACP agent on PATH never builds one at all, and `null` is
-     *  that state for the life of the process. */
+    /** The chat, once the listener has bound and an enabled engine is installed.
+     *  Until then the build waits for engine registrations on this plugin's scope. */
     let chat: Chat.Chat | null = null
-    /** ...and WHY there is none, where there is none — the value the log line
-     *  and the panel's opening sentence are both made from, so a screen and a
-     *  journal cannot disagree about one boot.
-     *
-     *  ABOUT THE BOOT AND ONLY THE BOOT. It records the decision not to BUILD a
-     *  chat, which is still made once and still made here. A panel that was
-     *  built and then watched its last engine row get switched off reaches the
-     *  same face by a different road — the panel's own, through
-     *  `enginesMoved` — so this staying `null` for the life of such a process is
-     *  correct rather than stale. */
-    let noAgent: ChatState["off"] = null
     /** This sibling's own write face, the moment the runtime has minted it. */
     let mine: Ctx | null = null
 
@@ -738,14 +728,19 @@ export default definePlugin({
        * fibers ({@link ./agents/roster.ts}'s `detecting` argues both).
        */
       const detect = detecting(env.vars, vault.served)
-      const found = detect(mounted())
-      const installed = found.kind === "here" ? found.installed : []
-      noAgent = found.kind === "none" ? found.because : null
-      if (noAgent !== null) {
-        mine?.cells.state.set({ ...CHAT_OFF, off: noAgent })
-        yield* Effect.logInfo(whyNoAgent(noAgent))
-        return
+      let found = detect(mounted())
+      while (found.kind === "none") {
+        // Arm before publishing or yielding, so an arriving engine cannot be
+        // lost between the empty reading and the wait. This fiber is scoped:
+        // turning chat off also cancels a build waiting for its first engine.
+        engineChange = yield* Deferred.make<void>()
+        mine?.cells.state.set({ ...CHAT_OFF, off: found.because })
+        yield* Effect.logInfo(whyNoAgent(found.because))
+        yield* Deferred.await(engineChange)
+        found = detect(mounted())
       }
+      engineChange = null
+      const installed = found.installed
 
       chat = yield* Chat.make({
         // BOTH HALVES OF THE TABLE, READ WHEN ASKED. What this hands over is the

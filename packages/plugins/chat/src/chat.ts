@@ -1862,7 +1862,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // state the panel can be in that a returning row invalidates, and what
         // is true afterwards is a panel with a picker and no conversation, which
         // is what `idle` with nobody bound draws.
-        ...(state.status === "off" ? { status: "idle" as const, off: null } : {}),
+        ...(state.status === "off"
+          ? { status: "idle" as const, off: null, talking: { kind: "asking" as const } }
+          : {}),
         ...(orphaned
           ? {
             status: "gone" as const,
