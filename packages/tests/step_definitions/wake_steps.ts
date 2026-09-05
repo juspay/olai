@@ -270,20 +270,43 @@ Then(
 );
 
 /**
- * ... and that it is about the terminal the board claims.
+ * ... and WHAT THE SENTENCE SAYS — one step, because every doorbell's proof has
+ * the same shape.
  *
- * The id is asserted and not the wording: every word of the sentence is the
- * plugin's own and `doorbell.test.ts` pins them. What this claim is for is the
- * JOIN — the file a person picked, the un-done step in it, and a terminal on the
- * far end of a real socket are three separate facts, and this is the one place
- * they meet.
+ * The words are asserted and never the wording around them: every word of a
+ * delivery is the plugin's own and its own bench pins them. What a claim like
+ * this is for is the JOIN — some fact the plugin could only have got through the
+ * door it named, arriving in a sentence it wrote itself. kolu's is a terminal id
+ * on the far end of a real socket, joined against the file a person picked and
+ * the un-done step in it; the morning agenda's is an overdue node's title, read
+ * through `journal.agenda` out of a reading it never looked inside. Two subjects,
+ * one question, and it was two steps with identical bodies for one commit.
+ *
+ * WAITED FOR: a delivery is composed at the moment it enters the conversation,
+ * which is some frames after whatever caused it.
  */
 Then(
-  "that sentence names the terminal {string}",
-  async function (this: OlaiWorld, terminal: string) {
+  "that sentence names {string}",
+  async function (this: OlaiWorld, words: string) {
     await this.waitUntil(
-      async () => ((await rungRow(this).first().textContent()) ?? "").includes(terminal),
-      `the machine's message to name the terminal ${terminal}`,
+      async () => ((await rungRow(this).first().textContent()) ?? "").includes(words),
+      `the machine's message to name ${JSON.stringify(words)}`,
+    );
+  },
+);
+
+/**
+ * ...and the negative, which is a different claim and not the same one read
+ * backwards: a row that has not arrived yet names nothing, so this is asked
+ * AFTER a positive one on the same row and is a read rather than a wait.
+ */
+Then(
+  "that sentence does not name {string}",
+  async function (this: OlaiWorld, words: string) {
+    const said = (await rungRow(this).first().textContent()) ?? "";
+    assert.ok(
+      !said.includes(words),
+      `the machine's message names ${JSON.stringify(words)}:\n${said}`,
     );
   },
 );

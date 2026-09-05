@@ -68,7 +68,12 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     # derived from is the thing a person reaches for from the collapsed message.
     And that sentence can be pressed through to the board
     When I open that sentence
-    Then that sentence names the terminal "22222222-2222-4222-8222-222222222222"
+    # THE JOIN, and the id is asserted rather than the wording: every word of the
+    # sentence is kolu's own and `doorbell.test.ts` pins them. What this line is
+    # for is that the file a person picked, the un-done step in it, and a
+    # terminal on the far end of a real socket are three separate facts, and this
+    # is the one place they meet.
+    Then that sentence names "22222222-2222-4222-8222-222222222222"
     And there should be no page errors
 
   @scratch:lanes @plugins:kolu
