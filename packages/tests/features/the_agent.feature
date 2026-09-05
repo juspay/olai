@@ -1172,7 +1172,8 @@ Feature: Talking to the agent
     Then the agent's answer mentions "a second message while working will be refused from here on."
     And the agent is idle
     When I ask the agent "hold"
-    Then the agent is working
+    Then the agent's answer mentions "working on it"
+    And the agent is working
     When I ask the agent "done order"
     Then the chat shows my message "done order" as "refused"
     And the strip under my message "done order" reads "not sent"

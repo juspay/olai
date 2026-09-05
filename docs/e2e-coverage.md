@@ -15,6 +15,9 @@ checks that the box retains focus, and submits the next filename with the
 keyboard. The regression fails before the focus fix. Busy-refusal scenarios
 also wait for the fixture's acknowledgement before checking idle, so the
 initial idle state cannot satisfy setup before the requested mode is active.
+They also wait for the held turn's own "working on it" response: the browser's
+optimistic working state alone does not prove the fixture is already inside
+the turn that must refuse a concurrent prompt.
 
 The post-merge CI follow-up also makes the node-mutation setup wait for a new
 session id and idle state before sending its first message. The phone Git
