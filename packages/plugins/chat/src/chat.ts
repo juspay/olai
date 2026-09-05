@@ -1038,6 +1038,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     // here would be a second place to remember when the state gains one.
     let state: ChatState = {
       ...CHAT_OFF,
+      uploadScope: files.scope(),
       status: "booting",
       roster: options.roster().map(said),
     }
@@ -1157,7 +1158,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     }
 
     const move = (next: Partial<ChatState>) => {
-      state = { ...state, ...next }
+      state = { ...state, ...next, uploadScope: files.scope() }
       options.onState(state)
     }
 

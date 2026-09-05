@@ -434,6 +434,7 @@ export function Composer(props: {
    * ({@link ./state.ts}).
    */
   const send = async (interrupt = false) => {
+    const uploadScope = props.chat.state().uploadScope
     const text = draft()
     if (
       text.trim() === "" &&
@@ -472,6 +473,9 @@ export function Composer(props: {
       interrupt,
     )
     if (sent) return
+    // A refused send may settle after a session switch. Its files and draft
+    // cannot be restored into the newly opened conversation.
+    if (props.chat.state().uploadScope !== uploadScope) return
     // THE WORDS AND THE PERMISSION FOR THEM MOVE TOGETHER, on one test rather
     // than two: the restored `@hinges` has to be a word the panel remembers
     // writing, or the message goes the second time without the subject it was

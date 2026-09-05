@@ -265,3 +265,15 @@ test("what the agent is asked is the path, as text", async () => {
     "what is this\n\nAttached file: /tmp/olai-chat-x/Type 04-C.pdf",
   )
 })
+
+test("an upload cannot cross a discarded lifetime even before its first chunk", async () => {
+  const files = make()
+  const old = files.scope()
+  await Effect.runPromise(files.discard)
+  expect(files.scope()).not.toBe(old)
+  const refused = await receive(files, { name: "notes.txt", data: bytes(5).toString("base64"), uploadScope: old })
+  expect(Result.isFailure(refused)).toBe(true)
+  const accepted = await receive(files, { name: "notes.txt", data: bytes(5).toString("base64"), uploadScope: files.scope() })
+  expect(Result.isSuccess(accepted)).toBe(true)
+  await Effect.runPromise(files.discard)
+})

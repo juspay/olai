@@ -1106,6 +1106,8 @@ export const sentToDo = (spawned: Spawned | undefined, title: string): string =>
  * call — see {@link ./attach.ts}, which owns the numbers.
  */
 export const AttachChunk = Schema.Struct({
+  /** Browser uploads must remain in the live conversation they started in. */
+  uploadScope: Schema.optionalKey(Schema.String),
   /** The file name as the browser had it. Sanitized to a safe basename on the
    *  way to disk — a name is a label here, never a path. */
   name: Schema.String,
@@ -1782,6 +1784,8 @@ export const ChatState = Schema.Struct({
   /** The session the server is in, or `null` between sessions. WHOSE it is
    *  is `talking` below, which is the panel's one answer to that. */
   session: Schema.NullOr(Conversation),
+  /** Live attachment lifetime, distinct from the harness's durable session ID. */
+  uploadScope: Schema.NullOr(Schema.String),
   /**
    * WHICH NODE AGENT this conversation belongs to, by the node's own id — or
    * `null` for a conversation no node claims, which is nearly every one.
@@ -1992,6 +1996,7 @@ export const CHAT_OFF: ChatState = {
   // have.
   off: null,
   session: null,
+  uploadScope: null,
   bound: null,
   model: null,
   usage: null,

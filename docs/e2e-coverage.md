@@ -27,7 +27,7 @@ in a disposable vault; deterministic ACP fixtures make regressions repeatable in
 | Chat turns and tool results | Send, streaming, follow-up, formatted output, tool details/diffs, refused writes, silent/error turns, subagent output | `the_agent`, `an_answer_leaves_the_rows_standing` | Real Claude/Sonnet read and reply exercised; audit open |
 | Chat interruption | Queue, steer, cancel, failure while messages wait, background tasks, shutdown during a running turn | `the_agent`, `choosing_an_agent`, `chat_plugin_lifecycle` | Running-plugin teardown scenario added; audit open |
 | Chat drafts and context | Text and @ completion, node chips, refusal recovery, drawer/session changes, stale/deleted context, reload boundaries | `chat_at_completion`, `chat_at_nodes`, `node_context`, `chat_plugin_lifecycle` | Remount draft loss fixed and covered; remaining edges open |
-| Chat attachments | Picker, paste, drop, camera, multiple/unsupported/large files, remove/send/retry, uploads during navigation and reconnect | `the_agent`, `chat_attachments_lifetime` | Live browser found drawer attachment loss; fix and lifecycle scenarios in progress |
+| Chat attachments | Picker, paste, drop, camera, multiple/unsupported/large files, remove/send/retry, uploads during navigation and reconnect | `the_agent`, `chat_attachments_lifetime` | Drawer loss fixed; ten new scenarios cover remounts, slow reads, new sessions, chat restart, two nodes, same-name isolation, removal and retry. Broader phone, size-limit and connectivity review open |
 | Chat questions and permissions | Allow/deny, choices and free text, subagent attribution, plan approval, cancellation, drafts, reload and second-tab answers | `the_agent`, `the_agent_waits_on_you` | Open |
 | Conversation history | List, choose, title, new/clear/compact, restore after reload/restart, unavailable or deleted stored session | `the_agent`, `choosing_an_agent`, `node_agents` | Draft isolation scenario added; audit open |
 | Node agents | Start/assign/open/new session, navigate to node, history, concurrent sessions, subtree fence, deletion/move, stopped harness and reaping | `node_agents`, `node_context`, `node_agent_sessions`, `node_agent_fresh_sessions` | Fixed lost history navigation and history stranded behind unused fresh sessions; seven scenarios cover history, fresh chats, other-node navigation, reload and restart. Mutation, concurrency, reaping and remaining edges open |
@@ -42,3 +42,10 @@ in a disposable vault; deterministic ACP fixtures make regressions repeatable in
 The PR's single bug/fix/test table records confirmed defects and new coverage.
 This inventory must retain unresolved rows rather than treating the number of
 passing scenarios as evidence that those rows are complete.
+
+For session lifecycle tests, `the harness keeps distinct sessions on disk`
+enables the scripted ACP harness's persistent store in the scratch vault.
+New sessions receive unique IDs; only prompted sessions can be listed or loaded,
+and replay uses their actual recorded messages across harness/server restarts.
+This avoids the canned harness's constant session ID and shared replay hiding
+node ownership, history, and restoration defects.

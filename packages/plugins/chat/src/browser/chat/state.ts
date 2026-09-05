@@ -55,7 +55,7 @@ import { type Call, run } from "@olai/web/client/run.ts"
 import { attaching } from "./attach.ts"
 import { createRows } from "./order.ts"
 import { createTail, grownText } from "./growing.ts"
-import { forget, remember } from "./previews.ts"
+import { previewScope, remember } from "./previews.ts"
 import { closePreview } from "./previewing.ts"
 
 /**
@@ -372,10 +372,7 @@ export const createChat = (): Chat => {
     )
   }
 
-  // A conversation ended, so what belonged to it did too, and there are two
-  // such things now. The thumbnails this tab was keeping are of files that no
-  // longer exist, under names the next conversation will mint again — the
-  // server threw its tmp directory away. And an open PREVIEW is addressed by a
+  // An open transcript PREVIEW is addressed by a
   // transcript key ({@link ./previewing.ts}), which is exactly the kind of name
   // the next conversation re-mints: a fresh transcript counts from `tool:1`, so
   // a key left over from the last one does not merely go stale, it can COLLIDE —
@@ -384,15 +381,15 @@ export const createChat = (): Chat => {
   // transcript. The shelf's own guard hides a MISSING row and cannot see that
   // one, which is why the fix is here and not there.
   //
-  // Here rather than in a component because this is where the session is known —
-  // the cell is the only thing that says a conversation changed — and both are
-  // in one effect because they are one event.
+  // The transcript preview closes on a session change. Attachment thumbnails
+  // instead follow the live upload scope, so remounting does not discard them.
   createEffect(
     on(() => state().session?.id, () => {
-      forget()
       closePreview()
     }, { defer: true }),
   )
+
+  createEffect(() => previewScope(state().uploadScope))
 
   return {
     state,
@@ -439,16 +436,17 @@ export const createChat = (): Chat => {
         // below has cleared what belonged to it. Answering `gone` then is the
         // honest thing: the file is gone, and a chip for it would offer a send
         // the server would refuse.
-        const asked = state().session?.id
+        const asked = state().uploadScope
+        if (asked === null) return resolve({ _tag: "gone" })
         run(
-          attaching(file, (chunk) => chatWire().procedures.conversation.attach(chunk)),
+          attaching(file, (chunk) => chatWire().procedures.conversation.attach({ ...chunk, uploadScope: asked })),
           (failure) => resolve({ _tag: "refused", failure }),
           (stored) => {
-            if (state().session?.id !== asked) return resolve({ _tag: "gone" })
+            if (state().uploadScope !== asked) return resolve({ _tag: "gone" })
             // The Blob is the one already in hand — this tab is the only
             // reader that will ever have it, and the name it is filed under is
             // the SERVER's, which is what the transcript row will carry.
-            remember(stored.name, file)
+            remember(stored.name, file, asked)
             resolve({ _tag: "stored", stored })
           },
         )
