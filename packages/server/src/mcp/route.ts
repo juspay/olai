@@ -51,7 +51,7 @@
 
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js"
-import type { IdentityConfig } from "@olai/identity"
+import type { Identity } from "@olai/plugin-api/services"
 import { Effect, Layer, Option } from "effect"
 import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { AsyncLocalStorage } from "node:async_hooks"
@@ -213,11 +213,13 @@ export interface Options {
   /** The bearer token a non-loopback request must present. Minted per process.
    *  Loopback may omit it; a request that carries it is accepted either way. */
   readonly token: string
-  /** Which headers name the person in front of the proxy — the operator's
-   *  configuration, read by the same {@link whoOf} the page and `GET /olai/who`
-   *  read. Here so that a write through this door can be attributed to whoever
-   *  the proxy says made it, and to nobody when it says nothing. */
-  readonly identity: IdentityConfig
+  /** Who a request is, through the same `Identity` door the page and
+   *  `GET /olai/who` read — the identity row's reading, or nobody when no
+   *  such row is mounted. Here so that a write through this door can be
+   *  attributed to whoever the proxy says made it, and to nobody when it
+   *  says nothing. A thunk, so a row switched off mid-serve stops naming
+   *  anybody from the next dispatch on. */
+  readonly identity: () => Identity
 }
 
 /**

@@ -2,12 +2,15 @@
  * THE ENVIRONMENT EDGE: everything the operator said about identity, read
  * once, as one value.
  *
- * Nothing else in this package touches `process.env`. {@link ./identity.ts}
- * is a parse over header names it is HANDED and {@link ./picture.ts} is a
- * ladder over a template it is HANDED — both pure functions of their
- * arguments, which is what lets a test state a deployment instead of
- * arranging one, and what stops "how this olai is wired" from being
- * answered in two places.
+ * Nothing in this package touches `process.env` — this file is handed the
+ * variables, and the row's `apply` is where they come from
+ * (`@olai/plugin-api`'s `Env`, which is a composition root's one reach for
+ * a real environment and a test's one place to state a fake one).
+ * {@link ./identity.ts} is a parse over header names it is HANDED and
+ * {@link ./picture.ts} is a ladder over a template it is HANDED — both pure
+ * functions of their arguments, which is what lets a test state a
+ * deployment instead of arranging one, and what stops "how this olai is
+ * wired" from being answered in two places.
  *
  * One family, `OLAI_IDENTITY_*`, and it is deliberately not one variable
  * per proxy: a login, an email claim, a display name, a picture, and the
@@ -15,8 +18,13 @@
  * defaults are `tailscale serve`'s own headers, because that is the
  * deployment olai documents first.
  *
- * Read on demand rather than at import, so what a process was STARTED with
- * is what it serves.
+ * IT IS THE ROW'S ENVIRONMENT RATHER THAN ITS `config:`, and the two are a
+ * real choice. A row's config is what a DEPLOYMENT'S command line says
+ * (`--commit` on the git row); this family is what the reverse proxy in
+ * front of that deployment is wired as, which is set where the proxy is —
+ * in the unit that starts olai, beside `OLAI_LOG` and the rest — and is
+ * documented there ([running.md](../../../../../docs/running.md)). Moving
+ * it into `olai.yml` would ask an operator to say it twice.
  */
 
 import {
@@ -58,11 +66,20 @@ export const DEFAULT_IDENTITY_CONFIG: IdentityConfig = {
   avatarTemplate: null,
 }
 
+/** What a process can see, as the plugin's `Env` hands it over. */
+export interface Vars {
+  readonly [name: string]: string | undefined
+}
+
 /** One optional name out of the environment: unset is `fallback`, empty
  *  (or blank) is off, anything else is what it says. The one shape every
  *  variable in the family has. */
-const named = (variable: string, fallback: string | null): string | null => {
-  const asked = process.env[variable]
+const named = (
+  vars: Vars,
+  variable: string,
+  fallback: string | null,
+): string | null => {
+  const asked = vars[variable]
   if (asked === undefined) return fallback
   const name = asked.trim()
   return name === "" ? null : name
@@ -76,18 +93,18 @@ const named = (variable: string, fallback: string | null): string | null => {
  * `null`, and the email claim falls back to whatever the login header is
  * called.
  */
-const headerNames = (): IdentityHeaders => {
-  const login = process.env[LOGIN_ENV]?.trim() || DEFAULT_LOGIN_HEADER
+const headerNames = (vars: Vars): IdentityHeaders => {
+  const login = vars[LOGIN_ENV]?.trim() || DEFAULT_LOGIN_HEADER
   return {
     login,
-    email: named(EMAIL_ENV, login),
-    name: named(NAME_ENV, DEFAULT_NAME_HEADER),
-    picture: named(PICTURE_ENV, DEFAULT_PICTURE_HEADER),
+    email: named(vars, EMAIL_ENV, login),
+    name: named(vars, NAME_ENV, DEFAULT_NAME_HEADER),
+    picture: named(vars, PICTURE_ENV, DEFAULT_PICTURE_HEADER),
   }
 }
 
 /** What this process was started with — the ONE way to ask. */
-export const identityConfig = (): IdentityConfig => ({
-  headers: headerNames(),
-  avatarTemplate: named(AVATAR_ENV, null),
+export const identityConfig = (vars: Vars): IdentityConfig => ({
+  headers: headerNames(vars),
+  avatarTemplate: named(vars, AVATAR_ENV, null),
 })

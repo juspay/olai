@@ -1,7 +1,7 @@
 /**
- * THE THREE SEATS THE SHELL RESERVES for a plugin's faces — the panel on the
- * right, the sections under the sidebar's own, and the door under a row's
- * property run.
+ * THE FOUR SEATS THE SHELL RESERVES for a plugin's faces — the panel on the
+ * right, the bar's last chip, the sections under the sidebar's own, and the
+ * door under a row's property run.
  *
  * ## Why they are here and not at their call sites
  *
@@ -12,12 +12,13 @@
  * site would pin whichever answer the page happened to be built on, which for a
  * tab that follows the roster is a real state rather than a theoretical one.
  *
- * They are one file because they are one decision said three times: CORE KEEPS
+ * They are one file because they are one decision said four times: CORE KEEPS
  * THE BOX AND THE PLUGIN BRINGS THE FACE. Where the panel sits, how wide it is
- * and whether it is open; the sidebar's region, its heading's type and its
- * height budget; where under a row the door is drawn — all of that is the
- * shell's, survives whichever plugin is in the seat, and is not something a
- * tenant may be wrong about.
+ * and whether it is open; that the viewer's chip is last in the bar and stays
+ * there on a phone; the sidebar's region, its heading's type and its height
+ * budget; where under a row the door is drawn — all of that is the shell's,
+ * survives whichever plugin is in the seat, and is not something a tenant may
+ * be wrong about.
  */
 
 import { createMemo, For, Show } from "solid-js"
@@ -38,6 +39,40 @@ import { hung, only } from "./runtime.ts"
  */
 export function PluginPanel() {
   const seat = createMemo(() => only("app.panel"))
+  return (
+    <Show when={seat()}>
+      {(taken) => {
+        const Face = taken().face
+        return <Face />
+      }}
+    </Show>
+  )
+}
+
+/**
+ * WHO IS LOOKING — the bar's LAST seat, and there is one.
+ *
+ * `only` for `PluginPanel`'s reason one slot over: two chips answering "who am
+ * I" in one bar is not an answer, so a second claim is refused where it is made
+ * rather than arbitrated here.
+ *
+ * ## Why this is not a seat in the header cluster
+ *
+ * Because the cluster is drawn under `desktop()` and this is not. The pills
+ * beside it are about the app's HEALTH and leave the bar entirely on a phone
+ * (WhatsApp's rule, and `on_a_phone.feature` asserts what is left: identity and
+ * search). Who is looking is about the READER, it is last on every viewport,
+ * and it survives that rule — so the shell places it OUTSIDE the desktop gate,
+ * which is a fact about this app's geometry rather than something a plugin
+ * should be able to be wrong about.
+ *
+ * Nothing at all where nobody has taken it — a serve running no identity row
+ * draws no chip, beside a server on which every request is nobody. The two
+ * halves say the same thing, which is what keeps the empty seat readable rather
+ * than looking like a chip that failed to load.
+ */
+export function PluginViewer() {
+  const seat = createMemo(() => only("app.viewer"))
   return (
     <Show when={seat()}>
       {(taken) => {

@@ -51,6 +51,7 @@
         "olai-plugin-claude": "workspace:*",
         "olai-plugin-codex": "workspace:*",
         "olai-plugin-git": "workspace:*",
+        "olai-plugin-identity": "workspace:*",
         "olai-plugin-journal": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
         "olai-plugin-odu": "workspace:*",
@@ -87,10 +88,6 @@
       "devDependencies": {
         "yaml": "^2.9.0",
       },
-    },
-    "packages/identity": {
-      "name": "@olai/identity",
-      "version": "0.1.0",
     },
     "packages/index": {
       "name": "@olai/index",
@@ -168,6 +165,7 @@
         "@solid-primitives/keyed": "^1.5.3",
         "@solid-primitives/scheduled": "^1.5.3",
         "effect": "4.0.0-rc.112",
+        "olai-plugin-identity": "workspace:*",
         "solid-js": "^1.9.0",
         "zod": "^4.0.0",
       },
@@ -215,6 +213,21 @@
         "@effect/platform-node": "4.0.0-rc.112",
         "@olai/ops": "workspace:*",
         "@olai/surface": "workspace:*",
+        "@types/node": "^22.0.0",
+      },
+    },
+    "packages/plugins/identity": {
+      "name": "olai-plugin-identity",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/plugin-api": "workspace:*",
+        "@olai/surface": "workspace:*",
+        "@olai/web": "workspace:*",
+        "effect": "4.0.0-rc.112",
+        "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/format": "workspace:*",
         "@types/node": "^22.0.0",
       },
     },
@@ -308,7 +321,6 @@
         "@olai/acp": "workspace:*",
         "@olai/bundle": "workspace:*",
         "@olai/format": "workspace:*",
-        "@olai/identity": "workspace:*",
         "@olai/log": "workspace:*",
         "@olai/ops": "workspace:*",
         "@olai/plugin-api": "workspace:*",
@@ -323,6 +335,7 @@
         "@olai/child": "workspace:*",
         "@types/node": "^22.0.0",
         "olai-plugin-git": "workspace:*",
+        "olai-plugin-identity": "workspace:*",
       },
     },
     "packages/sigterm": {
@@ -365,11 +378,11 @@
         "@olai/bundle": "workspace:*",
         "@olai/fonts": "workspace:*",
         "@olai/format": "workspace:*",
-        "@olai/identity": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/web": "workspace:*",
         "olai-plugin-chat": "workspace:*",
+        "olai-plugin-identity": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
       },
       "devDependencies": {
@@ -594,8 +607,6 @@
     "@olai/fonts": ["@olai/fonts@workspace:packages/fonts"],
 
     "@olai/format": ["@olai/format@workspace:packages/format"],
-
-    "@olai/identity": ["@olai/identity@workspace:packages/identity"],
 
     "@olai/index": ["@olai/index@workspace:packages/index"],
 
@@ -1218,6 +1229,8 @@
     "olai-plugin-codex": ["olai-plugin-codex@workspace:packages/plugins/codex"],
 
     "olai-plugin-git": ["olai-plugin-git@workspace:packages/plugins/git"],
+
+    "olai-plugin-identity": ["olai-plugin-identity@workspace:packages/plugins/identity"],
 
     "olai-plugin-journal": ["olai-plugin-journal@workspace:packages/plugins/journal"],
 

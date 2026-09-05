@@ -9,24 +9,36 @@
  * failed ask is a throw, not an intercepted GET.
  *
  * WHICH picture a person wears is the server's answer and not this
- * suite's: `@olai/identity`'s ladder resolves it, and what the steps here
+ * suite's: the identity ROW's ladder resolves it, and what the steps here
  * assert is the `src` the chip drew. The remote hosts on that ladder are
  * fulfilled locally (the "is a real image" Given) — a suite that fetched
  * github.com to see whether an `<img>` appeared would be testing the
  * network, and would fail on a machine that has none.
+ *
+ * TWO NAMES COME FROM THE ROW ITSELF, through the reading door that has no
+ * runtime in it (`olai-plugin-identity/who`): the header names a Given
+ * injects, so a step writes the header olai actually reads, and the
+ * gravatar URL a Then expects, so a hash spelled twice cannot disagree.
+ * The chip's testid comes from the same row's `./testids`, merged into
+ * `@olai/bundle/testids` with every other plugin's — it left
+ * `@olai/web`'s table with the chip.
  */
 
 import * as assert from "node:assert";
 import { Given, Then } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
-import { DEFAULT_IDENTITY_HEADERS, gravatarOf } from "@olai/identity";
-import { selector, TESTID } from "@olai/web/testlib";
+import {
+  DEFAULT_IDENTITY_HEADERS,
+  gravatarOf,
+} from "olai-plugin-identity/who";
+import { PLUGIN_TESTID } from "@olai/bundle/testids";
+import { selector } from "@olai/web/testlib";
 
 import { POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-const IDENTITY = selector(TESTID.identity);
+const IDENTITY = selector(PLUGIN_TESTID.identity);
 
 /** A one-pixel PNG, which is a real image and not a fixture file: what the
  *  scenarios need from a remote avatar is that the browser could draw it. */

@@ -25,7 +25,6 @@
 
 import { surface } from "@olai/surface"
 import { type GitPin, type PageRequest } from "@olai/format"
-import type { IdentityConfig } from "@olai/identity"
 import { make as makeOps, NO_LEDGER, type Ledger as OpsLedger, type Ops, TOOLS } from "@olai/ops"
 import {
   BUNDLE_NAMES,
@@ -39,6 +38,7 @@ import {
 import { bundleRank } from "@olai/bundle"
 import { emitter } from "@olai/log"
 import {
+  Identity,
   Ledger,
   NOWHERE_TO_WRITE,
   openPlugins,
@@ -56,6 +56,7 @@ import { pluginChunks } from "./dynamic/route.ts"
 import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
+import { NOBODY } from "./identity.ts"
 import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
 import { currentLogin, MCP_PATH, mcpTransport } from "./mcp/route.ts"
@@ -74,10 +75,23 @@ export interface ServeOptions {
   readonly clientDist: string
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
-  /** What this server trusts for who is looking, and how it pictures them
-   *  — the header names plus the avatar template (`@olai/identity`).
-   *  Read from the environment at the composition root, once. */
-  readonly identity: IdentityConfig
+  /**
+   * WHAT THIS PROCESS CAN SEE — `process.env` on a real serve, and the one
+   * place a test states an environment instead of arranging one.
+   *
+   * It is here because a plugin's rendezvous is decided from it
+   * (`@olai/plugin-api`'s `Env`), and the identity row's header names are
+   * the first of those a test in THIS package has to be able to set: the
+   * two doors that answer who is looking are the listener's, so a suite
+   * that drives a real socket must be able to say what the proxy in front
+   * of it is called. It used to be an `identity` field of parsed header
+   * names, which was core holding the row's own vocabulary in order to
+   * hand it back to the row.
+   *
+   * Omitted is `process.env` itself, which is what `olai web` passes by
+   * saying nothing.
+   */
+  readonly vars?: Record<string, string | undefined>
   /** `--commit` / `--push` as given — a CLI patch onto the git row's config,
    *  the way `--plugins` is a patch onto `disabled`. `null` on both halves is
    *  nobody having said. */
@@ -222,7 +236,7 @@ export const serve = (options: ServeOptions) =>
      * in this package — and it passes `null` to `bind` directly.
      */
     const plugins = yield* openPlugins({
-      vars: process.env,
+      vars: options.vars ?? process.env,
       now: () => new Date().toISOString(),
       served,
       tools: toolsReady,
@@ -392,6 +406,26 @@ export const serve = (options: ServeOptions) =>
     }
     const currentLedger = (): OpsLedger =>
       (offered(plugins.host, Ledger) as OpsLedger | undefined) ?? NO_LEDGER
+
+    /**
+     * WHO IS LOOKING, asked of the roster as it stands — the identity row's
+     * reading, or {@link NOBODY}.
+     *
+     * The same shape the ledger above has, and for the same reason: a door
+     * core DEFINES, a row STANDS BEHIND, and a serve that composed no such
+     * row answers honestly rather than through a stand-in that invents
+     * something. What "honestly" is here is the state a loopback serve with
+     * no proxy in front has always been in — every request is nobody — so
+     * there is nothing for the absent arm to say that the present one does
+     * not already say every day.
+     *
+     * Read PER CALL, so a flip at the plugins panel reaches the next
+     * request. The one thing it cannot reach is the header allowlist a
+     * bound socket already fixed; `./listener.ts` names that seam where it
+     * is spent.
+     */
+    const currentIdentity = (): Identity =>
+      (offered(plugins.host, Identity) as Identity | undefined) ?? NOBODY
 
     const ops: Ops = makeOps({
       store,
@@ -607,7 +641,11 @@ export const serve = (options: ServeOptions) =>
         // plugins are on is the boot refusal `restrictHandlers` exists to raise.
         expose: () => wired.faces.browser,
         hostname: theMachine,
-        mcp: { transport, token, identity: options.identity },
+        // WHO IS LOOKING, on the socket and on the two HTTP doors — one
+        // accessor onto the offered reading, handed to both so a chip in a
+        // browser and a capture from a terminal cannot disagree.
+        identity: currentIdentity,
+        mcp: { transport, token, identity: currentIdentity },
         // `POST /olai/resync` — force a re-read of the disk. Waits for
         // in-flight writes first (`ops.idle`): a probe while a `run` is
         // still staging is a look at `.olai-*.tmp`, not at the tree the

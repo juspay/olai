@@ -47,7 +47,7 @@
 
 import { serveSurfaceApp, type SurfaceAppListenFailed } from "@kolu/surface-app/serve"
 import type { FaceExposure } from "@kolu/surface/expose"
-import { headerNamesOf, type IdentityConfig } from "@olai/identity"
+import type { Identity } from "@olai/plugin-api/services"
 import { codeOf, type Emit, emitter } from "@olai/log"
 import { ASSET_PREFIX } from "@olai/surface"
 import { Effect, Layer, type Scope } from "effect"
@@ -112,9 +112,24 @@ export interface ListenOptions {
   readonly port: number
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
-  /** What this server trusts for who is looking: the header names, and the
-   *  avatar template the picture ladder may use. */
-  readonly identity: IdentityConfig
+  /**
+   * WHO IS LOOKING, as whatever row is standing behind the `Identity` door
+   * right now — `./identity.ts`'s `NOBODY` when none is.
+   *
+   * A THUNK, for the reason {@link ListenOptions.bound}'s fields are
+   * accessors: the roster MOVES, and a serve that switched the identity row
+   * off holds a socket whose every later request must read as nobody. Read
+   * per request, so it does.
+   *
+   * ...with ONE exception, and it is the one thing about identity that a
+   * flip cannot carry: the header ALLOWLIST below is resolved by the seam
+   * at the bind, so what a socket may carry is decided once. A row offered
+   * mid-serve names its headers at the next start
+   * (`@olai/plugin-api`'s `Identity` argues why the seam is shaped that
+   * way, and `packages/plugins/identity/docs.md` says what it costs an open
+   * tab).
+   */
+  readonly identity: () => Identity
   /** The internal MCP server, mounted beside the static routes — see
    *  {@link ./mcp/route.ts} for why it rides this listener rather than a
    *  transport of its own. */
@@ -250,11 +265,16 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     host: options.host,
     port,
     allowedOrigins: options.allowedOrigins,
-    // The identity headers this process trusts — unique, so a login that
-    // doubles as the email claim is named once (a repeated name is a bind
-    // defect upstream). Empty-by-default on the seam; naming them HERE is
-    // the app saying the proxy in front owns them.
-    upgradeHeaders: headerNamesOf(options.identity.headers),
+    // The identity headers this serve trusts, as the mounted row names them
+    // — unique, so a login that doubles as the email claim is named once (a
+    // repeated name is a bind defect upstream). Empty-by-default on the
+    // seam, and empty is also what a serve with no identity row asks for:
+    // no name is trusted because nothing is reading one. READ ONCE HERE,
+    // which is the seam {@link ListenOptions.identity} names.
+    upgradeHeaders: options.identity().headers,
+    // ...and the READING is per connection, through the door as it stands
+    // when the socket is accepted — so a row switched off mid-serve makes
+    // every socket opened afterwards anonymous with no rebind.
     services: (connection) =>
       Layer.succeed(CurrentWho)(whoOf(connection.headers, options.identity)),
     onEvent: (event) => report(event, say),

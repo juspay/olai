@@ -1,0 +1,36 @@
+{
+  "name": "olai-plugin-identity",
+  "//name": "UNSCOPED, like every other row. `@olai/*` is the scope for the packages that ARE olai; this one is a plugin the loader mounts by name off a row in `packages/bundle/olai.yml`. It was `@olai/identity`, a general leaf package, until who is looking became a door core defines and a row stands behind. The directory is `packages/plugins/identity` and the package name is `olai-plugin-identity`.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "//exports": "SIX doors, and the split is the tree's three-door rule plus the two this plugin is read through. The ROOT is the wire identity — the word, and nothing else: this plugin composes no sibling surface, because who is looking is a fact about the CONNECTION, which is core's (`who.get` on core's own face, answered from the upgrade). `./server` is what the row mounts: the reading, offered as the `Identity` door — no `solid-js` on that graph. `./browser` is the chunk the tab fetches when the roster names this row, and it carries the chip that hangs in `app.viewer`. `./who` is the READING as a value — `identityOf`, the picture ladder, the `OLAI_IDENTITY_*` family — for the server half and for the e2e suite, which states a deployment's headers rather than arranging one; it carries `node:crypto` (the gravatar hash) and no browser reaches it. `./person` is the other side of the same subject: how a person is ASKED for and DRAWN in this tab (one `who.get` for the page, the words, the silhouette), which the chat row's transcript reads so a header saying one thing about who is looking and a transcript saying another is unrepresentable. `./testids` and `./all.css` are the two contracts the generated bundle files need of every row.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./browser": "./src/browser.tsx",
+    "./who": "./src/who/index.ts",
+    "./person": "./src/person.ts",
+    "./testids": "./src/testids.ts",
+    "./all.css": "./src/browser/all.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//": "WHO IS LOOKING, as a row. A login the reverse proxy injected, or nobody; the picture ladder that decides what that person wears; and the chip in the top right that draws the answer. Core defines the `Identity` door and reads it at the upgrade, at `GET /olai/who` and at `/mcp`; this row is what stands behind it.",
+  "//dependencies": "`@olai/plugin-api` is the door: the `Offers` tag the server half stands behind `Identity` with, the `Env` it reads the operator's family out of, and the `Slots` its chip hangs in. `effect` because a plugin's `apply` is one. `solid-js` because the chip is a component. `@olai/surface` for the `Who` schema the tab's ask is typed by — the SAME value core's `who.get` answers with, so the chip cannot draw a shape the server does not send; type-only in the browser half, and no runtime of it reaches the reading. `@olai/web` is the shell door every browser half opens for the app's own furniture (the icon button, the tip, the layer). NOTHING under `./who`: the reading is a function of the arguments it is handed, which is what lets a test state a deployment instead of arranging one, and `node:crypto` is a builtin.",
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "@olai/surface": "workspace:*",
+    "@olai/web": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "solid-js": "^1.9.0"
+  },
+  "//devDependencies": "@olai/format for ONE refusal class in ONE test — the shape a procedure fails with, so the test that says a failed ask is a THROW rather than honest absence fails with the failure the wire really carries. A devDependency and not a runtime one, deliberately: the chip draws a person or a silhouette and never a vault record, and this row is the one plugin in the tree whose faces read nothing of the format at all.",
+  "devDependencies": {
+    "@olai/format": "workspace:*",
+    "@types/node": "^22.0.0"
+  }
+}

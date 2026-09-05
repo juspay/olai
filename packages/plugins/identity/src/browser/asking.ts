@@ -17,8 +17,8 @@
 import type { Who } from "@olai/surface"
 import { type Accessor, createResource } from "solid-js"
 
-import { runAsync } from "../run.ts"
-import { olai } from "../wire.ts"
+import { runAsync } from "@olai/web/client/run.ts"
+import { olai } from "@olai/web/client/wire.ts"
 import { fromAsk } from "./fromAsk.ts"
 
 export type { Who }

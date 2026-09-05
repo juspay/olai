@@ -58,12 +58,11 @@ export const TESTID = {
    *  of the app (including the error report) gets it. On a phone it is the
    *  wordmark, the burger and search; the pills live elsewhere. */
   appHeader: "app-header",
-  /** Who is looking, last in the chrome row (top right). Always drawn:
-   *  `data-who` is `asking` / `none` / `yes` / `error` — a closed set.
-   *  `none` is anonymous, not a missing chip. A picture `<img>` is inside
-   *  it only when `yes` AND the server resolved one — a person the ladder
-   *  found no picture for wears the silhouette and is still `yes`. */
-  identity: "identity",
+  /* Who is looking is NOT here any more: the chip is `olai-plugin-identity`'s
+     face in the `app.viewer` seat, and its id is that plugin's own
+     (`@olai/bundle/testids`, merged like every other row's). A serve that
+     does not compose that row draws no chip at all, which a name in this
+     table would have quietly implied was impossible. */
   /** The row of controls inside it that are about the APP. On desktop: the
    *  connection, the Commit pill, the uptime chip, the agent toggle, the
    *  preferences trigger. On a phone: search alone. Its own name because the

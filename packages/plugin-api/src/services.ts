@@ -689,19 +689,85 @@ export interface Ledger {
 }
 export const Ledger = serviceTag<Ledger>("ledger")
 
+/** The headers a request arrived with, as a server hands them over — one
+ *  value, a repeated name's values, or nothing. Structural for {@link Ledger}'s
+ *  reason: this package imports neither a platform's HTTP types nor the
+ *  surface's. */
+export interface RequestHeaders {
+  readonly [name: string]: string | ReadonlyArray<string> | undefined
+}
+
+/** WHO A REQUEST IS, already resolved — a login, what to call them, and the
+ *  picture whoever stands behind {@link Identity} settled on (`null` being the
+ *  silhouette a chip draws itself). The same three fields the surface's `Who`
+ *  carries, spelled here because this package does not import the surface. */
+export interface Person {
+  readonly login: string
+  readonly name: string | null
+  readonly picture: string | null
+}
+
 /**
- * THE FIVE DOORS A ROW MAY STAND BEHIND — a CLOSED table, and the closedness is
+ * IDENTITY — who is this request, from the headers it arrived with.
+ *
+ * Core defines the door and does not stand behind it. The identity row offers
+ * it; the listener reads it at the upgrade (the per-connection `who.get`), the
+ * plain-HTTP door reads it at `GET /olai/who`, and the MCP route reads it to
+ * attribute a write to whoever the proxy in front says made it. No row mounted
+ * is every request being nobody — which is exactly what a serve with no proxy
+ * in front of it already was, so the absence needs no second vocabulary.
+ *
+ * WHICH names are trusted and WHICH picture a person wears are the offering
+ * row's, whole: header names, an avatar template and a gravatar are how a
+ * DEPLOYMENT is wired, and core knowing any of it is the second place that
+ * decides it.
+ *
+ * ## `headers` IS READ ONCE, AT THE BIND, and that is the one seam
+ *
+ * A websocket carries what the upgrade was allowed to keep, and that allowlist
+ * is fixed when the port binds (`@kolu/surface-app`'s `upgradeHeaders`, checked
+ * there so a name no header can match is a defect at the bind rather than at
+ * the first connection hours later). So a row offering this door mid-serve
+ * names its headers at the NEXT START — the same bargain {@link Agents} takes
+ * one door up, and for the same reason: a promise this door could not keep is
+ * worse than the one it can. Flipping the row OFF is immediate and needs no
+ * such bargain, because every reading goes back through {@link Identity.who}
+ * and there is nobody behind it any more. The two doors that read a raw request
+ * — `GET /olai/who` and `/mcp` — have no allowlist at all and follow the row
+ * both ways.
+ */
+export interface Identity {
+  /** The header names this deployment trusts, unique — the allowlist the
+   *  upgrade takes, in whatever order the offering row lists them. */
+  readonly headers: ReadonlyArray<string>
+  /** Who this request is, or nobody. A function of the headers it is handed,
+   *  so one reading answers a socket's upgrade, an HTTP door and an MCP
+   *  dispatch. */
+  readonly who: (headers: RequestHeaders) => Person | null
+}
+export const Identity = serviceTag<Identity>("identity")
+
+/**
+ * THE SIX DOORS A ROW MAY STAND BEHIND — a CLOSED table, and the closedness is
  * most of the safety.
  *
  * Four of them are the chat row's: what engines this build seats, where a
  * doorbell may deliver, what a plugin may be told a conversation did, and what
- * to ask this host when one opens. The fifth is the git row's ledger. Every
- * other service on this page is a fact about the process, the vault or the
- * machine, which core knows before any row is mounted — so there is nothing a
- * row could offer that core is not already a better answer for, and everything
- * to lose by letting one try.
+ * to ask this host when one opens. The fifth is the git row's ledger, and the
+ * sixth is the identity row's reading of who is looking. Every other service on
+ * this page is a fact about the process, the vault or the machine, which core
+ * knows before any row is mounted — so there is nothing a row could offer that
+ * core is not already a better answer for, and everything to lose by letting
+ * one try.
  */
-export const OFFERABLE = [Agents, Deliveries, SessionStart, Watching, Ledger] as const
+export const OFFERABLE = [
+  Agents,
+  Deliveries,
+  SessionStart,
+  Watching,
+  Ledger,
+  Identity,
+] as const
 
 /**
  * THE ONE CAPABILITY A PLUGIN MAY NAME — standing behind a service key that OTHER
@@ -731,14 +797,14 @@ export const OFFERABLE = [Agents, Deliveries, SessionStart, Watching, Ledger] as
  *     standing belongs to the calling activation. The bridge revokes offers and
  *     joins dependent cleanup before closing the plugin's resource scope.
  *
- * ## Why FIVE OVERLOADS and not one generic
+ * ## Why SIX OVERLOADS and not one generic
  *
  * Because `ServiceKey` and `Provision` are NOT on a plugin's door, and this is
  * the door that would have put them there. A generic `offer<S>(key:
  * ServiceKey<S>, door: Provision<S>)` is spellable only by a caller who can name
  * both, so every offering plugin would import the bridge's own type vocabulary to
  * write one line — which is the arrow {@link ./runtime.ts} exists to be the only
- * one of. Five overloads land the same cast at the provision and let a plugin
+ * one of. Six overloads land the same cast at the provision and let a plugin
  * write `(who) => ({ … })` and nothing else. It is `./browser.ts`'s `Slots`
  * shape, one level up.
  */
@@ -756,6 +822,7 @@ export interface Offers {
     ): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Watching, door: Provision<Watching>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Ledger, door: Provision<Ledger>): Effect.Effect<void, never, Scope.Scope>
+    (key: typeof Identity, door: Provision<Identity>): Effect.Effect<void, never, Scope.Scope>
   }
 }
 export const Offers = serviceTag<Offers>("offers")
@@ -1135,11 +1202,12 @@ export const openPlugins = (
     }))
 
     /**
-     * ...AND THE FIVE THAT CORE DOES NOT PROVIDE AT ALL, which is the whole of
+     * ...AND THE SIX THAT CORE DOES NOT PROVIDE AT ALL, which is the whole of
      * this phase and reads here as an absence.
      *
      * Four of {@link OFFERABLE} are the chat row's to keep; {@link Ledger} is
-     * the git row's. Offered from the offering plugin's own `apply`
+     * the git row's and {@link Identity} the identity row's. Offered from the
+     * offering plugin's own `apply`
      * ({@link Offers}). Core standing behind them was scaffolding
      * with a date on it: a stand-in whose door was `undefined` answered every
      * question with nothing — no scopes, no doorbells, and a delivery that
@@ -1248,13 +1316,13 @@ export const openPlugins = (
             )),
           )
         }),
-      // THE CAST IS WHAT AN OVERLOAD SET IS. `Offers.offer` declares five call
+      // THE CAST IS WHAT AN OVERLOAD SET IS. `Offers.offer` declares six call
       // signatures and no implementation signature — because a plugin must never
-      // be able to spell a sixth — and the body underneath an overload set is
+      // be able to spell a seventh — and the body underneath an overload set is
       // always one wider function that the declarations narrow. TypeScript will
       // not check the two against each other here (the widening runs through
       // `never`, which overlaps nothing), so this is the same unchecked step a
-      // `function` declaration with five overloads takes, written where the
+      // `function` declaration with six overloads takes, written where the
       // reader can see it.
     } as unknown as Offers))
 
