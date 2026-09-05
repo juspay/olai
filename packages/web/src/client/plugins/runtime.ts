@@ -33,10 +33,11 @@
  * tables, and `@olai/plugin-api`'s `Faces` is where the fence on what a reader
  * may learn is argued.
  *
- * They are provided BEFORE any plugin, which is what makes a `waiting` plugin
- * unreachable in this phase and is the same order `@olai/server`'s `serve.ts`
- * keeps. A plugin that named a service nobody provides would simply never
- * start, and the preferences row would say `waiting`.
+ * Core services are provided before plugins. Browser Offers lets a plugin
+ * publish its own keys; consumers name those keys in needs and remain waiting
+ * until a provider arrives. Withdrawal removes their faces and reactivation
+ * reinstalls them. The preferences panel still reports server state, so a
+ * waiting browser half can belong to a server row that is running.
  *
  * ## THE RE-READ IS SOLID'S AND THE TABLE IS THE RUNTIME'S
  *

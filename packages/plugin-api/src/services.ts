@@ -77,6 +77,7 @@
  * it arrives with node-agent scopes.
  */
 
+import { ownService } from "./owned.ts"
 import type { Engine, Registering } from "@olai/acp/engine"
 import {
   broadcast,
@@ -1358,15 +1359,7 @@ export const openPlugins = (
           )
         })
       return {
-        own: <Shape>(word: string, door: Provision<Shape>) => Effect.suspend(() => {
-          if (![plugin, word].every((part) => /^[a-z][a-z0-9-]*$/.test(part))) {
-            return Effect.die(new Error(
-              `plugins: "${plugin}" cannot offer local service word "${word}"; `
-                + "each segment must start with a lowercase letter and contain only lowercase letters, digits or hyphens.",
-            ))
-          }
-          return stand(serviceTag<Shape>(`${plugin}.${word}`), door)
-        }),
+        own: ownService(plugin, stand),
         offer: <Shape>(key: ServiceKey<Shape>, door: Provision<Shape>) => Effect.suspend(() => {
           if (!OFFERABLE.some((one) => one.cordis === key.cordis)) {
             return Effect.die(new Error(

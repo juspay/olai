@@ -160,9 +160,12 @@
  * `fence.test.ts` walks.
  */
 
+import { ownService, type OwnServices } from "./owned.ts"
 import {
   type Host,
   openHost,
+  offer,
+  OfferConflict,
   provide,
   registry,
   type Registry,
@@ -196,6 +199,11 @@ export * from "./runtime.ts"
  *  register into — and a serve may not open this door at all. That module's
  *  header carries the argument. */
 export { SLOTS, type SlotKey } from "./slots.ts"
+
+/** Browser providers publish only their own namespace. Core browser services
+ * remain host-owned. This tag resolves independently of server Offers. */
+export interface Offers extends OwnServices {}
+export const Offers = serviceTag<Offers>("offers")
 
 /** One of the seventeen. */
 export type SlotName = keyof typeof SLOTS
@@ -824,6 +832,15 @@ export interface AppConfig {
 export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope.Scope> =>
   Effect.gen(function*() {
     const host = yield* openHost
+    yield* provide(host, Offers, (plugin) => ({
+      own: ownService(plugin, (key, door) => offer(key, door).pipe(
+        Effect.catchDefect((defect) => Effect.die(
+          defect instanceof OfferConflict
+            ? new Error(`plugins: "${defect.owner}" and "${plugin}" both offer "${key.cordis}"`)
+            : defect,
+        )),
+      )),
+    }))
     /**
      * ONE TABLE PER SLOT, and a slot IS a table — the seventeen are declared
      * ({@link SLOTS}), so they are opened here rather than grown on demand.

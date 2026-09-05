@@ -280,3 +280,16 @@ Then("the palette {word} the colour {string}", async function (this: OlaiWorld, 
   const answer = await tryTool(this.terminalAgent, "set_prop", { id: "amber", key: "swatch-hex", value });
   assert.strictEqual(answer["isError"] === true, verdict === "rejects", JSON.stringify(answer));
 });
+
+When("the browser palette provider is replaced", function (this: OlaiWorld) {
+  const file = path.join(this.scratch(), "palette.olai");
+  const source = fs.readFileSync(file, "utf8");
+  assert.ok(source.includes("browser-palette-first"));
+  fs.writeFileSync(file, source.replace("browser-palette-first", "browser-palette-second"));
+});
+
+Then("the browser palette face is {string}", async function (this: OlaiWorld, version: string) {
+  await this.page.locator(`.browser-palette-${version} [data-swatch]`).waitFor({
+    state: "visible", timeout: POLL_TIMEOUT,
+  });
+});

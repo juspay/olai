@@ -348,3 +348,24 @@ core's `vault`.
 The Spaces mirror uses this mechanism between two rows this build compiles together: chat offers `chat.seating`, whose `in(derived)` returns the node seating for that snapshot, including nodes without a session. The mirror declares that key in `needs`; switching chat off removes the mirror's registrations and switching it on restores them. Plugin packages have no dependencies on other plugin packages.
 
 `journal.agenda` ([the journal](plugins/journal.md#the-agenda-as-a-service)) is the other case, and the one a key like this exists for: its consumer is a plugin somebody wrote into a vault, which nothing rebuilds when the provider changes. Three things follow, and all three are visible in the door. The journal takes the reading IN, so the answer is about one snapshot and the caller says which. The ask is opaque, because the consumer cannot name a `Reading` and does not have to — it passes on what the revision door gave it. And the answer is the door's OWN shape rather than the type the journal happens to build it out of, so the page model behind it stays free to move.
+
+### Browser-owned services
+
+Browser halves import `Offers` from `@olai/plugin-api` and publish with
+`yield* (yield* Offers).own("palette", consumer => ({ ... }))`. A browser
+consumer declares `serviceTag<Shape>("provider.palette")` in `needs` and
+yields that tag in `apply`, just like a server consumer. Each local segment
+must start with a lowercase letter and contain only lowercase letters, digits
+or hyphens; the provider name comes from the fiber.
+
+Browser `Offers` has only `own`: plugins cannot replace `Slots`, `Wired`, or
+the shell furniture. Keys live in the tab host, independently of identically
+named server keys, and do not appear in the server service catalog. Providers
+publish only after successful initialization. A missing provider keeps the
+consumer waiting with no faces; withdrawal releases those faces before the
+provider resources, and reactivation receives a fresh service. The plugins
+panel currently reports server state, so it can say running while a browser
+consumer waits. Shapes remain a contract between the two authors.
+
+The viewer kit remains in the shell until Phase 18 moves its faces; this phase
+provides the browser dependency mechanism that move requires.
