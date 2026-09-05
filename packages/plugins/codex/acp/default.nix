@@ -5,8 +5,8 @@
 { lib, stdenv, buildNpmPackage, fetchFromGitHub, makeWrapper, nodejs }:
 
 let
-  adapterVersion = "1.8.0";
-  codexVersion = "0.152.0"; # resolved by this adapter release's package-lock
+  adapterVersion = "1.10.0";
+  codexVersion = "0.153.3"; # resolved by this adapter release's package-lock
   # The optional npm package and the native binary inside it use different
   # platform vocabularies. One table keeps the pair atomic and makes an
   # unsupported host fail at evaluation rather than fall into a Darwin branch.
@@ -26,9 +26,9 @@ buildNpmPackage {
     owner = "agentclientprotocol";
     repo = "codex-acp";
     rev = "v${adapterVersion}";
-    hash = "sha256-dmih+6xA+v8oNy8LayIGG0+4Psfkct06O/ECKWnYP+g=";
+    hash = "sha256-D8uYd30NRXQYUSBFCi66Oq0iRZXpl8P7nWv2m3+KBig=";
   };
-  npmDepsHash = "sha256-fWAIaVK1fHvY+oJPooiM/9bQ61jf+0vBGLXEOGXdq0Q=";
+  npmDepsHash = "sha256-df1/kPiZFBEq9Um26Qbo9XaYj2J8BOXQmunCQWquDTo=";
 
   nativeBuildInputs = [ makeWrapper ];
 
