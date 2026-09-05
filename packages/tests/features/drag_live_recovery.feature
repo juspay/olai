@@ -30,6 +30,34 @@ Feature: Held drags remain safe when their source or destination disappears
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: A plugin rebuild cancels the held gesture and leaves a fresh drag usable
+    Given I rewrite "drag-recovery.olai" as:
+      """
+      {"id":"drag-source","ord":"a0","title":"Source row"}
+      {"id":"drag-parent","ord":"a1","title":"Destination parent"}
+      {"id":"drag-anchor","parent":"drag-parent","ord":"a0","title":"Destination child"}
+      """
+    And I open the outline "drag-recovery.olai"
+    And I mark the page
+    When I pick up the bullet of "drag-source" and hold it above the title of "drag-anchor"
+    Then the drop line would put it under "drag-parent"
+    When I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "journal" off
+    And I close the plugins panel
+    And I use the original browser tab
+    Then the journal chrome is absent
+    When I let go
+    Then the node "drag-source" is not a child of "drag-parent"
+    And the outline "drag-recovery.olai" shows exactly the nodes "drag-source, drag-parent, drag-anchor"
+    When I drag the bullet of "drag-source" above the title of "drag-anchor"
+    Then the node "drag-source" is a child of "drag-parent"
+    When I press "ControlOrMeta+z"
+    Then the node "drag-source" is not a child of "drag-parent"
+    And the outline "drag-recovery.olai" shows exactly the nodes "drag-source, drag-parent, drag-anchor"
+    And the page has not reloaded
+    And there should be no page errors
+
   Scenario: Removing the destination branch prevents a stale drop and restoration permits a new drag
     Given I rewrite "drag-recovery.olai" as:
       """
