@@ -8,6 +8,7 @@ import { Show } from "solid-js"
 import { render } from "solid-js/web"
 
 import App from "./App.tsx"
+import { protectComposition } from "./composition.ts"
 import { Fault } from "./errors/Fault.tsx"
 import { followFolders } from "./fold/folders.ts"
 import { followFolds } from "./fold/memory.ts"
@@ -80,6 +81,7 @@ followStoredSize()
 // deliberately does not). Here for the reason above it: one keyboard, one
 // document, and a listener that lives exactly as long as one.
 followKeys()
+protectComposition()
 
 // What this deployment is CALLED, and when the process serving it started,
 // cross on the socket and land on the tab, the wordmark, the install name

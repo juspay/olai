@@ -465,6 +465,8 @@ The names are not written down twice. `support/world.ts` imports the client's ow
 6. If the edit changes WHICH records exist — an insert, a delete, a reorder — assert the id multiset (`the outline "x.olai" shows exactly the nodes "…"`), not that some title eventually reads a certain way. A tree that has lost one node and drawn another twice still has all the right titles in it, which is how a broken live view stayed green through a whole feature file.
 7. Read the section below before writing a step that reads the disk or presses a key. All three mistakes it names pass on an idle laptop.
 
+The `ime_confirmation` feature uses Chromium’s `Input.imeSetComposition` and native key dispatch to confirm candidate text. The step asserts that Chromium reports `isComposing` on the confirming key; it does not fabricate a composition flag. Confirmation uses a raw keydown followed by the committed candidate, since ordinary Playwright Enter also emits a newline. This exercises browser composition handling, not an operating system candidate-picker UI.
+
 ## Waiting, which is the whole of being honest under load
 
 This suite runs parallel, on machines that are also doing something else, so every assertion in it is a race unless it was written not to be. A run on a saturated box is the only way to find out — `sh underload.sh` is that run, and it counts what it dropped rather than leaving five logs to read — and there are exactly six ways to get it wrong. All six are green on an idle laptop.
