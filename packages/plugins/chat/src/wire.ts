@@ -246,7 +246,7 @@ export const surface = defineSurface({
        * able to produce.
        */
       resend: {
-        input: Schema.Struct({ id: Schema.String }),
+        input: Schema.Struct({ scope: Schema.NullOr(Schema.String), id: Schema.String }),
         error: ChatFailure,
       },
       /** One chunk of a picture, into the conversation's tmp directory.

@@ -97,3 +97,48 @@ Feature: A delayed tab cannot apply a chat control to another node's turn
     Then the agent is idle
     And the chat has not answered "you said: only for install"
     And there should be no page errors
+
+  Scenario: Retrying a message from an outdated tab cannot resend another node's refused message
+    Given incoming updates to this chat tab can be held
+    And the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
+    When I open the node menu of "install"
+    And I choose "Start an agent session" from the node menu
+    And the agent panel is open
+    And I ask the agent "ready"
+    Then the agent is idle
+    When I ask the agent "refuse steering"
+    Then the agent is idle
+    When I ask the agent "hold"
+    Then the agent is working
+    When I interrupt the agent with "only for install"
+    Then the chat shows my message "only for install" as "refused"
+    When I hold incoming updates to the original chat tab
+    And I open another chat tab
+    And I open the node menu of "order"
+    And I choose "Start an agent session" from the node menu
+    And the agent panel is open
+    And I ask the agent "ready"
+    Then the agent is idle
+    When I ask the agent "refuse steering"
+    Then the agent is idle
+    When I ask the agent "hold"
+    Then the agent is working
+    When I interrupt the agent with "only for order"
+    Then the chat shows my message "only for order" as "refused"
+    When I use the original chat tab
+    And I send the undelivered message again
+    And I release incoming updates to the original chat tab
+    Then the panel refuses, saying "the conversation changed"
+    When I use the other chat tab
+    Then the chat shows my message "only for order" as "refused"
+    When the agent is released
+    Then the agent is idle
+    When I send the undelivered message again
+    Then the agent's answer mentions "you said: only for order"
+    When I press the agent "install"
+    And the agent panel is open
+    Then the chat shows my message "only for install" as "refused"
+    When I send the undelivered message again
+    Then the agent's answer mentions "you said: only for install"
+    And there should be no page errors

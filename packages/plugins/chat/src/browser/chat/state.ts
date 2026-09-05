@@ -457,7 +457,7 @@ export const createChat = (): Chat => {
           },
         )
       }),
-    resend: (id) => verb(chatWire().procedures.conversation.resend({ id })),
+    resend: (id) => verb(chatWire().procedures.conversation.resend({ scope: state().uploadScope, id })),
     setSetting: (agent, session, config, value, done) => verb(chatWire().procedures.conversation.setSetting({ agent, session, config, value }), done),
     setModel: (agent, session, value, done) => verb(chatWire().procedures.conversation.setModel({ agent, session, value }), done),
     cancel: () => verb(chatWire().procedures.conversation.cancel({ scope: state().uploadScope })),

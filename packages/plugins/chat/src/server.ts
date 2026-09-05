@@ -560,7 +560,8 @@ export default definePlugin({
         )),
       attach: ({ input }: { input: Parameters<Chat.Chat["attach"]>[0] }) =>
         withChat((open) => open.attach(input)),
-      resend: ({ input }: { input: { id: string } }) => withChat((open) => open.resend(input.id)),
+      resend: ({ input }: { input: { scope: string | null; id: string } }) =>
+        withChat((open) => open.inConversation(input.scope, (panel) => panel.resend(input.id))),
       cancel: ({ input }: { input: { scope: string | null } }) => withChat((open) => open.inConversation(input.scope, (panel) => panel.cancel)),
       setSetting: ({ input }: { input: { agent: string; session: string; config: string; value: string | boolean } }) =>
         withChat((open) => open.setSetting(input.agent, input.session, input.config, input.value)),
