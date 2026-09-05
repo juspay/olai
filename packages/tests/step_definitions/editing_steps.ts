@@ -1093,3 +1093,24 @@ Then("the selected text in the line is {string}", async function (this: OlaiWorl
       assert.strictEqual(await selected(), expected);
     });
 });
+
+When("I select {string} backwards in the note", async function (this: OlaiWorld, text: string) {
+  const field = this.page.locator(DESC_EDITOR).first();
+  await field.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await field.evaluate((element, wanted) => {
+    const input = element as HTMLTextAreaElement;
+    const start = input.value.indexOf(wanted);
+    if (start < 0) throw new Error(`the note does not contain ${JSON.stringify(wanted)}`);
+    input.setSelectionRange(start, start + wanted.length, "backward");
+  }, text);
+});
+
+Then("the note retains the backward selection {string}", async function (this: OlaiWorld, expected: string) {
+  const field = this.page.locator(DESC_EDITOR).first();
+  await field.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(() => field.evaluate((element, text) => {
+    const input = element as HTMLTextAreaElement;
+    return input.value.slice(input.selectionStart, input.selectionEnd) === text
+      && input.selectionDirection === "backward";
+  }, expected), `the note to retain its backward selection of ${JSON.stringify(expected)}`);
+});

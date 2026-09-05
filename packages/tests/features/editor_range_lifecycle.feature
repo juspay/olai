@@ -55,3 +55,28 @@ Feature: A rebuilt editor preserves the selected text before a structural key
     Then "house.olai" holds a node titled "choose copper handles"
     And the page has not reloaded
     And there should be no page errors
+
+  Scenario: A note retains a backward selection through rebuilding and saves only its replacement
+    Given I rewrite "note-range.olai" as:
+      """
+      {"id":"note-range","ord":"a0","title":"a note to edit","desc":"first line\nchoose the handles"}
+      """
+    And I open the outline "note-range.olai"
+    And I mark the page
+    When I open the note of "note-range"
+    And I click the note of "note-range"
+    And I select "the" backwards in the note
+    And I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "journal" off
+    And I close the plugins panel
+    And I use the original browser tab
+    Then the journal chrome is absent
+    And the note retains the backward selection "the"
+    When I type "brass"
+    And I click away from the editor
+    Then "note-range.olai" holds a node whose note ends "choose brass handles"
+    When I press "ControlOrMeta+z"
+    Then "note-range.olai" holds a node whose note ends "choose the handles"
+    And the page has not reloaded
+    And there should be no page errors
