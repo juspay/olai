@@ -49,7 +49,7 @@
 import type { PluginPin } from "@olai/format"
 export type { PluginPin } from "@olai/format"
 import type { Host, PropKind, RowReport } from "@olai/plugin-api"
-import { kindWordOf, rowReport } from "@olai/plugin-api"
+import { definePlugin, kindWordOf, rowReport } from "@olai/plugin-api"
 // THE TWO REACHES PAST `@olai/plugin-api`, and the only ones in the tree, for
 // two different reasons.
 //
@@ -184,7 +184,13 @@ export const declaredKinds: Effect.Effect<ReadonlyMap<string, PropKind>> = Effec
  *  see this module's header for why it cannot live in the loader's own package,
  *  and `@olai/effect-cordis`'s `mountRows` for what the slot it fills is pinned
  *  to. */
-const importByName = (specifier: string): Promise<unknown> => import(specifier)
+const importByName = async (specifier: string): Promise<unknown> => {
+  const row = ROWS.find((row) => row.name === specifier)
+  // This fiber is the loader's selection record, not a server implementation.
+  // Never import the browser entry on the server, including for inspection.
+  if (row?.browserOnly) return { default: definePlugin({ name: row.id, needs: [], apply: Effect.void }) }
+  return import(specifier)
+}
 
 /**
  * EVERY ROW'S STATE, off the live registry — which plugin is where.

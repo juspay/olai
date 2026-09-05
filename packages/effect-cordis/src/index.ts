@@ -63,3 +63,4 @@ export { type AnyKey, type Provision, serviceTag, type ServiceKey } from "./serv
 export { type Chain, type Dispatch, type Middleware, waterfall, type Waterfall } from "./waterfall.ts"
 
 export { offer, OfferConflict } from "./lifecycle.ts"
+export { location, locations, type Location, type LocationOwner, type LocationReport, type Locations, type Contribution } from "./locations.ts"

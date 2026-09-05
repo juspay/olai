@@ -1251,3 +1251,11 @@ The plugins panel holds its switches while the browser reconciles a roster. A se
 
 
 Profile policy has one interpreter (`profilePatch`), and every served route has a registration owner. Websocket admission uses the framework’s `restrictServedGeneration` over its narrow generation contract. An accepted HTTP response survives another route provider’s arrival and withdrawal; the platform protects that response, while the routing scope controls which handlers new requests reach. Shutdown rejects new connections and upgrades during the drain and waits for observed socket closes before closing the port.
+
+## Phase 18: renderer and shell extraction
+
+The renderer and initial layout are browser-only bundle rows. The host selects
+these rows without importing their browser code; each tab reports activation
+separately. Generic locations have scope-owned declarations and only `root` is
+permanent. Application-slot migration and content extraction are still in
+progress; [phase-18.md](../phase-18.md) records the remaining acceptance work.

@@ -7633,11 +7633,13 @@
   "olai-plugin-identity" = copyPathToStore ./packages/plugins/identity;
   "olai-plugin-journal" = copyPathToStore ./packages/plugins/journal;
   "olai-plugin-kolu" = copyPathToStore ./packages/plugins/kolu;
+  "olai-plugin-layout" = copyPathToStore ./packages/plugins/layout;
   "olai-plugin-mcp" = copyPathToStore ./packages/plugins/mcp;
   "olai-plugin-odu" = copyPathToStore ./packages/plugins/odu;
   "olai-plugin-opencode" = copyPathToStore ./packages/plugins/opencode;
   "olai-plugin-pi" = copyPathToStore ./packages/plugins/pi;
   "olai-plugin-search" = copyPathToStore ./packages/plugins/search;
+  "olai-plugin-ui-renderer" = copyPathToStore ./packages/plugins/ui-renderer;
   "olai-plugin-vault" = copyPathToStore ./packages/plugins/vault;
   "olai-plugin-web-app" = copyPathToStore ./packages/plugins/web-app;
   "olai-plugin-ws" = copyPathToStore ./packages/plugins/ws;

@@ -32,6 +32,7 @@ import {
 } from "@olai/ops"
 import {
   BUNDLE_NAMES,
+  ROWS,
   configsOf,
   mountBundle,
   provide,
@@ -421,6 +422,7 @@ export const serve = (options: ServeOptions) =>
         plugins,
         onChange,
         built,
+        browserOnly: ROWS.filter((row) => row.browserOnly).map((row) => row.id),
         pin: pluginPin,
         report: () => report,
         names: () => rowsNaming(plugins.host),

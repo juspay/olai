@@ -175,6 +175,7 @@ import {
 } from "@olai/effect-cordis"
 import { Effect, Scope, type Stream } from "effect"
 
+import { BrowserMount } from "./mount.ts"
 import { ownService, type OwnServices } from "./owned.ts"
 import { kindWordOf, type NotHere } from "./contract.ts"
 import { SLOTS, type SlotKey } from "./slots.ts"
@@ -775,6 +776,7 @@ export const Wired = serviceTag<Wired>("wired")
  * {@link Faces.hung}, with the read it is about.
  */
 export interface App extends Faces {
+  readonly attach: (element: Element) => Effect.Effect<void, never, Scope.Scope>
   /** State changes even when a waiting component registered no faces. */
   readonly changes: Stream.Stream<void>
   /** Where the plugins hang — handed to `mountPlugin` and opaque to everybody. */
@@ -989,6 +991,7 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
 
     return {
       ...faces,
+      attach: (element) => provide(host, BrowserMount, () => ({ element })),
       host,
       changes: hostChanges(host),
       furnish: (furniture) =>

@@ -272,6 +272,7 @@ export interface PluginRuntime {
    * already expanded `omitted` into the full list could not tell a reader which
    * of the two they were looking at.
    */
+  readonly browserOnly?: ReadonlyArray<string>
   readonly pin: PluginPin
   /**
    * WHAT BECAME OF EACH ROW — the word a panel row wears, and the plugin's own
@@ -617,6 +618,7 @@ export const rosterOf = (
       return {
         name,
         running: live,
+        ...(offered?.browserOnly?.includes(name) ? { browserOnly: true } : {}),
         // THE WORD, beside the boolean it refines — never instead of it. The
         // licences a browser reads its mounts out of ask the boolean; the panel
         // asks the word; and `@olai/surface`'s `pluginState` is what holds the

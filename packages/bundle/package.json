@@ -39,6 +39,8 @@
     "olai-plugin-vault": "workspace:*",
     "olai-plugin-ws": "workspace:*",
     "olai-plugin-mcp": "workspace:*",
-    "olai-plugin-web-app": "workspace:*"
+    "olai-plugin-web-app": "workspace:*",
+    "olai-plugin-ui-renderer": "workspace:*",
+    "olai-plugin-layout": "workspace:*"
   }
 }

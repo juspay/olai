@@ -12,7 +12,7 @@ Nothing. It is on by default, like chat, git and the journal. Two things take it
 
 ```
 olai web ~/outlines                                  # the box, as always
-olai web ~/outlines --plugins=vault,chat,journal,git,ws,web-app,mcp       # every query answers with the reason
+olai web ~/outlines --plugins=vault,chat,journal,git,ws,web-app,mcp,ui-renderer,layout       # every query answers with the reason
 ```
 
 The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag. Switched off at the panel, the header's box leaves while you are watching, and the ⌘K palette, the composer's `@` list, the edges panel and the move picker each draw the refusal on the next keystroke.

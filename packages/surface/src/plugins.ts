@@ -88,6 +88,8 @@ export const BuiltPlugin = Schema.Struct({
    *  drawn, its probe ran, and a property declared with its kind is held to it.
    *  `false` is total absence rather than a degraded arm. */
   running: Schema.Boolean,
+  /** Host selection only; browser activation is reported independently by each tab. */
+  browserOnly: Schema.optional(Schema.Boolean),
   /**
    * WHY, IN ONE WORD — the seven states {@link pluginState} narrows to, and the
    * one thing `running` cannot say.

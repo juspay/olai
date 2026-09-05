@@ -481,3 +481,5 @@ export const furnish = (furniture: Parameters<App["furnish"]>[0]): Promise<void>
   run(app.furnish(furniture))
 
 export { browserReports }
+
+export const attachRenderer = (element: Element): Promise<void> => run(app.attach(element))

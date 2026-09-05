@@ -311,7 +311,7 @@ export function Panel(props: {
               // and NO `setBy` on any of them: where this serve was started is
               // one fact for the panel and is at the foot. Neither prop being
               // passed is why these rows are a name and a switch on one line.
-              hint={[pluginHint(plugin, plugins()), plugin.running ? browserHint(plugin.name, browserReports()) : null].filter(Boolean).join(" ") || null}
+              hint={[pluginHint(plugin, plugins()), plugin.running ? browserHint(plugin.name, browserReports(), plugin.browserOnly) : null].filter(Boolean).join(" ") || null}
               under={<Config values={pluginConfig(plugin)} />}
             >
               <Segmented

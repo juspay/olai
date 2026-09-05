@@ -12,7 +12,9 @@
     "./services": "./src/services.ts",
     "./testlib": "./src/services.testlib.ts",
     "./transport": "./src/transport.ts",
-    "./http": "./src/http.ts"
+    "./http": "./src/http.ts",
+    "./mount": "./src/mount.ts",
+    "./contracts": "./src/contracts.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

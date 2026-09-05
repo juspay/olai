@@ -1,0 +1,37 @@
+# Phase 18 implementation status
+
+Phase 18 is in progress. The acceptance contract is the September 5 proposal
+in `oss.olai/brainstorming/cordis-for-olai.md`. This work must land as one
+complete PR; the intermediate commits are not a separately complete phase.
+
+Implemented foundations:
+
+- Scope-owned locations, with only root permanent, late owners, ancestor
+  withdrawal, conflict and cycle diagnostics, and stable contribution identity.
+- A browser-only `ui-renderer` row owning the Solid root and generic registry.
+- An initial `layout` row occupying root, with its current extraction limit
+  stated in its plugin documentation.
+- Bundle generation and loading for rows without server implementations;
+  host selection is distinguished from actual browser activation.
+
+Required before this PR can be considered complete:
+
+- Move layout state and observers out of the permanent entry point; extract
+  navigation and sidebar providers with acyclic integration components.
+- Extract independent outlines and Markdown server bindings, wire adapters,
+  browser models, routes and editing/reading state. Preserve unprefixed tags.
+- Extract files, theme, preferences, inspector, pins, capture and trash;
+  migrate existing integrations and capability-owned property links.
+- Extract vault-defined discovery, approval, compilation and chunk loading
+  policy behind a narrow generic host-loading capability.
+- Remove permanent application-specific contracts and implementations,
+  including indirect imports. Migrate existing application slots to owners.
+- Prove both content capabilities independently in browser and headless
+  profiles, alternate layout and non-notebook fixtures, dynamic write fences,
+  lifecycle failures and cancellation, mobile/history workflows and observer
+  cleanup. A passing existing suite does not establish these conditions.
+
+The current registry tests exercise waiting descendants, replacement owners,
+stable identity, duplicate declarations and occupants, contract disagreement,
+cycles, failed acquisition rollback and failed plugin activation cleanup.
+They do not establish the complete application boundary above.

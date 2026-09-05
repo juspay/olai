@@ -136,3 +136,9 @@
   profiles: [surface]
 - id: web-app
   name: olai-plugin-web-app/server
+
+# Browser-only rows: the host selects them; activation is reported by each tab.
+- id: ui-renderer
+  name: olai-plugin-ui-renderer
+- id: layout
+  name: olai-plugin-layout

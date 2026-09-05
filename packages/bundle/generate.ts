@@ -174,7 +174,7 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
   // a specifier does.
   const server = rows
     .map((row) =>
-      `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${
+      `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${hasDoor(row, "./server") ? "" : ", browserOnly: true"}${
         row.disabled === true ? ", disabled: true" : ""
       }${row.profiles === undefined ? "" : `, profiles: [${row.profiles.map(quoted).join(", ")}]`}${row.switchHint === undefined ? "" : `, switchHint: ${prose(row.switchHint)}`} },`
     )
@@ -243,4 +243,4 @@ export const PLUGIN_TESTID = ${merged} as const
 const rows = readRows()
 writeFileSync(join(SRC, "rows.generated.ts"), rowsModule(rows))
 writeFileSync(join(SRC, "all.generated.css"), styleChain(rows))
-writeFileSync(join(SRC, "testids.generated.ts"), testidsModule(rows))
+writeFileSync(join(SRC, "testids.generated.ts"), testidsModule(rows.filter((row) => hasDoor(row, "./testids"))))

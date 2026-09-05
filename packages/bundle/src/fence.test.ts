@@ -427,7 +427,7 @@ const NOT_IN_A_TAB = [
  * below is about.
  */
 const SERVER_DOOR = ((): ReturnType<typeof graphFrom> => {
-  const graphs = ROWS.map((row) => {
+  const graphs = ROWS.filter((row) => !row.browserOnly).map((row) => {
     // `olai-plugin-kolu/server` → `packages/plugins/kolu/src/server.ts`.
     // The one piece of arithmetic, and it is the ecosystem's rather than this
     // file's: a package's `./server` subpath is `src/server.ts` in every member
@@ -589,7 +589,7 @@ describe("the server door pulls no browser face", () => {
     // Not vacuous, for the wire door's reason: a resolver that answered
     // `undefined` for every workspace specifier would walk one file and pass.
     const files = new Set(reached.map((one) => one.file))
-    for (const tenant of TENANTS_OF) {
+    for (const tenant of TENANTS_OF.filter((tenant) => !ROWS.find((row) => row.id === tenant.name)?.browserOnly)) {
       expect([...files].some((f) => f === path.join(tenant.dir, "src", "server.ts")), tenant.name)
         .toBe(true)
     }
@@ -776,12 +776,28 @@ describe("only the registry knows a plugin's name", () => {
     server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-mcp", "olai-plugin-vault", "olai-plugin-web-app"],
   }
 
-  test("plugins consume services and never import another plugin", () => {
+  test("plugins consume other plugins only through static contract doors", () => {
     for (const { name, dir } of TENANTS_OF) {
       const other = tree.get(dir)?.flatMap((source) =>
-        source.plugins.filter((spec) => packageOf(spec) !== `olai-plugin-${name}`)
+        source.plugins.filter((spec) => packageOf(spec) !== `olai-plugin-${name}` && !spec.endsWith("/contract"))
           .map((spec) => `${source.file}: ${spec}`)) ?? []
       expect(other, dir).toEqual([])
+    }
+  })
+
+  test("cross-plugin contract doors resolve and reach no implementation entry or component", () => {
+    for (const { dir } of TENANTS_OF) {
+      const specs = new Set(tree.get(dir)?.flatMap((source) => source.plugins.filter((spec) => spec.endsWith("/contract"))) ?? [])
+      for (const spec of specs) {
+        const provider = MEMBER_OF_PACKAGE.get(packageOf(spec))
+        expect(provider, spec).toBeDefined()
+        const manifest = manifestAt(path.join(PACKAGES, provider!))
+        const target = manifest === undefined ? undefined : doorsOf(manifest)["./contract"]
+        expect(target, spec).toBeDefined()
+        const graph = graphFrom(path.join(PACKAGES, provider!, target!))
+        expect(graph.unresolved, spec).toEqual([])
+        expect(graph.files.filter((file) => /\.(tsx|jsx)$/.test(file) || /\/(browser|server)\.[cm]?[jt]s$/.test(file)), spec).toEqual([])
+      }
     }
   })
 
@@ -805,6 +821,7 @@ describe("only the registry knows a plugin's name", () => {
       if (pkg === REGISTRY) continue
       expect(declaredBy(pkg), pkg).toEqual([
         ...(TESTLIB_DECLARED[pkg] ?? []),
+        ...(PLUGIN_DIRS.includes(pkg) ? [...new Set(tree.get(pkg)?.flatMap((source) => source.plugins.filter((spec) => spec.endsWith("/contract")).map(packageOf)) ?? [])] : []),
       ])
     }
   })
@@ -1276,6 +1293,8 @@ describe("an appliance's product tier stays inside its tenant", () => {
       git: ["plugins/git"],
       identity: ["plugins/identity"],
       journal: ["plugins/journal"],
+      layout: ["plugins/layout"],
+      "ui-renderer": ["plugins/ui-renderer"],
       kolu: ["plugins/kolu"],
       odu: ["plugins/odu"],
       opencode: ["plugins/opencode"],
@@ -1310,6 +1329,8 @@ describe("an appliance's product tier stays inside its tenant", () => {
       git: false,
       identity: false,
       journal: false,
+      layout: false,
+      "ui-renderer": false,
       kolu: true,
       odu: true,
       opencode: false,
@@ -1695,6 +1716,15 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * claim can fail in are not symmetric.
    */
   const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = {
+    layout: [
+      "plugins/chat/src/browser/chat/Panel.tsx",
+      "plugins/mcp/src/tools.ts",
+      "server/src/runtime.ts",
+      "surface/src/index.ts",
+      "web/src/client/AppHeader.tsx",
+      "web/src/client/viewport.ts",
+      "web/src/client/workspace.ts",
+    ],
     /** Protocol vocabulary predates these plugins. Core coordinates their
      * shared listener and writer faces; none of these files resolves modules.
      * web-app also occurs in the browser install metadata. Exact file equality

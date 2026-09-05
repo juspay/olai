@@ -3,12 +3,9 @@
  */
 
 import { registerOrRetireServiceWorker } from "@kolu/surface-app/lifecycle"
-import { SurfaceFaultBoundary } from "@kolu/surface-app/solid"
-import { render } from "solid-js/web"
 
-import App from "./App.tsx"
+
 import { protectComposition } from "./composition.ts"
-import { Fault } from "./errors/Fault.tsx"
 import { followFolders } from "./fold/folders.ts"
 import { followFolds } from "./fold/memory.ts"
 import { trackDesktop } from "./layout/media.ts"
@@ -25,7 +22,7 @@ import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
 import { provideFurniture } from "./plugins/furniture.tsx"
 import { connectionReadout, firstRoster, olai, useBrowserRows } from "./wire.ts"
-import { useBundleOrder } from "./plugins/runtime.ts"
+import { attachRenderer, useBundleOrder } from "./plugins/runtime.ts"
 // FOR ITS SIDE EFFECT, and above the first render: this app's Solid, Effect and
 // plugin interface, put where a plugin the SERVE compiled out of somebody's
 // vault can reach them (`./plugins/shared.ts` argues why a second copy of any of
@@ -116,44 +113,7 @@ trackDesktop()
 const root = document.getElementById("root")
 if (root === null) throw new Error("no #root element")
 
-// The boundary is HERE, around the whole app, because a fault in this client
-// is not a fault in one screen: the shell is one composition over one
-// subscription (App.tsx), and a page that threw halfway through drawing has no
-// half worth keeping. Solid unmounts the subtree that faulted either way — the
-// choice is only between a card that says so and a white tab.
-//
-// The boundary is the framework's (`SurfaceFaultBoundary`): it catches,
-// records to the console — a boundary SWALLOWS, so without that record the
-// fault reaches no console at all — and prints the thrown value verbatim.
-// This root does not ride `SurfaceAppProvider`, so the boundary is composed
-// standalone; all that stays here is the LOOK.
-//
-// Nothing above this line is inside it, and that is the honest boundary of what
-// a boundary can do. The calls above run before there is a tree to replace, so
-// a throw in one of them is a bundle that never started — and the LISTENERS
-// they leave behind are outside it forever: a storage event, a visibility
-// change and a scroll are not renders, and Solid can only catch what a render
-// is doing. Each of those is a handful of lines that touch the document rather
-// than the app, which is the reason they were put there and not the reason
-// they are safe.
-// THE APP'S OWN CONTRACT, on the plugin context, before anything renders — the
-// clock and its duration register, the chrome pill's geometry and the popover
-// that shares the bar's focus cycle, and a door onto a served file. A browser
-// half NAMES these in its `needs` and the runtime holds it `waiting` until
-// they exist, so this could in principle be late; it is awaited here because a
-// face that draws a beat after its neighbours is a flicker nobody chose, and
-// because the ORDER is then a line somebody can read rather than a race
-// somebody has to reason about (`./plugins/furniture.tsx`).
+// Providers may arrive before the browser mount; their needs keep them waiting.
 await provideFurniture()
-
-// Wait briefly for initial plugin providers before drawing the shell.
+await attachRenderer(root)
 await firstRoster
-
-render(
-  () => (
-    <SurfaceFaultBoundary fault={(text) => <Fault text={text} />}>
-      <App />
-    </SurfaceFaultBoundary>
-  ),
-  root,
-)

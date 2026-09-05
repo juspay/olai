@@ -246,6 +246,7 @@ export const pluginHint = (
   const pin = pluginPinOf(roster)
   switch (pluginState(plugin)) {
     case "running": {
+      if (plugin.browserOnly) return "Selected by the host; runs only in the browser."
       const hint = switchHints.get(plugin.name)
       // NOTHING, on the ordinary row: the switch reads On and there is no
       // second thing to know. A row that carries others has one, and it is
@@ -428,7 +429,7 @@ export const PLUGINS_SESSION_ONLY =
 
 /** A running server row can have a waiting browser component. Keep the
  * server's switch semantics and name that component and its missing keys. */
-export const browserHint = (plugin: string, reports: ReadonlyMap<string, RowReport>): string | null => {
+export const browserHint = (plugin: string, reports: ReadonlyMap<string, RowReport>, browserOnly = false): string | null => {
   const lines: string[] = []
   for (const [name, report] of reports) {
     if (name !== plugin && !name.startsWith(plugin + "/")) continue
@@ -436,5 +437,7 @@ export const browserHint = (plugin: string, reports: ReadonlyMap<string, RowRepo
     if (report.state === "waiting") lines.push(`${label}: waiting for ${report.missing?.join(", ") || "initialization"}.`)
     if (report.state === "failed") lines.push(`${label}: failed to start. ${report.fault ?? "It gave no message."}`)
   }
-  return lines.length ? lines.join(" ") : null
+  if (lines.length) return lines.join(" ")
+  if (browserOnly) return reports.get(plugin)?.state === "running" ? "Browser: running." : "Browser: awaiting activation."
+  return null
 }
