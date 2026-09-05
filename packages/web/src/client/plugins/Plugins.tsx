@@ -67,11 +67,7 @@ export function Plugins(props: {
       closet="plugins"
       testid={TESTID.pluginsTrigger}
       title="plugins: which integrations this server is running, and why"
-      // ABOVE THE TREE, and this door alone: its switch moves the roster, a
-      // roster change rebuilds everything under `../main.tsx`'s keyed `Show`,
-      // and a panel whose own control unmounts it is a control nobody can use
-      // twice. `./opened.ts` carries the whole argument, including why the two
-      // doors beside this one are deliberately not treated the same way.
+      // Keep this door open when its switch removes a plugin provider.
       held={pluginsDoor}
       panel={(at, inside) => <Panel at={at} inside={inside} />}
     />

@@ -22,11 +22,13 @@ import {
   type Accessor,
   batch,
   createContext,
+  createEffect,
   createMemo,
   createSignal,
   type JSX,
   onCleanup,
   useContext,
+  untrack,
 } from "solid-js"
 
 import {
@@ -149,6 +151,26 @@ const here = (): string =>
 export const createRouter = (): Router => {
   const first = workspaceOf(here())
   const [workspace, setWorkspace] = createSignal<Workspace>(first)
+  // A newly available plugin can claim the address already in the bar (for
+  // example, Back into a disabled journal followed by enabling journal).
+  // Reinterpret those routes when the claim table changes without navigating
+  // or replacing the route objects that still mean the same thing.
+  createEffect(() => {
+    const parsed = workspaceOf(here())
+    const current = untrack(workspace)
+    let next = current
+    const previous = panesOf(current)
+    for (const [index, pane] of panesOf(parsed).entries()) {
+      const before = previous[index]?.route
+      if (before === undefined) continue
+      if (before.kind === pane.route.kind && hrefOf(before) === hrefOf(pane.route)
+        && (before.kind !== "plugin" || pane.route.kind !== "plugin"
+          || before.source === pane.route.source)) continue
+      next = navigateIn(next, index, pane.route)
+    }
+    if (next !== current) setWorkspace({ ...next, focus: current.focus })
+  })
+
   const [landings, setLandings] = createSignal<Landings>(landingsOf(first))
 
   // THE NAME OF THE ENTRY UNDER THE READER, kept turn and turn about — the

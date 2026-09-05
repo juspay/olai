@@ -664,7 +664,9 @@ subscriptions over the replacement wire. Removed or replaced sibling clients
 refuse further calls. Olai keeps one constant connection and renders the app once;
 roster changes no longer recreate its tree or roster subscription. The core
 client and connection readout are exported directly, without a proxy or a
-synthetic reconnecting state.
+synthetic reconnecting state. The router keeps its app lifetime and reinterprets
+the current URL when plugin route claims change, preserving unchanged pane
+identities and browser history.
 
 Plugin provider changes still update the provider tree: removing chat must remove
 its context and faces together. Pane and conversation draft stores remain needed
