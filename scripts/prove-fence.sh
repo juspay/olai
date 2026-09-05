@@ -285,14 +285,8 @@ unnamed=0
 # mutation used to print `0 of 0 mutations were caught.` and exit 0, which is
 # this script's own indictment of the lints reproduced on its one argument.
 #
-# FOUR IS NOT IN IT, and its absence is the same argument one step on. Mutation
-# 4 was retired with the claim it was about (a plugin importing another plugin),
-# and it was dropped from the `run` calls below — but not from here, so
-# `prove-fence.sh 4` selected a mutation that does not exist, ran nothing, and
-# exited 0. A selector that names no mutation printing a clean pass is exactly
-# the failure this list was made static to prevent, and it was doing it for one
-# number.
-DECLARED="1 2 3 5 6 7 8 9 10 11 12 13 14 15 16 17"
+# Plugin package edges are forbidden again: services carry the dependency.
+DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18"
 for want in $only; do
   case " $DECLARED " in
     *" $want "*) ;;
@@ -406,18 +400,14 @@ run 3 "a plugin imports the REGISTRY back (the cycle)" \
   'a plugin does not import the registry' \
   append "$plugin_a/src/browser.tsx" "import \"$registry_name\""
 
-# MUTATION 4 IS GONE, and its absence is a ruling rather than a gap. It was "a
-# plugin imports ANOTHER plugin", aimed at a claim the Cordis proposal
-# overturned: `needs` is the dependency arm and it is REACTIVE, so the
-# half-wired state the ban feared is `waiting` — a legitimate, inspectable state
-# the runtime resolves or reports. A mutation kept against a retired claim would
-# score `GREEN — THE FENCE DID NOT SEE IT` for ever, which is a harness accusing
-# a lint of missing something nobody asked it to look for.
-#
-# What the ban PROTECTED is mutation 10's: an appliance's TIER stays inside its
-# tenant, so a plugin that reached into another's `./server` drags that
-# appliance's client onto its own graph and goes red there. The protection
-# moved; it did not leave.
+# A service key is the dependency arm; a package import bypasses its lifecycle.
+run 4 "a plugin imports ANOTHER plugin" \
+  'plugins consume services and never import another plugin' \
+  append "$plugin_a/src/browser.tsx" "import \"$name_b/server\""
+
+run 18 "a plugin DECLARES another plugin in its manifest" \
+  'no package outside the registry declares a plugin in its manifest' \
+  declare_dep "$plugin_a" "$name_b"
 
 # MUTATIONS 5 AND 6 WERE ONE DOOR AND ARE NOW TWO, and the split is the whole
 # story of what this PR did to the fence.

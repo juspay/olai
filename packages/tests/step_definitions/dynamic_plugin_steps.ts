@@ -185,10 +185,12 @@ Then("that swatch is round", async function (this: OlaiWorld) {
 });
 
 Then("no row wears a swatch", async function (this: OlaiWorld) {
-  assert.strictEqual(
-    await this.page.locator("[data-swatch]").count(),
-    0,
-    "a swatch is drawn by a plugin nobody has approved",
+  // The panel reads the server's approval state. Browser teardown follows the
+  // roster asynchronously, so that sentence is not a barrier for slot removal.
+  // As with appearance above, require the whole DOM outcome to settle.
+  await this.waitUntil(
+    async () => await this.page.locator("[data-swatch]").count() === 0,
+    "every swatch to leave after the plugin is stopped or loses approval",
   );
 });
 

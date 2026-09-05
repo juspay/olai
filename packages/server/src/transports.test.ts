@@ -25,7 +25,7 @@ test("transport registrations release and restore browser assets, sockets and th
       yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
       yield* Effect.addFinalizer(() => fault.stopped)
       const endpoint = mcpEndpoint("test")
-      const ticket = () => endpoint.ticketFor(() => ({ under: "a", forbidden: [] }), () => null)
+      const ticket = () => endpoint.ticketFor(() => ({ under: "a", forbidden: [] }), () => null, "mcp")
       expect(ticket()).toBeNull()
       const listener = yield* transportListener({
         bound: wired.bound, expose: () => wired.faces.browser, root, clientDist: root,
@@ -36,7 +36,7 @@ test("transport registrations release and restore browser assets, sockets and th
       })
       const parent = yield* Effect.scope
       let mcp = yield* Scope.fork(parent)
-      const startMcp = endpoint.serve({ bound: wired.bound, face: wired.faces.agent, ops, root, writer: "chat-agent", vintage: Effect.map(store.read("verified"), (aged) => aged.vintage) })
+      const startMcp = endpoint.serve({ bound: wired.bound, face: wired.faces.agent, ops, root, writer: "mcp", vintage: Effect.map(store.read("verified"), (aged) => aged.vintage) })
       let ws = yield* Scope.fork(parent)
       let app = yield* Scope.fork(parent)
       yield* startMcp.pipe(Scope.provide(mcp))

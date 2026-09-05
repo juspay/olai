@@ -18,7 +18,7 @@ import type { ToolServer } from "@olai/plugin-api/services"
 import type { Vintage } from "@olai/store"
 import { Effect } from "effect"
 
-import type { Reading } from "../identity.ts"
+import type { Reading } from "../who.ts"
 import { type Bound, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { currentLogin, MCP_PATH, mcpTransport } from "./route.ts"

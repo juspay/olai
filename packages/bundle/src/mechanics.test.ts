@@ -151,7 +151,7 @@ const SOURCES: ReadonlyArray<{ file: string; code: string }> = MEMBERS
  */
 const HARNESSES: ReadonlyArray<string> = [
   "createSurfaceSocket @ server/src/faces.test.ts",
-  "createSurfaceSocket @ server/src/identity.test.ts",
+  "createSurfaceSocket @ server/src/who.test.ts",
   "createSurfaceSocket @ server/src/profiles.test.ts",
 ]
 

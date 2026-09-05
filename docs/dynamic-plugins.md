@@ -212,3 +212,5 @@ both rows and the contested key. Once the first leaves, a differently named
 provider can take its place without a core edit. Other host services remain
 closed: `own("vault", ...)` means `your-plugin.vault` and cannot replace
 core's `vault`.
+
+The shipped Spaces mirror uses this same mechanism: chat offers `chat.seating`, whose `in(derived)` returns the node seating for that snapshot, including nodes without a session. The mirror declares that key in `needs`; switching chat off removes the mirror’s registrations and switching it on restores them. Plugin packages have no dependencies on other plugin packages.

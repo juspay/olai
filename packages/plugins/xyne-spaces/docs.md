@@ -23,6 +23,8 @@ Beside the connection pill in the header is a readout with three states rather t
 
 The third is why the readout is not a boolean. *Nothing was ever configured* and *a channel is bound but the process has no app* have opposite loudness, and a fault reported as absent would hide the bind the user already wrote.
 
+The mirror declares `chat.seating` in `needs`, alongside its delivery and conversation subscriptions. Chat owns the seating reading and respects the vault’s property declarations. Turning chat off leaves the mirror waiting with `chat.seating` named; turning it on restores the mirror automatically. No plugin package imports another plugin.
+
 ## The binding
 
 The bind is a property on the **node agent**, next to `agent-session`:
@@ -63,3 +65,5 @@ A refused post, and a bind whose process has no Spaces app, are said **once** in
 - **No inbound.** A message in the Spaces channel, an @mention, a DM, a slash command or a button click does not reach this olai. That is phase 2.
 - **No live test in CI.** The suite pins request shapes against a fake Spaces. Deploying against the real instance is the human's, before merge.
 - **No picker.** The prototypes showed a channel picker on the chat strip; this slice ships the `xyne-channel` property on the node agent.
+
+The seating service supplies node, file, title, engine and session; roster-only details such as memory counts are outside the mirror’s contract. Channel policy tests supply those answers directly, while chat’s own tests cover how vault declarations become seats.

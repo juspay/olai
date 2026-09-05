@@ -22,13 +22,14 @@ The plugins panel — `⧉` in the header — turns it off and on **while the se
 
 ## What waits on it
 
-Every plugin that could reach a conversation names one of the four doors this row stands behind:
+Every plugin that could reach a conversation names one of the five doors this row stands behind:
 
 | door | what it is | who names it |
 | --- | --- | --- |
 | `agents` | which ACP engines this build can seat | [claude](claude.md), [codex](codex.md), [opencode](opencode.md), [pi](pi.md) |
 | `deliveries` | where a doorbell may ring | [kolu](kolu.md), [odu](odu.md) |
 | `session-start` | what to ask this host when a conversation opens | kolu, odu |
+| `chat.seating` | the durable nodes, engines and sessions over one vault reading | xyne-spaces |
 | `watching` | what a plugin that mirrors a conversation is told | [xyne-spaces](xyne-spaces.md) |
 
 So **a serve with no chat row leaves all of them `waiting`**, and the plugins panel says so per row, on whose account. That is not a failure and it is not silent: a plugin holding a door that nobody offers is a plugin that has not started, which is a legitimate state the runtime resolves the moment the door arrives.

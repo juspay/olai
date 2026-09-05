@@ -163,7 +163,7 @@ import {
   publishedOf,
 } from "./published.ts"
 import { facesOf } from "./faces.ts"
-import { CurrentWho } from "./identity.ts"
+import { CurrentWho } from "./who.ts"
 import { readFailed } from "./report.ts"
 
 /**
