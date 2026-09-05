@@ -58,7 +58,7 @@ export interface SpacesReading {
  * What the vault says the mirror's knobs are, read off one revision.
  *
  * The roster comes from the seating door: put-away and mirrors are already out.
- * Which column holds bindings are in is the vault's answer rather than a key spelled here. The
+ * Which column holds bindings is the vault's answer rather than a key spelled here. The
  * channel is a second custom key on the same node. First claim wins where two
  * nodes name one session, the same rule as chat's own `agentAt`.
  */
