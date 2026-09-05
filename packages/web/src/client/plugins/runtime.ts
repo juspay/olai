@@ -304,7 +304,16 @@ const recompose = async (halves: ReadonlyArray<BrowserHalf>): Promise<void> => {
     await run(plugin.dispose)
   }
   for (const [name, half] of wanted) {
-    if (mounted.has(name)) continue
+    const existing = mounted.get(name)
+    if (existing !== undefined) {
+      // A consumer can fail later, when its missing provider first arrives.
+      // Give that activation the same next-composition retry as a boot failure.
+      const report = await run(existing.report)
+      if (report.state !== "failed") continue
+      await run(existing.dispose)
+      mounted.delete(name)
+      failures.set(name, report)
+    }
     // `mountPlugin` RETURNS once the plugin has settled, whichever way — a half
     // that failed has already been contained by the runtime, so what is awaited
     // here is only "it has finished trying" and the page can draw whatever did

@@ -11,7 +11,7 @@ interface Viewer {
   readonly UserIcon: (props: { readonly class: string }) => JSX.Element
 }
 const Viewer = serviceTag<Viewer>("identity.viewer")
-export const [viewer, setViewer] = createSignal<Viewer | null>(null)
+const [viewer, setViewer] = createSignal<Viewer | null>(null)
 
 export const speaker = definePlugin({
   name: "speaker",
@@ -24,3 +24,5 @@ export const speaker = definePlugin({
     )
   }),
 })
+
+export { viewer }

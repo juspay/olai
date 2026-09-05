@@ -302,3 +302,21 @@ Then("the browser service catalog {word} {string}", async function (this: OlaiWo
   const catalog = answer["structuredContent"] as { services: Array<{ key: string; half: string; availability: string }> };
   assert.strictEqual(catalog.services.some((one) => one.key === key && one.half === "browser" && one.availability === "declared"), presence === "includes");
 });
+
+When("the browser palette initialization is repaired", function (this: OlaiWorld) {
+  const file = path.join(this.scratch(), "palette.olai");
+  const rows = fs.readFileSync(file, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+  const browser = rows.find((row) => row.title === "browser.tsx");
+  const broken = '\n  yield* Effect.die(new Error("palette initialization failed"))';
+  assert.ok(browser.desc.includes(broken));
+  browser.desc = browser.desc.replace(broken, "");
+  fs.writeFileSync(file, rows.map((row) => JSON.stringify(row)).join("\n") + "\n");
+});
+
+Then("the browser has reported the palette initialization failure", async function (this: OlaiWorld) {
+  const expected = (error: string) => error.startsWith('console.error: olai: the plugin "palette"')
+    && error.includes("browser half failed to start") && error.includes("palette initialization failed");
+  await this.waitUntil(async () => this.errors.some(expected), "the expected palette initialization diagnostic");
+  // Consume only this deliberately induced diagnostic; unrelated errors remain.
+  this.errors = this.errors.filter((error) => !expected(error));
+});
