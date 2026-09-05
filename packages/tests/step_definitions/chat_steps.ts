@@ -3844,7 +3844,7 @@ When("I attempt session setting {string} to {string}", async function (this: Ola
   await this.page.getByRole("combobox", { name, exact: true }).selectOption(value);
 });
 Then("the execution plan contains {string} as {string}", async function (this: OlaiWorld, text: string, status: string) {
-  await this.page.getByLabel("Execution plan", { exact: true }).locator(`li[data-status="${status}"]`).filter({ hasText: text }).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.page.getByLabel("Execution plan", { exact: true }).locator(`li${attr("data-status", status)}`).filter({ hasText: text }).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 Then("the execution plan omits {string}", async function (this: OlaiWorld, text: string) {
   await this.page.getByLabel("Execution plan", { exact: true }).getByText(text, { exact: true }).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
