@@ -3902,3 +3902,10 @@ Then("there is no execution plan", async function (this: OlaiWorld) {
 Then("terminal output contains {string}", async function (this: OlaiWorld, text: string) {
   await this.waitUntil(async () => (await this.page.getByRole("region", { name: "Terminal output", exact: true }).allTextContents()).some(output => output.includes(text)), "terminal output: " + text, HYDRATION_TIMEOUT);
 });
+
+Then("there is no terminal output", async function (this: OlaiWorld) {
+  await this.page.getByRole("region", { name: "Terminal output", exact: true }).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
+});
+Then("terminal output omits {string}", async function (this: OlaiWorld, text: string) {
+  await this.waitUntil(async () => (await this.page.getByRole("region", { name: "Terminal output", exact: true }).allTextContents()).every(output => !output.includes(text)), "terminal output to omit: " + text, HYDRATION_TIMEOUT);
+});

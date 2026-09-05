@@ -1284,14 +1284,16 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
   if (verb === "terminal") {
     if (capabilities["terminal"] !== true) { refuse(id, -32603, "client did not advertise terminals"); return }
-    const limit = argument === "truncate" ? 7 : argument === "zero" ? 0 : 65536
-    const script = argument === "truncate" || argument === "zero"
+    // A node’s first prompt also carries its context contract after the command.
+    const variant = rest[0]
+    const limit = variant === "truncate" ? 7 : variant === "zero" ? 0 : 65536
+    const script = variant === "truncate" || variant === "zero"
       ? 'process.stdout.write("old output 🌍éEND"); process.exitCode=7'
       : 'process.stdout.write("stdout ready\\n"); process.stderr.write("stderr ready\\n"); setInterval(()=>{},1000)'
     const created = await request("terminal/create", { sessionId, command: "node", args: ["-e", script], outputByteLimit: limit }) as { terminalId: string }
     const params = { sessionId, terminalId: created.terminalId }
     notify("session/update", { sessionId, update: { sessionUpdate: "tool_call", toolCallId: "terminal-test", title: "Run verification", kind: "execute", status: "in_progress", content: [{ type: "terminal", terminalId: created.terminalId }] } })
-    if (argument !== "truncate" && argument !== "zero") {
+    if (variant !== "truncate" && variant !== "zero") {
       while (!cancelled && !existsSync(`${cwd}/${MARKER.release}`)) await sleep(20)
       if (!cancelled) { rmSync(`${cwd}/${MARKER.release}`, { force: true }); await request("terminal/kill", params) }
     }
