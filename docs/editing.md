@@ -139,6 +139,8 @@ Both keys are ONE write at the same gate everything else goes through, and an ag
 
 ## Moving a row somewhere else entirely
 
+An open Move picker retains its row and typed destination search when plugins rebuild the same page. Cancelling and opening another move starts with an empty search; navigating away discards the prepared move.
+
 **The caret keeps its place through all of them.** A row moves when the file says it moved, which in a browser means the line you are typing in is drawn again somewhere else — so the app puts the caret back at the character you were at, rather than at the end of the line. **Tab** in the middle of a word leaves you in the middle of that word.
 
 Every key above moves a row one step from where it is: **Tab** goes under the row above, **Shift+Tab** up a level, **Alt+Shift+↑/↓** among its siblings, and a drag reaches as far as you can carry it. None of them can say *this belongs under that node, three hundred rows down* — which is the move you actually mean once a branch has ended up in the wrong place.

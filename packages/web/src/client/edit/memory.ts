@@ -1,6 +1,7 @@
 /** Mutable draft state outlives a rebuild of its page; readers and DOM
  * listeners are recreated by the new editor. Sharing the queue also lets a
  * dispatched write settle before the remounted editor sends another one. */
+import { moveMemory } from "../move/memory.ts"
 import { createSignal } from "solid-js"
 import type { Draft, Pending } from "./draft.ts"
 import { selectionMemory } from "../select/memory.ts"
@@ -17,6 +18,7 @@ export const editorMemory = () => {
     mintSlot: () => `d${++slots}`,
     enqueue: serial(),
     selection: selectionMemory(),
+    moving: moveMemory(),
   }
 }
 export type EditorMemory = ReturnType<typeof editorMemory>
@@ -34,7 +36,8 @@ export const takeEditor = (pane: number, page: string, route: Route | undefined)
 
 export const keepEditor = (pane: number, page: string, route: Route, memory: EditorMemory): void => {
   if (memory.draft() === null && memory.ghosts().length === 0
-    && memory.selection.keys[0]().size === 0 && memory.selection.said[0]() === null) return
+    && memory.selection.keys[0]().size === 0 && memory.selection.said[0]() === null
+    && memory.moving.standing[0]() === null) return
   const entries = saved.get(route) ?? new Map<string, EditorMemory>()
   entries.set(key(pane, page), memory)
   saved.set(route, entries)

@@ -143,7 +143,7 @@ function EditablePage(props: EditableProps) {
   // dismissed. The second is a thunk rather than a value because the editor is
   // made on the next line — a keyboard door that left focus on `<body>` is the
   // gap both reviews of #245 named, and this is the one line that closes it.
-  const moving = createMoving(page, (row) => editor.open(row, "title"))
+  const moving = createMoving(page, (row) => editor.open(row, "title"), memory.moving)
   /**
    * The two ZOOM keys' destinations — the editor knows how to leave a row
    * and not where that goes, so the ROUTES are spelled here: the node a

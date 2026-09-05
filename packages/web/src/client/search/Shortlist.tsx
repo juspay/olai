@@ -50,6 +50,7 @@
  * refused in the other direction.
  */
 
+import type { Signal } from "solid-js"
 import type { NodeHit } from "@olai/surface"
 import { type Accessor, createMemo, createSignal, Index, onMount, Show } from "solid-js"
 
@@ -90,6 +91,8 @@ export function Shortlist(props: {
   /** What the box is FOR, as one sentence — its placeholder and its
    *  `aria-label`, which are the same words for the same reason a label and a
    *  hint would not be: there is nothing above the box to read. */
+  /** A host may retain the query through a rebuild of its page. */
+  readonly query?: Signal<string>
   readonly label: string
   readonly testids: ShortlistTestids
   /** Take this hit. The door knows what a take MEANS — a reference written, a
@@ -135,7 +138,7 @@ export function Shortlist(props: {
     readonly asked?: (hits: Accessor<ReadonlyArray<NodeHit>>) => void
   }
 }) {
-  const [query, setQuery] = createSignal("")
+  const [query, setQuery] = props.query ?? createSignal("")
   // RECORDS ALONE, asked for on the REQUEST and answered in the type
   // (`./nodes.ts`): every door that draws this list is picking a node to point
   // at, and none of them could take a document.
