@@ -58,7 +58,7 @@ import { Effect, Schema } from "effect"
 
 import { NO_SEARCH } from "./ops.ts"
 import { act, read, TOOLS, write } from "./tools.ts"
-import { answerOf, CALLS, gaveOf, READS } from "./tools.testlib.ts"
+import { CALLS, gaveOf, READS } from "./tools.testlib.ts"
 
 /** WITH NO MATCHER MOUNTED, which is what this package can build: the walk
  *  is a harness now ({@link ./tools.testlib.ts}) and `olai-plugin-search`'s own
@@ -75,14 +75,14 @@ test("every read in the table is called here", () => {
 })
 
 test("every answer decodes through the shape its own entry declares", () => {
+  const of = answers()
   for (const tool of READS) {
     if (tool.kind !== "read") continue
     const decode = Schema.decodeUnknownSync(
       tool.answers as Schema.Codec<unknown, unknown, never, never>,
       { errors: "all", onExcessProperty: "error" },
     )
-    for (const args of CALLS[tool.name] ?? []) {
-      const answer = answerOf(NO_SEARCH, tool, args)
+    for (const answer of of(tool.name)) {
       // Compared with what went in, so the assertion is "this IS the shape"
       // rather than "this parses" — a decode that dropped a field would
       // otherwise pass.

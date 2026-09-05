@@ -428,6 +428,18 @@ export const serve = (options: ServeOptions) =>
      * the tag's payloads are `unknown` because `@olai/plugin-api` may not import
      * the floor, and `@olai/ops`' `Search` is the same door with the floor's own
      * types on it. A drift between them is a type error here.
+     *
+     * THE THREE OF THESE ARE NOT FACTORED INTO ONE, and that is a decision
+     * rather than an oversight — the volatility lens asks for it and the
+     * decomposition lens refuses. What they share is a SHAPE, not a concept:
+     * each reads a different key, falls back to a different sentence, and — the
+     * part a helper would eat — spends its own cast between a tag whose payloads
+     * are `unknown` and the typed twin the layer that consumes it declares.
+     * That cast is checked here, per door, against a type only this file has
+     * both halves of; a `standing(key, nobody)` generic over the fallback erases
+     * exactly the check and leaves three `as never`s where three checked casts
+     * were. Similar is not complected, and three lines that a compiler will
+     * point at one by one are cheaper than an abstraction that stops it looking.
      */
     const search: OpsSearch = {
       nodes: (ask) => currentSearch().nodes(ask),

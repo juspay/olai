@@ -117,42 +117,49 @@ export const CALLS: Record<string, ReadonlyArray<unknown>> = {
 export const READS = TOOLS.filter((tool) => tool.kind === "read")
 
 /**
- * The read door, over that fixture — the SAME `asking` the ops layer builds
- * over its own gated read, so what this walks is the envelope an agent
- * actually receives and not a `Query` call the envelope is made of.
+ * ONE WALK OF THE TABLE, over one door — every read asked with every entry in
+ * {@link CALLS}, grouped by the tool that answered.
+ *
+ * The door is the SAME `asking` the ops layer builds over its own gated read,
+ * so what this walks is the envelope an agent actually receives and not a
+ * `Query` call the envelope is made of.
+ *
+ * ## Why the door is built ONCE, and why this is one function
+ *
+ * It was four, and two different questions find the same seam in that — which
+ * is usually the sign it is real.
+ *
+ * WHAT CHANGES WHEN. The envelope's lifetime is the RUN's: `./ops.ts`'s `make`
+ * builds one `asking` per served directory, and every tool call for the life of
+ * that process goes through it. The version this replaced built one per CALL,
+ * which modelled something production never does and quietly made the clock and
+ * the kind vocabulary per-question values when they are per-directory facts. It
+ * is built on the same clock production builds it on now.
+ *
+ * WHAT IS TANGLED. "Call every read" and "group the answers by tool" were two
+ * passes over one list, and the second took apart exactly what the first had
+ * just flattened. They are one walk: it groups as it goes, so there is no
+ * flattened intermediate left lying around for a caller to reach for instead.
  *
  * `Effect.sync` rather than `succeed` so each question gets its own set,
- * exactly as the per-call `at()` this replaced did. Nothing here can fail —
- * the read is a fixture — so every answer is `runSync`-able.
+ * exactly as the per-call `at()` this replaced did. Nothing here can fail — the
+ * read is a fixture — so every answer is `runSync`-able, and the failure
+ * channel is discharged here rather than threaded through tests that have
+ * nothing to say about it.
  */
-export const asked = (search: Search) => asking(Effect.sync(at), steady().now, NO_KINDS, search)
-
-/** One read, answered. The tools' own effects never fail over a fixture that
- *  loaded, so the failure channel is discharged here rather than threaded
- *  through three tests that have nothing to say about it. */
-export const answerOf = (
-  search: Search,
-  tool: Extract<Tool, { kind: "read" }>,
-  args: unknown,
-): unknown => Effect.runSync(Effect.orDie(tool.ask(asked(search), args as never)))
-
-/** Every answer the fixture can provoke, paired with the tool that gave it. */
-export const answered = (
-  search: Search,
-): ReadonlyArray<{ name: string; answer: unknown }> =>
-  READS.flatMap((tool) =>
-    (CALLS[tool.name] ?? []).map((args) => ({
-      name: tool.name,
-      answer: tool.kind === "read" ? answerOf(search, tool, args) : undefined,
-    }))
-  )
-
-/** The answers one tool gave, as records — what every assertion below indexes
- *  into, in both packages that run this walk. */
 export const gaveOf = (search: Search) => {
-  const answers = answered(search)
-  return (name: string): ReadonlyArray<Record<string, unknown>> =>
-    answers.filter((one) => one.name === name).map((one) =>
-      one.answer as Record<string, unknown>
+  const door = asking(Effect.sync(at), steady().now, NO_KINDS, search)
+  const gave = new Map<string, ReadonlyArray<Record<string, unknown>>>()
+  for (const tool of READS) {
+    if (tool.kind !== "read") continue
+    gave.set(
+      tool.name,
+      (CALLS[tool.name] ?? []).map((args) =>
+        Effect.runSync(Effect.orDie(tool.ask(door, args as never))) as Record<string, unknown>
+      ),
     )
+  }
+  /** The answers one tool gave — what every assertion indexes into, in both
+   *  packages that run this walk. */
+  return (name: string): ReadonlyArray<Record<string, unknown>> => gave.get(name) ?? []
 }
