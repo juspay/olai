@@ -43,11 +43,23 @@ import type { AppCommand, RowAction } from "@olai/plugin-api"
 import { setPanelOpen } from "@olai/web/client/layout/prefs.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { Result } from "effect"
+import { onCleanup, type JSX } from "solid-js"
 
 import { useAgents } from "./agents/answered.tsx"
 import { armNode, releaseArmed, restoreArmed } from "./chat/armed.ts"
 import { createChatState } from "./chat/state.ts"
 import { chatWire } from "./wire.ts"
+
+let commandState: ReturnType<typeof createChatState> | null = null
+
+/** Palette commands are imperative slot values. Keep their conversation
+ * reading in the app's mounted lifetime, including while the drawer is shut. */
+export function CommandContext(props: { readonly children: JSX.Element }) {
+  const state = createChatState()
+  commandState = state
+  onCleanup(() => { if (commandState === state) commandState = null })
+  return props.children
+}
 
 /**
  * WHAT A ROW'S `•••` OFFERS, READ AT THE WALK.
@@ -178,7 +190,7 @@ export const askCommand: AppCommand = {
     // `runAsync` answers a `Result`, so there is no throw here to catch and no
     // way for one of the three exits to escape unread.
     const outcome = await runAsync(
-      chatWire().procedures.conversation.send({ text: line, context }),
+      chatWire().procedures.conversation.send({ scope: commandState?.().uploadScope ?? null, text: line, context }),
     )
     setPanelOpen(true)
     if (Result.isSuccess(outcome)) return null

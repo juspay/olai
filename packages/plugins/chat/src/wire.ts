@@ -176,6 +176,7 @@ export const surface = defineSurface({
        *  open tab stays in step and a slow turn does not hold a call open. */
       send: {
         input: Schema.Struct({
+          scope: Schema.NullOr(Schema.String),
           text: Schema.String,
           /**
            * INTERRUPT the turn the agent is already running with this, rather

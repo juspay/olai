@@ -235,6 +235,10 @@ export const createChatState = (): Accessor<ChatState> => {
   return () => cell.value() ?? CHAT_OFF
 }
 
+// A procedure can settle after the drawer that started it was remounted. Its
+// refusal belongs to this tab's gesture, not to that discarded panel instance.
+const [refused, setRefused] = createSignal<OpFailure | null>(null)
+
 export const createChat = (): Chat => {
   const served = createChatState()
   const transcript = chatWire().collections.transcript.use()
@@ -243,7 +247,6 @@ export const createChat = (): Chat => {
   // socket the answer rather than three hundred copies of its prefixes
   // ({@link ./growing.ts}).
   const said = createTail(chatWire().collections.saying.use().fold)
-  const [refused, setRefused] = createSignal<OpFailure | null>(null)
 
   /**
    * THE ROW STILL BEING SAID, joined — computed ONCE per frame however many
@@ -412,6 +415,7 @@ export const createChat = (): Chat => {
           // shape for it: an ordinary send says nothing about interrupting,
           // the way an ordinary row says nothing about a delivery.
           chatWire().procedures.conversation.send({
+            scope: state().uploadScope,
             text,
             attachments,
             context,

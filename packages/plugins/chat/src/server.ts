@@ -542,12 +542,12 @@ export default definePlugin({
       // told is the set's answer rather than the tab's, and an id nothing
       // declares refuses the send instead of quietly sending a message with no
       // subject.
-      send: ({ input }: { input: { text: string; attachments?: ReadonlyArray<string>; context?: ReadonlyArray<string>; steer?: boolean } }) =>
-        withChat((open) =>
+      send: ({ input }: { input: { scope: string | null; text: string; attachments?: ReadonlyArray<string>; context?: ReadonlyArray<string>; steer?: boolean } }) =>
+        withChat((open) => open.inConversation(input.scope, (panel) =>
           Effect.flatMap(ops.reading, (at) => {
             const context = contextFor(at as Reading, input.context ?? [])
             if (context._tag === "Failure") return Effect.fail(context.failure)
-            return open.send(
+            return panel.send(
               input.text,
               input.attachments ?? [],
               context.success,
@@ -557,11 +557,11 @@ export default definePlugin({
               input.steer ?? false,
             )
           })
-        ),
+        )),
       attach: ({ input }: { input: Parameters<Chat.Chat["attach"]>[0] }) =>
         withChat((open) => open.attach(input)),
       resend: ({ input }: { input: { id: string } }) => withChat((open) => open.resend(input.id)),
-      cancel: ({ input }: { input: { scope: string | null } }) => withChat((open) => open.cancelAt(input.scope)),
+      cancel: ({ input }: { input: { scope: string | null } }) => withChat((open) => open.inConversation(input.scope, (panel) => panel.cancel)),
       setModel: ({ input }: { input: { agent: string; session: string; value: string } }) =>
         withChat((open) => open.setModel(input.agent, input.session, input.value)),
       newSession: ({ input }: { input: { agent: string } }) =>

@@ -2,6 +2,7 @@ import * as assert from "node:assert";
 import { Given, When } from "@cucumber/cucumber";
 import type { Page } from "playwright";
 import type { OlaiWorld } from "../support/world.ts";
+import { PALETTE_INPUT } from "../support/world.ts";
 
 interface Tabs {
   original: Page;
@@ -51,4 +52,9 @@ When("I use the {word} chat tab", function (this: OlaiWorld, which: string) {
   const page = which === "original" ? state.original : which === "other" ? state.other : undefined;
   assert.ok(page, `no ${which} chat tab`);
   this.page = page;
+});
+
+When("I submit the palette while chat updates are delayed", async function (this: OlaiWorld) {
+  // The reply is deliberately held, so this gesture cannot wait for RPC quiet.
+  await this.page.locator(PALETTE_INPUT).press("Enter");
 });

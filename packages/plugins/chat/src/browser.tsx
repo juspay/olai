@@ -63,7 +63,7 @@ import { Effect } from "effect"
 import { AgentDoor } from "./browser/agents/Door.tsx"
 import { Agents } from "./browser/agents/Agents.tsx"
 import { AgentsProvider } from "./browser/agents/answered.tsx"
-import { askCommand, rowVerbs } from "./browser/verbs.tsx"
+import { askCommand, CommandContext, rowVerbs } from "./browser/verbs.tsx"
 import { trackCamera } from "./browser/chat/camera.ts"
 import { Panel, Toggle } from "./browser/chat/Panel.tsx"
 import { holdFaces } from "./browser/faces.ts"
@@ -130,6 +130,8 @@ export default definePlugin({
     // section draws the whole of it, every outline row asks whether its node is
     // on it, and the panel's header asks what the node its conversation belongs
     // to is called — three readers with the whole app between them.
-    yield* slots.register("app.mount", AgentsProvider)
+    yield* slots.register("app.mount", (props) => (
+      <CommandContext><AgentsProvider>{props.children}</AgentsProvider></CommandContext>
+    ))
   }),
 })

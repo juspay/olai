@@ -160,7 +160,7 @@ export function Composer(props: {
 }) {
   // Keep the words, caret and chosen @ handles together across remounts.
   // `taken` grants node context only while its word remains in the draft.
-  const { draft, setDraft, taken, setTaken, caret, setCaret } = createMessageDraft(() => {
+  const { draft, setDraft, taken, setTaken, caret, setCaret, recover } = createMessageDraft(() => {
     const state = props.chat.state()
     const agent = agentIn(state)
     return agent === null || state.session === null
@@ -454,7 +454,7 @@ export function Composer(props: {
     // restored one and not the other would leave a message that is not the one
     // that was refused.
     const held = releaseArmed()
-    const chosen = taken()
+    const recoverDraft = recover()
     setTaken(new Set<string>())
     setDraft("")
     // The caret goes with the words: an empty box's caret is at its start, and
@@ -473,20 +473,10 @@ export function Composer(props: {
       interrupt,
     )
     if (sent) return
-    // A refused send may settle after a session switch. Its files and draft
-    // cannot be restored into the newly opened conversation.
-    if (props.chat.state().uploadScope !== uploadScope) return
-    // THE WORDS AND THE PERMISSION FOR THEM MOVE TOGETHER, on one test rather
-    // than two: the restored `@hinges` has to be a word the panel remembers
-    // writing, or the message goes the second time without the subject it was
-    // refused with. Two separately-evaluated "is it still empty?" guards could
-    // answer differently — somebody typing while the refusal is in flight keeps
-    // their words and would have got the old permissions back underneath them.
-    if (draft() === "") {
-      setDraft(text)
-      setTaken(chosen)
-    }
-    props.holding.restore(attachments)
+    recoverDraft()
+    props.holding.restore(uploadScope, attachments)
+    // Explicitly armed rows belong to the workspace and already survive
+    // conversation switches; a refused send must not consume those either.
     restoreArmed(held)
   }
 

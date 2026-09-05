@@ -11,12 +11,30 @@ interface Draft {
 }
 
 const held = new Map<string, Draft>()
+const mounted = new Map<string, (draft: Draft) => void>()
+
+const restored = (failed: Draft, current?: Draft): Draft => {
+  if (current === undefined || current.text === "") return failed
+  const text = failed.text === "" ? current.text : `${failed.text}\n${current.text}`
+  return { text, taken: new Set([...failed.taken, ...current.taken]), caret: text.length }
+}
 
 export const createMessageDraft = (conversation: Accessor<string | null>) => {
   const [draft, setDraft] = createSignal("")
   const [taken, setTaken] = createSignal<ReadonlySet<string>>(new Set())
   const [caret, setCaret] = createSignal(0)
   let owner: string | null = null
+
+  const read = (): Draft => ({ text: draft(), taken: taken(), caret: caret() })
+  const put = (value: Draft) => batch(() => {
+    setDraft(value.text)
+    setTaken(value.taken)
+    setCaret(value.caret)
+  })
+  const restoreHere = (failed: Draft) => put(restored(failed, read()))
+  const detach = () => {
+    if (owner !== null && mounted.get(owner) === restoreHere) mounted.delete(owner)
+  }
 
   const save = () => {
     if (owner === null) return
@@ -30,7 +48,9 @@ export const createMessageDraft = (conversation: Accessor<string | null>) => {
     if (key === null || key === owner) return
     const first = owner === null
     save()
+    detach()
     owner = key
+    mounted.set(key, restoreHere)
     const stored = held.get(key)
     // Words typed during the first boot go into that first conversation.
     // An actual conversation change starts with its own draft, or an empty box.
@@ -41,7 +61,20 @@ export const createMessageDraft = (conversation: Accessor<string | null>) => {
       setCaret(stored?.caret ?? 0)
     })
   }))
-  onCleanup(save)
+  onCleanup(() => { save(); detach() })
 
-  return { draft, setDraft, taken, setTaken, caret, setCaret }
+  // Capture before clearing the composer. A refusal may arrive after this
+  // instance has changed conversations or been replaced by a new mount.
+  const recover = () => {
+    const key = owner ?? conversation()
+    const failed = read()
+    return () => {
+      if (key === null) return
+      const live = mounted.get(key)
+      if (live !== undefined) live(failed)
+      else held.set(key, restored(failed, held.get(key)))
+    }
+  }
+
+  return { draft, setDraft, taken, setTaken, caret, setCaret, recover }
 }

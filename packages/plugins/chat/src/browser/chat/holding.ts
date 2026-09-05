@@ -73,10 +73,8 @@ export interface Holding {
   readonly remove: (name: string) => void
   /** Hand over everything held and empty the strip: what a send does. */
   readonly release: () => ReadonlyArray<Attached>
-  /** Put back what a REFUSED send threw away — and only into a strip that is
-   *  still empty, so an attachment picked up while the answer was in flight
-   *  wins over the one being restored. */
-  readonly restore: (attachments: ReadonlyArray<Attached>) => void
+  /** Restore refused files to their original lifetime, even after a switch. */
+  readonly restore: (scope: string | null, attachments: ReadonlyArray<Attached>) => void
 }
 
 const bin = () => {
@@ -143,6 +141,12 @@ export const createHolding = (chat: Chat): Holding => {
       owner.setPending([])
       return attachments
     },
-    restore: (attachments) => current().setPending((now) => (now.length === 0 ? attachments : now)),
+    restore: (scope, attachments) => {
+      if (scope === null) return
+      held.get(scope)?.setPending((now) => [
+        ...attachments.filter((file) => !now.some((later) => later.path === file.path)),
+        ...now,
+      ])
+    },
   }
 }
