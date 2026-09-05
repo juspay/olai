@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { loadRows } from "./loading.ts"
+import { loadRows, retryableModule } from "./loading.ts"
 
 test("optional module failures leave independent shell modules available in roster order", async () => {
   const result = await loadRows([
@@ -24,7 +24,6 @@ test("a later acquisition retries failed rows and clears their fault", async () 
 })
 
 test("recovery changes only the failed entry URL and retains the recovered module", async () => {
-  const { retryableModule } = await import("./loading.ts")
   let initial = 0
   const urls: string[] = []
   const module = { identity: {} }
