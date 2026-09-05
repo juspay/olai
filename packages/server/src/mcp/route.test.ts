@@ -239,7 +239,7 @@ test("a tool call goes through and comes back as one reply", async () => {
 
     // `read_node` rather than `search_nodes`, which this used to call: the
     // matcher is a ROW now (`olai-plugin-search`) and this harness mounts none,
-    // so a search here answers "nobody is searching here" — one reply, which is
+    // so a search here answers with the row's absence in words — one reply, which is
     // all this test claims, but a payload about an absent plugin rather than
     // about the transport. A read core answers for itself keeps the claim about
     // the thing under test: arguments in, one JSON reply out.

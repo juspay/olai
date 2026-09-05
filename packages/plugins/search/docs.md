@@ -1,6 +1,6 @@
 # The matcher
 
-Search is a plugin. The trigram table the server keeps up to date, the walk over it that ranks and caps and situates a hit, and the box in the app header all arrive with one row in the build's plugin list. A serve that does not name that row still has the grammar, the tool and every box a person types into — and every one of them answers *nobody is searching here*.
+Search is a plugin. The trigram table the server keeps up to date, the walk over it that ranks and caps and situates a hit, and the box in the app header all arrive with one row in the build's plugin list. A serve that does not name that row still has the grammar, the tool and every box a person types into — and every one of them answers with the reason, naming the row: *the `search` plugin is not running on this serve*.
 
 What search *does* has its own page: [search.md](../search.md) is the grammar, the five doors and what a query means. This page is about the row.
 

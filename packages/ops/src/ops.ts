@@ -131,6 +131,15 @@ export interface Search {
  * The token is the query AS TYPED, for `Refusal`'s own reason: a refusal that
  * quoted something else would be telling somebody they wrote something they did
  * not.
+ *
+ * IT NAMES THE ROW, and that is the difference between a sentence and a dead
+ * end. This read "nobody is searching here", which is true and leaves both
+ * readers stuck: an agent gets a tool result about an absence it cannot act on,
+ * and a person gets a box that has given up. Named, each has a next move — an
+ * agent asks `plugins.inspect` what this serve is running, and a person opens
+ * the plugins panel and switches it on. Core spelling a row's word is what the
+ * fence records as the `search` collision rather than what it forbids: the word
+ * is already the verb this whole layer is about.
  */
 export const NO_SEARCH: Search = {
   nodes: ({ query }) =>
@@ -139,8 +148,8 @@ export const NO_SEARCH: Search = {
       total: 0,
       refusals: [{
         token: query.text,
-        reason: "nobody is searching here — this serve mounts no matcher, "
-          + "so there is nothing to look this up in",
+        reason: "the `search` plugin is not running on this serve, so there is "
+          + "no matcher to look this up in",
       }],
     }),
 }
