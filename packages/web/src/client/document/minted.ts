@@ -85,11 +85,13 @@ export const mintAndOpen = async (
  * files have no inverse, so the plugin answer carries only its path. */
 export const openMintedFile = async (
   asked: Promise<Result.Result<{ readonly file: string }, OpFailure>>,
-  go: Router["go"],
+  router: Router,
 ): Promise<string | null> => {
+  const started = router.workspace()
   const outcome = await asked
   if (Result.isFailure(outcome)) return outcome.failure.message
+  if (router.workspace() !== started) return null
   mintedDocument(outcome.success.file)
-  go(atFile(outcome.success.file))
+  router.go(atFile(outcome.success.file))
   return null
 }

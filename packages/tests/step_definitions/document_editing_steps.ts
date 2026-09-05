@@ -201,6 +201,14 @@ Then("the + day note button is shown", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
+Then("the + day note button is waiting for its write", async function (this: OlaiWorld) {
+  assert.strictEqual(await this.page.locator(DAY_MINT).isDisabled(), true);
+});
+
+Then("the + day note button is ready", async function (this: OlaiWorld) {
+  assert.strictEqual(await this.page.locator(DAY_MINT).isEnabled(), true);
+});
+
 Then("the + day note button is gone", async function (this: OlaiWorld) {
   await expectAbsent(
     this,
