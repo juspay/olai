@@ -1130,3 +1130,5 @@ names the file.
 - [architecture.md](../architecture.md) — how every package fits, plugins included.
 - [live-properties.md](../live-properties.md) — the user-facing half of §8.
 - [running.md](../running.md) — `--plugins` as an operator sees it.
+
+Browser row actions (`outline.row.action`) may return a refusal sentence from `run(node)`. The menu displays it beside the originating row; successful actions return nothing. This lets plugin procedures explain expected failures, such as a full node-agent pool, without depending on core’s presentation types.

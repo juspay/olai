@@ -152,10 +152,12 @@ export const rowVerbs = (node: string): ReadonlyArray<RowAction> => {
       // property was never written. `runAsync` is where this app runs one, and
       // it is not a convenience: it is what holds the tab's quiescence open for
       // the length of the call, which is what a scenario waits on.
-      run: (node) =>
-        runAsync(
+      run: async (node) => {
+        const outcome = await runAsync(
           chatWire().procedures.conversation.startAgentSession({ node, agent: engine.id }),
-        ).then(() => {}),
+        )
+        if (Result.isFailure(outcome)) return outcome.failure.message
+      },
     })
   }
   return verbs

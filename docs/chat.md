@@ -584,7 +584,7 @@ Each row says the node's title, the engine, **how the agent stands**, and how ma
 | **asleep** | it has a session on disk and no live scope right now |
 | **no session bound** | nobody has started a session for it yet |
 
-The last two are worth reading twice. **Node agents run independently**: several rows may be working or waiting on you at once, while *asleep* means the durable session has no process right now. A scope is acquired lazily on the first press or wake, up to `DEFAULT_CAPACITY` live scopes; an idle background scope is reaped after `DEFAULT_IDLE` and the next wake resumes the same session from disk. Both defaults live beside the scheduler in `packages/plugins/chat/src/scoped.ts`. The count beside each row is that node's own unanswered questions, including while another conversation is in the panel.
+The last two are worth reading twice. **Node agents run independently**: several rows may be working or waiting on you at once, while *asleep* means the durable session has no process right now. A scope is acquired lazily on the first press or wake, up to `DEFAULT_CAPACITY` live scopes; an idle background scope is reaped after `DEFAULT_IDLE` and the next wake resumes the same session from disk. Both defaults live beside the scheduler in `packages/plugins/chat/src/scoped.ts`. If every live scope is busy or waiting for an answer, starting another node session refuses beside that row and asks you to let an agent become idle. No existing conversation is replaced; retrying after an idle background scope becomes available can evict that scope and proceed. The count beside each row is that node's own unanswered questions, including while another conversation is in the panel.
 
 ### The door on the row
 
