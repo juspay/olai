@@ -142,7 +142,12 @@ const withRuntime = <A>(
       // what stands behind their names is a double with no appliance under it
       // ({@link doubleCalled}).
       plugins: {
-        plugins: mounted,
+        // These cases drive registration changes through onChange and read
+        // fiber reports directly. Status notifications also force verified
+        // store refreshes; keep that independent background stream out of the
+        // fixture so exact body-frame assertions have one revision producer.
+        // Live status reconciliation is covered by the serve/profile tests.
+        plugins: { ...mounted, changes: Stream.empty },
         onChange,
         built: extra.plugins === undefined ? ["vault"] : extra.plugins.map((one) => one.name),
         pinned: null,
