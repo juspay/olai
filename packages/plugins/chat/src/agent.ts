@@ -317,8 +317,9 @@ export interface Agent {
    *  cancel button doing nothing while the turn went on streaming. It is on the
    *  channel now, so a cancel that could not be delivered refuses like every
    *  other verb. */
-  readonly setModel: (session: string, value: string) => Effect.Effect<void, AgentGone>
   readonly cancel: Effect.Effect<void, AgentGone>
+  /** Apply an advertised model value to the conversation the caller selected. */
+  readonly setModel: (session: string, value: string) => Effect.Effect<void, AgentGone>
   readonly newSession: Effect.Effect<void, AgentGone>
   readonly loadSession: (id: string) => Effect.Effect<void, AgentGone>
   /** The stored conversations for this directory, newest first. */
