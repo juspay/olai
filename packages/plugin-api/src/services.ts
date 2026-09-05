@@ -1114,7 +1114,7 @@ export interface Plugins {
    *
    * Core row offers and plugin-owned keys appear here. Host services are
    * provided before any row is mounted and are nobody's to hold, so a row can never be
-   * carrying another on `vault` or `clock`.
+   * carrying another on `clock`.
    */
   readonly offers: () => ReadonlyMap<string, string>
   /** Public discovery: the stable authoring catalog plus currently offered
@@ -1259,19 +1259,13 @@ export const openPlugins = (
       dial: config.dials?.[plugin],
     }))
     yield* provide(host, Clock, () => ({ now: config.now }))
-    // THE THREE BUSES, and they are one primitive rather than three hand-rolled
-    // copies of it ({@link @olai/effect-cordis}'s `broadcast`). Each holds its
-    // handlers in subscription order, wraps every one of them ONCE with the
-    // registering plugin's word, and AWAITS all of them when it is rung —
-    // containment as a property of the bus rather than a discipline every plugin
-    // is asked to keep, and one sentence rather than three.
     /**
-     * ...AND THE SEVEN THAT CORE DOES NOT PROVIDE AT ALL, which is the whole
+     * THE DOORS THAT CORE DOES NOT PROVIDE, which is the whole
      * of this phase and reads here as an absence.
      *
      * Four of {@link OFFERABLE} are the chat row's to keep; {@link Ledger} is
      * the git row's, {@link Search} the search row's and {@link Identity} the
-     * identity row's. Offered from the
+     * identity row's; Vault and Directory belong to the vault row. Offered from the
      * offering plugin's own `apply`
      * ({@link Offers}). Core standing behind them was scaffolding
      * with a date on it: a stand-in whose door was `undefined` answered every

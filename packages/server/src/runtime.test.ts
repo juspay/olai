@@ -24,7 +24,6 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  */
 
 import {
-  codecFor,
   make as makeOps,
   type Ops,
   type Store as OutlineStore,
@@ -53,7 +52,6 @@ import { restrictHandlers } from "@kolu/surface/expose"
 import { facesOf } from "./faces.ts"
 import { inMemoryStore } from "@kolu/surface/server"
 import { NO_KINDS } from "@olai/format"
-import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, mock, test } from "bun:test"
 import { Effect, Fiber, Queue, Schema, Scope, Stream } from "effect"
@@ -64,11 +62,6 @@ import * as path from "node:path"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { type Bound, bind, type PluginRuntime, rosterOf, writerAt } from "./runtime.ts"
-
-/** The codec this suite validates through — the vocabulary of a build that
- *  composed no plugin, which is what these fixtures declare nothing about
- *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
 
 /** A known start instant, so `app.get` is asserted against a mint rather
  *  than against whatever clock the suite happened to read. */
@@ -1510,18 +1503,3 @@ const engineCalled = (name: string) => ({
  * runtimes live as long as the case does and there is nothing here to hold open
  * against a second one.
  */
-const mounting = (
-  doubles: ReadonlyArray<{ readonly plugin: ReturnType<typeof definePlugin> }>,
-  onChange: { run: () => void },
-): Effect.Effect<Plugins, never, Scope.Scope> =>
-  Effect.gen(function*() {
-    const plugins = yield* openPlugins({
-      vars: {},
-      now: () => STARTED,
-      // The double's own directory, which none of these cases reads.
-      served: "/tmp",
-      changed: () => onChange.run(),
-    })
-    for (const one of doubles) yield* mountPlugin(plugins.host, one.plugin)
-    return plugins
-  })

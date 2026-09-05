@@ -37,5 +37,6 @@ Then("the MCP vault can read an outline", async function (this: OlaiWorld) {
   });
   const result = (await response.json()).result;
   assert.notEqual(result.isError, true);
-  assert.ok(JSON.stringify(result).includes(".olai"));
+  const reading = JSON.parse(result.content.find((part: { type: string }) => part.type === "text").text);
+  assert.ok(reading.outlines.length > 0);
 });
