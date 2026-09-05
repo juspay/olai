@@ -127,7 +127,7 @@ export const mountRows = (host: Host, options: {
     ;(ctx as unknown as Record<symbol, Array<Entry>>)[ROWS] = rows
     await ctx.plugin(Include, {
       path: options.path,
-      patches: options.patches,
+      patches: [...options.patches],
     })
     await ctx.loader.await()
   })

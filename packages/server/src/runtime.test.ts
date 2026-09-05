@@ -1,3 +1,4 @@
+import { TestClock } from "effect/testing"
 import { runtimePaths } from "./runtime-paths.ts"
 import { fixedStore } from "./store-source.ts"
 import { mountBundle, offered as door, provide, settled } from "@olai/bundle/bundle"
@@ -173,7 +174,15 @@ const withRuntime = <A>(
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => runtime.stopped)
     return yield* use({ wired, ops: gate, store, reads, root, plugins: mounted })
-  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
+  }).pipe(
+    Effect.scoped,
+    Effect.provide(NodeServices.layer),
+    // These connector tests advance disk through explicit refreshes. The vault
+    // row also starts a watcher and backstop; hold their timers so an incidental
+    // probe cannot add a revision between the exact frames asserted below.
+    Effect.provide(TestClock.layer()),
+    Effect.runPromise,
+  )
 }
 
 /** Every CORE member whose answer records WHO asked, as the wire spells them.
