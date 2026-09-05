@@ -21,7 +21,7 @@ import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
 import { provideFurniture } from "./plugins/furniture.tsx"
-import { connectionReadout, firstRoster, olai, useBrowserRows } from "./wire.ts"
+import { bootstrapBrowser, connectionReadout, firstRoster, olai, useBrowserRows } from "./wire.ts"
 import { attachRenderer, useBundleOrder } from "./plugins/runtime.ts"
 // FOR ITS SIDE EFFECT, and above the first render: this app's Solid, Effect and
 // plugin interface, put where a plugin the SERVE compiled out of somebody's
@@ -117,3 +117,4 @@ if (root === null) throw new Error("no #root element")
 await provideFurniture()
 await attachRenderer(root)
 await firstRoster
+await bootstrapBrowser()

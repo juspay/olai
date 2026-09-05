@@ -39,6 +39,8 @@ export interface TransportSurface {
   readonly report: (event: SurfaceAppEvent<string>) => void
   readonly who: (headers: HttpServerRequest.HttpServerRequest["headers"]) => { readonly login: string } | null
   readonly clientDist: Effect.Effect<string>
+  /** Authoritative selected browser-only rows, for boot before the socket opens. */
+  readonly browserBoot?: () => ReadonlyArray<string>
   readonly hostname: string
   readonly token: string
   /** Bind core's writer and ticket fence; the plugin projects them onto tools. */

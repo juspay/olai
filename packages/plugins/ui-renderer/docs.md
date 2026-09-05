@@ -26,3 +26,9 @@ do not select this row.
 
 This is the renderer foundation for Phase 18. The remaining application
 locations still use the earlier slot API until their owners are extracted.
+
+If the socket has not delivered its first roster after the startup deadline,
+the browser asks the web-app provider for `/olai/browser-boot`. This uncached
+answer names only the host-selected browser-only rows, allowing the shell to
+show connecting state. Once the live roster has answered, a delayed bootstrap
+response cannot replace it. The browser never infers selection from defaults.

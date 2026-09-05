@@ -5,6 +5,8 @@
  * publishes plugin registrations after the new siblings are available.
  */
 
+import { bootstrapSelected } from "./plugins/bootstrap.ts"
+import { BROWSER_BOOT_PATH } from "@olai/plugin-api/mount"
 import { connectSurfaces } from "@kolu/surface-app/solid"
 import type { Surface, SurfaceSpec } from "@kolu/surface/define"
 import type { BrowserHalf, BrowserRow } from "@olai/bundle"
@@ -189,6 +191,21 @@ export const useBrowserRows = (built: ReadonlyArray<BrowserRow>): void => {
   rows = built
 }
 
+/** The socket is authoritative once it has answered. A slow bootstrap reply
+ * cannot re-enable a row which a newer roster switched off. */
+let receivedRoster = false
+export const bootstrapBrowser = async (): Promise<void> => {
+  try {
+    await bootstrapSelected({
+      authoritative: () => receivedRoster,
+      request: () => fetch(BROWSER_BOOT_PATH, { cache: "no-store", signal: AbortSignal.timeout(5000) }),
+      apply: (selected) => rerost(selected.map((id) => ({ id, chunk: null }))),
+    })
+  } catch (error) {
+    console.warn("olai: browser bootstrap could not be read", error)
+  }
+}
+
 let inFlight: Promise<void> = Promise.resolve()
 
 const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise<void> => {
@@ -316,6 +333,7 @@ createRoot(() => {
     // nothing about which plugins are running, and dialling none of them
     // because of it would be this page inventing a policy.
     if (value === undefined) return
+    receivedRoster = true
     // WHAT TO LOAD, per running row — the word, and for a plugin the VAULT
     // defines the URL its browser half is served from. A built row has no
     // `source`, so `chunk` is `null` and the compiled-in table below is what

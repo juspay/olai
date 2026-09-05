@@ -465,6 +465,7 @@ export const serve = (options: ServeOptions) =>
       report: (event) => reportTransport(event, say),
       who,
       clientDist: typeof options.clientDist === "string" ? Effect.succeed(options.clientDist) : options.clientDist,
+      browserBoot: () => ROWS.filter((row) => row.browserOnly && report.get(row.id)?.state === "running").map((row) => row.id),
       hostname: theMachine,
       token,
       prepareAgent: (ticket) => mcp.prepare({

@@ -5,3 +5,4 @@ export interface BrowserMount {
   readonly element: Element
 }
 export const BrowserMount = serviceTag<BrowserMount>("browser-mount")
+export const BROWSER_BOOT_PATH = "/olai/browser-boot"
