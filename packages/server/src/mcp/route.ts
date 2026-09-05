@@ -55,7 +55,7 @@ import { Effect, Layer, Option } from "effect"
 import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { AsyncLocalStorage } from "node:async_hooks"
 
-import type { Reading } from "../identity.ts"
+import type { Reading } from "../who.ts"
 
 /** Where the route lives. Named once: `session/new` is told the same URL. */
 export const MCP_PATH = "/mcp"
@@ -214,7 +214,7 @@ export interface Options {
   readonly token: string
   /** Who a request is — the SAME reading the page and `GET /olai/who` get,
    *  minted once by the composition root over whatever row stands behind the
-   *  identity door (`../identity.ts`). Here so that a write through this
+   *  identity door (`../who.ts`). Here so that a write through this
    *  door can be attributed to whoever the proxy says made it, and to nobody
    *  when it says nothing. A function of headers and nothing more: this file
    *  does not learn that a plugin is behind it, and the reading it is handed

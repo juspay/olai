@@ -6,13 +6,12 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//exports": "SIX doors, and the split is the tree's three-door rule plus the two this plugin is read through. The ROOT is the wire identity — the word, and nothing else: this plugin composes no sibling surface, because who is looking is a fact about the CONNECTION, which is core's (`who.get` on core's own face, answered from the upgrade). `./server` is what the row mounts: the reading, offered as the `Identity` door — no `solid-js` on that graph. `./browser` is the chunk the tab fetches when the roster names this row, and it carries the chip that hangs in `app.viewer`. `./who` is the READING as a value — `identityOf`, the picture ladder, the `OLAI_IDENTITY_*` family — for the server half and for the e2e suite, which states a deployment's headers rather than arranging one; it carries `node:crypto` (the gravatar hash) and no browser reaches it. `./person` is the other side of the same subject: how a person is ASKED for and DRAWN in this tab (one `who.get` for the page, the words, the silhouette), which the chat row's transcript reads so a header saying one thing about who is looking and a transcript saying another is unrepresentable. `./testids` and `./all.css` are the two contracts the generated bundle files need of every row.",
+  "//exports": "Server reading, browser chip, wire identity, test identifiers and stylesheet. Shared person rendering lives in @olai/web/client/who.",
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
     "./browser": "./src/browser.tsx",
     "./who": "./src/who/index.ts",
-    "./person": "./src/person.ts",
     "./testids": "./src/testids.ts",
     "./all.css": "./src/browser/all.css"
   },

@@ -138,68 +138,16 @@ test("a flip reads the same door, and a restart reads the same record from disk"
     })))
   }))
 
-test("the generic hold is read once and migrated on the first write", () =>
+test("old layouts stay inert and the first save writes only the current path", () =>
   withHome(async ({ served }) => {
     const cwd = canonical(served)
     const old = join(stateHome(), "hold", `${digestOf(cwd)}.example.json`)
-    await Effect.runPromise(writeLocal(old, { cwd, queue: ["A"] }))
+    await run(writeLocal(old, { cwd, queue: ["old"] }))
     const warnings: Array<string> = []
     const local = localStateFor("example", served, (line) => warnings.push(line))
-    expect((await run(local.load))?.["queue"]).toEqual(["A"])
-    await run(local.save({ queue: [] }))
-    expect(warnings.some((line) => line.includes("migrated machine-local state"))).toBe(true)
-    expect((await run(localStateFor("example", served, () => {}).load))?.["queue"]).toEqual([])
-  }))
-
-test("xyne-spaces migrates its pre-plugin mirror record", () =>
-  withHome(async ({ served }) => {
-    const cwd = canonical(served)
-    const old = join(stateHome(), "mirror", `${digestOf(cwd)}.json`)
-    await Effect.runPromise(writeLocal(old, {
-      cwd,
-      channel: "team",
-      lastLane: "general",
-      threads: [],
-      queue: [{ op: "post", lane: "general", kind: "note", text: "queued" }],
-    }))
-    const warnings: Array<string> = []
-    const local = localStateFor("xyne-spaces", served, (line) => warnings.push(line))
-    const migrated = await run(local.load)
-    expect(migrated?.["queue"]).toEqual([
-      { op: "post", lane: "general", kind: "note", text: "queued" },
-    ])
-    await run(local.save(migrated ?? {}))
-    expect(warnings.some((line) => line.includes(old))).toBe(true)
-    expect((await run(localStateFor("xyne-spaces", served, () => {}).load))?.["queue"]).toEqual([
-      { op: "post", lane: "general", kind: "note", text: "queued" },
-    ])
-  }))
-
-test("chat's three old files become three sections of one local-state document", () =>
-  withHome(async ({ served }) => {
-    const cwd = canonical(served)
-    const digest = digestOf(cwd)
-    const memory = join(stateHome(), "chat", `${digest}.json`)
-    const wake = join(stateHome(), "wake", `${digest}.json`)
-    const heard = join(stateHome(), "heard", `${digest}.json`)
-    await Effect.runPromise(writeLocal(memory, { cwd, agent: "claude", session: "s1" }))
-    await Effect.runPromise(writeLocal(wake, { cwd, scopes: [{ plugin: "kolu" }] }))
-    await Effect.runPromise(writeLocal(heard, { cwd, heard: [{ session: "s1" }] }))
-
-    const local = localStateFor("chat", served, () => {})
-    expect(await run(local.load)).toEqual({
-      cwd,
-      memory: { agent: "claude", session: "s1" },
-      wake: { scopes: [{ plugin: "kolu" }] },
-      heard: { heard: [{ session: "s1" }] },
-    })
-    await run(local.save({
-      memory: { agent: "claude", session: "s2" },
-      wake: { scopes: [{ plugin: "kolu" }] },
-      heard: { heard: [{ session: "s1" }] },
-    }))
-    expect((await run(localStateFor("chat", served, () => {}).load))?.["memory"]).toEqual({
-      agent: "claude",
-      session: "s2",
-    })
+    expect(await run(local.load)).toBeNull()
+    await run(local.save({ queue: ["new"] }))
+    expect((await run(localStateFor("example", served, () => {}).load))?.["queue"]).toEqual(["new"])
+    expect(JSON.parse(readFileSync(old, "utf8")).queue).toEqual(["old"])
+    expect(warnings).toEqual([])
   }))

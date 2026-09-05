@@ -23,6 +23,8 @@ Beside the connection pill in the header is a readout with three states rather t
 
 The third is why the readout is not a boolean. *Nothing was ever configured* and *a channel is bound but the process has no app* have opposite loudness, and a fault reported as absent would hide the bind the user already wrote.
 
+The mirror declares `chat.seating` in `needs`, alongside its delivery and conversation subscriptions. Chat owns the seating reading and respects the vault’s property declarations. Turning chat off leaves the mirror waiting with `chat.seating` named; turning it on restores the mirror automatically. No plugin package imports another plugin.
+
 ## The binding
 
 The bind is a property on the **node agent**, next to `agent-session`:

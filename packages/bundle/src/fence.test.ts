@@ -756,7 +756,7 @@ describe("only the registry knows a plugin's name", () => {
     ],
     server: [
       "server/src/headless.test.ts: olai-plugin-git/testlib",
-      "server/src/identity.test.ts: olai-plugin-identity/who",
+      "server/src/who.test.ts: olai-plugin-identity/who",
     ],
   }
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
@@ -764,56 +764,22 @@ describe("only the registry knows a plugin's name", () => {
     server: ["olai-plugin-git", "olai-plugin-identity"],
   }
 
-  /**
-   * ONE PLUGIN DECLARING ANOTHER — recorded here, because the manifest door has
-   * no carve-out for it and should not get one.
-   *
-   * The IMPORT claim above skips every tenant outright: *plugins may import each
-   * other; that ban retired*. The MANIFEST claim below cannot afford the same
-   * blanket, and the asymmetry is deliberate rather than an oversight left in
-   * place. A manifest line is how a dependency is really declared — `workspace:*`
-   * is what a resolver reads, and a package that dropped the import but kept the
-   * line is still standing on the far side of the wall — so an equality here is
-   * the only reading that stays exact when the sources move.
-   *
-   * TWO EDGES. The first is the one the Cordis phase named. `olai-plugin-xyne-spaces`
-   * mirrors what a node agent's conversation says, so it has to know which column
-   * that binding is in — and the column is chat's kind (`chat-agent-session`),
-   * composed from chat's own name. The alternative was a hand-copied constant in
-   * the mirror, which is the one thing that can silently disagree. The edge was
-   * already real without it: this half names the `Watching` door, which chat's
-   * row OFFERS, so it is `waiting` without chat either way.
-   *
-   * The subpath is `olai-plugin-chat/binding`, which is two strings behind a door
-   * that imports nothing — so what crosses is a name, not a graph, and the tenant
-   * claim below is what holds that.
-   *
-   * THE SECOND IS A GRAPH, and it is a MOVE rather than a new coupling. The chat
-   * panel names the person over each run of their own messages, wearing the
-   * picture the identity row's ladder resolved and asking through the SAME single
-   * `who.get` the header chip asks through — a header saying one thing about who
-   * is looking and a transcript saying another is the drift one ask exists to
-   * prevent. That edge existed before this phase pointing at
-   * `@olai/web/client/who/*`, because the chip was core's; it points at the row
-   * that owns the subject now. What crosses is `olai-plugin-identity/person` —
-   * three browser modules, no wire, no server half — and it is deliberately NOT
-   * in chat's `needs`: with no identity row mounted, `who.get` is still core's
-   * and answers nobody, so the face draws its silhouette rather than waiting.
-   *
-   * A third plugin declaring one of these, or either of these declaring a second,
-   * is red on this line with the argument beside it.
-   */
-  const PLUGIN_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    "plugins/chat": ["olai-plugin-identity"],
-    "plugins/xyne-spaces": ["olai-plugin-chat"],
-  }
+  test("plugins consume services and never import another plugin", () => {
+    for (const { name, dir } of TENANTS_OF) {
+      const other = tree.get(dir)?.flatMap((source) =>
+        source.plugins.filter((spec) => packageOf(spec) !== `olai-plugin-${name}`)
+          .map((spec) => `${source.file}: ${spec}`)) ?? []
+      expect(other, dir).toEqual([])
+      expect(declaredBy(dir), dir).toEqual([])
+    }
+  })
 
   test("no package outside the registry imports a plugin", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
       // A plugin importing its own doors — `olai-plugin-kolu/appliance` after
       // the fold — is not a general package naming a plugin. Plugins may also
-      // import each other; that ban retired. This claim is the general side.
+      // consume each other through declared services. This is the general side.
       if (PLUGIN_DIRS.includes(pkg)) continue
       const reached = tree.get(pkg)?.flatMap((s) => s.plugins.map((p) => `${s.file}: ${p}`)) ?? []
       // An EQUALITY against the recorded answer — `[]` for all but the folded
@@ -828,7 +794,6 @@ describe("only the registry knows a plugin's name", () => {
       if (pkg === REGISTRY) continue
       expect(declaredBy(pkg), pkg).toEqual([
         ...(TESTLIB_DECLARED[pkg] ?? []),
-        ...(PLUGIN_DECLARED[pkg] ?? []),
       ])
     }
   })
@@ -1229,31 +1194,8 @@ const TENANTS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
       [...(CLOSURES.get(name) ?? [])].filter((pkg) =>
         pkg !== REGISTRY &&
         !GENERAL_REACH.has(pkg) &&
-        // A PLUGIN'S OWN DIRECTORY IS ITS OWN TENANT MEMBER, whoever else
-        // reaches it — the twin of the line {@link GENERAL_REACH} already keeps
-        // about the general side, and it is needed for the same reason from the
-        // other direction.
-        //
-        // The shared-package clause below asks "does another plugin reach this",
-        // and while a plugin was a tenant over a VENDORED APPLIANCE that was
-        // exact: nothing another plugin wanted was in kolu's closure. The Cordis
-        // phase retired *no plugin consumes a plugin* — `needs` is a reactive
-        // dependency arm — and the first edge it licensed is the spaces mirror
-        // reaching `olai-plugin-chat/binding` for the word a node agent's
-        // binding is declared under. Under the clause alone that one import
-        // emptied CHAT'S OWN TENANT, and an empty tenant is not a small thing
-        // here: three claims consult `TENANTS` as an exemption set, so the name
-        // sweep instantly reported sixty-two files of `plugins/chat` for
-        // spelling `chat`. A plugin losing its own directory because somebody
-        // imported one string from it is the derivation answering a question
-        // nobody asked.
-        //
-        // What the clause is FOR is unchanged and still runs on everything else:
-        // a package two plugins share is general by construction and drops out.
-        // A plugin's own package is never that — it exists for exactly one
-        // plugin by definition, which is the sentence a tenant IS. What a
-        // consumer may reach across that edge is bounded by the claims above:
-        // no other tenant's product tier, and no door that drags one.
+        // A plugin owns its directory; libraries reached by multiple tenants
+        // are shared furniture. Cross-plugin imports are refused above.
         (pkg === dir ||
           ![...CLOSURES].some(([other, theirs]) => other !== name && theirs.has(pkg)))
       ),
@@ -1572,7 +1514,9 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       return text
     }
     for (const spec of runtimeImportsOf(file, text)) js = js.split(spec).join("")
-    return js
+    // A plugin-owned service key is a declared dependency, not a package import.
+    // Transpilation has removed type arguments before this narrow call pattern.
+    return js.replace(/\bserviceTag\(\s*["'][a-z][a-z0-9-]*\.[a-z][a-z0-9-]*["']\s*\)/g, "serviceTag()")
   }
 
   /**
@@ -1746,49 +1690,16 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "ops/src/tools.ts",
       "sigterm/src/sigterm.ts",
     ],
-    /**
-     * `chat` IS AN ENGLISH WORD, and these five are the three ways that costs.
-     *
-     * **THE WRITER, in the ledger.** `chat-agent` is what a commit made through
-     * the panel's own MCP face is recorded as — a word written into trailers on
-     * a disk, in repositories that already have thousands of them. Renaming it
-     * would put two spellings of one writer into one repository's history, on
-     * the release that shipped the rename, and buy nothing: the word is a fact
-     * about WHO asked, and the answer is still "the agent in the conversation".
-     * `format/src/committing.ts` declares it; `server/src/serve.ts` binds the
-     * face under it and `server/src/mcp/tickets.ts` binds the fenced one.
-     *
-     * **THE OLD STATE LAYOUT.** The server door recognizes the former
-     * `chat/<hash>.json` path so core can fold it into the plugin document on
-     * first write. It names a historical directory, not a plugin import or
-     * address, and disappears when that migration window closes.
-     *
-     * **SOMEBODY ELSE'S ROUTES.** Xyne Spaces posts to `/api/apps/chat/…` —
-     * that is their API, read off their own source and never guessed, and the
-     * two files that spell it are that plugin's own dial and the fake server its
-     * bench stands up. It is the same case as `prop:agent=claude-opus` in the
-     * search grammar three rows up: a word in somebody else's vocabulary that
-     * happens to be a plugin's name here.
-     *
-     * RECORDED AS AN EQUALITY rather than excused with a pattern, which is the
-     * move the two above make and for the same reason: a sixth file is red, a
-     * different plugin's name in any of these is red, and the day the writer
-     * word is retired this entry is red until it is deleted.
-     */
+    /** Historical writer vocabulary and third-party routes also spell chat.
+     * Core no longer chooses a plugin writer or migrates plugin state. */
     chat: [
       "format/src/committing.ts",
       "plugins/git/src/browser/commit/said.ts",
       "plugins/git/src/ledger/pending.ts",
       "plugins/xyne-spaces/src/client.ts",
       "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
-      "server/src/localState.ts",
-      "server/src/mcp/tickets.ts",
-      "server/src/serve.ts",
       "web/src/client/layout/prefs.ts",
     ],
-    /** The server's expiring migration table maps the old unkeyed `mirror/`
-     * record to the tenant that wrote it. Remove with that migration row. */
-    "xyne-spaces": ["server/src/localState.ts"],
     /**
      * `search` IS THE VERB, and it is the widest collision in this table by a
      * long way — which is a fact about the word rather than about the row.
@@ -1885,7 +1796,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
      * TWO SERVER FILES AND A THIRD LEFT THIS LIST, and that is the fence
      * measuring a refactor rather than tolerating one: the listener and the
      * MCP route used to be handed the DOOR and now take a header list and a
-     * reading, and `server/src/identity.ts` mints that reading from a type
+     * reading, and `server/src/who.ts` mints that reading from a type
      * import. None of the three can name the tag any more, so the word is
      * gone from what they compile to — which is the claim this table exists
      * to be able to notice in either direction.

@@ -3909,3 +3909,9 @@ Then("there is no terminal output", async function (this: OlaiWorld) {
 Then("terminal output omits {string}", async function (this: OlaiWorld, text: string) {
   await this.waitUntil(async () => (await this.page.getByRole("region", { name: "Terminal output", exact: true }).allTextContents()).every(output => !output.includes(text)), "terminal output to omit: " + text, HYDRATION_TIMEOUT);
 });
+
+Then("my transcript speaker is {string}", async function (this: OlaiWorld, name: string) {
+  const speaker = this.page.locator(`${selector(PLUGIN_TESTID.chatSpeaker)}[data-speaker="human"]`).first();
+  await this.waitUntil(async () => await speaker.getAttribute("data-speaker-name") === name,
+    `the human speaker to be ${name}`);
+});

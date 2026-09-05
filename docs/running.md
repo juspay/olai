@@ -339,7 +339,7 @@ Plugins have one machine-local door, `LocalState`. Core stores its opaque docume
 
 Chat's document has three sections in one JSON object: `memory` for the open agent/session/model, `wake` for scoped doorbells, and `heard` for teaching and last-line bookkeeping. Each section keeps its own cap and reading rules; one chat adapter serializes their read-modify-writes. Turning chat off and on therefore preserves the same snapshot, and a restart reads it from the same document. Xyne Spaces keeps its existing mirror snapshot under `xyne-spaces/<hash>.json`.
 
-An upgrade reads the previous paths once. The first save migrates `hold/<hash>.<plugin>.json`; for chat it also folds `chat/<hash>.json`, `wake/<hash>.json`, and `heard/<hash>.json` into the new three-section document. Xyne Spaces additionally adopts its older `mirror/<hash>.json` snapshot, including queued posts. The old files are left in place but inert, and the migration is logged.
+Old `hold/`, `wake/`, `heard/` and `mirror/` files are not read or migrated. Chat reads only the sections in its current document; an old unsectioned chat record supplies no saved conversation. The first save writes the current layout and leaves other old files inert.
 
 ### What being off means
 

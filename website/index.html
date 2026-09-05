@@ -423,6 +423,7 @@
     dates can leave the whole calendar and agenda out.</p>
     <p>Plugins can also share services with other plugins. Dependent plugins wait
     for their provider, stop when it leaves, and resume when it returns.
+    The Spaces mirror uses this for chat’s node seating: it waits when chat is off and resumes when chat returns.
     Core service providers can be replaced by other plugins, one at a time.
     <a href="https://github.com/juspay/olai/blob/master/docs/dynamic-plugins.md#sharing-a-plugin-owned-service">Write a plugin that shares a service</a>.</p>
     <div class="cols">

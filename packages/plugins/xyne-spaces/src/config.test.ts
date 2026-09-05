@@ -12,15 +12,19 @@
 import { readingOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { bindOf, CHANNEL_PROP, DEFAULT_TRIM, SESSION_TYPE, spacesConfigIn } from "./config.ts"
+import { bindOf, CHANNEL_PROP, DEFAULT_TRIM, spacesConfigIn } from "./config.ts"
+
+import { SESSION_TYPE, seatingIn } from "./seating.testlib.ts"
 
 const rec = (id: string, title: string, fields: Record<string, string>): string =>
   `{"id":${JSON.stringify(id)},"ord":"a0","title":${JSON.stringify(title)},"custom":${
     JSON.stringify(fields)
   }}`
 
-const reading = (files: Record<string, string>) =>
-  spacesConfigIn(readingOf(setOf(files)).derived)
+const reading = (files: Record<string, string>) => {
+  const derived = readingOf(setOf(files)).derived
+  return spacesConfigIn(derived, seatingIn(derived))
+}
 
 test("a node agent with xyne-channel and a session is bound", () => {
   const got = reading({

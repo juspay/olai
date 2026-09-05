@@ -26,7 +26,7 @@
  * of a conversation for an answer that does not move for the life of the
  * socket.
  *
- * THE SILHOUETTE moved out for the same reason ({@link ./UserIcon.tsx}): the
+ * THE SILHOUETTE moved out for the same reason (`@olai/web/client/who`): the
  * ladder's bottom rung is drawn in two places now, and two traced outlines
  * of one shape is the drift nobody can see.
  */
@@ -37,10 +37,8 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { ICON_BUTTON } from "@olai/web/client/readout.ts"
 import { TESTID } from "../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
-import type { Who as Person } from "./asking.ts"
-import { whoAmI } from "./mine.ts"
-import { saying } from "./saying.ts"
-import { UserIcon } from "./UserIcon.tsx"
+import type { Who as Person } from "@olai/web/client/who/asking.ts"
+import { whoAmI, saying, UserIcon } from "@olai/web/client/who/index.ts"
 
 /** The four faces the slot can draw. Closed so a typo is a missing
  *  `Match` rather than a chip that draws nothing. */

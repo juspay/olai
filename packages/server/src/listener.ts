@@ -54,7 +54,7 @@ import { codeOf, type Emit, emitter } from "@olai/log"
 import { ASSET_PREFIX } from "@olai/surface"
 import { Effect, Layer, type Scope } from "effect"
 
-import { CurrentWho, type Reading, whoRoute } from "./identity.ts"
+import { CurrentWho, type Reading, whoRoute } from "./who.ts"
 import { manifestOf } from "./manifest.ts"
 import { pluginChunks } from "./dynamic/route.ts"
 import { mcpRoute } from "./mcp/route.ts"
