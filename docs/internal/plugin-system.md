@@ -209,7 +209,7 @@ Skim the table; the sections after it give one example each.
 | --- | --- |
 | **plugin** | one integration, two halves, one shape: each is a `definePlugin` over an Effect. TWO KINDS of them today — a **tenant** (olai's judgement about somebody else's appliance: kolu, odu, xyne-spaces) and an **engine** (an ACP agent the chat panel can seat: claude, codex, opencode, pi) — and nothing in the system tells them apart |
 | **name** | the plugin's one word — `"kolu"`, `"claude"`. Also the **sibling key**, the **row id**, the **fiber's name** and the address of its docs page |
-| **row** | one line of `packages/bundle/olai.yml`: an `id` and the module the loader mounts. The build's list, as data |
+| **row** | an `id` and the module the loader mounts. Tenant rows come from `packages/bundle/olai.yml`; infrastructure rows come from the server profile |
 | **fiber** | one mounted plugin, with a lifecycle. A composition root sees four words for it — `running`, `waiting`, `failed`, `off` — and the engine's six states are `@olai/effect-cordis`'s business |
 | **service** | an Effect tag a plugin yields — `Vault`, `Kinds`, `Ops`, `Surfaces`. What `PluginServices` dissolved into. The tag carries the engine's key, so `needs` and the requirement channel are one declaration |
 | **needs** | the services a plugin names. The runtime holds it `waiting` until they exist and unloads it when one leaves; the compiler computes `apply`'s requirements from the same list |
@@ -580,7 +580,7 @@ all spend it from the same place. The one reach past that door is
 loader carries `node:fs` and a YAML parser and cannot travel through a package
 a tab imports.
 
-**`olai.yml` is the whole list, and a fourth plugin is ONE ROW.** The browser
+**`olai.yml` is the tenant list, and a fourth plugin is ONE ROW.** The browser
 kept two `as const` arrays for one round — a browser bundle is built ahead of
 time and there is no loader in the tab — held equal to the rows by a
 `rosters.test.ts`. That test was a monument to the duplication rather than a fix
@@ -1006,8 +1006,7 @@ start.
 
 And the degenerate case is the same code as every other: a runtime with **no**
 plugins mounts no sibling on the rooted bundle, which leaves core's own surface
-byte for byte what it was. That is what every `olai surface`, every headless MCP
-face and every server test already runs as.
+byte for byte what it was. The `surface` server profile selects the shared vault/kinds base and the `mcp` infrastructure row, with no tenant rows enabled by default. `test-minimal` selects no transports. Both use the same plugin host and composition as the web profile; `olai surface` itself remains a client of the running server.
 
 ---
 
@@ -1171,6 +1170,8 @@ names the file.
 - [running.md](../running.md) — `--plugins` as an operator sees it.
 
 Browser row actions (`outline.row.action`) may return a refusal sentence from `run(node)`. The menu displays it beside the originating row; successful actions return nothing. This lets plugin procedures explain expected failures, such as a full node-agent pool, without depending on core’s presentation types.
+
+Infrastructure rows (`ws`, `mcp`, `web-app`) are inserted into the same loader tree by the composition root. Their modules live in `@olai/server`, not the tenant bundle, so the dependency direction stays downward. They wait for the composed `transport-surface` service, appear in the same panel report, and release their registrations when their scopes close. See [architecture.md](../architecture.md) for shared-listener ownership and [running.md](../running.md) for profiles.
 
 ### Plugin-owned service keys (12b)
 

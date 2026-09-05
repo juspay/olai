@@ -43,10 +43,12 @@ Feature: Selective commits remain usable on a phone
     And I press the sidebar shortcut
     And I open the plugins panel
     And I switch the plugin "git" off
+    And I close the plugins panel
     And I press "Escape"
     Then the phone commit banner is gone
     When I open the plugins panel
     And I switch the plugin "git" on
+    And I close the plugins panel
     And I press "Escape"
     Then the phone commit banner says 1 uncommitted
     And the phone commit banner sits below the header

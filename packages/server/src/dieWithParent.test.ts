@@ -385,9 +385,13 @@ test("PIN: an UNTIED process survives its spawner exiting", async () => {
     await Bun.sleep(SURVIVE_MS)
     expect(run.log()).not.toContain("SIGTERM")
     expect(alive(run.childPid)).toBe(true)
-    // Alive is not enough — a stopped process is also in the table. It is
-    // still RUNNING, which is what the beats say.
-    expect((run.log().match(/beat=\d+/g) ?? []).length).toBeGreaterThan(5)
+    // Alive is not enough — a stopped process is also in the table. Require
+    // a NEW beat after the survival window, rather than a fixed number of
+    // timer callbacks within it: a busy CI host may schedule fewer callbacks.
+    const beats = () => (run.log().match(/beat=\d+/g) ?? []).length
+    const survived = beats()
+    await until(BOUND_MS, "the orphan to keep running after the survival window", () => beats() > survived)
+    expect(run.log()).not.toContain("SIGTERM")
   } finally {
     run.stop()
   }
