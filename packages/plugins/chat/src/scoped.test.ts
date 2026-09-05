@@ -136,6 +136,8 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
   }
 
   expect(released.toSorted()).toEqual(["one", "one", "two"])
+  expect(said.some(line => line.message.includes("chat agent exited")
+    && line.annotations.reason === "idle eviction" && line.annotations.node === "one")).toBe(true)
 })
 
 test("boot routes a remembered node session before spawning any panel", async () => {
