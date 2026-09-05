@@ -3825,3 +3825,33 @@ Given("the agent refuses model changes", async function (this: OlaiWorld) {
 Then("the model picker is disabled", async function (this: OlaiWorld) {
   assert.strictEqual(await this.page.getByRole("button", { name: "Change model", exact: true }).isDisabled(), true);
 });
+
+When("I open the session settings", async function (this: OlaiWorld) {
+  await this.page.getByRole("button", { name: "Change model", exact: true }).click();
+});
+When("I set session setting {string} to {string}", async function (this: OlaiWorld, name: string, value: string) {
+  await this.page.getByRole("combobox", { name, exact: true }).selectOption(value);
+  await this.waitUntil(async () => await this.page.getByRole("combobox", { name, exact: true }).inputValue() === value, "setting accepted", HYDRATION_TIMEOUT);
+});
+When("I enable fast mode", async function (this: OlaiWorld) {
+  await this.page.getByRole("checkbox", { name: "Fast mode", exact: true }).click();
+  await this.waitUntil(async () => this.page.getByRole("checkbox", { name: "Fast mode", exact: true }).isChecked(), "fast mode accepted", HYDRATION_TIMEOUT);
+});
+Then("session setting {string} is {string}", async function (this: OlaiWorld, name: string, value: string) {
+  await this.waitUntil(async () => await this.page.getByRole("combobox", { name, exact: true }).inputValue() === value, "confirmed setting", HYDRATION_TIMEOUT);
+});
+When("I attempt session setting {string} to {string}", async function (this: OlaiWorld, name: string, value: string) {
+  await this.page.getByRole("combobox", { name, exact: true }).selectOption(value);
+});
+Then("the execution plan contains {string} as {string}", async function (this: OlaiWorld, text: string, status: string) {
+  await this.page.getByLabel("Execution plan", { exact: true }).locator(`li${attr("data-status", status)}`).filter({ hasText: text }).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+Then("the execution plan omits {string}", async function (this: OlaiWorld, text: string) {
+  await this.page.getByLabel("Execution plan", { exact: true }).getByText(text, { exact: true }).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
+});
+Then("there is no execution plan", async function (this: OlaiWorld) {
+  await this.page.getByLabel("Execution plan", { exact: true }).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
+});
+Then("terminal output contains {string}", async function (this: OlaiWorld, text: string) {
+  await this.waitUntil(async () => (await this.page.getByRole("region", { name: "Terminal output", exact: true }).allTextContents()).some(output => output.includes(text)), "terminal output: " + text, HYDRATION_TIMEOUT);
+});

@@ -293,3 +293,9 @@ A path that arrives over the wire is checked, never believed. A chunk's `appendT
 The header also exposes the advertised model options as a picker. It sends `conversation.setModel` with the agent/session pair and an exact option value, and the server serializes the change against opening a conversation and sending a turn. Only an idle, matching conversation can change. ACP confirms the displayed model and the remembered selection; refusals use the existing per-gesture error line. This makes model selection available to Codex without relying on an adapter slash command.
 
 Model reconciliation returns the confirmed value to remember, with observations and explicit choices distinguished at that boundary. The observer enqueues its note; a selection awaits one write. Restoration and selection share only the ACP request/response exchange, keeping best-effort restore recovery separate from a user gesture's refusal.
+
+## ACP session controls and progress
+
+`agents/settings.ts` normalizes advertised select and boolean options; the panel serializes setting requests against session changes and prompting. Responses and config updates replace the available options. `plan` notifications replace the session plan, which is cleared on session departure.
+
+`terminals.ts` owns client-created command handles and bounded UTF-8 output snapshots. Tool references bind those snapshots to transcript rows; release invalidates the agent handle while retaining its output. Codex and pi opt into metadata decoding through their legs and feed the same snapshots without transferring process ownership. Standard terminal requests validate the active session, and cancellation/session teardown stop client-owned process groups. See [chat documentation](../../../docs/chat.md#session-controls-and-progress) for user-visible behavior and limits.

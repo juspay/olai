@@ -24,7 +24,7 @@ Every reading was captured live against **pi-acp 0.0.33** driving **pi 0.84.2**.
 - **olai's tools reach pi through the pin's own bridge.** pi's harness has no MCP client of its own, and its adapter wraps the harness's remote-control drive rather than its config — so the servers a session is handed would have gone nowhere without something loading them INTO the agent. The pinned adapter does that: it spawns each conversation's pi with a bridge extension loaded and the session's servers in its environment, and pi's own extension API registers them as ordinary tools. The `olai_*` / `kolu_*` names the other agents use are the names its rows answer by.
 - **so no permission question comes back over ACP.** A tool's spelling of *ours* is pi's own; pi's settings govern what it may do, the way the other agents' govern theirs. The servers strip's rows stand at **handed** and there is no per-server tick to move them.
 - **the stored list is one page.** `session/list` answers in pages of fifty, newest first; olai sends no limit and follows no cursor, so a directory with more than fifty stored pi conversations draws the newest page and loses the rest.
-- **bash output stays in the tool row's detail** rather than under it — a command's output is an extension corner the transcript does not read. Edits draw fully, as diffs with `path:line` locations.
+- **bash output streams under its tool row**, using the adapter's terminal metadata, and remains readable with its exit status. Edits draw fully, as diffs with `path:line` locations.
 
 ## The adapter, and its patch
 

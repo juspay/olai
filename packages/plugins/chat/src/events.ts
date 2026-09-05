@@ -14,7 +14,7 @@
  * the caller that asked is the one waiting.
  */
 
-import type { Armed, ChatServer, Spawned, ToolStatus, Wrote } from "olai-plugin-chat/wire"
+import type { SessionSetting, PlanStep, TerminalView, Armed, ChatServer, Spawned, ToolStatus, Wrote } from "olai-plugin-chat/wire"
 import type { AskField, AskOutcome, FileDiff, Usage } from "@olai/acp/wire"
 /** A slash command the agent offers. */
 export interface Command {
@@ -42,6 +42,9 @@ export interface Stored {
 }
 
 export type AgentEvent =
+  | { readonly _tag: "toolTerminals"; readonly id: string; readonly terminals: readonly TerminalView[] }
+  | { readonly _tag: "settings"; readonly settings: ReadonlyArray<SessionSetting> }
+  | { readonly _tag: "plan"; readonly entries: ReadonlyArray<PlanStep> }
   /** The agent's prose, one chunk as it arrived. */
   | { readonly _tag: "said"; readonly text: string }
   /** What a PERSON said, ONE CHUNK as it arrived — the same unit `said`

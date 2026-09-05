@@ -140,7 +140,9 @@ const filesSpelling = (pattern: RegExp): ReadonlyArray<string> =>
 // this sweep.
 test("a tool call's status is spelled where it is meant and where it is drawn", () => {
   const statuses = /["'`](pending|in_progress)["'`]/
+  // ACP plan steps share these status words with tool calls.
   expect(filesSpelling(statuses)).toEqual([
+    "chat/Plan.tsx",
     path.join("chat", "ToolFrame.tsx"),
     path.join("chat", "background.test.ts"),
     path.join("chat", "door.test.ts"),
