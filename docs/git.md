@@ -62,6 +62,8 @@ A `renamed` row names BOTH halves (`old/name.md → name.olai`) and is one row w
 
 Every row has a tick and they all start ticked, so the ordinary sweep is still one click. Untick a file and it stays waiting, for a commit and a message of its own; the suggested message and the button rewrite themselves as you go, so what you are about to record is what the panel says you are.
 
+Your typed message and excluded files stay prepared in this tab when you close the panel or plugins rebuild it. A successful commit resets that preparation for the remaining work; a refused commit keeps it. A reply from an earlier submission does not clear a newer preparation.
+
 **A selection is never git's index.** olai commits exactly the paths you ticked, naming each one, so anything you staged by hand is exactly as you left it afterwards — and a commit git REFUSES (a signature it cannot make, a hook, an identity nobody set) puts the index back bit-identical rather than leaving its own staging behind for your next commit to sweep up. Nothing here ever runs a bare `git add`, and nothing is staged for a path that has already left the working tree — that is what a `git mv` you staged yourself looks like, and it is recorded rather than refused.
 
 The agent has the same thing: its `commit` tool takes an optional `paths`, the repository-root-relative names the pending list publishes. A path nothing is waiting on is refused by name rather than quietly skipped.

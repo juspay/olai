@@ -331,6 +331,19 @@ When(
   },
 );
 
+When("I draft the commit message {string}", async function (this: OlaiWorld, message: string) {
+  await this.page.locator(COMMIT_MESSAGE).fill(message);
+});
+
+Then("the commit message still reads {string}", async function (this: OlaiWorld, message: string) {
+  await this.page.locator(COMMIT_MESSAGE).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(await this.page.locator(COMMIT_MESSAGE).inputValue(), message);
+});
+
+When("I submit the drafted commit", async function (this: OlaiWorld) {
+  await this.page.locator(COMMIT_NOW).click();
+});
+
 // ── what ended up in the repository ────────────────────────────────────
 
 Then(
