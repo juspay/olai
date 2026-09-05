@@ -75,7 +75,7 @@ Three tools, on the agent face:
 
 (On the wire those are `plugins.inspect`, `plugins.run` and `plugins.stop`; the tool names are the agent-facing words, the way `commit` is `git.commit`.)
 
-Defining a plugin needs no tool of its own — it is `add_node` and `set_desc`. Retracting one is `trash_node`, or removing the `plugin` property: the row goes on the next revision and the fiber unwinds every registration it made.
+Defining a plugin needs no tool of its own — it is `add_node` and `set_desc`. Retracting one is `trash_node`, or removing the `plugin` property: the row goes on the next revision and the fiber unwinds every registration it made. A node in `_olai/Trash.olai` is not a definition — the reader skips what was put away, the way every other live reading of the tree does.
 
 ## What happens when it mounts
 

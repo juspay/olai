@@ -5,6 +5,7 @@
  * vault written out as text and nothing else: no host, no compiler, no mount.
  */
 
+import { TRASH_FILE } from "@olai/format"
 import { readingOfVault } from "@olai/format/testlib/scope"
 import { describe, expect, test } from "bun:test"
 
@@ -153,5 +154,50 @@ describe("approval names a version, and an edit takes it back", () => {
 
   test("the version covers BOTH halves — a face added after an approval is a new decision", () => {
     expect(versionOf("a", null)).not.toBe(versionOf("a", "b"))
+  })
+})
+
+/**
+ * A NODE THAT WAS PUT AWAY IS NOT A DEFINITION — the skip `definedIn` makes,
+ * and the half of the doc's retraction that was not true until it did.
+ *
+ * `trash_node` moves the records to `_olai/Trash.olai`. They stay regular
+ * nodes, they still carry the `plugin` property, and without the skip they
+ * were read like any other: the panel drew them as a vault-defined plugin
+ * with the trash as its file. The rest of the tree treats that file as
+ * absent (`isPutAway`); this reader does too.
+ */
+describe("a node that was put away is not a definition", () => {
+  const records = [
+    `{"id":"p","ord":"a0","title":"A dressing","custom":{"plugin":"swatch"}}`,
+    `{"id":"s","ord":"a0","parent":"p","title":"server.ts","desc":"export default 1"}`,
+  ].join("\n")
+
+  test("moved to `_olai/Trash.olai` is gone", () => {
+    expect(
+      definedIn(
+        readingOfVault(new Map([[TRASH_FILE, records]])).derived,
+        NOTHING_BUILT,
+      ),
+    ).toEqual([])
+  })
+
+  test("a namesake still in the vault is the only definition — the collision is not with the trash", () => {
+    const read = definedIn(
+      readingOfVault(
+        new Map([
+          ["plugins.olai", records],
+          [TRASH_FILE, [
+            `{"id":"q","ord":"a0","title":"Put away","custom":{"plugin":"swatch"}}`,
+            `{"id":"t","ord":"a0","parent":"q","title":"server.ts","desc":"export default 2"}`,
+          ].join("\n")],
+        ]),
+      ).derived,
+      NOTHING_BUILT,
+    )
+    expect(read).toHaveLength(1)
+    expect(read[0]?.name).toBe("swatch")
+    expect(read[0]?.file).toBe("plugins.olai")
+    expect(read[0]?.fault).toBeNull()
   })
 })

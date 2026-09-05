@@ -11,9 +11,11 @@ Feature: A plugin the vault defines
 
   WHAT THESE SCENARIOS ARE FOR is the last inch, and only that. Everything
   behind it is benched a package away (`@olai/server`'s `dynamic/`): written,
-  pending, approved, mounted, edited, stopped, and every way a build can fail.
-  What no unit test reaches is a tab FETCHING a chunk this serve compiled a
-  moment ago out of a note, and a face inside it DRAWING, with no reload.
+  pending, approved, mounted, edited, stopped, trashed, and every way a build
+  can fail. What no unit test reaches is a tab FETCHING a chunk this serve
+  compiled a moment ago out of a note, and a face inside it DRAWING, with no
+  reload — and, for a retraction, the panel no longer listing a definition
+  that was put away.
 
   THE BOUNDARY IS A PERSON, and it is the reason the middle scenario exists. The
   code runs with the server's own authority — there is no sandbox and this does
@@ -144,3 +146,25 @@ Feature: A plugin the vault defines
     And the row "amber" wears a swatch for "#00ff00"
     And there should be no page errors
     And no member of this page has gone silent
+
+  @scratch:plugins
+  Scenario: Trashing the definition takes the row with it
+    # Retracting one is `trash_node`. The records stay regular nodes and still
+    # carry the `plugin` property; without skipping a put-away file the panel
+    # went on drawing them with `_olai/Trash.olai` as the file, in the same
+    # state they had before.
+    Given I open the outline "swatch.olai"
+    And I open the plugins panel
+    Then the plugins panel says "swatch" is "read the source below and approve it"
+    And the plugins panel offers to approve "swatch"
+
+    When I close the plugins panel
+    And I open the node menu of "swatch"
+    And I choose "Move to Trash" from the node menu
+    And I choose "Move to Trash" from the node menu
+    Then "_olai/Trash.olai" holds the node "swatch"
+
+    When I open the plugins panel
+    Then the plugins panel does not list "swatch"
+    And the plugins panel does not show the source of "swatch"
+    And there should be no page errors
