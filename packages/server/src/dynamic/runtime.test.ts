@@ -222,7 +222,7 @@ describe("a row's word follows its fiber, not the mount", () => {
         yield* mountPlugin(
           host,
           definePlugin({
-            name: "a-door",
+            name: "chat",
             needs: [Offers],
             apply: Effect.gen(function*() {
               const offers = yield* Offers

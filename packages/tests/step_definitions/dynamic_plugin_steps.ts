@@ -168,3 +168,18 @@ Then("no row wears a swatch", async function (this: OlaiWorld) {
     "a swatch is drawn by a plugin nobody has approved",
   );
 });
+
+When("the palette provider is replaced", function (this: OlaiWorld) {
+  const file = path.join(this.scratch(), "palette.olai");
+  const source = fs.readFileSync(file, "utf8");
+  fs.writeFileSync(file, source.replace("[0-9a-f]{6}", "[a-f0-9]{6}"));
+});
+
+Then("the agent service catalog {word} {string}", async function (this: OlaiWorld, presence: string, key: string) {
+  const { callTool, connectTerminalAgent } = await import("../support/mcp.ts");
+  this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
+  const answer = await callTool(this.terminalAgent, "surface/plugins/inspect", {});
+  const catalog = answer["structuredContent"] as { services: Array<string> };
+  assert.ok(catalog.services.includes("vault"), "core services remain discoverable");
+  assert.strictEqual(catalog.services.includes(key), presence === "includes");
+});

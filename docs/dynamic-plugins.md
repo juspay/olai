@@ -179,3 +179,33 @@ the provider releases the resources those dependents use.
 Cancellation is cooperative: synchronous JavaScript cannot be preempted in this
 process, and uninterruptible acquisitions and finalizers must finish themselves.
 There is no per-plugin initialization timeout.
+
+## Sharing a plugin-owned service
+
+A server half can provide a service without changing core's catalog. Name
+`Offers` in `needs`, then yield `offers.own("fleet", consumer => ({ ... }))`.
+Olai stamps the key with the offering fiber's name: a plugin named `fleet-source`
+offers `fleet-source.fleet`. The callback receives the **consumer's** runtime name,
+so it can return a per-consumer view. Neither name is a caller-supplied argument.
+Both segments must start with a lowercase letter and contain only lowercase
+letters, digits or hyphens; dots are reserved for the separator.
+
+A consumer defines `const Fleet = serviceTag<FleetShape>("fleet-source.fleet")`
+using `serviceTag` from `@olai/plugin-api`, includes `Fleet` in `needs`, and reads
+it with `yield* Fleet`. Providers and consumers must agree on the shape; the
+string key does not validate arbitrary dynamic code's types at runtime.
+
+The consumer waits until the provider finishes initialization. Removing or
+replacing the provider unloads the consumer, awaits its cleanup while the old
+resource is still alive, and reactivates it with the new provision when ready.
+Failed initialization publishes no usable service. Duplicate offers fail the
+offering activation and unwind its registrations.
+
+`plugins.inspect` includes currently offered plugin-owned keys beside the core
+catalog. A stopped or removed provider's keys disappear; consumers can still name
+a missing key and wait for it. This is discovery of keys, not a schema registry.
+`Offers.offer` remains for the reserved core doors: chat owns `agents`,
+`deliveries`, `session-start` and `watching`; git owns `ledger`; search owns
+`search`; identity owns `identity`. Other rows cannot claim those keys, even
+while the owner is disabled. `own("vault", ...)` means `your-plugin.vault` and
+cannot replace core's `vault`.

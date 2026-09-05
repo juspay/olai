@@ -102,3 +102,37 @@ Feature: A plugin the vault defines
     Then the row "amber" wears a swatch for "#ff8800"
     And that swatch is round
     And there should be no page errors
+
+  @scratch:plugin-services
+  Scenario: A plugin-owned service connects two approved definitions
+    Given I open the outline "colours.olai"
+    When I open the plugins panel
+    And I approve the plugin "swatch"
+    Then the plugins panel says "swatch" is "palette.colours"
+    And no row wears a swatch
+    And the agent service catalog excludes "palette.colours"
+
+    When I approve the plugin "palette"
+    Then the row "amber" wears a swatch for "#ff8800"
+    And the agent service catalog includes "palette.colours"
+
+    When I switch the plugin "palette" off
+    Then the plugins panel says "swatch" is "palette.colours"
+    And no row wears a swatch
+    And the agent service catalog excludes "palette.colours"
+
+    When I switch the plugin "palette" on
+    Then the row "amber" wears a swatch for "#ff8800"
+
+    When the palette provider is replaced
+    Then the plugins panel says "palette" is "read the source below and approve it"
+    And the plugins panel says "swatch" is "palette.colours"
+    And no row wears a swatch
+    And the agent service catalog excludes "palette.colours"
+
+    When I read the plugin "palette" again
+    And I approve the plugin "palette"
+    Then the row "amber" wears a swatch for "#ff8800"
+    And the agent service catalog includes "palette.colours"
+    And there should be no page errors
+    And no member of this page has gone silent

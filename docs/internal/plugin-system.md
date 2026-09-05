@@ -1142,3 +1142,19 @@ names the file.
 - [running.md](../running.md) — `--plugins` as an operator sees it.
 
 Browser row actions (`outline.row.action`) may return a refusal sentence from `run(node)`. The menu displays it beside the originating row; successful actions return nothing. This lets plugin procedures explain expected failures, such as a full node-agent pool, without depending on core’s presentation types.
+
+### Plugin-owned service keys (12b)
+
+`Offers.own(word, provision)` composes `<fiber name>.<word>` inside the keyed
+service. A consumer's `serviceTag<Shape>(key)` is both its Effect requirement and
+its Cordis dependency; no core allowlist edit is needed. Both segments use
+lowercase letters, digits and hyphens with a leading letter. Dots cannot be
+supplied in either segment, so one plugin cannot spell another's namespace.
+
+The bridge owns readiness, rollback and dependent-before-provider cleanup for
+both kinds of offers. `Plugins.offers()` tracks ownership for cascade reporting
+and `plugins.inspect` unions its keys with the static core catalog. Core's seven
+row-provided keys remain reserved to their designated rows. Browser services
+are unchanged; these are server-half dependencies. See
+[the authoring contract](../dynamic-plugins.md#sharing-a-plugin-owned-service)
+and the two-definition lifecycle scenario in `a_plugin_the_vault_defines.feature`.

@@ -1927,6 +1927,15 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     ],
   }
 
+  // Unlike the incidental word collisions above, this is an explicit policy:
+  // phase 12b reserves core service keys to their designated rows. The API must
+  // check the caller's runtime name even when that row is absent. No tenant
+  // imports or plugin-owned keys belong in this exception.
+  const CORE_OFFER_POLICY: Readonly<Record<string, ReadonlyArray<string>>> = {
+    chat: ["plugin-api/src/services.ts"],
+    git: ["plugin-api/src/services.ts"],
+  }
+
   test("no package outside the registry and the plugin's own tenant spells it", () => {
     for (const name of PLUGIN_NAMES) {
       const mine = TENANTS.get(name) ?? new Set<string>()
@@ -1940,7 +1949,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       // An EQUALITY against the recorded answer — `[]` for all but the two
       // collisions above — never a filter asserted empty: a pattern that rotted
       // would report nothing and pass.
-      expect(spelled.sort(), name).toEqual([...(NOT_A_PLUGIN[name] ?? [])])
+      expect(spelled.sort(), name).toEqual([...(NOT_A_PLUGIN[name] ?? []), ...(CORE_OFFER_POLICY[name] ?? [])].sort())
     }
   })
 
