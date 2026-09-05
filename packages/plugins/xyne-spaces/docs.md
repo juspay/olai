@@ -11,7 +11,7 @@ Two facts, and they live in different places because one is a secret:
 - **`$OLAI_SPACES_URL`** and **`$OLAI_SPACES_TOKEN`** in the environment — the Spaces origin and the installed app's JWT. The human reuses the existing "kolu" Spaces app, so the bot's name in-channel is kolu. That is accepted. These are secrets; they are never written to the vault.
 - **`xyne-channel` on a node agent** — the conversation→channel bind. The node is the identity (`agent-session`); the session is cattle. There is no `_olai/XyneSpaces.olai`.
 
-**Off by default.** Omitting `--plugins` runs the default bundle; this plugin stays off until the flag names it (`--plugins=vault,chat,claude,xyne-spaces,ws,web-app,mcp`, or listed with the others). A Spaces app JWT is a secret this machine may not have, and a pill in every bar for an integration nobody pointed at is the wrong default.
+**Off by default.** Omitting `--plugins` runs the default bundle; this plugin stays off until a flag names it. `--extra-plugins=xyne-spaces` is the flag that does that without listing everything else; `--plugins=vault,chat,claude,xyne-spaces,ws,web-app,mcp` is the exact set, and turns off every row it does not name. A Spaces app JWT is a secret this machine may not have, and a pill in every bar for an integration nobody pointed at is the wrong default.
 
 No env and no `xyne-channel` → the plugin is honestly **absent**, not broken. A node agent with `xyne-channel` and no env is a **fault**, not absent: the user named a channel and this process cannot post. The pill is loud and names the missing env; the first bound conversation is told once.
 

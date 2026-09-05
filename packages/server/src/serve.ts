@@ -16,7 +16,7 @@
  */
 // The upgrade seam owns header-name grammar; boot validates its initial list.
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers"
-import { type GitPin } from "@olai/format"
+import { type GitPin, type PluginPin } from "@olai/format"
 import {
   liveOps,
   NO_LEDGER,
@@ -105,11 +105,11 @@ export interface ServeOptions {
    *  the way `--plugins` is a patch onto `disabled`. `null` on both halves is
    *  nobody having said. */
   readonly pin: GitPin
-  /** WHICH built-in integrations to run — `null` for nobody having said,
-   *  which means the built-in default (not necessarily every plugin this
-   *  binary was built with). `./pluginPolicy.ts` argues why omission stays
-   *  distinguishable from the default typed out loud. */
-  readonly plugins: ReadonlyArray<string> | null
+  /** WHICH built-in integrations to run — one pin, the git pin's sibling.
+   *  `omitted` is nobody having said, which means the built-in default.
+   *  `./pluginPolicy.ts` argues why omission stays distinguishable from the
+   *  default typed out loud. */
+  readonly pluginPin: PluginPin
 }
 
 
@@ -247,7 +247,8 @@ export const serve = (options: ServeOptions) =>
       changed: () => onChange.run(),
       // NO `dials`: the injectables are a test's, and this is the product.
     })
-    yield* mountBundle(plugins.host, options.plugins, gitConfigPatch(options.pin), profile)
+    const pluginPin = options.pluginPin
+    yield* mountBundle(plugins.host, pluginPin, gitConfigPatch(options.pin), profile)
 
     /**
      * The vault's own definitions mount on this host too. Open their manager
@@ -415,7 +416,7 @@ export const serve = (options: ServeOptions) =>
         plugins,
         onChange,
         built,
-        pinned: options.plugins,
+        pin: pluginPin,
         report: () => report,
         names: () => rowsNaming(plugins.host),
         configs: () => configsOf(plugins.host),

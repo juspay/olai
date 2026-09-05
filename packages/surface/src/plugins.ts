@@ -66,7 +66,7 @@
  * this or of the panel moving.
  */
 
-import { fileKind } from "@olai/format"
+import { fileKind, PluginPin } from "@olai/format"
 import { Schema } from "effect"
 
 /**
@@ -337,11 +337,11 @@ export const PLUGIN_SERVER_NODE = "server.ts"
 export const PLUGIN_BROWSER_NODE = "browser.tsx"
 
 /**
- * THE SEVEN WORDS A ROW CAN BE IN, and each is a different morning.
+ * THE WORDS A ROW CAN BE IN, and each is a different morning.
  *
  *   - `running`  composed: members on the wire, faces drawn, probe run, kinds
  *                held. The ordinary state and the only one that is good news.
- *   - `off`      the operator's flag did not name it. Total absence, asked for.
+ *   - `off`      the operator's `--plugins` did not name it. Total absence, asked for.
  *   - `optIn`    this BUILD leaves it off until somebody asks — the row's own
  *                `disabled`, which is the built-in default living in the file
  *                the loader reads. Also total absence, and NOBODY ASKED, which
@@ -351,7 +351,7 @@ export const PLUGIN_BROWSER_NODE = "browser.tsx"
  *   - `switched` A PERSON TURNED IT OFF HERE, at the panel, on this serve. Also
  *                total absence, and the third author of it — which is the whole
  *                reason it needed a word. Absence used to have exactly two
- *                authors, the flag and the build, and `pinned` told them apart;
+ *                authors, the flag and the build, and `pin` told them apart;
  *                the switch is a third, and without this the panel told a person
  *                who had just pressed the switch that the BUILD ships this off
  *                by default and named a flag they should type. It is the one of
@@ -423,7 +423,7 @@ export const pluginState = (plugin: BuiltPlugin): PluginState => {
   if (word !== undefined && KNOWN.has(word)) {
     // ...and a serve that says `running` while `running` is false, or the other
     // way round, is not a state this can carry either: the boolean wins, for
-    // the reason above. Only the four ABSENT words are refinements of `false`.
+    // the reason above. Only the ABSENT words are refinements of `false`.
     const claimed = word as PluginState
     if ((claimed === "running") === plugin.running) return claimed
   }
@@ -457,8 +457,20 @@ export const PluginRoster = Schema.Struct({
    * `GitPin`), and for the same reason — a value that had already expanded
    * `null` into the full list could not tell a reader which of the two they
    * were looking at.
+   *
+   * Exact-arm projection of {@link pin}, kept so a tab too old to read the
+   * sum still sees `--plugins` / omitted. A delta serve publishes `null` here.
    */
   pinned: Schema.NullOr(Schema.Array(Schema.String)),
+  /**
+   * WHAT THE OPERATOR PINNED — one value, the git pin's sibling.
+   *
+   * OPTIONAL so a serve too old to send it still decodes; the exact-arm
+   * projection {@link pinned} is what that serve wrote, and
+   * `@olai/format`'s `pluginPinOf` reconstructs the sum from it. A new serve
+   * writes this field and keeps `pinned` as the exact-arm half.
+   */
+  pin: Schema.optionalKey(PluginPin),
 })
 export type PluginRoster = typeof PluginRoster.Type
 

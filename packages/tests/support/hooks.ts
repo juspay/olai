@@ -316,6 +316,8 @@ const PIN_TAG = /^@pin:(commit|push)=([a-z]+)$/;
  * plugin or spells one in production code — and this suite is neither.
  */
 const PLUGINS_TAG = /^@plugins:([a-z0-9,-]+)$/;
+const EXTRA_PLUGINS_TAG = /^@extra-plugins:([a-z0-9,-]+)$/;
+const WITHOUT_PLUGINS_TAG = /^@without-plugins:([a-z0-9,-]+)$/;
 
 
 /**
@@ -599,6 +601,10 @@ interface Spawn {
    *  nothing after it, which is NONE; `undefined` is the flag not given, which
    *  is every one this build has and is every other scenario. */
   readonly plugins?: string;
+  /** `--extra-plugins`, when the scenario asked — see {@link EXTRA_PLUGINS_TAG}. */
+  readonly extraPlugins?: string;
+  /** `--without-plugins`, when the scenario asked — see {@link WITHOUT_PLUGINS_TAG}. */
+  readonly withoutPlugins?: string;
 
   /** The avatar URL template this server pictures people with, when the
    *  scenario asked for one — see {@link AVATAR_TAG}. Absent is no template,
@@ -651,6 +657,12 @@ const startServerChild = async (
       ...(spawnOptions.plugins === undefined
         ? []
         : ["--plugins", spawnOptions.plugins]),
+      ...(spawnOptions.extraPlugins === undefined
+        ? []
+        : ["--extra-plugins", spawnOptions.extraPlugins]),
+      ...(spawnOptions.withoutPlugins === undefined
+        ? []
+        : ["--without-plugins", spawnOptions.withoutPlugins]),
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -898,6 +910,10 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       // ... and the same plugin set, on the same sentence: a restart that came
       // back composing more than it did is a different server.
       ...(world.pluginPin === undefined ? {} : { plugins: world.pluginPin }),
+      ...(world.extraPluginPin === undefined ? {} : { extraPlugins: world.extraPluginPin }),
+      ...(world.withoutPluginPin === undefined
+        ? {}
+        : { withoutPlugins: world.withoutPluginPin }),
       // ... and the same avatar template, on the same sentence: a restart that
       // came back without it would draw the open page's person off a lower rung.
       ...(world.avatarTemplate === undefined
@@ -1269,6 +1285,14 @@ Before(
       const asked = PLUGINS_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1] === "none" ? "" : [...new Set([...asked[1]!.split(","), "ws", "web-app", "mcp"])].join(",")];
     })[0];
+    this.extraPluginPin = scenario.pickle.tags.flatMap((tag) => {
+      const asked = EXTRA_PLUGINS_TAG.exec(tag.name);
+      return asked === null ? [] : [asked[1]!];
+    })[0];
+    this.withoutPluginPin = scenario.pickle.tags.flatMap((tag) => {
+      const asked = WITHOUT_PLUGINS_TAG.exec(tag.name);
+      return asked === null ? [] : [asked[1]!];
+    })[0];
     const pinned = Object.keys(this.gitPin).length > 0;
     // A pinned server without a `@git:` tag is started `--no-commit`, which is
     // `--commit=off` under another name and would quietly beat whatever the pin
@@ -1297,6 +1321,13 @@ Before(
       throw new Error(
         `@plugins: decides which rows its server composes, so the scenario must own ` +
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
+      );
+    }
+    if ((this.extraPluginPin !== undefined || this.withoutPluginPin !== undefined) && !writes) {
+      throw new Error(
+        `@extra-plugins: / @without-plugins: decide which rows its server composes, so the ` +
+          `scenario must own that server: tag it @scratch:${asked.corpus} rather than ` +
+          `@corpus:${asked.corpus}.`,
       );
     }
     if (this.gitMode !== undefined && !writes) {
@@ -1370,6 +1401,12 @@ Before(
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
         ...(pinned ? { pin: this.gitPin } : {}),
         ...(this.pluginPin === undefined ? {} : { plugins: this.pluginPin }),
+        ...(this.extraPluginPin === undefined
+          ? {}
+          : { extraPlugins: this.extraPluginPin }),
+        ...(this.withoutPluginPin === undefined
+          ? {}
+          : { withoutPlugins: this.withoutPluginPin }),
       };
       const ownCopy = async (): Promise<void> => {
         const own = await scratchServerFor(asked.corpus, spawnOptions);

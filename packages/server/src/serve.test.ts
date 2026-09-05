@@ -98,7 +98,7 @@ const run = (
       // real serve does — these harnesses stand up the whole product, and a
       // composition narrower than the one a person gets would be a suite proving
       // something nobody runs.
-      plugins: null,
+      pluginPin: { kind: "omitted" },
     })
   }).pipe(
     Effect.scoped,

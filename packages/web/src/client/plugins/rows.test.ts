@@ -41,16 +41,17 @@ import {
 import { pluginPref, PLUGIN_PREF } from "../testids.ts"
 
 /** A build with two plugins, and whichever of them this case is about running.
- *  `pinned` defaults to nobody having said, which is the ordinary serve. */
+ *  `pin` defaults to omitted, which is the ordinary serve. */
 const roster = (
   running: ReadonlyArray<string>,
-  pinned: ReadonlyArray<string> | null = null,
+  names: ReadonlyArray<string> | null = null,
 ): PluginRoster => ({
   built: [
     { name: "alpha", running: running.includes("alpha") },
     { name: "beta", running: running.includes("beta") },
   ],
-  pinned,
+  pinned: names,
+  pin: names === null ? { kind: "omitted" } : { kind: "exact", names },
 })
 
 /**
@@ -78,6 +79,7 @@ const row = (
     ...(carrying === undefined ? {} : { carrying }),
   }],
   pinned: null,
+  pin: { kind: "omitted" },
 })
 
 /** That row, for the readings that take one. */
@@ -186,9 +188,6 @@ test("each absence says its own why, and they are five different whys", () => {
   expect(pluginHint(only(failed))).toContain("Failed to start")
   expect(pluginHint(only(switched))).toContain("Switched off here")
 
-  // FIVE DISTINCT SENTENCES, asserted as a set rather than one at a time: the
-  // way this collapses back is two arms drifting into one wording, which every
-  // `toContain` above would still pass.
   const said = [optIn, off, waiting, failed, switched].map((sent) => pluginHint(only(sent)))
   expect(new Set(said).size).toBe(5)
 })
@@ -435,11 +434,11 @@ test("a press freezes only that row's strip, and does not move it", () => {
  * the flag quoted in full, wrapped over three lines, eight times. The panel's
  * header called that an argument for having no panel-wide line, on the grounds
  * that every row already said it, which is a repetition noticed and then
- * defended. `pinned` is one value for the serve; the sentence about it is one
+ * defended. `pin` is one value for the serve; the sentence about it is one
  * sentence for the serve.
  *
  * WHETHER A ROW NAMES A FLAG and WHAT IT SAYS are still the same reading, which
- * is what the pairing was always for: the line is read off the same `pinned`
+ * is what the pairing was always for: the line is read off the same `pin`
  * the rows are, so the flag it quotes and the rows it sits under cannot come
  * from two different frames.
  */
@@ -475,6 +474,65 @@ test("an empty flag is somebody saying none, and says so as itself", () => {
   expect(none).toContain("--plugins=")
   expect(none).toContain("none")
   expect(none).not.toContain("built-in default")
+})
+
+test("an extra-plugins row names the flag that turned it on, and still names who it carries", () => {
+  const extra = {
+    built: [{ name: "alpha", running: true, state: "running" }],
+    pinned: null,
+    pin: { kind: "delta" as const, extra: ["alpha"], without: null },
+  }
+  const said = pluginHint(extra.built[0]!, extra)
+  expect(said).toContain("--extra-plugins")
+  expect(said).not.toContain("--plugins=")
+  expect(pluginSwitch(extra.built[0]!, false).value).toBe("on")
+
+  const carrier = {
+    built: [{ name: "alpha", running: true, state: "running", carrying: ["kolu"] }],
+    pinned: null,
+    pin: { kind: "delta" as const, extra: ["alpha"], without: null },
+  }
+  expect(pluginHint(carrier.built[0]!, carrier)).toContain("Turning it off")
+})
+
+test("a without-plugins row names the flag that turned it off", () => {
+  const without = {
+    built: [{ name: "alpha", running: false, state: "optIn" }],
+    pinned: null,
+    pin: { kind: "delta" as const, extra: null, without: ["alpha"] },
+  }
+  const said = pluginHint(without.built[0]!, without)
+  expect(said).toContain("--without-plugins")
+  expect(said).not.toContain("by default")
+  expect(pluginSwitch(without.built[0]!, false).value).toBe("off")
+})
+
+test("the panel foot quotes extra and without the way they were typed", () => {
+  const extra = pluginsStarted({
+    built: [{ name: "alpha", running: true, state: "running" }],
+    pinned: null,
+    pin: { kind: "delta", extra: ["alpha"], without: null },
+  })
+  expect(extra).toContain("--extra-plugins=alpha")
+  expect(extra).not.toContain("built-in default")
+
+  const without = pluginsStarted({
+    built: [{ name: "alpha", running: false, state: "optIn" }],
+    pinned: null,
+    pin: { kind: "delta", extra: null, without: ["alpha"] },
+  })
+  expect(without).toContain("--without-plugins=alpha")
+
+  const both = pluginsStarted({
+    built: [
+      { name: "alpha", running: true, state: "running" },
+      { name: "beta", running: false, state: "optIn" },
+    ],
+    pinned: null,
+    pin: { kind: "delta", extra: ["alpha"], without: ["beta"] },
+  })
+  expect(both).toContain("--extra-plugins=alpha")
+  expect(both).toContain("--without-plugins=beta")
 })
 
 /**
