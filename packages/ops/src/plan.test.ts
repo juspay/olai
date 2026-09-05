@@ -6231,3 +6231,17 @@ const customOf = (set: OutlineSet, id: string): Record<string, unknown> => {
   if (found === undefined) throw new Error(`no node \`${id}\` in the set`)
   return { ...(found.node as RegularNode).custom }
 }
+
+test("a pin rename precondition is rechecked when the row leaves the active shelf", () => {
+  const pin = { id: "pin", ord: "a0", title: "/#order" }
+  const request = { op: "title", id: "pin", title: "[Renamed](/#order)", was: pin.title, pinned: true } as const
+  const initial = setOf({ "_olai/Pins.olai": JSON.stringify(pin) })
+  expect(record(fileOf(planned(initial, request), "_olai/Pins.olai"), "pin").title).toBe(request.title)
+  for (const files of [
+    { "_olai/Pins.olai": "", "_olai/Trash.olai": JSON.stringify(pin) },
+    { "_olai/Pins.olai": JSON.stringify({ id: "folder", ord: "a0", title: "folder" }) + "\n" + JSON.stringify({ ...pin, parent: "folder" }) },
+    { "_olai/Pins.olai": JSON.stringify(pin), "Pins.olai": JSON.stringify({ id: "other", ord: "a0", title: "/garden.olai" }) },
+  ]) {
+    expect(refused(setOf(files), request).message).toContain("no longer pinned")
+  }
+})

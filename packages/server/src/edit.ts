@@ -182,6 +182,7 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
         id: edit.id,
         title: edit.title,
         ...(edit.was === undefined ? {} : { was: edit.was }),
+        ...(edit.pinned === undefined ? {} : { pinned: edit.pinned }),
       })
     case "desc":
       return Result.succeed({

@@ -515,4 +515,4 @@ An agent's `delete_file` is the same op at the same gate — minted paths and re
 
 An open palette keeps its typed input and question through plugin changes, including a pin name or an unsent capture. Escape still backs out of the question, then closes the palette; reopening starts a new draft.
 
-A pin rename is conditional on the stored title the question was opened on. If another writer changes its name or destination, the rename is refused and the draft remains; dismiss and reopen the question to rename the reviewed pin.
+A pin rename is conditional on the stored title the question was opened on. The planner also requires the row to remain on the active pinned shelf. If another writer removes the pin or changes its name or destination, the rename is refused and the draft remains; dismiss and reopen the question to rename the reviewed pin.
