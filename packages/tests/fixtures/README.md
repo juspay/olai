@@ -32,6 +32,8 @@ starts a fresh server here before creating its first outline or document, and
 checks discovery of a first external outline without reloading.
 `first_outline_recovery.feature` uses the same scratch base to open a vault
 whose only outline is broken, then correct it or create healthy content beside it.
+`empty_vault_capture.feature` creates the Inbox through capture on desktop and
+through the phone header’s touch control.
 
 ## `good/` — a set that validates
 
