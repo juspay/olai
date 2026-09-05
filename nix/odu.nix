@@ -12,8 +12,10 @@
 #
 # THE PIN TRACKS MASTER at the exact revision this tree compiled against.
 # `just update-pins` walks it forward; `npins/sources.json` records the tested
-# revision in this diff. The pinned master includes juspay/odu#101, which lets
-# independent sharded leaves share burst capacity.
+# revision in this diff. The pinned master includes juspay/odu#103, under which
+# a remote lane that loses its ssh link is re-claimed onto a fresh venue and
+# only its unfinished nodes rerun (bounded by `ODU_MAX_LANE_RESURRECTIONS`,
+# default 2).
 #
 # WHY THE SCRIPT IS KOLU'S. The copier is generic — `<src> <dest>` pairs, `cp
 # -rL` so a hydrated source's own imports resolve up into the root
