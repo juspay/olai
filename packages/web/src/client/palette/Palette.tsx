@@ -143,6 +143,17 @@ const PALETTE_ROW: RowTestids = {
   prop: TESTID.paletteItemProp,
 }
 
+// The open/question state already outlives a wire rebuild. Keep its input
+// and pending responses with it; subscriptions, focus and cursors are rebuilt.
+const memory = {
+  query: createSignal(""),
+  askError: createSignal<string | null>(null),
+  said: createSignal<Said | null>(null),
+  sending: createSignal(false),
+}
+let queryRevision = 0
+let paletteRevision = 0
+
 export function Palette(props: {
   readonly go: (route: Route) => void
   /**
@@ -183,9 +194,8 @@ export function Palette(props: {
   const pins = usePins()
   const router = useRouter()
   const [keys, setKeys] = createSignal(false)
-  const [query, writeQuery] = createSignal("")
-  let queryRevision = 0
-  let paletteRevision = 0
+  const [query, writeQuery] = memory.query
+  const resuming = paletteOpen()
   const setQuery = (value: string) => {
     queryRevision++
     writeQuery(value)
@@ -253,10 +263,10 @@ export function Palette(props: {
    * say. Two answers about two different acts, so a person reading a refusal
    * from one is not shown it wiped by a remark from the other.
    */
-  const [askError, setAskError] = createSignal<string | null>(null)
+  const [askError, setAskError] = memory.askError
   /** What the last write had to say — a refusal in the ops layer's own words,
    *  or a remark about one that landed. */
-  const [said, setSaid] = createSignal<Said | null>(null)
+  const [said, setSaid] = memory.said
   /**
    * A WRITE IS IN FLIGHT — the date picker's rule, in the surface that needed
    * it most: "the gate is a round trip, and a second Enter while the first is
@@ -281,7 +291,7 @@ export function Palette(props: {
    * on its way out, and what a second press of it means is a question for the
    * face that answers it and not for this box.
    */
-  const [sending, setSending] = createSignal(false)
+  const [sending, setSending] = memory.sending
   let input: HTMLInputElement | undefined
   let previousFocus: HTMLElement | null = null
   /** The confirm's own buttons while a question is up — where the caret goes
@@ -484,12 +494,14 @@ export function Palette(props: {
    * caret or a remembered focus. Whoever opens it, the box is empty and the
    * caret is in it.
    */
+  let firstOpening = true
   createEffect(() => {
     if (!paletteOpen()) return
     previousFocus = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null
-    blank()
+    if (!(firstOpening && resuming)) blank()
+    firstOpening = false
     // The element is not attached at the instant the signal flips.
     queueMicrotask(() => input?.focus())
   })
@@ -506,9 +518,12 @@ export function Palette(props: {
    * filter it is drawn over, which is not what backing out of one has ever
    * done.
    */
+  let firstQuestion = true
   createEffect(
     on(paletteAsking, (question) => {
-      if (question?.kind !== "line") return
+      const retained = firstQuestion && resuming
+      firstQuestion = false
+      if (retained || question?.kind !== "line") return
       blank(question.initial)
     }),
   )
