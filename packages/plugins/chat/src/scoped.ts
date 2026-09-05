@@ -627,7 +627,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       ),
       setSetting: (agent, session, config, value) => foreground((panel) => panel.setSetting(agent, session, config, value)),
       setModel: (agent, session, value) => foreground((panel) => panel.setModel(agent, session, value)),
-      newSession: (agent) => foreground((panel) => panel.newSession(agent)),
+      // Header + new opens an unassigned conversation. Only the node's
+      // explicit fresh-session gesture may replace its current scoped panel.
+      newSession: (agent) => Effect.gen(function*() {
+        activateRoot()
+        yield* root.newSession(agent)
+      }),
       /**
        * IN THE NAMED NODE'S OWN SCOPE, always — including the node that is not
        * a node agent yet, which is the ordinary case: this gesture is what

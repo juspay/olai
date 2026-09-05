@@ -143,3 +143,59 @@ Feature: Fresh node sessions have distinct identities and durable history
     Then the agent is working
     When the agent is released
     Then the panel is in the remembered conversation "current"
+
+  Scenario: A new unassigned chat opened from a node has its own tools and leaves the node session intact
+    When I show the done nodes
+    And I start a new conversation
+    Then the panel has a different conversation from "first"
+    And the panel offers no sessions of its own
+    When I remember this conversation as "unassigned"
+    And I ask the agent "done order"
+    Then node "order" is done
+    When I press the agent "install"
+    Then the panel is in the remembered conversation "first"
+    And the panel header names the node agent "install the cabinets"
+    When I open the unassigned chats
+    And I pick the conversation "done order"
+    Then the panel is in the remembered conversation "unassigned"
+    And there should be no page errors
+
+  Scenario: A new unassigned chat can open while the node agent waits for an answer
+    When I ask the agent "ask"
+    Then the chat shows a question
+    When I start a new conversation
+    Then the panel has a different conversation from "first"
+    And the panel offers no sessions of its own
+    And the agent "install" stands "needs-you"
+    When I ask the agent "unassigned alongside a question"
+    Then the agent's answer mentions "you said: unassigned alongside a question"
+    And the agent "install" stands "needs-you"
+    When I press the agent "install"
+    Then the panel is in the working conversation "first"
+    And the chat shows a question
+    When I cancel the turn
+    Then the agent is idle
+    And there should be no page errors
+
+  Scenario: A new unassigned chat from history leaves both node conversations in place
+    When I show the done nodes
+    And I open the session picker
+    And I start a fresh session
+    Then the panel has a different conversation from "first"
+    When I ask the agent "cabinet second session"
+    Then the agent has answered "cabinet second session" exactly once
+    When I remember this conversation as "current"
+    And I open the session picker
+    And I open the past session "cabinet first session"
+    Then the panel is in the remembered conversation "first"
+    When I start a new conversation
+    Then the panel has a different conversation from "first"
+    And the panel offers no sessions of its own
+    When I ask the agent "done order"
+    Then node "order" is done
+    When I press the agent "install"
+    Then the panel is in the remembered conversation "current"
+    When I open the session picker
+    And I open the past session "cabinet first session"
+    Then the panel is in the remembered conversation "first"
+    And there should be no page errors
