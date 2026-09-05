@@ -1,7 +1,8 @@
-# Build every flake output on linux + darwin and push the closures to
+# Build every flake output on linux and push the closures to
 # https://cache.nixos.asia/oss. The flake already lists this cache as a
-# substituter, so a green run here warms `nix build` / `nix develop` on
-# both platforms (odu lanes included).
+# substituter, so a green run here warms `nix build` / `nix develop`.
+# Darwin is out of the matrix: ekapkgs/corepkgs has no stdenv/darwin yet
+# (eval dies at kolu.packages). Re-add macos when that exists.
 name: nix-cache
 
 on:
@@ -22,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       # pull_request's default ref is the synthetic merge commit; warm the
