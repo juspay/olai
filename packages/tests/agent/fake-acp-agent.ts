@@ -196,6 +196,7 @@
 
 import { spawn } from "node:child_process"
 import { appendFileSync, existsSync, readFileSync, rmSync, statSync } from "node:fs"
+import { createHash } from "node:crypto"
 import { basename, join } from "node:path"
 
 import { readMessages } from "../support/ndjson.ts"
@@ -2616,12 +2617,9 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
 
   // An attachment reaches an agent as a PATH in the prompt, and the whole
-  // claim of that design is that the agent can then READ it. So this one does:
-  // it opens the file the prompt named and says how big it is, which is a fact
-  // it can only have got off the disk. A scripted agent cannot look at a
-  // picture or parse a PDF, and it does not have to — what an e2e can prove is
-  // that the bytes the browser sent are the bytes at the path the agent was
-  // given, whatever kind of file they are.
+  // claim of that design is that the agent can then READ it. Ordinary replies
+  // report its stored size. Integrity probes explicitly read and hash the file:
+  // size alone cannot detect corrupted bytes or reordered upload chunks.
   //
   // The label is `olai-plugin-chat`'s (`promptWith`), and it says FILE because the
   // line carries text and PDFs as well as pictures.
@@ -2630,6 +2628,10 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     for (const file of attached) {
       const bytes = existsSync(file) ? statSync(file).size : -1
       say(`read ${bytes} bytes from ${basename(file)}\n`)
+      if (text.includes("verify attachment bytes") && bytes >= 0) {
+        const digest = createHash("sha256").update(readFileSync(file)).digest("hex")
+        say(`sha256 of ${basename(file)}: ${digest}\n`)
+      }
     }
     reply(id, { stopReason: "end_turn" })
     return
