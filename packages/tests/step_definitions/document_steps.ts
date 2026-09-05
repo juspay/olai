@@ -10,7 +10,7 @@
  */
 
 import * as assert from "node:assert";
-import { Then, When } from "@cucumber/cucumber";
+import { defineParameterType, Then, When } from "@cucumber/cucumber";
 
 import { BODY_REFUSED as REFUSED_SAID } from "@olai/surface";
 
@@ -84,9 +84,15 @@ Then(
   },
 );
 
+defineParameterType({
+  name: "documentKind",
+  regexp: /document|image|csv|page/,
+  transformer: (kind: string) => kind,
+});
+
 Then(
-  "the main pane says there is no document {string}",
-  async function (this: OlaiWorld, file: string) {
+  "the main pane says there is no {documentKind} {string}",
+  async function (this: OlaiWorld, kind: string, file: string) {
     // THE ANSWER, not two frames of Reading…. settle waits for the docked
     // header (the directory is in hand). The nothing sentence is the page
     // stream's first frame, a round trip later. Sampling `main` the tick the
@@ -108,7 +114,7 @@ Then(
     }
     const text = oneLine(await said.innerText());
     assert.ok(
-      text.includes(file) && text.includes("No document"),
+      text.includes(file) && text.includes(`No ${kind}`),
       `the pane says ${JSON.stringify(text)}, which does not name the missing document`,
     );
     assert.strictEqual(
