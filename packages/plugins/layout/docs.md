@@ -21,3 +21,7 @@ CSS widths. Removing the entry detaches those listeners and restores the prior
 inline CSS declarations. A fresh activation re-reads preferences from storage,
 including changes made by another tab while layout was absent. These observers
 are no longer started by the permanent browser entry point.
+
+Viewport width is a reactive input to column fitting. Resizing an open desktop
+layout recomputes both columns while preserving stored preferred widths, so the
+main content keeps its minimum available space when the window narrows.

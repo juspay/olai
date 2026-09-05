@@ -43,3 +43,10 @@ Feature: The renderer and layout are browser rows
     Then the plugins panel says "ui-renderer" is "Browser: running."
     And the page has not reloaded
     And there should be no page errors
+
+  Scenario: Layout refits its columns when a desktop window narrows
+    When I open the app
+    And I open the agent panel again
+    And the desktop window narrows to 900 pixels
+    Then layout reserves at least 280 pixels for content
+    And there should be no page errors

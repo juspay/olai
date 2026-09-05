@@ -11,7 +11,7 @@
  * the dock (e.g. 480 + 720 on a 1024px laptop).
  */
 
-import type { Accessor } from "solid-js"
+import { type Accessor, createSignal } from "solid-js"
 
 import { boolCodec, createPreference, type SetOptions } from "../preference.ts"
 
@@ -142,8 +142,9 @@ export const fitWidths = (
   return { side, chat }
 }
 
-const viewportWidth = (): number =>
-  typeof window !== "undefined" ? window.innerWidth : 10_000
+const [viewportWidth, setViewportWidth] = createSignal(
+  typeof window !== "undefined" ? window.innerWidth : 10_000,
+)
 
 // ── the five circuits, one factory ────────────────────────────────────────
 //
@@ -240,26 +241,16 @@ export const setPanelSnap = (snap: ChatSnap): void => panelSnapPref.set(snap)
 // ── cross-tab follow ──────────────────────────────────────────────────────
 
 /**
- * Follow every layout preference for as long as this document lives.
- *
- * Same shape as `followStoredTheme`: started from `main.tsx` once. Also
- * re-fits widths when the viewport resizes so a laptop undock cannot leave
- * the outline under the dock.
+ * Follow preferences and viewport width for this layout activation. A fresh
+ * activation rereads both; disposal detaches every subscription.
  */
 export const followLayout = (): (() => void) => {
   const stop = [sidebarOpenPref, sidebarWidthPref, panelOpenPref, panelWidthPref, panelSnapPref].map((preference) => preference.follow())
 
-  // Re-fit on resize: accessors re-run when signals change, but a bare window
-  // resize does not touch a signal, so each width is nudged with its own value
-  // (no write — nothing changed in storage). Kept exactly as the hand-wired
-  // version had it, honestly named: under Solid's default equality a
-  // same-value set notifies nobody, so the nudge moves nothing until a signal
-  // actually changes — a pre-existing fact this migration preserves rather
-  // than fixes.
-  const onResize = () => {
-    sidebarWidthPref.set(sidebarWidthPref.value(), { persist: false })
-    panelWidthPref.set(panelWidthPref.value(), { persist: false })
-  }
+  // Width is itself reactive. Re-setting unchanged preferences does not notify
+  // Solid, and used to leave CSS at the old fit after a window resize.
+  const onResize = () => setViewportWidth(window.innerWidth)
+  onResize()
   window.addEventListener("resize", onResize)
   return () => {
     window.removeEventListener("resize", onResize)

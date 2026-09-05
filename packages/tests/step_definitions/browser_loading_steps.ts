@@ -10,14 +10,30 @@ Given("the browser module for {string} cannot be fetched", async function (this:
   const entry = html.match(/src="([^"]*\/main-[^"]+\.js)"/);
   assert.ok(entry, "the built shell must name its hashed module entry");
   const entryUrl = new URL(entry[1]!, this.baseUrl).href;
-  const response = await this.page.request.get(entryUrl);
-  const source = await response.text();
   // Resolve the generated row's literal import from the actual build. No hash
   // or ambiguous browser-*.js filename is assumed by this scenario.
   assert.match(plugin, /^[a-z][a-z0-9-]*$/);
-  const row = source.match(new RegExp(`id:\\s*"${plugin}",\\s*load:\\s*\\(\\)\\s*=>\\s*import\\("([^"]+)"\\)`));
-  assert.ok(row, `the built entry must contain the browser row for ${plugin}`);
-  const record = { url: new URL(row[1]!, entryUrl).href, requests: 0 };
+  const pattern = new RegExp(`id:\\s*"${plugin}",\\s*load:\\s*\\(\\)\\s*=>\\s*import\\("([^"]+)"\\)`);
+  const pending = [entryUrl];
+  const visited = new Set<string>();
+  let moduleUrl: string | undefined;
+  while (pending.length && moduleUrl === undefined) {
+    const url = pending.pop()!;
+    if (visited.has(url)) continue;
+    visited.add(url);
+    const response = await this.page.request.get(url);
+    assert.ok(response.ok(), `could not read built module ${url}`);
+    const source = await response.text();
+    const row = source.match(pattern);
+    if (row) moduleUrl = new URL(row[1]!, url).href;
+    // Bun may put the generated table in a shared static chunk. Follow that
+    // closure without evaluating modules or requesting any dynamic entry.
+    else for (const imported of source.matchAll(/(?:\bfrom\s*|\bimport\s*)["']([^"']+)["']/g)) {
+      if (imported[1]!.startsWith(".")) pending.push(new URL(imported[1]!, url).href);
+    }
+  }
+  assert.ok(moduleUrl, `the built entry graph must contain the browser row for ${plugin}`);
+  const record = { url: moduleUrl, requests: 0 };
   refused.set(this, record);
   await this.page.route(record.url, async (route) => {
     record.requests++;
@@ -64,4 +80,17 @@ Then("layout has released its document styles and viewport observers", async fun
       .map((name) => document.documentElement.style.getPropertyValue(name));
   });
   assert.deepStrictEqual(values, ["", "", "", ""]);
+});
+
+When("the desktop window narrows to {int} pixels", async function (this: OlaiWorld, width: number) {
+  await this.page.setViewportSize({ width, height: 900 });
+});
+
+Then("layout reserves at least {int} pixels for content", async function (this: OlaiWorld, width: number) {
+  await this.page.waitForFunction((minimum) => {
+    const style = document.documentElement.style;
+    const side = parseFloat(style.getPropertyValue("--width-sidebar"));
+    const panel = parseFloat(style.getPropertyValue("--width-panel"));
+    return window.innerWidth - side - panel >= minimum;
+  }, width);
 });
