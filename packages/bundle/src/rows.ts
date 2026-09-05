@@ -128,6 +128,7 @@ export interface BundleRow {
   readonly name: string
   readonly disabled?: boolean
   /** Extra default profiles that select this row; web uses the built default. */
+  readonly selection?: "profile"
   readonly profiles?: ReadonlyArray<string>
   /** The plugin’s explanation of what stopping its row costs. */
   readonly switchHint?: string

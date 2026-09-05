@@ -2,7 +2,6 @@ import { runtimePaths } from "./runtime-paths.ts"
 import { fixedStore } from "./store-source.ts"
 import { mountBundle, offered as door, provide, settled } from "@olai/bundle/bundle"
 import { openPlugins as openHostPlugins, Directory, Ops as OpsDoor } from "@olai/plugin-api/services"
-import { profileRows } from "./profiles.ts"
 import { VaultSettings } from "@olai/plugin-api/services"
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
@@ -112,10 +111,7 @@ const withRuntime = <A>(
   return Effect.gen(function*() {
     const onChange = { run: (): void => {} }
     const mounted = yield* openHostPlugins({ vars: {}, now: () => STARTED, changed: () => onChange.run() })
-    yield* mountBundle(mounted.host, ["vault"], [], {
-      rows: profileRows("test-minimal"),
-      resolve: async () => undefined,
-    })
+    yield* mountBundle(mounted.host, ["vault"], [], "test-minimal")
     yield* provide(mounted.host, VaultSettings, () => ({ root, runtime: runtimePaths, kinds: NO_KINDS, ledger: NO_LEDGER, search: NO_SEARCH }))
     yield* settled(mounted.host, ["vault"])
     const directory = door(mounted.host, Directory) as { readonly store: OutlineStore } | undefined

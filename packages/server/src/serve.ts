@@ -36,7 +36,7 @@ import {
   rowsNaming,
   setRow,
 } from "@olai/bundle/bundle"
-import { bundleRank, profilePlugins } from "@olai/bundle"
+import { bundleRank } from "@olai/bundle"
 import { emitter } from "@olai/log"
 import {
   Directory,
@@ -62,9 +62,10 @@ import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { NOBODY, readingOf } from "./who.ts"
-import { profileRows, INFRASTRUCTURE_ROWS, type Profile } from "./profiles.ts"
-import { transportListener, transportModules, TransportSurface } from "./transports.ts"
-import { mcpEndpoint } from "./mcp/endpoint.ts"
+import { type Profile } from "./profiles.ts"
+import { transportListener } from "./transports.ts"
+import { mcpBinding } from "./mcp/binding.ts"
+import { TransportSurface } from "@olai/plugin-api/transport"
 import { gitConfigPatch } from "./gitPolicy.ts"
 import { resyncDirectory } from "./resync.ts"
 import { bind } from "./runtime.ts"
@@ -133,7 +134,7 @@ export const serve = (options: ServeOptions) =>
       return count > 0 ? Effect.annotateLogs(Effect.logInfo("pruned state records for directories that are gone"), { count }) : Effect.void
     }))
     const profile = options.profile ?? "web"
-    const built = [...BUNDLE_NAMES, ...INFRASTRUCTURE_ROWS]
+    const built = BUNDLE_NAMES
     /** The re-compose, filled in by `bind` — `./runtime.ts`'s `PluginRuntime`
      *  argues why it is a holder rather than a callback passed here. */
     const onChange = { run: (): void => {} }
@@ -141,7 +142,7 @@ export const serve = (options: ServeOptions) =>
     // A process credential; session tickets are minted only while the MCP row stands.
     const token = randomBytes(24).toString("hex")
 
-    const mcp = mcpEndpoint(token)
+    const mcp = mcpBinding(token)
 
     /** WHERE A RELATIVE PATH RESOLVES FROM, resolved the way `openDirectory`
      *  resolves it and BEFORE it, because the plugin runtime is opened first.
@@ -245,10 +246,7 @@ export const serve = (options: ServeOptions) =>
       changed: () => onChange.run(),
       // NO `dials`: the injectables are a test's, and this is the product.
     })
-    yield* mountBundle(plugins.host, options.plugins ?? profilePlugins(profile), gitConfigPatch(options.pin), {
-      rows: profileRows(profile),
-      resolve: async (name) => transportModules[name],
-    })
+    yield* mountBundle(plugins.host, options.plugins, gitConfigPatch(options.pin), profile)
 
     /**
      * The vault's own definitions mount on this host too. Open their manager
@@ -257,8 +255,8 @@ export const serve = (options: ServeOptions) =>
      * on different clocks made dynamic rows stick at their mounting state.
      *
      * Nothing is mounted until a revision supplies approved source. The full
-     * built list is reserved here, including infrastructure ids: a vault may
-     * not replace ws merely because its module is not a tenant package.
+     * built list is reserved here: a vault definition may not replace any
+     * shipped plugin, including a transport.
      */
     const dynamic = openDynamic(plugins.host, built)
 
@@ -279,7 +277,7 @@ export const serve = (options: ServeOptions) =>
      * synchronously by the roster, so a Ref would buy nothing but two more
      * `yield*` on a path that has no concurrency to protect against.
      */
-    let report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
+    let report = yield* reportBundle(plugins.host, dynamic.names())
 
     /**
      * WHICH ROWS A PERSON HAS TURNED OFF HERE — the third author of a row's
@@ -296,16 +294,12 @@ export const serve = (options: ServeOptions) =>
      * one fiber, read synchronously by the roster.
      */
     const switched = new Set<string>()
-    /** A flip belongs at the root, which holds both the host and bundle.
-     * setRow settles the tenant bundle; the following settle includes the
-     * infrastructure rows inserted by this profile. Only then may runtime.ts
-     * recompose and publish the report. A loading mcp row is not yet a working
-     * endpoint, even when every tenant has already finished moving. */
+    /** setRow settles every bundle plugin, including transport acquisitions,
+     * before the root republishes their states. */
     const flipped = (id: string, enabled: boolean) =>
       Effect.gen(function*() {
         const found = yield* setRow(plugins.host, id, enabled)
-        yield* settled(plugins.host, built)
-        report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
+        report = yield* reportBundle(plugins.host, dynamic.names())
         if (found) {
           if (enabled) switched.delete(id)
           else switched.add(id)
@@ -398,7 +392,7 @@ export const serve = (options: ServeOptions) =>
     const ops = liveOps(currentGate)
     yield* provide(plugins.host, VaultSettings, () => ({ root, kinds, ledger, search, runtime: runtimePaths }))
     yield* settled(plugins.host, built)
-    report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
+    report = yield* reportBundle(plugins.host, dynamic.names())
     /** Minted once for the serve: app.get and the install manifest must name
      * the same machine even if the host is renamed underneath us. The start
      * instant is process start rather than this function's return, so the
@@ -422,11 +416,11 @@ export const serve = (options: ServeOptions) =>
         built,
         pinned: options.plugins,
         report: () => report,
-        names: () => rowsNaming(plugins.host, INFRASTRUCTURE_ROWS),
+        names: () => rowsNaming(plugins.host),
         configs: () => configsOf(plugins.host),
         set: flipped,
         reread: Effect.gen(function*() {
-          report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
+          report = yield* reportBundle(plugins.host, dynamic.names())
         }),
         switched: () => switched,
         dynamic,
@@ -484,7 +478,7 @@ export const serve = (options: ServeOptions) =>
      */
     yield* provide(plugins.host, TransportSurface, () => ({
       register: transports.register,
-      mcp: mcp.serve({
+      mcp: mcp.prepare({
         bound: wired.bound,
         face: wired.faces.agent,
         ops,
@@ -509,7 +503,7 @@ export const serve = (options: ServeOptions) =>
     // readiness. Binding earlier could hand a newly spawned session a port
     // whose mcp row was still loading.
     yield* settled(plugins.host, built)
-    report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
+    report = yield* reportBundle(plugins.host, dynamic.names())
     onChange.run()
     /*
      * WHAT THIS SERVE CAME UP WITH MUST BE SERVABLE — the one thing the bind

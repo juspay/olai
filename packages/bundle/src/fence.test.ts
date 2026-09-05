@@ -755,12 +755,16 @@ describe("only the registry knows a plugin's name", () => {
     server: [
       "server/src/headless.test.ts: olai-plugin-git/testlib",
       "server/src/lock.test.ts: olai-plugin-vault/testlib",
+      "server/src/mcp/face.test.ts: olai-plugin-mcp/testlib",
+      "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
+      "server/src/mcp/tools.test.ts: olai-plugin-mcp/testlib",
+      "server/src/transports.test.ts: olai-plugin-mcp/testlib",
       "server/src/who.test.ts: olai-plugin-identity/who",
     ],
   }
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
     tests: ["olai-plugin-chat", "olai-plugin-identity", "olai-plugin-kolu"],
-    server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-vault"],
+    server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-mcp", "olai-plugin-vault"],
   }
 
   test("plugins consume services and never import another plugin", () => {
@@ -1269,6 +1273,9 @@ describe("an appliance's product tier stays inside its tenant", () => {
       pi: ["plugins/pi"],
       search: ["plugins/search"],
       vault: ["plugins/vault"],
+      ws: ["plugins/ws"],
+      mcp: ["plugins/mcp"],
+      "web-app": ["plugins/web-app"],
       "xyne-spaces": ["plugins/xyne-spaces"],
     })
     // ...and each APPLIANCE tenant has a TIER, which is the other way this
@@ -1303,6 +1310,9 @@ describe("an appliance's product tier stays inside its tenant", () => {
       // matcher — rather than over somebody else's vendored client.
       search: false,
       vault: false,
+      ws: false,
+      mcp: false,
+      "web-app": false,
       "xyne-spaces": false,
     })
   })
@@ -1676,6 +1686,40 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * claim can fail in are not symmetric.
    */
   const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = {
+    /** Protocol vocabulary predates these plugins. Core coordinates their
+     * shared listener and writer faces; none of these files resolves modules.
+     * web-app also occurs in the browser install metadata. Exact file equality
+     * keeps every new spelling reviewable, as for vault and search below. */
+    "ws": [
+      "server/src/transports.ts",
+    ],
+    "mcp": [
+      "format/src/committing.ts",
+      "plugins/chat/src/agent.ts",
+      "plugins/chat/src/fixtures/lifecycle-agent.ts",
+      "plugins/chat/src/server.ts",
+      "plugins/claude/src/leg.ts",
+      "plugins/codex/src/leg.ts",
+      "plugins/git/src/browser/commit/said.ts",
+      "plugins/git/src/ledger/pending.ts",
+      "plugins/odu/src/probe.ts",
+      "server/src/dial.ts",
+      "server/src/faces.ts",
+      "server/src/gitPolicy.ts",
+      "server/src/listener.ts",
+      "server/src/main.ts",
+      "server/src/mcp/binding.ts",
+      "server/src/mcp/route.ts",
+      "server/src/mcp/tickets.ts",
+      "server/src/mcpClient.ts",
+      "server/src/serve.ts",
+      "server/src/transports.ts",
+    ],
+    "web-app": [
+      "server/src/transports.ts",
+      "web/src/client/theme/chrome.ts",
+    ],
+
     /** Vault is also the domain noun and the core Vault/VaultSettings service
      * vocabulary. These compiled spellings predate the provider package and
      * do not select or import it; record the exact collision set. */
@@ -1782,10 +1826,10 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/chat/src/browser/chat/completion.ts",
       "plugins/chat/src/testids.ts",
       "plugins/journal/src/browser.tsx",
+      "plugins/mcp/src/endpoint.ts",
       "plugins/vault/src/server.ts",
       "server/src/faces.ts",
       "server/src/main.ts",
-      "server/src/mcp/face.ts",
       "server/src/mcp/tools.ts",
       "server/src/runtime.ts",
       "server/src/serve.ts",
@@ -1914,4 +1958,12 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       for (const file of files) expect([file, seen.has(file)]).toEqual([file, true])
     }
   })
+})
+
+
+test("the composition root imports no plugin definition factory", () => {
+  const definitions = (tree.get("server") ?? []).filter((source) =>
+    !/\.(test|testlib|bench)\./.test(source.file)
+    && /\b(?:import|export)\s*\{[^}]*\bdefinePlugin\b/.test(readFileSync(path.join(PACKAGES, source.file), "utf8")))
+  expect(definitions.map((source) => source.file)).toEqual([])
 })

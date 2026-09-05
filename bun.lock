@@ -54,11 +54,14 @@
         "olai-plugin-identity": "workspace:*",
         "olai-plugin-journal": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
+        "olai-plugin-mcp": "workspace:*",
         "olai-plugin-odu": "workspace:*",
         "olai-plugin-opencode": "workspace:*",
         "olai-plugin-pi": "workspace:*",
         "olai-plugin-search": "workspace:*",
         "olai-plugin-vault": "workspace:*",
+        "olai-plugin-web-app": "workspace:*",
+        "olai-plugin-ws": "workspace:*",
         "olai-plugin-xyne-spaces": "workspace:*",
       },
     },
@@ -258,6 +261,18 @@
         "@types/node": "^22.0.0",
       },
     },
+    "packages/plugins/mcp": {
+      "name": "olai-plugin-mcp",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/plugin-api": "workspace:*",
+        "@olai/surface": "workspace:*",
+        "effect": "4.0.0-rc.112",
+      },
+      "devDependencies": {
+        "@types/node": "^22.0.0",
+      },
+    },
     "packages/plugins/odu": {
       "name": "olai-plugin-odu",
       "version": "0.1.0",
@@ -328,6 +343,28 @@
         "@types/node": "^22.0.0",
       },
     },
+    "packages/plugins/web-app": {
+      "name": "olai-plugin-web-app",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0-rc.112",
+      },
+      "devDependencies": {
+        "@types/node": "^22.0.0",
+      },
+    },
+    "packages/plugins/ws": {
+      "name": "olai-plugin-ws",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0-rc.112",
+      },
+      "devDependencies": {
+        "@types/node": "^22.0.0",
+      },
+    },
     "packages/plugins/xyne-spaces": {
       "name": "olai-plugin-xyne-spaces",
       "version": "0.1.0",
@@ -361,6 +398,7 @@
         "@types/node": "^22.0.0",
         "olai-plugin-git": "workspace:*",
         "olai-plugin-identity": "workspace:*",
+        "olai-plugin-mcp": "workspace:*",
         "olai-plugin-vault": "workspace:*",
       },
     },
@@ -1260,6 +1298,8 @@
 
     "olai-plugin-kolu": ["olai-plugin-kolu@workspace:packages/plugins/kolu"],
 
+    "olai-plugin-mcp": ["olai-plugin-mcp@workspace:packages/plugins/mcp"],
+
     "olai-plugin-odu": ["olai-plugin-odu@workspace:packages/plugins/odu"],
 
     "olai-plugin-opencode": ["olai-plugin-opencode@workspace:packages/plugins/opencode"],
@@ -1269,6 +1309,10 @@
     "olai-plugin-search": ["olai-plugin-search@workspace:packages/plugins/search"],
 
     "olai-plugin-vault": ["olai-plugin-vault@workspace:packages/plugins/vault"],
+
+    "olai-plugin-web-app": ["olai-plugin-web-app@workspace:packages/plugins/web-app"],
+
+    "olai-plugin-ws": ["olai-plugin-ws@workspace:packages/plugins/ws"],
 
     "olai-plugin-xyne-spaces": ["olai-plugin-xyne-spaces@workspace:packages/plugins/xyne-spaces"],
 

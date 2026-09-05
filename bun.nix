@@ -7633,11 +7633,14 @@
   "olai-plugin-identity" = copyPathToStore ./packages/plugins/identity;
   "olai-plugin-journal" = copyPathToStore ./packages/plugins/journal;
   "olai-plugin-kolu" = copyPathToStore ./packages/plugins/kolu;
+  "olai-plugin-mcp" = copyPathToStore ./packages/plugins/mcp;
   "olai-plugin-odu" = copyPathToStore ./packages/plugins/odu;
   "olai-plugin-opencode" = copyPathToStore ./packages/plugins/opencode;
   "olai-plugin-pi" = copyPathToStore ./packages/plugins/pi;
   "olai-plugin-search" = copyPathToStore ./packages/plugins/search;
   "olai-plugin-vault" = copyPathToStore ./packages/plugins/vault;
+  "olai-plugin-web-app" = copyPathToStore ./packages/plugins/web-app;
+  "olai-plugin-ws" = copyPathToStore ./packages/plugins/ws;
   "olai-plugin-xyne-spaces" = copyPathToStore ./packages/plugins/xyne-spaces;
   "on-finished@2.4.1" = fetchurl
     {

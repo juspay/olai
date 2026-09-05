@@ -4,9 +4,9 @@ How to serve a directory and configure the server. The git story is [git.md](git
 
 ## `olai web`
 
-`--profile web` (the default) stacks the tenant bundle with three infrastructure rows: `ws` for the browser socket, `mcp` for `/mcp`, and `web-app` for the browser build. They appear in the plugins panel alongside integrations. `--plugins` selects bundle plugins, including the vault; it does not turn the transports off.
+`--profile web` (the default) selects the bundle’s integrations and three transport plugins: `ws` for the browser socket, `mcp` for `/mcp`, and `web-app` for the browser build. They live under `packages/plugins/` and appear in the plugins panel alongside integrations. Every mountable row is declared in `packages/bundle/olai.yml`; profiles only patch its `disabled` fields. `--plugins` selects bundle plugins, including the vault; it does not turn the transports off.
 
-For an MCP-only server, run `olai web path/to/outlines --profile surface`. It opens the same vault and write gate, serves only `/mcp`, and needs no browser build. Its only default bundle plugin is `vault`; an explicit `--plugins` list replaces that selection. `olai surface <verb>` remains the terminal client of a running server.
+For an MCP-only server, run `olai web path/to/outlines --profile surface`. It opens the same vault and write gate, serves only `/mcp`, and needs no browser build. Its default bundle plugins are `vault` and `mcp`; an explicit `--plugins` list replaces the non-transport selection. `olai surface <verb>` remains the terminal client of a running server.
 
 `--profile test-minimal` selects only the vault plugin, with no transports and logs `no transport rows enabled`. Its only running row is `vault`, which holds the ordinary directory lock until stopped. The `vault` row owns the directory lock, store watcher, write gate and revision publisher; kinds remain a host registry.
 
@@ -447,7 +447,7 @@ olai surface --url https://olai.example.ts.net capture "look into the new cabine
 
 None of these is a thing olai ships; each is a few lines somebody writes once.
 
-**Mail.app, via Raycast or a script (macOS).** The point of the mail case is that there is no mail infrastructure in it: AppleScript asks Mail for the selected message, and what olai keeps is what you would look for later — the subject, who it is from, and the `Message-Id`, in the note.
+**Mail.app, via Raycast or a script (macOS).** The point of the mail case is that there is no mail service to deploy: AppleScript asks Mail for the selected message, and what olai keeps is what you would look for later — the subject, who it is from, and the `Message-Id`, in the note.
 
 One script, because the AppleScript values have to reach the shell — `osascript` prints them, tab-separated, and `read` takes them apart. `OLAI_URL` is the vault you are capturing into; it is a variable of your own, and the flag is what the binary reads:
 

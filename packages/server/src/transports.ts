@@ -15,38 +15,9 @@
  * MCP into it would conflate a route change with a listener change and make an
  * ordinary panel toggle disconnect the very request asking for it.
  */
-import { definePlugin, serviceTag } from "@olai/plugin-api"
 import { Effect, Exit, Scope, Semaphore } from "effect"
+import type { TransportRow } from "@olai/plugin-api/transport"
 import { listen, type ListenOptions } from "./listener.ts"
-import { TRANSPORT_ROWS, transportModuleName, type TransportRow } from "./profiles.ts"
-
-/** The root provides this only after bind has composed the surface and write
- * gate. Mounting rows earlier leaves them pending on a real dependency rather
- * than loading while awaiting a callback the root cannot yet complete.
- *
- * mcp's protocol acquisition differs from registering its route. It owns the
- * SDK server and ticket mint on its own row scope; ws has no separate protocol
- * server to acquire, since the shared listener owns its websocket stacks. Both
- * still register their presence with the same scoped verb. */
-export const TransportSurface = serviceTag<{
-  readonly register: (row: TransportRow) => Effect.Effect<void, never, Scope.Scope>
-  readonly mcp: Effect.Effect<void, never, Scope.Scope>
-}>("transport-surface")
-
-export const transportModules = Object.fromEntries(
-  TRANSPORT_ROWS.map((row) => [
-    transportModuleName(row),
-    definePlugin({
-      name: row,
-      needs: [TransportSurface],
-      apply: Effect.gen(function*() {
-        const surface = yield* TransportSurface
-        if (row === "mcp") yield* surface.mcp
-        yield* surface.register(row)
-      }),
-    }),
-  ]),
-)
 
 /**
  * Build the coordinator before activating the rows, then start it after they

@@ -1,12 +1,12 @@
 /**
- * The MCP endpoint's two lifetimes: an address for the serve, and a protocol
- * server for each activation of the mcp row.
+ * The host binding for MCP: stable routing plus a fresh writer-bound face
+ * and ticket table for each plugin activation.
  *
  * The listener and the sessions must agree on a credential and transport even
  * though the listener binds after the rows mount. This factory opens no server:
- * it makes the stable rendezvous the root can hand both sides. `serve` is the
+ * it makes the stable rendezvous the root can hand both sides. `prepare` is the
  * acquisition, run on the row's scope, and every activation makes fresh tickets
- * and a fresh MCP server. Turning the row off closes pending protocol requests
+ * for the plugin’s MCP server. Turning the row off closes pending protocol requests
  * and removes the ticket mint; the shared HTTP listener remains somebody else's
  * resource. Keeping this here lets the protocol/tool projection change without
  * changing profile selection or the root's acquisition order.
@@ -18,14 +18,15 @@ import type { ToolServer } from "@olai/plugin-api/services"
 import type { Vintage } from "@olai/store"
 import { Effect } from "effect"
 
+import { MCP } from "../faces.ts"
 import type { Reading } from "../who.ts"
 import { type Bound, writerAt } from "../runtime.ts"
-import { clientOver, serveFace } from "./face.ts"
+import { clientOver } from "./face.ts"
 import { currentLogin, MCP_PATH, mcpTransport } from "./route.ts"
 import { type Tickets, ticketing } from "./tickets.ts"
 import { bespokeFrom, pluginTools } from "./tools.ts"
 
-export const mcpEndpoint = (token: string) => {
+export const mcpBinding = (token: string) => {
   const transport = mcpTransport()
   let tickets: Tickets | undefined
   return {
@@ -36,7 +37,7 @@ export const mcpEndpoint = (token: string) => {
     /** The name is part of engine auto-allow prefixes. The root supplies the
      * bound URL; no protocol code guesses which port the OS assigned. */
     address: (url: string): ToolServer => ({ name: "olai", url: `${url}${MCP_PATH}`, token }),
-    serve: (options: {
+    prepare: (options: {
       readonly bound: Pick<Bound, "group" | "handlers">
       readonly face: FaceExposure
       readonly ops: Ops
@@ -55,7 +56,8 @@ export const mcpEndpoint = (token: string) => {
       const seated = ticketing({ bound, face, ops, token })
       tickets = seated
       yield* Effect.addFinalizer(() => Effect.sync(() => { tickets = undefined }))
-      yield* serveFace({
+      return {
+        expose: MCP,
         client: () => panel,
         tools: {
           ...bespokeFrom(TOOLS, {
@@ -71,7 +73,7 @@ export const mcpEndpoint = (token: string) => {
           ...pluginTools(),
         },
         transport,
-      })
+      }
     }),
   }
 }

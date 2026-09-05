@@ -10,7 +10,8 @@ import { bind } from "./runtime.ts"
 import { watchFault } from "./fault.ts"
 import { served, SERVER_LAYERS } from "./serve.testlib.ts"
 import { transportListener } from "./transports.ts"
-import { mcpEndpoint } from "./mcp/endpoint.ts"
+import { mcpBinding } from "./mcp/binding.ts"
+import { serveFace } from "olai-plugin-mcp/testlib"
 
 // Exercise resource withdrawal directly: once ws is gone there is deliberately
 // no browser control socket through which a test could turn it back on.
@@ -25,7 +26,7 @@ test("transport registrations release and restore browser assets, sockets and th
       const fault = yield* watchFault(wired.bound)
       yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
       yield* Effect.addFinalizer(() => fault.stopped)
-      const endpoint = mcpEndpoint("test")
+      const endpoint = mcpBinding("test")
       const ticket = () => endpoint.ticketFor(() => ({ under: "a", forbidden: [] }), () => null, "mcp")
       expect(ticket()).toBeNull()
       const listener = yield* transportListener({
@@ -37,7 +38,7 @@ test("transport registrations release and restore browser assets, sockets and th
       })
       const parent = yield* Effect.scope
       let mcp = yield* Scope.fork(parent)
-      const startMcp = endpoint.serve({ bound: wired.bound, face: wired.faces.agent, ops, root, writer: "mcp", vintage: Effect.map(store.read("verified"), (aged) => aged.vintage) })
+      const startMcp = endpoint.prepare({ bound: wired.bound, face: wired.faces.agent, ops, root, writer: "mcp", vintage: Effect.map(store.read("verified"), (aged) => aged.vintage) }).pipe(Effect.flatMap(serveFace))
       let ws = yield* Scope.fork(parent)
       let app = yield* Scope.fork(parent)
       yield* startMcp.pipe(Scope.provide(mcp))

@@ -19,7 +19,7 @@
 
 import { expect, test } from "bun:test"
 
-import { pluginsPatch } from "./bundle.ts"
+import { pluginsPatch, profilePatch } from "./bundle.ts"
 import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, inBundleOrder, profilePlugins, ROWS } from "./rows.ts"
 
 /** What a patch says about one row, as a reader would ask it. `undefined` is a
@@ -93,9 +93,9 @@ test("a named pin writes BOTH directions, which is how an opt-in row is opted in
   expect(patched([off], on)).toBe(true)
 
   // `--plugins=` — somebody saying NONE out loud — disables every row.
-  for (const row of ROWS) expect(patched([], row.id)).toBe(true)
+  for (const row of ROWS) expect(patched([], row.id)).toBe(row.selection === "profile" ? undefined : true)
   // ...and naming everything turns everything on, opt-in rows included.
-  for (const row of ROWS) expect(patched([...BUNDLE_NAMES], row.id)).toBe(false)
+  for (const row of ROWS) expect(patched([...BUNDLE_NAMES], row.id)).toBe(row.selection === "profile" ? undefined : false)
 })
 
 /**
@@ -142,9 +142,26 @@ test("the input is not reordered under its owner", () => {
   expect(arrived.map((one) => one.id)).toEqual(["zeta-x", BUNDLE_NAMES[0] ?? "claude"])
 })
 
- test("default profiles select bundle data, while an explicit empty flag disables every row", () => {
+test("default profiles select bundle data, while an empty flag disables integrations", () => {
   expect(profilePlugins("web")).toBeNull()
-  expect(profilePlugins("surface")).toEqual(["vault"])
+  expect(profilePlugins("surface")).toEqual(["vault", "mcp"])
   expect(profilePlugins("test-minimal")).toEqual(["vault"])
   expect(pluginsPatch([]).every((row) => row.disabled)).toBe(true)
+})
+
+
+test("profiles only patch catalogue rows and the flag preserves their transports", () => {
+  for (const profile of ["web", "surface", "test-minimal"]) {
+    for (const names of [null, [], ["vault"], ["chat", "mcp", "ws", "web-app"]]) {
+      const patches = [...profilePatch(profile), ...pluginsPatch(names)]
+      expect(patches.every((patch) => BUNDLE_NAMES.includes(patch.id))).toBe(true)
+      const on = ROWS.filter((row) => {
+        const last = patches.filter((patch) => patch.id === row.id).at(-1)
+        return !(last?.disabled ?? row.disabled)
+      }).map((row) => row.id)
+      expect(on.filter((id) => ["ws", "mcp", "web-app"].includes(id)))
+        .toEqual(profile === "web" ? ["ws", "mcp", "web-app"] : profile === "surface" ? ["mcp"] : [])
+      if (names !== null) expect(on.includes("vault")).toBe(names.includes("vault"))
+    }
+  }
 })

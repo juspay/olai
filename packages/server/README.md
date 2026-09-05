@@ -23,7 +23,7 @@ Talking to the agent is not here. It was, and it was four modules of domain insi
 | file | what it owns |
 |---|---|
 | `serve.ts` | shared base composition, profile mounting, and the warning for binding off loopback |
-| `profiles.ts` | server profiles as row lists and the shared infrastructure module catalogue |
+| `profiles.ts` | profile names; the bundle applies disabled patches over its catalogue |
 | `mcp/endpoint.ts` | per-serve MCP rendezvous and per-activation protocol/ticket lifetime |
 | `transports.ts` | transport row modules and the shared listener lifecycle |
 | `fault.ts` | which runtime failures are news, and how the one that is stops the server — a typed failure the scope unwinds through, never `process.exit` |

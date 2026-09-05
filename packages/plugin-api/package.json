@@ -10,7 +10,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./services": "./src/services.ts",
-    "./testlib": "./src/services.testlib.ts"
+    "./testlib": "./src/services.testlib.ts",
+    "./transport": "./src/transport.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

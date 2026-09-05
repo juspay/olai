@@ -26,6 +26,7 @@
  * the unit-level fence under them.
  */
 
+import { MCP } from "../faces.ts"
 import { fixedStore } from "../store-source.ts"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
@@ -56,7 +57,8 @@ import * as path from "node:path"
 import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
-import { clientOver, serveFace } from "./face.ts"
+import { clientOver } from "./face.ts"
+import { serveFace } from "olai-plugin-mcp/testlib"
 import { bespokeFrom } from "./tools.ts"
 
 /** The codec this suite validates through — the vocabulary of a build that
@@ -183,6 +185,7 @@ const withTools = <A>(
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
+      expose: MCP,
       client: () =>
         clientOver(
           { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },

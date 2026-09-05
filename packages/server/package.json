@@ -36,6 +36,7 @@
     "@types/node": "^22.0.0",
     "olai-plugin-git": "workspace:*",
     "olai-plugin-identity": "workspace:*",
+    "olai-plugin-mcp": "workspace:*",
     "olai-plugin-vault": "workspace:*"
   }
 }

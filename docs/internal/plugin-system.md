@@ -209,7 +209,7 @@ Skim the table; the sections after it give one example each.
 | --- | --- |
 | **plugin** | one integration, two halves, one shape: each is a `definePlugin` over an Effect. TWO KINDS of them today — a **tenant** (olai's judgement about somebody else's appliance: kolu, odu, xyne-spaces) and an **engine** (an ACP agent the chat panel can seat: claude, codex, opencode, pi) — and nothing in the system tells them apart |
 | **name** | the plugin's one word — `"kolu"`, `"claude"`. Also the **sibling key**, the **row id**, the **fiber's name** and the address of its docs page |
-| **row** | an `id` and the module the loader mounts. Tenant rows come from `packages/bundle/olai.yml`; infrastructure rows come from the server profile |
+| **row** | an `id` and the module the loader mounts. Every shipped row comes from `packages/bundle/olai.yml`; profiles apply disabled patches over that catalogue |
 | **fiber** | one mounted plugin, with a lifecycle. A composition root sees four words for it — `running`, `waiting`, `failed`, `off` — and the engine's six states are `@olai/effect-cordis`'s business |
 | **service** | an Effect tag a plugin yields — `Vault`, `Kinds`, `Ops`, `Surfaces`. What `PluginServices` dissolved into. The tag carries the engine's key, so `needs` and the requirement channel are one declaration |
 | **needs** | the services a plugin names. The runtime holds it `waiting` until they exist and unloads it when one leaves; the compiler computes `apply`'s requirements from the same list |
@@ -1006,7 +1006,7 @@ start.
 
 And the degenerate case is the same code as every other: a runtime with **no**
 plugins mounts no sibling on the rooted bundle, which leaves core's own surface
-byte for byte what it was. The `surface` server profile selects the `vault` row over the host kind registry and the `mcp` infrastructure row, with no other bundle plugins enabled by default. `test-minimal` selects no transports. Both use the same plugin host and composition as the web profile; `olai surface` itself remains a client of the running server.
+byte for byte what it was. The `surface` server profile selects the `vault` row over the host kind registry and the `mcp` plugin row, with no other bundle plugins enabled by default. `test-minimal` selects no transports. Both use the same plugin host and composition as the web profile; `olai surface` itself remains a client of the running server.
 
 ---
 
@@ -1236,3 +1236,10 @@ Core composes directory changes through `server/src/store-source.ts`: the bindin
 The vault row carries `config: { format: "olai" }`, validated by its `Config` schema. The codec table is the place to add another supported format; Org is not implemented by this PR. The Effect bridge decodes row config before user `apply`, inside the same contained activation as every other initializer. This avoids the pinned Cordis constructor-validation path that could leave an invalid row pending and reject an unobserved loader promise.
 
 The vault switch remains available and explains its cost. Disabling it clears served collections and removes vault-defined plugins, while the transports remain available. A lock conflict or non-directory root lands as a failed row, including its own failure sentence, so the panel can retry it after the cause is resolved. `runtime.test.ts` now opens the test-minimal profile and reads its store through `Directory`.
+
+
+### Transport plugins and profiles
+
+`ws`, `mcp` and `web-app` are packages under `packages/plugins/`, with the same server, browser, style and documentation doors as the other rows. Their browser halves add no UI: the existing plugins panel controls them. `@olai/plugin-api/transport` defines the host-provided `TransportSurface` service; the rows stay pending until the root has bound the composed surface. Each registration belongs to its plugin’s Effect scope. The MCP package also owns protocol acquisition and cleanup; the host prepares the writer-bound client, tools and scoped ticket mint.
+
+`mountBundle` resolves only the modules in `olai.yml`. Profiles cannot insert rows or supply a special resolver. The default `web` profile preserves the catalogue defaults, while `surface` and `test-minimal` disable rows without their `profiles` membership. A row marked `selection: profile` keeps that profile’s selection when `--plugins` patches the other rows. This preserves browser control for `--plugins=`; panel switches still apply to every row. Generated browser rows and `BUNDLE_NAMES` include every transport, and dynamic definitions cannot replace those reserved names.

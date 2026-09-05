@@ -8,7 +8,6 @@ import { Deferred, Effect, Fiber, Result, Stream } from "effect"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { profileRows } from "./profiles.ts"
 import { VaultSettings } from "@olai/plugin-api/services"
 
 const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
@@ -16,10 +15,7 @@ const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
 
 const opening = (root: string, options: { readonly format?: string; readonly ledger?: Ledger } = {}) => Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "" })
-  yield* mountBundle(plugins.host, ["vault"], options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }], {
-    rows: profileRows("test-minimal"),
-    resolve: async () => undefined,
-  })
+  yield* mountBundle(plugins.host, ["vault"], options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }], "test-minimal")
   const store = () => (offered(plugins.host, Directory)?.store as Store | undefined)
   const ops = liveOps(() => offered(plugins.host, OpsDoor)?.gate as Ops | undefined)
   yield* provide(plugins.host, VaultSettings, () => ({ root, runtime: runtimePaths, kinds: NO_KINDS, ledger: options.ledger ?? NO_LEDGER, search: NO_SEARCH }))

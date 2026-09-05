@@ -18,6 +18,7 @@
  * pipe the chat panel's agent reads its refusals through.
  */
 
+import { MCP } from "../faces.ts"
 import { fixedStore } from "../store-source.ts"
 import {
   codecFor,
@@ -40,7 +41,8 @@ import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
-import { clientOver, serveFace } from "./face.ts"
+import { clientOver } from "./face.ts"
+import { serveFace } from "olai-plugin-mcp/testlib"
 import { currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "./route.ts"
 import { type Ticket, ticketing } from "./tickets.ts"
 import { bespokeFrom, pluginTools } from "./tools.ts"
@@ -130,6 +132,7 @@ const withRoute = <A>(
     )
     const tickets = ticketing({ bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN })
     yield* serveFace({
+      expose: MCP,
       client: () => panel,
       tools: {
         ...bespokeFrom(TOOLS, {

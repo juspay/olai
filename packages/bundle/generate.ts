@@ -68,6 +68,7 @@ interface Row {
   readonly id: string
   readonly name: string
   readonly disabled?: boolean
+  readonly selection?: "profile"
   readonly profiles?: ReadonlyArray<string>
   readonly switchHint?: string
 }
@@ -87,7 +88,8 @@ function readRows(): ReadonlyArray<Row> {
     }
     if (one.profiles !== undefined && (!Array.isArray(one.profiles) || one.profiles.some((profile) => typeof profile !== "string"))) throw new Error(`bundle: ${one.id} profiles must be words`)
     if (one.switchHint !== undefined && typeof one.switchHint !== "string") throw new Error(`bundle: ${one.id} switchHint must be a sentence`)
-    return { id: one.id, name: one.name, ...(one.disabled === true ? { disabled: true } : {}), ...(one.profiles === undefined ? {} : { profiles: one.profiles }), ...(one.switchHint === undefined ? {} : { switchHint: one.switchHint }) }
+    if (one.selection !== undefined && one.selection !== "profile") throw new Error(`bundle: ${one.id} selection must be profile`)
+    return { id: one.id, name: one.name, ...(one.selection === undefined ? {} : { selection: one.selection }), ...(one.disabled === true ? { disabled: true } : {}), ...(one.profiles === undefined ? {} : { profiles: one.profiles }), ...(one.switchHint === undefined ? {} : { switchHint: one.switchHint }) }
   })
 }
 
@@ -163,7 +165,7 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
     .map((row) =>
       `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${
         row.disabled === true ? ", disabled: true" : ""
-      }${row.profiles === undefined ? "" : `, profiles: [${row.profiles.map(quoted).join(", ")}]`}${row.switchHint === undefined ? "" : `, switchHint: ${prose(row.switchHint)}`} },`
+      }${row.selection === undefined ? "" : `, selection: ${quoted(row.selection)}`}${row.profiles === undefined ? "" : `, profiles: [${row.profiles.map(quoted).join(", ")}]`}${row.switchHint === undefined ? "" : `, switchHint: ${prose(row.switchHint)}`} },`
     )
     .join("\n")
   const entries = rows
