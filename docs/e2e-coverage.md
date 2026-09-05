@@ -16,6 +16,11 @@ keyboard. The regression fails before the focus fix. Busy-refusal scenarios
 also wait for the fixture's acknowledgement before checking idle, so the
 initial idle state cannot satisfy setup before the requested mode is active.
 
+The post-merge CI follow-up also makes the node-mutation setup wait for a new
+session id and idle state before sending its first message. The phone Git
+lifecycle scenario explicitly closes the plugins panel before dismissing the
+directory drawer, so a surviving panel cannot intercept the commit banner.
+
 The post-merge [redundancy audit](e2e-economy.md) consolidates four scenario
 executions while preserving their workflow assertions, and removes unnecessary
 key-settling waits during deliberately delayed file-creation replies. Counts

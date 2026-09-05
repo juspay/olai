@@ -914,7 +914,9 @@ When("I open the plugins panel", async function (this: OlaiWorld) {
 });
 
 When("I close the plugins panel", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(PLUGINS_TRIGGER));
+  // A plugin rebuild can retain the panel while resetting the phone drawer,
+  // leaving its trigger hidden. Escape still reaches the visible panel.
+  await this.page.locator(PLUGINS_PANEL).press("Escape");
   await this.page.locator(PLUGINS_PANEL).waitFor({ state: "detached" });
 });
 
