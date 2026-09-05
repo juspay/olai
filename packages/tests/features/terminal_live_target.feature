@@ -49,3 +49,30 @@ Feature: An open terminal follows the node property it represents
     Then no snapshot pane is open
     And the page has not reloaded
     And there should be no page errors
+
+  Scenario: Restoring the terminal plugin opens working viewers after disposing an active screen
+    Given I open the outline "lanes.olai"
+    And I mark the page
+    When I watch the terminal on "door-implement"
+    Then a snapshot pane opens on "door-implement"
+    And the live screen shows "just check"
+    When I open the plugins panel
+    And I switch the plugin "kolu" off
+    Then "door-implement" wears no terminal door at all
+    And no snapshot pane is open
+    When I switch the plugin "kolu" on
+    Then the appliance link reads connected
+    And the terminal row on "door-implement" is working
+    When I close the plugins panel
+    And I watch the terminal on "door-implement"
+    Then a snapshot pane opens on "door-implement"
+    And the live screen shows "just check"
+    When I watch the terminal on "door-implement"
+    Then no snapshot pane is open
+    When I watch the terminal on "door-review"
+    Then a snapshot pane opens on "door-review"
+    And the live screen shows "open the PR"
+    When I watch the terminal on "door-review"
+    Then no snapshot pane is open
+    And the page has not reloaded
+    And there should be no page errors
