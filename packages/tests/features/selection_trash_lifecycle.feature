@@ -10,10 +10,10 @@ Feature: A rebuilt bulk Trash action asks again and remains recoverable
     Then the question names "2 rows"
     When I open another browser tab
     And I open the plugins panel
-    And I switch the plugin "journal" off
+    And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the journal chrome is absent
+    Then the conversation is gone-from the header
     And 2 rows are picked
     And the pick is not asking anything
     And "house.olai" holds the node "hinges"

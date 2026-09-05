@@ -1,5 +1,5 @@
 @scratch:good
-Feature: Document drafts survive plugin-driven page rebuilds
+Feature: Document editing survives changes to the plugin roster
   Background:
     Given I open the document "finishes.md"
     When I start editing the document
@@ -11,10 +11,13 @@ Feature: Document drafts survive plugin-driven page rebuilds
       """
 
   Scenario: An unrelated plugin change keeps the editor and its unsaved text
-    When I open the plugins panel
+    When I mark the document editor element
+    And I open the plugins panel
     And I switch the plugin "journal" off
     And I close the plugins panel
-    Then the document editor holds text containing "my unsaved draft"
+    Then the journal chrome is absent
+    And the original document editor element is still mounted
+    And the document editor holds text containing "my unsaved draft"
     When I save the document
     Then the document renders bold text "my unsaved draft"
     And the document editor is gone
@@ -28,7 +31,7 @@ Feature: Document drafts survive plugin-driven page rebuilds
       """
     Then the editor notices the file changed on disk
     When I open the plugins panel
-    And I switch the plugin "journal" off
+    And I switch the plugin "chat" off
     And I close the plugins panel
     Then the document editor holds text containing "my unsaved draft"
     And the editor notices the file changed on disk
@@ -39,12 +42,12 @@ Feature: Document drafts survive plugin-driven page rebuilds
 
   Scenario: Cancelling a preserved draft prevents it from returning on the next rebuild
     When I open the plugins panel
-    And I switch the plugin "journal" off
+    And I switch the plugin "chat" off
     And I close the plugins panel
     Then the document editor holds text containing "my unsaved draft"
     When I cancel the document editor
     And I open the plugins panel
-    And I switch the plugin "journal" on
+    And I switch the plugin "chat" on
     And I close the plugins panel
     Then the document editor is gone
     When I start editing the document

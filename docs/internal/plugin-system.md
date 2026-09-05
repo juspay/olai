@@ -656,6 +656,35 @@ so a fiber is never started over a wire that does not carry its sibling. A
 second roster frame arriving mid-redial is queued behind the first rather than
 starting a second redial on one connection.
 
+Olai pins the merge of [Kolu PR #2228](https://github.com/juspay/kolu/pull/2228)
+through npins on `master` at
+`4b1758afad90b15624030e0fd00e1116586b4054`, unfrozen for future updates.
+Its `redial` returns the same
+connection, retaining the root and unchanged sibling clients and reopening their
+subscriptions over the replacement wire. Removed or replaced sibling clients
+refuse further calls. Olai keeps one constant connection and renders the app once;
+roster changes no longer recreate its tree or roster subscription. The core
+client and connection readout are exported directly, without a proxy or a
+synthetic reconnecting state. Identity alone uses Kolu’s `connectionEpoch`
+accessor to refresh the answer derived from the socket’s upgrade headers. Kolu
+skips an unchanged surface map. Olai still refreshes an unchanged open socket when the
+plugin roster changes, because plugins without a surface can change which
+headers the next upgrade is allowed to retain (identity’s first activation).
+This refresh waits for the next usable socket before mounting arriving providers;
+otherwise their initial requests can target the closing socket. The wait releases
+its listener on success, retirement or timeout and cannot block the roster queue
+indefinitely.
+The router keeps its app lifetime and reinterprets the current URL when plugin
+route claims change, preserving unchanged pane
+identities and browser history. Undo history belongs to App again; it no longer
+needs a module-level store to survive roster changes.
+
+Plugin provider changes still update the provider tree: removing chat must remove
+its context and faces together. Pane and conversation draft stores remain needed
+for those changes and for navigation between panes and sessions. After the
+upstream merge, return the pin to master and unfreeze it explicitly.
+
+
 ---
 
 ## 7. Built vs default vs running

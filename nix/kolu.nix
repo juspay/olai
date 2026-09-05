@@ -36,35 +36,11 @@
 # that will not typecheck here is a blocker rather than a nuisance. That is the
 # whole reason this arrangement is worth its cost, and it is unchanged.
 #
-# THE PIN TRACKS MASTER, and it has been off it three times for the same kind of
-# reason — the third one being this tree's own, and it is discharged. The pin was
-# frozen at `fea23365`, the head of juspay/kolu#2229's branch, for the capability
-# the identity row needs: `upgradeHeaders` takes a THUNK read at each accept, so
-# a row switched on at the panel names its headers on the next upgrade instead of
-# at the next start. #2229 merged as `60ecf0da` — a squash onto the revision the
-# branch was based on, so the tree, and therefore the pin's hash, is byte-identical
-# to what this change was written and tested against — and the gate is discharged
-# with it.
-#
-# The first two were the ROOTED BUNDLE (`mergeDisjointGroups`,
-# `exposeRootedFaces`, and `connectSurfaces`' `core` slot — juspay/kolu#2222)
-# and the LIVE one (`implementRootedSurfaces`, `mount(key, surface, deps)`
-# handing back its own undo, and `SurfacesConnection.redial(surfaces)` —
-# juspay/kolu#2223), which is what this tree's server composition and its tab
-# are both built on: a plugin is a fiber, so the sibling set MOVES, and
-# re-implementing the whole map over the survivors forks every one of their
-# runtimes silently. They merged as `5077c7f9` and `a1e62231`.
-#
-# EVERY ONE OF THE THREE was frozen at an exact sha on its branch while it was
-# unmerged (the odu#94 precedent next door), and every note said the same thing
-# in the same words: the freeze is a MERGE GATE rather than a preference, because
-# olai must not merge a tree whose framework pin is on a branch — the branch goes
-# away with the merge and the revision stops being fetchable. Each note was
-# deleted by the commit that re-pinned onto master, which is what discharging one
-# looks like in a diff.
-#
-# `npins/sources.json` records the revision either way, so what this tree
-# compiled against is always in the diff.
+# The kolu pin tracks master at PR #2228's merge commit,
+# 4b1758afad90b15624030e0fd00e1116586b4054. That PR makes redial retain the
+# connection and surviving clients while replacing their underlying wire.
+# npins records the immutable archive and hash; ordinary updates advance it.
+# https://github.com/juspay/kolu/pull/2228
 #
 # NOTE THE ATTR RENAME. Members are `kolu-surface`, not `kolu-src-surface`:
 # the slug is kolu's now, and a consumer inventing its own would be one more

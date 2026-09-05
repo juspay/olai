@@ -1,5 +1,30 @@
 # Browser coverage audit
 
+Kolu PR #2228 removes the wire-driven app rebuild. The existing document lifecycle
+case checks that an unrelated journal toggle retains the actual editor DOM
+element, followed by a successful save. Cleanup, caret restoration and undo
+cases toggle chat to exercise a real provider removal. The router and undo stack
+now live in App; the remount snapshot/restore store and undo hoist are removed.
+Other pane and conversation stores still serve navigation and provider changes.
+
+The identity lifecycle scenario changes proxy headers before a journal surface
+change and again before a socket reconnect. Kolu’s connection-epoch accessor
+refreshes identity after both establishments. The identity switch-on
+scenario from #528 is also retained: when the plugin roster changes without a
+surface-map change, Olai refreshes the socket so its upgrade can retain the
+newly allowed headers.
+The first-activation scenario also requires no browser errors, and dynamic plugin
+approval requires a live connection with no silent members. These assertions
+cover waiting for socket refresh before mounting newly arriving providers.
+
+The journal lifecycle cases also cover a route-equality bug exposed by the
+stable app lifetime: a removed plugin printed the home URL, so the page memo
+mistook it for core home and suppressed the new request. A unit regression
+checks route-kind and provider identity; existing browser cases verify recovery
+and document isolation. Phone flows explicitly close the retained sidebar before
+using the page. The parked-row ordering helper reads a single DOM snapshot to
+avoid racing a title/editor swap during idle save.
+
 This audit tracks user workflows during the Cordis migration. A passing suite is
 necessary, but does not establish that an untested workflow works. A row remains
 open until its UI actions and relevant failure/persistence paths have been

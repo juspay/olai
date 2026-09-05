@@ -26,11 +26,13 @@ Feature: Who is looking is a plugin
     When I open the app
     Then the header has no identity chip
     When I open the plugins panel
+    And I mark the page
     And I switch the plugin "identity" on
     Then the header shows the identity "ada@example.com"
+    And the page has not reloaded
     And there should be no page errors
 
-  Scenario: Switching the row off takes the chip out of the bar while you watch
+  Scenario: Identity follows plugin restoration and socket reconnection
     # THE FLIP, on the half a unit test cannot reach. The server's side is
     # `identity.test.ts` (both doors answer nobody from the next request on,
     # and Ada again when it is switched back); this is the bar, where a person
@@ -41,9 +43,19 @@ Feature: Who is looking is a plugin
     When I open the plugins panel
     And I switch the plugin "identity" off
     Then the header has no identity chip
-    # ...and back, in the same process: the reading returns, the tab redials
-    # onto the roster that moved, and the socket that redial opens is upgraded
-    # with the names the row is offering again.
     When I switch the plugin "identity" on
     Then the header shows the identity "ada@example.com"
+    # A surface-roster replacement must also refresh identity from the new upgrade.
+    When I am the Tailscale user "grace@example.com"
+    And I switch the plugin "journal" off
+    Then the header shows the identity "grace@example.com"
     And there should be no page errors
+    When I close the plugins panel
+    And I mark the page
+    And the browser goes offline
+    Then the connection is "reconnecting"
+    When I am the Tailscale user "lin@example.com"
+    And the browser comes back online
+    Then the connection is "live"
+    And the header shows the identity "lin@example.com"
+    And the page has not reloaded
