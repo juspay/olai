@@ -69,7 +69,7 @@
  */
 
 import { bodyKind, type Custom } from "@olai/format"
-import { onCleanup, Show } from "solid-js"
+import { createMemo, onCleanup, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
 import { DeleteFile } from "../file/DeleteFile.tsx"
@@ -88,7 +88,7 @@ import { panesOf } from "../workspace.ts"
 /**
  * A document page is a page OF A FILE, and this is what makes that true.
  *
- * KEYED, on the path, and it is not belt-and-braces: without it, going from
+ * KEYED, on the path and pane: without it, going from
  * one document to another is not a mount at all. The route's arm is a `<Match>`
  * whose condition is an object, and Solid compares those as booleans
  * (`!a === !b`), so the arm stays true across `/a.md` → `/b.md` and the
@@ -100,7 +100,9 @@ import { panesOf } from "../workspace.ts"
  * document could be saved over it, and where the two texts happen to match
  * (two empty notes, two copies of one file) the `was` guard would let it.
  *
- * So identity is the PATH, and a different path is a different page. It is
+ * Phone tabs can reuse this component for the same file in another pane.
+ * That pane has its own draft, so the pane is part of the identity too.
+ * A different path or pane is a different editor. It is
  * keyed HERE rather than at the router's arm because it is this component's own
  * invariant: a caller that forgot would put the bug back, and callers should
  * not have to know. Same spelling as ./Toc.tsx one level down, for the same
@@ -113,9 +115,11 @@ export function DocumentPage(props: {
    *  the body. Empty when the file wrote none. */
   readonly custom: Custom
 }) {
+  const here = useHere()
+  const identity = createMemo(() => ({ file: props.file, pane: here() }))
   return (
-    <Show when={props.file} keyed>
-      {(file) => <OneDocument file={file} custom={props.custom} />}
+    <Show when={identity()} keyed>
+      {({ file }) => <OneDocument file={file} custom={props.custom} />}
     </Show>
   )
 }
@@ -139,17 +143,17 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
   // HTTP. That is what a `.html` preview costs this tab: nothing
   // (./documents.tsx, and ./faces.tsx's `edits`).
   const served = useDocument(() => (face().edits ? props.file : undefined))
-  const here = useHere()
+  const pane = useHere()()
   const router = useRouter()
-  const route = panesOf(router.workspace())[here()]?.route
-  const editor = takeDraft(props.file, here())
+  const route = panesOf(router.workspace())[pane]?.route
+  const editor = takeDraft(props.file, pane)
   const editing = editor.editing
   if (consumeMinted(props.file)) editor.open()
   onCleanup(() => {
     // Navigation discards the departing editor as before. Rebuilding this
     // same pane keeps its draft, including when another tab changed plugins.
-    if (panesOf(router.workspace())[here()]?.route === route) {
-      keepDraft(props.file, here(), editor)
+    if (panesOf(router.workspace())[pane]?.route === route) {
+      keepDraft(props.file, pane, editor)
     }
   })
 

@@ -19,7 +19,7 @@ import { ephemeralLocalState } from "./local.ts"
 import type { Conversing } from "./sessions.ts"
 import type { Change } from "./transcript.ts"
 import { pastOf } from "./lineage.ts"
-import type { Listed } from "./listings.ts"
+import type { Listed } from "olai-plugin-chat/wire"
 
 /** Long enough not to churn an ordinary working set, finite so sleeping agents
  * do not become a process pool. Tests inject a shorter duration. */

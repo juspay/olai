@@ -31,6 +31,7 @@ import {
   HYDRATION_TIMEOUT,
   oneLine,
   POLL_TIMEOUT,
+  PANE,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -135,6 +136,32 @@ Then(
  *  one: only the scenario that opened it reads it, and the browser context it
  *  belongs to is torn down with the scenario either way. */
 let other: Page | undefined;
+
+When("I switch to the other document tab", async function (this: OlaiWorld) {
+  assert.ok(other !== undefined, "no second tab was opened");
+  [this.page, other] = [other, this.page];
+});
+
+When("I draft {string} in document pane {int}", async function (this: OlaiWorld, text: string, index: number) {
+  const pane = this.page.locator(`${PANE}[data-pane="${index}"]`);
+  await this.press(pane.locator(DOCUMENT_EDIT));
+  await pane.locator(DOCUMENT_EDITOR).fill(text);
+});
+
+Then("document pane {int} holds draft {string}", async function (this: OlaiWorld, index: number, text: string) {
+  const editor = this.page.locator(`${PANE}[data-pane="${index}"] ${DOCUMENT_EDITOR}`);
+  await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(await editor.inputValue(), text);
+});
+
+When("I save document pane {int}", async function (this: OlaiWorld, index: number) {
+  await this.press(this.page.locator(`${PANE}[data-pane="${index}"] ${DOCUMENT_SAVE}`));
+});
+
+Then("document pane {int} has no editor", async function (this: OlaiWorld, index: number) {
+  await this.page.locator(`${PANE}[data-pane="${index}"] ${DOCUMENT_EDITOR}`)
+    .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+});
 
 Given(
   "a second tab opens the document {string}",
