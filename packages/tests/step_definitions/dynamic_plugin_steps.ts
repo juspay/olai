@@ -178,7 +178,7 @@ When("the palette provider is replaced", function (this: OlaiWorld) {
 Then("the agent service catalog {word} {string}", async function (this: OlaiWorld, presence: string, key: string) {
   const { callTool, connectTerminalAgent } = await import("../support/mcp.ts");
   this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
-  const answer = await callTool(this.terminalAgent, "surface/plugins/inspect", {});
+  const answer = await callTool(this.terminalAgent, "inspect_plugins", {});
   const catalog = answer["structuredContent"] as { services: Array<string> };
   assert.ok(catalog.services.includes("vault"), "core services remain discoverable");
   assert.strictEqual(catalog.services.includes(key), presence === "includes");

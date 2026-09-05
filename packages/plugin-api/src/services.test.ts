@@ -620,20 +620,6 @@ const rowOf = (mounted: Mounted) =>
   ] as const)
 
 /**
- * A PLUGIN MAY NOT SPELL A KEY OUTSIDE THE TABLE, and the fence is not the type.
- *
- * {@link Offers.offer} is four overloads, so a plugin cannot WRITE this line —
- * which is the whole reason the shape is overloads rather than a generic. The
- * cast below is what it would take to get past that, and the point of the case is
- * that getting past the compiler buys nothing: the table is read at the call, in
- * olai's own words, and the offering row is the only thing that falls over.
- *
- * `kinds` is the key it tries for on purpose. A row standing behind the
- * VOCABULARY would be a row deciding what every vault in this serve validates
- * against, which is the worst thing on the page and the reason the table is
- * closed rather than merely documented.
- */
-/**
  * A REFUSED WRITE REACHES WHOEVER IS WATCHING WRITES — and the seam is new, so
  * this is the claim that says it is connected at all.
  *
@@ -738,7 +724,7 @@ test("a plugin that offers a door core keeps is refused, and only that plugin fa
 })
 
 /** Cordis refuses the duplicate; olai names both rows and preserves ownership. */
-test("two plugins standing behind one door: refusal names both rows and the key", async () => {
+test("duplicate providers for a reserved door preserve its owner", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
     const offering = (name: string) =>
@@ -941,7 +927,7 @@ test("plugin-owned keys wait, activate, unwind before their provider, and use it
         }))
       }),
     }))
-    expect((yield* mirror.report).missing).toEqual(["fleet-source.fleet"])
+    expect(yield* mirror.report).toEqual({ state: "waiting", missing: ["fleet-source.fleet"] })
     const provider = (version: string) => definePlugin({
       name: "fleet-source", needs: [Offers], apply: Effect.gen(function*() {
         let alive = true
@@ -1023,5 +1009,29 @@ test("a failed plugin-owned offer never activates its consumer and releases its 
     }))
     expect((yield* consumer.report).state).toBe("running")
     expect(seen).toEqual([3])
+  })))
+})
+
+test("equal local words in different plugins stay distinct and cannot shadow core", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    for (const name of ["one", "two"]) {
+      yield* mountPlugin(plugins.host, definePlugin({
+        name, needs: [Offers], apply: Effect.gen(function*() {
+          yield* (yield* Offers).own("vault", () => ({ owner: name }))
+        }),
+      }))
+    }
+    const One = serviceTag<{ owner: string }>("one.vault")
+    const Two = serviceTag<{ owner: string }>("two.vault")
+    const reader = yield* mountPlugin(plugins.host, definePlugin({
+      name: "reader", needs: [One, Two, Vault], apply: Effect.gen(function*() {
+        expect((yield* One).owner).toBe("one")
+        expect((yield* Two).owner).toBe("two")
+        expect((yield* Vault).served).toBe("/tmp/x")
+      }),
+    }))
+    expect((yield* reader.report).state).toBe("running")
+    expect([...plugins.offers()]).toEqual([["one.vault", "one"], ["two.vault", "two"]])
   })))
 })
