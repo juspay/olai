@@ -93,7 +93,7 @@ import {
   serviceTag,
   type ServiceKey,
 } from "@olai/effect-cordis"
-import { Deferred, Effect, Exit, Scope, type Stream } from "effect"
+import { Deferred, Effect, Exit, Scope, Semaphore, type Stream } from "effect"
 
 import {
   type ConversationSeen,
@@ -255,24 +255,27 @@ export const Directory = serviceTag<Directory>("directory")
 
 /** A provider owns both buses. Registration replays its current reading so a
  * tenant activated after the first disk read still receives the vault. */
-export const vaultEvents = (served: string, current?: Effect.Effect<unknown | null>) => {
+export const vaultEvents = (served: string) => {
+  const delivery = Semaphore.makeUnsafe(1)
+  let latest: unknown | null = null
   const revisions = broadcast<unknown>("a vault revision")
   const quieted = broadcast<void>("the vault going quiet")
   return {
     door: (plugin: string): Vault => ({
       served,
-      revision: ((handler: (snapshot: unknown) => Effect.Effect<void>) => Effect.gen(function*() {
+      revision: ((handler: (snapshot: unknown) => Effect.Effect<void>) => delivery.withPermit(Effect.gen(function*() {
         yield* revisions.listen(plugin)(handler)
-        if (current) {
-          const snapshot = yield* current
-          if (snapshot !== null) yield* Effect.catchCause(handler(snapshot), (cause) =>
+        if (latest !== null) {
+          yield* Effect.catchCause(handler(latest), (cause) =>
             Effect.logWarning(`plugins: "${plugin}" failed on a vault revision`, cause))
         }
-      })) as Vault["revision"],
+      }))) as Vault["revision"],
       unloaded: (handler) => quieted.listen(plugin)(() => handler),
     }),
-    published: revisions.tell,
-    quiet: quieted.tell(undefined),
+    published: (snapshot: unknown) => delivery.withPermit(Effect.andThen(
+      Effect.sync(() => { latest = snapshot }), revisions.tell(snapshot))),
+    quiet: delivery.withPermit(Effect.andThen(
+      Effect.sync(() => { latest = null }), quieted.tell(undefined))),
   }
 }
 
@@ -1169,8 +1172,6 @@ export interface PluginsConfig {
   readonly vars: Record<string, string | undefined>
   /** ISO-8601, now. */
   readonly now: () => string
-  /** The directory this serve is about, resolved. */
-  readonly served: string
   /** One plugin's machine-local record, by name — minted ONCE per plugin, which
    *  is what orders its writes. Where a machine keeps olai's own files is not a
    *  plugin's business. */

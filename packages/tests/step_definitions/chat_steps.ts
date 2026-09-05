@@ -152,17 +152,14 @@ import {
 import type { OlaiWorld } from "../support/world.ts";
 
 Given("the agent panel is open", async function (this: OlaiWorld) {
-  const toggle = this.page.locator(CHAT_TOGGLE);
   const panel = this.page.locator(CHAT_PANEL);
   // Desktop: the toggle is always in the header (pressed while open). Phone:
   // the thumb strip is the door. Open-ness is remembered in localStorage, so
   // a reload inside a scenario may come back already open.
   if (!(await panel.isVisible())) {
-    if (await toggle.isVisible()) {
-      await toggle.click();
-    } else {
-      await this.page.locator(CHAT_STRIP).click();
-    }
+    // A browser plugin may still be activating. Wait for either responsive
+    // door instead of mistaking a not-yet-mounted desktop toggle for a phone.
+    await this.page.locator(`${CHAT_TOGGLE}:visible, ${CHAT_STRIP}:visible`).first().click();
     await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   }
   // Settled means the agent has finished handshaking — or that there is no

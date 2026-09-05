@@ -89,27 +89,10 @@ const withRuntime = <A>(
      *  `@olai/store`.s `body`, which is the one door `./bodies.ts` may use.
      *  Recorded rather than mocked: the real read still happens. */
     readonly reads: ReadonlyArray<string>
-    /** THE PLUGIN CONTEXT this runtime was handed, or `null` where a case took
-     *  no plugin slot — for the one case that mounts a plugin AFTER the bundle
-     *  is composed, which is the only way to reach the live re-compose from
-     *  here. Every other case gets its plugins mounted before `bind` and has no
-     *  use for it. */
-    readonly plugins: Plugins | null
+    /** The live host, including the vault row and any test doubles. */
+    readonly plugins: Plugins
   }) => Effect.Effect<A, unknown>,
-  /**
-   * The two slots the doorbell's gates need and no other test here does —
-   * OPTIONAL, so the ten cases above say nothing about either and get exactly
-   * the boot they always got.
-   *
-   * `chat` is the panel this runtime answers for, absent by default because a
-   * directory is readable whether or not an agent is installed and every
-   * reading test here is that machine. `plugins` is WHICH DOUBLES to mount:
-   * `undefined` is no plugin runtime at all ({@link rosterOf}'s `NO_ROSTER`),
-   * `[]` is a mounted runtime with nothing in it, and a list is the doubles a
-   * case built. What is behind a name is a plugin with no
-   * appliance under it ({@link doubleCalled}) — this harness mounts what the
-   * runtime is handed and never looks inside it.
-   */
+  /** Additional rows mounted beside the test-minimal vault provider. */
   extra: {
     readonly plugins?: ReadonlyArray<{
       readonly name: string
@@ -125,7 +108,7 @@ const withRuntime = <A>(
 
   return Effect.gen(function*() {
     const onChange = { run: (): void => {} }
-    const mounted = yield* openHostPlugins({ vars: {}, now: () => STARTED, served: root, changed: () => onChange.run() })
+    const mounted = yield* openHostPlugins({ vars: {}, now: () => STARTED, changed: () => onChange.run() })
     yield* mountBundle(mounted.host, [], [], {
       rows: profileRows("test-minimal"),
       resolve: async (name) => name === "olai:vault" ? vaultModule : undefined,
@@ -1486,20 +1469,3 @@ const engineCalled = (name: string) => ({
     }),
   }),
 })
-
-/**
- * A PLUGIN RUNTIME WITH `doubles` MOUNTED — what a composition root is handed,
- * built for one case.
- *
- * The whole runtime is opened, exactly as `./serve.ts` opens one: the doubles
- * name what they name and see what they named, which is the harness saying that
- * out loud rather than assembling a subset by hand.
- *
- * NO `doorFor`, and its absence is the lane: where a doorbell may deliver is a
- * promise the chat ROW keeps, so there is nothing here for a composition root to
- * hand over.
- *
- * SCOPED to the case: the scope is never closed, because a runtime.test's
- * runtimes live as long as the case does and there is nothing here to hold open
- * against a second one.
- */

@@ -6,7 +6,7 @@ import { definePlugin, serviceTag } from "@olai/plugin-api"
 import { Directory, Kinds, Offers, Vault, vaultEvents } from "@olai/plugin-api/services"
 import type { KindVocabulary } from "@olai/format"
 import { NodeServices } from "@effect/platform-node"
-import { Effect, Stream } from "effect"
+import { Deferred, Effect, Stream } from "effect"
 import { stat } from "node:fs/promises"
 import { openDirectory } from "./directory.ts"
 
@@ -31,10 +31,11 @@ export const vaultModule = definePlugin({
     // Offers withdraw before this release. No new write can enter, and any
     // write already accepted finishes before the watcher and lock are released.
     yield* Effect.addFinalizer(() => settings.idle)
-    const events = vaultEvents(directory.root,
-      Effect.map(directory.store.read("cheap"), ({ snapshot }) => snapshot))
+    const events = vaultEvents(directory.root)
+    const first = yield* Deferred.make<void>()
     yield* Effect.forkScoped(Stream.runForEach(directory.store.reads, ({ snapshot }) =>
-      snapshot === null ? events.quiet : events.published(snapshot)))
+      Effect.andThen(snapshot === null ? events.quiet : events.published(snapshot), Deferred.succeed(first, undefined))))
+    yield* Deferred.await(first)
     yield* offers.offer(Directory, () => directory)
     yield* offers.offer(Vault, events.door)
   }).pipe(Effect.provide(NodeServices.layer), Effect.tapCause((cause) => Effect.logError("vault failed to start", cause)), Effect.orDie),

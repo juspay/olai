@@ -20,3 +20,9 @@ import type * as StoreModule from "@olai/store"
  *  the rules refused. Every consumer above reads its ANSWERS (`admits`,
  *  `summaryOf`, `blamed`) rather than re-partitioning a list of rows. */
 export type Store = StoreModule.Store<Reading, Verdict>
+
+/** The typed half of core’s Directory door. */
+export interface Directory {
+  readonly root: string
+  readonly store: Store
+}

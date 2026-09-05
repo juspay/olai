@@ -1274,9 +1274,9 @@ export const bind = (
      * function picks it up with the rest of the bundle.
      */
     const followed = (read: Reading | null): Effect.Effect<void> =>
-      dynamic === null || read === null
+      dynamic === null
         ? Effect.void
-        : Effect.asVoid(settling(dynamic.follow(read.derived)))
+        : Effect.asVoid(settling(dynamic.follow(read?.derived ?? null)))
 
     /** ...and the holder itself, filled in the moment {@link recompose} exists —
      *  see above for what the default arm is. It ANSWERS what it was told, so a
@@ -1424,7 +1424,7 @@ export const bind = (
                     for (const key of held?.documents.entries.keys() ?? []) published?.collections.documents.remove(key)
                     for (const key of held?.heads.entries.keys() ?? []) published?.collections.heads.remove(key)
                     held = null
-                    if (dynamic) yield* dynamic.follow(null)
+                    yield* followed(null)
                     return cell.set(null)
                   }
                   // THE PROJECTION CONSUMES WHAT IT IS HANDED, so these two

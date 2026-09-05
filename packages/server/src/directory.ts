@@ -27,19 +27,14 @@
  */
 
 import type { KindVocabulary } from "@olai/format"
-import { codecFor, type Store as OutlineStore } from "@olai/ops"
+import { codecFor, type Directory } from "@olai/ops"
 import * as Store from "@olai/store"
 import { Effect } from "effect"
 import { resolve } from "node:path"
 
 import { holdVault } from "./lock.ts"
 
-export interface Directory {
-  /** The directory, resolved. Resolved rather than as typed: it is what every
-   *  path answer downstream is relative to, and what the log says we opened. */
-  readonly root: string
-  readonly store: OutlineStore
-}
+export type { Directory } from "@olai/ops"
 
 /** Open `root` as an outline store, with the log annotated for everything the
  *  store and its callers will go on to say, and the directory held against a

@@ -10,14 +10,14 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  *
  * ## The plugins here are Effects, which is what makes half of this readable
  *
- * A case builds the runtime with {@link }, mounts a plugin written
+ * A case builds the runtime with {@link openPlugins}, mounts a plugin written
  * exactly as a real one is, and reads the doors. What it does NOT do is reach
  * for a Cordis context: there is none to reach for, in this package or in any
  * other but one.
  */
 
 import { expect, test } from "bun:test"
-import { Cause, Effect, Layer, Logger, type Scope } from "effect"
+import { Cause, Deferred, Effect, Fiber, Layer, Logger, type Scope } from "effect"
 
 import {
   Deliveries,
@@ -36,6 +36,7 @@ import {
   serviceTag,
   Surfaces,
   Vault,
+  vaultEvents,
   Wakes,
   Watching,
 } from "./services.ts"
@@ -1057,3 +1058,29 @@ test("discovery follows plugin-owned offers without publishing internal core doo
     expect(plugins.serviceKeys()).toEqual([...SERVICE_KEYS].sort())
   })))
 })
+
+test("a late vault subscriber replays the published reading before receiving the next one", () =>
+  Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const events = vaultEvents("/tmp")
+    yield* events.published("first")
+    const replaying = yield* Deferred.make<void>()
+    const continueReplay = yield* Deferred.make<void>()
+    const seen: string[] = []
+    const listener = yield* Effect.forkScoped(events.door("late").revision((value: string) =>
+      Effect.gen(function*() {
+        seen.push(value)
+        if (value === "first") {
+          yield* Deferred.succeed(replaying, undefined)
+          yield* Deferred.await(continueReplay)
+        }
+        seen.push(`${value} done`)
+      })))
+    yield* Deferred.await(replaying)
+    const publish = yield* Effect.forkScoped(events.published("second"))
+    yield* Effect.yieldNow
+    expect(seen).toEqual(["first"])
+    yield* Deferred.succeed(continueReplay, undefined)
+    yield* Fiber.join(listener)
+    yield* Fiber.join(publish)
+    expect(seen).toEqual(["first", "first done", "second", "second done"])
+  }))))

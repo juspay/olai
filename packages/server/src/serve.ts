@@ -217,7 +217,6 @@ export const serve = (options: ServeOptions) =>
     const plugins = yield* openPlugins({
       vars: options.vars ?? process.env,
       now: () => new Date().toISOString(),
-      served,
       tools: toolsReady,
       // ...AND THE FENCE MINTED OFF IT. Read per call rather than captured,
       // because the endpoint has no mint until its row is active — and the row

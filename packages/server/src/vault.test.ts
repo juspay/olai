@@ -14,7 +14,7 @@ const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
   Effect.andThen(setRow(host, id, on), settled(host, ["vault", "observer"]))
 
 const opening = (root: string) => Effect.gen(function*() {
-  const plugins = yield* openPlugins({ vars: {}, now: () => "", served: root })
+  const plugins = yield* openPlugins({ vars: {}, now: () => "" })
   yield* mountBundle(plugins.host, [], [], {
     rows: profileRows("test-minimal"),
     resolve: async (name) => name === "olai:vault" ? vaultModule : undefined,

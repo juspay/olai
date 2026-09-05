@@ -4,7 +4,7 @@ import { provide } from "@olai/effect-cordis"
 import { Effect } from "effect"
 import { openPlugins, Vault, vaultEvents, type PluginsConfig } from "./services.ts"
 
-export const openTestPlugins = (config: PluginsConfig) => Effect.gen(function*() {
+export const openTestPlugins = (config: PluginsConfig & { readonly served: string }) => Effect.gen(function*() {
   const plugins = yield* openPlugins(config)
   const events = vaultEvents(config.served)
   yield* provide(plugins.host, Vault, events.door)

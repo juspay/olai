@@ -32,7 +32,7 @@
  */
 
 export { codecFor } from "./codec.ts"
-export type { Store } from "./deps.ts"
+export type { Directory, Store } from "./deps.ts"
 export { type Caller, type Fence, type Outside, outsideFence } from "./fenced.ts"
 export {
   make,
