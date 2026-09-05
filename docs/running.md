@@ -319,11 +319,11 @@ An upgrade reads the previous paths once. The first save migrates `hold/<hash>.<
 
 ### Plugin settings
 
-**What a person may change while a plugin runs lives in `_olai/Settings.olai`**, one node per plugin, keyed by the plugin's name, its properties the section's fields. It travels with the directory and is committed by the ledger like any write. Host facts — paths, secrets-as-policy, git's `commit`/`push` — stay on the row in `olai.yml` and are drawn read-only under that row. Enablement stays the instance's (the switch above).
+**What a person may change while a plugin runs lives in `_olai/Settings.olai`**, one node per plugin, identified by a `plugin` property — a title is prose somebody renames and a row's word is not, the same answer a plugin the vault defines gives. Its other properties are the section's fields. It travels with the directory and is committed by the ledger like any write. Resolution is schema defaults, then this file. Host facts — paths, secrets-as-policy, git's `commit`/`push` — stay on the row in `olai.yml` and are drawn read-only under that row. Enablement stays the instance's (the switch above). A field annotated `secret` is refused at register: this file is committed plaintext, so a secret belongs on the row's `config:`, or in `Env`. A value the schema cannot judge is dropped, and the page names the key.
 
-The plugins panel draws each registered section as editable fields under the plugin's row, rendered from the schema with no plugin words in core. A change is observed without a restart. A field that applies only on restart is badged `pending restart`. A secret never reaches the page.
+The plugins panel draws each registered section as editable fields under the plugin's row, rendered from the schema with no plugin words in core. A change is observed without a restart. A field that applies only on restart is badged `pending restart`.
 
-Kolu's watch knobs — `heartbeat`, `held-for`, `nag` — are the first tenant. They used to live on the `watch` node of `_olai/Kolu.olai`. They do not any more: a vault with no kolu node in `_olai/Settings.olai` runs the schema's defaults (sixty seconds, ten minutes, half an hour), and the old node is left alone. Re-enter the three values on the panel once. The `mutes` node in `Kolu.olai` is already empty by design and is not a setting.
+Kolu's watch knobs are the first tenant: `held-for` defaults to `60s`, `nag` to `10m`, `heartbeat` to `30m`. They used to live on the `watch` node of `_olai/Kolu.olai`. They do not any more: a vault with no kolu node in `_olai/Settings.olai` runs those defaults, and the old node is left alone. Re-enter the three values on the panel once. The `mutes` node in `Kolu.olai` is already empty by design and is not a setting.
 
 
 ### Plugins the vault itself defines

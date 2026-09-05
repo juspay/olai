@@ -673,13 +673,11 @@ export const surface = defineSurface({
      * EACH PLUGIN'S SETTINGS SECTION — see {@link SettingsRoster}.
      *
      * Its own cell, not a field on the roster, because a setting changing
-     * is not a plugin arriving or leaving and must not redial. Secrets are
-     * stripped before they reach this schema. A plugin that has not
-     * registered a section is absent from `sections`.
+     * is not a plugin arriving or leaving and must not redial. A plugin
+     * that has not registered a section is absent from `sections`.
      *
-     * THE BROWSER'S ALONE: an agent that could read a secret-stripped
-     * section could still learn that a secret is set, and writing one is
-     * a person's, at the panel.
+     * THE BROWSER'S ALONE: a person's, at the panel. Host facts stay on
+     * the row; a secret field is refused at register.
      */
     settings: {
       schema: SettingsRoster,
@@ -1311,12 +1309,10 @@ export {
  *  {@link ./settings.ts}. */
 export {
   NO_SETTINGS,
-  type SettingsApplies,
   type SettingsField,
   type SettingsKind,
   SettingsRoster,
   type SettingsSection,
-  type SettingsSource,
 } from "./settings.ts"
 
 /** Where the hashed browser bundle lives, and what the bundler names a split

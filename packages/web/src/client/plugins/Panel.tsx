@@ -438,10 +438,10 @@ function Fields(props: {
   readonly fields: ReadonlyArray<SettingsField>
   readonly onRefused: (said: string | null) => void
 }) {
-  const set = (key: string, value: unknown): void => {
+  const call = (input: { readonly patch?: Record<string, unknown>; readonly unset?: ReadonlyArray<string> }): void => {
     props.onRefused(null)
     run(
-      olai.procedures.settings.set({ plugin: props.plugin, patch: { [key]: value } }),
+      olai.procedures.settings.set({ plugin: props.plugin, ...input }),
       (failure) => props.onRefused(failure.message),
       () => {},
     )
@@ -450,7 +450,13 @@ function Fields(props: {
     <Show when={props.fields.length > 0}>
       <div class="mt-1.5 flex flex-col gap-1.5">
         <For each={props.fields}>
-          {(field) => <Field field={field} onSet={(value) => set(field.key, value)} />}
+          {(field) => (
+            <Field
+              field={field}
+              onSet={(value) => call({ patch: { [field.key]: value } })}
+              onUnset={() => call({ unset: [field.key] })}
+            />
+          )}
         </For>
       </div>
     </Show>
@@ -460,6 +466,7 @@ function Fields(props: {
 function Field(props: {
   readonly field: SettingsField
   readonly onSet: (value: unknown) => void
+  readonly onUnset: () => void
 }) {
   const field = () => props.field
   return (
@@ -487,19 +494,24 @@ function Field(props: {
       </Show>
       <Show when={field().kind === "string" || field().kind === "number"}>
         <input
-          type={field().secret ? "password" : field().kind === "number" ? "number" : "text"}
+          type={field().kind === "number" ? "number" : "text"}
           class="min-w-0 flex-1 rounded border border-line bg-transparent px-1.5 py-0.5 text-ink"
-          value={field().secret ? "" : String(field().value ?? "")}
-          placeholder={field().secret ? (field().set ? "set" : "") : ""}
+          value={String(field().value ?? "")}
           onChange={(event) => {
             const raw = event.currentTarget.value
-            if (field().secret && raw === "") return
+            if (field().kind === "number" && raw.trim() === "") {
+              props.onUnset()
+              return
+            }
             props.onSet(field().kind === "number" ? Number(raw) : raw)
           }}
         />
       </Show>
       <Show when={field().pending}>
         <span class="text-alarm" data-testid={TESTID.pluginSettingPending}>pending restart</span>
+      </Show>
+      <Show when={field().fault}>
+        {(fault) => <span class="text-alarm">{fault()}</span>}
       </Show>
     </label>
   )

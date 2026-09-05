@@ -275,8 +275,8 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   // typed it.
   "plugins.set": "tool",
   // SETTINGS, on this face and no other — a person's, at the plugins panel.
-  // A secret never reaches a page; an agent that could write one would be
-  // writing the vault's configuration through a tool, which is the instance's.
+  // An agent that could write one would be writing the vault's configuration
+  // through a tool, which is the instance's.
   settings: "resource",
   "settings.set": "tool",
   // ...AND THE ONE VERB THAT SAYS YES TO CODE, on this face for the sharpest

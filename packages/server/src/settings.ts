@@ -4,7 +4,8 @@
  *
  * Core owns the path and the write. The plugin owns the schema that judges
  * the fields. A vault with no such file is schema defaults, which is the
- * ordinary state.
+ * ordinary state. Overlay identity is {@link PLUGIN_KEY} — the same
+ * property a vault-defined plugin wears, because a title is prose.
  */
 
 import {
@@ -20,6 +21,8 @@ import {
 import type { Ops } from "@olai/ops"
 import type { SettingsDocument, SettingsSave } from "@olai/plugin-api/services"
 import { Effect } from "effect"
+
+import { PLUGIN_KEY } from "./dynamic/source.ts"
 
 /** The basename the convention answers to, case-folded. */
 const FILE_BASENAME = "settings.olai"
@@ -40,8 +43,9 @@ export const settingsFileIn = (paths: Iterable<string>): string | undefined =>
       (a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b),
     )[0]
 
-/** The overlay, keyed by plugin title. A second node of the same title is
- *  the owner's mistake; the first wins. */
+/** The overlay, keyed by the `plugin` property. A second node of the
+ *  same word is the owner's mistake; the first wins. A node with no
+ *  such property is not a section. */
 export const settingsDocumentIn = (
   nodes: ReadonlyArray<Located>,
   file: string | null,
@@ -49,10 +53,11 @@ export const settingsDocumentIn = (
   if (file === null) return {}
   const document: Record<string, Record<string, string>> = {}
   for (const located of nodes.filter(isRegular).filter((one) => one.file === file)) {
-    const plugin = located.node.title
-    if (plugin === "" || document[plugin] !== undefined) continue
+    const plugin = customText(located.node, PLUGIN_KEY)
+    if (plugin === undefined || plugin === "" || document[plugin] !== undefined) continue
     const fields: Record<string, string> = {}
     for (const key of Object.keys(customOf(located.node))) {
+      if (key === PLUGIN_KEY) continue
       const value = customText(located.node, key)
       if (value !== undefined && value !== "") fields[key] = value
     }
@@ -71,10 +76,13 @@ const nodeOf = (
   reading: Reading,
   file: string,
   plugin: string,
-): Located | undefined =>
-  reading.derived.nodes.find((located) =>
-    isRegular(located) && located.file === file && located.node.title === plugin
+) =>
+  reading.derived.nodes.filter(isRegular).find((located) =>
+    located.file === file && customText(located.node, PLUGIN_KEY) === plugin
   )
+
+const propsOf = (plugin: string, overlay: Readonly<Record<string, string>>): Record<string, string> =>
+  ({ ...overlay, [PLUGIN_KEY]: plugin })
 
 /**
  * WRITE ONE PLUGIN'S OVERLAY through the ordinary door. Creates the file
@@ -87,7 +95,7 @@ export const saveSettings = (ops: Ops, writer: Writer): SettingsSave =>
       const named = settingsFileIn(outlinePaths(reading.set))
       const file = named ?? SETTINGS_FILE
       const present = outlineNames(reading.set).has(file)
-      const fields = { ...overlay }
+      const fields = propsOf(plugin, overlay)
       if (!present) {
         yield* Effect.asVoid(ops.run(
           {
@@ -95,7 +103,7 @@ export const saveSettings = (ops: Ops, writer: Writer): SettingsSave =>
             file,
             seed: {
               title: plugin,
-              ...(Object.keys(fields).length === 0 ? {} : { props: fields }),
+              props: fields,
             },
           },
           writer,
@@ -109,7 +117,7 @@ export const saveSettings = (ops: Ops, writer: Writer): SettingsSave =>
             op: "add",
             file,
             title: plugin,
-            ...(Object.keys(fields).length === 0 ? {} : { props: fields }),
+            props: fields,
           },
           writer,
         ))
@@ -128,6 +136,7 @@ export const saveSettings = (ops: Ops, writer: Writer): SettingsSave =>
         }
       }
       for (const key of Object.keys(current)) {
+        if (key === PLUGIN_KEY) continue
         if (typeof current[key] === "string" && fields[key] === undefined) {
           opsList.push({ op: "prop", id: node.node.id, key, value: null })
         }

@@ -64,7 +64,9 @@ export { BROWSER_NODE, SERVER_NODE }
 /** The property that says *this node is a plugin*, and the one that says a
  *  person approved a version of it. Core's own words, undeclared and therefore
  *  plain text like any other custom key (`@olai/format`'s `typing.ts`: typing is
- *  opt-in per key, and a vault that declares nothing behaves as it always did). */
+ *  opt-in per key, and a vault that declares nothing behaves as it always did).
+ *  `_olai/Settings.olai` uses the same `plugin` property as overlay identity —
+ *  a title is prose somebody renames and a row's word is not. */
 export const PLUGIN_KEY = "plugin"
 export const APPROVED_KEY = "approved"
 

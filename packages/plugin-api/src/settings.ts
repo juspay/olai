@@ -1,38 +1,32 @@
 /**
  * A PLUGIN'S SETTINGS SECTION — the schema it registers, the document the
- * vault holds, and the page view with secrets stripped.
+ * vault holds, and the page view the panel draws.
  *
  * Core renders from this description. A plugin that wants its own face
  * hangs it in `plugins.row.settings`; everything here is data, and none of
  * it spells a plugin's name.
+ *
+ * A secret does not belong here. `_olai/Settings.olai` is committed
+ * plaintext; a field marked `secret` is refused at register. Host facts
+ * stay on the row's `config:` in `olai.yml`, and secrets stay in `Env`.
  */
 
 import { Schema } from "effect"
 
 import type { Refusal } from "./contract.ts"
 
-/** A field whose value must never reach a page. */
-export const SECRET = Symbol.for("@olai/settings/secret")
-
-/** Mark a schema field secret — the page learns that it is set, never what. */
-export const secret = <A, I, R>(schema: Schema.Schema<A, I, R>): Schema.Schema<A, I, R> =>
-  schema.annotate({ [SECRET]: true })
-
 export type SettingsApplies = "live" | "restart"
 export type SettingsKind = "string" | "number" | "boolean" | "choice"
-export type SettingsSource = "default" | "row" | "vault"
 
 export interface FieldSpec {
   readonly key: string
   readonly kind: SettingsKind
   readonly choices?: ReadonlyArray<string>
-  readonly secret: boolean
 }
 
 export interface SettingsOptions<T> {
   readonly validate?: (value: T) => string | null
   readonly applies?: Readonly<Record<string, SettingsApplies>>
-  readonly secret?: ReadonlyArray<string>
   /** When the schema uses `optionalKey` and decode-of-`{}` is empty. */
   readonly defaults?: T
 }
@@ -72,12 +66,12 @@ const unwrap = (ast: Ast): Ast => {
 }
 
 const annotatedSecret = (annotations: Readonly<Record<PropertyKey, unknown>> | undefined): boolean =>
-  annotations !== undefined && Boolean(annotations[SECRET] ?? annotations["secret"])
+  annotations !== undefined && Boolean(annotations["secret"])
 
 const classify = (ast: Ast): { readonly kind: SettingsKind; readonly choices?: ReadonlyArray<string> } => {
   const inner = unwrap(ast)
-  if (inner._tag === "NumberKeyword") return { kind: "number" }
-  if (inner._tag === "BooleanKeyword") return { kind: "boolean" }
+  if (inner._tag === "Number" || inner._tag === "NumberKeyword") return { kind: "number" }
+  if (inner._tag === "Boolean" || inner._tag === "BooleanKeyword") return { kind: "boolean" }
   if (inner._tag === "Literal" && typeof inner.literal === "string") {
     return { kind: "choice", choices: [inner.literal] }
   }
@@ -95,29 +89,45 @@ const classify = (ast: Ast): { readonly kind: SettingsKind; readonly choices?: R
 
 const typeLiteral = (ast: Ast): Ast | null => {
   const inner = unwrap(ast)
-  if (inner._tag === "TypeLiteral") return inner
+  // Schema 4 names a struct `Objects`; older ASTs said `TypeLiteral`.
+  if (inner._tag === "Objects" || inner._tag === "TypeLiteral") return inner
   if (inner.from !== undefined) return typeLiteral(inner.from)
   if (inner.to !== undefined) return typeLiteral(inner.to)
   return null
 }
 
+const propertiesOf = (schema: Schema.Schema<unknown>): ReadonlyArray<PropertyAst> => {
+  const literal = typeLiteral(astOf(schema))
+  return literal?.propertySignatures ?? []
+}
+
 /** The fields a schema describes, in declaration order. */
 export const fieldsOf = (schema: Schema.Schema<unknown>): ReadonlyArray<FieldSpec> => {
-  const literal = typeLiteral(astOf(schema))
-  if (literal?.propertySignatures === undefined) return []
   const fields: Array<FieldSpec> = []
-  for (const property of literal.propertySignatures) {
+  for (const property of propertiesOf(schema)) {
     if (typeof property.name !== "string") continue
     const { kind, choices } = classify(property.type)
     fields.push({
       key: property.name,
       kind,
       ...(choices === undefined ? {} : { choices }),
-      secret: annotatedSecret(property.annotations) || annotatedSecret(property.type.annotations)
-        || annotatedSecret(unwrap(property.type).annotations),
     })
   }
   return fields
+}
+
+/** Keys annotated `secret: true` — register dies naming them. */
+export const secretKeysOf = (schema: Schema.Schema<unknown>): ReadonlyArray<string> => {
+  const keys: Array<string> = []
+  for (const property of propertiesOf(schema)) {
+    if (typeof property.name !== "string") continue
+    if (
+      annotatedSecret(property.annotations)
+      || annotatedSecret(property.type.annotations)
+      || annotatedSecret(unwrap(property.type).annotations)
+    ) keys.push(property.name)
+  }
+  return keys
 }
 
 const asRecord = (value: unknown): Record<string, unknown> =>
@@ -161,81 +171,76 @@ export const parseField = (kind: SettingsKind, raw: string): unknown => {
   return raw
 }
 
+export interface Judged {
+  readonly value: Record<string, unknown>
+  readonly faults: Readonly<Record<string, string>>
+}
+
 /**
- * SCHEMA DEFAULTS, THEN THE ROW'S CONFIG, THEN THE VAULT'S EDITS.
+ * SCHEMA DEFAULTS, THEN THE VAULT'S EDITS.
  *
- * A key the schema cannot judge is dropped rather than stored: the overlay
- * is the person's, and a typo in `_olai/Settings.olai` must not become a
- * field the plugin then observes.
+ * Host facts stay on the row, drawn read-only beside this section — they
+ * are not a layer here. A key the schema (or the plugin's `validate`)
+ * cannot judge is dropped: a typo in `_olai/Settings.olai` must not
+ * become a field the plugin then observes. Keys that decode alone are
+ * kept; the rest are named on the page.
  */
 export const resolve = (
   schema: Schema.Schema<unknown>,
   defaults: Record<string, unknown>,
-  base: Record<string, unknown>,
   overlay: Readonly<Record<string, string>> | undefined,
   fields: ReadonlyArray<FieldSpec>,
-): Record<string, unknown> => {
+  validate?: (value: Record<string, unknown>) => string | null,
+): Judged => {
   const fromVault: Record<string, unknown> = {}
+  const faults: Record<string, string> = {}
   if (overlay !== undefined) {
     const byKey = new Map(fields.map((one) => [one.key, one] as const))
     for (const [key, raw] of Object.entries(overlay)) {
       const field = byKey.get(key)
       if (field === undefined) continue
-      fromVault[key] = parseField(field.kind, raw)
+      const parsed = parseField(field.kind, raw)
+      const candidate = { ...defaults, [key]: parsed }
+      const decoded = tryDecode(schema, candidate)
+      if (decoded === null || (validate?.(decoded) ?? null) !== null) {
+        faults[key] = `\`${key}\` in _olai/Settings.olai is not a value this field accepts`
+        continue
+      }
+      fromVault[key] = parsed
     }
   }
-  const merged = { ...defaults, ...base, ...fromVault }
-  return tryDecode(schema, merged) ?? merged
-}
-
-export const sourceOf = (
-  key: string,
-  overlay: Readonly<Record<string, string>> | undefined,
-  base: Record<string, unknown>,
-): SettingsSource => {
-  if (overlay !== undefined && overlay[key] !== undefined) return "vault"
-  if (Object.prototype.hasOwnProperty.call(base, key)) return "row"
-  return "default"
+  const merged = { ...defaults, ...fromVault }
+  return { value: tryDecode(schema, merged) ?? merged, faults }
 }
 
 export interface PageField {
   readonly key: string
   readonly kind: SettingsKind
   readonly choices?: ReadonlyArray<string>
-  readonly secret: boolean
-  readonly applies: SettingsApplies
   readonly pending: boolean
-  readonly source: SettingsSource
-  readonly set: boolean
   readonly value?: unknown
+  readonly fault?: string
 }
 
 export const pageFields = (
   fields: ReadonlyArray<FieldSpec>,
   resolved: Record<string, unknown>,
   running: Record<string, unknown>,
-  overlay: Readonly<Record<string, string>> | undefined,
-  base: Record<string, unknown>,
   applies: Readonly<Record<string, SettingsApplies>>,
-  secrets: ReadonlySet<string>,
+  faults: Readonly<Record<string, string>> = {},
 ): ReadonlyArray<PageField> =>
   fields.map((field) => {
-    const secretField = field.secret || secrets.has(field.key)
     const appliesAs = applies[field.key] ?? "live"
     const value = resolved[field.key]
     const held = running[field.key]
     const pending = appliesAs === "restart" && stringify(value) !== stringify(held)
-    const source = sourceOf(field.key, overlay, base)
-    const set = value !== undefined && value !== ""
+    const fault = faults[field.key]
     return {
       key: field.key,
       kind: field.kind,
       ...(field.choices === undefined ? {} : { choices: field.choices }),
-      secret: secretField,
-      applies: appliesAs,
       pending,
-      source,
-      set,
-      ...(secretField ? {} : { value }),
+      ...(value === undefined ? {} : { value }),
+      ...(fault === undefined ? {} : { fault }),
     }
   })

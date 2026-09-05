@@ -2058,7 +2058,6 @@ export const bind = (
                   }),
                 )
               }
-              republishSettings()
               return {}
             }),
         },

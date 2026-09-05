@@ -20,19 +20,14 @@
  * registers, unregisters, or the document moves, and the roster does not
  * notice.
  *
- * ## SECRETS NEVER TRAVEL
+ * ## SECRETS DO NOT TRAVEL HERE
  *
- * A field marked `secret` arrives with `set: true` and no `value`. The page
- * may not learn the token; it may learn that one is stored. That is the whole
- * of the ruling, and it is this schema that enforces it rather than a courtesy
- * of the renderer.
+ * `_olai/Settings.olai` is committed plaintext. A field annotated `secret`
+ * is refused at register. Host facts stay on the row's `config:` in
+ * `olai.yml`; secrets stay in `Env`.
  */
 
 import { Schema } from "effect"
-
-/** How a field is drawn, and how a change takes effect. */
-export const SettingsApplies = Schema.Literals(["live", "restart"])
-export type SettingsApplies = typeof SettingsApplies.Type
 
 /** What a field holds, as a kind the panel can draw without knowing the
  *  plugin. `choice` is a union of string literals; `choices` travels beside it. */
@@ -40,34 +35,19 @@ export const SettingsKind = Schema.Literals(["string", "number", "boolean", "cho
 export type SettingsKind = typeof SettingsKind.Type
 
 /**
- * WHICH LAYER LAST SET THIS FIELD — schema default, the row's `config:` (the
- * base), or a person's edit in `_olai/Settings.olai`.
- *
- * Drawn so a reader can tell a value they typed from the one a deployment
- * shipped. Git's `commit`/`push` are row config and stay on the read-only
- * pairs; a settings field whose source is `row` is the same fact on the
- * editable side.
- */
-export const SettingsSource = Schema.Literals(["default", "row", "vault"])
-export type SettingsSource = typeof SettingsSource.Type
-
-/**
  * ONE FIELD, as the page may see it.
  *
- * `value` is ABSENT on a secret, always. `set` says whether a value exists
- * without saying what it is. `pending` is a `restart` field whose stored
- * value is not the one the running plugin is holding.
+ * `pending` is a `restart` field whose stored value is not the one the
+ * running plugin is holding. `fault` is a key `_olai/Settings.olai` holds
+ * as something this field is not — the plugin does not observe that value.
  */
 export const SettingsField = Schema.Struct({
   key: Schema.String,
   kind: SettingsKind,
   choices: Schema.optionalKey(Schema.Array(Schema.String)),
-  secret: Schema.Boolean,
-  applies: SettingsApplies,
   pending: Schema.Boolean,
-  source: SettingsSource,
-  set: Schema.Boolean,
   value: Schema.optionalKey(Schema.Unknown),
+  fault: Schema.optionalKey(Schema.String),
 })
 export type SettingsField = typeof SettingsField.Type
 

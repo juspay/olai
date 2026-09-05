@@ -235,7 +235,7 @@ export default definePlugin({
     /** THE ONE SEAM ACROSS THE BOUNDARY — see this module's header. */
     const run = yield* detached
     let knobs = watchFromFields(DEFAULT_FIELDS)
-    yield* settings.register(WatchSettings, {}, {
+    yield* settings.register(WatchSettings, {
       defaults: { ...DEFAULT_FIELDS },
       validate: (value) => watchFromFields(value).malformed[0] ?? null,
     })

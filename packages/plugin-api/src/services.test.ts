@@ -927,11 +927,126 @@ test("offer preserves a lifecycle defect when the service already has an owner",
 
 const Knobs = Schema.Struct({
   heartbeat: Schema.optionalKey(Schema.String),
+  pin: Schema.optionalKey(Schema.String),
 })
+
+/** A stub store that records the overlay. Pair with `ingest` the way a
+ *  serve pairs a vault write with a revision. */
+const stubStore = () => {
+  const saved: Array<{ readonly plugin: string; readonly overlay: Readonly<Record<string, string>> }> =
+    []
+  return {
+    saved,
+    saveSettings: (plugin: string, overlay: Readonly<Record<string, string>>) =>
+      Effect.sync(() => {
+        saved.push({ plugin, overlay })
+      }),
+  }
+}
 
 test("a settings section is observed live, and a restart field is pending", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const seen: Array<string> = []
+    const store = stubStore()
+    const plugins = yield* runtime({ saveSettings: store.saveSettings })
+    yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "kolu",
+        needs: [Settings],
+        apply: Effect.gen(function*() {
+          const settings = yield* Settings
+          yield* settings.register(Knobs, {
+            defaults: { heartbeat: "30m", pin: "auto" },
+            applies: { heartbeat: "live", pin: "restart" },
+          })
+          expect(yield* settings.get).toEqual({ heartbeat: "30m", pin: "auto" })
+          yield* settings.watch((value) =>
+            Effect.sync(() => {
+              if (typeof value.heartbeat === "string") seen.push(value.heartbeat)
+            })
+          )
+          yield* Effect.orDie(settings.update({ heartbeat: "10m", pin: "ask" }))
+          expect((yield* settings.get).heartbeat).toBe("30m")
+          expect((yield* settings.get).pin).toBe("auto")
+        }),
+      }),
+    )
+    expect(store.saved).toEqual([{ plugin: "kolu", overlay: { heartbeat: "10m", pin: "ask" } }])
+    yield* plugins.settings.ingest({ kolu: { heartbeat: "10m", pin: "ask" } })
+    expect(seen).toEqual(["10m"])
+    const page = plugins.settings.page()
+    expect(page).toHaveLength(1)
+    expect(page[0]?.plugin).toBe("kolu")
+    const heartbeat = page[0]?.fields.find((one) => one.key === "heartbeat")
+    expect(heartbeat?.value).toBe("10m")
+    expect(heartbeat?.pending).toBe(false)
+    const pin = page[0]?.fields.find((one) => one.key === "pin")
+    expect(pin?.value).toBe("ask")
+    expect(pin?.pending).toBe(true)
+  })))
+})
+
+test("a secret field is refused at register", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const mounted = yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "kolu",
+        needs: [Settings],
+        apply: Effect.gen(function*() {
+          const settings = yield* Settings
+          const Marked = Schema.Struct({
+            token: Schema.optionalKey(Schema.String.annotate({ secret: true })),
+          })
+          yield* settings.register(Marked)
+        }),
+      }),
+    )
+    const report = yield* mounted.report
+    expect(report.state).toBe("failed")
+    if (report.state === "failed") {
+      expect(report.fault).toContain("cannot be a secret")
+      expect(report.fault).toContain("config:")
+      expect(report.fault).toContain("Env")
+    }
+    expect(plugins.settings.page()).toEqual([])
+  })))
+})
+
+test("a persisted write waits for ingest rather than applying in memory", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const store = stubStore()
+    const plugins = yield* runtime({ saveSettings: store.saveSettings })
+    yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "kolu",
+        needs: [Settings],
+        apply: Effect.gen(function*() {
+          const settings = yield* Settings
+          yield* settings.register(Knobs, { defaults: { heartbeat: "30m" } })
+          yield* Effect.orDie(settings.update({ heartbeat: "10m" }))
+          expect((yield* settings.get).heartbeat).toBe("30m")
+        }),
+      }),
+    )
+    expect(store.saved).toEqual([{ plugin: "kolu", overlay: { heartbeat: "10m" } }])
+    expect(plugins.settings.page()[0]?.fields.find((one) => one.key === "heartbeat")?.value)
+      .toBe("30m")
+    yield* plugins.settings.ingest({ kolu: { heartbeat: "10m" } })
+    expect(plugins.settings.page()[0]?.fields.find((one) => one.key === "heartbeat")?.value)
+      .toBe("10m")
+  })))
+})
+
+test("ingest drops an undecodable document value and names the key on the page", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const Counted = Schema.Struct({
+      count: Schema.optionalKey(Schema.Number),
+      name: Schema.optionalKey(Schema.String),
+    })
     const plugins = yield* runtime()
     yield* mountPlugin(
       plugins.host,
@@ -940,27 +1055,14 @@ test("a settings section is observed live, and a restart field is pending", asyn
         needs: [Settings],
         apply: Effect.gen(function*() {
           const settings = yield* Settings
-          yield* settings.register(Knobs, {}, {
-            defaults: { heartbeat: "30m" },
-            applies: { heartbeat: "live" },
-          })
-          expect(yield* settings.get).toEqual({ heartbeat: "30m" })
-          yield* settings.watch((value) =>
-            Effect.sync(() => {
-              if (typeof value.heartbeat === "string") seen.push(value.heartbeat)
-            })
-          )
-          yield* Effect.orDie(settings.update({ heartbeat: "10m" }))
-          expect((yield* settings.get).heartbeat).toBe("10m")
+          yield* settings.register(Counted, { defaults: { count: 1, name: "default" } })
+          yield* plugins.settings.ingest({ kolu: { count: "nope", name: "ok" } })
+          expect(yield* settings.get).toEqual({ count: 1, name: "ok" })
         }),
       }),
     )
-    expect(seen).toEqual(["10m"])
-    const page = plugins.settings.page()
-    expect(page).toHaveLength(1)
-    expect(page[0]?.plugin).toBe("kolu")
-    const heartbeat = page[0]?.fields.find((one) => one.key === "heartbeat")
-    expect(heartbeat?.value).toBe("10m")
-    expect(heartbeat?.pending).toBe(false)
+    const count = plugins.settings.page()[0]?.fields.find((one) => one.key === "count")
+    expect(count?.value).toBe(1)
+    expect(count?.fault).toContain("`count`")
   })))
 })
