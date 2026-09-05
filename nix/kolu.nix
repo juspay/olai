@@ -36,11 +36,10 @@
 # that will not typecheck here is a blocker rather than a nuisance. That is the
 # whole reason this arrangement is worth its cost, and it is unchanged.
 #
-# The kolu pin is frozen directly to PR #2228's refs/pull/2228/head at
-# f7be52281cd586aca257f855fbe5c4b3cb44b2ab. That PR makes redial retain the
+# The kolu pin tracks master at PR #2228's merge commit,
+# 4b1758afad90b15624030e0fd00e1116586b4054. That PR makes redial retain the
 # connection and surviving clients while replacing their underlying wire.
-# npins records the immutable archive and hash; ordinary updates skip this pin.
-# After adopting the upstream merge, point it back at master and unfreeze it.
+# npins records the immutable archive and hash; ordinary updates advance it.
 # https://github.com/juspay/kolu/pull/2228
 #
 # NOTE THE ATTR RENAME. Members are `kolu-surface`, not `kolu-src-surface`:

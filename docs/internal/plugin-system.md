@@ -656,9 +656,10 @@ so a fiber is never started over a wire that does not carry its sibling. A
 second roster frame arriving mid-redial is queued behind the first rather than
 starting a second redial on one connection.
 
-Olai currently pins [Kolu PR #2228](https://github.com/juspay/kolu/pull/2228)
-directly through npins: `refs/pull/2228/head`, frozen at
-`f7be52281cd586aca257f855fbe5c4b3cb44b2ab`. Its `redial` returns the same
+Olai pins the merge of [Kolu PR #2228](https://github.com/juspay/kolu/pull/2228)
+through npins on `master` at
+`4b1758afad90b15624030e0fd00e1116586b4054`, unfrozen for future updates.
+Its `redial` returns the same
 connection, retaining the root and unchanged sibling clients and reopening their
 subscriptions over the replacement wire. Removed or replaced sibling clients
 refuse further calls. Olai keeps one constant connection and renders the app once;
