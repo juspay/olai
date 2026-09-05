@@ -1,5 +1,5 @@
 /**
- * WHO THIS TAB IS, asked ONCE PER WIRE for the whole page.
+ * WHO THIS TAB IS, asked ONCE PER ESTABLISHED CONNECTION for the whole page.
  *
  * {@link ./asking.ts} is the ask; this is the arrangement that keeps it a
  * single one. `createWho()` mints a `createResource`, so every caller of it is
@@ -11,7 +11,7 @@
  * on a value the header already had and which does not move for the life of the
  * socket (the login is read off the upgrade).
  *
- * ONE PER WIRE rather than one per PAGE, which is `./asking.ts`'s own change and
+ * ONE PER ESTABLISHED CONNECTION rather than one per PAGE, which is `./asking.ts`'s own change and
  * is named here because this is the module that says how many asks there are: a
  * redial is a new upgrade and therefore a new answer, and this row being
  * switchable is what made that reachable. The count is still one per reader-set

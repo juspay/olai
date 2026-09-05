@@ -300,3 +300,6 @@ export const olai = live.core
 
 /** Kolu owns reconnecting, degraded and terminal retirement state. */
 export const connectionReadout = live.readout
+
+/** Re-fetch per-connection answers after an establishment; never remount UI. */
+export const connectionEpoch = live.connectionEpoch

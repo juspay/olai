@@ -658,13 +658,14 @@ starting a second redial on one connection.
 
 Olai currently pins [Kolu PR #2228](https://github.com/juspay/kolu/pull/2228)
 directly through npins: `refs/pull/2228/head`, frozen at
-`ff4c6f1521da5a1ca70cd9e86be9f33fbd740205`. Its `redial` returns the same
+`6203d126d58ec39171f150ecc3f399b809ee1b98`. Its `redial` returns the same
 connection, retaining the root and unchanged sibling clients and reopening their
 subscriptions over the replacement wire. Removed or replaced sibling clients
 refuse further calls. Olai keeps one constant connection and renders the app once;
 roster changes no longer recreate its tree or roster subscription. The core
 client and connection readout are exported directly, without a proxy or a
-synthetic reconnecting state. The router keeps its app lifetime and reinterprets
+synthetic reconnecting state. Identity alone uses Kolu’s `connectionEpoch`
+accessor to refresh the answer derived from the socket’s upgrade headers. The router keeps its app lifetime and reinterprets
 the current URL when plugin route claims change, preserving unchanged pane
 identities and browser history.
 
