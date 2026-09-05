@@ -178,16 +178,16 @@ test("an exact asset-only selection serves its build without websocket admission
   const build = served()
   writeFileSync(join(build, "index.html"), "<!doctype html><p>standalone build</p>")
   try {
-  await withServing({ root: served(), clientDist: build, plugins: ["web-app"] }, async (url) => {
-    expect((await fetch(url)).status).toBe(200)
-    expect((await request(url)).status).toBe(404)
-    const status = await new Promise<number>((resolve, reject) => {
-      const socket = new WsClient(url.replace("http://", "ws://") + SURFACE_WS_PATH)
-      socket.on("unexpected-response", (_req, response) => { response.resume(); resolve(response.statusCode ?? 0); socket.terminate() })
-      socket.on("open", () => { socket.close(); reject(new Error("asset-only selection admitted a socket")) })
-      socket.on("error", () => {})
+    await withServing({ root: served(), clientDist: build, plugins: ["web-app"] }, async (url) => {
+      expect((await fetch(url)).status).toBe(200)
+      expect((await request(url)).status).toBe(404)
+      const status = await new Promise<number>((resolve, reject) => {
+        const socket = new WsClient(url.replace("http://", "ws://") + SURFACE_WS_PATH)
+        socket.on("unexpected-response", (_req, response) => { response.resume(); resolve(response.statusCode ?? 0); socket.terminate() })
+        socket.on("open", () => { socket.close(); reject(new Error("asset-only selection admitted a socket")) })
+        socket.on("error", () => {})
+      })
+      expect(status).toBe(404)
     })
-    expect(status).toBe(404)
-  })
   } finally { rmSync(build, { recursive: true, force: true }) }
 })
