@@ -25,6 +25,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { Then, When } from "@cucumber/cucumber";
 
+import { isoDayOf } from "@olai/web/testlib";
+
 import {
   attr,
   PLUGINS_APPROVE,
@@ -229,6 +231,32 @@ Then("no row wears a swatch", async function (this: OlaiWorld) {
     async () => (await this.page.locator("[data-swatch]").count()) === 0,
     "every swatch to leave after the plugin is stopped or loses approval",
   );
+});
+
+/**
+ * SOMETHING ON TODAY, written while the scenario runs.
+ *
+ * The corpus dates its work in 2019, which is this suite's own convention for
+ * "reliably overdue whenever this runs" — and it means the OTHER half of
+ * `journal.agenda`'s answer, `dated`, is empty for ever. The morning agenda
+ * prints that half under `On today:`, and the field it reads there is the one a
+ * structural consumer can lose silently, so the only way to cover it is a write
+ * that puts something on today (`journal_steps.ts` makes the same argument for
+ * the calendar's own mark).
+ *
+ * Appended rather than written whole, and the date is asked of the CLOCK the way
+ * the client asks it, so this cannot disagree with the plugin about which day it
+ * is at a local midnight.
+ */
+When("a task is due today", function (this: OlaiWorld) {
+  this.appendServed("work.olai", {
+    id: "sand",
+    parent: "deck",
+    ord: "a3",
+    title: "sand the rails",
+    todo: true,
+    date: isoDayOf(new Date()),
+  });
 });
 
 When("the palette provider is replaced", function (this: OlaiWorld) {

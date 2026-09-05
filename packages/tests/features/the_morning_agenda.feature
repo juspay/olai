@@ -32,7 +32,12 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
 
   @scratch:morning-agenda
   Scenario: Approved, it reads the journal and speaks into the node agent's conversation
-    Given I open the outline "work.olai"
+    # THE CORPUS DATES ITS WORK IN 2019, so it is reliably overdue whenever this
+    # runs — and that leaves the other half of the door's answer, what is ON
+    # today, empty for ever. One write fixes it, and it has to be a write: no
+    # checked-in fixture can carry today's date.
+    Given a task is due today
+    And I open the outline "work.olai"
     And I open the plugins panel
     # A DEFINITION IS A ROW AND NOT A FIBER until somebody decides — and the
     # source is on the panel because approving is reading.
@@ -77,6 +82,11 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
     # break silently: the title is asserted by the journal's own bench, and
     # `in undefined` on this line would be asserted by nothing else at all.
     And that sentence names "work.olai"
+    # ...AND THE OTHER HALF OF THE ANSWER. `dated` and `agenda` are two
+    # derivations behind one door and the example prints both, so a scenario
+    # that only read the overdue lines would be covering half of it.
+    And that sentence names "On today:"
+    And that sentence names "sand the rails"
     # ...and an OCCURRENCE is not owed. A date with no mark is a thing that
     # happened, not work somebody is late on, so the timber does not appear on
     # an overdue line — the format's own rule, spent one plugin further out.
