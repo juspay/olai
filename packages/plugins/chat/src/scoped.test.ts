@@ -172,7 +172,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
     await logged(chat.start)
     await until("the remembered node session to load", () =>
       chat.state().bound === "one" && chat.state().status === "idle")
-    expect(said.filter((line) => line.message.includes("chat agent spawned"))).toHaveLength(1)
+    expect(said.filter((line) => line.message.includes("chat agent ready"))).toHaveLength(1)
     expect(said.filter((line) => line.message.includes("conversation opened"))).toHaveLength(1)
   } finally {
     await logged(chat.stop)
