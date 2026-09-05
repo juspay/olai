@@ -133,12 +133,12 @@ Then(
 /**
  * MAKE THE WATCHER SPEAK NOW.
  *
- * `_olai/Kolu.olai` is the file that paces the watch, and `held-for` is how long
- * a terminal must sit in a state before it is worth saying anything about. The
- * fixture's fleet already holds one — `review: grok`'s terminal, which padi says
- * is blocked on a person — so lowering the debounce re-arms that standing hold
- * and it fires at once (`olai-plugin-kolu/appliance`'s `watch.ts`: "a LOWERED `held-for`
- * fires at once").
+ * `_olai/Settings.olai` is the file that paces the watch, and `held-for` is how
+ * long a terminal must sit in a state before it is worth saying anything about.
+ * The fixture's fleet already holds one — `review: grok`'s terminal, which padi
+ * says is blocked on a person — so lowering the debounce re-arms that standing
+ * hold and it fires at once (`olai-plugin-kolu/appliance`'s `watch.ts`: "a
+ * LOWERED `held-for` fires at once").
  *
  * `0s` and not `1s`, because a second is a race: the assertion after this step
  * would be waiting on a timer rather than on a consequence, and a step that
@@ -148,8 +148,8 @@ Then(
  */
 When("the watch is told to report a held terminal at once", function (this: OlaiWorld) {
   this.writeServed(
-    "_olai/Kolu.olai",
-    `{"id":"watch","ord":"a0","title":"watch","custom":{"held-for":"0s"}}`,
+    "_olai/Settings.olai",
+    `{"id":"kolu","ord":"a0","title":"kolu","custom":{"plugin":"kolu","held-for":"0s"}}`,
   );
 });
 
