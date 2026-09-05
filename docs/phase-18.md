@@ -21,8 +21,9 @@ Required before this PR can be considered complete:
   preference and CSS observers now belong to the root entry activation.
 - Extract independent outlines and Markdown server bindings, wire adapters,
   browser models, routes and editing/reading state. Preserve unprefixed tags.
-- Extract files, theme, preferences, inspector, pins, capture and trash;
-  migrate existing integrations and capability-owned property links.
+- Extract files, inspector, pins, capture and trash; finish theme's shared
+  build/boot boundary and move notebook settings out of preferences into
+  feature-owned integrations. Migrate capability-owned property links.
 - Extract vault-defined discovery, approval, compilation and chunk loading
   policy behind a narrow generic host-loading capability.
 - Remove permanent application-specific contracts and implementations,

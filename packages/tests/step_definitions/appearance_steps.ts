@@ -2,6 +2,7 @@ import { Then, When } from "@cucumber/cucumber";
 import { FONT_STORAGE_KEY } from "@olai/fonts";
 import { SIZE_STORAGE_KEY, THEME_STORAGE_KEY, TESTID } from "@olai/web/testlib";
 import type { OlaiWorld } from "../support/world.ts";
+import { attr } from "../support/selectors.ts";
 
 When("another tab stores theme {string}, font {string}, and size {string}", async function (this: OlaiWorld, theme: string, font: string, size: string) {
   const values: Record<string, string> = { [THEME_STORAGE_KEY]: theme, [FONT_STORAGE_KEY]: font, [SIZE_STORAGE_KEY]: size };
@@ -42,10 +43,10 @@ Then("the appearance attributes have been released", async function (this: OlaiW
 
 Then("the preferences have no appearance controls", async function (this: OlaiWorld) {
   for (const pref of ["theme", "font", "size"]) {
-    await this.page.locator(`[data-testid="${TESTID.prefsRow}"][data-pref="${pref}"]`).waitFor({ state: "detached" });
+    await this.page.locator(`${attr("data-testid", TESTID.prefsRow)}${attr("data-pref", pref)}`).waitFor({ state: "detached" });
   }
 });
 
 Then("the preferences retain their Notes control", async function (this: OlaiWorld) {
-  await this.page.locator(`[data-testid="${TESTID.prefsRow}"][data-pref="density"]`).waitFor({ state: "visible" });
+  await this.page.locator(`${attr("data-testid", TESTID.prefsRow)}${attr("data-pref", "density")}`).waitFor({ state: "visible" });
 });
