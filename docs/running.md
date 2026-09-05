@@ -128,6 +128,10 @@ It says what it is doing on stdout, one line per event, quietly: the address it 
 
 Terminal output is compact: inline fields, no fiber IDs, short session UUIDs, and a root path on directory changes and warnings/errors. Errors keep their full causes on indented lines. Piped logfmt retains full root/session annotations. Agent discovery lists names; command paths, arguments and successful tool probes are available at `debug`. The SIGTERM guard emits a short readiness marker on stderr.
 
+Agent readiness and exit events carry a subprocess `pid`; lifecycle context includes `purpose` (`conversation` or `session list`) and `node` for a node-owned panel. An exit carries `expected=true` only when the app requested that subprocess's stop, with a specific `reason`: `agent switched`, `plugin disabled`, `session list complete`, `node scope handoff`, `idle eviction`, `capacity eviction`, or `shutdown` (`scope released` for acquisition cleanup). Unrequested exits say `process exited` or `process signaled`, with `expected=false` and the exit code or signal; this does not infer why the process chose to exit. Session context is captured before teardown clears it.
+
+A conversation that opens, exits, and immediately opens again may be moving from the root panel into its owning node scope. The log now announces `moving conversation into node scope` before that handoff. Reopening supplies the node-scoped MCP credential; remembered node sessions route directly into their scope, and ordinary conversation changes on the same agent reuse its process.
+
 Two knobs, both environment variables, both facts of the running instance rather than of a browser:
 
 | variable | what it picks | default |

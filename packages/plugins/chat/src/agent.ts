@@ -105,7 +105,7 @@ import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
 import type { ChatServer } from "olai-plugin-chat/wire"
 import type { AskAnswer } from "@olai/acp/wire"
-import { Data, type Duration, Effect, Semaphore } from "effect"
+import { Data, type Duration, Effect, References, Semaphore } from "effect"
 
 import type { Leg, Meta, ModelReading } from "@olai/acp/engine"
 import { modelPickerIn, type Picker, pickerValueFor, sameModel } from "./agents/models.ts"
@@ -345,7 +345,20 @@ export interface Agent {
     answers: ReadonlyArray<AskAnswer> | null,
   ) => Effect.Effect<boolean, UsageFailure>
   readonly stop: Effect.Effect<void>
+  readonly stopWithReason: (reason: StopReason) => Effect.Effect<void>
 }
+
+/** Why the owner deliberately releases a subprocess. */
+export type StopReason =
+  | "shutdown"
+  | "agent switched"
+  | "plugin disabled"
+  | "session list complete"
+  | "node scope handoff"
+  | "idle eviction"
+  | "capacity eviction"
+  | "scope released"
+  | "stopped by app"
 
 /** The ACP major version this client speaks. */
 const PROTOCOL = 1
@@ -432,7 +445,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     /** Annotations that belong on a lifecycle line: the session when we have
      *  one, plus whatever the event itself carries. */
+    const logContext = yield* Effect.service(References.CurrentLogAnnotations)
     const about = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
+      ...logContext,
       agent: options.id,
       ...(activeSession === null ? {} : { session: activeSession }),
       ...extra,
@@ -477,6 +492,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     let stopped = false
+    const requestedStops = new WeakMap<Child, { reason: StopReason; session: string | null }>()
     /** A cancel that arrived before the prompt was on the wire. Remembered so
      *  every cancelled turn ends the same way, whichever half of the handshake
      *  it landed in. */
@@ -1166,7 +1182,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // that was never a process (#367 NIT 6).
           if (child.failed() !== undefined) return
           const ours = live?.child === child
-          const id = ours ? activeSession : null
+          const requested = requestedStops.get(child)
+          requestedStops.delete(child)
+          const id = requested?.session ?? (ours ? activeSession : null)
           if (ours) {
             live = null
             // Before anything else it emits: a form left live on a dead wire is a
@@ -1182,7 +1200,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               ...(id === null ? {} : { session: id }),
               ...(code === null ? {} : { code }),
               ...(signal === null ? {} : { signal }),
-              ...(stopped ? { reason: "stopped by app" } : {}),
+              pid: child.pid,
+              reason: requested?.reason ?? (signal === null ? "process exited" : "process signaled"),
+              expected: requested !== undefined,
             },
           )
           if (stopped || !ours) return
@@ -1322,7 +1342,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           Effect.logDebug("chat agent command"),
           { command: options.command, args: options.args.join(" ") },
         )
-        yield* lifecycle(Effect.logInfo("chat agent ready"))
+        yield* lifecycle(Effect.logInfo("chat agent ready"), { pid: child.pid })
         return {
           child,
           connection,
@@ -2086,9 +2106,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       )
     })
 
-    const stop = Effect.promise(async () => {
+    const stopWithReason = (reason: StopReason) => Effect.promise(async () => {
       stopped = true
       const at = live
+      if (at !== null) requestedStops.set(at.child, { reason, session: activeSession })
       live = null
       leaving()
       activeSession = null
@@ -2159,7 +2180,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           if (took instanceof UsageFailure) return Effect.fail(took)
           return Effect.succeed(took === "settled")
         }),
-      stop,
+      stop: stopWithReason("stopped by app"),
+      stopWithReason,
     }
   })
 
