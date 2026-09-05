@@ -359,7 +359,7 @@ export interface PluginRuntime {
    *
    * A row that is not running is absent for one of a small number of reasons,
    * and until the switch there were two: the operator's flag left it out, or
-   * this build ships it off until somebody asks. {@link Wiring.plugins.pinned}
+   * this build ships it off until somebody asks. {@link PluginRuntime.pin}
    * tells those apart, because the row's own `disabled` and the flag's patch are
    * the same field and only *whether a flag was given* survives downstream of it.
    *
@@ -665,8 +665,10 @@ export const rosterOf = (
         ...(config === undefined ? {} : { config }),
       }
     }), ...defined],
-    pinned: offered.pin.kind === "exact" ? offered.pin.names : null,
     pin: offered.pin,
+    // Exact-arm projection so a tab too old to read `pin` still sees
+    // `--plugins` / omitted. A delta serve publishes `null` here.
+    pinned: offered.pin.kind === "exact" ? offered.pin.names : null,
   }))(offered.names())
 
 /**

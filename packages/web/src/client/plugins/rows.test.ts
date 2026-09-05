@@ -432,11 +432,11 @@ test("a press freezes only that row's strip, and does not move it", () => {
  * the flag quoted in full, wrapped over three lines, eight times. The panel's
  * header called that an argument for having no panel-wide line, on the grounds
  * that every row already said it, which is a repetition noticed and then
- * defended. `pinned` is one value for the serve; the sentence about it is one
+ * defended. `pin` is one value for the serve; the sentence about it is one
  * sentence for the serve.
  *
  * WHETHER A ROW NAMES A FLAG and WHAT IT SAYS are still the same reading, which
- * is what the pairing was always for: the line is read off the same `pinned`
+ * is what the pairing was always for: the line is read off the same `pin`
  * the rows are, so the flag it quotes and the rows it sits under cannot come
  * from two different frames.
  */

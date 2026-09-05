@@ -715,8 +715,9 @@ test("every plugin the build has is on the roster, running or not", () => {
   // ...and an opt-in row is a row that is THERE and off, which is the state a
   // panel has to be able to draw and a filter over the running set could not.
   expect(all.built.length).toBeGreaterThanOrEqual(DEFAULT_BUNDLE_NAMES.length)
-  // `pinned` stays `null` rather than expanding into that list, because the row
+  // `pin` stays `omitted` rather than expanding into that list, because the row
   // under it has to say whether a person typed this policy or got the default.
+  expect(all.pin).toEqual({ kind: "omitted" })
   expect(all.pinned).toBeNull()
 
   // ...and one name out of the list leaves every other row present and off,
@@ -729,6 +730,7 @@ test("every plugin the build has is on the roster, running or not", () => {
   const one = rosterOf(offering([first], mounted([first])))
   expect(one.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(one.built.filter((row) => row.running).map((row) => row.name)).toEqual([first])
+  expect(one.pin).toEqual({ kind: "exact", names: [first] })
   expect(one.pinned).toEqual([first])
 })
 
@@ -750,6 +752,7 @@ test("a plugin the flag left on but nothing mounted draws as off", () => {
   expect(roster.built.some((row) => row.running)).toBe(false)
   // ...and the flag is still reported as nobody having said, because nobody
   // did: the two facts are independent and the panel draws both.
+  expect(roster.pin).toEqual({ kind: "omitted" })
   expect(roster.pinned).toBeNull()
 })
 
@@ -771,6 +774,7 @@ test("a row's config travels on the roster as data, and a row without one sends 
 
 test("an empty flag crosses as an empty list, not as nobody having said", () => {
   const none = rosterOf(offering([]))
+  expect(none.pin).toEqual({ kind: "exact", names: [] })
   expect(none.pinned).toEqual([])
   expect(none.built.some((row) => row.running)).toBe(false)
   expect(none.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
@@ -815,7 +819,7 @@ test("a row that is not running says which of the four absences it is", () => {
   expect(optIn.built.find((row) => row.name === first)?.running).toBe(false)
 
   // ...and the SAME snapshot under a flag is `off`, because somebody asked and
-  // did not ask for this. One field, two layers, and `pinned` is the only thing
+  // did not ask for this. One field, two layers, and `pin` is the only thing
   // that can say which of them wrote it.
   const off = rosterOf(offering([second], new Map([[first, { state: "off" }], [second, { state: "running" }]])))
   expect(off.built.find((row) => row.name === first)?.state).toBe("off")

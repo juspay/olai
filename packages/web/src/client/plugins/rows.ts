@@ -349,7 +349,7 @@ const namedBy = (
  * that an argument for having no panel-wide line, on the grounds that every row
  * already said it. That is a repetition noticed and then defended.
  *
- * A fact is per row when the rows DIFFER. This one does not: `pinned` is one
+ * A fact is per row when the rows DIFFER. This one does not: `pin` is one
  * value for the serve, so the sentence about it is one sentence for the serve.
  * What genuinely differs — the opt-in row's own built-in default, and the flag
  * value that changes it — stayed per row, in {@link pluginHint}, which is the
@@ -370,7 +370,7 @@ const namedBy = (
  * ## Why a reading and not a constant
  *
  * For the reason every other sentence on this panel is a reading: it is read
- * off the same `pinned` the rows are, so the flag it quotes and the rows it
+ * off the same `pin` the rows are, so the flag it quotes and the rows it
  * sits under cannot come from two different frames — the pairing the old
  * per-row line kept, moved rather than dropped.
  */
