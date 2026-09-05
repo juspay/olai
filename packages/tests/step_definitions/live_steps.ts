@@ -44,6 +44,10 @@ import type { OlaiWorld } from "../support/world.ts";
 
 // ── writing ────────────────────────────────────────────────────────────
 
+When("I remove the served file {string}", function (this: OlaiWorld, file: string) {
+  fs.unlinkSync(path.join(this.scratch(), file));
+});
+
 When(
   "I rewrite {string} as:",
   function (this: OlaiWorld, file: string, contents: string) {
