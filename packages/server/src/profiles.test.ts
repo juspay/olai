@@ -86,3 +86,20 @@ test("the surface profile CLI boots without a browser build and releases its por
   }
   await expect(fetch(url)).rejects.toThrow()
 }, 15000)
+
+test("an MCP-only profile falls back when its requested port is busy", async () => {
+  const first = startWeb({ root: served(), extra: ["--profile", "surface"] })
+  let second: ReturnType<typeof startWeb> | undefined
+  try {
+    const firstUrl = await first.address()
+    second = startWeb({ root: served(), extra: ["--profile", "surface", "--port", new URL(firstUrl).port] })
+    const secondUrl = await second.address()
+    expect(secondUrl).not.toBe(firstUrl)
+    expect(second.said()).toContain("port in use")
+    expect((await request(firstUrl)).status).toBe(200)
+    expect((await request(secondUrl)).status).toBe(200)
+  } finally {
+    if (second) await second.stop()
+    await first.stop()
+  }
+}, 15000)

@@ -304,7 +304,7 @@ const httpApp = (options: Omit<ListenOptions, "port">, port: number) =>
       host: options.host,
       port,
       gracefulShutdownTimeout: "1 second",
-    }).pipe(Effect.mapError((cause) => new SurfaceAppListenFailed({ host: options.host, port, cause })))
+    }).pipe(Effect.mapError((failure) => new SurfaceAppListenFailed({ host: options.host, port, cause: failure.cause })))
     const handler = yield* HttpRouter.toHttpEffect(options.mcp ? mcpRoute(options.mcp) : Layer.empty)
     yield* server.serve(handler)
     return HttpServer.formatAddress(server.address)

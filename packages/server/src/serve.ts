@@ -140,6 +140,7 @@ export const serve = (options: ServeOptions) =>
     const flipped = (id: string, enabled: boolean) =>
       Effect.gen(function*() {
         const found = yield* setRow(plugins.host, id, enabled)
+        yield* settled(plugins.host, built)
         report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
         if (found) {
           if (enabled) switched.delete(id)
