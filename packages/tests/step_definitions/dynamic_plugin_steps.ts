@@ -31,6 +31,7 @@ import {
   PLUGINS_MOVED,
   PLUGINS_PANEL,
   PLUGINS_SOURCE,
+  PREFS_ROW,
   nodeSelector,
   POLL_TIMEOUT,
 } from "../support/world.ts";
@@ -92,6 +93,28 @@ Then(
   async function (this: OlaiWorld, plugin: string) {
     await blockFor(this, plugin).locator(PLUGINS_APPROVE)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+/**
+ * THE ROW IS GONE, not merely waiting. A trashed definition used to stay on
+ * the panel with `_olai/Trash.olai` as its file; the assertion is the absence
+ * of both the row and the source block, because either remaining would be
+ * the same bug under a different heading.
+ */
+Then(
+  "the plugins panel does not list {string}",
+  async function (this: OlaiWorld, plugin: string) {
+    await this.page
+      .locator(`${PLUGINS_PANEL} ${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`)
+      .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the plugins panel does not show the source of {string}",
+  async function (this: OlaiWorld, plugin: string) {
+    await blockFor(this, plugin).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
   },
 );
 
