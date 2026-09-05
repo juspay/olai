@@ -819,10 +819,10 @@ describe("only the registry knows a plugin's name", () => {
   test("no package outside the registry declares a plugin in its manifest", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
-      expect(declaredBy(pkg), pkg).toEqual([
+      expect([...declaredBy(pkg)].sort(), pkg).toEqual([
         ...(TESTLIB_DECLARED[pkg] ?? []),
         ...(PLUGIN_DIRS.includes(pkg) ? [...new Set(tree.get(pkg)?.flatMap((source) => source.plugins.filter((spec) => spec.endsWith("/contract")).map(packageOf)) ?? [])] : []),
-      ])
+      ].sort())
     }
   })
 
@@ -1294,6 +1294,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       identity: ["plugins/identity"],
       journal: ["plugins/journal"],
       layout: ["plugins/layout"],
+      sidebar: ["plugins/sidebar"],
       "ui-renderer": ["plugins/ui-renderer"],
       kolu: ["plugins/kolu"],
       odu: ["plugins/odu"],
@@ -1330,6 +1331,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       identity: false,
       journal: false,
       layout: false,
+      sidebar: false,
       "ui-renderer": false,
       kolu: true,
       odu: true,
@@ -1716,6 +1718,33 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * claim can fail in are not symmetric.
    */
   const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = {
+    /** Sidebar is also a UI noun in compatibility contracts, stored preference
+     * keys, test ids, and user-facing instructions. These exact spellings grant
+     * no implementation import; contract and package fences above still apply. */
+    sidebar: [
+      "ops/src/tools.ts",
+      "plugin-api/src/slots.ts",
+      "plugins/chat/src/browser.tsx",
+      "plugins/journal/src/browser.tsx",
+      "plugins/layout/src/Frame.tsx",
+      "plugins/layout/src/Header.tsx",
+      "plugins/layout/src/browser.tsx",
+      "plugins/layout/src/index.ts",
+      "web/src/client/NotFound.tsx",
+      "web/src/client/errors/Page.tsx",
+      "web/src/client/fold/folders.ts",
+      "web/src/client/keys.ts",
+      "web/src/client/layout/Handle.tsx",
+      "web/src/client/layout/css.ts",
+      "web/src/client/layout/prefs.ts",
+      "web/src/client/menu/verbs.ts",
+      "web/src/client/palette/Palette.tsx",
+      "web/src/client/palette/items.ts",
+      "web/src/client/pins/palette.ts",
+      "web/src/client/plugins/Seats.tsx",
+      "web/src/client/testids.ts",
+      "web/src/client/trash/question.ts",
+    ],
     layout: [
       "plugins/chat/src/browser/chat/Panel.tsx",
       "plugins/mcp/src/tools.ts",
@@ -1785,6 +1814,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/odu/src/appliance/index.ts",
       "plugins/odu/src/server.ts",
       "plugins/search/src/table.bench.ts",
+      "plugins/sidebar/src/Sidebar.tsx",
       "plugins/xyne-spaces/src/server.ts",
       "server/src/dynamic/source.ts",
       "server/src/main.ts",
@@ -1792,7 +1822,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "server/src/runtime.ts",
       "server/src/serve.ts",
       "surface/src/seal.ts",
-      "web/src/client/Sidebar.tsx",
       "web/src/client/opens.tsx",
       "web/src/client/testids.ts",
     ],

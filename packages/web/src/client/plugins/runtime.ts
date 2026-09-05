@@ -137,6 +137,7 @@ const told = (): void => {
     return
   }
   setMoved((at) => at + 1)
+  void refreshReports()
 }
 
 /** THE SIBLING CLIENTS, as a holder — see the header on why they are not an
@@ -227,6 +228,12 @@ const refreshReports = async (): Promise<void> => {
   const snapshot = await Promise.all([...mounted].map(async ([name, row]) => [name, await run(row.report)] as const))
   if (generation === reporting) setReports(new Map([
     ...snapshot,
+    ...app.integrations().flatMap((entry, index): Array<readonly [string, RowReport]> => {
+      if (entry.state === "active" || entry.state === "off") return []
+      return [[`${entry.owner}/location-${index}`, entry.state === "failed"
+        ? { state: "failed", fault: `${entry.name}: ${entry.fault}` }
+        : { state: "waiting", missing: [entry.waitingFor ?? entry.name] }]]
+    }),
     ...failures,
     ...[...loadFailures].map(([name, fault]) => [name, { state: "failed" as const, fault: `Module load failed: ${fault}` }] as const),
   ]))
@@ -285,6 +292,8 @@ export const composeTo = async (
   composing += 1
   try {
     await recompose(halves)
+    await run(app.retryIntegrations)
+    await run(app.settled)
   } finally {
     composing -= 1
     await refreshReports()

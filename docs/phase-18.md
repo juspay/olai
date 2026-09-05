@@ -16,8 +16,8 @@ Implemented foundations:
 
 Required before this PR can be considered complete:
 
-- Finish extracting layout state and its frame; extract navigation and sidebar
-  providers with acyclic integration components. Viewport, breakpoint, layout
+- Finish extracting layout state and its frame; extract navigation and remove
+  the sidebar implementation’s remaining notebook dependencies. Viewport, breakpoint, layout
   preference and CSS observers now belong to the root entry activation.
 - Extract independent outlines and Markdown server bindings, wire adapters,
   browser models, routes and editing/reading state. Preserve unprefixed tags.
@@ -44,3 +44,11 @@ hanging initialization, fresh reacquisition, and unrelated identity preservation
 Browser chunk acquisition is contained per row, with failed loads reported in
 the inspector. Cold-start recovery and further shell extraction remain under
 active validation; these corrections do not complete Phase 18.
+
+The legacy Slots/Faces tables have now been replaced by a typed facade over the
+renderer registry. Native and legacy entries share key reservations, diagnostics,
+child ownership and activation scopes. A new sidebar row owns its actual column
+and rail plus their extension locations. Chat owns its panel's delivery/engine
+locations and scopes its camera observer to that entry. The frame no longer
+imports Sidebar or Rail implementations. This establishes live sidebar removal
+without replacing the editor, while the notebook model extraction remains open.

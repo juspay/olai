@@ -9,10 +9,10 @@
  * Child declarations and effectful integrations are owned by entries through
  * the registry contract, rather than inferred from what a JSX tree displays.
  */
-import { definePlugin, locations, Offers } from "@olai/plugin-api"
+import { definePlugin, locations, Offers, slotFacade } from "@olai/plugin-api"
 import { BrowserMount } from "@olai/plugin-api/mount"
 import { Effect } from "effect"
-import { createSignal, ErrorBoundary, For } from "solid-js"
+import { createSignal, ErrorBoundary, For, untrack } from "solid-js"
 import { render } from "solid-js/web"
 import { name, root } from "./index.ts"
 
@@ -20,12 +20,20 @@ export default definePlugin({
   name,
   needs: [BrowserMount, Offers],
   apply: Effect.gen(function*() {
-    const { element } = yield* BrowserMount
+    const { element, changed, reading } = yield* BrowserMount
     const [revision, setRevision] = createSignal(0)
     const slots = yield* locations({
-      changed: () => { setRevision((value) => value + 1) },
+      changed: () => { changed?.(); setRevision((value) => value + 1) },
       reading: () => { revision() },
     })
+    const compatibility = slotFacade({ ...slots, read: (slot) => {
+      // Legacy consumers track the host's batched signal. The registry's own
+      // signal is for renderer roots and native location readers.
+      return untrack(() => slots.read(slot))
+    } }, reading)
+    yield* (yield* Offers).own("legacy-slots", compatibility.forOwner)
+    yield* (yield* Offers).own("faces", () => compatibility.faces)
+    yield* (yield* Offers).own("integrations", () => compatibility.management)
     yield* (yield* Offers).own("slots", (owner) => ({
       ...slots.forOwner(owner), read: slots.read, inspect: slots.inspect,
     }))

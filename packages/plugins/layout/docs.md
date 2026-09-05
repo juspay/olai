@@ -6,7 +6,7 @@ renderer it waits; disabling layout removes that contribution and disposes
 its Solid subtree. Its selection has no server capability dependencies.
 
 An exact `--plugins` list must include both `ui-renderer` and `layout` to draw
-the current application. Headless profiles select neither. If either is
+the current application; include `sidebar` for its directory column and rail. Headless profiles select neither. If either is
 disabled through the panel, use the authorized non-UI plugin-management
 interface or restart with the desired selection to restore the UI.
 
@@ -26,3 +26,9 @@ are no longer started by the permanent browser entry point.
 Viewport width is a reactive input to column fitting. Resizing an open desktop
 layout recomputes both columns while preserving stored preferred widths, so the
 main content keeps its minimum available space when the window narrows.
+
+The root declares `layout.sidebar`. The frame reads that seat through the
+renderer contract and imports no sidebar implementation. The sidebar row owns
+its two extension locations; chat's panel entry owns delivery marks and engine
+installation entries. Remaining outline and navigation compatibility locations
+still belong to the frame until those providers are extracted.

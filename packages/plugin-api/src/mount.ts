@@ -3,6 +3,9 @@ import { serviceTag } from "@olai/effect-cordis"
 
 export interface BrowserMount {
   readonly element: Element
+  /** Host composition can defer notifications until a complete roster commits. */
+  readonly changed?: () => void
+  readonly reading?: () => void
 }
 export const BrowserMount = serviceTag<BrowserMount>("browser-mount")
 export const BROWSER_BOOT_PATH = "/olai/browser-boot"

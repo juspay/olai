@@ -920,3 +920,8 @@ just serve docs              # the same build, watched, with a server in front
 ```
 
 The Nix build runs that same script in its own sandbox (`default.nix`), so there is one bundler and not two that could drift.
+
+The directory column and rail now live in `plugins/sidebar/src/`. Layout draws
+that plugin through its `layout.sidebar` contract. The renderer owns the sole
+slot registry; this package's compatibility reads and composition batching do
+not maintain another set of slot tables.

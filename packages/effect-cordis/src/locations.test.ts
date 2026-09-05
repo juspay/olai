@@ -164,3 +164,44 @@ test("failed dependent cleanup cannot leave faces or child locations active", sc
   expect(slots.read(side)).toEqual([])
   expect(slots.inspect().find((entry) => entry.owner === "bad-cleanup")?.state).toBe("failed")
 }))
+
+test("key reservations include waiting entries and cannot shadow a native occupant", scoped(async (scope) => {
+  const slots = await run(scope, locations())
+  const held = Scope.makeUnsafe()
+  await run(held, slots.forOwner("first").contribute(list, "one", { key: "shared" }))
+  const duplicate = await run(scope, Effect.exit(slots.forOwner("second").contribute(list, "two", { key: "shared" })))
+  expect(Exit.isFailure(duplicate)).toBe(true)
+  expect(slots.inspect()).toHaveLength(1)
+  await close(held)
+  await run(scope, slots.forOwner("second").contribute(list, "two", { key: "shared" }))
+  await run(scope, slots.forOwner("shell").contribute(root, "shell", { children: [list] }))
+  await run(scope, slots.settled)
+  expect(slots.read(list)).toEqual([{ owner: "second", value: "two", key: "shared" }])
+}))
+
+test("retry reacquires only failed integrations and preserves siblings and independent work", scoped(async (scope) => {
+  const slots = await run(scope, locations())
+  let fail = true
+  let starts = 0
+  let closed = 0
+  await run(scope, slots.forOwner("shell").contribute(root, "shell", { children: [list] }))
+  await run(scope, slots.forOwner("stable").contribute(list, "stable"))
+  await run(scope, slots.forOwner("flaky").contribute(list, "recovered", {
+    activate: Effect.gen(function*() {
+      starts++
+      yield* Effect.addFinalizer(() => Effect.sync(() => { closed++ }))
+      if (fail) yield* Effect.die(new Error("try again"))
+    }),
+  }))
+  await run(scope, slots.settled)
+  const stable = slots.read(list)[0]
+  expect(closed).toBe(1)
+  expect(slots.inspect().find((entry) => entry.owner === "flaky")?.state).toBe("failed")
+  fail = false
+  await run(scope, slots.retry)
+  expect(starts).toBe(2)
+  expect(slots.read(list)[0]).toBe(stable)
+  expect(slots.read(list).map((entry) => entry.value)).toEqual(["stable", "recovered"])
+  await run(scope, slots.retry)
+  expect(starts).toBe(2)
+}))

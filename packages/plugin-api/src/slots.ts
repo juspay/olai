@@ -1,26 +1,7 @@
-/**
- * WHERE A FACE CAN HANG — the slot catalog, as DATA.
- *
- * ## Why it is a file of its own, and it was `./browser.ts`'s
- *
- * Because two processes read it and only one of them draws. The tab reads it to
- * build the slot table a browser half registers into, which is what it has
- * always been for. The SERVE reads it to answer `plugins.inspect` — the verb an
- * agent asks *what may I name* before it writes a plugin into a vault (phase
- * 12) — and a serve may not open this package's browser door: that door carries
- * every face type in the app, and `@olai/server`'s manifest says out loud that
- * it opens `./services` and never the root.
- *
- * So the catalog moved to where both can reach it and NOTHING ELSE moved. The
- * types that say what a face IS — the chip, the block, the pane, the mark —
- * stay in `./browser.ts` with the components they describe; what is here is the
- * list of names and the one fact about each that is not a drawing.
- *
- * A COPY IN THE SERVER was the alternative and is the thing this refuses. The
- * catalog is what an agent is told it may register into; a second list that
- * agreed with this one until somebody added a slot would send an agent to write
- * a face into a name nothing reads, which lands as a plugin that mounts,
- * registers, and draws nothing anywhere.
+/** Notebook compatibility vocabulary shared by browser typing and plugin
+ * discovery. This catalog allocates no storage and declares no active location.
+ * Each consuming entry declares its locations in the renderer registry; Slots
+ * is only a typed facade over those same registrations.
  */
 
 /** WHAT KEYS AN ENTRY, which is also what says how many fit — see

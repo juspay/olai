@@ -30,8 +30,18 @@ records selection, and its roster says `browserOnly: true`. The plugin panel
 shows browser activation separately from host selection. Headless profiles
 do not select this row.
 
-This is the renderer foundation for Phase 18. The remaining application
-locations still use the earlier slot API until their owners are extracted.
+The earlier `Slots`/`Faces` API is a typed adapter over this same registry.
+`openApp` owns no slot tables. Legacy plugin, kind, list and single-slot key
+rules are retained; reservations, activation scopes and diagnostics are shared
+with native contributions. The renderer publishes these compatibility services
+as `ui-renderer.legacy-slots` and `ui-renderer.faces`. `Slots` and `Faces` imports
+remain the supported way to name them.
+
+The host defers compatibility notifications across roster composition and joins
+location activations before publishing the result. This prevents a provider
+wrapper from disappearing while dependent faces are still drawn. Location
+failures and missing owners appear in the inspector. Retry restarts only failed
+integrations; successful entries and independent plugin providers survive.
 
 If the socket has not delivered its first roster after the startup deadline,
 the browser asks the web-app provider for `/olai/browser-boot`. This uncached

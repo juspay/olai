@@ -1,3 +1,6 @@
+import { sidebar } from "./index.ts"
+import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
+import { For } from "solid-js"
 /**
  * The whole app: a header of the app's own chrome, a sidebar of the directory,
  * and one or more panes, each a full page.
@@ -48,11 +51,10 @@ import { troubleIn } from "@olai/web/client/errors/banner.ts"
 import { Page as ErrorPage } from "@olai/web/client/errors/Page.tsx"
 import { desktop } from "@olai/web/client/layout/media.ts"
 import { panelOpen, sidebarOpen, toggleSidebar } from "@olai/web/client/layout/prefs.ts"
-import { Rail } from "@olai/web/client/layout/Rail.tsx"
 import { only } from "@olai/web/client/narrow.ts"
 import { OpensProvider } from "@olai/web/client/opens.tsx"
 import { fileOf, opensAt, requestFor } from "@olai/web/client/page.ts"
-import { fileNamed } from "@olai/web/client/routes.ts"
+import { HOME_ROUTE, fileNamed } from "@olai/web/client/routes.ts"
 import { createReadings, ReadingsProvider } from "@olai/web/client/reading.tsx"
 import { Palette } from "@olai/web/client/palette/Palette.tsx"
 import { PinsProvider } from "@olai/web/client/pins/answered.tsx"
@@ -68,12 +70,11 @@ import { PluginPanel } from "@olai/web/client/plugins/Seats.tsx"
 import { Plugins } from "@olai/web/client/plugins/Plugins.tsx"
 import { pageFileOf } from "@olai/web/client/settings/done.ts"
 import { Preferences } from "@olai/web/client/settings/Preferences.tsx"
-import { Sidebar } from "@olai/web/client/Sidebar.tsx"
 import { TodayProvider } from "@olai/web/client/today.tsx"
 import { connectionReadout, olai } from "@olai/web/client/wire.ts"
 import { isLone } from "@olai/web/client/workspace.ts"
 
-export default function Frame() {
+export default function Frame(props: { readonly slots: RendererSlots }) {
   // The frame outlives plugin provider changes; its undo history needs no outer store.
   const undo = createUndo((edit) => runAsync(olai.procedures.edit.apply(edit)))
   /** THE DIRECTORY — every served file's path, title and breakage, and nothing
@@ -346,7 +347,7 @@ export default function Frame() {
         <Header
           docked={loaded()}
           menu={
-            loaded()
+            loaded() && props.slots.read(sidebar).length > 0
               ? {
                   open: menuOpen(),
                   onToggle: () => setMenuOpen(!menuOpen()),
@@ -376,17 +377,19 @@ export default function Frame() {
           <Match when={loaded()}>
                 <DocumentsProvider documents={documents}>
                   <div
-                    class="relative md:grid md:grid-cols-[var(--width-sidebar)_1fr]"
+                    class="relative md:grid"
                     classList={{
                       [SHELL_SPLIT]: split(),
+                      "md:grid-cols-[var(--width-sidebar)_1fr]": props.slots.read(sidebar).length > 0,
                       [SHELL_LONE]: !split(),
                     }}
                   >
+                    <For each={props.slots.read(sidebar)}>{({ value: parts }) => <>
                     <Show when={desktop() && !sidebarOpen()}>
-                      <Rail go={(route) => router.go(route)} />
+                      <parts.Rail home={() => router.go(HOME_ROUTE)} />
                     </Show>
                     <Show when={desktop() ? sidebarOpen() : true}>
-                      <Sidebar
+                      <parts.Sidebar
                         active={openFile()}
                         broken={directory.broken()}
                         inboxHeld={inboxHeld()}
@@ -407,6 +410,7 @@ export default function Frame() {
                         }
                       />
                     </Show>
+                    </>}</For>
                     <Panes trouble={trouble()} />
                   </div>
                 </DocumentsProvider>

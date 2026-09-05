@@ -15,12 +15,11 @@
  * buttons rather than clipping the last of them.
  */
 
-import { Glyph } from "../file/icons.tsx"
-import { PluginRailEntries } from "../plugins/Seats.tsx"
-import { HOME_ROUTE, type Route } from "../routes.ts"
-import { TESTID } from "../testids.ts"
-import { TARGET_BOX } from "../touch.ts"
-import { setSidebarOpen } from "./prefs.ts"
+import { Glyph } from "@olai/web/client/file/icons.tsx"
+import { PluginRailEntries } from "@olai/web/client/plugins/Seats.tsx"
+import { TESTID } from "@olai/web/client/testids.ts"
+import { RailButton } from "@olai/web/client/layout/RailButton.tsx"
+import { setSidebarOpen } from "@olai/web/client/layout/prefs.ts"
 
 /** How big an icon on this rail is. Spelled once because five buttons draw one
  *  — three inline here and two that are the directory's own glyphs
@@ -32,7 +31,7 @@ const ICON = "size-4"
 export function Rail(props: {
   /** Navigate without a full Link tree — the rail is outside the router
    *  provider on some screens, so it takes a callback the shell already has. */
-  readonly go: (route: Route) => void
+  readonly home: () => void
 }) {
   return (
     <div
@@ -60,7 +59,7 @@ export function Rail(props: {
         title="outlines"
         onClick={() => {
           setSidebarOpen(true)
-          props.go(HOME_ROUTE)
+          props.home()
         }}
       >
         {/* The tree's own outline glyph (../file/icons.tsx), at the rail's
@@ -82,33 +81,5 @@ export function Rail(props: {
 
       <PluginRailEntries place="bottom" />
     </div>
-  )
-}
-
-export function RailButton(props: {
-  readonly testid: string
-  readonly label: string
-  readonly title: string
-  /** Optional semantic facts owned by the caller, without teaching this shell
-   * button any tenant's vocabulary. */
-  readonly data?: { readonly [key: `data-${string}`]: string | undefined }
-  readonly onClick: () => void
-  readonly children: import("solid-js").JSX.Element
-}) {
-  return (
-    <button
-      type="button"
-      // `relative`: the agenda's dot is absolute against this box, and the
-      // containing block is declared once, here, rather than by whichever child
-      // happens to need one.
-      class={`${TARGET_BOX} relative inline-flex items-center justify-center rounded-xl text-paper/65 hover:bg-paper/10 hover:text-paper md:min-h-9 md:min-w-9`}
-      {...props.data}
-      data-testid={props.testid}
-      aria-label={props.label}
-      title={props.title}
-      onClick={() => props.onClick()}
-    >
-      {props.children}
-    </button>
   )
 }

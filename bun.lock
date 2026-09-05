@@ -61,6 +61,7 @@
         "olai-plugin-opencode": "workspace:*",
         "olai-plugin-pi": "workspace:*",
         "olai-plugin-search": "workspace:*",
+        "olai-plugin-sidebar": "workspace:*",
         "olai-plugin-ui-renderer": "workspace:*",
         "olai-plugin-vault": "workspace:*",
         "olai-plugin-web-app": "workspace:*",
@@ -272,6 +273,7 @@
       "dependencies": {
         "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "@olai/surface": "workspace:*",
         "@olai/web": "workspace:*",
         "effect": "4.0.0-rc.112",
         "olai-plugin-ui-renderer": "workspace:*",
@@ -345,6 +347,21 @@
         "@effect/platform-node": "4.0.0-rc.112",
         "@olai/store": "workspace:*",
         "@types/node": "^22.0.0",
+      },
+    },
+    "packages/plugins/sidebar": {
+      "name": "olai-plugin-sidebar",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/format": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "@olai/surface": "workspace:*",
+        "@olai/web": "workspace:*",
+        "@solid-primitives/keyed": "^1.5.2",
+        "effect": "4.0.0-rc.112",
+        "olai-plugin-layout": "workspace:*",
+        "olai-plugin-ui-renderer": "workspace:*",
+        "solid-js": "^1.9.0",
       },
     },
     "packages/plugins/ui-renderer": {
@@ -1342,6 +1359,8 @@
     "olai-plugin-pi": ["olai-plugin-pi@workspace:packages/plugins/pi"],
 
     "olai-plugin-search": ["olai-plugin-search@workspace:packages/plugins/search"],
+
+    "olai-plugin-sidebar": ["olai-plugin-sidebar@workspace:packages/plugins/sidebar"],
 
     "olai-plugin-ui-renderer": ["olai-plugin-ui-renderer@workspace:packages/plugins/ui-renderer"],
 

@@ -1,6 +1,6 @@
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
-import { BROWSER_MODULES_ID } from "@olai/web/testlib";
+import { BROWSER_MODULES_ID, TESTID } from "@olai/web/testlib";
 import type { OlaiWorld } from "../support/world.ts";
 
 const refused = new WeakMap<OlaiWorld, { url: string; requests: number }>();
@@ -94,4 +94,13 @@ When("the browser selection endpoint recovers", async function (this: OlaiWorld)
 Then("browser startup has recovered", async function (this: OlaiWorld) {
   await this.page.getByRole("alert", { name: "Browser startup failed" }).waitFor({ state: "hidden" });
   await this.page.waitForFunction(() => (document.getElementById("root")?.childElementCount ?? 0) > 0);
+});
+
+Then("the sidebar plugin has no rendered column or rail", async function (this: OlaiWorld) {
+  await this.page.getByTestId(TESTID.sidebar).waitFor({ state: "detached" });
+  await this.page.getByTestId(TESTID.sidebarRail).waitFor({ state: "detached" });
+});
+
+Then("the sidebar plugin has a rendered column", async function (this: OlaiWorld) {
+  await this.page.getByTestId(TESTID.sidebar).waitFor({ state: "visible" });
 });

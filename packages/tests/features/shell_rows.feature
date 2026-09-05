@@ -20,17 +20,22 @@ Feature: The renderer and layout are browser rows
       | layout      |
       | ui-renderer |
 
-  Scenario: An optional module failing during cold startup leaves the shell usable
-    Given the browser module for "pi" cannot be fetched
+  Scenario Outline: An optional module failing during cold startup leaves the shell usable
+    Given the browser module for "<owner>" cannot be fetched
     When I open the app
     And I open the plugins panel
-    Then the plugins panel says "pi" is "Module load failed"
+    Then the plugins panel says "<owner>" is "Module load failed"
     Given I mark the page
     When the browser module can be fetched again
     And I retry the failed browser activation
     Then the browser activation has recovered
     And the page has not reloaded
     And there should be no page errors
+
+    Examples:
+      | owner   |
+      | pi      |
+      | sidebar |
 
   Scenario: A renderer module failure has a startup diagnostic and can recover
     Given the browser module for "ui-renderer" cannot be fetched
@@ -59,5 +64,25 @@ Feature: The renderer and layout are browser rows
     When the browser selection endpoint recovers
     And I retry browser startup
     Then browser startup has recovered
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: The sidebar can leave and return without replacing an active editor
+    Given I open the outline "house.olai"
+    And I mark the page
+    And I mark the screen
+    When I click the title of "handles"
+    And I select all and type "abcde"
+    And I press "ArrowLeft"
+    And I press "ArrowLeft"
+    And I request that the plugin "sidebar" be off
+    Then the sidebar plugin has no rendered column or rail
+    And the node "handles" was never taken away
+    When I type "|"
+    And I request that the plugin "sidebar" be on
+    Then the sidebar plugin has a rendered column
+    And the node "handles" was never taken away
+    When I click away from the editor
+    Then "house.olai" holds a node titled "abc|de"
     And the page has not reloaded
     And there should be no page errors

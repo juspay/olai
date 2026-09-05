@@ -57,7 +57,7 @@
  * write one.
  */
 
-import { definePlugin, Faces, Slots, Wired } from "@olai/plugin-api"
+import { definePlugin, Faces, Slots, Wired, slotLocation } from "@olai/plugin-api"
 import { Effect } from "effect"
 
 import { AgentDoor } from "./browser/agents/Door.tsx"
@@ -103,14 +103,16 @@ export default definePlugin({
     // WHETHER THIS DEVICE HAS A CAMERA to offer, watched once for the tab. It
     // was `main.tsx`'s, a statement in core's boot about a control that only
     // this panel's composer draws.
-    trackCamera()
 
     // THE PANEL, in the seat the shell reserves for one. What travels with it is
     // everything that draws INSIDE that seat — the dock, the mobile sheet, the
     // minimized strip and the wake strip — because none of those is a bar
     // readout in this app's geometry and all of them are the panel positioning
     // itself in what it was given.
-    yield* slots.register("app.panel", Panel)
+    yield* slots.register("app.panel", Panel, {
+      children: [slotLocation("delivery.mark"), slotLocation("engine.install")],
+      activate: Effect.acquireRelease(Effect.sync(trackCamera), (stop) => Effect.sync(stop)),
+    })
     // ...and the control in the bar that opens and shuts it.
     yield* slots.register("app.header", { place: "cluster", body: Toggle })
     // THE ROSTER SECTION, under the app's own sidebar regions.

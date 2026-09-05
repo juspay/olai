@@ -41,6 +41,7 @@
     "olai-plugin-mcp": "workspace:*",
     "olai-plugin-web-app": "workspace:*",
     "olai-plugin-ui-renderer": "workspace:*",
-    "olai-plugin-layout": "workspace:*"
+    "olai-plugin-layout": "workspace:*",
+    "olai-plugin-sidebar": "workspace:*"
   }
 }

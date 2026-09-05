@@ -135,27 +135,27 @@ import {
   Switch,
 } from "solid-js"
 
-import type { InboxHeld } from "@olai/surface"
+import type { SidebarProps } from "olai-plugin-layout/contract"
 
-import { PluginEntries, PluginSections } from "./plugins/Seats.tsx"
-import { NewDocument } from "./document/NewDocument.tsx"
-import { NewOutline } from "./outline/NewOutline.tsx"
-import { ROW_TESTID } from "./file/kinds.ts"
-import { useServed } from "./served.tsx"
-import { Glyph } from "./file/icons.tsx"
-import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
-import { openFolders, toggleFolder } from "./fold/folders.ts"
-import { LAYER, WITHIN } from "./layer.ts"
-import { CHIP_QUIET } from "./layout/chip.ts"
-import { ENTRY_SHAPE, REGION, ROW_GAP } from "./layout/entry.ts"
-import { CountChip } from "./layout/CountChip.tsx"
-import { SidebarHandle } from "./layout/Handle.tsx"
-import { setSidebarOpen } from "./layout/prefs.ts"
-import { Shelf } from "./pins/Shelf.tsx"
-import { Link, useRouter } from "./router.tsx"
-import { TESTID } from "./testids.ts"
-import { CONTROL, TARGET_BOX } from "./touch.ts"
-import { atFile, type Route } from "./routes.ts"
+import { PluginEntries, PluginSections } from "@olai/web/client/plugins/Seats.tsx"
+import { NewDocument } from "@olai/web/client/document/NewDocument.tsx"
+import { NewOutline } from "@olai/web/client/outline/NewOutline.tsx"
+import { ROW_TESTID } from "@olai/web/client/file/kinds.ts"
+import { useServed } from "@olai/web/client/served.tsx"
+import { Glyph } from "@olai/web/client/file/icons.tsx"
+import { ancestorDirs, dirsIn, type FileRow, fileTree } from "@olai/web/client/fileTree.ts"
+import { openFolders, toggleFolder } from "@olai/web/client/fold/folders.ts"
+import { LAYER, WITHIN } from "@olai/web/client/layer.ts"
+import { CHIP_QUIET } from "@olai/web/client/layout/chip.ts"
+import { ENTRY_SHAPE, REGION, ROW_GAP } from "@olai/web/client/layout/entry.ts"
+import { CountChip } from "@olai/web/client/layout/CountChip.tsx"
+import { SidebarHandle } from "@olai/web/client/layout/Handle.tsx"
+import { setSidebarOpen } from "@olai/web/client/layout/prefs.ts"
+import { Shelf } from "@olai/web/client/pins/Shelf.tsx"
+import { Link, useRouter } from "@olai/web/client/router.tsx"
+import { TESTID } from "@olai/web/client/testids.ts"
+import { CONTROL, TARGET_BOX } from "@olai/web/client/touch.ts"
+import { atFile, type Route } from "@olai/web/client/routes.ts"
 
 /** One file entry. Workflowy-quiet: soft hover, a wash when current.
  *
@@ -191,30 +191,7 @@ interface TreeView {
   readonly toggle: (path: string) => void
 }
 
-export function Sidebar(props: {
-  readonly active: string | undefined
-  readonly broken: ReadonlyMap<string, BrokenFile>
-  /** How full the inbox is, counted where the set is (`./inbox.ts`'s cell) —
-   *  the rows marked `todo` or `doing`, at any depth; zero when there is
-   *  none or nothing is marked. The door's presence is still a
-   *  question about the PATHS (`inboxIn`); this is only the number it
-   *  wears. */
-  readonly inboxHeld: InboxHeld
-  /**
-   * Phone drawer footer. App chrome that is not the directory — preferences —
-   * is composed here by the caller so this column does not import it.
-   * Always mounted on a phone even while the drawer is `hidden`, so opening
-   * it and putting the drawer away does not unmount the panel.
-   */
-  readonly foot?: JSX.Element
-  /**
-   * Mobile drawer open. Desktop always draws the column when this component
-   * is mounted (the parent swaps in the rail when minimized).
-   */
-  readonly open: boolean
-  /** Shut the mobile drawer (navigation, scrim). */
-  readonly onClose: () => void
-}) {
+export function Sidebar(props: SidebarProps) {
   // The open file's parent chain, as a set for O(1) membership in each Dir.
   // Memoised on the active path alone: folding a folder must not rewalk it.
   const openAncestry = createMemo(() => {

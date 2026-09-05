@@ -1,3 +1,5 @@
+import { settled } from "@olai/effect-cordis"
+import { installTestRenderer } from "./browser.testlib.ts"
 import { expect, test } from "bun:test"
 import { Effect, type Scope } from "effect"
 import { definePlugin, mountPlugin, Offers, openApp, serviceTag, Slots } from "./browser.ts"
@@ -8,6 +10,7 @@ const run = (body: Effect.Effect<void, never, Scope.Scope>) =>
 
 test("browser consumers wait, release faces before provider resources, and restart with fresh services", () => run(Effect.gen(function*() {
   const app = yield* openApp()
+  yield* installTestRenderer(app)
   const seen: string[] = []
   const consumer = yield* mountPlugin(app.host, definePlugin({
     name: "reader", needs: [Reading, Slots], apply: Effect.gen(function*() {
@@ -34,12 +37,16 @@ test("browser consumers wait, release faces before provider resources, and resta
     }),
   })
   const first = yield* mountPlugin(app.host, provider("v1"))
+  yield* settled(app.host, ["reader"])
   expect((yield* consumer.report).state).toBe("running")
+  yield* app.settled
   expect(app.only("app.viewer")?.face()).toBe("v1:reader")
   yield* first.dispose
   expect((yield* consumer.report).state).toBe("waiting")
   expect(seen).toEqual(["v1:reader", "release:v1:reader", "closed:v1"])
   yield* mountPlugin(app.host, provider("v2"))
+  yield* settled(app.host, ["reader"])
+  yield* app.settled
   expect(app.only("app.viewer")?.face()).toBe("v2:reader")
   // The enclosing host scope now checks the same cleanup ordering on shutdown.
 })))
@@ -47,6 +54,7 @@ test("browser consumers wait, release faces before provider resources, and resta
 for (const word of ["", "other.reading", "Reading", "../slots"]) {
   test(`browser offers refuse invalid local word ${JSON.stringify(word)}`, () => run(Effect.gen(function*() {
     const app = yield* openApp()
+  yield* installTestRenderer(app)
     const bad = yield* mountPlugin(app.host, definePlugin({
       name: "source", needs: [Offers], apply: Effect.gen(function*() {
         yield* (yield* Offers).own(word, () => ({}))
@@ -59,6 +67,7 @@ for (const word of ["", "other.reading", "Reading", "../slots"]) {
 for (const duplicate of [false, true]) {
   test(`browser failed setup publishes no partial service (duplicate: ${duplicate})`, () => run(Effect.gen(function*() {
     const app = yield* openApp()
+  yield* installTestRenderer(app)
     let activations = 0
     const reader = yield* mountPlugin(app.host, definePlugin({
       name: "reader", needs: [Reading], apply: Effect.sync(() => { activations++ }),
@@ -88,6 +97,7 @@ for (const duplicate of [false, true]) {
 
 test("a local word cannot shadow browser furniture or another namespace", () => run(Effect.gen(function*() {
   const app = yield* openApp()
+  yield* installTestRenderer(app)
   for (const name of ["one", "two"]) {
     const row = yield* mountPlugin(app.host, definePlugin({
       name, needs: [Offers, Slots], apply: Effect.gen(function*() {
@@ -97,6 +107,7 @@ test("a local word cannot shadow browser furniture or another namespace", () => 
     }))
     expect((yield* row.report).state).toBe("running")
   }
+  yield* app.settled
   expect(app.hung("app.header").length).toBe(2)
 })))
 

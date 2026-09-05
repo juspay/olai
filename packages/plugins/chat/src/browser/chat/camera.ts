@@ -33,17 +33,14 @@ const [offered, setOffered] = createSignal(
   typeof window !== "undefined" && window.matchMedia(COARSE_MQ).matches,
 )
 
-let watching = false
-
-/** Start the listener. Idempotent; called from this plugin's own `apply`
- *  (`../../browser.tsx`) — it was the app's entry when the panel was core's. */
-export const trackCamera = (): void => {
-  if (watching || typeof window === "undefined") return
-  watching = true
+/** The panel entry owns the listener, including across shell withdrawal. */
+export const trackCamera = (): (() => void) => {
+  if (typeof window === "undefined") return () => {}
   const mq = window.matchMedia(COARSE_MQ)
   const apply = () => setOffered(mq.matches)
   apply()
   mq.addEventListener("change", apply)
+  return () => mq.removeEventListener("change", apply)
 }
 
 /** Whether the composer may draw the camera's door. */

@@ -16,7 +16,7 @@
  * it available: only the particular active entry which owns it can do that.
  * Cardinality includes waiting entries, preventing ambiguous later activation.
  */
-import { Cause, Effect, Exit, Scope, Stream } from "effect"
+import { Cause, Effect, Exit, Scope, Stream, Semaphore } from "effect"
 import { hostChanges, mountPlugin, openHost, provide, settled, type Mounted, type RowReport } from "./host.ts"
 import { offer } from "./lifecycle.ts"
 import { definePlugin } from "./plugin.ts"
@@ -38,6 +38,7 @@ export const location = <T>(name: string, cardinality: Location<T>["cardinality"
 export interface Contribution<T> {
   readonly owner: string
   readonly value: T
+  readonly key?: string
 }
 export interface LocationOwner {
   /** Register one independently activated integration. Child locations belong
@@ -45,6 +46,8 @@ export interface LocationOwner {
    * `activate` acquires location-dependent resources in a fresh scoped lifetime.
    * It may fail or be interrupted; children are offered only after it succeeds. */
   readonly contribute: <T>(slot: Location<T>, value: T, options?: {
+    /** Optional unique key within this location, reserved even while waiting. */
+    readonly key?: string
     readonly children?: ReadonlyArray<Contract>
     readonly activate?: Effect.Effect<void, never, Scope.Scope>
   }) => Effect.Effect<void, never, Scope.Scope>
@@ -62,6 +65,8 @@ export interface Locations {
   readonly inspect: () => ReadonlyArray<LocationReport>
   /** Join current activations, including asynchronous initialization/cleanup. */
   readonly settled: Effect.Effect<void>
+  /** Retry failed integrations without restarting independent plugin work. */
+  readonly retry: Effect.Effect<void>
 }
 interface Declaration {
   readonly owner: string
@@ -72,9 +77,11 @@ interface Registration {
   readonly id: string
   readonly owner: string
   readonly slot: Contract
+  readonly key?: string
   mounted?: Mounted
   report: RowReport
   cleanupFault?: string
+  retry?: Effect.Effect<void>
 }
 
 /** The renderer owns the host and closes it with its own activation. No global
@@ -103,7 +110,10 @@ export const locations = (config: {
         changed = true
       }
     }
-    if (changed) yield* Effect.sync(() => config.changed?.())
+    // A rendering observer can refuse an entry; entries.hold rolls that
+    // acquisition back. Reporting that failure must remain readable even if
+    // the same observer also throws while being told about the report.
+    if (changed) yield* Effect.sync(() => config.changed?.()).pipe(Effect.catchDefect(() => Effect.void))
   })
   yield* Effect.forkScoped(Stream.runForEach(hostChanges(host), () => refresh))
   const joined = Effect.gen(function*() {
@@ -129,6 +139,10 @@ export const locations = (config: {
         if (slot.cardinality === "one" && prior) {
           return yield* Effect.die(new Error(`Locations: "${owner}" and "${prior.owner}" both occupy single location "${slot.name}"`))
         }
+        if (options.key !== undefined) {
+          const held = registrations.read().find((entry) => entry.slot.name === slot.name && entry.key === options.key)
+          if (held) return yield* Effect.die(new Error(`Locations: "${owner}" and "${held.owner}" both occupy "${slot.name}" under "${options.key}"`))
+        }
         // An acquisition scope rolls back all reservations if any child is
         // invalid. Its finalizer drains the activation before freeing names.
         const scope = yield* Effect.acquireRelease(Scope.make(), (scope, exit) => Scope.close(scope, exit))
@@ -148,9 +162,9 @@ export const locations = (config: {
             yield* declarations.claim(child.name, { owner, parent: slot.name, cardinality: child.cardinality },
               (held) => `Locations: "${owner}" and "${held.owner}" both declare "${child.name}"`)
           }
-          const registration: Registration = { id: `entry-${++serial}`, owner, slot, report: { state: "waiting" } }
+          const registration: Registration = { id: `entry-${++serial}`, owner, slot, key: options.key, report: { state: "waiting" } }
           yield* registrations.hold(registration)
-          const mounted = yield* Effect.acquireRelease(mountPlugin(host, definePlugin({
+          const start = mountPlugin(host, definePlugin({
             name: registration.id,
             needs: [key(slot.name)],
             apply: Effect.gen(function*() {
@@ -161,11 +175,24 @@ export const locations = (config: {
                 }))),
               )
               yield* Scope.provide(options.activate ?? Effect.void, integration)
-              yield* entries.hold({ slot: slot.name, contribution: { owner, value } })
+              yield* entries.hold({ slot: slot.name, contribution: { owner, value, ...(options.key === undefined ? {} : { key: options.key }) } })
               for (const child of options.children ?? []) yield* offer(key(child.name), () => true as const)
             }),
-          }), { wait: false }), (mounted) => mounted.dispose)
-          registration.mounted = mounted
+          }), { wait: false })
+          const lock = Semaphore.makeUnsafe(1)
+          let closed = false
+          registration.mounted = yield* Effect.acquireRelease(start, (initial) => lock.withPermits(1)(Effect.gen(function*() {
+            closed = true
+            yield* (registration.mounted ?? initial).dispose
+          })))
+          registration.retry = lock.withPermits(1)(Effect.gen(function*() {
+            if (closed || !registration.mounted) return
+            const report = yield* registration.mounted.report
+            if (report.state !== "failed" && registration.cleanupFault === undefined) return
+            yield* registration.mounted.dispose
+            delete registration.cleanupFault
+            registration.mounted = yield* start
+          }).pipe(Effect.uninterruptible))
           yield* refresh
         }), scope).pipe(Effect.onError((cause) => Scope.close(scope, Exit.failCause(cause))))
       }),
@@ -186,5 +213,9 @@ export const locations = (config: {
       }))
     },
     settled: joined,
+    retry: Effect.gen(function*() {
+      for (const entry of registrations.read()) yield* entry.retry ?? Effect.void
+      yield* joined
+    }),
   }
 })

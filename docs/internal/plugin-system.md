@@ -1276,3 +1276,20 @@ closing its own resources. Independent provider work belongs outside `activate`.
 A returning owner starts fresh dependent integrations; surviving siblings retain
 their identity. Reserved child names prevent duplicate declarations and ownership
 cycles even while integrations wait for a provider.
+
+### Slot compatibility during Phase 18
+
+`Slots.register` and `Faces` use the renderer's `Locations` registry. The host
+creates no second set of tables. `slotLocation(name)` returns the typed contract
+for a compatibility slot, so native contributions and existing registrations
+have identical occupancy and lifetime rules. A registration may pass
+`{ children, activate }`; declare children on the particular consuming entry and
+acquire dependent resources in its scoped activation. Key conflicts reserve
+waiting entries too. Location failures remain in the inspector and can be
+retried independently of successful integrations and provider work.
+
+`layout.sidebar` is consumed by the sidebar plugin, which owns `sidebar.entry`
+and `sidebar.section`. Chat's `app.panel` entry owns `delivery.mark` and
+`engine.install`. Other notebook locations remain frame-owned pending the
+navigation and content extraction. The fixed catalog remains a compatibility
+type vocabulary, not a host-owned registry or a promise that its owner is active.

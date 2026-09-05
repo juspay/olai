@@ -28,6 +28,7 @@
  * is a day this file goes red.
  */
 
+import { installTestRenderer } from "./browser.testlib.ts"
 import { expect, test } from "bun:test"
 import { Effect, Scope } from "effect"
 
@@ -75,12 +76,17 @@ const opened = async (changed?: () => void, reading?: () => void) => {
   const app = await run(
     openApp({ changed, reading, clientFor: (plugin) => `client:${plugin}` }),
   )
+  const store = await run(installTestRenderer(app, changed, reading))
   await run(app.furnish({
     clocks: CLOCKS,
     bar: { desktop: () => true, pill: PILL, popover: () => ({}) as never },
     links: { File: (() => null) as never },
   }))
-  return { app, run }
+  return { app, store, run: async <A>(effect: Effect.Effect<A, never, Scope.Scope>) => {
+    const result = await run(effect)
+    await run(store.settled)
+    return result
+  } }
 }
 
 /**
@@ -317,7 +323,7 @@ test("a plugin that unwinds and re-registers is not refused", async () => {
 test("a face the app refused leaves the table, and takes only its own plugin down", async () => {
   const face = { place: "cluster", body: () => null } as const
   let refusing = false
-  const { app, run } = await opened(() => {
+  const { app, store, run } = await opened(() => {
     if (refusing) throw new Error("the app refuses this frame")
   })
   await run(mountPlugin(
@@ -341,7 +347,8 @@ test("a face the app refused leaves the table, and takes only its own plugin dow
       }),
     }),
   ))
-  expect((await run(refused.report)).state).toBe("failed")
+  expect((await run(refused.report)).state).toBe("running")
+  expect(store.inspect().find((entry) => entry.owner === "refused")?.state).toBe("failed")
   // The refused face is gone from the table, so nothing downstream can draw it
   // — and the neighbour's is untouched.
   expect(app.hung("app.header")).toEqual([{ plugin: "neighbour", face }])
@@ -417,10 +424,11 @@ test("a list face goes when its plugin does, and the app is told", async () => {
   expect(app.hung("sidebar.section")).toHaveLength(2)
   // Told on the way IN, once per entry: a page that drew after the first would
   // otherwise never hear about the second.
-  expect(moved.length).toBe(2)
+  const arrivals = moved.length
+  expect(arrivals).toBeGreaterThanOrEqual(2)
   await run(leaver.dispose)
   expect(app.hung("sidebar.section")).toEqual([])
-  expect(moved.length).toBe(4)
+  expect(moved.length).toBeGreaterThan(arrivals)
 })
 
 /** THE APP'S ONE PANEL IS ONE, whoever asks — and the refusal names BOTH

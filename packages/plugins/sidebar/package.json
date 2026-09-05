@@ -1,13 +1,12 @@
 {
-  "name": "olai-plugin-layout",
+  "name": "olai-plugin-sidebar",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./browser": "./src/browser.tsx",
-    "./all.css": "./src/all.css",
-    "./contract": "./src/index.ts"
+    "./all.css": "./src/all.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -19,6 +18,8 @@
     "olai-plugin-ui-renderer": "workspace:*",
     "@olai/web": "workspace:*",
     "@olai/format": "workspace:*",
+    "olai-plugin-layout": "workspace:*",
+    "@solid-primitives/keyed": "^1.5.2",
     "@olai/surface": "workspace:*"
   }
 }

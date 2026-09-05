@@ -142,3 +142,5 @@
   name: olai-plugin-ui-renderer
 - id: layout
   name: olai-plugin-layout
+- id: sidebar
+  name: olai-plugin-sidebar
