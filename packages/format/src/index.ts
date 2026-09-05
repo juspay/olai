@@ -812,6 +812,11 @@ export {
   Wrote,
 } from "./committing.ts"
 
+/** WHAT THE OPERATOR PINNED about plugins — {@link GitPin}'s sibling, on this
+ *  floor because it travels the wire. The composition root produces it, the
+ *  surface carries it, the tab draws it. */
+export { PluginPin, pluginPinOf } from "./pluginPin.ts"
+
 /** What a READ of the set asks and what it says back — see `./reading.ts`,
  *  which is `./committing.ts`'s argument applied to the vocabulary every query
  *  answer is built out of. `Found` is the atom of the four NODE reads; the

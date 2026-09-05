@@ -1077,7 +1077,7 @@ test("the pin travels onto the roster, and does not mint extra fiber words", () 
   const extra = rosterOf(offering(null, mounted([first]), [first], null))
   expect(extra.built.find((row) => row.name === first)?.state).toBe("running")
   expect(extra.built.find((row) => row.name === first)?.running).toBe(true)
-  expect(extra.extra).toEqual([first])
+  expect(extra.pin).toEqual({ kind: "delta", extra: [first], without: null })
   expect(extra.pinned).toBeNull()
 
   const without = rosterOf(
@@ -1085,7 +1085,7 @@ test("the pin travels onto the roster, and does not mint extra fiber words", () 
   )
   expect(without.built.find((row) => row.name === second)?.state).toBe("optIn")
   expect(without.built.find((row) => row.name === second)?.running).toBe(false)
-  expect(without.without).toEqual([second])
+  expect(without.pin).toEqual({ kind: "delta", extra: null, without: [second] })
 
   const pressed = rosterOf({
     ...offering(null, new Map([[second, { state: "off" as const }]]), null, [second]),

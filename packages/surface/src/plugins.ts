@@ -66,7 +66,7 @@
  * this or of the panel moving.
  */
 
-import { fileKind } from "@olai/format"
+import { fileKind, PluginPin } from "@olai/format"
 import { Schema } from "effect"
 
 /**
@@ -457,18 +457,20 @@ export const PluginRoster = Schema.Struct({
    * `GitPin`), and for the same reason — a value that had already expanded
    * `null` into the full list could not tell a reader which of the two they
    * were looking at.
+   *
+   * Exact-arm projection of {@link pin}, kept so a tab too old to read the
+   * sum still sees `--plugins` / omitted. A delta serve publishes `null` here.
    */
   pinned: Schema.NullOr(Schema.Array(Schema.String)),
   /**
-   * `--extra-plugins` as given. OPTIONAL so a serve too old to send it still
-   * decodes; `null` is nobody having said, the same three-way {@link pinned}
-   * keeps.
+   * WHAT THE OPERATOR PINNED — one value, the git pin's sibling.
+   *
+   * OPTIONAL so a serve too old to send it still decodes; the exact-arm
+   * projection {@link pinned} is what that serve wrote, and
+   * `@olai/format`'s `pluginPinOf` reconstructs the sum from it. A new serve
+   * writes this field and keeps `pinned` as the exact-arm half.
    */
-  extra: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
-  /**
-   * `--without-plugins` as given. OPTIONAL for {@link extra}'s reason.
-   */
-  without: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
+  pin: Schema.optionalKey(PluginPin),
 })
 export type PluginRoster = typeof PluginRoster.Type
 

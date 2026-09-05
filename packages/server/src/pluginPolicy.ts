@@ -83,7 +83,7 @@ import { Flag } from "effect/unstable/cli"
  */
 import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle"
 import { BUNDLE_NAMES as PLUGIN_NAMES } from "@olai/bundle"
-import type { PluginPin } from "@olai/bundle/bundle"
+import type { PluginPin } from "@olai/format"
 
 /**
  * What `--plugins` says for itself.
@@ -207,7 +207,7 @@ const namesOf = (given: string | null, flag: string): ReadonlyArray<string> | nu
  * somebody saying none of THAT patch out loud, which is a no-op next to the
  * default and is still a given flag — the panel quotes it.
  */
-export type { PluginPin } from "@olai/bundle/bundle"
+export type { PluginPin } from "@olai/format"
 
 export const pluginPin = (
   plugins: string | null,

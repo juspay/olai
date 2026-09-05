@@ -478,7 +478,7 @@ test("an extra-plugins row names the flag that turned it on, and still names who
   const extra = {
     built: [{ name: "alpha", running: true, state: "running" }],
     pinned: null,
-    extra: ["alpha"],
+    pin: { kind: "delta" as const, extra: ["alpha"], without: null },
   }
   const said = pluginHint(extra.built[0]!, extra)
   expect(said).toContain("--extra-plugins")
@@ -488,7 +488,7 @@ test("an extra-plugins row names the flag that turned it on, and still names who
   const carrier = {
     built: [{ name: "alpha", running: true, state: "running", carrying: ["kolu"] }],
     pinned: null,
-    extra: ["alpha"],
+    pin: { kind: "delta" as const, extra: ["alpha"], without: null },
   }
   expect(pluginHint(carrier.built[0]!, carrier)).toContain("Turning it off")
 })
@@ -497,7 +497,7 @@ test("a without-plugins row names the flag that turned it off", () => {
   const without = {
     built: [{ name: "alpha", running: false, state: "optIn" }],
     pinned: null,
-    without: ["alpha"],
+    pin: { kind: "delta" as const, extra: null, without: ["alpha"] },
   }
   const said = pluginHint(without.built[0]!, without)
   expect(said).toContain("--without-plugins")
@@ -509,7 +509,7 @@ test("the panel foot quotes extra and without the way they were typed", () => {
   const extra = pluginsStarted({
     built: [{ name: "alpha", running: true, state: "running" }],
     pinned: null,
-    extra: ["alpha"],
+    pin: { kind: "delta", extra: ["alpha"], without: null },
   })
   expect(extra).toContain("--extra-plugins=alpha")
   expect(extra).not.toContain("built-in default")
@@ -517,7 +517,7 @@ test("the panel foot quotes extra and without the way they were typed", () => {
   const without = pluginsStarted({
     built: [{ name: "alpha", running: false, state: "optIn" }],
     pinned: null,
-    without: ["alpha"],
+    pin: { kind: "delta", extra: null, without: ["alpha"] },
   })
   expect(without).toContain("--without-plugins=alpha")
 
@@ -527,8 +527,7 @@ test("the panel foot quotes extra and without the way they were typed", () => {
       { name: "beta", running: false, state: "optIn" },
     ],
     pinned: null,
-    extra: ["alpha"],
-    without: ["beta"],
+    pin: { kind: "delta", extra: ["alpha"], without: ["beta"] },
   })
   expect(both).toContain("--extra-plugins=alpha")
   expect(both).toContain("--without-plugins=beta")

@@ -141,7 +141,8 @@ import { SERVICE_KEYS, SLOTS } from "@olai/plugin-api/services"
 // ...and the third, which is the compiler's: the bare module names a plugin's
 // source may import.
 import { WRITABLE_MODULES } from "@olai/plugin-build"
-import type { PluginPin, RowReport } from "@olai/bundle/bundle"
+import type { PluginPin } from "@olai/format"
+import type { RowReport } from "@olai/bundle/bundle"
 
 
 import { type Emit, emitter } from "@olai/log"
@@ -665,8 +666,7 @@ export const rosterOf = (
       }
     }), ...defined],
     pinned: offered.pin.kind === "exact" ? offered.pin.names : null,
-    extra: offered.pin.kind === "delta" ? offered.pin.extra : null,
-    without: offered.pin.kind === "delta" ? offered.pin.without : null,
+    pin: offered.pin,
   }))(offered.names())
 
 /**
@@ -717,28 +717,6 @@ const carriedBy = (
 }
 
 /**
- * WHICH OF THE FIVE WORDS ONE ROW IS IN — the live reading and the boot
- * snapshot, joined, and the one place `off` is told from `optIn`.
- *
- * ## The live reading wins
- *
- * A name that COMPOSED is `running`, whatever the snapshot remembers, and the
- * snapshot is spent only on the rows that are absent. That is what keeps the
- * word and the boolean from telling two stories about one plugin: `running` is
- * derived from the same reading, on the line above.
- *
- * ## And the one thing the loader cannot tell you
- *
- * The row's own `disabled` and the operator's flag are the SAME FIELD — that is
- * the whole of what makes `--plugins` a patch rather than a filter — so nothing
- * downstream of the patch can say which of them wrote it. What can is whether a
- * flag was given at all, which is `pinned`, which is here. So an absent row
- * under no flag is `optIn` (this build leaves it off until somebody asks) and
- * an absent row under a flag is `off` (somebody asked, and did not ask for
- * this). A person who went looking for a chip is owed that difference: one of
- * them names a flag they typed, and the other names one they have not.
- */
-/**
  * WHO AUTHORED THIS ROW'S ABSENCE — the one question with three answers, and
  * the only thing `off`, `optIn` and `switched` differ by.
  *
@@ -747,7 +725,7 @@ const carriedBy = (
  * flag one mechanism and exactly why nothing downstream of the patch can tell
  * them apart. What can is whether the press came through this process
  * ({@link PluginRuntime.switched}) and whether a flag was given at all
- * (`pinned`), both of which the composition root holds.
+ * (`pin`), both of which the composition root holds.
  *
  * ## The order is the answer, not an accident
  *
@@ -771,6 +749,28 @@ const whoTurnedItOff = (
   return offered.pin.kind === "exact" ? "off" : "optIn"
 }
 
+/**
+ * WHICH OF THE FIVE WORDS ONE ROW IS IN — the live reading and the boot
+ * snapshot, joined, and the one place `off` is told from `optIn`.
+ *
+ * ## The live reading wins
+ *
+ * A name that COMPOSED is `running`, whatever the snapshot remembers, and the
+ * snapshot is spent only on the rows that are absent. That is what keeps the
+ * word and the boolean from telling two stories about one plugin: `running` is
+ * derived from the same reading, on the line above.
+ *
+ * ## And the one thing the loader cannot tell you
+ *
+ * The row's own `disabled` and the operator's flag are the SAME FIELD — that is
+ * the whole of what makes `--plugins` a patch rather than a filter — so nothing
+ * downstream of the patch can say which of them wrote it. What can is whether a
+ * flag was given at all, which is `pin`, which is here. So an absent row
+ * under no flag is `optIn` (this build leaves it off until somebody asks) and
+ * an absent row under a flag is `off` (somebody asked, and did not ask for
+ * this). A person who went looking for a chip is owed that difference: one of
+ * them names a flag they typed, and the other names one they have not.
+ */
 const stateOf = (
   offered: NonNullable<Wiring["plugins"]>,
   name: string,
@@ -802,7 +802,7 @@ const stateOf = (
       // the build. They are ONE FIELD by design, so nothing downstream of the
       // patch can tell them apart — what can is whether the press came through
       // this process ({@link PluginRuntime.switched}) and whether a flag was
-      // given at all (`pinned`), both of which are here.
+      // given at all (`pin`), both of which are here.
       //
       return { state: whoTurnedItOff(offered, name) }
     case "running":

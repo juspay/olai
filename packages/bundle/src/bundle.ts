@@ -46,6 +46,8 @@
  * door in this package keeps, in a third grammar.
  */
 
+import type { PluginPin } from "@olai/format"
+export type { PluginPin } from "@olai/format"
 import type { Host, PropKind, RowReport } from "@olai/plugin-api"
 import { kindWordOf, rowReport } from "@olai/plugin-api"
 // THE TWO REACHES PAST `@olai/plugin-api`, and the only ones in the tree, for
@@ -98,23 +100,6 @@ const BUNDLE = "../olai.yml"
  * reader.
  */
 export { BUNDLE_NAMES, type BundleRow, DEFAULT_BUNDLE_NAMES, ROWS } from "./rows.ts"
-
-/**
- * WHAT THE OPERATOR PINNED, as one value — the git pin's sibling.
- *
- * Three *flags* at the edge; one pin inward. Exact set and delta cannot
- * coexist, so that exclusion is the sum, not a throw sitting on three
- * nullables. Extra and without compose inside `delta` the way commit and
- * push compose inside `GitPin`.
- */
-export type PluginPin =
-  | { readonly kind: "omitted" }
-  | { readonly kind: "exact"; readonly names: ReadonlyArray<string> }
-  | {
-      readonly kind: "delta"
-      readonly extra: ReadonlyArray<string> | null
-      readonly without: ReadonlyArray<string> | null
-    }
 
 /** WHAT BECAME OF ONE ROW, as the bridge reads it off the live registry — four
  *  states, and `off` says nothing about WHO turned a row off. The row's own

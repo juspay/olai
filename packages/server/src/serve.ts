@@ -16,7 +16,7 @@
  */
 // The upgrade seam owns header-name grammar; boot validates its initial list.
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers"
-import { type GitPin } from "@olai/format"
+import { type GitPin, type PluginPin } from "@olai/format"
 import {
   liveOps,
   NO_LEDGER,
@@ -29,7 +29,6 @@ import {
   BUNDLE_NAMES,
   configsOf,
   mountBundle,
-  type PluginPin,
   provide,
   settled,
   offered,

@@ -103,6 +103,7 @@
  */
 
 import type { RowReport } from "@olai/plugin-api"
+import { pluginPinOf } from "@olai/format"
 import type { BuiltPlugin, PluginRoster } from "@olai/surface"
 import { ROWS } from "@olai/bundle"
 import { pluginState } from "@olai/surface"
@@ -242,18 +243,19 @@ export const pluginHint = (
   plugin: BuiltPlugin,
   roster: PluginRoster = { built: [], pinned: null },
 ): string | null => {
+  const pin = pluginPinOf(roster)
   switch (pluginState(plugin)) {
     case "running": {
       const hint = switchHints.get(plugin.name)
-      if (hint !== undefined) return hint
       // NOTHING, on the ordinary row: the switch reads On and there is no
       // second thing to know. A row that carries others has one, and it is
       // about the press rather than about the state. `--extra-plugins`
       // naming this row is the pin, sitting next to the row, not a second
       // fiber word — so the carrying sentence still rides.
-      const extra = namedBy(roster.extra, plugin.name)
+      const extra = pin.kind === "delta" && namedBy(pin.extra, plugin.name)
         ? `On — --extra-plugins named it.`
         : null
+      if (hint !== undefined) return extra === null ? hint : `${extra} ${hint}`
       const carry = carries(plugin) === undefined
         ? null
         : `Turning it off also stops ${carries(plugin)}.`
@@ -265,7 +267,7 @@ export const pluginHint = (
       // built-in default is ON and this one's is OFF, so a panel-wide sentence
       // could only ever name one of them. `--without-plugins` is the pin
       // naming this row, not a new morning.
-      return namedBy(roster.without, plugin.name)
+      return pin.kind === "delta" && namedBy(pin.without, plugin.name)
         ? `Off — --without-plugins named it.`
         : `Off by default — --plugins=${plugin.name} starts it at boot.`
     case "pending":
@@ -330,9 +332,9 @@ const carries = (plugin: BuiltPlugin): string | undefined =>
     : plugin.carrying.join(", ")
 
 const namedBy = (
-  names: ReadonlyArray<string> | null | undefined,
+  names: ReadonlyArray<string> | null,
   id: string,
-): boolean => names !== undefined && names !== null && names.includes(id)
+): boolean => names !== null && names.includes(id)
 
 /**
  * HOW THIS SERVE STARTED, AND HOW LONG A FLIP LASTS — ONE line, for the whole
@@ -382,29 +384,35 @@ export const pluginsStarted = (roster: PluginRoster): string =>
  *  (`../settings/instance.ts` made that argument first, for the rows that still
  *  borrow it.) */
 const startedWith = (roster: PluginRoster): string => {
-  if (roster.pinned !== null) {
-    return roster.pinned.length === 0
-      ? `Started with --plugins= (none).`
-      : `Started with --plugins=${roster.pinned.join(",")}.`
+  const pin = pluginPinOf(roster)
+  switch (pin.kind) {
+    case "exact":
+      return pin.names.length === 0
+        ? `Started with --plugins= (none).`
+        : `Started with --plugins=${pin.names.join(",")}.`
+    case "delta": {
+      const flags: string[] = []
+      if (pin.extra !== null) {
+        flags.push(
+          pin.extra.length === 0
+            ? `--extra-plugins=`
+            : `--extra-plugins=${pin.extra.join(",")}`,
+        )
+      }
+      if (pin.without !== null) {
+        flags.push(
+          pin.without.length === 0
+            ? `--without-plugins=`
+            : `--without-plugins=${pin.without.join(",")}`,
+        )
+      }
+      return flags.length === 0
+        ? `Started with the built-in defaults: no --plugins given.`
+        : `Started with ${flags.join(" ")}.`
+    }
+    case "omitted":
+      return `Started with the built-in defaults: no --plugins given.`
   }
-  const flags: string[] = []
-  if (roster.extra !== undefined && roster.extra !== null) {
-    flags.push(
-      roster.extra.length === 0
-        ? `--extra-plugins=`
-        : `--extra-plugins=${roster.extra.join(",")}`,
-    )
-  }
-  if (roster.without !== undefined && roster.without !== null) {
-    flags.push(
-      roster.without.length === 0
-        ? `--without-plugins=`
-        : `--without-plugins=${roster.without.join(",")}`,
-    )
-  }
-  return flags.length === 0
-    ? `Started with the built-in defaults: no --plugins given.`
-    : `Started with ${flags.join(" ")}.`
 }
 
 /**
