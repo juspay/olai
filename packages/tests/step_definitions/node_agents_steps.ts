@@ -575,11 +575,9 @@ Then(
   "the panel header names the node agent {string}",
   async function (this: OlaiWorld, title: string) {
     const line = this.page.locator(selector(PLUGIN_TESTID.chatNode));
-    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.ok(
-      (await line.innerText()).replaceAll("\n", " ").includes(title),
-      `the panel header to name the node agent ${JSON.stringify(title)}, and it says ` +
-        JSON.stringify((await line.innerText()).replaceAll("\n", " ")),
+    await this.waitUntil(
+      async () => (await line.allInnerTexts()).some(text => text.replaceAll("\n", " ").includes(title)),
+      `the panel header to name the node agent ${JSON.stringify(title)}`,
     );
   },
 );

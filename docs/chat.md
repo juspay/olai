@@ -610,7 +610,7 @@ An agent with no session can only do half of that, and does the half that exists
 
 ### Starting a session
 
-**Any row's `•••` menu offers *Start an agent session*.** Pressing it opens a fresh conversation and writes it onto that node's `chat-agent-session` property, in that order, so the vault never names a session that was not opened. **The press writes the property; it does not require one** — so this is how a node agent is created, not only how an existing one is given a session.
+**Any row's `•••` menu offers *Start an agent session*.** A successful start opens the chat panel (the chat sheet on a phone). On a phone, hold a finger on the row to open its menu; the menu scrolls above the minimized chat strip so its final entry stays reachable. Pressing it opens a fresh conversation and writes it onto that node's `chat-agent-session` property, in that order, so the vault never names a session that was not opened. **The press writes the property; it does not require one** — so this is how a node agent is created, not only how an existing one is given a session.
 
 ```
 (no property)               →  chat-agent-session: claude:0f3c…

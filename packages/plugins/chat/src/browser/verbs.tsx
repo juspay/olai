@@ -157,6 +157,7 @@ export const rowVerbs = (node: string): ReadonlyArray<RowAction> => {
           chatWire().procedures.conversation.startAgentSession({ node, agent: engine.id }),
         )
         if (Result.isFailure(outcome)) return outcome.failure.message
+        setPanelOpen(true)
       },
     })
   }
