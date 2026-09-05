@@ -621,7 +621,8 @@ Feature: A node with an `agent-session` property IS an agent
     # press just dismissed is a press that looks like it did nothing.
     Given I open the outline "lanes.olai"
     And the agent panel is open
-    When I ask the agent "slow"
+    When I ask the agent "hold"
+    Then the agent is working
     And I open the unassigned chats
     And I pick the conversation "an older conversation"
     Then the panel refuses, saying "a turn is running"

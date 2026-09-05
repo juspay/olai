@@ -1169,7 +1169,7 @@ export class Transcript {
    * entry a browser talks BACK about: it draws the row, somebody fills it in,
    * and the answer names it. Two spellings — a key on screen and an id on the
    * wire — would be a mapping to keep in step for nothing, so {@link
-   * ./agent.ts} mints ids in this collection's own key shape (`ask:1`) and the
+   * ./questions.ts} mints instance-qualified ids (`ask:<instance>:1`) and the
    * row is stored under exactly what it was given.
    *
    * It closes the open prose entry too. The agent said something and then

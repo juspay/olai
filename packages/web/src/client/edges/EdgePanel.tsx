@@ -65,6 +65,7 @@
  * the file being unable to say it.
  */
 
+import type { Signal } from "solid-js"
 import type { RegularNode } from "@olai/format"
 import type { Edit } from "@olai/surface"
 import { Key } from "@solid-primitives/keyed"
@@ -95,6 +96,7 @@ const EDGE_LIST: ShortlistTestids = {
 export function EdgePanel(props: {
   /** The node these edges belong to — the node a row SHOWS, never a placement,
    *  which carries no edges at all. */
+  readonly query: Signal<string>
   readonly node: RegularNode
   readonly relation: Relation
   /** Send it. The host is what knows the write gate, the undo stack and where
@@ -193,6 +195,7 @@ export function EdgePanel(props: {
       </Show>
 
       <Shortlist
+        query={props.query}
         label={words().placeholder}
         testids={EDGE_LIST}
         onTake={(hit) => props.onWrite(linking(props.node.id, props.relation, hit.id))}

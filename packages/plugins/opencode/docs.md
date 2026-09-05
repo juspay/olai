@@ -12,7 +12,7 @@ A probe for a runnable `opencode` on the **agent search path**, spawned as `open
 
 **Olai's PATH is not your shell's.** Run as a systemd user service (the home-manager unit) olai inherits neither your profile nor your login shell, so an `opencode` you can run in a terminal is not necessarily one this process can see. `OLAI_AGENT_PATH` is where to say otherwise; set, it REPLACES the search path rather than adding to it.
 
-Turning this row off is `--plugins`: `olai web --plugins=claude` serves a panel with no opencode row and no probe for one. It is one row of `olai.yml` like any other plugin.
+Turning this row off is `--plugins`: `olai web --plugins=chat,claude` serves a panel with no opencode row and no probe for one. It is one row of `olai.yml` like any other plugin.
 
 ## What is only true of this wire
 

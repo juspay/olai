@@ -9,6 +9,7 @@
  */
 
 import { expect, test } from "bun:test"
+import type { AttachChunk } from "olai-plugin-chat/wire"
 import { Effect, Result } from "effect"
 import {
   existsSync,
@@ -33,11 +34,7 @@ import { make, promptWith, safeName } from "./attachments.ts"
  *  the one serving every socket). */
 const outcome = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(Effect.result(effect))
 
-const receive = (files: ReturnType<typeof make>, chunk: {
-  name: string
-  data: string
-  appendTo?: string
-}) => outcome(files.receive(chunk))
+const receive = (files: ReturnType<typeof make>, chunk: AttachChunk) => outcome(files.receive(chunk))
 
 const bytes = (size: number) =>
   Buffer.from(Array.from({ length: size }, (_, at) => (at * 31) % 256))
@@ -265,3 +262,44 @@ test("what the agent is asked is the path, as text", async () => {
     "what is this\n\nAttached file: /tmp/olai-chat-x/Type 04-C.pdf",
   )
 })
+
+test("an upload cannot cross a discarded lifetime even before its first chunk", async () => {
+  const files = make()
+  const old = files.scope()
+  await Effect.runPromise(files.discard)
+  expect(files.scope()).not.toBe(old)
+  const refused = await receive(files, { name: "notes.txt", data: bytes(5).toString("base64"), uploadScope: old })
+  expect(Result.isFailure(refused)).toBe(true)
+  const accepted = await receive(files, { name: "notes.txt", data: bytes(5).toString("base64"), uploadScope: files.scope() })
+  expect(Result.isSuccess(accepted)).toBe(true)
+  await Effect.runPromise(files.discard)
+})
+
+for (const initial of [true, false]) {
+  test(`simultaneous same-name uploads share one ${initial ? "new" : "existing"} directory without overwriting`, async () => {
+    const files = make()
+    const paths: string[] = []
+    try {
+      if (!initial) {
+        const warm = await Effect.runPromise(files.receive({ name: "warm.txt", data: "eA==" }))
+        paths.push(warm.path)
+      }
+      const texts = Array.from({ length: 12 }, (_, i) => `independent upload ${i}`)
+      const results = await Promise.all(texts.map((text) => Effect.runPromise(files.receive({
+        name: "collision.txt", data: Buffer.from(text).toString("base64"),
+      }))))
+      paths.push(...results.map((one) => one.path))
+      expect(new Set(paths.map(dirname)).size).toBe(1)
+      expect(new Set(results.map((one) => one.path)).size).toBe(texts.length)
+      for (const [i, result] of results.entries()) {
+        expect(readFileSync(result.path, "utf8")).toBe(texts[i]!)
+        expect(Result.isSuccess(await outcome(files.claim(result.path)))).toBe(true)
+      }
+      await Effect.runPromise(files.discard)
+      expect(paths.every((path) => !existsSync(path))).toBe(true)
+    } finally {
+      await Effect.runPromise(files.discard)
+      for (const dir of new Set(paths.map(dirname))) rmSync(dir, { recursive: true, force: true })
+    }
+  })
+}

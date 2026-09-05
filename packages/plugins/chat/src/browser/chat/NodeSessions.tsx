@@ -53,11 +53,12 @@
  * navigation story rather than an omission: a chat that is nobody's has no
  * history of its own, and its siblings are in the sidebar.
  *
- * ## The listing is the TAB'S, asked once
+ * ## The listing is shared by the tab
  *
  * The lineage is read off `chat.sessions`, and this popover does not ask for
  * itself: it reads the answer the roster provider holds and asks it to refresh
- * on open (`../agents/answered.tsx`). One asker per tab rather than one per
+ * on open (`../agents/answered.tsx`). Completed node-session replacements
+ * refresh that shared answer in every tab. One asker per tab rather than one per
  * face — the two lists would otherwise be two answers about one disk, and the
  * one a person met second would be the one that looked wrong.
  *
@@ -69,13 +70,14 @@
  * otherwise land on `<body>`.
  */
 
-import { createMemo, For, Show } from "solid-js"
+import { createMemo, createSignal, For, Show } from "solid-js"
 import { chatWire } from "../wire.ts"
 
 import { memoryOf } from "@olai/format"
+import { agentIn } from "olai-plugin-chat/wire"
 import type { SessionInfo } from "olai-plugin-chat/wire"
 import { useAgents } from "../agents/answered.tsx"
-import { pastOf, successorIn } from "../agents/lineage.ts"
+import { pastOf, successorIn } from "../../lineage.ts"
 import { hideUnassigned } from "../agents/showing.ts"
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
@@ -116,27 +118,33 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
   const successorOf = (session: SessionInfo): SessionInfo | undefined =>
     successorIn(chats()?.sessions ?? [], session)
 
+  const isOpen = (session: string): boolean =>
+    agentIn(props.chat.state())?.id === props.agent.engine
+    && props.chat.state().session?.id === session
+
   /** What *fresh session* said, where it was refused — an engine this machine
    *  does not have, an agent that would not start, a record the ops layer will
    *  not write. The popover shuts on success, so this line is only ever about a
    *  press that did not land. */
   const saying = createSaying()
+  const [starting, setStarting] = createSignal(false)
 
   const fresh = (): void => {
+    if (starting()) return
+    setStarting(true)
     saying.say(undefined)
     run(
       chatWire().procedures.conversation.startAgentSession({
         node: props.agent.id,
         agent: props.agent.engine,
       }),
-      (failure) => saying.say({ tone: "alarm", text: failure.message, kind: failure._tag }),
+      (failure) => {
+        setStarting(false)
+        saying.say({ tone: "alarm", text: failure.message, kind: failure._tag })
+      },
       () => {
-        // ASKED AGAIN, on the frame the re-point lands. The roster cell moves
-        // at once — the property is written — so without this the pill walks a
-        // listing taken before the new session existed: `past()` finds no link
-        // to it, and `sessions (3)` reads `sessions (1)` over a history that is
-        // still there, self-correcting only when somebody next opens this.
-        askChats()
+        setStarting(false)
+        // The completed history revision refreshes this tab and its siblings.
         picker.shut()
       },
     )
@@ -167,6 +175,25 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
           class={`absolute inset-x-3 top-full ${WITHIN.pop} mt-1 max-h-80 list-none overflow-x-hidden overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
           data-testid={TESTID.chatSessionList}
         >
+          <Show when={props.agent.session}>
+            {(session) => (
+              <li>
+                <button
+                  type="button"
+                  class="block w-full rounded px-2 py-1 text-left text-xs hover:bg-rule disabled:text-accent"
+                  disabled={isOpen(session())}
+                  data-session-id={session()}
+                  onClick={() => {
+                    picker.shut()
+                    hideUnassigned()
+                    props.chat.loadSession(props.agent.engine, session())
+                  }}
+                >
+                  current session
+                </button>
+              </li>
+            )}
+          </Show>
           <Show when={past().length > 0}>
             <li
               class="px-2 pt-1 pb-1 text-[0.625rem] text-muted"
@@ -181,7 +208,7 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
                   <Conversation
                     session={session}
                     successor={successorOf(session)}
-                    current={false}
+                    current={isOpen(session.id)}
                     testid={TESTID.chatPastSession}
                     onPick={() => {
                       picker.shut()
@@ -198,9 +225,11 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
           <li class="px-2 pt-1 pb-2">
             <button
               type="button"
-              class="block w-full rounded px-2 py-1 text-left text-xs text-accent hover:bg-rule"
+              class="block w-full rounded px-2 py-1 text-left text-xs text-accent hover:bg-rule disabled:opacity-50"
               data-testid={TESTID.chatFreshSession}
               data-agent={props.agent.id}
+              disabled={starting()}
+              aria-busy={starting()}
               onClick={() => fresh()}
             >
               fresh session

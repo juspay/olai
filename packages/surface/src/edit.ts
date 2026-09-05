@@ -398,6 +398,8 @@ export const Edit = Schema.Union([
     /** What the title is EXPECTED to say right now, when the caller is putting
      *  something back rather than typing something new — see {@link Was}. */
     was: Was(Schema.String),
+    /** A shelf rename may only change a row still on the pinned shelf. */
+    pinned: Schema.optionalKey(Schema.Literal(true)),
   }),
   Schema.Struct({
     verb: Schema.Literal("desc"),

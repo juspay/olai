@@ -28,7 +28,7 @@
  *
  * A session id belongs to one agent's own space and two agents can collide
  * formally, so every step of the walk carries the engine — the same rule the row
- * that draws a successor keeps (`../chat/Conversation.tsx`), and the same one
+ * that draws a successor keeps (`./browser/chat/Conversation.tsx`), and the same one
  * the record keeps a package away.
  *
  * ## WHAT IS NOT HERE
@@ -38,7 +38,8 @@
  * property names no session claims nothing at all — an unbound node agent has
  * no history, which is exactly what makes Unassigned the doorway to it.
  *
- * PURE over the two lists, for `./roster.ts`'s reason: this decides what a
+ * PURE over the two lists: the browser and scheduler must agree which node
+ * owns a historical session. This decides what a
  * person is offered to migrate, and reaching it through a browser is not how
  * anybody should have to check that a conversation a node already claims is not
  * offered to be claimed again.
@@ -116,7 +117,7 @@ export const pastOf = (
  * Both absences are one answer on purpose: what a reader gets from the link is
  * the successor's NAME, so a link pointing at a row that has been deleted since
  * the stamp was earned has nothing left to say and is not drawn
- * (`../chat/Conversation.tsx`).
+ * (`./browser/chat/Conversation.tsx`).
  *
  * MATCHED ON THE PAIR, like every other step of a lineage: an id belongs to one
  * agent's own space, and a Claude row's link resolving to an opencode row would

@@ -76,3 +76,9 @@ export function PluginHeaders(props: { readonly place: "lead" | "cluster" }) {
     </For>
   )
 }
+
+/** Notices occupy their own space below the header rather than covering content. */
+export function PluginBanners() {
+  const banners = createMemo(() => hung("app.banner"))
+  return <For each={banners()}>{(one) => <Dynamic component={one.face} />}</For>
+}

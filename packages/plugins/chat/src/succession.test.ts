@@ -97,3 +97,34 @@ test("olai's own re-pointing wins over a `/clear` link the agent reported", () =
   )
   expect(out.sessions.find((row) => row.id === "middle")?.supersededBy).toBe("fresh")
 })
+
+test("unused intermediate sessions do not hide earlier stored history", () => {
+  const heard: ReadonlyArray<Overheard> = [
+    { agent: "claude", session: "old", superseded: "unused" },
+    { agent: "claude", session: "unused", superseded: "also-unused" },
+    { agent: "claude", session: "also-unused", superseded: "current" },
+  ]
+  const out = succeeded(listed(chat("old")), heard)
+  expect(out.sessions).toEqual([chat("old", { supersededBy: "current" })])
+})
+
+test("a stored intermediate transcript remains a separate history row", () => {
+  const heard: ReadonlyArray<Overheard> = [
+    { agent: "claude", session: "old", superseded: "middle" },
+    { agent: "claude", session: "middle", superseded: "current" },
+  ]
+  expect(succeeded(listed(chat("old"), chat("middle")), heard).sessions.map((row) => row.supersededBy))
+    .toEqual(["middle", "current"])
+})
+
+test("missing-session traversal stays within its harness and terminates on corrupt cycles", () => {
+  const heard: ReadonlyArray<Overheard> = [
+    { agent: "claude", session: "old", superseded: "missing" },
+    { agent: "opencode", session: "missing", superseded: "wrong" },
+  ]
+  expect(succeeded(listed(chat("old")), heard).sessions[0]?.supersededBy).toBe("missing")
+  expect(succeeded(listed(chat("old")), [...heard,
+    { agent: "claude", session: "missing", superseded: "loop" },
+    { agent: "claude", session: "loop", superseded: "missing" },
+  ]).sessions[0]?.supersededBy).toBe("missing")
+})

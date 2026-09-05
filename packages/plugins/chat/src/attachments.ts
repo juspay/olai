@@ -38,7 +38,8 @@ import { base64DecodedLength } from "@kolu/surface/frame-chunking"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { attachmentRejection } from "@olai/surface"
 import { type Attached, type AttachChunk } from "olai-plugin-chat/wire"
-import { Effect } from "effect"
+import { Effect, Semaphore } from "effect"
+import { randomUUID } from "node:crypto"
 import { appendFile, mkdtemp, realpath, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { basename, join, parse, sep } from "node:path"
@@ -46,6 +47,8 @@ import { basename, join, parse, sep } from "node:path"
 import { annotated } from "./prompt.ts"
 
 export interface Attachments {
+  /** Identity of the live upload directory, renewed whenever it is discarded. */
+  readonly scope: () => string
   /** Write one chunk, and answer with where the whole file is and what it
    *  ended up being called. The first chunk (no `appendTo`) creates it; every
    *  later one appends. */
@@ -61,9 +64,13 @@ export interface Attachments {
 }
 
 export const make = (): Attachments => {
+  // Directory creation, collision naming, appends and cleanup share one lane.
+  // Uploads from separate gestures or tabs can otherwise race their fs awaits.
+  const writing = Semaphore.makeUnsafe(1)
   /** Made on first use rather than on boot: a conversation that never has a
    *  file attached to it should leave nothing behind at all. */
   let dir: string | null = null
+  let scope = randomUUID()
 
   /** `mkdtemp` mints it, which is also what makes it owner-only: POSIX says
    *  the directory is created with mode 0700, and the name is unpredictable —
@@ -107,6 +114,9 @@ export const make = (): Attachments => {
    *  {@link named} is the only place a path becomes an answer. */
   const stored = (chunk: AttachChunk): Effect.Effect<string, OpFailure> =>
     Effect.gen(function*() {
+      if (chunk.uploadScope !== undefined && chunk.uploadScope !== scope) {
+        return yield* refuse("the conversation changed while this file was uploading")
+      }
       const name = safeName(chunk.name)
       const bytes = base64DecodedLength(chunk.data)
       const continuing = chunk.appendTo
@@ -133,13 +143,15 @@ export const make = (): Attachments => {
     })
 
   return {
-    receive: (chunk) => Effect.map(stored(chunk), named),
-    claim: (path) => Effect.asVoid(claim(path)),
-    discard: Effect.promise(async () => {
+    scope: () => scope,
+    receive: (chunk) => writing.withPermit(Effect.map(stored(chunk), named)),
+    claim: (path) => writing.withPermit(Effect.asVoid(claim(path))),
+    discard: writing.withPermit(Effect.promise(async () => {
       const going = dir
       dir = null
+      scope = randomUUID()
       if (going !== null) await rm(going, { recursive: true, force: true })
-    }),
+    })),
   }
 }
 

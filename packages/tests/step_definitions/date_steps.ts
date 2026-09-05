@@ -104,6 +104,17 @@ Then("the date picker's button is dead", async function (this: OlaiWorld) {
   );
 });
 
+Then("the date controls fit the phone width", async function (this: OlaiWorld) {
+  const bounds = await panel(this).locator("input, button").evaluateAll((controls) =>
+    controls.map((control) => {
+      const rect = control.getBoundingClientRect();
+      return { label: control.getAttribute("data-testid"), left: rect.left, right: rect.right, width: innerWidth };
+    }),
+  );
+  assert.ok(bounds.length >= 3);
+  for (const bound of bounds) assert.ok(bound.left >= 0 && bound.right <= bound.width, JSON.stringify(bound));
+});
+
 // ── using it ───────────────────────────────────────────────────────────
 
 /** Type a day and send it. `fill` on an `<input type="date">` is the same
@@ -116,6 +127,15 @@ When("I pick the date {string}", async function (this: OlaiWorld, day: string) {
   // The write is done when the picker is gone. ⌘Z after this is the app's
   // undo, not a keystroke into a date input that is still focused.
   await panel(this).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+When("I draft the date {string}", async function (this: OlaiWorld, day: string) {
+  await box(this).fill(day);
+});
+
+When("I submit the date while updates are delayed", async function (this: OlaiWorld) {
+  // Deliberately leave the response pending so the scenario can change panes.
+  await button(this).click();
 });
 
 When("I empty the date picker", async function (this: OlaiWorld) {

@@ -71,6 +71,7 @@ import {
   createMemo,
   createSignal,
   type JSX,
+  type Signal,
   on,
 } from "solid-js"
 
@@ -178,6 +179,8 @@ export interface Listing {
 }
 
 export const createCompletion = (field: {
+  /** Escape belongs to this draft, including when its editor is rebuilt. */
+  readonly dismissal?: Signal<string | null>
   /** What is in the editor right now. */
   readonly text: Accessor<string>
   /** Where the caret is in it. */
@@ -198,7 +201,7 @@ export const createCompletion = (field: {
   readonly mirrored: (target: string) => void
 }): Completion => {
   const today = useToday()
-  const [dismissed, setDismissed] = createSignal<string | null>(null)
+  const [dismissed, setDismissed] = field.dismissal ?? createSignal<string | null>(null)
 
   /** What the caret is inside, minus anything Escape has shut.
    *

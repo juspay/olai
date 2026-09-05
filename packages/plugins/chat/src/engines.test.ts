@@ -215,6 +215,7 @@ test("the last engine leaving is the off face, and a returning one leaves it", a
   expect(last().status).not.toBe("off")
   expect(last().off).toBeNull()
   expect(last().roster.map((one) => one.id)).toEqual(["codex"])
+  expect(last().talking).toEqual({ kind: "asking" })
 })
 
 /**

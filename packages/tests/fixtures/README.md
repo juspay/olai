@@ -25,6 +25,16 @@ outline looks like should be able to answer it from `good/` in under a minute,
 and a person who wants to know what a *good error* looks like should get it
 from `broken/` and `tangled/`.
 
+## `empty/` — a vault with no served files
+
+Only an ignored `.gitkeep` keeps this directory tracked. `empty_vault.feature`
+starts a fresh server here before creating its first outline or document, and
+checks discovery of a first external outline without reloading.
+`first_outline_recovery.feature` uses the same scratch base to open a vault
+whose only outline is broken, then correct it or create healthy content beside it.
+`empty_vault_capture.feature` creates the Inbox through capture on desktop and
+through the phone header’s touch control.
+
 ## `good/` — a set that validates
 
 Three outlines, three documents, two saved `.html` pages, three pictures, a

@@ -12,7 +12,7 @@ Not on your `PATH`, and deliberately: the adapter is a wrapper inside the nix st
 - **set to a command** → that is the agent, pinned default ignored. Point it at your own build, or at a different ACP agent entirely: the override has always meant *read this the way you read Claude Code*, and it still does.
 - **set to the EMPTY string** → chat off. Not "no Claude row" — the **whole panel**, nothing probed, no roster at all. It survives the wrapper (an empty value is still a value), which is what makes it the explicit off switch. That reading is core's rather than this engine's, and it is why the variable is spelled where both can see it.
 
-Turning this row off without turning chat off is `--plugins`: `olai web --plugins=opencode,pi` serves a panel with no Claude row, no probe for one, and no mark for one anywhere. It is one row of `olai.yml` like any other plugin ([the plugins panel](../running.md) draws it with the same five states).
+Turning this row off without turning chat off is `--plugins`: `olai web --plugins=chat,opencode,pi` serves a panel with no Claude row, no probe for one, and no mark for one anywhere. It is one row of `olai.yml` like any other plugin ([the plugins panel](../running.md) draws it with the same five states).
 
 ## What is only true of this wire
 

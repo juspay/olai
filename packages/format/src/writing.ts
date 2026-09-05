@@ -397,6 +397,8 @@ export const TitleRequest = Schema.Struct({
   op: Schema.Literal("title"),
   id: Id,
   title: Title,
+  /** Require this record to remain a root of the active pins file. */
+  pinned: Schema.optionalKey(Schema.Literal(true)),
   was: Schema.optionalKey(
     Schema.String.annotate({
       description: Was("putting back a title you read a moment ago"),

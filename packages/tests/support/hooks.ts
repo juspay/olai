@@ -74,6 +74,7 @@ import {
 } from "./world.ts";
 import type { GitMode } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
+import { FAST_NODE_IDLE_MS } from "./node_idle.ts";
 import {
   holdPort,
   isolateEnv,
@@ -555,6 +556,7 @@ interface Spawn {
    *  restarting the server under an open page needs the SAME address. */
   readonly port?: number;
   readonly stored?: boolean;
+  readonly fastNodeIdle?: boolean;
 
   /** `false` starts the server with no agent at all. */
   readonly agent?: boolean;
@@ -670,6 +672,7 @@ const startServerChild = async (
         // turning chat off would set — so the no-agent scenario reaches that
         // state the same way rather than through a hole in the harness.
         OLAI_ACP_AGENT: spawnOptions.agent === false ? "" : FAKE_AGENT,
+        OLAI_CHAT_IDLE_MS: spawnOptions.fastNodeIdle === true ? String(FAST_NODE_IDLE_MS) : "",
         // The packaged binary now carries Codex too. Every scenario here is
         // deterministic against the scripted engine(s) it explicitly asks
         // for, so its real baked adapter must not silently add a picker row.
@@ -879,6 +882,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
     {
       port,
       stored: world.storedSessions,
+      fastNodeIdle: world.fastNodeIdle,
       agent: world.hasAgent,
       opencode: world.hasOpencode,
       pi: world.hasPi,
@@ -1217,6 +1221,13 @@ Before(
     this.browser = browser;
     const asked = requestOf(scenario.pickle.tags);
     this.corpus = asked.corpus;
+    this.fastNodeIdle = scenario.pickle.tags.some((tag) => tag.name === "@node-idle-fast");
+    if (this.fastNodeIdle && asked.mode !== "own") {
+      throw new Error(
+        "@node-idle-fast changes the server's process lifetime and requires a private " +
+          "@scratch:<corpus>; use @own-scratch when the feature shares its scratch.",
+      );
+    }
     this.storedSessions = scenario.pickle.tags.some(
       (tag) => tag.name === STORED_TAG,
     );
@@ -1345,6 +1356,7 @@ Before(
     if (writes) {
       const spawnOptions = {
         stored: this.storedSessions,
+        fastNodeIdle: this.fastNodeIdle,
         agent: this.hasAgent,
         opencode: this.hasOpencode,
         pi: this.hasPi,

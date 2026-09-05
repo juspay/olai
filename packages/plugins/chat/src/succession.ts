@@ -86,7 +86,20 @@ export const succeeded = (
     const link = links.find(
       (row) => row.agent === session.agent && row.session === session.id,
     )
-    return link === undefined ? session : { ...session, supersededBy: link.superseded ?? null }
+    let next = link?.superseded ?? session.supersededBy
+    const seen = new Set<string>([session.id])
+    // An unused fresh session has no transcript, so the harness never lists
+    // it. Follow olai's recorded replacements across those missing rows. Stop
+    // at a stored session or the current (possibly still unused) endpoint;
+    // neither needs a synthetic, unopenable row in the picker.
+    while (next !== null && !seen.has(next)) {
+      seen.add(next)
+      if (listed.sessions.some((row) => row.agent === session.agent && row.id === next)) break
+      const after = links.find((row) => row.agent === session.agent && row.session === next)?.superseded
+      if (after === undefined) break
+      next = after
+    }
+    return next === session.supersededBy ? session : { ...session, supersededBy: next }
   })
   return { ...listed, sessions }
 }

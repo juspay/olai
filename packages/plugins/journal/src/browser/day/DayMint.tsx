@@ -25,14 +25,22 @@ import { journalWire } from "../wire.ts"
 export function DayMint(props: { readonly date: string }) {
   const router = useRouter()
   const [said, setSaid] = createSignal<string | null>(null)
+  const [sending, setSending] = createSignal(false)
 
   const mint = async (): Promise<void> => {
-    setSaid(
-      await openMintedFile(
-        runAsync(journalWire().procedures.note.mint({ date: props.date })),
-        router.go,
-      ),
-    )
+    if (sending()) return
+    const date = props.date
+    setSending(true)
+    setSaid(null)
+    try {
+      const answer = await openMintedFile(
+        runAsync(journalWire().procedures.note.mint({ date })),
+        router,
+      )
+      if (props.date === date) setSaid(answer)
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -41,11 +49,13 @@ export function DayMint(props: { readonly date: string }) {
         type="button"
         class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
         data-testid={TESTID.dayMint}
+        disabled={sending()}
+        aria-busy={sending()}
         aria-label={`create ${props.date}'s note`}
         title={`create ${props.date}'s note`}
         onClick={() => void mint()}
       >
-        + day note
+        {sending() ? "Creating…" : "+ day note"}
       </button>
       <Refused said={said()} testid={TESTID.dayMintSaid} />
     </div>

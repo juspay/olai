@@ -81,6 +81,10 @@ When("I let go", async function (this: OlaiWorld) {
   await this.waitForFrame();
 });
 
+Then("no drop line is shown", async function (this: OlaiWorld) {
+  await this.page.locator(DROP_LINE).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
 When(
   "I drag the bullet of {string} above the title of {string}",
   async function (this: OlaiWorld, id: string, above: string) {

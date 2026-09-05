@@ -64,6 +64,7 @@ import {
   type OpFailure,
   ordBetween,
   OUTLINE_EXT,
+  pinsIn,
   propertiesIn,
   type Reading,
   type RegularNode,
@@ -192,6 +193,10 @@ const planTitle = (scope: Scope, request: Extract<Request, { op: "title" }>): Pl
   // inside {@link planEdit} because a note or a date is not a vocabulary.
   const located = regularAt(scope, request.id)
   if (Result.isFailure(located)) return Result.fail(located.failure)
+  if (request.pinned && (located.success.file !== pinsIn(scope.derived.byFile.keys())
+    || located.success.node.parent !== undefined)) {
+    return Result.fail(new UsageFailure({ reason: "this row is no longer pinned — reopen the pin you want to rename" }))
+  }
   const next: RegularNode = { ...located.success.node, title: request.title }
   const bent = declarationRefused(scope, located.success.file, next)
   if (bent !== undefined) return Result.fail(bent)

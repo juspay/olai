@@ -48,10 +48,10 @@ import type { Anchor, Edit } from "@olai/surface"
 import { debounce } from "@solid-primitives/scheduled"
 import {
   type Accessor,
+  type Signal,
   createContext,
   createEffect,
   createMemo,
-  createSignal,
   type JSX,
   untrack,
   useContext,
@@ -92,11 +92,17 @@ import {
 } from "./draft.ts"
 import { flatten, reanchored, refound, seated } from "./order.ts"
 import type { Standing } from "./order.ts"
-import { serial } from "./queue.ts"
+import { editorMemory, type EditorMemory, type EditorRange } from "./memory.ts"
 import { redraws, rekeys } from "./redraws.ts"
 import { useUndo } from "./undoing.ts"
 
 export interface Editor {
+  /** Consume the range inherited from a previous instance of this editor. */
+  readonly takeRange: (slot: Slot | undefined) => EditorRange | undefined
+  /** Record the browser selection for a later rebuild of the same draft. */
+  readonly rememberRange: (range: EditorRange) => void
+  /** Keep Escape's completion dismissal with its draft; a fresh edit resets it. */
+  readonly completionDismissal: (slot: Slot | undefined) => Signal<string | null>
   /** The draft, or `null` when nothing is being typed. It carries what the
    *  last write said, refused or not — one value, so replacing it cannot leave
    *  a stale reason on screen.
@@ -133,6 +139,8 @@ export interface Editor {
   readonly open: (row: Row, field: "title" | "desc", at?: OpenAt) => void
   /** What has just been typed. Starts the idle clock. */
   readonly type: (text: string) => void
+  /** Text typed into a parked slot while its activation waits for a write. */
+  readonly typeParked: (slot: string, text: string) => void
   /** The editor at this slot lost focus: commit, and close if it landed. It
    *  says which slot because a blur arrives after the draft may already have
    *  moved on — see {@link ./draft.ts}'s `Slot` — and whether the element is
@@ -278,12 +286,16 @@ export const createEditor = (
    * where that goes is an address, and addresses are the page's.
    */
   zooming: Zooming,
+  memory: EditorMemory = editorMemory(),
 ): Editor => {
-  const [draft, setDraft] = createSignal<Draft | null>(null)
-  const [ghosts, setGhosts] = createSignal<ReadonlyArray<Pending>>([])
-  const [caret, setCaret] = createSignal(0)
-  let slots = 0
-  const mintSlot = (): string => `d${++slots}`
+  const { draft, setDraft, ghosts, setGhosts, caret, setCaret, mintSlot, enqueue } = memory
+  let retainedRange = memory.range
+  memory.range = undefined
+  createEffect(() => {
+    if (draft() !== null) return
+    memory.completion.slot = undefined
+    memory.completion.dismissed[1](null)
+  })
   /** Leave an empty pending on screen without it holding the caret. Same
    *  slot is a no-op, so parking twice cannot duplicate a ghost. A titled
    *  draft, or nothing, is left alone — parking is not how a write happens. */
@@ -322,7 +334,6 @@ export const createEditor = (
    * What is NOT queued is what a person must never wait for: typing
    * ({@link Editor.type} is a signal write) and `Escape`, which abandons.
    */
-  const enqueue = serial()
 
   /** The caret's own three facts, memoised so typing does not move them. */
   const where = createMemo<Where>(() => {
@@ -453,16 +464,15 @@ export const createEditor = (
    * above makes that rare and this makes it impossible.
    */
   const send = async (edit: Edit, from: Slot): Promise<Landed | null> => {
-    const outcome = await runAsync(olai.procedures.edit.apply(edit))
+    const pending = runAsync(olai.procedures.edit.apply(edit))
+    // A blur can leave focus on the page before this reply arrives. Reserve
+    // its place now so Undo pressed there follows this write, including when
+    // there are older edits already on the stack.
+    undo.record(pending.then((outcome) =>
+      Result.isSuccess(outcome) ? outcome.success.undo : undefined
+    ))
+    const outcome = await pending
     if (Result.isSuccess(outcome)) {
-      // What would take this back, straight onto the stack ⌘Z spends — the
-      // server's own answer, derived from the snapshot this write was judged
-      // against ({@link ./undoing.ts}). EVERY write that has an inverse, the
-      // text ones included: a draft that has committed is an op like any
-      // other, and the DRAFT is what Escape and blur own. The two were
-      // conflated once, and what it cost was ⌘Z answering "nothing to undo" to
-      // somebody who had just retyped a title.
-      undo.record(outcome.success.undo)
       return outcome.success
     }
     setDraft((held) =>
@@ -549,6 +559,7 @@ export const createEditor = (
    *  commit, so a person who keeps typing causes one write rather than one per
    *  pause. */
   const idle = debounce(() => enqueue(commit), IDLE_COMMIT)
+  if (draft() !== null) idle()
 
   /** The row the caret is in, as the page is drawing it now. */
   const row = (): Row | undefined => {
@@ -1185,6 +1196,7 @@ export const createEditor = (
     setGhosts((list) => list.filter((g) => g.slot !== slot))
     setDraft(found)
     setCaret((n) => n + 1)
+    if (found.text.trim() !== "") idle()
   }
 
   const resume = (slot: string): void => {
@@ -1214,6 +1226,21 @@ export const createEditor = (
   }
 
   return {
+    takeRange: (slot) => {
+      if (retainedRange === undefined || slot === undefined || !sameSlot(retainedRange.slot, slot)) return undefined
+      const range = retainedRange
+      retainedRange = undefined
+      return range
+    },
+    rememberRange: (range) => { memory.range = range },
+    completionDismissal: (slot) => {
+      if (slot === undefined || memory.completion.slot === undefined
+        || !sameSlot(slot, memory.completion.slot)) {
+        memory.completion.slot = slot
+        memory.completion.dismissed[1](null)
+      }
+      return memory.completion.dismissed
+    },
     draft,
     ghosts,
     resume,
@@ -1246,6 +1273,11 @@ export const createEditor = (
     type: (text) => {
       setDraft((held) => (held === null ? held : typed(held, text)))
       idle()
+    },
+    typeParked: (slot, text) => {
+      setGhosts((list) => list.map((ghost) => ghost.slot === slot ? { ...ghost, text } : ghost))
+      // Activation may have completed between the input event and this call.
+      setDraft((held) => held?.kind === "new" && held.slot === slot ? typed(held, text) : held)
     },
     blur: (from, left) => {
       // A blur we caused ourselves — see `settling`.

@@ -99,7 +99,7 @@ import {
 } from "@olai/plugin-api/services"
 import type { Engine, Registering } from "@olai/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
-import { Duration, Effect } from "effect"
+import { Deferred, Duration, Effect } from "effect"
 
 import { type Cadence, cadence } from "./cadence.ts"
 import type { Change } from "./transcript.ts"
@@ -113,6 +113,7 @@ import { forLocalState as memoryIn } from "./memory.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
 import { assignSession, type Binding, startAgentSession } from "./server/binding.ts"
+import { idleMillis } from "./idle.ts"
 import { faultedIn, scopeThrough } from "./server/doorbell.ts"
 import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
@@ -198,6 +199,7 @@ export default definePlugin({
     // each other by looking at one screen.
     const bundle = yield* Bundle
     const env = yield* Env
+    const nodeIdle = idleMillis(env.vars["OLAI_CHAT_IDLE_MS"])
     const kindsDoor = yield* Kinds
     const localState = yield* openLocalState(yield* LocalState)
     const offers = yield* Offers
@@ -222,6 +224,7 @@ export default definePlugin({
      * `failed` with its siblings untouched.
      */
     const engines = new Map<string, Engine>()
+    let engineChange: Deferred.Deferred<void> | null = null
     /**
      * ...AND WHO IS TOLD WHEN IT MOVES, which is the half that was missing.
      *
@@ -250,6 +253,7 @@ export default definePlugin({
      */
     const enginesMoved = (): void => {
       if (chat !== null) ring(chat.enginesMoved)
+      else if (engineChange !== null) ring(Deferred.succeed(engineChange, undefined))
     }
     yield* offers.offer(AgentsDoor, (who) => ({
       register: (engine: Registering) =>
@@ -351,23 +355,12 @@ export default definePlugin({
 
     // ── what this row holds while it is up ───────────────────────────────
 
-    /** The chat, once the listener has bound and the roster has been read. A
-     *  machine with no ACP agent on PATH never builds one at all, and `null` is
-     *  that state for the life of the process. */
+    /** The chat, once the listener has bound and an enabled engine is installed.
+     *  Until then the build waits for engine registrations on this plugin's scope. */
     let chat: Chat.Chat | null = null
-    /** ...and WHY there is none, where there is none — the value the log line
-     *  and the panel's opening sentence are both made from, so a screen and a
-     *  journal cannot disagree about one boot.
-     *
-     *  ABOUT THE BOOT AND ONLY THE BOOT. It records the decision not to BUILD a
-     *  chat, which is still made once and still made here. A panel that was
-     *  built and then watched its last engine row get switched off reaches the
-     *  same face by a different road — the panel's own, through
-     *  `enginesMoved` — so this staying `null` for the life of such a process is
-     *  correct rather than stale. */
-    let noAgent: ChatState["off"] = null
     /** This sibling's own write face, the moment the runtime has minted it. */
     let mine: Ctx | null = null
+    let sessionsRevision = 0
 
     /** THE VAULT'S HALF OF THE AGENTS ROSTER, held across revisions: which node
      *  carries a session property, what it is called, how big its subtree is. */
@@ -552,12 +545,12 @@ export default definePlugin({
       // told is the set's answer rather than the tab's, and an id nothing
       // declares refuses the send instead of quietly sending a message with no
       // subject.
-      send: ({ input }: { input: { text: string; attachments?: ReadonlyArray<string>; context?: ReadonlyArray<string>; steer?: boolean } }) =>
-        withChat((open) =>
+      send: ({ input }: { input: { scope: string | null; text: string; attachments?: ReadonlyArray<string>; context?: ReadonlyArray<string>; steer?: boolean } }) =>
+        withChat((open) => open.inConversation(input.scope, (panel) =>
           Effect.flatMap(ops.reading, (at) => {
             const context = contextFor(at as Reading, input.context ?? [])
             if (context._tag === "Failure") return Effect.fail(context.failure)
-            return open.send(
+            return panel.send(
               input.text,
               input.attachments ?? [],
               context.success,
@@ -567,11 +560,12 @@ export default definePlugin({
               input.steer ?? false,
             )
           })
-        ),
+        )),
       attach: ({ input }: { input: Parameters<Chat.Chat["attach"]>[0] }) =>
         withChat((open) => open.attach(input)),
-      resend: ({ input }: { input: { id: string } }) => withChat((open) => open.resend(input.id)),
-      cancel: () => withChat((open) => open.cancel),
+      resend: ({ input }: { input: { scope: string | null; id: string } }) =>
+        withChat((open) => open.inConversation(input.scope, (panel) => panel.resend(input.id))),
+      cancel: ({ input }: { input: { scope: string | null } }) => withChat((open) => open.inConversation(input.scope, (panel) => panel.cancel)),
       setSetting: ({ input }: { input: { agent: string; session: string; config: string; value: string | boolean } }) =>
         withChat((open) => open.setSetting(input.agent, input.session, input.config, input.value)),
       setModel: ({ input }: { input: { agent: string; session: string; value: string } }) =>
@@ -581,7 +575,10 @@ export default definePlugin({
       // THE TWO GESTURES THAT ARE TWO ACTS, and the only ones here that are —
       // {@link ./server/binding.ts} argues both orders and the refusal.
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>
-        withChat((open) => startAgentSession(open, binding, input)),
+        withChat((open) => startAgentSession(open, binding, input)).pipe(
+          // Publish after both the binding and its history link are written.
+          Effect.tap(() => Effect.sync(() => mine?.cells.sessionsRevision.set(++sessionsRevision))),
+        ),
       assignSession: (
         { input }: { input: { node: string; agent: string; session: string } },
       ) => withChat((open) => assignSession(open, binding, input)),
@@ -589,7 +586,8 @@ export default definePlugin({
         withChat((open) => open.chooseAgent(input.agent)),
       loadSession: ({ input }: { input: { agent: string; id: string } }) =>
         withChat((open) => open.loadSession(input.agent, input.id)),
-      reopen: () => withChat((open) => open.reopen),
+      reopen: ({ input }: { input: { scope: string | null } }) =>
+        withChat((open) => open.inConversation(input.scope, (panel) => panel.reopen)),
       sessions: () => withChat((open) => open.sessions),
       answer: ({ input }: { input: { id: string; answers: Parameters<Chat.Chat["answer"]>[1] } }) =>
         withChat((open) => open.answer(input.id, input.answers)),
@@ -632,6 +630,7 @@ export default definePlugin({
           // `CHAT_OFF` itself, whose `off` is `null` — "not told" rather than any
           // of the three ways of being off.
           state: { store: inMemoryStore<ChatState>(CHAT_OFF) },
+          sessionsRevision: { store: inMemoryStore<number>(0) },
           agents: { store: inMemoryStore<Agents>(NO_AGENT_ROSTER) },
           // WHAT THIS VAULT IS OWED to get those agents back, or nothing — and
           // nothing is what every board reaches (`./wire/agents.ts` argues why
@@ -747,18 +746,27 @@ export default definePlugin({
        * fibers ({@link ./agents/roster.ts}'s `detecting` argues both).
        */
       const detect = detecting(env.vars, vault.served)
-      const [discoveryDuration, found] = yield* Effect.timed(Effect.sync(() => detect(mounted())))
-      const duration = `${Math.round(Duration.toMillis(discoveryDuration))}ms`
-      const installed = found.kind === "here" ? found.installed : []
-      noAgent = found.kind === "none" ? found.because : null
-      if (noAgent !== null) {
-        mine?.cells.state.set({ ...CHAT_OFF, off: noAgent })
-        yield* Effect.annotateLogs(Effect.logInfo(whyNoAgent(noAgent)), { duration })
-        return
+      let [discoveryDuration, found] = yield* Effect.timed(Effect.sync(() => detect(mounted())))
+      while (found.kind === "none") {
+        // Arm before publishing or yielding, so an arriving engine cannot be
+        // lost between the empty reading and the wait. This fiber is scoped:
+        // turning chat off also cancels a build waiting for its first engine.
+        engineChange = yield* Deferred.make<void>()
+        mine?.cells.state.set({ ...CHAT_OFF, off: found.because })
+        yield* Effect.annotateLogs(Effect.logInfo(whyNoAgent(found.because)), {
+          duration: Math.round(Duration.toMillis(discoveryDuration)) + "ms",
+        })
+        yield* Deferred.await(engineChange)
+        const next = yield* Effect.timed(Effect.sync(() => detect(mounted())))
+        discoveryDuration = next[0]
+        found = next[1]
       }
+      engineChange = null
+      const installed = found.installed
 
       yield* Effect.annotateLogs(Effect.logInfo("chat agents detected"), {
-        agents: installed.map((row) => row.id).join(", "), duration,
+        agents: installed.map((row) => row.id).join(", "),
+        duration: Math.round(Duration.toMillis(discoveryDuration)) + "ms",
       })
 
       chat = yield* Chat.make({
@@ -819,6 +827,7 @@ export default definePlugin({
             nodeAgents.above,
           ),
         onState: publishState,
+        ...(nodeIdle === undefined ? {} : { idle: nodeIdle }),
         onTranscript: publishTranscript,
         onLive: republishAgents,
       })

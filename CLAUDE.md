@@ -2,5 +2,6 @@
 
 - [Claude only] If your model is Fabel, when spawning sub-agents - use Fable only where truly necessary, and use Opus by default.
 - Keep docs up to date: website/ and docs/*.md — the engineering docs that change in the same PR as the code. 
+- Require full e2e coverage of user workflows and edge cases across the app; audit for missing coverage, fix discovered bugs, and do not treat a green existing suite as proof of completeness.
 - Prefer frequent-commits followed by CI (`just ci`), which is much faster than running local tests/checks.
    - Fastest way to run e2e outside of CI: `just e2e-fast-remote`

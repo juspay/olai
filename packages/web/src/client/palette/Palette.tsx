@@ -143,6 +143,17 @@ const PALETTE_ROW: RowTestids = {
   prop: TESTID.paletteItemProp,
 }
 
+// The open/question state already outlives a wire rebuild. Keep its input
+// and pending responses with it; subscriptions, focus and cursors are rebuilt.
+const memory = {
+  query: createSignal(""),
+  askError: createSignal<string | null>(null),
+  said: createSignal<Said | null>(null),
+  sending: createSignal(false),
+}
+let queryRevision = 0
+let paletteRevision = 0
+
 export function Palette(props: {
   readonly go: (route: Route) => void
   /**
@@ -183,7 +194,18 @@ export function Palette(props: {
   const pins = usePins()
   const router = useRouter()
   const [keys, setKeys] = createSignal(false)
-  const [query, setQuery] = createSignal("")
+  const [query, writeQuery] = memory.query
+  const resuming = paletteOpen()
+  const setQuery = (value: string) => {
+    queryRevision++
+    writeQuery(value)
+  }
+  /** A late action can answer only the opening and input that invoked it. */
+  const currentInteraction = () => {
+    const opened = paletteRevision
+    const submitted = queryRevision
+    return () => paletteRevision === opened && queryRevision === submitted
+  }
   const today = useToday()
   const needles = createMemo(() => needlesFrom(query(), today()))
   // WHICH row Enter takes, and the arrows that walk it — the one cursor every
@@ -241,10 +263,10 @@ export function Palette(props: {
    * say. Two answers about two different acts, so a person reading a refusal
    * from one is not shown it wiped by a remark from the other.
    */
-  const [askError, setAskError] = createSignal<string | null>(null)
+  const [askError, setAskError] = memory.askError
   /** What the last write had to say — a refusal in the ops layer's own words,
    *  or a remark about one that landed. */
-  const [said, setSaid] = createSignal<Said | null>(null)
+  const [said, setSaid] = memory.said
   /**
    * A WRITE IS IN FLIGHT — the date picker's rule, in the surface that needed
    * it most: "the gate is a round trip, and a second Enter while the first is
@@ -269,7 +291,7 @@ export function Palette(props: {
    * on its way out, and what a second press of it means is a question for the
    * face that answers it and not for this box.
    */
-  const [sending, setSending] = createSignal(false)
+  const [sending, setSending] = memory.sending
   let input: HTMLInputElement | undefined
   let previousFocus: HTMLElement | null = null
   /** The confirm's own buttons while a question is up — where the caret goes
@@ -436,6 +458,7 @@ export function Palette(props: {
    *  list kept at two sites is a signal somebody forgets to add to one of
    *  them. `text` is what the box starts with: empty, or a primed prefix. */
   const blank = (text = "") => {
+    paletteRevision++
     setQuery(text)
     cursor.top()
     setChosen(false)
@@ -471,12 +494,14 @@ export function Palette(props: {
    * caret or a remembered focus. Whoever opens it, the box is empty and the
    * caret is in it.
    */
+  let firstOpening = true
   createEffect(() => {
     if (!paletteOpen()) return
     previousFocus = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null
-    blank()
+    if (!(firstOpening && resuming)) blank()
+    firstOpening = false
     // The element is not attached at the instant the signal flips.
     queueMicrotask(() => input?.focus())
   })
@@ -493,9 +518,12 @@ export function Palette(props: {
    * filter it is drawn over, which is not what backing out of one has ever
    * done.
    */
+  let firstQuestion = true
   createEffect(
     on(paletteAsking, (question) => {
-      if (question?.kind !== "line") return
+      const retained = firstQuestion && resuming
+      firstQuestion = false
+      if (retained || question?.kind !== "line") return
       blank(question.initial)
     }),
   )
@@ -531,7 +559,9 @@ export function Palette(props: {
     if (action.kind === "pin") {
       // The palette STAYS UP while this one is in flight, exactly as an op row
       // does, because the answer belongs in the box the reader is looking at.
+      const current = currentInteraction()
       pinPage((line) => {
+        if (!current()) return
         if (line === undefined) close()
         else setSaid(line)
       })
@@ -558,10 +588,12 @@ export function Palette(props: {
    */
   const sendEdit = (edit: Edit) => {
     if (sending()) return
+    const current = currentInteraction()
     setSending(true)
     setSaid(null)
     void applying(edit, undo.record).then((line) => {
       setSending(false)
+      if (!current()) return
       if (line === undefined) {
         close()
         return
@@ -683,15 +715,20 @@ export function Palette(props: {
    */
   const sendCapture = (text: string) => {
     if (sending()) return
+    const submitted = queryRevision
+    const opened = paletteRevision
     setSending(true)
     setSaid(null)
     void applied({ verb: "capture", title: text }, undo.record).then((outcome) => {
       setSending(false)
+      // A response belongs to the palette opening that sent it. A new
+      // search or question after dismissal must not hear from this capture.
+      if (paletteRevision !== opened) return
       if (Outcome.isFailure(outcome)) {
-        setSaid({ tone: "alarm", text: outcome.failure.message })
+        if (queryRevision === submitted) setSaid({ tone: "alarm", text: outcome.failure.message })
         return
       }
-      prime(`${CAPTURE_PREFIX} `)
+      if (queryRevision === submitted) prime(`${CAPTURE_PREFIX} `)
       // The op's own remark if it made one, and otherwise this app's: a write
       // whose whole point is that nothing on screen moves has to say that it
       // happened, or it is indistinguishable from a key that did nothing.
@@ -739,9 +776,11 @@ export function Palette(props: {
    */
   const runCommand = (command: AppCommand, text: string) => {
     if (text.trim() === "") return
+    const current = currentInteraction()
     setAskError(null)
     void command.run(text).then(
       (refusal) => {
+        if (!current()) return
         if (refusal === null) {
           close()
           return
@@ -749,7 +788,7 @@ export function Palette(props: {
         setAskError(refusal)
       },
       (fault: unknown) => {
-        setAskError(`“${command.said}” could not be reached — see the console.`)
+        if (current()) setAskError(`“${command.said}” could not be reached — see the console.`)
         console.error(`olai: the palette command "${command.prefix}" threw`, fault)
       },
     )

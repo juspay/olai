@@ -10,6 +10,7 @@
  */
 
 import { Then, When } from "@cucumber/cucumber"
+import * as assert from "node:assert"
 import { selector, TESTID } from "@olai/web/testlib"
 
 import type { OlaiWorld } from "../support/world.ts"
@@ -28,6 +29,16 @@ const pressDelete = async (world: OlaiWorld): Promise<void> => {
   await world.page.locator(VERB).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
   await world.page.locator(VERB).click()
 }
+
+Then("both file deletion choices fit the screen", async function (this: OlaiWorld) {
+  const width = await this.page.evaluate(() => innerWidth)
+  for (const control of [VERB, CANCEL]) {
+    const box = await this.page.locator(control).boundingBox()
+    assert.ok(box, `${control} is visible`)
+    assert.ok(box.x >= 0 && box.x + box.width <= width + 1,
+      `${control} spans ${box.x}..${box.x + box.width} in a ${width}px screen`)
+  }
+})
 
 When("I press Delete file", async function (this: OlaiWorld) {
   await pressDelete(this)

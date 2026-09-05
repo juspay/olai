@@ -143,6 +143,7 @@ import { CompletionMenu, type MenuRow } from "./CompletionMenu.tsx"
 import { type Chip, ContextChips } from "./ContextChips.tsx"
 import type { Holding } from "./holding.ts"
 import { offers } from "./naming.ts"
+import { createMessageDraft } from "./message-draft.ts"
 import type { Chat } from "./state.ts"
 
 /** Every control on the toolbar, the same height and the same corners. Written
@@ -157,45 +158,18 @@ export function Composer(props: {
    *  panel is where a drop is caught and this row is where the chips go. */
   readonly holding: Holding
 }) {
-  const [draft, setDraft] = createSignal("")
-  /**
-   * WHERE THE CARET IS, which is the one fact a draft does not carry and the
-   * `@` list cannot be armed without: what is being completed is a word inside
-   * the message rather than the whole of it.
-   *
-   * Read off the element rather than tracked alongside it, for
-   * `../edit/RowEditor.tsx`'s reason — the caret moves for reasons no handler
-   * here sees (a click in the middle of a sentence, `Home`, a drag-selection,
-   * an IME), so every event that could have moved it re-reads it and the value
-   * is the element's own answer rather than this component's arithmetic about
-   * what the last key should have done.
-   */
-  const [caret, setCaret] = createSignal(0)
-  /** The one piece of MEMORY in the completion, and it remembers a token
-   *  rather than a mood: Escape over one `@` keeps that one shut while it is
-   *  being typed, and starting another `@` — or moving the caret to one — is a
-   *  fresh offer (`./completion.ts`'s `tokenOf`). Without it, Escape could
-   *  only mean "throw the sentence away", which is the wrong of the two
-   *  answers to a key pressed to make a popup go away. */
-  const [dismissed, setDismissed] = createSignal<string | null>(null)
+  // Keep words, caret, chosen @ handles and the dismissed token together across remounts.
+  // `taken` grants node context only while its word remains in the draft.
+  const { draft, setDraft, taken, setTaken, caret, setCaret, dismissed, setDismissed, recover } = createMessageDraft(() => {
+    const state = props.chat.state()
+    const agent = agentIn(state)
+    return agent === null || state.session === null
+      ? null
+      : JSON.stringify([agent.id, state.session.id])
+  })
   /** Opened by the BUTTON rather than by typing a slash — the difference is
    *  only which prefix the list is filtered by. */
   const [asked, setAsked] = createSignal(false)
-  /**
-   * The nodes TAKEN off the `@` list, which is not the same as the nodes this
-   * message is about: what it is about is these, minus the ones whose word is
-   * no longer in the draft ({@link namedIn}). A person who deletes `@hinges`
-   * has said the message is not about that node — and a chip that outlived its
-   * word would send a subject the sentence never mentions.
-   *
-   * A SET rather than a list, because order is the draft's: `compare @a with
-   * @b` says which is which, and this remembers only which rows were chosen.
-   *
-   * This composer's, like the draft it is read against — where the strip the
-   * `•••` menu fills is the app's (`./armed.ts`), because that gesture happens
-   * in a pane on the other side of the screen and belongs to no box.
-   */
-  const [taken, setTaken] = createSignal<ReadonlySet<string>>(new Set())
   let input: HTMLTextAreaElement | undefined
   let picker: HTMLInputElement | undefined
   let shutter: HTMLInputElement | undefined
@@ -453,6 +427,7 @@ export function Composer(props: {
    * ({@link ./state.ts}).
    */
   const send = async (interrupt = false) => {
+    const uploadScope = props.chat.state().uploadScope
     const text = draft()
     if (
       text.trim() === "" &&
@@ -472,7 +447,7 @@ export function Composer(props: {
     // restored one and not the other would leave a message that is not the one
     // that was refused.
     const held = releaseArmed()
-    const chosen = taken()
+    const recoverDraft = recover()
     setTaken(new Set<string>())
     setDraft("")
     // The caret goes with the words: an empty box's caret is at its start, and
@@ -491,17 +466,10 @@ export function Composer(props: {
       interrupt,
     )
     if (sent) return
-    // THE WORDS AND THE PERMISSION FOR THEM MOVE TOGETHER, on one test rather
-    // than two: the restored `@hinges` has to be a word the panel remembers
-    // writing, or the message goes the second time without the subject it was
-    // refused with. Two separately-evaluated "is it still empty?" guards could
-    // answer differently — somebody typing while the refusal is in flight keeps
-    // their words and would have got the old permissions back underneath them.
-    if (draft() === "") {
-      setDraft(text)
-      setTaken(chosen)
-    }
-    props.holding.restore(attachments)
+    recoverDraft()
+    props.holding.restore(uploadScope, attachments)
+    // Explicitly armed rows belong to the workspace and already survive
+    // conversation switches; a refused send must not consume those either.
     restoreArmed(held)
   }
 

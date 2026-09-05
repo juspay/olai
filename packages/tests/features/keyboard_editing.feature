@@ -143,6 +143,21 @@ Feature: Keyboard editing
     Then the node titled "driveway" comes before the node titled "garage"
     And the node titled "garage" comes before "kitchen"
 
+  Scenario: Typing into a parked row while the prior save settles keeps every character
+    When I click the title of "kitchen"
+    And I put the caret at the start of the line
+    And I press "Enter"
+    And I press "Enter"
+    Then 2 new rows are being typed
+    When I type "garage"
+    And I focus the first parked row and type "driveway" immediately
+    Then "house.olai" holds a node titled "garage"
+    # Pausing after those early characters must still trigger the idle save.
+    And "house.olai" holds a node titled "driveway"
+    And the node titled "driveway" comes before the node titled "garage"
+    And the node titled "garage" comes before "kitchen"
+    And there should be no page errors
+
   Scenario: Clicking away from empty drafts parks them
     When I click the title of "handles"
     And I press "Enter"

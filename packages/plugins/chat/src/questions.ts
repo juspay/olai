@@ -78,6 +78,7 @@ export const make = (
   onSettled: (id: string, outcome: AskOutcome) => void,
 ): Questions => {
   const pending = new Map<string, Pending>()
+  const instance = crypto.randomUUID()
   let asked = 0
 
   const ask = (
@@ -85,10 +86,10 @@ export const make = (
     signal: AbortSignal,
     announce: (id: string) => void,
   ): Promise<Settled> => {
-    // The transcript's own key shape (`kind:n`), because a question's row key
-    // IS this id: it is the one row a browser talks back about, and one
-    // spelling is one thing to be right about. See `Transcript.ask`.
-    const id = `ask:${++asked}`
+    // A browser answers this row by id. Independent node agents and restarted
+    // harnesses must never mint the same id: their drafts share one tab, and
+    // a delayed answer must not settle a different foreground question.
+    const id = `ask:${instance}:${++asked}`
     return new Promise<Settled>((resolve) => {
       const settle = (settled: Settled): void => {
         if (pending.delete(id)) {

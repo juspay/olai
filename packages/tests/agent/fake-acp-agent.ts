@@ -196,10 +196,12 @@
 
 import { spawn } from "node:child_process"
 import { appendFileSync, existsSync, readFileSync, rmSync, statSync } from "node:fs"
+import { createHash } from "node:crypto"
 import { basename, join } from "node:path"
 
 import { readMessages } from "../support/ndjson.ts"
 import { emitter, MARKER, RELEASE, released as releasedIn, speaking } from "../support/scripted.ts"
+import { sessionStore } from "./session-store.ts"
 
 const OUT = process.stdout
 
@@ -209,7 +211,15 @@ const OUT = process.stdout
  *  ids and the option order are this file's own, which is the whole reason two
  *  fakes are worth having. */
 const emit = emitter(OUT)
-const { notify, refuse, request, respond, take, withdraw } = speaking(emit, "agent")
+const { notify: sendNotification, refuse, request, respond, take, withdraw } = speaking(emit, "agent")
+const notify = (method: string, params: unknown): void => {
+  if (method === "session/update" && typeof params === "object" && params !== null
+    && "sessionId" in params && typeof params.sessionId === "string"
+    && "update" in params && typeof params.update === "object" && params.update !== null) {
+    sessionStore(cwd).update(params.sessionId, params.update as Record<string, unknown>)
+  }
+  sendNotification(method, params)
+}
 
 /**
  * Prompts this agent has READ and not yet started on — its queue, made
@@ -394,6 +404,7 @@ const minted = new Map<string, Minted>()
  *  minted — each shape pruned its own way, and the static ids winning any
  *  overlap so their pinned words and stamps never move. */
 const listedSessions = () => {
+  if (sessionStore(cwd).enabled) return sessionStore(cwd).list()
   const staticRows = stored() ? storedSessions() : []
   const staticIds = new Set(staticRows.map((row) => row.sessionId))
   return [
@@ -1274,14 +1285,16 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
   if (verb === "terminal") {
     if (capabilities["terminal"] !== true) { refuse(id, -32603, "client did not advertise terminals"); return }
-    const limit = argument === "truncate" ? 7 : argument === "zero" ? 0 : 65536
-    const script = argument === "truncate" || argument === "zero"
+    // A node’s first prompt also carries its context contract after the command.
+    const variant = rest[0]
+    const limit = variant === "truncate" ? 7 : variant === "zero" ? 0 : 65536
+    const script = variant === "truncate" || variant === "zero"
       ? 'process.stdout.write("old output 🌍éEND"); process.exitCode=7'
       : 'process.stdout.write("stdout ready\\n"); process.stderr.write("stderr ready\\n"); setInterval(()=>{},1000)'
     const created = await request("terminal/create", { sessionId, command: "node", args: ["-e", script], outputByteLimit: limit }) as { terminalId: string }
     const params = { sessionId, terminalId: created.terminalId }
     notify("session/update", { sessionId, update: { sessionUpdate: "tool_call", toolCallId: "terminal-test", title: "Run verification", kind: "execute", status: "in_progress", content: [{ type: "terminal", terminalId: created.terminalId }] } })
-    if (argument !== "truncate" && argument !== "zero") {
+    if (variant !== "truncate" && variant !== "zero") {
       while (!cancelled && !existsSync(`${cwd}/${MARKER.release}`)) await sleep(20)
       if (!cancelled) { rmSync(`${cwd}/${MARKER.release}`, { force: true }); await request("terminal/kill", params) }
     }
@@ -2604,12 +2617,9 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
 
   // An attachment reaches an agent as a PATH in the prompt, and the whole
-  // claim of that design is that the agent can then READ it. So this one does:
-  // it opens the file the prompt named and says how big it is, which is a fact
-  // it can only have got off the disk. A scripted agent cannot look at a
-  // picture or parse a PDF, and it does not have to — what an e2e can prove is
-  // that the bytes the browser sent are the bytes at the path the agent was
-  // given, whatever kind of file they are.
+  // claim of that design is that the agent can then READ it. Ordinary replies
+  // report its stored size. Integrity probes explicitly read and hash the file:
+  // size alone cannot detect corrupted bytes or reordered upload chunks.
   //
   // The label is `olai-plugin-chat`'s (`promptWith`), and it says FILE because the
   // line carries text and PDFs as well as pictures.
@@ -2618,6 +2628,10 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     for (const file of attached) {
       const bytes = existsSync(file) ? statSync(file).size : -1
       say(`read ${bytes} bytes from ${basename(file)}\n`)
+      if (text.includes("verify attachment bytes") && bytes >= 0) {
+        const digest = createHash("sha256").update(readFileSync(file)).digest("hex")
+        say(`sha256 of ${basename(file)}: ${digest}\n`)
+      }
     }
     reply(id, { stopReason: "end_turn" })
     return
@@ -2882,7 +2896,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         return
       }
       openSession(params)
-      sessionId = "fake-session-1"
+      sessionId = sessionStore(cwd).enabled ? sessionStore(cwd).newId() : "fake-session-1"
       // A fresh conversation is on whatever the picker says it is picking, and
       // what it is picking is the pin.
       reasoning = "medium"; mode = "code"; fast = false
@@ -2916,9 +2930,21 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       // on the wire has opened nothing, and what a scenario looks at in that
       // window is a client that is between conversations.
       if (holdsLoad()) await released()
+      {
+        const directory = typeof params["cwd"] === "string" ? params["cwd"] : cwd
+        const disk = sessionStore(directory)
+        if (disk.enabled && disk.read(String(params["sessionId"])) === null) {
+          refuse(id, -32603, `no such conversation: ${String(params["sessionId"])}`)
+          return
+        }
+      }
       openSession(params)
       sessionId = String(params["sessionId"] ?? sessionId)
-      replay()
+      if (sessionStore(cwd).enabled) {
+        for (const update of sessionStore(cwd).read(sessionId)?.updates ?? []) {
+          sendNotification("session/update", { sessionId, update })
+        }
+      } else replay()
       // THE PIN, ASSERTED OVER THE CONVERSATION'S OWN MODEL — which is the bug
       // `chat-model-reverts-on-restart` is about, and what the real adapter
       // does on every resume when `settings.json` names a model. Whatever this
@@ -2940,7 +2966,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         sessionId,
         update: {
           sessionUpdate: "session_info_update",
-          title: STORED_TITLES[sessionId] ?? "a loaded conversation",
+          title: sessionStore(cwd).read(sessionId)?.title ?? STORED_TITLES[sessionId] ?? "a loaded conversation",
         },
       })
       return
@@ -2986,6 +3012,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
     case "session/prompt": {
       const text = promptTextOf(params)
+      sessionStore(cwd).prompt(sessionId, text)
       // It is not waiting any more: this is the turn now.
       waiting.delete(id)
       // ... and the conversation it landed in EXISTS from here on: a transcript

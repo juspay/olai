@@ -44,6 +44,24 @@ import type { OlaiWorld } from "../support/world.ts";
 
 // ── writing ────────────────────────────────────────────────────────────
 
+const rememberedFiles = new WeakMap<OlaiWorld, Map<string, string>>();
+
+When("I remember the served bytes of {string}", function (this: OlaiWorld, file: string) {
+  const files = rememberedFiles.get(this) ?? new Map<string, string>();
+  files.set(file, fs.readFileSync(path.join(this.scratch(), file), "utf8"));
+  rememberedFiles.set(this, files);
+});
+
+When("I restore the remembered served bytes of {string}", function (this: OlaiWorld, file: string) {
+  const bytes = rememberedFiles.get(this)?.get(file);
+  assert.notEqual(bytes, undefined, `no remembered bytes for ${file}`);
+  this.writeServed(file, bytes!);
+});
+
+When("I remove the served file {string}", function (this: OlaiWorld, file: string) {
+  fs.unlinkSync(path.join(this.scratch(), file));
+});
+
 When(
   "I rewrite {string} as:",
   function (this: OlaiWorld, file: string, contents: string) {

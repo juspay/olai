@@ -274,6 +274,10 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
   // `search_nodes` and is answered with the nodes (`./faces.ts`).
   expect(Object.keys(BROWSER)).toContain("narrowing")
   expect(Object.keys(AGENT)).not.toContain("narrowing")
+  expect(BROWSER.searchResults).toBe("resource")
+  expect(Object.keys(AGENT)).not.toContain("searchResults")
+  expect(BROWSER.tagCompletions).toBe("resource")
+  expect(Object.keys(AGENT)).not.toContain("tagCompletions")
   // ...and so is the transcript's id lookup, for a reason of the same shape: it
   // answers a dozen ids with the node each names, which is what a panel drawing
   // an agent's own backticks needs. An agent asking whether an id is real asks

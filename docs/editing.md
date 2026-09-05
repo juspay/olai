@@ -2,6 +2,10 @@
 
 Click a title and the caret is where you clicked. From there it is the outliner's loop on the keys you already know, and the whole list is in the app, under **Keyboard shortcuts** in the ⌘K palette.
 
+Escape cancels a held row drag: the drop indicator disappears and releasing the pointer does not move the row. During a selection sweep, Escape ends the sweep and retains the picked rows; another Escape clears the pick. Both gestures can be started again immediately.
+
+While an input method is composing text, its keys select and confirm candidates. They do not send chat, split outline rows, choose app completions or submit forms. After composition ends, ordinary shortcuts resume.
+
 | | |
 |---|---|
 | **Enter** | commit, and open the next line |
@@ -33,9 +37,11 @@ Click a title and the caret is where you clicked. From there it is the outliner'
 
 Nothing has a mode: the title becomes an input in the same place, at the same size, and the row you are in is toned so you can see where the caret went. What you type is the SOURCE — `**bold**` and `#tags` as they are written — and the rendering comes back the moment you leave. A note is the same trade one line down.
 
-**What has no key is in the row's `•••` menu**, and it has two doors. On a pointer device, hover a row and the `•••` appears in the gutter left of the collapse triangle. A phone has no hover and no room for it, so there the door is the row itself: **hold a finger on a row** and the same menu opens under it, with the same verbs. Nothing in it is a mouse's alone. A finger that MOVES is scrolling the page, not pressing — the menu comes up only for one that stays put — and the tap that lifting it would otherwise leave behind is dropped, so a press never also opens the row for editing or follows its bullet.
+**What has no key is in the row's `•••` menu**, and it has two doors. On a pointer device, hover a row and the `•••` appears in the gutter left of the collapse triangle. A phone has no hover and no room for it, so there the door is the row itself: **hold a finger on a row** and the same menu opens under it, with the same verbs. Nothing in it is a mouse's alone. Tall menus scroll internally; when a menu opens upward, it reserves the app bar so its first entries remain visible. A finger that MOVES is scrolling the page, not pressing — the menu comes up only for one that stays put — and the tap that lifting it would otherwise leave behind is dropped, so a press never also opens the row for editing or follows its bullet.
 
 ## A row is its title
+
+The reconnect dialog can take focus without committing or closing the row editor. A rebuild of the same page preserves the selected text range as well as the draft, so typing replaces the selected words and Enter splits around the same selection. Typing and arrow-key movement update that retained position too. Escape-dismissed input completions remain dismissed during the same draft’s rebuild; a fresh edit offers completions again. Clicking away still commits normally.
 
 An outline is a column of titles, so that is what it draws — that, and the short facts a node carries, which are drawn as a run of chips under the title whether the row is open or not (*What a node says about itself*, below). What waits behind the small dim **¶** beside the title is the node's **note** and what it points at. Press the ¶ (or **Space**, with it focused) and the row opens: the title line says so, its tags brighten, and the note appears in full under the facts. Press it again, click away, or press **Escape**, and the row folds back. A node with nothing behind it wears no ¶ at all, so the mark is always a promise there is something there — and a node whose only body is properties has none, because the properties are already on the row.
 
@@ -97,6 +103,10 @@ The arrows and the shape keys read the page slightly differently, and it is the 
 
 **Enter in the MIDDLE of a line cuts it there.** What is before the caret stays where you were; what is after it becomes the next row, and the caret goes with it, at its head — those are the words that moved. Everything that DESCRIBED the row you were in stays with it: what hangs under it, its note, its mark, its date, what it waits on. The line that came off is a new row, and a new row is a bullet — nobody has said anything about it yet, and this app does not decide that for you.
 
+Typing into a parked blank while the previous row is still saving keeps those characters with the clicked blank. They enter its draft when activation finishes, without changing the row whose save is pending.
+
+An unrelated plugin change keeps the outline's unfinished rows and any refused edit on the page. They can still be filled in, corrected or discarded after the rebuild. Each pane keeps its own drafts, including phone tabs showing the same outline and inactive tabs while a neighbour navigates; leaving for another page discards that page's parked rows.
+
 At the END of a line the key is what it always was, because there is nothing after the caret to split off: a draft after this row, after the whole subtree. At the HEAD of one it inserts a blank draft *above*, and the words you were on stay where they were. That draft is still local — a node needs a title ([format.md](format.md)), so nothing is written until it has one. Cutting where one side would be nothing but spaces is the same thing as an end-of-line press, and reads the same way.
 
 **Backspace at the START of a line joins it onto the row above** — its sibling, or its PARENT when it is the first of its siblings: the row your eye is on either way. The two titles run together with nothing between them, because that is what they were before somebody cut them; the caret lands on the seam. Anywhere else in the line, Backspace is the ordinary one and deletes a character; it means this only in the one place it has nothing of its own to do.
@@ -135,6 +145,8 @@ Both keys are ONE write at the same gate everything else goes through, and an ag
 
 ## Moving a row somewhere else entirely
 
+An open Move picker retains its row and typed destination search when plugins rebuild the same page. Cancelling and opening another move starts with an empty search; navigating away discards the prepared move.
+
 **The caret keeps its place through all of them.** A row moves when the file says it moved, which in a browser means the line you are typing in is drawn again somewhere else — so the app puts the caret back at the character you were at, rather than at the end of the line. **Tab** in the middle of a word leaves you in the middle of that word.
 
 Every key above moves a row one step from where it is: **Tab** goes under the row above, **Shift+Tab** up a level, **Alt+Shift+↑/↓** among its siblings, and a drag reaches as far as you can carry it. None of them can say *this belongs under that node, three hundred rows down* — which is the move you actually mean once a branch has ended up in the wrong place.
@@ -169,7 +181,7 @@ Nothing here is a mode. What is open is decided by the text and where the caret 
 
 **`!` writes the node's date, not text.** The list says the DAY beside every phrase — `next friday` is an argument about which Friday, and nobody should have to press Enter to find out — and taking one sends the same `date` edit the pill's picker and an agent's `set_date` send. The `!next fri` you typed comes back out of the line before it is committed; on a row you have only just started, the line is written first and then dated, which is the order every structural key follows.
 
-**`#` and `@` are two namespaces, and both are real.** A tag lives inline in a title ([format.md](format.md)), so choosing one just writes it into the line you are typing and it commits with the rest of it — no separate write. The list is every tag written anywhere in this vault, most-used first, and the sigil you typed is the one you get: `#alice` and `@alice` are different tags. Nothing is added after the tag — not even a space — because a title is stored verbatim and a character you did not type is a character in your git history.
+**`#` and `@` are two namespaces, and both are real.** A tag lives inline in a title ([format.md](format.md)), so choosing one just writes it into the line you are typing and it commits with the rest of it — no separate write. The list follows the tags currently written anywhere in this vault, most-used first. An open prefix updates when another writer adds, replaces or removes a tag, including when the last match disappears and a later write brings a match back. The typed draft stays intact, and the sigil you typed is the one you get: `#alice` and `@alice` are different tags. Nothing is added after the tag — not even a space — because a title is stored verbatim and a character you did not type is a character in your git history.
 
 **`((` places a mirror.** The search is the server's own, the same one ⌘K and the header box use, so what this finds and what an agent's `search_nodes` finds cannot drift; each row says where that node sits. Choosing one sends `add_mirror`. WHERE it lands is the line you were on: a line you had only just opened and typed nothing else into BECOMES the placement, which is the gesture you know — Enter, `((`, choose — and a line with words in it keeps them, with the placement as the next row. A mirror is a whole row in this format (`{id, parent, ord, mirror}`, no text of its own), so it cannot sit inside a sentence; beside the sentence is the honest reading of the same gesture. ⌘Z retires the placement it made.
 
@@ -196,6 +208,8 @@ Two panes showing **different files** cannot, and the pane says so before you le
 **With a finger, hold the bullet first.** Press it, wait for the row to lift, and then it follows your thumb — the same drop line, the same landing. Until that moment nothing is claimed: a finger that moves before the row lifts is scrolling the page, exactly as it always was, and that is true whether it started on a bullet or anywhere else. The bullet is the handle on every device, which is why holding a finger *there* no longer opens the row's ••• menu — holding the row anywhere else still does.
 
 ## Picking several rows
+
+A plugin rebuild of the same page preserves the picked rows and the anchor used by Shift-click and Shift-arrow. Bulk actions continue to use those rows. Explicit navigation clears the pick, and returning to the outline starts with nothing selected.
 
 Everything above works on more than one row at a time. All five of Workflowy's ways to pick them:
 
@@ -238,6 +252,12 @@ A node's `date` is what it is scheduled for ([format.md](format.md)), and it is 
 **A dated row's own pill is the control.** Press the date beside the title and the picker opens on it. A row with no date has no pill to press, so its way in is the ••• menu: **Set date…** on a row with none, **Change date…** on one that has one. From the keyboard it is `!` and a day in words (above), which sends the same edit.
 
 What you get is your browser's own date picker, and what is written is the day you picked, exactly as it is written — `2026-09-01`, ten characters, never a timestamp this app invented on the way. **Enter** sets it, **Escape** and **Cancel** leave without writing, and ⌘Z takes a pick back like any other edit. Empty the box and the button becomes **Clear date**, which is the ••• menu's own verb and the same write: one way to say "no date", whichever door you came through.
+
+An unsubmitted date or repeat choice stays with its row and pane when plugins rebuild the page or you switch phone pane tabs. Filtering that same outline does not change its ownership. Leaving the page, cancelling, or collapsing the parent discards the draft; opening the picker again starts from the stored value. Two panes of the same outline keep independent choices.
+
+A pending submission stays disabled across pane switches, and a refused choice keeps its explanation. While a write waits, keyboard focus stays in the form so Escape still dismisses it. Dismissing an already submitted form does not undo its write; its late response cannot close a newly opened draft.
+
+On a phone, picker labels wrap and controls fit the space left by the row's indentation, including nested rows and long repeat options.
 
 A node scheduled for a time of day rather than a bare day keeps whatever it says on disk until you pick — the box shows the day that time falls on, and the panel says what picking one would replace, because a picker picks days.
 
@@ -289,7 +309,7 @@ Anything else stays the text it is. A value with a URL *inside* it is not a URL 
 
 **Prose too long to be a fact is drawn as its first words**, with the rest one press away. That fold is a safety net rather than a place to put things: properties are short facts, prose belongs in the note, and the fold is only what stops a record that broke the rule from putting a wall back on every row of the page.
 
-**A value that NAMES something never folds, however long it is** — a name is one token, not prose, and a URL and a deep vault path are exactly the two door kinds most likely to run long. What a long door does instead is sit on one line with an ellipsis, still a link, with the whole of it in the pointer's tooltip. The ellipsis is the browser's, so the value in the page is still the value in the file.
+**A value that NAMES something never folds, however long it is** — a name is one token, not prose, and a URL and a deep vault path are exactly the two door kinds most likely to run long. What a long door does instead is sit on one line with an ellipsis, still a link, with the whole of it in the pointer's tooltip. The ellipsis is the browser's, so the value in the page is still the value in the file. Its width is limited by the space available in the chip as well as the desktop maximum, so a nested row on a phone keeps the link on screen.
 
 **A node's own page draws them all**, read-only ones first: its `id`, the mark it has, its `date`, and the `created`/`changed` stamps when it has them. Those have nowhere else to be read — the id in particular is what every tool call and every `((` reference takes. They are above the note there, as on a row: facts above the line, story below it. **The read-only half takes no links** — each of those is a field with a face of its own, and the `id` would be a link to the page it is drawn on.
 
@@ -317,6 +337,8 @@ Anything else stays the text it is. A value with a URL *inside* it is not a URL 
 
 ## What a node points at
 
+Open link and prerequisite panels retain their relation and search query when plugins rebuild the same page, both on outline rows and zoomed headings. Cancelling or opening a fresh relation clears the search; navigating away discards the prepared panel.
+
 A node carries two lists of other nodes ([format.md](format.md)): `see`, which is a link and nothing more, and `after`, which is what it must come after. The page has drawn both for a long time — the links under a node, and, for a blocked row, the dim, the mark column's glyph and the **blocked by** line on its own page. Both can be written now, from either end.
 
 **The `•••` menu has the two verbs**: *Link to a node…* and *Wait for a node…*. Each opens a panel under the row holding what the node says now, with an `×` on each of them, and a box that searches the whole directory — the server's own search, the same one ⌘K, the header box and `((` use, so what this finds and what an agent's `search_nodes` finds cannot drift. Walk the hits with the arrows, take one with **Enter**, leave with **Escape** or **Done**. Choosing one sends the same `set_see` / `set_after` an agent sends, and ⌘Z takes it back.
@@ -333,9 +355,9 @@ Both are facts about the node a row SHOWS, so choosing one at a mirror writes th
 
 **⌘Z takes back the last edit you made on this outline** — and it is not a restore. When a key moves a row, ticks something off, or commits what you retyped, the server records what would REVERSE it (the parent and neighbour the row had, the mark it replaced, the words it replaced) and ⌘Z sends that, through the same gate, judged against the outline as it is now.
 
-Which is what makes it safe to share an outline. An undo cannot quietly take back what the agent, another tab or a `git pull` did in the meantime; one that no longer fits — the row moved, somebody filed work under it, somebody retyped the line — says so instead of guessing, in the words the write gate would use. It is your own edits, on the outline in front of you: a hundred of them, this session, this tab. Open another outline and it starts again.
+Which is what makes it safe to share an outline. An undo cannot quietly take back what the agent, another tab or a `git pull` did in the meantime; one that no longer fits — the row moved, somebody filed work under it, somebody retyped the line — says so instead of guessing, in the words the write gate would use. It is your own edits, on the outline in front of you: a hundred of them, this session, this tab. Changing plugins preserves both undo and redo history, including the checks against other writers’ changes. Open another outline and it starts again.
 
-While you are still typing, ⌘Z is the text box's own, exactly as it is anywhere else. The outline's undo starts once the line is committed, which is the moment it became something anybody else can see.
+While you are still typing, ⌘Z is the text box's own, exactly as it is anywhere else. The outline's undo starts once the line is committed, which is the moment it became something anybody else can see. If you click away and immediately undo while the save reply is still pending, Undo waits for that save; it cannot spend an older edit instead. Navigating to another file also discards any inverse still awaiting its reply.
 
 **There is no delete key.** What ⌘Z can take back is a row you have just made — the un-create, which is the inverse of the `Enter` that made it. Where it goes is the Trash, keeping its id, which is what putting anything away does: a trash rather than a shredder, refused outright once anything has been filed under it, and not something a key of its own can ask for.
 
@@ -403,7 +425,7 @@ A name the link cannot hold is refused rather than mangled, in the palette's own
 
 **A pinned node says its name now, not the name it was pinned under.** Rename it from its own row, from another pane, from an agent, from vim — the shelf follows on the frame the file arrives, because there is no copy of the title stored beside the pin ([format.md](format.md#pins)).
 
-**Drag a pin to reorder the shelf**, exactly as a row is dragged in the tree: press, travel, and a line shows where it will land. What it sends is the same `place` a drop in an outline sends. A press that does not travel is the click it always was.
+**Drag a pin to reorder the shelf**, exactly as a row is dragged in the tree: press, travel, and a line shows where it will land. What it sends is the same `place` a drop in an outline sends. A press that does not travel is the click it always was. Pin reordering uses the primary mouse button; a secondary-button gesture does not move pins. Escape cancels a held pin drag. If another writer changes which pins are present or their order, the drop indicator disappears and the old gesture is cancelled; start a new drag against the updated shelf.
 
 **The `×` takes one off**, and so does the verb it was put up with. Unpinning is the set's own removal — the pin's row goes to the Trash keeping its id — so `⌘Z` takes it back and **Put back** is there if you find it later.
 
@@ -429,9 +451,13 @@ On any other page there are none of them. A command read out of context must not
 
 A refusal, or a nudge from a write that landed, is drawn in the palette and the palette stays up: a modal that closed on top of the reason would be exactly the silent failure this app is written against. A write that landed with nothing to add closes it, which is what choosing a command means. Either way ⌘Z takes it back — one undo stack, whichever hand made the edit.
 
+Those responses belong to the query that sent them. Typing a newer query or closing and reopening the palette prevents an older write or plugin command from closing it or displaying its old response there. The original action still takes effect.
+
 ## Quick capture
 
 **`⌘K`, `+`, the line, Enter** — and nothing moves. The page you were reading, your scroll and the address stay exactly where they were; the line becomes a node; the box empties for the next one, so several thoughts arriving at once cost one chord.
+
+If you type the next thought before the first capture answers, those newer words stay in the box. The confirmation still names the line that landed. A refusal does not label corrected input as invalid, and closing and reopening the palette prevents an earlier capture from changing its new query or message.
 
 It lands at the top level of the directory's **inbox** — the outline called `Inbox.olai`, wherever the directory already keeps one, and a new `_olai/Inbox.olai` when it has none. Minting it is part of the same single operation as the line, so a capture that is refused leaves no file behind. Which file that is is decided on the server, against the same reading the write is judged on, exactly as a daily note's path is.
 
@@ -457,6 +483,10 @@ Either way the row is **born `todo`**: the badge reads marks and nothing else, s
 
 **The sidebar's `+ New outline`** asks for a path — relative, under the served directory — and mints the file there. Enter creates it, Escape puts the box away, and the page it lands on is the new outline's, with the same *write the first line* the empty-outline page has always offered.
 
+Both new-file boxes show **Creating…** while their write is pending. You can type the next filename, but Enter does not submit another write until the first finishes. Its response cannot clear the newer name or put an old refusal under it. Escape dismisses the box without undoing an already submitted creation; reopening it starts a new draft. Plugin changes preserve each box’s filename, refusal and pending state independently, including changes made in another tab.
+
+If you navigate or change panes while creation is pending, the file still lands, but the response leaves your newer view in place. A later visit to such a document opens it for reading; **Edit** starts writing as usual.
+
 **The suffix is the door's half, so you may leave it off.** `Foo` and `Foo.olai` are the same ask at `+ New outline`, and `notes/plan` mints `notes/plan.olai` — the folders you typed are yours, and only the last few characters were ever in question. Only the suffixes olai actually claims count as one, so a dot inside a name is part of the name: `plan v1.2` is `plan v1.2.olai`, never `plan v1.olai`. `+ New document` is the same door with `.md` in it.
 
 **What names a PLACE rather than a file is not completed at all.** Every suffix begins with a dot, so adding one to a `..` would quietly make `...olai` — an ordinary filename — out of the one thing the operation would have refused. So `..`, `.` and a path ending in `/` go to the ops layer exactly as you typed them, and come back in its own sentence naming what you wrote. A name that merely ends in a dot is a name (`Foo.` is `Foo..olai`), and one that begins with a dot is an ordinary hidden file (`.plan` is `.plan.olai`, which the sidebar lists — olai skips dot-*directories*, not dot-files).
@@ -477,6 +507,8 @@ The mode is declared, so leaving it is too — which is where a document differs
 
 **Leaving the page abandons it too, and that includes leaving for another document.** A draft belongs to the file it was typed in: open another one and the editor closes with the draft still unwritten, exactly as Cancel would. That is worth saying out loud because the alternative is the quiet kind of wrong — a draft that followed you to the next file could be saved onto it, and where two documents happen to say the same thing (two empty notes, two copies of one file) the conflict guard below would not even notice.
 
+Changing plugins while staying on the document keeps its editor open, with the unsaved text and original conflict baseline intact. Save and Cancel still end that draft; a plugin rebuild never saves it implicitly. Each pane and browser tab keeps its own draft, including when phone tabs show the same file or a neighbouring pane navigates while this one is inactive. Saving in one leaves the others' drafts intact and makes their conflict checks compare against the newly saved text.
+
 A save is ONE op at the same gate as everything else: validated, published on its own revision (the other tab showing this document redraws on the frame it lands), audit-trailed, and WAITING in the commit panel like any other write. ⌘Z takes a saved edit back, by the same rule as a retyped title: the inverse carries the text it expects to find, so it can only take back what this tab wrote. And the answer is earned, not reported: the landed file is read back off the disk before the app calls the save done, and a file holding anything but your text is refused — with what the disk holds and the revision it still published, because a refusal here can take back the answer, never the landing.
 
 **The file can move underneath you, and nothing is clobbered either way.** Edit the same document in vim while the editor is open and the editor says so the moment the disk moves; a Save after that is refused, in the ops layer's own words, with your text kept exactly where you typed it. The refusal has two doors out and both are yours: take what you need and Cancel, or press **Overwrite what is there**, which is the same write minus the guard and means exactly what it says. An agent gets the identical story — its `write_document` takes a `was`, and the refusal is the same sentence.
@@ -485,6 +517,8 @@ A save is ONE op at the same gate as everything else: validated, published on it
 
 ## Deleting a file
 
+On phones, the confirmation wraps above its Delete and Cancel controls; both remain reachable even for a long filename. Plugin rebuilds dismiss an armed confirmation, so deleting afterward requires a fresh confirmation.
+
 Beside **Edit** on a document page's header, and beside the *write the first line* an emptied outline offers, sits **Delete…**. It asks first, naming the path — the file's name IS its address here, so the question is the address — and the second press is the write: the file is gone from the directory, the sidebar and every open tab on the write's own revision. **Cancel** writes nothing at all.
 
 **There is no file-level trash, and that is the sentence the question says.** A record's undo story is the Trash's — a `Put back` puts the subtree back with its ids. A file's undo story is git's: the delete rides the same gate and the same commit door as every other write ([git.md](git.md)), so the bytes are recoverable to exactly the extent git had already recorded them. A directory served `--no-commit`, or one whose file was never committed, keeps nothing. ⌘Z does not take a delete back either — what would take it back is a git command, and this app does not shell one for you.
@@ -492,3 +526,7 @@ Beside **Edit** on a document page's header, and beside the *write the first lin
 **The verb is guarded, and each refusal says what to settle first.** An outline that still holds records is refused, naming them — this is a delete, not a move: [the Trash](#the-trash) is how a record leaves an outline, and nobody's verb guesses at emptying. A document a `doc` field (or a property declared `doc` in `_olai/Properties.olai`) still names is refused, naming the records that name it — deleting under them would break THEIR files too, which is the finding the validator would show you next. A file olai only shows — a `.html`, a `.csv`, a picture, a `.pdf` — is never offered the control, and an agent's `delete_file` is refused the same way: those files belong to whatever put them there. And a broken file nobody could read is refused too: dropping bytes that never made it into the set is not a delete, it is a loss.
 
 An agent's `delete_file` is the same op at the same gate — minted paths and refusals alike — which is the consistency rule doing what it always does: nothing this face can reach is out of an agent's reach.
+
+An open palette keeps its typed input and question through plugin changes, including a pin name or an unsent capture. Escape still backs out of the question, then closes the palette; reopening starts a new draft.
+
+A pin rename is conditional on the stored title the question was opened on. The planner also requires the row to remain on the active pinned shelf. If another writer removes the pin or changes its name or destination, the rename is refused and the draft remains; dismiss and reopen the question to rename the reviewed pin.

@@ -408,3 +408,7 @@ Then(
     assert.strictEqual(reported.bottom, "0px");
   },
 );
+
+When("I tap the header search", async function (this: OlaiWorld) {
+  await this.page.locator(HEADER_SEARCH_OPEN).tap();
+});

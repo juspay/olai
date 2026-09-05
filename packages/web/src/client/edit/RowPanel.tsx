@@ -60,15 +60,17 @@
  * refuse, one direction over.
  */
 
-import { createSignal, type JSX, Show } from "solid-js"
+import { type JSX, Show } from "solid-js"
 
 import type { PanelIds, Press } from "./panel.ts"
+import type { Submission } from "./submission.ts"
 import { SaidLine } from "../SaidLine.tsx"
 import type { Said } from "../saying.ts"
 import { PANEL_OUT } from "../pill.ts"
 import { TARGET } from "../touch.ts"
 
 export function RowPanel(props: {
+  readonly submission: Submission
   readonly ids: PanelIds
   /** What the button IS, over whatever the surface's own control holds. A
    *  getter, because it is read on every frame the control changes. */
@@ -91,12 +93,16 @@ export function RowPanel(props: {
   /** The controls, between the label and the two buttons. */
   readonly children: JSX.Element
 }) {
-  /** What the last press had to say, or `null` — the ops layer's own words,
-   *  never summarised. */
-  const [said, setSaid] = createSignal<Said | null>(null)
-  /** One press at a time: the gate is a round trip, and a second Enter while
-   *  the first is in flight is two writes for one intention. */
-  const [sending, setSending] = createSignal(false)
+  /** Keep the pending guard and the ops layer's response with the form,
+   *  including while its controls are unmounted. */
+  const { said, setSaid, sending, setSending } = props.submission
+  let submit: HTMLButtonElement | undefined
+  let cancel: HTMLButtonElement | undefined
+  /** Dismissal invalidates the old response without undoing its write. */
+  const dismiss = () => {
+    props.submission.dismiss()
+    props.onClose()
+  }
 
   /** The press, whole — the guard, the round trip, and the two things that can
    *  come back. It is HERE rather than in each surface because every line of it
@@ -106,10 +112,17 @@ export function RowPanel(props: {
    *  to be true in two. */
   const press = async (): Promise<void> => {
     if (sending() || !props.press().writes) return
+    // Disabling the focused submit button sends keyboard focus to the body.
+    // Keep Escape and keyboard navigation inside the form while it waits.
+    if (document.activeElement === submit) cancel?.focus()
     setSending(true)
     setSaid(null)
+    const revision = props.submission.revision()
     try {
       const answer = await props.send()
+      // Cancelling and reopening is a new form, even if the old write is
+      // still waiting for its response. It cannot close or annotate that form.
+      if (revision !== props.submission.revision()) return
       if (answer !== undefined) {
         setSaid(answer)
         return
@@ -131,7 +144,7 @@ export function RowPanel(props: {
         // Escape further up, and one key must not also close something else.
         event.preventDefault()
         event.stopPropagation()
-        props.onClose()
+        dismiss()
       }}
     >
       {/* A form, so Enter in any control submits — which is what a person who
@@ -146,6 +159,7 @@ export function RowPanel(props: {
       >
         {props.children}
         <button
+          ref={submit}
           type="submit"
           class={`${TARGET} md:min-h-0 cursor-pointer rounded border border-rule bg-transparent px-2 py-1 text-sm text-ink hover:bg-rule disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent`}
           data-testid={props.ids.set}
@@ -154,10 +168,11 @@ export function RowPanel(props: {
           {props.press().label}
         </button>
         <button
+          ref={cancel}
           type="button"
           class={PANEL_OUT}
           data-testid={props.ids.cancel}
-          onClick={() => props.onClose()}
+          onClick={dismiss}
         >
           Cancel
         </button>

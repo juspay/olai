@@ -154,10 +154,24 @@ describe("withdrawing", () => {
   })
 })
 
-test("questions are announced under the transcript's own key shape", () => {
-  // The id IS the row key — it is the one row a browser talks back about — so
-  // it has to read like every other key the transcript mints.
+test("question row ids belong to a distinct agent instance", () => {
   const { questions } = registry()
-  expect(asked(questions).id).toBe("ask:1")
-  expect(asked(questions).id).toBe("ask:2")
+  const first = asked(questions).id
+  const second = asked(questions).id
+  expect(first).toMatch(/^ask:[0-9a-f-]{36}:1$/)
+  expect(second).toBe(first.replace(/:1$/, ":2"))
+  expect(asked(registry().questions).id).not.toBe(first)
+})
+
+test("an answer for another agent cannot settle this agent's pending question", async () => {
+  const first = registry()
+  const second = registry()
+  const old = asked(first.questions)
+  const current = asked(second.questions)
+  expect(second.questions.answer(old.id, null)).toBe("gone")
+  expect(second.settled).toHaveLength(0)
+  expect(first.questions.answer(old.id, null)).toBe("settled")
+  expect(second.questions.answer(current.id, null)).toBe("settled")
+  expect((await old.waiting).outcome.how).toBe("declined")
+  expect((await current.waiting).outcome.how).toBe("declined")
 })

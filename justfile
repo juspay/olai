@@ -708,6 +708,7 @@ dev-bin:
     # paragraph defending: here at WRITE time rather than each spawn.
     odu_dir="$(sh scripts/nix-out.sh .#odu-bin)/bin"
     printf '#!/usr/bin/env bash\n' > "$dir/bin"
+    printf 'export OLAI_DIST_DIR="${OLAI_DIST_DIR-%s}"\n' "{{ dist }}" >> "$dir/bin"
     printf 'export OLAI_ODU_BIN="${OLAI_ODU_BIN-%s}"\n' "$odu_dir" >> "$dir/bin"
     printf '%s\n' 'if [ -n "$OLAI_ODU_BIN" ]; then if [ -d "$OLAI_ODU_BIN" ]; then export PATH="$OLAI_ODU_BIN${PATH:+:$PATH}"; else echo "olai: OLAI_ODU_BIN=$OLAI_ODU_BIN is not a directory — no odu goes on the PATH of this serve" >&2; fi; fi' >> "$dir/bin"
     printf 'exec bun %s/packages/server/src/main.ts "$@"\n' \

@@ -84,11 +84,9 @@ Then(
   "the table's header is {string}",
   async function (this: OlaiWorld, expected: string) {
     const cells = (await table(this)).locator("thead th");
-    assert.deepStrictEqual(
-      await cells.allInnerTexts(),
-      expected.split(",").map((cell) => cell.trim()),
-      "the header cells the table draws",
-    );
+    const wanted = expected.split(",").map((cell) => cell.trim());
+    await this.waitUntil(async () => JSON.stringify(await cells.allInnerTexts()) === JSON.stringify(wanted),
+      `the header cells to read ${JSON.stringify(wanted)}`);
   },
 );
 
@@ -331,4 +329,11 @@ Then("this file has no editor", async function (this: OlaiWorld) {
     0,
     "this page offers an Edit control for a file the ops layer will refuse to write",
   );
+});
+
+Then("the picture's natural size is {int} by {int}", async function (this: OlaiWorld, width: number, height: number) {
+  await this.waitUntil(async () => this.page.locator(IMAGE_VIEW).evaluate((element, size) => {
+    const image = element as HTMLImageElement;
+    return image.complete && image.naturalWidth === size.width && image.naturalHeight === size.height;
+  }, { width, height }), `the loaded picture to measure ${width} by ${height}`);
 });

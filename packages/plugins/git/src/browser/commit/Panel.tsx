@@ -39,7 +39,7 @@
  */
 
 import { isReady } from "@olai/format"
-import { createSignal, Show } from "solid-js"
+import { Show } from "solid-js"
 
 import { agoOf } from "@olai/web/client/ago.ts"
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
@@ -58,6 +58,7 @@ import {
 import { Others } from "./Others.tsx"
 import { Outlines } from "./Outlines.tsx"
 import { createSelection } from "./selection.ts"
+import { preparation } from "./preparation.ts"
 import { canRecord, type Commit } from "./state.ts"
 import { TESTID } from "../../testids.ts"
 import { Unpushed } from "./Unpushed.tsx"
@@ -74,7 +75,7 @@ export function Panel(props: {
 }) {
   const pending = () => props.commit.pending()
   const ready = () => isReady(pending().repo)
-  const selection = createSelection(pending)
+  const selection = createSelection(pending, preparation.dropped)
 
   /**
    * The draft: the composed suggestion until somebody types, and theirs
@@ -87,7 +88,7 @@ export function Panel(props: {
    * could not recompose, because it had no way to tell a stale seed from an
    * edit.
    */
-  const [typed, setTyped] = createSignal<string | null>(null)
+  const [typed, setTyped] = preparation.typed
   const draft = () => typed() ?? selection.message()
 
   /**

@@ -566,6 +566,7 @@ export const REPEAT = selector(TESTID.repeat);
 export const REPEAT_PICKER = selector(TESTID.repeatPicker);
 export const REPEAT_PICKER_RULE = selector(TESTID.repeatPickerRule);
 export const REPEAT_PICKER_SET = selector(TESTID.repeatPickerSet);
+export const REPEAT_PICKER_SAID = selector(TESTID.repeatPickerSaid);
 export const REPEAT_PICKER_CANCEL = selector(TESTID.repeatPickerCancel);
 /** The properties run under a node's title or a document page's path, and one
  *  `key value` chip of it. A chip carries `data-key`, and `data-system` on
@@ -1788,6 +1789,7 @@ export class OlaiWorld extends World {
    *  the world because a restart mid-scenario has to spawn the SAME shape of
    *  server the first boot had. */
   storedSessions = false;
+  fastNodeIdle = false;
   /** Whether this scenario's server has an agent at all — false for
    *  `@no-agent`, which is how the panel's no-agent state is reached. Carried
    *  for the same reason: a restart has to reproduce the first boot. */

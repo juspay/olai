@@ -107,6 +107,9 @@ export interface Pin {
    *  Never the id of whatever the address names: the shelf's rows are the
    *  shelf's own records. */
   readonly id: string
+  /** Exact stored title when this pin was read. A rename must not overwrite
+   *  a name or destination changed while its question was open. */
+  readonly title: string
   /** Where it goes. Parsed once, here, so nothing downstream re-reads a
    *  title. */
   readonly route: Route
@@ -171,6 +174,7 @@ const pinOf = (row: Pinned): Pin | undefined => {
   const { name, written } = titleFace(row.title, route, shows)
   return {
     id: row.id,
+    title: row.title,
     route,
     at: addressWritten(row.title),
     name,

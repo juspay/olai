@@ -1,40 +1,19 @@
 /**
- * Node search, as a primitive — asked of the server, latest answer wins.
+ * Search shared by the palette, header and node pickers. Queries debounce,
+ * then subscribe to server-side matching until the input is cleared. Vault
+ * revisions refresh hits and totals without another keystroke.
  *
- * ONE READING, TWO DOORS. The ⌘K palette and the header's search box are both
- * callers of this, drawing the same rows (`./Result.tsx`) from the same
- * procedure; neither has a matcher, a ranking rule or a debounce of its own.
- * That is the consistency doctrine one layer in from where it usually gets
- * argued: it already says an agent's `search_nodes` and the browser must not
- * drift, and a browser that grew a second in-house search would have broken
- * the same rule inside one process. It lives in `search/` rather than in
- * `palette/` because of that second door.
- *
- * It is a hook rather than lines inside a component for two rules at
- * once: UI components stay encapsulated, and a browser should use the
- * SolidJS ecosystem rather than hand-roll it.
- *
- * WHEN to ask is not here either, and that is the change `vault-in-browser`'s
- * PR 2 made: the settle, the latest-answer-wins rule, the failure slot and
- * WHICH question the rows on screen answer are `../settled.ts`'s, because a
- * third door grew the same four (the row editor's tag vocabulary) and a rule
- * kept in three places is a rule kept in memory. What is left in this file is
- * the two things that are actually search's — WHICH question is worth a trip,
- * and what the answer means.
- *
- * The MATCHING is entirely the server's (`@olai/surface`'s search.ts says
- * why): the same reading an agent's `search_nodes` gets.
- *
- * Its failure is its OWN — a refused search is not a refused `>` ask, and two
- * unrelated async sources sharing one error slot is how a reader is shown the
- * wrong sentence about the wrong thing.
+ * Keep the previous query’s rows during a new request, labelled with the query
+ * they answer so Enter cannot spend them as the new answer. Closing or
+ * clearing the search discards that history and releases the subscription.
  */
 
-import type { Accessor } from "solid-js"
+import { debounce } from "@solid-primitives/scheduled"
+import { type Accessor, createEffect, createMemo, createSignal } from "solid-js"
 
-import type { NodeHit, Refusal, SearchHit } from "@olai/surface"
+import type { NodeHit, Refusal, SearchAnswer, SearchHit } from "@olai/surface"
 
-import { createSettled, type Taking } from "../settled.ts"
+import { SETTLE_MS, type Taking } from "../settled.ts"
 import { olai } from "../wire.ts"
 
 /** Below this the answer is noise: two characters match half an outline by
@@ -139,43 +118,45 @@ export function createSearch(
    *  `SearchRequest`). Absent is both, which is what a reading door wants. */
   kind?: "node" | "document",
 ): Search {
-  const asked = createSettled(
-    // WHAT IS WORTH A TRIP, which is this file's half of the arrangement: the
-    // words once trimmed, and only once there are enough of them to mean
-    // something. Below the minimum this is `null`, which is what makes the rows
-    // clear at once rather than after a settle.
-    () => {
-      const wanted = text()?.trim() ?? ""
-      return wanted.length >= MIN_LENGTH ? wanted : null
-    },
-    (query) =>
-      olai.procedures.search.nodes({
-        text: query,
-        limit: LIMIT,
-        ...(kind === undefined ? {} : { kind }),
-      }),
-  )
-
+  const wanted = createMemo(() => {
+    const query = text()?.trim() ?? ""
+    return query.length >= MIN_LENGTH ? query : null
+  })
+  const [asked, setAsked] = createSignal<string | null>(null)
+  const settle = debounce(setAsked, SETTLE_MS)
+  createEffect(() => {
+    const query = wanted()
+    if (query !== null) settle(query)
+    else {
+      settle.clear()
+      setAsked(null)
+    }
+  })
+  const input = createMemo(() => {
+    const query = asked()
+    return query === null ? null : {
+      text: query, limit: LIMIT, ...(kind === undefined ? {} : { kind }),
+    }
+  })
+  const answer = olai.streams.searchResults.use(input)
+  // Hold the prior query's rows during a new request, but never across closing
+  // the search or a refused subscription. The label gates keyboard result gestures.
+  const held = createMemo<{ query: string; value: SearchAnswer } | undefined>((previous) => {
+    const query = asked()
+    if (wanted() === null || query === null || answer.error() !== undefined) return undefined
+    const value = answer()
+    return value === undefined ? previous : { query, value }
+  }, undefined)
+  const answering = () => {
+    const got = held()
+    return got !== undefined && got.query === wanted() ? got.query : null
+  }
   return {
-    hits: () => asked.answer()?.hits ?? [],
-    // The uncapped count, off the same answer the rows come off — never
-    // `hits.length` and never a second call. Nothing answered is `0`, which is
-    // the one reading that makes the sentence under a door disappear rather
-    // than claim a denominator nobody has been given (`./count.ts`).
-    total: () => asked.answer()?.total ?? 0,
-    failure: asked.failure,
-    refusals: () => asked.answer()?.refusals ?? [],
-    // Straight through: which query the rows answer is the primitive's own
-    // fact, read off the value that holds them. This used to be a ternary here
-    // over a loading flag and the outstanding question — three signals for one
-    // statement, and it got the refused-call case wrong for a while (a call
-    // that never arrived went on naming the query it was supposedly the answer
-    // to, while the rows behind it were empty). It is published into the markup
-    // for a scenario to wait on (`../edges/EdgePanel.tsx`).
-    answering: asked.answering,
-    // ...and the act built on it, straight through for the same reason: what a
-    // door does with the label is take a row, and the take is the thing that
-    // must not be spelled per door (`../settled.ts`'s `Taking`).
-    taking: asked.taking,
+    hits: () => held()?.value.hits ?? [],
+    total: () => held()?.value.total ?? 0,
+    failure: () => answer.error()?.message ?? null,
+    refusals: () => held()?.value.refusals ?? [],
+    answering,
+    taking: (act) => { if (answering() !== null) act() },
   }
 }
