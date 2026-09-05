@@ -2,6 +2,8 @@
 
 Click a title and the caret is where you clicked. From there it is the outliner's loop on the keys you already know, and the whole list is in the app, under **Keyboard shortcuts** in the ⌘K palette.
 
+Escape cancels a held row drag: the drop indicator disappears and releasing the pointer does not move the row. During a selection sweep, Escape ends the sweep and retains the picked rows; another Escape clears the pick. Both gestures can be started again immediately.
+
 While an input method is composing text, its keys select and confirm candidates. They do not send chat, split outline rows, choose app completions or submit forms. After composition ends, ordinary shortcuts resume.
 
 | | |

@@ -119,6 +119,7 @@ export const drag = (from: PointerEvent, gesture: Gesture): (() => void) => {
   const originY = from.pageY
   const threshold = gesture.threshold ?? 0
   let started = false
+  let ended = false
   /**
    * The press must not select the text under it while the pointer travels.
    *
@@ -161,19 +162,30 @@ export const drag = (from: PointerEvent, gesture: Gesture): (() => void) => {
   }
 
   const end = (event: PointerEvent | null) => {
+    if (ended) return
+    ended = true
     window.removeEventListener("pointermove", onMove)
     window.removeEventListener("pointerup", onUp)
     window.removeEventListener("pointercancel", onCancel)
+    document.removeEventListener("keydown", onKey, true)
     document.body.style.userSelect = selection
     following?.stop()
     gesture.onEnd(event)
   }
   const onUp = (event: PointerEvent) => end(event)
   const onCancel = () => end(null)
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key !== "Escape") return
+    event.preventDefault()
+    event.stopPropagation()
+    end(null)
+  }
 
   window.addEventListener("pointermove", onMove)
   window.addEventListener("pointerup", onUp)
   window.addEventListener("pointercancel", onCancel)
+  // Before app popovers answer Escape, but after the window's IME guard.
+  document.addEventListener("keydown", onKey, true)
   return () => end(null)
 }
 
