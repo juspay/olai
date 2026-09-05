@@ -1812,13 +1812,18 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
      * different sense of it than the row.
      *
      * **THE DOOR, which is core's.** `Identity` is a service tag
-     * `@olai/plugin-api` declares and `@olai/server` reads at the upgrade, at
-     * `GET /olai/who` and at `/mcp`; the row is the PROVIDER behind it. That
-     * is the `git` case one entry up, exactly — a reading core defines and a
-     * plugin stands behind — and the four server files plus the interface are
-     * spelling the tag, never the row. A `NOBODY` in `server/src/identity.ts`
-     * is core saying what an unmounted door answers, which is the one thing it
-     * must be able to say without knowing who would have mounted it.
+     * `@olai/plugin-api` declares and `@olai/server`'s composition root reads;
+     * the row is the PROVIDER behind it. That is the `git` case one entry up,
+     * exactly — a reading core defines and a plugin stands behind — and the
+     * interface and `serve.ts` are spelling the tag, never the row.
+     *
+     * TWO SERVER FILES AND A THIRD LEFT THIS LIST, and that is the fence
+     * measuring a refactor rather than tolerating one: the listener and the
+     * MCP route used to be handed the DOOR and now take a header list and a
+     * reading, and `server/src/identity.ts` mints that reading from a type
+     * import. None of the three can name the tag any more, so the word is
+     * gone from what they compile to — which is the claim this table exists
+     * to be able to notice in either direction.
      *
      * **THE PROCESS's identity, which is the framework's.** `system/identity`
      * is the reserved member every kolu surface answers with its process id —
@@ -1835,7 +1840,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
      * words in a sentence an agent reads.
      *
      * RECORDED AS AN EQUALITY for the reason the four entries above are: a
-     * fifteenth file is red, and the day one of these stops spelling the word
+     * twelfth file is red, and the day one of these stops spelling the word
      * this entry is red until the line is deleted.
      */
     identity: [
@@ -1849,9 +1854,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/odu/src/browser/RunMatrix.tsx",
       "plugins/odu/src/browser/words.ts",
       "plugins/odu/src/doorbell.ts",
-      "server/src/identity.ts",
-      "server/src/listener.ts",
-      "server/src/mcp/route.ts",
       "server/src/serve.ts",
     ],
   }

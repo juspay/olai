@@ -175,82 +175,116 @@ test("a request with no login is nobody", async () => {
   })
 })
 
-/** A real websocket, dialled the way a tab does, with the headers a proxy
- *  would have stamped on the upgrade. */
-const withWhoSocket = (
+/**
+ * ONE SOCKET, dialled the way a tab does, with the headers a proxy would have
+ *  stamped on the upgrade — and disposed however the body ends.
+ *
+ * Every case below that reaches the tab's door reaches it through here. Five
+ * copies of this block is what the file had, which is five places for a dial to
+ * go stale and one reason each of them would have to be found separately.
+ */
+const onSocket = async <A>(
+  url: string,
   headers: Record<string, string> | undefined,
-  body: (ask: () => Promise<Who | null>) => Promise<void>,
-  vars: Record<string, string | undefined> = TAILSCALE,
-): Promise<void> =>
-  withServing({ root: served(), vars }, async (url) => {
-    const socket = await createSurfaceSocket({
-      group: surface.group,
-      url: `${url.replace("http://", "ws://")}${SURFACE_WS_PATH}`,
-      retired: () => {},
-      connect: (target) =>
-        new WsClient(
-          target,
-          headers === undefined ? undefined : { headers },
-        ) as unknown as WebSocket,
-    })
-    try {
-      await body(() =>
-        Effect.runPromise(
-          socket.link.dispatch.unary("surface/who/get", {}) as Effect.Effect<
-            Who | null
-          >,
-        ),
-      )
-    } finally {
-      await socket.dispose()
-    }
+  body: (call: (member: string, input: unknown) => Promise<unknown>) => Promise<A>,
+): Promise<A> => {
+  const socket = await createSurfaceSocket({
+    group: surface.group,
+    url: `${url.replace("http://", "ws://")}${SURFACE_WS_PATH}`,
+    retired: () => {},
+    connect: (target) =>
+      new WsClient(
+        target,
+        headers === undefined ? undefined : { headers },
+      ) as unknown as WebSocket,
+  })
+  try {
+    return await body((member, input) =>
+      Effect.runPromise(
+        socket.link.dispatch.unary(member, input) as Effect.Effect<unknown>,
+      ),
+    )
+  } finally {
+    await socket.dispose()
+  }
+}
+
+/** WHO THIS CONNECTION IS, over a socket of its own — which is the whole of
+ *  what the tab's door answers, so the socket has nothing else to do and is
+ *  closed as soon as it has said. */
+const whoOn = (
+  url: string,
+  headers?: Record<string, string>,
+): Promise<Who | null> =>
+  onSocket(url, headers, async (call) =>
+    (await call("surface/who/get", {})) as Who | null
+  )
+
+/** ...and the panel's own switch, which is what a person presses. */
+const flip = (url: string, name: string, enabled: boolean): Promise<void> =>
+  onSocket(url, undefined, async (call) => {
+    await call("surface/plugins/set", { name, enabled })
   })
 
 test("a tab with no login is nobody, and did not have to GET /olai/who", async () => {
-  await withWhoSocket(undefined, async (ask) => {
-    expect(await ask()).toBeNull()
+  await withServing({ root: served(), vars: TAILSCALE }, async (url) => {
+    expect(await whoOn(url)).toBeNull()
   })
 })
 
 test("a mocked Tailscale-User-Login on the upgrade is this connection's who", async () => {
-  await withWhoSocket(
-    { "Tailscale-User-Login": ADA },
-    async (ask) => {
-      expect(await ask()).toEqual({
-        login: ADA,
-        name: null,
-        picture: gravatarOf(ADA),
-      })
-    },
-  )
+  await withServing({ root: served(), vars: TAILSCALE }, async (url) => {
+    expect(await whoOn(url, { "Tailscale-User-Login": ADA })).toEqual({
+      login: ADA,
+      name: null,
+      picture: gravatarOf(ADA),
+    })
+  })
 })
 
 test("the upgrade's identity is per connection, not a process cell", async () => {
   await withServing({ root: served(), vars: TAILSCALE }, async (url) => {
-    const socket = await createSurfaceSocket({
-      group: surface.group,
-      url: `${url.replace("http://", "ws://")}${SURFACE_WS_PATH}`,
-      retired: () => {},
-      connect: (target) =>
-        new WsClient(target, {
-          headers: { "Tailscale-User-Login": ADA },
-        }) as unknown as WebSocket,
+    expect(await whoOn(url, { "Tailscale-User-Login": ADA })).toEqual({
+      login: ADA,
+      name: null,
+      picture: gravatarOf(ADA),
     })
-    try {
-      expect(
-        await Effect.runPromise(
-          socket.link.dispatch.unary("surface/who/get", {}) as Effect.Effect<
-            Who | null
-          >,
-        ),
-      ).toEqual({ login: ADA, name: null, picture: gravatarOf(ADA) })
-      // A later HTTP request that carries no header is still nobody: the
-      // upgrade did not write a process-wide cell.
-      const door = await get(url, WHO_PATH)
-      expect(door.status).toBe(204)
-    } finally {
-      await socket.dispose()
-    }
+    // A later HTTP request that carries no header is still nobody: the
+    // upgrade did not write a process-wide cell.
+    expect((await get(url, WHO_PATH)).status).toBe(204)
+  })
+})
+
+/**
+ * A FLIP IS IMMEDIATE, AND BOTH WAYS — the claim the per-call read of the door
+ * makes, asked rather than assumed.
+ *
+ * The panel's own verb (`plugins.set`) is what a person presses, so it is what
+ * this drives: switch the row off and the two doors answer nobody for a request
+ * carrying a login a moment ago read as Ada; switch it back on and the same
+ * request is Ada again. The second half is the half worth having — it is what
+ * says the header ALLOWLIST survived the flip, since the socket's names were
+ * fixed at the bind and nothing re-read them.
+ *
+ * A SOCKET PER ASK, because who is looking is stamped at the upgrade: a
+ * connection opened before the flip is holding an answer from before it, which
+ * is not a staleness to fix but the value's own definition.
+ */
+test("a row switched off is nobody at once, and switched back on is Ada again", async () => {
+  await withServing({ root: served(), vars: TAILSCALE }, async (url) => {
+    const ada = { "Tailscale-User-Login": ADA }
+    const someone = { login: ADA, name: null, picture: gravatarOf(ADA) }
+
+    expect((await get(url, WHO_PATH, ada)).status).toBe(200)
+    expect(await whoOn(url, ada)).toEqual(someone)
+
+    await flip(url, "identity", false)
+    expect((await get(url, WHO_PATH, ada)).status).toBe(204)
+    expect(await whoOn(url, ada)).toBeNull()
+
+    await flip(url, "identity", true)
+    expect(JSON.parse((await get(url, WHO_PATH, ada)).body)).toEqual(someone)
+    expect(await whoOn(url, ada)).toEqual(someone)
   })
 })
 
@@ -270,32 +304,13 @@ test("a serve that did not name the identity row is nobody, whoever asks", async
 })
 
 test("...and a tab on that serve is nobody on its own upgrade", async () => {
-  // The other door, and the one that cannot be re-asked: the upgrade named no
-  // headers at the bind because nobody was standing behind the door to name
-  // any, so the socket is carrying nothing to read.
+  // The other door, and the one a flip could not have reached anyway: the
+  // upgrade named no headers at the bind, because nobody was standing behind
+  // the door to name any, so the socket is carrying nothing to read.
   await withServing(
     { root: served(), vars: TAILSCALE, plugins: ["chat", "git"] },
     async (url) => {
-      const socket = await createSurfaceSocket({
-        group: surface.group,
-        url: `${url.replace("http://", "ws://")}${SURFACE_WS_PATH}`,
-        retired: () => {},
-        connect: (target) =>
-          new WsClient(target, {
-            headers: { "Tailscale-User-Login": ADA },
-          }) as unknown as WebSocket,
-      })
-      try {
-        expect(
-          await Effect.runPromise(
-            socket.link.dispatch.unary("surface/who/get", {}) as Effect.Effect<
-              Who | null
-            >,
-          ),
-        ).toBeNull()
-      } finally {
-        await socket.dispose()
-      }
+      expect(await whoOn(url, { "Tailscale-User-Login": ADA })).toBeNull()
     },
   )
 })

@@ -735,6 +735,12 @@ export interface Person {
  * and there is nobody behind it any more. The two doors that read a raw request
  * — `GET /olai/who` and `/mcp` — have no allowlist at all and follow the row
  * both ways.
+ *
+ * THE DOOR IS THE SAME SHAPE on either side of that seam, which is why it is
+ * declared this way rather than around the limitation: closing it upstream
+ * changes how often a consumer reads {@link Identity.headers} — once at the
+ * bind today, per accept when an allowlist can be re-read — and nothing at all
+ * about what a row offers.
  */
 export interface Identity {
   /** The header names this deployment trusts, unique — the allowlist the
@@ -1453,6 +1459,14 @@ export type { Registering } from "@olai/acp/engine"
  * `Offers` is deliberately in it: a plugin that stands behind a door names that
  * tag like any other, and an agent-written plugin that wanted to is written the
  * same way a shipped one is.
+ *
+ * ...and so are the OFFERABLE doors a plugin may consume rather than only
+ * provide. {@link Agents}, {@link Watching} and {@link Identity} are keys a row
+ * NAMES to read what another row stands behind — who is looking, what a
+ * conversation did — and a door an agent cannot find is a door it will not
+ * write against. {@link Ledger} is not, and the asymmetry is not a rule: it is
+ * that `ops.commit` and `ops.push` are how a plugin records a write, so a row
+ * naming that key would be reaching past a door it already has.
  */
 export const SERVICES = [
   Env,
@@ -1464,6 +1478,7 @@ export const SERVICES = [
   Wakes,
   Agents,
   Watching,
+  Identity,
   LocalState,
   SessionStart,
   Offers,

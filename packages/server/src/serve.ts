@@ -56,7 +56,7 @@ import { pluginChunks } from "./dynamic/route.ts"
 import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
-import { NOBODY } from "./identity.ts"
+import { NOBODY, readingOf } from "./identity.ts"
 import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
 import { currentLogin, MCP_PATH, mcpTransport } from "./mcp/route.ts"
@@ -419,13 +419,18 @@ export const serve = (options: ServeOptions) =>
      * there is nothing for the absent arm to say that the present one does
      * not already say every day.
      *
-     * Read PER CALL, so a flip at the plugins panel reaches the next
-     * request. The one thing it cannot reach is the header allowlist a
-     * bound socket already fixed; `./listener.ts` names that seam where it
-     * is spent.
+     * Read PER CALL by the READING below, so a flip at the plugins panel
+     * reaches the next request; read ONCE at the bind for the header
+     * allowlist, which is the seam and is spelled at the `listen` call
+     * where it is spent rather than hidden in a thunk.
      */
     const currentIdentity = (): Identity =>
       (offered(plugins.host, Identity) as Identity | undefined) ?? NOBODY
+    /** ...and the one thing the three readers share, minted once over that
+     *  door: headers in, a person or nobody out (`./identity.ts`). Nothing
+     *  downstream is handed the door itself — the names are the bind's and
+     *  the reading is everyone's. */
+    const who = readingOf(currentIdentity)
 
     const ops: Ops = makeOps({
       store,
@@ -641,11 +646,17 @@ export const serve = (options: ServeOptions) =>
         // plugins are on is the boot refusal `restrictHandlers` exists to raise.
         expose: () => wired.faces.browser,
         hostname: theMachine,
-        // WHO IS LOOKING, on the socket and on the two HTTP doors — one
-        // accessor onto the offered reading, handed to both so a chip in a
-        // browser and a capture from a terminal cannot disagree.
-        identity: currentIdentity,
-        mcp: { transport, token, identity: currentIdentity },
+        // WHICH HEADERS A SOCKET MAY CARRY, read HERE and once: the seam
+        // fixes the allowlist at the bind, so this is the line the whole
+        // "a row switched on mid-serve names its headers at the next start"
+        // sentence is about. A serve with no identity row hands over none,
+        // which is a socket that carries nothing to read.
+        upgradeHeaders: currentIdentity().headers,
+        // ...and WHO IS LOOKING, on that socket and on the two HTTP doors —
+        // one reading, handed to all three, so a chip in a browser and a
+        // capture from a terminal cannot disagree.
+        who,
+        mcp: { transport, token, who },
         // `POST /olai/resync` — force a re-read of the disk. Waits for
         // in-flight writes first (`ops.idle`): a probe while a `run` is
         // still staging is a look at `.olai-*.tmp`, not at the tree the

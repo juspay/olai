@@ -24,7 +24,6 @@ import {
   type Store as OutlineStore,
   TOOLS,
 } from "@olai/ops"
-import type { Identity } from "@olai/plugin-api/services"
 import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
 import { expect, test } from "bun:test"
@@ -35,6 +34,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
+import type { Reading } from "../identity.ts"
 import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { hostname } from "../hostname.ts"
@@ -59,25 +59,22 @@ const TOKEN = "test-token"
 const LOGIN = "tailscale-user-login"
 
 /**
- * A STAND-IN FOR THE IDENTITY ROW, and deliberately a bare one.
+ * A STAND-IN FOR THE IDENTITY ROW'S READING, and deliberately a bare one.
  *
- * What this bench is about is that the route reads the door PER REQUEST and
- * carries the answer on the request's own stack — not what any particular
- * deployment's ladder makes of a login. So it takes a login and hands back a
- * person with no picture, which is all the attribution below reads, rather
- * than mounting the real row for a field it never looks at.
+ * What this bench is about is that the route asks per request and carries the
+ * answer on the request's own stack — not what any particular deployment's
+ * ladder makes of a login. So it takes a login and hands back a person with no
+ * picture, which is all the attribution below reads, rather than mounting the
+ * real row for two fields it never looks at.
  *
- * A serve composes this from whatever row offers `Identity` (`../serve.ts`),
- * and answers `NOBODY` when none does; this bench builds its own listener by
- * hand, so it hands over its own.
+ * A serve mints this over whatever row offers `Identity` (`../serve.ts`'s
+ * `readingOf`, answering nobody when none does); this bench builds its own
+ * listener by hand, so it hands over its own.
  */
-const PROXY: Identity = {
-  headers: [LOGIN],
-  who: (headers) => {
-    const raw = headers[LOGIN]
-    const login = (Array.isArray(raw) ? raw[0] : raw)?.trim() ?? ""
-    return login === "" ? null : { login, name: null, picture: null }
-  },
+const PROXY: Reading = (headers) => {
+  const raw = headers[LOGIN]
+  const login = (Array.isArray(raw) ? raw[0] : raw)?.trim() ?? ""
+  return login === "" ? null : { login, name: null, picture: null }
 }
 
 interface Served {
@@ -169,8 +166,9 @@ const withRoute = <A>(
       host: listenOn.host,
       port: 0,
       allowedOrigins: [],
-      identity: () => PROXY,
-      mcp: { transport, token: TOKEN, identity: () => PROXY },
+      upgradeHeaders: [LOGIN],
+      who: PROXY,
+      mcp: { transport, token: TOKEN, who: PROXY },
       resync: Effect.void,
       // No vault-defined plugins in this bench: the route binds and answers 404,
       // which is the same thing it does on a serve that has none.
