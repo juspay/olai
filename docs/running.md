@@ -62,7 +62,9 @@ Put it behind a reverse proxy or `tailscale serve` and the browser's origin will
 
 ### Who is looking
 
-A reverse proxy in front of olai can say who made the request. olai trusts **one configurable family of header names** — a login, and optionally an email, a display name and a picture — and the header bar **always** draws who is looking as an icon, top right, in the same chip as prefs: **anonymous** when no login came (direct access, a local `just run`), the person when one did, or that the door failed. The words are the tooltip, and they say the display name with the login beside it (`Sridhar Ratnakumar (srid@github)`) — on a shared vault, which account this is is the whole question. Absence is a face, not a missing chip.
+A reverse proxy in front of olai can say who made the request. olai trusts **one configurable family of header names** — a login, and optionally an email, a display name and a picture — and the header bar draws who is looking as an icon, top right, in the same chip as prefs: **anonymous** when no login came (direct access, a local `just run`), the person when one did, or that the door failed. The words are the tooltip, and they say the display name with the login beside it (`Sridhar Ratnakumar (srid@github)`) — on a shared vault, which account this is is the whole question. Absence is a face, not a missing chip.
+
+All of that is a **plugin** — the `identity` row, on by default ([plugins/identity.md](plugins/identity.md)). A serve started without it (`--plugins=` not naming it, or switched off in the plugins panel) reads no headers at all: every request is nobody, a capture records no `captured-by`, and there is no chip in the bar — not an anonymous one, an absent one. The variables below are still the operator's environment, read by that row when it mounts.
 
 Default wiring is `tailscale serve`'s own four headers. **The login is not necessarily an email**: on a Google, Microsoft or Okta tailnet `Tailscale-User-Login` *is* the address, which is why the email claim defaults to the same header — but on a GitHub- or passkey-backed one it reads `srid@github`, which is Tailscale's spelling of that account and not an address anybody can hash. The same family covers other proxies — one feature, not one per proxy:
 
@@ -127,6 +129,10 @@ That rule covers **every name still in force, including the ones you did not con
 It says what it is doing on stdout, one line per event, quietly: the address it bound, the agents it detected, the chat's lifecycle (a conversation opened, a prompt sent, a turn that ended or failed, the agent process itself coming and going), and anything that went wrong.
 
 Terminal output is compact: inline fields, no fiber IDs, short session UUIDs, and a root path on directory changes and warnings/errors. Errors keep their full causes on indented lines. Piped logfmt retains full root/session annotations. Agent discovery lists names; command paths, arguments and successful tool probes are available at `debug`. The SIGTERM guard emits a short readiness marker on stderr.
+
+Agent readiness and exit events carry a subprocess `pid`; lifecycle context includes `purpose` (`conversation` or `session list`) and `node` for a node-owned panel. An exit carries `expected=true` only when the app requested that subprocess's stop, with a specific `reason`: `agent switched`, `plugin disabled`, `session list complete`, `node scope handoff`, `idle eviction`, `capacity eviction`, or `shutdown` (`scope released` for acquisition cleanup). Unrequested exits say `process exited` or `process signaled`, with `expected=false` and the exit code or signal; this does not infer why the process chose to exit. Session context is captured before teardown clears it.
+
+A conversation that opens, exits, and immediately opens again may be moving from the root panel into its owning node scope. The log now announces `moving conversation into node scope` before that handoff. Reopening supplies the node-scoped MCP credential; remembered node sessions route directly into their scope, and ordinary conversation changes on the same agent reuse its process.
 
 Two knobs, both environment variables, both facts of the running instance rather than of a browser:
 

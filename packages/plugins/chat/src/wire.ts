@@ -270,6 +270,11 @@ export const surface = defineSurface({
         input: Schema.Struct({ scope: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
+      setSetting: {
+        input: Schema.Struct({ agent: Schema.String, session: Schema.String, config: Schema.String,
+          value: Schema.Union([Schema.String, Schema.Boolean]) }),
+        error: ChatFailure,
+      },
       setModel: {
         input: Schema.Struct({ agent: Schema.String, session: Schema.String, value: Schema.String }),
         error: ChatFailure,
@@ -532,6 +537,7 @@ export const faces = {
     "conversation.attach": "tool",
     "conversation.cancel": "tool",
     "conversation.setModel": "tool",
+    "conversation.setSetting": "tool",
     "conversation.newSession": "tool",
     "conversation.startAgentSession": "tool",
     "conversation.assignSession": "tool",
@@ -563,5 +569,6 @@ export const faces = {
  * floor's words would put the fence's own arrow through: a general package
  * importing a refusal shape from a row is a general package importing a row.
  */
+export * from "./wire/session.ts"
 export * from "./wire/agents.ts"
 export * from "./wire/members.ts"

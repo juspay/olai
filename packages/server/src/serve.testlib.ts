@@ -28,7 +28,6 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { DEFAULT_IDENTITY_CONFIG, type IdentityConfig } from "@olai/identity"
 import { serve } from "./serve.ts"
 // Twin of startWeb's OLAI_ACP_AGENT: "". None of these in-process boots
 // is about the chat panel, and a real `opencode` on PATH would spawn one
@@ -86,10 +85,18 @@ export const withServe = async <A>(
      *  page out of. Pass a real (or assembled) dist when the test is about
      *  what the static layer actually answers. */
     readonly clientDist?: string
-    /** What this serve trusts for who is looking — the header names and the
-     *  avatar template. Unset is the Tailscale default with no template:
-     *  tests that are not about identity should not have to name it. */
-    readonly identity?: IdentityConfig
+    /** WHAT THE SERVE CAN SEE — the identity row's `OLAI_IDENTITY_*` family
+     *  is what a test in this package sets through it, since who is looking
+     *  is a row's reading now and core holds none of its vocabulary. Unset is
+     *  `process.env`, which is Tailscale's own header names with no avatar
+     *  template: a test that is not about identity should not have to name
+     *  one. */
+    readonly vars?: Record<string, string | undefined>
+    /** WHICH rows this serve composes — `--plugins` as a person types it.
+     *  Unset is nobody having said, which is the built-in default and what
+     *  every harness here wants: these stand up the whole product. A test
+     *  that names a narrower list is a test ABOUT a row's absence. */
+    readonly plugins?: ReadonlyArray<string>
   },
   body: (said: ReadonlyArray<Logged>) => Promise<A>,
 ): Promise<A> => {
@@ -103,13 +110,14 @@ export const withServe = async <A>(
       // never going to serve a page out of.
       clientDist: options.clientDist ?? served(),
       allowedOrigins: [],
-      identity: options.identity ?? DEFAULT_IDENTITY_CONFIG,
+      ...(options.vars === undefined ? {} : { vars: options.vars }),
       pin: { commit: options.commits ?? "off", push: null },
       // The built-in default, which is what omitting `--plugins` means and what a
       // real serve does — these harnesses stand up the whole product, and a
       // composition narrower than the one a person gets would be a suite proving
-      // something nobody runs.
-      plugins: null,
+      // something nobody runs. A test that is about what a MISSING row leaves
+      // behind says so, and gets the list it named.
+      plugins: options.plugins ?? null,
     })
     return yield* Effect.promise(() => body(said))
   }).pipe(
@@ -141,7 +149,8 @@ export const withServing = <A>(
     readonly root: string
     readonly commits?: "off" | "manual" | "auto"
     readonly clientDist?: string
-    readonly identity?: IdentityConfig
+    readonly vars?: Record<string, string | undefined>
+    readonly plugins?: ReadonlyArray<string>
   },
   body: (url: string, said: ReadonlyArray<Logged>) => Promise<A>,
 ): Promise<A> =>

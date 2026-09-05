@@ -558,9 +558,15 @@ const pinnedModel = (): string => {
 }
 
 let currentModel = "fake-model-1"
+let reasoning = "medium"
+let mode = "code"
+let fast = false
 
 const configOptions = () => [
   { id: "model", name: "Model", type: "select", currentValue: currentModel, options: MODEL_ROWS },
+  { id: "reasoning", name: "Reasoning", description: "How deeply the agent thinks", type: "select", currentValue: reasoning, options: (currentModel === "fake-model-2" ? ["medium", "high", "xhigh"] : ["medium", "high"]).map(value => ({ value, name: value })) },
+  { id: "mode", name: "Mode", type: "select", currentValue: mode, options: ["code", "plan"].map(value => ({ value, name: value })) },
+  { id: "fast", name: "Fast mode", type: "boolean", currentValue: fast },
 ]
 
 /** Every value the picker offers, for the one caller that has to refuse
@@ -1256,6 +1262,46 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // that produced not one frame leaves the client unable to tell a prompt that
   // was read from one that never arrived, which is the case a message may
   // honestly be marked for. `crash` speaks first and must NOT be markable.
+  if (verb === "settings") {
+    if (argument === "update") {
+      reasoning = "high"; mode = "plan"; fast = true
+      notify("session/update", { sessionId, update: { sessionUpdate: "config_option_update", configOptions: configOptions() } })
+    }
+    say(`Settings: reasoning=${reasoning}, mode=${mode}, fast=${fast}`)
+    reply(id, { stopReason: "end_turn" }); return
+  }
+  if (verb === "execution-plan") {
+    const plan = (entries: unknown[]) => notify("session/update", { sessionId, update: { sessionUpdate: "plan", entries } })
+    if (argument === "clear") plan([])
+    else {
+      plan([{ content: "Inspect the outline", priority: "high", status: "in_progress" },
+        { content: "Old next step", priority: "low", status: "pending" }])
+      await released()
+      plan([{ content: "Inspect the outline", priority: "high", status: "completed" },
+        { content: "Verify the changes", priority: "medium", status: "completed" }])
+    }
+    say("Plan updated"); reply(id, { stopReason: "end_turn" }); return
+  }
+  if (verb === "terminal") {
+    if (capabilities["terminal"] !== true) { refuse(id, -32603, "client did not advertise terminals"); return }
+    const limit = argument === "truncate" ? 7 : argument === "zero" ? 0 : 65536
+    const script = argument === "truncate" || argument === "zero"
+      ? 'process.stdout.write("old output 🌍éEND"); process.exitCode=7'
+      : 'process.stdout.write("stdout ready\\n"); process.stderr.write("stderr ready\\n"); setInterval(()=>{},1000)'
+    const created = await request("terminal/create", { sessionId, command: "node", args: ["-e", script], outputByteLimit: limit }) as { terminalId: string }
+    const params = { sessionId, terminalId: created.terminalId }
+    notify("session/update", { sessionId, update: { sessionUpdate: "tool_call", toolCallId: "terminal-test", title: "Run verification", kind: "execute", status: "in_progress", content: [{ type: "terminal", terminalId: created.terminalId }] } })
+    if (argument !== "truncate" && argument !== "zero") {
+      while (!cancelled && !existsSync(`${cwd}/${MARKER.release}`)) await sleep(20)
+      if (!cancelled) { rmSync(`${cwd}/${MARKER.release}`, { force: true }); await request("terminal/kill", params) }
+    }
+    const exit = await request("terminal/wait_for_exit", params)
+    const output = await request("terminal/output", params)
+    await request("terminal/release", params)
+    notify("session/update", { sessionId, update: { sessionUpdate: "tool_call_update", toolCallId: "terminal-test", status: "completed" } })
+    say("Terminal released: " + JSON.stringify({ exit, output }))
+    reply(id, { stopReason: cancelled ? "cancelled" : "end_turn" }); return
+  }
   if (verb === "vanish") process.exit(1)
 
   // A TURN THAT ANSWERS WITH AN ERROR INSTEAD OF A STOP REASON — and stays
@@ -2849,6 +2895,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       sessionId = sessionStore(cwd).enabled ? sessionStore(cwd).newId() : "fake-session-1"
       // A fresh conversation is on whatever the picker says it is picking, and
       // what it is picking is the pin.
+      reasoning = "medium"; mode = "code"; fast = false
       currentModel = pinnedModel()
       liveModel = currentModel
       // ... and has spent nothing in a window of its own.
@@ -2898,6 +2945,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       // `chat-model-reverts-on-restart` is about, and what the real adapter
       // does on every resume when `settings.json` names a model. Whatever this
       // conversation was switched to is gone unless somebody says otherwise.
+      reasoning = "medium"; mode = "code"; fast = false
       currentModel = pinnedModel()
       liveModel = currentModel
       // A different conversation is a different context. The client empties
@@ -2935,6 +2983,15 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         return
       }
       const value = params["value"]
+      const config = configOptions().find(option => option.id === params["configId"])
+      if (config && config.id !== "model") {
+        if (config.id === "fast" && params["type"] === "boolean" && typeof value === "boolean") fast = value
+        else if (config.id === "reasoning" && config.options?.some(row => row.value === value)) reasoning = String(value)
+        else if (config.id === "mode" && config.options?.some(row => row.value === value)) mode = String(value)
+        else { refuse(id, -32602, "invalid setting"); return }
+        reply(id, { configOptions: configOptions() })
+        return
+      }
       if (params["configId"] !== "model" || typeof value !== "string") {
         refuse(id, -32602, `no such config option: ${String(params["configId"])}`)
         return

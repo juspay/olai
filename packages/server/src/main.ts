@@ -45,7 +45,6 @@
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
 import { reportingRunEdge, surfaceCommands, surfaceHelp } from "@kolu/surface-cli"
 import { addressOf, printAddress } from "@olai/format"
-import { identityConfig } from "@olai/identity"
 import { TOOLS } from "@olai/ops"
 import { surface } from "@olai/surface"
 import { atLevel, toStdout } from "@olai/log"
@@ -118,7 +117,6 @@ const web = Command.make("web", {
       plugins: pluginsPin(plugins),
       clientDist: yield* clientDist,
       allowedOrigins: allowedOrigins(),
-      identity: identityConfig(),
     })
     // Wait to be interrupted — or for the surface runtime to fault, which is
     // the one thing that stops a healthy server on its own. Either way the

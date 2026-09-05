@@ -56,5 +56,6 @@ export const CODEX: Leg = {
   // codex-acp advertises steering, not ordinary busy-turn prompt queueing.
   queues: () => false,
   rawMessages: null,
+  terminalOutput: true,
   models: { config: "model", nameIn: namedExactly },
 }

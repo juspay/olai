@@ -60,6 +60,19 @@
 # the tenants).
 - id: git
   name: olai-plugin-git/server
+# WHO IS LOOKING — the login a reverse proxy injected, or nobody. Its server
+# half stands behind the `Identity` door core reads at the websocket upgrade, at
+# `GET /olai/who` and at `/mcp`; its browser half is the chip in the bar's last
+# seat. A serve that does not name it is a serve on which every request is
+# nobody — which is what a loopback serve with no proxy in front already is, so
+# the row is on by default and its absence needs no mode.
+#
+# The header names and the avatar template are the OPERATOR's, in the
+# environment (`OLAI_IDENTITY_*`, docs/running.md) rather than in this row's
+# `config:`: they say how the proxy in front is wired, which is set where that
+# proxy is.
+- id: identity
+  name: olai-plugin-identity/server
 # THE JOURNAL — the date-shaped reading of the vault. Its server half owns the
 # four live readings and daily-note mint; its browser half owns the three URLs,
 # agenda entry, calendar section and palette navigation.

@@ -1,3 +1,4 @@
+import { SessionSetting, PlanStep, TerminalView } from "./session.ts"
 /**
  * Chat, on the wire.
  *
@@ -666,6 +667,7 @@ export const ToolEntry = Schema.Struct({
    *  blocks. Separate from `detail` because it is the live half: a call that
    *  has been running for thirty seconds has something to show, and its
    *  arguments are not it. */
+  terminals: Schema.optionalKey(Schema.Array(TerminalView)),
   progress: Schema.optionalKey(Schema.String),
   /** The files this call REWROTE, one entry per diff block the protocol sent.
    *  Drawn rather than folded — a direct file edit is the one thing about a
@@ -1751,6 +1753,8 @@ export type OffBecause = typeof OffBecause.Type
  * composer needs to know about whether it may send.
  */
 export const ChatState = Schema.Struct({
+  settings: Schema.Array(SessionSetting),
+  plan: Schema.Array(PlanStep),
   /**
    * What the one session is doing.
    *
@@ -1990,6 +1994,8 @@ export type ChatState = typeof ChatState.Type
  *  `status` above — so this is a value a reader ends up looking at, not a
  *  placeholder for one. */
 export const CHAT_OFF: ChatState = {
+  settings: [],
+  plan: [],
   status: "off",
   // NOT TOLD YET, which is this constant's other job: a page holds it before the
   // first frame lands. A serve that HAS decided there is no agent sends one of

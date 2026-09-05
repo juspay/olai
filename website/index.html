@@ -368,7 +368,7 @@
       outline. Git records every edit.</p>
       <pre class="run" id="install" title="click to copy"><code>nix run github:juspay/olai -- web path/to/outlines</code></pre>
       <p class="run-hint">one directory. a browser. that’s the whole install.</p>
-      <p class="run-hint">Compact terminal logs show startup and chat activity. Set <code>OLAI_LOG_LEVEL=debug</code> for diagnostics. <a href="https://github.com/juspay/olai/blob/main/docs/running.md#logging">Logging options</a>.</p>
+      <p class="run-hint">Compact terminal logs show startup, chat activity, and why an agent was stopped. Set <code>OLAI_LOG_LEVEL=debug</code> for diagnostics. <a href="https://github.com/juspay/olai/blob/main/docs/running.md#logging">Logging options</a>.</p>
     </div>
 
     <div class="hero-stage">
@@ -563,7 +563,7 @@
     <h2>An agent in the same notebook</h2>
     <p class="lead">Chat lives in a side panel. You keep the keyboard. The
     agent ticks boxes and rewrites the markdown, and you see it happen.
-    Git records both of you. Choose a model from the chat header, including
+    Git records both of you. Follow live execution plans and command output, and adjust the agent’s advertised session settings. Choose a model from the chat header, including
     when chatting with Codex.</p>
     <div class="cols">
       <div class="panel chat">

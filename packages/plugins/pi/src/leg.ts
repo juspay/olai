@@ -232,6 +232,7 @@ export const PI: Leg = {
   // picker's, and a change comes back in the method response and a
   // `config_option_update` — the reading below, needed by no subscription here.
   rawMessages: null,
+  terminalOutput: true,
   // THE PICKER, READ EXACTLY. pi-acp puts the model in the entry every agent
   // olai talks to puts it in, and its values ARE the ids it reports — so the
   // alias arithmetic one engine over (`olai-plugin-claude`'s `models.ts`, whose

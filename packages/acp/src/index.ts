@@ -31,3 +31,5 @@ export {
 } from "./asks.ts"
 export { diffsOf, relativeTo } from "./diffs.ts"
 export { usageIn } from "./usage.ts"
+
+export { terminalMetaIn } from "./terminal.ts"

@@ -55,7 +55,7 @@
 import { isDeepStrictEqual } from "node:util"
 
 import { isRunningStatus, isTaskOut, sentToDo } from "olai-plugin-chat/wire"
-import type { Armed, ChatEntry, Delivery, Saying, Spawned, ToolEntry, ToolStatus, Wrote } from "olai-plugin-chat/wire"
+import type { Armed, ChatEntry, Delivery, Saying, Spawned, ToolEntry, TerminalView, ToolStatus, Wrote } from "olai-plugin-chat/wire"
 import type { OpFailure } from "@olai/format"
 import type { AskField, AskOutcome, FileDiff } from "@olai/acp/wire"
 export interface Change {
@@ -821,6 +821,7 @@ export class Transcript {
       readonly title?: string | undefined
       readonly status?: ToolStatus | undefined
       readonly detail?: string | undefined
+      readonly terminals?: readonly TerminalView[] | undefined
       readonly progress?: string | undefined
       readonly diffs?: ReadonlyArray<FileDiff> | undefined
       readonly wrote?: Wrote | undefined
@@ -846,6 +847,7 @@ export class Transcript {
       && move.title === undefined
       && move.status === undefined
       && move.detail === undefined
+      && move.terminals === undefined
       && move.progress === undefined
       && move.spawned === undefined
       && move.armed?.report !== undefined
@@ -899,6 +901,7 @@ export class Transcript {
     // The protocol's own rule, and the reason neither of these accumulates: a
     // report carries the call's content and locations AS THEY STAND, so
     // appending would print the first half of a long output twice.
+    const terminals = move.terminals ?? held?.terminals
     const progress = move.progress ?? held?.progress
     // The same rule for what the call CHANGED, and it is what keeps a diff on
     // screen: the announcement carries the blocks, the completion that follows
@@ -983,6 +986,7 @@ export class Transcript {
       text,
       status,
       ...(detail === undefined ? {} : { detail }),
+      ...(terminals === undefined ? {} : { terminals }),
       ...(progress === undefined ? {} : { progress }),
       ...(diffs === undefined ? {} : { diffs }),
       ...(wrote === undefined ? {} : { wrote }),
