@@ -58,6 +58,7 @@
         "olai-plugin-opencode": "workspace:*",
         "olai-plugin-pi": "workspace:*",
         "olai-plugin-search": "workspace:*",
+        "olai-plugin-vault": "workspace:*",
         "olai-plugin-xyne-spaces": "workspace:*",
       },
     },
@@ -311,6 +312,22 @@
         "@types/node": "^22.0.0",
       },
     },
+    "packages/plugins/vault": {
+      "name": "olai-plugin-vault",
+      "version": "0.1.0",
+      "dependencies": {
+        "@effect/platform-node": "4.0.0-rc.112",
+        "@olai/format": "workspace:*",
+        "@olai/log": "workspace:*",
+        "@olai/ops": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "@olai/store": "workspace:*",
+        "effect": "4.0.0-rc.112",
+      },
+      "devDependencies": {
+        "@types/node": "^22.0.0",
+      },
+    },
     "packages/plugins/xyne-spaces": {
       "name": "olai-plugin-xyne-spaces",
       "version": "0.1.0",
@@ -344,6 +361,7 @@
         "@types/node": "^22.0.0",
         "olai-plugin-git": "workspace:*",
         "olai-plugin-identity": "workspace:*",
+        "olai-plugin-vault": "workspace:*",
       },
     },
     "packages/sigterm": {
@@ -1249,6 +1267,8 @@
     "olai-plugin-pi": ["olai-plugin-pi@workspace:packages/plugins/pi"],
 
     "olai-plugin-search": ["olai-plugin-search@workspace:packages/plugins/search"],
+
+    "olai-plugin-vault": ["olai-plugin-vault@workspace:packages/plugins/vault"],
 
     "olai-plugin-xyne-spaces": ["olai-plugin-xyne-spaces@workspace:packages/plugins/xyne-spaces"],
 

@@ -18,6 +18,7 @@
  * pipe the chat panel's agent reads its refusals through.
  */
 
+import { fixedStore } from "../store-source.ts"
 import {
   codecFor,
   make as makeOps,
@@ -105,8 +106,7 @@ const withRoute = <A>(
       settle: "10 millis",
     })
     const ops = makeOps({ store, root })
-    const wired = yield* bind({
-      store,
+    const wired = yield* bind({ store: fixedStore(store),
       ops,
       writer: "mcp",
       hostname: hostname(),

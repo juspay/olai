@@ -1,9 +1,6 @@
 /**
- * The served directory, opened — the four lines the composition root starts
- * with, and the ordering rules between them.
- *
- * `olai web` is the one transport over a directory: it resolves the path,
- * annotates it onto the log, CLAIMS the directory, and opens a store over it.
+ * The served directory, opened on the vault row’s scope. Resolve the path,
+ * annotate it onto the log, claim the directory, then open its store.
  *
  * The claim is `./lock.ts`, and this is where it goes because this is where a
  * store over somebody's vault is born: every path that opens one comes through
@@ -26,20 +23,16 @@
  * the shape of a thing that wants to be structural instead.
  */
 
-import type { KindVocabulary } from "@olai/format"
-import { codecFor, type Store as OutlineStore } from "@olai/ops"
+import type { Document, Reading, Verdict } from "@olai/format"
+import { type Directory, type RuntimePaths } from "@olai/ops"
 import * as Store from "@olai/store"
 import { Effect } from "effect"
+import { stat } from "node:fs/promises"
 import { resolve } from "node:path"
 
 import { holdVault } from "./lock.ts"
 
-export interface Directory {
-  /** The directory, resolved. Resolved rather than as typed: it is what every
-   *  path answer downstream is relative to, and what the log says we opened. */
-  readonly root: string
-  readonly store: OutlineStore
-}
+export type { Directory } from "@olai/ops"
 
 /** Open `root` as an outline store, with the log annotated for everything the
  *  store and its callers will go on to say, and the directory held against a
@@ -47,20 +40,21 @@ export interface Directory {
  *  closing the scope releases the claim, and so does the process ending by any
  *  route at all (`./lock.ts`).
  *
- *  `kinds` IS WHAT THE STORE VALIDATES WITH: which property kinds the enabled
- *  plugins taught this vault's vocabulary, assembled at the composition root
- *  and handed down as data (`./propKinds.ts`). It is a parameter and not a
- *  module-level default for the reason `@olai/ops`' `codecFor` takes one — a
- *  root that forgot it would validate every vault as though this binary had
- *  never heard of a terminal, silently. */
-export const openDirectory = (root: string, kinds: KindVocabulary) =>
+ *  The vault row selects the codec from its validated format config. This
+ *  acquisition knows how to own a directory, not which format it should read. */
+export const openDirectory = (root: string, codec: Store.Codec<Document, Reading, Verdict>, paths: RuntimePaths) =>
   Effect.gen(function*() {
     const resolved = resolve(root)
+    const isDirectory = yield* Effect.tryPromise({
+      try: async () => (await stat(resolved)).isDirectory(),
+      catch: (cause) => new Error(`cannot open vault ${resolved}: ${String(cause)}`),
+    })
+    if (!isDirectory) return yield* Effect.die(new Error(`${resolved} is not a directory`))
     yield* Effect.annotateLogsScoped({ root: resolved })
-    yield* holdVault(resolved)
+    yield* holdVault(resolved, paths)
     const directory: Directory = {
       root: resolved,
-      store: yield* Store.make({ root: resolved, codec: codecFor(kinds) }),
+      store: yield* Store.make({ root: resolved, codec }),
     }
     return directory
   })

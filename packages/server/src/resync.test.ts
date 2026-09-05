@@ -4,10 +4,12 @@
  * is the door: loopback POST returns 204, and a GET is not that door.
  */
 
+import { Deferred, Effect, Fiber, Result } from "effect"
+import { NO_DIRECTORY } from "@olai/ops"
 import { expect, test } from "bun:test"
 
 import { served, withServing } from "./serve.testlib.ts"
-import { RESYNC_PATH } from "./resync.ts"
+import { RESYNC_PATH, resyncDirectory } from "./resync.ts"
 
 const BOUND_MS = 10_000
 
@@ -20,3 +22,21 @@ test("POST /olai/resync returns 204, and a GET is not that answer", async () => 
     expect(got.status).not.toBe(204)
   })
 }, BOUND_MS)
+
+for (const change of ["directory", "gate", "both", "neither"] as const) {
+  test(`resync keeps one provider while waiting: ${change} changes`, () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const waiting = yield* Deferred.make<void>()
+    const finish = yield* Deferred.make<void>()
+    let refreshed = 0
+    const store = { refresh: () => Effect.sync(() => { refreshed++ }) }
+    let directory = { store }
+    let gate = { idle: Effect.andThen(Deferred.succeed(waiting, undefined), Deferred.await(finish)) }
+    const result = yield* Effect.forkScoped(Effect.result(resyncDirectory(() => directory, () => gate)))
+    yield* Deferred.await(waiting)
+    if (change === "directory" || change === "both") directory = { store }
+    if (change === "gate" || change === "both") gate = { idle: Effect.void }
+    yield* Deferred.succeed(finish, undefined)
+    expect(yield* Fiber.join(result)).toEqual(change === "neither" ? Result.succeed(undefined) : Result.fail(NO_DIRECTORY))
+    expect(refreshed).toBe(change === "neither" ? 1 : 0)
+  }))))
+}

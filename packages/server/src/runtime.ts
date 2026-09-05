@@ -67,6 +67,7 @@
  * the wire.
  */
 
+import type { StoreSource } from "./store-source.ts"
 import {
   type Convention,
   conventionRecorded,
@@ -86,7 +87,7 @@ import {
   shelfIn,
   type Verdict,
 } from "@olai/format"
-import { type Caller, type Ops, type Request, type Store } from "@olai/ops"
+import { type Caller, type Ops, type Request } from "@olai/ops"
 import type { Writer } from "@olai/format"
 import { type Applied, type BuiltPlugin, type CorePageReading, type Edit, LOADED, type Manifest, NO_ROSTER, type PluginRoster, type PluginState, surface, watchable, type Who } from "@olai/surface"
 import { type OpFailure } from "@olai/format"
@@ -99,7 +100,6 @@ import {
   type Reading,
   UsageFailure,
 } from "@olai/format"
-import type { Snapshot } from "@olai/store"
 import { type SurfaceSpec, surfaceTag } from "@kolu/surface/define"
 import {
   emptyHandlers,
@@ -113,7 +113,7 @@ import {
   type SurfaceHandlers,
   type SurfaceRuntime,
 } from "@kolu/surface/server"
-import { Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
+import { Effect, Result, type Scope, Stream } from "effect"
 
 /**
  * THE ONLY PLACE THIS FILE MEETS AN APPLIANCE, and it meets none of them by
@@ -180,25 +180,6 @@ import { readFailed } from "./report.ts"
  */
 export type Bound = Omit<SurfaceRuntime<typeof surface.spec>, "ctx">
 
-/**
- * ONE PUBLISHED REVISION, as a plugin's server half is handed it — the store's
- * own snapshot, whole.
- *
- * Named here because this is where the two vocabularies meet: `@olai/plugin-api`
- * types its revision hook PARAMETRICALLY and never names a vault record (its
- * manifest declines `@olai/format` on purpose — the format is downstairs, and a
- * floor package that imported it would be the plugin interface learning what an
- * outline is), so the concrete reading is pinned at the composition root, which
- * is the only place it exists.
- *
- * THE RICHER of what the tenants ask for, deliberately: each narrows it in its
- * own signature to the part it reads, which is a claim the compiler checks —
- * and the annotation on {@link bind}'s plugin list is what proves every built
- * plugin can be driven by this reading, so a plugin that asked for something the
- * store does not publish fails here, naming the list.
- */
-type VaultRevision = Snapshot<Reading>
-
 /** The channel's required error choice, for a pulse that carries nothing: there
  *  is no failure to report on a publish of `void`, and the one thing that CAN
  *  go wrong downstream — a re-read that refuses — is reported where it happens
@@ -247,25 +228,7 @@ const apply = <T>(
  * `kinds()` is read one floor up, in `./serve.ts`, because the store validates
  * through it and the store opens first.
  *
- * ## ...and the three doors it drives
- *
- * `published(snapshot)` on every published revision, `quiet` when the store has
- * never published, and `saw(event)` for every conversation event. All three are
- * EFFECTS, and the first two are awaited where they are rung: the statements
- * after them write a world every plugin has already re-derived.
- *
- * They are DOORS rather than events for a reason an earlier header had
- * backwards: it said "both are EMITS, so a listener that throws is one
- * listener's problem — the dispatcher contains it", and Cordis's `emit` is a
- * bare `Reflect.apply` loop with no `try`, so it contained nothing. One plugin
- * throwing on a revision took every LATER plugin's reading of it down, and the
- * owned fiber that published it. The door wraps each handler once instead, so
- * the sentence that header always wanted to say is now true.
- *
- * Neither of the first two is a teardown hook (`@olai/plugin-api`'s `Vault`
- * argues why the second one's name matters).
- *
- * ## AND THIS FILE HAS NEVER HEARD OF CORDIS
+ * The vault row drives revisions; this binding projects Directory onto the wire.
  *
  * It held a `Context` and reached `ctx.surfaces`, `ctx.wakes`, `ctx.vault` and
  * `ctx.watching` off it — which meant the composition root was the second
@@ -300,16 +263,6 @@ export interface PluginRuntime {
    * mounted.
    */
   readonly built: ReadonlyArray<string>
-  /**
-   * ...and what `--plugins` was GIVEN, unexpanded — `null` for a flag nobody
-   * typed.
-   *
-   * It travels unexpanded because the line under the preferences row names a
-   * given flag and otherwise says the built-in default, and a value that had
-   * already expanded `null` into the full list could not tell a reader which of
-   * the two they were looking at. The git pin keeps the same distinction one
-   * setting over.
-   */
   /**
    * WHAT THE OPERATOR PINNED — one value, the git pin's sibling.
    *
@@ -445,7 +398,7 @@ export interface Wiring {
    *  The client's uptime chip ticks from this; the wire never sends a
    *  duration. */
   readonly startedAt: string
-  readonly store: Store
+  readonly store: StoreSource
   /**
    * THE PLUGIN RUNTIME, or `null` for a runtime that is to have none.
    *
@@ -930,6 +883,7 @@ export const bind = (
     // Seeded empty and filled by `connect`: `SubscriptionRef.changes` delivers
     // the current value before any update, so peeking at the ref here as well
     // would be the same read twice with a window between them.
+    const { current: currentStore, reads, errors: storeErrors } = wiring.store
     const errors = inMemoryStore<Verdict>(NOTHING_WRONG)
     /** This runtime's own log line, for the one place below that reports from
      *  outside an Effect — a stream's re-read, which the framework calls on a
@@ -1020,7 +974,7 @@ export const bind = (
      * have it open at that moment and stops the instant the last one goes.
      */
     const bodies = yield* Bodies.make({
-      read: wiring.store.body,
+      read: (path) => Effect.suspend(() => currentStore()?.body(path) ?? Effect.succeed(null)),
       publish: (path, body) => {
         const entry = held?.documents.entries.get(path)
         if (entry === undefined) return
@@ -1294,9 +1248,9 @@ export const bind = (
      * function picks it up with the rest of the bundle.
      */
     const followed = (read: Reading | null): Effect.Effect<void> =>
-      dynamic === null || read === null
+      dynamic === null
         ? Effect.void
-        : Effect.asVoid(settling(dynamic.follow(read.derived)))
+        : Effect.asVoid(settling(dynamic.follow(read?.derived ?? null)))
 
     /** ...and the holder itself, filled in the moment {@link recompose} exists —
      *  see above for what the default arm is. It ANSWERS what it was told, so a
@@ -1323,7 +1277,7 @@ export const bind = (
           store: errors,
           connect: (cell) =>
             Stream.runForEach(
-              SubscriptionRef.changes(wiring.store.errors),
+              storeErrors,
               (next) => Effect.sync(() => cell.set(next ?? NOTHING_WRONG)),
             ),
         },
@@ -1385,7 +1339,7 @@ export const bind = (
           store: inMemoryStore<Shelf>(NO_PINS),
           connect: (cell) =>
             Stream.runForEach(
-              wiring.store.reads,
+              reads,
               ({ snapshot }) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(NO_PINS)
@@ -1416,7 +1370,7 @@ export const bind = (
           store: inMemoryStore<InboxHeld>(NO_INBOX),
           connect: (cell) =>
             Stream.runForEach(
-              wiring.store.reads,
+              reads,
               ({ snapshot }) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(NO_INBOX)
@@ -1435,26 +1389,16 @@ export const bind = (
           store: inMemoryStore<Manifest>(null),
           connect: (cell) =>
             Stream.runForEach(
-              wiring.store.reads,
+              reads,
               ({ snapshot }) =>
-                // AN `Effect.gen` AND NOT AN `Effect.sync`, because two of the
-                // statements below are Effects: telling every plugin a revision
-                // landed, and telling them the store has none. Both are AWAITED
-                // here, and what the await buys is the statements that come
-                // AFTER the ring — `faulted`, and the cell write that puts this
-                // manifest on the wire — seeing a world every plugin has already
-                // re-derived. The collections and the heads are written above
-                // it, in the order master had them; nothing about that moved.
                 Effect.gen(function*() {
                   if (snapshot === null) {
-                    // No published set at all: every plugin's reading OF THE
-                    // VAULT goes out with the canvas. What each of them makes
-                    // of that is its own — a wrench onto the watch's config, a
-                    // set of worktrees the next sweep acts on — and this
-                    // file neither knows nor composes it; what it knows is that
-                    // a claim derived from a directory the store can no longer
-                    // see is a claim nobody may vouch for.
-                    if (plugins !== null) yield* plugins.quiet
+                    // Withdrawal clears every cached collection, including bodies.
+                    for (const key of held?.outlines.entries.keys() ?? []) published?.collections.outlines.remove(key)
+                    for (const key of held?.documents.entries.keys() ?? []) published?.collections.documents.remove(key)
+                    for (const key of held?.heads.entries.keys() ?? []) published?.collections.heads.remove(key)
+                    held = null
+                    yield* followed(null)
                     return cell.set(null)
                   }
                   // THE PROJECTION CONSUMES WHAT IT IS HANDED, so these two
@@ -1490,35 +1434,7 @@ export const bind = (
                   // so a reader who subscribed before the file existed is
                   // handed the body the announce frame above could not carry.
                   bodies.unread(revision.unread)
-                  // EVERY PLUGIN'S READING OF THE VAULT, re-derived on the same
-                  // statement, and this file does not know what any of them
-                  // reads. A revision is exactly when a reading of the SET can
-                  // have moved — who claims which terminal, which nodes name a
-                  // worktree, whatever the third one asks — and deriving one
-                  // anywhere else would be a second answer to what the vault
-                  // says.
-                  //
-                  // WHAT IS HANDED OVER IS THE WHOLE PUBLISHED SNAPSHOT, which
-                  // is the richer of what the two tenants ask for and is not a
-                  // convenience: one hands its own walk the node list and the
-                  // served file its own convention names, the other hands its
-                  // walk the whole derivation because the question it asks
-                  // includes what the vault DECLARES. Each narrows the argument
-                  // in its own signature — a claim that half makes about what
-                  // this line rings and not one the compiler holds it to (the
-                  // vault door's `revision` says why, and where the one `as`
-                  // lives); a hook per plugin here would be this file knowing
-                  // what each of them reads.
-                  //
-                  // IT COSTS ALMOST NOTHING ON ALMOST EVERY REVISION, and that
-                  // is the plugins' own arrangement rather than a promise made
-                  // here: each of these walks compares before it publishes, so
-                  // a keystroke that landed in a note costs one walk per plugin
-                  // and zero frames, and the sockets are the sweeps' business
-                  // on their own clocks.
-                  if (plugins !== null) yield* plugins.published(snapshot)
-                  // ...AND THE PLUGINS THE VAULT ITSELF DEFINES, on the same
-                  // statement and for the same reason: a revision is exactly
+                  // The plugins the vault itself defines follow a revision: exactly
                   // when a definition can have arrived, changed, been approved
                   // or gone away. Phase 12's whole loop is this line — an agent
                   // writes two notes through the ordinary write door, the write
@@ -2366,7 +2282,7 @@ export const bind = (
       // and an initializer can register it after its mount already returned.
       // The store reports failed reads on its own errors channel; a read failure
       // must not turn a successful plugin change into a refused switch.
-      yield* Effect.ignore(wiring.store.refresh("verified"))
+      yield* Effect.ignore(currentStore()?.refresh("verified") ?? Effect.void)
     })
 
     /**

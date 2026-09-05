@@ -241,22 +241,8 @@ test("PIN (resync path): the harness and the server name the same door", () => {
   expect(askResync.name).toBe("askResync");
 });
 
-test("PIN (resync waits): the door waits for in-flight writes, then probes", () => {
-  const serve = fs.readFileSync(
-    path.join(import.meta.dirname, "..", "server", "src", "serve.ts"),
-    "utf8",
-  );
-  const handed = serve.slice(serve.indexOf("resync:"));
-  const idleAt = handed.indexOf("ops.idle");
-  // The store's ONE look verb, at the class this door exists for. `resync`
-  // was a member of its own until the vintage retired it (the 2026-08-25
-  // debate's finding 3): what the harness needs is not a named means, it is
-  // a look nobody may be entitled to see nothing from.
-  const lookAt = handed.indexOf(`store.refresh("verified")`);
-  expect(idleAt).toBeGreaterThan(-1);
-  expect(lookAt).toBeGreaterThan(-1);
-  expect(idleAt).toBeLessThan(lookAt);
-});
+// Gate draining and provider replacement are exercised behaviorally in
+// server/src/resync.test.ts; their implementation is not pinned to serve.ts.
 
 test("PIN (drain-then-restore): a stage file that lands during drain is restored away", async () => {
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-drain-fix-"));

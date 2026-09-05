@@ -127,6 +127,10 @@ export interface BundleRow {
   readonly id: string
   readonly name: string
   readonly disabled?: boolean
+  /** Extra default profiles that select this row; web uses the built default. */
+  readonly profiles?: ReadonlyArray<string>
+  /** The plugin’s explanation of what stopping its row costs. */
+  readonly switchHint?: string
 }
 
 export { ROWS } from "./rows.generated.ts"
@@ -147,6 +151,11 @@ import { ROWS } from "./rows.generated.ts"
  * the report — is a heavier graph for a heavier question, and nothing that
  * wants a list of strings has to open it.
  */
+/** Profiles select ordinary bundle rows; explicit --plugins overrides this. */
+export const profilePlugins = (profile: string): ReadonlyArray<string> | null => profile === "web"
+  ? null
+  : ROWS.filter((row) => row.disabled !== true && row.profiles?.includes(profile)).map((row) => row.id)
+
 export const BUNDLE_NAMES: ReadonlyArray<string> = ROWS.map((row) => row.id)
 
 /** ...as a lookup, built once, so {@link bundleRank} is not a linear scan run

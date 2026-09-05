@@ -126,10 +126,10 @@ export type { RowReport, RowState } from "@olai/plugin-api"
 /**
  * `--plugins`, AS A PATCH — the overlay an operator's flag writes over the rows.
  *
- * `null` is nobody having said, and it writes NO patch at all: the rows' own
+ * `omitted` is nobody having said, and it writes NO patch at all: the rows' own
  * `disabled` stands, which is the built-in default. That is also what keeps the
  * distinction between an omitted flag and one typed out loud — the preferences
- * row is drawn from it, and a patch that had already expanded `null` could not
+ * row is drawn from it, and a patch that had already expanded `omitted` could not
  * tell a reader which of the two they were looking at.
  *
  * A flag that WAS given writes a `disabled` onto EVERY row, set from whether the
@@ -351,7 +351,7 @@ export const mountBundle = (
   pin: PluginPin,
   configs: ReadonlyArray<{ readonly id: string; readonly config: unknown }> = [],
   extra?: {
-    readonly rows: ReadonlyArray<{ readonly id: string; readonly name: string; readonly disabled?: boolean }>
+    readonly rows: ReadonlyArray<{ readonly id: string; readonly name: string; readonly disabled?: boolean; readonly config?: unknown }>
     readonly resolve: (name: string) => Promise<unknown>
   },
 ): Effect.Effect<void> =>

@@ -20,7 +20,7 @@
 import { expect, test } from "bun:test"
 
 import { type PluginPin, pluginsPatch } from "./bundle.ts"
-import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, inBundleOrder, ROWS } from "./rows.ts"
+import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, inBundleOrder, profilePlugins, ROWS } from "./rows.ts"
 
 const exact = (names: ReadonlyArray<string> | null): PluginPin =>
   names === null ? { kind: "omitted" } : { kind: "exact", names }
@@ -162,4 +162,11 @@ test("the input is not reordered under its owner", () => {
   const arrived = [{ id: "zeta-x" }, { id: BUNDLE_NAMES[0] ?? "claude" }]
   inBundleOrder(arrived, (one) => one.id)
   expect(arrived.map((one) => one.id)).toEqual(["zeta-x", BUNDLE_NAMES[0] ?? "claude"])
+})
+
+ test("default profiles select bundle data, while an explicit empty flag disables every row", () => {
+  expect(profilePlugins("web")).toBeNull()
+  expect(profilePlugins("surface")).toEqual(["vault"])
+  expect(profilePlugins("test-minimal")).toEqual(["vault"])
+  expect(pluginsPatch({ kind: "exact", names: [] }).every((row) => row.disabled)).toBe(true)
 })

@@ -33,6 +33,7 @@
     "olai-plugin-search": "workspace:*",
     "olai-plugin-xyne-spaces": "workspace:*",
     "olai-plugin-git": "workspace:*",
-    "olai-plugin-identity": "workspace:*"
+    "olai-plugin-identity": "workspace:*",
+    "olai-plugin-vault": "workspace:*"
   }
 }

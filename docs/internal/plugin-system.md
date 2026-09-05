@@ -699,7 +699,7 @@ THREE lists, and the distance between them is the whole of what `--plugins` mean
 
 ```
 olai web ~/outlines                    # the built-in default
-olai web ~/outlines --plugins=odu      # odu only
+olai web ~/outlines --plugins=vault,odu      # odu only
 olai web ~/outlines --plugins=         # none — said out loud
 ```
 
@@ -734,7 +734,7 @@ build a default list — and the row wins because it is the SAME FIELD the patch
 writes. One mechanism, two writers: the file says what the build does by
 default, the patch says what the operator asked for, and there is no second
 spelling for the two to disagree across. It also means turning an opt-in plugin
-ON is not a special path: `--plugins=xyne-spaces` writes `disabled: false` over a
+ON is not a special path: `--plugins=vault,xyne-spaces` writes `disabled: false` over a
 row the file set `true`, which is the same line that turns another row off.
 [`rows.test.ts`](../../packages/bundle/src/rows.test.ts) holds both directions.
 
@@ -851,7 +851,7 @@ This split matters and is easy to get backwards:
 | Does this value fit the kind? | **RUNNING** | `admits` is a promise only a plugin that is *here* can make |
 | May this value's face draw? | **RUNNING** | see §8 |
 
-So `{"type":"kolu-terminal"}` is a clean row on a machine running `--plugins=odu`, and
+So `{"type":"kolu-terminal"}` is a clean row on a machine running `--plugins=vault,odu`, and
 `{"type":"banana"}` is a broken file either way.
 
 The two halves come from two places, and that is the shape rather than an
@@ -976,7 +976,7 @@ guess costs:
 rather than only at boot.
 
 ```
-  --plugins=odu   ⇒   kolu's row is patched `disabled` and never mounts
+  --plugins=vault,odu   ⇒   kolu's row is patched `disabled` and never mounts
 
                       no sibling surface        no probe run
                       no wire tag               no chrome pill
@@ -1006,7 +1006,7 @@ start.
 
 And the degenerate case is the same code as every other: a runtime with **no**
 plugins mounts no sibling on the rooted bundle, which leaves core's own surface
-byte for byte what it was. The `surface` server profile selects the shared vault/kinds base and the `mcp` infrastructure row, with no tenant rows enabled by default. `test-minimal` selects no transports. Both use the same plugin host and composition as the web profile; `olai surface` itself remains a client of the running server.
+byte for byte what it was. The `surface` server profile selects the `vault` row over the host kind registry and the `mcp` infrastructure row, with no other bundle plugins enabled by default. `test-minimal` selects no transports. Both use the same plugin host and composition as the web profile; `olai surface` itself remains a client of the running server.
 
 ---
 
@@ -1224,3 +1224,15 @@ through `Deliveries` — with the key appearing on and disappearing from
 `plugins.inspect` as the journal moves. The worked example it is a near-copy of
 is in [plugins the vault defines](../dynamic-plugins.md#a-worked-example-the-morning-agenda),
 compiled from the page itself by `@olai/server`'s `dynamic/worked.test.ts`.
+
+### Vault provider
+
+The ordinary `olai-plugin-vault/server` row lives in `packages/bundle/olai.yml` and is selected by every default profile. Explicit `--plugins` selections may omit it. It waits on `VaultSettings`, supplied after the bundle’s declared vocabulary is available, and acquires the one-brain lock before the store. The row owns its watcher and revision publisher and offers `Vault`, `Directory` and `Ops`; `Kinds` remains core-provided. Late revision subscribers receive the current snapshot. Tenants naming `Vault` wait while it is absent and reactivate when it returns.
+
+Core reads `Directory` and the complete gate carried by `Ops` per call. `makeOps` runs inside the vault row after the store acquisition. The gate owns its caches and count of accepted writes; its scope release closes it to fresh calls and drains accepted writes before the store watcher and lock are released. A serve without the row has no gate and no `Ops` offer. Core’s lookup adapter answers `NO_DIRECTORY`, the same UsageFailure sentence as `NOWHERE_TO_WRITE`; it acquires nothing. Existing plugin gestures remain typed on `Ops`, while core interprets its opaque `gate` at the floor boundary. `VaultSettings` carries the root, vocabulary and optional-provider views, with no `idle` callback.
+
+Core composes directory changes through `server/src/store-source.ts`: the binding receives current-store lookup, revisions and errors without observing the plugin host itself. Fixed fixtures preserve the store’s direct initial delivery. Core also owns the machine runtime-path policy and persistent-record pruning; the provider receives a narrow runtime-path capability through `VaultSettings` and owns only lock-file sweeping. `plugins/vault/src/ops-door.ts` translates plugin gestures and attribution into floor operations; the vault row retains acquisition, offer registration and gate release. These boundaries keep surface projection and plugin vocabulary separate from resource lifetime.
+
+The vault row carries `config: { format: "olai" }`, validated by its `Config` schema. The codec table is the place to add another supported format; Org is not implemented by this PR. The Effect bridge decodes row config before user `apply`, inside the same contained activation as every other initializer. This avoids the pinned Cordis constructor-validation path that could leave an invalid row pending and reject an unobserved loader promise.
+
+The vault switch remains available and explains its cost. Disabling it clears served collections and removes vault-defined plugins, while the transports remain available. A lock conflict or non-directory root lands as a failed row, including its own failure sentence, so the panel can retry it after the cause is resolved. `runtime.test.ts` now opens the test-minimal profile and reads its store through `Directory`.

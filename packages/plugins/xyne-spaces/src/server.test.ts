@@ -1,3 +1,4 @@
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * The server half, driven through a fake Spaces and a fake watching bus —
  * never the human's live instance.
@@ -30,7 +31,7 @@ import {
   type LocalState,
   mountPlugin,
   Offers,
-  openPlugins,
+
   type Registered,
   standing,
   Watching,

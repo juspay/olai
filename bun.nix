@@ -7637,6 +7637,7 @@
   "olai-plugin-opencode" = copyPathToStore ./packages/plugins/opencode;
   "olai-plugin-pi" = copyPathToStore ./packages/plugins/pi;
   "olai-plugin-search" = copyPathToStore ./packages/plugins/search;
+  "olai-plugin-vault" = copyPathToStore ./packages/plugins/vault;
   "olai-plugin-xyne-spaces" = copyPathToStore ./packages/plugins/xyne-spaces;
   "on-finished@2.4.1" = fetchurl
     {

@@ -105,7 +105,7 @@ export interface DynamicRuntime {
   /** Bring the mounted set into line with a revision. Answers whether anything
    *  moved, so a caller can re-compose exactly when there is something to
    *  re-compose. */
-  readonly follow: (derived: Derived) => Effect.Effect<boolean>
+  readonly follow: (derived: Derived | null) => Effect.Effect<boolean>
   /** ...and the same act against the reading this runtime last saw — what an
    *  approval and a switch need, since neither moves a file. */
   readonly again: Effect.Effect<boolean>
@@ -218,7 +218,7 @@ export const openDynamic = (host: Host, built: ReadonlyArray<string>): DynamicRu
     rows: (report) =>
       seen.map((one) => rowOf(one, started.get(one.name), report.get(one.name), stopped)),
     names: () => seen.map((one) => one.name),
-    follow: (derived) => follow(definedIn(derived, built)),
+    follow: (derived) => follow(derived === null ? [] : definedIn(derived, built)),
     again: Effect.suspend(() => follow(seen)),
     chunk: (path) => {
       for (const one of started.values()) if (one.up && one.path === path) return one.chunk

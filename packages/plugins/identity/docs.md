@@ -12,7 +12,7 @@ Nothing. It is on by default, like chat and git. Two things take it away, and th
 
 ```
 olai web ~/outlines                                    # the chip, as always
-olai web ~/outlines --plugins=chat,git,claude          # every request is nobody
+olai web ~/outlines --plugins=vault,chat,git,claude          # every request is nobody
 ```
 
 The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag. Switched off at the panel, the chip leaves while you are watching, `who.get` starts answering nobody, and a capture taken from that moment on records no `captured-by`.

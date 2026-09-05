@@ -293,7 +293,7 @@ test("a serve that did not name the identity row is nobody, whoever asks", async
   // a refusal and not an error — a 204, which is the same answer this door
   // gives a request that arrived behind no proxy at all.
   await withServing(
-    { root: served(), vars: TAILSCALE, plugins: ["chat", "git"] },
+    { root: served(), vars: TAILSCALE, plugins: ["vault", "chat", "git"] },
     async (url) => {
       const answer = await get(url, WHO_PATH, { "Tailscale-User-Login": ADA })
       expect(answer.status).toBe(204)
@@ -306,7 +306,7 @@ test("...and a tab on that serve is nobody on its own upgrade", async () => {
   // The other door: nobody is standing behind the door to name a header, so
   // the upgrade keeps none and the socket is carrying nothing to read.
   await withServing(
-    { root: served(), vars: TAILSCALE, plugins: ["chat", "git"] },
+    { root: served(), vars: TAILSCALE, plugins: ["vault", "chat", "git"] },
     async (url) => {
       expect(await whoOn(url, { "Tailscale-User-Login": ADA })).toBeNull()
     },
@@ -338,7 +338,7 @@ test("...and a tab on that serve is nobody on its own upgrade", async () => {
  */
 test("a row switched on after the bind names its headers on the next upgrade", async () => {
   await withServing(
-    { root: served(), vars: TAILSCALE, plugins: ["chat", "git"] },
+    { root: served(), vars: TAILSCALE, plugins: ["vault", "chat", "git"] },
     async (url) => {
       const ada = { "Tailscale-User-Login": ADA }
       const someone = { login: ADA, name: null, picture: gravatarOf(ADA) }
@@ -381,7 +381,7 @@ test("a header name no request can carry refuses the serve, in the framework's w
       // appliance row dials a socket on its way down whether or not anything
       // is listening. What is being asked here is what the serve refuses WITH,
       // not what a teardown says while it happens.
-      plugins: ["identity"],
+      plugins: ["vault", "identity"],
     },
     async () => "the serve came up",
   ).then(() => null, (error: unknown) => String(error))

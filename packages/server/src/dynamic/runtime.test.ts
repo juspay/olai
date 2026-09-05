@@ -1,3 +1,4 @@
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * A PLUGIN NOBODY COMPILED IN, all the way through — written into a vault,
  * pending, approved, mounted, edited, switched off.
@@ -18,7 +19,7 @@ import {
   type Host,
   mountPlugin,
   Offers,
-  openPlugins,
+
   rowReport,
 } from "@olai/plugin-api/services"
 import { REGISTRY, SERVER_MODULES } from "@olai/plugin-build/shared"

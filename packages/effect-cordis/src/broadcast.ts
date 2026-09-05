@@ -78,7 +78,7 @@ export const broadcast = <A>(what: string): Bus<A> => {
     // containment is a property of the bus rather than a discipline each
     // subscriber is asked to keep, and no ring can forget it.
     listen: (plugin) => (handler) =>
-      handlers.hold((value) => contained(plugin, what, handler(value))),
+      handlers.hold((value) => contained(plugin, what, Effect.suspend(() => handler(value)))),
     // SUSPENDED, because the list is read at the moment the bus is rung rather
     // than at the moment it was opened: every subscriber arrives afterwards.
     tell: (value) =>
@@ -108,7 +108,7 @@ export const failed = (
   Effect.logWarning(`plugins: "${plugin}" failed on ${what}`, cause)
 
 /** ...and the broadcast's own recovery: nothing to hand back. */
-const contained = (
+export const contained = (
   plugin: string,
   what: string,
   work: Effect.Effect<void>,
