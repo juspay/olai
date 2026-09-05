@@ -18,7 +18,7 @@ Turning this row off is also possible through the plugin roster: `olai web --plu
 - **Olai does not select full-access mode.** The adapter's `agent-full-access` mode disables approvals and grants unrestricted host access. This plugin leaves the adapter's default mode in place.
 - **Unknown tool identity is never an approval.** The adapter displays MCP titles such as `mcp.server.tool`, but the ACP fields olai uses for its approval boundary carry an opaque call id and no stable server/tool name. Codex permission requests therefore remain questions for the person instead of being inferred from display text.
 - **Subagent activity is flat for now.** Codex exposes thread-oriented collaboration metadata, not the unambiguous spawning-call relationship olai's lanes require. The calls remain visible without guessed parentage.
-- **The model picker uses exact ids.** The adapter's `model` config option offers the same ids it reports for the active model.
+- **Press the model name to switch models.** While the conversation is idle, the header offers the adapter's model options and applies the selection through ACP's `session/set_config_option`. Codex's adapter does not implement a `/model` slash command. The `model` option uses exact model ids, and the confirmed choice survives a restart of the conversation.
 - **No prompt queue is promised.** Codex advertises steering, not ordinary busy-turn prompt queueing, so the composer makes no queueing claim on its behalf.
 
 ## Where to get it
