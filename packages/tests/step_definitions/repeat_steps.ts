@@ -145,6 +145,10 @@ When("I empty the repeat picker", async function (this: OlaiWorld) {
   await this.waitForFrame();
 });
 
+When("I draft the repeat rule {string}", async function (this: OlaiWorld, rule: string) {
+  await rules(this).selectOption(rule);
+});
+
 When("I cancel the repeat picker", async function (this: OlaiWorld) {
   await this.press(this.page.locator(REPEAT_PICKER_CANCEL));
 });

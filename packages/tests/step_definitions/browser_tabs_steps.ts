@@ -12,7 +12,7 @@ interface Tabs {
 }
 const tabs = new WeakMap<OlaiWorld, Tabs>();
 
-Given("incoming updates to this chat tab can be held", async function (this: OlaiWorld) {
+Given("incoming updates to this browser tab can be held", async function (this: OlaiWorld) {
   const state: Tabs = { original: this.page, held: false, pending: [] };
   tabs.set(this, state);
   await this.page.routeWebSocket("**/rpc/ws", (client) => {
@@ -25,32 +25,32 @@ Given("incoming updates to this chat tab can be held", async function (this: Ola
   });
 });
 
-When("I hold incoming updates to the original chat tab", function (this: OlaiWorld) {
+When("I hold incoming updates to the original browser tab", function (this: OlaiWorld) {
   const state = tabs.get(this);
   assert.ok(state);
   state.held = true;
 });
 
-When("I release incoming updates to the original chat tab", function (this: OlaiWorld) {
+When("I release incoming updates to the original browser tab", function (this: OlaiWorld) {
   const state = tabs.get(this);
   assert.ok(state);
   state.held = false;
   for (const send of state.pending.splice(0)) send();
 });
 
-When("I open another chat tab", async function (this: OlaiWorld) {
-  const state = tabs.get(this);
-  assert.ok(state);
+When("I open another browser tab", async function (this: OlaiWorld) {
+  const state: Tabs = tabs.get(this) ?? { original: this.page, held: false, pending: [] };
+  tabs.set(this, state);
   state.other = await this.context.newPage();
   this.page = state.other;
   await this.open("/house.olai");
 });
 
-When("I use the {word} chat tab", function (this: OlaiWorld, which: string) {
+When("I use the {word} browser tab", function (this: OlaiWorld, which: string) {
   const state = tabs.get(this);
   assert.ok(state);
   const page = which === "original" ? state.original : which === "other" ? state.other : undefined;
-  assert.ok(page, `no ${which} chat tab`);
+  assert.ok(page, `no ${which} browser tab`);
   this.page = page;
 });
 

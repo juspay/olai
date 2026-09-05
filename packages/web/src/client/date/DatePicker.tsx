@@ -41,15 +41,12 @@
  * would be a picker that shuts the moment somebody reaches for a date in it —
  * which is a fact about THIS control rather than about panels.
  */
-
-import { createSignal } from "solid-js"
-
 import type { Press } from "../edit/panel.ts"
 import { RowPanel } from "../edit/RowPanel.tsx"
 import type { Said } from "../saying.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
-import { noticeOf, pressOf, startsAt } from "./pick.ts"
+import { noticeOf, pressOf } from "./pick.ts"
 
 /** This panel's identity, off the one table that declares it. */
 const IDS = {
@@ -64,6 +61,8 @@ export function DatePicker(props: {
   /** The date the node stores, or nothing — what the box starts on, and what
    *  decides whether pressing the button would ask for anything. */
   readonly date: string | undefined
+  readonly day: string
+  readonly onChange: (value: string) => void
   /** Send it. The host is what knows the write gate and the undo stack
    *  ({@link ../writes.ts}); this is what knows the day. Answering with a
    *  {@link Said} keeps the panel open saying it; answering with nothing is the
@@ -78,7 +77,7 @@ export function DatePicker(props: {
    *  file says meanwhile is still read, on every frame, by the two questions
    *  that are about the RECORD rather than about the box: whether pressing
    *  would write anything, and what the button is called. */
-  const [day, setDay] = createSignal(startsAt(props.date))
+  const day = () => props.day
   /** The button, in the one state it has — what it says and whether it does
    *  anything, derived together ({@link ./pick.ts}) so they cannot disagree. */
   const press = (): Press => pressOf(props.date, day())
@@ -110,7 +109,7 @@ export function DatePicker(props: {
           // the element is not in the document at the instant the signal
           // flips.
           ref={(element) => queueMicrotask(() => element.focus())}
-          onInput={(event) => setDay(event.currentTarget.value)}
+          onInput={(event) => props.onChange(event.currentTarget.value)}
         />
       </label>
     </RowPanel>

@@ -27,14 +27,14 @@
  */
 
 import { REPEAT_RULES } from "@olai/format"
-import { createSignal, For } from "solid-js"
+import { For } from "solid-js"
 
 import type { Press } from "../edit/panel.ts"
 import { RowPanel } from "../edit/RowPanel.tsx"
 import type { Said } from "../saying.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
-import { noticeOf, pressOf, startsAt } from "./repeat.ts"
+import { noticeOf, pressOf } from "./repeat.ts"
 
 /** This panel's identity, off the one table that declares it. */
 const IDS = {
@@ -49,6 +49,8 @@ export function RepeatPicker(props: {
   /** The rule the node stores, or nothing — what the list starts on, and what
    *  decides whether pressing the button would ask for anything. */
   readonly repeat: string | undefined
+  readonly rule: string
+  readonly onChange: (value: string) => void
   /** Send it. The host is what knows the write gate and the undo stack
    *  ({@link ../writes.ts}); this is what knows the rule. */
   readonly onPick: (rule: string) => Promise<Said | undefined>
@@ -56,7 +58,7 @@ export function RepeatPicker(props: {
 }) {
   /** The rule in the box: seeded from the record ONCE, and the person's from
    *  then on — the date picker's own trade, for its own reason. */
-  const [rule, setRule] = createSignal(startsAt(props.repeat))
+  const rule = () => props.rule
   const press = (): Press => pressOf(props.repeat, rule())
 
   return (
@@ -79,7 +81,7 @@ export function RepeatPicker(props: {
           data-testid={TESTID.repeatPickerRule}
           value={rule()}
           ref={(element) => queueMicrotask(() => element.focus())}
-          onInput={(event) => setRule(event.currentTarget.value)}
+          onInput={(event) => props.onChange(event.currentTarget.value)}
         >
           {/* The empty option IS the verb "stop repeating" — one spelling of
               "does not repeat", which is what `repeatPick` sends as `null`. */}

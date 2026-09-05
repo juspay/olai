@@ -118,6 +118,10 @@ When("I pick the date {string}", async function (this: OlaiWorld, day: string) {
   await panel(this).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
+When("I draft the date {string}", async function (this: OlaiWorld, day: string) {
+  await box(this).fill(day);
+});
+
 When("I empty the date picker", async function (this: OlaiWorld) {
   await box(this).fill("");
   await this.waitForFrame();
