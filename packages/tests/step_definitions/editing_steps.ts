@@ -350,6 +350,17 @@ When("I click the first new row", async function (this: OlaiWorld) {
   await this.press(row);
 });
 
+When("I focus the first parked row and type {string} immediately", async function (this: OlaiWorld, text: string) {
+  // One browser task: the previous row's asynchronous save cannot finish
+  // between the focus event and this input. No editor internals are touched.
+  await this.page.locator(`${NEW_ROW} ${TITLE_EDITOR}`).first().evaluate((element, value) => {
+    const input = element as HTMLInputElement;
+    input.focus();
+    input.value = value;
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
+  }, text);
+});
+
 When("I click the page away from the drafts", async function (this: OlaiWorld) {
   // Not `I click away from the editor`: that wait names the caret by the
   // first title-editor in the document, and parked ghosts keep one of those

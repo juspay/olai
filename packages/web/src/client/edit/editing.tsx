@@ -133,6 +133,8 @@ export interface Editor {
   readonly open: (row: Row, field: "title" | "desc", at?: OpenAt) => void
   /** What has just been typed. Starts the idle clock. */
   readonly type: (text: string) => void
+  /** Text typed into a parked slot while its activation waits for a write. */
+  readonly typeParked: (slot: string, text: string) => void
   /** The editor at this slot lost focus: commit, and close if it landed. It
    *  says which slot because a blur arrives after the draft may already have
    *  moved on — see {@link ./draft.ts}'s `Slot` — and whether the element is
@@ -1185,6 +1187,7 @@ export const createEditor = (
     setGhosts((list) => list.filter((g) => g.slot !== slot))
     setDraft(found)
     setCaret((n) => n + 1)
+    if (found.text.trim() !== "") idle()
   }
 
   const resume = (slot: string): void => {
@@ -1246,6 +1249,11 @@ export const createEditor = (
     type: (text) => {
       setDraft((held) => (held === null ? held : typed(held, text)))
       idle()
+    },
+    typeParked: (slot, text) => {
+      setGhosts((list) => list.map((ghost) => ghost.slot === slot ? { ...ghost, text } : ghost))
+      // Activation may have completed between the input event and this call.
+      setDraft((held) => held?.kind === "new" && held.slot === slot ? typed(held, text) : held)
     },
     blur: (from, left) => {
       // A blur we caused ourselves — see `settling`.

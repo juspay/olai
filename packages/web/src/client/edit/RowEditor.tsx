@@ -71,6 +71,7 @@ export function TitleEditor(props: {
   readonly active?: boolean
   /** The parked input was focused: put the caret here. */
   readonly onActivate?: () => void
+  readonly onParkedInput?: (text: string) => void
 }) {
   let element!: HTMLInputElement
 
@@ -142,10 +143,12 @@ export function TitleEditor(props: {
         spellcheck={false}
         onInput={(event) => {
           readCaret()
-          // A parked ghost is an input so it can be clicked back into, not
-          // so it can type into the live draft while resume is still on
-          // the queue.
-          if (props.active === false) return
+          // Activation can wait on the previous row's write. Keep these
+          // keystrokes with the clicked slot while that write settles.
+          if (props.active === false) {
+            props.onParkedInput?.(event.currentTarget.value)
+            return
+          }
           props.onInput(event.currentTarget.value)
         }}
         onKeyDown={(event) => {

@@ -45,6 +45,7 @@ function GhostRow(props: {
       draft={props.draft}
       active={props.active}
       onActivate={props.active === false ? () => editor.resume(slot) : undefined}
+      onParkedInput={(text) => editor.typeParked(slot, text)}
       onInput={editor.type}
       onKey={keyHandler("line", editor.press)}
       onBlur={(left) => editor.blur({ row: slot, field: "new" }, left)}
