@@ -108,6 +108,9 @@ be complete before this PR is ready to merge.
   without undoing emitted vault writes.
 - [ ] Complete mobile, history, cancellation, failed/hanging cleanup and observer
   leak coverage across the extracted capabilities.
+- [ ] Investigate intermittent keyboard/draft e2e failures: parked-draft ordering
+  in `keyboard_editing.feature:129` failed at `3a8629ad`, and keyboard status after
+  moving a row failed at `8f077cd7`. Passing reruns alone do not explain them.
 - [ ] Finish plugin, architecture, profile/running and dynamic-plugin docs for
   the final ownership and absence behavior. Existing extracted rows have docs.
 - [ ] Pass the complete PR's required checks and acceptance coverage. A green
