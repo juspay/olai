@@ -141,6 +141,7 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
 })
 
 test("boot routes a remembered node session before spawning any panel", async () => {
+  let probes = 0
   const remembered: NodeAgent = {
     id: "one",
     file: "Work.olai",
@@ -168,6 +169,13 @@ test("boot routes a remembered node session before spawning any panel", async ()
     engines: () => ["alpha"],
     cwd,
     memory,
+    probes: () => Effect.succeed([{
+      name: "startup-probe",
+      ask: Effect.sync(() => {
+        probes++
+        return { server: null, missing: null }
+      }),
+    }]),
     tools: () => null,
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
     seatableAt: (id) => nodes.some((node) => node.id === id),
@@ -187,6 +195,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
       chat.state().bound === "one" && chat.state().status === "idle")
     expect(said.filter((line) => line.message.includes("chat agent ready"))).toHaveLength(1)
     expect(said.filter((line) => line.message.includes("conversation opened"))).toHaveLength(1)
+    expect(probes).toBe(1)
   } finally {
     await logged(chat.stop)
   }

@@ -5,7 +5,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
-import { Effect, References } from "effect"
+import { Clock, Effect, References } from "effect"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -336,3 +336,54 @@ describe("a message that queues behind a running turn", () => {
     }
   }, 15_000)
 })
+
+test("startup durations measure separate operations and include tool probes in opening", async () => {
+  let now = 1_000_000_000n
+  const advance = (ms: number) => { now += BigInt(ms) * 1_000_000n }
+  const native = Effect.runSync(Effect.service(Clock.Clock))
+  const clock: Clock.Clock = {
+    currentTimeMillisUnsafe: () => native.currentTimeMillisUnsafe(),
+    currentTimeMillis: native.currentTimeMillis,
+    currentTimeNanosUnsafe: () => native.currentTimeNanosUnsafe(),
+    currentTimeNanos: native.currentTimeNanos,
+    sleep: duration => native.sleep(duration),
+    monotonicTimeNanosUnsafe: () => now,
+    monotonicTimeNanos: Effect.sync(() => now),
+  }
+  const { layer, said } = collector()
+  const run: Run = (effect) => Effect.runPromise(effect.pipe(
+    Effect.provideService(Clock.Clock, clock),
+    Effect.provideService(References.MinimumLogLevel, "Debug"),
+    Effect.provide(layer),
+  ))
+  const agent = await run(make({
+    ...options(),
+    probes: () => Effect.succeed([{
+      name: "slow-tool",
+      ask: Effect.sync(() => {
+        advance(50)
+        return { server: null, missing: null }
+      }),
+    }]),
+    onEvent: event => {
+      if (event._tag === "advertised") advance(30)
+      if (event._tag === "opening") advance(40)
+    },
+  }))
+  try {
+    await run(agent.boot)
+    advance(10_000) // Idle time between opens must not enter the next duration.
+    await run(agent.loadSession("stored-session"))
+    const ready = said.filter(line => line.message.includes("chat agent ready"))
+    expect(ready).toHaveLength(1)
+    expect(ready[0]?.annotations.duration).toBe("30ms")
+    const opened = said.filter(line => line.message.includes("conversation opened"))
+    expect(opened.map(line => [line.annotations.how, line.annotations.duration]))
+      .toEqual([["new", "90ms"], ["loaded", "90ms"]])
+    const probes = said.filter(line => line.message.includes("slow-tool is not running"))
+    expect(probes.map(line => [line.level, line.annotations.duration]))
+      .toEqual([["Debug", "50ms"], ["Debug", "50ms"]])
+  } finally {
+    await run(agent.stop)
+  }
+}, 15_000)

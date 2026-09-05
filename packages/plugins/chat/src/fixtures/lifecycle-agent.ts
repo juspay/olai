@@ -44,11 +44,14 @@ process.stdin.on("data", (chunk: string) => {
       case "initialize":
         respond(message.id, {
           protocolVersion: 1,
-          agentCapabilities: {},
+          agentCapabilities: { loadSession: true },
         })
         continue
       case "session/new":
         respond(message.id, { sessionId: "sess-1" })
+        continue
+      case "session/load":
+        respond(message.id, {})
         continue
       case "session/prompt": {
         const text = message.params?.prompt?.[0]?.text ?? ""
