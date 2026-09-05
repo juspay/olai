@@ -122,6 +122,8 @@ export interface Editor {
   readonly resume: (slot: string) => void
   /** The clicked ghost owns focus while the preceding save settles. */
   readonly resuming: Accessor<string | null>
+  /** Draw a pending anchor at its old seat until the new target has arrived. */
+  readonly displayAt: (at: Anchor) => Anchor
   /** WHERE the caret is, and nothing about what is being typed there: the
    *  `Row.key` of the row being edited, the row a new line is drawn after or
    *  before, and which field. Primitives, so they answer the same value while
@@ -338,12 +340,38 @@ export const createEditor = (
    * ({@link Editor.type} is a signal write) and `Escape`, which abandons.
    */
 
+  // An edit reply and the page subscription can arrive in either order. Keep
+  // the write anchor authoritative, but retain its prior visual seat until
+  // the new anchor row is present. Otherwise all inputs disappear between the
+  // reply and frame and native keystrokes go to the document body.
+  const noAnchors = new Set<string>()
+  const present = createMemo(() => {
+    if (memory.placements().size === 0) return noAnchors
+    page.frames()
+    return new Set(flatten(page.rows(), new Set()).map((row) => row.at.node.id))
+  })
+  const displayAt = (at: Anchor): Anchor => {
+    const seen = new Set<string>()
+    while ("id" in at && !present().has(at.id) && !seen.has(at.id)) {
+      seen.add(at.id)
+      const previous = memory.placements().get(at.id)
+      if (previous === undefined) break
+      at = previous
+    }
+    return at
+  }
+  createEffect(() => {
+    const held = memory.placements()
+    const next = new Map([...held].filter(([id]) => !present().has(id)))
+    if (next.size !== held.size) memory.setPlacements(next)
+  })
+
   /** The caret's own three facts, memoised so typing does not move them. */
   const where = createMemo<Where>(() => {
     const held = draft()
     if (held === null) return NOWHERE
     if (held.kind === "new") {
-      return { place: null, pending: besideOf(held.at), field: null }
+      return { place: null, pending: besideOf(displayAt(held.at)), field: null }
     }
     return { place: held.place, pending: null, field: held.field }
   }, NOWHERE, {
@@ -506,6 +534,9 @@ export const createEditor = (
     idle.clear()
     const done = await send(edit, slotOf(current))
     if (done === null) return false
+    if (current.kind === "new") {
+      memory.setPlacements((held) => new Map(held).set(done.id, current.at))
+    }
     // Only when the editor is still on the same draft: a commit that landed
     // while the reader had already moved on must not drag them back.
     setDraft((held) => (held === current ? landed(current, done.id, done.nudge) : held))
@@ -1274,6 +1305,7 @@ export const createEditor = (
     ghosts,
     resume,
     resuming,
+    displayAt,
     where,
     caret,
     open: (at, field, here) => {

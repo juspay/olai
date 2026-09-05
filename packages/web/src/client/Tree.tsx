@@ -384,7 +384,10 @@ function Branch(props: {
     return pending()
   }
   const parked = (kind: "after" | "before" | "under") =>
-    editor.ghosts().filter((g) => g.at.kind === kind && g.at.id === props.row.at.node.id)
+    editor.ghosts().filter((g) => {
+      const at = editor.displayAt(g.at)
+      return at.kind === kind && at.id === props.row.at.node.id
+    })
   /** Is the caret in THIS row? What the row draws to say so, and what a
    *  scenario asks. A blinking text cursor at the end of a title was the whole
    *  affordance a walk with `↑`/`↓` had, and in a tree of a hundred rows that

@@ -6,6 +6,7 @@ import { createSignal } from "solid-js"
 import type { Draft, Pending, Slot } from "./draft.ts"
 import { selectionMemory } from "../select/memory.ts"
 import { serial } from "./queue.ts"
+import type { Anchor } from "@olai/surface"
 import type { Route } from "../routes.ts"
 
 export interface EditorRange {
@@ -20,11 +21,12 @@ export const editorMemory = () => {
   const [ghosts, setGhosts] = createSignal<ReadonlyArray<Pending>>([])
   const [caret, setCaret] = createSignal(0)
   const [resuming, setResuming] = createSignal<string | null>(null)
+  const [placements, setPlacements] = createSignal<ReadonlyMap<string, Anchor>>(new Map())
   let slots = 0
   return {
     range: undefined as EditorRange | undefined,
     completion: { slot: undefined as Slot | undefined, dismissed: createSignal<string | null>(null) },
-    draft, setDraft, ghosts, setGhosts, caret, setCaret, resuming, setResuming,
+    draft, setDraft, ghosts, setGhosts, caret, setCaret, resuming, setResuming, placements, setPlacements,
     mintSlot: () => `d${++slots}`,
     enqueue: serial(),
     selection: selectionMemory(),

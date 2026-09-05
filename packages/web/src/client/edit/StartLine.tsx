@@ -34,11 +34,11 @@ export function StartLine(props: {
    *  half of that rule this component owns instead of implying it. */
   const live = () => {
     const draft = editor.draft()
-    return draft !== null && draft.kind === "new" && sameAnchor(draft.at, props.at)
+    return draft !== null && draft.kind === "new" && sameAnchor(editor.displayAt(draft.at), props.at)
       ? draft
       : undefined
   }
-  const parked = () => editor.ghosts().filter((g) => sameAnchor(g.at, props.at))
+  const parked = () => editor.ghosts().filter((g) => sameAnchor(editor.displayAt(g.at), props.at))
   const any = () => live() !== undefined || parked().length > 0
 
   return (

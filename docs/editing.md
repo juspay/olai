@@ -545,3 +545,10 @@ that moves the clicked input before the RPC reply restores focus to that slot,
 including when the input was moved without being remounted. Escape or a newer selection
 cancels an obsolete pending focus request. `draft_handoff.feature` covers input
 identity and typing across a held save reply.
+
+A successful create reply can precede the page subscription update. Pending
+drafts keep their authoritative write anchor and a temporary visual fallback
+to the old seat until that anchor row is available. The fallback changes only
+where the input is drawn, never where the next write goes. This avoids a period
+with no input in the document, and also handles several creates before their
+frames arrive. Observed rows release their fallback records.
