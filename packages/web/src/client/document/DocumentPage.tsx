@@ -116,7 +116,9 @@ export function DocumentPage(props: {
   readonly custom: Custom
 }) {
   const here = useHere()
-  const identity = createMemo(() => ({ file: props.file, pane: here() }))
+  const identity = createMemo(() => ({ file: props.file, pane: here() }), undefined, {
+    equals: (a, b) => a.file === b.file && a.pane === b.pane,
+  })
   return (
     <Show when={identity()} keyed>
       {({ file }) => <OneDocument file={file} custom={props.custom} />}
