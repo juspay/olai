@@ -562,6 +562,8 @@ export default definePlugin({
         withChat((open) => open.attach(input)),
       resend: ({ input }: { input: { id: string } }) => withChat((open) => open.resend(input.id)),
       cancel: () => withChat((open) => open.cancel),
+      setModel: ({ input }: { input: { agent: string; session: string; value: string } }) =>
+        withChat((open) => open.setModel(input.agent, input.session, input.value)),
       newSession: ({ input }: { input: { agent: string } }) =>
         withChat((open) => open.newSession(input.agent)),
       // THE TWO GESTURES THAT ARE TWO ACTS, and the only ones here that are —
