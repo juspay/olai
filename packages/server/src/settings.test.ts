@@ -18,16 +18,24 @@ test("the finder names the shallowest settings.olai", () => {
   expect(settingsFileIn(["house.olai"])).toBeUndefined()
 })
 
-test("the overlay is one node per plugin property, properties as strings", () => {
+test("the overlay is one node per plugin title, properties as strings", () => {
   const nodes = nodesOfFiles({
     "_olai/Settings.olai": [
-      rec("kolu", { plugin: "kolu", heartbeat: "10m", "held-for": "0s" }),
-      rec("also-kolu", { plugin: "kolu", heartbeat: "1h" }),
-      rec("stray", { heartbeat: "1h" }),
+      rec("kolu", { heartbeat: "10m", "held-for": "0s" }),
+      rec("kolu", { heartbeat: "1h" }),
     ].join("\n"),
   })
   expect(settingsDocumentIn(nodes, "_olai/Settings.olai")).toEqual({
     kolu: { heartbeat: "10m", "held-for": "0s" },
+  })
+})
+
+test("a leftover plugin property is not a field", () => {
+  const nodes = nodesOfFiles({
+    "_olai/Settings.olai": rec("kolu", { plugin: "kolu", heartbeat: "10m" }),
+  })
+  expect(settingsDocumentIn(nodes, "_olai/Settings.olai")).toEqual({
+    kolu: { heartbeat: "10m" },
   })
 })
 

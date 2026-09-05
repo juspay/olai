@@ -149,7 +149,7 @@ Then(
 When("the watch is told to report a held terminal at once", function (this: OlaiWorld) {
   this.writeServed(
     "_olai/Settings.olai",
-    `{"id":"kolu","ord":"a0","title":"kolu","custom":{"plugin":"kolu","held-for":"0s"}}`,
+    `{"id":"kolu","ord":"a0","title":"kolu","custom":{"held-for":"0s"}}`,
   );
 });
 

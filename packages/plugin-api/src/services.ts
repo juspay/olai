@@ -1043,7 +1043,8 @@ export interface Plugins {
    * `_olai/Settings.olai`. `page` is what the settings cell publishes.
    * `set` is the panel's verb, already stamped by plugin name. `changed`
    * is the clock the cell republishes on. Overlay identity is the node's
-   * `plugin` property, not its title: a title is prose somebody renames.
+   * title, the plugin's word. A `plugin` property is a vault-defined
+   * plugin, and must not appear here.
    */
   readonly settings: {
     readonly ingest: (document: SettingsDocument) => Effect.Effect<void>

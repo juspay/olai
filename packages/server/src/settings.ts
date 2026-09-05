@@ -4,8 +4,13 @@
  *
  * Core owns the path and the write. The plugin owns the schema that judges
  * the fields. A vault with no such file is schema defaults, which is the
- * ordinary state. Overlay identity is {@link PLUGIN_KEY} — the same
- * property a vault-defined plugin wears, because a title is prose.
+ * ordinary state.
+ *
+ * Overlay identity is the node's TITLE, the plugin's word. A vault-defined
+ * plugin uses a `plugin` property because its title is prose; this file is
+ * one node per plugin and has no other heading. Reusing that property here
+ * made a settings node a plugin definition, a second `kolu` row that failed
+ * to start.
  */
 
 import {
@@ -43,9 +48,9 @@ export const settingsFileIn = (paths: Iterable<string>): string | undefined =>
       (a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b),
     )[0]
 
-/** The overlay, keyed by the `plugin` property. A second node of the
- *  same word is the owner's mistake; the first wins. A node with no
- *  such property is not a section. */
+/** The overlay, keyed by plugin title. A second node of the same title is
+ *  the owner's mistake; the first wins. A leftover `plugin` property is
+ *  not a field — that word is a vault-defined plugin. */
 export const settingsDocumentIn = (
   nodes: ReadonlyArray<Located>,
   file: string | null,
@@ -53,8 +58,8 @@ export const settingsDocumentIn = (
   if (file === null) return {}
   const document: Record<string, Record<string, string>> = {}
   for (const located of nodes.filter(isRegular).filter((one) => one.file === file)) {
-    const plugin = customText(located.node, PLUGIN_KEY)
-    if (plugin === undefined || plugin === "" || document[plugin] !== undefined) continue
+    const plugin = located.node.title
+    if (plugin === "" || document[plugin] !== undefined) continue
     const fields: Record<string, string> = {}
     for (const key of Object.keys(customOf(located.node))) {
       if (key === PLUGIN_KEY) continue
@@ -78,15 +83,13 @@ const nodeOf = (
   plugin: string,
 ) =>
   reading.derived.nodes.filter(isRegular).find((located) =>
-    located.file === file && customText(located.node, PLUGIN_KEY) === plugin
+    located.file === file && located.node.title === plugin
   )
-
-const propsOf = (plugin: string, overlay: Readonly<Record<string, string>>): Record<string, string> =>
-  ({ ...overlay, [PLUGIN_KEY]: plugin })
 
 /**
  * WRITE ONE PLUGIN'S OVERLAY through the ordinary door. Creates the file
- * and the node when they do not exist; a missing key is absence.
+ * and the node when they do not exist; a missing key is absence. A leftover
+ * `plugin` property is stripped: that word is a definition, not a field.
  */
 export const saveSettings = (ops: Ops, writer: Writer): SettingsSave =>
   (plugin, overlay) =>
@@ -95,7 +98,7 @@ export const saveSettings = (ops: Ops, writer: Writer): SettingsSave =>
       const named = settingsFileIn(outlinePaths(reading.set))
       const file = named ?? SETTINGS_FILE
       const present = outlineNames(reading.set).has(file)
-      const fields = propsOf(plugin, overlay)
+      const fields = { ...overlay }
       if (!present) {
         yield* Effect.asVoid(ops.run(
           {
@@ -103,7 +106,7 @@ export const saveSettings = (ops: Ops, writer: Writer): SettingsSave =>
             file,
             seed: {
               title: plugin,
-              props: fields,
+              ...(Object.keys(fields).length === 0 ? {} : { props: fields }),
             },
           },
           writer,
@@ -117,7 +120,7 @@ export const saveSettings = (ops: Ops, writer: Writer): SettingsSave =>
             op: "add",
             file,
             title: plugin,
-            props: fields,
+            ...(Object.keys(fields).length === 0 ? {} : { props: fields }),
           },
           writer,
         ))
@@ -131,13 +134,14 @@ export const saveSettings = (ops: Ops, writer: Writer): SettingsSave =>
         readonly value: string | null
       }> = []
       for (const [key, value] of Object.entries(fields)) {
+        if (key === PLUGIN_KEY) continue
         if (current[key] !== value) {
           opsList.push({ op: "prop", id: node.node.id, key, value })
         }
       }
       for (const key of Object.keys(current)) {
-        if (key === PLUGIN_KEY) continue
-        if (typeof current[key] === "string" && fields[key] === undefined) {
+        if (typeof current[key] !== "string") continue
+        if (key === PLUGIN_KEY || fields[key] === undefined) {
           opsList.push({ op: "prop", id: node.node.id, key, value: null })
         }
       }

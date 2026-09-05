@@ -138,6 +138,24 @@ test("this process binds every module the compiler says a server half may name",
   for (const name of SERVER_MODULES) expect(table[name]).toBeDefined()
 })
 
+test("a settings overlay is not a vault-defined plugin, even with a leftover plugin property", async () => {
+  const derived = readingOfVault(
+    new Map([
+      [
+        "_olai/Settings.olai",
+        `{"id":"kolu","ord":"a0","title":"kolu","custom":{"plugin":"kolu","heartbeat":"10m"}}`,
+      ],
+    ]),
+  ).derived
+  const rows = await bench((dynamic, now) =>
+    Effect.gen(function*() {
+      yield* dynamic.follow(derived)
+      return yield* now()
+    })
+  )
+  expect(rows).toEqual([])
+})
+
 describe("a definition waits for a person", () => {
   test("nobody has approved it: pending, and nothing has been imported", async () => {
     const rows = await bench((dynamic, now) =>

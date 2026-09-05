@@ -53,6 +53,7 @@ import { PLUGIN_CHUNK_PREFIX, type PluginState } from "@olai/surface"
 import * as effect from "effect"
 import { Effect } from "effect"
 
+import { settingsFileIn } from "../settings.ts"
 import { type Defined, definedIn, isApproved } from "./source.ts"
 
 /**
@@ -218,7 +219,12 @@ export const openDynamic = (host: Host, built: ReadonlyArray<string>): DynamicRu
     rows: (report) =>
       seen.map((one) => rowOf(one, started.get(one.name), report.get(one.name), stopped)),
     names: () => seen.map((one) => one.name),
-    follow: (derived) => follow(definedIn(derived, built)),
+    follow: (derived) => {
+      const settings = settingsFileIn(derived.nodes.map((one) => one.file))
+      return follow(
+        definedIn(derived, built).filter((one) => settings === undefined || one.file !== settings),
+      )
+    },
     again: Effect.suspend(() => follow(seen)),
     chunk: (path) => {
       for (const one of started.values()) if (one.up && one.path === path) return one.chunk
