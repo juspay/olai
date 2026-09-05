@@ -19,8 +19,11 @@
 
 import { expect, test } from "bun:test"
 
-import { pluginsPatch } from "./bundle.ts"
+import { type PluginPin, pluginsPatch } from "./bundle.ts"
 import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, inBundleOrder, ROWS } from "./rows.ts"
+
+const exact = (names: ReadonlyArray<string> | null): PluginPin =>
+  names === null ? { kind: "omitted" } : { kind: "exact", names }
 
 /** What a patch says about one row, as a reader would ask it. `undefined` is a
  *  row the patch does not mention, which is what "nobody said" writes. */
@@ -28,7 +31,7 @@ const patched = (
   names: ReadonlyArray<string> | null,
   id: string,
 ): boolean | undefined =>
-  (pluginsPatch(names).find((one) => one.id === id) as { disabled?: boolean } | undefined)?.disabled
+  (pluginsPatch(exact(names)).find((one) => one.id === id) as { disabled?: boolean } | undefined)?.disabled
 
 test("the built-in default is the rows that did not opt out", () => {
   expect(DEFAULT_BUNDLE_NAMES.length).toBeGreaterThan(0)
@@ -73,7 +76,7 @@ test("nobody having said writes no patch at all, so the rows' own default stands
   // The distinction the whole flag is shaped around, as a fact about the patch:
   // an omitted flag leaves the file's answer alone, so a browser drawing the row
   // can say `the built-in default` rather than repeating a list back.
-  expect(pluginsPatch(null)).toEqual([])
+  expect(pluginsPatch({ kind: "omitted" })).toEqual([])
 })
 
 test("a named pin writes BOTH directions, which is how an opt-in row is opted into", () => {
@@ -104,20 +107,17 @@ test("extra and without patch only the rows they name", () => {
   const off = optedOut[0] as string
   const on = optedIn[0] as string
 
-  const extra = pluginsPatch(null, [off], null)
+  const extra = pluginsPatch({ kind: "delta", extra: [off], without: null })
   expect(extra).toEqual([{ id: off, disabled: false }])
-  const without = pluginsPatch(null, null, [on])
+  const without = pluginsPatch({ kind: "delta", extra: null, without: [on] })
   expect(without).toEqual([{ id: on, disabled: true }])
-  const both = pluginsPatch(null, [off], [on])
+  const both = pluginsPatch({ kind: "delta", extra: [off], without: [on] })
   expect(both).toEqual([
     { id: off, disabled: false },
     { id: on, disabled: true },
   ])
-  // An omitted pair is still nobody having said.
-  expect(pluginsPatch(null, null, null)).toEqual([])
-  // An exact set still writes every row, and the patches beside it are ignored
-  // because the CLI refuses that combination before it gets here.
-  expect(pluginsPatch([on], [off], [on]).every((one) => "disabled" in one)).toBe(true)
+  expect(pluginsPatch({ kind: "omitted" })).toEqual([])
+  expect(pluginsPatch({ kind: "exact", names: [on] }).every((one) => "disabled" in one)).toBe(true)
 })
 
 /**

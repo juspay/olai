@@ -235,7 +235,7 @@ test("mountBundle returns with a row's sibling-woken apply already finished", as
 
   // ...AND `--plugins=` MOUNTS NONE OF THIS BUILD'S ROWS, so what is left for
   // this call to do is the settle, over the two rows already on the registry.
-  await run(mountBundle(opened.host, []))
+  await run(mountBundle(opened.host, { kind: "exact", names: [] }))
   expect(said).toEqual(["the door was opened"])
   const report = await run(rowReport(opened.host, [first, second]))
   expect(report.get(second)).toEqual({ state: "running" })

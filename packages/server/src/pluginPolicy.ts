@@ -36,7 +36,7 @@
  *
  * ## `null` is not "none", and that is the whole design
  *
- * {@link pluginsPin} answers `null` for a flag nobody typed, and `null` means
+ * {@link pluginPin} answers `omitted` for a flag nobody typed, and that means
  * the built-in default (`DEFAULT_PLUGIN_NAMES`), which is not necessarily
  * every plugin this binary was built with. It does NOT mean an empty list.
  * Whether a flag was GIVEN is a fact a browser has to be told, because a given
@@ -83,6 +83,7 @@ import { Flag } from "effect/unstable/cli"
  */
 import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle"
 import { BUNDLE_NAMES as PLUGIN_NAMES } from "@olai/bundle"
+import type { PluginPin } from "@olai/bundle/bundle"
 
 /**
  * What `--plugins` says for itself.
@@ -182,9 +183,6 @@ export const pluginFlags = () => ({
  * nothing, because a filter that also validated would be a second sentence
  * about one mistake, in a function tests call with lists they built themselves.
  */
-export const pluginsPin = (given: string | null): ReadonlyArray<string> | null =>
-  namesOf(given, "--plugins")
-
 /** One comma list, as the flag a person typed it on. Unknown names are refused
  *  HERE, with the legal words beside them — the same sentence `--plugins` has
  *  always given, on whichever of the three doors the typo arrived. */
@@ -202,22 +200,14 @@ const namesOf = (given: string | null, flag: string): ReadonlyArray<string> | nu
 }
 
 /**
- * THE THREE FLAGS AS ONE PIN — exact set, extra, without.
+ * THE THREE FLAGS AS ONE PIN — a sum, because exact set and delta cannot
+ * coexist. Extra and without compose inside `delta`.
  *
- * `--plugins` is still the exact set. The two new flags compose with the
- * default and with each other; naming a row in both is refused with a
- * sentence, and naming `--plugins` beside either is refused too, since the
- * exact set already says everything.
- *
- * `null` on a half is nobody having said that half. An empty list is somebody
- * saying none of THAT patch out loud, which is a no-op next to the default and
- * is still a given flag — the panel quotes it.
+ * `null` on a delta half is nobody having said that half. An empty list is
+ * somebody saying none of THAT patch out loud, which is a no-op next to the
+ * default and is still a given flag — the panel quotes it.
  */
-export type PluginPin = {
-  readonly plugins: ReadonlyArray<string> | null
-  readonly extra: ReadonlyArray<string> | null
-  readonly without: ReadonlyArray<string> | null
-}
+export type { PluginPin } from "@olai/bundle/bundle"
 
 export const pluginPin = (
   plugins: string | null,
@@ -243,7 +233,11 @@ export const pluginPin = (
       )
     }
   }
-  return { plugins: exact, extra: extraNames, without: withoutNames }
+  if (exact !== null) return { kind: "exact", names: exact }
+  if (extraNames !== null || withoutNames !== null) {
+    return { kind: "delta", extra: extraNames, without: withoutNames }
+  }
+  return { kind: "omitted" }
 }
 
 /** The built-in list, re-exported beside the flag that declines to apply it —

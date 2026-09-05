@@ -169,9 +169,7 @@ const withRuntime = <A>(
         plugins: mounted,
         onChange,
         built: (extra.plugins ?? []).map((one) => one.name),
-        pinned: null,
-        extra: null,
-        without: null,
+        pin: { kind: "omitted" },
         // THE DOUBLES' OWN FIBERS, asked the way a serve asks the bundle's.
         // These runtimes mount doubles directly rather than through the loader,
         // so `reportBundle` (which walks `BUNDLE_NAMES`) has nothing to say
@@ -696,9 +694,11 @@ const offering = (
   plugins: EMPTY_PLUGINS,
   onChange: { run: () => {} },
   built: PLUGIN_NAMES,
-  pinned,
-  extra,
-  without,
+  pin: pinned !== null
+    ? { kind: "exact", names: pinned }
+    : extra !== null || without !== null
+    ? { kind: "delta", extra, without }
+    : { kind: "omitted" },
   report: () => report,
   // NOTHING NAMES ANYTHING in these cases, so no row carries another — which is
   // the state every row of a real bundle but the chat row is in. The `carrying`
@@ -1089,25 +1089,25 @@ test("a row a person switched off is not the build's default", () => {
   expect(back.built.find((row) => row.name === first)?.state).toBe("running")
 })
 
-test("extra names the row it turned on, and without names the row it turned off", () => {
+test("the pin travels onto the roster, and does not mint extra fiber words", () => {
   const [first, second] = PLUGIN_NAMES
   if (first === undefined || second === undefined) {
     throw new Error("this claim needs a build with two rows")
   }
 
   const extra = rosterOf(offering(null, mounted([first]), [first], null))
-  expect(extra.built.find((row) => row.name === first)?.state).toBe("extra")
+  expect(extra.built.find((row) => row.name === first)?.state).toBe("running")
   expect(extra.built.find((row) => row.name === first)?.running).toBe(true)
   expect(extra.extra).toEqual([first])
+  expect(extra.pinned).toBeNull()
 
   const without = rosterOf(
     offering(null, new Map([[second, { state: "off" as const }]]), null, [second]),
   )
-  expect(without.built.find((row) => row.name === second)?.state).toBe("without")
+  expect(without.built.find((row) => row.name === second)?.state).toBe("optIn")
   expect(without.built.find((row) => row.name === second)?.running).toBe(false)
   expect(without.without).toEqual([second])
 
-  // A press still wins: without named it, and then a person switched it.
   const pressed = rosterOf({
     ...offering(null, new Map([[second, { state: "off" as const }]]), null, [second]),
     switched: () => new Set([second]),

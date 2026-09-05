@@ -235,30 +235,34 @@ export const pluginConfig = (
  * and a true one — where a cap would be this panel deciding which of somebody's
  * plugins was worth telling them about.
  */
-export const pluginHint = (plugin: BuiltPlugin): string | null => {
+export const pluginHint = (
+  plugin: BuiltPlugin,
+  roster: PluginRoster = { built: [], pinned: null },
+): string | null => {
   switch (pluginState(plugin)) {
-    case "running":
+    case "running": {
       // NOTHING, on the ordinary row: the switch reads On and there is no
       // second thing to know. A row that carries others has one, and it is
-      // about the press rather than about the state.
-      return carries(plugin) === undefined
+      // about the press rather than about the state. `--extra-plugins`
+      // naming this row is the pin, sitting next to the row, not a second
+      // fiber word — so the carrying sentence still rides.
+      const extra = namedBy(roster.extra, plugin.name)
+        ? `On — --extra-plugins named it.`
+        : null
+      const carry = carries(plugin) === undefined
         ? null
         : `Turning it off also stops ${carries(plugin)}.`
-    case "extra":
-      // `--extra-plugins` TURNED THIS ROW ON, and the ordinary running row
-      // says nothing. This one names the flag, which is why the row is up
-      // against the file's own default.
-      return `On — --extra-plugins named it.`
-    case "without":
-      // `--without-plugins` TURNED THIS ROW OFF. Not the build's default and
-      // not the exact set: the panel names the flag that did it.
-      return `Off — --without-plugins named it.`
+      return extra === null ? carry : carry === null ? extra : `${extra} ${carry}`
+    }
     case "optIn":
       // THE BUILD'S OWN DEFAULT, and the flag value that changes it. This is
       // the row the per-row line was always for: under no flag its neighbour's
       // built-in default is ON and this one's is OFF, so a panel-wide sentence
-      // could only ever name one of them.
-      return `Off by default — --plugins=${plugin.name} starts it at boot.`
+      // could only ever name one of them. `--without-plugins` is the pin
+      // naming this row, not a new morning.
+      return namedBy(roster.without, plugin.name)
+        ? `Off — --without-plugins named it.`
+        : `Off by default — --plugins=${plugin.name} starts it at boot.`
     case "pending":
       // A PERSON HAS NOT DECIDED, and this is the one absence whose answer is
       // on this very panel: the source is drawn under the rows and the verb is
@@ -319,6 +323,11 @@ const carries = (plugin: BuiltPlugin): string | undefined =>
   plugin.carrying === undefined || plugin.carrying.length === 0
     ? undefined
     : plugin.carrying.join(", ")
+
+const namedBy = (
+  names: ReadonlyArray<string> | null | undefined,
+  id: string,
+): boolean => names !== undefined && names !== null && names.includes(id)
 
 /**
  * HOW THIS SERVE STARTED, AND HOW LONG A FLIP LASTS — ONE line, for the whole

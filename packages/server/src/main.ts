@@ -131,9 +131,7 @@ const web = Command.make("web", {
       port,
       host,
       pin: gitPin(commits, noCommit, pushes),
-      plugins: pin.plugins,
-      extraPlugins: pin.extra,
-      withoutPlugins: pin.without,
+      pluginPin: pin,
       clientDist: profile === "web" ? yield* clientDist : "",
       allowedOrigins: allowedOrigins(),
     })

@@ -119,7 +119,9 @@ export const withServe = async <A>(
       // composition narrower than the one a person gets would be a suite proving
       // something nobody runs. A test that is about what a MISSING row leaves
       // behind says so, and gets the list it named.
-      plugins: options.plugins ?? null,
+      pluginPin: options.plugins === undefined
+        ? { kind: "omitted" }
+        : { kind: "exact", names: options.plugins },
     })
     return yield* Effect.promise(() => body(said))
   }).pipe(

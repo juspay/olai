@@ -34,6 +34,7 @@ import {
   BUNDLE_NAMES,
   configsOf,
   mountBundle,
+  type PluginPin,
   provide,
   settled,
   offered,
@@ -103,17 +104,11 @@ export interface ServeOptions {
    *  the way `--plugins` is a patch onto `disabled`. `null` on both halves is
    *  nobody having said. */
   readonly pin: GitPin
-  /** WHICH built-in integrations to run — `null` for nobody having said,
-   *  which means the built-in default (not necessarily every plugin this
-   *  binary was built with). `./pluginPolicy.ts` argues why omission stays
-   *  distinguishable from the default typed out loud. */
-  readonly plugins: ReadonlyArray<string> | null
-  /** `--extra-plugins` — rows to turn on in addition to the default. `null`
-   *  is nobody having said. */
-  readonly extraPlugins?: ReadonlyArray<string> | null
-  /** `--without-plugins` — rows to turn off from the default. `null` is
-   *  nobody having said. */
-  readonly withoutPlugins?: ReadonlyArray<string> | null
+  /** WHICH built-in integrations to run — one pin, the git pin's sibling.
+   *  `omitted` is nobody having said, which means the built-in default.
+   *  `./pluginPolicy.ts` argues why omission stays distinguishable from the
+   *  default typed out loud. */
+  readonly pluginPin: PluginPin
 }
 
 
@@ -293,11 +288,12 @@ export const serve = (options: ServeOptions) =>
       changed: () => onChange.run(),
       // NO `dials`: the injectables are a test's, and this is the product.
     })
-    yield* mountBundle(plugins.host, options.plugins ?? (PROFILES[profile].tenants ? null : []), gitConfigPatch(options.pin), {
+    const pluginPin = options.pluginPin.kind === "omitted" && !PROFILES[profile].tenants
+      ? { kind: "exact" as const, names: [] }
+      : options.pluginPin
+    yield* mountBundle(plugins.host, pluginPin, gitConfigPatch(options.pin), {
       rows: profileRows(profile),
       resolve: async (name) => transportModules[name],
-      extraPlugins: options.extraPlugins ?? null,
-      withoutPlugins: options.withoutPlugins ?? null,
     })
 
     /**
@@ -474,9 +470,7 @@ export const serve = (options: ServeOptions) =>
         plugins,
         onChange,
         built,
-        pinned: options.plugins,
-        extra: options.extraPlugins ?? null,
-        without: options.withoutPlugins ?? null,
+        pin: pluginPin,
         report: () => report,
         names: () => rowsNaming(plugins.host, TRANSPORT_ROWS),
         configs: () => configsOf(plugins.host),

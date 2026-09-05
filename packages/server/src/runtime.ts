@@ -141,7 +141,7 @@ import { SERVICE_KEYS, SLOTS } from "@olai/plugin-api/services"
 // ...and the third, which is the compiler's: the bare module names a plugin's
 // source may import.
 import { WRITABLE_MODULES } from "@olai/plugin-build"
-import type { RowReport } from "@olai/bundle/bundle"
+import type { PluginPin, RowReport } from "@olai/bundle/bundle"
 
 
 import { type Emit, emitter } from "@olai/log"
@@ -310,17 +310,15 @@ export interface PluginRuntime {
    * the two they were looking at. The git pin keeps the same distinction one
    * setting over.
    */
-  readonly pinned: ReadonlyArray<string> | null
   /**
-   * `--extra-plugins` as given, unexpanded — `null` for a flag nobody typed.
-   * Travels the same way {@link pinned} does, so the panel can name the flag
-   * that turned an opt-in row on.
+   * WHAT THE OPERATOR PINNED — one value, the git pin's sibling.
+   *
+   * It travels unexpanded because the line under the preferences row names a
+   * given flag and otherwise says the built-in default, and a value that had
+   * already expanded `omitted` into the full list could not tell a reader which
+   * of the two they were looking at.
    */
-  readonly extra: ReadonlyArray<string> | null
-  /**
-   * `--without-plugins` as given, unexpanded — `null` for a flag nobody typed.
-   */
-  readonly without: ReadonlyArray<string> | null
+  readonly pin: PluginPin
   /**
    * WHAT BECAME OF EACH ROW — the word a panel row wears, and the plugin's own
    * words when its start threw.
@@ -658,7 +656,7 @@ export const rosterOf = (
       // `rowReport`).
       const report = offered.report().get(name) ?? { state: "off" as const }
       const said = stateOf(offered, name, report)
-      const live = said.state === "running" || said.state === "extra"
+      const live = said.state === "running"
       const wake = live ? wakes.get(name) : undefined
       const carrying = live ? carriedBy(name, offered.built, names, offers) : []
       const config = offered.configs().get(name)
@@ -713,9 +711,9 @@ export const rosterOf = (
         ...(config === undefined ? {} : { config }),
       }
     }), ...defined],
-    pinned: offered.pinned,
-    extra: offered.extra,
-    without: offered.without,
+    pinned: offered.pin.kind === "exact" ? offered.pin.names : null,
+    extra: offered.pin.kind === "delta" ? offered.pin.extra : null,
+    without: offered.pin.kind === "delta" ? offered.pin.without : null,
   }))(offered.names())
 
 /**
@@ -817,9 +815,7 @@ const whoTurnedItOff = (
   name: string,
 ): PluginState => {
   if (offered.switched().has(name)) return "switched"
-  if (offered.pinned !== null) return "off"
-  if ((offered.without ?? []).includes(name)) return "without"
-  return "optIn"
+  return offered.pin.kind === "exact" ? "off" : "optIn"
 }
 
 const stateOf = (
@@ -857,9 +853,7 @@ const stateOf = (
       //
       return { state: whoTurnedItOff(offered, name) }
     case "running":
-      return {
-        state: (offered.extra ?? []).includes(name) ? "extra" : "running",
-      }
+      return { state: "running" }
   }
   // NO `default` ARM, and that is the guard rather than an omission: the four
   // words are `@olai/effect-cordis`'s `RowState`, and a catch-all here would

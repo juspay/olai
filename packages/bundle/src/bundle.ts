@@ -99,6 +99,23 @@ const BUNDLE = "../olai.yml"
  */
 export { BUNDLE_NAMES, type BundleRow, DEFAULT_BUNDLE_NAMES, ROWS } from "./rows.ts"
 
+/**
+ * WHAT THE OPERATOR PINNED, as one value — the git pin's sibling.
+ *
+ * Three *flags* at the edge; one pin inward. Exact set and delta cannot
+ * coexist, so that exclusion is the sum, not a throw sitting on three
+ * nullables. Extra and without compose inside `delta` the way commit and
+ * push compose inside `GitPin`.
+ */
+export type PluginPin =
+  | { readonly kind: "omitted" }
+  | { readonly kind: "exact"; readonly names: ReadonlyArray<string> }
+  | {
+      readonly kind: "delta"
+      readonly extra: ReadonlyArray<string> | null
+      readonly without: ReadonlyArray<string> | null
+    }
+
 /** WHAT BECAME OF ONE ROW, as the bridge reads it off the live registry — four
  *  states, and `off` says nothing about WHO turned a row off. The row's own
  *  default and the operator's flag are the same field by design
@@ -122,11 +139,10 @@ export type { RowReport, RowState } from "@olai/plugin-api"
  * file left it on. `--plugins=` — somebody saying NONE out loud — is that with an
  * empty list, and disables every row.
  *
- * `--extra-plugins` and `--without-plugins` are the other two patches over the
- * same field: each names only the rows it moves, so the file's answer stands
- * for everything else. They compose with the default and with each other; the
- * exact set does not compose with either, and that refusal lives where a person
- * typed the flags.
+ * `--extra-plugins` and `--without-plugins` are the other encoding of the same
+ * pin: each names only the rows it moves, so the file's answer stands for
+ * everything else. They live on `delta`. Exact set is a different arm. The
+ * type is the refusal; this function is not passed both.
  *
  * That is exactly the shape the include's own patch algorithm takes: `{ id,
  * …overrides }` copied onto the matching row. The flag refuses an unknown name
@@ -135,17 +151,19 @@ export type { RowReport, RowState } from "@olai/plugin-api"
  * right arm for an overlay that outlived a build.
  */
 export const pluginsPatch = (
-  names: ReadonlyArray<string> | null,
-  extra: ReadonlyArray<string> | null = null,
-  without: ReadonlyArray<string> | null = null,
+  pin: PluginPin,
 ): ReadonlyArray<{ readonly id: string; readonly disabled?: boolean }> => {
-  if (names !== null) {
-    return ROWS.map((row) => ({ id: row.id, disabled: !names.includes(row.id) }))
+  switch (pin.kind) {
+    case "omitted":
+      return []
+    case "exact":
+      return ROWS.map((row) => ({ id: row.id, disabled: !pin.names.includes(row.id) }))
+    case "delta":
+      return [
+        ...(pin.extra ?? []).map((id) => ({ id, disabled: false as const })),
+        ...(pin.without ?? []).map((id) => ({ id, disabled: true as const })),
+      ]
   }
-  return [
-    ...(extra ?? []).map((id) => ({ id, disabled: false as const })),
-    ...(without ?? []).map((id) => ({ id, disabled: true as const })),
-  ]
 }
 
 /**
@@ -330,20 +348,18 @@ export const setRow = (
  */
 export const mountBundle = (
   host: Host,
-  names: ReadonlyArray<string> | null,
+  pin: PluginPin,
   configs: ReadonlyArray<{ readonly id: string; readonly config: unknown }> = [],
   extra?: {
     readonly rows: ReadonlyArray<{ readonly id: string; readonly name: string; readonly disabled?: boolean }>
     readonly resolve: (name: string) => Promise<unknown>
-    readonly extraPlugins?: ReadonlyArray<string> | null
-    readonly withoutPlugins?: ReadonlyArray<string> | null
   },
 ): Effect.Effect<void> =>
   Effect.flatMap(
     mountRows(host, {
       baseUrl: BASE_URL,
       path: BUNDLE,
-      patches: [...pluginsPatch(names, extra?.extraPlugins ?? null, extra?.withoutPlugins ?? null), ...configs],
+      patches: [...pluginsPatch(pin), ...configs],
       rows: extra?.rows,
       resolve: (name) => extra?.rows.some((row) => row.name === name)
         ? extra.resolve(name)
