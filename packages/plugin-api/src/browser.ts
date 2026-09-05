@@ -641,6 +641,8 @@ export interface App extends Faces {
   readonly changes: Stream.Stream<void>
   /** Where the plugins hang — handed to `mountPlugin` and opaque to everybody. */
   readonly host: Host
+  /** Install an explicitly supplied host capability in the caller's scope. */
+  readonly supply: <T>(key: ServiceKey<T>, value: T) => Effect.Effect<void, never, Scope.Scope>
   /**
    * ...AND THE APP'S OWN FURNITURE, provided in a SECOND call.
    *
@@ -653,8 +655,6 @@ export interface App extends Faces {
    * and starts when it arrives, which is the runtime's own guarantee rather than
    * something an ordering has to be careful about.
    */
-  /** Install an explicitly supplied host capability in the caller's scope. */
-  readonly supply: <T>(key: ServiceKey<T>, value: T) => Effect.Effect<void, never, Scope.Scope>
   readonly furnish: (
     furniture: { readonly clocks: Clocks; readonly bar: Bar; readonly links: Links },
   ) => Effect.Effect<void, never, Scope.Scope>

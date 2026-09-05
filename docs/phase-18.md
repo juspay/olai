@@ -101,8 +101,8 @@ be complete before this PR is ready to merge.
 - [ ] Prove surviving drafts, navigation and component state across unrelated
   feature flips, with fresh state for re-enabled departed capabilities.
 - [ ] Prove property links and file handlers appear/retract with their providers.
-- [ ] Prove authorized non-UI host management remains usable with inspector off.
-  Removal/restoration and shell-replacement scenarios are implemented, pending CI.
+- [x] Prove authorized non-UI host management remains usable with inspector off,
+  and preserve inspector state across shell replacement.
 - [ ] Prove dynamic-plugin version checks, approval, scope ownership and write
   fences survive extraction; unloading their owner retracts contributions
   without undoing emitted vault writes.
