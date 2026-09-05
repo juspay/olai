@@ -5,6 +5,7 @@ Feature: Node conversation controls remain usable after reconnecting
     And I open the outline "house.olai"
     When I open the node menu of "install"
     And I choose "Start an agent session" from the node menu
+    Then the panel header names the node agent "install the cabinets"
     And the agent panel is open
     And I remember this conversation as "cabinet"
     And I mark the page
@@ -32,7 +33,10 @@ Feature: Node conversation controls remain usable after reconnecting
     Then the agent has answered "cabinet before outage" exactly once
     When I open the session picker
     And I start a fresh session
-    And I ask the agent "cabinet current session"
+    Then the panel has a different conversation from "cabinet"
+    And the panel header names the node agent "install the cabinets"
+    And the agent panel is open
+    When I ask the agent "cabinet current session"
     Then the agent has answered "cabinet current session" exactly once
     When I remember this conversation as "current"
     And I open the session picker

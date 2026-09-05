@@ -37,12 +37,15 @@ Feature: Session settings belong to the node conversation that offered them
     And I open the outline "house.olai"
     When I open the node menu of "install"
     And I choose "Start an agent session" from the node menu
+    Then the panel header names the node agent "install the cabinets"
     And the agent panel is open
     And I open the session settings
+    Then session setting "Reasoning" is "medium"
     And I hold incoming updates to the original browser tab
     And I open another browser tab
     And I open the node menu of "order"
     And I choose "Start an agent session" from the node menu
+    Then the panel header names the node agent "order the new cabinets"
     And the agent panel is open
     And I use the original browser tab
     And I attempt session setting "Reasoning" to "high"
