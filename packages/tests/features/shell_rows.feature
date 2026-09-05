@@ -101,7 +101,8 @@ Feature: The renderer and layout are browser rows
   Scenario: A cached dependency failure offers an honest reload without disturbing surviving content
     Given a static dependency of the browser module for "sidebar" cannot be fetched
     When I open the address "/house.olai"
-    And I mark the page
+    Then the node "handles" is shown
+    When I mark the page
     And I mark every element of the row "handles"
     And I open the plugins panel
     Then the plugins panel says "sidebar" is "Module load failed"
