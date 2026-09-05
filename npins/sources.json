@@ -22,9 +22,9 @@
       },
       "branch": "add-olai-hosted-fonts",
       "submodules": false,
-      "revision": "b9ae1429647a0ec5021798cf1fd3abbd3d39d841",
-      "url": "https://github.com/srid/ekapkgs/archive/b9ae1429647a0ec5021798cf1fd3abbd3d39d841.tar.gz",
-      "hash": "sha256-7Wr697yOgfTWkKSzQdI2xTxkiWTncVTVX/MFWNPKA8c="
+      "revision": "96122d400bd19156fc1ef1ad29eaeeae86ad1f53",
+      "url": "https://github.com/srid/ekapkgs/archive/96122d400bd19156fc1ef1ad29eaeeae86ad1f53.tar.gz",
+      "hash": "sha256-hqIOmYKl0ZGfC/3I4QhNKV++M1HUwy0EDs+j08qT4M4="
     },
     "kolu": {
       "type": "Git",
