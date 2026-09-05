@@ -6,6 +6,9 @@ element, followed by a successful save. Conflict/cancellation and resize cleanup
 cases toggle chat instead to exercise a real provider removal. The router now
 lives for the mounted app, so its remount snapshot/restore store is removed.
 Other pane and conversation stores still serve navigation and provider changes.
+The identity lifecycle scenario now changes proxy headers before plugin
+restoration and again before a socket reconnect, requiring the current identity
+without reloading. This coverage awaits the upstream connection-epoch API.
 
 
 This audit tracks user workflows during the Cordis migration. A passing suite is
