@@ -162,7 +162,10 @@
 
 import {
   type Host,
+  hostChanges,
   openHost,
+  offer,
+  OfferConflict,
   provide,
   registry,
   type Registry,
@@ -170,8 +173,9 @@ import {
   type Roster,
   serviceTag,
 } from "@olai/effect-cordis"
-import { Effect, Scope } from "effect"
+import { Effect, Scope, type Stream } from "effect"
 
+import { ownService, type OwnServices } from "./owned.ts"
 import { kindWordOf, type NotHere } from "./contract.ts"
 import { SLOTS, type SlotKey } from "./slots.ts"
 import type {
@@ -196,6 +200,11 @@ export * from "./runtime.ts"
  *  register into — and a serve may not open this door at all. That module's
  *  header carries the argument. */
 export { SLOTS, type SlotKey } from "./slots.ts"
+
+/** Browser providers publish only their own namespace. Core browser services
+ * remain host-owned. This tag resolves independently of server Offers. */
+export interface Offers extends OwnServices {}
+export const Offers = serviceTag<Offers>("offers")
 
 /** One of the seventeen. */
 export type SlotName = keyof typeof SLOTS
@@ -766,6 +775,8 @@ export const Wired = serviceTag<Wired>("wired")
  * {@link Faces.hung}, with the read it is about.
  */
 export interface App extends Faces {
+  /** State changes even when a waiting component registered no faces. */
+  readonly changes: Stream.Stream<void>
   /** Where the plugins hang — handed to `mountPlugin` and opaque to everybody. */
   readonly host: Host
   /**
@@ -787,6 +798,10 @@ export interface App extends Faces {
 
 /** WHAT THE TAB SUPPLIES — everything a plugin must not reach for itself. */
 export interface AppConfig {
+  /** A component has its own activation name, but spends its owning row's
+   * namespace, sibling client and slot keys. Only the composition root supplies
+   * this binding; plugins cannot choose an owner through a service argument. */
+  readonly ownerFor?: (fiber: string) => string
   /** TOLD WHEN A FACE ARRIVES OR LEAVES. The app wires it to a signal; this
    *  runtime has never heard of Solid, which is the same split `Surfaces` keeps
    *  one door over. */
@@ -824,6 +839,17 @@ export interface AppConfig {
 export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope.Scope> =>
   Effect.gen(function*() {
     const host = yield* openHost
+    const forOwner = <Shape>(provision: (owner: string) => Shape) => (fiber: string): Shape =>
+      provision(config.ownerFor?.(fiber) ?? fiber)
+    yield* provide(host, Offers, forOwner((plugin) => ({
+      own: ownService(plugin, (key, door) => offer(key, forOwner(door)).pipe(
+        Effect.catchDefect((defect) => Effect.die(
+          defect instanceof OfferConflict
+            ? new Error(`plugins: "${defect.owner}" and "${plugin}" both offer "${key.cordis}"`)
+            : defect,
+        )),
+      )),
+    })))
     /**
      * ONE TABLE PER SLOT, and a slot IS a table — the seventeen are declared
      * ({@link SLOTS}), so they are opened here rather than grown on demand.
@@ -884,7 +910,7 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
       `plugins: "${plugin}" hangs two faces in "${slot}" under "${key}" — `
       + "the second would replace the first with nothing said."
 
-    yield* provide(host, Slots, (plugin) => ({
+    yield* provide(host, Slots, forOwner((plugin) => ({
       register: (slot: SlotName, second: unknown, third?: unknown) =>
         Effect.suspend(() => {
           // THE KEY RULE IS THE SLOT'S, four ways — see {@link SLOTS}. Written as
@@ -925,11 +951,11 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
               return keyedAt(slot).claim(plugin, second, () => twice(plugin, slot, plugin))
           }
         }),
-    } as Slots))
+    } as Slots)))
 
-    yield* provide(host, Wired, (plugin) => ({
+    yield* provide(host, Wired, forOwner((plugin) => ({
       client: () => config.clientFor?.(plugin) ?? null,
-    }))
+    })))
 
     /** THE THREE READS, once — {@link App} is this plus the host and the
      *  furniture, and {@link Faces} is exactly this, so a plugin and the tab ask
@@ -964,6 +990,7 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
     return {
       ...faces,
       host,
+      changes: hostChanges(host),
       furnish: (furniture) =>
         Effect.gen(function*() {
           yield* provide(host, Clocks, () => furniture.clocks)

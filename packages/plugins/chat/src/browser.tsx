@@ -135,3 +135,7 @@ export default definePlugin({
     ))
   }),
 })
+
+/** The speaker waits for identity without taking the conversation away. */
+import { speaker } from "./browser/viewer.ts"
+export const components = { speaker }

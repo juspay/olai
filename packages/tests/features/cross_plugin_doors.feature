@@ -55,3 +55,31 @@ Feature: Plugins depend on doors
     And the terminal agent commits as "record the transport write"
     Then the last commit is "olai: record the transport write" by "mcp"
     And there should be no page errors
+
+  @plugins:chat,claude
+  Scenario: The speaker waits visibly while the conversation remains usable
+    Given I am the Tailscale user "ada@example.com"
+    And I open the app
+    And I mark the page
+    And the agent panel is open
+    When I ask the agent "identity can arrive later"
+    Then the agent's answer mentions "you said: identity can arrive later"
+    And my transcript speaker is "you"
+    And my transcript speaker wears an anonymous silhouette
+    When I open the plugins panel
+    Then the plugins panel says "chat" is "Browser speaker: waiting for identity.viewer"
+    And the browser service catalog excludes "identity.viewer"
+    When I switch the plugin "identity" on
+    Then the plugin "chat" has no browser warning
+    And the browser service catalog includes "identity.viewer"
+    When I close the plugins panel
+    Then my transcript speaker is "ada@example.com"
+    When I open the plugins panel
+    And I switch the plugin "identity" off
+    Then the plugins panel says "chat" is "identity.viewer"
+    And the browser service catalog excludes "identity.viewer"
+    When I close the plugins panel
+    Then my transcript speaker is "you"
+    And my transcript speaker wears an anonymous silhouette
+    And the page has not reloaded
+    And there should be no page errors

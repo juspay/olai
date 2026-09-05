@@ -269,9 +269,10 @@ Then("the agent service catalog {word} {string}", async function (this: OlaiWorl
   const { callTool, connectTerminalAgent } = await import("../support/mcp.ts");
   this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
   const answer = await callTool(this.terminalAgent, "inspect_plugins", {});
-  const catalog = answer["structuredContent"] as { services: Array<string> };
-  assert.ok(catalog.services.includes("vault"), "core services remain discoverable");
-  assert.strictEqual(catalog.services.includes(key), presence === "includes");
+  const catalog = answer["structuredContent"] as { services: Array<{ key: string; half: string }> };
+  const keys = catalog.services.filter((one) => one.half === "server").map((one) => one.key);
+  assert.ok(keys.includes("vault"), "core services remain discoverable");
+  assert.strictEqual(keys.includes(key), presence === "includes");
 });
 
 Then("the palette {word} the colour {string}", async function (this: OlaiWorld, verdict: string, value: string) {
@@ -279,4 +280,43 @@ Then("the palette {word} the colour {string}", async function (this: OlaiWorld, 
   this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
   const answer = await tryTool(this.terminalAgent, "set_prop", { id: "amber", key: "swatch-hex", value });
   assert.strictEqual(answer["isError"] === true, verdict === "rejects", JSON.stringify(answer));
+});
+
+When("the browser palette provider is replaced", function (this: OlaiWorld) {
+  const file = path.join(this.scratch(), "palette.olai");
+  const source = fs.readFileSync(file, "utf8");
+  assert.ok(source.includes("browser-palette-first"));
+  fs.writeFileSync(file, source.replace("browser-palette-first", "browser-palette-second"));
+});
+
+Then("the browser palette face is {string}", async function (this: OlaiWorld, version: string) {
+  await this.page.locator(`.browser-palette-${version} [data-swatch]`).waitFor({
+    state: "visible", timeout: POLL_TIMEOUT,
+  });
+});
+
+Then("the browser service catalog {word} {string}", async function (this: OlaiWorld, presence: string, key: string) {
+  const { callTool, connectTerminalAgent } = await import("../support/mcp.ts");
+  this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
+  const answer = await callTool(this.terminalAgent, "inspect_plugins", {});
+  const catalog = answer["structuredContent"] as { services: Array<{ key: string; half: string; availability: string }> };
+  assert.strictEqual(catalog.services.some((one) => one.key === key && one.half === "browser" && one.availability === "declared"), presence === "includes");
+});
+
+When("the browser palette initialization is repaired", function (this: OlaiWorld) {
+  const file = path.join(this.scratch(), "palette.olai");
+  const rows = fs.readFileSync(file, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+  const browser = rows.find((row) => row.title === "browser.tsx");
+  const broken = '\n  yield* Effect.die(new Error("palette initialization failed"))';
+  assert.ok(browser.desc.includes(broken));
+  browser.desc = browser.desc.replace(broken, "");
+  fs.writeFileSync(file, rows.map((row) => JSON.stringify(row)).join("\n") + "\n");
+});
+
+Then("the browser has reported the palette initialization failure", async function (this: OlaiWorld) {
+  const expected = (error: string) => error.startsWith('console.error: olai: the plugin "palette"')
+    && error.includes("browser half failed to start") && error.includes("palette initialization failed");
+  await this.waitUntil(async () => this.errors.some(expected), "the expected palette initialization diagnostic");
+  // Consume only this deliberately induced diagnostic; unrelated errors remain.
+  this.errors = this.errors.filter((error) => !expected(error));
 });

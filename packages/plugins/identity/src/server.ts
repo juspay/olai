@@ -42,7 +42,7 @@
 import { definePlugin, Env, Identity, Offers } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
-import { name } from "./index.ts"
+import { name, browserServices } from "./index.ts"
 import { headerNamesOf, identityConfig, whoOf } from "./who/index.ts"
 
 export { name } from "./index.ts"
@@ -53,6 +53,7 @@ export default definePlugin({
   apply: Effect.gen(function*() {
     const env = yield* Env
     const offers = yield* Offers
+    yield* offers.browser(browserServices)
     const config = identityConfig(env.vars)
     // MINTED ONCE, off the environment this row read at apply — and asked for
     // at every accept from here on, because core reads the names through this

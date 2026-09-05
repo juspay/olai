@@ -102,6 +102,7 @@
  * newer than this tab. Nothing here re-derives it.
  */
 
+import type { RowReport } from "@olai/plugin-api"
 import type { BuiltPlugin, PluginRoster } from "@olai/surface"
 import { pluginState } from "@olai/surface"
 
@@ -375,3 +376,16 @@ const startedWith = (pinned: ReadonlyArray<string> | null): string =>
  */
 export const PLUGINS_SESSION_ONLY =
   `On or off here lasts as long as this server runs; a restart comes back to this.`
+
+/** A running server row can have a waiting browser component. Keep the
+ * server's switch semantics and name that component and its missing keys. */
+export const browserHint = (plugin: string, reports: ReadonlyMap<string, RowReport>): string | null => {
+  const lines: string[] = []
+  for (const [name, report] of reports) {
+    if (name !== plugin && !name.startsWith(plugin + "/")) continue
+    const label = name === plugin ? "Browser" : `Browser ${name.slice(plugin.length + 1)}`
+    if (report.state === "waiting") lines.push(`${label}: waiting for ${report.missing?.join(", ") || "initialization"}.`)
+    if (report.state === "failed") lines.push(`${label}: failed to start. ${report.fault ?? "It gave no message."}`)
+  }
+  return lines.length ? lines.join(" ") : null
+}

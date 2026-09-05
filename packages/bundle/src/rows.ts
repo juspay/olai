@@ -88,6 +88,8 @@ export { BROWSER_ROWS } from "./rows.generated.ts"
 export interface BrowserHalf {
   readonly surface?: { readonly spec: unknown }
   readonly default: Plugin
+  /** Independently gated browser components, owned by this row. */
+  readonly components?: Readonly<Record<string, Plugin>>
 }
 
 /**
