@@ -15,7 +15,8 @@ Feature: Document editing survives changes to the plugin roster
     And I open the plugins panel
     And I switch the plugin "journal" off
     And I close the plugins panel
-    Then the original document editor element is still mounted
+    Then the journal chrome is absent
+    And the original document editor element is still mounted
     And the document editor holds text containing "my unsaved draft"
     When I save the document
     Then the document renders bold text "my unsaved draft"

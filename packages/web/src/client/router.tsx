@@ -146,30 +146,9 @@ const nameHere = (): string => {
 const here = (): string =>
   location.pathname + location.search + location.hash
 
-// A plugin provider change recreates the router's listeners, but it is still the same
-// workspace. Preserve its route objects so inactive panes retain the drafts
-// they own even when navigation in a neighbour changed the history entry.
-let remembered: { readonly href: string; readonly workspace: Workspace } | undefined
-
 export const createRouter = (): Router => {
-  const parsed = workspaceOf(here())
-  let first = parsed
-  if (remembered?.href === here()) {
-    const previous = panesOf(remembered.workspace)
-    for (const [index, pane] of panesOf(parsed).entries()) {
-      const before = previous[index]?.route
-      // Plugin routes must be parsed against the new roster. Only the core
-      // pages whose addresses still agree can keep their draft identity.
-      if (before?.kind === "at" && pane.route.kind === "at" && hrefOf(before) === hrefOf(pane.route)) {
-        first = navigateIn(first, index, before)
-      }
-    }
-    first = { ...first, focus: parsed.focus }
-  }
+  const first = workspaceOf(here())
   const [workspace, setWorkspace] = createSignal<Workspace>(first)
-  onCleanup(() => {
-    remembered = { href: here(), workspace: workspace() }
-  })
   const [landings, setLandings] = createSignal<Landings>(landingsOf(first))
 
   // THE NAME OF THE ENTRY UNDER THE READER, kept turn and turn about — the

@@ -1,5 +1,13 @@
 # Browser coverage audit
 
+Kolu PR #2228 removes the wire-driven app rebuild. The existing document lifecycle
+case now checks that an unrelated journal toggle retains the actual editor DOM
+element, followed by a successful save. Conflict/cancellation and resize cleanup
+cases toggle chat instead to exercise a real provider removal. The router now
+lives for the mounted app, so its remount snapshot/restore store is removed.
+Other pane and conversation stores still serve navigation and provider changes.
+
+
 This audit tracks user workflows during the Cordis migration. A passing suite is
 necessary, but does not establish that an untested workflow works. A row remains
 open until its UI actions and relevant failure/persistence paths have been
