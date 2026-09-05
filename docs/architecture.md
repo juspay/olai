@@ -11,6 +11,8 @@ Profiles are row lists over one vault/kinds base (`server/src/profiles.ts`). The
 
 `transports.ts` coordinates one shared listener. The framework still binds HTTP and websocket together; a websocket or browser-build registration change closes that listener scope and rebinds the same port. MCP registration changes are read per HTTP request, allowing its row to stop without disconnecting the panel. The HTTP-only profile uses the platform HTTP server and mounts no websocket or browser routes. Shutdown stops accepting first, unloads rows, then closes the composed surface and store. The store remains root-owned until Phase 17.
 
+The composition root retains the reasons for these orderings beside the acquisitions. MCP protocol setup and its ticket mint live in `mcp/endpoint.ts`: the endpoint address and transport belong to the serve, while each activation of the MCP row owns a fresh protocol server and ticket table. The root still chooses the writer and the store's verification class. The transport catalogue supplies module identities to both profile entries and their resolver; profile selection cannot drift from a separately spelled list of modules. These boundaries separate protocol changes from boot ordering without combining the ledger, search and identity readers, which have different contracts and fallback policies.
+
 ```
 files on disk ── load + validate ──▶ snapshot ── surface collection ──▶ browser (SolidJS)
       ▲                                                          │           │

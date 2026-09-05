@@ -77,3 +77,5 @@ were recorded. The disposable server was stopped afterward. This manual runtime 
 
 Transport coverage: `transports_are_rows.feature` flips MCP twice through the plugins panel and checks endpoint removal and recovery without browser errors. `server/src/profiles.test.ts` covers MCP-only CLI startup without a browser build, real MCP reads and writes, absent browser routes and websocket refusal, empty-profile reporting, repeated MCP flips, and port release on process shutdown. Existing headless and surface CLI scenarios continue to exercise the default web profile.
 `server/src/transports.test.ts` additionally withdraws browser-build and websocket registrations, checks that MCP remains reachable on the same port, restores the browser, and proves that releasing the last transport closes the port. The MCP-only busy-port case uses two real CLI processes.
+
+The transport lifecycle bench also checks the MCP ticket mint before activation, after withdrawal and after restart: each activation has a fresh ticket table, while the listener keeps the serve's address.
