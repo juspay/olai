@@ -665,9 +665,12 @@ refuse further calls. Olai keeps one constant connection and renders the app onc
 roster changes no longer recreate its tree or roster subscription. The core
 client and connection readout are exported directly, without a proxy or a
 synthetic reconnecting state. Identity alone uses Kolu’s `connectionEpoch`
-accessor to refresh the answer derived from the socket’s upgrade headers. The router keeps its app lifetime and reinterprets
+accessor to refresh the answer derived from the socket’s upgrade headers. An
+unchanged surface roster does not redial. The router keeps its app lifetime and
+reinterprets
 the current URL when plugin route claims change, preserving unchanged pane
-identities and browser history.
+identities and browser history. Undo history belongs to App again; it no longer
+needs a module-level store to survive roster changes.
 
 Plugin provider changes still update the provider tree: removing chat must remove
 its context and faces together. Pane and conversation draft stores remain needed

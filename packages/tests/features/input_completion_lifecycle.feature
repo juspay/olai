@@ -12,10 +12,10 @@ Feature: Input completion choices survive rebuilding the same draft
     Then no completions are open
     When I open another browser tab
     And I open the plugins panel
-    And I switch the plugin "journal" off
+    And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the journal chrome is absent
+    Then the conversation is gone-from the header
     And the row being typed holds "choose the handles !tom"
     And no completions are open
     When I type "orrow is prose"
@@ -31,10 +31,10 @@ Feature: Input completion choices survive rebuilding the same draft
     And the completions include "the compost heap"
     When I open another browser tab
     And I open the plugins panel
-    And I switch the plugin "journal" off
+    And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the journal chrome is absent
+    Then the conversation is gone-from the header
     And the mirror completions are open
     And the completions include "the compost heap"
     When I press "Enter"
@@ -53,10 +53,10 @@ Feature: Input completion choices survive rebuilding the same draft
     And I press "ArrowLeft"
     And I open another browser tab
     And I open the plugins panel
-    And I switch the plugin "journal" off
+    And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the journal chrome is absent
+    Then the conversation is gone-from the header
     When I type "|"
     And I click away from the editor
     Then "house.olai" holds a node titled "abc|de"

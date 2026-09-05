@@ -322,3 +322,26 @@ test("a markdown link this parser cannot read is left to the browser", () => {
   expect(routeIn("/%ZZ.md")).toBeNull()
   expect(routeIn("/notes.md")).toEqual(atFile("notes.md"))
 })
+
+// An absent plugin prints the fallback URL, but its stale request must not
+// suppress the core home request when the router reinterprets that address.
+test("an unavailable plugin page is distinct from home and replacement providers", () => {
+  const source = () => {
+    const route = defineAppRoute({
+      claims: [{ kind: "exact", path: "/gone" }],
+      parse: () => "gone",
+      href: () => "/gone" as const,
+      breadcrumb: () => "gone",
+      narrowable: false,
+      request: () => ({ kind: "trash" } as const),
+      stream: { use: () => () => undefined },
+    })
+    return settleRoutePages([{ plugin: "absent", face: defineAppPage(route, () => null) }])[0]!.page.route
+  }
+  const gone: Route = { kind: "plugin", source: source(), value: "gone" }
+  expect(hrefOf(gone)).toBe(hrefOf(HOME_ROUTE))
+  expect(samePage(gone, HOME_ROUTE)).toBe(false)
+  expect(samePage(HOME_ROUTE, gone)).toBe(false)
+  expect(samePage(gone, { ...gone, source: source() })).toBe(false)
+  expect(samePage(gone, gone)).toBe(true)
+})

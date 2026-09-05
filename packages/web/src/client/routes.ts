@@ -702,4 +702,6 @@ export const filterOf = (route: Route): string =>
  * arm added later.
  */
 export const samePage = (a: Route, b: Route): boolean =>
-  hrefOf(narrowedTo(a, "")) === hrefOf(narrowedTo(b, ""))
+  a.kind === b.kind
+  && (a.kind !== "plugin" || b.kind !== "plugin" || a.source === b.source)
+  && hrefOf(narrowedTo(a, "")) === hrefOf(narrowedTo(b, ""))

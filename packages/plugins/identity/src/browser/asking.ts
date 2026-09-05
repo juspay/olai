@@ -36,7 +36,7 @@ export const createWho = (): Asking => {
     // `createResource()` rethrows on error; the chip must not. A failed
     // door is `failed`, not a thrown render (which is a fault card).
     who: () => (who.error != null ? undefined : who()),
-    heard: () => !who.loading,
+    heard: () => connectionEpoch() > 0 && !who.loading,
     failed: () => who.error != null,
   }
 }

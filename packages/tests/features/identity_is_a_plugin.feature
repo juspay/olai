@@ -41,9 +41,12 @@ Feature: Who is looking is a plugin
     When I open the plugins panel
     And I switch the plugin "identity" off
     Then the header has no identity chip
-    # A new upgrade must read the current proxy headers, not the cached person.
+    When I switch the plugin "identity" on
+    Then the header shows the identity "ada@example.com"
+    # Identity has no sibling surface, so restoring it needs no new socket.
+    # A journal surface change does replace the socket and must refresh identity.
     When I am the Tailscale user "grace@example.com"
-    And I switch the plugin "identity" on
+    And I switch the plugin "journal" off
     Then the header shows the identity "grace@example.com"
     And there should be no page errors
     When I close the plugins panel

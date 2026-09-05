@@ -1,16 +1,24 @@
 # Browser coverage audit
 
 Kolu PR #2228 removes the wire-driven app rebuild. The existing document lifecycle
-case now checks that an unrelated journal toggle retains the actual editor DOM
-element, followed by a successful save. Conflict/cancellation and resize cleanup
-cases toggle chat instead to exercise a real provider removal. The router now
-lives for the mounted app, so its remount snapshot/restore store is removed.
+case checks that an unrelated journal toggle retains the actual editor DOM
+element, followed by a successful save. Cleanup, caret restoration and undo
+cases toggle chat to exercise a real provider removal. The router and undo stack
+now live in App; the remount snapshot/restore store and undo hoist are removed.
 Other pane and conversation stores still serve navigation and provider changes.
-The identity lifecycle scenario now changes proxy headers before plugin
-restoration and again before a socket reconnect, requiring the current identity
-without reloading. Identity uses Kolu’s connection-epoch accessor; the scenario verifies that
-consumer behavior across both kinds of establishment.
 
+The identity lifecycle scenario changes proxy headers before a journal surface
+change and again before a socket reconnect. Kolu’s connection-epoch accessor
+refreshes identity after both establishments. Identity-only toggles do not change
+the surface roster and therefore do not require another socket.
+
+The journal lifecycle cases also cover a route-equality bug exposed by the
+stable app lifetime: a removed plugin printed the home URL, so the page memo
+mistook it for core home and suppressed the new request. A unit regression
+checks route-kind and provider identity; existing browser cases verify recovery
+and document isolation. Phone flows explicitly close the retained sidebar before
+using the page. The parked-row ordering helper reads a single DOM snapshot to
+avoid racing a title/editor swap during idle save.
 
 This audit tracks user workflows during the Cordis migration. A passing suite is
 necessary, but does not establish that an untested workflow works. A row remains
