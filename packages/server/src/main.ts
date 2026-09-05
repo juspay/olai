@@ -87,6 +87,10 @@ const DEFAULT_PORT = 0
 
 const web = Command.make("web", {
   directory,
+  profile: Flag.choice("profile", ["web", "surface", "test-minimal"] as const).pipe(
+    Flag.withDescription("row bundle: web, MCP-only surface, or no transports"),
+    Flag.withDefault("web"),
+  ),
   port: Flag.integer("port").pipe(
     Flag.withDescription(
       "TCP port to listen on; 0 (the default) asks the OS for one",
@@ -101,7 +105,7 @@ const web = Command.make("web", {
   ),
   ...webGit,
   ...webPlugins,
-}, ({ commits, directory, host, noCommit, plugins, port, pushes }) =>
+}, ({ commits, directory, host, noCommit, plugins, port, profile, pushes }) =>
   Effect.gen(function*() {
     // The SIGTERM guard (@olai/sigterm): `web` is the server a stray pkill
     // wants — `surface` is a client and its TERM is an ordinary stop —
@@ -111,11 +115,12 @@ const web = Command.make("web", {
     yield* Effect.promise(() => installSigtermGuard())
     const faulted = yield* serve({
       root: directory,
+      profile,
       port,
       host,
       pin: gitPin(commits, noCommit, pushes),
       plugins: pluginsPin(plugins),
-      clientDist: yield* clientDist,
+      clientDist: profile === "web" ? yield* clientDist : "",
       allowedOrigins: allowedOrigins(),
     })
     // Wait to be interrupted — or for the surface runtime to fault, which is

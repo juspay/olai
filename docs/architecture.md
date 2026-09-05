@@ -7,6 +7,10 @@ It reads that directory and keeps reading it: edit a file or `git pull`, and the
 
 ## Shape
 
+Profiles are row lists over one vault/kinds base (`server/src/profiles.ts`). The loader inserts `ws`, `mcp`, and `web-app` beside the tenant rows on the same host. They wait on `transport-surface`, provided after `bind()` composes the surface and write gate, and own their registrations on their Effect scopes. `mcp` also owns the MCP server and session ticket mint. The infrastructure modules live in the composition-root package, so the tenant bundle does not import the server.
+
+`transports.ts` coordinates one shared listener. The framework still binds HTTP and websocket together; a websocket or browser-build registration change closes that listener scope and rebinds the same port. MCP registration changes are read per HTTP request, allowing its row to stop without disconnecting the panel. The HTTP-only profile uses the platform HTTP server and mounts no websocket or browser routes. Shutdown stops accepting first, unloads rows, then closes the composed surface and store. The store remains root-owned until Phase 17.
+
 ```
 files on disk ── load + validate ──▶ snapshot ── surface collection ──▶ browser (SolidJS)
       ▲                                                          │           │
