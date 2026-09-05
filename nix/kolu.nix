@@ -36,37 +36,32 @@
 # that will not typecheck here is a blocker rather than a nuisance. That is the
 # whole reason this arrangement is worth its cost, and it is unchanged.
 #
-# THE PIN IS OFF MASTER RIGHT NOW, AND THAT IS A MERGE GATE. It is frozen at
-# `fea23365`, the head of juspay/kolu#2229's `surface-app-live-upgrade-headers`
-# branch, for the capability this tree's identity row needs: `upgradeHeaders`
-# takes a THUNK read at each accept, so a row switched on at the panel names its
-# headers on the next upgrade instead of at the next start. The `branch` field
-# in `npins/sources.json` still says `master` — the revision is what a fetch
-# uses, and the branch is where the pin goes home — so `just update-pins` will
-# walk this forward onto master and must not be run to land this change.
+# THE PIN TRACKS MASTER, and it has been off it three times for the same kind of
+# reason — the third one being this tree's own, and it is discharged. The pin was
+# frozen at `fea23365`, the head of juspay/kolu#2229's branch, for the capability
+# the identity row needs: `upgradeHeaders` takes a THUNK read at each accept, so
+# a row switched on at the panel names its headers on the next upgrade instead of
+# at the next start. #2229 merged as `60ecf0da` — a squash onto the revision the
+# branch was based on, so the tree, and therefore the pin's hash, is byte-identical
+# to what this change was written and tested against — and the gate is discharged
+# with it.
 #
-# THE GATE IS THE SAME ONE THE TWO FREEZES BELOW DESCRIBED, in the same words:
-# olai must not MERGE a tree whose framework pin is on a branch, because the
-# branch goes away with the merge and the revision stops being fetchable. So
-# this PR waits for #2229, is re-pinned to whatever sha master carries it as,
-# and this block is deleted in the same commit.
-#
-# THE PIN TRACKS MASTER OTHERWISE, and it has been off it twice before for the
-# same kind of reason. First for the ROOTED BUNDLE (`mergeDisjointGroups`,
-# `exposeRootedFaces`, and `connectSurfaces`' `core` slot — juspay/kolu#2222),
-# then for the LIVE one (`implementRootedSurfaces`, `mount(key, surface, deps)`
+# The first two were the ROOTED BUNDLE (`mergeDisjointGroups`,
+# `exposeRootedFaces`, and `connectSurfaces`' `core` slot — juspay/kolu#2222)
+# and the LIVE one (`implementRootedSurfaces`, `mount(key, surface, deps)`
 # handing back its own undo, and `SurfacesConnection.redial(surfaces)` —
 # juspay/kolu#2223), which is what this tree's server composition and its tab
 # are both built on: a plugin is a fiber, so the sibling set MOVES, and
 # re-implementing the whole map over the survivors forks every one of their
-# runtimes silently.
+# runtimes silently. They merged as `5077c7f9` and `a1e62231`.
 #
-# Both were frozen at an exact sha on their branch while they were unmerged (the
-# odu#94 precedent next door), and both notes said the freeze was a MERGE GATE
-# rather than a preference: olai must not merge a tree whose framework pin is on
-# a branch, because the branch goes away with the merge and the revision stops
-# being fetchable. #2223 merged as `a1e62231` and the gate is discharged, so the
-# pin is home and this is the note that replaces the block.
+# EVERY ONE OF THE THREE was frozen at an exact sha on its branch while it was
+# unmerged (the odu#94 precedent next door), and every note said the same thing
+# in the same words: the freeze is a MERGE GATE rather than a preference, because
+# olai must not merge a tree whose framework pin is on a branch — the branch goes
+# away with the merge and the revision stops being fetchable. Each note was
+# deleted by the commit that re-pinned onto master, which is what discharging one
+# looks like in a diff.
 #
 # `npins/sources.json` records the revision either way, so what this tree
 # compiled against is always in the diff.
