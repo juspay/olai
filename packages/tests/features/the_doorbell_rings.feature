@@ -76,7 +76,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     Then that sentence names "22222222-2222-4222-8222-222222222222"
     And there should be no page errors
 
-  @scratch:lanes @plugins:vault,kolu
+  @scratch:lanes @plugins:vault,kolu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that composed no chat row says which door kolu is waiting behind
     # THE RULING'S ACCEPTED COST, and the sentence that makes it payable.
     #

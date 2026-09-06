@@ -174,7 +174,7 @@ test("profiles only patch catalogue rows and an exact flag overrides every row",
         return !(last?.disabled ?? row.disabled)
       }).map((row) => row.id)
       if (names !== null) expect([...on].sort()).toEqual([...names].sort())
-      else expect<ReadonlyArray<string>>(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "mcp"] : ["vault"])
+      else expect<ReadonlyArray<string>>(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "mcp", "outlines", "markdown", "files", "pins", "capture", "trash", "vault-plugins"] : ["vault"])
     }
   }
 })
@@ -187,5 +187,18 @@ test("transport modifiers apply over each profile's defaults", () => {
     expect(enabled("mcp")).toBe(false)
     expect(enabled("web-app")).toBe(profile === "web")
     expect(enabled("vault")).toBe(true)
+  }
+})
+
+test("maintained fixtures require an explicit selection and never select each other", () => {
+  for (const profile of ["web", "surface", "test-minimal"]) {
+    for (const chosen of [undefined, "test-layout", "test-counter"] as const) {
+      const patches = [...profilePatch(profile), ...pluginsPatch(chosen === undefined ? { kind: "omitted" } : { kind: "delta", extra: [chosen] })]
+      const enabled = (id: string) => !(patches.filter(patch => patch.id === id).at(-1)?.disabled ?? ROWS.find(row => row.id === id)?.disabled)
+      expect(enabled("test-layout")).toBe(chosen === "test-layout")
+      expect(enabled("test-counter")).toBe(chosen === "test-counter")
+      expect(enabled("vault")).toBe(true)
+      expect(enabled("layout")).toBe(profile === "web")
+    }
   }
 })

@@ -124,7 +124,7 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
         browserBoot: () => ROWS.filter((row) => row.browserOnly && report.get(row.id)?.state === "running").map((row) => row.id),
         hostname: theMachine,
         token,
-        agent: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.agent, writes: wired.bound.writes }),
+        agent: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.agent, writes: wired.bound.writes, dispatch: wired.bound.dispatch }),
         writeReservations: WRITE_RESERVATIONS,
     }));
     yield* Effect.addFinalizer(() => transports.stop);

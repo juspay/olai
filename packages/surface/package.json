@@ -13,7 +13,7 @@
     "./projection": "./src/projection.ts",
     "./host": "./src/host.ts"
   },
-  "//exports": "Two entries, and the second is not product. `./testlib` is the AST walk that holds a member`s `arrayKey` declaration honest — published for the reason `@olai/format`s own testlib is: a member`s key is a claim about the schema THAT MEMBER carries, and members are declared in the package that owns them now, so the claim has to be holdable where the member is. The alternative was every plugin growing its own copy of a fifty-line schema walk, which is a second opinion about the very thing under test.",
+  "//exports": "Two entries, and the second is not product. `./testlib` is the AST walk that holds a member`s `arrayKey` declaration honest \u2014 published for the reason `@olai/format`s own testlib is: a member`s key is a claim about the schema THAT MEMBER carries, and members are declared in the package that owns them now, so the claim has to be holdable where the member is. The alternative was every plugin growing its own copy of a fifty-line schema walk, which is a second opinion about the very thing under test.",
   "scripts": {
     "typecheck": "tsc --noEmit"
   },

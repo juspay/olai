@@ -1595,6 +1595,6 @@ export const SERVICE_KEYS: ReadonlyArray<string> = SERVICES.map((one) => one.cor
 
 /** THE SLOT CATALOG, from the one module both processes may open — see
  *  `./slots.ts` on why it is not `./browser.ts`'s any more. */
-export { SLOTS, type SlotKey } from "./slots.ts"
+export type { SlotKey } from "./slots.ts"
 
 export { HostLoading, openLoading, type Catalog, type OwnedLoader } from "./loading.ts"

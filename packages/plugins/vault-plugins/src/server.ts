@@ -1,8 +1,9 @@
+import { slotCatalog } from "@olai/plugin-api/slots"
 /** Vault-defined source, approval, compilation and chunks belong to this
  * provider. The host grants an owned loader; this policy decides what may be
  * loaded. Withdrawing this scope closes its definitions and HTTP integration,
  * while writes already accepted by the vault remain durable. */
-import { definePlugin, HostLoading, Ops, Offers, Surfaces, Vault, SLOTS } from "@olai/plugin-api/services"
+import { definePlugin, HostLoading, Ops, Offers, Surfaces, Vault, BundleModules } from "@olai/plugin-api/services"
 import { TransportSurface } from "@olai/plugin-api/transport"
 import type { Ops as Gate } from "@olai/ops"
 import { WRITABLE_MODULES } from "@olai/plugin-build"
@@ -24,8 +25,10 @@ const surface = defineSurface({ procedures: { plugins: {
   inspect: legacy.spec.procedures.plugins.inspect,
 } } })
 export default definePlugin({
-  name, needs: [HostLoading, Ops, Offers, Surfaces, Vault],
+  name, needs: [HostLoading, Ops, Offers, Surfaces, Vault, BundleModules],
   apply: Effect.gen(function*() {
+    const moduleCatalog = yield* (yield* BundleModules).read
+    const describedSlots = slotCatalog(moduleCatalog.map(module => module.exports))
     const loading = yield* HostLoading
     const gate = (yield* Ops).gate as Gate
     const dynamic = openDynamic(yield* loading.acquire, loading.reserved)
@@ -134,10 +137,7 @@ inspect: () =>
                   key, half: "browser" as const, availability: "declared" as const,
                 })),
               ],
-              slots: Object.entries(SLOTS).map(([name, one]) => ({
-                name,
-                keyedBy: one.keyedBy,
-              })),
+              slots: describedSlots,
               layout: {
                 property: PLUGIN_KEY,
                 approved: APPROVED_KEY,
@@ -156,6 +156,6 @@ inspect: () =>
 })
 export const components = {
   http: definePlugin({ name: "http", needs: [chunks, TransportSurface], apply: Effect.gen(function*() {
-    yield* (yield* TransportSurface).register({ routes: pluginChunks(yield* chunks) })
+    yield* (yield* TransportSurface).register({ passive: true, routes: pluginChunks(yield* chunks) })
   }) }),
 }

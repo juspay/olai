@@ -29,6 +29,16 @@ export interface Location<T> {
   readonly keyedBy?: "owner" | "key"
   readonly _value?: (_: T) => T
 }
+/** A name-only contribution never declares cardinality or claims an owner.
+ * Its integration waits for the owning entry's actual location contract. */
+export interface LocationReference<T> {
+  readonly name: string
+  readonly cardinality?: undefined
+  readonly keyedBy?: undefined
+  readonly _value?: (_: T) => T
+}
+export const locationReference = <T>(name: string): LocationReference<T> => Object.freeze({name})
+type Target<T> = Location<T> | LocationReference<T>
 type Contract = Pick<Location<never>, "name" | "cardinality" | "keyedBy">
 const validName = (name: string): boolean => /^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*$/.test(name)
 
@@ -50,7 +60,7 @@ export interface LocationOwner {
    * to this entry, including when its registration ends before its plugin does.
    * `activate` acquires location-dependent resources in a fresh scoped lifetime.
    * It may fail or be interrupted; children are offered only after it succeeds. */
-  readonly contribute: <T>(slot: Location<T>, value: T, options?: {
+  readonly contribute: <T>(slot: Target<T>, value: T, options?: {
     /** Optional unique key within this location, reserved even while waiting. */
     readonly key?: string
     readonly children?: ReadonlyArray<Contract>
@@ -66,7 +76,7 @@ export interface LocationReport {
 }
 export interface Locations {
   readonly forOwner: (owner: string) => LocationOwner
-  readonly read: <T>(slot: Location<T>) => ReadonlyArray<Contribution<T>>
+  readonly read: <T>(slot: Target<T>) => ReadonlyArray<Contribution<T>>
   readonly inspect: () => ReadonlyArray<LocationReport>
   /** Join current activations, including asynchronous initialization/cleanup. */
   readonly settled: Effect.Effect<void>
@@ -82,7 +92,7 @@ interface Declaration {
 interface Registration {
   readonly id: string
   readonly owner: string
-  readonly slot: Contract
+  readonly slot: Contract | Pick<LocationReference<never>, "name" | "cardinality" | "keyedBy">
   readonly key?: string
   mounted?: Mounted
   report: RowReport
@@ -97,8 +107,8 @@ export const locations = (config: {
   readonly reading?: () => void
 } = {}): Effect.Effect<Locations, never, Scope.Scope> => Effect.gen(function*() {
   const host = yield* openHost
-  const key = (name: string) => serviceTag<true>(`location:${name}`)
-  yield* provide(host, key("root"), () => true as const)
+  const key = (name: string) => serviceTag<Contract>(`location:${name}`)
+  yield* provide(host, key("root"), () => ({name:"root",cardinality:"one" as const}))
   const declarations = registry<string, Declaration>()
   const registrations = roster<Registration>()
   const entries = roster<{ readonly slot: string; readonly contribution: Contribution<unknown> }>(config.changed)
@@ -126,12 +136,16 @@ export const locations = (config: {
     yield* settled(host, registrations.read().map((entry) => entry.id))
     yield* refresh
   })
-  const validate = (slot: Contract, owner: string): void => {
+  const validate = (slot: Contract | Pick<LocationReference<never>, "name" | "cardinality" | "keyedBy">, owner: string): void => {
+    if (slot.cardinality === undefined) {
+      if (!validName(slot.name)) throw new Error(`Locations: "${owner}" supplied an invalid location name "${slot.name}"`)
+      return
+    }
     if (!validName(slot.name) || (slot.cardinality !== "one" && slot.cardinality !== "many")) {
       throw new Error(`Locations: "${owner}" supplied an invalid location contract for "${slot.name}"`)
     }
     const declaration = declarations.read().get(slot.name)
-    const prior = registrations.read().find((entry) => entry.slot.name === slot.name)
+    const prior = registrations.read().find((entry) => entry.slot.name === slot.name && entry.slot.cardinality !== undefined)
     if (slot.name === "root" && slot.keyedBy !== undefined) {
       throw new Error(`Locations: "${owner}" cannot change the host root's key rules`)
     }
@@ -152,14 +166,15 @@ export const locations = (config: {
       contribute: (slot, value, options = {}) => Effect.gen(function*() {
         validate(slot, owner)
         const prior = registrations.read().find((entry) => entry.slot.name === slot.name)
-        if (slot.cardinality === "one" && prior) {
+        const reservation = slot.cardinality === undefined ? declarations.read().get(slot.name) ?? registrations.read().find(entry => entry.slot.name === slot.name && entry.slot.cardinality !== undefined)?.slot ?? slot : slot
+        if (reservation.cardinality === "one" && prior) {
           return yield* Effect.die(new Error(`Locations: "${owner}" and "${prior.owner}" both occupy single location "${slot.name}"`))
         }
-        const entryKey = slot.keyedBy === "owner" ? owner : options.key
-        if (slot.keyedBy === "key" && entryKey === undefined) {
+        const entryKey = reservation.keyedBy === "owner" ? owner : options.key
+        if (reservation.keyedBy === "key" && entryKey === undefined) {
           return yield* Effect.die(new Error(`Locations: "${owner}" must supply a key for "${slot.name}"`))
         }
-        if (slot.keyedBy === "owner" && options.key !== undefined && options.key !== owner) {
+        if (reservation.keyedBy === "owner" && options.key !== undefined && options.key !== owner) {
           return yield* Effect.die(new Error(`Locations: "${owner}" cannot choose another owner's key in "${slot.name}"`))
         }
         if (entryKey !== undefined) {
@@ -191,6 +206,18 @@ export const locations = (config: {
             name: registration.id,
             needs: [key(slot.name)],
             apply: Effect.gen(function*() {
+              const declared = yield* key(slot.name)
+              const rule = slot.cardinality === undefined ? declared : slot
+              const actualKey = rule.keyedBy === "owner" ? owner : options.key
+              if (rule.keyedBy === "key" && actualKey === undefined) {
+                return yield* Effect.die(new Error(`Locations: "${owner}" must supply a key for "${slot.name}"`))
+              }
+              if (rule.keyedBy === "owner" && options.key !== undefined && options.key !== owner) {
+                return yield* Effect.die(new Error(`Locations: "${owner}" cannot choose another owner's key in "${slot.name}"`))
+              }
+              const rival = registrations.read().find(entry => entry !== registration && entry.slot.name === slot.name && (
+                rule.cardinality === "one" || (actualKey !== undefined && actualKey === (rule.keyedBy === "owner" ? entry.owner : entry.key))))
+              if (rival) return yield* Effect.die(new Error(`Locations: "${owner}" and "${rival.owner}" conflict with the owner's rules for "${slot.name}"`))
               delete registration.cleanupFault
               const integration = yield* Effect.acquireRelease(Scope.make(), (scope, exit) =>
                 Scope.close(scope, exit).pipe(Effect.onError((cause) => Effect.sync(() => {
@@ -198,8 +225,8 @@ export const locations = (config: {
                 }))),
               )
               yield* Scope.provide(options.activate ?? Effect.void, integration)
-              yield* entries.hold({ slot: slot.name, contribution: { owner, value, ...(entryKey === undefined ? {} : { key: entryKey }) } })
-              for (const child of options.children ?? []) yield* offer(key(child.name), () => true as const)
+              yield* entries.hold({ slot: slot.name, contribution: { owner, value, ...(actualKey === undefined ? {} : { key: actualKey }) } })
+              for (const child of options.children ?? []) yield* offer(key(child.name), () => child)
             }),
           }), { wait: false })
           const lock = Semaphore.makeUnsafe(1)
@@ -220,7 +247,7 @@ export const locations = (config: {
         }), scope).pipe(Effect.onError((cause) => Scope.close(scope, Exit.failCause(cause))))
       }),
     }),
-    read: <T>(slot: Location<T>): ReadonlyArray<Contribution<T>> => {
+    read: <T>(slot: Target<T>): ReadonlyArray<Contribution<T>> => {
       config.reading?.()
       validate(slot, "reader")
       return entries.read().filter((entry) => entry.slot === slot.name).map((entry) => entry.contribution as Contribution<T>)

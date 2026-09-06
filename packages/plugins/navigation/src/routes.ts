@@ -1,3 +1,6 @@
+import type { AppPage } from "olai-plugin-navigation/slots"
+import type { AppRoute } from "olai-plugin-navigation/slots"
+import type { AppRouteClaim } from "olai-plugin-navigation/slots"
 /**
  * What a URL means, and nothing else.
  *
@@ -139,7 +142,7 @@ type Split,
 splitAddress,
 writtenAddress,
 } from "@olai/format"
-import type { AppPage,AppRoute,AppRouteClaim } from "@olai/plugin-api"
+
 import { type Accessor,type JSX } from "solid-js"
 
 import type { Drawn } from "olai-plugin-outlines/page"

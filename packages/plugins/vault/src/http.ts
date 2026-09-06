@@ -13,7 +13,7 @@ export default definePlugin({
     const gate = (yield* Ops).gate as Gate
     let active = true
     yield* Effect.addFinalizer(() => Effect.sync(() => { active = false }))
-    yield* (yield* TransportSurface).register({ routes: Layer.mergeAll(
+    yield* (yield* TransportSurface).register({ passive: true, routes: Layer.mergeAll(
       mediaLayer(directory.root),
       resyncRoute(resyncDirectory(() => active ? directory : undefined, () => active ? gate : undefined)),
     ) })

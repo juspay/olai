@@ -1,3 +1,8 @@
+import type {} from "olai-plugin-layout/slots"
+import type {} from "olai-plugin-navigation/slots"
+import type {} from "olai-plugin-outlines/slots"
+import type {} from "olai-plugin-sidebar/slots"
+import { slotContracts } from "./slots.ts"
 import {Clocks} from "@olai/plugin-api"
 import {fileAccess} from "olai-plugin-vault/contract"
 /**
@@ -59,7 +64,7 @@ import {fileAccess} from "olai-plugin-vault/contract"
  * write one.
  */
 
-import { definePlugin, Faces, Slots, Wired, Offers, slotLocation } from "@olai/plugin-api"
+import { definePlugin, Faces, Slots, Wired, Offers } from "@olai/plugin-api"
 import { Effect } from "effect"
 
 import { AgentDoor } from "./browser/agents/Door.tsx"
@@ -115,7 +120,7 @@ export default definePlugin({
     // readout in this app's geometry and all of them are the panel positioning
     // itself in what it was given.
     yield* slots.register("app.panel", () => <AgentsProvider value={state.agents}><Panel /></AgentsProvider>, {
-      children: [slotLocation("delivery.mark"), slotLocation("engine.install")],
+      children: [slotContracts["delivery.mark"], slotContracts["engine.install"]],
       activate: Effect.acquireRelease(Effect.sync(trackCamera), (stop) => Effect.sync(stop)),
     })
     // ...and the control in the bar that opens and shuts it.

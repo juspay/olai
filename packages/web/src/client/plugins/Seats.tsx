@@ -1,3 +1,5 @@
+import type {} from "olai-plugin-outlines/slots"
+import type {} from "olai-plugin-sidebar/slots"
 /**
  * THE FOUR SEATS THE SHELL RESERVES for a plugin's faces — the panel on the
  * right, the bar's last chip, the sections under the sidebar's own, and the

@@ -1,8 +1,10 @@
+import { slotContracts } from "./slots.ts"
+import { fileKind } from "@olai/format"
 import {Clocks} from "@olai/plugin-api"
 /** Outlines owns editor history, selection/drag registers, page readings and
  * browser preferences. These resources live in the provider activation, before
  * and independently of any layout. Content and settings are separate consumers. */
-import { definePlugin, Offers, slotLocation } from "@olai/plugin-api"
+import { definePlugin, Offers } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { createRoot } from "solid-js"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -56,14 +58,13 @@ export const components = {
   content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots
     yield* slots.contribute(content, {
-      matches: route => route.kind === "plugin" || (route.kind === "at" && (route.address === null || route.address.kind === "node" || route.address.path.endsWith(".olai"))),
+      matches: route => route.kind === "plugin" || (route.kind === "at" && (route.address === null || route.address.kind === "node" || fileKind(route.address.path) === "outline")),
       Page: () => <OutlinePageView />,
-    }, { children: [...(["outline.row.chip", "outline.row.pane", "outline.row.block",
-      "outline.row.door", "outline.row.action"] as const).map(slotLocation), datedRows, documentReferences, pageView, titles, propertyRoutes] })
+    }, { children: [...Object.values(slotContracts), datedRows, documentReferences, pageView, titles, propertyRoutes] })
     yield* slots.contribute(datedRows, DatedRow)
     yield* slots.contribute(pageView, OutlinePageView)
     yield* slots.contribute(titles, NodeTitle)
-    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && meaning.file.endsWith(".olai") ? atFile(meaning.file) : undefined)
+    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && fileKind(meaning.file) === "outline" ? atFile(meaning.file) : undefined)
   }) }),
   files: definePlugin({ name: "files", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {
     yield* (yield* rendererSlots).contribute(fileTypes, { Create: NewOutline })

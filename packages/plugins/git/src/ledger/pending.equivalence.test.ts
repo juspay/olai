@@ -343,6 +343,8 @@ const holds = (report: Report): void => {
   expect(report.cachedSpawns).toBeLessThan(report.plainSpawns)
 }
 
+// This differential runs real Git subprocesses for the complete session in both
+// implementations. Shared CI workers need a bounded integration-test budget.
 test("a scripted git session answers what re-reading HEAD answers, at every step", async () => {
   holds(
     await replay(
@@ -350,7 +352,7 @@ test("a scripted git session answers what re-reading HEAD answers, at every step
       script(""),
     ),
   )
-})
+}, { timeout: 30_000 })
 
 /** The same script one directory down, where a served name and a repository
  *  name are two different strings and the `.md` that is renamed into the format
@@ -363,7 +365,7 @@ test("... and the same session in a served subdirectory", async () => {
       { serve: "docs" },
     ),
   )
-})
+}, { timeout: 30_000 })
 
 /**
  * A repository whose first commit has not been made.

@@ -11,7 +11,7 @@ Feature: The matcher is a plugin
   it found nothing, which is the half the unit case at the MCP door cannot
   reach: nothing there drives a tab.
 
-  @plugins:vault,chat,claude,git
+  @plugins:vault,chat,claude,git,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that did not name search has no box, and its palette says why
     When I open the app
     Then the header has no search box

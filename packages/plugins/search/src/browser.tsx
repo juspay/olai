@@ -1,3 +1,4 @@
+import type {} from "olai-plugin-layout/slots"
 /**
  * SEARCH'S BROWSER HALF — the header's box, and nothing else.
  *

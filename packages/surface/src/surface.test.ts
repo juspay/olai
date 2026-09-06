@@ -173,6 +173,7 @@ test("every declaration names a field its own schema carries, and no other membe
   expect(declaring.map((one) => `${one.name} → ${one.arrayKey}`).sort()).toEqual([
     "cells.pins → id",
     "cells.plugins → name",
+    "streams.documentPage → key",
     "streams.page → key",
   ])
   for (const one of declaring) {

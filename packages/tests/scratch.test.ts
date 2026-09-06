@@ -231,8 +231,10 @@ test("PIN (resync path): the harness and the server name the same door", () => {
     path.join(
       import.meta.dirname,
       "..",
-      "server",
+      "plugins",
+      "vault",
       "src",
+      "http",
       "resync.ts",
     ),
     "utf8",

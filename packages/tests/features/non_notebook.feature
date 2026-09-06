@@ -1,5 +1,5 @@
 @scratch:good
-@plugins:test-counter
+@plugins:test-counter,ws,web-app,ui-renderer
 Feature: The host serves a non-notebook capability
   This exact plugin selection contains no vault, outlines, Markdown or file
   capabilities. The fixture supplies its own tiny shell through the renderer.

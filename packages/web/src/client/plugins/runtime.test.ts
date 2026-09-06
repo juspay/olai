@@ -1,5 +1,7 @@
+import type {} from "olai-plugin-layout/slots"
+import { location as slotContract } from "@olai/plugin-api"
 import { afterEach, expect, test } from "bun:test"
-import { definePlugin, Offers, serviceTag, Slots, Wired, locations, location, slotFacade, slotLocation, SLOTS } from "@olai/plugin-api"
+import { definePlugin, Offers, serviceTag, Slots, Wired, locations, location, slotFacade, slotLocation } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { app, browserReports, composeTo as compose } from "./runtime.ts"
 
@@ -12,7 +14,7 @@ const renderer = { default: definePlugin({ name: "ui-renderer", needs: [Offers],
   yield* offers.own("faces", () => facade.faces)
   yield* offers.own("integrations", () => facade.management)
   yield* store.forOwner("test-shell").contribute(location("root", "one"), null, {
-    children: (Object.keys(SLOTS) as Array<keyof typeof SLOTS>).map(slotLocation),
+    children: [location("app.header","many","owner"),location("app.viewer","one")],
   })
 }) }) }
 const composeTo: typeof compose = (halves, client) => compose(halves.length ? [renderer, ...halves] : [], client)

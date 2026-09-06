@@ -1,3 +1,5 @@
+import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
+import { slotContracts } from "./slots.ts"
 import { PanelHandle } from "./layout/Handle.tsx"
 /**
  * Layout occupies the renderer's root. Geometry observers are resources of that
@@ -9,7 +11,7 @@ import { PanelHandle } from "./layout/Handle.tsx"
  * extraction. Owning these resources does not yet establish the final layout,
  * navigation and independent content boundaries documented in Phase 18.
  */
-import { definePlugin,Offers,slotLocation } from "@olai/plugin-api"
+import { definePlugin,Offers } from "@olai/plugin-api"
 import { Fault } from "@olai/web/client/errors/Fault.tsx"
 import { publishLayoutCss } from "olai-plugin-layout/layout/css.ts"
 import { trackVisibleViewport } from "olai-plugin-layout/viewport.ts"
@@ -38,10 +40,7 @@ export default definePlugin({
       console.error(error)
       return <Fault text={String(error)} />
     }}><Frame slots={slots} router={router} /></ErrorBoundary>, {
-      children: [sidebar, tools, contentStatus, overlays, content, paletteAdapters, ...([
-        "app.panel", "app.header", "app.banner", "app.viewer", "app.mount",
-        "app.keys", "app.command", "app.palette", "app.route",
-      ] as const).map(slotLocation)],
+      children: [sidebar, tools, contentStatus, overlays, content, paletteAdapters, ...Object.values(slotContracts), ...Object.values(navigationSlots)],
       activate: Effect.gen(function*() {
         for (const start of [trackVisibleViewport, trackDesktop, followLayout]) {
           yield* Effect.acquireRelease(Effect.sync(start), (stop) => Effect.sync(stop))

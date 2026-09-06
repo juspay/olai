@@ -2,7 +2,7 @@
  * Optional domain services are resolved at call time, so a missing vault leaves
  * the protocol available and returns ordinary domain refusals. */
 import { definePlugin } from "@olai/plugin-api"
-import { Directory, HostServices, Offers, Ops } from "@olai/plugin-api/services"
+import { Directory, HostServices, Ledger, Offers, Ops } from "@olai/plugin-api/services"
 import { TransportSurface } from "@olai/plugin-api/transport"
 import type { Directory as OpenDirectory, Ops as Gate } from "@olai/ops"
 import { Effect } from "effect"
@@ -22,6 +22,7 @@ export default definePlugin({
     const policy = bindAgent({ shared, ticket: currentTicket,
       directory: () => services.current(Directory) as OpenDirectory | undefined,
       ops: () => services.current(Ops)?.gate as Gate | undefined,
+      ledger: () => services.current(Ledger) !== undefined,
     })
     // Offers and routes belong to the same activation; unloading withdraws the
     // mint and carrier before any subsequent activation allocates a new table.

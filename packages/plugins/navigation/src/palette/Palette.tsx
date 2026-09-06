@@ -1,3 +1,4 @@
+import type { AppCommand } from "olai-plugin-navigation/slots"
 import { type Navigation,paletteAdapters } from "../index.ts"
 import {readLocation} from "olai-plugin-ui-renderer/contract"
 /**
@@ -73,7 +74,7 @@ Switch,
 } from "solid-js"
 
 import { needlesFrom } from "@olai/format"
-import type { AppCommand } from "@olai/plugin-api"
+
 import type { Edit } from "@olai/surface"
 import { Result as Outcome } from "effect"
 

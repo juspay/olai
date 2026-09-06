@@ -274,7 +274,7 @@ Feature: Choosing an agent
     # agent being installed.
     And the outline list is shown
 
-  @plugins:vault,chat,odu @scratch:chat
+  @plugins:vault,chat,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins @scratch:chat
   Scenario: A serve that enabled no engine says THAT, rather than guessing
     # THE CASE THE FACE USED TO MISS ENTIRELY, and the commonest real one now
     # that every engine is a plugin: all four engine rows are ENABLED BY

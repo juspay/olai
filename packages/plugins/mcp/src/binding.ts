@@ -3,15 +3,18 @@
 import type { ClientOrConnection } from "@kolu/surface-mcp"
 import type { ExposeMap } from "@kolu/surface/expose"
 import type { CommitRequest, CommitResult, PushResult } from "@olai/format"
-import { liveOps, type Directory, type Ops } from "@olai/ops"
+import { TOOLS, liveOps, type Directory, type Ops } from "@olai/ops"
 import type { TransportSurface } from "@olai/plugin-api/transport"
-import { clientOver, type OlaiSurfaceClient } from "@olai/surface/client"
+import { type OlaiSurfaceClient } from "@olai/surface/client"
 import type { Vintage } from "@olai/store"
 import { Effect } from "effect"
-import { writerAt } from "./authority.ts"
+import { availableTools } from "./catalog.ts"
+import { liveClient } from "./live-client.ts"
 import { ticketing, type Tickets } from "./tickets.ts"
 
 export interface AgentBinding {
+  readonly available: (name: string) => boolean
+  readonly resourceAvailable: (key: string, verb: string) => boolean
   readonly client: () => ClientOrConnection
   readonly expose: ExposeMap
   readonly root: string
@@ -26,14 +29,16 @@ export const bindAgent = (options: {
   readonly ticket: () => string | null
   readonly directory: () => Directory | undefined
   readonly ops: () => Ops | undefined
+  readonly ledger?: () => boolean
 }): AgentBinding & { readonly tickets: Tickets } => {
   const { shared } = options
-  const bound = shared.agent()
   const ops = liveOps(options.ops)
-  const panel = clientOver({ group: bound.group, handlers: writerAt(bound, { writer: "mcp", fence: null }) }, bound.expose)
-  const tickets = ticketing({ reservations: shared.writeReservations, bound, face: bound.expose, ops, token: shared.token, currentTicket: options.ticket })
+  const panel = liveClient(shared.agent, { writer: "mcp", fence: null })
+  const tickets = ticketing({ reservations: shared.writeReservations, bound: shared.agent, face: () => shared.agent().expose, ops, token: shared.token, currentTicket: options.ticket })
   return {
     tickets,
+    resourceAvailable: (key, verb) => { const bound = shared.agent(); const tag = `surface/${key}/${verb}`; return bound.expose.tags.has(tag) && tag in bound.handlers },
+    available: availableTools({ tools: TOOLS, current: shared.agent, ledger: () => options.ops() !== undefined && options.ledger?.() === true }),
     expose: { outlines: "resource", documents: "resource", errors: "resource" },
     client: () => panel,
     get root() { return options.directory()?.root ?? "" },

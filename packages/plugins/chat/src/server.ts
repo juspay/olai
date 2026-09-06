@@ -844,3 +844,5 @@ export default definePlugin({
 
   }),
 })
+
+export { slotContracts as slots } from "./slots.ts"

@@ -1,3 +1,4 @@
+import type {} from "olai-plugin-layout/slots"
 /**
  * EVERY PLUGIN'S TAB HALF, mounted around the page — and the app knows none of
  * them by name.
@@ -59,7 +60,7 @@ import { createMemo, type JSX, Show } from "solid-js"
 
 import type { Hung, SlotFaces } from "@olai/plugin-api"
 
-import { hung } from "./runtime.ts"
+import { hung } from "@olai/web/client/plugins/runtime.ts"
 
 /** The page, with every plugin's tab half wrapped around it. */
 export function PluginsMounted(props: { readonly children: JSX.Element }): JSX.Element {

@@ -9,7 +9,7 @@ import { panelOpen } from "olai-plugin-layout/preferences"
 import { samePageRequest } from "@olai/format"
 import type { DocumentPageRequest } from "@olai/surface"
 import { useHistory } from "./history.ts"
-import type { Route, Navigation } from "olai-plugin-navigation/contract"
+import type { Navigation } from "olai-plugin-navigation/contract"
 import { useRouter, useHere, useFollow } from "olai-plugin-navigation/routing"
 import { hrefOf } from "olai-plugin-navigation/routes"
 import { panesOf } from "olai-plugin-navigation/workspace"
@@ -19,6 +19,7 @@ import { CLEARANCE } from "@olai/web/client/connection/Indicator.tsx"
 import { only } from "@olai/web/client/narrow.ts"
 import { DocumentPage } from "./document/DocumentPage.tsx"
 import { DocumentReading } from "./reading.tsx"
+import { documentFile, documentRequest } from "./document-route.ts"
 
 export function MarkdownPageView() {
   const router = useRouter() as Navigation
@@ -26,11 +27,9 @@ export function MarkdownPageView() {
   const follow = useFollow()
   const route = () => panesOf(router.workspace())[here()]!.route
   const file = () => documentFile(route())
-  const request = createMemo<DocumentPageRequest | null>(() => {
-    const open = route()
-    if (open.kind !== "at" || open.address?.kind !== "document") return null
-    return { kind: "at", address: { kind: "document", path: open.address.path } }
-  }, null, { equals: (a,b) => a === null || b === null ? a === b : samePageRequest(a,b) })
+  const request = createMemo<DocumentPageRequest | null>(() => documentRequest(route()), null, {
+    equals: (a,b) => a === null || b === null ? a === b : samePageRequest(a,b),
+  })
   const reading = olai.streams.documentPage.use(request)
   const page = createMemo<import("@olai/format").PageReading | undefined>(was => reading() ?? was)
   const history = useHistory()
@@ -48,10 +47,4 @@ export function MarkdownPageView() {
       </Show>
     </DocumentReading>
   </main>
-}
-
-export const documentFile = (route: Route): string | undefined => {
-  if (route.kind !== "at" || route.address === null || route.address.kind === "node") return undefined
-  const path = route.address.path
-  return path.endsWith(".olai") ? undefined : path
 }

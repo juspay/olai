@@ -3,7 +3,7 @@
 import type { Locations } from "@olai/effect-cordis"
 import { Effect } from "effect"
 import { definePlugin, locations, location, mountPlugin, Offers, slotFacade, slotLocation, type App } from "./browser.ts"
-import { SLOTS } from "./slots.ts"
+import { TEST_SLOTS } from "./slots.testlib.ts"
 
 export const installTestRenderer = (app: App, changed?: () => void, reading?: () => void) => Effect.gen(function*() {
   let store!: Locations
@@ -18,7 +18,7 @@ export const installTestRenderer = (app: App, changed?: () => void, reading?: ()
     }),
   }))
   yield* store.forOwner("test-shell").contribute(location("root", "one"), null, {
-    children: (Object.keys(SLOTS) as Array<keyof typeof SLOTS>).map(slotLocation),
+    children: TEST_SLOTS,
   })
   yield* store.settled
   return store

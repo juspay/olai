@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { Deferred, Effect, Exit, Scope } from "effect"
-import { location, locations } from "./locations.ts"
+import { location, locationReference, locations } from "./locations.ts"
 
 const root = location<string>("root", "one")
 const side = location<string>("layout.sidebar", "one")
@@ -204,4 +204,44 @@ test("retry reacquires only failed integrations and preserves siblings and indep
   expect(slots.read(list).map((entry) => entry.value)).toEqual(["stable", "recovered"])
   await run(scope, slots.retry)
   expect(starts).toBe(2)
+}))
+
+test("a name-only contribution waits for its owner and reacquires after owner replacement", scoped(async scope => {
+  const slots = await run(scope, locations())
+  const target = locationReference<string>("feature.details")
+  let acquired = 0
+  let released = 0
+  await run(scope, slots.forOwner("extension").contribute(target,"details", {
+    activate: Effect.acquireRelease(Effect.sync(() => {acquired++}), () => Effect.sync(() => {released++})),
+  }))
+  await run(scope,slots.settled)
+  expect(slots.read(target)).toEqual([])
+  expect(slots.inspect()[0]?.state).toBe("waiting")
+  const first = Scope.makeUnsafe()
+  await run(first,slots.forOwner("feature").contribute(root,"feature",{children:[location<string>("feature.details","many","owner")]}))
+  await run(scope,slots.settled)
+  expect(slots.read(target)).toEqual([{owner:"extension",value:"details",key:"extension"}])
+  await close(first)
+  await run(scope,slots.settled)
+  expect([acquired,released]).toEqual([1,1])
+  expect(slots.read(target)).toEqual([])
+  const second = Scope.makeUnsafe()
+  try {
+    await run(second,slots.forOwner("feature").contribute(root,"fresh",{children:[location<string>("feature.details","many","owner")]}))
+    await run(scope,slots.settled)
+    expect([acquired,released]).toEqual([2,1])
+  } finally { await close(second) }
+  expect([acquired,released]).toEqual([2,2])
+}))
+
+test("name-only contributions cannot bypass their returning owner's cardinality", scoped(async scope => {
+  const slots = await run(scope,locations())
+  const target = locationReference<string>("feature.only")
+  await run(scope,slots.forOwner("first").contribute(target,"first"))
+  await run(scope,slots.forOwner("second").contribute(target,"second"))
+  await run(scope,slots.forOwner("feature").contribute(root,"feature",{children:[location<string>("feature.only","one")]}))
+  await run(scope,slots.settled)
+  expect(slots.read(target)).toEqual([])
+  expect(slots.inspect().filter(one=>one.name===target.name).map(one=>one.state)).toEqual(["failed","failed"])
+  expect(slots.inspect().find(one=>one.name===target.name)?.fault).toContain("owner's rules")
 }))

@@ -10,7 +10,7 @@ export interface Choice<T> {
   readonly pick: (value: T) => void
 }
 export interface Appearance {
-  readonly chrome: { readonly name: (called: string) => void; readonly waiting: (value: boolean) => void }
+  readonly chrome: { readonly name: (called: string | undefined) => void; readonly waiting: (value: boolean) => void }
   readonly theme: Choice<Palette>
   readonly font: Choice<Typeface>
   readonly size: Choice<TypeSize>

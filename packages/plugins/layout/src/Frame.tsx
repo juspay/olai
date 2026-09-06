@@ -31,7 +31,7 @@ Show
 import { Offline } from "@olai/web/client/connection/Offline.tsx"
 import { Panes } from "olai-plugin-layout/pane/Panes.tsx"
 import { PluginBanners } from "@olai/web/client/plugins/Chrome.tsx"
-import { PluginsMounted } from "@olai/web/client/plugins/Mounted.tsx"
+import { PluginsMounted } from "./Mounted.tsx"
 import { PluginPanel } from "@olai/web/client/plugins/Seats.tsx"
 import { connectionReadout } from "@olai/web/client/wire.ts"
 import { desktop } from "olai-plugin-layout/media"

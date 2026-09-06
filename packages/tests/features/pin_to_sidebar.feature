@@ -176,6 +176,11 @@ Feature: Pinning a page to the sidebar
     When I pin the page
     And I unpin "/house.olai"
     Then the pinned shelf is not drawn
+    When I press "ControlOrMeta+z"
+    Then the pinned shelf holds "/house.olai"
+    When I press "ControlOrMeta+Shift+z"
+    Then the pinned shelf is not drawn
+    And there should be no page errors
 
   Scenario: Pins are ordered by the file, and a drag reorders them
     Given the directory has the pins:
@@ -184,6 +189,10 @@ Feature: Pinning a page to the sidebar
       | /agenda   |
     Then the pinned shelf reads "/#order /#demo /agenda"
     When I drag the pin "/agenda" above "/#order"
+    Then the pinned shelf reads "/agenda /#order /#demo"
+    When I press "ControlOrMeta+z"
+    Then the pinned shelf reads "/#order /#demo /agenda"
+    When I press "ControlOrMeta+Shift+z"
     Then the pinned shelf reads "/agenda /#order /#demo"
     And there should be no page errors
 

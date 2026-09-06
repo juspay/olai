@@ -19,8 +19,32 @@ workflow regressions. Fixes and focused verification are in progress; the
 current working tree is not yet validated by full CI.
 
 GitHub CodeQL also flagged case-sensitive script extraction in the theme asset
-test. The regex is corrected and both first-paint tests pass; verification of
-the pushed fix by GitHub CodeQL remains pending.
+test. The regex is corrected and both first-paint tests pass. GitHub CodeQL
+passed on `29b1db404`, reporting no new alerts in the PR’s changed code.
+
+## CI repair batch
+
+- [x] Retract MCP tools and resources with their capabilities; retained clients
+  resolve current handlers and write authority. The MCP regression group passes
+  109 tests, with focused process tests covering repeated reactivation.
+- [x] Keep supplemental vault and source-plugin HTTP routes passive: no listener
+  opens until an actual transport starts. The real-port lifecycle test passes.
+- [x] Repair migrated asset fixtures, surface shape expectations and real-Git
+  test budgets. All 53 focused server, scratch, surface and Git tests pass.
+- [x] Restore document fragment navigation and split panes through independent
+  metadata requests: 63 browser scenarios and 589 steps pass.
+- [x] Keep contributed page data reactive through getter-backed props. Daily-note
+  pending writes and page filtering pass all 12 browser scenarios and 89 steps.
+- [x] Make browser `@plugins:` tags exact, listing required extracted capabilities
+  in each feature. Journal absence and the counter-only selection pass.
+- [x] Repair moved architecture assertions and canonical plugin documentation;
+  boundary tests pass all 43 cases, including indirect import graphs.
+- [x] Restore pin reorder/removal Undo to the focused page history: all 23
+  shelf/recovery scenarios pass, including explicit Undo/Redo regressions.
+- [x] Move Kolu, Odu and Spaces state into activation scopes with providers
+  around their own contributions. The Kolu test proves five subscriptions
+  are released and a fresh activation reacquires them.
+- [ ] Pass the next complete CI run on the integrated repair commit.
 
 ## Current implementation batch
 
@@ -110,7 +134,9 @@ above is not a claim that its complete absence/lifecycle requirement is proved.
   startup in Chromium, including cached dependency failure and explicit reload.
 - [x] Keep the live roster authoritative over a late bootstrap response or failure.
 - [x] Document static `/contract` imports and fence them against implementations.
-- [ ] Move all application-specific slot contracts to their capability owners.
+- [x] Move all application-specific slot contracts to their capability owners.
+  Native and compatibility registration suites pass 32 tests; discovery reads
+  the supplied bundle metadata without retaining a permanent slot catalog.
 - [ ] Remove permanent application furniture, state and observers from the host.
 - [x] Enforce the final host and plugin boundaries across indirect imports too.
 
@@ -185,7 +211,8 @@ above is not a claim that its complete absence/lifecycle requirement is proved.
 - [x] Validate appearance storage updates with layout or renderer absent.
 - [ ] Prove outlines with Markdown disabled, and Markdown with outlines disabled,
   in both browser and headless profiles.
-- [ ] Maintain an alternate-layout fixture using unchanged content plugins.
+- [x] Maintain an alternate-layout fixture using unchanged content plugins;
+  all 17 browser steps pass.
 - [x] Maintain a tiny non-notebook capability with a shell and headless, using
   the same host without Olai domain services.
 - [ ] Prove surviving drafts, navigation and component state across unrelated

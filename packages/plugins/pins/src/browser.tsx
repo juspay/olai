@@ -6,10 +6,11 @@ import { runAsync } from "@olai/web/client/run.ts"
 import { olai } from "@olai/web/client/wire.ts"
 import { Effect } from "effect"
 import { regions } from "olai-plugin-sidebar/contract"
+import { navigation } from "olai-plugin-navigation/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { createRoot } from "solid-js"
 import { holdPins } from "./browser/answered.tsx"
-import { holdPinUndo } from "./browser/history.ts"
+import { holdPinUndo, usePinUndo } from "./browser/history.ts"
 import { paletteIntegration } from "./browser/Palette.tsx"
 import { scopePinSaid } from "./browser/pinning.ts"
 import { pinsState } from "./contract.ts"
@@ -22,6 +23,8 @@ export default definePlugin({name:"pins", needs:[Offers], apply:Effect.gen(funct
  })),stop=>Effect.sync(stop))
  yield* (yield* Offers).own("state",()=>({}))
 })})
-export const components={palette:paletteIntegration,sidebar:definePlugin({name:"sidebar", needs:[rendererSlots,pinsState], apply:Effect.gen(function*(){
- yield* (yield* rendererSlots).contribute(regions, {at:"shelf" as const, Body: Shelf})
+export const components={palette:paletteIntegration,sidebar:definePlugin({name:"sidebar", needs:[rendererSlots,pinsState,navigation], apply:Effect.gen(function*(){
+ const nav = yield* navigation
+ const undo = usePinUndo()
+ yield* (yield* rendererSlots).contribute(regions, {at:"shelf" as const, Body: () => <Shelf record={nav.focused()?.history?.record ?? undo.record} />})
 })})}

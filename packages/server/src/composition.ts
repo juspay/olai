@@ -34,6 +34,7 @@ export function composeCapabilities<const S extends SurfaceSpec>(
   let group = runtime.group
   let handlers = runtime.handlers
   let faces: Readonly<Record<string, FaceExposure>> = {}
+  let dispatch: Readonly<Record<string, Dispatch>> = {}
 
   const rebuild = () => {
     const renamed = new Map<string, string>()
@@ -88,6 +89,7 @@ export function composeCapabilities<const S extends SurfaceSpec>(
       }
     }
     // Publish one coherent generation after every descriptor and handler agrees.
+    dispatch = Object.fromEntries([...routes].map(([tag, branches]) => [tag, { field: branches[0]!.dispatch.field, cases: branches.flatMap(branch => branch.dispatch.cases) }]))
     group = RpcGroup.make(...rpcs.values())
     handlers = next
     faces = Object.fromEntries([...grants].map(([key, tags]) => [key, { universe, tags }]))
@@ -97,6 +99,7 @@ export function composeCapabilities<const S extends SurfaceSpec>(
     get group() { return group },
     get handlers() { return handlers },
     get faces() { return faces },
+    get dispatch() { return dispatch },
     get roster() { return runtime.roster },
     get writes() { return [...new Set([...mounts].flatMap(([name, one]) =>
       one.writes.map(tag => one.root ? tag : `surface/${name}/${tag.slice("surface/".length)}`)))] },

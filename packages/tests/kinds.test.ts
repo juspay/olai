@@ -132,7 +132,7 @@ const TABLES: ReadonlyArray<{ file: string; over: "FileKind" | "BodyKind" }> = [
   // has always been (the paragraph above says so).
   { file: "packages/web/src/client/file/kinds.ts", over: "FileKind" },
   // What the body of one is drawn as, and whether its page can write it.
-  { file: "packages/web/src/client/document/faces.tsx", over: "BodyKind" },
+  { file: "packages/plugins/markdown/src/browser/document/faces.tsx", over: "BodyKind" },
 ];
 
 /** Whether `code` has a table entry for `kind` — the shape every one of these

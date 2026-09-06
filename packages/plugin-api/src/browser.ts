@@ -31,16 +31,13 @@ import { Effect, Scope, type Stream } from "effect"
 import { BrowserMount } from "./mount.ts"
 import { ownService, type OwnServices } from "./owned.ts"
 import { kindWordOf, type NotHere } from "./contract.ts"
-import { SLOTS, type SlotKey } from "./slots.ts"
+import { slotReference, type SlotDefinitions, type SlotKey } from "./slots.ts"
 import type {
   AppClocks,
   AppPopover,
   FileLink,
   JSX,
   PillLook,
-  PropBlock,
-  PropChip,
-  PropPane,
 } from "./plugin.ts"
 
 /** WHAT A BROWSER HALF IS WRITTEN WITH, re-exported so it opens ONE door —
@@ -53,7 +50,7 @@ export * from "./runtime.ts"
  *  the slots too — `plugins.inspect` answers what an agent-written face may
  *  register into — and a serve may not open this door at all. That module's
  *  header carries the argument. */
-export { SLOTS, type SlotKey } from "./slots.ts"
+export type { SlotKey } from "./slots.ts"
 
 /** Browser providers publish only their own namespace. Core browser services
  * remain host-owned. This tag resolves independently of server Offers. */
@@ -61,13 +58,13 @@ export interface Offers extends OwnServices {}
 export const Offers = serviceTag<Offers>("offers")
 
 /** One of the seventeen. */
-export type SlotName = keyof typeof SLOTS
+export type SlotName = keyof SlotDefinitions & string
 
 /** The rows of {@link SLOTS} one key rule holds — the four names below are this
  *  applied four times, and they are four names rather than one generic because
  *  the register doors and the reads are written against them by name. */
 type SlotsKeyedBy<K extends SlotKey> = {
-  [S in SlotName]: (typeof SLOTS)[S]["keyedBy"] extends K ? S : never
+  [S in SlotName]: SlotDefinitions[S] extends {readonly keyedBy: K} ? S : never
 }[SlotName]
 
 /** ...the four a PLUGIN keys, one face each. */
@@ -117,96 +114,42 @@ export type SingleSlot = SlotsKeyedBy<"app">
  * the chord, the sidebar's region and its height budget — and what core cannot
  * write is the words and what the press does.
  */
-export interface SlotFaces {
-  "outline.row.chip": PropChip
-  "outline.row.pane": PropPane
-  "outline.row.block": PropBlock
-  "outline.row.door": (props: { readonly node: string }) => JSX.Element
-  "outline.row.action": RowActions
-  "app.route": AppPage
-  "sidebar.entry": SidebarEntry
-  "sidebar.section": SidebarSection
-  "app.panel": () => JSX.Element
-  "app.header": BarSeat
-  "app.banner": () => JSX.Element
-  "app.viewer": () => JSX.Element
-  "app.keys": AppChord
-  "app.command": AppCommand
-  "app.palette": AppPalette
-  "app.mount": (props: { readonly children: JSX.Element }) => JSX.Element
-  "delivery.mark": () => JSX.Element
-  "engine.install": NotHere
-}
+export type SlotFaces = { [S in SlotName]: SlotDefinitions[S] extends {readonly face: infer F} ? F : never }
 
 /** The transport-shaped part of a standing page reading. Kept structural so
  * the plugin API does not import either Solid or the vault's format. */
-export interface AppPageAnswer {
-  (): unknown | undefined
-  readonly changed?: (handler: () => void) => () => void
-}
 
-export interface AppPageStream {
-  readonly use: (input: () => unknown | null) => AppPageAnswer
-}
+
+
 
 /** One declarative claim on the app's URL namespace. Exact words and prefixes
  * are enough for the address grammars plugins can own, and unlike an arbitrary
  * parser they can be checked against every other mounted claim. */
-export type AppRouteClaim =
-  | { readonly kind: "exact"; readonly path: `/${string}` }
-  | { readonly kind: "prefix"; readonly path: `/${string}` }
+
 
 /** One plugin-owned URL grammar and standing reading. The heterogeneous value
  * positions are deliberately erased at this floor; `@olai/web`'s
  * `defineAppRoute` is the typed adapter that may construct one. */
-export interface AppRoute {
-  readonly claims: ReadonlyArray<AppRouteClaim>
-  readonly parse: (pathname: string) => unknown | null
-  readonly href: (page: unknown) => string
-  readonly breadcrumb: (page: unknown) => string
-  readonly narrowable: boolean
-  readonly request: (page: unknown, today: string) => unknown
-  readonly stream: AppPageStream
-}
+
 
 /** The complete page registration: one route source and the drawing of its
  * answer, acquired and released in the same plugin scope. */
-export interface AppPage {
-  readonly route: AppRoute
-  readonly face: (props: {
-    readonly page: unknown
-    readonly drawn: unknown
-    readonly today: string
-  }) => JSX.Element
-}
+
 
 /** A plugin's one seat in the app's bar, and which of the two the shell should
  * put it in. `cluster` is the standing row of pills — desktop only, after the
  * connection state; `lead` is the seat ahead of them that may shrink to nothing
  * and that a phone still draws. The shell decides what either costs when the
  * width runs out; a plugin cannot spell an ordering of its own. */
-export interface BarSeat {
-  readonly place: "lead" | "cluster"
-  readonly body: () => JSX.Element
-}
+
 
 /** A plugin-owned directory entry. The shell decides where the two supported
  * placements sit; the optional rail face travels with the same entry. */
-export interface SidebarEntry {
-  readonly place: "top" | "bottom"
-  readonly body: () => JSX.Element
-  readonly rail?: () => JSX.Element
-}
+
 
 /** An ordinary palette navigation row. A URL is the shared navigation currency;
  * the shell resolves it against the same exclusive claims as the address bar. */
-export interface AppPalette {
-  readonly id: string
-  readonly label: string
-  readonly hint?: string
-  readonly search: string
-  readonly href: `/${string}`
-}
+
 
 /**
  * A PLUGIN'S VERBS ON A ROW'S ••• MENU — `outline.row.action`.
@@ -273,32 +216,10 @@ export interface AppPalette {
  * The plugin owns its wording; core supplies the alarm presentation. Successful
  * actions return nothing and let their visible effect speak for itself.
  */
-export type RowActions = (node: string) => ReadonlyArray<RowAction>
+
 
 /** One of them. */
-export interface RowAction {
-  /** This plugin's own word for the verb — a testid and a list key, never an
-   *  address. Two plugins may spell it the same: what a reader keys the list by
-   *  is this beside the plugin's own name, which {@link Hung} carries and this
-   *  row deliberately does not repeat. */
-  readonly id: string
-  /** The words on the row. */
-  readonly label: string
-  /**
-   * Does it change the DIRECTORY? A verb that arms a composer, opens a panel or
-   * moves this tab says `false` and sits with core's reads; one that writes a
-   * property, a record or a file says `true` and sits with core's writes, under
-   * the same rule.
-   *
-   * REQUIRED, with no default, because both answers are ordinary and the wrong
-   * one is silent: a default of `false` would put a destructive verb among the
-   * reads and a default of `true` would put a harmless one under Trash, and
-   * neither would say anything at the moment it was written.
-   */
-  readonly writes: boolean
-  /** Act on the node shown; return a sentence when the action is refused. */
-  readonly run: (node: string) => string | void | Promise<string | void>
-}
+
 
 /**
  * A SECTION IN THE SIDEBAR — `sidebar.section`.
@@ -313,12 +234,7 @@ export interface RowAction {
  * a toggle) cannot have one yet. The day one does, the heading grows a face
  * beside `said` and the argument above is what that change has to answer.
  */
-export interface SidebarSection {
-  /** The heading, in the plugin's words. */
-  readonly said: string
-  /** ...and what sits under it. */
-  readonly body: () => JSX.Element
-}
+
 
 /**
  * A KEYBOARD CHORD — `app.keys`.
@@ -332,20 +248,7 @@ export interface SidebarSection {
  * them (`⌘J / Ctrl+J`) out of `key` and `shift` — core keeps the shape, the
  * plugin brings the words, one more time.
  */
-export interface AppChord {
-  /** The letter, lowercase — `j`. */
-  readonly key: string
-  /** ...with Shift, for a chord whose bare form the browser has taken. */
-  readonly shift?: boolean
-  /** Whether it may fire while the caret is in a text field. A chord that means
-   *  something about the PAGE rather than about the caret says `true`; one that
-   *  claims a letter a draft means says `false`. */
-  readonly whileEditing: boolean
-  /** What it does, for the shortcut list — "show or hide the agent". */
-  readonly said: string
-  /** ...and what a press does. */
-  readonly press: () => void
-}
+
 
 /**
  * A VERB BEHIND A PALETTE PREFIX — `app.command`.
@@ -359,17 +262,7 @@ export interface AppChord {
  * just typed in it, so a send that was turned down has to be able to say so
  * there rather than only in a panel that may be shut.
  */
-export interface AppCommand {
-  /** The character that selects it — `>`. */
-  readonly prefix: string
-  /** The words for the prefix strip. */
-  readonly said: string
-  /** ...and the placeholder in the box once the prefix is typed. */
-  readonly placeholder: string
-  /** What a press does with the line. `null` is "it landed"; a string is the
-   *  refusal, in the plugin’s own words, drawn where the palette draws one. */
-  readonly run: (line: string) => Promise<string | null>
-}
+
 
 /** One face, with the plugin that hung it — what a walk over a plugin-keyed slot
  *  or a LIST slot reads. The name is on the row because the app has occasion to
@@ -731,9 +624,7 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
 /** Typed compatibility contracts for existing notebook extensions. These are
  * locations in the renderer's sole registry, never independent tables. The
  * owning UI entry must declare them before registered faces become active. */
-export const slotLocation = <S extends SlotName>(slot: S): Location<Hung<SlotFaces[S]>> =>
-  location(slot, SLOTS[slot].keyedBy === "app" ? "one" : "many",
-    SLOTS[slot].keyedBy === "plugin" ? "owner" : SLOTS[slot].keyedBy === "kind" ? "key" : undefined)
+export const slotLocation = <S extends SlotName>(slot: S) => slotReference<SlotFaces[S]>(slot)
 
 /** Adapter only: key rules and face types are notebook API policy. Reservation,
  * activation, cleanup, identity, and diagnostics all belong to Locations. */
@@ -746,12 +637,11 @@ export const slotFacade = (store: Locations, reading?: () => void): {
   management: { inspect: store.inspect, settled: store.settled, retry: store.retry },
   forOwner: (plugin) => ({
     register: ((slot: SlotName, second: unknown, third?: unknown, fourth?: SlotOptions) => {
-      const rule = SLOTS[slot].keyedBy
-      const key = rule === "kind" ? kindWordOf(plugin, second as string)
-        : rule === "plugin" ? plugin : undefined
+      const keyed = typeof second === "string"
+      const key = keyed ? kindWordOf(plugin, second) : undefined
       return store.forOwner(plugin).contribute(slotLocation(slot), {
-        plugin, face: (rule === "kind" ? third : second) as SlotFaces[SlotName],
-      }, { ...(rule === "kind" ? fourth : third as SlotOptions | undefined), key })
+        plugin, face: (keyed ? third : second) as SlotFaces[SlotName],
+      }, { ...(keyed ? fourth : third as SlotOptions | undefined), key })
     }) as Slots["register"],
   }),
   faces: {

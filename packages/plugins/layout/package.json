@@ -14,7 +14,8 @@
     "./chip": "./src/layout/chip.ts",
     "./entry": "./src/layout/entry.ts",
     "./sheet": "./src/layout/sheet.ts",
-    "./geometry": "./src/pane/geometry.ts"
+    "./geometry": "./src/pane/geometry.ts",
+    "./slots": "./src/slots.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -37,7 +38,8 @@
       "./chip",
       "./entry",
       "./sheet",
-      "./geometry"
+      "./geometry",
+      "./slots"
     ]
   }
 }

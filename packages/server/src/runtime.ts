@@ -17,7 +17,7 @@ import { hostSurface, hostFaces } from "@olai/surface/host"
 import { composeCapabilities } from "./composition.ts"
 import { authorityAt } from "@olai/plugin-api/authority"
 import { CurrentWho } from "./who.ts"
-export type Bound = Omit<SurfaceRuntime<typeof hostSurface.spec>, "ctx"> & { readonly writes: ReadonlyArray<string> }
+export type Bound = Omit<SurfaceRuntime<typeof hostSurface.spec>, "ctx"> & { readonly writes: ReadonlyArray<string>; readonly dispatch?: Readonly<Record<string, { readonly field: string; readonly cases: ReadonlyArray<string> }>> }
 export interface PluginRuntime {
   readonly plugins: Plugins
   readonly onChange: { run: () => void }
@@ -253,6 +253,7 @@ app: {
     return {
       bound: {
         get writes() { return runtime.writes },
+        get dispatch() { return runtime.dispatch },
         get group() {
           return runtime.group
         },

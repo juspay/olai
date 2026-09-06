@@ -32,3 +32,5 @@ export const paletteAdapters = location<PaletteAdapter>("navigation.palette-adap
 
 export type {PaletteItem, PalettePrefix} from "./palette/items.ts"
 export const fileLinks=serviceTag<import("./opens.tsx").Opens>("navigation.file-links")
+
+export { slotContracts as slots } from "./slots.ts"

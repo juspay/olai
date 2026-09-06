@@ -1,3 +1,7 @@
+import { createRoot } from "solid-js"
+import type {} from "olai-plugin-chat/slots"
+import type {} from "olai-plugin-layout/slots"
+import type {} from "olai-plugin-outlines/slots"
 /**
  * ODU'S BROWSER HALF — a plugin, exactly the shape its server half is.
  *
@@ -45,7 +49,7 @@ import type { CiRuns } from "olai-plugin-odu/appliance/wire"
 import { CiChip } from "./browser/CiChip.tsx"
 import { ClocksProvider } from "./browser/clocks.tsx"
 import { OduMark } from "./browser/Mark.tsx"
-import { RunsProvider } from "./browser/runs.tsx"
+import { RunsProvider, createRuns } from "./browser/runs.tsx"
 import { RunMatrix } from "./browser/RunMatrix.tsx"
 import { WORKTREE_KIND } from "./kinds.ts"
 
@@ -94,6 +98,7 @@ export default definePlugin({
     const clocks = yield* Clocks
     const slots = yield* Slots
     const wired = yield* Wired
+    const owned = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({dispose, runs:createRuns((wired.client() as CiClient).cells.ci.use().value)}))), owned => Effect.sync(owned.dispose))
 
     // THE CHIP AND WHAT ITS PRESS OPENS — this plugin's one dressing.
     //
@@ -110,28 +115,13 @@ export default definePlugin({
     // cannot be two spellings. It is the same constant the probe walk follows and
     // the value gate holds a declaration to — one spelling, one authority, and
     // the chip and the dial cannot come apart.
-    yield* slots.register("outline.row.chip", WORKTREE_KIND, CiChip)
-    yield* slots.register("outline.row.pane", WORKTREE_KIND, RunMatrix)
+    yield* slots.register("outline.row.chip", WORKTREE_KIND, props => <ClocksProvider clocks={clocks}><RunsProvider value={owned.runs}><CiChip {...props} /></RunsProvider></ClocksProvider>)
+    yield* slots.register("outline.row.pane", WORKTREE_KIND, props => <ClocksProvider clocks={clocks}><RunsProvider value={owned.runs}><RunMatrix {...props} /></RunsProvider></ClocksProvider>)
     // ODU'S FACE IN A TRANSCRIPT — the mark over a sentence the doorbell
     // delivered into somebody's conversation. It is contributed from the tenant
     // that owns it because core may know this plugin's NAME as data and nothing
     // else; the panel looks it up by the word it already stamped on the row.
     yield* slots.register("delivery.mark", OduMark)
-    // THE TAB'S CI HALF — one subscription however many chips draw. An outline
-    // can carry a `worktree` on a dozen rows and every one of them wants to know
-    // whether its checkout is mid-run, so the subscription is here, once per tab,
-    // and a chip reads a context instead.
-    yield* slots.register("app.mount", (props) => (
-      // INSIDE the component and not at apply time: `use()` opens a subscription
-      // and wants an owner, and the owner is the one this component is created
-      // under. The one narrowing is here too, at the one edge — a cast rather
-      // than a guard because there is nothing to check: the value came from the
-      // framework's own client bundle under this plugin's key.
-      <ClocksProvider clocks={clocks}>
-        <RunsProvider runs={(wired.client() as CiClient).cells.ci.use().value}>
-          {props.children}
-        </RunsProvider>
-      </ClocksProvider>
-    ))
+
   }),
 })

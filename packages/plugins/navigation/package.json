@@ -16,7 +16,8 @@
     "./opens": "./src/opens.tsx",
     "./palette-model": "./src/palette/items.ts",
     "./palette-asking": "./src/palette/asking.ts",
-    "./palette-open": "./src/palette/open.ts"
+    "./palette-open": "./src/palette/open.ts",
+    "./slots": "./src/slots.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -45,7 +46,8 @@
       "./opens",
       "./palette-model",
       "./palette-asking",
-      "./palette-open"
+      "./palette-open",
+      "./slots"
     ]
   }
 }

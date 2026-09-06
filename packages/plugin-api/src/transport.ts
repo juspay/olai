@@ -10,6 +10,8 @@ import type { SurfaceAppConnection, SurfaceAppEvent } from "@kolu/surface-app/se
 
 export type Routes = Layer.Layer<never, never, HttpRouter.HttpRouter | FileSystem.FileSystem | Path.Path | HttpPlatform.HttpPlatform | HttpRouter.Request<"Error", unknown>>
 export interface ListenerContribution {
+  /** Supplemental routes use an existing transport; they never open a port. */
+  readonly passive?: boolean
   readonly routes?: Routes
   readonly upgrade?: {
     readonly path: string
@@ -32,7 +34,7 @@ export interface TransportSurface {
   readonly hostname: string
   readonly token: string
   /** The composed agent generation; credential providers own attribution. */
-  readonly agent: () => ServedGeneration & { readonly expose: NonNullable<ServedGeneration["expose"]>; readonly writes: readonly string[] }
+  readonly agent: () => ServedGeneration & { readonly expose: NonNullable<ServedGeneration["expose"]>; readonly writes: readonly string[]; readonly dispatch?: Readonly<Record<string, { readonly field: string; readonly cases: ReadonlyArray<string> }>> }
   /** Static owner declarations remain reserved while an owner is disabled. */
   readonly writeReservations: readonly { readonly key: string; readonly says: string }[]
 }

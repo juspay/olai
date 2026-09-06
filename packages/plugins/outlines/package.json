@@ -18,7 +18,8 @@
     "./filter-values": "./src/contracts/filter-values.ts",
     "./property-values": "./src/contracts/property-values.ts",
     "./names": "./src/contracts/names.ts",
-    "./testlib": "./src/testlib.ts"
+    "./testlib": "./src/testlib.ts",
+    "./slots": "./src/slots.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -59,7 +60,8 @@
       "./chrome",
       "./changes",
       "./property-values",
-      "./names"
+      "./names",
+      "./slots"
     ]
   }
 }

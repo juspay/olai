@@ -1,3 +1,5 @@
+import type {} from "olai-plugin-navigation/slots"
+import type {} from "olai-plugin-sidebar/slots"
 import {Clocks} from "@olai/plugin-api"
 import {fileAccess} from "olai-plugin-vault/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"

@@ -56,10 +56,15 @@ export const createChrome = () => {
       paintTitle()
       if (shown !== undefined) paintIcon(shown)
     },
-    name: (called: string) => {
+    name: (called: string | undefined) => {
       check()
-      name = called
+      name = called ?? previousTitle
       paintTitle()
+      if (called === undefined) {
+        restore(previousApple, apple, "content", previousAppleName)
+        apple = previousApple
+        return
+      }
       apple ??= document.head.appendChild(Object.assign(document.createElement("meta"), { name: "apple-mobile-web-app-title" }))
       apple.setAttribute("content", called)
     },

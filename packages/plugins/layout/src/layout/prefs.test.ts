@@ -1,3 +1,4 @@
+import { followLayout } from "./prefs-owner.ts"
 import { expect, test } from "bun:test"
 
 import {
@@ -18,8 +19,8 @@ import {
   SIDEBAR_MIN_PX,
   SIDEBAR_WIDTH_KEY,
 } from "olai-plugin-layout/preferences"
-import { parseBool } from "../preference.ts"
-import { remembering } from "../preference.testlib.ts"
+import { parseBool } from "@olai/web/client/preference.ts"
+import { remembering } from "@olai/web/client/preference.testlib.ts"
 
 test("clamp holds a value inside its bounds", () => {
   expect(clamp(10, 0, 20)).toBe(10)
@@ -59,6 +60,10 @@ test("the width setters forward persist: false, so a pointermove writes nothing"
   // test stayed green. Storage is shimmed for the duration; bun's runner has
   // none, and `readPreference` reads that absence as null either way.
   remembering((store) => {
+    const oldWindow = Object.getOwnPropertyDescriptor(globalThis, "window")
+    Object.defineProperty(globalThis, "window", { configurable: true, value: { innerWidth: 1400, addEventListener() {}, removeEventListener() {} } })
+    const stop = followLayout()
+    try {
     setSidebarWidth(300, { persist: false })
     setPanelWidth(300, { persist: false })
     expect(store.size).toBe(0)
@@ -66,6 +71,11 @@ test("the width setters forward persist: false, so a pointermove writes nothing"
     setPanelWidth(302)
     expect(store.get(SIDEBAR_WIDTH_KEY)).toBe("301")
     expect(store.get(PANEL_WIDTH_KEY)).toBe("302")
+    } finally {
+      stop()
+      if (oldWindow) Object.defineProperty(globalThis, "window", oldWindow)
+      else Reflect.deleteProperty(globalThis, "window")
+    }
   })
 })
 

@@ -1,3 +1,4 @@
+import type {} from "olai-plugin-layout/slots"
 /**
  * WHAT THE PLUGINS HANG IN THE APP'S BAR — every readout in the `app.header`
  * slot, in mount order, and the app knows none of them by name.

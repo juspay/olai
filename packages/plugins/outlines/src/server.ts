@@ -65,3 +65,5 @@ export default definePlugin({
 })
 
 export { dispatch } from "./surface.ts"
+
+export { slotContracts as slots } from "./slots.ts"

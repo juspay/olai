@@ -6,7 +6,7 @@ How to serve a directory and configure the server. The git story is [git.md](git
 
 `--profile web` (the default) selects the bundle’s integrations and three transport plugins: `ws` for the browser socket, `mcp` for `/mcp`, and `web-app` for the browser build. They live under `packages/plugins/` and appear in the plugins panel alongside integrations. Every mountable row is declared in `packages/bundle/olai.yml`; profiles only patch its `disabled` fields. `--plugins` selects the exact set of bundle plugins, including the vault and transports. To get a tab, an exact set must include `ws` and `web-app`; include `vault` to serve files and `mcp` for agent tools. For example, `--plugins=vault,ws,web-app,mcp,ui-renderer,layout,navigation,outlines,markdown,files,pins,capture,trash,sidebar,preferences,theme,plugin-inspector` serves the outliner and MCP without chat. `--plugins=` mounts nothing and opens no listener.
 
-For an MCP-only server, run `olai web path/to/outlines --profile surface`. It opens the same vault and write gate, serves only `/mcp`, and needs no browser build. Its defaults select `vault`, `mcp`, the independent content/file providers (`outlines`, `markdown`, `files`, `pins`, `capture`, `trash`), and `vault-plugins`; an explicit `--plugins` list replaces that entire selection. `olai surface <verb>` remains the terminal client of a running server.
+For an MCP-only server, run `olai web path/to/outlines --profile surface`. It opens the same vault and write gate, serves `/mcp` without browser assets or a websocket, and needs no browser build. Its defaults select `vault`, `mcp`, the independent content/file providers (`outlines`, `markdown`, `files`, `pins`, `capture`, `trash`), and `vault-plugins`; an explicit `--plugins` list replaces that entire selection. `olai surface <verb>` remains the terminal client of a running server.
 
 `--profile test-minimal` selects only the vault plugin, with no transports and logs `no transport rows enabled`. Its only running row is `vault`, which holds the ordinary directory lock until stopped. The `vault` row owns the directory lock, store watcher, write gate and revision publisher; kinds remain a host registry.
 
@@ -291,7 +291,7 @@ olai web ~/outlines --plugins=vault,chat,codex,opencode,pi,ws,web-app,mcp,ui-ren
 olai web ~/outlines --plugins=                          # none
 ```
 
-**Reach for `--extra-plugins` or `--without-plugins` when the default is almost right.** `--plugins` is the exact set: `--plugins=chat,claude` also turns off search, identity, the journal and git, which nobody typing it meant. `--extra-plugins=xyne-spaces` turns on the one row `olai.yml` ships off, and nothing else moves. `--without-plugins=journal` turns off the one row the default ships on. The two compose with the default and with each other; naming a row in both is refused; naming `--plugins` beside either is refused too, since the exact set already says everything. The plugins panel names the flag that decided each row.
+**Reach for `--extra-plugins` or `--without-plugins` when the default is almost right.** `--plugins` is the exact set: `--plugins=chat,claude` also turns off search, identity, the journal and git, which nobody typing it meant. `--extra-plugins=xyne-spaces` turns on an integration `olai.yml` ships off, and nothing else moves. `--without-plugins=journal` turns off the one row the default ships on. The two compose with the default and with each other; naming a row in both is refused; naming `--plugins` beside either is refused too, since the exact set already says everything. The plugins panel names the flag that decided each row.
 
 **Naming no engine leaves the panel with no agent**, and that is the flag doing exactly what it says rather than a trap: an engine is a row like any other, so a serve that composed none has nothing to talk to. The panel still DRAWS — it says this serve has no agent engine, and that every one of them is a plugin that is on by default — because a capability that is silently absent cannot be told apart from one that is broken.
 
@@ -315,7 +315,7 @@ you set by hand on the command line is a policy you set once and forget:
 
 Include `vault` in an explicit list to serve files. `--plugins=` opens no listener. Use `--plugins=ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector` for a control plane without a directory or write gate; its panel can enable the vault later.
 
-**Omitting `--plugins` is not the same as writing an empty one.** No flag means the built-in default (every row but `xyne-spaces`, which is opt-in and must be named — `--extra-plugins=xyne-spaces` is the flag that does that without listing everything else); `--plugins=` with nothing after it means none, with no panel or listener. The nix options keep the same answers apart: omitted is `null`, none is `[ ]`. A name the build does not have is refused at startup, naming the words it does have — a typo is never a silently disabled integration.
+**Omitting `--plugins` is not the same as writing an empty one.** No flag means the built-in default (every production row but `xyne-spaces`, which is opt-in; the maintained `test-layout` and `test-counter` fixtures are also disabled until explicitly named — `--extra-plugins=xyne-spaces` adds Spaces without listing everything else); `--plugins=` with nothing after it means none, with no panel or listener. The nix options keep the same answers apart: omitted is `null`, none is `[ ]`. A name the build does not have is refused at startup, naming the words it does have — a typo is never a silently disabled integration.
 
 ### The switch, and how long it lasts
 
@@ -515,8 +515,8 @@ The plugins panel shows `format: olai`. The row’s `Config` schema validates th
 
 ### Browser shell selection
 
-The web defaults include `ui-renderer`, `layout`, `sidebar`, `preferences`, and `theme`. Exact `--plugins`
-lists need the first two to draw an application, and `sidebar` for its directory
+The web defaults include `ui-renderer`, `navigation`, `layout`, `sidebar`, `preferences`, and `theme`. Exact `--plugins`
+lists need the first three to draw the normal shell and a content provider such as `outlines` or `markdown` to render files, and `sidebar` for its directory
 column and rail. `preferences` supplies the settings UI and `theme` its
 appearance provider; `--plugins=` remains empty.
 The headless surface and test-minimal defaults select none of these. A browser-only

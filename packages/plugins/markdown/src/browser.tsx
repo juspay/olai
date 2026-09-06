@@ -1,3 +1,4 @@
+import { fileKind } from "@olai/format"
 import {Clocks} from "@olai/plugin-api"
 /** Markdown owns body subscriptions, document drafts and edit history. Its
  * provider is independent of outlines and of presentation; content and file
@@ -15,7 +16,8 @@ import { clearDocumentDrafts } from "./browser/document/drafts.ts"
 import { holdHistory, useHistory } from "./browser/history.ts"
 import { EmbeddedDocument } from "./browser/EmbeddedDocument.tsx"
 import { openCreated, clearMinted } from "./browser/document/minted.ts"
-import { MarkdownPageView, documentFile } from "./browser/PageView.tsx"
+import { MarkdownPageView } from "./browser/PageView.tsx"
+import { documentFile } from "./browser/document-route.ts"
 import { NewDocument } from "./browser/document/NewDocument.tsx"
 import { documentReferences, propertyRoutes } from "olai-plugin-outlines/contract"
 import { atFile } from "olai-plugin-navigation/routes"
@@ -44,7 +46,7 @@ export const components = {
   references: definePlugin({ name: "references", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots
     yield* slots.contribute(documentReferences, DocRef)
-    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && !meaning.file.endsWith(".olai") ? atFile(meaning.file) : undefined)
+    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && fileKind(meaning.file) !== "outline" ? atFile(meaning.file) : undefined)
   }) }),
   content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks, fileLinks], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots

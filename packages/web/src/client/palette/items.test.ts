@@ -1,7 +1,8 @@
+import type { AppCommand } from "olai-plugin-navigation/slots"
 import { expect, test } from "bun:test"
 
 import { DocumentPath, NodeId } from "@olai/format"
-import type { AppCommand, Hung } from "@olai/plugin-api"
+import type { Hung } from "@olai/plugin-api"
 import type { NodeHit } from "@olai/surface"
 
 import { atFile, atNode } from "olai-plugin-navigation/routes"

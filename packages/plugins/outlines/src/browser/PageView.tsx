@@ -296,7 +296,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
         >
           {(open) => (
             <Switch>
-              <Match when={props.render}>{render => render()({page: open(), drawn: narrowing.drawn(), held: allDrawn(), today: today()})}</Match>
+              <Match when={props.render}>{render => render()({get page() { return open() }, get drawn() { return narrowing.drawn() }, get held() { return allDrawn() }, get today() { return today() }})}</Match>
               <Match when={props.source}>
                 {(source) => {
                   const Face = source().face

@@ -5,14 +5,14 @@ Feature: Who is looking is a plugin
   is reading them, so every request is nobody. That is "no provider mounted",
   not a chip that says anonymous.
 
-  @plugins:vault,chat,claude,git
+  @plugins:vault,chat,claude,git,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that did not name identity draws no chip at all
     Given I am the Tailscale user "ada@example.com"
     When I open the app
     Then the header has no identity chip
     And there should be no page errors
 
-  @plugins:vault,chat,claude,git
+  @plugins:vault,chat,claude,git,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: Switching the row on names its headers without a restart
     # THE OTHER DIRECTION, on a serve that came up WITHOUT the row — which is
     # the half that needed a restart until the allowlist could follow the live

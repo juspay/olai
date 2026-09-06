@@ -28,3 +28,8 @@ name/waiting behaviors; other plugins never import its implementation. A
 separate naming integration consumes layout's deployment reading. Chat's
 separate attention integration consumes appearance and chat-owned alert state,
 so losing theme withdraws the tab mark without disabling chat or its alerts.
+
+Deployment naming follows its own scoped source. Withdrawing the layout's name
+source restores the inherited document and Apple title without stopping theme
+state or the chat unread marker. A returning source starts a fresh naming
+subscription and updates those titles again.

@@ -39,6 +39,7 @@
  */
 
 import { Key } from "@solid-primitives/keyed"
+import type { Undo } from "@olai/edit-history/undoing.ts"
 import { createEffect,createMemo,createSelector,createSignal,Show } from "solid-js"
 
 import { createDrags,TRAVEL_PX } from "@olai/web/client/pointer.ts"
@@ -48,7 +49,6 @@ import { REGION,REGION_LABEL } from "olai-plugin-layout/entry"
 import { hrefOf } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { usePins } from "./answered.tsx"
-import { usePinUndo as useUndo } from "./history.ts"
 import { askName } from "./naming.ts"
 import { Pin } from "./Pin.tsx"
 import { sayPin } from "./pinning.ts"
@@ -91,10 +91,9 @@ interface Carrying {
   readonly gap: number
 }
 
-export function Shelf() {
+export function Shelf(props: { readonly record: Undo["record"] }) {
   const shelf = usePins()
   const router = useRouter()
-  const undo = useUndo()
   const drags = createDrags()
 
   // A MEMO over the answer, so the titles are read when the SHELF moves rather
@@ -196,7 +195,7 @@ export function Shelf() {
         if (ended === null || held === undefined || held.order !== order()) return
         const edit = placing(pins(), held.from, held.gap)
         if (edit === undefined) return
-        void applying(edit, undo.record).then(sayPin)
+        void applying(edit, props.record).then(sayPin)
       },
     })
   }
@@ -206,7 +205,7 @@ export function Shelf() {
     // Trash keeping its id, so an unpin is undoable with ⌘Z and reversible from
     // the Trash's own `Put back`. A second verb that erased it would be a
     // removal only this face knew (`@olai/surface`'s `edit.ts`).
-    void applying({ verb: "trash", id: pin.id }, undo.record).then(sayPin)
+    void applying({ verb: "trash", id: pin.id }, props.record).then(sayPin)
   }
 
   // `createSelector` rather than comparing in each row, which is the sidebar's

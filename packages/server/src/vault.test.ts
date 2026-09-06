@@ -2,23 +2,24 @@ import { runtimePaths } from "./runtime-paths.ts"
 import { expect, test } from "bun:test"
 import { configsOf, mountBundle, offered, provide, reportBundle, setRow, settled } from "@olai/bundle/bundle"
 import { definePlugin, Directory, Ops as OpsDoor, openPlugins, Vault, mountPlugin, rowReport } from "@olai/plugin-api/services"
-import { NO_KINDS } from "@olai/format"
-import { NO_DIRECTORY, NO_LEDGER, NO_SEARCH, liveOps, type Ledger, type Ops, type Store } from "@olai/ops"
+import { NO_DIRECTORY, NO_LEDGER, liveOps, type Ledger, type Ops, type Store } from "@olai/ops"
 import { Deferred, Effect, Fiber, Result, Stream } from "effect"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { VaultSettings } from "@olai/plugin-api/services"
+import { Ledger as LedgerDoor } from "@olai/plugin-api/services"
+import { VaultBoot } from "olai-plugin-vault/boot"
 
 const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
   Effect.andThen(setRow(host, id, on), settled(host, ["vault", "observer"]))
 
 const opening = (root: string, options: { readonly format?: string; readonly ledger?: Ledger } = {}) => Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "" })
+  yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
+  if (options.ledger) yield* provide(plugins.host, LedgerDoor, () => options.ledger as unknown as LedgerDoor)
   yield* mountBundle(plugins.host, { kind: "exact", names: ["vault"] }, options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }], "test-minimal")
   const store = () => (offered(plugins.host, Directory)?.store as Store | undefined)
   const ops = liveOps(() => offered(plugins.host, OpsDoor)?.gate as Ops | undefined)
-  yield* provide(plugins.host, VaultSettings, () => ({ root, runtime: runtimePaths, kinds: NO_KINDS, ledger: options.ledger ?? NO_LEDGER, search: NO_SEARCH }))
   yield* settled(plugins.host, ["vault"])
   return { plugins, store, ops }
 })
@@ -29,7 +30,7 @@ const rootWithNote = () => {
   return root
 }
 
-test("minimal profile has one active row; its offers and listeners leave and return", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+test("headless vault reports its missing HTTP component while file access leaves and returns", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const root = rootWithNote()
   const { plugins, store, ops } = yield* opening(root)
   const firstGate = offered(plugins.host, OpsDoor)?.gate as Ops
@@ -37,7 +38,8 @@ test("minimal profile has one active row; its offers and listeners leave and ret
   expect(first).toBeDefined()
   expect(configsOf(plugins.host).get("vault")).toEqual({ format: "olai" })
   const report = yield* reportBundle(plugins.host, ["vault", "ws", "mcp", "web-app"])
-  expect([...report].filter(([, row]) => row.state === "running").map(([name]) => name)).toEqual(["vault"])
+  expect(report.get("vault")).toEqual({ state: "waiting", missing: ["transport-surface"] })
+  for (const name of ["ws", "mcp", "web-app"]) expect(report.get(name)?.state).toBe("off")
   let revisions = 0
   let releases = 0
   yield* mountPlugin(plugins.host, definePlugin({

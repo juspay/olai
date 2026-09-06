@@ -43,3 +43,5 @@ export function holdPanelHandle(value:()=>JSX.Element):()=>void {
  panelHandle=value;return ()=>{if(panelHandle===value)panelHandle=undefined}
 }
 export function PanelHandle():JSX.Element {return panelHandle?.()}
+
+export { slotContracts as slots } from "./slots.ts"

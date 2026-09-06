@@ -1,3 +1,4 @@
+import type {} from "olai-plugin-layout/slots"
 /**
  * GIT'S BROWSER HALF — the pill, the phone banner, and the commit panel.
  *

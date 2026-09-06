@@ -6,8 +6,9 @@ import type { FaceExposure } from "@kolu/surface/expose"
 import type { Fence, Ops } from "@olai/ops"
 import { randomBytes } from "node:crypto"
 
-import { type Bound, writerAt } from "./authority.ts"
-import { clientOver, type OlaiSurfaceClient } from "@olai/surface/client"
+import { type Bound } from "./authority.ts"
+import { type OlaiSurfaceClient } from "@olai/surface/client"
+import { liveClient } from "./live-client.ts"
 
 /**
  * THE WORDS NO SESSION MAY WRITE, whatever it is seated on.
@@ -72,8 +73,8 @@ export interface Tickets {
 
 export const ticketing = (options: {
   readonly reservations: ReadonlyArray<{ readonly key: string; readonly says: string }>
-  readonly bound: Pick<Bound, "group" | "handlers" | "writes">
-  readonly face: FaceExposure
+  readonly bound: Pick<Bound, "group" | "handlers" | "writes"> | (() => Pick<Bound, "group" | "handlers" | "writes">)
+  readonly face: FaceExposure | (() => FaceExposure)
   readonly ops: Ops
   readonly currentTicket: () => string | null
   readonly token: string
@@ -81,10 +82,10 @@ export const ticketing = (options: {
   const prefix = "olai-node-"
   const tickets = new Map<string, OlaiSurfaceClient>()
 
-  const composed = (fence: Fence, writer: Writer): OlaiSurfaceClient => clientOver({
-    group: options.bound.group,
-    handlers: writerAt(options.bound, { writer, fence }),
-  }, options.face)
+  const composed = (fence: Fence, writer: Writer): OlaiSurfaceClient => liveClient(() => ({
+    ...(typeof options.bound === "function" ? options.bound() : options.bound),
+    expose: typeof options.face === "function" ? options.face() : options.face,
+  }), { writer, fence })
 
   const closed = composed({ under: null, ask: () => null, forbidden: new Map() }, "mcp")
 

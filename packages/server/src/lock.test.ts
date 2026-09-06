@@ -110,9 +110,11 @@ test("a second olai serves its panel while the vault row refuses the held direct
     await second.address()
     const response = await fetch(`${await second.address()}/mcp`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "set_title", arguments: { id: "a", title: "must not land" } } }),
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
     })
-    expect(JSON.stringify(await response.json())).toContain("serving no directory")
+    const tools = (await response.json()).result.tools.map((tool: { name: string }) => tool.name)
+    expect(tools).not.toContain("set_title")
+    expect(tools).not.toContain("read_node")
     await second.stop()
 
     // The control plane remains available, but no store was opened.
