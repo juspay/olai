@@ -206,7 +206,7 @@ Then(
   function (this: OlaiWorld) {
     const said = JSON.parse(printed(this)) as Record<string, unknown>;
     // The ops layer's own answer, untouched…
-    assert.strictEqual(said.did, "capture");
+    assert.strictEqual(said.did, "capture_add");
     assert.strictEqual(typeof said.id, "string");
     assert.strictEqual(said.file, "_olai/Inbox.olai");
     // …plus the two facts that say WHICH olai answered: the directory, stamped

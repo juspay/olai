@@ -288,7 +288,7 @@ const wrote = (out: unknown): string => {
   // "captured into" for the verb the whole door was built around, and the verb's
   // own name for every other write — rather than one sentence bent to fit them
   // all, or a table of past tenses this file would have to keep.
-  const what = said.did === "capture" ? "captured into" : `${said.did ?? "wrote"} in`
+  const what = said.did === "capture_add" ? "captured into" : `${said.did ?? "wrote"} in`
   const where = said.root ?? "the vault"
   const at = rowAt(said)
   return at === null ? `${what} ${where}` : `${what} ${where} — ${at}`
