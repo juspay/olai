@@ -62,16 +62,18 @@ const [moved, setMoved] = createSignal(0)
  * were of a page missing faces that were about to appear, and the last
  * registration put them there. It stopped being survivable the moment a plugin
  * could LEAVE a running serve, because the finalizers run LIFO — so the LAST
- * thing a plugin registers is the FIRST thing it withdraws, and chat registers
- * its `app.mount` provider last precisely because it wraps everything else.
+ * thing a plugin registers is the FIRST thing it withdraws.
  *
- * The page then drew like this: chat's `AgentsProvider` leaves the `app.mount`
- * slot, `PluginsMounted`'s keyed `Show` sees a new list and rebuilds the whole
- * page, and the rebuild re-creates chat's sidebar section — which is still in
- * the table, four finalizers from being removed — outside the provider it was
- * just deprived of. Its body threw `an agents lookup outside <AgentsProvider>`,
- * the fault boundary swallowed the app, and turning chat off replaced the
- * product with a card.
+ * THE INCIDENT IS HISTORY AND THE CLASS IS NOT, so it is written in the past
+ * tense. Chat used to register its `AgentsProvider` into the `app.mount` slot
+ * last, precisely because it wrapped everything else. The page then drew like
+ * this: that provider left the slot, `PluginsMounted`'s keyed `Show` saw a new
+ * list and rebuilt the whole page, and the rebuild re-created chat's sidebar
+ * section — still in the table, four finalizers from being removed — outside
+ * the provider it had just been deprived of. Its body threw `an agents lookup
+ * outside <AgentsProvider>`, the fault boundary swallowed the app, and turning
+ * chat off replaced the product with a card. Chat wraps each of its own faces
+ * now and registers nothing into `app.mount`; no plugin in this build does.
  *
  * ## Why the fix is here and not in the consumer
  *

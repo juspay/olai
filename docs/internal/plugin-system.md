@@ -703,13 +703,41 @@ so a fiber is never started over a wire that does not carry its sibling. A
 second roster frame arriving mid-redial is queued behind the first rather than
 starting a second redial on one connection.
 
-Olai pins the merge of [Kolu PR #2228](https://github.com/juspay/kolu/pull/2228)
-through npins on `master` at
-`4b1758afad90b15624030e0fd00e1116586b4054`, unfrozen for future updates.
-Its `redial` returns the same
-connection, retaining the root and unchanged sibling clients and reopening their
-subscriptions over the replacement wire. Removed or replaced sibling clients
-refuse further calls. Olai keeps one constant connection and renders the app once;
+Olai pins kolu through npins on `master`, unfrozen; `npins/sources.json` is the
+one place the revision is written down. What the reconnection contract rests on
+is the merge of [Kolu PR #2228](https://github.com/juspay/kolu/pull/2228), and
+`nix/kolu.nix` names it as a property of the pin rather than as a revision that
+goes stale between bumps.
+
+**WHAT A BROWSER CLIENT PROMISES ACROSS A REDIAL**, established by reading the
+pinned sources and proved by
+`packages/tests/features/filter_live_recovery.feature` and
+`content_capabilities.feature`:
+
+* **Identity holds.** `redial` returns the same connection object, and
+  `live.clients` is one object mutated in place for the life of the tab. A
+  sibling on both rosters whose loaded module is unchanged keeps its *exact*
+  client. The core client and the connection readout never move at all. So a
+  module-scope constant over the CONNECTION is safe; one over a plugin's client
+  is not, because a departing key is deleted from that object — which is what
+  the holder pattern in each plugin's `browser/wire.ts` is for.
+* **Subscriptions come back, and they are not preserved.** The supersession
+  fence fails every open subscription with a transport error, and each one
+  re-subscribes itself about a second later and takes a fresh snapshot. So a
+  surviving subscription reads `pending` for roughly that second on every
+  roster change, and `pending` does not degrade the readout — which means *no
+  member of this page has gone silent* cannot by itself prove frames are
+  arriving again. Only a test that watches a VALUE change after the toggle
+  proves it, which is what `filter_live_recovery` does.
+* **A call on a departed plugin is refused, loudly, three ways.** Before the
+  tab redials, the server raises `SurfaceSiblingDropped`; a call in flight on
+  the superseded wire is interrupted; a client a component still holds after
+  the redial fails with kolu's own worded error. All three land in
+  `packages/web/src/client/run.ts` and reach a person as a `BusyFailure`. A
+  fresh `wired.client()` for a departed plugin answers `null`. None of them
+  hangs, and none of them silently succeeds.
+
+Olai keeps one constant connection and renders the app once;
 roster changes no longer recreate its tree or roster subscription. The core
 client and connection readout are exported directly, without a proxy or a
 synthetic reconnecting state. Identity alone uses Kolu’s `connectionEpoch`
@@ -728,8 +756,7 @@ needs a module-level store to survive roster changes.
 
 Plugin provider changes still update the provider tree: removing chat must remove
 its context and faces together. Pane and conversation draft stores remain needed
-for those changes and for navigation between panes and sessions. After the
-upstream merge, return the pin to master and unfreeze it explicitly.
+for those changes and for navigation between panes and sessions.
 
 
 ---
