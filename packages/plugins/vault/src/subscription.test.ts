@@ -4,7 +4,7 @@ import { implementRootedSurfaces, inMemoryStore } from "@kolu/surface/server"
 import { Effect, Schema, SubscriptionRef } from "effect"
 import { followSubscription } from "./subscription.ts"
 
-const cell = defineSurface({ cells: { errors: { schema: Schema.Number, verbs: ["get", "changes"] } } })
+const cell = defineSurface({ cells: { errors: { schema: Schema.Number, default: 0, verbs: ["get"] } } })
 test("withdrawing and reopening an active vault subscription preserves the host runtime", async () => {
   const root = implementRootedSurfaces(defineSurface({}), {}, {})
   let failure: unknown

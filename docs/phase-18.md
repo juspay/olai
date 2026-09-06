@@ -12,17 +12,16 @@ Last complete CI: code commit `55b5bee87` passed all 49 checks, including
 1,446 browser scenarios. That result predates the substantial extraction now
 in progress and does not validate the current working tree.
 
-Current integration: `fda9df1b1` completed full `just ci`: 40 checks passed and
-9 failed, with 17 unique browser failures (down from 58 in the prior batch).
-Focused fixes now cover those browser failures, including vault withdrawal.
-The `f46e31fe4` full CI run is finishing; its remaining known failures are
-stale fence metadata and the now-fixed vault shutdown fault. The current
-working tree awaits full CI validation.
+Current integration: `80248fc35` completed full `just ci`: 39 checks passed and
+3 failed. Every unit test passed; the remaining failures were one test-fixture
+type error and the browser resize assertion that treated Chat as the sidebar's
+owner (plus the aggregate browser check). Both are corrected and verified
+locally. The final integrated patch awaits a complete green CI run.
 
 GitHub CodeQL also flagged case-sensitive script extraction in the theme asset
 test. The regex is corrected and both first-paint tests pass. GitHub CodeQL
-passed on both `29b1db404` and `f46e31fe4`, reporting no new alerts in the
-PR’s changed code.
+passed on `29b1db404`, `f46e31fe4` and `80248fc35`, reporting no new alerts
+in the PR’s changed code.
 
 ## CI repair batch
 
@@ -99,10 +98,10 @@ PR’s changed code.
   keyboard readiness.
 - [x] Finish removing indirect notebook dependencies from the permanent browser
   and server hosts, and enforce the final boundary with import fences.
-- [ ] Complete capability absence/restoration and scoped state integration tests.
-  Seven content browser scenarios and four shell lifetime scenarios are
-  authored; focused content checks pass. Backend fixtures now mount actual
-  providers and have exposed integration bugs being fixed before full CI.
+- [x] Complete capability absence/restoration and scoped state integration tests.
+  Content, shell, profile and observer cases pass their focused acceptance
+  groups; the latest full run's remaining browser case was corrected to use
+  its actual sidebar owner.
 - [x] Pass the migrated backend tests with actual providers: 137 tests and
   753 assertions across runtime, MCP and independent Markdown metadata. Fix
   missing mark-operation dispatch and scoped pins/capture cell broadcasts
@@ -249,8 +248,11 @@ above is not a claim that its complete absence/lifecycle requirement is proved.
   fences survive extraction; unloading their owner retracts contributions
   without undoing emitted vault writes. Policy tests pass, and the full
   service-sharing browser scenario passes all 33 steps after report refresh.
-- [ ] Complete mobile, history, cancellation, failed/hanging cleanup and observer
-  leak coverage across the extracted capabilities.
+- [x] Complete mobile, history, cancellation, failed/hanging cleanup and observer
+  leak coverage across the extracted capabilities. The revised resize feature
+  passes all three scenarios/48 steps, proving both owner cancellation and
+  unrelated-provider preservation; existing content and native-scope groups
+  cover phone confirmations, pending writes and failed cleanup.
 - [x] Fix the parked-draft failure reproduced from `keyboard_editing.feature:129`:
   clicked slots own focus and retain their input across activation. A temporary
   visual fallback keeps the input present between the create reply and page
@@ -271,7 +273,8 @@ above is not a claim that its complete absence/lifecycle requirement is proved.
   agent prompt. This reproduces the symptom seen at `3a8629ad`; the old run had
   no event trace identifying its precise interleaving. The original browser
   scenario and held-reply regression also pass.
-- [ ] Finish plugin, architecture, profile/running and dynamic-plugin docs for
-  the final ownership and absence behavior. Existing extracted rows have docs.
+- [x] Finish plugin, architecture, profile/running and dynamic-plugin docs for
+  the final ownership and absence behavior, including exact selections and
+  independently owned slot contracts, renderers and source policy.
 - [ ] Pass the complete PR's required checks and acceptance coverage. A green
   existing suite alone does not establish Phase 18 completion.

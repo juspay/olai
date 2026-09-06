@@ -14,10 +14,30 @@ Feature: Ending a panel resize releases its pointer listeners and retains the re
     When I reload the page
     Then the sidebar retains the width reached before cancellation
     When I drag the sidebar wider by 20px
-    Then the sidebar is at least 20px wider than the default
+    Then the sidebar has grown by 20px since the resize was held
     And there should be no page errors
 
-  Scenario: Removing a plugin provider ends the old resize and leaves its replacement usable
+  Scenario: Removing the sidebar owner cancels its resize and a fresh sidebar can resize
+    When I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "sidebar" off
+    And I use the original browser tab
+    Then the sidebar plugin has no rendered column or rail
+    When I move the held resize pointer another 80px
+    And I use the other browser tab
+    And I switch the plugin "sidebar" on
+    And I close the plugins panel
+    And I use the original browser tab
+    Then the sidebar plugin has a rendered column
+    When I move the held resize pointer another 80px
+    And I let go
+    Then the sidebar retains the width reached before cancellation
+    When I drag the sidebar wider by 20px
+    Then the sidebar has grown by 20px since the resize was held
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: Removing unrelated chat preserves the in-progress sidebar resize
     When I open another browser tab
     And I open the plugins panel
     And I switch the plugin "chat" off
@@ -26,8 +46,6 @@ Feature: Ending a panel resize releases its pointer listeners and retains the re
     Then the conversation is gone-from the header
     When I move the held resize pointer another 80px
     And I let go
-    Then the sidebar retains the width reached before cancellation
-    When I drag the sidebar wider by 20px
-    Then the sidebar is at least 20px wider than the default
+    Then the sidebar has grown by 80px since the resize was held
     And the page has not reloaded
     And there should be no page errors

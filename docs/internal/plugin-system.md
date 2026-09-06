@@ -1252,95 +1252,89 @@ The plugins panel holds its switches while the browser reconciles a roster. A se
 
 Profile policy has one interpreter (`profilePatch`), and every served route has a registration owner. Websocket admission uses the framework’s `restrictServedGeneration` over its narrow generation contract. An accepted HTTP response survives another route provider’s arrival and withdrawal; the platform protects that response, while the routing scope controls which handlers new requests reach. Shutdown rejects new connections and upgrades during the drain and waits for observed socket closes before closing the port.
 
-## Phase 18: renderer and shell extraction
+## Phase 18: shell and content capabilities
 
-The renderer and initial layout are browser-only bundle rows. The host selects
-these rows without importing their browser code; each tab reports activation
-separately. Generic locations have scope-owned declarations and only `root` is
-permanent. Application-slot migration and content extraction are still in
-progress; [phase-18.md](../phase-18.md) records the remaining acceptance work.
+The permanent host starts plugins, supplies generic loading and transport
+facilities, and publishes management. The bundle supplies layout, navigation,
+sidebar, outlines, Markdown and the other feature rows. Server capabilities
+require no renderer or workspace. Browser-only rows report host selection
+separately from actual activation in each tab. The maintained `test-counter`
+fixture exercises the same host without Vault, Directory or Ops; `test-layout`
+uses unchanged content plugins in an alternate shell.
 
-Cross-plugin imports must use a static `/contract` export. That door may carry
-service tags, location descriptors, types and static data; its transitive graph
-must not reach a browser/server implementation or JSX. Declare the provider as
-a package dependency and express runtime availability through `needs`. Importing
-a contract does not activate its provider. The bundle fence checks both direct
-imports and the transitive contract graph.
+Cross-plugin imports use declared static doors such as `/contract` and `/slots`.
+These exports carry service tags, location descriptors, types and static data;
+their transitive graph must not reach a browser/server implementation or JSX.
+Declare the provider as a package dependency and express runtime availability
+through `needs`. Importing a contract does not activate its provider. Import
+fences check both direct imports and transitive implementation dependencies.
 
-Owned locations use the same Cordis activation bridge as services. Register an
-entry with `contribute(location, value, { children, activate })`. The registration
-belongs to the caller; `activate` acquires location-dependent resources in a
-separate scope, and `children` become available only from that active entry.
-Removing the entry revokes its children and drains dependent cleanup before
-closing its own resources. Independent provider work belongs outside `activate`.
-A returning owner starts fresh dependent integrations; surviving siblings retain
-their identity. Reserved child names prevent duplicate declarations and ownership
-cycles even while integrations wait for a provider.
+### Locations and compatibility
 
-### Slot compatibility during Phase 18
+Only `root` is permanent. A contribution registers with
+`contribute(location, value, { children, activate })`. Its registration belongs
+to the caller; `activate` acquires location-dependent resources in a separate
+scope, and its children exist only while that entry is active. Withdrawal drains
+dependents before releasing the owner's resources. Returning owners acquire
+fresh integrations; surviving siblings retain their identities. Reservations,
+key policies, duplicate ownership, cycles and failed acquisition are checked
+while entries wait as well as when they activate.
 
-`Slots.register` and `Faces` use the renderer's `Locations` registry. The host
-creates no second set of tables. `slotLocation(name)` returns the typed contract
-for a compatibility slot, so native contributions and existing registrations
-have identical occupancy and lifetime rules. A registration may pass
-`{ children, activate }`; declare children on the particular consuming entry and
-acquire dependent resources in its scoped activation. Key conflicts reserve
-waiting entries too. Location failures remain in the inspector and can be
-retried independently of successful integrations and provider work.
+`Slots.register` and `Faces` adapt that same renderer registry. A name-only
+compatibility reference cannot declare an owner or choose cardinality. Outlines,
+navigation, layout, sidebar and chat own their static slot descriptors, types
+and consuming renderers; the API has no fixed application-slot catalog.
+Inspection reads immutable metadata from the supplied bundle modules. See
+[slot ownership](../slot-ownership.md) for the owner table and lifecycle rules.
 
-`layout.sidebar` is consumed by the sidebar plugin, which owns `sidebar.entry`
-and `sidebar.section`. Chat's `app.panel` entry owns `delivery.mark` and
-`engine.install`. Other notebook locations remain frame-owned pending the
-navigation and content extraction. The fixed catalog remains a compatibility
-type vocabulary, not a host-owned registry or a promise that its owner is active.
+Providers perform independent work outside their location integrations. Theme
+state survives removal of its preferences UI; inspector reading history survives
+shell replacement. Outlines retains editor state across unrelated Chat changes,
+but leaving Outlines discards its own pending drafts. Separate components name
+extra services only where they use them, so an unavailable integration does not
+stop the rest of its plugin.
 
-Native and compatibility registrations also share key policy: owner-keyed
-locations derive keys from the bound contributor, and kind-keyed locations
-require a key. Native contributions cannot shadow an existing legacy face or
-create a kind dressing without a lookup key. Browser composition joins both
-plugin dependency transitions and their location integrations before publishing.
+### Server composition and source policy
 
-The preferences UI owns `preferences.sections` through its `layout.tools`
-entry. The theme row offers `theme.appearance`; its separate preferences
-component consumes that service and registers a location integration. Disabling
-preferences leaves theme's provider running. Disabling theme drains its controls
-before closing state and observers. This is the provider/integration pattern for
-feature settings; the preferences UI never owns another feature's state.
+Outlines, Markdown, files, pins, capture and trash bind their own server
+readings and operations. Scoped Surface mounts preserve the established public
+tags. Shared discriminated procedures dispatch disjoint owner-declared cases;
+conflicting variants, write authority and face grants are rejected. Retained
+handlers are revoked when their provider leaves. An absent branch reports the
+same lifecycle refusal as a departed sibling, without killing unrelated calls.
+Markdown's metadata stream rejects outline and node addresses, so it works when
+Outlines was never enabled.
 
-Build-time assets follow the bundle as well: optional row `/assets` exports
-contribute head markup, generated styles, module preloads and stable files
-through a separate generated catalog. Theme owns first-paint preferences and
-fonts; web-app owns install metadata/icons; Markdown requests its shared
-renderer preload. The runtime never imports this build graph. Pure appearance
-tables live in `@olai/appearance`, while scoped title/favicon state belongs to
-theme and is consumed through `theme.appearance.chrome`.
+MCP owns its adapters and tickets. Its advertised tools and resources follow
+current capability availability, and retained clients resolve current handlers
+and write authority. Supplemental vault and plugin-chunk HTTP routes do not
+open a listener without an actual transport. A failed or absent vault leaves
+the host control plane usable.
 
-The browser host supplies `browser-management` through an explicit scoped
-capability. The inspector consumes roster/report readings and management
-operations, never the notebook client. Its activation owns source-reading
-history independently of its `layout.tools` contribution, so a shell remount
-cannot silently acknowledge a changed definition. The host imports no inspector
-implementation or contract. Dynamic-source approval policy remains a pending
-`vault-plugins` extraction.
+`vault-plugins` owns discovery, version approval, compilation and chunk delivery.
+It uses a generic owned loader: acquired children, catalogs and pending starts
+leave with their owner, while accepted vault writes remain durable. The host
+knows module declarations and lifecycle reports, not source approval policy.
+Approval writes remain reserved from agent access even when the policy provider
+is absent. Catalog changes refresh host reports, including definitions waiting
+for another definition's service.
 
-### Browser dependency failures and feature preferences
+### Presentation resources and recovery
 
-Browser module loading retries a failed entry once under a fresh entry URL. If
-that also fails, recovery offers **Reload page**: Chromium may retain a failed
-static dependency in its module map, which an entry-only retry cannot invalidate.
-Successful modules keep their identities. The inspector and renderer-free startup
-diagnostic explain this recovery; neither automatically discards the document.
+Build-time `/assets` exports contribute head markup, styles, module preloads and
+stable files through a generated catalog. Theme owns first-paint appearance and
+fonts; web-app owns install metadata/icons; Markdown requests its renderer
+preload. The runtime does not import this build graph. Layout owns viewport,
+geometry and deployment naming; theme owns title/favicon presentation. Clock
+factories belong to the renderer and timers belong to their consuming scopes.
+Chat owns alerts, notification permission listeners, audio and attention state.
+Late asynchronous completions cannot republish after those owners leave.
 
-Chat now owns an independent `chat.alerts` provider with fresh preference state
-and two scoped storage listeners. Its preferences integration waits on the
-renderer and `preferences.sections`; disabling preferences does not withdraw the
-provider. Disabling chat retracts its controls and listeners. Re-enabling it reads
-persisted choices again. Notes and Done remain in preferences pending outlines
-extraction.
+Browser loading retries a failed entry under a fresh entry URL. If that fails,
+it offers **Reload page** because Chromium may retain a failed static dependency
+in its module map. Successful shared runtimes keep their identities. Both the
+inspector and renderer-free startup diagnostics explain recovery; neither
+silently discards the document. The live roster remains authoritative over a
+late bootstrap response or failure.
 
-`Clocks` and `Bar` are compatibility exports for `ui-renderer.clocks` and
-`layout.bar`. The renderer row supplies clock factories; each factory's timers
-belong to the consuming Solid owner. Layout publishes its actual popover and
-pill geometry in its renderer-dependent provider scope, so renderer or layout withdrawal
-retracts the service. The permanent host no longer has an `App.furnish` API.
-The remaining file-link adapter still belongs to the navigation extraction.
+The full acceptance record is [phase-18.md](../phase-18.md).
