@@ -26,7 +26,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { Cause, Effect, Logger, Schema, Scope } from "effect"
+import { Cause, Effect, Fiber, Logger, Schema, Scope } from "effect"
 
 import { definePlugin, detached, PluginName } from "./plugin.ts"
 import { mountPlugin, openHost, provide, settled } from "./host.ts"
@@ -297,6 +297,51 @@ test("a defect in detached work is said, with the plugin's word on it", async ()
   expect(detachedLine).toBeDefined()
   expect(detachedLine).toContain(`"scribe"`)
   expect(detachedLine).toContain("the watcher threw")
+})
+
+test("detached work handed back as a fiber keeps the plugin's lifetime and its word", async () => {
+  // THE SEAM'S OTHER SHAPE, and it is the same seam. What `held` adds is the
+  // handle; what it must not lose is either of the two things the seam is for
+  // — the plugin's lifetime, so work still in flight when the row unloads is
+  // interrupted with it, and the plugin's word on a contained failure. A
+  // caller that needed the handle used to reach for a bare `Effect.runFork`,
+  // which has neither.
+  const said: Array<string> = []
+  const collector = Logger.make<unknown, void>(({ message, cause }) => {
+    const line = Array.isArray(message) ? message.map(String).join(" ") : String(message)
+    said.push(cause === undefined ? line : `${line} ${String(Cause.squash(cause))}`)
+  })
+  const order: Array<string> = []
+  let held!: Fiber.Fiber<void>
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const host = yield* openHost
+    yield* provide(host, Ledger, ledgerOf([]))
+    const mounted = yield* mountPlugin(
+      host,
+      definePlugin({
+        name: "scribe",
+        needs: [Ledger],
+        apply: Effect.gen(function*() {
+          const run = yield* detached
+          run.held(Effect.die(new Error("the held work threw")))
+          held = run.held(Effect.gen(function*() {
+            yield* Effect.addFinalizer(() => Effect.sync(() => { order.push("held work stopped") }))
+            yield* Effect.never
+          }).pipe(Effect.scoped))
+        }),
+      }),
+    )
+    yield* Effect.sleep("10 millis")
+    // THE HANDLE IS REAL: the caller can wait for it by name, which is the
+    // whole of what this shape adds.
+    yield* mounted.dispose
+    yield* Fiber.await(held)
+    order.push("the plugin stopped")
+  })).pipe(Effect.provide(Logger.layer([collector]))))
+  expect(order).toEqual(["held work stopped", "the plugin stopped"])
+  const line = said.find((one) => one.includes("detached work"))
+  expect(line).toContain(`"scribe"`)
+  expect(line).toContain("the held work threw")
 })
 
 test("a scope a plugin opened is closed by the disposer, not by the fiber", async () => {

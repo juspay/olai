@@ -128,15 +128,39 @@ export const PluginName = Context.Reference<string>("effect-cordis/PluginName", 
  * real work is `apply` and its registrations are finalizers rather than a pile
  * of forks.
  */
-export type Detach = (work: Effect.Effect<void>) => void
+export interface Detach {
+  (work: Effect.Effect<void>): void
+  /**
+   * THE SAME FORK WITH THE FIBER LEFT ON — one seam, two shapes, and the
+   * second is not a widening of what it PROMISES.
+   *
+   * Everything above holds: the plugin's own services, the plugin's own scope,
+   * the plugin's word on a contained failure. What changes is only that the
+   * caller is handed the handle instead of it being dropped, because some
+   * background work is a thing its owner interrupts or waits for BY NAME — an
+   * idle timer a scheduler arms, re-arms and cancels; a boot a shutdown has to
+   * join before it reads the table the boot writes into.
+   *
+   * It exists because the alternative is what was there: a caller that needs
+   * the handle reaching for a bare `Effect.runFork`, which is a fiber on the
+   * default runtime with no owner and none of the operator's logging settings
+   * — a second, unnamed seam in a plugin, which is the exact thing having one
+   * named seam is for.
+   */
+  readonly held: (work: Effect.Effect<void>) => Fiber.Fiber<void>
+}
 
 /** The seam, for the scope that yields it. */
 export const detached: Effect.Effect<Detach, never, Scope.Scope> = Effect.gen(function*() {
   const who = yield* PluginName
   const run = yield* FiberSet.makeRuntime<never, void, never>()
-  return (work) => {
-    run(Effect.catchCause(work, (cause) => failed(who, "detached work", cause)))
-  }
+  const contained = (work: Effect.Effect<void>): Effect.Effect<void> =>
+    Effect.catchCause(work, (cause) => failed(who, "detached work", cause))
+  const detach: Detach = Object.assign(
+    (work: Effect.Effect<void>) => { run(contained(work)) },
+    { held: (work: Effect.Effect<void>) => run(contained(work)) },
+  )
+  return detach
 })
 
 /**

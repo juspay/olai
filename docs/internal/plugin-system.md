@@ -203,6 +203,17 @@ plugin's own services (so a line carries the level the operator asked for) and
 onto the plugin's own scope (so work in flight when it unloads goes with it). It
 is the boundary made visible rather than an escape hatch copied per plugin.
 
+It has TWO SHAPES and they are one seam. `ring(work)` forgets the fiber, which
+is right for a doorbell walk or a heartbeat. `ring.held(work)` hands it back,
+for background work its owner interrupts or joins by name — an idle timer a
+scheduler arms and cancels, a boot a shutdown has to join before it reads the
+table the boot writes into. Everything else is identical: same runtime, same
+scope, same contained failure with the plugin's own word on it. The second
+shape exists because without it a caller that needs the handle reaches for a
+bare `Effect.runFork`, which is a fiber on the default runtime with no owner
+and none of the operator's settings — a second, unnamed seam, which is the one
+thing having a named seam is for.
+
 `--plugins`, the bundle's rows and the browser slots are **phase 2** of a longer
 plan (the Cordis proposal's §6); the Effect API above is **phase 4**; node agents
 as scopes are **phase 6**, the chat row is **phase 7**, and the panel's switch —
@@ -1098,7 +1109,9 @@ that matters.
    you are adding is an ACP ENGINE (step 6). Say your lines with
    `Effect.logDebug` and `Effect.logWarning`, which arrive with the level the
    operator asked for. If your appliance calls you back from a timer or a socket,
-   take `detached` once and start your Effects through it. Everything you
+   take `detached` once and start your Effects through it — `ring(work)` where
+   nobody needs the fiber, `ring.held(work)` where something of yours has to
+   interrupt or wait for it by name. Everything you
    register comes back out when your plugin unloads, and you write no teardown
    for any of it — unless you hold something the runtime cannot see, which is an
    `Effect.addFinalizer` and is what `xyne-spaces` does for its mirrors. An

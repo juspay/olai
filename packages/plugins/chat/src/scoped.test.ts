@@ -207,6 +207,81 @@ test("boot routes a remembered node session before spawning any panel", async ()
   }
 })
 
+/**
+ * SHUTDOWN LANDING IN THE MIDDLE OF A BOOT — the one way a node scope's
+ * resources could appear AFTER the thing that owns them said it had stopped.
+ *
+ * The boot is forked and detached on purpose: recalling a session, locating a
+ * node and acquiring a panel must not hold up whoever called `start`. It was
+ * also unowned, so a shutdown ran its whole sequence — root panel stopped,
+ * every slot in `nodes` closed — while the boot was still walking towards a
+ * `nodes.set` the snapshot had already been taken past. What survived was a
+ * minted MCP credential and a spawned ACP subprocess with nothing left that
+ * could release either.
+ *
+ * THREE ASSERTIONS, one per thing that could be left behind: a slot the live
+ * roster still names, a ticket minted and never released, and a subprocess
+ * that was told it was ready and never told to go.
+ */
+test("a shutdown that lands mid-boot leaves no scope, no ticket and no process", async () => {
+  const { run, said } = logging()
+  const node: NodeAgent = {
+    id: "one",
+    file: "Work.olai",
+    title: "one",
+    engine: "alpha",
+    session: "remembered",
+    memory: 2,
+  }
+  // REMEMBERED, so the boot goes straight for the node scope rather than
+  // through a root session first — the longest walk, and the one with a
+  // credential and a subprocess in the middle of it.
+  const memory = forLocalState(ephemeralLocalState(), "alpha")
+  await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
+  const minted: Array<string> = []
+  const released: Array<string> = []
+  // THE MOMENT THE BOOT IS PAST THE POINT OF NO RETURN. The credential is
+  // minted immediately after `acquire` checks whether the scheduler has
+  // stopped and immediately before it spawns anything, so a stop that waits
+  // for this lands in the window and nowhere else. Without it the case is
+  // vacuous: `start` answers before the boot has recalled anything, and a stop
+  // that quick is refused at the check rather than racing past it.
+  const minting = Promise.withResolvers<void>()
+  const chat = await run(make({
+    roster: () => [installed("alpha")],
+    engines: () => ["alpha"],
+    cwd,
+    memory,
+    tools: () => null,
+    nodeAt: (id) => id === node.id ? node : null,
+    seatableAt: (id) => id === node.id,
+    nodes: () => [node],
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: ({ agent, session }) =>
+      node.engine === agent && node.session === session ? node : null,
+    ticket: (held) => {
+      minted.push(held)
+      minting.resolve()
+      return { bearer: `ticket-${held}`, release: () => released.push(held) }
+    },
+    onState: () => {},
+    onTranscript: () => {},
+  }))
+
+  await run(chat.start)
+  await minting.promise
+  await run(chat.stop)
+  // Long enough for a boot that outlived the stop to have reached its
+  // `session/load` and registered a slot.
+  await run(Effect.sleep("1500 millis"))
+
+  expect(chat.live().size).toBe(0)
+  expect([...released].sort()).toEqual([...minted].sort())
+  const ready = said.filter((line) => line.message.includes("chat agent ready"))
+  const exited = said.filter((line) => line.message.includes("chat agent exited"))
+  expect(exited).toHaveLength(ready.length)
+}, 30_000)
+
 test("boot moves a newly identified node session into its scope", async () => {
   const { run, said } = logging()
   const node: NodeAgent = {

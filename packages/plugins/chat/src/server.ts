@@ -829,6 +829,12 @@ export default definePlugin({
         ...(nodeIdle === undefined ? {} : { idle: nodeIdle }),
         onTranscript: publishTranscript,
         onLive: republishAgents,
+        // THE SEAM'S OTHER SHAPE, for the one thing the scheduler interrupts
+        // by name. Taken from the same `detached` as `ring`, and taken BEFORE
+        // the finalizer below is registered, so LIFO unwinding stops the
+        // conversations first and interrupts whatever is still in flight
+        // second.
+        fork: ring.held,
       })
       yield* Effect.addFinalizer(() => chat === null ? Effect.void : chat.stop)
       yield* chat.start
