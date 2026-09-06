@@ -22,9 +22,9 @@
       },
       "branch": "surface-mcp-rooted-bundle",
       "submodules": false,
-      "revision": "775c55262f27fd8f70e36f2ae5343677c4c8064e",
-      "url": "https://github.com/juspay/kolu/archive/775c55262f27fd8f70e36f2ae5343677c4c8064e.tar.gz",
-      "hash": "sha256-brjy4FRDOxTsx0PsI+iQCkHnM5Pw2OuYiG+1HZivblg="
+      "revision": "b560bbc248b940b771400e482edd707cf47f34e9",
+      "url": "https://github.com/juspay/kolu/archive/b560bbc248b940b771400e482edd707cf47f34e9.tar.gz",
+      "hash": "sha256-oVhq/NHCC5FYVrl/AwAYBJtVNXX4ZMaQZ2CJYW66fAk="
     },
     "nixpkgs": {
       "type": "Git",
