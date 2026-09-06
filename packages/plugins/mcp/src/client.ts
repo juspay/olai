@@ -9,14 +9,17 @@ import { surface as markdown } from "olai-plugin-markdown/surface"
 import { surface as files } from "olai-plugin-files/surface"
 import { surface as search } from "olai-plugin-search/surface"
 import { surface as definitions } from "olai-plugin-vault-plugins/surface"
-const toolContract = defineSurface({
+import { surface as vault } from "olai-plugin-vault/surface"
+export const mcpContract = defineSurface({
+  collections: { outlines: outlines.spec.collections.outlines, documents: markdown.spec.collections.documents },
+  cells: { errors: vault.spec.cells.errors },
   procedures: {
     search: search.spec.procedures.search,
     plugins: definitions.spec.procedures.plugins,
     ops: { ...outlines.spec.procedures.ops, ...markdown.spec.procedures.ops, ...files.spec.procedures.ops },
   },
 })
-export type McpClient = SurfaceClient<typeof toolContract.spec>
-export const clientOn = (dispatch: SurfaceDispatch): McpClient => on(toolContract, dispatch)
+export type McpClient = SurfaceClient<typeof mcpContract.spec>
+export const clientOn = (dispatch: SurfaceDispatch): McpClient => on(mcpContract, dispatch)
 
-export const clientOver = (bound: Parameters<typeof over>[1], face: Parameters<typeof over>[2]): McpClient => over(toolContract, bound, face)
+export const clientOver = (bound: Parameters<typeof over>[1], face: Parameters<typeof over>[2]): McpClient => over(mcpContract, bound, face)

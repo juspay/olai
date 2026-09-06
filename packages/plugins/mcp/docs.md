@@ -4,6 +4,8 @@ Serves `/mcp` for external clients and agent sessions. Enabled in the `web` and 
 
 The plugins panel switches this row for the current process. Profiles select its boot default; an explicit `--plugins` set must name this row to enable it. The package has no browser half or stylesheet.
 
+MCP owns its resource projection: outlines and documents collections and the vault error cell come from their providers’ surface contracts. Its typed client includes those resources as well as tool procedures, so discovery and reads use the same projection.
+
 The catalog follows active capabilities. Turning off a content provider removes
 its tools and resources from discovery; calling a previously advertised tool
 returns a capability-unavailable refusal. Providers that share a write procedure

@@ -1,4 +1,5 @@
-import { capabilitiesOver } from "../capabilities.testlib.ts"
+import { surface } from "@olai/bundle/surface"
+import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
 /**
  * The tool surface, through a real MCP client.
  *
@@ -169,13 +170,16 @@ const withTools = <A>(
     const wired = yield* bind({
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
-      plugins: yield* capabilitiesOver(store, ops, root),
+      // The injected gate deliberately has no matcher; the real search row
+      // still owns the transport that returns its structured query refusal.
+      plugins: yield* capabilitiesOver(store, ops, root, { rows: [...CONTENT_ROWS, "search"] }),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
+      surface,
       expose: MCP,
       client: () =>
         clientOver(

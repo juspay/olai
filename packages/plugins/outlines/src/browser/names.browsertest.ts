@@ -28,7 +28,7 @@ import { expect, test } from "bun:test"
 import { createMemo, createRoot, createSignal } from "solid-js"
 
 import type { Named, PageReading } from "@olai/format"
-import { surface } from "@olai/surface"
+import { surface } from "../surface.ts"
 
 import { named, page, row, wired } from "./frame.testlib.ts"
 import { createNames } from "./names.ts"
@@ -113,7 +113,7 @@ test("a reading that has not arrived is an empty table, and holds", () =>
  * The cases above spell a frame as a fresh array of fresh objects, because that
  * is what the RULE is about and it says so without this file holding a second
  * copy of kolu's merge. These ask a different question — whether the rule still
- * EARNS ITS PLACE now that `@olai/surface`'s `page` stream declares what
+ * EARNS ITS PLACE now that outlines' `page` stream declares what
  * identifies a row (`arrayKey: "key"`, juspay/kolu#2190) — and that one can only
  * be asked of the merge itself, with the key the app actually ships.
  *

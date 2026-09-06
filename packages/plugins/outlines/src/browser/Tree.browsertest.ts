@@ -16,7 +16,7 @@
  * until this PR, where it was rewritten to the law that replaced it.
  *
  * It is measured here rather than argued because the fix was upstream and this
- * is the side that has to show it landed: `@olai/surface`'s `page` stream
+ * is the side that has to show it landed: outlines' `page` stream
  * declares `arrayKey: "key"` (juspay/kolu#2190), and what that is worth is a
  * number.
  *
@@ -61,7 +61,7 @@ import { expect, test } from "bun:test"
 import { $TRACK, createEffect, createMemo, createRoot } from "solid-js"
 
 import type { PageReading, Row } from "@olai/format"
-import { surface } from "@olai/surface"
+import { surface } from "../surface.ts"
 
 import { page, row, wired } from "./frame.testlib.ts"
 
@@ -242,7 +242,7 @@ test("a row's CHILDREN are keyed by the same field, at every depth", () => {
 })
 
 test("the key this measures is the key the app declares", () => {
-  // The numbers above are about `@olai/surface`'s spec and not about a string
+  // The numbers above are about outlines' surface spec and not about a string
   // spelled in a test: a declaration lost in a refactor makes every DECLARED
   // case here read exactly like its UNDECLARED twin, which would otherwise be a
   // suite quietly measuring master.

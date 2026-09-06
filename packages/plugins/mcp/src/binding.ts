@@ -5,7 +5,7 @@ import type { ExposeMap } from "@kolu/surface/expose"
 import type { CommitRequest, CommitResult, PushResult } from "@olai/format"
 import { TOOLS, liveOps, type Directory, type Ops } from "@olai/ops"
 import type { TransportSurface } from "@olai/plugin-api/transport"
-import { type McpClient } from "./client.ts"
+import { mcpContract, type McpClient } from "./client.ts"
 import type { Vintage } from "@olai/store"
 import { Effect } from "effect"
 import { availableTools } from "./catalog.ts"
@@ -16,7 +16,7 @@ export interface AgentBinding {
   readonly available: (name: string) => boolean
   readonly resourceAvailable: (key: string, verb: string) => boolean
   readonly client: () => ClientOrConnection
-  readonly expose: ExposeMap
+  readonly expose: ExposeMap<typeof mcpContract.spec>
   readonly root: string
   readonly vintage: Effect.Effect<Vintage | undefined>
   readonly fenced: (client: ClientOrConnection) => ClientOrConnection

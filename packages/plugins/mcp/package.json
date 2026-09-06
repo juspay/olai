@@ -28,7 +28,8 @@
     "olai-plugin-markdown": "workspace:*",
     "olai-plugin-files": "workspace:*",
     "olai-plugin-search": "workspace:*",
-    "olai-plugin-vault-plugins": "workspace:*"
+    "olai-plugin-vault-plugins": "workspace:*",
+    "olai-plugin-vault": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"

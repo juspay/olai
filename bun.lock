@@ -492,6 +492,7 @@
         "olai-plugin-markdown": "workspace:*",
         "olai-plugin-outlines": "workspace:*",
         "olai-plugin-search": "workspace:*",
+        "olai-plugin-vault": "workspace:*",
         "olai-plugin-vault-plugins": "workspace:*",
       },
       "devDependencies": {

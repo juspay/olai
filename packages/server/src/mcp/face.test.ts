@@ -1,3 +1,4 @@
+import { surface } from "@olai/bundle/surface"
 import { VaultBoot } from "olai-plugin-vault/boot"
 import { CONTENT_ROWS, runtimeFor } from "../capabilities.testlib.ts"
 /**
@@ -124,6 +125,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
+      surface,
       expose: MCP,
       // The group AND the face, from the one call that composed both: an
       // exposure describes a group as a set equality, so a gate built from a

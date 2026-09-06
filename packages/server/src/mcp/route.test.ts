@@ -1,3 +1,4 @@
+import { surface } from "@olai/bundle/surface"
 import { capabilitiesOver } from "../capabilities.testlib.ts"
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
 /**
@@ -126,6 +127,7 @@ const withRoute = <A>(
     let selectingTicket: string | null = null
     const tickets = ticketing({ reservations: WRITE_RESERVATIONS, bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket: () => selectingTicket ?? currentTicket() })
     yield* serveFace({
+      surface,
       expose: MCP,
       client: () => panel,
       tools: {

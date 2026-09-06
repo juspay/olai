@@ -1,3 +1,4 @@
+import type { Surface, SurfaceSpec } from "@kolu/surface/define"
 import type { AgentBinding } from "./binding.ts"
 import { TOOLS } from "@olai/ops"
 import type { McpClient } from "./client.ts"
@@ -5,7 +6,7 @@ import { currentLogin, mcpTransport, mcpRoute } from "./route.ts"
 import { bespokeFrom, pluginTools } from "./tools.ts"
 /** MCP protocol acquisition belongs to the plugin's activation scope. Core
  * supplies the composed, writer-bound face; this plugin owns the HTTP carrier. */
-import { surface } from "@olai/surface"
+import { mcpContract as surface } from "./client.ts"
 import { type BespokeTool, type ClientOrConnection, serveSurfaceAsMcp, resolveExpose, toInputSchema, ToolFailure } from "@kolu/surface-mcp"
 import type { ExposeMap } from "@kolu/surface/expose"
 import { ListToolsRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema } from "@modelcontextprotocol/sdk/types.js"
@@ -17,7 +18,7 @@ import { Effect, type Scope } from "effect"
 export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effect.gen(function*() {
   const transport = mcpTransport()
   yield* serveFace({
-    client: policy.client, expose: policy.expose, transport, available: policy.available, resourceAvailable: policy.resourceAvailable,
+    surface, client: policy.client, expose: policy.expose, transport, available: policy.available, resourceAvailable: policy.resourceAvailable,
     tools: { ...bespokeFrom(TOOLS, { ...policy, get root() { return policy.root }, login: currentLogin, fenced: (held) => policy.fenced(held) as McpClient }), ...pluginTools() },
   })
   yield* shared.register({ routes: mcpRoute({ transport, token: shared.token, who: shared.who }) })
@@ -71,7 +72,9 @@ const INSTRUCTIONS =
   "— no shell, no grep, no path outside the served directory, and no way to name part " +
   "of a file — and that is deliberate."
 
-export interface FaceOptions {
+export interface FaceOptions<S extends SurfaceSpec> {
+  /** The caller owns the projection; its exposure map must name this spec. */
+  readonly surface: Surface<S>
   /**
    * Where the surface IS — the adapter's live-client factory, verbatim.
    *
@@ -79,7 +82,7 @@ export interface FaceOptions {
    * the same in-process client every time — nothing to dispose, nothing to
    * re-dial.
    */
-  readonly expose: ExposeMap<typeof surface.spec>
+  readonly expose: ExposeMap<S>
   readonly client: () => ClientOrConnection | Promise<ClientOrConnection>
   /** Where the protocol goes. The HTTP route in the binary, an
    *  `InMemoryTransport` half in a test. Injectable is the whole reason a
@@ -106,8 +109,8 @@ export interface FaceOptions {
  * composition root is, and a caller holding a `close()` it might forget is
  * exactly the arrangement `serve.ts` took the listener's lifetime away from.
  */
-export const serveFace = (
-  options: FaceOptions,
+export const serveFace = <S extends SurfaceSpec>(
+  options: FaceOptions<S>,
 ): Effect.Effect<Server, never, Scope.Scope> =>
   Effect.gen(function*() {
     const available = options.available
@@ -119,7 +122,7 @@ export const serveFace = (
     }]))
     const served = yield* Effect.promise(() =>
       serveSurfaceAsMcp({
-        surface,
+        surface: options.surface,
         client: options.client,
         expose: options.expose,
         serverInfo: SERVER_INFO,
@@ -140,7 +143,7 @@ export const serveFace = (
     }
     const resourceAvailable = options.resourceAvailable
     if (resourceAvailable !== undefined) {
-      const resources = resolveExpose(surface.spec, options.expose)
+      const resources = resolveExpose(options.surface.spec, options.expose)
       served.server.setRequestHandler(ListResourcesRequestSchema, async () => ({
         resources: resources.resources.filter(entry => resourceAvailable(entry.key, entry.kind === "collection" ? "keys" : "get"))
           .map(({ uri, name, mimeType }) => ({ uri, name, mimeType })),
