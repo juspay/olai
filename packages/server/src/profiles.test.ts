@@ -14,6 +14,30 @@ import { Effect } from "effect"
 import { WebSocket as WsClient } from "ws"
 import { served, withServe, withServing } from "./serve.testlib.ts"
 import { startWeb } from "./child.testlib.ts"
+import { Client } from "@modelcontextprotocol/sdk/client/index.js"
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
+
+for (const profile of ["web", "surface"] as const) {
+  test(`an MCP client can discover and call tools in the ${profile} profile`, async () => {
+    const root = served()
+    writeFileSync(join(root, "a.olai"), `${JSON.stringify({ id: "a", ord: "a0", title: "Discovered through MCP" })}\n`)
+    await withServing({ root, profile }, async (url) => {
+      const client = new Client({ name: "mcp-startup-regression", version: "1" })
+      try {
+        await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`)))
+        // #548: initialization and HTTP 200 succeeded, but the production
+        // catalogue omitted inputSchema. The SDK validates every listed tool.
+        const { tools } = await client.listTools()
+        expect(tools.map(tool => tool.name)).toContain("read_node")
+        const read = await client.callTool({ name: "read_node", arguments: { id: "a" } })
+        expect(read.isError).not.toBe(true)
+        expect(JSON.stringify(read)).toContain("Discovered through MCP")
+      } finally {
+        await client.close()
+      }
+    })
+  }, 30_000)
+}
 
 const request = (url: string, method = "tools/list", params?: unknown) => fetch(`${url}/mcp`, {
   method: "POST",

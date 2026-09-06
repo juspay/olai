@@ -287,7 +287,12 @@ Then(
 Then(
   "capturing without saying which server is refused before anything is sent",
   async function (this: OlaiWorld) {
-    const failure = await run(binary(), ["surface", "capture", "nowhere"], {
+    // `capture add nowhere` — the ROW, its verb, then the positional title. It
+    // was `capture nowhere` while a verb's name was the whole address (#546);
+    // left as it was, argv reads `nowhere` as a verb the capture row does not
+    // have and exits 2 for THAT, which is the same exit code for a different
+    // reason — the shape of pass that proves nothing.
+    const failure = await run(binary(), ["surface", "capture", "add", "nowhere"], {
       env: { ...process.env },
       maxBuffer: 32 * 1024 * 1024,
     }).then(
