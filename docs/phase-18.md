@@ -8,10 +8,41 @@ Checked items describe implemented work or specific passing coverage. A plugin
 with remaining unchecked items is not fully extracted. All acceptance items must
 be complete before this PR is ready to merge.
 
-Current validation: `just ci` at code commit `55b5bee87` passed all 49 checks,
-including 1,446 browser scenarios across six shards. Subsequent documentation
-updates record those results; the unchecked extraction and investigation items
-below remain required.
+Last complete CI: code commit `55b5bee87` passed all 49 checks, including
+1,446 browser scenarios. That result predates the substantial extraction now
+in progress and does not validate the current working tree.
+
+## Current implementation batch
+
+- [x] Move navigation/router/history/focus and palette implementation into
+  `navigation`; remove the permanent file-link furniture publication.
+- [x] Move outline tree/editor/selection/undo/drag/property modules into
+  `outlines`, and document reader/editor state into independent `markdown`.
+- [x] Move shared Markdown text rendering and undo algorithms into narrow
+  static libraries; outline notes do not require the Markdown document plugin.
+- [x] Replace built-in sidebar content with files/pins/capture/trash
+  contributions; move pane geometry into layout.
+- [x] Move theme tables, first-paint bootstrap, generated styles/font assets and
+  scoped browser chrome to their owners. A full browser build has succeeded.
+- [x] Implement scoped Surface composition for preserved unprefixed tags and
+  disjoint procedure variants. Three focused tests pass, including withdrawal,
+  retained-handler revocation, collisions and fresh generations.
+- [x] Add independent server bindings for outlines, Markdown, files, pins,
+  capture and trash; the permanent runtime no longer binds those readings.
+- [x] Move source discovery/compiler/approval/chunk code into `vault-plugins`.
+- [ ] Finish integrating owned host loading, catalog reporting and approval
+  write reservations, including policy absence and reactivation.
+- [x] Add maintained alternate-layout and non-notebook counter fixtures.
+  The counter's headless test passes with Vault/Directory/Ops absent.
+- [ ] Run both fixture browser workflows after server integration is complete.
+- [ ] Finish removing indirect notebook dependencies from the permanent browser
+  and server hosts, and enforce the final boundary with import fences.
+- [ ] Complete capability absence/restoration and scoped state integration tests.
+- [ ] Run full CI for this substantial batch and fix every failure before the
+  next batch. No CI has yet validated these combined extraction changes.
+
+The checklist below remains the full acceptance contract. A moved implementation
+above is not a claim that its complete absence/lifecycle requirement is proved.
 
 ## Runtime, locations and loading
 
