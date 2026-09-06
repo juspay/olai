@@ -24,17 +24,15 @@
  *
  * ## The wire, mocked — the one thing this suite does that its neighbours do not
  *
- * `./declared.ts` reaches for the wire itself (`../wire.ts`'s `olai` and
- * `connectionReadout`) rather than taking an asker, which is right for what it
- * is: a module-level batcher every message on screen shares, with no door to
- * hand one in through. That module opens a websocket at import, so it is
- * replaced here — `mock.module` first, `await import` after, because a static
- * import would be hoisted above the mock.
+ * The batcher reads its outline-owned client and generic connection health.
+ * Supply a scoped fake through the owner's normal holder; only connection
+ * health is mocked, so importing this bench never opens a real websocket.
  */
 
-import { expect, mock, test } from "bun:test"
+import { afterAll, expect, mock, test } from "bun:test"
 import { Effect } from "effect"
 import { createRoot } from "solid-js"
+import { holdClient, type Client } from "../client.ts"
 
 /** A call the fake wire has taken and not yet answered. */
 interface Outstanding {
@@ -45,8 +43,7 @@ interface Outstanding {
 
 const calls: Array<Outstanding> = []
 
-mock.module("@olai/web/client/wire.ts", () => ({
-  olai: {
+const fake = {
     procedures: {
       nodes: {
         named: (request: { readonly ids: ReadonlyArray<string> }) =>
@@ -64,7 +61,10 @@ mock.module("@olai/web/client/wire.ts", () => ({
           }),
       },
     },
-  },
+} as unknown as Client
+const releaseClient = holdClient(() => fake)
+afterAll(releaseClient)
+mock.module("@olai/web/client/wire.ts", () => ({
   connectionReadout: () => ({ status: "live" }),
 }))
 
