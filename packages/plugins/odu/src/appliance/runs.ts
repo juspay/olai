@@ -317,7 +317,18 @@ export const makeWatch = (deps: WatchDeps): Watch => {
   const hold = (watched: Watched): Effect.Effect<void> =>
     Effect.gen(function*() {
       const socket = runSocketPath(watched.at)
-      const dialed: DialedRun | null = yield* Effect.promise(() => dial(socket))
+      // ACQUIRED WITH ITS CLOSE, not followed by one. The close used to sit a
+      // hundred lines down as the second half of an `Effect.ensuring`, which
+      // is a promise about how the RACE ends and says nothing about the wait
+      // above it: a fiber parked in an `Effect.promise` is interruptible and
+      // unwinds where it stands, so a sweep stopped mid-dial — the plugin
+      // going off, the surface closing — left a connected run client nobody
+      // had written a close for. Acquisition and release travel together now,
+      // and the scope `hold` runs under is what carries them.
+      const dialed: DialedRun | null = yield* Effect.acquireRelease(
+        Effect.promise(() => dial(socket)),
+        (dialed) => dialed === null ? Effect.void : Effect.promise(() => dialed.close()),
+      )
       // NOTHING IS SERVING, which is the ordinary answer and is not news. The
       // key leaves `held` in the finalizer below and the next sweep asks
       // again.
@@ -418,7 +429,7 @@ export const makeWatch = (deps: WatchDeps): Watch => {
       // stamped a header yet is a run in `unstarted`, and drawing nothing for
       // it would make the chip appear late by however long provisioning takes.
       apply()
-      yield* Effect.ensuring(
+      yield* (
         // RACED, not sequenced: either subscription ending means the socket is
         // gone, and `Effect.all` with `concurrency: "unbounded"` and
         // `mode: "either"` would wait for both. The first to finish wins and
@@ -453,8 +464,7 @@ export const makeWatch = (deps: WatchDeps): Watch => {
               )
             )
           ),
-        ),
-        Effect.promise(() => dialed.close()),
+        )
       )
       // THE ROW SURVIVES THE SOCKET. Whatever the last frame supported is what
       // a reader sees now — never deleted, because "there was a run and it
@@ -480,6 +490,10 @@ export const makeWatch = (deps: WatchDeps): Watch => {
         }
       }
     }).pipe(
+      // THE SCOPE THE DIAL IS HELD ON — innermost, so a run client is closed
+      // before this hold reports how it ended and before its entry leaves
+      // `held`, which is the order the two finalizers below were already in.
+      Effect.scoped,
       // EVERY WAY A DIAL CAN END. `catchCause` rather than `catch` for
       // `link.ts`'s reason: a dial can raise a DEFECT (a path that is not a
       // socket, a permission), and caught only on the error channel it would

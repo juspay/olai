@@ -1101,7 +1101,14 @@ that matters.
    take `detached` once and start your Effects through it. Everything you
    register comes back out when your plugin unloads, and you write no teardown
    for any of it — unless you hold something the runtime cannot see, which is an
-   `Effect.addFinalizer` and is what `xyne-spaces` does for its mirrors.
+   `Effect.addFinalizer` and is what `xyne-spaces` does for its mirrors. An
+   `addFinalizer` is only honest when NOTHING WAS AWAITED to get the thing it
+   releases: a fiber parked in an `Effect.promise` is interruptible and unwinds
+   where it stands, so a plugin stopped between `const it = yield*
+   Effect.promise(open)` and the `addFinalizer` on the next line has opened a
+   thing with no release registered for it. Anything you had to wait for is an
+   `Effect.acquireRelease`, which registers the release as part of the
+   acquisition and cannot be interrupted between the two.
 3. **`packages/plugins/<name>/src/browser.tsx`**, if the plugin draws UI — the browser half, the same
    shape: a `name` and a `surface` re-exported off `./wire.ts`, and a `default`
    `definePlugin` whose Effect registers your faces into `Slots`. Browser graph,
