@@ -380,8 +380,8 @@ function PluginRow(props: {
       data-testid={PRIMITIVE.prefsRow}
       data-pref={pluginPref(plugin().name)}
     >
-      <div class="flex min-h-[1.85rem] items-center justify-between gap-3 py-0.5">
-        <span class="flex min-w-0 items-center gap-2 text-sm text-ink">
+      <div class="flex min-h-[1.85rem] flex-wrap items-center justify-between gap-x-3 gap-y-1 py-0.5">
+        <span class="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm text-ink">
           <Show when={pip()}>
             {(kind) => (
               <span
@@ -391,7 +391,7 @@ function PluginRow(props: {
               />
             )}
           </Show>
-          <span>{plugin().name}</span>
+          <span class="shrink-0">{plugin().name}</span>
           <Config values={pluginConfig(plugin())} />
         </span>
         <Switch
@@ -464,17 +464,19 @@ function PluginRow(props: {
   )
 }
 
-/** A ROW'S CONFIG, as chips on the name line. Nothing renders nothing. */
+/** A ROW'S CONFIG, as chips beside the name. `shrink-0` rather than `min-w-0`:
+ *  two chips on git (`commit auto`, `push auto`) were shrinking to nothing
+ *  inside the squeezed label row, while vault's one chip still fit. */
 function Config(props: {
   readonly values: ReadonlyArray<readonly [string, string]>
 }) {
   return (
     <Show when={props.values.length > 0}>
-      <span class="flex min-w-0 flex-wrap gap-1">
+      <span class="flex flex-wrap gap-1">
         <For each={props.values}>
           {([key, value]) => (
             <span
-              class="rounded-full bg-pill/55 px-1.5 py-0.5 text-[0.68rem] leading-tight text-muted"
+              class="shrink-0 rounded-full bg-pill/55 px-1.5 py-0.5 text-[0.68rem] leading-tight text-muted"
               data-testid={TESTID.pluginConfig}
               data-config={key}
             >
