@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { visibleViewport } from "olai-plugin-layout/viewport.ts"
+import { visibleViewport } from "./viewport.ts"
 
 // A phone with nothing in the way: the visible strip IS the layout viewport,
 // so nothing is hidden below it and a bottom-anchored box needs no lift.

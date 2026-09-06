@@ -100,7 +100,8 @@ import { isLone } from "olai-plugin-navigation/workspace"
 import { type Asking } from "./asking.ts"
 import {
 boxOf,
-CAPTURE_PREFIX,
+prefixesIn,
+type PalettePrefix,
 commandsIn,
 filterItems,
 hitItems,
@@ -285,12 +286,11 @@ export function Palette(props: {
    * — is spent once per change to the slot table rather than once per keystroke
    * per reader, and so the empty case costs an array read.
    */
-  const commands = createMemo<ReadonlyArray<AppCommand>>(() => commandsIn(hung("app.command")))
+  const prefixes = createMemo(() => prefixesIn(readLocation(paletteAdapters).flatMap(entry =>
+    entry.value.prefix ? [{ owner: entry.owner, value: entry.value.prefix }] : [])))
+  const commands = createMemo<ReadonlyArray<AppCommand>>(() => commandsIn(hung("app.command"), prefixes()))
 
-  const box = createMemo(() => {
-    const value=boxOf(query(),paletteAsking(),commands())
-    return value.kind==="capture"&&!adapters().some(adapter=>adapter.prefix?.value===CAPTURE_PREFIX) ? {kind:"filter" as const,text:query()} : value
-  })
+  const box = createMemo(() => boxOf(query(), paletteAsking(), commands(), prefixes()))
   const listing = () => box().kind === "filter"
 
   /** What the box is FOR, said in it while it is empty — or, while a typed
@@ -312,9 +312,9 @@ export function Palette(props: {
     // placeholder that ends `agent, -` is worse than a shorter one — so the
     // phone names only what core keeps, and a plugin's word is read off the
     // prefix strip the moment its character is typed.
-    if (!desktop()) return "Jump, toggle, + capture…"
-    const prefixes = commands().map((command) => `${command.prefix} ${command.said}`)
-    return ["Jump", "toggle", ...prefixes, "+ capture a line"].join(", ") + "…"
+    if (!desktop()) return ["Jump", "toggle", ...prefixes().map(prefix => `${prefix.value} ${prefix.label}`)].join(", ") + "…"
+    const commandWords = commands().map((command) => `${command.prefix} ${command.said}`)
+    return ["Jump", "toggle", ...commandWords, ...prefixes().map(prefix => `${prefix.value} ${prefix.label}`)].join(", ") + "…"
   }
 
   /**
@@ -618,40 +618,26 @@ export function Palette(props: {
     sendEdit(outcome.success)
   }
 
-  /**
-   * The captured line, and then the box empties for the next one.
-   *
-   * STAYING OPEN is the gesture rather than a convenience: capture is what a
-   * person does when several things arrive at once, and a modal that shut
-   * after each of them would ask for the chord again every time. A REFUSAL
-   * keeps the text exactly where it is — the same promise a refused title
-   * commit makes to a draft — so an inbox whose file will not parse is
-   * something to fix rather than something to retype.
-   *
-   * A BLANK LINE IS SENT LIKE ANY OTHER, and that is deliberate: the resolver
-   * declines to fence it ("a fence there would be a fence one face has"), so
-   * the ops layer refuses it in the words an agent's `add_node` gets — *a node
-   * needs a title* — and they land in the slot below. A guard here would have
-   * been a rule only this face has AND an Enter that did nothing and said
-   * nothing, which is the failure this slot exists to prevent.
-   *
-   * WHERE IT LANDED comes off the ANSWER. The whole argument for the `capture`
-   * verb is that only the server knows which file the inbox is; a sentence
-   * naming one from here would be that argument contradicted one line later,
-   * and wrong out loud for a directory that keeps `notes/inbox.olai`.
-   */
-  const sendCapture = (text: string) => {
-    const prefix=adapters().find(adapter=>adapter.prefix?.value===CAPTURE_PREFIX)?.prefix
-    if(sending() || prefix===undefined)return
-    const submitted=queryRevision, opened=paletteRevision
-    setSending(true);setSaid(null)
-    void prefix.run(text).then(line=>{
+  /** An action replies only to the opening, input and provider that submitted it. */
+  const sendPrefix = (prefix: PalettePrefix, text: string) => {
+    if (sending() || !prefixes().includes(prefix)) return
+    const submitted = queryRevision, opened = paletteRevision
+    setSending(true)
+    setSaid(null)
+    void prefix.run(text).then(line => {
       setSending(false)
-      if(paletteRevision!==opened)return
-      if(queryRevision===submitted){setSaid(line);if(line.tone!=="alarm")prime(prefix.after)}
+      if (paletteRevision !== opened || !prefixes().includes(prefix)) return
+      if (queryRevision === submitted) {
+        setSaid(line)
+        if (line.tone !== "alarm") prime(prefix.after)
+      }
+    }, failure => {
+      setSending(false)
+      if (paletteRevision !== opened || queryRevision !== submitted || !prefixes().includes(prefix)) return
+      console.error("Palette prefix action failed", failure)
+      setSaid({ tone: "alarm", text: "The action failed. Please try again." })
     })
   }
-
 
   /**
    * THE LINE, HANDED OVER — and the palette says what came back.
@@ -728,8 +714,8 @@ export function Palette(props: {
       runCommand(it.command, it.text)
       return
     }
-    if (it.kind === "capture") {
-      sendCapture(it.text)
+    if (it.kind === "prefix") {
+      sendPrefix(it.prefix, it.text)
       return
     }
     // Nothing lit is nothing chosen — see {@link chosen}. No `?? list[0]`
@@ -1091,13 +1077,13 @@ export function Palette(props: {
                 />
               )}
             </Match>
-            <Match when={only(box(), "capture")}>
+            <Match when={only(box(), "prefix")}>
               {(box) => (
                 <Composing
                   text={box().text}
-                  lead={adapters().find(adapter=>adapter.prefix?.value===CAPTURE_PREFIX)?.prefix?.label ?? ""}
-                  empty={adapters().find(adapter=>adapter.prefix?.value===CAPTURE_PREFIX)?.prefix?.empty ?? ""}
-                  testid={TESTID.paletteCapture}
+                  lead={box().prefix.label}
+                  empty={box().prefix.empty}
+                  testid={box().prefix.testid}
                 />
               )}
             </Match>

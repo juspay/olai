@@ -5,14 +5,14 @@ import { definePlugin, Directory, Ops, Surfaces, Vault } from "@olai/plugin-api/
 import type { Ops as Gate, Store } from "@olai/ops"
 import { Effect, Stream, SubscriptionRef } from "effect"
 import { inMemoryStore, inMemoryChannel, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
-import type { Reading } from "@olai/format"
+import { type Reading, samePageReading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import { applyEdit, runWrite } from "@olai/edit-intents/apply"
 import { surface, faces, dispatch } from "./surface.ts"
 import { name } from "./name.ts"
 export { name } from "./name.ts"
 import { documentProjection, type Projection } from "@olai/surface/projection"
-import type { DocumentEntry } from "@olai/surface"
+import type { CorePageReading, DocumentEntry } from "@olai/surface"
 import * as Bodies from "./server/bodies.ts"
 
 export default definePlugin({
@@ -24,6 +24,7 @@ export default definePlugin({
     let ctx: SurfaceRuntime<typeof surface.spec>["ctx"] | undefined
     let held: Projection<DocumentEntry> | undefined
     const empty = new Map<string, DocumentEntry>()
+    const revisions = inMemoryChannel<void>()
     const bodies = yield* Bodies.make({
       read: path => store.body(path),
       publish: (path, body) => {
@@ -39,12 +40,20 @@ export default definePlugin({
       for (const [key, value] of next.change.upserts) ctx?.collections.documents.upsert(key, value)
       for (const key of next.change.removes) ctx?.collections.documents.remove(key)
       bodies.unread(next.unread)
+      revisions.publish(undefined)
     }))
     yield* vault.unloaded(Effect.sync(() => {
       for (const key of held?.change.entries.keys() ?? []) ctx?.collections.documents.remove(key)
       held = undefined
+      revisions.publish(undefined)
     }))
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
+      onStreamReadError: (error, {stream}) => { Effect.runFork(Effect.logWarning(`markdown ${stream} read failed: ${String(error)}`)) },
+      streams: { documentPage: {
+        read: input => Effect.runPromise(Effect.map(gate.page(input), value => value as CorePageReading)),
+        install: (_input, onEvent) => revisions.consume({onEvent, onError: () => {}}),
+        isEqual: samePageReading,
+      } },
       collections: {
         documents: { readAll: () => held?.change.entries ?? empty, upsert: () => {}, remove: () => {}, 
         readOne: (key) => {
@@ -63,3 +72,5 @@ export default definePlugin({
     yield* (yield* Surfaces).register({ surface, faces, dispatch, writes: ["surface/ops/run"], root: true, deps, published: value => { ctx = value as typeof ctx } })
   }),
 })
+
+export { dispatch } from "./surface.ts"

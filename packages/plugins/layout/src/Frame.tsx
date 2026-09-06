@@ -24,7 +24,6 @@ import { contentStatus,overlays,sidebar } from "./index.ts"
 
 import {
 createEffect,
-createRenderEffect,
 createSignal,
 Show
 } from "solid-js"
@@ -34,7 +33,6 @@ import { Panes } from "olai-plugin-layout/pane/Panes.tsx"
 import { PluginBanners } from "@olai/web/client/plugins/Chrome.tsx"
 import { PluginsMounted } from "@olai/web/client/plugins/Mounted.tsx"
 import { PluginPanel } from "@olai/web/client/plugins/Seats.tsx"
-import { KEYS_SETTLING,quiescence } from "@olai/web/client/quiescence.ts"
 import { connectionReadout } from "@olai/web/client/wire.ts"
 import { desktop } from "olai-plugin-layout/media"
 import { panelOpen,sidebarOpen,toggleSidebar } from "olai-plugin-layout/preferences"
@@ -87,24 +85,10 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
       {/* No ground of its own: `html` is already ink (./styles.css), and what
           shows through here — the strip under a sticky spine on a page taller
           than the viewport — is that same forest either way. */}
-      {/* THE SHELL, and the one thing on it that is not a look: how many keys
-          this tab has not finished with, counting down to "0"
-          (`./quiescence.ts`, which says what holds the count and what
-          deliberately does not). Here rather than on a page, because it is a
-          fact about the TAB — a chord aimed at the palette, a fold in a
-          second pane and a title being typed are all keys, and there is one
-          keyboard between them.
 
-          A `ref` and a render effect rather than a spelled-out attribute: the
-          name is a contract with a package that never imports this one, so it
-          is imported rather than typed twice, and a JSX attribute cannot be
-          named by a constant. */}
       <div
         class="flex min-h-dvh flex-col"
-        ref={(shell) =>
-          createRenderEffect(() =>
-            shell.setAttribute(KEYS_SETTLING, String(quiescence.count()))
-          )}
+
       >
         <Header
           slots={props.slots}

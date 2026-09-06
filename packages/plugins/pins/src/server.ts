@@ -42,3 +42,5 @@ export default definePlugin({
     yield* (yield* Surfaces).register({ surface, faces, dispatch, root: true, deps, published: value => { ctx = value as typeof ctx } })
   }),
 })
+
+export { dispatch } from "./surface.ts"

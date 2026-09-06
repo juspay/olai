@@ -63,3 +63,5 @@ export default definePlugin({
     yield* (yield* Surfaces).register({ surface, faces, dispatch, writes: ["surface/ops/run"], root: true, deps, published: value => { ctx = value as typeof ctx } })
   }),
 })
+
+export { dispatch } from "./surface.ts"

@@ -101,3 +101,5 @@ Two switches, two meanings:
 - `OLAI_ACP_AGENT=""` is **not this time**. The row is there, the panel draws, and it says the agent is switched off — which is what you want when the answer is *not right now* rather than *no conversation here*.
 
 The second is the one to reach for by habit. The first is a deployment's word, or a person deciding this serve should stop being a chat for a while.
+
+The browser activation owns one agent roster and conversation reading. Its panel, header, sidebar and row-door contributions provide that same roster only to their own children; row commands close over the scoped reading. Chat no longer wraps the application to provide state, so switching it off leaves surviving outline and document editor instances intact. Agent-list callbacks from a departed activation cannot trigger another lookup.

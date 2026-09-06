@@ -39,6 +39,7 @@
 import type { Context as CordisContext } from "cordis"
 import { Cause, Context, Effect, Exit, Fiber, FiberSet, Schema, Scope } from "effect"
 
+import { moduleOwner } from "./module.ts"
 import { failed } from "./broadcast.ts"
 import { held } from "./host.ts"
 import { Offering, activate } from "./lifecycle.ts"
@@ -191,7 +192,7 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
     if (ctx.fiber.uid === null) return async () => {}
     // THE STAMP, READ ONCE, off the registry binding — never off anything the
     // plugin supplied. Every keyed service below is minted from it.
-    const who = ctx.fiber.name
+    const who = moduleOwner(ctx)
     // Runtime string lookup is the one point where the key's shape is erased.
     // Resolve it here; lifetime ownership has no opinion about service shapes.
     let services = Context.merge(opened, Context.make(PluginName, who)) as Context.Context<never>

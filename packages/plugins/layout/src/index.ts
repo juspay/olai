@@ -34,7 +34,7 @@ export const deployment = serviceTag<{readonly called: Accessor<string | undefin
 
 /** Optional capability status can hold its content while initial data arrives,
  * and render its own diagnosis. Layout knows neither files nor domain errors. */
-export const contentStatus = location<{readonly ready:()=>boolean;readonly Message:()=>JSX.Element}>("layout.contentStatus")
+export const contentStatus = location<{readonly ready:()=>boolean;readonly Message:()=>JSX.Element}>("layout.content-status")
 
 export const overlays = location<(props:{readonly toggleDirectory:()=>void})=>JSX.Element>("layout.overlays")
 

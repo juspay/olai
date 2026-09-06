@@ -4,6 +4,7 @@ import { surface as legacy } from "@olai/surface"
 /** Static compatibility contract; live handlers belong to this capability. */
 export const surface = defineSurface({
   collections: { documents: legacy.spec.collections.documents },
+  streams: { documentPage: legacy.spec.streams.documentPage },
   procedures: {
     edit: legacy.spec.procedures.edit,
     ops: { documents: legacy.spec.procedures.ops.documents, document: legacy.spec.procedures.ops.document, run: legacy.spec.procedures.ops.run },
@@ -16,6 +17,7 @@ export const dispatch = {
 export const faces = {
   "browser": {
     "documents": "resource",
+    "documentPage": "resource",
     "edit.apply": "tool"
   },
   "agent": {

@@ -36,6 +36,7 @@ import { Context as CordisContext, FiberState } from "cordis"
 import type { Fiber } from "cordis"
 import { Context, Effect, Queue, Scope, Stream } from "effect"
 
+import { moduleFibers } from "./module.ts"
 import { hostActivations, interrupt } from "./lifecycle.ts"
 import type { Plugin } from "./plugin.ts"
 import type { Provision, ServiceKey } from "./service.ts"
@@ -160,10 +161,10 @@ export const closeHost = (host: Host): Effect.Effect<void> => Effect.promise(() 
  * keyed door that stamped registrations from it would be a bug in that door,
  * and the ledger does not stamp.
  */
-export const offered = <Shape>(host: Host, key: ServiceKey<Shape>): Shape | undefined => {
+export const offered = <Shape>(host: Host, key: ServiceKey<Shape>, caller = "core"): Shape | undefined => {
   const value = ctxOf(host).reflect.get(key.cordis)
   if (typeof value !== "function") return undefined
-  return (value as Provision<Shape>)("core")
+  return (value as Provision<Shape>)(caller)
 }
 
 export const provide = <Shape>(
@@ -318,7 +319,7 @@ export const settled = (host: Host, ids: ReadonlyArray<string>): Effect.Effect<v
     Effect.promise(async () => {
       const stillMoving = (): ReadonlyArray<readonly [string, Promise<void>]> =>
         [...fibersOf(host, ids)].flatMap(([id, fiber]) =>
-          fiber.inertia === undefined ? [] : [[id, fiber.inertia] as const]
+          moduleFibers(fiber).flatMap((part) => part.inertia === undefined ? [] : [[id, part.inertia] as const])
         )
       for (let pass = 0; pass < PASSES; pass += 1) {
         const held = stillMoving()
@@ -384,7 +385,7 @@ export const namedBy = (
   ids: ReadonlyArray<string>,
 ): ReadonlyMap<string, ReadonlyArray<string>> =>
   new Map(
-    [...fibersOf(host, ids)].map(([id, fiber]) => [id, Object.keys(fiber.inject)] as const),
+    [...fibersOf(host, ids)].map(([id, fiber]) => [id, [...new Set(moduleFibers(fiber).flatMap((part) => Object.keys(part.inject)))]] as const),
   )
 
 /**
@@ -501,6 +502,17 @@ const OFF: RowReport = { state: "off" }
  *  into one word before a service could arrive from a ROW, when nothing at a
  *  serve could produce the first of them. */
 const reportOf = (fiber: Fiber): RowReport => {
+  const parts = moduleFibers(fiber)
+  const reports = parts.map(singleReport)
+  if (reports.some((part) => part.state === "failed")) return { state: "failed" }
+  const waiting = reports.filter((part) => part.state === "waiting")
+  if (waiting.length) {
+    const missing = [...new Set(waiting.flatMap((part) => part.missing ?? []))]
+    return missing.length ? { state: "waiting", missing } : { state: "waiting" }
+  }
+  return reports[0]!
+}
+const singleReport = (fiber: Fiber): RowReport => {
   switch (fiber.state) {
     case FiberState.ACTIVE:
       return { state: "running" }
@@ -519,7 +531,8 @@ const reportOf = (fiber: Fiber): RowReport => {
  *  ask late for the reason the header gives: a fault is a fact about a fiber
  *  that is not going to move again. */
 const faulted = async (fiber: Fiber): Promise<RowReport> => {
-  const fault = await fiber.await().then(() => undefined, faultOf)
+  const failed = moduleFibers(fiber).find((part) => part.state === FiberState.FAILED) ?? fiber
+  const fault = await failed.await().then(() => undefined, faultOf)
   return fault === undefined ? { state: "failed" } : { state: "failed", fault }
 }
 

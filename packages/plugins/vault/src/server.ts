@@ -83,4 +83,6 @@ export default definePlugin({
 })
 
 import fileAccess from "./file-access.ts"
-export const components = { fileAccess }
+import { setup, revalidation } from "./setup.ts"
+import http from "./http.ts"
+export const components = { "file-access": fileAccess, setup, revalidation, http }

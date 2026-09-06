@@ -29,3 +29,5 @@ export default definePlugin({
     yield* (yield* Surfaces).register({ surface, faces, dispatch, writes: ["surface/ops/run"], root: true, deps })
   }),
 })
+
+export { dispatch } from "./surface.ts"

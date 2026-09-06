@@ -664,6 +664,7 @@ describe("only the registry knows a plugin's name", () => {
       "tests/support/world.ts: olai-plugin-kolu/appliance/testlib",
     ],
     server: [
+      "server/src/capabilities.testlib.ts: olai-plugin-vault/testlib",
       "server/src/dial.test.ts: olai-plugin-mcp/testlib",
       "server/src/headless.test.ts: olai-plugin-git/testlib",
       "server/src/lock.test.ts: olai-plugin-vault/testlib",
@@ -671,8 +672,10 @@ describe("only the registry knows a plugin's name", () => {
       "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
+      "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/tools.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/tools.test.ts: olai-plugin-mcp/testlib",
+      "server/src/resync.test.ts: olai-plugin-vault/testlib",
       "server/src/serve.test.ts: olai-plugin-web-app/testlib",
       "server/src/who.test.ts: olai-plugin-identity/who",
     ],
@@ -1602,7 +1605,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/layout/src/layout/prefs-owner.ts",
     "plugins/layout/src/layout/prefs.ts",
     "plugins/xyne-spaces/src/client.ts",
-    "plugins/xyne-spaces/src/testlib/fake-spaces.ts"
+    "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
   ],
   "vault": [
     "format/src/conventions.bench.ts",
@@ -1654,7 +1657,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "server/src/published.bench.ts",
     "server/src/serve.ts",
     "surface/src/seal.ts",
-    "web/src/client/testids.ts"
+    "web/src/client/testids.ts",
   ],
   "git": [
     "format/src/committing.ts",
@@ -1669,7 +1672,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "server/src/gitPolicy.ts",
     "server/src/main.ts",
     "server/src/published.bench.ts",
-    "server/src/serve.ts"
+    "server/src/serve.ts",
   ],
   "search": [
     "format/src/address.ts",
@@ -1684,6 +1687,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "ops/src/tools.ts",
     "plugin-api/src/services.ts",
     "plugin-build/src/bind.ts",
+    "plugins/capture/src/Palette.tsx",
     "plugins/chat/src/agents/roster.ts",
     "plugins/chat/src/browser/chat/completion.ts",
     "plugins/chat/src/testids.ts",
@@ -1703,9 +1707,9 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/outlines/src/surface.ts",
     "plugins/pins/src/browser/palette.ts",
     "plugins/vault/src/server.ts",
+    "plugins/vault/src/setup.ts",
     "server/src/faces.ts",
     "server/src/main.ts",
-    "server/src/serve.ts",
     "surface/src/index.ts",
     "surface/src/media.ts",
     "surface/src/search.ts",
@@ -1713,7 +1717,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "web/src/client/plugins/loading.ts",
     "web/src/client/search/Count.tsx",
     "web/src/client/search/nodes.ts",
-    "web/src/client/testids.ts"
+    "web/src/client/testids.ts",
   ],
   "identity": [
     "ops/src/tools.ts",
@@ -1727,23 +1731,23 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/odu/src/browser/words.ts",
     "plugins/odu/src/doorbell.ts",
     "plugins/outlines/src/browser/edit/Editable.tsx",
-    "server/src/serve.ts"
+    "server/src/serve.ts",
   ],
   "journal": [
     "format/src/patch.ts",
     "format/src/searching.ts",
     "ops/src/tools.ts",
-    "sigterm/src/sigterm.ts"
+    "sigterm/src/sigterm.ts",
   ],
   "claude": [
     "format/src/filter.ts",
     "format/src/searching.ts",
-    "ops/src/tools.ts"
+    "ops/src/tools.ts",
   ],
   "codex": [],
   "opencode": [],
   "pi": [
-    "appearance/src/tagInk.ts"
+    "appearance/src/tagInk.ts",
   ],
   "kolu": [],
   "odu": [],
@@ -1763,13 +1767,11 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "server/src/faces.ts",
     "server/src/gitPolicy.ts",
     "server/src/main.ts",
-    "server/src/mcp/binding.ts",
-    "server/src/mcp/tickets.ts",
     "server/src/mcpClient.ts",
-    "server/src/serve.ts"
+    "server/src/serve.ts",
   ],
   "web-app": [
-    "plugins/theme/src/chrome.ts"
+    "plugins/theme/src/chrome.ts",
   ],
   "ui-renderer": [],
   "layout": [
@@ -1779,7 +1781,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/test-layout/src/browser.tsx",
     "plugins/test-layout/src/index.ts",
     "plugins/vault-plugins/src/server.ts",
-    "surface/src/index.ts"
+    "surface/src/index.ts",
   ],
   "sidebar": [
     "ops/src/tools.ts",
@@ -1808,12 +1810,12 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "web/src/client/errors/Page.tsx",
     "web/src/client/keys.ts",
     "web/src/client/plugins/Seats.tsx",
-    "web/src/client/testids.ts"
+    "web/src/client/testids.ts",
   ],
   "preferences": [
     "plugins/chat/src/browser/chat/NoAgent.tsx",
     "plugins/outlines/src/browser.tsx",
-    "plugins/theme/src/browser.tsx"
+    "plugins/theme/src/browser.tsx",
   ],
   "theme": [
     "appearance/src/css.ts",
@@ -1824,7 +1826,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/kolu/src/client/wire/kolu.ts",
     "plugins/preferences/src/Preferences.tsx",
     "plugins/web-app/src/manifest.ts",
-    "web/src/client/testids.ts"
+    "web/src/client/testids.ts",
   ],
   "plugin-inspector": [],
   "navigation": [
@@ -1838,7 +1840,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/outlines/src/browser/palette/adapter.tsx",
     "plugins/pins/src/browser/Palette.tsx",
     "plugins/test-layout/src/browser.tsx",
-    "plugins/trash/src/browser.tsx"
+    "plugins/trash/src/browser.tsx",
   ],
   "outlines": [
     "format/src/committing.ts",
@@ -1871,6 +1873,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/git/src/browser/commit/selection.ts",
     "plugins/git/src/ledger/pending.bench.ts",
     "plugins/git/src/ledger/pending.ts",
+    "plugins/mcp/src/binding.ts",
     "plugins/mcp/src/endpoint.ts",
     "plugins/mcp/src/tools.ts",
     "plugins/search/src/table.bench.ts",
@@ -1882,7 +1885,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "surface/src/projection.ts",
     "web/src/client/errors/Fault.tsx",
     "web/src/client/errors/Page.tsx",
-    "web/src/client/testids.ts"
+    "web/src/client/testids.ts",
   ],
   "markdown": [
     "appearance/src/scale.ts",
@@ -1917,7 +1920,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/test-layout/src/browser.tsx",
     "plugins/xyne-spaces/src/client.ts",
     "plugins/xyne-spaces/src/mirror.ts",
-    "plugins/xyne-spaces/src/testlib/fake-spaces.ts"
+    "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
   ],
   "files": [
     "format/src/conventions.bench.ts",
@@ -1974,9 +1977,9 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/trash/src/browser/TrashPage.tsx",
     "plugins/vault/src/browser.tsx",
     "plugins/vault/src/browser/served.tsx",
+    "plugins/vault/src/http/media.ts",
     "plugins/vault/src/lock.ts",
     "plugins/web-app/src/manifest.ts",
-    "server/src/media.ts",
     "server/src/published.bench.ts",
     "store/src/probe.ts",
     "store/src/store.ts",
@@ -1988,7 +1991,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "web/src/client/errors/Report.tsx",
     "web/src/client/errors/banner.ts",
     "web/src/client/file/matching.ts",
-    "web/src/client/testids.ts"
+    "web/src/client/testids.ts",
   ],
   "pins": [
     "edit-intents/src/index.ts",
@@ -2001,8 +2004,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/outlines/src/browser/Tree.tsx",
     "plugins/outlines/src/browser/menu/actions.ts",
     "server/src/faces.ts",
-    "server/src/runtime.ts",
-    "surface/src/index.ts"
+    "surface/src/index.ts",
   ],
   "capture": [
     "edit-intents/src/index.ts",
@@ -2023,7 +2025,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "server/src/main.ts",
     "surface/src/edit.ts",
     "web/src/client/Tip.tsx",
-    "web/src/client/testids.ts"
+    "web/src/client/testids.ts",
   ],
   "trash": [
     "edit-intents/src/index.ts",
@@ -2055,7 +2057,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "surface/src/edit.ts",
     "surface/src/index.ts",
     "web/src/client/address/address.ts",
-    "web/src/client/testids.ts"
+    "web/src/client/testids.ts",
   ],
   "test-layout": [],
   "test-counter": [],
@@ -2119,6 +2121,7 @@ test("permanent host entry closures contain no Olai feature implementation", () 
     const target = doorsOf(manifestAt(path.join(PACKAGES, tenant.dir))!)["./policy"]
     return target ? [path.relative(PACKAGES, path.resolve(PACKAGES, tenant.dir, target))] : []
   }))
+  const contractTargets = new Set(PLUGIN_PACKAGES.flatMap(pkg => staticTargets(pkg).map(file => path.relative(PACKAGES, file))))
   const entries = ["web/src/client/main.tsx", "server/src/serve.ts"]
   const violations = entries.flatMap(entry => {
     const graph = graphFrom(path.join(PACKAGES, entry))
@@ -2126,7 +2129,7 @@ test("permanent host entry closures contain no Olai feature implementation", () 
     return graph.files.filter(file => {
       const member = memberOf(file)
       return member !== undefined && (
-        PLUGIN_DIRS.includes(member) && !policyTargets.has(file)
+        PLUGIN_DIRS.includes(member) && !policyTargets.has(file) && !contractTargets.has(file)
         || ["ops", "store", "edit-intents", "edit-history", "markdown-ui", "appearance"].includes(member)
       )
     }).map(file => `${entry}: ${file}`)

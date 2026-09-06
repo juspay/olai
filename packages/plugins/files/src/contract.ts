@@ -10,4 +10,4 @@ export interface FileControls {
  readonly Delete: (props:{readonly file:string})=>JSX.Element
  readonly New: (props:{readonly making:import("./file/making.ts").Making;readonly create:(file:string)=>Promise<string|null>})=>JSX.Element
 }
-export { DeleteFile,holdFileControls,NewFile } from "./controls.tsx"
+export { DeleteFile,holdFileControls,NewFile } from "./contracts/controls.tsx"

@@ -28,3 +28,16 @@ reading and static membership accessors. Content providers consume this file
 access directly. The files plugin owns browsing UI and may leave without
 withdrawing an already open outline or Markdown document. Navigation owns the
 address resolver over the vault's membership, independently of that UI.
+
+The server module has independently injected `setup`, `main`, `file-access`,
+`revalidation`, and `http` components. They share the vault row's authority and
+lifetime. Setup receives only the operator's root and machine-local path policy
+through `VaultBoot`; it builds the complete declared vocabulary and live optional
+ledger/search views, then offers the settings that let the directory open.
+Changing property-kind contributions revalidates the current store. Unrelated
+plugin changes and snapshot publication do not create extra revisions.
+
+Disabling the vault closes all components and drains dependent cleanup before
+releasing the directory. A missing HTTP transport leaves that component waiting
+while headless file access remains available; the row report includes the missing
+component dependency.

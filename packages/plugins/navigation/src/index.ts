@@ -26,9 +26,9 @@ export interface PaletteAdapter {
  readonly accepts?: (request: unknown) => boolean
  readonly write?: (request: unknown) => Promise<import("@olai/web/client/saying.ts").Said | undefined>
  readonly key?: (action: string) => void
- readonly prefix?: {readonly value:string;readonly label:string;readonly empty:string;readonly run:(text:string)=>Promise<import("@olai/web/client/saying.ts").Said>;readonly after:string}
+ readonly prefix?: import("./palette/items.ts").PalettePrefix
 }
-export const paletteAdapters = location<PaletteAdapter>("navigation.paletteAdapters")
+export const paletteAdapters = location<PaletteAdapter>("navigation.palette-adapters")
 
-export type {PaletteItem} from "./palette/items.ts"
+export type {PaletteItem, PalettePrefix} from "./palette/items.ts"
 export const fileLinks=serviceTag<import("./opens.tsx").Opens>("navigation.file-links")

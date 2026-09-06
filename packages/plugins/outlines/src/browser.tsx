@@ -52,7 +52,7 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
 import { documentProperties } from "./browser/document-properties.tsx"
 import { palette, messages } from "./browser/palette/adapter.tsx"
 export const components = {
-  palette, messages, documentProperties,
+  palette, messages, "document-properties": documentProperties,
   content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots
     yield* slots.contribute(content, {

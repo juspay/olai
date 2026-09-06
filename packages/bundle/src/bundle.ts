@@ -67,11 +67,12 @@ import { definePlugin, kindWordOf, rowReport } from "@olai/plugin-api"
 // is the bundle read from the inside. `offered` is a root-only read of any
 // offered service; a plugin holding a host could spend it, and none can.
 // Everything else this file spends of the bridge comes through the door above.
-import { namedBy, offered, settled } from "@olai/effect-cordis"
+import { BundleModules } from "@olai/plugin-api/services"
+import { namedBy, offered, provide, settled } from "@olai/effect-cordis"
 
 export { offered, provide, settled } from "@olai/effect-cordis"
 import { flipRow, mountRows, rowConfigs } from "@olai/effect-cordis/loader"
-import { Effect } from "effect"
+import { Effect, type Scope } from "effect"
 
 import { BUNDLE_NAMES, ROWS } from "./rows.ts"
 
@@ -342,8 +343,11 @@ export const mountBundle = (
   pin: PluginPin,
   configs: ReadonlyArray<{ readonly id: string; readonly config: unknown }> = [],
   profile: string = "web",
-): Effect.Effect<void> =>
-  Effect.flatMap(
+): Effect.Effect<void, never, Scope.Scope> => Effect.gen(function*() {
+  yield* provide(host, BundleModules, () => ({
+    read: Effect.promise(() => Promise.all(ROWS.map(async (row) => ({ name: row.id, exports: await importByName(row.name) })))),
+  }))
+  yield* Effect.flatMap(
     mountRows(host, {
       baseUrl: BASE_URL,
       path: BUNDLE,
@@ -356,6 +360,7 @@ export const mountBundle = (
     // be a second reading of the flag beside {@link pluginsPatch}'s.
     () => settled(host, BUNDLE_NAMES),
   )
+})
 
 /** Profiles disable rows from the catalogue; they never insert a second list.
  * An explicit --plugins selection overrides those defaults for every row. */

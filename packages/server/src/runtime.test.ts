@@ -1,10 +1,9 @@
+import { VaultBoot } from "olai-plugin-vault/boot"
 import { CONTENT_ROWS } from "./capabilities.testlib.ts"
 import { TestClock } from "effect/testing"
 import { runtimePaths } from "./runtime-paths.ts"
-import { fixedStore } from "./store-source.ts"
 import { mountBundle, offered as door, provide, settled } from "@olai/bundle/bundle"
 import { openPlugins as openHostPlugins, Directory, Ops as OpsDoor } from "@olai/plugin-api/services"
-import { VaultSettings } from "@olai/plugin-api/services"
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * One runtime, several faces, several writers — the rebinding, as a fence.
@@ -27,8 +26,6 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  */
 
 import {
-  NO_LEDGER,
-  NO_SEARCH,
   type Ops,
   type Store as OutlineStore,
 } from "@olai/ops"
@@ -55,7 +52,6 @@ import { defineSurface } from "@kolu/surface/define"
 import { restrictHandlers } from "@kolu/surface/expose"
 import { facesOf } from "./faces.ts"
 import { inMemoryStore } from "@kolu/surface/server"
-import { NO_KINDS } from "@olai/format"
 import { NodeServices } from "@effect/platform-node"
 import { expect, mock, test } from "bun:test"
 import { Effect, Fiber, Queue, Schema, Scope, Stream } from "effect"
@@ -93,6 +89,7 @@ const withRuntime = <A>(
      *  `@olai/store`.s `body`, which is the one door `./bodies.ts` may use.
      *  Recorded rather than mocked: the real read still happens. */
     readonly reads: ReadonlyArray<string>
+    readonly attached: Effect.Effect<string>
     /** The live host, including the vault row and any test doubles. */
     readonly plugins: Plugins
   }) => Effect.Effect<A, unknown>,
@@ -114,7 +111,7 @@ const withRuntime = <A>(
     const onChange = { run: (): void => {} }
     const mounted = yield* openHostPlugins({ vars: {}, now: () => STARTED, changed: () => onChange.run() })
     yield* mountBundle(mounted.host, { kind: "exact", names: ["vault", ...CONTENT_ROWS] }, [], "surface")
-    yield* provide(mounted.host, VaultSettings, () => ({ root, runtime: runtimePaths, kinds: NO_KINDS, ledger: NO_LEDGER, search: NO_SEARCH }))
+    yield* provide(mounted.host, VaultBoot, () => ({root, runtime: runtimePaths}))
     yield* settled(mounted.host, ["vault", ...CONTENT_ROWS])
     const directory = door(mounted.host, Directory) as { readonly store: OutlineStore } | undefined
     if (!directory) throw new Error("test-minimal did not open its vault row")
@@ -125,9 +122,17 @@ const withRuntime = <A>(
     const gate = door(mounted.host, OpsDoor)?.gate as Ops | undefined
     if (!gate) throw new Error("test-minimal did not offer its gate")
     for (const one of extra.plugins ?? []) yield* mountPlugin(mounted.host, one.plugin)
-    const wired = yield* bind({ store: fixedStore(store),
-      ops: gate,
-      writer: "web",
+    const attachments = yield* Queue.unbounded<string>()
+    const markdown = mounted.composed().find(one => one.name === "markdown")
+    const documents = (markdown?.deps as {collections?: {documents?: {readOne?: (key: string) => unknown}}})?.collections?.documents
+    if (!documents?.readOne) throw new Error("Markdown did not offer its document reader")
+    const readOne = documents.readOne
+    documents.readOne = key => {
+      const value = readOne(key)
+      Queue.offerUnsafe(attachments,key)
+      return value
+    }
+    const wired = yield* bind({
       hostname: hostname(),
       startedAt: STARTED,
       // Actual notebook providers supply the wire. Additional rows below are
@@ -169,7 +174,7 @@ const withRuntime = <A>(
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => runtime.stopped)
-    return yield* use({ wired, ops: gate, store, reads, root, plugins: mounted })
+    return yield* use({ wired, ops: gate, store, reads, attached: Queue.take(attachments), root, plugins: mounted })
   }).pipe(
     Effect.scoped,
     Effect.provide(NodeServices.layer),
@@ -443,9 +448,12 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
  * announcement on the same key.
  */
 test("a reader holding a key across a file's birth is handed the body", () =>
-  withRuntime({ "a.olai": OUTLINE }, ({ wired, store, root }) =>
+  withRuntime({ "a.olai": OUTLINE }, ({ wired, store, root, attached }) =>
     Effect.gen(function*() {
       const open = yield* opening(wired.bound, "report.html")
+      // A scoped sibling handler can yield before its subscription attaches.
+      // Wait for the actual snapshot read before creating the absent key.
+      expect(yield* attached).toBe("report.html")
 
       fs.writeFileSync(path.join(root, "report.html"), "<h1>Born</h1>\n")
       yield* store.refresh("cheap")
@@ -1180,7 +1188,7 @@ test("the roster is served on the plugins cell", () =>
       const get = wired.bound.handlers["surface/plugins/get"]
       if (get === undefined) throw new Error("the plugins cell has no `get`")
       const open = yield* watching(get({}) as Stream.Stream<PluginRoster>)
-      expect((yield* open.take).built.map((row) => [row.name, row.state])).toEqual(["vault", ...CONTENT_ROWS].map(name => [name, "running"]))
+      expect((yield* open.take).built.map((row) => [row.name, row.state])).toEqual(["vault", ...CONTENT_ROWS].map(name => [name, name === "vault" ? "waiting" : "running"]))
       yield* Fiber.interrupt(open.reader)
     })))
 

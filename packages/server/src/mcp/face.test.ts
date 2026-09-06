@@ -1,3 +1,4 @@
+import { VaultBoot } from "olai-plugin-vault/boot"
 import { CONTENT_ROWS, runtimeFor } from "../capabilities.testlib.ts"
 /**
  * The read face against a real directory, over a real MCP client.
@@ -29,11 +30,9 @@ import { CONTENT_ROWS, runtimeFor } from "../capabilities.testlib.ts"
 
 import { MCP } from "../faces.ts"
 import { runtimePaths } from "../runtime-paths.ts"
-import { fixedStore } from "../store-source.ts"
-import { type Store, type Ops, NO_LEDGER, NO_SEARCH } from "@olai/ops"
-import { NO_KINDS } from "@olai/format"
+import { type Store, type Ops } from "@olai/ops"
 import { mountBundle, provide, offered, settled } from "@olai/bundle/bundle"
-import { openPlugins, Directory, Ops as OpsDoor, VaultSettings } from "@olai/plugin-api/services"
+import { openPlugins, Directory, Ops as OpsDoor } from "@olai/plugin-api/services"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { ResourceUpdatedNotificationSchema } from "@modelcontextprotocol/sdk/types.js"
@@ -100,7 +99,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     const root = served()
     const plugins = yield* openPlugins({ vars: {}, now: () => "" })
     yield* mountBundle(plugins.host, { kind: "exact", names: ["vault", ...CONTENT_ROWS] })
-    yield* provide(plugins.host, VaultSettings, () => ({ root, runtime: runtimePaths, kinds: NO_KINDS, ledger: NO_LEDGER, search: NO_SEARCH }))
+    yield* provide(plugins.host, VaultBoot, () => ({root, runtime: runtimePaths}))
     yield* settled(plugins.host, ["vault", ...CONTENT_ROWS])
     const store = offered(plugins.host, Directory)!.store as Store
     // A real ops layer with commits OFF: this face is about READING, and `off`
@@ -108,9 +107,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     // bound to it too and this face exposes none of them, so what they cost
     // here is a binding nobody can reach.
     const ops = offered(plugins.host, OpsDoor)!.gate as Ops
-    const wired = yield* bind({ store: fixedStore(store),
-      ops,
-      writer: "mcp",
+    const wired = yield* bind({
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
       plugins: yield* runtimeFor(plugins, ["vault", ...CONTENT_ROWS]),

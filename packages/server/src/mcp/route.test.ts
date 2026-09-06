@@ -21,7 +21,6 @@ import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
  */
 
 import { MCP } from "../faces.ts"
-import { fixedStore } from "../store-source.ts"
 import {
   codecFor,
   make as makeOps,
@@ -97,7 +96,7 @@ interface Served {
 
 const withRoute = <A>(
   use: (served: Served) => Promise<A>,
-  listenOn: { readonly host: string } = { host: "127.0.0.1" },
+  listenOn: { readonly host: string; readonly definitions?: boolean } = { host: "127.0.0.1" },
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-route-")))
   fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
@@ -110,12 +109,10 @@ const withRoute = <A>(
       settle: "10 millis",
     })
     const ops = makeOps({ store, root })
-    const wired = yield* bind({ store: fixedStore(store),
-      ops,
-      writer: "mcp",
+    const wired = yield* bind({
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
-      plugins: yield* capabilitiesOver(store, ops, root, true),
+      plugins: yield* capabilitiesOver(store, ops, root, {definitions:listenOn.definitions ?? true}),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
@@ -451,7 +448,7 @@ test("a node ticket can list and call the three plugin verbs", async () => {
  * same bearer, one key apart. The one that lands is what makes the refusal
  * about THAT KEY rather than about the subtree.
  */
-test("a node ticket may not write `approved`, on its own node or any other", async () => {
+for (const definitions of [true, false]) test(`a node ticket cannot write approval with vault policy ${definitions ? "present" : "absent"}`, async () => {
   await withRoute(async ({ mintTicket, post, root }) => {
     await post(initialize)
     await post({ jsonrpc: "2.0", method: "notifications/initialized" })
@@ -479,7 +476,7 @@ test("a node ticket may not write `approved`, on its own node or any other", asy
     const contents = fs.readFileSync(path.join(root, "house.olai"), "utf8")
     expect(contents).toContain("some-other-key")
     expect(contents).not.toContain("approved")
-  })
+  }, {host:"127.0.0.1", definitions})
 })
 
 /**

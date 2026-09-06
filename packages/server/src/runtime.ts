@@ -4,9 +4,8 @@
  * mount generation; unrelated sources and handler identities remain stable.
  */
 
-import type { StoreSource } from "./store-source.ts"
-import type { Caller, Ops } from "@olai/ops"
-import { NotFoundFailure, type Writer, type PluginPin } from "@olai/format"
+
+import { NotFoundFailure, type PluginPin } from "@olai/format"
 import { type BuiltPlugin, NO_ROSTER, type PluginRoster, type PluginState, type Who } from "@olai/surface/host"
 import type { SurfaceSpec } from "@kolu/surface/define"
 import { emptyHandlers, type ImplementSurfaceDeps, inMemoryStore, type MountedSurface, type SurfaceHandlers, type SurfaceRuntime } from "@kolu/surface/server"
@@ -16,7 +15,7 @@ import type { RowReport } from "@olai/bundle/bundle"
 import { emitter } from "@olai/log"
 import { hostSurface, hostFaces } from "@olai/surface/host"
 import { composeCapabilities } from "./composition.ts"
-import { RequestAuthority } from "@olai/plugin-api/authority"
+import { authorityAt } from "@olai/plugin-api/authority"
 import { CurrentWho } from "./who.ts"
 export type Bound = Omit<SurfaceRuntime<typeof hostSurface.spec>, "ctx"> & { readonly writes: ReadonlyArray<string> }
 export interface PluginRuntime {
@@ -36,10 +35,7 @@ export interface PluginRuntime {
 export interface Wiring {
   readonly hostname: string
   readonly startedAt: string
-  readonly store: StoreSource
   readonly plugins: PluginRuntime | null
-  readonly ops: Ops
-  readonly writer: Writer
 }
 export const rosterOf = (
   offered: Wiring["plugins"],
@@ -127,19 +123,9 @@ const stateOf = (
 const impl =
   <I, A, E>(answer: (input: I) => Effect.Effect<A, E>) =>
   ({ input }: { input: I }): Effect.Effect<A, E> => answer(input)
-export const writerAt = (bound: Pick<Bound, "handlers" | "writes">, _ops: Ops, caller: Caller): SurfaceHandlers => {
-  const handlers = emptyHandlers()
-  for (const [tag, handle] of Object.entries(bound.handlers)) handlers[tag] = !bound.writes.includes(tag) ? handle : input => {
-    const result = handle(input)
-    return Effect.isEffect(result)
-      ? Effect.provideService(result, RequestAuthority, caller)
-      : Stream.provideService(result, RequestAuthority, caller)
-  }
-  return handlers
-}
+export const writerAt = (bound: Pick<Bound, "handlers" | "writes">, _ops: unknown, caller: { readonly writer: string; readonly fence?: unknown }): SurfaceHandlers => authorityAt(bound, caller)
 export const bind = (wiring: Wiring) => Effect.gen(function*() {
     const runtimeScope = yield* Effect.scope
-    const currentStore = wiring.store.current
     const say = yield* emitter
     const ring = say
     let pluginsCell: { set: (value: PluginRoster) => void } | null = null
@@ -238,7 +224,6 @@ app: {
       pendingStatus = false
       yield* offered?.reread ?? Effect.void
       recompose()
-      yield* Effect.ignore(currentStore()?.refresh("verified") ?? Effect.void)
     })
     settling = (run) =>
       Effect.gen(function*() {

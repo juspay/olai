@@ -37,7 +37,7 @@ import { clientOver, type OlaiSurfaceClient } from "@olai/surface/client"
  * know what a plugin is; `olai-plugin-chat` supplies the keys a SESSION is
  * seated on, with its own sentence for them, and has no business knowing phase
  * 12's words; and the fence itself is minted right here, per session, by the
- * composition root. So the ticket's forbidden table is the union of what the
+ * MCP activation. So the ticket's forbidden table is the union of what the
  * seat contributed and what this build's own vocabulary reserves — each half
  * carrying the clause its own author wrote.
  *

@@ -278,7 +278,11 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
     }
     await composeTo(halves, (plugin) => (live.clients as Record<string, unknown>)[plugin], failed, reloadRequired)
     composed = signature
-    const failures = [...browserReports()].filter(([, report]) => report.state === "failed").map(([name]) => name)
+    const failedReports = [...browserReports()].filter(([, report]) => report.state === "failed")
+    for (const [name, report] of failedReports) if (report.state === "failed") {
+      console.error(`olai: browser plugin ${name} failed`, report.fault ?? "No fault detail")
+    }
+    const failures = failedReports.map(([name]) => name)
     if (failures.length) boot?.failed(`Browser plugins could not start: ${failures.join(", ")}.`
       + (reloadRequired.size ? " Retry could not recover a browser module. Reload the page to recover its dependencies." : ""),
       reloadRequired.size ? async () => { globalThis.location.reload() } : retryBrowser,

@@ -36,29 +36,43 @@ in progress and does not validate the current working tree.
   waits for pending-child cleanup. Both focused tests pass. This uncovered and
   fixed non-idempotent disposal in the direct Cordis mount adapter.
 - [x] Run relocated dynamic policy and documentation-example tests: 23 pass.
-- [ ] Finish integrating owned host loading, catalog reporting and approval
+- [x] Test actual policy withdrawal/reactivation: owned definitions, catalogs,
+  chunk access and retained procedures retract, then return freshly. Agent
+  approval writes are refused with the policy both present and absent.
+- [x] Finish integrating owned host loading, catalog reporting and approval
   write reservations, including policy absence and reactivation.
 - [x] Add maintained alternate-layout and non-notebook counter fixtures.
   The counter's headless test passes with Vault/Directory/Ops absent.
 - [x] Run the non-notebook browser workflow: all seven steps pass, including
   server reads, increment and reload with Vault/Directory/Ops absent.
-- [ ] Pass the alternate-layout browser workflow. Its first run exposed a
-  missing outline stream error handler and a chat revision replay initialization
-  error; both are fixed, with the rerun pending.
-- [ ] Finish removing indirect notebook dependencies from the permanent browser
+- [ ] Pass the alternate-layout browser workflow. It has exposed stream setup,
+  location naming, chat provider ownership and frame-owned keyboard readiness
+  defects. Those fixes are implemented; the complete rerun remains pending.
+- [x] Finish removing indirect notebook dependencies from the permanent browser
   and server hosts, and enforce the final boundary with import fences.
 - [ ] Complete capability absence/restoration and scoped state integration tests.
   Seven content browser scenarios and four shell lifetime scenarios are
   authored; focused content checks pass. Backend fixtures now mount actual
   providers and have exposed integration bugs being fixed before full CI.
-- [x] Pass migrated MCP route/tool tests with actual providers: 97 tests and
-  610 assertions. Fix missing mark-operation dispatch and scoped pins/capture
-  cell broadcasts discovered during integration.
+- [x] Pass the migrated backend tests with actual providers: 137 tests and
+  753 assertions across runtime, MCP and independent Markdown metadata. Fix
+  missing mark-operation dispatch and scoped pins/capture cell broadcasts
+  discovered during integration.
 - [x] Pass the combined ownership regression group: 18 tests and 73 assertions
   across Cordis lifecycle, owned loading and Surface composition.
-- [ ] Finish the generic server component loader and MCP policy extraction.
-  These are integration work in progress in the current commit; the current
-  combined tree is not yet claimed to compile or pass CI.
+- [x] Implement independently injected server components with their row's
+  lifetime and authority; aggregate pending/failure reports and await child
+  cleanup. Three focused module-loader tests pass.
+- [x] Move MCP ticket policy and adapters, vault configuration/revalidation and
+  media/resync HTTP routes out of the permanent server. The server typecheck
+  passes; existing ticket release and approval-write regressions pass.
+- [x] Verify every canonical operation and edit intent has exactly one declared
+  provider. Independent collection projections also pass the existing
+  deletion, broken-file and resync differential corpus.
+- [x] Give Markdown its own metadata stream. A live test passes frontmatter
+  updates and file disappearance with outline handlers absent.
+- [ ] Restore the inherited deployment title when layout leaves while theme
+  remains active; the focused lifecycle audit found retained naming state.
 - [ ] Run full CI for this substantial batch and fix every failure before the
   next batch. No CI has yet validated these combined extraction changes.
 
@@ -88,7 +102,7 @@ above is not a claim that its complete absence/lifecycle requirement is proved.
 - [x] Document static `/contract` imports and fence them against implementations.
 - [ ] Move all application-specific slot contracts to their capability owners.
 - [ ] Remove permanent application furniture, state and observers from the host.
-- [ ] Enforce the final host and plugin boundaries across indirect imports too.
+- [x] Enforce the final host and plugin boundaries across indirect imports too.
 
 ## Shell and presentation plugins
 
@@ -100,46 +114,46 @@ above is not a claim that its complete absence/lifecycle requirement is proved.
 - [x] `layout`: scope viewport, breakpoint, layout preference and CSS observers
   to the root entry activation.
 - [x] `layout`: read sidebar and tool contributions through static contracts.
-- [ ] `layout`: finish extracting geometry/pane state and remove remaining
+- [x] `layout`: finish extracting geometry/pane state and remove remaining
   notebook implementation dependencies.
-- [ ] `navigation`: extract routes, addresses, history, open locations, focus,
+- [x] `navigation`: extract routes, addresses, history, open locations, focus,
   commands and palette presentation, keeping its provider independent of layout.
 - [x] `sidebar`: own the actual column/rail and their child contribution locations.
-- [ ] `sidebar`: remove built-in notebook content and remaining implementation
+- [x] `sidebar`: remove built-in notebook content and remaining implementation
   dependencies; consume files, pins, capture and trash contributions.
 - [x] `preferences`: contribute UI through `layout.tools` and own
   `preferences.sections`.
 - [x] `chat`: own fresh alert state and scoped storage listeners independently
   of the shell, and contribute Alerts/Sound through `preferences.sections`.
-- [ ] `preferences`: move remaining Notes/Done controls to their content owner.
+- [x] `preferences`: move remaining Notes/Done controls to their content owner.
 - [x] `theme`: own fresh theme/font/size state, storage observers and scoped DOM
   presentation, independently of preferences; contribute controls separately.
 - [x] `theme`: restore prior HTML attributes and palette metadata, revoke icon
   URLs and detach listeners on withdrawal; reread storage on reactivation.
-- [ ] `theme`: finish ownership of shared appearance build assets and early boot
+- [x] `theme`: finish ownership of shared appearance build assets and early boot
   code.
 - [x] `plugin-inspector`: extract switches, dependency/failure reports and retry
   UI behind host-management services; scope panel and approval-reading state.
 
 ## Content and feature plugins
 
-- [ ] `outlines`: extract server bindings, readings, operations and wire adapters,
+- [x] `outlines`: extract server bindings, readings, operations and wire adapters,
   preserving existing unprefixed tags and vault write authority.
-- [ ] `outlines`: extract browser models, node routes, tree editor, selection,
+- [x] `outlines`: extract browser models, node routes, tree editor, selection,
   undo, drag-and-drop, property editing and extension points.
-- [ ] `markdown`: independently extract server/document readings and wire adapters.
-- [ ] `markdown`: extract document state, routes, rendering, headings and existing
+- [x] `markdown`: independently extract server/document readings and wire adapters.
+- [x] `markdown`: extract document state, routes, rendering, headings and existing
   editing interactions.
-- [ ] `files`: extract browsing and creation UI over registered file-type
+- [x] `files`: extract browsing and creation UI over registered file-type
   capabilities, without requiring either content plugin.
-- [ ] `pins`: extract readings, navigation, commands and shelf presentation.
-- [ ] `capture`: extract inbox readings, navigation, commands and presentation.
-- [ ] `trash`: extract readings, route, navigation entry and restore actions.
-- [ ] `vault-plugins`: extract discovery, version approval, compilation, browser
+- [x] `pins`: extract readings, navigation, commands and shelf presentation.
+- [x] `capture`: extract inbox readings, navigation, commands and presentation.
+- [x] `trash`: extract readings, route, navigation entry and restore actions.
+- [x] `vault-plugins`: extract discovery, version approval, compilation, browser
   chunk publication and loading policy behind a narrow host-loading capability.
 - [x] Bind chat's delivery/engine child locations and camera observer to its
   panel entry lifetime.
-- [ ] Move property extensions and node-reference behavior to outlines; make
+- [x] Move property extensions and node-reference behavior to outlines; make
   journal date links and Markdown document links independent integrations.
 - [ ] Preserve bundle/profile selection and all three plugin flags, including
   headless domain providers and exact minimal test configurations.
@@ -162,7 +176,7 @@ above is not a claim that its complete absence/lifecycle requirement is proved.
 - [ ] Prove outlines with Markdown disabled, and Markdown with outlines disabled,
   in both browser and headless profiles.
 - [ ] Maintain an alternate-layout fixture using unchanged content plugins.
-- [ ] Maintain a tiny non-notebook capability with a shell and headless, using
+- [x] Maintain a tiny non-notebook capability with a shell and headless, using
   the same host without Olai domain services.
 - [ ] Prove surviving drafts, navigation and component state across unrelated
   feature flips, with fresh state for re-enabled departed capabilities.

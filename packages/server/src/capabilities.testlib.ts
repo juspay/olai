@@ -5,7 +5,7 @@ import { openPlugins, Directory, Ops, Vault, vaultEvents, opsEvents, mountPlugin
 import type { Plugins } from "@olai/plugin-api/services"
 import type { Ops as Gate, Store } from "@olai/ops"
 import { Deferred, Effect, Stream } from "effect"
-import { components } from "olai-plugin-vault/server"
+import { fileAccess } from "olai-plugin-vault/testlib"
 import type { PluginRuntime } from "./runtime.ts"
 
 export const CONTENT_ROWS = ["outlines", "markdown", "files", "pins", "capture", "trash"] as const
@@ -19,10 +19,11 @@ export const runtimeFor = (plugins: Plugins, built: ReadonlyArray<string>, onCha
   } satisfies PluginRuntime
 })
 
-export const capabilitiesOver = (store: Store, gate: Gate, root: string, includeDefinitions = false) => Effect.gen(function*() {
+export const capabilitiesOver = (store: Store, gate: Gate, root: string, options: {readonly definitions?: boolean; readonly rows?: ReadonlyArray<string>} = {}) => Effect.gen(function*() {
   const onChange = {run: () => {}}
   const plugins = yield* openPlugins({vars:{},now:()=>"",changed:()=>onChange.run()})
-  const rows = includeDefinitions ? [...CONTENT_ROWS, "vault-plugins"] : CONTENT_ROWS
+  const content = options.rows ?? CONTENT_ROWS
+  const rows = options.definitions ? [...content, "vault-plugins"] : content
   yield* openLoading(plugins.host, rows, () => onChange.run(), {services: plugins.serviceKeys, browserServices: plugins.browserKeys})
   const events = vaultEvents(root)
   const refusals = opsEvents()
@@ -39,7 +40,7 @@ export const capabilitiesOver = (store: Store, gate: Gate, root: string, include
     refused: refusals.listen(plugin),
   }))
   yield* provide(plugins.host, Vault, events.door)
-  yield* mountPlugin(plugins.host,components.fileAccess)
+  yield* mountPlugin(plugins.host,fileAccess)
   yield* mountBundle(plugins.host,{kind:"exact",names:rows},[],"surface")
   yield* settled(plugins.host,rows)
   return yield* runtimeFor(plugins,rows,onChange)

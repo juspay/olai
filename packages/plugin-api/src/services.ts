@@ -83,6 +83,7 @@ import {
   contained,
   type Host,
   openHost,
+  offered as readOffered,
   hostChanges,
   closeHost,
   offer,
@@ -94,7 +95,7 @@ import {
   serviceTag,
   type ServiceKey,
 } from "@olai/effect-cordis"
-import { Deferred, Effect, Exit, Scope, Semaphore, type Stream } from "effect"
+import { Deferred, Effect, Exit, Scope, Semaphore, Queue, Stream } from "effect"
 
 import { ownedKey, ownService, type OwnServices } from "./owned.ts"
 import {
@@ -145,6 +146,19 @@ export interface Env {
   readonly dial: unknown
 }
 export const Env = serviceTag<Env>("env")
+
+/** Optional live service access for adapters whose providers may be absent. */
+export interface HostServices {
+  readonly current: <A>(key: ServiceKey<A>) => A | undefined
+  readonly changes: Stream.Stream<void>
+}
+export const HostServices = serviceTag<HostServices>("host.services")
+
+/** Inert module declarations from the selected bundle, including disabled rows. */
+export interface BundleModules {
+  readonly read: Effect.Effect<ReadonlyArray<{ readonly name: string; readonly exports: unknown }>>
+}
+export const BundleModules = serviceTag<BundleModules>("host.bundle-modules")
 
 /** THE CLOCK, as ISO-8601 — what a link's `since` is stamped from, and the
  *  reason a test that asserts "connected · just now" can own the instant it was
@@ -350,6 +364,8 @@ export const Deliveries = serviceTag<Deliveries>("deliveries")
  * untouched rather than killing the boot.
  */
 export interface Kinds {
+  readonly current: () => ReadonlyMap<string, ComposedKind>
+  readonly changes: Stream.Stream<void>
   /** Teach one word, for as long as the calling plugin is loaded. */
   readonly register: (kind: PropKind) => Effect.Effect<void, never, Scope.Scope>
 }
@@ -919,6 +935,7 @@ export interface Offers extends OwnServices {
   readonly browser: (words: ReadonlyArray<string>) => Effect.Effect<void, never, Scope.Scope>
   /** Stand behind one door, for as long as the calling plugin is loaded. */
   readonly offer: {
+    (key: typeof VaultSettings, door: Provision<VaultSettings>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Ops, door: Provision<Ops>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Vault, door: Provision<Vault>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Directory, door: Provision<Directory>): Effect.Effect<void, never, Scope.Scope>
@@ -1084,6 +1101,7 @@ export interface Ops {
 export const Ops = serviceTag<Ops>("ops")
 
 export const OFFERABLE = [
+  VaultSettings,
   Ops,
   Vault,
   Directory,
@@ -1291,6 +1309,7 @@ export const openPlugins = (
 ): Effect.Effect<Plugins, never, Scope.Scope> =>
   Effect.gen(function*() {
     const host = yield* openHost
+    yield* provide(host, HostServices, (plugin) => ({ current: (key) => readOffered(host, key, plugin), changes: hostChanges(host) }))
 
     yield* provide(host, Env, (plugin) => ({
       vars: config.vars,
@@ -1320,8 +1339,20 @@ export const openPlugins = (
      * accepted cost.
      */
 
-    const kinds = registry<string, ComposedKind>()
+    const kindListeners = new Set<() => void>()
+    const kinds = registry<string, ComposedKind>(() => { for (const notify of kindListeners) notify() })
+    const kindChanges = Stream.callback<void>((queue) => Effect.acquireRelease(
+      Effect.sync(() => {
+        const notify = () => { Queue.offerUnsafe(queue, undefined) }
+        kindListeners.add(notify)
+        notify()
+        return notify
+      }),
+      (notify) => Effect.sync(() => { kindListeners.delete(notify) }),
+    ), { bufferSize: 1, strategy: "sliding" })
     yield* provide(host, Kinds, (plugin) => ({
+      current: kinds.read,
+      changes: kindChanges,
       register: (kind) =>
         Effect.suspend(() => {
           const word = kindWordOf(plugin, kind.kind)
@@ -1538,6 +1569,9 @@ export type { Registering } from "@olai/acp/engine"
  * naming that key would be reaching past a door it already has.
  */
 export const SERVICES = [
+  HostServices,
+  BundleModules,
+  VaultSettings,
   Env,
   Clock,
   Vault,

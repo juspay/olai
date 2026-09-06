@@ -12,7 +12,7 @@
 import { NO_PINS, type Shelf } from "@olai/surface"
 import { expect, test } from "bun:test"
 
-import { pinItem } from "olai-plugin-pins/browser/palette.ts"
+import { pinItem } from "./palette.ts"
 import { atFile, atNode } from "olai-plugin-navigation/routes"
 
 test("a page the shelf does not hold is offered the way ON", () => {

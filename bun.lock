@@ -905,7 +905,6 @@
         "olai-plugin-outlines": "workspace:*",
         "olai-plugin-pins": "workspace:*",
         "olai-plugin-trash": "workspace:*",
-        "olai-plugin-vault": "workspace:*",
         "rehype-autolink-headings": "^7.1.0",
         "rehype-highlight": "^7.0.2",
         "rehype-sanitize": "^6.0.0",

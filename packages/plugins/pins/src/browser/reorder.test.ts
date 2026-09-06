@@ -11,7 +11,7 @@
 import { expect, test } from "bun:test"
 
 import type { Pin } from "olai-plugin-pins/values"
-import { gapAt, placing } from "olai-plugin-pins/browser/reorder.ts"
+import { gapAt, placing } from "./reorder.ts"
 
 const pin = (id: string): Pin => ({
   id,

@@ -15,7 +15,8 @@
     "./files": "./src/browser/served.tsx",
     "./directory": "./src/browser/directory.ts",
     "./file-state": "./src/browser/state.ts",
-    "./status": "./src/browser/Status.tsx"
+    "./status": "./src/browser/Status.tsx",
+    "./boot": "./src/boot.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -41,7 +42,8 @@
   "olai": {
     "contracts": [
       "./files",
-      "./file-state"
+      "./file-state",
+      "./boot"
     ]
   }
 }

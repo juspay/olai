@@ -48,8 +48,7 @@
     "olai-plugin-pins": "workspace:*",
     "olai-plugin-trash": "workspace:*",
     "@olai/edit-history": "workspace:*",
-    "@olai/ui-primitives": "workspace:*",
-    "olai-plugin-vault": "workspace:*"
+    "@olai/ui-primitives": "workspace:*"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",

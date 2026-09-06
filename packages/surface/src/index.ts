@@ -185,6 +185,7 @@ import { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts
 import { App } from "./app.ts"
 import { NarrowingAnswer, NarrowingRequest } from "./narrowing.ts"
 import { SearchAnswer, SearchRequest } from "./search.ts"
+import { bodyKind } from "@olai/format"
 import { NO_ROSTER, PluginRoster, sameRoster } from "./plugins.ts"
 import { Who } from "./who.ts"
 
@@ -198,6 +199,16 @@ export const CorePageRequest = PageRequest.check(
     { expected: "a core file, node, or trash page request" },
   ),
 ) as typeof PageRequest & { readonly Type: CorePageRequest }
+/** Markdown's metadata capability accepts only a bodied-file address. */
+export type DocumentPageRequest = {
+  readonly kind: "at"
+  readonly address: Extract<NonNullable<Extract<PageRequest, { readonly kind: "at" }>["address"]>, { readonly kind: "document" }>
+}
+export const DocumentPageRequest = CorePageRequest.check(Schema.makeFilter(request => {
+  if (request.kind !== "at" || request.address?.kind !== "document") return false
+  return bodyKind(request.address.path) !== null
+})) as typeof CorePageRequest & { readonly Type: DocumentPageRequest }
+
 
 type CoreShown = Exclude<PageReading["shows"], { readonly kind: "day" | "agenda" }>
 export type CorePageReading = Omit<PageReading, "shows"> & { readonly shows: CoreShown }
@@ -784,6 +795,7 @@ export const surface = defineSurface({
      * an outline holds asks `list_outlines` and `read_subtree`, and is answered
      * in nodes.
      */
+    documentPage: { inputSchema: DocumentPageRequest, outputSchema: CorePageReading, arrayKey: "key" },
     page: {
       inputSchema: CorePageRequest,
       outputSchema: CorePageReading,

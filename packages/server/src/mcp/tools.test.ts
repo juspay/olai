@@ -28,7 +28,6 @@ import { capabilitiesOver } from "../capabilities.testlib.ts"
  */
 
 import { MCP } from "../faces.ts"
-import { fixedStore } from "../store-source.ts"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import {
@@ -167,9 +166,7 @@ const withTools = <A>(
         }),
     })
 
-    const wired = yield* bind({ store: fixedStore(store),
-      ops,
-      writer: "mcp",
+    const wired = yield* bind({
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
       plugins: yield* capabilitiesOver(store, ops, root),

@@ -198,3 +198,12 @@ field is CLEARED when a transition finishes. That last one is bounded rather tha
 trusted — a revision that left a settled promise on the field turns the loop into
 a warning and a slow boot instead of a hang at every start — and the bound is
 argued beside it.
+
+A loaded module may export `components`, a record of independently injected
+plugins beside its default plugin. The loader creates one scoped container and
+mounts the default as `main` plus each named component. Components retain the
+row's service authority, can supply dependencies to one another, and are disposed
+with the row. Names use lowercase words separated by hyphens; `main` is reserved.
+Reports and settling include every child, so a missing or failed component cannot
+be concealed by a running container. Asynchronous cleanup is joined on row
+withdrawal, including interrupted initializers.

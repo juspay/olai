@@ -32,3 +32,4 @@ Feature: Directory features have independent browser lifetimes
       | pins    |
       | capture |
       | trash   |
+      | chat    |

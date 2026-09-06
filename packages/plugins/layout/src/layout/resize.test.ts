@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { widthAfter } from "olai-plugin-layout/layout/resize.ts"
+import { widthAfter } from "./resize.ts"
 
 test("right-edge drag grows to the right", () => {
   expect(widthAfter("right", 256, 40, 180, 480)).toBe(296)

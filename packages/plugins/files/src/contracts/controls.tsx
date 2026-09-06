@@ -1,6 +1,6 @@
 /** Static service consumers: actual controls arrive from files' activation. */
 import { createSignal,Show } from "solid-js";
-import type { FileControls } from "./contract.ts";
+import type { FileControls } from "../contract.ts";
 const [controls,setControls]=createSignal<FileControls>()
 export function holdFileControls(value:FileControls):()=>void {
  setControls(value);return ()=>{if(controls()===value)setControls(undefined)}

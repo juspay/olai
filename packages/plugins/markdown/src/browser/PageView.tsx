@@ -7,7 +7,7 @@ import { NAMED } from "@olai/web/client/file/kinds.ts"
 import { desktop } from "olai-plugin-layout/media"
 import { panelOpen } from "olai-plugin-layout/preferences"
 import { samePageRequest } from "@olai/format"
-import type { CorePageRequest } from "@olai/surface"
+import type { DocumentPageRequest } from "@olai/surface"
 import { useHistory } from "./history.ts"
 import type { Route, Navigation } from "olai-plugin-navigation/contract"
 import { useRouter, useHere, useFollow } from "olai-plugin-navigation/routing"
@@ -26,12 +26,12 @@ export function MarkdownPageView() {
   const follow = useFollow()
   const route = () => panesOf(router.workspace())[here()]!.route
   const file = () => documentFile(route())
-  const request = createMemo<CorePageRequest | null>(() => {
+  const request = createMemo<DocumentPageRequest | null>(() => {
     const open = route()
-    if (open.kind !== "at" || open.address === null || open.address.kind === "node") return null
+    if (open.kind !== "at" || open.address?.kind !== "document") return null
     return { kind: "at", address: { kind: "document", path: open.address.path } }
   }, null, { equals: (a,b) => a === null || b === null ? a === b : samePageRequest(a,b) })
-  const reading = olai.streams.page.use(request)
+  const reading = olai.streams.documentPage.use(request)
   const page = createMemo<import("@olai/format").PageReading | undefined>(was => reading() ?? was)
   const history = useHistory()
   router.report(here, () => ({ history, file: file(), title: nameOf(route(),undefined) }))

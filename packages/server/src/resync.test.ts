@@ -9,7 +9,7 @@ import { NO_DIRECTORY } from "@olai/ops"
 import { expect, test } from "bun:test"
 
 import { served, withServing } from "./serve.testlib.ts"
-import { RESYNC_PATH, resyncDirectory } from "./resync.ts"
+import { RESYNC_PATH, resyncDirectory } from "olai-plugin-vault/testlib"
 
 const BOUND_MS = 10_000
 

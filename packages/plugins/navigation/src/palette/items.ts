@@ -1,41 +1,5 @@
-/**
- * The palette SHELL's catalogue: navigation, panel toggles, ask-the-agent —
- * and the shape a NODE takes when search answers with one.
- *
- * The OP rows are next door (`./ops.ts`), because what a verb is and which of
- * them apply is the `•••` menu's answer and not a second list. The DOCUMENT
- * rows used to be next door the other way, matched in this tab off the served
- * list; a search answers with both kinds now (`@olai/format`'s
- * `matchingDocuments`), so `./documents.ts` is gone and a document is a hit
- * like any other — which is why {@link hitItems} below is the one block of
- * rows this file mints.
- *
- * Node hits arrive from the server's search procedure (Palette.tsx asks it as
- * you type) rather than from a matcher of this file's own, because the palette
- * and an agent's `search_nodes` must be one reading (`@olai/surface`'s
- * search.ts has the argument). That used to be a restraint — the browser held
- * every node and could have grepped them, and deliberately did not. Since
- * `search-server-side` it is not even that: the matcher left this bundle with
- * the vault (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`), so there is nothing
- * here to grep. The conclusion is the one it always was; only its premise got
- * smaller.
- *
- * A PREFIX takes the box away from the list, and it is a LINE OF TEXT rather
- * than a row to choose — which is what a prefix is for: a row can only carry
- * what it was built holding, and a line does not know what it is going to say
- * until somebody types it. What the box is doing is therefore ONE value
- * ({@link Mode}) rather than one nullable string per prefix.
- *
- * ONE OF THEM IS CORE'S AND THE REST ARRIVE. `+` captures the rest as a node
- * and is this app's own, because where the inbox is and what a captured line
- * becomes are the directory's facts. `>` was the other one — it sent the rest
- * to the agent — and it is gone from this file: a conversation is a plugin now,
- * so the character, the words beside it and what a press does all arrive
- * through `@olai/plugin-api`'s `app.command` slot ({@link commandsIn}), and
- * this module's grammar is written against whatever is hanging there rather
- * than against a second character it knows the meaning of.
- */
-
+/** Generic palette rows and prefix grammar. Feature providers own the words,
+ * character, write behavior and continuation of every contributed prefix. */
 import type { BodyKind } from "@olai/format"
 import type { AppCommand,Hung } from "@olai/plugin-api"
 import type { Edit,SearchHit } from "@olai/surface"
@@ -159,57 +123,39 @@ export interface PaletteItem {
   readonly search: string
 }
 
-/** The character that turns the box into a capture. `+` because that is what
- *  the gesture is — one more line — and because it is a character a title does
- *  not start with often enough to matter, which is the same bet any prefix
- *  makes. */
-export const CAPTURE_PREFIX = "+"
+/** A scoped provider's text action. Keeping the matched contribution in the
+ * parsed mode makes rendering and Enter use the same activation. */
+export interface PalettePrefix {
+  readonly value: string
+  readonly label: string
+  readonly empty: string
+  readonly testid: string
+  readonly run: (text: string) => Promise<import("@olai/web/client/saying.ts").Said>
+  readonly after: string
+}
 
-/**
- * THE PREFIXES THIS PALETTE ANSWERS ITSELF, and the list a plugin's claim is
- * held against.
- *
- * One, today. It is a list rather than the one constant above because it is
- * read as a list — {@link commandsIn} refuses a plugin that claims any of them
- * — and a second core prefix should be one entry here rather than a second
- * comparison somebody has to remember to add beside the first.
- */
-export const CORE_PREFIXES: ReadonlyArray<string> = [CAPTURE_PREFIX]
+/** First contributor wins a prefix; disposal makes its character available. */
+export const prefixesIn = (entries: ReadonlyArray<{ readonly owner: string; readonly value: PalettePrefix }>): ReadonlyArray<PalettePrefix> => {
+  const held = new Map<string, string>()
+  return entries.flatMap(entry => {
+    const previous = held.get(entry.value.value)
+    if (previous !== undefined) {
+      console.warn(`olai: plugin "${entry.owner}" claims palette prefix "${entry.value.value}", already owned by "${previous}"`)
+      return []
+    }
+    held.set(entry.value.value, entry.owner)
+    return [entry.value]
+  })
+}
 
-/**
- * WHICH `app.command` ENTRIES THE PALETTE WILL ACTUALLY DRAW — the ones whose
- * character nothing already answers, in the order they were handed over (the
- * bundle's, imposed by `../plugins/runtime.ts`'s `hung`).
- *
- * ## The refusal is the reader's, and this is the reader
- *
- * `app.command` is a LIST slot, so the table underneath has no key and refuses
- * nothing: two plugins claiming `>` is not a collision anything in
- * `@olai/plugin-api` can see, in the same way it cannot see which chords
- * `../keys.ts` already answers. What it CAN see is that it cannot see, which is
- * why the slot's own doc names this check and owes it to whoever reads the slot.
- *
- * So the check is here, and it goes the one direction it can: CORE'S OWN
- * PREFIXES WIN. `+` is the capture, and the capture is a promise this app makes
- * about its own directory — a plugin that took the character would not merely
- * shadow a feature, it would silently change what a line somebody has typed a
- * hundred times does. The first plugin to claim a free character wins it for
- * the same reason, which makes the winner the bundle's order rather than the
- * mount race.
- *
- * IT IS SAID OUT LOUD, naming both sides, because the loser is otherwise a
- * plugin that registered a face and simply does not appear — the silence
- * `plugins/runtime.ts` refuses for a half that failed to start, one slot over.
- * A `warn` rather than an `error`: the plugin is running and the rest of its
- * faces are drawn, and what is wrong is a line in somebody's `olai.yml` pairing
- * two tenants that want one character.
- */
+/** Resolve legacy app.command contributions against active typed prefixes. */
 export const commandsIn = (
   entries: ReadonlyArray<Hung<AppCommand>>,
+  reserved: ReadonlyArray<PalettePrefix> = [],
 ): ReadonlyArray<AppCommand> => {
   /** Prefix → whoever is holding it, in the words the refusal names them by. */
   const held = new Map<string, string>(
-    CORE_PREFIXES.map((prefix) => [prefix, "the palette itself"] as const),
+    reserved.map((prefix) => [prefix.value, `the active prefix "${prefix.label}"`] as const),
   )
   const kept: Array<AppCommand> = []
   for (const one of entries) {
@@ -263,18 +209,6 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     action: { kind: "toggle-panel" },
     taking: atOnce,
     search: "toggle agent panel conversation",
-  },
-  {
-    // Racket's `olai add`, as a line in a box: the whole promise is that the
-    // page under the palette does not move, so this row does not navigate,
-    // does not open an editor and does not choose a place — it primes the
-    // prefix, and what gets typed after it lands in the inbox.
-    id: "capture",
-    label: "Capture to the Inbox",
-    hint: "+ a line",
-    action: { kind: "prefix", prefix: `${CAPTURE_PREFIX} ` },
-    taking: atOnce,
-    search: "capture inbox add quick note new node jot",
   },
   {
     id: "shortcuts",
@@ -397,8 +331,7 @@ export type Mode =
     readonly command: AppCommand
     readonly text: string
   }
-  /** `+` — the rest becomes a node in the inbox. */
-  | { readonly kind: "capture"; readonly text: string }
+  | { readonly kind: "prefix"; readonly prefix: PalettePrefix; readonly text: string }
 
 /**
  * …AND THE FOURTH THING THE BOX CAN BE DOING: answering a question the palette
@@ -422,27 +355,15 @@ export const boxOf = (
   raw: string,
   question: Asking | null,
   commands: ReadonlyArray<AppCommand>,
-): Box => question === null ? modeOf(raw, commands) : { kind: "answering", question }
+  prefixes: ReadonlyArray<PalettePrefix> = [],
+): Box => question === null ? modeOf(raw, commands, prefixes) : { kind: "answering", question }
 
-/**
- * The words, read as a prefix — or as a filter, which is what they are when
- * nothing claims their first character.
- *
- * `commands` is REQUIRED and takes no default, which is the whole of rule four:
- * a serve with no plugin in `app.command` hands an empty list, so the character
- * that used to mean *send this to the agent* is ordinary text, matched against
- * the rows like any other. A default of `[]` would say the same thing while
- * letting a caller forget to ask — and a palette that offered a prefix nobody
- * could answer would be an Enter that did nothing and said nothing.
- *
- * CORE'S OWN IS TRIED FIRST. The two lists are disjoint by the time they get
- * here ({@link commandsIn} refuses a plugin that claims `+`), so the order
- * decides nothing today; it is written this way round so that it would still
- * decide the right thing for any caller that skipped that filter.
- */
-export const modeOf = (raw: string, commands: ReadonlyArray<AppCommand>): Mode => {
-  const captured = afterPrefix(raw, CAPTURE_PREFIX)
-  if (captured !== null) return { kind: "capture", text: captured }
+/** Parse only contributions that are active in this composition. */
+export const modeOf = (raw: string, commands: ReadonlyArray<AppCommand>, prefixes: ReadonlyArray<PalettePrefix> = []): Mode => {
+  for (const prefix of prefixes) {
+    const text = afterPrefix(raw, prefix.value)
+    if (text !== null) return { kind: "prefix", prefix, text }
+  }
   for (const command of commands) {
     const line = afterPrefix(raw, command.prefix)
     if (line !== null) return { kind: "command", command, text: line }

@@ -6,7 +6,7 @@ import type { NodeHit } from "@olai/surface"
 
 import { atFile, atNode } from "olai-plugin-navigation/routes"
 import { atOnce } from "@olai/web/client/settled.ts"
-import { commandsIn, filterItems, hitItem, modeOf, SHELL_ITEMS } from "olai-plugin-navigation/palette-model"
+import { boxOf, prefixesIn, type PalettePrefix, commandsIn, filterItems, hitItem, modeOf, SHELL_ITEMS } from "olai-plugin-navigation/palette-model"
 
 /** A plugin's command, as the slot hands it over. `run` answers "it landed",
  *  which is the one thing none of these tests presses. */
@@ -23,6 +23,7 @@ const hung = (plugin: string, face: AppCommand): Hung<AppCommand> => ({ plugin, 
 
 /** The one every prefix test is written against: a chat plugin holding `>`. */
 const ASK = command(">")
+const PREFIX: PalettePrefix = { value: "+", label: "append", empty: "type text", testid: "append", after: "+ ", run: async () => ({ tone: "aside", text: "appended" }) }
 
 /** A hit on a record, with the address every hit carries. */
 const node = (fields: Omit<NodeHit, "at">): NodeHit => ({
@@ -126,10 +127,10 @@ test("with nothing hung in the slot, a `>` is just text", () => {
 })
 
 test("a `+` line is a capture", () => {
-  expect(modeOf("+ buy milk", [ASK])).toEqual({ kind: "capture", text: "buy milk" })
-  expect(modeOf("+buy milk", [ASK])).toEqual({ kind: "capture", text: "buy milk" })
-  expect(modeOf("  +  buy milk", [ASK])).toEqual({ kind: "capture", text: "buy milk" })
-  expect(modeOf("+", [ASK])).toEqual({ kind: "capture", text: "" })
+  expect(modeOf("+ buy milk", [ASK], [PREFIX])).toEqual({ kind: "prefix", prefix: PREFIX, text: "buy milk" })
+  expect(modeOf("+buy milk", [ASK], [PREFIX])).toEqual({ kind: "prefix", prefix: PREFIX, text: "buy milk" })
+  expect(modeOf("  +  buy milk", [ASK], [PREFIX])).toEqual({ kind: "prefix", prefix: PREFIX, text: "buy milk" })
+  expect(modeOf("+", [ASK], [PREFIX])).toEqual({ kind: "prefix", prefix: PREFIX, text: "" })
 })
 
 test("anything else filters the list, and a prefix is only ever the first character", () => {
@@ -148,8 +149,8 @@ test("the box is doing exactly one of the three, whichever prefix opened it", ()
     command: ASK,
     text: "plus a + in it",
   })
-  expect(modeOf("+ and a > in it", [ASK])).toEqual({
-    kind: "capture",
+  expect(modeOf("+ and a > in it", [ASK], [PREFIX])).toEqual({
+    kind: "prefix", prefix: PREFIX,
     text: "and a > in it",
   })
 })
@@ -159,10 +160,10 @@ test("the box is doing exactly one of the three, whichever prefix opened it", ()
  *  another is the silent disagreement the whole check exists to refuse. */
 test("a plugin claiming a prefix the palette already answers is refused", () => {
   const taken = command("+", "capture to the agent")
-  expect(commandsIn([hung("chat", taken)])).toEqual([])
+  expect(commandsIn([hung("chat", taken)], [PREFIX])).toEqual([])
   // ...and the capture still means capture.
-  expect(modeOf("+ buy milk", commandsIn([hung("chat", taken)]))).toEqual({
-    kind: "capture",
+  expect(modeOf("+ buy milk", commandsIn([hung("chat", taken)], [PREFIX]), [PREFIX])).toEqual({
+    kind: "prefix", prefix: PREFIX,
     text: "buy milk",
   })
 })
@@ -180,10 +181,21 @@ test("every command whose character is free is kept, in the order it arrived", (
   expect(commandsIn([hung("chat", ASK), hung("just", slash)])).toEqual([ASK, slash])
 })
 
-test("the capture row primes the prefix rather than doing anything", () => {
-  // It writes nothing and closes nothing: the point of quick capture is that
-  // the page under the palette does not move, and this row has no line yet.
-  const capture = SHELL_ITEMS.find((item) => item.id === "capture")
-  expect(capture?.action).toEqual({ kind: "prefix", prefix: "+ " })
-  expect(filterItems("inbox").map((item) => item.id)).toEqual(["capture"])
+test("navigation does not promise a feature-owned command without its provider", () => {
+  expect(SHELL_ITEMS.some(item => item.id === "capture")).toBe(false)
+  expect(filterItems("inbox")).toEqual([])
+  expect(modeOf("+ buy milk", [], [])).toEqual({ kind: "filter" })
+  expect(commandsIn([hung("other", command("+"))])).toHaveLength(1)
+})
+
+test("an arbitrary prefix survives parsing and disappears with its contribution", () => {
+  const other = { ...PREFIX, value: "~", after: "~ " }
+  expect(modeOf(" ~ text", [], [other])).toEqual({ kind: "prefix", prefix: other, text: "text" })
+  expect(modeOf(" ~ text", [], [])).toEqual({ kind: "filter" })
+  expect(prefixesIn([{ owner: "first", value: other }, { owner: "second", value: { ...other } }])).toEqual([other])
+})
+
+test("a pending question owns Enter even when the box contains a contributed prefix", () => {
+  const question = { kind: "line" as const, label: "Rename", question: "Name?", placeholder: "Name", initial: "", resolve: () => { throw new Error("parsing must not execute an action") } }
+  expect(boxOf("+ text", question, [], [PREFIX])).toEqual({ kind: "answering", question })
 })

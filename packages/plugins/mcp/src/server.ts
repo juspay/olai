@@ -25,7 +25,7 @@ export default definePlugin({
     })
     // Offers and routes belong to the same activation; unloading withdraws the
     // mint and carrier before any subsequent activation allocates a new table.
-    yield* (yield* Offers).offer(ticketMint, () => policy.tickets)
+    yield* (yield* Offers).own("ticket-mint", () => policy.tickets)
     yield* endpoint(shared, policy)
   }),
 })

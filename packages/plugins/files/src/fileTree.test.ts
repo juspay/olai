@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { ancestorDirs, dirsIn, fileTree } from "olai-plugin-files/fileTree.ts"
+import { ancestorDirs, dirsIn, fileTree } from "./fileTree.ts"
 
 test("a flat directory is one list of files, outlines and documents mixed", () => {
   expect(fileTree(["garden.olai", "house.olai", "finishes.md"])).toEqual([

@@ -13,7 +13,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
-import { createScrollMemory, SETTLE_MS } from "olai-plugin-navigation/scroll.ts"
+import { createScrollMemory, SETTLE_MS } from "./scroll.ts"
 
 const VIEWPORT = 400
 const LEFT = 221

@@ -1,6 +1,6 @@
 import {Clocks} from "@olai/plugin-api"
 import { protectComposition } from "@olai/web/client/composition.ts"
-import { followKeys } from "@olai/web/client/quiescence.ts"
+import { followKeys, KEYS_SETTLING, quiescence } from "@olai/web/client/quiescence.ts"
 import { fileAccess } from "olai-plugin-vault/contract"
 import { holdOpens } from "./opens.tsx"
 import { atElement } from "./routes.ts"
@@ -13,7 +13,7 @@ import { hung } from "@olai/web/client/plugins/runtime.ts"
 import { Effect } from "effect"
 import { overlays } from "olai-plugin-layout/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
-import { createMemo,createRoot } from "solid-js"
+import { createMemo,createRoot,createRenderEffect } from "solid-js"
 import { name,navigation } from "./index.ts"
 import { PageView } from "./PageView.tsx"
 import { scopePaletteState } from "./palette/open-owner.ts"
@@ -26,6 +26,16 @@ import { createNavigation } from "./state.ts"
 const File: FileLink = (props) => <Link route={atFile(props.file)} class={props.class}
   testid={props.testid} label={props.label} title={props.title}>{props.children}</Link>
 export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*() {
+  yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+    const root = document.documentElement
+    const previous = root.getAttribute(KEYS_SETTLING)
+    createRenderEffect(() => root.setAttribute(KEYS_SETTLING, String(quiescence.count())))
+    return () => {
+      dispose()
+      if (previous === null) root.removeAttribute(KEYS_SETTLING)
+      else root.setAttribute(KEYS_SETTLING, previous)
+    }
+  })), stop => Effect.sync(stop))
   for(const start of [followKeys, protectComposition]) yield* Effect.acquireRelease(Effect.sync(start),stop=>Effect.sync(stop))
   yield* Effect.acquireRelease(Effect.sync(scopePaletteState),stop=>Effect.sync(stop))
   yield* Effect.acquireRelease(Effect.sync(resetPaletteMemory),()=>Effect.sync(resetPaletteMemory))

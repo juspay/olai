@@ -44,7 +44,7 @@ import type { Head, Manifest } from "@olai/surface"
 import type { CollectionFoldOptions } from "@kolu/surface/solid"
 import type { CollectionDelta } from "@kolu/surface/define"
 
-import { createDirectory, type HeadEntries } from "olai-plugin-vault/directory"
+import { createDirectory, type HeadEntries } from "./directory.ts"
 
 const unreadable = (file: string, message: string): BrokenFile => ({
   file,

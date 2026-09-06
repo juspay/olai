@@ -10,7 +10,7 @@
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { askingFor, namedEdit, namingFor } from "olai-plugin-pins/browser/naming.ts"
+import { askingFor, namedEdit, namingFor } from "./naming.ts"
 import type { Pin } from "olai-plugin-pins/values"
 import { atNode } from "olai-plugin-navigation/routes"
 

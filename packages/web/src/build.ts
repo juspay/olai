@@ -3,7 +3,7 @@
  * bundle row asset exports, on a graph never loaded by either runtime. */
 
 import { start } from "@olai/child"
-import { mkdtempSync } from "node:fs"
+import { mkdtempSync, rmSync } from "node:fs"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
@@ -157,8 +157,7 @@ const buildClient = async (distDir: string): Promise<void> => {
       },
     ],
     plugins: [solidJsx, moduleManifest],
-  })
-  await Bun.$`rm -rf ${templateDir}`
+  }).finally(() => rmSync(templateDir, { recursive: true, force: true }))
   // What the helper emitted, reported rather than re-walked: one row per
   // compressible file in the hashed dir — the entry, the markdown chunk the
   // `import()` split out, the stylesheet — with the identity size and whatever

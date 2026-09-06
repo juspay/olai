@@ -241,6 +241,7 @@ export const MCP: ExposeMap<typeof surface.spec> = {
 export const BROWSER: ExposeMap<typeof surface.spec> = {
   documents: "resource",
   page: "resource",
+  documentPage: "resource",
   narrowing: "resource",
   searchResults: "resource",
   tagCompletions: "resource",

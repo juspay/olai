@@ -17,7 +17,7 @@ export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effe
   const transport = mcpTransport()
   yield* serveFace({
     client: policy.client, expose: policy.expose, transport,
-    tools: { ...bespokeFrom(TOOLS, { ...policy, login: currentLogin, fenced: (held) => policy.fenced(held) as OlaiSurfaceClient }), ...pluginTools() },
+    tools: { ...bespokeFrom(TOOLS, { ...policy, get root() { return policy.root }, login: currentLogin, fenced: (held) => policy.fenced(held) as OlaiSurfaceClient }), ...pluginTools() },
   })
   yield* shared.register({ routes: mcpRoute({ transport, token: shared.token, who: shared.who }) })
 })
