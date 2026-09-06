@@ -169,6 +169,8 @@ const textOf = async (client: Client, uri: string): Promise<string> => {
 const readJson = async (client: Client, uri: string): Promise<unknown> =>
   JSON.parse(await textOf(client, uri))
 
+// Every case opens the real scoped server and MCP pair; cold catalog loading
+// and filesystem setup need an integration budget on the shared CI fleet.
 test("the served resources are exactly the allowlist names", async () => {
   await withFace(async ({ client }) => {
     const listed = await client.listResources()
@@ -184,7 +186,7 @@ test("the served resources are exactly the allowlist names", async () => {
       "surface://collections/outlines/{id}",
     ])
   })
-})
+}, 30_000)
 
 test("reading the outlines collection costs the KEY SET, not the corpus", async () => {
   await withFace(async ({ client }) => {
@@ -200,7 +202,7 @@ test("reading the outlines collection costs the KEY SET, not the corpus", async 
     expect(text).not.toContain(BODY_MARKER)
     expect(text.length).toBeLessThan(1024)
   })
-})
+}, 30_000)
 
 test("one outline item is that file's nodes, and no other file's", async () => {
   await withFace(async ({ client }) => {
@@ -218,7 +220,7 @@ test("one outline item is that file's nodes, and no other file's", async () => {
     // write will one day name as the base it edited.
     expect(entry.rev).toBeGreaterThan(0)
   })
-})
+}, 30_000)
 
 test("the errors cell reads as a live value", async () => {
   await withFace(async ({ client }) => {
@@ -227,7 +229,7 @@ test("the errors cell reads as a live value", async () => {
     // agent asks it the same questions a browser does.
     expect(await readJson(client, "surface://cells/errors")).toEqual({ findings: [] })
   })
-})
+}, 30_000)
 
 // A directory that cannot be READ, over the agent's face — the same rows the
 // browser draws its banner from, off the same cell, because there is one cell.
@@ -253,7 +255,7 @@ test("a directory that cannot be read reaches the agent, not just the browser", 
       ],
     })
   })
-})
+}, 30_000)
 
 test("an edited outline notifies its subscribers", async () => {
   await withFace(async ({ client, refresh, root }) => {
@@ -283,7 +285,7 @@ test("an edited outline notifies its subscribers", async () => {
     }
     expect(entry.nodes.map((n) => n.node.title)).toContain("paint it")
   })
-})
+}, 30_000)
 
 test("a member the allowlist omits has no URI at all", async () => {
   await withFace(async ({ client }) => {
@@ -297,7 +299,7 @@ test("a member the allowlist omits has no URI at all", async () => {
       client.readResource({ uri: "surface://collections/transcript" }),
     ).rejects.toThrow(/unknown resource/)
   })
-})
+}, 30_000)
 
 test("reading the documents collection costs the PATHS, not the bodies", async () => {
   await withFace(async ({ client }) => {
@@ -314,7 +316,7 @@ test("reading the documents collection costs the PATHS, not the bodies", async (
     expect(text).not.toContain(BODY_MARKER)
     expect(text.length).toBeLessThan(1024)
   })
-})
+}, 30_000)
 
 test("one document item is that document's body, fetched only when asked", async () => {
   await withFace(async ({ client }) => {
@@ -328,7 +330,7 @@ test("one document item is that document's body, fetched only when asked", async
     expect(entry.text).toContain(BODY_MARKER)
     expect(entry.text.length).toBeGreaterThan(10_000)
   })
-})
+}, 30_000)
 
 // The same read, of the file whose body the server does NOT keep — and the
 // sharp edge it walks. A `resources/read` is ONE SHOT: it takes the first frame
@@ -345,4 +347,4 @@ test("one saved page is read from disk for the agent that asks for it", async ()
 
     expect(entry.text).toBe(SAVED)
   })
-})
+}, 30_000)

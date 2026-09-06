@@ -22,7 +22,8 @@ The real-Git upstream case has an explicit 30-second integration budget:
 all 32 Git tests pass, and a probe delaying every Git invocation by 400ms
 passes in 7.47 seconds without changing any assertions. The full-bundle
 capability ownership audit also has an explicit 30-second cold-load budget;
-its 14 ownership assertions pass.
+its 14 ownership assertions pass. The ten MCP resource integration cases
+likewise budget real server/catalog startup explicitly; all 28 assertions pass.
 
 The palette failures are reproduced by a real held reconnect: the old `open()`
 helper returned behind Offline's painted dialog, whose capture listener
