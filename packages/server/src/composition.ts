@@ -126,9 +126,9 @@ export function composeCapabilities<const S extends SurfaceSpec>(
      *
      * This list is not a permission, it is an ATTRIBUTION table:
      * `@olai/plugin-api`'s `authorityAt` wraps exactly these tags to provide
-     * `RequestAuthority` — the caller's writer and its fence — and leaves every
+     * `RequestAuthority` — the caller's writer and its session rule — and leaves every
      * other handler's identity untouched. A tag left off it does not refuse, it
-     * runs on the Context default, `{ writer: "web" }`, unfenced.
+     * runs on the Context default, `{ writer: "web" }`, with no session rule.
      *
      * A capability declares the tag as its OWN surface spells it — `writes:
      * ["surface/ops/run"]`, checked against that capability's own group in

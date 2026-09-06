@@ -10,7 +10,7 @@ Feature: Node agent idle timers preserve foreground work and durable conversatio
     When I remember this conversation as "cabinet"
     And I mark the page
 
-  Scenario: An idle background node sleeps and resumes the same transcript and subtree boundary
+  Scenario: An idle background node sleeps and resumes the same transcript, and writes still reach the vault
     When I ask the agent "before idle eviction"
     Then the agent has answered "before idle eviction" exactly once
     When I open the node menu of "order"
@@ -26,10 +26,11 @@ Feature: Node agent idle timers preserve foreground work and durable conversatio
     And the agent has answered "before idle eviction" exactly once
     When I ask the agent "after idle eviction"
     Then the agent has answered "after idle eviction" exactly once
-    When I ask the agent "done order"
+    When I show the done nodes
+    And I ask the agent "done order"
     Then the agent is idle
-    And the chat shows a refusal
-    And node "order" is not done
+    And node "order" is done
+    And the chat shows no refusal
     And the page has not reloaded
     And there should be no page errors
 

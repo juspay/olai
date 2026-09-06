@@ -7,8 +7,7 @@
  * *In the vault, under the node agent's subtree, as the configuration ruling
  * requires: a node with a `plugin` property whose subtree holds `server.ts` and,
  * optionally, `browser.tsx`, written by the agent through the ordinary vault
- * write door — so the subtree fence of phase 6 applies, and so the plugin is
- * versioned by the ledger like any other file.*
+ * write door, so the plugin is versioned by the ledger like any other file.*
  *
  * Every clause of that is kept HERE, and the way it is kept is that the source
  * is a NOTE. A node's note is markdown stored verbatim with embedded newlines
@@ -16,9 +15,9 @@
  * a `.olai` outline is a file the ledger commits like any other. A `.ts` on the
  * disk beside the outlines would have been none of those things: `@olai/format`
  * claims six kinds of file and `.ts` is not one of them, so the store would not
- * serve it, `markdown_write` refuses anything that is not a `.md`, the write
- * fence refuses a document write outright, and the ledger records the paths olai
- * WROTE — which, for a file olai does not know about, is no path at all.
+ * serve it, `markdown_write` refuses anything that is not a `.md`, and the
+ * ledger records the paths olai WROTE — which, for a file olai does not know
+ * about, is no path at all.
  *
  * So the two halves are two child nodes, titled for the files they would have
  * been, each carrying its half in its note. An agent writes them with `outlines_add`

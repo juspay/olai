@@ -19,7 +19,7 @@ Feature: Node session ownership follows changes to the node
     And I open the past session "first cabinet history"
     Then the panel is in the remembered conversation "first"
 
-  Scenario: Moving a node between outlines preserves its history and updates the write boundary
+  Scenario: Moving a node between outlines preserves its history and its writes still reach the vault
     When I click the title of "install"
     And I press "ControlOrMeta+Shift+m"
     And I search the move picker for "the yard"
@@ -33,23 +33,24 @@ Feature: Node session ownership follows changes to the node
     And node "hinges" is done
     When I ask the agent "done fence"
     Then the agent is idle
-    And the chat shows a refusal
-    And node "fence" is not done
+    And node "fence" is done
+    And the chat shows no refusal
     When I open the session picker
     And I return to the node agent's current session
     Then the panel is in the remembered conversation "current"
     And there should be no page errors
 
-  Scenario: Trashing and restoring a node keeps its conversations and refuses writes outside it
+  Scenario: Trashing and restoring a node keeps its conversations, and writes still reach the vault
     When I open the node menu of "install"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
     Then "_olai/Trash.olai" holds the node "install"
     And the agents roster holds 0 agents
-    When I ask the agent "done order"
+    When I show the done nodes
+    And I ask the agent "done order"
     Then the agent is idle
-    And the chat shows a refusal
-    And node "order" is not done
+    And node "order" is done
+    And the chat shows no refusal
     When I open the Trash
     And I put back "install" from the Trash
     Then "house.olai" holds the node "install"
@@ -75,10 +76,11 @@ Feature: Node session ownership follows changes to the node
     And the agent panel is open
     Then the panel is in the remembered conversation "first"
     And the panel header names the node agent "install the cabinets"
-    When I ask the agent "done order"
+    When I show the done nodes
+    And I ask the agent "done order"
     Then the agent is idle
-    And the chat shows a refusal
-    And node "order" is not done
+    And node "order" is done
+    And the chat shows no refusal
     When I open the session picker
     And I return to the node agent's current session
     Then the panel is in the remembered conversation "current"

@@ -123,7 +123,7 @@ const stateOf = (
 const impl =
   <I, A, E>(answer: (input: I) => Effect.Effect<A, E>) =>
   ({ input }: { input: I }): Effect.Effect<A, E> => answer(input)
-export const writerAt = (bound: Pick<Bound, "handlers" | "writes">, _ops: unknown, caller: { readonly writer: string; readonly fence?: unknown }): SurfaceHandlers => authorityAt(bound, caller)
+export const writerAt = (bound: Pick<Bound, "handlers" | "writes">, _ops: unknown, caller: { readonly writer: string; readonly rule?: unknown }): SurfaceHandlers => authorityAt(bound, caller)
 export const bind = (wiring: Wiring) => Effect.gen(function*() {
     const runtimeScope = yield* Effect.scope
     const say = yield* emitter

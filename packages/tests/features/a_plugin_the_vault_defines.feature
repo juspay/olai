@@ -5,9 +5,9 @@ Feature: A plugin the vault defines
   agent, which the serve compiles and mounts while it is running.
 
   A definition is a node with a `plugin` property and two children carrying the
-  halves in their notes, so an agent writes one with `outlines_add` and `outlines_desc`:
-  the ordinary write door, under the ordinary subtree fence, recorded by the
-  ordinary ledger commit. There is no second write door and no new kind of file.
+  halves in their notes, so an agent writes one with `outlines_add` and
+  `outlines_desc`: the ordinary write door, recorded by the ordinary ledger
+  commit. There is no second write door and no new kind of file.
 
   WHAT THESE SCENARIOS ARE FOR is the last inch, and only that. Everything
   behind it is benched a package away (`@olai/server`'s `dynamic/`): written,

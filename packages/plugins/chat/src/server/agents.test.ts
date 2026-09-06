@@ -152,7 +152,7 @@ test("a conversation no property names is nobody's, which is nearly every one", 
   expect(carrier.agentAt({ agent: "grok", session: "sess-9" })).toBeNull()
 })
 
-test("the nearest node agent above is named from the current vault reading", () => {
+test("the nearest node agent at or above is named from the current vault reading", () => {
   const nested = derive(recordsOf(setOf({
     "lanes.olai": [
       `{"id":"root","ord":"a0","title":"Root","custom":{"chat-agent-session":"claude:r"}}`,
@@ -164,8 +164,7 @@ test("the nearest node agent above is named from the current vault reading", () 
   carrier.seen(nested)
   expect(carrier.nearestAt("leaf", new Set(["root", "child"]))).toBe("child")
   expect(carrier.nearestAt("leaf", new Set(["root"]))).toBe("root")
-  expect(carrier.above("leaf")).toBe("“Child” (`child`)")
-  expect(carrier.above("root")).toBeNull()
+  expect(carrier.nearestAt("root", new Set(["root", "child"]))).toBe("root")
 })
 
 test("a store that has never loaded has no node agents rather than an unknown number", () => {

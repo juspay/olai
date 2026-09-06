@@ -105,10 +105,10 @@ interface Served {
     message: unknown,
     headers?: Record<string, string>,
   ) => Promise<Response>
-  /** A ticket and the FENCED BUNDLE it was minted for — one client per standing
+  /** A ticket and the BUNDLE it was minted for — one client per standing
    *  row, where it was one flat client until juspay/kolu#2234. */
-  readonly retainedTicket: (under: string) => { ticket: Ticket; client: RootedSurfaceClients }
-  readonly mintTicket: (under: string) => Ticket
+  readonly retainedTicket: () => { ticket: Ticket; client: RootedSurfaceClients }
+  readonly mintTicket: () => Ticket
   readonly url: string
 }
 
@@ -150,7 +150,7 @@ const withRoute = <A>(
     const panel = () => clientsFor(
       rows(),
       () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }),
-      { writer: "mcp", fence: null },
+      { writer: "mcp" },
     )
     let selectingTicket: string | null = null
     const tickets = ticketing({ reservations: WRITE_RESERVATIONS, bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket: () => selectingTicket ?? currentTicket(), rows })
@@ -168,7 +168,7 @@ const withRoute = <A>(
         login: currentLogin,
         root,
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
-        fenced: () => tickets.doorAt(panel()),
+        doorAt: () => tickets.doorAt(panel()),
         record: (request) => ops.commit(request, "mcp"),
         push: ops.push,
       })),
@@ -192,15 +192,14 @@ const withRoute = <A>(
       use({
         root,
         url,
-        retainedTicket: (under) => {
-          const ticket = tickets.mint(() => ({ under, forbidden: [] }), () => null, "chat-agent")
+        retainedTicket: () => {
+          const ticket = tickets.mint(() => [], "chat-agent")
           selectingTicket = ticket.bearer
           try { return { ticket, client: tickets.doorAt(panel()) } }
           finally { selectingTicket = null }
         },
-        mintTicket: (under) => tickets.mint(
-          () => ({ under, forbidden: [] }),
-          () => null,
+        mintTicket: () => tickets.mint(
+          () => [],
           "chat-agent",
         ),
         post: (message, headers) =>
@@ -371,7 +370,7 @@ test("releasing a node ticket closes it without changing arbitrary loopback toke
     await post(initialize)
     await post({ jsonrpc: "2.0", method: "notifications/initialized" })
 
-    const ticket = mintTicket("kitchen")
+    const ticket = mintTicket()
     const call = (id: number, key: string, bearer: string) =>
       post({
         jsonrpc: "2.0",
@@ -422,7 +421,7 @@ test("a node ticket can list and call the three plugin verbs", async () => {
     await post(initialize)
     await post({ jsonrpc: "2.0", method: "notifications/initialized" })
 
-    const ticket = mintTicket("kitchen")
+    const ticket = mintTicket()
     const bearer = { authorization: `Bearer ${ticket.bearer}` }
 
     // ADVERTISED, which is the half a face gate says nothing about.
@@ -482,7 +481,7 @@ test("a node ticket can list and call the three plugin verbs", async () => {
  * and `outlines_prop` writes any custom key that is not spelled like a field. So the
  * agent could approve itself through a door it already held.
  *
- * The fence's forbidden table is what closes it (`./tickets.ts`), and this is
+ * The door's forbidden table is what closes it (`olai-plugin-mcp`'s `tickets.ts`), and this is
  * the test that asks the question the way an agent would: the same call, the
  * same bearer, one key apart. The one that lands is what makes the refusal
  * about THAT KEY rather than about the subtree.
@@ -492,7 +491,7 @@ for (const definitions of [true, false]) test(`a node ticket cannot write approv
     await post(initialize)
     await post({ jsonrpc: "2.0", method: "notifications/initialized" })
 
-    const ticket = mintTicket("kitchen")
+    const ticket = mintTicket()
     const call = (id: number, key: string) =>
       post({
         jsonrpc: "2.0",
@@ -778,13 +777,14 @@ test("…and two people behind one proxy do not get each other's", async () => {
 })
 
 
-test("releasing a ticket fences a retained client and the delayed next step of a tool", async () => {
+test("releasing a ticket closes a retained client and the delayed next step of a tool", async () => {
   await withRoute(async ({ retainedTicket, root }) => {
-    const { ticket, client } = retainedTicket("kitchen")
+    const { ticket, client } = retainedTicket()
     // THROUGH THE ROW THAT DECLARES IT. It was `client.surface.ops.run(…)` on
-    // one flat client over an un-prefixed namespace; a fenced door is a bundle
-    // now (juspay/kolu#2234) and `ops.run` is four rows' member, so the caller
-    // says which one it means. What is being asked is unchanged — the fence
+    // one flat client over an un-prefixed namespace; a ticketed door is a
+    // bundle now (juspay/kolu#2234) and `ops.run` is four rows' member, so the
+    // caller says which one it means. What is being asked is unchanged — the
+    // rule
     // rides the writer, per call, on whichever client the caller holds.
     const run = (title: string) =>
       client.clients!["outlines"]!.surface.ops!.run!({ op: "title", id: "kitchen", title })

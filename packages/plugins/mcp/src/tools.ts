@@ -136,12 +136,12 @@ export const bespokeFrom = (
         // THE ADAPTER'S OWN `client` ARGUMENT IS NOT USED, and that is the one
         // place this face declines what kolu offers. A bundle-root tool is
         // handed the bundle the endpoint dialled, and what a tool needs here is
-        // the FENCED bundle for THIS request — which the adapter cannot know
-        // about, because a node agent's write fence is minted per ticket
-        // (`./tickets.ts`). So the fence resolves the bundle and the argument
+        // the bundle for THIS request — which the adapter cannot know about,
+        // because a node agent's session rule is minted per ticket
+        // (`./tickets.ts`). So the ticket resolves the bundle and the argument
         // goes unread rather than being trusted for the half it can answer.
-        const fenced = at.fenced()
-        const said = answer(tool, doorOver(fenced, rows, at), fenced, owner, scopedToolName(owner, tool.name), args, at.login())
+        const door = at.doorAt()
+        const said = answer(tool, doorOver(door, rows, at), door, owner, scopedToolName(owner, tool.name), args, at.login())
         if (tool.kind !== "read") return Effect.map(said, (it) => named(it, at.root))
         // THE AGE IS ESTABLISHED FIRST, and that order is the honest one: the
         // look happens, then the read runs against a set that is at least as
@@ -191,17 +191,17 @@ export interface Served {
   readonly vintage: Effect.Effect<Vintage | undefined>
   /** Select the per-request write door before the adapter starts a fresh Effect
    * fiber and request-local context is no longer available. */
-  /** THE BUNDLE THIS REQUEST MAY REACH — the per-ticket write fence resolved
+  /** THE BUNDLE THIS REQUEST MAY REACH — the per-ticket session rule resolved
    *  before the adapter starts a fresh Effect fiber and request-local context
    *  is no longer available.
    *
    *  It took the adapter's own client and handed back a narrowed one; it takes
-   *  NOTHING now, because there is no single client to narrow. A fence is a
+   *  NOTHING now, because there is no single client to narrow. The rule is a
    *  property of the CALLER (`./tickets.ts` mints one per node ticket), so what
    *  it produces is a whole bundle whose every sibling client carries it — and
-   *  a face with no ticket gets the unfenced panel bundle, which is the same
-   *  answer it always got. */
-  readonly fenced: () => RootedSurfaceClients
+   *  a face with no ticket gets the panel bundle, which is the same answer it
+   *  always got. */
+  readonly doorAt: () => RootedSurfaceClients
   /**
    * RECORD A WRITE, with this face's writer already bound — `ops.commit`
    * through the ledger door. A serve that did not mount the git row refuses

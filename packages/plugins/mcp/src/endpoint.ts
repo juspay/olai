@@ -36,7 +36,7 @@ export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effe
    */
   const bundle = () => siblingsOf(rows(), row =>
     bespokeFrom(row.name, row.tools as ReadonlyArray<Tool>, rows, {
-      ...policy, get root() { return policy.root }, login: currentLogin, fenced: policy.fenced,
+      ...policy, get root() { return policy.root }, login: currentLogin, doorAt: policy.doorAt,
     }))
   const booted = bundle()
   const served = yield* serveFace({ siblings: booted, client: policy.client, transport })

@@ -4,13 +4,13 @@
  *
  * The claim is exactly what it was: a door minted for a session goes on
  * refusing after that session is released, even when the provider behind it
- * RETURNS with fresh handlers, because the fence rides the writer and is read
+ * RETURNS with fresh handlers, because the session rule rides the writer and is read
  * per call rather than captured when the door was built. What used to hold it
  * was one flat client (`liveClient`) over bare tags and a `route` handed into
  * `ticketing`. juspay/kolu#2234 replaced both: the door is a
  * `RootedSurfaceClients` with one client per standing row, and `ticketing` takes
- * `rows` so a fenced bundle carries a client for exactly the siblings the
- * unfenced one does. So the call is
+ * `rows` so a ticketed bundle carries a client for exactly the siblings the
+ * unticketed one does. So the call is
  * `panel.clients!.outlines!.surface.ops.run(…)` rather than
  * `panel.surface.ops.run(…)` — a member is addressed through the row that
  * declares it now, and there is no un-prefixed namespace left to address it in.
@@ -22,7 +22,7 @@ import { implementRootedSurfaces } from "@kolu/surface/server"
 import type { RootedSurfaceClients } from "@kolu/surface/client"
 import { Effect, Schema } from "effect"
 import { RequestAuthority } from "@olai/plugin-api/authority"
-import { liveOps, type Fence } from "@olai/ops"
+import { liveOps, type SessionRule } from "@olai/ops"
 import { ticketing } from "./tickets.ts"
 import { clientsFor, type Row } from "./bundle.ts"
 import type { Bound } from "./authority.ts"
@@ -42,7 +42,7 @@ const generation = (name: string, mounted: boolean) => {
     runtime.mount(ROW, contract, {
       procedures: { ops: { run: () => Effect.gen(function*() {
         const authority = yield* RequestAuthority
-        if ((authority.fence as Fence).under === null) return yield* Effect.die(new Error("released credential"))
+        if ((authority.rule as SessionRule)._tag === "closed") return yield* Effect.die(new Error("released credential"))
         invoked.push(`${name}:${authority.writer}`)
         return {}
       }) } },
@@ -73,7 +73,7 @@ const generation = (name: string, mounted: boolean) => {
 const run = (door: RootedSurfaceClients, title: string) =>
   door.clients![ROW]!.surface.ops!.run!({ op: "title", id: "seat", title })
 
-test("a released retained ticket remains fenced when a provider returns with fresh handlers", async () => {
+test("a released retained ticket remains closed when a provider returns with fresh handlers", async () => {
   const first = generation("first", true)
   const second = generation("second", true)
   const absent = generation("absent", false)
@@ -88,8 +88,8 @@ test("a released retained ticket remains fenced when a provider returns with fre
     currentTicket: () => bearer,
     rows: () => live.rows(),
   })
-  const panel = () => clientsFor(live.rows(), () => live.bound(), { writer: "mcp", fence: null })
-  const one = tickets.mint(() => ({ under: "seat", forbidden: [] }), () => null, "chat-agent")
+  const panel = () => clientsFor(live.rows(), () => live.bound(), { writer: "mcp" })
+  const one = tickets.mint(() => [], "chat-agent")
   bearer = one.bearer
   // RETAINED ACROSS EVERY GENERATION BELOW, which is the whole point: the door
   // is built once, here, and each of the three claims is about what it does
@@ -106,7 +106,7 @@ test("a released retained ticket remains fenced when a provider returns with fre
     await expect(Effect.runPromise(run(retained, "change"))).rejects.toThrow("capability")
 
     // The ticket is released and the provider RETURNS. Fresh handlers, the same
-    // held door — and the fence, read per call off the writer, is what refuses.
+    // held door — and the rule, read per call off the writer, is what refuses.
     one.release()
     live = second
     await expect(Effect.runPromise(run(retained, "change"))).rejects.toThrow("released credential")
@@ -114,7 +114,7 @@ test("a released retained ticket remains fenced when a provider returns with fre
     // ...and a NEW ticket over the same live generation writes, so the refusal
     // above was about the released credential rather than about anything having
     // gone stale.
-    const next = tickets.mint(() => ({ under: "seat", forbidden: [] }), () => null, "chat-agent")
+    const next = tickets.mint(() => [], "chat-agent")
     bearer = next.bearer
     await Effect.runPromise(run(tickets.doorAt(panel()), "fresh"))
     expect([...first.invoked, ...second.invoked]).toEqual(["first:chat-agent", "second:chat-agent"])

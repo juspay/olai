@@ -148,7 +148,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
       client: () => clientsFor(
         rows(),
         () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }),
-        { writer: "mcp", fence: null },
+        { writer: "mcp" },
       ),
       transport: serverSide,
     })

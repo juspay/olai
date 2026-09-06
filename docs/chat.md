@@ -700,11 +700,10 @@ session** returns to the conversation the node's property names. Reading history
 does not rewrite that property or replace the node's current conversation.
 
 A past session opens in its own node-scoped process, including when restored
-after a server restart. It keeps the same subtree write boundary; continuing
-history cannot write a sibling outside that subtree. The current session can
-keep working while history is open, and the sidebar continues to report the
-current session's standing. Historical processes share the scheduler's capacity
-and idle-reaping policy.
+after a server restart. Continuing history writes the vault like the current
+session. The current session can keep working while history is open, and the
+sidebar continues to report the current session's standing. Historical
+processes share the scheduler's capacity and idle-reaping policy.
 
 **That same control offers *fresh session*, labelled with what it means**: memory is the subtree, the transcript becomes history. It opens a new conversation with that node's engine and re-points the property at it — the same two acts *start an agent session* runs, in the same order, so the vault never names a session that was not opened. If the node has disappeared before the request reaches the server, the request is refused before opening a chat or changing the selected conversation. Restoring the node permits a fresh request without an extra unassigned conversation left by the refusal.
 
@@ -726,13 +725,13 @@ Assigning a chat does not start anything by itself. The first press or derived w
 
 **A node agent's doorbells are its subtree, automatically.** The manual file picker exists only for conversations no node claims. A claim under nested node agents wakes the nearest one; an ancestor node agent catches claims that have no nearer agent, so a root orchestrator remains the backstop without hearing every child's own work.
 
-**Its tool writes are fenced to that same subtree.** Reads still see the vault, but a write at a node outside the subtree, a file or document write, and any attempt to change `chat-agent-session` are refused before the store gate. The refusal names the nearest node agent above to ask. The credential and its composed write door are acquired with the session scope and removed when it is reaped; a recognizable node-ticket prefix keeps an old bearer closed without retaining every expired credential. This is a protocol fence, not a sandbox: loopback MCP retains its documented unfenced door.
+**Its tool writes reach the vault.** The subtree is the agent's home — where its charter is, where its history is kept, where its doorbells ring, what its memory is about. Reads see the vault, and writes do too, through the same tools it has today. The one remaining refusal on this door is rewriting `chat-agent-session` (and the host's reserved keys beside it): that is an agent editing who is seated where, its own binding included, not a place it may not act. The credential and its composed write door are acquired with the session scope and removed when it is reaped; a recognizable node-ticket prefix keeps an old bearer closed without retaining every expired credential.
 
 ### What is not here yet, and in what order it comes
 
 The rest is a plan rather than a list of gaps:
 
-1. **Agency** — a node agent creates child nodes and puts agents on them; the lifecycle and write boundary are in place, but the dispatch gesture is not.
+1. **Agency** — a node agent creates child nodes and puts agents on them; the lifecycle is in place, but the dispatch gesture is not.
 2. **Relocation** — the scheduler is deliberately implemented in place in `olai-plugin-chat`; moving it behind its eventual plugin boundary is the next architectural phase, not part of this one.
 
 Concurrent attachments share one conversation upload directory. Repeated filenames receive distinct suffixes even when separate drops or browser tabs overlap; writing and cleanup are serialized within that conversation.

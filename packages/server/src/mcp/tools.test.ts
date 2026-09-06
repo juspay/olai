@@ -207,7 +207,7 @@ const withTools = <A>(
     // Minted per call for the reason `binding.ts` mints it per call: the roster
     // it describes moves, and a bundle held across a recompose would carry a
     // client for a row that has left.
-    const panel = () => clientsFor(rows(), () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }), { writer: "mcp", fence: null })
+    const panel = () => clientsFor(rows(), () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }), { writer: "mcp" })
     // EVERY VERB COMES OFF ITS OWN ROW, which is why there is no build-wide
     // table imported at the top of this file any more. `@olai/bundle/tools`'
     // `agentTools()` composed one and it was handed in flat beside a
@@ -225,11 +225,11 @@ const withTools = <A>(
         // here would make every assertion about a read's `vintage` an
         // assertion about the stub.
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
-        // NO TICKET ON THIS BENCH, so the fenced bundle IS the panel bundle —
+        // NO TICKET ON THIS BENCH, so the ticketed bundle IS the panel bundle —
         // which is what `bindAgent` hands a face with no ticket too. It takes no
         // argument now: a door is minted from the roster rather than narrowed
         // from a client that was handed in.
-        fenced: panel,
+        doorAt: panel,
         record: (request) => ops.commit(request, "mcp"),
         push: ops.push,
       })),

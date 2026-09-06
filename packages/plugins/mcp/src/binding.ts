@@ -14,7 +14,7 @@ export interface AgentBinding {
   readonly client: () => RootedSurfaceClients
   readonly root: string
   readonly vintage: Effect.Effect<Vintage | undefined>
-  readonly fenced: () => RootedSurfaceClients
+  readonly doorAt: () => RootedSurfaceClients
   readonly record: (request: CommitRequest) => Effect.Effect<CommitResult>
   readonly push: Effect.Effect<PushResult>
 }
@@ -30,7 +30,7 @@ export const bindAgent = (options: {
   const ops = liveOps(options.ops)
   const rows = (): ReadonlyArray<Row> => shared.agentRows() as unknown as ReadonlyArray<Row>
   const reading: Reading = () => shared.agent()
-  const panel = () => clientsFor(rows(), reading, { writer: "mcp", fence: null })
+  const panel = () => clientsFor(rows(), reading, { writer: "mcp" })
   const tickets = ticketing({ reservations: shared.writeReservations, bound: shared.agent, face: () => shared.agent().expose, ops, token: shared.token, currentTicket: options.ticket, rows })
   /**
    * A TOOL IS OFFERED BECAUSE ITS ROW IS HERE, and there is no longer a line
@@ -64,7 +64,7 @@ export const bindAgent = (options: {
       const directory = options.directory()
       return directory ? Effect.map(directory.store.read("verified"), aged => aged.vintage) : Effect.succeed(undefined)
     }),
-    fenced: () => tickets.doorAt(panel()),
+    doorAt: () => tickets.doorAt(panel()),
     record: request => ops.commit(request, "mcp"),
     push: ops.push,
   }

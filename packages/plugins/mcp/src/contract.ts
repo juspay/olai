@@ -3,8 +3,7 @@
 import { serviceTag } from "@olai/plugin-api/contracts"
 export interface TicketMint {
   readonly mint: (
-    seated: () => { readonly under: string; readonly forbidden: readonly { readonly key: string; readonly says: string }[] },
-    above: (node: string) => string | null,
+    forbidden: () => readonly { readonly key: string; readonly says: string }[],
     writer: string,
   ) => { readonly bearer: string; readonly release: () => void }
 }
