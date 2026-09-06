@@ -65,6 +65,7 @@
   code, pre, kbd { font-family: var(--mono); }
   :not(pre) > code {
     font-size: 0.88em;
+    white-space: nowrap;
   }
   pre {
     background: var(--desk);
@@ -313,6 +314,26 @@
   table.cmp td:first-child { color: var(--muted); white-space: nowrap; padding-right: 1.5rem; }
   table.cmp td:last-child { font-weight: 500; }
 
+  table.plug { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+  table.plug th, table.plug td { border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); padding: 0.45rem 1rem 0.45rem 0; text-align: left; vertical-align: baseline; }
+  table.plug thead th { border-top: none; font-size: 0.72rem; color: var(--muted); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  table.plug td:first-child { font-family: var(--mono); font-size: 0.78rem; white-space: nowrap; padding-right: 1.2rem; }
+  table.plug td:first-child a { color: var(--ink); text-decoration: none; }
+  table.plug td:first-child a:hover { color: var(--accent); }
+  table.plug td:last-child { color: var(--muted); white-space: nowrap; font-family: var(--mono); font-size: 0.72rem; }
+
+  .plugrow { display: flex; align-items: baseline; gap: 0.7rem; padding: 0.35rem 0; }
+  .plugname { font-family: var(--mono); font-size: 0.78rem; }
+  .seg {
+    margin-left: auto; display: inline-flex; flex: none;
+    border: 1px solid var(--rule); border-radius: 999px;
+    font-family: var(--mono); font-size: 0.62rem; line-height: 1.7;
+  }
+  .seg span { padding: 0 0.55em; color: var(--muted); }
+  .seg .pick { color: var(--paper); background: var(--ink); border-radius: 999px; }
+  .plughint { font-size: 0.75rem; color: var(--muted); padding: 0 0 0.45rem 0; line-height: 1.4; }
+  .plugfoot { font-size: 0.72rem; color: var(--muted); margin-top: 0.7rem; padding-top: 0.65rem; border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); }
+
   #agent {
     background: #0A1220; color: #D5E8F5;
     --paper: #0A1220; --desk: #121C30; --panel: #1A2742; --pill: #243352;
@@ -347,6 +368,7 @@
       <a href="#agenda">due</a>
       <a href="#find">search</a>
       <a href="#agent">agent</a>
+      <a href="#plugins">plugins</a>
       <a href="#commit">git</a>
     </nav>
     <a class="gh" href="https://github.com/juspay/olai">GitHub</a>
@@ -414,7 +436,8 @@
     <h2>What’s due</h2>
     <p class="lead">Dated work from every outline, on one page. Late things
     sit above today. A birthday isn’t a task — it stays on its day and never
-    turns red.</p>
+    turns red. The calendar is a
+    <a href="#plugins">plugin</a>.</p>
     <div class="cols">
       <div class="panel">
         <div class="file">/agenda · 2026-08-12</div>
@@ -599,6 +622,83 @@
   </div>
 </section>
 
+<section id="plugins">
+  <div class="wrap">
+    <h2>Plugins</h2>
+    <p class="lead">The outline editor, the Markdown reader, the shell, chat,
+    git, search — they are plugins. They show on one panel. Switch one off
+    while olai is running; the rest keep going. The runtime is
+    <a href="https://github.com/cordiverse/cordis">Cordis</a>, a meta-framework
+    of spatiotemporal composability. The paper is on
+    <a href="https://arxiv.org/abs/2608.25512" title="A Programming Paradigm for Spatiotemporal Composability">arXiv</a>.</p>
+    <div class="cols">
+      <div class="panel" aria-label="The plugins panel, with journal switched off">
+        <div class="file">plugins</div>
+        <div class="plugrow"><span class="plugname">chat</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
+        <div class="plugrow"><span class="plugname">vault</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
+        <div class="plugrow"><span class="plugname">git</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
+        <div class="plugrow"><span class="plugname">journal</span><span class="seg"><span class="pick">Off</span><span>On</span></span></div>
+        <p class="plughint">Switched off here. A restart brings it back.</p>
+        <div class="plugrow"><span class="plugname">search</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
+        <div class="plugrow"><span class="plugname">xyne-spaces</span><span class="seg"><span class="pick">Off</span><span>On</span></span></div>
+        <p class="plughint">Off by default — --plugins=xyne-spaces starts it at boot.</p>
+        <p class="plugfoot">A flip lasts until this process ends.</p>
+      </div>
+      <div>
+        <p>An agent can write one into your vault. You read the source on the
+        panel and approve it. The worked example is a morning agenda: each
+        morning it reads the day and puts it into the conversation.
+        <a href="https://github.com/juspay/olai/blob/master/docs/dynamic-plugins.md#a-worked-example-the-morning-agenda">Read the morning agenda</a>.</p>
+        <p>A serve starts with the default set. Add a row with
+        <code>--extra-plugins</code>, drop one with
+        <code>--without-plugins</code>, or name the exact set with
+        <code>--plugins</code>. The Nix module has the same three. The rest is
+        in the
+        <a href="https://github.com/juspay/olai/blob/master/docs/running.md">running docs</a>.</p>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <table class="plug">
+        <thead>
+          <tr><th>Plugin</th><th></th><th>Default</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/chat.md">chat</a></td><td>The conversation: panel, transcript, agents.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/vault.md">vault</a></td><td>The directory. Switching it off clears served files.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/git.md">git</a></td><td>The pill and the commit panel.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/search.md">search</a></td><td>The box in the header, and the index behind it.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/identity.md">identity</a></td><td>Who is looking, as a chip in the bar.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/journal.md">journal</a></td><td>Calendar, today, the agenda.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/claude.md">claude</a></td><td>Claude Code, the agent olai ships.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/codex.md">codex</a></td><td>Codex, also shipped.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/opencode.md">opencode</a></td><td>opencode, if it is on this machine.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/pi.md">pi</a></td><td>pi, if it is on this machine.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/kolu.md">kolu</a></td><td>Live terminals from a running Kolu.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/odu.md">odu</a></td><td>CI on the board, from a running odu.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/xyne-spaces.md">xyne-spaces</a></td><td>Mirror the conversation into team chat.</td><td>off</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/ws.md">ws</a></td><td>The browser socket. Leave it on if you want a tab.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/mcp.md">mcp</a></td><td>The door agents dial.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/web-app.md">web-app</a></td><td>The browser build. Leave it on if you want a tab.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/ui-renderer.md">ui-renderer</a></td><td>The tab’s Solid root.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/layout.md">layout</a></td><td>The frame, the header, the seats.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/sidebar.md">sidebar</a></td><td>The directory column and the rail.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/preferences.md">preferences</a></td><td>How it looks, from this browser.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/theme.md">theme</a></td><td>Palette, typeface, size.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/plugin-inspector.md">plugin-inspector</a></td><td>The panel itself.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/navigation.md">navigation</a></td><td>Addresses, history, the palette.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/outlines.md">outlines</a></td><td>The outline editor.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/markdown.md">markdown</a></td><td>Documents, and the files olai only shows.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/files.md">files</a></td><td>The directory tree.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/pins.md">pins</a></td><td>The pinned shelf.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/capture.md">capture</a></td><td>The inbox, and + in the palette.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/trash.md">trash</a></td><td>What you threw away.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/vault-plugins.md">vault-plugins</a></td><td>Plugins an agent wrote into this vault.</td><td>on</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
 <section id="commit">
   <div class="wrap">
     <h2>Every edit is a commit</h2>
@@ -642,6 +742,8 @@
     <span><a href="https://github.com/juspay/olai/blob/master/docs/index.md">docs</a></span>
     <span><a href="https://github.com/juspay/olai/blob/master/docs/running.md">how to run it</a></span>
     <span><a href="https://github.com/juspay/oss.olai/tree/main/projects/olai/roadmap">roadmap</a></span>
+    <span><a href="https://github.com/cordiverse/cordis">cordis</a></span>
+    <span><a href="https://arxiv.org/abs/2608.25512">the paper</a></span>
     <span><a href="https://kolu.dev">kolu.dev</a></span>
   </div>
 </footer>
