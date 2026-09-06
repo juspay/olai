@@ -28,7 +28,7 @@ Feature: The vault is a row
     Given I open the app
     When I open the plugins panel
     Then the plugins panel says "vault" is "was not asked for"
-    And the MCP vault refuses a write because no directory is served
+    And the MCP vault never offered the write, because no vault was asked for
     When I switch the plugin "vault" on
     Then the plugins panel says nothing more about "vault"
     And the MCP vault can read an outline

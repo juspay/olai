@@ -12,6 +12,13 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import type { TransportSurface } from "@olai/plugin-api/transport"
 import { Effect, type Scope } from "effect"
 
+/** WHAT THE ADAPTER IS SERVING, as one comparable word: every sibling and the
+ *  verbs on it. Read by the catch-up below and by the no-op guard, which must
+ *  agree or one of them re-applies what the other just settled. */
+const signatureOf = (map: Record<string, { readonly tools?: Record<string, unknown> }>): string =>
+  Object.entries(map).map(([key, one]) =>
+    `${key}:${Object.keys(one.tools ?? {}).sort().join(",")}`).sort().join("|")
+
 export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effect.gen(function*() {
   const transport = mcpTransport()
   const rows = (): ReadonlyArray<Row> => shared.agentRows() as unknown as ReadonlyArray<Row>
@@ -63,8 +70,7 @@ export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effe
    */
   let moving: Promise<unknown> = Promise.resolve()
   /** The roster the adapter is currently serving, as names — see the guard. */
-  let applied = Object.entries(booted).map(([key, one]) =>
-    `${key}:${Object.keys(one.tools ?? {}).sort().join(",")}`).sort().join("|")
+  let applied = signatureOf(booted)
   yield* Effect.acquireRelease(
     Effect.sync(() => shared.agentRosterMoved(() => {
       moving = moving.then(() => {
@@ -77,8 +83,7 @@ export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effe
         // notifications: a host told four times that a list it has not seen
         // change has changed. Keyed on the sibling names and their verbs, which
         // is exactly what the adapter serves out of the bundle.
-        const now = Object.entries(next).map(([key, one]) =>
-          `${key}:${Object.keys(one.tools ?? {}).sort().join(",")}`).sort().join("|")
+        const now = signatureOf(next)
         if (now === applied) return undefined
         applied = now
         return served.reroster(next)
@@ -88,6 +93,30 @@ export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effe
     })),
     stop => Effect.sync(stop),
   )
+  /**
+   * THE WINDOW BETWEEN THE BUNDLE AND THE BELL, closed.
+   *
+   * `serveFace` awaits `server.connect`, and the watcher above is attached only
+   * once that resolves. A row that registers its surface inside that await
+   * rings a bell nobody is holding, so the generation kolu keeps is the one
+   * read BEFORE it — and stays that way until some unrelated move happens to
+   * republish. This row needs only the transport door, so it applies early;
+   * `olai-plugin-outlines` waits for a vault and can land squarely in the gap.
+   *
+   * The catch-up is a comparison rather than an unconditional move: `applied`
+   * is `booted`'s signature, so a roster that did not change costs nothing and
+   * one that did is handed over exactly once. It is the same shape
+   * `./runtime.ts` uses when it composes in line before forking its stream
+   * loop — except a stream replays its first element and a bell does not, so
+   * the replay is spelled here.
+   */
+  yield* Effect.promise(async () => {
+    const now = bundle()
+    const signature = signatureOf(now)
+    if (signature === applied) return
+    applied = signature
+    await served.reroster(now)
+  })
   yield* shared.register({ routes: mcpRoute({ transport, token: shared.token, who: shared.who }) })
 })
 
