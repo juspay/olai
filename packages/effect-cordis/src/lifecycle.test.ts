@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
-import { Deferred, Effect, Exit, Scope } from "effect"
-import { closeHost, mountPlugin, offered, openHost, provide, settled } from "./host.ts"
+import { Deferred, Effect, Exit, Fiber, Scope } from "effect"
+import { broadcast } from "./broadcast.ts"
+import { closeHost, type Host, mountPlugin, offered, openHost, provide, settled } from "./host.ts"
 import { offer } from "./lifecycle.ts"
 import { definePlugin, detached } from "./plugin.ts"
 import { serviceTag } from "./service.ts"
@@ -189,6 +190,75 @@ test("host close interrupts active background work before resource release", () 
   yield* Deferred.await(entered)
   yield* closeHost(host)
   expect(order).toEqual(["background stopped", "resource released"])
+})))
+
+/** THE BUS THE TWO CASES BELOW RING — a service whose whole shape is one
+ *  registration verb, which is what every real door in `@olai/plugin-api` hands
+ *  a plugin and is the smallest thing that can carry the failure. */
+const events = () => {
+  const bus = broadcast<void>("a toy occasion")
+  const key = serviceTag<{ readonly listen: ReturnType<typeof bus.listen> }>("toy-events")
+  return { key, tell: bus.tell, open: (host: Host) => provide(host, key, (who) => ({ listen: bus.listen(who) })) }
+}
+
+test("a plugin that stops mid-dispatch is not called over its released resources", () => run(Effect.gen(function*() {
+  // THE REPRODUCTION, kept: an event goes to two plugins, the first one parks,
+  // and the second finishes stopping before its turn arrives. It used to be
+  // told anyway, with its own finalizers already run — "second handler called;
+  // resource alive = false".
+  const host = yield* openHost
+  const bus = events()
+  yield* bus.open(host)
+  const entered = Deferred.makeUnsafe<void>()
+  const resume = Deferred.makeUnsafe<void>()
+  const order: string[] = []
+  yield* mountPlugin(host, definePlugin({ name: "first", needs: [bus.key], apply: Effect.gen(function*() {
+    yield* (yield* bus.key).listen(() => Effect.gen(function*() {
+      yield* Deferred.succeed(entered, undefined)
+      yield* Deferred.await(resume)
+    }))
+  }) }))
+  const second = yield* mountPlugin(host, definePlugin({ name: "second", needs: [bus.key], apply: Effect.gen(function*() {
+    let alive = true
+    yield* Effect.addFinalizer(() => Effect.sync(() => { alive = false; order.push("second released") }))
+    yield* (yield* bus.key).listen(() => Effect.sync(() => { order.push(`second told, alive = ${alive}`) }))
+  }) }))
+  const telling = yield* Effect.forkScoped(bus.tell(undefined))
+  yield* Deferred.await(entered)
+  yield* second.dispose
+  order.push("second stopped")
+  yield* Deferred.succeed(resume, undefined)
+  yield* Fiber.join(telling)
+  expect(order).toEqual(["second released", "second stopped"])
+})))
+
+test("a plugin that stops while its own handler is running waits for it to come out", () => run(Effect.gen(function*() {
+  // THE OTHER HALF: a call that had already STARTED may not be abandoned
+  // either, so the resources it is standing in stay open until it is out. Same
+  // discipline as `close` itself keeps — revoke, join, then release.
+  const host = yield* openHost
+  const bus = events()
+  yield* bus.open(host)
+  const entered = Deferred.makeUnsafe<void>()
+  const resume = Deferred.makeUnsafe<void>()
+  const order: string[] = []
+  const only = yield* mountPlugin(host, definePlugin({ name: "only", needs: [bus.key], apply: Effect.gen(function*() {
+    yield* Effect.addFinalizer(() => Effect.sync(() => { order.push("released") }))
+    yield* (yield* bus.key).listen(() => Effect.gen(function*() {
+      yield* Deferred.succeed(entered, undefined)
+      yield* Deferred.await(resume)
+      order.push("handler out")
+    }))
+  }) }))
+  const telling = yield* Effect.forkScoped(bus.tell(undefined))
+  yield* Deferred.await(entered)
+  const stopping = yield* Effect.forkScoped(only.dispose)
+  yield* Effect.sleep("20 millis")
+  expect(order).toEqual([])
+  yield* Deferred.succeed(resume, undefined)
+  yield* Fiber.join(telling)
+  yield* Fiber.join(stopping)
+  expect(order).toEqual(["handler out", "released"])
 })))
 
 test("offer transfers its Cordis disposer out of the concurrent disposer set", () => run(Effect.gen(function*() {

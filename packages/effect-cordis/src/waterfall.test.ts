@@ -14,7 +14,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Deferred, Effect, Fiber } from "effect"
 
 import { mountPlugin, openHost } from "./host.ts"
 import { definePlugin, PluginName } from "./plugin.ts"
@@ -62,6 +62,42 @@ test("a plugin that unloads is off the chain", async () => {
     yield* mountPlugin(host, speaker("other"))
     yield* one.dispose
     expect((yield* dispatch({ said: [] })).said).toEqual(["other"])
+  })))
+})
+
+test("a link whose plugin unloads mid-dispatch is skipped, and the chain carries on", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    // OFF THE ROSTER IS NOT OFF THE WALK: the dispatch took its snapshot before
+    // "leaver" stopped, so the copy still names it. What must not happen is the
+    // walk CALLING it — and what must also not happen is the links after it
+    // losing their say, which is why a shut gate resumes the chain rather than
+    // answering with the value in hand.
+    const host = yield* openHost
+    const dispatch = yield* Opening.open(host)
+    const entered = Deferred.makeUnsafe<void>()
+    const resume = Deferred.makeUnsafe<void>()
+    yield* mountPlugin(host, definePlugin({
+      name: "slow",
+      needs: [Opening.key],
+      apply: Effect.gen(function*() {
+        const chain = yield* Opening.key
+        yield* chain.use((value, next) =>
+          Effect.gen(function*() {
+            value.said.push("slow")
+            yield* Deferred.succeed(entered, undefined)
+            yield* Deferred.await(resume)
+            return yield* next(value)
+          })
+        )
+      }),
+    }))
+    const leaving = yield* mountPlugin(host, speaker("leaver"))
+    yield* mountPlugin(host, speaker("other"))
+    const opening = yield* Effect.forkScoped(dispatch({ said: [] }))
+    yield* Deferred.await(entered)
+    yield* leaving.dispose
+    yield* Deferred.succeed(resume, undefined)
+    expect((yield* Fiber.join(opening)).said).toEqual(["slow", "other"])
   })))
 })
 

@@ -9,7 +9,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { Cause, Effect, Exit, Logger, Scope } from "effect"
+import { Cause, Deferred, Effect, Exit, Logger, Scope } from "effect"
 
 import { broadcast } from "./broadcast.ts"
 import { standing } from "./standing.ts"
@@ -69,6 +69,31 @@ test("a handler leaves with the scope that registered it", async () => {
   await Effect.runPromise(Scope.close(scope, Exit.void))
   await Effect.runPromise(bus.tell("x"))
   expect(said).toEqual(["leaver"])
+})
+
+test("a handler whose scope closes mid-dispatch is not called", async () => {
+  // THE DISPATCH READS THE TABLE ONCE, so a handler that leaves while an
+  // earlier one is parked is out of the table and still in the walk. What the
+  // gate adds is that the walk reaching it does not CALL it — see `./gate.ts`.
+  const said: Array<string> = []
+  const bus = broadcast<string>("a toy occasion")
+  const run = standing()
+  const entered = Deferred.makeUnsafe<void>()
+  const resume = Deferred.makeUnsafe<void>()
+  await run(bus.listen("first")(() =>
+    Effect.andThen(Deferred.succeed(entered, undefined), Deferred.await(resume))))
+  const leaving = Scope.makeUnsafe()
+  await Effect.runPromise(Effect.provideService(
+    bus.listen("leaver")(() => Effect.sync(() => void said.push("leaver"))),
+    Scope.Scope,
+    leaving,
+  ))
+  const telling = Effect.runPromise(bus.tell("x"))
+  await Effect.runPromise(Deferred.await(entered))
+  await Effect.runPromise(Scope.close(leaving, Exit.void))
+  await Effect.runPromise(Deferred.succeed(resume, undefined))
+  await telling
+  expect(said).toEqual([])
 })
 
 test("two handlers that are the same value are two registrations", async () => {

@@ -32,11 +32,18 @@
  * `use` attaches to the CALLING plugin's scope, so a plugin that unloads is off
  * the chain with nothing on either side remembering to say so. That is the same
  * property `ctx.on` had — listeners are effects in Cordis too — kept.
+ *
+ * Being off the chain is not by itself being uncallable, for the reason
+ * {@link ./gate.ts} was written down: a dispatch takes ONE snapshot and walks
+ * it, so a plugin that unloads while an earlier link is parked is out of the
+ * roster and still in the copy. Each registration carries a gate, and a link
+ * whose plugin has stopped is skipped rather than called.
  */
 
 import { Effect, Scope } from "effect"
 
 import { failed } from "./broadcast.ts"
+import { type Gate, gate } from "./gate.ts"
 import { type Host, provide } from "./host.ts"
 import { roster } from "./registry.ts"
 import { serviceTag, type ServiceKey } from "./service.ts"
@@ -86,9 +93,21 @@ export const waterfall = <A>(cordis: string): Waterfall<A> => {
          *  scope this used to write out as an array with an `indexOf` and a
          *  `splice` behind it, which is the O(n) removal the keyed table exists
          *  to be instead of. */
-        const chain = roster<{ readonly plugin: string; readonly middleware: Middleware<A> }>()
+        const chain = roster<{
+          readonly plugin: string
+          readonly middleware: Middleware<A>
+          readonly gate: Gate
+        }>()
+        const occasion = `the "${cordis}" waterfall`
         yield* provide(host, key, (plugin) => ({
-          use: (middleware) => chain.hold({ plugin, middleware }),
+          // GATED AT REGISTRATION, exactly as {@link ./broadcast.ts}'s handlers
+          // are and for the reason that file's `listen` gives: the snapshot
+          // below is a promise about the WALK and not about the CALL, so a link
+          // whose plugin unloaded while an earlier link was parked is off the
+          // chain and still in the copy.
+          use: (middleware) =>
+            Effect.flatMap(gate(plugin, occasion), (shut) =>
+              chain.hold({ plugin, middleware, gate: shut })),
         }))
         return (initial: A) => {
           // A SNAPSHOT, taken at the dispatch — `read` copies, so a plugin that
@@ -106,7 +125,13 @@ export const waterfall = <A>(cordis: string): Waterfall<A> => {
                 continued = true
                 return step(at + 1, passed)
               }
-              return yield* link.middleware(value, next).pipe(
+              // A LINK WHOSE PLUGIN HAS STOPPED IS SKIPPED, and the skip is the
+              // chain carrying on at the next link with the value as it stands
+              // — which is the same recovery the dying-without-calling-through
+              // arm below takes, for the same reason: a link that was never
+              // entered has consulted nobody, and the ones after it are not its
+              // to take with it.
+              return yield* link.gate.through(link.middleware(value, next), step(at + 1, value)).pipe(
                 // CONTAINED, and the SENTENCE is {@link ./broadcast.ts}'s — one
                 // line for every plugin bus in the tree rather than one per
                 // dispatch mode, because the thing that must not drift is what a

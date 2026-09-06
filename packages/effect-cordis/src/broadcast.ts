@@ -27,6 +27,15 @@
  * plugin's own word on the line; containment is a property of the bus rather
  * than a discipline each subscriber is asked to keep.
  *
+ * ## ...and containment is not the WHOLE of what a registration owes
+ *
+ * Every handler is wrapped a SECOND time, by {@link ./gate.ts}. A dispatch reads
+ * the handler list once and walks the copy, so a plugin that unloads while an
+ * earlier handler is parked is out of the table and still in the walk — and gets
+ * called, over resources its own finalizers have already closed. Containment
+ * says what a late call THREW; the gate is what keeps it from being made, and
+ * makes the leaving plugin wait out the calls that were already inside.
+ *
  * ## ...and the caller AWAITS, which is what a `Stream` could not do
  *
  * {@link Bus.tell} runs every handler in subscription order and answers when the
@@ -39,6 +48,7 @@
 
 import { type Cause, Effect, Scope } from "effect"
 
+import { gate } from "./gate.ts"
 import { roster } from "./registry.ts"
 
 /** WHAT A PLUGIN'S HALF OF A BUS IS — one verb, and it is a registration rather
@@ -77,8 +87,23 @@ export const broadcast = <A>(what: string): Bus<A> => {
     // WRAPPED ONCE, AT REGISTRATION, with the registering plugin's own word — so
     // containment is a property of the bus rather than a discipline each
     // subscriber is asked to keep, and no ring can forget it.
+    //
+    // ...AND GATED ONCE, at the same registration and for the same reason. The
+    // roster keeps a handler in the table for as long as its plugin is loaded,
+    // which is not the same claim as *this handler is safe to call now*: a
+    // dispatch walks a COPY, so a plugin that unloads while an earlier handler
+    // is parked is off the table and still in the walk. {@link ./gate.ts} is
+    // that second half — nothing entered after the plugin stopped, and its
+    // stopping waits out what was already inside. It is acquired BEFORE the
+    // hold so the pair unwinds in the order the argument needs: out of the
+    // table first, then the wait, then whatever the `apply` acquired earlier.
     listen: (plugin) => (handler) =>
-      handlers.hold((value) => contained(plugin, what, Effect.suspend(() => handler(value)))),
+      Effect.flatMap(gate(plugin, what), (shut) =>
+        handlers.hold((value) =>
+          shut.through(
+            contained(plugin, what, Effect.suspend(() => handler(value))),
+            Effect.void,
+          ))),
     // SUSPENDED, because the list is read at the moment the bus is rung rather
     // than at the moment it was opened: every subscriber arrives afterwards.
     tell: (value) =>
