@@ -21,7 +21,8 @@
     "./surface": "./src/file-surface.ts",
     "./client": "./src/client.ts",
     "./errors/Report.tsx": "./src/browser/errors/Report.tsx",
-    "./wire": "./src/wire.ts"
+    "./wire": "./src/wire.ts",
+    "./projection": "./src/projection.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

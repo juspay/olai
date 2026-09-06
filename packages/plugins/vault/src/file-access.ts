@@ -10,7 +10,7 @@ import type { Snapshot } from "@olai/store"
 import { surface, faces } from "./file-surface.ts"
 
 import type { Projection } from "@olai/surface/projection"
-import { headProjection } from "./wire.ts"
+import { headProjection } from "./projection.ts"
 import type { Head } from "./wire.ts"
 import { NOTHING_WRONG } from "@olai/format"
 import { LOADED, type Manifest } from "./wire.ts"

@@ -1,5 +1,7 @@
 /** THE OUTLINES COLLECTION, as the wire speaks it — one entry per outline
- * file, and the projection that builds them.
+ * file, and nothing that reads a revision. The projection that BUILDS these is
+ * `./projection.ts`, one door over, because a `./wire` door is inert and this
+ * one crosses to the browser.
  *
  * A ROW DECLARES ITS OWN VOCABULARY, which is what moved. `OutlineEntry` was
  * `@olai/surface`'s, beside the entries of two other rows and the spec of a
@@ -17,9 +19,7 @@
  * so there is no second spelling to drift. What is this row's is the ENTRY —
  * how a file's records, its breakage and its face are packed into one keyed
  * value, and at which revision. */
-import { BrokenFile, Face, isOutline, Located, faceOf, nodesOf, type Reading } from "@olai/format"
-import type { Snapshot } from "@olai/store"
-import { changeOf, frame, type Projection } from "@olai/surface/projection"
+import { BrokenFile, Face, Located } from "@olai/format"
 import { Schema } from "effect"
 
 /**
@@ -81,22 +81,3 @@ export const OutlineEntry = Schema.Struct({
   face: Face,
 })
 export type OutlineEntry = typeof OutlineEntry.Type
-
-/**
- * THIS REVISION'S `outlines`, and the one before it consumed.
- *
- * Five lines because the rule is not here: `@olai/surface`'s `projection.ts`
- * holds the slicing and the minting, argued in full, and this is the part only
- * this row can supply — which files are its keys (`isOutline`), and what one of
- * them is worth on the wire ({@link OutlineEntry}). The previous projection is
- * CONSUMED, not merely read: its maps are written into and handed back inside
- * the value this returns, which is why `./server.ts` replaces `held` on the
- * same synchronous stack that writes the deltas.
- */
-export const outlineProjection = (snapshot: Snapshot<Reading>, previous?: Projection<OutlineEntry>): Projection<OutlineEntry> => {
-  const one = frame(snapshot, previous?.files)
-  return { files: one.files, change: changeOf(snapshot.value.set, isOutline, outline => ({
-    rev: snapshot.rev, nodes: nodesOf(snapshot.value.derived, outline.path),
-    broken: one.broken.get(outline.path) ?? null, face: faceOf(outline),
-  }), one.decoded, snapshot, previous?.change, one.complete) }
-}

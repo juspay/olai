@@ -1,5 +1,7 @@
-/** THE DIRECTORY, as the wire speaks it — one head per served file, whether
- * there is a set at all, and the projection that builds the heads.
+/** THE DIRECTORY, as the wire speaks it — one head per served file and whether
+ * there is a set at all. The projection that BUILDS the heads is
+ * `./projection.ts`, one door over, because a `./wire` door is inert and this
+ * one crosses to the browser.
  *
  * A ROW DECLARES ITS OWN VOCABULARY, which is what moved. `Head` and
  * `Manifest` were `@olai/surface`'s, beside two content rows' entries and the
@@ -18,10 +20,7 @@
  * declared, and the fence one package over holds that door to being a
  * contract rather than a way into this row's runtime.
  */
-import { type Document, faceOf, type Reading } from "@olai/format"
 import { BrokenFile, Face } from "@olai/format"
-import type { Snapshot } from "@olai/store"
-import { changeOf, frame, type Projection } from "@olai/surface/projection"
 import { Schema } from "effect"
 
 /**
@@ -135,32 +134,3 @@ export const LOADED: Manifest = {}
  *  change about it: whether there is a set. */
 
 
-/** The heads' membership, which is every served file — the one collection whose
- *  predicate narrows nothing. Spelled as a predicate anyway rather than given
- *  the whole list, so this row's projection is the same statement its two
- *  neighbours are and there is no second shape here for a reader to hold in
- *  mind. */
-const everyFile = (_document: Document): _document is Document => true
-
-/**
- * THIS REVISION'S `heads`, and the one before it consumed.
- *
- * Five lines because the rule is not here: `@olai/surface`'s `projection.ts`
- * holds the slicing and the minting, argued in full, and this is the part only
- * this row can supply — which files are its keys (every one of them), and what
- * one of them is worth on the wire ({@link Head}).
- *
- * IT IS THE COLLECTION THAT HOLDS EVERY FILE, which is what makes the other
- * two rows' key sets subsets of this one and what a reader relies on: a head
- * missing for a file the directory holds is a file the sidebar stops showing,
- * and a bodied file's head is always here to open its body against. The
- * containment is not asserted here — nothing in this file can see another
- * row's keys — but in `@olai/bundle`'s `published.test.ts`, which is the
- * package that has all three.
- */
-export const headProjection = (snapshot: Snapshot<Reading>, previous?: Projection<Head>): Projection<Head> => {
-  const one = frame(snapshot, previous?.files)
-  return { files: one.files, change: changeOf(snapshot.value.set, everyFile, document => ({
-    rev: snapshot.rev, face: faceOf(document), broken: one.broken.get(document.path) ?? null,
-  }), one.decoded, snapshot, previous?.change, one.complete) }
-}
