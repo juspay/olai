@@ -229,9 +229,35 @@ ops: { /** Every outline under the served directory — what `list_outlines` ans
   subtree: { input: SubtreeRequest, output: SubtreeAnswer, error: OpFailure }, run: writeProcedure }
 }
 })
+/**
+ * WHICH `Edit.verb`s AND WHICH `WriteRequest.op`s THIS ROW OWNS, keyed by the
+ * MEMBER PATH that answers them — `edit.apply` and `ops.run`, the same two
+ * words `faces` below spells.
+ *
+ * THE KEYS WERE WIRE TAGS AND ARE NOT TAGS ANY MORE. They read
+ * `surface/edit/apply` and `surface/ops/run`, which were the monolith-era
+ * SHORT names: this row registers `root: true` (`./server.ts`), so each member
+ * answered under both its own `surface/outlines/edit/apply` and a bare
+ * `surface/edit/apply` that six rows shared. The short names are deleted, so a
+ * key still spelled like one would name a tag nothing serves — a lie in the
+ * one place a reader comes to learn what this row writes.
+ *
+ * NOTHING DISPATCHES ON THESE STRINGS. `./browser.tsx` reads
+ * `dispatch["edit.apply"].cases` to tell `@olai/edit-history`'s
+ * `registerWriter` which verbs to route here, and the writer it registers
+ * calls this row's OWN client — `ownWire.client()`, resolved per-plugin by
+ * `@olai/plugin-api`'s `Wired` — which carries the row's scoped tag with no
+ * string of ours anywhere in it. The key is a key.
+ *
+ * IT MUST STAY EXHAUSTIVE AND DISJOINT ACROSS THE BUNDLE. A verb no row claims
+ * reaches `writeEdit` with no writer and fails at runtime with "the capability
+ * for X is not active" (`@olai/edit-history`'s `writing.ts`); two rows claiming
+ * one verb makes the second `registerWriter` throw at mount. `@olai/server`'s
+ * `capability-dispatch.test.ts` holds both halves over the whole catalog.
+ */
 export const dispatch = {
-  "surface/edit/apply": { field: "verb", cases: ["add", "move", "under", "toggle", "walk", "title", "desc", "date", "repeat", "prop", "split", "merge", "unmirror", "mirror", "trash", "duplicate", "see", "after", "place", "mark", "remove"] },
-  "surface/ops/run": { field: "op", cases: [...MARKS, "add", "title", "desc", "date", "repeat", "prop", "move", "split", "merge", "trash", "duplicate", "see", "mirror", "unmirror", "after", "update", "apply"] },
+  "edit.apply": { field: "verb", cases: ["add", "move", "under", "toggle", "walk", "title", "desc", "date", "repeat", "prop", "split", "merge", "unmirror", "mirror", "trash", "duplicate", "see", "after", "place", "mark", "remove"] },
+  "ops.run": { field: "op", cases: [...MARKS, "add", "title", "desc", "date", "repeat", "prop", "move", "split", "merge", "trash", "duplicate", "see", "mirror", "unmirror", "after", "update", "apply"] },
 } as const
 export const faces = {
   "browser": {

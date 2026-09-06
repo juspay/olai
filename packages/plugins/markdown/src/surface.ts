@@ -107,9 +107,25 @@ ops: { /**
   document: { input: DocumentRequest, output: DocumentBody, error: OpFailure }, run: writeProcedure }
 }
 })
+/**
+ * WHICH `Edit.verb`s AND `WriteRequest.op`s THIS ROW OWNS, keyed by the MEMBER
+ * PATH that answers them.
+ *
+ * THE KEYS WERE WIRE TAGS AND ARE NOT TAGS ANY MORE: `surface/edit/apply` and
+ * `surface/ops/run` were the monolith-era SHORT names this row answered under
+ * beside its own `surface/markdown/edit/apply`, and those short names are
+ * deleted, so spelling one here would name a tag nothing serves. Nothing
+ * dispatches on these strings — `./browser.tsx` uses `dispatch["edit.apply"]`
+ * as a key and writes through this row's own scoped client.
+ *
+ * EXHAUSTIVE AND DISJOINT ACROSS THE BUNDLE, or a verb reaches `writeEdit` with
+ * no writer and fails at runtime with "the capability for X is not active"
+ * (`@olai/edit-history`'s `writing.ts`). `@olai/server`'s
+ * `capability-dispatch.test.ts` holds it.
+ */
 export const dispatch = {
-  "surface/edit/apply": { field: "verb", cases: ["doc", "docNew"] },
-  "surface/ops/run": { field: "op", cases: ["doc", "create-doc"] },
+  "edit.apply": { field: "verb", cases: ["doc", "docNew"] },
+  "ops.run": { field: "op", cases: ["doc", "create-doc"] },
 } as const
 export const faces = {
   "browser": {

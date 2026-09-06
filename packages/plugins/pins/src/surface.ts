@@ -71,8 +71,26 @@ procedures: {
 edit: editProcedures
 }
 })
+/**
+ * WHICH `Edit.verb`s THIS ROW OWNS, keyed by the MEMBER PATH that answers them
+ * — `edit.apply`, the same word `faces` below spells. No `ops.run` entry
+ * because there is no `ops` group above: a pin is written as an edit, and read
+ * as the ordinary outline it is.
+ *
+ * THE KEY WAS A WIRE TAG AND IS NOT A TAG ANY MORE: `surface/edit/apply` was
+ * the monolith-era SHORT name this row answered under beside its own
+ * `surface/pins/edit/apply`, and those short names are deleted, so spelling one
+ * here would name a tag nothing serves. Nothing dispatches on this string —
+ * `./browser.tsx` uses `dispatch["edit.apply"]` as a key and writes through this
+ * row's own scoped client.
+ *
+ * EXHAUSTIVE AND DISJOINT ACROSS THE BUNDLE, or a verb reaches `writeEdit` with
+ * no writer and fails at runtime with "the capability for X is not active"
+ * (`@olai/edit-history`'s `writing.ts`). `@olai/server`'s
+ * `capability-dispatch.test.ts` holds it.
+ */
 export const dispatch = {
-  "surface/edit/apply": { field: "verb", cases: ["pin"] },
+  "edit.apply": { field: "verb", cases: ["pin"] },
 } as const
 export const faces = {
   "browser": {
