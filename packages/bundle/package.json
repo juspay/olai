@@ -12,7 +12,8 @@
     "./bundle": "./src/bundle.ts",
     "./all.css": "./src/all.css",
     "./testids": "./src/testids.ts",
-    "./remote": "./src/remote.ts"
+    "./remote": "./src/remote.ts",
+    "./assets": "./src/assets.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -45,6 +46,13 @@
     "olai-plugin-sidebar": "workspace:*",
     "olai-plugin-preferences": "workspace:*",
     "olai-plugin-theme": "workspace:*",
-    "olai-plugin-plugin-inspector": "workspace:*"
+    "olai-plugin-plugin-inspector": "workspace:*",
+    "olai-plugin-navigation": "workspace:*",
+    "olai-plugin-outlines": "workspace:*",
+    "olai-plugin-markdown": "workspace:*",
+    "olai-plugin-files": "workspace:*",
+    "olai-plugin-pins": "workspace:*",
+    "olai-plugin-capture": "workspace:*",
+    "olai-plugin-trash": "workspace:*"
   }
 }

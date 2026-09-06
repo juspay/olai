@@ -28,7 +28,7 @@
  * The icon already says which APP this is, so the short label's one job is
  * to say which BOX — `short_name` IS the machine's name.
  *
- * The icon FILES are the browser bundle's (`packages/web/src/client/public`,
+ * The icon FILES are the browser bundle's (`packages/plugins/web-app/src/public`,
  * copied to the dist root by its build) and the paths below are the URLs that
  * puts them at. They are the only two ends of this contract, they live in two
  * packages that do not import each other — deliberately, see

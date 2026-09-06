@@ -19,7 +19,7 @@ import {
 
 describe("the shell's boot script", () => {
   const shell = (): Promise<string> =>
-    Bun.file(new URL("../index.html", import.meta.url)).text()
+    Bun.file(new URL("../../plugins/theme/src/head.html", import.meta.url)).text()
 
   test("reads the key this table writes, and writes the attribute it keys on", async () => {
     const html = await shell()
@@ -30,7 +30,7 @@ describe("the shell's boot script", () => {
 
 describe("the stylesheet's @theme", () => {
   test("declares the default typeface, token for token", async () => {
-    const sheet = await Bun.file(new URL("../styles.css", import.meta.url)).text()
+    const sheet = await Bun.file(new URL("./tokens.css", import.meta.url)).text()
     const theme = /@theme\s*\{([^}]*)\}/.exec(sheet)?.[1]
     expect(theme).toBeDefined()
     for (const token of FONT_TOKENS) {

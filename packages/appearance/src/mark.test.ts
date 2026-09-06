@@ -47,7 +47,7 @@ describe("the palm-leaf mark", () => {
     // forgot the file, or a leaf retune that forgot the icon, is a tab and a
     // home screen that no longer agree.
     const shipped = await Bun.file(
-      new URL("../public/icon.svg", import.meta.url),
+      new URL("../../plugins/web-app/src/public/icon.svg", import.meta.url),
     ).text()
     expect(shipped).toBe(markSvg(INSTALL))
   })

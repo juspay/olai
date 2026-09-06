@@ -13,7 +13,18 @@ UI uses its current state. A returning provider rereads changes made while it
 was absent. Unknown stored choices are forgotten; unavailable storage still
 permits temporary choices for the current activation.
 
-The palette/font definitions, generated styles, early no-flash boot script and
-shared deployment-title/attention chrome helpers still live in shared packages.
-Moving those build and chrome boundaries is part of the remaining Phase 18
-work; this extraction establishes the provider and integration lifetimes.
+The row's `/assets` build contribution owns the first-paint preference script,
+palette/size/scale CSS generation and hosted font installation. Bundle generation
+discovers static asset exports from its rows; the web builder consumes their
+generic head, stylesheet, preload and installation hooks without naming theme.
+Pure appearance tables, CSS generators and mark drawing live in
+`@olai/appearance`; the typeface catalog remains `@olai/fonts`. Their import
+graphs acquire no observers or DOM state.
+
+Chrome state is freshly acquired with the appearance provider, including title,
+favicon blob and theme metadata. Cleanup restores inherited values, revokes
+blobs and invalidates retained writers. `theme.appearance.chrome` carries the
+name/waiting behaviors; other plugins never import its implementation. A
+separate naming integration consumes layout's deployment reading. Chat's
+separate attention integration consumes appearance and chat-owned alert state,
+so losing theme withdraws the tab mark without disabling chat or its alerts.

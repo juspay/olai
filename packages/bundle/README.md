@@ -109,3 +109,5 @@ The degenerate case is the same code as every other: a runtime with **no** plugi
 - [`@olai/plugin-api`](../plugin-api/README.md) — the interface every plugin here is written against, and the Effect services its server half installs itself into.
 - [`@olai/effect-cordis`](../effect-cordis/README.md) — the plugin runtime, translated. This package opens its `./loader` door to mount the rows and its root door to read what became of them; nothing here names `cordis`.
 - [docs/internal/plugin-system.md](../../docs/internal/plugin-system.md) — the same subject as a tour.
+
+Rows may export `/assets` for build-time head, CSS, module-preload and public-file contributions. Generation writes a separate `assets.generated.ts` graph consumed only through `@olai/bundle/assets` by the build. Runtime bundle doors do not load filesystem/build code. The row list remains the sole source of which static owners are shipped.

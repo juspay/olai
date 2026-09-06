@@ -24,7 +24,7 @@
 
 import { createSelector, For } from "solid-js"
 
-import { PALETTES } from "@olai/web/client/theme/palettes.ts"
+import { PALETTES } from "@olai/appearance/palettes.ts"
 import type { Appearance } from "./index.ts"
 import { TESTID } from "@olai/web/client/testids.ts"
 import { TARGET_BOX } from "@olai/web/client/touch.ts"

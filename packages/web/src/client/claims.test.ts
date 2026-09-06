@@ -211,8 +211,8 @@ test("only SaidLine.tsx reads a said-line's mood", () => {
 // a sweep rather than a comment because the failure is silent — a title set
 // somewhere else looks right until the mark clears and puts back a name from
 // before it.
-test("only theme/chrome.ts writes the tab's title", () => {
-  expect(filesSpelling(/document\.title\s*=/)).toEqual([path.join("theme", "chrome.ts")])
+test("the permanent client never writes plugin-owned tab presentation", () => {
+  expect(filesSpelling(/document\.title\s*=/)).toEqual([])
 })
 
 test("only layer.ts spells a z-index", () => {

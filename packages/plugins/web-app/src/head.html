@@ -1,0 +1,25 @@
+    <!-- The install surface. The manifest is the SERVER's
+         (packages/server/src/listener.ts, through kolu's manifest layer); the
+         icons are files copied to the dist root by the build. `rel="icon"` is
+         the tab's first paint — the install mark — because the bundle has not
+         run yet; chrome.ts replaces it from the palette in force.
+         `apple-touch-icon` is iOS's Add to Home Screen, which reads no
+         manifest — so the install mark has to be named twice.
+
+         The service worker the framework serves at
+         `/sw.js` is REGISTERED (main.tsx) and is deliberately fetch-less — it
+         caches nothing and intercepts nothing, so this app is still live or
+         nothing; what it is for is `registration.showNotification`, the only
+         notification path an installed PWA has, which the chat panel uses to
+         say the agent is waiting on you. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- iOS's installed-app word: Add to Home Screen reads THIS, not the
+         manifest — and the same landing that retitles the tab above retitles
+         it (theme/chrome.ts), so an installed phone app carries the box's
+         name the manifest already gave a desktop one. -->
+    <meta name="apple-mobile-web-app-title" content="olai" />

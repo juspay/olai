@@ -1307,6 +1307,14 @@ preferences leaves theme's provider running. Disabling theme drains its controls
 before closing state and observers. This is the provider/integration pattern for
 feature settings; the preferences UI never owns another feature's state.
 
+Build-time assets follow the bundle as well: optional row `/assets` exports
+contribute head markup, generated styles, module preloads and stable files
+through a separate generated catalog. Theme owns first-paint preferences and
+fonts; web-app owns install metadata/icons; Markdown requests its shared
+renderer preload. The runtime never imports this build graph. Pure appearance
+tables live in `@olai/appearance`, while scoped title/favicon state belongs to
+theme and is consumed through `theme.appearance.chrome`.
+
 The browser host supplies `browser-management` through an explicit scoped
 capability. The inspector consumes roster/report readings and management
 operations, never the notebook client. Its activation owns source-reading

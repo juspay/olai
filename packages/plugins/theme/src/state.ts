@@ -4,9 +4,9 @@ import { Effect } from "effect"
 import { createSignal } from "solid-js"
 import { DEFAULT_TYPEFACE, FONT_ATTRIBUTE, FONT_STORAGE_KEY, typefaceNamed } from "@olai/fonts"
 import { readPreference, watchPreference, writePreference } from "@olai/web/client/preference.ts"
-import { ownPaletteChrome, paintChrome } from "@olai/web/client/theme/chrome.ts"
-import { DEFAULT_PALETTE, THEME_ATTRIBUTE, THEME_STORAGE_KEY, paletteNamed } from "@olai/web/client/theme/palettes.ts"
-import { DEFAULT_TYPE_SIZE, SIZE_ATTRIBUTE, SIZE_STORAGE_KEY, sizeNamed } from "@olai/web/client/theme/sizes.ts"
+import { createChrome } from "./chrome.ts"
+import { DEFAULT_PALETTE, THEME_ATTRIBUTE, THEME_STORAGE_KEY, paletteNamed } from "@olai/appearance/palettes.ts"
+import { DEFAULT_TYPE_SIZE, SIZE_ATTRIBUTE, SIZE_STORAGE_KEY, sizeNamed } from "@olai/appearance/sizes.ts"
 import type { Appearance, Choice } from "./index.ts"
 
 const choice = <T extends { readonly name: string }>(config: {
@@ -55,9 +55,9 @@ const choice = <T extends { readonly name: string }>(config: {
 })
 
 export const createAppearance = Effect.gen(function*() {
-  yield* Effect.acquireRelease(Effect.sync(ownPaletteChrome), (stop) => Effect.sync(stop))
-  const theme = yield* choice({ attribute: THEME_ATTRIBUTE, key: THEME_STORAGE_KEY, fallback: DEFAULT_PALETTE, named: paletteNamed, shown: paintChrome })
+  const chrome = yield* Effect.acquireRelease(Effect.sync(createChrome), (owned) => Effect.sync(owned.close))
+  const theme = yield* choice({ attribute: THEME_ATTRIBUTE, key: THEME_STORAGE_KEY, fallback: DEFAULT_PALETTE, named: paletteNamed, shown: chrome.paint })
   const font = yield* choice({ attribute: FONT_ATTRIBUTE, key: FONT_STORAGE_KEY, fallback: DEFAULT_TYPEFACE, named: typefaceNamed })
   const size = yield* choice({ attribute: SIZE_ATTRIBUTE, key: SIZE_STORAGE_KEY, fallback: DEFAULT_TYPE_SIZE, named: sizeNamed })
-  return { theme, font, size } satisfies Appearance
+  return { theme, font, size, chrome } satisfies Appearance
 })

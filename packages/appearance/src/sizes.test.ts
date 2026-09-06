@@ -54,7 +54,7 @@ test("every size is a multiple of the reader's baseline, never a pixel count", (
 // kind of contract that breaks silently. This is what makes a rename fail here
 // instead of as a flash of the wrong size on every load.
 test("the boot script writes this key onto this attribute", () => {
-  const shell = readFileSync(join(import.meta.dir, "..", "index.html"), "utf8")
+  const shell = readFileSync(join(import.meta.dir, "..", "..", "plugins", "theme", "src", "head.html"), "utf8")
   expect(shell).toContain(`localStorage.getItem("${SIZE_STORAGE_KEY}")`)
   expect(shell).toContain(`setAttribute("${SIZE_ATTRIBUTE}"`)
 })

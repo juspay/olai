@@ -20,7 +20,17 @@ export default definePlugin({
     yield* (yield* Offers).own("appearance", () => state)
   }),
 })
+import { deployment } from "olai-plugin-layout/contract"
+import { createRoot, createEffect } from "solid-js"
 export const components = {
+  naming: definePlugin({ name: "naming", needs: [appearance, deployment], apply: Effect.gen(function*() {
+    const view = yield* appearance
+    const source = yield* deployment
+    yield* Effect.acquireRelease(Effect.sync(() => createRoot((dispose) => {
+      createEffect(() => { const called = source.called(); if (called !== undefined) view.chrome.name(called) })
+      return dispose
+    })), (dispose) => Effect.sync(dispose))
+  }) }),
   preferences: definePlugin({ name: "preferences", needs: [appearance, rendererSlots], apply: Effect.gen(function*() {
     const state = yield* appearance
     yield* (yield* rendererSlots).contribute(sections, () => <AppearanceRows state={state} />)

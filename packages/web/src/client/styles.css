@@ -44,67 +44,7 @@
  * no box, no ink and no spacing, with nothing red anywhere. */
 @import "@olai/bundle/all.css";
 
-/* The typefaces themselves — `@font-face` and every `:root[data-font]`
- * block — are generated from `@olai/fonts`'s catalog and appended by the
- * build. What stays here is the TOKEN NAMES and the default row's stacks, so
- * Tailwind emits `font-sans` / `font-serif` / `font-mono`. The values must
- * match the default row; `theme/fonts.test.ts` holds them. */
 
-@theme {
-  --font-sans: "iA Writer Quattro", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-serif: Literata, ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
-  --font-mono: "iA Writer Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-
-  /* Named for their job, not their hue, so a palette is the same eleven names
-   * with different values and no utility has to know which one is in force.
-   *
-   * These eleven are the DEFAULT palette's — `reef` — and they are the one
-   * place the table is spelled twice. Tailwind needs the NAMES here or it will
-   * not emit `text-muted` at all; what it does with the VALUES is bake the
-   * literal fallback beside every opacity utility (`.bg-alarm/5` gets both
-   * `#c133490d` and, inside `@supports (color-mix…)`, the theme-aware form).
-   * So on any browser this app runs in they are inert — the generated
-   * unlayered `:root` block always wins — and on one too old for `color-mix`
-   * they are what an opacity utility falls back to. Which is exactly why they
-   * must be the DEFAULT's rather than any palette's, and why
-   * `theme/css.test.ts` holds them to that row.
-   *
-   * The other palettes are generated from the table into blocks
-   * appended to this sheet at build time (`src/client/theme/`,
-   * `src/build.ts`). */
-  --color-ink: #14352F;
-  --color-paper: #D7F0E8;
-  --color-desk: #C5E6DC;
-  --color-panel: #E8F7F2;
-  --color-pill: #B5DDD2;
-  --color-muted: #467269;
-  --color-rule: #9CC9BE;
-  --color-accent: #B34219;
-  --color-done: #1E7656;
-  --color-doing: #8F5A00;
-  --color-alarm: #C13349;
-
-  /* Panel widths. Defaults match the pre-rework constants (16rem sidebar,
-   * 26rem chat). The reader owns the live values: layout/css.ts writes pixel
-   * lengths onto `:root` from localStorage preferences, and both the dock and
-   * the padding App reserves for it read the same custom property so they
-   * cannot drift. The rail is not a preference — it is the fixed collapsed
-   * face of the sidebar. */
-  --width-panel: 26rem;
-  --width-sidebar: 20rem;
-  --width-rail: 3rem;
-
-  /* The app header's height, and the ONLY spelling of it. The bar WEARS this
-   * (`h-[var(--height-header)]`); everything that sits under the bar subtracts
-   * it — the chat dock's `top` and height, the sidebar column, the rail, a
-   * sticky section row, the page sheet. No consumer carries a fallback
-   * literal: a `4rem` beside every `var()` is a second spelling of this line,
-   * and it can only fire on a page where this sheet failed to load, which has
-   * no styling for it to save. (`--visible-h` and friends DO keep fallbacks —
-   * those are written by JS at runtime, so the fallback is what the first
-   * paint reads.) */
-  --height-header: 4rem;
-}
 
 /* Where a jump has to STOP, now that the bar it would land under is sticky
  * (`src/client/AppHeader.tsx`). The top `--height-header` of the viewport is no

@@ -22,7 +22,7 @@ const browser = async (body: (state: {
   const stored = new Map<string, string>([["olai.theme", "pitch"], ["olai.font", "system"], ["olai.size", "larger"]])
   const listeners = new Set<(event: StorageEvent) => void>()
   const globals = {
-    document: { documentElement: root, querySelector: (selector: string) => selector.startsWith("meta") ? meta : icon },
+    document: { title: "olai", documentElement: root, querySelector: (selector: string) => selector.startsWith("meta") ? meta : icon },
     window: { addEventListener: (_: string, listener: (event: StorageEvent) => void) => listeners.add(listener), removeEventListener: (_: string, listener: (event: StorageEvent) => void) => listeners.delete(listener) },
     localStorage: { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => stored.set(key, value), removeItem: (key: string) => stored.delete(key) },
   }
@@ -46,6 +46,9 @@ test("appearance survives without preferences UI, releases observers and metadat
   try {
     const state = await Effect.runPromise(Scope.provide(createAppearance, first))
     expect(state.theme.current().name).toBe("pitch")
+    state.chrome.name("olai [test]")
+    state.chrome.waiting(true)
+    expect(document.title).toBe("● olai [test]")
     expect(state.font.current().name).toBe("system")
     expect(state.size.current().name).toBe("larger")
     expect(listeners.size).toBe(3)
@@ -53,6 +56,8 @@ test("appearance survives without preferences UI, releases observers and metadat
     expect(state.size.current().name).toBe("medium")
     await close(first)
     expect(listeners.size).toBe(0)
+    expect(document.title).toBe("olai")
+    expect(() => state.chrome.waiting(true)).toThrow("no longer active")
     expect(root.getAttribute("data-theme")).toBe("inherited")
     expect(root.getAttribute("data-size")).toBeNull()
     expect(meta.getAttribute("content")).toBe("original-color")

@@ -45,3 +45,5 @@ node_modules
 # named only the one leg with a recipe left every other one a file somebody
 # commits by accident on their next `git add -A`.
 /*.log
+
+/packages/bundle/src/assets.generated.ts

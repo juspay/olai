@@ -1,8 +1,8 @@
 import { serviceTag } from "@olai/plugin-api/contracts"
 import type { Accessor } from "solid-js"
-import type { Palette } from "@olai/web/client/theme/palettes.ts"
+import type { Palette } from "@olai/appearance/palettes.ts"
 import type { Typeface } from "@olai/fonts"
-import type { TypeSize } from "@olai/web/client/theme/sizes.ts"
+import type { TypeSize } from "@olai/appearance/sizes.ts"
 
 export const name = "theme"
 export interface Choice<T> {
@@ -10,6 +10,7 @@ export interface Choice<T> {
   readonly pick: (value: T) => void
 }
 export interface Appearance {
+  readonly chrome: { readonly name: (called: string) => void; readonly waiting: (value: boolean) => void }
   readonly theme: Choice<Palette>
   readonly font: Choice<Typeface>
   readonly size: Choice<TypeSize>

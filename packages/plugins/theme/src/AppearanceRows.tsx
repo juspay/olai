@@ -1,6 +1,6 @@
 import { Row } from "@olai/web/client/settings/Row.tsx"
 import { Segmented } from "@olai/web/client/settings/Segmented.tsx"
-import { SIZES, sizeNamed } from "@olai/web/client/theme/sizes.ts"
+import { SIZES, sizeNamed } from "@olai/appearance/sizes.ts"
 import type { Appearance } from "./index.ts"
 import { ThemeChips } from "./Chips.tsx"
 import { FontSelect } from "./FontSelect.tsx"

@@ -242,3 +242,10 @@ const rows = readRows()
 writeFileSync(join(SRC, "rows.generated.ts"), rowsModule(rows))
 writeFileSync(join(SRC, "all.generated.css"), styleChain(rows))
 writeFileSync(join(SRC, "testids.generated.ts"), testidsModule(rows.filter((row) => hasDoor(row, "./testids"))))
+
+const assetRows = rows.filter((row) => hasDoor(row, "./assets"))
+writeFileSync(join(SRC, "assets.generated.ts"), `${HEADER("Static build contributions; no runtime may import this graph.")}
+import type { BuildAssets } from "./assets.ts"
+${assetRows.map((row, at) => `import p${at} from ${quoted(`${packageOf(row)}/assets`)}`).join("\n")}
+export const BUILD_ASSETS: ReadonlyArray<BuildAssets> = [${assetRows.map((_, at) => `p${at}`).join(", ")}]
+`)
