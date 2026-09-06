@@ -65,7 +65,7 @@ import { createDoors, type Doors } from "./doors.ts"
 import type { NodePageRoute } from "olai-plugin-navigation/routes"
 import { createLicences, type Licences } from "./licences.ts"
 import { createNames, type Names } from "./names.ts"
-import { olai } from "@olai/web/client/wire.ts"
+import { client } from "olai-plugin-outlines/client"
 
 /**
  * One page, asked and kept live — and a token that moves when its answer did.
@@ -230,7 +230,7 @@ export const createReading = (
   holding?: Accessor<boolean>,
   stream?: NodePageRoute["stream"],
 ): Reading => {
-  const answer = stream === undefined ? olai.streams.page.use(request) : stream.use(request)
+  const answer = stream === undefined ? client().streams.page.use(request) : stream.use(request)
   /** The generation — see {@link Reading.at}. `changed` rather than `updated`
    *  because the payload is the one thing this does not want, and the handler
    *  survives an input change (the framework resets the tracker, which re-arms

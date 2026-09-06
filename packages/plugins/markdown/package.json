@@ -10,7 +10,9 @@
     "./server": "./src/server.ts",
     "./all.css": "./src/all.css",
     "./assets": "./src/assets.ts",
-    "./surface": "./src/surface.ts"
+    "./surface": "./src/surface.ts",
+    "./testids": "./src/testids.ts",
+    "./client": "./src/client.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -40,7 +42,10 @@
   },
   "olai": {
     "contracts": [
-      "./contract"
+      "./contract",
+      "./testids",
+      "./surface",
+      "./client"
     ]
   }
 }

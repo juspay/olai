@@ -142,6 +142,9 @@ export const bind = (wiring: Wiring) => Effect.gen(function*() {
         (offered?.catalogs?.() ?? []).flatMap(catalog => catalog.rows(offered?.report() ?? new Map())) as ReadonlyArray<BuiltPlugin>,
       )
     let settling: (run: Effect.Effect<boolean>) => Effect.Effect<boolean> = (run) => run
+    // Management owns only roster state and switches. A switch outlives the
+    // connection that requested it: disabling a transport may close that very
+    // connection, but must not interrupt its accepted lifecycle transition.
     const deps: ImplementSurfaceDeps<typeof hostSurface.spec> = {
       cells: { plugins: { store: inMemoryStore<PluginRoster>(roster()), connect: cell => Effect.sync(() => { pluginsCell = cell }) } },
       procedures: {
@@ -184,6 +187,9 @@ app: {
     const mounted = new Map<string, MountedSurface<SurfaceSpec>>()
     const recompose = (): void => {
       const wanted = new Map(siblings().map((one) => [one.name, one] as const))
+      // Preserve surviving mounts by identity. A returning owner waits for its
+      // previous generation to finish draining, so two generations cannot own
+      // one capability while unrelated siblings remain continuously available.
       for (const [key, one] of wanted) {
         if (mounted.has(key)) continue
         const settling = leaving.get(key)
@@ -197,11 +203,14 @@ app: {
           key,
           one.surface as never,
           one.deps as never,
-          { root: one.root, writes: one.writes, dispatch: one.dispatch, faces: one.faces as never },
+          { root: one.root, writes: one.writes, dispatch: one.dispatch, faces: one.faces as never, scopedFaces: one.scopedFaces as never },
         )
         mounted.set(key, mount)
         one.published?.(mount.ctx)
       }
+      // Drop revokes dispatch immediately; asynchronous resource cleanup can
+      // continue afterward. Remove the public entry before waiting, otherwise
+      // a stale connection could keep starting work during the drain.
       for (const [key, mount] of [...mounted]) {
         if (wanted.has(key)) continue
         mounted.delete(key)
@@ -225,6 +234,9 @@ app: {
       yield* offered?.reread ?? Effect.void
       recompose()
     })
+    // Suppress intermediate roster publication during a switch. The report
+    // must describe the settled graph, not a mixture of old rows and new
+    // service availability; dispatch revocation itself remains synchronous.
     settling = (run) =>
       Effect.gen(function*() {
         const changed = yield* Effect.ensuring(
@@ -241,6 +253,9 @@ app: {
     let pendingStatus = false
     recompose()
     if (offered !== null) {
+      // Owner-local registration changes can precede the loader's report.
+      // Recompose immediately for revocation, then refresh reports on the
+      // scoped queue. A notification must not publish yesterday's row state.
       const statusChanges = yield* Queue.unbounded<void>()
       yield* Effect.addFinalizer(() => Queue.shutdown(statusChanges))
       const previousChange = offered.onChange.run

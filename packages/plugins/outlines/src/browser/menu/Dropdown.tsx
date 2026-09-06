@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The PRIMITIVE and its wiring — everything about the `•••` menu that is
  * Kobalte's, and the whole of what a first paint does not download.
@@ -110,7 +111,7 @@ import { swallowGhost } from "@olai/web/client/ghost.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { overlayRoot } from "@olai/web/client/overlay.ts"
 import { Panel } from "./Panel.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 /**
  * A tap in the PANEL, and the click that is about to arrive for a gesture that

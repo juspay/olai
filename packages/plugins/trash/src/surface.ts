@@ -1,12 +1,14 @@
+/** trash owns these wire descriptors as well as their live handlers.
+ * The descriptor imports are inert schemas; loading this contract acquires no
+ * runtime state. Stable root tags preserve clients without moving ownership
+ * back into the host. */
 import { defineSurface } from "@kolu/surface/define"
-import { surface as legacy } from "@olai/surface"
-
-/** Static compatibility contract; live handlers belong to this capability. */
+import { editProcedures, writeProcedure } from "@olai/surface/dispatch"
 export const surface = defineSurface({
-  procedures: {
-    edit: legacy.spec.procedures.edit,
-    ops: { run: legacy.spec.procedures.ops.run },
-  },
+procedures: {
+edit: editProcedures,
+ops: { run: writeProcedure }
+}
 })
 export const dispatch = {
   "surface/edit/apply": { field: "verb", cases: ["untrash", "emptyTrash"] },

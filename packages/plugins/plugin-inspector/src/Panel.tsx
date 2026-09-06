@@ -1,3 +1,6 @@
+import { client as definitionClient } from "olai-plugin-vault-plugins/client"
+import { TESTID } from "olai-plugin-plugin-inspector/testids"
+import { pluginPref } from "olai-plugin-plugin-inspector/testids"
 /**
  * WHAT THIS INSTANCE IS RUNNING — one row per plugin the build has, and the
  * panel is its own now rather than a section at the foot of preferences.
@@ -131,9 +134,9 @@ import {
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
 import { PANEL_BOX } from "@olai/web/client/readout.ts"
 import { run } from "@olai/web/client/run.ts"
-import { Segmented } from "@olai/web/client/settings/Segmented.tsx"
-import { Row } from "@olai/web/client/settings/Row.tsx"
-import { pluginPref, TESTID } from "@olai/web/client/testids.ts"
+import { Segmented } from "@olai/ui-primitives/Segmented.tsx"
+import { Row } from "@olai/ui-primitives/SettingRow.tsx"
+
 import type { BrowserManagement } from "@olai/surface/management"
 import type { InspectorState } from "./state.ts"
 
@@ -242,7 +245,7 @@ export function Panel(props: {
     setApproving(name)
     setRefused(null)
     run(
-      props.management.approve(name, version, forever),
+      definitionClient().procedures.plugins.approve({ name, version, forever }),
       (failure) => {
         setApproving(null)
         setRefused(failure.message)

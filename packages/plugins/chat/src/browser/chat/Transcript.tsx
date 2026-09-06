@@ -90,7 +90,7 @@ import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "sol
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { useShowNode } from "olai-plugin-outlines/references"
 import { useFollow } from "olai-plugin-navigation/routing"
-import { selector } from "@olai/web/client/testids.ts"
+import { selector } from "@olai/ui-primitives/testids.ts"
 import { TESTID } from "../../testids.ts"
 import { revealed, revealing, wholeYet } from "./attention/reveal.ts"
 import { declaringFailure } from "olai-plugin-outlines/references"

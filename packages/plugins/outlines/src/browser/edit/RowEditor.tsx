@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The caret: a title being typed, a note being written, and what the last
  * write said back.
@@ -43,7 +44,7 @@ import { type Draft, type Slot, slotOf } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { type Caret, type EditAction, type EditField, editKey } from "@olai/web/client/keys.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { ROW_NOTE as AS_NOTE, ROW_TITLE, SECTION_TITLE } from "@olai/ui-primitives/touch.ts"
 
 export function TitleEditor(props: {

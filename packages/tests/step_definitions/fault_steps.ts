@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * The client's own faults: what a reader sees when olai, rather than an
  * outline, is what is wrong.
@@ -16,7 +17,7 @@
  */
 
 import * as assert from "node:assert";
-import { TESTID } from "@olai/web/testlib";
+
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import {

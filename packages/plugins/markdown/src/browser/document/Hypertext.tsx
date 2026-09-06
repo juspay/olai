@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * A served `.html`, drawn — and, since the ruling of 2026-08-16, RUNNING.
  *
@@ -118,7 +119,7 @@ import { Lede } from "@olai/web/client/errors/Lede.tsx"
 import { useOpens } from "olai-plugin-navigation/opens"
 import { useGo, useLanding } from "olai-plugin-navigation/routing"
 import { fileNamed } from "olai-plugin-navigation/routes"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { useHead } from "olai-plugin-vault/files"
 import { BodyRefused } from "./BodyRefused.tsx"
 import { echo } from "./echo.ts"

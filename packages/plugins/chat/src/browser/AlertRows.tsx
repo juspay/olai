@@ -1,10 +1,11 @@
+import { TESTID } from "olai-plugin-chat/testids"
 /** Chat owns both controls; preferences only supplies their location. */
 import { Show } from "solid-js"
 import { askToNotify, notifyConsent } from "@olai/web/client/notify.ts"
-import { Row } from "@olai/web/client/settings/Row.tsx"
-import { Segmented } from "@olai/web/client/settings/Segmented.tsx"
+import { Row } from "@olai/ui-primitives/SettingRow.tsx"
+import { Segmented } from "@olai/ui-primitives/Segmented.tsx"
 import { TARGET } from "@olai/ui-primitives/touch.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } from "./alerts.ts"
 
 /** Off / On, for both alert rows — being told, and being told AUDIBLY. One

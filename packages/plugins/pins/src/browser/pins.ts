@@ -97,7 +97,7 @@
 import { addressWritten } from "@olai/format"
 import type { Pinned,Shelf } from "@olai/surface"
 
-import { addressIn,nameOf,titleFace } from "@olai/web/client/address/address.ts"
+import { addressIn,nameOf,titleFace } from "olai-plugin-navigation/address/address.ts"
 import { hrefOf,type Route } from "olai-plugin-navigation/routes"
 
 /** One door on the shelf: the node that IS the pin, where it goes, and what it

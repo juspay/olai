@@ -103,7 +103,8 @@ import { type Accessor, createEffect, createSignal, onCleanup, untrack } from "s
 import type { OpFailure } from "@olai/format"
 import { reachable } from "@olai/web/client/connection/reaching.ts"
 import { runAsync } from "@olai/web/client/run.ts"
-import { connectionReadout, olai } from "@olai/web/client/wire.ts"
+import { connectionReadout } from "@olai/web/client/wire.ts"
+import { client } from "olai-plugin-outlines/client"
 
 /**
  * How long ids are gathered before the question goes.
@@ -167,7 +168,7 @@ const askAll = (ids: ReadonlyArray<string>): Batch => {
         // already left.
         gathering = null
         settle(
-          runAsync(olai.procedures.nodes.named({ ids: [...wanted] })).then((outcome) =>
+          runAsync(client().procedures.nodes.named({ ids: [...wanted] })).then((outcome) =>
             Result.isFailure(outcome)
               // Re-made rather than passed through: a `Result`'s failure arm
               // carries the success type too, and this one's changed shape.

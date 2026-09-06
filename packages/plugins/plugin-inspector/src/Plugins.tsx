@@ -1,6 +1,7 @@
+import { TESTID } from "olai-plugin-plugin-inspector/testids"
 /** Inspector trigger; visibility survives shell remounts within this activation. */
-import { BarDoor } from "@olai/web/client/BarDoor.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+import { BarDoor } from "olai-plugin-layout/bar-door"
+
 
 import type { InspectorState } from "./state.ts"
 import type { BrowserManagement } from "@olai/surface/management"

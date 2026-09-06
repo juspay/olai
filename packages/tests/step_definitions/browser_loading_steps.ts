@@ -1,6 +1,7 @@
+import { TESTID } from "@olai/bundle/testids"
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
-import { BROWSER_MODULES_ID, TESTID } from "@olai/web/testlib";
+import { BROWSER_MODULES_ID } from "@olai/web/testlib"
 import type { OlaiWorld } from "../support/world.ts";
 
 const refused = new WeakMap<OlaiWorld, { url: string; requests: number }>();

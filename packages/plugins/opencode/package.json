@@ -23,11 +23,17 @@
     "@olai/acp": "workspace:*",
     "@olai/plugin-api": "workspace:*",
     "effect": "4.0.0-rc.112",
-    "solid-js": "^1.9.0"
+    "solid-js": "^1.9.0",
+    "@olai/ui-primitives": "workspace:*"
   },
   "//devDependencies": "The protocol SDK for `PermissionOption`, in the leg's OWN bench alone: the leg itself names none of the SDK's types (`@olai/acp/engine` carries the ones a leg's signatures need), and the fixtures that stage a permission request do. Type-only, so no SDK code and no zod enter this package's closure.",
   "devDependencies": {
     "@agentclientprotocol/sdk": "^1.3.0",
     "olai-plugin-chat": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./testids"
+    ]
   }
 }

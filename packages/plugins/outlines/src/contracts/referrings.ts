@@ -1,3 +1,5 @@
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The two WAYS a record can refer to this node, as values: what each row is
  * called on screen, and what it is called to the browser tests.
@@ -23,7 +25,7 @@
 
 import { type Way, WAYS } from "@olai/format"
 
-import { type TestId, TESTID } from "@olai/web/client/testids.ts"
+
 
 /** One way, as this page says it. */
 export interface Referring {

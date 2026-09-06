@@ -1,7 +1,8 @@
+import { TESTID } from "olai-plugin-trash/testids"
 import type { FileKind } from "@olai/format"
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
-import { Glyph } from "@olai/web/client/file/icons.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+import { Glyph } from "olai-plugin-files/icons"
+
 import { ENTRY_SHAPE,ROW_GAP } from "olai-plugin-layout/entry"
 import type { Route } from "olai-plugin-navigation/routes"
 import { Link,useRouter } from "olai-plugin-navigation/routing"

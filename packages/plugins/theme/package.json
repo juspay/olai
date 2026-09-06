@@ -8,7 +8,8 @@
     "./browser": "./src/browser.tsx",
     "./contract": "./src/index.ts",
     "./all.css": "./src/all.css",
-    "./assets": "./src/assets.ts"
+    "./assets": "./src/assets.ts",
+    "./testids": "./src/testids.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -24,5 +25,10 @@
     "@olai/appearance": "workspace:*",
     "olai-plugin-layout": "workspace:*",
     "@olai/ui-primitives": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./testids"
+    ]
   }
 }

@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The box that narrows the page, and what it has to say about the result.
  *
@@ -52,7 +53,7 @@ import { DoneFlip } from "./DoneFlip.tsx"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { listKey } from "@olai/web/client/keys.ts"
 import { Refusals } from "@olai/web/client/refusals.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 import { countSaid } from "./count.ts"
 import type { Narrowing } from "./narrowing.ts"

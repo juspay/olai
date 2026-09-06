@@ -1,7 +1,8 @@
+import { TESTID } from "@olai/ui-primitives/testids.ts"
 /** Frontmatter belongs to the document, including when no outline editor runs. */
 import { customOrder, type Custom } from "@olai/format"
 import { For, Show } from "solid-js"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { useDocumentReading } from "./reading.tsx"
 import { readLocation } from "olai-plugin-ui-renderer/contract"
 import { properties } from "../index.ts"

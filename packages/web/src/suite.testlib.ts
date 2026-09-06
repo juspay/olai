@@ -45,14 +45,14 @@
 // one WAY of referring is called to a test — each a single decision that a
 // projection spelled at a call site would drift from.
 
-export { selector, TESTID, type TestId } from "./client/testids.ts"
+export { selector } from "./client/testids.ts"
 // The other name of that kind, and the only one that is not a testid: the
 // attribute the app shell counts keys down on. It is the suite's ONE wait
 // after a key — what the per-key receipts in `support/caret.ts` were
 // approximating — and `client/quiescence.ts` is where the contract is: what
 // holds the count, what deliberately does not, and why.
 export { KEYS_SETTLING } from "./client/quiescence.ts"
-export { ROW_TESTID } from "./client/file/kinds.ts"
+export { ROW_TESTID } from "olai-plugin-files/kinds"
 export { type Making, MAKING_DOCUMENT, MAKING_OUTLINE } from "olai-plugin-files/making"
 
 // ── the CLOCK, and the DEADLINES a wait is measured against ────────────────
@@ -75,7 +75,7 @@ export { LONG_PRESS_MS } from "./client/longPress.ts"
 // markup, so they are imported, which is a type error rather than a timeout
 // the day one is renamed.
 
-export { ALERT_SOUND_KEY, ALERTS_KEY } from "./client/settings/alerts.ts"
+export { ALERT_SOUND_KEY, ALERTS_KEY } from "olai-plugin-chat/alert-keys"
 export { SIDEBAR_WIDTH_KEY } from "olai-plugin-layout/preferences"
 export { DEFAULT_THEME, THEME_ATTRIBUTE, THEME_STORAGE_KEY } from "@olai/appearance/palettes.ts"
 export { SIZE_STORAGE_KEY } from "@olai/appearance/sizes.ts"

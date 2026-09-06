@@ -7,7 +7,10 @@
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
     "./contract": "./src/index.ts",
-    "./policy": "./src/policy.ts"
+    "./policy": "./src/policy.ts",
+    "./surface": "./src/surface.ts",
+    "./client": "./src/client.ts",
+    "./browser": "./src/browser.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -20,5 +23,11 @@
     "@olai/format": "workspace:*",
     "@olai/store": "workspace:*",
     "effect": "4.0.0-rc.112"
+  },
+  "olai": {
+    "contracts": [
+      "./surface",
+      "./client"
+    ]
   }
 }

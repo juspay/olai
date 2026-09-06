@@ -1,8 +1,13 @@
-/** Compose the selected bundle, management Surface and listener.
- * Capabilities own their domain services, handlers and HTTP routes. The host
- * supplies operator settings, scoped loading, identity and transport policy.
+/** Start a selected bundle without granting its rows permanent host status.
+ *
+ * Boot has two settling barriers. Providers first acquire their independent
+ * services; only then can Surface composition publish a coherent transport
+ * door. Transport consumers settle against that door before the listener opens.
+ * This lets content run headless and avoids a provider/transport dependency
+ * cycle. The bundle adapts product inputs; the host owns only coordination.
  * Provider withdrawals change the composed generation without restarting
- * unrelated capabilities; reverse scope order drains rows before the host. */
+ * unrelated capabilities; reverse scope order drains rows before the host.
+ */
 import { report as reportTransport } from "./report.ts";
 import { CurrentWho, whoRoute } from "./who.ts";
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers";
@@ -22,10 +27,9 @@ import { hostname } from "./hostname.ts";
 import { NOBODY, readingOf } from "./who.ts";
 import { type Profile } from "./profiles.ts";
 import { listener } from "./listener.ts";
-import { ticketMint, type TicketMint } from "olai-plugin-mcp/contract";
+import { provideInputs, ticketsFor } from "@olai/bundle/inputs";
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy";
 import { runtimePaths } from "./runtime-paths.ts"
-import { VaultBoot } from "olai-plugin-vault/boot";
 import { TransportSurface } from "@olai/plugin-api/transport";
 import { gitConfigPatch } from "./gitPolicy.ts";
 import { bind } from "./runtime.ts";
@@ -49,23 +53,26 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     const built = BUNDLE_NAMES;
     const onChange = { run: (): void => { } };
     const token = randomBytes(24).toString("hex");
-    let currentMint: () => TicketMint | undefined = () => undefined;
+    let issueTicket: ReturnType<typeof ticketsFor> | undefined;
     const served = resolve(options.root);
     yield* Effect.annotateLogsScoped({ root: served });
     const say = yield* emitter;
+    // Tool users may be acquired before a port exists. Their Deferred is
+    // fulfilled only after a listener actually starts; a transport-free bundle
+    // does not invent an address or report tool connectivity it never acquired.
     const toolsReady = yield* Deferred.make<ToolServer>();
     const plugins = yield* openPlugins({
         vars: options.vars ?? process.env,
         now: () => new Date().toISOString(),
         tools: toolsReady,
-        ticketFor: (...args) => currentMint()?.mint(...args) ?? null,
+        ticketFor: (...args) => issueTicket?.(...args) ?? null,
         rank: bundleRank,
         localStateFor: (plugin) => localStateFor(plugin, served, (line) => say(Effect.logWarning(line))),
         changed: () => onChange.run(),
     });
-    currentMint = () => offered(plugins.host, ticketMint);
+    issueTicket = ticketsFor(plugins.host);
     const pluginPin = options.pluginPin;
-    yield* provide(plugins.host, VaultBoot, () => ({ root: served, runtime: runtimePaths }));
+    yield* provideInputs(plugins.host, { root: served, runtime: runtimePaths });
     yield* mountBundle(plugins.host, pluginPin, gitConfigPatch(options.pin), profile);
     const loading = yield* openLoading(plugins.host, built, () => onChange.run(), { services: plugins.serviceKeys, browserServices: plugins.browserKeys });
     let report = yield* reportBundle(plugins.host, loading.names());
@@ -83,6 +90,9 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     });
     const currentIdentity = (): Identity => (offered(plugins.host, Identity) as Identity | undefined) ?? NOBODY;
     const who = readingOf(currentIdentity);
+    // First barrier: independent providers have either acquired their services
+    // or reported why they cannot. Transport rows may still wait for the door
+    // below; waiting is a real state, not successful browser activation.
     yield* settled(plugins.host, built);
     report = yield* reportBundle(plugins.host, loading.names());
     const theMachine = hostname();
@@ -107,10 +117,17 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
             catalogs: loading.catalogs,
         },
     });
+    // Observe fatal runtime exits before publishing a listener. Register close
+    // operations in reverse dependency order: transports stop first, plugin
+    // owners drain next, and the composed Surface closes after its providers.
+    // Their individual scopes retain failed/hanging teardown as a failure.
     const runtime = yield* watchFault(wired.bound);
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()));
     yield* Effect.addFinalizer(() => plugins.close);
     const transports = yield* listener({ host: options.host, port: options.port });
+    // Handlers and exposure are read at each connection, not captured at boot:
+    // a capability switch must revoke old authority and affect the next dial.
+    // No notebook schema is needed to publish this transport description.
     yield* provide(plugins.host, TransportSurface, () => ({
         register: transports.register,
         live: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.browser }),
@@ -128,6 +145,9 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
         writeReservations: WRITE_RESERVATIONS,
     }));
     yield* Effect.addFinalizer(() => transports.stop);
+    // Second barrier: transports have registered their actual routes. The
+    // listener chooses whether a port is needed; passive media routes alone
+    // must not turn a headless, transport-free selection into a network server.
     yield* settled(plugins.host, built);
     report = yield* reportBundle(plugins.host, loading.names());
     onChange.run();

@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The repeat picker: how often a dated node comes back, chosen on the row it
  * is about.
@@ -33,7 +34,7 @@ import type { Press } from "../edit/panel.ts"
 import type { Submission } from "../edit/submission.ts"
 import { RowPanel } from "../edit/RowPanel.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { noticeOf, pressOf } from "./repeat.ts"
 

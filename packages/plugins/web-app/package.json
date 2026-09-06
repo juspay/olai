@@ -18,9 +18,15 @@
   "dependencies": {
     "@olai/plugin-api": "workspace:*",
     "effect": "4.0.0-rc.112",
-    "@olai/surface": "workspace:*"
+    "@olai/surface": "workspace:*",
+    "@olai/ui-primitives": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"
+  },
+  "olai": {
+    "contracts": [
+      "./testids"
+    ]
   }
 }

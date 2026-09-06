@@ -1,6 +1,7 @@
+import { TESTID } from "olai-plugin-files/testids"
 import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
-import { Glyph } from "@olai/web/client/file/icons.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+import { Glyph } from "olai-plugin-files/icons"
+
 import { setSidebarOpen } from "olai-plugin-layout/preferences"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"

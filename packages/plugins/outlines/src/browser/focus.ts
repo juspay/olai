@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * Which node the reader was just pointed AT, and how the page answers.
  *
@@ -46,8 +47,8 @@ import { type Accessor, createSignal } from "solid-js"
 import { atElement, type Route } from "olai-plugin-navigation/routes"
 import { runAsync } from "@olai/web/client/run.ts"
 import { useRouter } from "olai-plugin-navigation/routing"
-import { TESTID } from "@olai/web/client/testids.ts"
-import { olai } from "@olai/web/client/wire.ts"
+
+import { client } from "olai-plugin-outlines/client"
 
 const [focused, setFocused] = createSignal<string | null>(null)
 
@@ -170,7 +171,7 @@ let pointed = 0
  * belongs to the newer one.
  */
 const landOnRow = (go: (route: Route) => void, id: string, mine: number, before: string | null): void => {
-  void runAsync(olai.procedures.nodes.homes({ ids: [id], files: [] })).then((outcome) => {
+  void runAsync(client().procedures.nodes.homes({ ids: [id], files: [] })).then((outcome) => {
     if (mine !== pointed) return
     if (Result.isFailure(outcome)) {
       console.warn(

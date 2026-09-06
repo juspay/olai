@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * A row that does not exist yet.
  *
@@ -26,7 +27,7 @@
  */
 
 import { DOT } from "@olai/web/client/marks.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { CONTROL, GUTTER_GAP, HOVER_CELL, HOVER_GUTTER } from "@olai/ui-primitives/touch.ts"
 import type { Pending } from "./draft.ts"
 import { DraftSaid, TitleEditor } from "./RowEditor.tsx"

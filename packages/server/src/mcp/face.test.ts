@@ -28,7 +28,7 @@ import { CONTENT_ROWS, runtimeFor } from "../capabilities.testlib.ts"
  * subscription test is a sequence and not a race.
  */
 
-import { MCP } from "../faces.ts"
+import { MCP } from "@olai/bundle/faces"
 import { runtimePaths } from "../runtime-paths.ts"
 import { type Store, type Ops } from "@olai/ops"
 import { mountBundle, provide, offered, settled } from "@olai/bundle/bundle"
@@ -46,7 +46,7 @@ import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
-import { clientOver } from "@olai/surface/client"
+import { clientOver } from "@olai/bundle/client"
 import { serveFace } from "olai-plugin-mcp/testlib"
 
 const HOUSE = [

@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The two edge verbs, drawn as controls — for the one place in this app that
  * has no `•••` to put them in.
@@ -21,7 +22,7 @@
 
 import { For } from "solid-js"
 
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { type Relation, RELATIONS } from "./relation.ts"
 

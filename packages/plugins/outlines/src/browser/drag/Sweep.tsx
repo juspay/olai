@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The band a drag-across pulls, drawn.
  *
@@ -24,7 +25,7 @@ import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { LAYER } from "@olai/web/client/layer.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import type { Sweep } from "./sweep.ts"
 
 export function SweepBand(props: { readonly sweep: Sweep | null }) {

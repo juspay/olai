@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-theme/testids"
 /**
  * The named palettes, as chips: every chip is a theme, wearing the theme it
  * offers, and pressing one picks it.
@@ -26,7 +27,7 @@ import { createSelector, For } from "solid-js"
 
 import { PALETTES } from "@olai/appearance/palettes.ts"
 import type { Appearance } from "./index.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 
 export function ThemeChips(props: { readonly state: Appearance }) {

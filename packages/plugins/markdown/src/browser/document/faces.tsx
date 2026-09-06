@@ -1,3 +1,5 @@
+import { TESTID as IDS_MARKDOWN } from "olai-plugin-markdown/testids"
+import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 /**
  * The FACE a bodied file's page wears — one per kind, in one table.
  *
@@ -39,7 +41,7 @@ import { markdownReady } from "@olai/markdown-ui/chunk.ts"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { landingId, outlineOf } from "@olai/markdown-ui/render.ts"
 import { useHere, useLanding } from "olai-plugin-navigation/routing"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { BodyRefused } from "./BodyRefused.tsx"
 import { Csv } from "./Csv.tsx"
 import { isServed, useDocument } from "./documents.tsx"
@@ -226,7 +228,7 @@ function Rendered(props: Reading) {
       // Two panes of the SAME file mint the same heading ids. Look
       // under THIS pane's root, not the first copy in document order.
       const root = document.querySelector(
-        `[data-testid="${TESTID.pane}"][data-pane="${String(here())}"]`,
+        `[data-testid="${IDS_NAVIGATION.pane}"][data-pane="${String(here())}"]`,
       )
       const heading = root?.querySelector(`#${CSS.escape(id)}`) ?? null
       if (heading === null) return
@@ -252,7 +254,7 @@ function Rendered(props: Reading) {
         <Markdown
           source={text()}
           from={props.file}
-          testid={TESTID.documentBody}
+          testid={IDS_MARKDOWN.documentBody}
         />
       </Show>
     </>

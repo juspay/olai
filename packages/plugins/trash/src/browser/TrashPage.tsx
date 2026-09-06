@@ -1,3 +1,5 @@
+import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
+import { TESTID as IDS_TRASH } from "olai-plugin-trash/testids"
 /**
  * The trash: what was put away, kept whole, and the one way back out.
  *
@@ -61,7 +63,7 @@ import { Empty } from "@olai/web/client/Empty.tsx"
 import { PAGE_TITLE } from "@olai/web/client/look.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { createSaying } from "@olai/web/client/saying.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { applying } from "@olai/web/client/writes.ts"
 import { useNarrowed } from "olai-plugin-outlines/filter"
 import { CONTEXT_DIM,lighting,matchedAttr,unfiltered } from "olai-plugin-outlines/filter-values"
@@ -86,7 +88,7 @@ export function TrashPage(props: {
   const narrowed = useNarrowed()
 
   return (
-    <div data-testid={TESTID.trashPage}>
+    <div data-testid={IDS_TRASH.trashPage}>
       <header class="mb-8">
         <h1 class={`${PAGE_TITLE} italic text-ink`}>Trash</h1>
         <p class="m-0 mt-1 text-sm text-muted">
@@ -108,13 +110,13 @@ export function TrashPage(props: {
           // found none of it is a claim about the query, and the bar makes
           // that one (`../filter/narrowed.tsx` holds the division).
           <Show when={unfiltered(narrowed)}>
-            <Empty testid={TESTID.trashEmpty} line="The Trash is empty." />
+            <Empty testid={IDS_TRASH.trashEmpty} line="The Trash is empty." />
           </Show>
         }
       >
         <Key each={props.groups} by="file">
           {(group) => (
-            <section data-testid={TESTID.trashGroup} data-file={group().file}>
+            <section data-testid={IDS_TRASH.trashGroup} data-file={group().file}>
               {/* One archive is the ordinary case and needs no heading; a
                   directory whose subdirectories archive separately gets one
                   per file, the way the day page groups by outline. */}
@@ -179,7 +181,7 @@ function Branch(props: {
 
   return (
     <li
-      data-testid={TESTID.trashRow}
+      data-testid={IDS_TRASH.trashRow}
       data-node-id={props.row.at.node.id}
       // Whether the filter SELECTED this row or kept it as the scaffold that
       // leads to one — one spelling for every surface that says it
@@ -211,7 +213,7 @@ function Branch(props: {
           // (`../NodeLine.tsx`): a title span is a title span, and a reader of
           // this page — a scenario, the evidence pass — should not have to
           // know that this one is drawn by a different component.
-          data-testid={TESTID.nodeTitle}
+          data-testid={IDS_OUTLINES.nodeTitle}
           // SETTLED work is struck through here as it is everywhere else, and
           // that means both marks: what the strike says is "nobody is waiting
           // on this line" (`../tone.ts`), which is what `done` and `cancelled`
@@ -229,7 +231,7 @@ function Branch(props: {
             <button
               type="button"
               class="shrink-0 rounded border border-rule/70 bg-panel px-2 py-0.5 text-xs text-muted opacity-0 transition-opacity hover:bg-rule/60 hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
-              data-testid={TESTID.trashPutBack}
+              data-testid={IDS_TRASH.trashPutBack}
               aria-label={`put back “${row().shows.node.title}”`}
               onClick={() => void putBack()}
             >
@@ -245,7 +247,7 @@ function Branch(props: {
           <SaidLine
             said={line()}
             class="m-0 mb-1 ml-6 text-sm"
-            testid={TESTID.trashSaid}
+            testid={IDS_TRASH.trashSaid}
           />
         )}
       </Show>

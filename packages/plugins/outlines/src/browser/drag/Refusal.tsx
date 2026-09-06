@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The face a pane wears when the row over it cannot land there.
  *
@@ -34,7 +35,7 @@ import { Portal } from "solid-js/web"
 
 import { Refused } from "@olai/web/client/Refused.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import type { Refusal } from "./aim.ts"
 
 export function DropRefusal(props: { readonly refusal: Refusal }) {

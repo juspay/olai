@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * What a node is waiting on, named in full — the `after` edges of the node
  * whose page you are reading.
@@ -24,7 +25,7 @@ import type { InTheWay } from "@olai/format"
 
 import { NodeRefs } from "./NodeRefs.tsx"
 import { refOf } from "./ref.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function Blocked(props: {
   /** What the node is waiting on, in the format's promised order. Empty is the

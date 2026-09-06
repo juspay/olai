@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The line that says where a dragged row would land.
  *
@@ -29,7 +30,7 @@
 import { Portal } from "solid-js/web"
 
 import { LAYER } from "@olai/web/client/layer.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import type { Landing } from "./plan.ts"
 
 export function DropLine(props: { readonly landing: Landing }) {

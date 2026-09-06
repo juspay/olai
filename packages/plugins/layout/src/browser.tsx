@@ -11,7 +11,7 @@ import { PanelHandle } from "./layout/Handle.tsx"
  * provider owns its own models and editor state.
  */
 import { definePlugin,Offers } from "@olai/plugin-api"
-import { Fault } from "@olai/web/client/errors/Fault.tsx"
+import { Fault } from "./Fault.tsx"
 import { publishLayoutCss } from "olai-plugin-layout/layout/css.ts"
 import { trackVisibleViewport } from "olai-plugin-layout/viewport.ts"
 import { Effect } from "effect"

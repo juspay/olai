@@ -2,7 +2,7 @@
  * The BODIES of the served documents — one at a time, for whoever is showing
  * one.
  *
- * ONE module owns `olai.collections.documents`, and that is the point of it
+ * ONE module owns `client().collections.documents`, and that is the point of it
  * being one. The member is served `keys` + `get` with no `deltas`
  * (`@olai/surface`), so a plain `.use()` — which opens the key stream AND a
  * value stream per key — would pull every `.md` body in the directory onto the
@@ -64,7 +64,7 @@ import {
 } from "solid-js"
 
 import { sameList } from "@olai/web/client/same.ts"
-import { olai } from "@olai/web/client/wire.ts"
+import { client } from "olai-plugin-markdown/client"
 
 /**
  * One bodied file's entry once its BODY is here — which is the only state a
@@ -148,7 +148,7 @@ export const createDocuments = (): Documents => {
   // whole key set, so the per-key streams the framework opens are exactly the
   // documents being shown. A key leaving `wanted` disposes its own reactive
   // owner, which closes that stream server-side — no teardown to write here.
-  const entries = olai.collections.documents.use({ keys: wanted })
+  const entries = client().collections.documents.use({ keys: wanted })
 
   return {
     read: (file) => {

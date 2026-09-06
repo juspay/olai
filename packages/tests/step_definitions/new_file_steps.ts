@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * Starting a FILE that does not exist yet — the sidebar's two path boxes.
  *
@@ -23,13 +24,7 @@ import * as path from "node:path";
 
 import { Then, When } from "@cucumber/cucumber";
 
-import {
-  type Making,
-  MAKING_DOCUMENT,
-  MAKING_OUTLINE,
-  selector,
-  TESTID,
-} from "@olai/web/testlib";
+import { type Making, MAKING_DOCUMENT, MAKING_OUTLINE, selector } from "@olai/web/testlib"
 
 import { saysThat } from "../support/said.ts";
 import { keysSettled } from "../support/settling.ts";

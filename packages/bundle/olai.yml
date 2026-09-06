@@ -173,7 +173,10 @@
   name: olai-plugin-trash/server
   profiles: [surface]
 
-# Maintained acceptance fixture, never selected by normal profiles.
+# Maintained acceptance fixtures, never selected by normal profiles.
+# They share the product catalogue so tests exercise the real resolver, profile
+# selection, reports and compiled assets. A separate test bundle would bypass
+# precisely that boundary; disabled rows add no activation to ordinary starts.
 - id: test-layout
   name: olai-plugin-test-layout
   disabled: true
@@ -184,4 +187,5 @@
   profiles: [test-minimal]
 - id: vault-plugins
   name: olai-plugin-vault-plugins/server
+  browser: olai-plugin-vault-plugins/browser
   profiles: [surface]

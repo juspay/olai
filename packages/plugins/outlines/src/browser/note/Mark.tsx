@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The pilcrow: a node has a note, and here is the door to it.
  *
@@ -25,7 +26,7 @@
  * — and dim the rest of the time.
  */
 
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function NoteMark(props: {
   readonly open: boolean

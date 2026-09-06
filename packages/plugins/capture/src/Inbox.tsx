@@ -1,5 +1,6 @@
+import { TESTID } from "olai-plugin-capture/testids"
 import { CountChip } from "@olai/ui-primitives/CountChip.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { CHIP_QUIET } from "olai-plugin-layout/chip"
 import { ENTRY_SHAPE,ROW_GAP } from "olai-plugin-layout/entry"
 import { atFile } from "olai-plugin-navigation/routes"

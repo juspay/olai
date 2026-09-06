@@ -1,3 +1,7 @@
+import { Ops, Vault, Surfaces } from "@olai/plugin-api/services"
+import type { Ops as Gate } from "@olai/ops"
+import { inMemoryChannel, type ImplementSurfaceDeps } from "@kolu/surface/server"
+import { surface, faces } from "./surface.ts"
 /**
  * SEARCH'S SERVER HALF — one table, one walk, and the door they stand behind.
  *
@@ -90,3 +94,32 @@ export default definePlugin({
     }))
   }),
 })
+
+/** Search's wire owner follows the vault revision pulse while every answer
+ * still reads through Ops' gate. The index provider above owns the SQLite
+ * table; this component owns its protocol, so withdrawing search removes its
+ * procedures and streams without depending on the outline renderer. */
+export const components = { wire: definePlugin({
+  name: "wire", needs: [Search, Ops, Vault, Surfaces],
+  apply: Effect.gen(function*() {
+    const gate = (yield* Ops).gate as Gate
+    const revisions = inMemoryChannel<void>()
+    const vault = yield* Vault
+    yield* vault.revision(() => Effect.sync(() => revisions.publish(undefined)))
+    yield* vault.unloaded(Effect.sync(() => revisions.publish(undefined)))
+    const deps: ImplementSurfaceDeps<typeof surface.spec> = {
+      onStreamReadError: (error, { stream }) => {
+        Effect.runFork(Effect.logWarning(`search ${stream} read failed: ${String(error)}`))
+      },
+      streams: {
+        searchResults: {
+          read: input => Effect.runPromise(gate.search(input)),
+          install: (_input, onEvent) => revisions.consume({ onEvent, onError: () => {} }),
+          isEqual: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+        },
+      },
+      procedures: { search: { nodes: ({ input }) => gate.search(input) } },
+    }
+    yield* (yield* Surfaces).register({ surface, faces, deps, root: true, scopedFaces: { browser: faces.browser } })
+  }),
+}) }

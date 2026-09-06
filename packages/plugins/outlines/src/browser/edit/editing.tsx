@@ -1,3 +1,4 @@
+import { writeEdit } from "@olai/edit-history/writing.ts"
 /**
  * The editor: one draft, the keys that move it, and the writes they cause.
  *
@@ -67,7 +68,7 @@ import { runAsync } from "@olai/web/client/run.ts"
 import type { Moving } from "../move/moving.tsx"
 import { parentKeyOf } from "../select/range.ts"
 import type { Selection } from "../select/selection.ts"
-import { olai } from "@olai/web/client/wire.ts"
+import { client } from "olai-plugin-outlines/client"
 import {
   after,
   besideOf,
@@ -500,7 +501,7 @@ export const createEditor = (
    * above makes that rare and this makes it impossible.
    */
   const send = async (edit: Edit, from: Slot): Promise<Landed | null> => {
-    const pending = runAsync(olai.procedures.edit.apply(edit))
+    const pending = runAsync(writeEdit(edit))
     // A blur can leave focus on the page before this reply arrives. Reserve
     // its place now so Undo pressed there follows this write, including when
     // there are older edits already on the stack.

@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The line beside the `•••`: what the last verb had to say (`./picking.ts`).
  *
@@ -30,7 +31,7 @@ import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { overlayRoot } from "@olai/web/client/overlay.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 /** Where the line hangs, in viewport pixels — the gutter's left edge and
  *  the line under it. */

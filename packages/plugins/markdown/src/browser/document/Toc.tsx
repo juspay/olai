@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * A document's table of contents: the headings it has, as links into itself.
  *
@@ -52,7 +53,7 @@
 import { createMemo, For, Show } from "solid-js"
 
 import type { Heading } from "@olai/markdown-ui/outline.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 
 /** How far one level of nesting indents a line, in rem. */

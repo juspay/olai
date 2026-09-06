@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The `•••` itself: the class both spellings of it wear, and the BUTTON it is
  * before this row has ever been asked for its menu.
@@ -27,7 +28,7 @@
  */
 
 import { MENU_CELL, MENU_REVEAL } from "@olai/ui-primitives/touch.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 /**
  * The one spelling both the dead button and Kobalte's trigger are drawn from.

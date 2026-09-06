@@ -50,7 +50,7 @@ import {
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { defineSurface } from "@kolu/surface/define"
 import { restrictHandlers } from "@kolu/surface/expose"
-import { facesOf } from "./faces.ts"
+import { facesOf } from "@olai/bundle/faces"
 import { inMemoryStore } from "@kolu/surface/server"
 import { NodeServices } from "@effect/platform-node"
 import { expect, mock, test } from "bun:test"

@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * One file with a BODY, as a page.
  *
@@ -74,7 +75,7 @@ import { Dynamic } from "solid-js/web"
 
 import { DeleteFile } from "olai-plugin-files/contract"
 import { Properties } from "../Properties.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { DocEditor } from "./DocEditor.tsx"
 import { Referrers } from "./Referrers.tsx"
 import { isServed, useDocument } from "./documents.tsx"

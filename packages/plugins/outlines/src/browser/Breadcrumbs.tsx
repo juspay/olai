@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * Where a node sits, and the way back up.
  *
@@ -22,7 +23,7 @@ import { Show } from "solid-js"
 
 import { NodeTitle } from "./NodeTitle.tsx"
 import { Link } from "olai-plugin-navigation/routing"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { atFile, atNode } from "olai-plugin-navigation/routes"
 

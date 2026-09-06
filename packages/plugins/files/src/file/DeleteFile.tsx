@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-files/testids"
 /**
  * DELETE THIS FILE — the second verb in this app that destroys, and
  * `trash/EmptyTrash.tsx`'s twin one unit over.
@@ -35,7 +36,7 @@ import { deleteQuestion } from "olai-plugin-files/file/delete.ts"
 import { ALARM_PILL,QUIET_PILL } from "@olai/web/client/pill.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { createSaying } from "@olai/web/client/saying.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { applying } from "@olai/web/client/writes.ts"
 
 export function DeleteFile(props: { readonly file: string }) {

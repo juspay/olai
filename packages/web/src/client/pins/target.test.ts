@@ -29,7 +29,7 @@
 import { pinTargetIn } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { addressIn } from "../address/address.ts"
+import { addressIn } from "olai-plugin-navigation/address/address.ts"
 
 /** What the BROWSER's parser says this title's node is, if it says one — the
  *  reference the answer is judged against. A ROW names a node too (the

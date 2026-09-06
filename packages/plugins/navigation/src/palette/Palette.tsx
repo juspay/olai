@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-navigation/testids"
 import type { AppCommand } from "olai-plugin-navigation/slots"
 import { type Navigation,paletteAdapters } from "../index.ts"
 import {readLocation} from "olai-plugin-ui-renderer/contract"
@@ -85,12 +86,12 @@ import { hung } from "@olai/web/client/plugins/runtime.ts"
 import { Refusals } from "@olai/web/client/refusals.tsx"
 import { ALARM_BAND,SaidLine } from "@olai/web/client/SaidLine.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
-import { SearchCount } from "@olai/web/client/search/Count.tsx"
-import { createCursor } from "@olai/web/client/search/cursor.ts"
-import { createSearch } from "@olai/web/client/search/nodes.ts"
-import { Result,type RowTestids } from "@olai/web/client/search/Result.tsx"
+import { SearchCount } from "olai-plugin-search/ui/Count.tsx"
+import { createCursor } from "@olai/ui-primitives/cursor.ts"
+import { createSearch } from "olai-plugin-search/reading"
+import { Result,type RowTestids } from "olai-plugin-search/ui/Result.tsx"
 import { atOnce,spend } from "@olai/web/client/settled.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { useToday } from "@olai/web/client/today.tsx"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
 import { desktop } from "olai-plugin-layout/media"
@@ -935,7 +936,7 @@ export function Palette(props: {
           {/* The SEARCH's own refusal, in its own row: it is a different
               question from a prefix's, so it gets a different answer slot
               rather than overwriting one the reader may still be reading. */}
-          <Show when={nodes.failure()}>
+          <Show when={nodes.refusals().length === 0 && nodes.failure()}>
             {(err) => (
               <SaidLine
                 said={{ tone: "alarm", text: err() }}

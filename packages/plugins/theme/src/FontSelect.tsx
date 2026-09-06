@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-theme/testids"
 /**
  * The named typefaces, as a select: every option is a face, and picking one
  * puts it in force.
@@ -21,7 +22,7 @@ import { For } from "solid-js"
 
 import { FONT_GROUPS, typefaceNamed } from "@olai/fonts"
 import type { Appearance } from "./index.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function FontSelect(props: { readonly state: Appearance }) {
   return (

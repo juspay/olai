@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * Writing a node's edges: the panel, its two doors, and what the file says
  * afterwards.
@@ -23,7 +24,7 @@
 
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
-import { TESTID } from "@olai/web/testlib";
+
 
 import {
   AFTER_REFS,

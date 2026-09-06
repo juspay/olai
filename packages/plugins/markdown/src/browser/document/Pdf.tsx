@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * A served `.pdf`, drawn — the browser's own viewer, pointed at the file's own
  * URL on the media route.
@@ -46,7 +47,7 @@
 
 import { mediaHref } from "@olai/surface"
 
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { usePointed } from "./pointed.ts"
 
 /** What the browser is told this is. Spelled here rather than left to the

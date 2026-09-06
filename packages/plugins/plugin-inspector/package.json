@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./browser": "./src/browser.tsx",
     "./contract": "./src/index.ts",
-    "./all.css": "./src/all.css"
+    "./all.css": "./src/all.css",
+    "./testids": "./src/testids.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -20,6 +21,13 @@
     "olai-plugin-ui-renderer": "workspace:*",
     "olai-plugin-layout": "workspace:*",
     "@olai/surface": "workspace:*",
-    "@olai/format": "workspace:*"
+    "@olai/format": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "olai-plugin-vault-plugins": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./testids"
+    ]
   }
 }

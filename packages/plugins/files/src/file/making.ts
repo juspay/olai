@@ -1,3 +1,5 @@
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "olai-plugin-files/testids"
 /**
  * The two files a person can start from the sidebar, as values: what each door
  * is called, and the names a browser test finds it by.
@@ -17,7 +19,7 @@
 
 import type { FileKind } from "@olai/format"
 
-import { type TestId,TESTID } from "@olai/web/client/testids.ts"
+
 
 export interface Making {
   /** Which kind of file this door mints — the tree's own glyph, so a row that

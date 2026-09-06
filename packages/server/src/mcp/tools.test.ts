@@ -27,7 +27,7 @@ import { capabilitiesOver } from "../capabilities.testlib.ts"
  * the unit-level fence under them.
  */
 
-import { MCP } from "../faces.ts"
+import { MCP } from "@olai/bundle/faces"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import {
@@ -57,7 +57,7 @@ import * as path from "node:path"
 import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
-import { clientOver } from "@olai/surface/client"
+import { clientOver } from "@olai/bundle/client"
 import { serveFace } from "olai-plugin-mcp/testlib"
 import { bespokeFrom } from "olai-plugin-mcp/testlib"
 

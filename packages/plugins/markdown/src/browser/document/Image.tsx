@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * A served picture, drawn — one `<img>`, pointed at the file's own URL on the
  * media route.
@@ -35,7 +36,7 @@
 
 import { stemOf } from "@olai/format"
 
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { usePointed } from "./pointed.ts"
 
 /** The file, and nothing else — ./faces.tsx's `Reading`, spelled here for the

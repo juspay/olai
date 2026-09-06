@@ -5,7 +5,7 @@ import type { ExposeMap } from "@kolu/surface/expose"
 import type { CommitRequest, CommitResult, PushResult } from "@olai/format"
 import { TOOLS, liveOps, type Directory, type Ops } from "@olai/ops"
 import type { TransportSurface } from "@olai/plugin-api/transport"
-import { type OlaiSurfaceClient } from "@olai/surface/client"
+import { type McpClient } from "./client.ts"
 import type { Vintage } from "@olai/store"
 import { Effect } from "effect"
 import { availableTools } from "./catalog.ts"
@@ -47,7 +47,7 @@ export const bindAgent = (options: {
       const directory = options.directory()
       return directory ? Effect.map(directory.store.read("verified"), aged => aged.vintage) : Effect.succeed(undefined)
     }),
-    fenced: held => tickets.doorAt(held as OlaiSurfaceClient),
+    fenced: held => tickets.doorAt(held as McpClient),
     record: request => ops.commit(request, "mcp"),
     push: ops.push,
   }

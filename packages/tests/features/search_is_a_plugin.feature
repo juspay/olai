@@ -1,15 +1,9 @@
 @scratch:good
 Feature: The matcher is a plugin
-  Search is a row. A serve that does not name it keeps the grammar, the
-  `search_nodes` tool and every box a person types into — and has no matcher
-  behind any of them. That is "no provider mounted": no hits, and the reason,
-  in words. It is not an empty directory, and it is not a box that went quiet.
-
-  The header's box is the row's OWN face, so with the row absent there is no
-  box at all. The ⌘K palette is CORE's and still draws — the shortlist under it
-  is furniture four core doors share — so what it has to do instead is say why
-  it found nothing, which is the half the unit case at the MCP door cannot
-  reach: nothing there drives a tab.
+  Search owns its matcher, wire contract and header box. Navigation owns the
+  palette and keeps it usable when search is absent, with an explicit reason.
+  Existing queries follow the scoped provider and resume through a fresh
+  client after it returns; basic outline editing remains independent.
 
   @plugins:vault,chat,claude,git,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that did not name search has no box, and its palette says why
@@ -40,4 +34,34 @@ Feature: The matcher is a plugin
     When I switch the plugin "search" on
     And I search the header for "cabinets"
     Then the header search lists the node "order the new cabinets"
+    And there should be no page errors
+
+  Scenario: An open palette retracts results when search leaves and resumes when it returns
+    When I open the app
+    And I press the palette shortcut
+    And I type "cabinets" into the palette
+    Then the palette lists the node "order the new cabinets"
+    When I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "search" off
+    And I use the original browser tab
+    Then the search refuses "cabinets" and says "no matcher"
+    When I use the other browser tab
+    And I switch the plugin "search" on
+    And I use the original browser tab
+    Then the palette lists the node "order the new cabinets"
+    And there should be no page errors
+
+  Scenario: Removing search preserves an outline's active draft and its save path
+    Given I open the outline "house.olai"
+    And I mark the screen
+    When I click the title of "handles"
+    And I select all and type "outline without search"
+    And I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "search" off
+    And I use the original browser tab
+    Then the node "handles" was never taken away
+    When I click away from the editor
+    Then "house.olai" holds a node titled "outline without search"
     And there should be no page errors

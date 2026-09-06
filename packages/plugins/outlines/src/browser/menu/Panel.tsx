@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * What is INSIDE the open panel: the list, or the question one verb asks first
  * (`./Confirm.tsx`).
@@ -21,7 +22,7 @@ import { createSignal, For, onCleanup, Show } from "solid-js"
 
 import { asks, type MenuAction } from "./action.ts"
 import { Confirm } from "./Confirm.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function Panel(props: {
   readonly actions: ReadonlyArray<MenuAction>

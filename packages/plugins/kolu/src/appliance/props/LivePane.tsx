@@ -50,7 +50,7 @@ import { gridsEqual } from "@kolu/terminal-vocab/schema"
 import { DEFAULT_FONT_SIZE, FONT_FAMILY, getThemeByName } from "terminal-themes"
 import { Effect, Fiber, Stream } from "effect"
 
-import { TESTID } from "../testids.ts"
+import { TESTID } from "../../contracts/appliance-testids.ts"
 import {
   again,
   type Attaching,

@@ -8,7 +8,8 @@
     "./browser": "./src/browser.tsx",
     "./all.css": "./src/all.css",
     "./contract": "./src/contract.ts",
-    "./slots": "./src/slots.ts"
+    "./slots": "./src/slots.ts",
+    "./testids": "./src/testids.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -27,7 +28,8 @@
   },
   "olai": {
     "contracts": [
-      "./slots"
+      "./slots",
+      "./testids"
     ]
   }
 }

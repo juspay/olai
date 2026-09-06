@@ -1,58 +1,25 @@
-/**
- * THE TAB'S PLUGIN RUNTIME — one runtime, booted once, and the plugins on it
- * are exactly the ones this serve is running.
+import { holdServices } from "../services.ts"
+import { offered } from "@olai/effect-cordis"
+/** The browser's generic plugin host. The bundle supplies module loaders and
+ * ordering; the live roster decides which scoped activations exist. Renderer,
+ * layout, navigation and content services are ordinary offers from those rows.
+ * This host owns no application slots, geometry, notebook state or observer.
  *
- * ## What this replaced, and the four modules that went with it
+ * Host capabilities and the sibling-client resolver are installed before any
+ * plugin starts. Owner identities remain distinct from component names, so
+ * every component spends only its row's client and offer namespace. A missing
+ * dependency is waiting, not an empty implementation supplied by the host.
  *
- * A compiled-in registry of manifests and four walks over it — the dressing
- * table, the chrome cluster, the mount fold and the mark lookup — each carrying
- * a LICENCE argument beside it, because a manifest is present whether or not
- * the serve composed the plugin. There were two licences and they pointed
- * opposite ways: a face drawn early and taken away is a flicker, so the draw
- * licence was generous before the roster; a subscription opened early LATCHES a
- * `degraded` readout for the life of the page, so the subscribe licence was
- * nothing until the roster spoke. That asymmetry was correct and it took a
- * module to argue.
+ * Cordis owns services and their cleanup. Solid observes host changes through
+ * signals: slot consumers reread the renderer, optional service consumers
+ * resolve the current offer. Neither observer caches a plugin implementation.
+ * Registry withdrawal reaches readers while cleanup drains; replacement
+ * creates a new scope without restarting unrelated providers or editors.
  *
- * None of it survives, and none of it is missed, because the thing being
- * licensed is gone: a plugin the roster does not name is never MOUNTED here, so it
- * registered nothing, so there is no face to draw and no subscription to open.
- * *No plugin, no surface, no handler* on the server; *no plugin, no slot entry*
- * in the tab. One sentence, both processes.
- *
- * ## What is on this runtime
- *
- * The four services a browser half may name in its `needs` — `Slots`, where
- * every face hangs; `Clocks`, the app's duration ladder; `Bar`, the chrome's
- * geometry and the panel that hangs off it; `Links`, the door onto a served
- * file — plus `Wired`, which hands a plugin its own sibling client minted from
- * its own word so it cannot be asked for under another plugin's name, and
- * `Faces`, the READ side of the slot table for a plugin that draws what other
- * plugins hung. That last one is the tab losing its monopoly on reading: this
- * module's `hung` and `dressed` below are no longer the only walks over those
- * tables, and `@olai/plugin-api`'s `Faces` is where the fence on what a reader
- * may learn is argued.
- *
- * Host capabilities are provided before plugins. Renderer clocks and layout
- * bar geometry arrive through their owning rows. Browser Offers lets a plugin
- * publish its own keys; consumers name those keys in needs and remain waiting
- * until a provider arrives. Withdrawal removes their faces and reactivation
- * reinstalls them. The panel shows each browser component’s waiting or failed
- * state beside the server state, with the missing key or fault.
- *
- * ## THE RE-READ IS SOLID'S AND THE TABLE IS THE RUNTIME'S
- *
- * `openApp` holds the table and says when it moved; this module owns the signal
- * the app re-reads it through. That split is the server's `changed` exactly: a
- * service that re-rendered would be a service that had heard of Solid, and the
- * one below has not.
- *
- * ## The client is a HOLDER, and the reason is a cycle
- *
- * `Wired` needs the live connection's sibling clients, and the connection
- * is `../wire.ts`'s, which imports this module to compose. So the direction
- * runs one way and the value arrives as an argument to {@link composeTo} —
- * which is also what stops it being a second call somebody can forget.
+ * The client resolver arrives through composeTo to avoid a wire/runtime import
+ * cycle. Failed activation fibers are released, while their diagnostic remains
+ * available for inspection and retry. No failed or departed scope can rejoin
+ * the current roster through a retained callback.
  */
 
 import type { BrowserHalf } from "@olai/bundle"
@@ -246,8 +213,16 @@ const refreshReports = async (): Promise<void> => {
   ]))
 }
 
+// Optional capability consumers observe the same host that owns activation.
+// This signal stores no provider: every read resolves the current scoped offer.
+const [serviceRevision, setServiceRevision] = createSignal(0)
+await run(Effect.acquireRelease(Effect.sync(() => holdServices(key => {
+  serviceRevision()
+  return offered(app.host, key)
+})), stop => Effect.sync(stop)))
+
 await run(Effect.forkScoped(Stream.runForEach(app.changes, () =>
-  Effect.promise(async () => { if (composing === 0) await refreshReports() }),
+  Effect.promise(async () => { setServiceRevision(value => value + 1); if (composing === 0) await refreshReports() }),
 )))
 
 /**

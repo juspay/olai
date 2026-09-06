@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * Where a page with no rows offers one.
  *
@@ -16,7 +17,7 @@
 import type { Anchor } from "@olai/surface"
 import { Show } from "solid-js"
 
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { sameAnchor } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { Ghosts } from "./Ghosts.tsx"

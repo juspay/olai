@@ -1,12 +1,12 @@
 import { Show } from "solid-js"
 import { NOTHING_WRONG } from "@olai/format"
-import { olai } from "@olai/web/client/wire.ts"
-import { Page } from "@olai/web/client/errors/Page.tsx"
-import { Banner } from "@olai/web/client/errors/Banner.tsx"
-import { troubleIn } from "@olai/web/client/errors/banner.ts"
+import { client } from "olai-plugin-vault/client"
+import { Page } from "./errors/Page.tsx"
+import { Banner } from "./errors/Banner.tsx"
+import { troubleIn } from "./errors/banner.ts"
 import { directory } from "./state.ts"
 export function Status() {
- const errors=olai.cells.errors.use()
+ const errors=client().cells.errors.use()
  const problems=()=>errors.value()??NOTHING_WRONG
  const trouble=()=>troubleIn(directory()?.broken()??new Map(),problems())
  return <Show when={directory()?.standing()==="loaded"} fallback={

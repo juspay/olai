@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The shortlist under a caret — one box for all three widgets.
  *
@@ -45,7 +46,7 @@ import { Portal } from "solid-js/web"
 import { ALARM_BAND, SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { overlayRoot } from "@olai/web/client/overlay.ts"
-import { Result, type RowTestids } from "@olai/web/client/search/Result.tsx"
+import { Result, type RowTestids } from "olai-plugin-search/ui/Result.tsx"
 
 /** What this door calls its rows (`../search/Result.tsx`'s `RowTestids`). */
 const COMPLETION_ROW: RowTestids = {
@@ -53,7 +54,7 @@ const COMPLETION_ROW: RowTestids = {
   place: TESTID.completionItemPlace,
   prop: TESTID.completionItemProp,
 }
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import type { Listing } from "./completing.tsx"
 
 export function Completions(props: { readonly listing: Listing }) {

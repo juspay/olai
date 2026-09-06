@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-files/testids"
 import { type BrokenFile,type FileKind,fileKind,inboxIn,inOlaiDir,isTrashed,stemOf } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
@@ -13,11 +14,11 @@ import { directory } from "./state.ts"
 
 
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
-import { Glyph } from "@olai/web/client/file/icons.tsx"
-import { ROW_TESTID } from "@olai/web/client/file/kinds.ts"
+import { Glyph } from "olai-plugin-files/icons"
+import { ROW_TESTID } from "olai-plugin-files/kinds"
 import { ancestorDirs,dirsIn,type FileRow,fileTree } from "olai-plugin-files/fileTree.ts"
 import { openFolders,toggleFolder } from "olai-plugin-files/fold/folders.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { ENTRY_SHAPE,REGION,ROW_GAP } from "olai-plugin-layout/entry"
 import { atFile,type Route } from "olai-plugin-navigation/routes"
 import { Link } from "olai-plugin-navigation/routing"

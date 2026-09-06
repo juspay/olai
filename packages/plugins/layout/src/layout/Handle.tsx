@@ -1,3 +1,5 @@
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "olai-plugin-layout/testids"
 /**
  * The drag handle between a panel and the page.
  *
@@ -13,7 +15,7 @@
 import { onCleanup } from "solid-js"
 
 import { WITHIN } from "@olai/web/client/layer.ts"
-import { TESTID,type TestId } from "@olai/web/client/testids.ts"
+
 import {
 PANEL_MAX_PX,
 PANEL_MIN_PX,

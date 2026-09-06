@@ -20,7 +20,7 @@ import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
  * pipe the chat panel's agent reads its refusals through.
  */
 
-import { MCP } from "../faces.ts"
+import { MCP } from "@olai/bundle/faces"
 import {
   codecFor,
   make as makeOps,
@@ -42,7 +42,7 @@ import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
-import { clientOver, type OlaiSurfaceClient } from "@olai/surface/client"
+import { clientOver, type McpClient } from "olai-plugin-mcp/testlib"
 import { serveFace } from "olai-plugin-mcp/testlib"
 import { mcpRoute, currentTicket, currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "olai-plugin-mcp/testlib"
 import { type Ticket, ticketing } from "olai-plugin-mcp/testlib"
@@ -90,7 +90,7 @@ interface Served {
     message: unknown,
     headers?: Record<string, string>,
   ) => Promise<Response>
-  readonly retainedTicket: (under: string) => { ticket: Ticket; client: OlaiSurfaceClient }
+  readonly retainedTicket: (under: string) => { ticket: Ticket; client: McpClient }
   readonly mintTicket: (under: string) => Ticket
   readonly url: string
 }

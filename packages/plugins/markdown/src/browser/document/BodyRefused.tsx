@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * Why a served file is not on screen — the sentence, wherever that file is
  * drawn.
@@ -11,7 +12,7 @@
 
 import { BODY_REFUSED } from "@olai/surface"
 
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function BodyRefused(props: {
   /** Extra classes the line's place asks for — truncate on a row, a

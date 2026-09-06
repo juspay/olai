@@ -38,11 +38,11 @@
 import type { SurfaceClientCallable } from "@kolu/surface/client"
 import type { ResolvedEndpoint, SurfaceCliConnection } from "@kolu/surface-cli"
 import { resolveExpose } from "@kolu/surface-mcp"
-import { surface } from "@olai/surface"
+import { surface } from "@olai/bundle/surface"
 import { Effect, Stream } from "effect"
 import { Command, Flag } from "effect/unstable/cli"
 
-import { MCP } from "./faces.ts"
+import { MCP } from "@olai/bundle/faces"
 import { type McpConnection, McpUnreachable, openMcp } from "./mcpClient.ts"
 
 /**

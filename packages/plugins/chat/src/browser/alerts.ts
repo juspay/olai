@@ -5,7 +5,7 @@ import { createSignal } from "solid-js"
 import { Effect } from "effect"
 import { serviceTag } from "@olai/plugin-api/contracts"
 import { boolCodec, createPreference } from "@olai/web/client/preference.ts"
-import { ALERTS_KEY, ALERT_SOUND_KEY } from "@olai/web/client/settings/alerts.ts"
+import { ALERTS_KEY, ALERT_SOUND_KEY } from "olai-plugin-chat/alert-keys"
 
 export const createAlerts = Effect.gen(function*() {
   const alerts = createPreference(ALERTS_KEY, boolCodec(true))

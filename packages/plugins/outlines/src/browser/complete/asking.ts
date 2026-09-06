@@ -11,7 +11,7 @@ import { debounce } from "@solid-primitives/scheduled"
 import type { TagCompletion, TagsAnswer, TagsRequest } from "@olai/surface"
 
 import { SETTLE_MS, type Taking } from "@olai/web/client/settled.ts"
-import { olai } from "@olai/web/client/wire.ts"
+import { client } from "olai-plugin-outlines/client"
 
 /** How many rows the widget offers. A row's popup is a shortlist — and the
  *  number travels ON THE REQUEST rather than living in the answer's shape,
@@ -88,7 +88,7 @@ export const createTags = (asking: Accessor<Asking | null>): Tags => {
     const query = asked()
     return query === null ? null : { ...query, limit: LIMIT }
   })
-  const answer = olai.streams.tagCompletions.use(input)
+  const answer = client().streams.tagCompletions.use(input)
   const held = createMemo<{ query: Asking; value: TagsAnswer } | undefined>((previous) => {
     const query = asked()
     const current = wanted()

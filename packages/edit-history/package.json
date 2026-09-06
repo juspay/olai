@@ -14,6 +14,7 @@
     "@olai/surface": "workspace:*",
     "@olai/web": "workspace:*",
     "solid-js": "^1.9.0",
-    "effect": "4.0.0-rc.112"
+    "effect": "4.0.0-rc.112",
+    "@olai/ui-primitives": "workspace:*"
   }
 }

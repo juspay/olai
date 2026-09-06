@@ -1,4 +1,6 @@
-import { nameOf, shownIn } from "@olai/web/client/address/address.ts"
+import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
+import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
+import { nameOf, shownIn } from "olai-plugin-navigation/address/address.ts"
 import { useUndo } from "./edit/undoing.ts"
 /**
  * ONE pane's page: the same chrome a lone view has always drawn.
@@ -16,9 +18,9 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { parseFilter, samePageRequest } from "@olai/format"
 
-import { CLEARANCE } from "@olai/web/client/connection/Indicator.tsx"
+import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { Empty } from "@olai/web/client/Empty.tsx"
-import { Broken } from "@olai/web/client/errors/Broken.tsx"
+import { Broken } from "olai-plugin-vault/errors/Broken.tsx"
 import { createAsked } from "./filter/asking.ts"
 import { FilterBar } from "./filter/FilterBar.tsx"
 import { NarrowedProvider } from "./filter/narrowed.tsx"
@@ -37,7 +39,7 @@ import { useFollow, useHere, useRouter } from "olai-plugin-navigation/routing"
 import { filterOf, hrefOf, type MountedAppPage, narrowable, narrowedTo, routeFace, samePage } from "olai-plugin-navigation/routes"
 import { panesOf } from "olai-plugin-navigation/workspace"
 import { pageFileOf, visibleIn } from "./settings/done.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function OutlinePageView(props: {readonly render?: (props: import("../index.ts").PageBodyProps) => import("solid-js").JSX.Element} = {}) {
   const router = useRouter()
@@ -231,7 +233,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
       class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${
         !desktop() && !panelOpen() ? "pb-16" : ""
       }`}
-      data-testid={TESTID.pane}
+      data-testid={IDS_NAVIGATION.pane}
       data-pane={String(here())}
       data-pane-focused={here() === router.workspace().focus ? "true" : undefined}
       data-href={hrefOf(route())}
@@ -290,7 +292,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
               when={missing()}
               fallback={<p class="m-0 py-8 text-muted">Reading…</p>}
             >
-              <Empty testid={TESTID.nothing} line="No such page here." />
+              <Empty testid={IDS_UI_PRIMITIVES.nothing} line="No such page here." />
             </Show>
           }
         >

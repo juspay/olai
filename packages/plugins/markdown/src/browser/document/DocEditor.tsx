@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * A document, being written: the page's edit mode.
  *
@@ -36,7 +37,7 @@ import { createMemo, onMount, Show } from "solid-js"
 
 import { useHistory } from "../history.ts"
 import { Refused } from "@olai/web/client/Refused.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { applying } from "@olai/web/client/writes.ts"
 import type { DocumentDraft } from "./drafts.ts"
 

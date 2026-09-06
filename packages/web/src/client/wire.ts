@@ -25,7 +25,7 @@ import { browserReports, browserRequiresReload, composeTo } from "./plugins/runt
  * It is a LABEL and never a tag segment — the root's members keep their bare
  * `surface/<member>/<verb>`, which is the whole difference between a root and a
  * sibling — so it reaches a reader and nothing else. `surfaceClientsHealth`
- * prefixes every stopped subscription with it (`olai/manifest`), which is what
+ * prefixes every stopped subscription with it (`olai/plugins`), which is what
  * makes a degraded readout say WHICH HALF went quiet rather than only that
  * something did. The framework has no name for an app's own floor and declines
  * to invent one, so it crosses as an argument; it must not be a plugin's name,
@@ -48,10 +48,9 @@ const CORE = "olai"
  */
 const live = await connectSurfaces({
   connect: connectSocket,
-  // OLAI'S OWN SURFACE AS THE ROOT — unprefixed, so its tags are unchanged and
-  // the two reserved round-trips address them. That is what makes them
-  // trustworthy on a wire whose SIBLING set varies per serve, and now varies
-  // WITHIN one serve.
+  // Only host management is permanent. Every capability contributes its own
+  // descriptor and receives a namespaced client after redial; removing it
+  // withdraws that client without teaching this module any application verbs.
   core: { surface, name: CORE },
   surfaces: {} as Record<string, Surface<SurfaceSpec>>,
   // What happens when the server retires this wire. Required by the seam, with
@@ -397,7 +396,6 @@ await supplyManagement({
   reports: browserReports,
   changing: rosterChanging,
   set: (name, enabled) => olai.procedures.plugins.set({ name, enabled }),
-  approve: (name, version, forever) => olai.procedures.plugins.approve({ name, version, forever }),
   retry: retryBrowser,
   requiresReload: browserRequiresReload,
   reload: () => globalThis.location.reload(),

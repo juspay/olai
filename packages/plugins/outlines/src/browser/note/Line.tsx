@@ -1,3 +1,5 @@
+import { TESTID as IDS_MARKDOWN_UI } from "@olai/markdown-ui/testids.ts"
+import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
 /**
  * A note as ONE DIM LINE under a title — the element both ways of choosing that
  * line are drawn through.
@@ -36,7 +38,7 @@ import { Index } from "solid-js"
 
 import { offsetAt, widthIn } from "../edit/point.ts"
 import { HIT_CLASS, type Run } from "@olai/markdown-ui/lit.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { ROW_NOTE } from "@olai/ui-primitives/touch.ts"
 
 export function NoteLine(props: {
@@ -45,7 +47,7 @@ export function NoteLine(props: {
   readonly runs: ReadonlyArray<Run>
   /** This line is the REASON the row is on screen: the query's only hit is
    *  behind the ¶, so the title above holds nothing the reader typed. It is
-   *  what the line answers to (`TESTID.descHit` rather than `TESTID.desc`),
+   *  what the line answers to (`IDS_OUTLINES.descHit` rather than `IDS_OUTLINES.desc`),
    *  because "a note is clamped here" and "this row was found by its note" are
    *  two different things for a scenario to ask. */
   readonly hit?: boolean
@@ -60,7 +62,7 @@ export function NoteLine(props: {
     <button
       type="button"
       class={`mt-0.5 mb-1 block w-full max-w-full cursor-text truncate border-0 bg-transparent p-0 text-left ${ROW_NOTE}`}
-      data-testid={props.hit === true ? TESTID.descHit : TESTID.desc}
+      data-testid={props.hit === true ? IDS_OUTLINES.descHit : IDS_OUTLINES.desc}
       data-preview="true"
       data-open="false"
       title="edit the note"
@@ -93,7 +95,7 @@ export function NoteLine(props: {
       <Index each={props.runs}>
         {(run) => (
           run().lit
-            ? <mark class={HIT_CLASS} data-testid={TESTID.hit}>{run().text}</mark>
+            ? <mark class={HIT_CLASS} data-testid={IDS_MARKDOWN_UI.hit}>{run().text}</mark>
             : <>{run().text}</>
         )}
       </Index>

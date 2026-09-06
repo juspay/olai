@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The date picker: a day, chosen on a row that already exists.
  *
@@ -45,7 +46,7 @@ import type { Press } from "../edit/panel.ts"
 import type { Submission } from "../edit/submission.ts"
 import { RowPanel } from "../edit/RowPanel.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { noticeOf, pressOf } from "./pick.ts"
 

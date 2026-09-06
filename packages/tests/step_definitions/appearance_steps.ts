@@ -1,6 +1,7 @@
+import { TESTID } from "@olai/bundle/testids"
 import { Then, When } from "@cucumber/cucumber";
 import { FONT_STORAGE_KEY } from "@olai/fonts";
-import { SIZE_STORAGE_KEY, THEME_STORAGE_KEY, TESTID } from "@olai/web/testlib";
+import { SIZE_STORAGE_KEY, THEME_STORAGE_KEY } from "@olai/web/testlib"
 import type { OlaiWorld } from "../support/world.ts";
 import { attr } from "../support/selectors.ts";
 

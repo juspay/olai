@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * A node's `doc`, wherever that node is drawn.
  *
@@ -34,7 +35,7 @@ import { createMemo, Show } from "solid-js"
 
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { Link } from "olai-plugin-navigation/routing"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { BodyRefused } from "./BodyRefused.tsx"
 import { isServed, useDocument } from "./documents.tsx"

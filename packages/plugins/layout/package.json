@@ -15,7 +15,10 @@
     "./entry": "./src/layout/entry.ts",
     "./sheet": "./src/layout/sheet.ts",
     "./geometry": "./src/pane/geometry.ts",
-    "./slots": "./src/slots.ts"
+    "./slots": "./src/slots.ts",
+    "./testids": "./src/testids.ts",
+    "./bar-door": "./src/contracts/BarDoor.tsx",
+    "./clearance": "./src/contracts/clearance.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -39,7 +42,10 @@
       "./entry",
       "./sheet",
       "./geometry",
-      "./slots"
+      "./slots",
+      "./testids",
+      "./bar-door",
+      "./clearance"
     ]
   }
 }

@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * The row editor: the caret, the keys, and what the file says afterwards.
  *
@@ -31,7 +32,7 @@ import { Then, When } from "@cucumber/cucumber";
 import { MARKS } from "@olai/format";
 
 import { shiftDay } from "@olai/format";
-import { IDLE_COMMIT, isoDayOf, TESTID } from "@olai/web/testlib";
+import { IDLE_COMMIT, isoDayOf } from "@olai/web/testlib"
 
 import type { Locator } from "playwright";
 

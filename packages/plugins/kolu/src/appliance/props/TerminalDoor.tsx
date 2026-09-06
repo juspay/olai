@@ -66,7 +66,7 @@ import type { BlockContext } from "./block.ts"
 import { LivePane } from "./LivePane.tsx"
 import { useFleet } from "./fleet.tsx"
 import { readingOf } from "./terminal.ts"
-import { TESTID } from "../testids.ts"
+import { TESTID } from "../../contracts/appliance-testids.ts"
 
 /**
  * THE BLOCK — the fact on one line, and the row beneath it.

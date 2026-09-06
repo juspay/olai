@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 
 import { DOCUMENT_EXT } from "@olai/format"
 
-import { meantAt } from "./completing.ts"
+import { meantAt } from "olai-plugin-files/completing"
 
 // THE BUG THIS IS WRITTEN AGAINST: a person typed `Foo` into `+ New outline`
 // and got the wire's paragraph about relative `.olai` paths back. A door knows

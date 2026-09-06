@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-navigation/testids"
 /**
  * A QUESTION, DRAWN — the words, and the two ways out of them.
  *
@@ -18,7 +19,7 @@
  */
 
 import { ALARM_PILL,QUIET_PILL } from "@olai/web/client/pill.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import type { Asking } from "./asking.ts"
 
 export function Question(props: {

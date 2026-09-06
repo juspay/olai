@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * WHAT REFERS TO THIS NODE, under a zoomed node's heading — the one place in
  * this app a reference is read backwards.
@@ -51,7 +52,7 @@ import { createMemo, createSignal, For, onCleanup, Show } from "solid-js"
 import { only } from "@olai/web/client/narrow.ts"
 import { NodeRefs } from "../NodeRefs.tsx"
 import { useReading } from "../reading.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { useHere, useRouter } from "olai-plugin-navigation/routing"
 import type { Route } from "olai-plugin-navigation/routes"
 import { panesOf } from "olai-plugin-navigation/workspace"

@@ -7,7 +7,7 @@ import type { Fence, Ops } from "@olai/ops"
 import { randomBytes } from "node:crypto"
 
 import { type Bound } from "./authority.ts"
-import { type OlaiSurfaceClient } from "@olai/surface/client"
+import { type McpClient } from "./client.ts"
 import { liveClient } from "./live-client.ts"
 
 /**
@@ -68,7 +68,7 @@ export interface Ticket {
 
 export interface Tickets {
   readonly mint: (fence: () => Seated, above: (node: string) => string | null, writer: string) => Ticket
-  readonly doorAt: (held: OlaiSurfaceClient) => OlaiSurfaceClient
+  readonly doorAt: (held: McpClient) => McpClient
 }
 
 export const ticketing = (options: {
@@ -80,9 +80,9 @@ export const ticketing = (options: {
   readonly token: string
 }): Tickets => {
   const prefix = "olai-node-"
-  const tickets = new Map<string, OlaiSurfaceClient>()
+  const tickets = new Map<string, McpClient>()
 
-  const composed = (fence: Fence, writer: Writer): OlaiSurfaceClient => liveClient(() => ({
+  const composed = (fence: Fence, writer: Writer): McpClient => liveClient(() => ({
     ...(typeof options.bound === "function" ? options.bound() : options.bound),
     expose: typeof options.face === "function" ? options.face() : options.face,
   }), { writer, fence })

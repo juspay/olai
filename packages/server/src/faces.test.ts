@@ -29,12 +29,12 @@
 import { createSurfaceSocket } from "@kolu/surface-app/connect"
 import { resolveExpose } from "@kolu/surface-mcp"
 import { findSaid } from "@olai/log/testlib"
-import { surface } from "@olai/surface"
+import { surface } from "@olai/bundle/surface"
 import { expect, test } from "bun:test"
 import { Cause, Effect, Exit } from "effect"
 import { WebSocket as WsClient } from "ws"
 
-import { AGENT, BROWSER, MCP } from "./faces.ts"
+import { AGENT, BROWSER, MCP } from "@olai/bundle/faces"
 import { served, withServe } from "./serve.testlib.ts"
 
 const resolved = () => resolveExpose(surface.spec, MCP)

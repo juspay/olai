@@ -1,4 +1,4 @@
-/** outlines owns these legacy wire members for its activation. The vault
+/** Outlines owns these wire members for its activation. The vault
  * remains the write authority. All readings and subscriptions are acquired on
  * this provider's scope; UI and layout are not dependencies of this half. */
 import { definePlugin, Directory, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
@@ -48,19 +48,17 @@ export default definePlugin({
       streams: {
         page: { read: input => Effect.runPromise(Effect.map(gate.page(input), value => value as CorePageReading)), install: (_input, onEvent) => revisions.consume({onEvent, onError: () => {}}), isEqual: samePageReading },
         narrowing: { read: input => Effect.runPromise(gate.narrowing(input)), install: (_input, onEvent) => revisions.consume({onEvent, onError: () => {}}), isEqual: sameNarrowing },
-        searchResults: { read: input => Effect.runPromise(gate.search(input)), install: (_input, onEvent) => revisions.consume({onEvent, onError: () => {}}), isEqual: (a,b) => JSON.stringify(a) === JSON.stringify(b) },
         tagCompletions: { read: input => Effect.runPromise(gate.tags(input)), install: (_input, onEvent) => revisions.consume({onEvent, onError: () => {}}), isEqual: (a,b) => JSON.stringify(a) === JSON.stringify(b) },
         moving: { read: input => Effect.runPromise(gate.moving(input)), install: (_input, onEvent) => revisions.consume({onEvent, onError: () => {}}), isEqual: sameMoving }
       },
       procedures: {
         edit: { apply: ({ input }) => applyEdit(gate, input) },
-        search: { nodes: ({ input }) => gate.search(input) },
         vocabulary: { tags: ({ input }) => gate.tags(input) },
         nodes: { named: ({ input }) => gate.named(input), homes: ({ input }) => gate.homes(input) },
         ops: { outlines: () => gate.outlines, node: ({ input }) => gate.node(input), subtree: ({ input }) => gate.subtree(input), run: ({ input }) => runWrite(gate, input) },
       },
     }
-    yield* (yield* Surfaces).register({ surface, faces, dispatch, writes: ["surface/ops/run"], root: true, deps, published: value => { ctx = value as typeof ctx } })
+    yield* (yield* Surfaces).register({ surface, faces, dispatch, writes: ["surface/ops/run"], root: true, scopedFaces: { browser: faces.browser }, deps, published: value => { ctx = value as typeof ctx } })
   }),
 })
 

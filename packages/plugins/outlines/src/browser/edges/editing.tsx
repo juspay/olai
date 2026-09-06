@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * EDITING one node's edges, as one thing a host can hold: which panel is open,
  * the writes both doors send, and the line that says what came of them.
@@ -34,7 +35,7 @@ import { type Accessor, type JSX, Show } from "solid-js"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { applying } from "@olai/web/client/writes.ts"
 import { EdgePanel } from "./EdgePanel.tsx"
 import { type Relation, unlinking } from "./relation.ts"

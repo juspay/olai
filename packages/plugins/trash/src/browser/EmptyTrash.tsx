@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-trash/testids"
 /**
  * The Trash's one destructive verb, and the question in front of it.
  *
@@ -43,7 +44,7 @@ import { createConfirming } from "@olai/web/client/confirming.ts"
 import { ALARM_PILL,QUIET_PILL } from "@olai/web/client/pill.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { createSaying } from "@olai/web/client/saying.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { applying } from "@olai/web/client/writes.ts"
 import { useTrashUndo as useUndo } from "./history.ts"
 import { emptyQuestion } from "./question.ts"

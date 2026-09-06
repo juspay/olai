@@ -1,3 +1,5 @@
+import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
+import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
 /**
  * A node's properties, as a RUN OF CHIPS: `key value` pairs on one wrapping
  * line, the key small and muted, the value first-class — a compact byline under
@@ -172,7 +174,7 @@ import { useDoors, useLicences, useNames } from "../reading.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 
 // WHERE THE TABLE IS FILLED, which is no longer here.
@@ -194,8 +196,8 @@ import { TARGET } from "@olai/ui-primitives/touch.ts"
  *  added there. A type crosses a seam; a component belongs with the drawer. */
 const BLOCK_CHROME: BlockChrome = {
   Handle,
-  factId: TESTID.prop,
-  valueId: TESTID.propValue,
+  factId: IDS_UI_PRIMITIVES.prop,
+  valueId: IDS_UI_PRIMITIVES.propValue,
 }
 
 /**
@@ -370,7 +372,7 @@ export function PropsDrawer(props: {
             against each other sit on two baselines. */}
         <div
           class="mt-0.5 mb-1 flex flex-wrap items-baseline gap-1 text-[0.8125rem] leading-snug"
-          data-testid={TESTID.props}
+          data-testid={IDS_UI_PRIMITIVES.props}
         >
         {/* `<Key>`, not `<For>`, for the reason the tree uses it
             (`../Tree.tsx`): `customEntries` mints fresh entries from a node
@@ -433,7 +435,7 @@ export function PropsDrawer(props: {
           <button
             type="button"
             class={`${CHIP} cursor-pointer items-baseline rounded-full text-muted hover:text-accent`}
-            data-testid={TESTID.propAdd}
+            data-testid={IDS_OUTLINES.propAdd}
             title="add a property"
             aria-label="add a property"
             onClick={(event) => {
@@ -497,7 +499,7 @@ export function PropsDrawer(props: {
           <SaidLine
             said={said()}
             class="mb-1 font-mono text-xs"
-            testid={TESTID.propSaid}
+            testid={IDS_OUTLINES.propSaid}
           />
         )}
       </Show>
@@ -594,7 +596,7 @@ function Chip(props: {
         "items-baseline rounded-full": !folds(),
         "items-start rounded-lg": folds(),
       }}
-      data-testid={TESTID.prop}
+      data-testid={IDS_UI_PRIMITIVES.prop}
       data-key={props.entry.key}
       data-system={props.entry.system ? "true" : undefined}
     >
@@ -605,7 +607,7 @@ function Chip(props: {
           <Show
             when={folds()}
             fallback={
-              <span class="min-w-0 break-words text-ink" data-testid={TESTID.propValue}>
+              <span class="min-w-0 break-words text-ink" data-testid={IDS_UI_PRIMITIVES.propValue}>
                 <Values
                   values={props.entry.values}
                   doors={doors()}
@@ -636,7 +638,7 @@ function Chip(props: {
           let answeredBy: ClosedBy = null
           return (
             <Box
-              testid={TESTID.propEdit}
+              testid={IDS_OUTLINES.propEdit}
               about={props.entry.key}
               value={snapshot.value}
               wide
@@ -854,14 +856,14 @@ function Clamped(props: { readonly value: string; readonly says?: string }) {
 function Folded(props: { readonly value: string }) {
   const summary = createMemo(() => shortened(props.value))
   return (
-    <details class="min-w-0" data-testid={TESTID.propFold}>
+    <details class="min-w-0" data-testid={IDS_OUTLINES.propFold}>
       <summary
         class="cursor-pointer list-none break-words text-ink marker:content-none"
         // The row's own line answers a click by opening the title editor, and
         // this one is about the value under the pointer.
         onClick={(event) => event.stopPropagation()}
       >
-        <span data-testid={TESTID.propValue}>{summary()}</span>
+        <span data-testid={IDS_UI_PRIMITIVES.propValue}>{summary()}</span>
         <span class="ml-1 text-muted" aria-hidden="true">▾</span>
       </summary>
       <div class="mt-1 break-words text-ink">{props.value}</div>
@@ -913,7 +915,7 @@ function NewChip(props: {
       }}
     >
       <Box
-        testid={TESTID.propEditKey}
+        testid={IDS_OUTLINES.propEditKey}
         value=""
         placeholder="key"
         focus
@@ -923,7 +925,7 @@ function NewChip(props: {
         onCancel={cancel}
       />
       <Box
-        testid={TESTID.propEdit}
+        testid={IDS_OUTLINES.propEdit}
         value=""
         placeholder="value"
         wide

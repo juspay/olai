@@ -32,7 +32,8 @@
     "olai-plugin-outlines": "workspace:*",
     "olai-plugin-layout": "workspace:*",
     "@olai/ops": "workspace:*",
-    "@olai/surface": "workspace:*"
+    "@olai/surface": "workspace:*",
+    "@olai/ui-primitives": "workspace:*"
   },
   "devDependencies": {
     "@effect/platform-node": "4.0.0-rc.112",
@@ -40,5 +41,10 @@
     "@olai/surface": "workspace:*",
     "@types/node": "^22.0.0"
   },
-  "//devDependencies": "@olai/surface for its `./testlib` door ONLY \u2014 the schema walk that holds this cell's `arrayKey` declaration honest (src/wire.test.ts). Deliberately not a runtime dependency: surface sits ABOVE the plugin packages, so a real dependency here would be the cycle the composition is shaped to make unrepresentable. @olai/ops is the same door the other way: pending tests drive the write gate through the ledger this row offers."
+  "//devDependencies": "@olai/surface for its `./testlib` door ONLY \u2014 the schema walk that holds this cell's `arrayKey` declaration honest (src/wire.test.ts). Deliberately not a runtime dependency: surface sits ABOVE the plugin packages, so a real dependency here would be the cycle the composition is shaped to make unrepresentable. @olai/ops is the same door the other way: pending tests drive the write gate through the ledger this row offers.",
+  "olai": {
+    "contracts": [
+      "./testids"
+    ]
+  }
 }

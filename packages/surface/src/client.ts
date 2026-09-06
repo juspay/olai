@@ -2,9 +2,8 @@
  * binding and transport tool projections use this same face; it opens no
  * listener and acquires no protocol server. */
 
-import { surface } from "./index.ts"
 import { buildSurfaceFace, type StreamingProcedure } from "@kolu/surface/client"
-import type { SurfaceSpec } from "@kolu/surface/define"
+import type { Surface, SurfaceSpec } from "@kolu/surface/define"
 import { directDispatch } from "@kolu/surface/links/direct"
 import { restrictHandlers } from "@kolu/surface/expose"
 import type { SurfaceDispatch } from "@kolu/surface/link"
@@ -67,19 +66,20 @@ type SurfaceCollectionsReadFace<S extends SurfaceSpec> = {
  * harmless, and it had already drifted on the side that matters: the framework
  * mints a procedure on the ENCODED input and the copy took the decoded one.
  */
-export type OlaiSurfaceClient = {
+export type SurfaceClient<S extends SurfaceSpec> = {
   readonly surface:
-    & SurfaceReadFace<typeof surface.spec>
-    & SurfaceCollectionsReadFace<typeof surface.spec>
+    & SurfaceReadFace<S>
+    & SurfaceCollectionsReadFace<S>
 }
 
 /** Build the typed face over any dispatch — the in-process one the HTTP
  *  route uses. THE one place the structural cast lives, so nothing
  *  downstream re-derives it. */
-export const clientOn = (
+export const clientOn = <S extends SurfaceSpec>(
+  surface: Surface<S>,
   dispatch: SurfaceDispatch,
-): OlaiSurfaceClient =>
-  buildSurfaceFace(surface, dispatch) as unknown as OlaiSurfaceClient
+): SurfaceClient<S> =>
+  buildSurfaceFace(surface, dispatch) as unknown as SurfaceClient<S>
 
 /** The in-process case: dispatch straight at the handlers this process bound.
  *  No wire under it and that is the point — the same consumer code runs against
@@ -105,10 +105,11 @@ export const clientOn = (
  *  The TYPED face above it stays olai's own spec, and that is not an
  *  inconsistency: what an agent calls through this client is core's members, and
  *  a plugin's are denied by the face it is gated with. */
-export const clientOver = (
+export const clientOver = <S extends SurfaceSpec>(
+  surface: Surface<S>,
   bound: Pick<Bound, "group" | "handlers">,
   face: FaceExposure,
-): OlaiSurfaceClient => {
+): SurfaceClient<S> => {
   const handlers = restrictHandlers(bound.group, bound.handlers, face)
-  return clientOn(directDispatch({ handlers }))
+  return clientOn(surface, directDispatch({ handlers }))
 }

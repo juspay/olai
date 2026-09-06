@@ -8,9 +8,8 @@ import { TransportSurface } from "@olai/plugin-api/transport"
 import type { Ops as Gate } from "@olai/ops"
 import { WRITABLE_MODULES } from "@olai/plugin-build"
 import { Effect } from "effect"
-import { defineSurface } from "@kolu/surface/define"
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"
-import { surface as legacy } from "@olai/surface"
+import { surface, faces } from "./surface.ts"
 import { NotFoundFailure, isPutAway, type Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import { name, chunks } from "./index.ts"
@@ -18,12 +17,6 @@ import { openDynamic } from "./runtime.ts"
 import { pluginChunks } from "./route.ts"
 import { ALWAYS, APPROVED_KEY, BROWSER_NODE, isApproved, PLUGIN_KEY, SERVER_NODE } from "./source.ts"
 export { name } from "./index.ts"
-const surface = defineSurface({ procedures: { plugins: {
-  approve: legacy.spec.procedures.plugins.approve,
-  run: legacy.spec.procedures.plugins.run,
-  stop: legacy.spec.procedures.plugins.stop,
-  inspect: legacy.spec.procedures.plugins.inspect,
-} } })
 export default definePlugin({
   name, needs: [HostLoading, Ops, Offers, Surfaces, Vault, BundleModules],
   apply: Effect.gen(function*() {
@@ -147,10 +140,7 @@ inspect: () =>
               taken: [...loading.reserved, ...dynamic.names()],
             }))
     } } }
-    yield* (yield* Surfaces).register({ surface, deps, root: true, faces: {
-      browser: { "plugins.approve": "tool" },
-      agent: { "plugins.inspect": "tool", "plugins.run": "tool", "plugins.stop": "tool" },
-    } })
+    yield* (yield* Surfaces).register({ surface, deps, root: true, faces, scopedFaces: { browser: faces.browser } })
     yield* (yield* Offers).own("chunks", () => ({ chunk: dynamic.chunk }))
   }),
 })

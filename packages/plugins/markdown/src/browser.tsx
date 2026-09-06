@@ -1,3 +1,8 @@
+import { Wired } from "@olai/plugin-api"
+import { holdClient, type Client } from "./client.ts"
+import { registerWriter } from "@olai/edit-history/writing.ts"
+import { dispatch } from "./surface.ts"
+import { writeEdit } from "@olai/edit-history/writing.ts"
 import { fileKind } from "@olai/format"
 import type {} from "olai-plugin-layout/slots"
 import { UndoSaid } from "@olai/edit-history/UndoSaid.tsx"
@@ -25,12 +30,16 @@ import { documentReferences, propertyRoutes } from "olai-plugin-outlines/contrac
 import { atFile } from "olai-plugin-navigation/routes"
 import { DocRef } from "./browser/document/DocRef.tsx"
 import { name, browserState, documentBodies, properties, holdDocumentActions } from "./index.ts"
-import { olai } from "@olai/web/client/wire.ts"
+import { client } from "olai-plugin-markdown/client"
 import { runAsync } from "@olai/web/client/run.ts"
 
-export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*() {
+export default definePlugin({ name, needs: [Wired, Offers], apply: Effect.gen(function*() {
+  const ownWire = yield* Wired
+  yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
+  yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["surface/edit/apply"].cases, edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))
+
   yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
-    const release = [holdDocumentActions({openCreated}), holdDocuments(createDocuments()), holdHistory(createUndo(edit => runAsync(olai.procedures.edit.apply(edit))))]
+    const release = [holdDocumentActions({openCreated}), holdDocuments(createDocuments()), holdHistory(createUndo(edit => runAsync(writeEdit(edit))))]
     return () => { dispose(); for (const stop of release) stop(); clearDocumentDrafts(); clearMinted() }
   })), stop => Effect.sync(stop))
   yield* (yield* Offers).own("browser-state", () => ({}))
@@ -64,3 +73,5 @@ export const components = {
     yield* (yield* rendererSlots).contribute(fileTypes, { Create: NewDocument })
   }) }),
 }
+
+export { surface } from "./surface.ts"

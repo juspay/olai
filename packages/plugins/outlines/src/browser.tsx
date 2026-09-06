@@ -1,3 +1,8 @@
+import { Wired } from "@olai/plugin-api"
+import { holdClient, type Client } from "./client.ts"
+import { registerWriter } from "@olai/edit-history/writing.ts"
+import { dispatch } from "./surface.ts"
+import { writeEdit } from "@olai/edit-history/writing.ts"
 import { slotContracts } from "./slots.ts"
 import { fileKind } from "@olai/format"
 import {Clocks} from "@olai/plugin-api"
@@ -34,17 +39,22 @@ import { DatedRow } from "./browser/DatedRow.tsx"
 import { OutlinePageView } from "./browser/PageView.tsx"
 import { PreferenceRows } from "./browser/PreferenceRows.tsx"
 import { runAsync } from "@olai/web/client/run.ts"
-import { connectionReadout, olai } from "@olai/web/client/wire.ts"
+import { connectionReadout } from "@olai/web/client/wire.ts"
+import { client } from "olai-plugin-outlines/client"
 import { reachable } from "@olai/web/client/connection/reaching.ts"
 
-export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*() {
+export default definePlugin({ name, needs: [Wired, Offers], apply: Effect.gen(function*() {
+  const ownWire = yield* Wired
+  yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
+  yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["surface/edit/apply"].cases, edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))
+
   for (const start of [followDensity, followDonePrefs, followFolds]) {
     yield* Effect.acquireRelease(Effect.sync(start), stop => Effect.sync(stop))
   }
   yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
-    const stops = [holdReferences({declare: createDeclared, showNode: useShowNode, failure: declaringFailure}), holdUndo(createUndo(edit => runAsync(olai.procedures.edit.apply(edit)))),
+    const stops = [holdReferences({declare: createDeclared, showNode: useShowNode, failure: declaringFailure}), holdUndo(createUndo(edit => runAsync(writeEdit(edit)))),
       holdReadings(createReadings()), holdFields(createFields()), holdAir(createAir())]
-    createRefiling({ ask: request => runAsync(olai.procedures.nodes.homes(request)),
+    createRefiling({ ask: request => runAsync(client().procedures.nodes.homes(request)),
       reachable: () => reachable(connectionReadout()) })
     return () => { dispose(); for (const stop of stops) stop(); clearEditorMemory(); clearRowForms(); clearBacklinks(); clearFocus(); clearDeclared() }
   })), stop => Effect.sync(stop))
@@ -73,3 +83,5 @@ export const components = {
     yield* (yield* rendererSlots).contribute(sections, PreferenceRows)
   }) }),
 }
+
+export { surface } from "./surface.ts"

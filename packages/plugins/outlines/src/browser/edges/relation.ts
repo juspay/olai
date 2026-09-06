@@ -1,3 +1,5 @@
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The two edges a node carries, as values: what each is called on screen, and
  * the {@link Edit} that adds or drops one target.
@@ -21,7 +23,7 @@
 
 import type { Edit } from "@olai/surface"
 
-import { type TestId, TESTID } from "@olai/web/client/testids.ts"
+
 
 /** The two fields an op may write. Deliberately NOT the format's own
  *  `after | blocks | see`: `a blocks b` IS `b after a`, and the ops layer

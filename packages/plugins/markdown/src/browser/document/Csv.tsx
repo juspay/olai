@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * A served `.csv`, drawn — a header row and the rows under it, as a table, and
  * the honest sentence about the rows that would not fit.
@@ -53,7 +54,7 @@ import { csvTable } from "@olai/format"
 import { createMemo, For, Show } from "solid-js"
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { BodyRefused } from "./BodyRefused.tsx"
 import { clampSaid } from "./clamped.ts"
 import { isServed, useDocument } from "./documents.tsx"

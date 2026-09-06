@@ -11,7 +11,9 @@
     "./*": "./src/*",
     "./surface": "./src/surface.ts",
     "./shelf": "./src/browser/answered.tsx",
-    "./values": "./src/browser/pins.ts"
+    "./values": "./src/browser/pins.ts",
+    "./testids": "./src/testids.ts",
+    "./client": "./src/client.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -37,7 +39,10 @@
   "olai": {
     "contracts": [
       "./shelf",
-      "./values"
+      "./values",
+      "./testids",
+      "./surface",
+      "./client"
     ]
   }
 }

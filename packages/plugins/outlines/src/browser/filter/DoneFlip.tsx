@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The page's own say in whether finished work is drawn here.
  *
@@ -37,8 +38,8 @@ import {
   letDoneFollow,
   setDoneFor,
 } from "../settings/done.ts"
-import { Segmented } from "@olai/web/client/settings/Segmented.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+import { Segmented } from "@olai/ui-primitives/Segmented.tsx"
+
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 
 export function DoneFlip(props: { readonly file: string }) {

@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-preferences/testids"
 /**
  * What this browser is set to, in one place.
  *
@@ -56,7 +57,7 @@ import { For } from "solid-js"
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
 import { PANEL_BOX } from "@olai/web/client/readout.ts"
 
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function Panel(props: {
   readonly sections: () => ReadonlyArray<Contribution<() => JSX.Element>>

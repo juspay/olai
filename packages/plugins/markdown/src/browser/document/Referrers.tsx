@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * WHAT POINTS AT THIS DOCUMENT, under its heading — the reverse reading a
  * `.md` could not have.
@@ -45,7 +46,7 @@ import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { only } from "@olai/web/client/narrow.ts"
 import { useDocumentReading } from "../reading.tsx"
 import { atFile, atNode, hrefOf, type Route } from "olai-plugin-navigation/routes"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function Referrers(props: {
   /** The document this page is about — read for the KEY below rather than for

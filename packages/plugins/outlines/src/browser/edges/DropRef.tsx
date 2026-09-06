@@ -1,3 +1,4 @@
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 /**
  * The `×` that takes one target off a node's edge list.
  *
@@ -20,7 +21,7 @@
  * where an ancestor happens to care is what keeps a third caller safe.
  */
 
-import { type TestId } from "@olai/web/client/testids.ts"
+
 
 export function DropRef(props: {
   /** Which × this is, to the browser tests. */

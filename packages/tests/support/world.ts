@@ -1,3 +1,5 @@
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "@olai/bundle/testids"
 /**
  * The Cucumber World: one instance per scenario, holding the Playwright page
  * and the handful of locators every feature reaches for.
@@ -27,14 +29,7 @@ import * as os from "node:os";
 // and this is the ATTRIBUTE a pressable node reference in the chat panel
 // carries. Two different things, one word — so the import says which.
 import { NODE_REF as CHAT_NODE_REF_ATTR } from "olai-plugin-chat/testlib";
-import {
-  LONG_PRESS_MS,
-  REFERRINGS,
-  ROW_TESTID,
-  selector,
-  TESTID,
-  type TestId,
-} from "@olai/web/testlib";
+import { LONG_PRESS_MS, REFERRINGS, ROW_TESTID, selector } from "@olai/web/testlib"
 // ...and the PLUGINS' half of the same table, which is where the bulk of this
 // file's selectors now come from. The ids split by RENDERER — a scenario
 // asserting on the padi pill is asserting on `olai-plugin-kolu`'s output, not

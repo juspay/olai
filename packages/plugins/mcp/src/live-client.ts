@@ -3,7 +3,7 @@
 import { directDispatch } from "@kolu/surface/links/direct"
 import { restrictHandlers, type FaceExposure } from "@kolu/surface/expose"
 import { brandDirectDispatch } from "@kolu/surface/link"
-import { clientOn } from "@olai/surface/client"
+import { clientOn } from "./client.ts"
 import { ToolFailure } from "@kolu/surface-mcp"
 import { Effect, Stream } from "effect"
 import { writerAt, type Bound } from "./authority.ts"

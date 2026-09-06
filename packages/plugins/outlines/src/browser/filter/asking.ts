@@ -102,7 +102,7 @@ import { sameNarrowingRequest } from "@olai/format"
 import type { MatchedNode } from "@olai/surface"
 
 import { SETTLE_MS } from "@olai/web/client/settled.ts"
-import { olai } from "@olai/web/client/wire.ts"
+import { client } from "olai-plugin-outlines/client"
 import type { Matches } from "./matches.ts"
 
 // The settle is imported rather than restated (`../settled.ts` argues it: one
@@ -339,7 +339,7 @@ export const createAsked = (source: {
     },
   )
 
-  const answer = olai.streams.narrowing.use(asking)
+  const answer = client().streams.narrowing.use(asking)
 
   /**
    * THE LAST ANSWER OF THIS FILTER SESSION — `../reading.tsx`'s rule for the

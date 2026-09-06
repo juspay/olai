@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The ⏱ chip at a row's far hand: how long the work TOOK, or how long it has
  * been GOING — the face deliberately concise, the HOVER telling the whole
@@ -60,7 +61,7 @@ import { type RegularNode, storedMarker, tookOf } from "@olai/format"
 import { Match, Switch } from "solid-js"
 
 import { instantOf } from "@olai/web/client/clock.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { createNow, liveOf, liveStoryOf, roundOf, settledStoryOf, tickingOf, wordsOf } from "@olai/web/client/duration.ts"
 

@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * A date a node carries, as a badge.
  *
@@ -60,7 +61,7 @@ import type { Occasion } from "@olai/format"
 import { Show } from "solid-js"
 
 import { Pill } from "@olai/web/client/Pill.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function DateBadge(props: {
   /** What the pill PRINTS. Verbatim, and decided by whoever knows what this

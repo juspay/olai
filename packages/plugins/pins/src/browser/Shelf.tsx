@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-pins/testids"
 /**
  * THE PINNED SHELF: the doors a reader keeps, at the top of the directory
  * column.
@@ -43,7 +44,7 @@ import type { Undo } from "@olai/edit-history/undoing.ts"
 import { createEffect,createMemo,createSelector,createSignal,Show } from "solid-js"
 
 import { createDrags,TRAVEL_PX } from "@olai/web/client/pointer.ts"
-import { selector,TESTID } from "@olai/web/client/testids.ts"
+import { selector } from "@olai/ui-primitives/testids.ts"
 import { applying } from "@olai/web/client/writes.ts"
 import { REGION,REGION_LABEL } from "olai-plugin-layout/entry"
 import { hrefOf } from "olai-plugin-navigation/routes"

@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/ui-primitives/testids.ts"
 /**
  * Two different nothings, said differently: the directory holds no outlines at
  * all, or it holds nothing by the name this address spelled.
@@ -21,8 +22,8 @@
 import { type FileKind } from "@olai/format"
 
 import { Empty } from "@olai/web/client/Empty.tsx"
-import { NAMED } from "@olai/web/client/file/kinds.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+import { NAMED } from "olai-plugin-files/kinds"
+
 
 export function Nothing(props: {
   readonly sought: FileKind

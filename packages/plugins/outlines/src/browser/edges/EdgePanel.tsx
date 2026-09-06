@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The panel that WRITES a node's edges — one relation at a time, in place under
  * the row (or under the heading, on a node's own page).
@@ -72,8 +73,8 @@ import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
 import { useNames } from "../reading.tsx"
-import { Shortlist, type ShortlistTestids } from "@olai/web/client/search/Shortlist.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+import { Shortlist, type ShortlistTestids } from "olai-plugin-search/ui/Shortlist.tsx"
+
 import { PANEL_OUT } from "@olai/web/client/pill.ts"
 import { NodeTitle } from "../NodeTitle.tsx"
 import { DropRef } from "./DropRef.tsx"

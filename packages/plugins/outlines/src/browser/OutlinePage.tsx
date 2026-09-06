@@ -1,3 +1,5 @@
+import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
+import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
 /**
  * One whole outline: the roots of a file, expanded.
  *
@@ -34,7 +36,7 @@ import { useHere, useLanding } from "olai-plugin-navigation/routing"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { concealDone, doneHiddenOn, revealDone } from "./settings/done.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { Tree } from "./Tree.tsx"
 
 export function OutlinePage(props: {
@@ -277,7 +279,7 @@ export function OutlinePage(props: {
       // The landing belongs to THIS pane: the SAME outline can sit in two
       // columns, and the scroll is the pane whose address named the row.
       const root = document.querySelector(
-        `[data-testid="${TESTID.pane}"][data-pane="${String(here())}"]`,
+        `[data-testid="${IDS_NAVIGATION.pane}"][data-pane="${String(here())}"]`,
       )
       if (root === null) return
       // Aim at the landing's OWN row — the chain's last placement, found by
@@ -294,7 +296,7 @@ export function OutlinePage(props: {
       // frame is a landing this pane will never spend. (`document/faces.tsx`'s
       // heading half does exactly this, on the same argument.)
       const row = root.querySelector(
-        `[data-testid="${TESTID.node}"][data-node-id="${CSS.escape(last.at.node.id)}"]`,
+        `[data-testid="${IDS_OUTLINES.node}"][data-node-id="${CSS.escape(last.at.node.id)}"]`,
       )
       if (row === null) return
       bringOntoScreen(row)
@@ -318,7 +320,7 @@ export function OutlinePage(props: {
           <SaidLine
             said={said()}
             class="mb-2 text-[0.8125rem] leading-snug"
-            testid={TESTID.landingSaid}
+            testid={IDS_OUTLINES.landingSaid}
           />
         )}
       </Show>

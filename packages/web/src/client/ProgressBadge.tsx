@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/ui-primitives/testids.ts"
 /**
  * How far the tasks under a node have got: `3/5`, right after its title.
  *
@@ -22,7 +23,7 @@
 
 import type { Progress } from "@olai/format"
 
-import { TESTID } from "./testids.ts"
+
 
 export function ProgressBadge(props: { readonly progress: Progress }) {
   return (

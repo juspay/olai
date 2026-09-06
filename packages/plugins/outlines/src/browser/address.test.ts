@@ -17,7 +17,7 @@ import type { Names } from "olai-plugin-outlines/names"
 import { atElement, atFile, atNode, HOME_ROUTE, hrefOf, routeIn, routeOf } from "olai-plugin-navigation/routes"
 import { ROUTES } from "@olai/web/client/routes.testlib.ts"
 import { requestFor } from "./page.ts"
-import { addressIn, labelIn, nameOf, shownIn } from "@olai/web/client/address/address.ts"
+import { addressIn, labelIn, nameOf, shownIn } from "olai-plugin-navigation/address/address.ts"
 
 // ── what is an address ─────────────────────────────────────────────────
 

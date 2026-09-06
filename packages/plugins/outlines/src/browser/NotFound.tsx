@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * A permalink that no longer names a page.
  *
@@ -17,7 +18,7 @@ import { Match, Switch } from "solid-js"
 import { Lede } from "@olai/web/client/errors/Lede.tsx"
 import { PAGE_TITLE } from "@olai/web/client/look.ts"
 import { only } from "@olai/web/client/narrow.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function NotFound(props: { readonly zoomed: Zoomed }) {
   return (

@@ -84,7 +84,7 @@
 import type { SearchField } from "@olai/format"
 import type { NodeHit } from "@olai/surface"
 
-import { nodePlace } from "@olai/web/client/search/place.ts"
+import { nodePlace } from "olai-plugin-search/ui/place.ts"
 
 /** One node the query means, ready to draw: what taking it WRITES, what a
  *  person READS to choose it, and where it sits. Flattened out of the hit

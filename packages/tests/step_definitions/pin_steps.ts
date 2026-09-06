@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * THE PINNED SHELF: the column's own short list, and the file underneath it.
  *
@@ -17,7 +18,7 @@ import assert from "node:assert/strict";
 
 import { DataTable, Given, Then, When } from "@cucumber/cucumber";
 
-import { selector, TESTID } from "@olai/web/testlib";
+import { selector } from "@olai/web/testlib"
 
 import { attr } from "../support/selectors.ts";
 import { keysSettled, pressed } from "../support/settling.ts";

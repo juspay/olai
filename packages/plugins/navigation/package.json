@@ -17,7 +17,10 @@
     "./palette-model": "./src/palette/items.ts",
     "./palette-asking": "./src/palette/asking.ts",
     "./palette-open": "./src/palette/open.ts",
-    "./slots": "./src/slots.ts"
+    "./slots": "./src/slots.ts",
+    "./testids": "./src/testids.ts",
+    "./address/address.ts": "./src/address/address.ts",
+    "./address/Face.tsx": "./src/address/Face.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -34,7 +37,9 @@
     "@solid-primitives/keyed": "^1.5.2",
     "olai-plugin-layout": "workspace:*",
     "@olai/edit-history": "workspace:*",
-    "olai-plugin-vault": "workspace:*"
+    "olai-plugin-vault": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "olai-plugin-search": "workspace:*"
   },
   "olai": {
     "contracts": [
@@ -47,7 +52,10 @@
       "./palette-model",
       "./palette-asking",
       "./palette-open",
-      "./slots"
+      "./slots",
+      "./testids",
+      "./address/address.ts",
+      "./address/Face.tsx"
     ]
   }
 }

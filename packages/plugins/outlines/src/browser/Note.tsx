@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * A node's note, as full markdown.
  *
@@ -24,7 +25,7 @@
  */
 
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function Note(props: {
   readonly desc: string

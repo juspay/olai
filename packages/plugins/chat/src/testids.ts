@@ -702,6 +702,7 @@ export const TESTID = {
    *  for the pane, because one call carries every message's ids
    *  (`@olai/web`'s `client/declared.ts`). */
   chatRefsFailure: "chat-refs-failure",
+  prefsAllowNotify: "prefs-allow-notify",
 } as const
 
 /**
@@ -720,3 +721,9 @@ export const TESTID = {
  * that names what this package draws.
  */
 export type ChatTestId = (typeof TESTID)[keyof typeof TESTID]
+
+import type {} from "@olai/ui-primitives/testids.ts"
+type OwnedTestIds = typeof TESTID
+declare module "@olai/ui-primitives/testids.ts" {
+  interface TestIdTables { readonly "plugins/chat": OwnedTestIds }
+}

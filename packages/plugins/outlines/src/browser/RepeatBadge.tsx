@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The repeat rule a node carries, as a badge beside its date.
  *
@@ -26,7 +27,7 @@
  */
 
 import { Pill } from "@olai/web/client/Pill.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function RepeatBadge(props: {
   readonly repeat: string

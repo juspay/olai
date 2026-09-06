@@ -41,5 +41,10 @@
     "@olai/store": "workspace:*",
     "@types/node": "^22.0.0",
     "olai-plugin-sidebar": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./testids"
+    ]
   }
 }

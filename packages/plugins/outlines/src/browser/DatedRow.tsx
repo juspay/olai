@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * One dated node, on a day's page — and on the agenda, which asks the same
  * question forward (../agenda/AgendaPage.tsx). One component, because they are
@@ -66,7 +67,7 @@ import { NodeLine } from "./NodeLine.tsx"
 import { hasBody } from "./body.ts"
 import { density, showsPreview, startsOpen } from "./settings/density.ts"
 
-import { TESTID as WEB_TESTID } from "@olai/web/client/testids.ts"
+
 import { useToday } from "@olai/web/client/today.tsx"
 import { TookChip } from "./live/duration/index.ts"
 import { GUTTER_GAP, PAST_BULLET } from "@olai/ui-primitives/touch.ts"
@@ -98,7 +99,7 @@ export function DatedRow(props: {
   return (
     <li
       class="mb-3"
-      data-testid={WEB_TESTID.node}
+      data-testid={TESTID.node}
       data-node-id={node().id}
       data-status={props.dated.status}
       data-file={props.dated.shows.file}
@@ -117,7 +118,7 @@ export function DatedRow(props: {
 
       <div
         class={`flex items-baseline ${GUTTER_GAP} ${WAITING_DIM(props.dated.blocked)}`}
-          data-testid={WEB_TESTID.nodeGutter}
+          data-testid={TESTID.nodeGutter}
       >
         <Glyph
           id={node().id}

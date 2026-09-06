@@ -446,13 +446,16 @@ describe("a plugin's browser chunk stays a browser chunk", () => {
     expect([...new Set(bad)].sort()).toEqual([])
   })
 
-  test("...and each one DOES carry components, which is what a chunk is for", () => {
-    // The complement, said out loud: this door exists to carry exactly what the
-    // composition root's may not. A version of it that reached nothing would
-    // pass the claim above by being empty, and the faces would be on somebody
-    // else's graph — which is the arrangement the split replaced.
+  test("each browser row carries rendering or an explicit activation", () => {
+    // A scoped client provider need not draw anything. It must still contain
+    // an activation, so an accidentally empty entry cannot satisfy this
+    // browser ownership check simply by importing static contracts.
     for (const { name, door } of BROWSER_DOORS) {
-      expect([name, componentsOn(door).length > 0]).toEqual([name, true])
+      const activated = door.files.some(file => {
+        const source = readFileSync(path.join(PACKAGES, file), "utf8")
+        return runtimeImportsOf(file, source).some(spec => spec === "@olai/plugin-api") && /\bdefinePlugin\s*\(/.test(source)
+      })
+      expect([name, componentsOn(door).length > 0 || activated]).toEqual([name, true])
     }
   })
 })
@@ -670,6 +673,7 @@ describe("only the registry knows a plugin's name", () => {
       "server/src/lock.test.ts: olai-plugin-vault/testlib",
       "server/src/mcp/face.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
+    "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
@@ -731,14 +735,14 @@ describe("only the registry knows a plugin's name", () => {
     expect([...new Set(violations)]).toEqual([])
   })
 
-  test("general packages only reach plugin contracts or explicit testlib doors", () => {
+  test("general production packages name no plugins; test readers use explicit static doors", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
       // A plugin importing its own doors — `olai-plugin-kolu/appliance` after
       // the fold — is not a general package naming a plugin. Plugins may also
       // consume each other through declared services. This is the general side.
       if (PLUGIN_DIRS.includes(pkg)) continue
-      const reached = tree.get(pkg)?.flatMap((s) => s.plugins.filter(p => !staticDoor(p)).map((p) => `${s.file}: ${p}`)) ?? []
+      const reached = tree.get(pkg)?.flatMap((s) => s.plugins.filter(p => !/\.(?:test|browsertest|testlib)\.tsx?$/.test(s.file) || !staticDoor(p)).map((p) => `${s.file}: ${p}`)) ?? []
       // An EQUALITY against the recorded answer — `[]` for all but the folded
       // testlib door — never a length on a filter: a pattern that rotted would
       // report nothing and pass.
@@ -1605,7 +1609,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/layout/src/layout/prefs-owner.ts",
     "plugins/layout/src/layout/prefs.ts",
     "plugins/xyne-spaces/src/client.ts",
-    "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
+    "plugins/xyne-spaces/src/testlib/fake-spaces.ts"
   ],
   "vault": [
     "format/src/conventions.bench.ts",
@@ -1633,6 +1637,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/chat/src/server.ts",
     "plugins/files/src/Files.tsx",
     "plugins/files/src/server.ts",
+    "plugins/files/src/testids.ts",
     "plugins/git/src/server.ts",
     "plugins/journal/src/agenda.ts",
     "plugins/journal/src/server.ts",
@@ -1644,20 +1649,20 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/odu/src/server.ts",
     "plugins/outlines/src/server.ts",
     "plugins/pins/src/server.ts",
+    "plugins/search/src/server.ts",
     "plugins/search/src/table.bench.ts",
     "plugins/sidebar/src/browser.tsx",
     "plugins/sidebar/src/contract.ts",
     "plugins/trash/src/browser.tsx",
     "plugins/trash/src/server.ts",
+    "plugins/vault-plugins/src/client.ts",
     "plugins/vault-plugins/src/index.ts",
     "plugins/vault-plugins/src/server.ts",
     "plugins/vault-plugins/src/source.ts",
     "plugins/xyne-spaces/src/server.ts",
     "server/src/main.ts",
     "server/src/published.bench.ts",
-    "server/src/serve.ts",
-    "surface/src/seal.ts",
-    "web/src/client/testids.ts",
+    "surface/src/seal.ts"
   ],
   "git": [
     "format/src/committing.ts",
@@ -1672,7 +1677,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "server/src/gitPolicy.ts",
     "server/src/main.ts",
     "server/src/published.bench.ts",
-    "server/src/serve.ts",
+    "server/src/serve.ts"
   ],
   "search": [
     "format/src/address.ts",
@@ -1693,32 +1698,29 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/chat/src/testids.ts",
     "plugins/journal/src/browser.tsx",
     "plugins/mcp/src/catalog.ts",
+    "plugins/mcp/src/client.ts",
     "plugins/mcp/src/endpoint.ts",
     "plugins/mcp/src/tools.ts",
     "plugins/navigation/src/palette/Palette.tsx",
     "plugins/navigation/src/palette/items.ts",
     "plugins/navigation/src/router.tsx",
     "plugins/navigation/src/routes.ts",
+    "plugins/navigation/src/testids.ts",
     "plugins/navigation/src/workspace.ts",
     "plugins/outlines/src/browser/complete/trigger.ts",
     "plugins/outlines/src/browser/edges/relation.ts",
     "plugins/outlines/src/browser/move/MovePicker.tsx",
     "plugins/outlines/src/browser/palette/ops.ts",
-    "plugins/outlines/src/server.ts",
-    "plugins/outlines/src/surface.ts",
+    "plugins/outlines/src/testids.ts",
     "plugins/pins/src/browser/palette.ts",
     "plugins/vault/src/server.ts",
     "plugins/vault/src/setup.ts",
-    "server/src/faces.ts",
     "server/src/main.ts",
     "surface/src/index.ts",
     "surface/src/media.ts",
     "surface/src/search.ts",
     "web/src/client/keys.ts",
-    "web/src/client/plugins/loading.ts",
-    "web/src/client/search/Count.tsx",
-    "web/src/client/search/nodes.ts",
-    "web/src/client/testids.ts",
+    "web/src/client/plugins/loading.ts"
   ],
   "identity": [
     "ops/src/tools.ts",
@@ -1732,23 +1734,23 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/odu/src/browser/words.ts",
     "plugins/odu/src/doorbell.ts",
     "plugins/outlines/src/browser/edit/Editable.tsx",
-    "server/src/serve.ts",
+    "server/src/serve.ts"
   ],
   "journal": [
     "format/src/patch.ts",
     "format/src/searching.ts",
     "ops/src/tools.ts",
-    "sigterm/src/sigterm.ts",
+    "sigterm/src/sigterm.ts"
   ],
   "claude": [
     "format/src/filter.ts",
     "format/src/searching.ts",
-    "ops/src/tools.ts",
+    "ops/src/tools.ts"
   ],
   "codex": [],
   "opencode": [],
   "pi": [
-    "appearance/src/tagInk.ts",
+    "appearance/src/tagInk.ts"
   ],
   "kolu": [],
   "odu": [],
@@ -1765,14 +1767,13 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/git/src/ledger/pending.ts",
     "plugins/odu/src/probe.ts",
     "server/src/dial.ts",
-    "server/src/faces.ts",
     "server/src/gitPolicy.ts",
     "server/src/main.ts",
     "server/src/mcpClient.ts",
-    "server/src/serve.ts",
+    "server/src/serve.ts"
   ],
   "web-app": [
-    "plugins/theme/src/chrome.ts",
+    "plugins/theme/src/chrome.ts"
   ],
   "ui-renderer": [],
   "layout": [
@@ -1782,7 +1783,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/test-layout/src/browser.tsx",
     "plugins/test-layout/src/index.ts",
     "plugins/vault-plugins/src/server.ts",
-    "surface/src/index.ts",
+    "plugins/vault-plugins/src/surface.ts"
   ],
   "sidebar": [
     "ops/src/tools.ts",
@@ -1790,6 +1791,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/files/src/Files.tsx",
     "plugins/files/src/browser.tsx",
     "plugins/files/src/fold/folders.ts",
+    "plugins/files/src/testids.ts",
     "plugins/journal/src/browser.tsx",
     "plugins/layout/src/Frame.tsx",
     "plugins/layout/src/Header.tsx",
@@ -1799,6 +1801,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/layout/src/layout/css.ts",
     "plugins/layout/src/layout/prefs-owner.ts",
     "plugins/layout/src/layout/prefs.ts",
+    "plugins/layout/src/testids.ts",
     "plugins/navigation/src/palette/Palette.tsx",
     "plugins/navigation/src/palette/items.ts",
     "plugins/outlines/src/browser/NotFound.tsx",
@@ -1807,14 +1810,13 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/pins/src/browser/palette.ts",
     "plugins/trash/src/browser.tsx",
     "plugins/trash/src/browser/question.ts",
-    "web/src/client/errors/Page.tsx",
-    "web/src/client/keys.ts",
-    "web/src/client/testids.ts",
+    "plugins/vault/src/browser/errors/Page.tsx",
+    "web/src/client/keys.ts"
   ],
   "preferences": [
     "plugins/chat/src/browser/chat/NoAgent.tsx",
     "plugins/outlines/src/browser.tsx",
-    "plugins/theme/src/browser.tsx",
+    "plugins/theme/src/browser.tsx"
   ],
   "theme": [
     "appearance/src/css.ts",
@@ -1824,8 +1826,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/kolu/src/client/fleet.ts",
     "plugins/kolu/src/client/wire/kolu.ts",
     "plugins/preferences/src/Preferences.tsx",
-    "plugins/web-app/src/manifest.ts",
-    "web/src/client/testids.ts",
+    "plugins/web-app/src/manifest.ts"
   ],
   "plugin-inspector": [],
   "navigation": [
@@ -1840,7 +1841,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/pins/src/browser.tsx",
     "plugins/pins/src/browser/Palette.tsx",
     "plugins/test-layout/src/browser.tsx",
-    "plugins/trash/src/browser.tsx",
+    "plugins/trash/src/browser.tsx"
   ],
   "outlines": [
     "format/src/committing.ts",
@@ -1867,26 +1868,24 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/chat/src/browser/chat/NoAgent.tsx",
     "plugins/chat/src/browser/chat/Unopened.tsx",
     "plugins/files/src/Rail.tsx",
+    "plugins/files/src/testids.ts",
     "plugins/git/src/browser/commit/Outlines.tsx",
     "plugins/git/src/browser/commit/Panel.tsx",
     "plugins/git/src/browser/commit/said.ts",
     "plugins/git/src/browser/commit/selection.ts",
     "plugins/git/src/ledger/pending.bench.ts",
     "plugins/git/src/ledger/pending.ts",
+    "plugins/layout/src/Fault.tsx",
     "plugins/mcp/src/binding.ts",
     "plugins/mcp/src/catalog.ts",
+    "plugins/mcp/src/client.ts",
     "plugins/mcp/src/endpoint.ts",
     "plugins/mcp/src/tools.ts",
     "plugins/search/src/table.bench.ts",
-    "server/src/faces.ts",
+    "plugins/vault/src/browser/errors/Page.tsx",
     "server/src/main.ts",
     "server/src/published.bench.ts",
-    "surface/src/index.ts",
-    "surface/src/ops.ts",
-    "surface/src/projection.ts",
-    "web/src/client/errors/Fault.tsx",
-    "web/src/client/errors/Page.tsx",
-    "web/src/client/testids.ts",
+    "surface/src/projection.ts"
   ],
   "markdown": [
     "appearance/src/scale.ts",
@@ -1916,12 +1915,13 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/journal/src/server.ts",
     "plugins/kolu/src/appliance/props/EventsFeed.tsx",
     "plugins/kolu/src/appliance/props/TerminalDoor.tsx",
+    "plugins/mcp/src/client.ts",
     "plugins/outlines/src/browser/Note.tsx",
     "plugins/outlines/src/browser/document-properties.tsx",
     "plugins/test-layout/src/browser.tsx",
     "plugins/xyne-spaces/src/client.ts",
     "plugins/xyne-spaces/src/mirror.ts",
-    "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
+    "plugins/xyne-spaces/src/testlib/fake-spaces.ts"
   ],
   "files": [
     "format/src/conventions.bench.ts",
@@ -1963,7 +1963,9 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/git/src/ledger/pending.bench.ts",
     "plugins/git/src/ledger/pending.ts",
     "plugins/kolu/src/server.ts",
+    "plugins/layout/src/Fault.tsx",
     "plugins/markdown/src/browser.tsx",
+    "plugins/mcp/src/client.ts",
     "plugins/mcp/src/endpoint.ts",
     "plugins/navigation/src/browser.tsx",
     "plugins/outlines/src/browser.tsx",
@@ -1977,6 +1979,10 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/trash/src/browser/PageView.tsx",
     "plugins/trash/src/browser/TrashPage.tsx",
     "plugins/vault/src/browser.tsx",
+    "plugins/vault/src/browser/errors/Banner.tsx",
+    "plugins/vault/src/browser/errors/Page.tsx",
+    "plugins/vault/src/browser/errors/Report.tsx",
+    "plugins/vault/src/browser/errors/banner.ts",
     "plugins/vault/src/browser/served.tsx",
     "plugins/vault/src/http/media.ts",
     "plugins/vault/src/lock.ts",
@@ -1986,13 +1992,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "store/src/store.ts",
     "surface/src/projection.ts",
     "web/src/client/connection/status.ts",
-    "web/src/client/errors/Banner.tsx",
-    "web/src/client/errors/Fault.tsx",
-    "web/src/client/errors/Page.tsx",
-    "web/src/client/errors/Report.tsx",
-    "web/src/client/errors/banner.ts",
-    "web/src/client/file/matching.ts",
-    "web/src/client/testids.ts",
+    "web/src/client/file/matching.ts"
   ],
   "pins": [
     "edit-intents/src/index.ts",
@@ -2003,9 +2003,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "ops/src/plan.ts",
     "ops/src/tools.ts",
     "plugins/outlines/src/browser/Tree.tsx",
-    "plugins/outlines/src/browser/menu/actions.ts",
-    "server/src/faces.ts",
-    "surface/src/index.ts",
+    "plugins/outlines/src/browser/menu/actions.ts"
   ],
   "capture": [
     "edit-intents/src/index.ts",
@@ -2024,8 +2022,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/pins/src/browser/Pin.tsx",
     "server/src/main.ts",
     "surface/src/edit.ts",
-    "web/src/client/Tip.tsx",
-    "web/src/client/testids.ts",
+    "web/src/client/Tip.tsx"
   ],
   "trash": [
     "edit-intents/src/index.ts",
@@ -2042,6 +2039,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/layout/src/pane/label.ts",
     "plugins/mcp/src/endpoint.ts",
     "plugins/mcp/src/tools.ts",
+    "plugins/navigation/src/address/address.ts",
     "plugins/navigation/src/palette/items.ts",
     "plugins/navigation/src/routes.ts",
     "plugins/outlines/src/browser/PageView.tsx",
@@ -2052,12 +2050,11 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/outlines/src/browser/select/SelectionBar.tsx",
     "plugins/outlines/src/browser/select/bulk.ts",
     "plugins/outlines/src/surface.ts",
+    "plugins/outlines/src/testids.ts",
     "plugins/pins/src/browser/Shelf.tsx",
     "plugins/pins/src/browser/pinning.ts",
     "surface/src/edit.ts",
-    "surface/src/index.ts",
-    "web/src/client/address/address.ts",
-    "web/src/client/testids.ts",
+    "surface/src/index.ts"
   ],
   "test-layout": [],
   "test-counter": [],

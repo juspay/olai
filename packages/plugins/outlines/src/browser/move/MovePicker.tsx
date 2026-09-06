@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The move-to picker: search every outline for a new parent, and put this row
  * under the one you choose — with everything hanging off it.
@@ -60,8 +61,8 @@ import type { Moved } from "@olai/format"
 
 import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
-import { Shortlist, type ShortlistTestids } from "@olai/web/client/search/Shortlist.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+import { Shortlist, type ShortlistTestids } from "olai-plugin-search/ui/Shortlist.tsx"
+
 import { PANEL_OUT } from "@olai/web/client/pill.ts"
 
 /** What this door calls the parts of its shortlist. */

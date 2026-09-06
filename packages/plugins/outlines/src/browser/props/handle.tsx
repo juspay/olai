@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * THE KEY HALF OF A FACT — the one thing every property renderer draws the
  * same way, wherever it draws it.
@@ -12,7 +13,7 @@
  */
 import { Show } from "solid-js"
 
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function Handle(props: { readonly label: string; readonly onOpen?: () => void }) {
   return (

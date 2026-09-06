@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * What is picked, and the one verb the keyboard cannot ask for.
  *
@@ -53,8 +54,8 @@ import { createConfirming } from "@olai/web/client/confirming.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { QUIET_PILL } from "@olai/web/client/pill.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
-import type { TestId } from "@olai/web/client/testids.ts"
+
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 import { trashQuestion } from "olai-plugin-trash/questions"
 import { archivable } from "./bulk.ts"
 import { useSelection } from "./selection.ts"

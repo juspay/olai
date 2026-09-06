@@ -22,9 +22,20 @@
     "@olai/surface": "workspace:*",
     "@olai/ops": "workspace:*",
     "@olai/format": "workspace:*",
-    "@olai/store": "workspace:*"
+    "@olai/store": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "olai-plugin-outlines": "workspace:*",
+    "olai-plugin-markdown": "workspace:*",
+    "olai-plugin-files": "workspace:*",
+    "olai-plugin-search": "workspace:*",
+    "olai-plugin-vault-plugins": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"
+  },
+  "olai": {
+    "contracts": [
+      "./testids"
+    ]
   }
 }

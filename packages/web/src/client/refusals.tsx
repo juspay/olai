@@ -51,7 +51,7 @@ import type { Refusal } from "@olai/format"
 import { createMemo, Index } from "solid-js"
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
-import type { TestId } from "@olai/web/client/testids.ts"
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 
 /** One refusal, as the sentence a surface draws: the token AS TYPED, and why —
  *  the em-dashed pair every door has always used. */

@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * One outline, drawn.
  *
@@ -115,7 +116,7 @@ import { createMenuDoor } from "./menu/door.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
 import { followed, followedSplit, useGo } from "olai-plugin-navigation/routing"
 import { density, showsPreview, startsOpen } from "./settings/density.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { useToday } from "@olai/web/client/today.tsx"
 import { TookChip } from "./live/duration/index.ts"
 import {

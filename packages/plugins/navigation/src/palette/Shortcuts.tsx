@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-navigation/testids"
 /**
  * The keys, on screen.
  *
@@ -32,7 +33,7 @@ import { For,onCleanup,onMount,Show } from "solid-js"
 
 import { SHORTCUTS } from "@olai/web/client/keys.ts"
 import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
 
 export function Shortcuts(props: {

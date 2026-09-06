@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/markdown-ui/testids.ts"
 /**
  * What the pipeline promises, as HTML.
  *
@@ -30,7 +31,7 @@ import {
 } from "./render.ts"
 import type { TitleRender } from "./title.ts"
 import { renderTitle } from "./title.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 installPipeline(pipeline)
 

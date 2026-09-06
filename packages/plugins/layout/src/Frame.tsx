@@ -1,3 +1,5 @@
+import { TipFloor } from "@olai/web/client/Tip.tsx"
+import { TESTID as LAYOUT_TESTID } from "./testids.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { For } from "solid-js"
 import { contentStatus,overlays,sidebar } from "./index.ts"
@@ -58,6 +60,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
 
   return (
       <RouterProvider router={router}>
+      <TipFloor.Provider value={() => document.querySelector(`[data-testid="${LAYOUT_TESTID.appHeader}"]`)?.getBoundingClientRect().bottom ?? 0}>
       <PluginsMounted>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
           the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
@@ -144,12 +147,13 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                     </>}</For>
                     <div class="min-w-0 bg-paper">
                       <For each={props.slots.read(contentStatus)}>{({value})=><value.Message/>}</For>
-                      <Show when={props.slots.read(contentStatus).every(({value})=>value.ready())}><Panes trouble={null}/></Show>
+                      <Show when={props.slots.read(contentStatus).every(({value})=>value.ready())}><Panes/></Show>
                     </div>
                   </div>
         </div>
       </div>
       </PluginsMounted>
+      </TipFloor.Provider>
       </RouterProvider>
   )
 }

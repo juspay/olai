@@ -19,7 +19,9 @@
     "./property-values": "./src/contracts/property-values.ts",
     "./names": "./src/contracts/names.ts",
     "./testlib": "./src/testlib.ts",
-    "./slots": "./src/slots.ts"
+    "./slots": "./src/slots.ts",
+    "./testids": "./src/testids.ts",
+    "./client": "./src/client.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -48,7 +50,8 @@
     "olai-plugin-vault": "workspace:*",
     "olai-plugin-markdown": "workspace:*",
     "olai-plugin-pins": "workspace:*",
-    "olai-plugin-trash": "workspace:*"
+    "olai-plugin-trash": "workspace:*",
+    "olai-plugin-search": "workspace:*"
   },
   "olai": {
     "contracts": [
@@ -61,7 +64,10 @@
       "./changes",
       "./property-values",
       "./names",
-      "./slots"
+      "./slots",
+      "./testids",
+      "./surface",
+      "./client"
     ]
   }
 }

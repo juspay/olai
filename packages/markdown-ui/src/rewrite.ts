@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/markdown-ui/testids.ts"
 /**
  * The pass that runs after the sanitiser: what the page is allowed to point at.
  *
@@ -50,7 +51,7 @@ import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"
 
 import { type Heading, headingOf } from "./outline.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export interface Rewrite {
   /** The file the markdown was written in — an outline, for a note; the

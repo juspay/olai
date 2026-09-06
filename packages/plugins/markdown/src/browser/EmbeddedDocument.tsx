@@ -1,8 +1,9 @@
+import { TESTID } from "olai-plugin-markdown/testids"
 /** Body-only document rendering, used by providers such as the journal. */
 import { proseIn } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { isServed, useDocument } from "./document/documents.tsx"
 import { BodyRefused } from "./document/BodyRefused.tsx"
 export function EmbeddedDocument(props: {readonly file: string}) {

@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/markdown-ui/testids.ts"
 /**
  * `#tags` in a title, styled.
  *
@@ -38,7 +39,7 @@ import type { Element, ElementContent, Root } from "hast"
 
 import { HIT_CLASS, NO_NEEDLES, runsIn } from "@olai/markdown-ui/lit.ts"
 import { TAG_ATTRIBUTE } from "./tag-contract.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { tagStyle } from "@olai/appearance/tagInk.ts"
 import { isAnchor } from "./anchors.ts"
 

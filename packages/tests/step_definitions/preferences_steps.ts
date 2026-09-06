@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * The preferences panel: the one door in the header, the rows behind it, and
  * the promise every one of them makes — that a pick is this browser's and
@@ -21,16 +22,7 @@ import type { Page } from "playwright";
 
 import { fileKind } from "@olai/format";
 
-import {
-  ALERT_SOUND_KEY,
-  ALERTS_KEY,
-  DENSITY_KEY,
-  type Density,
-  DONE_HIDDEN_KEY,
-  DONE_OVERRIDES_KEY,
-  SIZE_STORAGE_KEY,
-  TESTID,
-} from "@olai/web/testlib";
+import { ALERT_SOUND_KEY, ALERTS_KEY, DENSITY_KEY, type Density, DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY, SIZE_STORAGE_KEY } from "@olai/web/testlib"
 
 import { focusedOn } from "../support/caret.ts";
 import { pressed } from "../support/settling.ts";

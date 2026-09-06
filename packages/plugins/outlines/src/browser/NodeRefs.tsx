@@ -1,3 +1,5 @@
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * A labelled row of links to other nodes — what one of a node's EDGES looks
  * like when it is drawn out rather than hinted at.
@@ -31,7 +33,7 @@ import { DropRef } from "./edges/DropRef.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import type { NodeRef } from "./ref.ts"
 import { Link } from "olai-plugin-navigation/routing"
-import { type TestId, TESTID } from "@olai/web/client/testids.ts"
+
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { atNode } from "olai-plugin-navigation/routes"
 

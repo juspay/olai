@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * MOVING one row to a new parent, as one thing a page holds: which row's picker
  * is open, where that row is drawn now, the write it sends, and the line that
@@ -54,8 +55,8 @@ import { flatten, refound } from "../edit/order.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { sameIds } from "@olai/web/client/ids.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
-import { olai } from "@olai/web/client/wire.ts"
+
+import { client } from "olai-plugin-outlines/client"
 import { applying } from "@olai/web/client/writes.ts"
 import { MovePicker } from "./MovePicker.tsx"
 
@@ -315,7 +316,7 @@ export const createMoving = (
     },
   )
 
-  const answer = olai.streams.moving.use(request)
+  const answer = client().streams.moving.use(request)
 
   /**
    * The row being moved — `undefined` for a record the set no longer declares,

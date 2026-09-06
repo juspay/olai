@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-pins/testids"
 /**
  * ONE PIN, drawn: a door, what it is called right now, what it is narrowed by,
  * and the way to take it off the shelf.
@@ -24,9 +25,9 @@
 
 
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
-import { Face } from "@olai/web/client/address/Face.tsx"
+import { Face } from "olai-plugin-navigation/address/Face.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { ENTRY_SHAPE,ROW_GAP } from "olai-plugin-layout/entry"
 import { hrefOf } from "olai-plugin-navigation/routes"
 import { Link } from "olai-plugin-navigation/routing"

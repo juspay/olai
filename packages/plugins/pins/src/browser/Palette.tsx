@@ -1,7 +1,7 @@
 /** Shelf commands use the pins activation's history and subscriptions. */
 import { definePlugin } from "@olai/plugin-api"
 import type { Edit } from "@olai/surface"
-import { nameOf } from "@olai/web/client/address/address.ts"
+import { nameOf } from "olai-plugin-navigation/address/address.ts"
 import { applying } from "@olai/web/client/writes.ts"
 import { Effect } from "effect"
 import { navigation,paletteAdapters } from "olai-plugin-navigation/contract"

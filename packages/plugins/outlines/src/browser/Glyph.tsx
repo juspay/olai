@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * ONE GLYPH COLUMN: what a node is, and the way into it, in a single cell.
  *
@@ -35,7 +36,7 @@ import { Show } from "solid-js"
 
 import { blockedBy, BULLET_TONE, Face, FACE, faceOf } from "@olai/web/client/marks.tsx"
 import { Link } from "olai-plugin-navigation/routing"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { atNode } from "olai-plugin-navigation/routes"

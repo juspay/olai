@@ -1,7 +1,8 @@
+import { TESTID } from "@olai/bundle/testids"
 import { Given, Then, When } from "@cucumber/cucumber";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { TESTID } from "@olai/web/testlib";
+
 import type { OlaiWorld } from "../support/world.ts";
 
 // An explicitly approved fixture exercises the same host capability another

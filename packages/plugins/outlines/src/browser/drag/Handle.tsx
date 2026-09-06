@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The bullet, as something to pick a row up by.
  *
@@ -34,7 +35,7 @@
 import type { Row } from "@olai/format"
 import type { JSX } from "solid-js"
 
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { useDragging } from "./dragging.ts"
 
 export function Handle(props: {

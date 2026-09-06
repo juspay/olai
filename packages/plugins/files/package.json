@@ -12,7 +12,12 @@
     "./surface": "./src/surface.ts",
     "./served": "./src/served.tsx",
     "./opens": "./src/opens.tsx",
-    "./making": "./src/file/making.ts"
+    "./making": "./src/file/making.ts",
+    "./testids": "./src/testids.ts",
+    "./icons": "./src/contracts/icons.tsx",
+    "./kinds": "./src/contracts/kinds.ts",
+    "./completing": "./src/contracts/completing.ts",
+    "./client": "./src/client.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -33,13 +38,20 @@
     "@olai/store": "workspace:*",
     "@olai/edit-intents": "workspace:*",
     "@olai/ui-primitives": "workspace:*",
-    "olai-plugin-vault": "workspace:*"
+    "olai-plugin-vault": "workspace:*",
+    "@olai/edit-history": "workspace:*"
   },
   "olai": {
     "contracts": [
       "./served",
       "./opens",
-      "./making"
+      "./making",
+      "./testids",
+      "./icons",
+      "./kinds",
+      "./surface",
+      "./completing",
+      "./client"
     ]
   }
 }

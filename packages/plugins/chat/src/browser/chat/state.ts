@@ -50,7 +50,6 @@ import { type AskAnswer } from "@olai/acp/wire"
 import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
 import { chatWire } from "../wire.ts"
 
-import { olai } from "@olai/web/client/wire.ts"
 import { type Call, run, runAsync } from "@olai/web/client/run.ts"
 import { attaching } from "./attach.ts"
 import { createRows } from "./order.ts"

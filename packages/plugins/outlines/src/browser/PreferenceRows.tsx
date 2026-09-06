@@ -1,7 +1,7 @@
 import { density, type Density, setDensity } from "./settings/density.ts"
 import { doneHidden, setDoneHidden } from "./settings/done.ts"
-import { Row } from "@olai/web/client/settings/Row.tsx"
-import { Segmented } from "@olai/web/client/settings/Segmented.tsx"
+import { Row } from "@olai/ui-primitives/SettingRow.tsx"
+import { Segmented } from "@olai/ui-primitives/Segmented.tsx"
 /** Done: Visible / Hidden — the words the setting has always said, from the
  *  outline pill through the reader-wide row to this one. What changed with
  *  scoping is where the words point: at the page the hint names. */

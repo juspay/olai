@@ -10,7 +10,9 @@
     "./server": "./src/server.ts",
     "./*": "./src/*",
     "./surface": "./src/surface.ts",
-    "./questions": "./src/browser/question.ts"
+    "./questions": "./src/browser/question.ts",
+    "./testids": "./src/testids.ts",
+    "./client": "./src/client.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -32,11 +34,15 @@
     "olai-plugin-outlines": "workspace:*",
     "@olai/edit-history": "workspace:*",
     "@olai/ui-primitives": "workspace:*",
-    "olai-plugin-layout": "workspace:*"
+    "olai-plugin-layout": "workspace:*",
+    "olai-plugin-files": "workspace:*"
   },
   "olai": {
     "contracts": [
-      "./questions"
+      "./questions",
+      "./testids",
+      "./surface",
+      "./client"
     ]
   }
 }

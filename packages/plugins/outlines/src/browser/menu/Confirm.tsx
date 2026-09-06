@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The second step: the question, and the two ways out of it.
  *
@@ -28,7 +29,7 @@ import { onMount } from "solid-js"
 
 import type { MenuAction } from "./action.ts"
 import { ALARM_PILL, QUIET_PILL } from "@olai/web/client/pill.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function Confirm(props: {
   readonly action: MenuAction

@@ -49,8 +49,8 @@
 
 import { createMemo, Show } from "solid-js"
 
-import { addressIn, shownIn, titleFace } from "@olai/web/client/address/address.ts"
-import { Face } from "@olai/web/client/address/Face.tsx"
+import { addressIn, shownIn, titleFace } from "olai-plugin-navigation/address/address.ts"
+import { Face } from "olai-plugin-navigation/address/Face.tsx"
 import { useNames } from "./reading.tsx"
 import { renderTitle, sameDrawing } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"

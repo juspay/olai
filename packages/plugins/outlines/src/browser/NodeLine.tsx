@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * A node, on one line: its title, the one fact allowed beside it, and the date
  * it carries.
@@ -52,7 +53,7 @@ import { type JSX, Show } from "solid-js"
 import { DateBadge } from "./DateBadge.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { RepeatBadge } from "./RepeatBadge.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { toneOf } from "./tone.ts"
 import { ROW_TITLE, SECTION_TITLE } from "@olai/ui-primitives/touch.ts"
 

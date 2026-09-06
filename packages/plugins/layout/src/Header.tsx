@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-layout/testids"
 /**
  * The app's own chrome: a slim bar above every column.
  *
@@ -100,15 +101,15 @@
 import { Show } from "solid-js"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
-import { Indicator } from "@olai/web/client/connection/Indicator.tsx"
+import { Indicator } from "./Indicator.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { Leaf } from "@olai/web/client/Leaf.tsx"
 import { WORDMARK } from "@olai/web/client/look.ts"
 import { calledApp } from "@olai/web/client/named.ts"
 import { PluginHeaders } from "./Chrome.tsx"
 import { PluginViewer } from "./Seats.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
-import { Uptime } from "@olai/web/client/Uptime.tsx"
+
+import { Uptime } from "./Uptime.tsx"
 import { connectionReadout } from "@olai/web/client/wire.ts"
 import { desktop } from "olai-plugin-layout/media"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"

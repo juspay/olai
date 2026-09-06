@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/edit-history/testids.ts"
 /**
  * What ⌘Z just did, when it has something to say.
  *
@@ -19,7 +20,7 @@
 import { Show } from "solid-js"
 
 import { LAYER } from "@olai/web/client/layer.ts"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
 

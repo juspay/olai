@@ -1,3 +1,4 @@
+import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * What rides inline after a title, dim, and nothing else does.
  *
@@ -22,7 +23,7 @@ import { Match, Show, Switch } from "solid-js"
 import { foldSays } from "@olai/web/client/hidden.ts"
 import type { Hot } from "./hot.ts"
 import { ProgressBadge } from "@olai/web/client/ProgressBadge.tsx"
-import { TESTID } from "@olai/web/client/testids.ts"
+
 
 export function Aside(props: {
   /** The one fact, when there is one. */
