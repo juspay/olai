@@ -1828,6 +1828,8 @@ export class OlaiWorld extends World {
    *  Same reasoning as the row above: which agents a server finds decides
    *  whether its panel asks, so it is a property of the scenario. */
   hasPi = false;
+  /** The Codex roster row, using the scripted ACP transport. */
+  hasCodex = false;
   /** Which git situation this scenario's server was started into (`@git:…`),
    *  or `undefined` for the `--no-commit` every other scenario runs with.
    *  Carried for the same reason as the three above: a restart mid-scenario has

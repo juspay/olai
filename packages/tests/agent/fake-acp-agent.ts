@@ -374,6 +374,8 @@ let listRefused = false
  *  never ask a structured question of, and this one does not either. */
 let capabilities: Record<string, unknown> = {}
 
+const CODEX = process.env["OLAI_FAKE_CODEX"] === "yes"
+
 const STORED = process.env["OLAI_FAKE_ACP_STORED"] ?? ""
 const stored = () => STORED !== ""
 
@@ -2843,7 +2845,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           // (the read loop has queued prompts behind the running turn all
           // along); what depends on it is the panel's PROMISE, which is made
           // only for an agent that said this.
-          ...(silent() ? {} : { _meta: { claudeCode: { promptQueueing: true } } }),
+          ...(silent() || CODEX ? {} : { _meta: { claudeCode: { promptQueueing: true } } }),
         },
         agentInfo: { name: "fake-acp-agent", version: "0.1.0" },
         // ... and IT TAKES AN INTERRUPTION, in the top-level `_meta` beside
@@ -3112,7 +3114,7 @@ readMessages(
       // whole shape of an agent with no queue: the refusal comes back at once
       // rather than when the running turn ends, and nothing about the turn in
       // flight changes.
-      if (busyRefused && running) {
+      if ((busyRefused || CODEX) && running) {
         // Output belongs to the still-running earlier turn. Put it before the
         // refusal deterministically: a conversation-wide output counter must
         // not make the queued prompt appear delivered because its sibling spoke.

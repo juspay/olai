@@ -25,7 +25,10 @@ describe("Codex steering", () => {
     expect(steering?.taken({ outcome: "startedNewTurn" })).toBe(true)
     expect(steering?.taken({ outcome: "failed" })).toBe(false)
     expect(steering?.taken({ outcome: "future" })).toBe(false)
-    expect(steering).toMatchObject({ method: "_session/steering", timeout: "30 seconds" })
+    expect(steering).toMatchObject({ method: "_session/steering", timeout: "30 seconds",
+      meta: { steering: { idleBehavior: "promptRequired" } } })
+    expect(steering?.taken({ outcome: "promptRequired", reason: "noRunningTurn" })).toBe(false)
+    expect(CODEX.queues(HANDSHAKE)).toBe(false)
   })
 })
 
