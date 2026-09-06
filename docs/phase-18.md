@@ -20,7 +20,9 @@ focused run (10 scenarios, 241 steps) and the final full CI.
 
 The real-Git upstream case has an explicit 30-second integration budget:
 all 32 Git tests pass, and a probe delaying every Git invocation by 400ms
-passes in 7.47 seconds without changing any assertions.
+passes in 7.47 seconds without changing any assertions. The full-bundle
+capability ownership audit also has an explicit 30-second cold-load budget;
+its 14 ownership assertions pass.
 
 The palette failures are reproduced by a real held reconnect: the old `open()`
 helper returned behind Offline's painted dialog, whose capture listener

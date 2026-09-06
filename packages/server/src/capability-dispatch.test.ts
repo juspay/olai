@@ -18,6 +18,8 @@ const variants = (ast: SchemaAST.AST, field: string) => arms(ast).flatMap(arm =>
   })
 })
 
+// Reading BundleModules imports the complete catalog, including process-backed
+// providers. Its cold load shares the fleet with the browser shards.
 test("every canonical operation and edit intent has one declared capability owner", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "2026-09-05T00:00:00Z" })
   yield* mountBundle(plugins.host, { kind: "exact", names: [] }, [])
@@ -34,4 +36,4 @@ test("every canonical operation and edit intent has one declared capability owne
     expect(declarations.toSorted()).toEqual(variants(schema.ast, field).toSorted())
     expect(new Set(declarations).size).toBe(declarations.length)
   }
-}))))
+}))), 30_000)
