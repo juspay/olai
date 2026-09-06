@@ -45,7 +45,7 @@ chat-agent-session: claude                     a node agent with no session yet
 chat-agent-session: claude:0f3c8d21-…          ...and one that is bound
 ```
 
-The subtree under that node is that agent's memory, and the write fence keeps it there: an agent writes strictly inside its own subtree and asks its ancestor for anything above.
+The subtree under that node is that agent's memory — its home, its history, its doorbells. Writes reach the vault.
 
 ### An existing vault needs one row
 

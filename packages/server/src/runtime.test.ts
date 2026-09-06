@@ -261,7 +261,7 @@ test("app.get answers the box and the start this runtime was minted with", () =>
 test("a face served under another writer differs by exactly the members that record one", () =>
   withRuntime({ "a.olai": OUTLINE }, ({ wired, ops }) =>
     Effect.gen(function*() {
-      const agent = writerAt(wired.bound, ops, { writer: "mcp", fence: null })
+      const agent = writerAt(wired.bound, ops, { writer: "mcp" })
 
       // The RECORD is the group's, exactly — which is also what `restrictHandlers`
       // asserts before any face binds, so a mis-derived tag is a boot crash rather

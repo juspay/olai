@@ -91,10 +91,10 @@ import { resolvedWrite } from "@olai/ops/resolved"
  *
  *  A {@link Caller} and not a bare writer, because this composes a WRITING FACE
  *  and a face says both halves of who is asking: which writer records it, and
- *  how far the door reaches. `fence` has no default here for the reason
- *  `./runtime.ts`'s `writing` gives — an absent fence means "this door has no
- *  session", which is true of a keystroke and false of an agent, and the
- *  difference must not be spellable by omission. */
+ *  which remaining rule the session carries. `rule` has no default here for the
+ *  reason `./runtime.ts`'s `writing` gives — an absent rule means "this call
+ *  has no session", which is true of a keystroke and false of an agent, and
+ *  the difference must not be spellable by omission. */
 export const runResolved = (
   ops: Pick<Ops, "read" | "run">,
   caller: Caller,
@@ -104,6 +104,6 @@ export const runResolved = (
   resolvedWrite(
     ops.read,
     resolve,
-    (request) => ops.run(request, caller.writer, caller.fence ?? undefined),
+    (request) => ops.run(request, caller.writer, caller.rule),
     reresolves,
   )

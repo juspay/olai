@@ -14,10 +14,10 @@
  * `@olai/format` and read by four packages, because when chat was core there was
  * nobody else it could belong to. A key's SPELLING is not a licence, and this
  * key carries the sharpest one in the tree: a value here decides which node a
- * session is fenced to, which subtree it may write in, and which ancestor a
- * refusal names. A vault that happens to call a column `agent-session` and means
- * something else by it was, until this lane, a vault whose columns olai read as
- * bindings.
+ * session is seated on — its home, its history, its doorbells — and which
+ * conversation it is having. A vault that happens to call a column
+ * `agent-session` and means something else by it was, until this lane, a vault
+ * whose columns olai read as bindings.
  *
  * ## TWO LAYERS, AND THE VAULT IS THE OUTER ONE
  *

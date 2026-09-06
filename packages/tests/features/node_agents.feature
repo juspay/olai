@@ -202,27 +202,28 @@ Feature: A node with an `agent-session` property IS an agent
     # says back what it was given, so the last thing olai heard is the question.
     And the door on "door-live" last said "and now?"
 
-  # ── the subtree is both wake scope and write boundary ────────────────
+  # ── the subtree is wake scope; writes reach the vault ────────────────
 
   @scratch:lanes
-  Scenario: A node agent cannot write a sibling outside its subtree
-    # The agent can read the whole vault, but the bearer on this ACP process
-    # is seated at `door-live`. `door-review` is a sibling, so the refusal is
-    # made after planning and before the store gate; the row stays untouched.
+  Scenario: A node agent can write a sibling outside its subtree
+    # The subtree is the session's home, not its territory. `door-review` is a
+    # sibling of the seat, and the write lands the same way a loopback MCP
+    # write would.
     Given I open the outline "lanes.olai"
+    And I show the done nodes
     And the agent panel is open
     Then the agent "door-live" stands "idle"
     When I ask the agent "ready"
     And the agent is idle
     When I ask the agent "done door-review"
     Then the agent is idle
-    And the chat shows a refusal
-    And the node "door-review" has status "todo"
+    And the node "door-review" has status "done"
+    And the chat shows no refusal
 
   @scratch:lanes
   Scenario: A node agent may write its own subtree
     # At the root counts as inside. This is the same MCP tool and the same
-    # writer as the refused sibling call above; only the planned footprint
+    # writer as the sibling call above; only the planned footprint
     # differs.
     Given I open the outline "lanes.olai"
     And I show the done nodes

@@ -2350,8 +2350,8 @@ test("a subtree does not reach through a mirror placed inside it", () => {
   // `kitchen-herbs` is a placement of `herbs` under `kitchen`, so the herb bed
   // is DRAWN inside the remodel and is not IN it. The walk stops at the
   // placement, which is the one thing the fence and `search under:` must agree
-  // about: were this true, an agent fenced to `kitchen` could rewrite the
-  // garden by following a mirror somebody else placed.
+  // about: were this true, a search `under:kitchen` would select the garden
+  // by following a mirror somebody else placed.
   expect(insideSubtree(derived, "kitchen-herbs", "kitchen")).toBe(true)
   expect(insideSubtree(derived, "herbs", "kitchen")).toBe(false)
   expect(insideSubtree(derived, "basil", "kitchen")).toBe(false)

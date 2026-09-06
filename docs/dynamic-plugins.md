@@ -19,7 +19,7 @@ A swatch for hex colours          plugin: swatch
 - `browser.tsx` is optional. A plugin that only teaches the vault a property kind, or only rings a doorbell, is a whole plugin.
 - any other child is ordinary outline content — notes about the plugin, a to-do — and is passed over.
 
-Nothing about that needs a new write door. An agent writes a definition with `add_node`, `set_desc` and `set_prop`; the subtree fence applies exactly as it does to any other write; and the `.olai` file the nodes live in is committed by the ledger like any other change. There is no `.ts` on the disk, because `.ts` is not a kind of file olai serves — the source is vault content, and it travels, versions and diffs like vault content.
+Nothing about that needs a new write door. An agent writes a definition with `add_node`, `set_desc` and `set_prop`; and the `.olai` file the nodes live in is committed by the ledger like any other change. There is no `.ts` on the disk, because `.ts` is not a kind of file olai serves — the source is vault content, and it travels, versions and diffs like vault content.
 
 ## What a half may import
 

@@ -226,12 +226,12 @@ export interface Roster {
    */
   readonly key: () => string
   /**
-   * ...AND EVERY KEY IT COULD BE READ FROM, which is what the FENCE forbids.
+   * ...AND EVERY KEY IT COULD BE READ FROM, which is what the session may not write.
    *
    * ALL OF THEM, and that is not belt-and-braces: a vault mid-migration
    * declares two keys of this kind, and this package's own roster reads a
-   * binding off either — so a fence naming only the key it WRITES would leave
-   * the other as a door a seated agent could re-seat itself through.
+   * binding off either — so a door forbidding only the key it WRITES would
+   * leave the other as a way a seated agent could re-seat itself.
    *
    * NEVER EMPTY. This plugin's kind is enabled by construction wherever this
    * carrier exists, so the claim is always in the fold; a store that has never
@@ -239,14 +239,12 @@ export interface Roster {
    * is what an empty vault's fold produces anyway — so nothing downstream has a
    * second state to hold. The one board that can empty the fold is one that has
    * declared the claimed key something ELSE, which is a board saying it keeps no
-   * bindings; the claimed word is still the honest thing to fence, because it is
-   * the key a write with nothing declared would land on.
+   * bindings; the claimed word is still the honest thing to forbid, because it
+   * is the key a write with nothing declared would land on.
    */
   readonly keys: () => ReadonlyArray<string>
   /** The nearest candidate node at or above an arbitrary node. */
   readonly nearestAt: (node: string, candidates: ReadonlySet<string>) => string | null
-  /** The nearest node agent strictly above this one, named for a refusal. */
-  readonly above: (node: string) => string | null
   /** The rows the cell carries: the vault's half, wearing what olai overheard
    *  the sessions it names say. */
   readonly rowsWith: (
@@ -301,15 +299,6 @@ export const roster = (): Roster => {
     key: () => keys[0] ?? SESSION_TYPE,
     keys: () => keys,
     nearestAt: nearest,
-    above: (node) => {
-      if (reading === null) return null
-      const agents = new Set(held.map((one) => one.id))
-      agents.delete(node)
-      const parent = nearest(node, agents)
-      if (parent === null) return null
-      const agent = held.find((one) => one.id === parent)
-      return agent === undefined ? null : `“${agent.title}” (\`${parent}\`)`
-    },
     rowsWith: (overheard, live) => joined(held, overheard, live),
   }
 }

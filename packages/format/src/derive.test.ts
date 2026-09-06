@@ -1767,11 +1767,11 @@ test("hiding what is done does not shrink what an archive would take", () => {
  *
  * `ancestorsOf` is `ancestryOver` with `byId.get` bound, so its own cases are
  * everything that reads a crumb list anywhere in this repository. What is left
- * to claim is the reason the lookup became a parameter: `@olai/ops`' subtree
- * write fence asks where a record WOULD hang once a plan lands, and an arriving
- * record's ancestry is in the plan's own records rather than in `byId`. These
- * say that the same walk answers that question, and that the stopping rules
- * came with it rather than staying behind with the derivation.
+ * to claim is the reason the lookup became a parameter: a plan asks where a
+ * record WOULD hang once it lands, and an arriving record's ancestry is in
+ * the plan's own records rather than in `byId`. These say that the same walk
+ * answers that question, and that the stopping rules came with it rather than
+ * staying behind with the derivation.
  */
 const walkOver = (records: ReadonlyArray<Located>): ((id: string) => Located | undefined) => {
   const byId = new Map(records.map((at) => [at.node.id, at]))
@@ -1804,8 +1804,8 @@ test("…so a record that has not been written yet has an ancestry", () => {
 })
 
 test("the stopping rules travelled with the walk, not with the derivation", () => {
-  // A MIRROR is not climbed through — the rule that keeps an agent fenced to a
-  // subtree from reaching whatever somebody else placed inside it.
+  // A MIRROR is not climbed through — the rule that keeps a subtree walk from
+  // reaching whatever somebody else placed inside it.
   const mirrored = nodesOf([
     `{"id":"house","ord":"a0","title":"house"}`,
     `{"id":"ghost","parent":"house","ord":"a0","mirror":"shed"}`,

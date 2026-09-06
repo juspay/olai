@@ -183,7 +183,7 @@ const withTools = <A>(
       expose: MCP,
       client: () =>
         clientOver(
-          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },
+          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp" }) },
           wired.faces.agent,
         ),
       tools: bespokeFrom(TOOLS, {
@@ -194,7 +194,7 @@ const withTools = <A>(
         // here would make every assertion about a read's `vintage` an
         // assertion about the stub.
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
-        fenced: (client) => client,
+        doorAt: (client) => client,
         record: (request) => ops.commit(request, "mcp"),
         push: ops.push,
       }),

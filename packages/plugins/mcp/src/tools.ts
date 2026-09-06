@@ -112,7 +112,7 @@ export const bespokeFrom = (
         // it, which is a capture attributed to the wrong person.
         const said = answer(
           tool,
-          doorFor(at.fenced(client as McpClient), at),
+          doorFor(at.doorAt(client as McpClient), at),
           args,
           at.login(),
         )
@@ -261,7 +261,7 @@ export interface Served {
   readonly vintage: Effect.Effect<Vintage | undefined>
   /** Select the per-request write door before the adapter starts a fresh Effect
    * fiber and request-local context is no longer available. */
-  readonly fenced: (client: McpClient) => McpClient
+  readonly doorAt: (client: McpClient) => McpClient
   /**
    * RECORD A WRITE, with this face's writer already bound — `ops.commit`
    * through the ledger door. A serve that did not mount the git row refuses

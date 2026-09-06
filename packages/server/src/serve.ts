@@ -88,7 +88,7 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     /**
      * THE CYCLE BROKEN, and this box is the break.
      *
-     * A fenced ticket is minted off the MCP row's `ticketMint`, which is offered
+     * A session ticket is minted off the MCP row's `ticketMint`, which is offered
      * on `plugins.host` — so tickets need the host. And the host is opened with
      * a `ticketFor` door already in its config, because `Tools.ticket` is a
      * service every plugin reads through and core will not hand one out later —
@@ -100,7 +100,7 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
      *
      * `?? null` IS NOT A GUARD, it is the answer. `Tools.ticket` already
      * answers `NO_TICKET` for a serve with no MCP face, and its one caller
-     * refuses to seat a session on an absent fence rather than inventing one
+     * refuses to seat a session on an absent credential rather than inventing one
      * (`@olai/plugin-api`'s `PluginsConfig.ticketFor`). A ticket asked for while
      * this box is still `undefined` therefore gets the same answer as a ticket
      * asked for on `olai surface` or on any headless serve — never a fabricated

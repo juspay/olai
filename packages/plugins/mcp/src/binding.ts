@@ -19,7 +19,7 @@ export interface AgentBinding {
   readonly expose: ExposeMap<typeof mcpContract.spec>
   readonly root: string
   readonly vintage: Effect.Effect<Vintage | undefined>
-  readonly fenced: (client: ClientOrConnection) => ClientOrConnection
+  readonly doorAt: (client: ClientOrConnection) => ClientOrConnection
   readonly record: (request: CommitRequest) => Effect.Effect<CommitResult>
   readonly push: Effect.Effect<PushResult>
 }
@@ -33,7 +33,7 @@ export const bindAgent = (options: {
 }): AgentBinding & { readonly tickets: Tickets } => {
   const { shared } = options
   const ops = liveOps(options.ops)
-  const panel = liveClient(shared.agent, { writer: "mcp", fence: null })
+  const panel = liveClient(shared.agent, { writer: "mcp" })
   const tickets = ticketing({ reservations: shared.writeReservations, bound: shared.agent, face: () => shared.agent().expose, ops, token: shared.token, currentTicket: options.ticket })
   return {
     tickets,
@@ -47,7 +47,7 @@ export const bindAgent = (options: {
       const directory = options.directory()
       return directory ? Effect.map(directory.store.read("verified"), aged => aged.vintage) : Effect.succeed(undefined)
     }),
-    fenced: held => tickets.doorAt(held as McpClient),
+    doorAt: held => tickets.doorAt(held as McpClient),
     record: request => ops.commit(request, "mcp"),
     push: ops.push,
   }

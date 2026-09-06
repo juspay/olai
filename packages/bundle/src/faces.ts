@@ -407,8 +407,8 @@ export const AGENT: ExposeMap<typeof surface.spec> = {
   //
   // WRITING the definition is not on this list and needs nothing added to it: a
   // plugin is a node with two child notes, so an agent writes one with
-  // `add_node`, `set_desc` and `set_prop` — the ordinary write door, under the
-  // ordinary subtree fence, recorded by the ordinary ledger commit.
+  // `add_node`, `set_desc` and `set_prop` — the ordinary write door, recorded
+  // by the ordinary ledger commit.
   "plugins.inspect": "tool",
   "plugins.run": "tool",
   "plugins.stop": "tool",

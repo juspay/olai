@@ -1994,7 +1994,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "format/src/verdict.ts",
       "format/src/vocabulary.bench.ts",
       "ops/src/codec.ts",
-      "ops/src/fenced.ts",
+      "ops/src/door.ts",
       "ops/src/following.ts",
       "ops/src/ops.ts",
       "ops/src/plan.ts",

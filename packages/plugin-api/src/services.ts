@@ -73,8 +73,8 @@
  * of the package.
  *
  * No `intercept` on the vault, either, and that is a phase and not an oversight:
- * the subtree write fence belongs on {@link Vault} as interception metadata, and
- * it arrives with node-agent scopes.
+ * node-agent scopes arrive with a credential, not with interception metadata
+ * on {@link Vault}.
  */
 
 import type { Engine, Registering } from "@olai/acp/engine"
@@ -101,6 +101,7 @@ import { ownedKey, ownService, type OwnServices } from "./owned.ts"
 import {
   type ConversationSeen,
   type Deliveries as DeliveryDoor,
+  type Forbidden,
   kindWordOf,
   type MintedTicket,
   NO_TICKET,
@@ -110,7 +111,6 @@ import {
   type PropWrite,
   type Refusal,
   type Refused,
-  type Seated,
   type Wake,
 } from "./contract.ts"
 
@@ -1011,20 +1011,21 @@ export interface ToolServer {
 export interface Tools {
   readonly server: Effect.Effect<ToolServer>
   /**
-   * ...AND A CREDENTIAL THAT NARROWS IT TO ONE SUBTREE, for one session.
+   * ...AND A CREDENTIAL FOR ONE SESSION.
    *
-   * The write fence phase 6 built: a node agent writes strictly inside its own
-   * subtree and asks its ancestor for anything above. The ENFORCEMENT is
-   * `@olai/ops`', between `plan` and `commit`; the CHANNEL is a bearer the MCP
-   * route resolves per request; and what is minted here is the pairing of the
-   * two, so a session handed this bearer reaches a door that is the same face
-   * with a fence on it.
+   * A node agent's door is the same write door loopback MCP has, under the
+   * node's credential. The remaining rule is the keys on {@link Forbidden}: an
+   * agent may not rewrite who is seated where, its own binding included. The
+   * ENFORCEMENT is `@olai/ops`', between `plan` and `commit`; the CHANNEL is
+   * a bearer the MCP route resolves per request; and what is minted here is
+   * the pairing of the two, so a session handed this bearer reaches a door
+   * that is the same face with that property rule on it.
    *
-   * TWO FUNCTIONS AND NOT TWO VALUES, and both are read per request rather than
-   * closed over. `seated` is asked because a session's subtree may be re-pointed
-   * under it, and `above` because the ancestor a refusal names is a reading of a
-   * vault that moves — which is exactly the reading the plugin holding the
-   * sessions has and core does not.
+   * A FUNCTION AND NOT A VALUE, and it is read per request rather than
+   * closed over. The list is asked because the keys a vault declares this
+   * kind on may move mid-conversation — a migration row landing is a
+   * different forbidden table, which is exactly the reading the plugin
+   * holding the sessions has and core does not.
    *
    * `writer` is the session provider’s attribution, validated by the host’s
    * ledger vocabulary; the transport does not choose a plugin’s name.
@@ -1034,8 +1035,7 @@ export interface Tools {
    * same breath rather than leaving a bearer alive for a session that is gone.
    */
   readonly ticket: (
-    seated: () => Seated,
-    above: (node: string) => string | null,
+    forbidden: () => ReadonlyArray<Forbidden>,
     writer: string,
   ) => MintedTicket
 }
@@ -1261,21 +1261,20 @@ export interface PluginsConfig {
    */
   readonly tools?: Deferred.Deferred<ToolServer>
   /**
-   * ...AND THE FENCED CREDENTIAL MINTED OFF IT — see {@link Tools.ticket}.
+   * ...AND THE SESSION CREDENTIAL MINTED OFF IT — see {@link Tools.ticket}.
    *
    * A THUNK rather than a value, and it answers `null` until the listener has
    * bound, for the reason the address above is a `Deferred` and this is not: a
    * ticket is minted per SESSION, at a moment the plugin chooses, and a plugin
-   * that spawned one before there was a face to fence would be asking for a
-   * bearer onto nothing. `null` is that state said out loud, and the one caller
-   * refuses to seat a session on it rather than inventing one.
+   * that spawned one before there was a face to mint against would be asking
+   * for a bearer onto nothing. `null` is that state said out loud, and the one
+   * caller refuses to seat a session on it rather than inventing one.
    *
-   * OPTIONAL, and absent means NO FENCE EVER — the headless faces and every
-   * bench, which have no MCP face to narrow.
+   * OPTIONAL, and absent means NO CREDENTIAL EVER — the headless faces and
+   * every bench, which have no MCP face to mint against.
    */
   readonly ticketFor?: (
-    seated: () => Seated,
-    above: (node: string) => string | null,
+    forbidden: () => ReadonlyArray<Forbidden>,
     writer: string,
   ) => MintedTicket | null
   /**
@@ -1460,11 +1459,11 @@ export const openPlugins = (
       // plugin gated on one is gated for the life of that process. See
       // {@link PluginsConfig.tools}.
       server: config.tools === undefined ? Effect.never : Deferred.await(config.tools),
-      // ...and NULL rather than never for the fence, because this one is asked
-      // per session and a caller has somewhere to put the absence: a root with
-      // no MCP face seats a session unfenced, which is the state it was already
-      // in ({@link PluginsConfig.ticketFor}).
-      ticket: (seated, above, writer) => config.ticketFor?.(seated, above, writer) ?? NO_TICKET,
+      // ...and NULL rather than never for the credential, because this one is
+      // asked per session and a caller has somewhere to put the absence: a root
+      // with no MCP face seats a session with no remaining write rule, which is
+      // the state it was already in ({@link PluginsConfig.ticketFor}).
+      ticket: (forbidden, writer) => config.ticketFor?.(forbidden, writer) ?? NO_TICKET,
     }))
 
     yield* provide(host, Bundle, () => ({ rank: config.rank ?? (() => 0) }))
@@ -1518,7 +1517,6 @@ export type {
   Refusal,
   Refused,
   Forbidden,
-  Seated,
   StdioServer,
   Wake,
 } from "./contract.ts"
