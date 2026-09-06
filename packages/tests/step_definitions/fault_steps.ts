@@ -8,27 +8,15 @@
  * deliberately offers no way to ask for one — a fault switch shipped to
  * production is a fault switch in production.
  *
- * So it is injected from outside the bundle, into `String.prototype.padStart`
- * and only for the exact call the date arithmetic under the client makes
- * (`@olai/format`'s `calendar.ts` zero-padding, which the month grid and the
- * clock both run through before any page can be drawn). Narrow on purpose: a
- * builtin broken for everybody would take out the bundler's own runtime, a
- * dependency's module initialisation, or the fault card itself, and the
- * scenario would be proving something else.
- *
- * Effect rc.110 is that dependency: `Encoding.ts` fills a 256-entry hex table
- * at import with `i.toString(16).padStart(2, "0")`. That runs before there is
- * a tree to replace, so throwing on the first `(2, "0")` is a white tab for a
- * reason this scenario is not about. Those 256 are skipped; what throws is the
- * next `(2, "0")`, which is the client's own date pad, during a render.
- *
- * The coupling that buys is real and is answered rather than hidden: if that
- * call ever stops happening, the app draws itself perfectly and the step below
- * fails saying exactly that, in a second, instead of timing out with nothing
- * to say.
+ * Inject one failure while the renderer assigns the app header's DOM marker.
+ * That operation runs inside the drawn component, after scoped providers have
+ * started. Breaking date arithmetic instead throws during clock activation and
+ * tests provider startup, not the rendering boundary. The marker confines the
+ * injection to the header, leaving dependency initialization and the card alone.
  */
 
 import * as assert from "node:assert";
+import { TESTID } from "@olai/web/testlib";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import {
@@ -49,24 +37,17 @@ const THROWN = "olai e2e: a deliberate fault in the render";
 Given(
   "this client's own code throws while it draws",
   async function (this: OlaiWorld) {
-    await this.page.addInitScript((message: string) => {
-      const padStart = String.prototype.padStart;
-      // Effect's hex table at import: one pad per byte, before any render.
-      let hexTable = 256;
-      String.prototype.padStart = function (
-        this: string,
-        length: number,
-        fill?: string,
-      ): string {
-        // `(2, "0")` is the client's date pad — after the hex table, not
-        // instead of it. See the file header.
-        if (length === 2 && fill === "0") {
-          if (hexTable > 0) hexTable -= 1;
-          else throw new Error(message);
+    await this.page.addInitScript(({ message, header }) => {
+      const setAttribute = Element.prototype.setAttribute;
+      let armed = true;
+      Element.prototype.setAttribute = function (name: string, value: string): void {
+        if (armed && name === "data-testid" && value === header) {
+          armed = false;
+          throw new Error(message);
         }
-        return padStart.call(this, length, fill);
+        setAttribute.call(this, name, value);
       };
-    }, THROWN);
+    }, { message: THROWN, header: TESTID.appHeader });
   },
 );
 
@@ -93,9 +74,9 @@ When("I open a page it cannot draw", async function (this: OlaiWorld) {
     await this.page.locator(FAULT).count(),
     1,
     "the app drew itself, so nothing was broken on the render path: the " +
-      "injected fault (String.prototype.padStart(2, '0')) is no longer " +
+      "injected header DOM fault is no longer " +
       "something this client does while drawing a page. Point it at whatever " +
-      "it does now — this scenario is about the boundary, not about dates.",
+      "it does now — this scenario is about the rendering boundary.",
   );
 });
 

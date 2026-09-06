@@ -75,7 +75,7 @@
 import { customOf, docOf, type LocatedRegular } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
-import { PluginDoors } from "@olai/web/client/plugins/Seats.tsx"
+import { PluginDoors } from "./Doors.tsx"
 import { documentReferences } from "../index.ts"
 import { readLocation } from "olai-plugin-ui-renderer/contract"
 import { For } from "solid-js"

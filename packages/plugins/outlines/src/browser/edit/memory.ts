@@ -16,7 +16,11 @@ export interface EditorRange {
   readonly direction: "forward" | "backward" | "none"
 }
 
+let activation = 0
+
 export const editorMemory = () => {
+  const born = activation
+  const queued = serial()
   const [draft, setDraft] = createSignal<Draft | null>(null)
   const [ghosts, setGhosts] = createSignal<ReadonlyArray<Pending>>([])
   const [caret, setCaret] = createSignal(0)
@@ -28,7 +32,7 @@ export const editorMemory = () => {
     completion: { slot: undefined as Slot | undefined, dismissed: createSignal<string | null>(null) },
     draft, setDraft, ghosts, setGhosts, caret, setCaret, resuming, setResuming, placements, setPlacements,
     mintSlot: () => `d${++slots}`,
-    enqueue: serial(),
+    enqueue: (step: () => unknown) => queued(() => born === activation ? step() : undefined),
     selection: selectionMemory(),
     moving: moveMemory(),
   }
@@ -55,4 +59,4 @@ export const keepEditor = (pane: number, page: string, route: Route, memory: Edi
   saved.set(route, entries)
 }
 
-export const clearEditorMemory = (): void => { saved = new WeakMap() }
+export const clearEditorMemory = (): void => { activation++; saved = new WeakMap() }

@@ -8,7 +8,7 @@ How to serve a directory and configure the server. The git story is [git.md](git
 
 For an MCP-only server, run `olai web path/to/outlines --profile surface`. It opens the same vault and write gate, serves `/mcp` without browser assets or a websocket, and needs no browser build. Its defaults select `vault`, `mcp`, the independent content/file providers (`outlines`, `markdown`, `files`, `pins`, `capture`, `trash`), and `vault-plugins`; an explicit `--plugins` list replaces that entire selection. `olai surface <verb>` remains the terminal client of a running server.
 
-`--profile test-minimal` selects only the vault plugin, with no transports and logs `no transport rows enabled`. Its only running row is `vault`, which holds the ordinary directory lock until stopped. The `vault` row owns the directory lock, store watcher, write gate and revision publisher; kinds remain a host registry.
+`--profile test-minimal` selects only the vault plugin, with no transports and logs `no transport rows enabled`. Its selected row is `vault`, which holds the ordinary directory lock until stopped. Its supplemental HTTP routes are passive and do not open a listener. The `vault` row owns the directory lock, store watcher, write gate and revision publisher; kinds remain a host registry.
 
 For ordinary additions and removals, prefer the modifiers over listing the whole bundle. For changes relative to the profile defaults, use `--extra-plugins` and `--without-plugins`. These modifiers apply to transports too: `--without-plugins=mcp` removes agent tools while keeping the browser. They cannot be combined with the exact `--plugins` flag.
 
@@ -283,11 +283,11 @@ Beside them are the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), od
 olai web ~/outlines --extra-plugins=xyne-spaces          # the default, plus Spaces
 olai web ~/outlines --without-plugins=journal            # the default, minus the journal
 olai web ~/outlines --extra-plugins=xyne-spaces --without-plugins=journal
-olai web ~/outlines --plugins=vault,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector                        # odu only — and no panel at all
-olai web ~/outlines --plugins=vault,chat,claude,kolu,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector       # a conversation, one engine, the usual appliances — and no pill
-olai web ~/outlines --plugins=vault,journal,chat,claude,kolu,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector # journal, a conversation, one engine and the appliances — and nothing searching
-olai web ~/outlines --plugins=vault,search,chat,claude,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector          # a matcher, a conversation, one engine
-olai web ~/outlines --plugins=vault,chat,codex,opencode,pi,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector     # no Claude row, no probe for one
+olai web ~/outlines --plugins=vault,odu,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector                        # odu only — and no panel at all
+olai web ~/outlines --plugins=vault,chat,claude,kolu,odu,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector       # a conversation, one engine, the usual appliances — and no pill
+olai web ~/outlines --plugins=vault,journal,chat,claude,kolu,odu,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector # journal, a conversation, one engine and the appliances — and nothing searching
+olai web ~/outlines --plugins=vault,search,chat,claude,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector          # a matcher, a conversation, one engine
+olai web ~/outlines --plugins=vault,chat,codex,opencode,pi,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector     # no Claude row, no probe for one
 olai web ~/outlines --plugins=                          # none
 ```
 
@@ -303,8 +303,8 @@ you set by hand on the command line is a policy you set once and forget:
 ```nix
   services.olai.extraPlugins = [ "xyne-spaces" ]; # the default, plus Spaces
   services.olai.withoutPlugins = [ "journal" ];   # the default, minus the journal
-  services.olai.plugins = [ "vault" "odu" "ws" "web-app" "mcp" ];              # odu only — and no panel at all
-  services.olai.plugins = [ "vault" "chat" "claude" "kolu" "odu" "ws" "web-app" "mcp" ];
+  services.olai.plugins = [ "vault" "odu" "ws" "web-app" "mcp" "ui-renderer" "navigation" "layout" "outlines" "markdown" "files" "sidebar" "theme" ];              # odu only — and no panel at all
+  services.olai.plugins = [ "vault" "chat" "claude" "kolu" "odu" "ws" "web-app" "mcp" "ui-renderer" "navigation" "layout" "outlines" "markdown" "files" "sidebar" "theme" ];
   services.olai.plugins = [ ];                    # none
   # omit it entirely                              — the built-in default
 ```
@@ -313,7 +313,7 @@ you set by hand on the command line is a policy you set once and forget:
 
 **Where a serve STARTS is the operator's**, which is why it is a CLI flag and a home-manager option — the two doors an instance's opening position is set through in this repo, exactly as `commit` and `push` are — rather than an env var. An env var names a resource to reach (`OLAI_ACP_AGENT`); this names what the instance comes up running, and that belongs on the `--help` page beside the other policies, where it can be read without knowing it exists.
 
-Include `vault` in an explicit list to serve files. `--plugins=` opens no listener. Use `--plugins=ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector` for a control plane without a directory or write gate; its panel can enable the vault later.
+Include `vault` in an explicit list to serve files. `--plugins=` opens no listener. Use `--plugins=ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector` for a control plane without a directory or write gate; its panel can enable the vault later.
 
 **Omitting `--plugins` is not the same as writing an empty one.** No flag means the built-in default (every production row but `xyne-spaces`, which is opt-in; the maintained `test-layout` and `test-counter` fixtures are also disabled until explicitly named — `--extra-plugins=xyne-spaces` adds Spaces without listing everything else); `--plugins=` with nothing after it means none, with no panel or listener. The nix options keep the same answers apart: omitted is `null`, none is `[ ]`. A name the build does not have is refused at startup, naming the words it does have — a typo is never a silently disabled integration.
 
@@ -325,7 +325,7 @@ Include `vault` in an explicit list to serve files. `--plugins=` opens no listen
 
 **It follows the flag rather than replacing it.** Nothing about `--plugins` changed: it is still what a serve starts with, still what nix passes, still refused at startup for a name the build does not have. What the switch adds is the ability to change your mind without stopping the server — and the panel goes on naming, at its foot, exactly what this serve was started with, so what is on screen never stops being traceable to what somebody typed. It is said once for the panel rather than under every row, because under a given flag it is the same sentence about every one of them.
 
-**It goes both ways, including against the flag.** A row the flag left out, and a row this build ships off until you ask for it, can be switched *on* from the panel — the flag and the row's own default write the same `disabled` field, and the switch writes that field too, so there is no state the panel can reach that a flag could not have started you in. That is the one thing to reach for when you started a serve with `--plugins=vault,kolu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector` and then wanted the conversation after all.
+**It goes both ways, including against the flag.** A row the flag left out, and a row this build ships off until you ask for it, can be switched *on* from the panel — the flag and the row's own default write the same `disabled` field, and the switch writes that field too, so there is no state the panel can reach that a flag could not have started you in. That is the one thing to reach for when you started a serve with `--plugins=vault,kolu,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector` and then wanted the conversation after all.
 
 **Every browser sees it**, because it is not this browser's setting. A flip made in one tab moves the roster the server publishes, and every other tab pointed at the same server follows it — the same standing as the connection dot, and the reason these rows are not on the preferences panel with the theme.
 
@@ -500,7 +500,7 @@ Finding a thread again is `olai surface --url … search_nodes --text '"<abc@mai
 
 The plugins panel includes a **vault** switch. Turning it off clears the served files and stops plugins that need the vault; reads and writes refuse until it is turned on again. The panel and enabled transports remain available. Turning it back on opens a fresh store from disk. Like other switches, this lasts only for the current serve.
 
-If another olai holds the directory, this process still serves its panel and MCP endpoint: the vault row is **failed**, with the lock holder's sentence, and writes answer that no directory is being served. After the other owner stops, turn the failed vault row off and on to retry. A root that is not a directory likewise fails only the vault row.
+If another olai holds the directory, this process still serves its panel and MCP endpoint: the vault row is **failed**, with the lock holder's sentence, and vault-backed tools and resources leave the MCP catalog; direct calls to absent capabilities are refused. After the other owner stops, turn the failed vault row off and on to retry. A root that is not a directory likewise fails only the vault row.
 
 The file format is the vault row’s config. The bundle contains this loader entry, selected by every default profile:
 
@@ -517,7 +517,7 @@ The plugins panel shows `format: olai`. The row’s `Config` schema validates th
 
 The web defaults include `ui-renderer`, `navigation`, `layout`, `sidebar`, `preferences`, and `theme`. Exact `--plugins`
 lists need the first three to draw the normal shell and a content provider such as `outlines` or `markdown` to render files, and `sidebar` for its directory
-column and rail. `preferences` supplies the settings UI and `theme` its
+column and rail. Add `files` for directory entries and file creation; add `pins`, `capture`, or `trash` for their respective controls. `preferences` supplies the settings UI and `theme` its
 appearance provider; `--plugins=` remains empty.
 The headless surface and test-minimal defaults select none of these. A browser-only
 row selected by the host is not proof of successful activation in a tab.

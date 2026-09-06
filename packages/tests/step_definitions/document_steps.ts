@@ -192,7 +192,7 @@ Then(
   async function (this: OlaiWorld, key: string, value: string) {
     const found = documentLine(this, key).locator(PROP_VALUE);
     await found.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(oneLine(await found.innerText()), value);
+    await this.waitUntil(async () => oneLine(await found.innerText()) === value, `the document property ${key} to read ${value}`);
   },
 );
 
@@ -355,9 +355,12 @@ Then(
   async function (this: OlaiWorld, id: string, text: string) {
     const reference = this.docRef(id);
     await reference.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.ok(
-      oneLine(await reference.innerText()).includes(text),
-      `the reference on "${id}" reads ${JSON.stringify(oneLine(await reference.innerText()))}`,
+    // The reference's path is available with the outline; its body preview
+    // arrives on an independent document subscription. Visibility alone does
+    // not mean that subscription has answered.
+    await this.waitUntil(
+      async () => oneLine(await reference.innerText()).includes(text),
+      `the reference on "${id}" to show ${JSON.stringify(text)}`,
     );
   },
 );

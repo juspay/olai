@@ -190,7 +190,7 @@ export const createUndo = (apply: Apply): Undo => {
  *  chord that does nothing at all reads as a chord that is broken — and
  *  because the sentence is where the scope of the stack is explained. */
 const NOTHING: Record<Side, string> = {
-  done: "nothing to undo — this takes back the edits you made on this outline",
+  done: "nothing to undo — this takes back the edits you made in this file",
   undone: "nothing to redo",
 }
 

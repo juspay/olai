@@ -1,9 +1,11 @@
 import { fileKind } from "@olai/format"
+import type {} from "olai-plugin-layout/slots"
+import { UndoSaid } from "@olai/edit-history/UndoSaid.tsx"
 import {Clocks} from "@olai/plugin-api"
 /** Markdown owns body subscriptions, document drafts and edit history. Its
  * provider is independent of outlines and of presentation; content and file
  * creation integrations wait only for the actual locations they consume. */
-import { definePlugin, Offers } from "@olai/plugin-api"
+import { definePlugin, Offers, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { createRoot, createMemo, createEffect, on } from "solid-js"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -34,6 +36,11 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
   yield* (yield* Offers).own("browser-state", () => ({}))
 }) })
 export const components = {
+  messages: definePlugin({name:"messages",needs:[browserState,navigation,Slots],apply:Effect.gen(function*(){
+    const nav = yield* navigation
+    const history = useHistory()
+    yield* (yield* Slots).register("app.banner", () => <UndoSaid said={nav.focused()?.history === history ? history.said() : null} />)
+  })}),
   history: definePlugin({name:"history", needs:[browserState,navigation], apply: Effect.gen(function*() {
     const nav = yield* navigation
     const history = useHistory()

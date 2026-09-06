@@ -46,3 +46,7 @@ The frame consumes navigation state and renders registered overlays and content
 status presentations. It creates no outline history, drag registry, document
 state or directory subscription. Alternate layouts can use navigation's public
 page outlet with the same content registrations.
+
+Deployment name and uptime readings are fresh for each layout activation.
+Withdrawal cancels publication from an outstanding name request; a returning
+layout asks again instead of inheriting the previous activation's signals.

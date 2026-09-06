@@ -1,4 +1,4 @@
-import type {} from "olai-plugin-layout/slots"
+import type {} from "./slots.ts"
 /**
  * WHAT THE PLUGINS HANG IN THE APP'S BAR — every readout in the `app.header`
  * slot, in mount order, and the app knows none of them by name.
@@ -54,7 +54,7 @@ import type {} from "olai-plugin-layout/slots"
 import { createMemo, For } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
-import { hung } from "./runtime.ts"
+import { hung } from "@olai/web/client/plugins/runtime.ts"
 
 /**
  * Every plugin's header readout IN ONE OF THE BAR'S TWO SEATS, in mount order —

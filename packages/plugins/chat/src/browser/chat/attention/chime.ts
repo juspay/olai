@@ -25,8 +25,10 @@
 
 import { grumble } from "@olai/web/client/grumble.ts"
 
-/** Open once, on the first gesture, and kept for the life of the document. */
+/** Audio and first-gesture listeners belong to one mounted attention owner. */
+export const createChime = (target: EventTarget = window, open: () => AudioContext = () => new AudioContext()) => {
 let audio: AudioContext | undefined
+let active = true
 
 /** The one key this module grumbles under: whatever went wrong, what a reader
  *  has lost is the same thing, and the first reason is the useful one. */
@@ -37,11 +39,11 @@ const noChime = (why: string, cause?: unknown): void => {
 }
 
 const unlock = (): void => {
-  window.removeEventListener("pointerdown", unlock, true)
-  window.removeEventListener("keydown", unlock, true)
-  if (audio !== undefined) return
+  target.removeEventListener("pointerdown", unlock, true)
+  target.removeEventListener("keydown", unlock, true)
+  if (!active || audio !== undefined) return
   try {
-    audio = new AudioContext()
+    audio = open()
   } catch (cause) {
     noChime("this browser would not open an audio context", cause)
     return
@@ -62,9 +64,9 @@ const unlock = (): void => {
  * one that fires — both of them, so a keyboard user does not leave a pointer
  * listener behind and the other way round.
  */
-export const armChime = (): void => {
-  window.addEventListener("pointerdown", unlock, true)
-  window.addEventListener("keydown", unlock, true)
+const arm = (): void => {
+  target.addEventListener("pointerdown", unlock, true)
+  target.addEventListener("keydown", unlock, true)
 }
 
 /** The two notes, as a fifth: A5 up to E6. Named because they are the sound. */
@@ -79,7 +81,8 @@ const PEAK = 0.12
 
 /** Ring, once. Never throws: a caller is telling somebody something, and the
  *  chime is the least of the three ways it says it. */
-export const chime = (): void => {
+const chime = (): void => {
+  if (!active) return
   const ctx = audio
   if (ctx === undefined) {
     noChime("this page has not been touched yet, so the browser will not play one")
@@ -107,4 +110,16 @@ export const chime = (): void => {
   } catch (cause) {
     noChime("this browser refused to play it", cause)
   }
+}
+
+arm()
+return { chime, dispose: () => {
+  if (!active) return
+  active = false
+  target.removeEventListener("pointerdown", unlock, true)
+  target.removeEventListener("keydown", unlock, true)
+  const held = audio
+  audio = undefined
+  if (held) void held.close().catch(() => {})
+} }
 }

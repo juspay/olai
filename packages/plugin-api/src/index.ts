@@ -94,7 +94,7 @@ export type {
  *  cardinality is what a caller writes its own signature against: `@olai/web`'s
  *  `hung` takes a plugin-keyed or a list slot and its `only` takes the single
  *  one, and a package that had to spell those unions itself would be a second
- *  reading of `SLOTS` that can disagree with the first. */
+ *  interpretation of owner declarations that can disagree with the first. */
 export type {
   App,
   Hung,

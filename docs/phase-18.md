@@ -12,11 +12,11 @@ Last complete CI: code commit `55b5bee87` passed all 49 checks, including
 1,446 browser scenarios. That result predates the substantial extraction now
 in progress and does not validate the current working tree.
 
-Current integration: `f5093a416` completed full `just ci`: 34 checks passed and
-15 failed. Failures include stale extraction assertions, passive routes opening
-a listener without a transport, MCP availability after withdrawal, and browser
-workflow regressions. Fixes and focused verification are in progress; the
-current working tree is not yet validated by full CI.
+Current integration: `fda9df1b1` completed full `just ci`: 40 checks passed and
+9 failed, with 17 unique browser failures (down from 58 in the prior batch).
+Focused fixes now cover those browser failures except vault withdrawal, whose
+server shutdown fault is under investigation. Fixture export/type corrections
+are also implemented. The current working tree awaits full CI validation.
 
 GitHub CodeQL also flagged case-sensitive script extraction in the theme asset
 test. The regex is corrected and both first-paint tests pass. GitHub CodeQL
@@ -45,6 +45,16 @@ passed on `29b1db404`, reporting no new alerts in the PR’s changed code.
   around their own contributions. The Kolu test proves five subscriptions
   are released and a fresh activation reacquires them.
 - [ ] Pass the next complete CI run on the integrated repair commit.
+- [x] Validate content withdrawal, history and owner changes: 28 scenarios and
+  543 steps pass; two cold-start selections prove independently enabled
+  Markdown and outlines, and two renderer smoke scenarios pass.
+- [x] Fix delayed-write test interception across websocket reconnect URLs.
+  Daily-note and capture tests pass all five scenarios and 70 steps, with
+  server writes observed while client replies remain held.
+- [x] Verify fault cards and independently loaded document previews: all 33
+  scenarios pass. Render fault injection preserves the exact error assertion.
+- [x] Repair Chat reactivation cleanup; all three question workflows pass.
+  Observer cleanup tests also cover notification, click, audio and naming scopes.
 
 ## Current implementation batch
 
@@ -137,7 +147,10 @@ above is not a claim that its complete absence/lifecycle requirement is proved.
 - [x] Move all application-specific slot contracts to their capability owners.
   Native and compatibility registration suites pass 32 tests; discovery reads
   the supplied bundle metadata without retaining a permanent slot catalog.
-- [ ] Remove permanent application furniture, state and observers from the host.
+- [x] Remove permanent application furniture, state and observers from the host.
+  Slot consumers now live with layout, sidebar and outlines. Notification,
+  pointer suppression, audio and deployment naming follow activation scopes;
+  focused lifetime tests cover cleanup and late asynchronous completions.
 - [x] Enforce the final host and plugin boundaries across indirect imports too.
 
 ## Shell and presentation plugins
@@ -231,8 +244,10 @@ above is not a claim that its complete absence/lifecycle requirement is proved.
   frame; deferred blur checks distinguish DOM removal from click-away.
   Local browser coverage passes for both handoff timings, input identity,
   actual click-away and a skeleton surviving an unrelated plugin rebuild.
-- [ ] Investigate the intermittent keyboard-status failure after moving a row
-  at `8f077cd7`; its cause remains unexplained.
+- [x] Investigate the keyboard-status failure after moving a row at `8f077cd7`.
+  A controlled DOM removal/refocus test reproduces the same failure with the
+  historical synchronous blur handler and passes with the deferred handler.
+  Both the original scenario and the new deterministic regression pass.
 - [x] Keep assignment controls busy until the session handoff replies. Both the
   held-reply regression and original migration scenario passed at `05dabd441`.
 - [ ] Establish whether the assignment guard explains the earlier

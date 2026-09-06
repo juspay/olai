@@ -45,11 +45,7 @@ import type {
  *  half. This module's own bench opens it here; a plugin opens `./index.ts`. */
 export * from "./runtime.ts"
 
-/** THE CATALOG IS `./slots.ts`'S and is re-exported here, because a browser half
- *  opens one door and this is it. It moved when a SERVE had to be able to name
- *  the slots too — `plugins.inspect` answers what an agent-written face may
- *  register into — and a serve may not open this door at all. That module's
- *  header carries the argument. */
+/** Generic key rules; concrete location descriptors belong to their capabilities. */
 export type { SlotKey } from "./slots.ts"
 
 /** Browser providers publish only their own namespace. Core browser services
@@ -57,20 +53,20 @@ export type { SlotKey } from "./slots.ts"
 export interface Offers extends OwnServices {}
 export const Offers = serviceTag<Offers>("offers")
 
-/** One of the seventeen. */
+/** A location declared by an imported capability contract. */
 export type SlotName = keyof SlotDefinitions & string
 
-/** The rows of {@link SLOTS} one key rule holds — the four names below are this
+/** The capability declarations one key rule holds — the four names below are this
  *  applied four times, and they are four names rather than one generic because
  *  the register doors and the reads are written against them by name. */
 type SlotsKeyedBy<K extends SlotKey> = {
   [S in SlotName]: SlotDefinitions[S] extends {readonly keyedBy: K} ? S : never
 }[SlotName]
 
-/** ...the four a PLUGIN keys, one face each. */
+/** Locations keyed by the contributing plugin. */
 export type PluginSlot = SlotsKeyedBy<"plugin">
 
-/** ...the three a property KIND keys. */
+/** Locations keyed by a contributed kind. */
 export type KindSlot = SlotsKeyedBy<"kind">
 
 /** ...the eight nothing keys, which is what makes them lists. */

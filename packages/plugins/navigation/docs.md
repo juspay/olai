@@ -21,3 +21,7 @@ contributions. Disabling capture removes its command and makes `+` ordinary
 query text. Duplicate prefixes are reported and resolved in contribution order.
 The keyboard-settling observer belongs to navigation, so keyboard workflows and
 their observable completion work with alternative layouts too.
+
+Touch ghost-click suppression belongs to the navigation activation. Disabling
+navigation removes its capture listener and clears an armed gesture; retained
+gesture callbacks cannot rearm the departed owner.

@@ -628,10 +628,11 @@ export function Palette(props: {
     void prefix.run(text).then(line => {
       setSending(false)
       if (paletteRevision !== opened || !prefixes().includes(prefix)) return
-      if (queryRevision === submitted) {
-        setSaid(line)
-        if (line.tone !== "alarm") prime(prefix.after)
-      }
+      // A completed write is still worth acknowledging after more typing.
+      // Refusals describe only their submitted input; neither reply may erase
+      // a newer thought or reach a later opening of the palette.
+      if (line.tone !== "alarm" || queryRevision === submitted) setSaid(line)
+      if (queryRevision === submitted && line.tone !== "alarm") prime(prefix.after)
     }, failure => {
       setSending(false)
       if (paletteRevision !== opened || queryRevision !== submitted || !prefixes().includes(prefix)) return

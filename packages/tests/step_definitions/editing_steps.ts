@@ -209,6 +209,20 @@ When("I press {string}", async function (this: OlaiWorld, key: string) {
   await pressed(this, key);
 });
 
+When("a DOM reorder briefly removes and refocuses the title editor", async function (this: OlaiWorld) {
+  // Force the browser ordering that a keyed row move can produce: blur fires
+  // during removal while isConnected is still true; focus returns before the
+  // DOM update task ends. A synchronous blur handler mistakes this for leaving.
+  await this.page.locator(TITLE_EDITOR).first().evaluate((element) => {
+    if (document.activeElement !== element) throw new Error("title editor is not focused");
+    const parent = element.parentNode!;
+    const next = element.nextSibling;
+    parent.removeChild(element);
+    parent.insertBefore(element, next);
+    (element as HTMLElement).focus();
+  });
+});
+
 /** The same key, with nothing waited for afterwards — which is how a person
  *  types: faster than a round trip. What the scenario then asserts is that the
  *  writes still landed in the order the keys were pressed, which is the write

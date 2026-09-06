@@ -147,6 +147,7 @@ import { speaker } from "./browser/viewer.ts"
 // preferences. Each UI component names its own dependencies; the section waits
 // for preferences to return without discarding the stored state or listeners.
 import { alertSettings, createAlerts, holdAlerts } from "./browser/alerts.ts"
+import { followNotifications } from "@olai/web/client/notify.ts"
 import { AlertRows } from "./browser/AlertRows.tsx"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { sections } from "olai-plugin-preferences/contract"
@@ -163,6 +164,7 @@ export const components = {
   }) }),
   speaker,
   alerts: definePlugin({ name: "alerts", needs: [Offers], apply: Effect.gen(function*() {
+    yield* Effect.acquireRelease(Effect.sync(followNotifications), stop => Effect.sync(stop))
     const state = yield* createAlerts
     yield* holdAlerts(state)
     yield* (yield* Offers).own("alerts", () => state)

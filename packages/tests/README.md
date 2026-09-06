@@ -502,6 +502,12 @@ What it does not, and so what still needs a wait of its own:
 
 `I press "…" without waiting` and `I press "…" twice without waiting` are how the two scenarios that MEAN the race say so, and they are the whole of the exception.
 
+Pending-write scenarios hold incoming WebSocket messages only after the control
+under test is ready. The route matcher compares `/rpc/ws` by pathname: a redial
+adds `?pid=…`, which must not bypass the hold. Daily-note tests also observe the
+created file on disk before releasing replies, proving the request reached the
+server while the browser still awaits its result.
+
 **What this replaced** was a proxy per key shape, kept in this package: the caret leaving a line for `Enter`, the caret arriving for `Tab`, a draft closing for `Escape`, a list going for a completion. Each was a guess at the thing rather than the thing, and two keys had no proxy at all — `Control+Enter` redraws a row without moving the caret, so nothing visible changes when the client takes the caret back from where it already is, and two of those in a row was a race nobody could write a wait for.
 
 **A gesture aimed at the tab across a DISK assertion.** The newest one, and the one that reads most like a passing step. A write goes: the server writes the file, publishes the new set, and only then answers the tab that asked (`packages/store/src/store.ts` — *rename them all → re-probe and publish → the caller's post-publish hook*). So a step that polls the disk is reading a fact the server has, and the tab has not — and the tab has rules that turn on having been answered:

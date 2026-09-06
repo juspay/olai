@@ -31,13 +31,11 @@ export const holdAlerts = (state: Alerts) => Effect.acquireRelease(
   Effect.sync(() => { current = state }),
   () => Effect.sync(() => { if (current === state) current = undefined }),
 )
-const read = (): Alerts => {
+export const useAlerts = (): Alerts => {
   if (current === undefined) throw new Error("Chat alert settings are unavailable")
   return current
 }
-export const alertsOn = () => read().alertsOn()
-export const alertSoundOn = () => read().alertSoundOn()
-export const setAlertsOn = (value: boolean) => read().setAlertsOn(value)
-export const setAlertSoundOn = (value: boolean) => read().setAlertSoundOn(value)
-
-export const tabWaiting = (value: boolean) => read().setTabWaiting(value)
+export const alertsOn = () => useAlerts().alertsOn()
+export const alertSoundOn = () => useAlerts().alertSoundOn()
+export const setAlertsOn = (value: boolean) => useAlerts().setAlertsOn(value)
+export const setAlertSoundOn = (value: boolean) => useAlerts().setAlertSoundOn(value)

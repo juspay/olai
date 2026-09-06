@@ -103,3 +103,9 @@ Two switches, two meanings:
 The second is the one to reach for by habit. The first is a deployment's word, or a person deciding this serve should stop being a chat for a while.
 
 The browser activation owns one agent roster and conversation reading. Its panel, header, sidebar and row-door contributions provide that same roster only to their own children; row commands close over the scoped reading. Chat no longer wraps the application to provide state, so switching it off leaves surviving outline and document editor instances intact. Agent-list callbacks from a departed activation cannot trigger another lookup.
+
+Notification permission state and service-worker click listeners belong to the
+chat alerts provider. Withdrawal detaches permission observers and prevents a
+pending permission request from delivering an old notification; reactivation
+reads the browser's current permission. Each mounted attention circuit also
+owns its first-gesture listeners and audio context, closing them when it leaves.

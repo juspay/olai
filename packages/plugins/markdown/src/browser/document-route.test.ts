@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { samePageRequest } from "@olai/format"
+import { DocumentPath, samePageRequest } from "@olai/format"
 import { atElement, atFile, atNode } from "olai-plugin-navigation/routes"
 import { documentFile, documentRequest } from "./document-route.ts"
 
@@ -8,9 +8,9 @@ test("file fragments request the same document metadata while retaining their la
     const plain = documentRequest(atFile(file))!
     const route = atElement(file, "beds")
     const fragment = documentRequest(route)!
-    expect(fragment).toEqual({ kind: "at", address: { kind: "document", path: file } })
+    expect(fragment).toEqual({ kind: "at", address: { kind: "document", path: DocumentPath.make(file) } })
     expect(samePageRequest(plain, fragment)).toBe(true)
-    expect(documentFile(route)).toBe(file)
+    expect(documentFile(route)).toBe(DocumentPath.make(file))
     expect(route).toEqual(atElement(file, "beds"))
   }
 })
@@ -18,8 +18,8 @@ test("file fragments request the same document metadata while retaining their la
 test("split panes independently request their files, with headings reserved for navigation", () => {
   const left = documentRequest(atElement("notes/left.md", "code"))!
   const right = documentRequest(atElement("notes/right.md", "lists"))!
-  expect(left.address.path).toBe("notes/left.md")
-  expect(right.address.path).toBe("notes/right.md")
+  expect(left.address.path).toBe(DocumentPath.make("notes/left.md"))
+  expect(right.address.path).toBe(DocumentPath.make("notes/right.md"))
   expect(samePageRequest(left, right)).toBe(false)
   expect(documentRequest(atElement("notes/left.md", "other"))).toEqual(left)
 })

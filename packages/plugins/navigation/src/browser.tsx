@@ -1,4 +1,5 @@
 import {Clocks} from "@olai/plugin-api"
+import { followGhosts } from "@olai/web/client/ghost.ts"
 import { protectComposition } from "@olai/web/client/composition.ts"
 import { followKeys, KEYS_SETTLING, quiescence } from "@olai/web/client/quiescence.ts"
 import { fileAccess } from "olai-plugin-vault/contract"
@@ -36,7 +37,7 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
       else root.setAttribute(KEYS_SETTLING, previous)
     }
   })), stop => Effect.sync(stop))
-  for(const start of [followKeys, protectComposition]) yield* Effect.acquireRelease(Effect.sync(start),stop=>Effect.sync(stop))
+  for(const start of [followKeys, protectComposition, followGhosts]) yield* Effect.acquireRelease(Effect.sync(start),stop=>Effect.sync(stop))
   yield* Effect.acquireRelease(Effect.sync(scopePaletteState),stop=>Effect.sync(stop))
   yield* Effect.acquireRelease(Effect.sync(resetPaletteMemory),()=>Effect.sync(resetPaletteMemory))
   yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{

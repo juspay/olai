@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { defineSurface } from "@kolu/surface/define"
-import { Effect, Schema } from "effect"
+import { Cause, Effect, Schema } from "effect"
 import { composeCapabilities } from "./composition.ts"
 
 const root = defineSurface({})
@@ -57,6 +57,9 @@ test("disjoint variants share a legacy procedure without bypassing provider with
     expect(() => host.mount("collision", contract, deps(3), opts("node"))).toThrow("overlap")
     await outline.drop()
     expect(await Effect.runPromiseExit(old({kind: "node"}) as Effect.Effect<number>)).toHaveProperty("_tag", "Failure")
+    const absent = await Effect.runPromiseExit(host.handlers["surface/write/apply"]!({kind: "node"}) as Effect.Effect<number>)
+    expect(absent._tag).toBe("Failure")
+    if (absent._tag === "Failure") expect(Cause.squash(absent.cause)).toHaveProperty("_tag", "SurfaceSiblingDropped")
     expect(await Effect.runPromise(host.handlers["surface/write/apply"]!({kind: "document"}) as Effect.Effect<number>)).toBe(2)
     const fresh = host.mount("outline", contract, deps(4), opts("node"))
     await outline.drop()

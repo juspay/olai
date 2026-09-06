@@ -193,7 +193,7 @@ test("transport modifiers apply over each profile's defaults", () => {
 test("maintained fixtures require an explicit selection and never select each other", () => {
   for (const profile of ["web", "surface", "test-minimal"]) {
     for (const chosen of [undefined, "test-layout", "test-counter"] as const) {
-      const patches = [...profilePatch(profile), ...pluginsPatch(chosen === undefined ? { kind: "omitted" } : { kind: "delta", extra: [chosen] })]
+      const patches = [...profilePatch(profile), ...pluginsPatch(chosen === undefined ? { kind: "omitted" } : { kind: "delta", extra: [chosen], without: null })]
       const enabled = (id: string) => !(patches.filter(patch => patch.id === id).at(-1)?.disabled ?? ROWS.find(row => row.id === id)?.disabled)
       expect(enabled("test-layout")).toBe(chosen === "test-layout")
       expect(enabled("test-counter")).toBe(chosen === "test-counter")

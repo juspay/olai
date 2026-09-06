@@ -9,7 +9,7 @@
  */
 import { isReservedSurfaceTag, type Surface, type SurfaceSpec } from "@kolu/surface/define"
 import { exposeFace, type ExposeMap, type FaceExposure } from "@kolu/surface/expose"
-import { emptyHandlers, implementRootedSurfaces, type ImplementSurfaceDeps, type SurfaceHandlers } from "@kolu/surface/server"
+import { emptyHandlers, implementRootedSurfaces, SurfaceSiblingDropped, type ImplementSurfaceDeps, type SurfaceHandlers } from "@kolu/surface/server"
 import { Effect } from "effect"
 import { RpcGroup, Rpc } from "effect/unstable/rpc"
 
@@ -72,7 +72,7 @@ export function composeCapabilities<const S extends SurfaceSpec>(
       next[tag] = (input: unknown) => {
         const value = input && typeof input === "object" ? (input as Record<string, unknown>)[field] : undefined
         const handler = typeof value === "string" ? cases.get(value) : undefined
-        return handler ? handler(input) : Effect.die(new Error(`No active capability handles ${tag} ${field}=${String(value)}`))
+        return handler ? handler(input) : Effect.die(new SurfaceSiblingDropped({ key: `${tag}[${field}=${String(value)}]`, at: { face: "wire", tag } }))
       }
     }
     const universe = new Set(Object.keys(next))

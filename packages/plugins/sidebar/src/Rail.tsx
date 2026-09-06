@@ -16,7 +16,7 @@
  */
 
 import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
-import { PluginRailEntries } from "@olai/web/client/plugins/Seats.tsx"
+import { PluginRailEntries } from "./Seats.tsx"
 import { TESTID } from "@olai/web/client/testids.ts"
 import { setSidebarOpen } from "olai-plugin-layout/preferences"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"

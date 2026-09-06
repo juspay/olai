@@ -8,6 +8,12 @@ An outline page declares the row chip, pane, block, action and door locations, a
 
 Unrelated plugin changes preserve existing editor instances and drafts. Removing outlines withdraws its pages and row locations, releases its observers, clears its focus and retained draft/form memory and prevents old reference lookups from publishing into a new activation. Restoring outlines creates a new activation and reads persisted browser preferences again.
 
+Title blur is classified after the current DOM update. A row reorder can fire
+blur while its input still reports that it is connected, then restore focus in
+the same task. That redraw keeps the draft open so the next structural key acts
+on the same row. A browser regression forces this ordering and verifies completion
+still works; restoring the former synchronous blur handler makes it fail.
+
 The package's declared contract doors carry types, location names and scoped service handles. Chat's node-reference consumers use the reference capability; they do not import the outline implementation. The shared Markdown parser and the serial undo algorithm are static libraries, with no document-plugin or outline-plugin activation of their own.
 
 Outlines supplies outline pages, node editing, zoomed views, filtering, rich

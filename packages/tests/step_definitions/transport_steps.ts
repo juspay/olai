@@ -26,7 +26,8 @@ Then("the MCP vault refuses a write because no directory is served", async funct
   });
   const result = (await response.json()).result;
   assert.equal(result.isError, true);
-  assert.ok(JSON.stringify(result).includes("serving no directory"));
+  assert.ok(result.content.some((part: { type: string; text?: string }) =>
+    part.type === "text" && part.text?.includes('The capability for "set_title" is not active.')));
 });
 
 Then("the MCP vault can read an outline", async function (this: OlaiWorld) {

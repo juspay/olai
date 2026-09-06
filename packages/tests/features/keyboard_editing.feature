@@ -432,6 +432,14 @@ Feature: Keyboard editing
     Then the node "knobs" has status "done"
     And the row being typed holds "pick the knobs"
 
+  Scenario: A same-task redraw blur cannot close the refocused editor
+    When I click the title of "knobs"
+    And a DOM reorder briefly removes and refocuses the title editor
+    And I press "Control+Enter"
+    Then the node "knobs" has status "done"
+    And the row being typed holds "pick the knobs"
+    And there should be no page errors
+
   Scenario: An indent leaves the caret where it was in the line
     # The other half of the sentence above, and the half that was missing. An
     # indent changes the row's `Row.key` — the chain of ids down to it — so the

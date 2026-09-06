@@ -1,3 +1,4 @@
+@import "@olai/edit-history/all.css";
 @import "@olai/ui-primitives/all.css";
 @import "@olai/markdown-ui/all.css";
 @source "./browser";

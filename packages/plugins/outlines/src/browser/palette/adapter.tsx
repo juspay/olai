@@ -9,11 +9,12 @@ import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { navigation, paletteAdapters } from "olai-plugin-navigation/contract"
 import { browserState } from "../../index.ts"
 import { useUndo } from "../edit/undoing.ts"
-import { UndoSaid } from "../edit/UndoSaid.tsx"
+import { UndoSaid } from "@olai/edit-history/UndoSaid.tsx"
 import { useReadings } from "../reading.tsx"
 import { opItems } from "./ops.ts"
 import { applying } from "@olai/web/client/writes.ts"
 import { only } from "@olai/web/client/narrow.ts"
+import { fileNamed } from "olai-plugin-navigation/routes"
 import { fileOf } from "../page.ts"
 import { doneHiddenOn, setDoneFor, pageFileOf } from "../settings/done.ts"
 
@@ -24,7 +25,7 @@ export const palette = definePlugin({ name: "palette", needs: [browserState, ren
   const focused = () => readings.at(nav.workspace().focus)?.shows
   const slots = yield* rendererSlots
   yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
-    const file = createMemo(() => { const shows = focused(); return shows === undefined ? undefined : fileOf(shows) })
+    const file = createMemo(() => { const named = fileNamed(nav.route()); if (named !== undefined) return named; const shows = focused(); return shows === undefined ? undefined : fileOf(shows) })
     createEffect(on(file, () => undo.clear(), {defer:true}))
     return dispose
   })), dispose => Effect.sync(dispose))
@@ -44,7 +45,8 @@ export const palette = definePlugin({ name: "palette", needs: [browserState, ren
     },
   })
 }) })
-export const messages = definePlugin({ name: "messages", needs: [browserState, Slots], apply: Effect.gen(function*() {
+export const messages = definePlugin({ name: "messages", needs: [browserState, Slots, navigation], apply: Effect.gen(function*() {
   const undo = useUndo()
-  yield* (yield* Slots).register("app.banner", () => <UndoSaid said={undo.said()} />)
+  const nav = yield* navigation
+  yield* (yield* Slots).register("app.banner", () => <UndoSaid said={nav.focused()?.history === undo ? undo.said() : null} />)
 }) })

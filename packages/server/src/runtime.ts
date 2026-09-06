@@ -9,7 +9,7 @@ import { NotFoundFailure, type PluginPin } from "@olai/format"
 import { type BuiltPlugin, NO_ROSTER, type PluginRoster, type PluginState, type Who } from "@olai/surface/host"
 import type { SurfaceSpec } from "@kolu/surface/define"
 import { emptyHandlers, type ImplementSurfaceDeps, inMemoryStore, type MountedSurface, type SurfaceHandlers, type SurfaceRuntime } from "@kolu/surface/server"
-import { Effect, Fiber, Stream } from "effect"
+import { Effect, Fiber, Queue, Stream } from "effect"
 import type { Plugins, Registered, Wake } from "@olai/plugin-api/services"
 import type { RowReport } from "@olai/bundle/bundle"
 import { emitter } from "@olai/log"
@@ -241,8 +241,13 @@ app: {
     let pendingStatus = false
     recompose()
     if (offered !== null) {
-      offered.onChange.run = recompose
-      yield* Stream.runForEach(offered.plugins.changes, () =>
+      const statusChanges = yield* Queue.unbounded<void>()
+      yield* Effect.addFinalizer(() => Queue.shutdown(statusChanges))
+      offered.onChange.run = () => {
+        recompose()
+        Queue.offerUnsafe(statusChanges, undefined)
+      }
+      yield* Stream.runForEach(Stream.merge(offered.plugins.changes, Stream.fromQueue(statusChanges)), () =>
         Effect.suspend(() => {
           if (!moving) return refreshPlugins
           pendingStatus = true

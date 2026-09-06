@@ -121,7 +121,7 @@ Feature: Outline and Markdown capabilities have independent lifetimes
       """
     And I save the document
     Then the document shows the property "agent" holding "independent-markdown"
-    And the document shows the property "tags" holding "one"
+    And the document shows the property "tags" holding "one, two"
     And the document renders bold text "updated independently"
     And there should be no page errors
 
@@ -140,4 +140,32 @@ Feature: Outline and Markdown capabilities have independent lifetimes
     Then the node "handles" is shown
     When I click the title of "handles"
     Then the row being typed holds "choose the handles"
+    And there should be no page errors
+
+  @plugins:vault,ws,web-app,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,markdown,files
+  Scenario: A Markdown-only startup edits a document without ever activating outlines
+    Given I open the document "finishes.md"
+    When I start editing the document
+    And I retype the document as:
+      """
+      ---
+      topic: independent startup
+      ---
+      **Markdown was the only content provider**
+      """
+    And I save the document
+    Then the document renders bold text "Markdown was the only content provider"
+    And the document shows the property "topic" holding "independent startup"
+    And there should be no page errors
+
+  @plugins:vault,ws,web-app,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,files
+  Scenario: An outline-only startup edits rows without ever activating Markdown
+    Given I open the outline "house.olai"
+    When I click the title of "handles"
+    And I select all and type "only outlines at startup"
+    And I press "Enter"
+    And I press "Escape"
+    Then "house.olai" holds a node titled "only outlines at startup"
+    When I press "ControlOrMeta+z"
+    Then the node "handles" has the title "choose the handles"
     And there should be no page errors

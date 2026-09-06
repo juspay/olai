@@ -7,9 +7,8 @@ import { PanelHandle } from "./layout/Handle.tsx"
  * They start before the face is published and reread storage on reactivation;
  * no resize or cross-tab listener is left in the permanent browser entry point.
  *
- * The frame still composes notebook-specific providers during the remaining
- * extraction. Owning these resources does not yet establish the final layout,
- * navigation and independent content boundaries documented in Phase 18.
+ * The frame consumes navigation and content contributions. Each content
+ * provider owns its own models and editor state.
  */
 import { definePlugin,Offers } from "@olai/plugin-api"
 import { Fault } from "@olai/web/client/errors/Fault.tsx"
