@@ -20,6 +20,7 @@ Feature: Codex subagents and background terminals are visible
     When I open the agent's work from the transcript
     Then the agent's work is open, and it is "explore the outline"
     And the agent's work shows 2 calls
+    And the open agent's work contains "child command output" but not "root command output"
     And I can close the agent's work
 
   Scenario Outline: The live subagent strip clears when the turn ends
@@ -96,6 +97,7 @@ Feature: Codex subagents and background terminals are visible
     And I pick the conversation "an older conversation" under the agent "codex"
     Then the strip says "watch files" is running
     When I start a new conversation
+    And I choose the agent "codex"
     And the agent is released
     And I ask the agent "hello"
     Then the agent's answer mentions "hello"

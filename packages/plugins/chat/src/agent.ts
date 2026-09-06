@@ -512,6 +512,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const activity = options.leg.nativeActivity ? new Activity(emit) : null
     const sessionRoot = (id: string): string => activity?.root(id) ?? id
     const callId = (session: string, id: string): string => activity?.toolId(session, id) ?? id
+    const clientTerminals = new Set<string>()
     const terminalTools = new Map<string, readonly string[]>()
     const terminals = new Terminals((id) => {
       for (const [tool, ids] of terminalTools) if (ids.includes(id)) {
@@ -597,6 +598,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       if (activeSession !== null) closed.add(activeSession)
       terminalCleanup = Promise.all([terminalCleanup, terminals.clear()]).then(() => undefined)
       terminalTools.clear()
+      clientTerminals.clear()
       questions.withdrawAll()
       calls.forget()
       activity?.clear(closed)
@@ -658,13 +660,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       params: CreateElicitationRequest,
       signal: AbortSignal,
     ): Promise<CreateElicitationResponse> => {
+      const named = field(params, "sessionId")
+      if (typeof named === "string" && fromElsewhere(sessionRoot(named), activeSession, closed)) return { action: "cancel" }
       const form = formOf(params)
       if (form instanceof Refused) {
         undrawable(form.reason)
         return { action: "decline" }
       }
-      const named = field(params, "sessionId")
-      if (typeof named === "string" && fromElsewhere(sessionRoot(named), activeSession, closed)) return { action: "cancel" }
       const settled = await put(form, signal, typeof named === "string" ? activity?.parent(named) : undefined)
       // A dismissal is a DECLINE and a withdrawal is a CANCEL, and the adapter
       // reads them differently: decline tells the model the person skipped and
@@ -846,8 +848,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             armed: options.leg.backgroundTask(update._meta) ?? undefined,
           })
           {
-            const meta = options.leg.terminalOutput ? terminalMetaIn(update._meta) : []
-            const refs = update.content?.flatMap((item) => item.type === "terminal" ? [item.terminalId] : [])
+            // Adapter-owned terminal IDs, like tool IDs, are scoped to a
+            // session. Client-created handles are already globally unique.
+            const terminalId = (raw: string): string => activity !== null && !clientTerminals.has(raw)
+              ? activity.toolId(notification.sessionId, raw) : raw
+            const meta = (options.leg.terminalOutput ? terminalMetaIn(update._meta) : [])
+              .map((item) => ({ ...item, id: terminalId(item.id) }))
+            const refs = update.content?.flatMap((item) => item.type === "terminal" ? [terminalId(item.terminalId)] : [])
             const ids = [...new Set([...(refs ?? terminalTools.get(id) ?? []), ...meta.map((item) => item.id)])]
             terminalTools.set(id, ids)
             for (const item of meta) {
@@ -1351,7 +1358,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             onElicitation(context.params, context.signal))
           .onRequest(methods.client.terminal.create, ({ params }) => {
             terminalSession(params.sessionId)
-            return terminals.create(params)
+            const created = terminals.create(params)
+            clientTerminals.add(created.terminalId)
+            return created
           })
           .onRequest(methods.client.terminal.output, ({ params }) => { terminalSession(params.sessionId); return terminals.output(params) })
           .onRequest(methods.client.terminal.waitForExit, ({ params }) => { terminalSession(params.sessionId); return terminals.wait(params) })

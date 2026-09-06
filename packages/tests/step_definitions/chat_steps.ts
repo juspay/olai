@@ -3929,3 +3929,9 @@ When(
     await this.page.locator(`${CHAT_SESSION}${attr("data-agent", agent)}`, { hasText: title }).first().click();
   },
 );
+
+Then("the open agent's work contains {string} but not {string}", async function (this: OlaiWorld, own: string, other: string) {
+  const work = this.page.locator(CHAT_PREVIEW);
+  await this.waitUntil(async () => (await work.innerText()).includes(own), `the child work to contain ${own}`, HYDRATION_TIMEOUT);
+  assert.ok(!(await work.innerText()).includes(other), `the child work contains another session's output: ${other}`);
+});

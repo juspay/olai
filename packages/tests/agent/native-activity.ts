@@ -13,6 +13,10 @@ export const nativeActivity = async (
   })
   const call = (session: string, title: string) => update(session, {
     sessionUpdate: "tool_call", toolCallId: "shared-call", title, status: "completed",
+    content: [{ type: "terminal", terminalId: "shared-terminal" }],
+    _meta: { terminal_info: { terminal_id: "shared-terminal" },
+      terminal_output: { terminal_id: "shared-terminal", data: `${title} output` },
+      terminal_exit: { terminal_id: "shared-terminal", exit_code: 0, signal: null } },
   })
   if (argument.startsWith("watch")) {
     const state = argument.split(" ")[1] ?? "failed"
