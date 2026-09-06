@@ -524,6 +524,14 @@ adds `?pid=…`, which must not bypass the hold. Daily-note tests also observe t
 created file on disk before releasing replies, proving the request reached the
 server while the browser still awaits its result.
 
+`edge_search_pending.feature` holds the next search answer after the debounced
+request reaches the wire. Retained rows must remain unlabelled as an answer to
+that new query. This catches an actual reactive ordering bug: resetting a
+subscription in an effect let a memo label the old value with the new input.
+Search now gives each query its own scoped subscription and captures that
+query with its response. After release, the test spends Enter and verifies the
+requested edge on disk.
+
 **What this replaced** was a proxy per key shape, kept in this package: the caret leaving a line for `Enter`, the caret arriving for `Tab`, a draft closing for `Escape`, a list going for a completion. Each was a guess at the thing rather than the thing, and two keys had no proxy at all — `Control+Enter` redraws a row without moving the caret, so nothing visible changes when the client takes the caret back from where it already is, and two of those in a row was a race nobody could write a wait for.
 
 **A gesture aimed at the tab across a DISK assertion.** The newest one, and the one that reads most like a passing step. A write goes: the server writes the file, publishes the new set, and only then answers the tab that asked (`packages/store/src/store.ts` — *rename them all → re-probe and publish → the caller's post-publish hook*). So a step that polls the disk is reading a fact the server has, and the tab has not — and the tab has rules that turn on having been answered:

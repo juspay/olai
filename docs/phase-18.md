@@ -4,7 +4,7 @@ Phase 18 is implemented in one PR. The acceptance contract is the September 5
 proposal in `oss.olai/brainstorming/cordis-for-olai.md`; the completed checklist
 below records ownership, lifecycle and workflow evidence for that contract.
 
-Final implementation validation: `7d31368a5` passed full `just ci`, all 49
+Integrated extraction validation: `7d31368a5` passed full `just ci`, all 49
 checks, including all 1,467 browser scenarios. GitHub CodeQL's Actions, C/C++
 and JavaScript/TypeScript analyses passed, as did the Linux and macOS builds.
 The acceptance audit includes new independent-capability, alternate-layout,
@@ -43,7 +43,19 @@ GitHub CodeQL flagged case-sensitive script extraction in the theme asset
 test. The regex is corrected, both first-paint tests pass, and the final
 implementation's CodeQL analysis reports no new alerts in the changed code.
 
+The documentation-only validation at `4262788c7` exposed an intermittent stale
+search-result selection in the edge picker after the green implementation
+run. The old subscription value could receive the new query's label before
+its reset effect ran. Search now gives each query its own scoped subscription,
+so retained rows keep their original identity. A held-response regression
+fails on the old build and passes after the fix; pending-search, edge-editing
+and palette actions pass all 40 scenarios and 394 steps.
+
 ## CI repair batch
+
+- [x] Bind search results to their actual query across subscription changes;
+  the held-response regression proves stale rows cannot be selected as a new
+  query's answer.
 
 - [x] Retract MCP tools and resources with their capabilities; retained clients
   resolve current handlers and write authority. The MCP regression group passes

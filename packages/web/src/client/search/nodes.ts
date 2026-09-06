@@ -9,6 +9,7 @@
  */
 
 import { debounce } from "@solid-primitives/scheduled"
+import { createKeyedRoot } from "@kolu/surface/solid"
 import { type Accessor, createEffect, createMemo, createSignal } from "solid-js"
 
 import type { NodeHit, Refusal, SearchAnswer, SearchHit } from "@olai/surface"
@@ -132,17 +133,20 @@ export function createSearch(
       setAsked(null)
     }
   })
-  const input = createMemo(() => {
-    const query = asked()
-    return query === null ? null : {
+  // A response belongs to the query that opened its subscription. The stream
+  // hook resets a reactive input in an effect; a memo can otherwise observe
+  // the new query alongside the old value before that effect runs, relabeling
+  // retained rows and briefly authorizing Enter on the wrong node.
+  const reading = createKeyedRoot(asked, (query) => ({
+    query,
+    answer: olai.streams.searchResults.use(() => query === null ? null : {
       text: query, limit: LIMIT, ...(kind === undefined ? {} : { kind }),
-    }
-  })
-  const answer = olai.streams.searchResults.use(input)
+    }),
+  }))
   // Hold the prior query's rows during a new request, but never across closing
   // the search or a refused subscription. The label gates keyboard result gestures.
   const held = createMemo<{ query: string; value: SearchAnswer } | undefined>((previous) => {
-    const query = asked()
+    const { query, answer } = reading()
     if (wanted() === null || query === null || answer.error() !== undefined) return undefined
     const value = answer()
     return value === undefined ? previous : { query, value }
@@ -154,7 +158,7 @@ export function createSearch(
   return {
     hits: () => held()?.value.hits ?? [],
     total: () => held()?.value.total ?? 0,
-    failure: () => answer.error()?.message ?? null,
+    failure: () => reading().answer.error()?.message ?? null,
     refusals: () => held()?.value.refusals ?? [],
     answering,
     taking: (act) => { if (answering() !== null) act() },
