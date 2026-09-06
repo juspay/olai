@@ -150,3 +150,23 @@ describe("a leg that reads the call id instead of a meta", () => {
     expect(calls.about("task:0").parent).toBeUndefined()
   })
 })
+
+describe("native session call identity", () => {
+  test("observations and permission lookups keep same-ID child calls distinct", () => {
+    const calls = new Calls({ ...NAMES_IN_META, nativeActivity: true })
+    calls.heard("same", meta({ toolName: "RootTool" }), "root")
+    calls.heard("same", meta({ toolName: "ChildTool" }), "child")
+    expect(calls.about("same", "root").name).toBe("RootTool")
+    expect(calls.about("same", "child").name).toBe("ChildTool")
+    calls.heard("same", meta({ toolName: "PermissionTool" }), "child")
+    expect(calls.about("same", "root").name).toBe("RootTool")
+    expect(calls.about("same", "child").name).toBe("PermissionTool")
+    calls.forget()
+    expect(calls.about("same", "child")).toEqual({})
+  })
+  test("name interpretation receives the raw wire ID", () => {
+    const calls = new Calls({ ...NAMES_IN_META, nativeActivity: true,
+      toolNameOf: (id) => id === "wire-id" ? "KnownTool" : null })
+    expect(calls.about("wire-id", "child").name).toBe("KnownTool")
+  })
+})

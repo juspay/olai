@@ -48,6 +48,9 @@ Feature: Codex subagents and background terminals are visible
     Then the agent's work is open, and it is "inspect nested work"
     And the agent's work shows 1 calls
     And the open agent's work contains "nested command output" but not "child command output"
+    When I return to the parent agent "explore the outline"
+    Then the agent's work is open, and it is "explore the outline"
+    And the agent's work shows 3 calls
 
   Scenario: A child permission remains visible and attributed to the child
     When I ask the agent "native asks"

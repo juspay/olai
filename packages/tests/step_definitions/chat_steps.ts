@@ -3939,3 +3939,7 @@ Then("the open agent's work contains {string} but not {string}", async function 
 When("I open {string} from the open agent's work", async function (this: OlaiWorld, named: string) {
   await this.page.locator(`${CHAT_PREVIEW} ${CHAT_LANE_DOOR}`, { hasText: named }).click();
 });
+
+When("I return to the parent agent {string}", async function (this: OlaiWorld, name: string) {
+  await this.page.getByRole("button", { name: `Back to ${name}`, exact: true }).click();
+});

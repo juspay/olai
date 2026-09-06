@@ -17,11 +17,14 @@ describe("terminal output", () => {
       expect(await terms.wait(params)).toEqual({ exitCode: 7, signal: null })
       expect(terms.output(params).output).toContain("hello")
       expect(terms.output(params).output).toContain("error")
+      expect(terms.clientOwned(terminalId)).toBe(true)
       await terms.release(params)
+      expect(terms.clientOwned(terminalId)).toBe(true)
       expect(() => terms.output(params)).toThrow()
       expect(terms.view(terminalId).exitCode).toBe(7)
       expect(terms.view(terminalId).output).toContain("hello")
     } finally { await terms.clear() }
+    expect(terms.clientOwned(terminalId)).toBe(false)
   })
   test("cancel stops a running command but leaves the handle available", async () => {
     const terms = new Terminals(() => {}, process.cwd())

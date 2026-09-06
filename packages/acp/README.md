@@ -27,3 +27,5 @@ What may cross the boundary is machine-checked rather than agreed by comment: `s
 This package is where it belongs on merit rather than by elimination: an engine is *an ACP agent and how to reach one*, and the protocol is the language rather than an integration. A `Leg` is a reading of one speaker's spelling of that language, which is the same kind of thing `asks.ts` and `diffs.ts` are one degree less specifically.
 
 What is deliberately NOT on that door: the standing prompt's TEXT (one core module, versioned with the binary — only the CHANNEL is the engine's), and the SPAWN, which is `olai-plugin-chat`'s because that is the package that speaks the protocol out loud.
+
+Native activity uses one `nativeActivity(app, stream, receive)` channel: it owns AIR v1 negotiation, validates the five child-session/task event variants, and bridges the pinned SDK's closed update union. It returns connection inputs and delivers typed protocol facts. Conversation ancestry, row identity, and task-to-command lifecycle policy stay in chat. The SDK dispatcher integration test lives in chat, where runtime SDK imports are allowed.

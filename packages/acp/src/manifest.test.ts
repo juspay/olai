@@ -230,6 +230,7 @@ describe("the manifest", () => {
       "contentOf",
       "diffsOf",
       "formOf",
+      "nativeActivity",
       "permissionFormOf",
       "relativeTo",
       "terminalMetaIn",

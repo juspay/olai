@@ -29,10 +29,13 @@
  * a column of dashes.
  */
 
-import { Show } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
 import type { ChatEntry } from "olai-plugin-chat/wire"
 import { TESTID } from "../../testids.ts"
+import { doorOf } from "./door.ts"
+import { isPreviewing, togglePreview } from "./previewing.ts"
+import { whoOf } from "./spawn.ts"
 import { Entry } from "./Entry.tsx"
 import type { Lane } from "./lanes.ts"
 import { RAIL } from "./lanes.ts"
@@ -48,17 +51,6 @@ export function Row(props: {
   readonly lane: Lane | null
   /** What is still going on under it, or `null` — see {@link ./rail.ts}. */
   readonly rail: Rail | null
-  /** The door onto a spawned agent's own calls, drawn under the row in the
-   *  rail's place, or `null` for every row that sent nobody. Handed in for the
-   *  lane's reason: how many calls an agent has made is a fact about the LIST.
-   */
-  readonly door: (() => unknown) | null
-  /** ... and what that door says right now. */
-  readonly says: string | null
-  /** Whether the door leads to the shelf that is ALREADY open, which is the
-   *  one thing a door has to say about itself: pressing it again puts it away.
-   */
-  readonly open: boolean
   /** WHOSE RUN STARTS HERE, or `null` for a row inside one — which is most
    *  rows ({@link ./Speaker.tsx}, over {@link ./speakers.ts}'s rule).
    *
@@ -67,6 +59,11 @@ export function Row(props: {
    *  is a fact about the LIST, and a row cannot see one. */
   readonly speaker: Faced | null
 }) {
+  // An agent's work door belongs to its row wherever that row is drawn.
+  // Only spawned-agent rows subscribe to the child list; ordinary rows never
+  // wake for somebody else's tool stream.
+  const calls = createMemo(() => whoOf(props.entry) === null ? 0 : props.chat.lanes().get(props.entry.id)?.length ?? 0)
+  const work = createMemo(() => doorOf(props.entry, calls()))
   return (
     <div
       classList={{
@@ -74,7 +71,7 @@ export function Row(props: {
         // ... unless the rail below is carrying it instead, so that one line
         // crosses the gap rather than stopping at the edge of this box and
         // starting again inside it.
-        "pb-2": props.rail === null && props.door === null,
+        "pb-2": props.rail === null && work() === null,
       }}
       data-testid={props.lane === null ? undefined : TESTID.chatLane}
       data-lane={props.lane?.parent}
@@ -119,7 +116,7 @@ export function Row(props: {
           learn. */}
       <Show when={props.rail}>
         {(rail) => (
-          <div class={`${RAIL} ${props.door === null ? "pb-2" : ""} pt-1`}>
+          <div class={`${RAIL} ${work() === null ? "pb-2" : ""} pt-1`}>
             {/* The NAME is on the words rather than on the rail around them, so
                 that what a scenario measures is what a reader sees inset — the
                 rail's own box starts at the row's left edge, and asserting on
@@ -142,18 +139,18 @@ export function Row(props: {
           for as long as the row is — a strip entry goes out when the agent
           reports back, and a record that went with it would be a fan-out you
           could only read while you were too busy to. */}
-      <Show when={props.door !== null && props.says !== null}>
+      <Show when={work() !== null}>
         <div class={`${RAIL} pb-2 pt-1`}>
           <button
             type="button"
             class="flex items-center gap-1 rounded-sm font-mono text-[0.6875rem] text-muted hover:text-ink focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
             data-testid={TESTID.chatLaneDoor}
             data-lane={props.entry.id}
-            aria-expanded={props.open}
-            onClick={() => props.door?.()}
+            aria-expanded={isPreviewing(props.entry.id)}
+            onClick={() => togglePreview(props.entry.id)}
           >
             <span aria-hidden="true">↳</span>
-            <span class="min-w-0 truncate">{props.says}</span>
+            <span class="min-w-0 truncate">{work()}</span>
           </button>
         </div>
       </Show>
