@@ -231,6 +231,51 @@ test("CLI extra and removal flags compose a non-notebook MCP host without a vaul
   } finally { expect(await child.stop()).toBe(130) }
 }, 15000)
 
+/**
+ * A ROW'S VERBS LEAVE WITH THE ROW — asked of the three that no ops-layer door
+ * can answer, because they are the case that proves the mechanism rather than
+ * the schema.
+ *
+ * `inspect_plugins`, `run_plugin` and `stop_plugin` were three hand-written
+ * `BespokeTool`s inside `olai-plugin-mcp`, advertised or withheld by a
+ * `management` name-to-tag map in a `catalog.ts` beside them — one row's
+ * vocabulary held by another row, and a map somebody had to keep in step.
+ * #546 sent them home: they are `olai-plugin-vault-plugins`' own `tools.ts`
+ * now, handed to the host beside that row's `faces.agent`, and the reason they
+ * are offered is that the row is HERE.
+ *
+ * WHICH IS EXACTLY THE CLAIM NOTHING ELSE MAKES. The content rows' withdrawal
+ * is covered above, but every one of those verbs lands on an `ops.*` member, so
+ * a filter that had rotted into "is the ops door open" would still pass. These
+ * three land on `plugins.*`, which no other row serves and no ops door
+ * reaches — so if the tool list did not actually follow the roster, this is
+ * where it shows.
+ *
+ * THE CALL IS ASKED TOO, and not only the listing. A name missing from
+ * `tools/list` while its handler went on answering would be a tool an agent
+ * cannot discover and can still invoke, which is worse than either half alone.
+ */
+test("the plugin author's three verbs leave with the row that owns them", async () => {
+  await withServing({ root: served(), plugins: ["vault", "vault-plugins", "ws", "mcp"] }, async url => {
+    const names = async () => (await (await request(url)).json()).result.tools.map((tool: { name: string }) => tool.name) as string[]
+    expect(await names()).toContain("inspect_plugins")
+    expect(await names()).toContain("run_plugin")
+    expect(await names()).toContain("stop_plugin")
+    await flip(url, "vault-plugins", false)
+    expect(await names()).not.toContain("inspect_plugins")
+    expect(await names()).not.toContain("run_plugin")
+    expect(await names()).not.toContain("stop_plugin")
+    const refused = await request(url, "tools/call", { name: "inspect_plugins", arguments: {} })
+    const said = (await refused.json()).result
+    expect(said.isError).toBe(true)
+    expect(JSON.stringify(said)).toContain("capability")
+    await flip(url, "vault-plugins", true)
+    expect(await names()).toContain("inspect_plugins")
+    const answered = await request(url, "tools/call", { name: "inspect_plugins", arguments: {} })
+    expect((await answered.json()).result.isError).not.toBe(true)
+  })
+})
+
 test("shared write tags retain only their active content cases on the MCP catalog", async () => {
   await withServing({ root: served(), plugins: ["vault", "outlines", "markdown", "files", "capture", "ws", "mcp"] }, async url => {
     const names = async () => (await (await request(url)).json()).result.tools.map((tool: { name: string }) => tool.name) as string[]
