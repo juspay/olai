@@ -65,3 +65,11 @@ export default definePlugin({
 export { dispatch } from "./surface.ts"
 
 export { slotContracts as slots } from "./slots.ts"
+
+/** Static sibling metadata matches the browser-owned client. Agent grants
+ * belong to the standalone aliases registered by this activation, so copying
+ * them here would advertise a second set of namespaced agent tools. */
+import { faces as standaloneFaces } from "./surface.ts"
+const siblingFaces = { browser: standaloneFaces.browser }
+export { siblingFaces as faces }
+export { surface } from "./surface.ts"
