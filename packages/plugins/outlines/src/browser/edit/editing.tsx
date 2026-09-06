@@ -779,7 +779,12 @@ export const createEditor = (
       { verb: "split", id: held.row, title, rest, ...(under ? { under: true } : {}) },
       slotOf(held),
     )
-    if (done === null) return
+    // Escape or another edit may have replaced the source while this write
+    // was pending. Its inverse is still recorded, but its caret is no longer
+    // ours to install. A page frame may relocate the same draft, so compare
+    // its logical slot rather than the draft object's identity.
+    const current = draft()
+    if (done === null || current === null || !sameSlot(slotOf(current), slotOf(held))) return
     setDraft(opening(done, 0))
     setCaret((n) => n + 1)
   }
@@ -937,6 +942,7 @@ export const createEditor = (
     // is abandoning. A commit already in flight still answers — to the slot it
     // was sent for, which is no longer open, so nothing lands anywhere.
     cancel: () => {
+      settling = false
       setResuming(null)
       idle.clear()
       setDraft(null)

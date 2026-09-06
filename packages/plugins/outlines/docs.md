@@ -14,6 +14,12 @@ the same task. That redraw keeps the draft open so the next structural key acts
 on the same row. A browser regression forces this ordering and verifies completion
 still works; restoring the former synchronous blur handler makes it fail.
 
+Escape also cancels a deferred editor when a split reply arrives before the page
+frame that draws its new row. The focused pane handles that gap; other panes and
+focused fields keep their own keyboard behavior. A cancelled split still records
+its inverse, but its late reply cannot reopen the editor or replace a freshly
+opened draft. Controlled reply/frame delays cover cancellation and subsequent Undo.
+
 The package's declared contract doors carry types, location names and scoped service handles. Chat's node-reference consumers use the reference capability; they do not import the outline implementation. The shared Markdown parser and the serial undo algorithm are static libraries, with no document-plugin or outline-plugin activation of their own.
 
 Outlines supplies outline pages, node editing, zoomed views, filtering, rich

@@ -192,6 +192,19 @@ function EditablePage(props: EditableProps) {
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
+      // A structural reply can select a newly minted row before its page
+      // revision arrives. There is then no input to hear Escape: the old
+      // editor has left, and focus is on the document. Cancel only this
+      // focused pane's deferred row editor, so the late frame cannot reopen
+      // it and turn the next Undo into native input undo.
+      if (!event.defaultPrevented && event.key === "Escape"
+        && router.workspace().focus === pane
+        && (event.target === document.body || event.target === document.documentElement)
+        && editor.draft()?.kind === "row" && editor.where().place === null) {
+        event.preventDefault()
+        editor.press("cancel")
+        return
+      }
       if (selection.rows().length === 0) return
       // Never over a field. The pick is live across the whole window, so a
       // handler that fired while somebody was typing in the composer would be a
