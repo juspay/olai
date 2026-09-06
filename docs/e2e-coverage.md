@@ -172,3 +172,5 @@ again` step chmods back to 0644 and asks the same verified-look door the refusal
 uses, so both markdown refusals are now provably left as well as reached; the
 existing `doc`-line case ends the same way. The unreadable `.html` page case in
 `html_previews.feature` still has no recovery half.
+
+Codex native activity (`codex_activity.feature`) covers child-session tool isolation with colliding IDs, nested work doors and isolated terminal output, active agent completion/cancellation, attributed permissions and elicitations without tool IDs, background terminal completion/failure/stoppage after a turn or its child agent finishes, restored active tasks, and late activity after changing conversations. The fixtures negotiate codex-acp 1.10's AIR capabilities and send its native wire messages without Claude metadata.

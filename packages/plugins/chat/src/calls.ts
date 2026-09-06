@@ -113,10 +113,11 @@ export class Calls {
    *  said nothing leaves no entry and allocates nothing, so a conversation of
    *  ordinary calls keeps an empty map — which is nearly every conversation,
    *  and this runs on every frame of all of them. */
-  heard(id: string, meta: Meta): void {
+  heard(id: string, meta: Meta, session?: string): void {
     const said = saidIn(this.#leg, meta)
     if (said === NOTHING) return
-    this.#said.set(id, { ...this.#said.get(id), ...said })
+    const key = this.#key(id, session)
+    this.#said.set(key, { ...this.#said.get(key), ...said })
   }
 
   /**
@@ -142,13 +143,19 @@ export class Calls {
    * wins: an agent that says the name in its own words has said something the
    * id does not know.
    */
-  about(id: string | null): Said {
+  about(id: string | null, session?: string): Said {
     if (id === null) return NOTHING
-    const said = this.#said.get(id)
+    const said = this.#said.get(this.#key(id, session))
     if (said?.name !== undefined) return said
     const named = this.#leg.toolNameOf(id)
     if (named === null) return said ?? NOTHING
     return said === undefined ? { name: named } : { ...said, name: named }
+  }
+
+  /** The call's wire ID remains intact for Leg.toolNameOf; only remembered
+   * facts are qualified by session when the leg uses native child sessions. */
+  #key(id: string, session?: string): string {
+    return this.#leg.nativeActivity && session !== undefined ? JSON.stringify([session, id]) : id
   }
 
   /** The conversation is over. A call id is only ever looked up inside the

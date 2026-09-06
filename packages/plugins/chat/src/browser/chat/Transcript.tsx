@@ -94,17 +94,16 @@ import { selector } from "@olai/ui-primitives/testids.ts"
 import { TESTID } from "../../testids.ts"
 import { revealed, revealing, wholeYet } from "./attention/reveal.ts"
 import { declaringFailure } from "olai-plugin-outlines/references"
-import { doorOf } from "./door.ts"
 import { laneOf } from "./lanes.ts"
 import { NEAR } from "./near.ts"
-import { isPreviewing, previewing, togglePreview } from "./previewing.ts"
+import { previewing } from "./previewing.ts"
 import { railOf, sameRail } from "./rail.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import { Row } from "./Row.tsx"
 import { facedAt } from "./speakers.ts"
 import type { Faced } from "./Speaker.tsx"
-import { sentOf, whoOf } from "./spawn.ts"
+import { sentOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
 /** A question still waiting on somebody — `./AskForm.tsx`'s row with its own
@@ -427,24 +426,6 @@ export function Transcript(props: { readonly chat: Chat }) {
              *  an identical rail would notify the attributes and the words
              *  under it on every frame of that row. */
             const working = createMemo(() => railOf(entry()), null, { equals: sameRail })
-            /**
-             * HOW MUCH IS BEHIND THIS ROW'S DOOR — the number of calls the
-             * agent it sent has made, and `0` for every row that sent nobody.
-             *
-             * THE ROW IS READ BEFORE THE LIST IS, and the order is the whole
-             * of why this is cheap. `whoOf` is a fact about this row alone; a
-             * memo that answers on it and returns never touches `lanes()`, so
-             * it never subscribes to it — and a conversation's three hundred
-             * and ninety-seven non-spawn rows go on waking only when they
-             * themselves change, which is the property `./spawn.ts` records
-             * having deliberately bought. Only the three rows that sent
-             * somebody join the list-wide signal, and what leaves this memo is
-             * a NUMBER, so a re-run stops here the way `above`'s does.
-             */
-            const calls = createMemo(() => {
-              if (whoOf(entry()) === null) return 0
-              return props.chat.lanes().get(key)?.length ?? 0
-            })
             /** WHOSE FACE GOES OVER THIS ROW, or `null` for one inside a run
              *  ({@link ./speakers.ts}) — the same shape `lane` has, off the
              *  same two entries, and for the same reason: whether a row is the
@@ -470,9 +451,6 @@ export function Transcript(props: { readonly chat: Chat }) {
                     chat={props.chat}
                     lane={lane()}
                     rail={working()}
-                    door={calls() > 0 ? () => togglePreview(key) : null}
-                    says={doorOf(entry(), calls())}
-                    open={isPreviewing(key)}
                     speaker={speaker()}
                   />
                 )}

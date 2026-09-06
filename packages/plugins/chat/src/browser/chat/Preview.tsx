@@ -75,7 +75,7 @@ import type { ChatEntry } from "olai-plugin-chat/wire"
 import { TESTID } from "../../testids.ts"
 import type { Lane } from "./lanes.ts"
 import { reveal } from "./attention/reveal.ts"
-import { closePreview, previewing } from "./previewing.ts"
+import { closePreview, previewing, togglePreview } from "./previewing.ts"
 import { railOf } from "./rail.ts"
 import { Row } from "./Row.tsx"
 import { sentOf, whoOf } from "./spawn.ts"
@@ -119,6 +119,12 @@ function Shelf(props: {
    *  transcript: a second answer to "is somebody being waited on" is a second
    *  thing free to disagree with the row a person has to press. */
   const asked = () => props.chat.state().asking > 0
+  const parent = () => {
+    const row = props.open.entry
+    if (row.kind !== "tool" || row.parent === undefined) return null
+    const name = sentOf(props.chat.entry(row.parent)())
+    return name === null ? null : { row: row.parent, name }
+  }
   return (
     <section
       // SHRINKABLE, and that is the load-bearing half of the geometry. Every
@@ -158,24 +164,14 @@ function Shelf(props: {
           <span class="shrink-0 opacity-70">show me</span>
         </button>
       </Show>
-      {/* THE HEAD IS ONE LINE AND NOTHING ELSE — no control beside it, and the
-          ruling is the human's (2026-08-28, after a resumed agent went missing
-          from the strip): get rid of the ×.
-
-          It was a second way to close one thing — the door that opened this
-          shelf closes it, both of them, because pressing the agent you are
-          already reading means *put it away* ({@link ./previewing.ts}) — and a
-          × on a box about an AGENT reads as a control over the agent rather
-          than over the box. The person who pressed it read it that way: they
-          took it for a dismissal, and when the same agent was resumed and no
-          face came back, the × was the thing they had done. It is the row's own
-          door and the strip's entry that open and shut this, and neither of
-          them can ever mean anything about the agent. `Header.tsx`'s own rule,
-          arriving here from the other side.
-
-          Which is why this line is not wrapped in anything: a flex row with a
-          gap and a `flex-1` child is a box laid out for a SECOND thing, and
-          there is no second thing. */}
+      {/* Navigation between agents keeps one shelf open. These buttons only
+          choose whose work to view; they never stop or dismiss an agent. */}
+      <Show when={parent()}>{(above) => (
+        <button type="button" class="px-3 pt-1 text-left text-xs text-muted hover:text-ink"
+          aria-label={`Back to ${above().name}`} onClick={() => togglePreview(above().row)}>
+          ← {above().name}
+        </button>
+      )}</Show>
       <p
         class="flex min-w-0 shrink-0 items-baseline gap-1 px-3 py-1.5 font-mono text-[0.6875rem] leading-snug text-ink"
         data-testid={TESTID.chatPreviewOf}
@@ -220,17 +216,6 @@ function Shelf(props: {
                       chat={props.chat}
                       lane={lane()}
                       rail={railOf(entry())}
-                      // NO DOOR IN HERE, and it is a real decision rather than
-                      // an omission: nothing in the harness olai talks to lets
-                      // a subagent send an agent of its own, and a shelf that
-                      // opened another shelf on top of itself is a shape
-                      // nobody has ever seen arrive. If one does, its calls are
-                      // filed under it like everything else and the row is
-                      // still here — with no way in yet, which is the direction
-                      // to be wrong in.
-                      door={null}
-                      says={null}
-                      open={false}
                       // AND NO FACE EITHER, for the reason the lane above it
                       // carries no label: every row in this shelf is the one
                       // agent's, and that agent is named once in the shelf's

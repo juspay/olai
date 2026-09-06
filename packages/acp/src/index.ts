@@ -33,3 +33,5 @@ export { diffsOf, relativeTo } from "./diffs.ts"
 export { usageIn } from "./usage.ts"
 
 export { terminalMetaIn } from "./terminal.ts"
+
+export { nativeActivity, type ActivityUpdate, type ActivityNotification } from "./activity.ts"

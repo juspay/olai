@@ -7,9 +7,6 @@
  * Codex permission request is always left to the person: failing to recognise
  * a call may cost a click, while guessing could grant authority nobody gave.
  *
- * Codex's native subagent metadata is similarly richer than ACP's flat feed,
- * but it identifies threads rather than the one spawning call Leg needs. This
- * first integration draws those calls flat instead of inventing parentage.
  */
 import { namedExactly, type Leg, type Meta, type Reported } from "@olai/acp/engine"
 
@@ -54,6 +51,7 @@ export const serversInUpdate = (update: unknown): ReadonlyArray<Reported> | null
 }
 
 export const CODEX: Leg = {
+  nativeActivity: true,
   serversInUpdate,
   toolNameIn: (_meta: Meta) => null,
   toolNameOf: () => null,

@@ -3922,3 +3922,24 @@ Then("my transcript speaker wears an anonymous silhouette", async function (this
   await speaker.locator("svg").waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.strictEqual(await speaker.locator("img").count(), 0);
 });
+
+When(
+  "I pick the conversation {string} under the agent {string}",
+  async function (this: OlaiWorld, title: string, agent: string) {
+    await this.page.locator(`${CHAT_SESSION}${attr("data-agent", agent)}`, { hasText: title }).first().click();
+  },
+);
+
+Then("the open agent's work contains {string} but not {string}", async function (this: OlaiWorld, own: string, other: string) {
+  const work = this.page.locator(CHAT_PREVIEW);
+  await this.waitUntil(async () => (await work.innerText()).includes(own), `the child work to contain ${own}`, HYDRATION_TIMEOUT);
+  assert.ok(!(await work.innerText()).includes(other), `the child work contains another session's output: ${other}`);
+});
+
+When("I open {string} from the open agent's work", async function (this: OlaiWorld, named: string) {
+  await this.page.locator(`${CHAT_PREVIEW} ${CHAT_LANE_DOOR}`, { hasText: named }).click();
+});
+
+When("I return to the parent agent {string}", async function (this: OlaiWorld, name: string) {
+  await this.page.getByRole("button", { name: `Back to ${name}`, exact: true }).click();
+});
