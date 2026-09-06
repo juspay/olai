@@ -691,7 +691,8 @@ const startServerChild = async (
         // The packaged binary now carries Codex too. Every scenario here is
         // deterministic against the scripted engine(s) it explicitly asks
         // for, so its real baked adapter must not silently add a picker row.
-        OLAI_ACP_CODEX: "",
+        OLAI_ACP_CODEX: spawnOptions.codex === true ? FAKE_AGENT : "",
+        ...(spawnOptions.codex === true ? { OLAI_FAKE_CODEX: "yes" } : {}),
         ...(spawnOptions.stored === true ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
         // WHERE OLAI LOOKS FOR AGENTS, and by default nowhere: the empty
         // string is "look on no path at all", so a developer's own opencode
@@ -707,8 +708,6 @@ const startServerChild = async (
         // string when the scenario is not about pi, which is the row's off
         // switch and keeps a developer's own bake from deciding a scenario.
         OLAI_ACP_PI: spawnOptions.pi === true ? FAKE_PI_ACP : "",
-        OLAI_ACP_CODEX: spawnOptions.codex === true ? FAKE_AGENT : "",
-        ...(spawnOptions.codex === true ? { OLAI_FAKE_CODEX: "yes" } : {}),
         ...(spawnOptions.pi === true && spawnOptions.stored === true
           ? { OLAI_FAKE_PI_STORED: "yes" }
           : {}),
@@ -1362,7 +1361,7 @@ Before(
     }
     if ((this.hasPi || this.hasCodex) && !writes) {
       throw new Error(
-        `${PI_TAG} decides which agents its server finds, so the scenario must own ` +
+        `The agent tag decides which agents its server finds, so the scenario must own ` +
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }

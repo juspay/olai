@@ -44,6 +44,18 @@ Feature: Messages sent while Codex works steer its current turn
     Then node "order" is done
     And the agent is idle
 
+  Scenario: A steer arriving after completion starts a tracked normal turn
+    When I ask the agent "slow steering"
+    Then the agent is idle
+    When I ask the agent "slow"
+    Then the agent is working
+    When I ask the agent "done order"
+    And the agent is released
+    Then node "order" is done
+    And the agent is idle
+    And the header has stopped saying the agent is working
+    And the panel does not say it is busy
+
   Scenario: Cancelling while a steer is in flight does not start another turn
     When I ask the agent "slow steering"
     Then the agent is idle
