@@ -404,7 +404,7 @@ There is no second writer, and there never will be — one process opens the dir
 
 ## Quick capture, from a terminal
 
-A thought that arrives while you are somewhere else — a terminal, a mail client, a script that noticed something — should cost five seconds and no context switch. `olai surface capture add` is that door: one line, into the directory's inbox — the ROW that owns the verb, then the verb, which is how argv spells the same composition an agent's tool name spells with an underscore (`capture_add`).
+A thought that arrives while you are somewhere else — a terminal, a mail client, a script that noticed something — should cost five seconds and no context switch. `olai surface capture add` is that door: one line, into the directory's inbox.
 
 ```sh
 olai surface capture add "look into the new cabinets" \

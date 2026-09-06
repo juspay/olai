@@ -58,7 +58,12 @@ Given(
 When(
   "the terminal agent marks {string} {word}",
   async function (this: OlaiWorld, id: string, mark: string) {
-    this.toolAnswer = await callTool(agentOf(this), `set_${mark}`, { id });
+    // `outlines_<mark>`, built the way the row builds it: the mark tools are
+    // minted from `MARKS` on outlines' own table (`outlines/src/tools.ts`), so a
+    // mark added to the format is a verb here with nothing typed for it. The
+    // row's word in front is the composition BOTH faces make — it was
+    // `set_${mark}` while a verb's name was the whole of it (#546).
+    this.toolAnswer = await callTool(agentOf(this), `outlines_${mark}`, { id });
   },
 );
 

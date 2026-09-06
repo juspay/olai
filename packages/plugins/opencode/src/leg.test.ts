@@ -93,7 +93,7 @@ describe("which permissions are answered without asking", () => {
     // An ordinary builtin.
     expect(allowedWithoutAsking("bash", GIVEN, ASKED)).toBeNull()
     // A tool that looks like the OTHER agent's spelling.
-    expect(allowedWithoutAsking("mcp__olai__set_done", GIVEN, ASKED)).toBeNull()
+    expect(allowedWithoutAsking("mcp__olai__outlines_done", GIVEN, ASKED)).toBeNull()
   })
 
   test("a call nobody named is a call a person is asked about", () => {

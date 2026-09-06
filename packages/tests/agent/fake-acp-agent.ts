@@ -1855,7 +1855,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // draw one, and must never come back `auto` unless somebody pressed it.
     const plan = verb === "plan"
     const toolCallId = `call-${++nextMcpId}`
-    const toolName = plan ? "ExitPlanMode" : "mcp__olai__set_done"
+    const toolName = plan ? "ExitPlanMode" : "mcp__olai__outlines_done"
     notify("session/update", {
       sessionId,
       update: {

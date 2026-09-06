@@ -70,7 +70,7 @@ const TOOL_CALL: ReadonlyArray<PermissionOption> = [
 
 describe("which permissions are answered without asking", () => {
   test("a call to a server we handed this session is allowed", () => {
-    expect(allowedWithoutAsking("mcp__olai__set_done", GIVEN, TOOL_CALL)).toBe("allow")
+    expect(allowedWithoutAsking("mcp__olai__outlines_done", GIVEN, TOOL_CALL)).toBe("allow")
     expect(allowedWithoutAsking("mcp__alpha__terminal_read", GIVEN, TOOL_CALL)).toBe("allow")
   })
 
@@ -96,8 +96,8 @@ describe("which permissions are answered without asking", () => {
     // being an MCP tool. A padi-attached server, a `.mcp.json` the agent read
     // for itself — none of those were olai's to mediate.
     expect(allowedWithoutAsking("mcp__github__create_pr", GIVEN, TOOL_CALL)).toBeNull()
-    expect(allowedWithoutAsking("mcp__olai__set_done", [], TOOL_CALL)).toBeNull()
-    expect(allowedWithoutAsking("mcp__olai__set_done", ["alpha"], TOOL_CALL)).toBeNull()
+    expect(allowedWithoutAsking("mcp__olai__outlines_done", [], TOOL_CALL)).toBeNull()
+    expect(allowedWithoutAsking("mcp__olai__outlines_done", ["alpha"], TOOL_CALL)).toBeNull()
   })
 
   test("the separator is part of the name, so a longer server name is not ours", () => {
@@ -120,13 +120,13 @@ describe("which permissions are answered without asking", () => {
       { kind: "reject_once", name: "Deny", optionId: "reject" },
       { kind: "reject_always", name: "Deny, and stop asking", optionId: "rejectAlways" },
     ]
-    expect(allowedWithoutAsking("mcp__olai__set_done", GIVEN, refusals)).toBeNull()
-    expect(allowedWithoutAsking("mcp__olai__set_done", GIVEN, [])).toBeNull()
+    expect(allowedWithoutAsking("mcp__olai__outlines_done", GIVEN, refusals)).toBeNull()
+    expect(allowedWithoutAsking("mcp__olai__outlines_done", GIVEN, [])).toBeNull()
   })
 
   test("the allow is the allow-flavoured one, not the first one", () => {
     // Both kinds count as an allow, and the order is the agent's own.
-    expect(allowedWithoutAsking("mcp__olai__set_done", GIVEN, [
+    expect(allowedWithoutAsking("mcp__olai__outlines_done", GIVEN, [
       { kind: "reject_once", name: "Deny", optionId: "reject" },
       { kind: "allow_always", name: "Allow Always", optionId: "allowAlways" },
       { kind: "allow_once", name: "Allow Once", optionId: "allow" },
@@ -139,8 +139,8 @@ describe("which tool a call is", () => {
     // What a `tool_call` announcement looks like: the permission request that
     // follows it says "Ready to code?" or a display title, and this is the
     // question the answer turns on.
-    expect(toolNameIn({ claudeCode: { toolName: "mcp__olai__set_done" } }))
-      .toBe("mcp__olai__set_done")
+    expect(toolNameIn({ claudeCode: { toolName: "mcp__olai__outlines_done" } }))
+      .toBe("mcp__olai__outlines_done")
     expect(toolNameIn({ claudeCode: { toolName: "ExitPlanMode" } })).toBe("ExitPlanMode")
   })
 
@@ -158,14 +158,14 @@ describe("which tool a call is", () => {
     expect(toolNameIn({ claudeCode: { toolName: "" } })).toBeNull()
     expect(toolNameIn({ claudeCode: { toolName: 7 } })).toBeNull()
     expect(toolNameIn({ claudeCode: { toolName: null } })).toBeNull()
-    expect(toolNameIn({ claudeCode: "mcp__olai__set_done" })).toBeNull()
+    expect(toolNameIn({ claudeCode: "mcp__olai__outlines_done" })).toBeNull()
     expect(toolNameIn({ claudeCode: null })).toBeNull()
   })
 
   test("an unnameable tool and a plan exit are the same answer downstream", () => {
     // The pair the whole rule rests on, read end to end: what `_meta` says, put
     // through the decision. Neither is bypassed.
-    const named = { claudeCode: { toolName: "mcp__olai__set_done" } }
+    const named = { claudeCode: { toolName: "mcp__olai__outlines_done" } }
     expect(allowedWithoutAsking(toolNameIn(named), GIVEN, TOOL_CALL)).toBe("allow")
     expect(allowedWithoutAsking(toolNameIn({}), GIVEN, TOOL_CALL)).toBeNull()
     expect(

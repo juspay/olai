@@ -54,7 +54,7 @@ describe("which permissions are answered without asking", () => {
     // claim is the refusal, not the shape the tool reached pi by.
     expect(allowedWithoutAsking("olai_outlines_done", ["olai", "alpha"], []))
       .toBeNull()
-    expect(allowedWithoutAsking("mcp__olai__set_done", ["olai"], [])).toBeNull()
+    expect(allowedWithoutAsking("mcp__olai__outlines_done", ["olai"], [])).toBeNull()
     // A call nobody named.
     expect(allowedWithoutAsking(null, ["olai"], [])).toBeNull()
   })
