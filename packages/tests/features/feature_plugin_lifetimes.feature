@@ -4,7 +4,16 @@ Feature: Directory features have independent browser lifetimes
   Sidebar presentation can leave while content and navigation continue.
 
   Scenario Outline: A directory feature can leave and return without replacing a draft
-    Given I open the outline "house.olai"
+    Given I rewrite "Pins.olai" as:
+      """
+      {"id":"lifetime-pin","ord":"a0","title":"/house.olai"}
+      """
+    And I rewrite "Inbox.olai" as:
+      """
+      {"id":"lifetime-inbox","ord":"a0","title":"a captured task"}
+      """
+    And I open the outline "house.olai"
+    And the directory feature "<feature>" is present in this tab
     And I mark the page
     When I click the title of "handles"
     And I select all and type "abcde"
@@ -15,12 +24,17 @@ Feature: Directory features have independent browser lifetimes
     And I open the plugins panel
     And I switch the plugin "<feature>" off
     And I use the original browser tab
-    Then the row "handles" kept every element it had
+    Then the directory feature "<feature>" is absent in this tab
+    And the row "handles" kept every element it had
+    And the surviving title editor has keyboard focus
     When I type "|"
+    Then the row being typed holds "abc|de"
     And I use the other browser tab
     And I switch the plugin "<feature>" on
     And I use the original browser tab
-    Then the row "handles" kept every element it had
+    Then the directory feature "<feature>" is present in this tab
+    And the row "handles" kept every element it had
+    And the surviving title editor has keyboard focus
     When I click away from the editor
     Then "house.olai" holds a node titled "abc|de"
     And the page has not reloaded

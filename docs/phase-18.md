@@ -12,13 +12,19 @@ Last complete CI: code commit `55b5bee87` passed all 49 checks, including
 1,446 browser scenarios. That result predates the substantial extraction now
 in progress and does not validate the current working tree.
 
-Current integration: `79b0770f0` completed full `just ci` with 44 checks
-passing and five failing. The underlying failures were the real-Git upstream
-test's five-second default deadline and two palette shortcuts lost during
-startup (plus their aggregates). Both now have verified corrections awaiting
-full CI. The Git case has an explicit 30-second integration budget: all 32 Git
-tests pass, and a probe delaying every Git invocation by 400ms passes in
-7.47 seconds without changing any assertions.
+Current integration: `01217d774` completed full `just ci`: 47 checks passed
+and two failed. All unit tests, typechecks and palette scenarios passed. The
+sole failure was a cross-tab Files lifecycle test typing before the original
+tab had observed the provider change and restored focus after reconnect.
+The screenshot shows the missing character, not a replaced editor. All five
+feature cases now witness their contribution leave/return in the original tab,
+assert restored focus without refocusing, and check the exact draft before
+its disk assertion. Those cases plus editor range lifecycle coverage pass
+10 scenarios and 241 steps. The strengthened acceptance awaits full CI.
+
+The real-Git upstream case has an explicit 30-second integration budget:
+all 32 Git tests pass, and a probe delaying every Git invocation by 400ms
+passes in 7.47 seconds without changing any assertions.
 
 The palette failures are reproduced by a real held reconnect: the old `open()`
 helper returned behind Offline's painted dialog, whose capture listener

@@ -511,6 +511,13 @@ intentionally inspect connecting or fault states. The held-reconnect case in
 `palette_startup.feature` checks that opening stays pending behind the dialog,
 then spends the first shortcut and verifies its command writes the file.
 
+For cross-tab plugin changes, the controlling tab's switch is not a receipt
+that the editing tab has applied the change. `feature_plugin_lifetimes.feature`
+waits for each capability's actual contribution to leave or return in the
+editing tab, then verifies the offline dialog has closed and the surviving
+editor has regained keyboard focus. The test never refocuses that editor.
+Row identity, exact draft text, and the committed file remain separate claims.
+
 Pending-write scenarios hold incoming WebSocket messages only after the control
 under test is ready. The route matcher compares `/rpc/ws` by pathname: a redial
 adds `?pid=…`, which must not bypass the hold. Daily-note tests also observe the
