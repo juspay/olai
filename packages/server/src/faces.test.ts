@@ -45,7 +45,7 @@ import { createSurfaceSocket } from "@kolu/surface-app/connect"
 import { composeSurfaceContracts, scopeSiblingTag, type Surface, type SurfaceSpec } from "@kolu/surface/define"
 import { exposeFace } from "@kolu/surface/expose"
 import { resolveExpose } from "@kolu/surface-mcp"
-import { AGENT_EXPOSE, mcpContract } from "olai-plugin-mcp/testlib"
+import { AGENT_SIBLINGS } from "@olai/bundle/agent-face"
 import { findSaid } from "@olai/log/testlib"
 import { hostFaces, hostSurface } from "@olai/surface/host"
 import { openLoading, openPlugins } from "@olai/plugin-api/services"
@@ -364,8 +364,8 @@ test("the screen-shaped readings are the browser's, and the agent is answered in
     // Each of these answers a SCREEN rather than a fact, and the agent has the
     // node-shaped question instead. `page` is the sharpest: rows carrying the
     // fold keys of the places they are drawn at, a rollup beside a checkbox, the
-    // titles of the ids those rows point at — an agent asks `list_outlines` and
-    // `read_subtree` and is answered in NODES, which is what it can act on.
+    // titles of the ids those rows point at — an agent asks `outlines_map` and
+    // `outlines_subtree` and is answered in NODES, which is what it can act on.
     // `narrowing` and `searchResults` answer a set of ids and why, useful only to
     // somebody already looking at the rows those ids name; `tagCompletions` and
     // `vocabulary.tags` answer a POPUP's worth of rows, and an agent writing
@@ -417,7 +417,7 @@ test("the outlines collection is the AGENT's, and the two shared members are sha
     // ...and the two that genuinely are one member with two readers. `errors` is
     // what is wrong across the set right now — the browser draws it as a banner
     // over its last-good tree and an agent reads the identical rows off
-    // `surface://cells/errors`, which is what makes "MCP and Web ops must be
+    // `surface://cells/vault/errors`, which is what makes "MCP and Web ops must be
     // consistent" a property of one line. `search.nodes` stopped being twinned
     // once the writer stopped travelling with a call: an agent's search and a
     // person's are the same act through the same member.
@@ -431,13 +431,33 @@ test("the outlines collection is the AGENT's, and the two shared members are sha
 // ── what an agent is PUBLISHED as resources ─────────────────────────────
 //
 // The other axis, and the one the `ExposeMap` alone decides: which members are
-// offered as `surface://` URIs at all. It was `@olai/bundle`'s `MCP`; it is
-// `olai-plugin-mcp`'s `AGENT_EXPOSE` over that row's flat contract now, because
-// `serveSurfaceAsMcp` builds every URI out of ONE spec's member keys
-// (juspay/kolu#2233). What the rows' `faces.agent` maps above decide is whether
-// an agent may REACH a member; this decides whether it is published.
+// offered as `surface://` URIs at all. What the rows' `faces.agent` maps above
+// decide is whether an agent may REACH a member; this decides whether it is
+// published.
+//
+// IT WAS ONE MAP OVER ONE SPEC — `@olai/bundle`'s `MCP`, then
+// `olai-plugin-mcp`'s `AGENT_EXPOSE` over that row's flat contract — because
+// `serveSurfaceAsMcp` built every URI out of ONE spec's member keys.
+// juspay/kolu#2234 takes a rooted bundle instead, so each row's OWN `resources`
+// map is resolved against that ROW's spec, WITH the row's key, and every URI
+// below carries it. Two rows publishing the same member key are disjoint by
+// construction rather than by a curator picking one.
 
-const resolved = () => resolveExpose(mcpContract.spec, AGENT_EXPOSE)
+/** Each row's half of the published set, resolved as the served face resolves
+ *  it and as `../dial.ts` resolves it on the CLI side — same function, same
+ *  maps, same keys, which is what keeps a URI the CLI names one the server
+ *  answers. */
+const perRow = () =>
+  Object.entries(AGENT_SIBLINGS).map(([key, sibling]) =>
+    resolveExpose(sibling.surface.spec as never, sibling.expose as never, key)
+  )
+
+/** ...and the whole set, as one face publishes it. */
+const resolved = () => ({
+  resources: perRow().flatMap((one) => one.resources),
+  resourceTemplates: perRow().flatMap((one) => one.resourceTemplates),
+  tools: perRow().flatMap((one) => one.tools),
+})
 
 test("each published member is addressed by the kind it actually is", () => {
   const { resources, resourceTemplates } = resolved()
@@ -448,16 +468,20 @@ test("each published member is addressed by the kind it actually is", () => {
   // spelling the store's keys and every `file:line` use — which the adapter
   // parses by splitting on the FIRST `/` after the collection name, so a nested
   // `notes/todo.olai` addresses without escaping.
-  for (const key of ["outlines", "documents"]) {
+  //
+  // THE ROW IS THE FIRST SEGMENT after the kind, and the member follows it —
+  // `outlines/outlines` reads like a repetition because the row and its member
+  // are both called `outlines`, not because a segment is doubled.
+  for (const [row, key] of [["outlines", "outlines"], ["markdown", "documents"]] as const) {
     expect(resources).toContainEqual(
-      expect.objectContaining({ uri: `surface://collections/${key}`, kind: "collection", key }),
+      expect.objectContaining({ uri: `surface://collections/${row}/${key}`, kind: "collection", key }),
     )
     expect(resourceTemplates).toContainEqual(
-      expect.objectContaining({ uriTemplate: `surface://collections/${key}/{id}`, key }),
+      expect.objectContaining({ uriTemplate: `surface://collections/${row}/${key}/{id}`, key }),
     )
   }
   expect(resources).toContainEqual(
-    expect.objectContaining({ uri: "surface://cells/errors", kind: "cell", key: "errors" }),
+    expect.objectContaining({ uri: "surface://cells/vault/errors", kind: "cell", key: "errors" }),
   )
 })
 
@@ -465,13 +489,13 @@ test("nothing else is published, and the set is exact", () => {
   const { resources, resourceTemplates, tools } = resolved()
 
   expect(resources.map((r) => r.uri).sort()).toEqual([
-    "surface://cells/errors",
-    "surface://collections/documents",
-    "surface://collections/outlines",
+    "surface://cells/vault/errors",
+    "surface://collections/markdown/documents",
+    "surface://collections/outlines/outlines",
   ])
   expect(resourceTemplates.map((t) => t.uriTemplate).sort()).toEqual([
-    "surface://collections/documents/{id}",
-    "surface://collections/outlines/{id}",
+    "surface://collections/markdown/documents/{id}",
+    "surface://collections/outlines/outlines/{id}",
   ])
   // No procedure is published as a resource: the call-shaped half of this face
   // arrives separately, as the rows' own bespoke tools.
@@ -481,7 +505,10 @@ test("nothing else is published, and the set is exact", () => {
   // text}) })` — publishing it would have shipped every document body on every
   // read — and `snapshot-scale` cut those into the collection above, leaving a
   // fact with no fields. It was never published and now has nothing to publish.
-  expect(Object.keys(AGENT_EXPOSE)).not.toContain("manifest")
+  // Asked of the row that DECLARES it — vault's own `resources` map, which is
+  // where the decision lives now that there is no flat contract to keep it out
+  // of. A member absent from the row's map is absent from the bundle.
+  expect(Object.keys(AGENT_SIBLINGS.vault.expose)).not.toContain("manifest")
   expect(resolved().resources.map((r) => r.key)).not.toContain("manifest")
 })
 

@@ -11,8 +11,7 @@
     "./testids": "./src/testids.ts",
     "./testlib": "./src/testlib.ts",
     "./client": "./src/tools.ts",
-    "./contract": "./src/contract.ts",
-    "./face": "./src/client.ts"
+    "./contract": "./src/contract.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -24,13 +23,7 @@
     "@olai/ops": "workspace:*",
     "@olai/format": "workspace:*",
     "@olai/store": "workspace:*",
-    "@olai/ui-primitives": "workspace:*",
-    "olai-plugin-outlines": "workspace:*",
-    "olai-plugin-markdown": "workspace:*",
-    "olai-plugin-files": "workspace:*",
-    "olai-plugin-search": "workspace:*",
-    "olai-plugin-vault-plugins": "workspace:*",
-    "olai-plugin-vault": "workspace:*"
+    "@olai/ui-primitives": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"

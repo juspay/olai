@@ -19,7 +19,7 @@ test("changing a value is a write, and the key comes from the property, not the 
 })
 
 test("clearing the value is a write, and it is the REMOVAL — the op's own reading", () => {
-  // `set_prop` with `""` takes the key off, exactly as `null` does
+  // `outlines_prop` with `""` takes the key off, exactly as `null` does
   // (`@olai/ops`' plan). The face offers what the tool offers.
   expect(writes(PR, "pr", "")).toBe(true)
   expect(sending(PR, "pr", "")).toEqual({ key: "pr", value: "", was: "https://x/1" })
@@ -36,7 +36,7 @@ test("a new property needs a key and something to hold", () => {
   expect(writes(null, "", "claude-opus")).toBe(false)
   expect(writes(null, "   ", "claude-opus")).toBe(false)
   // ...and a new key with an empty value would be the removal of a key that is
-  // not there, which is the one thing `set_prop` refuses about removals. So
+  // not there, which is the one thing `outlines_prop` refuses about removals. So
   // `+` and then Enter is a way out rather than a complaint.
   expect(writes(null, "agent", "")).toBe(false)
 })

@@ -17,7 +17,7 @@ import { hostSurface, hostFaces } from "@olai/surface/host"
 import { composeCapabilities } from "./composition.ts"
 import { authorityAt } from "@olai/plugin-api/authority"
 import { CurrentWho } from "./who.ts"
-export type Bound = Omit<SurfaceRuntime<typeof hostSurface.spec>, "ctx"> & { readonly writes: ReadonlyArray<string>; readonly rows: ReadonlyArray<Registered> }
+export type Bound = Omit<SurfaceRuntime<typeof hostSurface.spec>, "ctx"> & { readonly writes: ReadonlyArray<string>; readonly rows: ReadonlyArray<Registered>; readonly rosterMoved: (run: () => void) => () => void }
 export interface PluginRuntime {
   readonly plugins: Plugins
   readonly onChange: { run: () => void }
@@ -226,6 +226,18 @@ app: {
     const mounted = new Map<string, MountedSurface<SurfaceSpec>>()
     const standing = new Map<string, Registered>()
     /**
+     * WHO WANTS TO BE TOLD THE COMPOSED ROSTER MOVED.
+     *
+     * The browser learns it from the `plugins` cell and redials; a face that is
+     * not a wire client has no cell to watch, and `olai-plugin-mcp` is one —
+     * its adapter holds a resolved table of resources and has to be handed a new
+     * roster in place (`reroster`) rather than restarted. Rung at the TAIL of
+     * `recompose`, after every mount, every drop and the gate, so a watcher
+     * reading `rows` sees the generation that has just been published rather
+     * than the one being assembled.
+     */
+    const watchers = new Set<() => void>()
+    /**
      * THE SIBLING REGISTRY, MADE INTO THE COMPOSED ROSTER — one movement of the
      * table, synchronous, and ARRIVALS ARE COMPOSED BEFORE DEPARTURES ARE
      * DROPPED.
@@ -330,6 +342,12 @@ app: {
       // NOT WHILE A FLIP IS IN FLIGHT — see the paragraph over `settling`, which
       // is what sets `moving` and what republishes once the bundle has stopped.
       if (!moving) republishPlugins()
+      // ...AND THE FACES THAT ARE NOT WIRE CLIENTS, last of all. A tab hears
+      // this through the `plugins` cell above and redials; a projecting face
+      // has no cell to watch and holds a table it must be handed a new roster
+      // for. Rung after the gate so a watcher reading `rows` sees the
+      // generation that has just been published.
+      for (const run of watchers) run()
     }
     const refreshPlugins = Effect.gen(function*() {
       pendingStatus = false
@@ -451,6 +469,10 @@ app: {
       bound: {
         get writes() { return runtime.writes },
         get rows() { return [...standing.values()] },
+        rosterMoved: (run: () => void) => {
+          watchers.add(run)
+          return () => watchers.delete(run)
+        },
         get group() {
           return runtime.group
         },

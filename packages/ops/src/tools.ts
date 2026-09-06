@@ -7,7 +7,7 @@
  * one thing: a GENERAL package spelled every row's vocabulary, and a row
  * switched off left its verbs advertised — an engine is handed the table, so a
  * serve without the search row still offered `search_nodes`, and one without a
- * ledger still offered `commit`. The tables are the ROWS' now
+ * ledger still offered `git_commit`. The tables are the ROWS' now
  * (juspay/olai#546): `olai-plugin-outlines`' `tools.ts` holds the node verbs,
  * `olai-plugin-markdown`' the document ones, and so on for trash, files,
  * search, capture and git. A tool leaves with the row that owns it, so
@@ -170,7 +170,7 @@ interface Described {
  * the walks.
  */
 export interface Asking {
-  /** Every outline under the served directory — `list_outlines`. */
+  /** Every outline under the served directory — `outlines_map`. */
   readonly outlines: Effect.Effect<OutlineAnswer, OpFailure>
   /**
    * The outline PATHS of that same directory, and no tool at all: this is the
@@ -186,10 +186,10 @@ export interface Asking {
    * plan arm was built around.
    */
   readonly paths: Effect.Effect<PathsAnswer, OpFailure>
-  /** One node in full, or the id nothing here declares — `read_node`. */
+  /** One node in full, or the id nothing here declares — `outlines_read`. */
   readonly node: (request: NodeRequest) => Effect.Effect<NodeAnswer, OpFailure>
   /** A node and what hangs under it, nested — or a whole outline, every
-   *  top-level node in it. `read_subtree`, and the second of the two reads here
+   *  top-level node in it. `outlines_subtree`, and the second of the two reads here
    *  that can refuse from the walk itself: a `file` is a path, and a path that
    *  is not one is answered with the near miss. */
   readonly subtree: (
@@ -199,10 +199,10 @@ export interface Asking {
   readonly search: (
     request: SearchRequest,
   ) => Effect.Effect<SearchAnswer, OpFailure>
-  /** Every document under the served directory — `list_documents`. The other
+  /** Every document under the served directory — `markdown_map`. The other
    *  kind of file, listed the way the outlines are. */
   readonly documents: Effect.Effect<DocumentAnswer, OpFailure>
-  /** One document, whole — `read_document`. The only read here that REFUSES a
+  /** One document, whole — `markdown_read`. The only read here that REFUSES a
    *  miss instead of answering it: a path is not an id, and the useful answer
    *  to a typo is the near miss ({@link ./query.ts}). */
   readonly document: (
@@ -346,7 +346,7 @@ export interface Planning {
  * Three arms, and each CARRIES what answers it rather than leaving the
  * dispatcher to know: a READ answers from a snapshot and says how; an ACT
  * answers from the ops layer and says how; a WRITE names the part of the
- * request its own NAME already decides (`set_done` is `op: "done"`), so that
+ * request its own NAME already decides (`outlines_done` is `op: "done"`), so that
  * field never appears in the schema an agent fills in — and it is the one arm
  * carrying a value rather than a call, because every write is the same call.
  *
@@ -439,8 +439,8 @@ export type Tool =
      * them expressible in a general package: every one of them is a question or
      * a write about the SET, and the set is what `@olai/ops` is. A row whose
      * verbs are about its own procedures has none of those. `olai-plugin-vault-plugins`
-     * is the case that forced it: `inspect_plugins` reads the live registry,
-     * `run_plugin` and `stop_plugin` move a definition, and there is no arm
+     * is the case that forced it: `vault-plugins_inspect` reads the live registry,
+     * `vault-plugins_run` and `vault-plugins_stop` move a definition, and there is no arm
      * above that can say any of it.
      *
      * They lived as three hand-written `BespokeTool`s inside `olai-plugin-mcp`
@@ -457,7 +457,7 @@ export type Tool =
      *
      * `mutates` is SPELLED rather than derived. The other four arms answer it
      * from their kind — a read does not, everything else does — and this arm
-     * cannot: `inspect_plugins` is a read of the registry and `run_plugin` is
+     * cannot: `vault-plugins_inspect` is a read of the registry and `vault-plugins_run` is
      * not, and both are the same kind here. It is what an MCP host draws as
      * `readOnlyHint`, so guessing would mislabel one of them for a live agent.
      */
@@ -502,11 +502,11 @@ export const landed = <A>(call: Effect.Effect<A, unknown>): Effect.Effect<A, OpF
  *  carry are one question, and two spellings of it are two spellings free to
  *  drift. The two LISTINGS ask nothing at all — a directory is not a question
  *  with parameters — and an empty struct is not a shape the floor would publish
- *  for either of them, so the one they share is declared here. `push` reads it
+ *  for either of them, so the one they share is declared here. `git_push` reads it
  *  too, for the same reason with the same nothing to ask.
  *
  *  EXPORTED because the three that read it are now in three different rows —
- *  `list_outlines` in outlines, `list_documents` in markdown, `push` in git —
+ *  `outlines_map` in outlines, `markdown_map` in markdown, `git_push` in git —
  *  and three rows each spelling `Schema.Struct({})` is three empty structs free
  *  to stop being the same one. It is grammar rather than vocabulary, so it stays
  *  here with the constructors. */
@@ -572,14 +572,14 @@ export const read = <S extends Arguments, R>(
  * of the request this call already names, written out beside it. Typed as a
  * `Partial<S["Type"]>` the two have to agree, so `{ op: "creat" }` under
  * `CreateRequest` is a compile error rather than a tool that advertises
- * `create_outline` and asks the planner for a verb nothing has heard of.
+ * `files_create` and asks the planner for a verb nothing has heard of.
  * PARTIAL, and not narrower, because which fields a name decides is the tool's
  * own business — every write here fixes exactly its `op`, and one that fixed a
  * second field would be saying something true about itself.
  *
  * WHAT THAT DOES NOT REACH is a schema whose `op` is more than one literal:
  * `MarkRequest`'s is the format's whole `Status`, so this type is satisfied by
- * any of the four and cannot tell `set_done` from `set_todo`. Nothing here can
+ * any of the four and cannot tell `outlines_done` from `outlines_todo`. Nothing here can
  * — the fact lives in the NAME — which is why the four are built by keying both
  * off one `mark` (`olai-plugin-outlines`' `tools.ts`, `MARK_TOOLS`) rather than
  * written out; that is a construction holding them together, and this type is
@@ -602,7 +602,7 @@ export const write = <S extends Arguments & { readonly Type: Request }>(
 ): Tool => ({ name, title, description, schema, kind: "write", fixed })
 
 /** The act arm's constructor, inferring its `args` the way {@link read} does
- *  and for the same reason: what `commit` takes is `@olai/format`'s to say, and
+ *  and for the same reason: what `git_commit` takes is `@olai/format`'s to say, and
  *  saying it again here is a second spelling free to drift from the schema this
  *  same call advertises. */
 export const act = <S extends Arguments>(
@@ -625,7 +625,7 @@ export const act = <S extends Arguments>(
  * and for the same reason.
  *
  * `C` is the ROW's client type and is inferred from the callback, so the row
- * writes `calls("run_plugin", …, schema, true, (client: Client, args) => …)`
+ * writes `calls("vault-plugins_run", …, schema, true, (client: Client, args) => …)`
  * and gets its own members checked where it wrote them. Nothing about `C`
  * survives into {@link Tool}, which is the point: a general package that could
  * name one row's client could name them all.

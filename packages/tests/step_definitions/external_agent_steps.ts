@@ -54,7 +54,7 @@ Given(
 
 /** One step for the three marks rather than three copies of it: which marks
  *  there are is the format's list, and the tool that writes one is named after
- *  it (`set_done` / `set_doing` / `set_todo`). */
+ *  it (`outlines_done` / `outlines_doing` / `outlines_todo`). */
 When(
   "the terminal agent marks {string} {word}",
   async function (this: OlaiWorld, id: string, mark: string) {
@@ -65,7 +65,7 @@ When(
 When(
   "the terminal agent captures {string} in {string}",
   async function (this: OlaiWorld, title: string, file: string) {
-    await callTool(agentOf(this), "add_node", { title, file });
+    await callTool(agentOf(this), "outlines_add", { title, file });
   },
 );
 
@@ -89,7 +89,7 @@ const PANTRY = {
 When(
   "the terminal agent captures a pantry and everything in it, in one call",
   async function (this: OlaiWorld) {
-    this.toolAnswer = await callTool(agentOf(this), "add_node", PANTRY);
+    this.toolAnswer = await callTool(agentOf(this), "outlines_add", PANTRY);
   },
 );
 
@@ -139,7 +139,7 @@ Then(
 When(
   "the terminal agent creates the outline {string} seeded with {string}",
   async function (this: OlaiWorld, file: string, title: string) {
-    await callTool(agentOf(this), "create_outline", {
+    await callTool(agentOf(this), "files_create", {
       file,
       seed: { title },
     });
@@ -152,7 +152,7 @@ When(
     // The seed is a capture, `children` and all — so the file and everything in
     // it are one plan, one validation, one rename. Two calls used to be the
     // only way, and a refused second one left an empty outline behind.
-    this.toolAnswer = await callTool(agentOf(this), "create_outline", {
+    this.toolAnswer = await callTool(agentOf(this), "files_create", {
       file,
       seed: {
         id: "shed",
@@ -173,12 +173,12 @@ When(
  *
  * The mirror's own id is CHOSEN here so the assertions can name the row it
  * draws — a real agent would let one be minted and read it back off the
- * answer's `id`, which is the same field `remove_mirror` then takes.
+ * answer's `id`, which is the same field `outlines_unmirror` then takes.
  */
 When(
   "the terminal agent mirrors {string} at the top of {string} as {string}",
   async function (this: OlaiWorld, target: string, file: string, id: string) {
-    this.toolAnswer = await callTool(agentOf(this), "add_mirror", {
+    this.toolAnswer = await callTool(agentOf(this), "outlines_mirror", {
       target,
       file,
       id,
@@ -189,7 +189,7 @@ When(
 When(
   "the terminal agent retires the mirror {string}",
   async function (this: OlaiWorld, id: string) {
-    this.toolAnswer = await callTool(agentOf(this), "remove_mirror", { id });
+    this.toolAnswer = await callTool(agentOf(this), "outlines_unmirror", { id });
   },
 );
 
@@ -202,7 +202,7 @@ When(
 When(
   "the terminal agent duplicates {string}",
   async function (this: OlaiWorld, id: string) {
-    this.toolAnswer = await callTool(agentOf(this), "duplicate_node", { id });
+    this.toolAnswer = await callTool(agentOf(this), "outlines_duplicate", { id });
   },
 );
 
@@ -211,7 +211,7 @@ When(
 When(
   "the terminal agent makes {string} wait on {string}",
   async function (this: OlaiWorld, id: string, blocker: string) {
-    this.toolAnswer = await callTool(agentOf(this), "set_after", {
+    this.toolAnswer = await callTool(agentOf(this), "outlines_after", {
       id,
       add: [blocker],
     });
@@ -238,7 +238,7 @@ When(
 );
 
 /**
- * A WHOLE OUTLINE, in one call — `read_subtree` given a `file` rather than an
+ * A WHOLE OUTLINE, in one call — `outlines_subtree` given a `file` rather than an
  * id.
  *
  * Through {@link tryTool} rather than {@link callTool} because both outcomes
@@ -249,7 +249,7 @@ When(
 When(
   "the terminal agent reads the whole outline {string}",
   async function (this: OlaiWorld, file: string) {
-    this.toolAnswer = await tryTool(agentOf(this), "read_subtree", { file });
+    this.toolAnswer = await tryTool(agentOf(this), "outlines_subtree", { file });
   },
 );
 
@@ -258,7 +258,7 @@ When(
 When(
   "the terminal agent reads the whole outline {string} without the notes",
   async function (this: OlaiWorld, file: string) {
-    this.toolAnswer = await tryTool(agentOf(this), "read_subtree", {
+    this.toolAnswer = await tryTool(agentOf(this), "outlines_subtree", {
       file,
       withDesc: false,
     });
@@ -268,12 +268,12 @@ When(
 When(
   "the terminal agent reads the node {string}",
   async function (this: OlaiWorld, id: string) {
-    this.toolAnswer = await callTool(agentOf(this), "read_node", { id });
+    this.toolAnswer = await callTool(agentOf(this), "outlines_read", { id });
   },
 );
 
 /**
- * A shaped walk: `read_subtree` with `fields`, the projection a caller
+ * A shaped walk: `outlines_subtree` with `fields`, the projection a caller
  * names. Through {@link tryTool} — both outcomes are pinned below: a
  * vocabulary the caller can name is answered, and one it cannot is refused
  * naming the legal one.
@@ -281,7 +281,7 @@ When(
 When(
   "the terminal agent walks {string} with only the fields {string}",
   async function (this: OlaiWorld, id: string, fields: string) {
-    this.toolAnswer = await tryTool(agentOf(this), "read_subtree", {
+    this.toolAnswer = await tryTool(agentOf(this), "outlines_subtree", {
       id,
       fields: fields.split(",").map((one) => one.trim()),
     });
@@ -291,7 +291,7 @@ When(
 When(
   "the terminal agent walks {string} one level deep with only the fields {string}",
   async function (this: OlaiWorld, id: string, fields: string) {
-    this.toolAnswer = await tryTool(agentOf(this), "read_subtree", {
+    this.toolAnswer = await tryTool(agentOf(this), "outlines_subtree", {
       id,
       depth: 1,
       fields: fields.split(",").map((one) => one.trim()),
@@ -302,7 +302,7 @@ When(
 When(
   "the terminal agent walks {string} with the fields {string} and the notes turned off",
   async function (this: OlaiWorld, id: string, fields: string) {
-    this.toolAnswer = await tryTool(agentOf(this), "read_subtree", {
+    this.toolAnswer = await tryTool(agentOf(this), "outlines_subtree", {
       id,
       fields: fields.split(",").map((one) => one.trim()),
       withDesc: false,
@@ -313,7 +313,7 @@ When(
 When(
   "the terminal agent reads {string} with the children shaped as {string}",
   async function (this: OlaiWorld, id: string, fields: string) {
-    this.toolAnswer = await tryTool(agentOf(this), "read_node", {
+    this.toolAnswer = await tryTool(agentOf(this), "outlines_read", {
       id,
       fields: fields.split(",").map((one) => one.trim()),
     });
@@ -348,14 +348,14 @@ const shapedRowsOf = (
 const claimShape = (
   rows: ReadonlyArray<Record<string, unknown>>,
   fields: ReadonlyArray<string>,
-  // `read_node`'s child rows are REFERENCES — no `children` — where a walk's
+  // `outlines_read`'s child rows are REFERENCES — no `children` — where a walk's
   // rows carry the structure, so which rows owe the walk's own keys is said
   // by the caller.
   structure: "walk" | "references",
 ): void => {
   // The row's allowed keys: `id`, plus the walk's own keys when this is a
   // walk (`children` / `truncated` / `placed`), plus exactly the named
-  // fields. A reference row (`read_node`'s children) owes none of the
+  // fields. A reference row (`outlines_read`'s children) owes none of the
   // walk's keys. The union across rows must be the whole projection — a
   // walk that SHAPED but forgot a field is a subtler silence than one that
   // never shaped at all.
@@ -474,7 +474,7 @@ Then(
 When(
   "the terminal agent creates the document {string} holding {string}",
   async function (this: OlaiWorld, file: string, text: string) {
-    this.toolAnswer = await callTool(agentOf(this), "create_document", {
+    this.toolAnswer = await callTool(agentOf(this), "markdown_create", {
       file,
       text,
     });
@@ -484,7 +484,7 @@ When(
 When(
   "the terminal agent rewrites {string} expecting {string}, as {string}",
   async function (this: OlaiWorld, file: string, was: string, text: string) {
-    this.toolAnswer = await callTool(agentOf(this), "write_document", {
+    this.toolAnswer = await callTool(agentOf(this), "markdown_write", {
       file,
       text,
       was,
@@ -582,7 +582,7 @@ Then(
   },
 );
 
-/** The near miss, in the words `read_document` refuses a mistyped `.md` in —
+/** The near miss, in the words `markdown_read` refuses a mistyped `.md` in —
  *  one typo, one answer, whichever verb it landed at. */
 Then(
   "the terminal agent was pointed at {string}",
@@ -600,7 +600,7 @@ Then(
 );
 
 /** The note a hit carries when the query asked for it — the selection and its
- *  notes in one call, rather than a `read_node` per row. */
+ *  notes in one call, rather than a `outlines_read` per row. */
 Then(
   "the terminal agent was handed the note {string}",
   function (this: OlaiWorld, note: string) {
@@ -668,14 +668,22 @@ Then(
  * `resources/read` of the same file must still be answered with the file.
  *
  * It is a raw `resources/read` rather than a tool call because that is what the
- * surface publishes — `surface://collections/<member>/<key>`, the same URI a
- * `.mcp.json` client reaches — and going through the tool table would be
+ * surface publishes — `surface://collections/<row>/<member>/<key>`, the same
+ * URI a `.mcp.json` client reaches — and going through the tool table would be
  * testing a door this member does not have.
+ *
+ * THE ROW IS IN THE URI, and it did not used to be. `documents` was a member of
+ * a curated flat spec that copied six rows into one un-prefixed namespace, so
+ * the address said nothing about who answered it. #546 gave every member its
+ * owner's name and juspay/kolu#2234 taught the MCP adapter to serve a rooted
+ * bundle, so the key `markdown` here is the row that owns the collection —
+ * exactly the sibling key `surface/markdown/documents/get` carries on the wire.
+ * Nothing preserves the old address, which is the ruling: no migration.
  */
 When(
   "the terminal agent reads the file {string}",
   async function (this: OlaiWorld, file: string) {
-    const uri = `surface://collections/documents/${file}`;
+    const uri = `surface://collections/markdown/documents/${file}`;
     // UNTIL THE KEY IS THERE, because a scenario writes the file a moment
     // before asking for it and the directory is published on the store's own
     // clock. A `resources/read` of a key the collection does not hold is
@@ -724,13 +732,13 @@ Then(
  * Three ops that a loop would have sent as three calls at three revisions, so a
  * tab would have drawn the first, then the second, then the third. `apply` is
  * one plan, one validation, one rename and one publication — a page that has
- * any of it has all of it, which is the same claim `add_node`'s `children`
+ * any of it has all of it, which is the same claim `outlines_add`'s `children`
  * makes one level down and the reason the assertion reads the tree once.
  */
 When(
   "the terminal agent applies three ops in one call",
   async function (this: OlaiWorld) {
-    this.toolAnswer = await callTool(agentOf(this), "apply", {
+    this.toolAnswer = await callTool(agentOf(this), "outlines_apply", {
       ops: [
         { op: "add", parent: "kitchen", id: "worktop", title: "fit the worktop" },
         { op: "after", id: "worktop", add: ["install"] },
@@ -745,7 +753,7 @@ When(
   async function (this: OlaiWorld) {
     // The first two would land on their own; the third names an id nothing
     // declares. All-or-nothing means the first two do not.
-    this.toolAnswer = await tryTool(agentOf(this), "apply", {
+    this.toolAnswer = await tryTool(agentOf(this), "outlines_apply", {
       ops: [
         { op: "add", parent: "kitchen", id: "never", title: "never written" },
         { op: "title", id: "order", title: "renamed by a batch" },
@@ -758,7 +766,7 @@ When(
 When(
   "the terminal agent updates {string} in one call",
   async function (this: OlaiWorld, id: string) {
-    this.toolAnswer = await callTool(agentOf(this), "update", {
+    this.toolAnswer = await callTool(agentOf(this), "outlines_update", {
       id,
       title: "order the walnut cabinets",
       desc: "walnut, six week lead time",
@@ -768,5 +776,5 @@ When(
 );
 
 When("the terminal agent commits as {string}", async function (this: OlaiWorld, message: string) {
-  this.toolAnswer = await callTool(agentOf(this), "commit", { message });
+  this.toolAnswer = await callTool(agentOf(this), "git_commit", { message });
 });

@@ -59,7 +59,7 @@ import {
  * GETTERS rather than fields, and that is the whole of what keeps this cheap
  * enough to build unconditionally: the answers are held by the floor with the
  * set they are about, so reaching one is a lookup after the first ask and
- * nothing at all before it. A single `set_done` builds one of these, asks
+ * nothing at all before it. A single `outlines_done` builds one of these, asks
  * `broken` once, and never touches the other two — which is what a context
  * assembled up front could not do without putting a walk of the directory in
  * front of every keystroke.

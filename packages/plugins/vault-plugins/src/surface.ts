@@ -166,8 +166,8 @@ plugins: { /**
  * row that seats it.
  *
  * WRITING the definition needs nothing on this map: a plugin is a node with two
- * child notes, so an agent writes one with `add_node`, `set_desc` and
- * `set_prop` — the ordinary write door, under the ordinary subtree fence,
+ * child notes, so an agent writes one with `outlines_add`, `outlines_desc` and
+ * `outlines_prop` — the ordinary write door, under the ordinary subtree fence,
  * recorded by the ordinary ledger commit.
  *
  * ## ...and the fourth is a person's

@@ -47,7 +47,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * ## One press, and the refusals that are still the ops layer's
  *
  * What lands is one `under` edit at the same gate every other write goes
- * through, resolving to the `move_node` an agent sends. A destination this
+ * through, resolving to the `outlines_move` an agent sends. A destination this
  * panel says nothing about can still be refused there — an id that has moved
  * since the search answered, a file that stopped parsing — and that sentence
  * lands verbatim under the row (`./moving.tsx` owns the line, because it

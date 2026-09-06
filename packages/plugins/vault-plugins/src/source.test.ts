@@ -12,7 +12,7 @@ import { describe, expect, test } from "bun:test"
 import { ALWAYS, definedIn, isApproved, versionOf } from "./source.ts"
 
 /** One vault, as its files. `.olai` is a record per line, which is the format's
- *  own shape and what an agent's `add_node` and `set_desc` leave behind. */
+ *  own shape and what an agent's `outlines_add` and `outlines_desc` leave behind. */
 const vault = (...lines: ReadonlyArray<string>) =>
   readingOfVault(new Map([["plugins.olai", lines.join("\n")]])).derived
 
@@ -161,7 +161,7 @@ describe("approval names a version, and an edit takes it back", () => {
  * A NODE THAT WAS PUT AWAY IS NOT A DEFINITION — the skip `definedIn` makes,
  * and the half of the doc's retraction that was not true until it did.
  *
- * `trash_node` moves the records to `_olai/Trash.olai`. They stay regular
+ * `outlines_trash` moves the records to `_olai/Trash.olai`. They stay regular
  * nodes, they still carry the `plugin` property, and without the skip they
  * were read like any other: the panel drew them as a vault-defined plugin
  * with the trash as its file. The rest of the tree treats that file as

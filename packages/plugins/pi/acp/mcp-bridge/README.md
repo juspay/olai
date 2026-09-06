@@ -9,7 +9,7 @@ This folder is the bridge that answers the hole. The pin's derivation applies `.
 1. the **bridge extension** via pi's `-e` flag (`PI_ACP_MCP_EXTENSION`), and
 2. the **servers** in its process env (`PI_ACP_MCP_SERVERS`), one JSON serialized value per process — safe because pi-acp spawns one process per session.
 
-pi loads it, one SDK client per server, each tool on the panel's names — `olai_search_nodes`, `olai_read_node`, `kolu_watch_close`, … — and the model answers with them the way olai's surface already reads.
+pi loads it, one SDK client per server, each tool on the panel's names — `olai_search_nodes`, `olai_outlines_read`, `kolu_watch_close`, … — and the model answers with them the way olai's surface already reads.
 
 The adapter's own advertised `mcpCapabilities` is the testable witness: `{ http: true, sse: true }` only when the env named a bridge. If the env is not set, it goes back to `{ http: false, sse: false }` — a capability answer that's the env's truth, never a claim.
 

@@ -3,7 +3,7 @@
  *
  * They were entries in `@olai/ops`' one closed `TOOLS` table, which meant a
  * general package named this row's vocabulary and a serve without a ledger
- * still advertised `commit` and `push` to an agent that would be refused in
+ * still advertised `git_commit` and `git_push` to an agent that would be refused in
  * words by a door nobody stood behind. A tool leaves with the row that owns it
  * now (juspay/olai#546).
  *

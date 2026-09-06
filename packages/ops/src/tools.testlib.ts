@@ -70,12 +70,22 @@ export const at = (): Reading => readingOf(EVERYTHING())
  * What each read is CALLED with, one entry per tool and several calls per
  * entry.
  *
- * Several, because a read's answer is not one shape: `read_node` answers a
+ * Several, because a read's answer is not one shape: `outlines_read` answers a
  * detail or the id it does not hold, a search answers hits or a refusal, and a
  * walk answers truncated or finished. Each of those is a decode of its own.
  */
+/**
+ * KEYED BY THE AGENT-VISIBLE NAME — `<row>_<verb>`, which is what a tool is
+ * called on the wire and in every doc.
+ *
+ * A row's own table declares the verb RELATIVE to the row (`list`, `read`), and
+ * composition puts the row in front (juspay/kolu#2234) — so `list` alone is
+ * three different reads here (`outlines_map`, `markdown_map`) and a flat map
+ * keyed by the declared word could not hold them. The walkers below take the
+ * row and compose the key, which is the same composition the served face makes.
+ */
 export const CALLS: Record<string, ReadonlyArray<unknown>> = {
-  list_outlines: [{}],
+  outlines_map: [{}],
   search_nodes: [
     { text: "hall" },
     { text: "is:open" },
@@ -85,7 +95,7 @@ export const CALLS: Record<string, ReadonlyArray<unknown>> = {
     // The one field of a record a hit does not carry unless it is asked for.
     { text: "House", withDesc: true },
   ],
-  read_node: [
+  outlines_read: [
     { id: "house" },
     { id: "paint" },
     { id: "shed" },
@@ -95,7 +105,7 @@ export const CALLS: Record<string, ReadonlyArray<unknown>> = {
   // All three arms of the answer: one node walked, the WHOLE outline walked,
   // and an id the set does not hold — and both walks SHAPED, since `fields`
   // joined the answer's union.
-  read_subtree: [
+  outlines_subtree: [
     { id: "house", depth: 1 },
     { id: "house" },
     { file: "house.olai" },
@@ -109,14 +119,14 @@ export const CALLS: Record<string, ReadonlyArray<unknown>> = {
     { id: "house", fields: ["title", "status", "done"] },
     { file: "house.olai", depth: 1, fields: ["title", "status", "custom"] },
   ],
-  list_documents: [{}],
+  markdown_map: [{}],
   // The reads that REFUSE are not called here: this walk decodes ANSWERS, and
-  // a refusal has none. What `read_document` says about a path the set does not
-  // hold — and what `read_subtree` says about one, and about a call naming both
+  // a refusal has none. What `markdown_read` says about a path the set does not
+  // hold — and what `outlines_subtree` says about one, and about a call naming both
   // ways in or neither — is the MCP face's own test and
   // `an_external_agent.feature`'s, where the refusal travels as a tool result
   // rather than being discharged by an `orDie` that would simply throw.
-  read_document: [{ file: "notes/finishes.md" }, { file: "plain.md" }],
+  markdown_read: [{ file: "notes/finishes.md" }, { file: "plain.md" }],
 }
 
 /** The read arms of ONE ROW'S table — narrowed, so a caller gets `answers` and
@@ -135,14 +145,14 @@ export const readsOf = (tools: ReadonlyArray<Tool>) =>
  * see every row's table and a check that only some rows could run is a check
  * nobody runs.
  */
-export const uncalled = (tools: ReadonlyArray<Tool>): ReadonlyArray<string> =>
-  readsOf(tools).map((tool) => tool.name).filter((name) => CALLS[name] === undefined)
+export const uncalled = (tools: ReadonlyArray<Tool>, row: string): ReadonlyArray<string> =>
+  readsOf(tools).map((tool) => tool.name).filter((name) => CALLS[`${row}_${name}`] === undefined)
 
 /**
  * WHICH TOOLS DESCRIBE THEMSELVES WITH AN ESCAPED NEWLINE — over a row's whole
  * table, because the way this breaks is per-description and silent.
  *
- * `list_documents` and `read_document` shipped to review with `\\n\\n` in their
+ * `markdown_map` and `markdown_read` shipped to review with `\\n\\n` in their
  * descriptions: two characters, a backslash and an `n`, where every other entry
  * has a real paragraph break. Nothing catches that. It compiles, the prose
  * assertions elsewhere still pass (they look for words, not shape), and the only
@@ -202,14 +212,14 @@ export const paragraphsIn = (tools: ReadonlyArray<Tool>, name: string): number =
  * channel is discharged here rather than threaded through tests that have
  * nothing to say about it.
  */
-export const gaveOf = (search: Search, tools: ReadonlyArray<Tool>) => {
+export const gaveOf = (search: Search, tools: ReadonlyArray<Tool>, row: string) => {
   const door = asking(Effect.sync(at), steady().now, NO_KINDS, search)
   const gave = new Map<string, ReadonlyArray<Record<string, unknown>>>()
   for (const tool of readsOf(tools)) {
     if (tool.kind !== "read") continue
     gave.set(
       tool.name,
-      (CALLS[tool.name] ?? []).map((args) =>
+      (CALLS[`${row}_${tool.name}`] ?? []).map((args) =>
         Effect.runSync(Effect.orDie(tool.ask(door, args as never))) as Record<string, unknown>
       ),
     )

@@ -416,6 +416,32 @@ export interface Sibling {
    * that says who may reach it. */
   readonly faces: Readonly<Record<string, Readonly<Record<string, unknown>>>>
   /**
+   * WHICH OF ITS MEMBERS AN AGENT MAY ADDRESS AS A `surface://` RESOURCE — this
+   * row's OWN `ExposeMap`, written against its own spec, opaque here for the
+   * reason `faces` is.
+   *
+   * A SECOND MAP RATHER THAN A READING OF `faces.agent`, and the difference is
+   * the one `olai-plugin-markdown`'s `surface.ts` argues: `faces.agent` is what
+   * a caller may CALL, and every `ops.*` on it is reachable and is no resource,
+   * because a procedure is not a thing with an address. Deriving one from the
+   * other would either publish a URI for a verb or take a resource away from a
+   * row that grants both.
+   *
+   * ABSENT ON MOST ROWS, and that is the ordinary case rather than an omission:
+   * a row whose whole agent face is verbs publishes nothing addressable. It is
+   * still a sibling of the served bundle — its `tools` ride the same entry, and
+   * that is what makes a verb leave with the row that brought it — with an
+   * empty map beside them saying it has no addresses to give.
+   *
+   * IT WAS `@olai/bundle`'s `MCP`, one flat map naming three rows' members from
+   * a package none of them could edit, resolved against one flat aggregate
+   * spec. #546 sent each line home to its row and juspay/kolu#2234 made the
+   * per-sibling map the framework's own shape; this field is the wall those
+   * maps travel across, and without it the served bundle has no siblings at all
+   * — `@olai/server`'s `mcp/face.test.ts` reads the URIs that proves.
+   */
+  readonly resources?: Readonly<Record<string, unknown>>
+  /**
    * THIS ROW'S AGENT VERBS — the tools an MCP host is offered while this row is
    * standing, opaque here for the reason `deps` and `faces` are.
    *

@@ -192,7 +192,7 @@ const turn = async (text: string): Promise<string> => {
     // running, then ANSWERED with the tool's text riding `content` the way
     // the real one rides.
     const node = said.slice("mcp read title ".length).trim();
-    const toolCallId = "olai_read_node:0";
+    const toolCallId = "olai_outlines_read:0";
     notify("session/update", {
       sessionId,
       update: {

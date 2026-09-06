@@ -3,7 +3,7 @@
  * a new file's path, and the whole of it.
  *
  * `+ New outline` and `+ New document` ask for a path, and a person types what
- * the file is called: `Foo`. Until this module that reached `create_outline`
+ * the file is called: `Foo`. Until this module that reached `files_create`
  * as it stood and came back as the wire's paragraph — "`Foo` is not a relative
  * `.olai` path under the served directory (no absolute path, no `..`, no `.`,
  * and the name must end in `.olai`)" — for a name with nothing wrong with it
@@ -17,12 +17,12 @@
  * a reason that still holds: a rule spelled here as well as in the ops layer is
  * two rules, free to disagree, and the one an agent meets is the real one. That
  * rule is unchanged. Absolute paths, `..`, a name the set already holds — every
- * one of those is still `create_outline` / `create_document`'s to refuse, in
+ * one of those is still `files_create` / `markdown_create`'s to refuse, in
  * its own words, over the path this module hands it.
  *
  * What is decided HERE is a question the ops layer never sees: which DOOR the
  * person is standing at. A door knows its kind ({@link Making.of}) and the wire
- * deliberately does not — `create_outline` takes one spelling of a path and
+ * deliberately does not — `files_create` takes one spelling of a path and
  * demands the suffix, because an agent naming a file is naming a file and has
  * no box around it. So the suffix is the door's half of the answer, and it is
  * put on here, before the ask. Agents are not the audience of this fix and the
@@ -58,7 +58,7 @@
  * names a place. So is a name that BEGINS with a dot: the store prunes
  * dot-DIRECTORIES and not dot-files (`@olai/store`'s `pruned`), so `.plan` →
  * `.plan.olai` is a file this app really lists. `.olai` typed whole is that
- * file's edge — the box takes it as it stands, `create_outline` accepts it, and
+ * file's edge — the box takes it as it stands, `files_create` accepts it, and
  * the row is drawn with an empty name. Pre-existing and identical on both faces
  * (an agent may ask for it too), so the day it is refused it is refused in
  * `creatable`, where both faces meet, and not here.

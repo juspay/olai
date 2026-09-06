@@ -19,7 +19,7 @@
  *
  * AND THE WRITE IS `place`, which already existed for exactly this shape: a
  * parent and the sibling to sit after. The tree's drag sends it, an undo sends
- * it, and it resolves to the `move_node` an agent would send — so reordering
+ * it, and it resolves to the `outlines_move` an agent would send — so reordering
  * the shelf needed no wire verb and no op, which is the same sentence
  * drag-and-drop got to write.
  */

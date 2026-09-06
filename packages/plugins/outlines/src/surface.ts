@@ -106,7 +106,7 @@ page: {
      *
      * THE BROWSER'S ALONE, like {@link narrowing} next door and for the same
      * reason: what comes back is a dim and a sentence for a list of rows on a
-     * screen. An agent moving a node asks `move_node` and is refused by the
+     * screen. An agent moving a node asks `outlines_move` and is refused by the
      * planner, in the planner's own words.
      */
     moving: {
@@ -154,12 +154,12 @@ edit: editProcedures,
      * message of a transcript and a message holds every backtick the agent put
      * in it.
      *
-     * A BATCH is the whole shape: a `read_node` per span would be a dozen round
+     * A BATCH is the whole shape: a `outlines_read` per span would be a dozen round
      * trips carrying a dozen nodes in full to decide which two words in a
      * paragraph are pressable.
      *
      * THE BROWSER'S ALONE ({@link faces} below), for the reason the
-     * member above is: an agent asking whether an id is real asks `read_node`
+     * member above is: an agent asking whether an id is real asks `outlines_read`
      * and is told everything about it. What comes back here is a node id per
      * span, which is useful only to a caller already looking at the words those
      * ids are written in.
@@ -215,15 +215,15 @@ edit: editProcedures,
         error: OpFailure,
       },
     },
-ops: { /** Every outline under the served directory — what `list_outlines` answers.
+ops: { /** Every outline under the served directory — what `outlines_map` answers.
    *  No input: the question has no parameters, and a `Schema.Struct({})` would
    *  be an empty object a caller has to spell. */
   outlines: { output: OutlineAnswer, error: OpFailure },
-/** One node in full, or the id nothing here declares — `read_node`. */
+/** One node in full, or the id nothing here declares — `outlines_read`. */
   node: { input: NodeRequest, output: NodeAnswer, error: OpFailure },
 /** A node and what hangs under it, nested — or a whole OUTLINE, every
    *  top-level node in it, which is what makes reading a file one call rather
-   *  than one per root. `read_subtree`, and the request names one or the other:
+   *  than one per root. `outlines_subtree`, and the request names one or the other:
    *  the schemas are `@olai/format`'s, so the rule and the two refusals that
    *  keep it are spelled where the answer is. */
   subtree: { input: SubtreeRequest, output: SubtreeAnswer, error: OpFailure }, run: writeProcedure }
@@ -290,12 +290,43 @@ export const dispatch = {
  * `@olai/server`'s `faces.test.ts` refuses a write verb on a live browser
  * socket while the same connection goes on answering what a page asks.
  */
+/**
+ * WHAT AN AGENT MAY SEE OF THIS ROW AS A `surface://` RESOURCE — a THIRD
+ * projection, and not a fourth face.
+ *
+ * `faces` above says which of this row's tags each WIRE caller may reach.
+ * This says which of its members the MCP adapter publishes as a resource at
+ * all, because that adapter needs the member's KIND to build a URI and a tag
+ * set has thrown that away. The two answer different questions and a member on
+ * one and not the other is an ordinary state: every `ops.*` on `faces.agent` is
+ * reachable and is no resource, because a procedure is not a thing with an
+ * address.
+ *
+ * IT WAS `@olai/bundle`'s `MCP`, one flat map naming three rows' members from a
+ * package none of them could edit. #546 sent each line home, and juspay/kolu#2234
+ * is what made a per-sibling map the framework's own shape: the adapter takes a
+ * rooted bundle, resolves each row's map against that row's spec, and mints
+ * `surface://collections/<row>/<member>` from the key it was mounted under.
+ *
+ * THE RULE THIS IS WRITTEN AGAINST is the wire-cost one in
+ * `@olai/surface`'s `host.ts`: a cell is exposable only if its value is
+ * O(1)-ish, and anything O(corpus) must be a COLLECTION, whose resource reads
+ * the KEY SET and hands a body one at a time.
+ */
+export const resources = {
+  // The item: its key set is the file list, and
+  // `surface://collections/outlines/outlines/<path>` is one file's records —
+  // the same rows the browser draws, subscribable, so an agent watching one
+  // outline is told when THAT outline moves instead of polling for it.
+  outlines: "resource",
+} as const
+
 export const faces = {
   "browser": {
     // WHAT A SCREEN IS — rows carrying the fold keys of the places they are
     // drawn at, a rollup beside a checkbox, the blockers a mark draws, and the
     // titles of the ids those rows point at. The browser's alone: an agent
-    // asking what an outline holds asks `list_outlines` and `read_subtree` and
+    // asking what an outline holds asks `outlines_map` and `outlines_subtree` and
     // is answered in NODES, which is what it can act on and what none of this
     // is.
     "page": "resource",
@@ -307,7 +338,7 @@ export const faces = {
     "narrowing": "resource",
     "tagCompletions": "resource",
     // A DIM AND A SENTENCE for a list of rows somebody is arrowing through. An
-    // agent moving a node calls `move_node` and is refused by the planner, in
+    // agent moving a node calls `outlines_move` and is refused by the planner, in
     // the planner's own words.
     "moving": "resource",
     // THE KEYBOARD'S DOOR — see the header above.
@@ -318,7 +349,7 @@ export const faces = {
     "vocabulary.tags": "tool",
     // A DOZEN IDS, EACH WITH THE NODE IT NAMES — for a panel deciding which of
     // an agent's own backticks are pressable. Absent from the agent's face
-    // because an agent asking whether an id is real asks `read_node` and is
+    // because an agent asking whether an id is real asks `outlines_read` and is
     // told everything about it.
     "nodes.named": "tool",
     // ...and a file per id, for a browser reconciling a memory of what it had

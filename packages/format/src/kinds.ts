@@ -161,7 +161,7 @@ interface Claim {
  * `.olai` is the outline: the records this app is about. `.md` is the
  * document: prose beside the outlines, which a node may attach and a day may
  * be named for. The other four are the files olai SHOWS and never writes —
- * they have no editor and no create verb, `write_document` refuses each of them
+ * they have no editor and no create verb, `markdown_write` refuses each of them
  * by asking for a document (`@olai/ops`), and none of their bodies is content
  * the set keeps ({@link Claim.kept}):
  *
@@ -500,7 +500,7 @@ export const FILE_EXTS: ReadonlyArray<string> = CLAIMS.flatMap(([, claim]) => cl
  */
 export const OUTLINE_EXT = FILE_KINDS.outline.exts[0]
 
-/** The document's, on the same terms and for the same one reason: `create_document`
+/** The document's, on the same terms and for the same one reason: `markdown_create`
  *  mints a path, and a mint that admits a name `fileKind` will not claim writes
  *  a document nothing ever reads back.
  *

@@ -70,7 +70,7 @@ describe("which tool a call is", () => {
 
 describe("which permissions are answered without asking", () => {
   test("a tool of a server we handed this session is allowed", () => {
-    expect(allowedWithoutAsking("olai_set_done", GIVEN, ASKED)).toBe("allow_once")
+    expect(allowedWithoutAsking("olai_outlines_done", GIVEN, ASKED)).toBe("allow_once")
     expect(allowedWithoutAsking("alpha_terminal_open", GIVEN, ASKED)).toBe("allow_once")
   })
 
@@ -101,7 +101,7 @@ describe("which permissions are answered without asking", () => {
   })
 
   test("with no servers handed over, nothing is ours", () => {
-    expect(allowedWithoutAsking("olai_set_done", [], ASKED)).toBeNull()
+    expect(allowedWithoutAsking("olai_outlines_done", [], ASKED)).toBeNull()
   })
 
   test("the option is chosen by its KIND, not by its place in the list", () => {
@@ -111,14 +111,14 @@ describe("which permissions are answered without asking", () => {
       { optionId: "no", name: "Reject", kind: "reject_once" },
       { optionId: "yes", name: "Allow", kind: "allow_always" },
     ]
-    expect(allowedWithoutAsking("olai_add_node", GIVEN, refusalFirst)).toBe("yes")
+    expect(allowedWithoutAsking("olai_outlines_add", GIVEN, refusalFirst)).toBe("yes")
   })
 
   test("one of ours with no allow offered at all is still a person's", () => {
     const refusalsOnly: ReadonlyArray<PermissionOption> = [
       { optionId: "no", name: "Reject", kind: "reject_once" },
     ]
-    expect(allowedWithoutAsking("olai_add_node", GIVEN, refusalsOnly)).toBeNull()
+    expect(allowedWithoutAsking("olai_outlines_add", GIVEN, refusalsOnly)).toBeNull()
   })
 })
 

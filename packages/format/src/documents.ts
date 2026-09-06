@@ -366,7 +366,7 @@ export const isAsset = (path: string): boolean =>
  *
  * PLAIN TEXT, never rendered markdown, because both callers put it in a space
  * one line high: the web draws it in a row beside a `doc`-carrying node's
- * title, and `list_documents` puts it in a listing beside the path. A heading,
+ * title, and `markdown_map` puts it in a listing beside the path. A heading,
  * a list or a fenced block drawn there would be a document pretending to be a
  * row.
  *
@@ -437,8 +437,8 @@ const UTF8 = new TextEncoder()
  * that is not valid UTF-8: the store decodes leniently, so bytes it could not
  * read are already replacement characters by the time this counts them, and
  * the answer can exceed the file's size on disk. That is the RIGHT number for
- * what this field is for — it matches the text `read_document` hands over and
- * the text `write_document`'s `was` is compared against.
+ * what this field is for — it matches the text `markdown_read` hands over and
+ * the text `markdown_write`'s `was` is compared against.
  *
  * PAID AT DECODE. {@link ./document.ts}'s `bodiedDocument` remembers the
  * answer on the document, so a listing is O(documents) rather than O(the bytes

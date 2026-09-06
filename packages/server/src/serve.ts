@@ -29,7 +29,6 @@ import { type Profile } from "./profiles.ts";
 import { listener } from "./listener.ts";
 import { provideInputs, ticketsFor } from "@olai/bundle/inputs";
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy";
-import { agentTools } from "@olai/bundle/tools";
 import { runtimePaths } from "./runtime-paths.ts"
 import { TransportSurface } from "@olai/plugin-api/transport";
 import { gitConfigPatch } from "./gitPolicy.ts";
@@ -286,8 +285,14 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
         hostname: theMachine,
         token,
         agent: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.agent, writes: wired.bound.writes }),
-        agentRows: () => wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, tools: row.tools ?? [] })),
-        agentTools: Effect.promise(agentTools),
+        // `resources ?? {}` because MOST ROWS PUBLISH NONE — a row whose whole
+        // agent face is verbs has nothing addressable, and the empty map is
+        // what `siblingsOf` reads to leave it out of the bundle. Dropping this
+        // line is not a missing resource but an empty bundle:
+        // `serveSurfaceAsMcp` would be handed no siblings and the served face
+        // would publish no `surface://` URI at all.
+        agentRows: () => wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [] })),
+        agentRosterMoved: wired.bound.rosterMoved,
         writeReservations: WRITE_RESERVATIONS,
     }));
     // Shutdown step 2 of the four the paragraph above orders — registered here,

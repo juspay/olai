@@ -8,7 +8,7 @@
  * page it lands on opens EDITING (./minted.ts), because an empty page is not
  * what "start writing" means.
  *
- * Every rule about the path is `create_document`'s — a path that exists, a
+ * Every rule about the path is `markdown_create`'s — a path that exists, a
  * `..` — and its sentence is what the box draws, verbatim. The one thing the
  * box settles before asking is the SUFFIX, which is the door's own half:
  * `notes/idea` is asked for as `notes/idea.md` (`../file/completing.ts`).

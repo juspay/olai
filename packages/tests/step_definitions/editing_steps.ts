@@ -73,7 +73,7 @@ import type { OlaiWorld } from "../support/world.ts";
  *
  * It fails loudly in the common case — the click is swallowed by the open
  * draft, no editor opens on the named row, and the NEXT step times out — which
- * is how the convention was found rather than reasoned out (`set_doing`
+ * is how the convention was found rather than reasoned out (`outlines_doing`
  * refuses, 2026-08-15). It would fail QUIETLY if the two rows happened to
  * accept the same keys.
  *
@@ -880,7 +880,7 @@ Then(
 /**
  * A PLACEMENT the file holds, named by what it shows and where it sits.
  *
- * Not by its own id, which is the whole point: `add_mirror` mints one, this
+ * Not by its own id, which is the whole point: `outlines_mirror` mints one, this
  * surface names no ids (`@olai/surface`'s edit.ts), and a scenario that asked
  * for a chosen id would be asking for a thing the `((` widget cannot send. So
  * the assertion is the record's SHAPE — a `mirror` of that target, under that

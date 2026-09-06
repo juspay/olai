@@ -56,7 +56,7 @@ const shelved = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
 
 /** The shelf, made out of nothing but addresses — the write an AGENT makes,
  *  and the shape the ordering scenarios start from. `Pins.olai` is an ordinary
- *  outline, so this is `add_node` five times spelled as the file it produces. */
+ *  outline, so this is `outlines_add` five times spelled as the file it produces. */
 Given(
   "the directory has the pins:",
   async function (this: OlaiWorld, table: DataTable) {
@@ -86,7 +86,7 @@ When(
     this.appendServed(PINS_FILE, { id: "pn", ord: "z0", title: address });
   },
 );
-/** A record RETITLED where it lives — an agent's `set_title`, spelled as the
+/** A record RETITLED where it lives — an agent's `outlines_title`, spelled as the
  *  file it produces. The shelf is not touched, and that is the claim: it holds
  *  no copy of the name to update. */
 When(

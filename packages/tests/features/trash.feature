@@ -3,14 +3,14 @@
 Feature: The trash can be seen into, taken out of, and emptied
   `_olai/Trash.olai` is the one trash: a sidebar entry of its own,
   read-only rows, and one verb — Put back — that sends the `untrash` op
-  both faces share (`untrash_node` is the same call).
+  both faces share (`trash_restore` is the same call).
 
   The last block is the other end of it. A bin nothing could ever be emptied
   from is a bin that only fills up, so the page has one verb of its OWN:
   Empty trash, which permanently deletes every record in `_olai/Trash.olai`,
   behind a question naming how many rows go — counted over the SET — and saying
   outright that nothing in olai puts them back. It is the only destructive
-  write in this app, `empty_trash` is the same op for an agent, and the
+  write in this app, `trash_empty` is the same op for an agent, and the
   scenarios below hold both halves of a confirm: the one that writes and the
   one that does not.
 
@@ -166,7 +166,7 @@ Feature: The trash can be seen into, taken out of, and emptied
     When I open the Trash
     And I press Empty trash
     And I confirm emptying the Trash
-    Then the Trash says "`_olai/Trash.olai` still has records pointed INTO it from outside: `install` (`after`, house.olai:3), `hinges` (`after`, house.olai:5). Deleting what those name would leave them pointing at nothing, so nothing was written — re-point or retire them first, or `untrash_node` what they name back out."
+    Then the Trash says "`_olai/Trash.olai` still has records pointed INTO it from outside: `install` (`after`, house.olai:3), `hinges` (`after`, house.olai:5). Deleting what those name would leave them pointing at nothing, so nothing was written — re-point or retire them first, or `trash_restore` what they name back out."
     And "_olai/Trash.olai" holds the node "order"
     And there should be no page errors
 

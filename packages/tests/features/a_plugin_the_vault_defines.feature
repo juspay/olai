@@ -5,7 +5,7 @@ Feature: A plugin the vault defines
   agent, which the serve compiles and mounts while it is running.
 
   A definition is a node with a `plugin` property and two children carrying the
-  halves in their notes, so an agent writes one with `add_node` and `set_desc`:
+  halves in their notes, so an agent writes one with `outlines_add` and `outlines_desc`:
   the ordinary write door, under the ordinary subtree fence, recorded by the
   ordinary ledger commit. There is no second write door and no new kind of file.
 
@@ -151,7 +151,7 @@ Feature: A plugin the vault defines
 
   @scratch:plugins
   Scenario: Trashing the definition takes the row with it
-    # Retracting one is `trash_node`. The records stay regular nodes and still
+    # Retracting one is `outlines_trash`. The records stay regular nodes and still
     # carry the `plugin` property; without skipping a put-away file the panel
     # went on drawing them with `_olai/Trash.olai` as the file, in the same
     # state they had before.

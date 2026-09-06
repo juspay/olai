@@ -7,8 +7,9 @@ import type { Fence, Ops } from "@olai/ops"
 import { randomBytes } from "node:crypto"
 
 import { type Bound } from "./authority.ts"
-import { type McpClient } from "./client.ts"
-import { liveClient, type Route } from "./live-client.ts"
+import type { RootedSurfaceClients } from "@kolu/surface/client"
+import { clientsFor, type Row } from "./bundle.ts"
+import type { Reading } from "./live-client.ts"
 
 /**
  * THE WORDS NO SESSION MAY WRITE, whatever it is seated on.
@@ -19,12 +20,12 @@ import { liveClient, type Route } from "./live-client.ts"
  * BROWSER face and no other, and `faces.test.ts` pins that as an exact set. But
  * the STATE that member guards is an ordinary custom property on an ordinary
  * node — `approved`, recorded in the vault so it travels with it and is in the
- * ledger like the source (the ruling, 2026-09-05) — and `set_prop` writes any
+ * ledger like the source (the ruling, 2026-09-05) — and `outlines_prop` writes any
  * custom key that is not spelled like a field. A session's fence is a SUBTREE
  * fence, and the plugin an agent defines is inside that agent's subtree by
  * construction. So:
  *
- *     set_prop {"id": "<its own plugin node>", "key": "approved", "value": "always"}
+ *     outlines_prop {"id": "<its own plugin node>", "key": "approved", "value": "always"}
  *
  * is a legal write through a door the agent already holds, the revision
  * publishes, `isApproved` reads true, and the plugin mounts with the process's
@@ -68,7 +69,7 @@ export interface Ticket {
 
 export interface Tickets {
   readonly mint: (fence: () => Seated, above: (node: string) => string | null, writer: string) => Ticket
-  readonly doorAt: (held: McpClient) => McpClient
+  readonly doorAt: (held: RootedSurfaceClients) => RootedSurfaceClients
 }
 
 export const ticketing = (options: {
@@ -78,17 +79,24 @@ export const ticketing = (options: {
   readonly ops: Ops
   readonly currentTicket: () => string | null
   readonly token: string
-  /** Where a flat tag lands, so a fenced door routes exactly as the unfenced
-   *  one does — see `./live-client.ts`'s `Route`. */
-  readonly route: Route
+  /** Which rows are standing, so a fenced bundle carries a client for exactly
+   *  the siblings the unfenced one does. Read afresh per mint — a ticket
+   *  outlives a recompose. */
+  readonly rows: () => ReadonlyArray<Row>
 }): Tickets => {
   const prefix = "olai-node-"
-  const tickets = new Map<string, McpClient>()
+  const tickets = new Map<string, RootedSurfaceClients>()
 
-  const composed = (fence: Fence, writer: Writer): McpClient => liveClient(() => ({
+  /** ONE BUNDLE PER FENCE, and every sibling client in it carries that fence.
+   *  It was one flat client until juspay/kolu#2234 gave the adapter a rooted
+   *  bundle; what a caller is narrowed to is unchanged, since the fence rides
+   *  the writer on each row's dispatch exactly as it did on the one. */
+  const reading: Reading = () => ({
     ...(typeof options.bound === "function" ? options.bound() : options.bound),
     expose: typeof options.face === "function" ? options.face() : options.face,
-  }), { writer, fence }, options.route)
+  })
+  const composed = (fence: Fence, writer: Writer): RootedSurfaceClients =>
+    clientsFor(options.rows(), reading, { writer, fence })
 
   const closed = composed({ under: null, ask: () => null, forbidden: new Map() }, "mcp")
 

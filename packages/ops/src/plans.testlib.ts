@@ -195,7 +195,7 @@ export const SCRIPT: ReadonlyArray<Step> = [
     op: { op: "duplicate", id: "shown" },
   },
   // A node NOTHING points at, so the trash it lands in can still be emptied
-  // below: `empty_trash` refuses while anything outside the trash points into
+  // below: `trash_empty` refuses while anything outside the trash points into
   // it, which is a rule this script has to sequence around rather than trip
   // over.
   { what: "trash a node and what is under it", op: { op: "trash", id: "spare" } },
@@ -225,7 +225,7 @@ export const SCRIPT: ReadonlyArray<Step> = [
   // ── the trash, emptied ───────────────────────────────────────────────
   //
   // HERE and not at the end: what is put away above is out again, and nothing
-  // live points into what is left, which is the one state `empty_trash`
+  // live points into what is left, which is the one state `trash_empty`
   // answers in. The edges the script adds below would each refuse it.
   {
     what: "empty an outline that is not the trash — refused",
@@ -359,8 +359,8 @@ export const SCRIPT: ReadonlyArray<Step> = [
   },
   // BORN UNDER WAY (native-timing, appended): the orchestrator's shape — a
   // lane is captured with its `doing` in one call, and the record must come
-  // out carrying the `started` a `set_doing` would have stamped, since a
-  // later `set_doing` is refused. Appended per the differential's own rule,
+  // out carrying the `started` a `outlines_doing` would have stamped, since a
+  // later `outlines_doing` is refused. Appended per the differential's own rule,
   // so the rows the braid answered stay checkable as unmoved.
   {
     what: "add born doing — the start rides the capture",

@@ -2,7 +2,7 @@
  * WHAT AN AGENT ACTUALLY READS, over the two file verbs this row declares — because
  * the way this breaks is per-description and silent.
  *
- * `list_documents` and `read_document` shipped to review with `\\n\\n` in their
+ * `markdown_map` and `markdown_read` shipped to review with `\\n\\n` in their
  * descriptions: two characters, a backslash and an `n`, where every other entry
  * has a real paragraph break. Nothing catches that. It compiles, the prose
  * assertions elsewhere still pass (they look for words, not shape), and the only
@@ -25,5 +25,5 @@ test("no tool describes itself with an escaped newline", () => {
   expect(escapedIn(tools)).toEqual([])
   // …and the table is really the one this row declares, so the ban above is not
   // a claim about an empty list.
-  expect(tools.map((tool) => tool.name)).toContain("delete_file")
+  expect(tools.map((tool) => tool.name)).toContain("delete")
 })

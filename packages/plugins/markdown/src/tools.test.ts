@@ -11,11 +11,11 @@
  * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/surface-mcp-positions.md).
  *
  * OFF THE TABLE rather than off `Query.documents` directly: what an agent calls
- * is `list_documents`, and the envelope between the two is exactly the part a
+ * is `markdown_map`, and the envelope between the two is exactly the part a
  * test against the function would not see.
  *
  * THE READS THAT REFUSE ARE NOT CALLED HERE: this walk decodes ANSWERS, and a
- * refusal has none. What `read_document` says about a path the set does not hold
+ * refusal has none. What `markdown_read` says about a path the set does not hold
  * is the MCP face's own test and `an_external_agent.feature`'s, where the
  * refusal travels as a tool result rather than being discharged by an `orDie`
  * that would simply throw.
@@ -36,10 +36,10 @@ import { tools } from "./tools.ts"
 
 /** No matcher: this row declares no search, and the fixture's documents are read
  *  from the snapshot rather than through the matcher door. */
-const answers = () => gaveOf(NO_SEARCH, tools)
+const answers = () => gaveOf(NO_SEARCH, tools, "markdown")
 
 test("every read this row declares is called here", () => {
-  expect(uncalled(tools)).toEqual([])
+  expect(uncalled(tools, "markdown")).toEqual([])
 })
 
 test("every answer decodes through the shape its own entry declares", () => {
@@ -66,7 +66,7 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   // `.md` the set could not read is its errors and nothing else — matching
   // the outline arm — and the `.html` beside it is not in this answer at all:
   // nothing kept its body, so there is nothing to name or measure.
-  const documents = of("list_documents")[0]?.["documents"] as ReadonlyArray<
+  const documents = of("map")[0]?.["documents"] as ReadonlyArray<
     Record<string, unknown>
   >
   expect(documents).toEqual([
@@ -81,8 +81,8 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
     { file: "torn.md", unreadable: [expect.any(String)] },
   ])
 
-  // And one body, whole — the text a `write_document` guard is judged against.
-  expect(of("read_document")[0]).toEqual({
+  // And one body, whole — the text a `markdown_write` guard is judged against.
+  expect(of("read")[0]).toEqual({
     file: "notes/finishes.md",
     text: "# Finishes\n\nDoors: matte.\n",
   })
@@ -95,6 +95,6 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
  *  have seen it is the model reading `tools/list`. */
 test("no tool describes itself with an escaped newline", () => {
   expect(escapedIn(tools)).toEqual([])
-  expect(paragraphsIn(tools, "list_documents")).toBeGreaterThan(0)
-  expect(paragraphsIn(tools, "read_document")).toBeGreaterThan(0)
+  expect(paragraphsIn(tools, "map")).toBeGreaterThan(0)
+  expect(paragraphsIn(tools, "read")).toBeGreaterThan(0)
 })

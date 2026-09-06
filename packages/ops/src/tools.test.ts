@@ -54,7 +54,7 @@ import { act, read, write } from "./tools.ts"
  */
 test("what a tool says twice has to agree with its own schema", () => {
   const tool = read(
-    "read_node",
+    "outlines_read",
     "Read a node",
     "One node in full.",
     NodeRequest,
@@ -64,7 +64,7 @@ test("what a tool says twice has to agree with its own schema", () => {
   expect(tool.kind).toBe("read")
 
   read(
-    "read_node",
+    "outlines_read",
     "Read a node",
     "One node in full.",
     NodeRequest,
@@ -85,7 +85,7 @@ test("what a tool says twice has to agree with its own schema", () => {
   )
 
   write(
-    "create_outline",
+    "files_create",
     "Create an outline",
     "Start a new outline file.",
     CreateRequest,
@@ -95,7 +95,7 @@ test("what a tool says twice has to agree with its own schema", () => {
   )
 
   write(
-    "read_node",
+    "outlines_read",
     "Read a node",
     "Not a write at all.",
     // @ts-expect-error — and the schema itself has to be one the planner can
@@ -106,7 +106,7 @@ test("what a tool says twice has to agree with its own schema", () => {
   )
 
   read(
-    "read_node",
+    "outlines_read",
     "Read a node",
     "Not an object at all.",
     // @ts-expect-error — and it has to have FIELDS. This is the one bound a

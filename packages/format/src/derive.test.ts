@@ -646,7 +646,7 @@ test("a cancelled node is waiting on nothing, and stands in nobody's way", () =>
   // The TARGET end: `c` waits on `a`, and `a` is settled, so `c` is free.
   expect(waiting(derived, "c")).toEqual([])
   // And the write-time reading of the target end agrees, which is what
-  // `set_doing` is gated on: `c` may start, because nothing its `after` names
+  // `outlines_doing` is gated on: `c` may start, because nothing its `after` names
   // holds it up any more. (`a`'s own list is still `b` — `standingBefore` asks
   // what a node's targets hold up regardless of the node's own mark, which is
   // the one place it and `blockersOf` part, and it parts there for `done` too.)
@@ -659,8 +659,8 @@ test("a cancelled node is waiting on nothing, and stands in nobody's way", () =>
  * where the walk is rather than where the refusal is (`@olai/ops`' `plan.ts`
  * holds that end).
  *
- * `unfinishedWithin` is what `set_done` is gated on, so a cancelled task
- * leaving this list IS "a parent's set_done is not refused over a cancelled
+ * `unfinishedWithin` is what `outlines_done` is gated on, so a cancelled task
+ * leaving this list IS "a parent's outlines_done is not refused over a cancelled
  * child". The refusal's own sentence has always said the way past it — clear
  * the marks on what is not happening — and the fourth mark is the honest
  * spelling of that: the row keeps a mark, an instant and a day, and stops
@@ -678,7 +678,7 @@ test("a cancelled task is not unfinished work in the branch below a node", () =>
   // cancelling its parent settles it: this walk reads each node's own stored
   // mark, one level at a time, and a cascade is exactly what the format has
   // never done ("a mark is a stored fact, never computed from what hangs
-  // below"). So `set_done` on `top` is still refused, naming `deep` alone.
+  // below"). So `outlines_done` on `top` is still refused, naming `deep` alone.
   expect(unfinishedWithin(derived, "top").map((at) => at.node.id)).toEqual(["deep"])
 
   // With the branch's own leaf settled too, nothing is left standing.
@@ -835,7 +835,7 @@ test("a leftover Archive.olai mirror does not make a node is:mirrored", () => {
  * which is right for every drawing of blockedness — nothing is telling a
  * bullet it cannot start. `standingBefore` is what its `after` targets hold
  * up regardless, which is what a write about to MAKE it work has to ask
- * (`@olai/ops`' `set_doing` refusal). The two differ at exactly one end and
+ * (`@olai/ops`' `outlines_doing` refusal). The two differ at exactly one end and
  * agree at the other, because they share one predicate.
  */
 test("standingBefore asks the same question of a node that is not work yet", () => {
@@ -868,7 +868,7 @@ test("standingBefore asks the same question of a node that is not work yet", () 
   // this reading's too — it is `derived.after` it walks.
   //
   // THE ORDER HERE IS USER-VISIBLE, which is why it is asserted rather than
-  // sorted away: `@olai/ops`' `set_doing` refusal names its blockers in this
+  // sorted away: `@olai/ops`' `outlines_doing` refusal names its blockers in this
   // sequence, so a regression that shuffled it would change the sentence a
   // person and an agent both read ("comes after 2 unfinished tasks: `b` …,
   // `c` …"). It is the same promise `Derived.blocked` makes for the one

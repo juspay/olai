@@ -73,7 +73,7 @@ import { TESTID } from "../../contracts/appliance-testids.ts"
  *
  * TWO STATEMENTS, and they are not the same one. The line on top is olai's
  * record — this node names THAT terminal — and the row beneath is kolu's
- * reading of it. A block that drew only the row would hide the id a `set_prop`
+ * reading of it. A block that drew only the row would hide the id a `outlines_prop`
  * is written with and a lane is grepped by; a block that drew only the line
  * would be the chip this replaced.
  *

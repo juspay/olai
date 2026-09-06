@@ -260,7 +260,7 @@ export interface Ops extends Asking {
    * ./query.ts}'s `named`).
    *
    * HERE FOR {@link narrowing}'s REASON, one door over: an agent that wants to
-   * know whether an id is real reads it (`read_node` answers the node or the id
+   * know whether an id is real reads it (`outlines_read` answers the node or the id
    * it does not hold), and is told everything about it. This answers a dozen
    * ids with nothing but the node each names, which is useful only to a caller
    * already looking at the words those ids are written in — the chat panel,
@@ -291,8 +291,8 @@ export interface Ops extends Asking {
    * HERE RATHER THAN ON {@link Asking} for {@link dated}'s reason, and it is
    * the sharpest instance of it: what comes back is a SCREEN — rows carrying
    * their own fold keys, a rollup beside a checkbox, the blockers a mark draws.
-   * An agent asking what an outline holds asks `list_outlines` and
-   * `read_subtree` and is answered in nodes, which is the thing it can act on.
+   * An agent asking what an outline holds asks `outlines_map` and
+   * `outlines_subtree` and is answered in nodes, which is the thing it can act on.
    *
    * ONE MEMBER for seven routes, because they are one question asked with
    * different words: which page does this address name, and what does it put on
@@ -308,7 +308,7 @@ export interface Ops extends Asking {
    * (`@olai/format`'s `moving.ts`).
    *
    * HERE for the reason above, and NOT beside the write it previews: the write
-   * is `move_node`, which refuses in its own words on the way through
+   * is `outlines_move`, which refuses in its own words on the way through
    * {@link ./plan.ts}. This is what a person reads a moment earlier, over the
    * same set, and it may never refuse something the planner would allow.
    */
@@ -745,7 +745,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
 
         /**
          * A DOCUMENT WRITE'S YES IS EARNED, NOT REPORTED. (2026-09-01: a
-         * `create_document` answered a revision over a ~2KB body and the file
+         * `markdown_create` answered a revision over a ~2KB body and the file
          * was 0 bytes — the origin never reproduced, so this is the class
          * narrowed rather than the cause named.) The gate stages, renames,
          * re-probes, and takes the promised bytes only where the disk reads
@@ -761,7 +761,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
          * what it closes is narrower than the window: the write is already
          * PUBLISHED, and stays right to exist. A refusal here can only take
          * back the ANSWER, not the landing — so it says what landed (rev,
-         * file, what the disk holds) and names `write_document` as the way
+         * file, what the disk holds) and names `markdown_write` as the way
          * back. "The disk did not keep it" is said only when the disk itself
          * says so: a path the serve's walk prunes is refused at plan, and a
          * real read failure arrives with its own words attached.
@@ -786,8 +786,8 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
               reason:
                 `\`${about.summary}\` landed — rev ${written.success} is published and ` +
                 `\`${document.file}\` is on disk — but reading it back failed: ` +
-                `${held.failure.message} \`read_document\` shows what is there and ` +
-                `\`write_document\` is the way back.`,
+                `${held.failure.message} \`markdown_read\` shows what is there and ` +
+                `\`markdown_write\` is the way back.`,
               verdict: NOTHING_WRONG,
             })
           }
@@ -797,7 +797,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
                 `\`${about.summary}\` landed — rev ${written.success} is published — but ` +
                 `the served set does not hold \`${document.file}\` now: something outside ` +
                 `this write took it out of the set inside the write's own window. Check ` +
-                `the directory, and \`write_document\` is the way back to the text that ` +
+                `the directory, and \`markdown_write\` is the way back to the text that ` +
                 `was asked for.`,
               verdict: NOTHING_WRONG,
             })
@@ -812,7 +812,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
                   kept === wrote
                     ? `different bytes of the same ${kept}-byte length`
                     : `${kept} bytes where ${wrote} were written`
-                }. The set serves what the disk holds; \`write_document\` is the way ` +
+                }. The set serves what the disk holds; \`markdown_write\` is the way ` +
                 `back (the file exists now, so create is refused).`,
               verdict: NOTHING_WRONG,
             })

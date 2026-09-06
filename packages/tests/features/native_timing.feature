@@ -8,7 +8,7 @@ Feature: Native task timing — `started`, `took`, and the ticking row
   subtracted from the neighbours' settling instants, and a human vault's
   chores timed nothing at all.
 
-  `started` is a field beside the marks, stamped by `set_doing` on EVERY
+  `started` is a field beside the marks, stamped by `outlines_doing` on EVERY
   start, and `worked` is the bank beside it: a round banks where its
   `doing` comes off — settled, queued back to todo, or un-started (whole
   seconds, on the record) — so a re-open stamps a FRESH

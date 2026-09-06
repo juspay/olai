@@ -101,6 +101,38 @@ collections: {
  * `@olai/surface/host`'s `hostFaces`. This row is where that rule bites
  * hardest, because the three members below are the three answers it gives.
  */
+/**
+ * WHAT AN AGENT MAY SEE OF THIS ROW AS A `surface://` RESOURCE — a THIRD
+ * projection, and not a fourth face.
+ *
+ * `faces` above says which of this row's tags each WIRE caller may reach.
+ * This says which of its members the MCP adapter publishes as a resource at
+ * all, because that adapter needs the member's KIND to build a URI and a tag
+ * set has thrown that away. The two answer different questions and a member on
+ * one and not the other is an ordinary state: every `ops.*` on `faces.agent` is
+ * reachable and is no resource, because a procedure is not a thing with an
+ * address.
+ *
+ * IT WAS `@olai/bundle`'s `MCP`, one flat map naming three rows' members from a
+ * package none of them could edit. #546 sent each line home, and juspay/kolu#2234
+ * is what made a per-sibling map the framework's own shape: the adapter takes a
+ * rooted bundle, resolves each row's map against that row's spec, and mints
+ * `surface://collections/<row>/<member>` from the key it was mounted under.
+ *
+ * THE RULE THIS IS WRITTEN AGAINST is the wire-cost one in
+ * `@olai/surface`'s `host.ts`: a cell is exposable only if its value is
+ * O(1)-ish, and anything O(corpus) must be a COLLECTION, whose resource reads
+ * the KEY SET and hands a body one at a time.
+ */
+export const resources = {
+  // What is wrong across the set right now — and NOT how current the set is,
+  // which is a different fact and lives on a read's own vintage. A CELL, and
+  // eligible, because per-file breakage does not come through it: that rides
+  // `OutlineEntry.broken` on the outlines collection, per entity, leaving this
+  // one holding cross-file failures only.
+  errors: "resource",
+} as const
+
 export const faces = {
   browser: {
     // WHAT IS WRONG ACROSS THE SET RIGHT NOW, on both faces — the one member

@@ -221,7 +221,7 @@ Feature: Zoom and navigate
     And there should be no page errors
 
   Scenario: A row address naming a placement lands on the mirror's own row
-    # `kitchen-herbs` is a MIRROR: `read_node`'s `mirrors` reports the
+    # `kitchen-herbs` is a MIRROR: `outlines_read`'s `mirrors` reports the
     # placement's own id, and an agent citing the row spells exactly that —
     # the fragment then names no node the page shows, only a place it draws.
     # The landing answers the id with the mirror row itself, which is the

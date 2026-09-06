@@ -45,7 +45,6 @@
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
 import { reportingRunEdge, surfaceCommands, surfaceHelp } from "@kolu/surface-cli"
 import { addressOf, printAddress } from "@olai/format"
-import { agentTools } from "@olai/bundle/tools"
 import { atLevel, toStdout } from "@olai/log"
 import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
@@ -54,7 +53,8 @@ import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
 import { dialOlai, endpointFlags } from "./dial.ts"
 import { dieWithParent } from "./dieWithParent.ts"
-import { AGENT_EXPOSE, mcpContract } from "@olai/bundle/agent-face"
+import { AGENT_SIBLINGS } from "@olai/bundle/agent-face"
+import type { Tool } from "@olai/ops"
 import { remoteFrom } from "@olai/bundle/remote"
 import { gitFlags, gitPin } from "./gitPolicy.ts"
 import { pluginFlags, pluginPin } from "./pluginPolicy.ts"
@@ -152,22 +152,6 @@ const web = Command.make("web", {
     ),
   )
 
-/** The verbs that only ANSWER — the four query tools, the two document reads,
- *  and this face's own three readers. Spelled out because "read" is a fact
- *  about what a verb MEANS rather than about its `kind`: `list` and `keys` are
- *  the projection's, not the table's, and they belong on the page beside the
- *  reads they resemble. */
-const READING = [
-  "get",
-  "keys",
-  "list",
-  "list_outlines",
-  "read_node",
-  "read_subtree",
-  "list_documents",
-  "read_document",
-] as const
-
 /**
  * EVERY VERB THIS BUILD HAS, in one list, gathered from the rows that own them.
  *
@@ -178,50 +162,87 @@ const READING = [
  * list is written twice. A verb added to a row appears on both with no edit
  * here.
  */
-const TOOLS = (await agentTools()).flatMap((row) => row.tools)
+const TOOLS = Object.values(AGENT_SIBLINGS).flatMap((row) => row.tools as ReadonlyArray<Tool>)
 
-/** Everything else the table offers, alphabetically — see the group's comment. */
-const writing = (): ReadonlyArray<string> =>
-  TOOLS.map((tool) => tool.name)
-    .filter((name) => name !== "capture" && name !== "search_nodes")
-    .filter((name) => !(READING as ReadonlyArray<string>).includes(name))
-    .sort((a, b) => a.localeCompare(b))
+/**
+ * ONE ROW'S CLI-ONLY ERGONOMICS, derived from its own table.
+ *
+ * Every verb that WRITES gets the one-line summary, derived rather than listed:
+ * a tool added to a row is a verb here with no code written for it, and a
+ * hand-kept list of writes would be the one place that stopped being true. The
+ * three POSITIONALS are the exceptions a table cannot derive — what a person
+ * would type first — and they are named against the row that owns each, which
+ * is why this is a function over one row rather than one map over all of them.
+ *
+ * It was ONE `annotate` at the top of the face, because every verb was. A
+ * sibling's ergonomics live on the sibling now (juspay/kolu#2234), for the same
+ * reason its verbs do: they arrive and depart as one value.
+ */
+const POSITIONALS: Readonly<Record<string, ReadonlyArray<string>>> = {
+  // KEYED BY THE AGENT-VISIBLE NAME, because the declared verb is not unique
+  // across rows: `read` is outlines' node read AND markdown's document read,
+  // and only one of them takes an `id`. The row is what tells them apart, so
+  // the key is the row's word in front of the verb — the same composition both
+  // faces make.
+  capture_add: ["title"],
+  outlines_read: ["id"],
+  outlines_subtree: ["id"],
+}
+
+const annotationsFor = (row: string, tools: ReadonlyArray<Tool>) =>
+  Object.fromEntries(tools.map((tool) => [tool.name, {
+    ...(POSITIONALS[`${row}_${tool.name}`] === undefined ? {} : { positional: POSITIONALS[`${row}_${tool.name}`] }),
+    ...(tool.kind === "read" ? {} : { render: wrote }),
+  }]).filter(([, one]) => Object.keys(one as object).length > 0))
 
 /**
  * THE HELP PAGE'S WORDING — olai's half of it.
  *
  * The layout is `@kolu/surface-cli`'s, so every surface client's `--help` has
- * the same shape; what only this app can write is what its verbs are FOR. This
+ * the same shape; what only this app can write is what its rows are FOR. This
  * is also the documentation: there is no `docs/surface.md`, deliberately (ruled,
  * human 2026-08-23) — a page beside a binary is a page that goes stale, and the
  * one thing a person always has to hand is `--help`.
  *
- * The groups are what a person came to do, not how the ops layer is built:
- * capture first because it is the reason most people type this at all, then
- * reading, then finding, then everything that changes the vault.
+ * ## THE GROUPS NAME ROWS, and they used to name VERBS
+ *
+ * `Capture` / `Read` / `Search` / `Write` over the flat table — thirty-odd verb
+ * names, with `Write` derived so a new tool could not go unlisted. The argv
+ * shape changed under that page: a verb is `olai surface <row> <verb>` since
+ * juspay/kolu#2234, and what this parent command mounts is ONE COMMAND PER ROW
+ * plus `list`. So a group naming `outlines_read` names something this command has no
+ * subcommand for, and `surfaceHelp` refuses it at BUILD — which is not a
+ * hypothetical: it threw inside `main.ts`'s module body, so every `olai web`
+ * exited 1 before it served.
+ *
+ * NOTHING IS DERIVED ANY MORE and nothing needs to be. The list a group could
+ * fall behind was the VERB list, and a row's verbs are on `<row> --help` one
+ * keystroke away; the row list is nine words that change when a row is added,
+ * and a row this page forgot lands in `Other` visibly rather than silently
+ * (`@kolu/surface-cli`'s `surfaceHelp`).
  */
 const HELP = {
   command: "surface",
   purpose:
     "Call any verb of a running olai from a terminal — the same verbs an agent has, against the vault --url names.",
   groups: [
+    // Capture first because it is the reason most people type this at all, and
+    // it is the one row whose whole table is a single verb.
     { title: "Capture", verbs: ["capture"] },
-    { title: "Read", verbs: READING },
-    { title: "Search", verbs: ["search_nodes"] },
-    // DERIVED, and the only group that is: everything the table offers that is
-    // not one of the three above changes the vault, and there are twenty-odd of
-    // them. Listing those by hand would be a second copy of the table — the one
-    // place that stops being true the day a tool is added, which is exactly the
-    // silence "a verb added to the table is a verb here with no code written"
-    // exists to avoid.
-    { title: "Write", verbs: writing() },
+    { title: "Outlines and documents", verbs: ["outlines", "markdown"] },
+    { title: "Search", verbs: ["search"] },
+    { title: "Files", verbs: ["files", "trash"] },
+    // What the vault IS, rather than what is in it: how it is recorded, what is
+    // wrong with it, and the plugins it defines.
+    { title: "The vault itself", verbs: ["vault", "git", "vault-plugins"] },
+    // This face's own answer to "what can I address", which dials nothing.
+    { title: "This face", verbs: ["list"] },
   ],
   examples: {
-    capture: 'capture "look into the new cabinets" --text "the brass ones"',
-    read_node: "read_node a1b2c3",
-    search_nodes: "search_nodes --text 'is:todo prop:pr'",
-    get: "get outlines _olai/Inbox.olai",
-    list_outlines: "list_outlines",
+    capture: 'capture add "look into the new cabinets" --text "the brass ones"',
+    outlines: "outlines read a1b2c3",
+    search: "search nodes --text 'is:todo prop:pr'",
+    markdown: "markdown map",
   },
   flags: [
     {
@@ -274,7 +295,7 @@ const wrote = (out: unknown): string => {
 }
 
 /** The URL of the row a write made, or `null` for a write that made no row
- *  (`commit`, `push`, `empty_trash`).
+ *  (`commit`, `push`, `trash_empty`).
  *
  *  Built through `@olai/format`'s own address grammar rather than by joining
  *  strings here: which half of `<file>#<id>` a node's address writes, and what
@@ -318,20 +339,39 @@ const rowAt = (said: { readonly file?: string; readonly id?: string; readonly ur
  *
  * `annotate` is CLI-only ergonomics, keyed by verb name and BESIDE the table
  * rather than inside it: a scalar-ish argument reads better as a position than
- * as a flag (`olai surface read_node a1b2c3`), and that is a fact about argv
+ * as a flag (`olai surface outlines_read a1b2c3`), and that is a fact about argv
  * which the MCP face has no use for. The `render` on every WRITE is the same
  * kind of fact — a line a person can act on, in place of the ops layer's
  * `Applied` record, which is nine fields of which none is a thing to click.
  */
 const surfaceCli = {
-  // THE AGENT FACE'S OWN CONTRACT, and the same expose map it is served with.
-  // Both were `@olai/bundle`'s until #546 — a flat aggregate surface and a
-  // hand-written `MCP` map beside it — and they belong to the row that serves
-  // that face: `olai surface` DIALS `/mcp`, so a second statement of what is
-  // published there could only be a way to name a URI nobody answers.
-  surface: mcpContract,
-  expose: AGENT_EXPOSE,
-  verbs: remoteFrom(TOOLS),
+  /**
+   * THE SAME BUNDLE THE SERVED FACE PUBLISHES — one entry per row, each with
+   * its own surface, its own resource map and its own verbs.
+   *
+   * It was a flat aggregate surface and a hand-written `MCP` map in
+   * `@olai/bundle`, with every verb in one bundle-wide table, until #546 sent
+   * all three home to the rows and juspay/kolu#2234 gave this face the same
+   * rooted shape the MCP one takes. `olai surface` DIALS `/mcp`, so a second
+   * statement of what is published there could only be a way to name a URI
+   * nobody answers.
+   *
+   * THE ROW IS THE FIRST WORD HERE and is not part of the tool NAME over MCP,
+   * and the asymmetry is the point: argv already composes by subcommand, so
+   * `olai surface outlines read` is the sibling key spelled in the
+   * separator argv has, while an MCP tool name has no separator and the word
+   * `outlines_read` is the product's vocabulary. Same bundle, each face spelling
+   * the composition the way its own callers read.
+   *
+   * NO CORE. Core's four members are on no agent face, so there is nothing at
+   * the top of the tree but the readers each sibling brings.
+   */
+  surfaces: Object.fromEntries(Object.entries(AGENT_SIBLINGS).map(([key, row]) => [key, {
+    surface: row.surface,
+    expose: row.expose,
+    verbs: remoteFrom(row.tools as ReadonlyArray<Tool>),
+    annotate: annotationsFor(key, row.tools as ReadonlyArray<Tool>),
+  }])),
   endpoint: {
     flags: endpointFlags,
     resolve: dialOlai,
@@ -339,18 +379,6 @@ const surfaceCli = {
     // nothing — so `watch` and `--follow` are not mounted at all rather than
     // offered and then always failing (`./dial.ts`).
     streaming: false,
-  },
-  annotate: {
-    // Every verb that WRITES gets the one-line summary, derived from the table
-    // rather than listed here: a tool added to `TOOLS` is a verb here with no
-    // code written for it, and a hand-kept list of writes would be the one place
-    // that stopped being true.
-    ...Object.fromEntries(
-      TOOLS.filter((tool) => tool.kind !== "read").map((tool) => [tool.name, { render: wrote }]),
-    ),
-    capture: { positional: ["title"], render: wrote },
-    read_node: { positional: ["id"] },
-    read_subtree: { positional: ["id"] },
   },
   help: HELP,
   info: { name: "olai" },

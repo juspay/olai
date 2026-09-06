@@ -1,25 +1,20 @@
 /** The MCP activation owns credentials and its domain tool adapters. The host
  * supplies only a composed generation and opaque static write reservations. */
-import type { ClientOrConnection } from "@kolu/surface-mcp"
-import type { ExposeMap } from "@kolu/surface/expose"
-import { scopeSiblingTag } from "@kolu/surface/define"
+import type { RootedSurfaceClients } from "@kolu/surface/client"
 import type { CommitRequest, CommitResult, PushResult } from "@olai/format"
-import { liveOps, type Directory, type Ops, type Tool } from "@olai/ops"
+import { liveOps, type Directory, type Ops } from "@olai/ops"
 import type { TransportSurface } from "@olai/plugin-api/transport"
-import { AGENT_EXPOSE, mcpContract, ownerIn, type McpClient, type Row } from "./client.ts"
+import { clientsFor, type Row } from "./bundle.ts"
+import type { Reading } from "./live-client.ts"
 import type { Vintage } from "@olai/store"
 import { Effect } from "effect"
-import { liveClient, toOwner } from "./live-client.ts"
 import { ticketing, type Tickets } from "./tickets.ts"
 
 export interface AgentBinding {
-  readonly available: (name: string) => boolean
-  readonly resourceAvailable: (key: string, verb: string) => boolean
-  readonly client: () => ClientOrConnection
-  readonly expose: ExposeMap<typeof mcpContract.spec>
+  readonly client: () => RootedSurfaceClients
   readonly root: string
   readonly vintage: Effect.Effect<Vintage | undefined>
-  readonly fenced: (client: ClientOrConnection) => ClientOrConnection
+  readonly fenced: () => RootedSurfaceClients
   readonly record: (request: CommitRequest) => Effect.Effect<CommitResult>
   readonly push: Effect.Effect<PushResult>
 }
@@ -33,58 +28,43 @@ export const bindAgent = (options: {
 }): AgentBinding & { readonly tickets: Tickets } => {
   const { shared } = options
   const ops = liveOps(options.ops)
-  const rows = (): ReadonlyArray<Row> => shared.agentRows()
-  const route = toOwner(rows)
-  const panel = liveClient(shared.agent, { writer: "mcp", fence: null }, route)
-  const tickets = ticketing({ reservations: shared.writeReservations, bound: shared.agent, face: () => shared.agent().expose, ops, token: shared.token, currentTicket: options.ticket, route })
+  const rows = (): ReadonlyArray<Row> => shared.agentRows() as unknown as ReadonlyArray<Row>
+  const reading: Reading = () => shared.agent()
+  const panel = () => clientsFor(rows(), reading, { writer: "mcp", fence: null })
+  const tickets = ticketing({ reservations: shared.writeReservations, bound: shared.agent, face: () => shared.agent().expose, ops, token: shared.token, currentTicket: options.ticket, rows })
   /**
-   * WHICH TOOLS ARE OFFERED RIGHT NOW — the rows that are standing, and nothing
-   * else.
+   * A TOOL IS OFFERED BECAUSE ITS ROW IS HERE, and there is no longer a line
+   * anywhere that says so.
    *
-   * THIS REPLACED A HAND-WRITTEN CATALOGUE (`./catalog.ts`, deleted by #546),
-   * and the two answer the same question from opposite ends. That file held a
-   * name-to-tag map for the six read tools and three plugin verbs, and gated
-   * every WRITE tool by looking its `op` up in the composer's shared-tag
-   * dispatch table — because while six rows answered one bare
-   * `surface/ops/run`, "who owns `title`" was not a question a tag could
-   * settle. It was the permissions duplication one seam over: a row's tool went
-   * on being advertised until somebody edited a map two packages away.
+   * A FILTER STOOD HERE TWICE. First `./catalog.ts`, a hand-written
+   * name-to-tag map that gated every write tool by looking its `op` up in the
+   * composer's shared-tag dispatch table — the permissions duplication one seam
+   * over, where a row's tool went on being advertised until somebody edited a
+   * map two packages away. Then, for one commit, a `tools/list` override that
+   * hid the verbs of rows that had left, because a bundle-ROOT tool survives
+   * any roster and olai's verbs had to be declared at the root to keep the
+   * words they were authored with.
    *
-   * A tool is offered because the ROW THAT BROUGHT IT IS HERE. Nothing is
-   * looked up, nothing is kept in step, and a row that leaves takes its verbs
-   * with it in the same instant it stops serving their tags
-   * (`@olai/server`'s `profiles.test.ts`).
+   * juspay/kolu#2234 records a tool's owner on the entry instead of spelling it
+   * into the name, so a verb keeps its word and still withdraws with its row.
+   * Absence is the adapter's, which is what #546 asked for, and the honest way
+   * to say so is that this function does not exist.
    */
-  const offered = (name: string): boolean =>
-    rows().some(row => row.tools.some(tool => (tool as Tool).name === name))
   return {
     tickets,
-    /**
-     * WHICH RESOURCES ARE READABLE — the same question about the three members
-     * `expose` names, asked of the row that declares each.
-     *
-     * Two conditions rather than one, and the second is not paranoia: a row can
-     * be STANDING and still not grant this face the member. `ownerIn` says who
-     * declares it, and the exposure says whether the agent may have it — which
-     * is the row's own `faces.agent` map, written in the row's own package.
-     */
-    resourceAvailable: (key, verb) => {
-      const owner = ownerIn(rows(), key, verb)
-      if (owner === undefined) return false
-      const bound = shared.agent()
-      const tag = scopeSiblingTag(`surface/${key}/${verb}`, owner)
-      return bound.expose.tags.has(tag) && tag in bound.handlers
-    },
-    available: offered,
-    expose: AGENT_EXPOSE,
-    client: () => panel,
+    // THE PANEL BUNDLE — one client per standing row, unfenced, under the
+    // face's own writer. Minted per call because the roster it describes moves:
+    // one held across a recompose would carry a client for a row that has left
+    // and none for one that arrived. `serveSurfaceAsMcp` re-invokes this after
+    // every `reroster` for exactly that reason.
+    client: panel,
     get root() { return options.directory()?.root ?? "" },
     // A verified read observes staleness without waiting on the publisher gate.
     vintage: Effect.suspend(() => {
       const directory = options.directory()
       return directory ? Effect.map(directory.store.read("verified"), aged => aged.vintage) : Effect.succeed(undefined)
     }),
-    fenced: held => tickets.doorAt(held as McpClient),
+    fenced: () => tickets.doorAt(panel()),
     record: request => ops.commit(request, "mcp"),
     push: ops.push,
   }

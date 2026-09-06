@@ -144,7 +144,7 @@ level in: a row with ancestors, a row found by something a reader cannot see on
 it, and two rows nothing but their place tells apart.
 
 The trash is `_olai/Trash.olai` — the one trash, same as every other corpus.
-`list_outlines` answers in path order and that file sorts first, so the
+`outlines_map` answers in path order and that file sorts first, so the
 scripted agent's `add` verb skips it: capturing into the trash is not a
 capture, and a row written there is drawn on no page (#226).
 

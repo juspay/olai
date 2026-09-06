@@ -158,7 +158,7 @@ test("hypertext is a face and no body", () => {
 // is the write gate: it assembles what the last probe held with the files it is
 // about to write swapped in, so a path that did not exist before sits at the
 // END of that map — and until #208 a created `_olai/Trash.olai` was published after
-// the `house.olai` it sorts before, which `list_outlines` answers with and a
+// the `house.olai` it sorts before, which `outlines_map` answers with and a
 // search tie breaks on.
 test("documents come out in path order, whatever order the map holds", () => {
   const set = assemble(decoded({

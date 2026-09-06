@@ -10,7 +10,7 @@
  *
  * A DOCUMENT is the exception the write half already made, read back. A `.md`
  * has no identity below the file — no records, no ids, nothing to name a piece
- * of it by — so `write_document` takes the whole text and {@link documents} /
+ * of it by — so `markdown_write` takes the whole text and {@link documents} /
  * {@link document} answer with the whole text, which is the same unit read
  * rather than a byte range conceded. What is NOT here is the thing that would
  * be one: no offset, no line range, no walk of the directory that is not the
@@ -169,7 +169,7 @@ import { noSuchDocument, notLoaded, outlineAt } from "./refusals.ts"
  * the line that names a node a chat message is ABOUT, and "where does a node
  * live, and what does it hang under" is a question this file already answers —
  * a second answer to it up there would be free to drift from the one
- * `read_node` gives about the same id in the same turn. The `.map` those two
+ * `outlines_read` gives about the same id in the same turn. The `.map` those two
  * shared is the format's own now (`ancestorTitles`), because a THIRD reader
  * arrived that cannot import this layer at all: the chat composer's `@` row.
  */
@@ -216,7 +216,7 @@ export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
  * edge fields: they are SETS, so a target a hand-written record names twice is
  * named once wherever the RELATION is read — the links a page draws, the
  * ordering graph blockedness comes off (docs/format.md). This answer is the
- * RECORD, which is the thing `set_see` / `set_after` are about to edit and the
+ * RECORD, which is the thing `outlines_see` / `outlines_after` are about to edit and the
  * thing a reader is deciding to fix, so it is handed over as the line holds
  * it. Nothing an op writes can put a repeat there: a re-add is a no-op.
  */
@@ -247,7 +247,7 @@ const carriedOf = (
 // with a slow one. What it did NOT take is the layer's own situating
 // ({@link foundOf}), which the row imports from here for the reason that
 // function's header gives: a second answer to *where does this node live* would
-// be free to disagree with `read_node`'s in the same turn.
+// be free to disagree with `outlines_read`'s in the same turn.
 //
 // The filter below stayed, and the split is the same one `@olai/format`'s
 // `searching.ts` argues: it is a reading of ONE PAGE a browser already holds,
@@ -745,7 +745,7 @@ export const detail = (
     ...foundOf(derived, located),
     ...(node.date === undefined ? {} : { date: node.date }),
     // The rule as the record spells it — the answer a writer about to change
-    // it reads, and the half of MCP parity that is not `set_repeat`.
+    // it reads, and the half of MCP parity that is not `outlines_repeat`.
     ...(node.repeat === undefined ? {} : { repeat: node.repeat }),
     ...(node.desc === undefined ? {} : { desc: node.desc }),
     // `custom` arrives with `foundOf` above, which every situated answer is
@@ -899,7 +899,7 @@ function placedUnder(
  * A LOOKUP, in the index that IS that question: {@link Derived.mirrorsOf} is
  * `follow` read backwards over the whole set, filed under the node each chain
  * ends at, and built with the rest of the derivation. This used to walk every
- * node in the directory and resolve every placement in it — per `read_node`,
+ * node in the directory and resolve every placement in it — per `outlines_read`,
  * which is the first call an agent makes about anything. `follow` still decides
  * what a mirror shows; this simply stopped asking it once per record to find
  * the few records it had already been asked about.
@@ -909,7 +909,7 @@ function placedUnder(
  * so two mirror records sharing an id come back as the single record that id
  * means. The old walk reported both. That set is one the validator refuses
  * (duplicate ids), every other index in `Derived` already collapses duplicates
- * exactly this way, and `remove_mirror` takes an ID — so a second entry named
+ * exactly this way, and `outlines_unmirror` takes an ID — so a second entry named
  * a record no write could reach. It is the duplicate-id rule §3 of
  * https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/model-indices.md names, arriving here first.
  */
@@ -932,7 +932,7 @@ const placementsOf = (
   })
 
 /**
- * WHICH of the two walks a `read_subtree` request asks for — the one node or
+ * WHICH of the two walks a `outlines_subtree` request asks for — the one node or
  * the whole outline — spelled as one question answered once. `both` and
  * `neither` are the two refused askings, and they are different mistakes,
  * which is why {@link subtree} greets them with two sentences rather than
@@ -947,7 +947,7 @@ const armOf = (
 
 /**
  * A NODE and what hangs under it, or a whole OUTLINE and everything in it —
- * `read_subtree`, both arms and every refusal.
+ * `outlines_subtree`, both arms and every refusal.
  *
  * ONE FUNCTION FOR THE TWO WAYS IN, because they are one reading asked from two
  * ends: the walk below is the same walk, and what differs is only where it
@@ -955,11 +955,11 @@ const armOf = (
  * would be a second place the depth default, the mirror rule and the
  * `truncated` flag are decided.
  *
- * WHY THE FILE ARM EXISTS AT ALL. `list_outlines` says which outlines there are
+ * WHY THE FILE ARM EXISTS AT ALL. `outlines_map` says which outlines there are
  * and what each one's roots are CALLED, and until this the only way DOWN was by
  * id — so an outline of N top-level roots cost N calls, one per root, each
  * answering a fraction of a file the reader was asking about whole. The write
- * side stopped looping some time ago (`add_node` takes a nested capture,
+ * side stopped looping some time ago (`outlines_add` takes a nested capture,
  * `apply` a run of verbs); this is the read side catching up.
  *
  * IT REFUSES, where the id arm answers. That asymmetry is
@@ -981,7 +981,7 @@ const armOf = (
  * available at this seam (the tool table takes a request apart by its
  * `.fields`), and the JSON Schema an MCP host reads is an object with
  * properties rather than an `anyOf` it may or may not honour — the same
- * constraint that unrolls `add_node`'s capture. A decode-level `check` on the
+ * constraint that unrolls `outlines_add`'s capture. A decode-level `check` on the
  * struct could REJECT the pair, and is deliberately not used: what comes back
  * from one is a decoder's complaint about a shape, where what a caller needs is
  * which of the two reads it meant. So the request arrives wide and is refused
@@ -1009,7 +1009,7 @@ export const subtree = (
   at: Reading,
   request: SubtreeRequest,
 ): Result.Result<SubtreeAnswer, OpFailure> => {
-  // The floor's number, because it is quoted in the sentence `read_subtree`
+  // The floor's number, because it is quoted in the sentence `outlines_subtree`
   // advertises — one place to change it, rather than a schema saying "default
   // 3" over a walk that had stopped agreeing.
   const depth = request.depth ?? DEFAULT_SUBTREE_DEPTH
@@ -1173,7 +1173,7 @@ export const outlines = (
    * below stands on: a row's titles come out in file order, not the sibling
    * (`ord`) order they would be in had anything sorted them. That is why this
    * does NOT go through `@olai/format`'s `rootsOf`, which is the same question
-   * asked of the TREE and answers in `ord` — `read_subtree`'s `file` arm is
+   * asked of the TREE and answers in `ord` — `outlines_subtree`'s `file` arm is
    * that one. A listing is about the file; a walk is about the tree; the two
    * part company on a root reordered without its line moving, and both
    * declarations say so.
@@ -1223,7 +1223,7 @@ export const outlines = (
  * resolution throws away. On a vault that is the whole corpus materialised per
  * capture, and twice when the capture race makes the resolver read again
  * (roadmap `perf-capture-paths`). The listing keeps those counts, because
- * `list_outlines` is read by an agent CHOOSING a file; this door is for the one
+ * `outlines_map` is read by an agent CHOOSING a file; this door is for the one
  * that already knows what it is looking for.
  *
  * THE SET ALONE, no derivation, which is the whole shape of the saving: the
@@ -1244,7 +1244,7 @@ export const paths = (set: OutlineSet): PathsAnswer => ({ paths: outlinePaths(se
  *
  * WHAT COUNTS AS A DOCUMENT is not decided here: `markdownIn` is the floor's
  * one answer, shared with the validator that checks a `doc` reference and the
- * planner that refuses a `write_document`, so what this lists and what those
+ * planner that refuses a `markdown_write`, so what this lists and what those
  * two accept cannot come apart. A `.html` is out of all three — the set keeps
  * its path and not its bytes — and a listing that named one would be offering
  * a read that cannot be answered and a size nobody measured.
@@ -1285,7 +1285,7 @@ export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
  * A REFUSAL and not a `{ missing }` arm, which is the one place a document
  * read parts company with a node read; {@link DocumentBody} carries that
  * argument. What matters here is that the sentence is the SAME sentence
- * `write_document` refuses a missing path with, from the same near-miss
+ * `markdown_write` refuses a missing path with, from the same near-miss
  * function over the same candidate list — a path an agent typed is answered
  * one way whichever verb it typed it at.
  *
@@ -1304,7 +1304,7 @@ export const document = (
   const entry = markdownAt(set, file)
   if (entry === undefined) {
     return Result.fail(
-      noSuchDocument(set, file, "`list_documents` says what is"),
+      noSuchDocument(set, file, "`markdown_map` says what is"),
     )
   }
   const broken = brokenIn(set, file)

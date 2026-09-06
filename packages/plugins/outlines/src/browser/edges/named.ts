@@ -32,7 +32,7 @@
  * the same one, `nodeNamed`, run on the side that holds the vault.
  *
  * A TARGET NAMED TWICE IS NAMED ONCE, and that is decided here, at the read,
- * because it is what the WRITE already says: `set_see` / `set_after` treat the
+ * because it is what the WRITE already says: `outlines_see` / `outlines_after` treat the
  * field as a SET — re-adding a target the node already names is a silent no-op
  * (`@olai/ops`'s `planEdges`) — so a file saying the same thing three times is
  * saying it once, and the surfaces reading it say it once (ruled 2026-08-16,

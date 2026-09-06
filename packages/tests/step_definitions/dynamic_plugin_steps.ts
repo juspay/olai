@@ -274,7 +274,7 @@ When("the palette provider is replaced", function (this: OlaiWorld) {
 Then("the agent service catalog {word} {string}", async function (this: OlaiWorld, presence: string, key: string) {
   const { callTool, connectTerminalAgent } = await import("../support/mcp.ts");
   this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
-  const answer = await callTool(this.terminalAgent, "inspect_plugins", {});
+  const answer = await callTool(this.terminalAgent, "vault-plugins_inspect", {});
   const catalog = answer["structuredContent"] as { services: Array<{ key: string; half: string }> };
   const keys = catalog.services.filter((one) => one.half === "server").map((one) => one.key);
   assert.ok(keys.includes("vault"), "core services remain discoverable");
@@ -284,7 +284,7 @@ Then("the agent service catalog {word} {string}", async function (this: OlaiWorl
 Then("the palette {word} the colour {string}", async function (this: OlaiWorld, verdict: string, value: string) {
   const { connectTerminalAgent, tryTool } = await import("../support/mcp.ts");
   this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
-  const answer = await tryTool(this.terminalAgent, "set_prop", { id: "amber", key: "swatch-hex", value });
+  const answer = await tryTool(this.terminalAgent, "outlines_prop", { id: "amber", key: "swatch-hex", value });
   assert.strictEqual(answer["isError"] === true, verdict === "rejects", JSON.stringify(answer));
 });
 
@@ -304,7 +304,7 @@ Then("the browser palette face is {string}", async function (this: OlaiWorld, ve
 Then("the browser service catalog {word} {string}", async function (this: OlaiWorld, presence: string, key: string) {
   const { callTool, connectTerminalAgent } = await import("../support/mcp.ts");
   this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
-  const answer = await callTool(this.terminalAgent, "inspect_plugins", {});
+  const answer = await callTool(this.terminalAgent, "vault-plugins_inspect", {});
   const catalog = answer["structuredContent"] as { services: Array<{ key: string; half: string; availability: string }> };
   assert.strictEqual(catalog.services.some((one) => one.key === key && one.half === "browser" && one.availability === "declared"), presence === "includes");
 });

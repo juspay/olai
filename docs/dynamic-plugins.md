@@ -19,7 +19,7 @@ A swatch for hex colours          plugin: swatch
 - `browser.tsx` is optional. A plugin that only teaches the vault a property kind, or only rings a doorbell, is a whole plugin.
 - any other child is ordinary outline content — notes about the plugin, a to-do — and is passed over.
 
-Nothing about that needs a new write door. An agent writes a definition with `add_node`, `set_desc` and `set_prop`; the subtree fence applies exactly as it does to any other write; and the `.olai` file the nodes live in is committed by the ledger like any other change. There is no `.ts` on the disk, because `.ts` is not a kind of file olai serves — the source is vault content, and it travels, versions and diffs like vault content.
+Nothing about that needs a new write door. An agent writes a definition with `outlines_add`, `outlines_desc` and `outlines_prop`; the subtree fence applies exactly as it does to any other write; and the `.olai` file the nodes live in is committed by the ledger like any other change. There is no `.ts` on the disk, because `.ts` is not a kind of file olai serves — the source is vault content, and it travels, versions and diffs like vault content.
 
 ## What a half may import
 
@@ -69,13 +69,13 @@ approve source nobody has read. Look again, read what it says, and approve that.
 
 Three tools, on the agent face:
 
-- **`inspect_plugins`** — what a plugin may name: the three modules, service records marked by half (including declared browser-owned keys), the slots a browser half may register a face into with what keys each, the node layout above, and the words already taken. Read this before writing code; server provisions and browser declarations are distinguished by `availability`. `taken` is every word this serve has — the build's rows **and** every definition in the vault, including ones other agents wrote — because a definition may take neither.
-- **`run_plugin`** — ask olai to look at a definition now and say what became of it: the state, the version, and the fault sentence where there is one. A definition nobody has approved answers `pending`, which is the boundary said back to the author.
-- **`stop_plugin`** — unmount one, for as long as this serve runs. It reaches **definitions only**: an agent cannot turn off the row that seats it, the row that watches its writes, or the row whose tools it is holding.
+- **`vault-plugins_inspect`** — what a plugin may name: the three modules, service records marked by half (including declared browser-owned keys), the slots a browser half may register a face into with what keys each, the node layout above, and the words already taken. Read this before writing code; server provisions and browser declarations are distinguished by `availability`. `taken` is every word this serve has — the build's rows **and** every definition in the vault, including ones other agents wrote — because a definition may take neither.
+- **`vault-plugins_run`** — ask olai to look at a definition now and say what became of it: the state, the version, and the fault sentence where there is one. A definition nobody has approved answers `pending`, which is the boundary said back to the author.
+- **`vault-plugins_stop`** — unmount one, for as long as this serve runs. It reaches **definitions only**: an agent cannot turn off the row that seats it, the row that watches its writes, or the row whose tools it is holding.
 
 (On the wire those are `plugins.inspect`, `plugins.run` and `plugins.stop`; the tool names are the agent-facing words, the way `commit` is `git.commit`.)
 
-Defining a plugin needs no tool of its own — it is `add_node` and `set_desc`. Retracting one is `trash_node`, or removing the `plugin` property: the row goes on the next revision and the fiber unwinds every registration it made. A node in `_olai/Trash.olai` is not a definition — the reader skips what was put away, the way every other live reading of the tree does.
+Defining a plugin needs no tool of its own — it is `outlines_add` and `outlines_desc`. Retracting one is `outlines_trash`, or removing the `plugin` property: the row goes on the next revision and the fiber unwinds every registration it made. A node in `_olai/Trash.olai` is not a definition — the reader skips what was put away, the way every other live reading of the tree does.
 
 ## What happens when it mounts
 
@@ -91,7 +91,7 @@ A half that will not compile, a module that exports no plugin, a half that calls
 
 A plugin that reads the journal's agenda each morning and puts it into the node agent's own conversation — which is the shape most of these are: a service somebody else offers, a clock, and a sentence.
 
-**Ask first what may be named.** `inspect_plugins` lists service records by half. A server-owned key appears while its provider is running; a browser key is advertised by its server declaration:
+**Ask first what may be named.** `vault-plugins_inspect` lists service records by half. A server-owned key appears while its provider is running; a browser key is advertised by its server declaration:
 
 ```
 "services": [
@@ -216,7 +216,7 @@ export default definePlugin({
 })
 ```
 
-**The beat is forked onto the plugin's own scope**, so stopping the row — the panel's switch, `stop_plugin`, an edit that puts it back to pending — interrupts it with everything else the plugin acquired. There is no timer to clear.
+**The beat is forked onto the plugin's own scope**, so stopping the row — the panel's switch, `vault-plugins_stop`, an edit that puts it back to pending — interrupts it with everything else the plugin acquired. There is no timer to clear.
 
 **A morning that reaches nobody is not a morning that has passed.** `said` is set after a delivery went out, so a serve with no conversation open at seven o'clock still says it when one is opened. And `deliveries.deliver` takes a thunk rather than a string: the words are composed at the moment they enter the conversation, which for a message that may wait through a running turn is the only time they are true.
 
@@ -262,7 +262,7 @@ export default definePlugin({
 })
 ```
 
-**A face is handed a context, not a value.** `outline.row.chip` takes a `ChipContext` — `entry` (the property's `key`, its `value`, its `values`), `opened`, `onToggle`, `chrome` — so the value you draw is `context.entry.value`. A face that reads `props.value` gets `undefined` and fails silently in the worst way available: it compiles, it mounts, the row says `running`, and the chip is invisible. `inspect_plugins` names the slots and what keys each; the shapes are `@olai/plugin-api`'s `plugin.ts`.
+**A face is handed a context, not a value.** `outline.row.chip` takes a `ChipContext` — `entry` (the property's `key`, its `value`, its `values`), `opened`, `onToggle`, `chrome` — so the value you draw is `context.entry.value`. A face that reads `props.value` gets `undefined` and fails silently in the worst way available: it compiles, it mounts, the row says `running`, and the chip is invisible. `vault-plugins_inspect` names the slots and what keys each; the shapes are `@olai/plugin-api`'s `plugin.ts`.
 
 **The kind word is `swatch-hex`, and it is CLAIMED rather than declared.** A plugin contributes the bare word and the registry composes it with the plugin's own name, exactly as for a built plugin — and that composed word is claimed by the registration, so `shade: "#ff8800"` is held to it with no `_olai/Properties.olai` in the vault at all. That is the whole of what a definition's author has to do.
 
@@ -287,7 +287,7 @@ Run it from a package that depends on `@olai/plugin-build` (`packages/server` do
 
 **The trap in the second one.** A half writes the bare `@olai/plugin-api` in both files and olai binds each to a different door: a server half to `./services`, a browser half to the root. So typechecking a *server* half exactly as written reports `has no exported member 'Kinds'` — and that error is the **check** being wrong, not your source. Point the import at `@olai/plugin-api/services` for the duration of the typecheck, and put it back.
 
-`run_plugin` is the third check and the only one that is the real thing: it answers the state, the version and the fault sentence off the same row a person is looking at.
+`vault-plugins_run` is the third check and the only one that is the real thing: it answers the state, the version and the fault sentence off the same row a person is looking at.
 
 ## What this is not
 

@@ -76,7 +76,7 @@ export const surface = defineSurface({
  *
  * Browser sees the two cells and the three verbs. THIS ROW PUTS NOTHING ON THE
  * AGENT FACE, and that is still true now that it carries its own tools
- * ({@link ./tools.ts}): `commit` and `push` are entries in THIS row's table
+ * ({@link ./tools.ts}): `git_commit` and `git_push` are entries in THIS row's table
  * since #546 — there is no `@olai/ops` table left for them to sit in — but they
  * reach the ledger through the ops layer's `Acting` door (`ops.commit`,
  * `ops.push`), not through these members. The adapter has no sibling segment for

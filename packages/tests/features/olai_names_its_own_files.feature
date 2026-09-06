@@ -18,7 +18,7 @@ Feature: The files olai names for itself, and the doors onto them
   as the ordinary outline it is — and the Trash door nests with them.
   It is still a DRAWING rule and not a set rule, which is the line these
   scenarios keep: the files stay in the directory either way, and nothing
-  here touches search, an agent's `list_outlines`, the trash page or the
+  here touches search, an agent's `outlines_map`, the trash page or the
   shelf.
 
   The INBOX moved under `_olai/` with them (human, 2026-08-20, reversing

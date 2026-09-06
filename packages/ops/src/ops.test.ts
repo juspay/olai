@@ -340,7 +340,7 @@ test("the marks on the other records come back as the bytes they were", () =>
 
 /**
  * What the layer stamps when nobody hands it a clock — the whole of the
- * `set_done`-stamps-itself promise, and the one test that has to use the real
+ * `outlines_done`-stamps-itself promise, and the one test that has to use the real
  * one.
  *
  * Asserted as a SHAPE and a window rather than a value: what a wall clock says
@@ -394,7 +394,7 @@ test("creating an outline lands a new file the set and the disk both see", () =>
 /**
  * The last hole in the atomicity claim, closed on disk.
  *
- * A new outline used to be `create` then `add_node` — two plans, two gates, two
+ * A new outline used to be `create` then `outlines_add` — two plans, two gates, two
  * commits — so a second call that refused left an EMPTY outline behind that
  * nobody had asked for. The seed is a whole capture now: one plan, one
  * validation, one rename, and a refusal costs nothing at all, which is only
@@ -453,7 +453,7 @@ test("creating an empty outline is a zero-byte file the sidebar can list", () =>
     })))
 
 // The published set is in LISTING order, which is path order — what
-// `list_outlines` answers with and what a search tie breaks on. A create is the
+// `outlines_map` answers with and what a search tie breaks on. A create is the
 // one write that can put a file at the FRONT of that order, and it is the case
 // where the gate's own candidate map disagrees with the listing: the candidate
 // is what the last probe held with the new path appended, so a file sorting
@@ -1085,7 +1085,7 @@ test("a repair does not spend a lost race — four races and a heal still land",
     })))
 
 /**
- * A `set_prop` of the value a node already holds is a refusal, and the point is
+ * A `outlines_prop` of the value a node already holds is a refusal, and the point is
  * the BYTES: nothing lands, so nothing is stamped, so git sees nothing.
  *
  * The planner's own test says it is refused; this says what that buys. Before
@@ -1095,7 +1095,7 @@ test("a repair does not spend a lost race — four races and a heal still land",
  * transcript claimed an edit. Disclosed by opencode in review of #179, and the
  * one assertion that covers all three is that the file did not move.
  */
-test("a set_prop of the value already held writes nothing at all", () =>
+test("a outlines_prop of the value already held writes nothing at all", () =>
   withOps({ "house.olai": PROPPED }, (fixture) =>
     Effect.gen(function*() {
       const failure = yield* Effect.orDie(
@@ -1112,7 +1112,7 @@ test("a set_prop of the value already held writes nothing at all", () =>
       expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(1)
     })))
 
-test("a set_prop that DOES change something lands, and stamps the write", () =>
+test("a outlines_prop that DOES change something lands, and stamps the write", () =>
   withOps({ "house.olai": PROPPED }, (fixture) =>
     Effect.gen(function*() {
       yield* run(fixture, { op: "prop", id: "order", key: "pr", value: "https://x/2" })
@@ -1210,9 +1210,9 @@ test("concurrent ops all land, each re-derived from the set the last one left", 
 // ── the 2026-09-01 incident: a document's write reported over lost bytes ──
 
 /**
- * A `create_document` returned success — a revision — over a ~2KB body, and
+ * A `markdown_create` returned success — a revision — over a ~2KB body, and
  * the file on disk was 0 bytes. The incident's own report adds two
- * circumstances: the create rode a parallel MCP batch beside a `delete_file`
+ * circumstances: the create rode a parallel MCP batch beside a `files_delete`
  * of another document, and the serve runs `--commit=manual` with deploys in
  * the gap between a write and its commit.
  *
@@ -1267,7 +1267,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
    * write DID land: the revision is published, the file is on disk, the set
    * serves it, and — for the create verb — "try again" is now refused, the
    * file existing. So the sentence says so, names what the disk actually kept
-   * (in bytes — `list_documents`' vocabulary), and points at `write_document`
+   * (in bytes — `markdown_map`' vocabulary), and points at `markdown_write`
    * as the way back.
    */
   describe("a document write whose bytes do not survive its window is refused, not reported", () => {
@@ -1317,7 +1317,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
       )
     }
 
-    test("a create: the write landed, the refusal names the 0 bytes the disk kept, and `write_document` is the way back", async () => {
+    test("a create: the write landed, the refusal names the 0 bytes the disk kept, and `markdown_write` is the way back", async () => {
       const { failure, root } = await looted(
         { "house.olai": HOUSE },
         { op: "create-doc", file: "briefs/dispatch.md", text: BRIEF },
@@ -1329,7 +1329,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
         // THE DISK KEPT, not that nothing was written — and since the write
         // landed, it names the verb that can still rewrite it.
         expect(failure.message).toContain("0 bytes where")
-        expect(failure.message).toContain("write_document")
+        expect(failure.message).toContain("markdown_write")
         // The re-enactment really did its part.
         expect(fs.readFileSync(path.join(root, "briefs/dispatch.md"), "utf8")).toBe("")
       } finally {
@@ -1337,7 +1337,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
       }
     })
 
-    test("a write_document: the web's verb is refused with the same sentence", async () => {
+    test("a markdown_write: the web's verb is refused with the same sentence", async () => {
       const { failure, root } = await looted(
         { "house.olai": HOUSE, "notes/plan.md": "# old plan\n" },
         { op: "doc", file: "notes/plan.md", text: BRIEF },
@@ -1346,14 +1346,14 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
         expect(failure._tag).toBe("ValidationFailure")
         expect(failure.message).toContain("notes/plan.md` landed")
         expect(failure.message).toContain("0 bytes where")
-        expect(failure.message).toContain("write_document")
+        expect(failure.message).toContain("markdown_write")
         expect(fs.readFileSync(path.join(root, "notes/plan.md"), "utf8")).toBe("")
       } finally {
         fs.rmSync(root, { recursive: true, force: true })
       }
     })
 
-    test("a write_document killed between gate and read-back by the set itself — the gone file is named, not the disk blamed", async () => {
+    test("a markdown_write killed between gate and read-back by the set itself — the gone file is named, not the disk blamed", async () => {
       // `body` answers null for a path the served set does not hold: after a
       // dot-directory path is refused at plan, the only way to reach this arm
       // is the file leaving the set inside the write's own window. Re-enacted
@@ -1526,7 +1526,7 @@ describe("delete, against a real directory", () => {
         })
         // One revision, one publication: THE GATE'S claim, at the place the
         // claim is made. The disk holds the path no longer, and the set the
-        // read gate hands anybody — the same value a `list_documents` call
+        // read gate hands anybody — the same value a `markdown_map` call
         // answers with — holds it no longer either.
         expect(fixture.read("ideas.md")).toBeNull()
         expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(2)
@@ -1707,7 +1707,7 @@ describe("apply, against a real directory", () => {
  * ONE BROKEN OUTLINE DEGRADES ALONE — reads, writes and all.
  *
  * The bug (`broken-file-blocks-healthy-writes`, sighted 2026-08-25): one
- * outline failing typed validation refused an `add_node` into a perfectly
+ * outline failing typed validation refused an `outlines_add` into a perfectly
  * healthy file — the gate reduced the whole set's verdict to one boolean, so
  * every write in the vault was frozen by a file it had nothing to do with, and
  * the refusal said "would leave the outlines invalid", which reads as an
@@ -1929,7 +1929,7 @@ describe("a declaration over unfit values", () => {
     "briefs/three.md": "three\n",
   }
 
-  test("add_node of the declaration refuses, naming file + node + value", () =>
+  test("outlines_add of the declaration refuses, naming file + node + value", () =>
     withOps(FILES, (fixture) =>
       Effect.gen(function*() {
         const failure = yield* Effect.orDie(
@@ -1976,7 +1976,7 @@ describe("a declaration over unfit values", () => {
   /**
    * Declare-blocked cleanup of the last-good trap: a hand-edited declaration
    * is already on disk, the file it fences is WITHHELD from the published set,
-   * and a single `set_prop` of one of several bad values in that file is
+   * and a single `outlines_prop` of one of several bad values in that file is
    * refused (the candidate still has the others). One `apply` that fixes them
    * all lands.
    *

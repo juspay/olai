@@ -288,7 +288,7 @@ export interface Refusal {
 
 /** ...AND ONE THIS SERVE ACTUALLY REFUSED, as a plugin watching writes is told.
  *
- *  `op` is the ops request's own verb (`set_prop`, `add_node`, …) and is a word
+ *  `op` is the ops request's own verb (`outlines_prop`, `outlines_add`, …) and is a word
  *  rather than a union for the reason above: the vocabulary is the ops layer's,
  *  and a copy of it here would be a second list to keep in step. */
 export interface Refused {

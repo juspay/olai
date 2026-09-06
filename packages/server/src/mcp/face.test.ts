@@ -45,8 +45,7 @@ import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
 import { bind } from "../runtime.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
-import { AGENT_EXPOSE, mcpContract } from "olai-plugin-mcp/testlib"
-import { liveClient, toOwner } from "olai-plugin-mcp/testlib"
+import { clientsFor, siblingsOf, type Row } from "olai-plugin-mcp/testlib"
 import { serveFace } from "olai-plugin-mcp/testlib"
 
 const HOUSE = [
@@ -123,27 +122,33 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
+    // THE ROOTED BUNDLE, off the rows this bind actually composed — the two
+    // halves of `olai-plugin-mcp`'s `bundle.ts`, called here as `binding.ts`
+    // calls them.
+    //
+    // IT WAS A FLAT CONTRACT PLUS A HAND-WRITTEN EXPOSE MAP (`mcpContract` +
+    // `AGENT_EXPOSE`) OVER ONE `liveClient` ROUTED BY `toOwner`, because
+    // `serveSurfaceAsMcp` built every `surface://` URI out of ONE spec's member
+    // keys and a face spanning six rows had to hand it something shaped like one
+    // surface. juspay/kolu#2234 took that price away: each row's OWN spec and
+    // OWN resource map go in under the row's key, and the URIs below carry that
+    // key — which is why every one of them changed.
+    const rows = (): ReadonlyArray<Row> =>
+      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [] }))
     yield* serveFace({
-      // THE FLAT CONTRACT, OVER A SCOPED DISPATCH — `olai-plugin-mcp`'s
-      // `client.ts` argues why the pair: `serveSurfaceAsMcp` builds every
-      // `surface://` URI out of ONE spec's member keys (juspay/kolu#2233), and
-      // the members underneath carry their owners. `toOwner` reads which row
-      // declares each off the rows this bind actually composed, so
-      // `collections/outlines` lands on `surface/outlines/outlines/keys`.
-      //
-      // This was `@olai/bundle`'s flat aggregate and its hand-written `MCP` map
-      // until #546 deleted both. A client over the composed handlers under BARE
-      // names is a client whose every read misses, which is exactly what the
-      // resource reads below then measured.
-      surface: mcpContract,
-      expose: AGENT_EXPOSE,
+      // NO VERBS ON THESE SIBLINGS. This bench is the READ face — what a client
+      // is handed as `surface://` addresses — and a row's tools are the other
+      // half of its entry, projected in `tools.test.ts` next door. An empty
+      // table per row is what "read the resources without standing an ops layer
+      // up behind them" comes to now that a verb rides its row.
+      siblings: siblingsOf(rows(), () => ({})),
       // The group AND the face, from the one call that composed both: an
       // exposure describes a group as a set equality, so a gate built from a
       // second reading of which plugins are on refuses to bind.
-      client: () => liveClient(
+      client: () => clientsFor(
+        rows(),
         () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }),
         { writer: "mcp", fence: null },
-        toOwner(() => wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, tools: row.tools ?? [] }))),
       ),
       transport: serverSide,
     })
@@ -187,26 +192,42 @@ const readJson = async (client: Client, uri: string): Promise<unknown> =>
 
 // Every case opens the real scoped server and MCP pair; cold catalog loading
 // and filesystem setup need an integration budget on the shared CI fleet.
-test("the served resources are exactly the allowlist names", async () => {
+/**
+ * EVERY URI CARRIES ITS ROW, and that is what juspay/kolu#2234 changed here.
+ *
+ * They were `surface://cells/errors`, `surface://collections/documents` and
+ * `surface://collections/outlines` — one un-prefixed namespace, because the
+ * adapter took ONE surface and minted every URI from that spec's member keys,
+ * so the three rows' members had to be copied into a curated flat contract
+ * first. The first segment after the kind is the ROW now and the member follows
+ * it, which is the disjointness the copying used to be responsible for: two
+ * rows exposing the same member key cannot collide, and there is no place left
+ * for a curator to decide which of them wins.
+ *
+ * `outlines/outlines` is the row's name beside its member's, and it reads like
+ * a repetition because it is one — `olai-plugin-outlines` publishes a member
+ * called `outlines`. It is not a doubled segment.
+ */
+test("the served resources are exactly the allowlist names, each under its own row", async () => {
   await withFace(async ({ client }) => {
     const listed = await client.listResources()
     expect(listed.resources.map((r) => r.uri).sort()).toEqual([
-      "surface://cells/errors",
-      "surface://collections/documents",
-      "surface://collections/outlines",
+      "surface://cells/vault/errors",
+      "surface://collections/markdown/documents",
+      "surface://collections/outlines/outlines",
     ])
 
     const templates = await client.listResourceTemplates()
     expect(templates.resourceTemplates.map((t) => t.uriTemplate).sort()).toEqual([
-      "surface://collections/documents/{id}",
-      "surface://collections/outlines/{id}",
+      "surface://collections/markdown/documents/{id}",
+      "surface://collections/outlines/outlines/{id}",
     ])
   })
 }, 30_000)
 
 test("reading the outlines collection costs the KEY SET, not the corpus", async () => {
   await withFace(async ({ client }) => {
-    const text = await textOf(client, "surface://collections/outlines")
+    const text = await textOf(client, "surface://collections/outlines/outlines")
 
     // What it IS: the file names, and only the outline files.
     expect(JSON.parse(text).sort()).toEqual(["garden.olai", "house.olai"])
@@ -224,7 +245,7 @@ test("one outline item is that file's nodes, and no other file's", async () => {
   await withFace(async ({ client }) => {
     const entry = await readJson(
       client,
-      "surface://collections/outlines/house.olai",
+      "surface://collections/outlines/outlines/house.olai",
     ) as { rev: number; nodes: ReadonlyArray<{ node: { title: string } }>; broken: unknown }
 
     expect(entry.nodes.map((n) => n.node.title)).toEqual([
@@ -243,7 +264,7 @@ test("the errors cell reads as a live value", async () => {
     // THE VERDICT, which is what the cell carries now (`@olai/format`'s
     // `verdict.ts`): a clean directory is a verdict with no findings, and an
     // agent asks it the same questions a browser does.
-    expect(await readJson(client, "surface://cells/errors")).toEqual({ findings: [] })
+    expect(await readJson(client, "surface://cells/vault/errors")).toEqual({ findings: [] })
   })
 }, 30_000)
 
@@ -261,7 +282,7 @@ test("a directory that cannot be read reaches the agent, not just the browser", 
     fs.rmSync(root, { recursive: true, force: true })
     await refresh().catch(() => {})
 
-    const errors = await readJson(client, "surface://cells/errors")
+    const errors = await readJson(client, "surface://cells/vault/errors")
     // `.` and not the absolute root: every site in this vocabulary is
     // root-relative, and the server's filesystem layout is not something a
     // reader of an outline is owed.
@@ -275,7 +296,7 @@ test("a directory that cannot be read reaches the agent, not just the browser", 
 
 test("an edited outline notifies its subscribers", async () => {
   await withFace(async ({ client, refresh, root }) => {
-    const uri = "surface://collections/outlines/house.olai"
+    const uri = "surface://collections/outlines/outlines/house.olai"
 
     const updated = new Promise<string>((resolve) => {
       client.setNotificationHandler(
@@ -307,19 +328,28 @@ test("a member the allowlist omits has no URI at all", async () => {
   await withFace(async ({ client }) => {
     // Default-deny at the WIRE, not merely in the map. `manifest` is the one
     // that matters — it is the .md corpus — but an omitted member of any kind
-    // must be unaddressable, so the transcript is checked beside it.
+    // must be unaddressable, so vault's `heads` collection is checked beside it.
+    //
+    // BOTH ARE VAULT'S, AND VAULT IS STANDING, which is what keeps this about
+    // the allowlist. It used to name `cells/manifest` and
+    // `collections/transcript` under the flat namespace; `transcript` is
+    // `olai-plugin-chat`'s and this fixture mounts no chat, so under the scoped
+    // form it would be unaddressable because its ROW is absent — a true
+    // sentence about a different rule. Vault publishes `errors` and nothing
+    // else, so these two are omitted members of a row whose other member reads
+    // fine three cases above.
     await expect(
-      client.readResource({ uri: "surface://cells/manifest" }),
+      client.readResource({ uri: "surface://cells/vault/manifest" }),
     ).rejects.toThrow(/unknown resource/)
     await expect(
-      client.readResource({ uri: "surface://collections/transcript" }),
+      client.readResource({ uri: "surface://collections/vault/heads" }),
     ).rejects.toThrow(/unknown resource/)
   })
 }, 30_000)
 
 test("reading the documents collection costs the PATHS, not the bodies", async () => {
   await withFace(async ({ client }) => {
-    const text = await textOf(client, "surface://collections/documents")
+    const text = await textOf(client, "surface://collections/markdown/documents")
 
     // Every BODIED file, `.html` included — the key set is what the sidebar and
     // an agent both read, and a file whose body the server does not keep is
@@ -338,7 +368,7 @@ test("one document item is that document's body, fetched only when asked", async
   await withFace(async ({ client }) => {
     const entry = await readJson(
       client,
-      "surface://collections/documents/manual.md",
+      "surface://collections/markdown/documents/manual.md",
     ) as { text: string }
 
     // The body IS reachable — laziness is about when it travels, not whether an
@@ -358,7 +388,7 @@ test("one saved page is read from disk for the agent that asks for it", async ()
   await withFace(async ({ client }) => {
     const entry = await readJson(
       client,
-      "surface://collections/documents/saved.html",
+      "surface://collections/markdown/documents/saved.html",
     ) as { text: string | null }
 
     expect(entry.text).toBe(SAVED)

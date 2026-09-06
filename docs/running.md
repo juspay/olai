@@ -253,7 +253,7 @@ The two are independent, so setting committing does not silently set pushing. `-
 
 `--commit` is the same flag [git.md](git.md#modes) describes, with the same three modes; `--no-commit` is `--commit=off` and names the flag in the same way. `--commit=auto` is the quiet window: everything waiting records itself once writes stop arriving for fifteen seconds, with or without a browser in front of it. It is no longer one commit per write — that mode is retired, and the per-write commit with it.
 
-**`--push` governs the SERVER**, which it did not use to. It is Auto-push — whether a settled commit is pushed to the branch's upstream — and it follows **every** commit olai makes here, whichever door made it: the Commit button, an agent's `commit` tool, and the window's own. So `olai web ~/outlines --commit=auto --push=auto` with no tab open anywhere really does record and share; before, it recorded and shared nothing, and the unpushed count grew with no way to find out why. One round trip per commit, which is affordable exactly because the window makes a burst of writes one commit. `--push` has two values and deliberately not three: a branch that is not pushed on its own is pushed by the Push button, so there is no third thing to be.
+**`--push` governs the SERVER**, which it did not use to. It is Auto-push — whether a settled commit is pushed to the branch's upstream — and it follows **every** commit olai makes here, whichever door made it: the Commit button, an agent's `git_commit` tool, and the window's own. So `olai web ~/outlines --commit=auto --push=auto` with no tab open anywhere really does record and share; before, it recorded and shared nothing, and the unpushed count grew with no way to find out why. One round trip per commit, which is affordable exactly because the window makes a burst of writes one commit. `--push` has two values and deliberately not three: a branch that is not pushed on its own is pushed by the Push button, so there is no third thing to be.
 
 **A refused commit or push pauses the loop**, and that is runtime state rather than policy: git said no, and nothing starts the loop again on olai's own initiative. The one gesture that does is **Resume**, on the commit panel, drawn only while the loop is actually stopped.
 
@@ -311,7 +311,7 @@ you set by hand on the command line is a policy you set once and forget:
 
 `plugins` cannot be set beside `extraPlugins` or `withoutPlugins`: the module refuses at evaluation with the same sentence the CLI gives.
 
-**Where a serve STARTS is the operator's**, which is why it is a CLI flag and a home-manager option — the two doors an instance's opening position is set through in this repo, exactly as `commit` and `push` are — rather than an env var. An env var names a resource to reach (`OLAI_ACP_AGENT`); this names what the instance comes up running, and that belongs on the `--help` page beside the other policies, where it can be read without knowing it exists.
+**Where a serve STARTS is the operator's**, which is why it is a CLI flag and a home-manager option — the two doors an instance's opening position is set through in this repo, exactly as `--commit` and `--push` are — rather than an env var. An env var names a resource to reach (`OLAI_ACP_AGENT`); this names what the instance comes up running, and that belongs on the `--help` page beside the other policies, where it can be read without knowing it exists.
 
 Include `vault` in an explicit list to serve files. `--plugins=` opens no listener. Use `--plugins=ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector` for a control plane without a directory or write gate; its panel can enable the vault later.
 
@@ -404,10 +404,10 @@ There is no second writer, and there never will be — one process opens the dir
 
 ## Quick capture, from a terminal
 
-A thought that arrives while you are somewhere else — a terminal, a mail client, a script that noticed something — should cost five seconds and no context switch. `olai surface capture` is that door: one line, into the directory's inbox.
+A thought that arrives while you are somewhere else — a terminal, a mail client, a script that noticed something — should cost five seconds and no context switch. `olai surface capture add` is that door: one line, into the directory's inbox — the ROW that owns the verb, then the verb, which is how argv spells the same composition an agent's tool name spells with an underscore (`capture_add`).
 
 ```sh
-olai surface capture "look into the new cabinets" \
+olai surface capture add "look into the new cabinets" \
   --text "the joinery place off Main" \
   --url http://127.0.0.1:7714
 ```
@@ -428,12 +428,12 @@ captured into /home/srid/vault — http://127.0.0.1:7714/_olai/Inbox.olai#a1b2c3
 
 ### `olai surface --help` is the documentation
 
-Every verb an agent has is a verb here, under the same name, with the same arguments and the same answers. `olai surface --help` lists them grouped by what they do, with an example each, and `olai surface <verb> --help` gives that verb's own flags. There is no separate page for it, deliberately: a page beside a binary is a page that goes stale, and the help is what you always have to hand.
+Every verb an agent has is a verb here, with the same arguments and the same answers, behind the ROW that owns it: `olai surface outlines read` is the agent's `outlines_read`, and `olai surface markdown write` is `markdown_write`. One rule on both faces — a row names its verbs relative to itself and composition puts the row in front — spelled in the separator each face has, so a row that is switched off has no subcommand at all. `olai surface --help` lists the rows, `olai surface <row> --help` its verbs grouped by what they do with an example each, and `olai surface <row> <verb> --help` gives that verb's own flags. There is no separate page for it, deliberately: a page beside a binary is a page that goes stale, and the help is what you always have to hand.
 
 ```sh
-olai surface --url http://127.0.0.1:7714 get outlines _olai/Inbox.olai
-olai surface --url http://127.0.0.1:7714 search_nodes --text 'is:todo prop:pr'
-olai surface list --url http://127.0.0.1:7714   # every verb and readable member
+olai surface --url http://127.0.0.1:7714 outlines get outlines _olai/Inbox.olai
+olai surface --url http://127.0.0.1:7714 search nodes --text 'is:todo prop:pr'
+olai surface list --url http://127.0.0.1:7714   # every row, verb and readable member
 ```
 
 `--url` is on `list` too, and `list` is the one verb that dials nothing — it answers off the projection itself. The flag is uniform rather than clever: every command takes it, so a script looping over the verbs does not break on the one that would have refused it.
@@ -449,12 +449,12 @@ A write prints one line — where it landed, and a link to the row — and `--js
 That rule is the one [Agents, over HTTP](#agents-over-http) describes: a request from `127.0.0.1` needs no credential, and one from anywhere else needs the server's bearer token, which you give this client as `$OLAI_TOKEN`. **Remotely, the reverse proxy in front is the authentication** — `tailscale serve`, Caddy with an auth proxy, Authelia — exactly as it is for the page:
 
 ```sh
-olai surface --url https://olai.example.ts.net capture "look into the new cabinets"
+olai surface --url https://olai.example.ts.net capture add "look into the new cabinets"
 ```
 
 `captured-by` is written from **the identity the door has**, and omitted when it has none. Behind a proxy that is the login it injects (`Tailscale-User-Login` and the family beside it, [Who is looking](#who-is-looking)); on a direct loopback call there is no identity at all, so the capture simply carries no attribution rather than a made-up one. So `prop:captured-by=srid@github` finds what you captured through the tailnet. A caller cannot send it: a capture takes a title and a note, so there is nowhere to put one.
 
-**`POST /capture` is gone.** It was ~550 lines re-deriving, for one verb, what the tool table gives every verb — a body schema, an identity rule, a CSRF gate, a status table and its own writer — and it existed only because `/mcp`'s per-process bearer left a terminal no way in. `capture` is one entry in that table now, so what an agent calls and what a terminal calls are one line of code. A phone captures through the web page (`⌘K` `+` on the tailnet) or through an MCP client.
+**`POST /capture` is gone.** It was ~550 lines re-deriving, for one verb, what the tool table gives every verb — a body schema, an identity rule, a CSRF gate, a status table and its own writer — and it existed only because `/mcp`'s per-process bearer left a terminal no way in. `capture_add` is one entry in that table now, so what an agent calls and what a terminal calls are one line of code. A phone captures through the web page (`⌘K` `+` on the tailnet) or through an MCP client.
 
 ### Client recipes
 
@@ -478,7 +478,7 @@ end tell
 APPLESCRIPT
 )
 
-olai surface --url "$olai_url" capture "$subj" \
+olai surface --url "$olai_url" capture add "$subj" \
   --text "$comment
 
 from: $who
@@ -488,7 +488,7 @@ message://<$mid>"
 
 The `message://<Message-Id>` line **is** the attachment, and it is in the note because that is the one field a capture has for it. Clicking it in olai opens Mail at that message: the router hands any address that is not one of this app's to the browser, and the browser hands an unknown scheme to the OS — as long as the note's markdown made a link of it, which for a scheme GFM does not autolink means writing it inside `<`…`>` yourself.
 
-Finding a thread again is `olai surface --url … search_nodes --text '"<abc@mail>"'` — the `Message-Id` is in the note, so the text search reaches it ([search.md](search.md)). It was a property once, which made that an exact-match query; a note is what there is now.
+Finding a thread again is `olai surface --url … search nodes --text '"<abc@mail>"'` — the `Message-Id` is in the note, so the text search reaches it ([search.md](search.md)). It was a property once, which made that an exact-match query; a note is what there is now.
 
 **Known caveat:** `message:` links are solid on macOS. On iOS, third-party-composed ones do not always resolve. The subject and the sender in the note are what keep it findable when the link does not open, which is why the recipe writes them rather than relying on the pointer alone.
 

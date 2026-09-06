@@ -29,7 +29,7 @@ import { TESTID } from "olai-plugin-markdown/testids"
  * revision it is at, so a picture replaced on disk is re-fetched rather than
  * served out of the browser's cache.
  *
- * NO EDIT, for `./Hypertext.tsx`'s reason: `write_document` takes a `.md` and
+ * NO EDIT, for `./Hypertext.tsx`'s reason: `markdown_write` takes a `.md` and
  * nothing else, so a control here would be a door onto a refusal. That is
  * `edits: false` in the registry of faces (./faces.tsx).
  */

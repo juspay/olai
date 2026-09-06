@@ -12,9 +12,9 @@
  *
  * The SYSTEM lines come first and are read-only: the node's id, the mark it
  * carries, its date, and the stamps when it has them. Every one of those is a
- * field with a verb of its own (`set_done`, `set_date`) or nothing's to write
+ * field with a verb of its own (`outlines_done`, `outlines_date`) or nothing's to write
  * at all (`id`, `created`, `changed`), so the drawer shows them and offers
- * nothing — `set_prop` would be refused for each of them by name, and an
+ * nothing — `outlines_prop` would be refused for each of them by name, and an
  * affordance that leads to a refusal is worse than none.
  *
  * They are here because a reader wants them: the id is what every tool call and
@@ -69,7 +69,7 @@ export interface Entry {
   readonly system: boolean
   /**
    * A custom key holding a LIST rather than text — hand-written, since
-   * `set_prop` writes only text.
+   * `outlines_prop` writes only text.
    *
    * DRAWN like any other chip (it is what the node says), each member asked the
    * door question on its own, and OPENED like any other chip. What differs is
@@ -78,7 +78,7 @@ export interface Entry {
    *   - CLEARING it removes the key, exact whatever it held. That is the whole
    *     of why the chip opens at all.
    *   - TYPING OVER it replaces the list with the text typed — one key, one
-   *     value, which is what `set_prop` does. There is no way to write a list
+   *     value, which is what `outlines_prop` does. There is no way to write a list
    *     back, so a member cannot be edited in place; the file is where a list
    *     is written.
    *
@@ -133,7 +133,7 @@ const said = (key: string, value: string): Entry => ({
 })
 
 /**
- * The keys `set_prop` owns, in the FILE's own order (`@olai/format`'s
+ * The keys `outlines_prop` owns, in the FILE's own order (`@olai/format`'s
  * `customOrder`) — so what is on screen is what is on disk, and nothing
  * re-sorts itself under the reader after a reload.
  *

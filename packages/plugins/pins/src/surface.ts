@@ -108,8 +108,8 @@ export const faces = {
     // alone.
     //
     // An agent has no use for it and is not offered it: the shelf is an
-    // ordinary outline, `Pins.olai`, and an agent reads it with `read_subtree`
-    // and writes it with `add_node` / `move_node` / `trash_node`, which is the
+    // ordinary outline, `Pins.olai`, and an agent reads it with `outlines_subtree`
+    // and writes it with `outlines_add` / `outlines_move` / `outlines_trash`, which is the
     // whole point of the convention being titles in a file (docs/format.md's
     // Pins). What this member adds for a BROWSER is the RESOLUTION — a pin's
     // node named as it is called right now — which is a paint instruction for a

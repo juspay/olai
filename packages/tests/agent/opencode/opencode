@@ -10,7 +10,7 @@
  *
  *   - **no `_meta` on any frame, ever.** Which is what makes the tool name
  *     unreachable except at the head of the call id.
- *   - **call ids are `<tool>:<n>`** — `bash:0`, `olai_set_done:1` — and the
+ *   - **call ids are `<tool>:<n>`** — `bash:0`, `olai_outlines_done:1` — and the
  *     `title` MOVES over a call's life: the tool's name, then a sentence about
  *     what it is doing, then the tool's name again when it fails. A client that
  *     read the title as the name would get a different answer depending on when
@@ -43,7 +43,7 @@
  *
  * Behaviour is keyed on the prompt text:
  *
- *   done <id>   call `olai_set_done` on that node and say so — an MCP tool,
+ *   done <id>   call `olai_outlines_done` on that node and say so — an MCP tool,
  *               named this agent's way, which the panel must auto-allow
  *   bash        announce a BUILTIN tool call (`bash:<n>`) whose title then
  *               moves under it, and report it completed. Nothing here is olai's,

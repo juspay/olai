@@ -23,8 +23,8 @@
  *   links        write two LINKS in prose — a relative `.md` path and an
  *                address of this app — which is what an agent asked about a
  *                vault does unprompted, and what used to reload the whole app
- *   done <id>    call `set_done` on that node, then say so
- *   add <title>  call `add_node` under the first outline's first root
+ *   done <id>    call `outlines_done` on that node, then say so
+ *   add <title>  call `outlines_add` under the first outline's first root
  *   edit [file]  report a DIRECT file edit, as a `diff` content block — an
  *                outline if the name ends `.olai`, an over-budget rewrite for
  *                `huge.md`, unbroken tokens (add, remove, and a same-line
@@ -1140,7 +1140,7 @@ const takeSteering = async (): Promise<void> => {
     const [verb, ...rest] = commandWords(text)
     const argument = rest.join(" ")
     if (verb === "done") {
-      await useTool("set_done", { id: argument })
+      await useTool("outlines_done", { id: argument })
       say(` — steered mid-turn: marked \`${argument}\` done.`)
       continue
     }
@@ -2504,7 +2504,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // WHAT THE AGENT RECEIVED, asserted by the agent itself. A node armed on a
   // row reaches a prompt as one line naming its id (`olai-plugin-chat`'s
   // `context.ts`), and the whole claim of that design is that the id is the
-  // handle olai's own tools take — so this reads the line, calls `read_node`
+  // handle olai's own tools take — so this reads the line, calls `outlines_read`
   // with what it found, and says the TITLE that came back. A scenario that
   // sees the right title has proof the id crossed the wire and resolved: no
   // spelling of the prompt that lost it could produce that sentence.
@@ -2522,7 +2522,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       return
     }
     for (const { id: node, said } of named) {
-      const read = await useTool("read_node", { id: node })
+      const read = await useTool("outlines_read", { id: node })
       const found = read["structuredContent"] as { title?: string } | undefined
       // A SENTENCE the browser could not have written on its own — the chip on
       // the message carries the title too, so a scenario matching the bare
@@ -2540,7 +2540,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // An id in PROSE and nothing else — no tool call, no write. What is under
   // test is the panel's reading of a backtick, and the id a scenario wants to
   // see named is not always one a tool would accept (a placement is the case
-  // this exists for: `set_done` refuses one, and an agent still writes them).
+  // this exists for: `outlines_done` refuses one, and an agent still writes them).
   if (verb === "name") {
     say(`look at \`${argument}\`.`)
     reply(id, { stopReason: "end_turn" })
@@ -2565,7 +2565,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
 
   if (verb === "done") {
-    await useTool("set_done", { id: argument })
+    await useTool("outlines_done", { id: argument })
     say(`marked \`${argument}\` done.`)
     reply(id, { stopReason: "end_turn" })
     return
@@ -2597,14 +2597,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
 
   if (verb === "add") {
-    const outlines = await callMcp("tools/call", { name: "list_outlines", arguments: {} })
+    const outlines = await callMcp("tools/call", { name: "outlines_map", arguments: {} })
     const listed = (outlines["structuredContent"] as
       | { outlines?: ReadonlyArray<{ file: string }> }
       | undefined)?.outlines ?? []
     // `_olai/Trash.olai` sorts first, and capturing into the trash is not
     // a capture — the tree would never show the row (#226).
     const file = listed.find((one) => one.file !== "_olai/Trash.olai")?.file
-    await useTool("add_node", { file, title: argument })
+    await useTool("outlines_add", { file, title: argument })
     say(`added \`${argument}\`.`)
     reply(id, { stopReason: "end_turn" })
     return

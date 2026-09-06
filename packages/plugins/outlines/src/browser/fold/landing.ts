@@ -16,7 +16,7 @@
  *     the accent (`../focus.ts`'s `data-focused` is matched the same way), so
  *     the act needs only one to aim at. 'Answers' is two questions, and both
  *     are asked because the id an address spells may name a PLACEMENT —
- *     `read_node` answers `mirrors` with placement ids and an agent citing a
+ *     `outlines_read` answers `mirrors` with placement ids and an agent citing a
  *     row naturally spells one: a row answers an id it SHOWS, and a mirror
  *     row ALSO answers the id it IS — its own record, the more specific of
  *     the two names when the address points at the placement itself. When the
@@ -90,7 +90,7 @@ import { type Fold, foldOf } from "./rows.ts"
  *
  * A row answers an id it SHOWS — or, being a mirror, an id it IS: the
  * placement's own record is a name for the node too ({@link answer}), which
- * is the half that lands a fragment written from `read_node`'s `mirrors`. The
+ * is the half that lands a fragment written from `outlines_read`'s `mirrors`. The
  * two halves can never disagree about one id, because ids are unique across
  * the whole served set: a placement's own id is never some other record's
  * shown id.
@@ -132,7 +132,7 @@ const chainTo = (
 /**
  * Whether ONE row is where `id` lands: it shows the node, or it IS the
  * placement the id names — a mirror's own record being the row an agent
- * means when it cites the placement id `read_node` answered it with. The
+ * means when it cites the placement id `outlines_read` answered it with. The
  * same rule the chat press settles for a span of the same words, one level
  * up (`../chat/refs.ts`'s `nodeNamedBy`): an id may MEAN the node at the end
  * of a mirror chain, and what a reader can be shown is a row. Where the two

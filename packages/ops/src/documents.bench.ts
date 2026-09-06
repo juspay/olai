@@ -1,5 +1,5 @@
 /**
- * What `list_documents` costs: re-encoding every body vs reading the
+ * What `markdown_map` costs: re-encoding every body vs reading the
  * remembered byte count.
  *
  * IT IS A LEG, NOT A CLAIM (`just bench`). Perf numbers are reported

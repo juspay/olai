@@ -50,16 +50,16 @@ const DOOR = {
     ),
 }
 
-const answers = () => gaveOf(DOOR as never, tools)
+const answers = () => gaveOf(DOOR as never, tools, "search")
 
 const searchTool = () => {
-  const found = readsOf(tools).find((tool) => tool.name === "search_nodes")
+  const found = readsOf(tools).find((tool) => tool.name === "nodes")
   if (found === undefined) throw new Error("`search_nodes` is not in this row's tool table")
   return found
 }
 
 test("every read this row declares is called here", () => {
-  expect(uncalled(tools)).toEqual([])
+  expect(uncalled(tools, "search")).toEqual([])
 })
 
 test("every hit decodes through the shape `search_nodes` declares", () => {
@@ -68,18 +68,18 @@ test("every hit decodes through the shape `search_nodes` declares", () => {
     tool.answers as Schema.Codec<unknown, unknown, never, never>,
     { errors: "all", onExcessProperty: "error" },
   )
-  for (const answer of answers()("search_nodes")) {
+  for (const answer of answers()("nodes")) {
     // Compared with what went in, so the assertion is "this IS the shape"
     // rather than "this parses" — a decode that dropped a field would
     // otherwise pass.
     expect(decode(answer)).toEqual(answer)
   }
   // …and the calls are the harness's, so a query added there is asked here.
-  expect(answers()("search_nodes").length).toBe((CALLS["search_nodes"] ?? []).length)
+  expect(answers()("nodes").length).toBe((CALLS["search_nodes"] ?? []).length)
 })
 
 test("the fixture reaches every optional field of a hit, so the check is not vacuous", () => {
-  const searches = answers()("search_nodes")
+  const searches = answers()("nodes")
   expect(searches[0]?.["hits"]).toMatchObject([
     { id: "paint", matched: "title", parent: "house" },
   ])
@@ -123,7 +123,7 @@ test("with no matcher mounted, every query is no hits and the reason", () => {
     tool.answers as Schema.Codec<unknown, unknown, never, never>,
     { errors: "all", onExcessProperty: "error" },
   )
-  for (const answer of gaveOf(NO_SEARCH, tools)("search_nodes")) {
+  for (const answer of gaveOf(NO_SEARCH, tools, "search")("nodes")) {
     expect(decode(answer)).toEqual(answer)
     expect(answer["hits"]).toEqual([])
     expect(answer["total"]).toBe(0)
@@ -136,5 +136,5 @@ test("with no matcher mounted, every query is no hits and the reason", () => {
  *  description that means to have them. */
 test("no tool describes itself with an escaped newline", () => {
   expect(escapedIn(tools)).toEqual([])
-  expect(paragraphsIn(tools, "search_nodes")).toBeGreaterThan(0)
+  expect(paragraphsIn(tools, "nodes")).toBeGreaterThan(0)
 })

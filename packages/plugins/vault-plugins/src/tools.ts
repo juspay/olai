@@ -55,7 +55,7 @@ const Named = Schema.Struct({
 
 export const tools: ReadonlyArray<Tool> = [
   calls(
-    "inspect_plugins",
+    "inspect",
     "What a plugin may name",
       "Read this BEFORE writing a plugin into the vault. Answers the four lists that decide whether a "
       + "half will mount at all: the bare modules a half may import (nothing else resolves — a vault has "
@@ -69,7 +69,7 @@ export const tools: ReadonlyArray<Tool> = [
     (client: Client) => landed(client.surface.plugins.inspect({})),
   ),
   calls(
-    "run_plugin",
+    "run",
     "Look at a plugin this vault defines",
       "Asks olai to read a definition as it stands now and say what became of it. THIS DOES NOT MOUNT "
       + "ANYTHING BY ITSELF: a plugin whose current version nobody has approved answers `pending`, and "
@@ -78,13 +78,13 @@ export const tools: ReadonlyArray<Tool> = [
       + "`state` is one of the plugin states (`pending`, `running`, `failed`, `waiting`, `switched`, "
       + "`off`), `version` is the content hash of both halves, and `fault` is a whole sentence where "
       + "there is one — a half that would not compile, a module olai does not bind, a half that calls "
-      + "itself another word. Write the two halves with `add_node` and `set_desc`, then call this.",
+      + "itself another word. Write the two halves with `outlines_add` and `outlines_desc`, then call this.",
     Named,
     true,
     (client: Client, args) => landed(client.surface.plugins.run(args)),
   ),
   calls(
-    "stop_plugin",
+    "stop",
     "Stop a plugin this vault defines",
       "Unmounts one plugin the VAULT defines, for as long as this serve runs — its registrations unwind "
       + "and a restart comes back to what the vault says. It reaches definitions ONLY: a plugin this "

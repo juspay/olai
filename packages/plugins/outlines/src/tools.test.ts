@@ -29,7 +29,7 @@
  *
  * OFF THE TABLE rather than off a hand-picked list of functions, and that is
  * the difference worth having: `Query.detail` is not what an agent calls,
- * `read_node` is, and the envelope between them (`?? { missing: id }`) is
+ * `outlines_read` is, and the envelope between them (`?? { missing: id }`) is
  * exactly the part a test against the function would not see. A fourth read on
  * this row is covered the moment it is added, or the closure test below fails
  * naming it.
@@ -63,10 +63,10 @@ import { tools } from "./tools.ts"
 /** No matcher, because this row declares no search: `search_nodes` is
  *  `olai-plugin-search`'s tool and its own test runs this walk with the real
  *  matcher behind the door. */
-const answers = () => gaveOf(NO_SEARCH, tools)
+const answers = () => gaveOf(NO_SEARCH, tools, "outlines")
 
 test("every read this row declares is called here", () => {
-  expect(uncalled(tools)).toEqual([])
+  expect(uncalled(tools, "outlines")).toEqual([])
 })
 
 test("every answer decodes through the shape its own entry declares", () => {
@@ -89,7 +89,7 @@ test("every answer decodes through the shape its own entry declares", () => {
 test("the fixture reaches every optional field, so the check is not vacuous", () => {
   const of = answers()
 
-  const outlines = of("list_outlines")[0]?.["outlines"] as ReadonlyArray<
+  const outlines = of("map")[0]?.["outlines"] as ReadonlyArray<
     Record<string, unknown>
   >
   // Two rows, one of each kind: a file that parsed is a count and its roots,
@@ -108,7 +108,7 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
     unreadable: [expect.any(String)],
   })
 
-  const [house, paint, gone] = of("read_node")
+  const [house, paint, gone] = of("read")
   expect(house).toMatchObject({
     // Both marker kinds: `true` here, an ISO instant on `paint` below.
     doing: true,
@@ -131,7 +131,7 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
     .toEqual(["house", undefined])
   expect(gone).toEqual({ missing: "shed" })
 
-  const [cut, whole, outline, outlineCut, absent, lean, shaped, shapedOutline] = of("read_subtree")
+  const [cut, whole, outline, outlineCut, absent, lean, shaped, shapedOutline] = of("subtree")
   expect((cut?.["children"] as ReadonlyArray<Subtree>)[1])
     .toMatchObject({ id: "sand", truncated: true })
   expect(whole).not.toHaveProperty("truncated")
@@ -179,9 +179,9 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
  *  over this row's whole table rather than over one closed list, since there is
  *  no closed list any more. The paragraph check beside it is the other half of
  *  the same claim: a description with neither spelling would pass the ban by
- *  saying nothing, and `list_outlines` is the tool the two `.md` listings were
+ *  saying nothing, and `outlines_map` is the tool the two `.md` listings were
  *  written against. */
 test("no tool describes itself with an escaped newline", () => {
   expect(escapedIn(tools)).toEqual([])
-  expect(paragraphsIn(tools, "list_outlines")).toBeGreaterThan(0)
+  expect(paragraphsIn(tools, "map")).toBeGreaterThan(0)
 })

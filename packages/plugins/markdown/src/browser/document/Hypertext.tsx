@@ -96,7 +96,7 @@ import { TESTID } from "olai-plugin-markdown/testids"
  * rectangle in a dark theme is a document being shown and not the app losing
  * its colours — the same edge a picture in a document gets.
  *
- * No EDIT affordance, and no draft: `write_document` refuses anything that is
+ * No EDIT affordance, and no draft: `markdown_write` refuses anything that is
  * not a `.md` (`@olai/ops`), so a control here would be a door onto a refusal.
  * That is the registry's `edits: false` (./faces.tsx) rather than a `Show` in
  * this file, so the two kinds of page answer the question in one place.

@@ -165,7 +165,7 @@ test("a landed commit carries the nudge the write came back with", () => {
 })
 
 test("a cancelled draft stays cancelled when the write lands", () => {
-  // Escape is not queued. A completion's add_mirror can still be in flight
+  // Escape is not queued. A completion's outlines_mirror can still be in flight
   // when the key lands, and putting `held` back is how the editor bounced
   // open after the draft had already closed (input_widgets.feature:209).
   const held = editing()

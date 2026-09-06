@@ -46,33 +46,33 @@
  * subtree, and a person at the same directory could do none of them — a
  * standing deviation (`editor-op-parity`), not editor growth. `date`,
  * `unmirror` and `archive` close it for ops that already exist on the other
- * face: each resolves to the request `set_date` / `remove_mirror` /
- * `trash_node` would have sent, judged by the same planner, refused in the
+ * face: each resolves to the request `outlines_date` / `outlines_unmirror` /
+ * `outlines_trash` would have sent, judged by the same planner, refused in the
  * same words. Two of them are chosen from the `•••` menu; `date` is sent by
  * that menu (`Clear date`) and by the picker a row's date pill opens.
  * `unarchive` is the fourth and the one exception to "already exist": no face
  * had it (`parity-unarchive`), so the op was born in the ops layer and both
  * faces got it in the same change — the Trash view's `Put back` sends it, and
- * `untrash_node` is the same call.
+ * `trash_restore` is the same call.
  *
  * `repeat` IS THE FIFTH OF THAT GROUP, and it is `unarchive`'s case rather
  * than `date`'s: nothing had it. A dated node that comes back is one op born in
  * the ops layer, and both faces got it in the SAME change (`recurring-dates`) —
- * `set_repeat` for an agent, the row's repeat picker for a person — so there
+ * `outlines_repeat` for an agent, the row's repeat picker for a person — so there
  * was never a moment where one face could say a thing the other could not.
  *
  * TWO MORE ARE THE POINTER'S AND CLOSE THE SAME GAP OVER THE TWO EDGE FIELDS.
- * `see` and `after` are `set_see` and `set_after`, in the ops layer's own shape,
+ * `see` and `after` are `outlines_see` and `outlines_after`, in the ops layer's own shape,
  * and until they landed a person could READ both — the `see` links under a
  * node, the dim and the `blocked by` line of a blocked row — and write neither
  * (`parity-see`, `parity-after`). What reaches them is the `•••` menu's two
  * `…` verbs, each opening the same node search the `((` widget uses, and the
  * `×` on a reference already drawn. `outlineNew` is the last of the group and
- * the one that is about a FILE rather than a node: `create_outline`, from the
+ * the one that is about a FILE rather than a node: `files_create`, from the
  * sidebar, beside `docNew` (`parity-create-outline`).
  *
  * `mirror` is the sixth of that group and the one a KEY sends after all: it is
- * `add_mirror`, and what reaches it is the `((` widget in a row's title
+ * `outlines_mirror`, and what reaches it is the `((` widget in a row's title
  * (`input-widgets`). It is filed here rather than with the keys because the
  * gap it closes is the same one — an agent could place a second copy of a node
  * and a person could only retire one — and because `unmirror` had been sitting
@@ -101,7 +101,7 @@
  * where the shelf IS is read on the server exactly as the inbox is. What it
  * does NOT have is a twin: unpinning is `archive` of the pin's own node,
  * because the shelf is a file of ordinary nodes and a removal it did not share
- * with `trash_node` would be a verb only one face knew.
+ * with `outlines_trash` would be a verb only one face knew.
  *
  * AND ONE IS BOTH THEIRS. `mark` names the mark a node should carry, which is
  * what a menu entry means ("this is doing now") and what an undo means ("it
@@ -112,7 +112,7 @@
  * seeing: the inverse of setting a title is setting the title it replaced, so
  * an undo sends `title` — the same verb, the same op, the other text. What it
  * adds is {@link Was}: the text it expects to find. A person typing overwrites
- * whatever is there (which is what `set_title` does for an agent); an undo may
+ * whatever is there (which is what `outlines_title` does for an agent); an undo may
  * only overwrite what IT wrote, so somebody else's words are refused rather
  * than replaced.
  *
@@ -134,7 +134,7 @@
  * under it, which is a rule about what an UNDO is entitled to. `archive` is the
  * ops layer's own put-away, which the human ruled may take a subtree WITH a
  * confirm naming what goes (2026-08-12); the ids come along, so a mirror or an
- * `after` that named any of it goes on resolving. Both are `trash_node`
+ * `after` that named any of it goes on resolving. Both are `outlines_trash`
  * underneath and neither erases anything. A KEY that erases a branch is still
  * not spellable here, and the deferral #109 recorded (human, 2026-08-11) is
  * still the human's to close — what it is about is work leaving an outline
@@ -149,7 +149,7 @@
  * Assembling them HERE out of the verbs above would have been the deviation
  * the consistency rule forbids at its plainest: the web doing in one keystroke what MCP
  * needs four calls for. So they were born in the ops layer and reached both
- * faces in the same change (`split_node`, `merge_node` — the same two ops),
+ * faces in the same change (`outlines_split`, `outlines_merge` — the same two ops),
  * which is the shape `unarchive` arrived in and for the same reason. The other
  * half of the argument is atomicity, and it is the half a caller feels: a
  * sequence can stop in the middle, and a merge that stopped in the middle
@@ -265,14 +265,14 @@ export const Edit = Schema.Union([
    *
    * WHERE AMONG THAT PARENT'S CHILDREN IS NOT A FIELD, and that is the same
    * decision `Tab` makes one arm up: last is where a row put under a node goes
-   * ({@link Anchor}'s `under` says it for a new row, and `move_node` with a
+   * ({@link Anchor}'s `under` says it for a new row, and `outlines_move` with a
    * `parent` and no anchor is already exactly this), and "which sibling is last"
    * is a fact about the set, read where the write is judged rather than off a
    * tree a tab drew some frames ago. {@link place} is the other shape — parent
    * AND neighbour, both named — and it is the drag's, because a pointer picking
    * a gap between two rows is a gesture that genuinely names one.
    *
-   * It resolves to `move_node` with a `parent`, so every refusal a person meets
+   * It resolves to `outlines_move` with a `parent`, so every refusal a person meets
    * here is the one an agent meets: a parent in another file (every outline is
    * an independent tree), a parent inside the subtree being moved, an id
    * nothing declares. The picker says the first two at the AIM as well — before
@@ -307,7 +307,7 @@ export const Edit = Schema.Union([
    * resolver's ({@link ../../server/src/edit.ts}), beside the reading it needs.
    *
    * WHAT IT IS NOT is a shortcut past anything the ops layer judges. The step
-   * it resolves to is one op — the same `set_todo` / `set_doing` / undo an
+   * it resolves to is one op — the same `outlines_todo` / `outlines_doing` / undo an
    * agent would send — so a walk asked of finished work is REFUSED, in the ops
    * layer's own words, under the row the key was pressed in. Two calls walk
    * `done` back and the second one is the person's, which is the rule the `•••`
@@ -441,7 +441,7 @@ export const Edit = Schema.Union([
   // ── the three the ••• menu speaks ────────────────────────────────────
 
   /**
-   * The scheduling date, set or cleared — `set_date`'s own reach, spelled the
+   * The scheduling date, set or cleared — `outlines_date`'s own reach, spelled the
    * way {@link Applied} spells `desc`, because nothing is resolved behind it.
    *
    * BOTH HALVES ARE A PERSON'S NOW, and they arrived a PR apart: the `•••`
@@ -462,12 +462,12 @@ export const Edit = Schema.Union([
      * in this format (docs/format.md), so a day picked in a browser crosses
      * as the ten characters that were picked and reaches the validator as
      * they were typed. Nothing on the way parses one, and the validator is
-     * the gate at the far end, exactly as it is for an agent's `set_date`.
+     * the gate at the far end, exactly as it is for an agent's `outlines_date`.
      */
     date: Schema.NullOr(Schema.String),
   }),
   /**
-   * The REPEAT RULE, set or cleared — `set_repeat`'s own reach, spelled exactly
+   * The REPEAT RULE, set or cleared — `outlines_repeat`'s own reach, spelled exactly
    * as the date above is, because it is the same kind of fact one field along:
    * one optional field, one value, no condition, both directions in one arm so
    * an undo can put back what a clear took.
@@ -485,11 +485,11 @@ export const Edit = Schema.Union([
      *  verbatim: the grammar is spelled in the file (docs/format.md), so a rule
      *  chosen in a browser crosses as the words that were chosen and meets the
      *  format's per-line check at the far end, exactly as an agent's
-     *  `set_repeat` does. Nothing on the way parses it. */
+     *  `outlines_repeat` does. Nothing on the way parses it. */
     repeat: Schema.NullOr(Schema.String),
   }),
   /**
-   * One CUSTOM property, set or taken off — `set_prop`'s own reach, spelled the
+   * One CUSTOM property, set or taken off — `outlines_prop`'s own reach, spelled the
    * way the verb above spells a date and for the same reason: nothing is
    * resolved behind it, and both directions are one field, so an undo can put
    * back what a removal took.
@@ -523,11 +523,11 @@ export const Edit = Schema.Union([
    * every text edit here. The menu can only offer it on a mirror row, so the
    * caller has one id and it is the right one; what happens when something
    * else still names that placement is the ops layer's to refuse, in its own
-   * words, exactly as it refuses `remove_mirror`.
+   * words, exactly as it refuses `outlines_unmirror`.
    */
   Schema.Struct({ verb: Schema.Literal("unmirror"), id: Id }),
   /**
-   * Place a SECOND copy of a node that already exists — `add_mirror`, and the
+   * Place a SECOND copy of a node that already exists — `outlines_mirror`, and the
    * other half of the placement pair this surface has been carrying one end of
    * since `menu-verbs`.
    *
@@ -561,7 +561,7 @@ export const Edit = Schema.Union([
     at: Anchor,
   }),
   /**
-   * Put a node and everything under it away — `trash_node`, from the menu.
+   * Put a node and everything under it away — `outlines_trash`, from the menu.
    *
    * A TRASH, not a shredder: the subtree moves to `_olai/Trash.olai` under a
    * scaffold of its ancestors' titles, keeping every id, so a mirror, an
@@ -569,7 +569,7 @@ export const Edit = Schema.Union([
    * the subtree is the op's unit, not this verb's arithmetic — and the fence
    * around it is not on the wire at all: it is the CONFIRM the menu asks
    * first, naming how many rows go with it (human, 2026-08-12). A fence in
-   * this schema would be a rule an agent's `trash_node` does not have, which
+   * this schema would be a rule an agent's `outlines_trash` does not have, which
    * is the deviation read backwards.
    *
    * AND IT COMES BACK: `unarchive` below is the way out, so the trash really
@@ -578,7 +578,7 @@ export const Edit = Schema.Union([
    */
   Schema.Struct({ verb: Schema.Literal("trash"), id: Id }),
   /**
-   * COPY a node and everything under it, as the sibling below — `duplicate_node`,
+   * COPY a node and everything under it, as the sibling below — `outlines_duplicate`,
    * from the row menu and from ⌘⇧D.
    *
    * ONE ID AND NOTHING ELSE, which is the same shape `archive` above has and for
@@ -605,7 +605,7 @@ export const Edit = Schema.Union([
   // ── the two EDGES a node carries ─────────────────────────────────────
 
   /**
-   * A node's free cross-references, changed — `set_see`, and the last field a
+   * A node's free cross-references, changed — `outlines_see`, and the last field a
    * person could READ on this face without being able to write it.
    *
    * The web has drawn `see` since edges-ui and could not add or drop one, which
@@ -638,7 +638,7 @@ export const Edit = Schema.Union([
     remove: Schema.optionalKey(Schema.Array(Id)),
   }),
   /**
-   * What a node must come AFTER, changed — `set_after`, and {@link see}'s shape
+   * What a node must come AFTER, changed — `outlines_after`, and {@link see}'s shape
    * exactly, because it is the same gesture over the other kind of edge
    * (`parity-after`).
    *
@@ -648,7 +648,7 @@ export const Edit = Schema.Union([
    * edges MEAN: `after` is the ordering graph, so an add that would close a loop
    * is REFUSED, naming the loop it would close, and that sentence reaches this
    * face verbatim like every other refusal. Nothing here fences it
-   * first — a rule this schema enforced would be a rule an agent's `set_after`
+   * first — a rule this schema enforced would be a rule an agent's `outlines_after`
    * does not have.
    *
    * WHAT IT WRITES IS THE NODE'S OWN `after`, never the `blocks` on somebody
@@ -668,7 +668,7 @@ export const Edit = Schema.Union([
   }),
   /**
    * Take a node and everything under it back OUT of the archive —
-   * `untrash_node`, from the Trash view's `Put back`, and the other half of
+   * `trash_restore`, from the Trash view's `Put back`, and the other half of
    * `parity-unarchive`: the op was born in the ops layer and reached both
    * faces together, so neither face can do what the other cannot.
    *
@@ -705,7 +705,7 @@ export const Edit = Schema.Union([
    * disagreement would surface as a pile quietly left behind rather than as a
    * refusal.
    *
-   * IT RESOLVES TO ONE `empty_trash` NAMING EVERY PILE, which is the op's own
+   * IT RESOLVES TO ONE `trash_empty` NAMING EVERY PILE, which is the op's own
    * shape rather than a convenience: what may still point into an archive is
    * judged against the UNION of every archive the write empties, so a `see`
    * from one pile into another is a record that goes rather than a holder that
@@ -713,7 +713,7 @@ export const Edit = Schema.Union([
    * two piles refuse in one order and plan in the other, and refuse both ways
    * round when they name each other. Nothing an agent cannot send: the op takes
    * the list, and an agent emptying a whole directory makes the same two moves
-   * by hand (`list_outlines`, then the call). What the browser is spared is the
+   * by hand (`outlines_map`, then the call). What the browser is spared is the
    * READING, not an op — quick capture's sentence, a page over.
    *
    * WHAT IT DOES CARRY is the number the confirm showed, and only that
@@ -738,7 +738,7 @@ export const Edit = Schema.Union([
    * the confirm the Trash page asks first, naming how many rows go and saying
    * plainly that this is not undoable (`web/src/client/trash/question.ts`) —
    * and the fence is not on the wire, for the reason `archive`'s is not: a rule
-   * this schema enforced would be a rule an agent's `empty_trash` does not
+   * this schema enforced would be a rule an agent's `trash_empty` does not
    * have.
    */
   Schema.Struct({
@@ -760,7 +760,7 @@ export const Edit = Schema.Union([
      * says. The ids would refuse for a re-archive that left the same total,
      * which is a different promise from the one a person was shown.
      *
-     * Optional on the wire, because `empty_trash` is optional for an agent:
+     * Optional on the wire, because `trash_empty` is optional for an agent:
      * a sweep that shows nobody a number means "whatever is there". Every
      * caller in this client sends it.
      */
@@ -790,7 +790,7 @@ export const Edit = Schema.Union([
    * file behind ({@link ../../server/src/edit.ts}).
    *
    * An agent makes the same two moves by hand — read the outlines, then
-   * `add_node` or `create_outline` — so nothing here is a reach the tools do
+   * `outlines_add` or `files_create` — so nothing here is a reach the tools do
    * not have. What the browser is spared is the READING, not an op.
    */
   Schema.Struct({ verb: Schema.Literal("capture"), title: Schema.String }),
@@ -811,8 +811,8 @@ export const Edit = Schema.Union([
    * them IS is an address, this app already has exactly one spelling of those
    * (`web/src/client/routes.ts`'s bijection), and a node's title is text. So a
    * pin is an ordinary node whose title is the address, in an ordinary outline
-   * — and an agent pins, reorders and unpins with `add_node`, `move_node` and
-   * `trash_node`, which is the consistency rule paid up front rather than
+   * — and an agent pins, reorders and unpins with `outlines_add`, `outlines_move` and
+   * `outlines_trash`, which is the consistency rule paid up front rather than
    * closed later.
    *
    * WHERE IT LANDS IS THE SERVER'S, exactly as {@link capture}'s inbox is and
@@ -828,7 +828,7 @@ export const Edit = Schema.Union([
    * THERE IS NO `unpin`, deliberately: taking a pin off the shelf is
    * {@link archive} of that pin's own node, which is the removal the set
    * already has — reversible from the Trash, and undoable with ⌘Z like every
-   * other write here. A second verb would be `trash_node` under a name only
+   * other write here. A second verb would be `outlines_trash` under a name only
    * one face knew.
    */
   Schema.Struct({
@@ -850,10 +850,10 @@ export const Edit = Schema.Union([
      * spelling `Pins.olai` has always had for a named pin and the one an agent
      * writes by hand (docs/format.md's Pins). So the format grew nothing, and
      * the consistency rule is paid the way pinning itself paid it — an agent
-     * names a pin with the `add_node` it already has, and renaming one on
-     * either face is `set_title` on that row.
+     * names a pin with the `outlines_add` it already has, and renaming one on
+     * either face is `outlines_title` on that row.
      *
-     * WHY IT RIDES ALONG rather than being a `set_title` sent after the pin:
+     * WHY IT RIDES ALONG rather than being a `outlines_title` sent after the pin:
      * one intention is one op. Two writes would be two rounds through the gate
      * and two entries on the undo stack — so ⌘Z would leave a nameless pin
      * standing — with a window between them in which the shelf holds a row
@@ -895,7 +895,7 @@ export const Edit = Schema.Union([
    * The one OTHER place this surface names a file, and for the same reason
    * `Anchor`'s `first` does: there is nothing in the set yet to anchor on.
    * Resolves to the ops layer's own create, so a path that exists or smuggles
-   * a `..` is refused in the same words an agent's `create_document` gets.
+   * a `..` is refused in the same words an agent's `markdown_create` gets.
    */
   Schema.Struct({
     verb: Schema.Literal("docNew"),
@@ -904,7 +904,7 @@ export const Edit = Schema.Union([
   // ── and the OUTLINE's one ────────────────────────────────────────────
 
   /**
-   * A brand-new outline, named outright — `create_outline`, from the sidebar's
+   * A brand-new outline, named outright — `files_create`, from the sidebar's
    * `+ New outline`, and the last file MCP could mint that a person could not
    * (`parity-create-outline`).
    *
@@ -921,7 +921,7 @@ export const Edit = Schema.Union([
    * suffix — an agent naming a file has no door around it.
    *
    * IT CARRIES NO SEED, and that is the one place it says less than the tool
-   * does. `create_outline` may be born holding a whole tree, which is what
+   * does. `files_create` may be born holding a whole tree, which is what
    * saves an agent a second call; a person types the first row with `Enter`
    * ({@link Anchor}'s `first` arm, which exists for exactly this file), so the
    * seed would be a field no affordance could fill. Nothing the web can reach is
@@ -984,13 +984,13 @@ export const Edit = Schema.Union([
      *  named below. */
     parent: Schema.NullOr(Id),
     /**
-     * The OUTLINE it sat in — carried because a `move_node` may now take a row
+     * The OUTLINE it sat in — carried because a `outlines_move` may now take a row
      * out of one and into another, and then "the top level of its file" is a
      * different file than it was.
      *
      * Only load-bearing when {@link parent} is `null`: with a parent, the file
      * is wherever that parent lives and a second answer could only disagree
-     * with it (the ops layer's own rule, spelled once on `add_node`'s pair and
+     * with it (the ops layer's own rule, spelled once on `outlines_add`'s pair and
      * read the same way here). Optional, because a placement recorded before
      * anything crossed still means what it said, and because the reorder
      * gestures that emit one — a drag, the pin shelf — cannot cross.
@@ -1016,10 +1016,10 @@ export const Edit = Schema.Union([
    *
    * It resolves to `archive`, because that is the only removal the SET has: a
    * node goes to `_olai/Trash.olai` keeping its id, which is a trash rather than
-   * a shredder and is exactly what `trash_node` does for an agent.
+   * a shredder and is exactly what `outlines_trash` does for an agent.
    *
    * What the WIRE guarantees is the narrowing, and it is worth saying in those
-   * terms rather than in the client's: this is `trash_node` minus every node
+   * terms rather than in the client's: this is `outlines_trash` minus every node
    * that has anything under it. That nothing but an inverse produces one today
    * is a fact about the editor, and a fact about the editor is not a fence —
    * the fence is the refusal, and it is the ops layer's rule about what an

@@ -140,7 +140,7 @@ const NO_NODES: ReadonlyArray<Located> = []
  *
  * IN PATH ORDER ({@link ./paths.ts}'s `byPath`), and it sorts for itself rather
  * than inheriting that from whoever built the map. {@link OutlineSet.documents}
- * promises it and every reader spends it: `list_outlines` answers in it, a
+ * promises it and every reader spends it: `outlines_map` answers in it, a
  * search tie breaks on it, the sidebar draws it. Until #208 the promise held
  * only because the one caller in the tree walks a directory in sorted order —
  * so a caller that built its map any other way got a set that broke the
@@ -193,9 +193,9 @@ export const assemble = (
  * and neither of those absences means the file is empty.
  *
  * The two callers then say different things about it, correctly, and that is
- * exactly why the SENTENCE is not here: `write_document` refuses because
+ * exactly why the SENTENCE is not here: `markdown_write` refuses because
  * re-emitting the file from the set would erase what is really in it, and
- * `read_document` refuses because handing back the empty text would be a body
+ * `markdown_read` refuses because handing back the empty text would be a body
  * nobody read. One fact, two verbs, two consequences.
  */
 export const brokenIn = (
@@ -492,7 +492,7 @@ export const outlineNames = (set: OutlineSet): ReadonlySet<string> => {
  * or because what is there is an outline or a saved page.
  *
  * {@link documentAt} narrowed by the question three callers actually ask —
- * `read_document`, `write_document`'s refusal and the editor's undo — and it
+ * `markdown_read`, `markdown_write`'s refusal and the editor's undo — and it
  * is here rather than at each of them because they were spelling it as a
  * `.filter` of the whole collection followed by a `.find`, which allocates a
  * copy of every served document to look one up. One walk, no copy, and one
@@ -511,7 +511,7 @@ export const markdownAt = (set: OutlineSet, path: string): Markdown | undefined 
  * "which files have a body": a `.html`, a `.csv`, a picture and a `.pdf` are
  * the files olai only SHOWS — nothing validates one, no op writes one, and the
  * set keeps the path without the bytes — so the validator deciding what a `doc`
- * may point at, the planner refusing a `write_document` and both document
+ * may point at, the planner refusing a `markdown_write` and both document
  * reads all mean this list. Four callers asked it with four `.filter`s before
  * it had a name.
  */

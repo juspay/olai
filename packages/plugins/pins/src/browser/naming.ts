@@ -38,7 +38,7 @@
  * (`../palette/Palette.tsx`'s `pinPage`). A question is answered or backed out
  * of; nothing pressed elsewhere becomes its answer or writes past it.
  *
- * **A rename is `set_title` on the pin's own row**, which is the op an agent
+ * **A rename is `outlines_title` on the pin's own row**, which is the op an agent
  * would send and the one ⌘Z already takes back. Typing the name away writes the
  * bare address back, so one box does all three — name, rename, un-name.
  *

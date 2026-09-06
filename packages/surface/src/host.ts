@@ -23,7 +23,7 @@ export { surface as hostSurface } from "./core.ts"
  * declares. Every other member's is its ROW's, in that row's own package
  * against that row's own spec — `olai-plugin-outlines`' `surface.ts` and its
  * eight neighbours. The `surface://` RESOURCE map the MCP adapter resolves URIs
- * out of is `olai-plugin-mcp/face`'s `AGENT_EXPOSE`, which is a different
+ * out of is each row's own `resources` map, which the MCP adapter resolves against that row's spec (juspay/kolu#2234), which is a different
  * question again: which members are published as resources at all, rather than
  * whether a given caller may reach one.
  *

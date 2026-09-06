@@ -59,7 +59,7 @@ streams: {
      * THE BROWSER'S ALONE ({@link faces} below), like the two readings
      * above and for their reason: what comes back is a screen — rows with their
      * fold keys, a rollup, the blockers a checkbox draws. An agent asking what
-     * an outline holds asks `list_outlines` and `read_subtree`, and is answered
+     * an outline holds asks `outlines_map` and `outlines_subtree`, and is answered
      * in nodes.
      */
     documentPage: { inputSchema: DocumentPageRequest, outputSchema: FiledPageReading, arrayKey: "key" }
@@ -67,7 +67,7 @@ streams: {
 procedures: {
 edit: editProcedures,
 ops: { /**
-   * Every document under the served directory — what `list_documents`
+   * Every document under the served directory — what `markdown_map`
    * answers. No input, for {@link outlines}' reason: a directory is not a
    * question with parameters.
    *
@@ -90,17 +90,17 @@ ops: { /**
    * THESE are request-shaped. The listing is the `.md` the document verbs
    * actually take, with the line each opens with and what it weighs, which is
    * what an agent chooses a file WITH; the read refuses a path that is not one
-   * — with the near miss, in `write_document`'s own words — and refuses a file
+   * — with the near miss, in `markdown_write`'s own words — and refuses a file
    * the set could not read rather than handing back a body nobody read, which
    * is what an agent about to WRITE the file needs to be told.
    *
    * And a tool is a thing a model can call, where a resource is a thing a host
    * may or may not put in front of it. That is the plainest reason the write
    * verbs' prose now points here: an agent cannot be asked to supply what it
-   * read (`write_document`'s `was`) through a channel it may not have.
+   * read (`markdown_write`'s `was`) through a channel it may not have.
    */
   documents: { output: DocumentAnswer, error: OpFailure },
-/** One document, whole — `read_document`. Refuses a path the set does not
+/** One document, whole — `markdown_read`. Refuses a path the set does not
    *  hold rather than answering it, and refuses one the set could not read
    *  rather than answering empty: see `@olai/format`'s `DocumentBody`, and the
    *  paragraph above for how that differs from the collection's `get`. */
@@ -150,6 +150,38 @@ export const dispatch = {
  * `heads` argues why the omission and its own `deltas` are one decision read
  * twice.
  */
+/**
+ * WHAT AN AGENT MAY SEE OF THIS ROW AS A `surface://` RESOURCE — a THIRD
+ * projection, and not a fourth face.
+ *
+ * `faces` above says which of this row's tags each WIRE caller may reach.
+ * This says which of its members the MCP adapter publishes as a resource at
+ * all, because that adapter needs the member's KIND to build a URI and a tag
+ * set has thrown that away. The two answer different questions and a member on
+ * one and not the other is an ordinary state: every `ops.*` on `faces.agent` is
+ * reachable and is no resource, because a procedure is not a thing with an
+ * address.
+ *
+ * IT WAS `@olai/bundle`'s `MCP`, one flat map naming three rows' members from a
+ * package none of them could edit. #546 sent each line home, and juspay/kolu#2234
+ * is what made a per-sibling map the framework's own shape: the adapter takes a
+ * rooted bundle, resolves each row's map against that row's spec, and mints
+ * `surface://collections/<row>/<member>` from the key it was mounted under.
+ *
+ * THE RULE THIS IS WRITTEN AGAINST is the wire-cost one in
+ * `@olai/surface`'s `host.ts`: a cell is exposable only if its value is
+ * O(1)-ish, and anything O(corpus) must be a COLLECTION, whose resource reads
+ * the KEY SET and hands a body one at a time.
+ */
+export const resources = {
+  // The bodied half of the same directory, and a COLLECTION for exactly the
+  // reason the rule gives: the key-set resource costs the paths and a body
+  // travels only when an agent asks for that one file. Declared `keys` + `get`
+  // with no `deltas`, so there is not even a batched verb here to reach for by
+  // mistake.
+  documents: "resource",
+} as const
+
 export const faces = {
   "browser": {
     "documents": "resource",

@@ -12,7 +12,7 @@
  * ## An empty value REMOVES the property
  *
  * That is not this file's invention and it is not a convenience: it is what the
- * op already does. `set_prop` with `""` and `set_prop` with `null` both take
+ * op already does. `outlines_prop` with `""` and `outlines_prop` with `null` both take
  * the key off (`@olai/ops`' plan, and `@olai/format`'s `withCustom` under it —
  * "a key holding `""` and a key that is gone are one file on disk"). So the
  * face offers exactly what the tool offers: clear the box and the property is
@@ -24,7 +24,7 @@
  *
  * ## The key is fixed while a value is being changed
  *
- * A rename is not a write this format has: `set_prop` sets ONE key, so changing
+ * A rename is not a write this format has: `outlines_prop` sets ONE key, so changing
  * `pr` to `PR` is taking one property off and putting another on, which is two
  * ops. An editable key box would either leave the old key behind (one op,
  * wrong) or send two writes for one gesture. So a chip's key is typed exactly
@@ -87,7 +87,7 @@ export const sending = (
  *   - a NEW property with no key is not a property. The ops layer refuses a
  *     blank key in those words; the gesture simply does nothing instead.
  *   - a NEW property with an empty value would be a removal of a key that is
- *     not there, which is the one thing `set_prop` refuses about removals. So
+ *     not there, which is the one thing `outlines_prop` refuses about removals. So
  *     `+`, then Escape-by-way-of-Enter, is a way out rather than a refusal.
  *   - an EXISTING property set to what it already holds is refused too, which
  *     is what makes "open a chip and click away" have to be silent.
@@ -189,7 +189,7 @@ export type ClosedBy = "enter" | "escape" | null
  *     `saying` is disposed with the run, so the answer lands on a line that
  *     is gone. What that costs is the person who left the page; the refuse
  *     lands in nobody's visual field and the file is the truth either way.
- *   - the NODE changing under an open editor: an agent's `set_prop` dropping
+ *   - the NODE changing under an open editor: an agent's `outlines_prop` dropping
  *     the key disposes the chip, and the blur commits what was typed against
  *     the OPEN-TIME snapshot — typed nothing, silent; typed something, the
  *     commit rides the snapshot as its `was` now and the gate REFUSES it:
@@ -211,7 +211,7 @@ export const leavingCommits = (closedBy: ClosedBy): boolean => closedBy === null
  *
  * `custom` is open all the way (`@olai/format`'s `custom.ts`), so nothing stops
  * a hand-written record from carrying a custom `date` beside the field of that
- * name — a legal record that only `set_prop` refuses to MAKE. On a page drawing
+ * name — a legal record that only `outlines_prop` refuses to MAKE. On a page drawing
  * both halves, a bare-key comparison then matches twice: pressing the custom
  * chip's key opened a second box inside the SYSTEM `date` chip, pre-filled with
  * the custom value — a writable-looking affordance on a fact the drawer calls

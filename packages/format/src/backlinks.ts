@@ -38,7 +38,7 @@
  * make.** A placement is a VIEW of a node, not a reference to one: the record
  * says nothing about the node except *draw it here too*, it carries no prose of
  * its own, and the node's page already answers "where else is this drawn"
- * through {@link Derived.mirrorsOf} — which `read_node` hands back as
+ * through {@link Derived.mirrorsOf} — which `outlines_read` hands back as
  * `mirrors`. Listing placements as references would put one fact under two
  * names, and would fill the section on exactly the nodes a curated list points
  * at with entries that say nothing about them.
@@ -78,7 +78,7 @@ import {
 import { type Pointing, pointingAt } from "./pointing.ts"
 
 /**
- * How one record refers to another: an edge somebody wrote with `set_see`, or a
+ * How one record refers to another: an edge somebody wrote with `outlines_see`, or a
  * word in a sentence.
  *
  * IN THE ORDER A REFERRER SAYS THEM — the edge first, because it is the claim

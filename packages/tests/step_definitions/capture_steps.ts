@@ -1,5 +1,5 @@
 /**
- * `olai surface capture`, run as a real process against the real server this
+ * `olai surface capture add`, run as a real process against the real server this
  * scenario is reading.
  *
  * The verb's own promises — which file a capture lands in, what it refuses,
@@ -126,8 +126,8 @@ When(
   "I capture {string} from a terminal",
   async function (this: OlaiWorld, title: string) {
     // The title is the POSITIONAL, which is the one CLI-only ergonomic this
-    // verb is annotated with — `olai surface capture "…"`, not `--title`.
-    lastCapture.set(this, { said: await cli(this, "capture", title) });
+    // verb is annotated with — `olai surface capture add "…"`, not `--title`.
+    lastCapture.set(this, { said: await cli(this, "capture", "add", title) });
   },
 );
 
@@ -135,7 +135,7 @@ When(
 When(
   "I capture {string} from a terminal, asking for JSON",
   async function (this: OlaiWorld, title: string) {
-    const said = await cli(this, "capture", title, "--json");
+    const said = await cli(this, "capture", "add", title, "--json");
     const reply = JSON.parse(said) as { id?: unknown };
     assert.strictEqual(
       typeof reply.id,
@@ -228,10 +228,16 @@ Then(
 Then(
   "reading {string} from a terminal shows {string}",
   async function (this: OlaiWorld, file: string, title: string) {
-    const said = await cli(this, "get", "outlines", file);
+    // THE ROW IS THE FIRST WORD. `get` is the projection's own reader, mounted
+    // per sibling, so reading the outlines collection is `outlines get
+    // outlines <file>` — the row, the verb, then the member. It read
+    // `get outlines <file>` while every member lived on one flat aggregate;
+    // #546 gave each member its owner and juspay/kolu#2234 gave argv the
+    // sibling word to spell that with.
+    const said = await cli(this, "outlines", "get", "outlines", file);
     assert.ok(
       said.includes(title),
-      `\`olai surface get outlines ${file}\` did not show ${JSON.stringify(title)}: ${said}`,
+      `\`olai surface outlines get outlines ${file}\` did not show ${JSON.stringify(title)}: ${said}`,
     );
   },
 );

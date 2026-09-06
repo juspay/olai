@@ -1036,7 +1036,7 @@ test("`is:mirrored` finds the node a placement shows, never the placement", () =
 
 /** It reads `Derived.mirrorsOf`, which follows chains — so a mirror of a
  *  mirror of a node is a place that node is drawn, and the record in the
- *  middle collects nothing. Same index `read_node` answers `mirrors` from, so
+ *  middle collects nothing. Same index `outlines_read` answers `mirrors` from, so
  *  a query cannot find a placement that read does not report. */
 test("a chain of placements is places the node at the end of it is drawn", () => {
   const chained = derive(nodesOfFiles({

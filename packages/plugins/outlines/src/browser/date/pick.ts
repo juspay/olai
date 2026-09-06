@@ -24,7 +24,7 @@
  *
  * WHAT IS NOT HERE is any judgement about the date itself. The validator is
  * the gate — on the set the write would produce, as it is for an agent's
- * `set_date` — so a value this layer disliked would be a rule the web has and
+ * `outlines_date` — so a value this layer disliked would be a rule the web has and
  * MCP does not (the consistency rule). The one thing it fences is a GESTURE that would
  * produce no write at all, which is the draft's own rule and not a fence on
  * what may be written ({@link pressOf}).
@@ -52,7 +52,7 @@ export const startsAt = (stored: string | undefined): string =>
   stored === undefined ? "" : dayOf(stored)
 
 /**
- * The one edit a pick sends — `set_date`'s own reach, and the constructor the
+ * The one edit a pick sends — `outlines_date`'s own reach, and the constructor the
  * `•••` menu's `Clear date` calls as well ({@link ../menu/verbs.ts}).
  *
  * ONE FUNCTION FOR BOTH DOORS, and it is a function rather than two agreeing

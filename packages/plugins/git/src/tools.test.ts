@@ -2,7 +2,7 @@
  * WHAT AN AGENT ACTUALLY READS, over the two ledger verbs this row declares — because
  * the way this breaks is per-description and silent.
  *
- * `list_documents` and `read_document` shipped to review with `\\n\\n` in their
+ * `markdown_map` and `markdown_read` shipped to review with `\\n\\n` in their
  * descriptions: two characters, a backslash and an `n`, where every other entry
  * has a real paragraph break. Nothing catches that. It compiles, the prose
  * assertions elsewhere still pass (they look for words, not shape), and the only

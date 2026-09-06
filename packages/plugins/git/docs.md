@@ -1,6 +1,6 @@
 # The ledger
 
-Git is a plugin. Everything about recording what olai wrote — the pill in the header, the phone banner, the commit panel, the `commit` and `push` tools, and the two cells an agent used to read as `surface://cells/git` and `surface://cells/pending` — arrives with one row in the build's plugin list. A serve that does not name that row has none of it: writes still land on disk, and nobody records them.
+Git is a plugin. Everything about recording what olai wrote — the pill in the header, the phone banner, the commit panel, the `git_commit` and `git_push` tools, and the two cells an agent used to read as `surface://cells/git` and `surface://cells/pending` — arrives with one row in the build's plugin list. A serve that does not name that row has none of it: writes still land on disk, and nobody records them.
 
 What git *does* has its own page: [git.md](../git.md) is the feature. This page is about the row.
 
@@ -37,7 +37,7 @@ Git's members compose as a sibling, under its own key:
 - `surface/git/pending` — what is waiting
 - `surface/git/git/commit`, `surface/git/git/push`, `surface/git/git/resume` — the three verbs
 
-They are on the browser face. The MCP tools an agent calls are still named `commit` and `push` — and they are THIS ROW'S now (`packages/plugins/git/src/tools.ts`, juspay/olai#546): they used to be two entries in `@olai/ops`' one closed table, which meant a serve with no ledger row still advertised them. They do not land on the sibling verbs above; they call through the ops layer's own ledger door, which this row stands behind when it is mounted and which refuses in words when it is not. So the row still puts nothing on the agent face. An agent cannot see what is pending, and `commit` records everything waiting unless it passes `paths`. The `surface://cells/git` and `surface://cells/pending` URIs leave with core's members; the adapter has no sibling segment.
+They are on the browser face. The MCP tools an agent calls are `git_commit` and `git_push` — the row's word in front of its own verb, on every face (#546) — and they are THIS ROW'S now (`packages/plugins/git/src/tools.ts`, juspay/olai#546): they used to be two entries in `@olai/ops`' one closed table, which meant a serve with no ledger row still advertised them. They do not land on the sibling verbs above; they call through the ops layer's own ledger door, which this row stands behind when it is mounted and which refuses in words when it is not. So the row still puts nothing on the agent face. An agent cannot see what is pending, and `git_commit` records everything waiting unless it passes `paths`. The `surface://cells/git` and `surface://cells/pending` URIs are gone with them. The adapter HAS a sibling segment now (juspay/kolu#2234, so a row's resource reads `surface://cells/<row>/<member>`), and that is no longer what would keep them off the face: this row publishes no `resources` map, which is the decision rather than a limitation. An agent observes the recorder through `git_commit` and `git_push`.
 
 ## Where it hangs in the tab
 

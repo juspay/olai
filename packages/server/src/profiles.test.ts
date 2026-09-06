@@ -41,11 +41,11 @@ test("the surface profile serves MCP reads and writes without browser routes or 
     const response = await request(url)
     expect(response.status).toBe(200)
     const tools = (await response.json()).result.tools.map((tool: { name: string }) => tool.name)
-    expect(tools).toContain("read_node")
-    expect(tools).toContain("set_title")
-    const wrote = await request(url, "tools/call", { name: "set_title", arguments: { id: "a", title: "Changed over MCP" } })
+    expect(tools).toContain("outlines_read")
+    expect(tools).toContain("outlines_title")
+    const wrote = await request(url, "tools/call", { name: "outlines_title", arguments: { id: "a", title: "Changed over MCP" } })
     expect((await wrote.json()).result.isError).not.toBe(true)
-    const read = await request(url, "tools/call", { name: "read_node", arguments: { id: "a" } })
+    const read = await request(url, "tools/call", { name: "outlines_read", arguments: { id: "a" } })
     expect(JSON.stringify(await read.json())).toContain("Changed over MCP")
     for (const route of ["/", "/manifest.webmanifest", "/media/a", "/olai/who", SURFACE_WS_PATH]) {
       expect((await fetch(url + route)).status).toBe(404)
@@ -127,19 +127,32 @@ test("vault withdrawal removes content tools and resync, then a new activation r
       await flip(url, "vault", false)
       const listed = await request(url)
       const tools = (await listed.json()).result.tools.map((tool: { name: string }) => tool.name)
-      expect(tools).not.toContain("set_title")
-      expect(tools).not.toContain("read_node")
+      expect(tools).not.toContain("outlines_title")
+      expect(tools).not.toContain("outlines_read")
       expect((await (await request(url, "resources/list")).json()).result.resources).toEqual([])
       expect((await (await request(url, "resources/templates/list")).json()).result.resourceTemplates).toEqual([])
-      const rejected = await request(url, "tools/call", { name: "set_title", arguments: { id: "a", title: "must not land" } })
+      const rejected = await request(url, "tools/call", { name: "outlines_title", arguments: { id: "a", title: "must not land" } })
       const refused = (await rejected.json()).result
       expect(refused.isError).toBe(true)
-      expect(JSON.stringify(refused)).toContain("capability")
+      // THE ADAPTER'S WORDS, and they used to be olai's. A departed row's verb
+      // was in the record for the connection's whole life and a filter merely
+      // hid it from `tools/list`, so calling it reached olai's own handler and
+      // got "The capability for … is not active." A verb rides its row's sibling
+      // entry since juspay/kolu#2234 and `reroster` takes the whole entry away,
+      // so there is no handler left to word a refusal — which is the change:
+      // absence is structural rather than filtered.
+      // NAMED, and that is the point of the wording: an agent holding a tool
+      // list from before the flip made a reasonable call against a name that
+      // WAS real, so it is told the sibling was dropped and to re-read the
+      // list — not "unknown tool", which tells it to doubt itself about a name
+      // it did not invent.
+      expect(JSON.stringify(refused)).toContain("is no longer served")
+      expect(JSON.stringify(refused)).toContain("outlines")
       expect((await fetch(url + "/olai/resync", { method: "POST" })).status).toBe(404)
       await flip(url, "vault", true)
-      const wrote = await request(url, "tools/call", { name: "set_title", arguments: { id: "a", title: `activation ${i}` } })
+      const wrote = await request(url, "tools/call", { name: "outlines_title", arguments: { id: "a", title: `activation ${i}` } })
       expect((await wrote.json()).result.isError).not.toBe(true)
-      const read = await request(url, "tools/call", { name: "read_node", arguments: { id: "a" } })
+      const read = await request(url, "tools/call", { name: "outlines_read", arguments: { id: "a" } })
       expect(JSON.stringify(await read.json())).toContain(`activation ${i}`)
     }
   })
@@ -148,10 +161,10 @@ test("vault withdrawal removes content tools and resync, then a new activation r
 test("an explicit content selection waits for its vault and acquires tools when it arrives", async () => {
   await withServing({ root: served(), plugins: ["outlines", "ws", "mcp", "web-app"] }, async (url) => {
     const listed = await request(url)
-    expect((await listed.json()).result.tools.map((tool: { name: string }) => tool.name)).not.toContain("read_node")
+    expect((await listed.json()).result.tools.map((tool: { name: string }) => tool.name)).not.toContain("outlines_read")
     expect((await fetch(url + "/olai/resync", { method: "POST" })).status).toBe(404)
     await flip(url, "vault", true)
-    const read = await request(url, "tools/call", { name: "read_node", arguments: { id: "a" } })
+    const read = await request(url, "tools/call", { name: "outlines_read", arguments: { id: "a" } })
     expect((await read.json()).result.isError).not.toBe(true)
   })
 })
@@ -211,8 +224,8 @@ test("CLI content removal applies over the headless profile without requiring a 
     const url = await child.address()
     const listed = await request(url)
     const tools = (await listed.json()).result.tools.map((tool: { name: string }) => tool.name)
-    expect(tools).toContain("read_document")
-    expect(tools).not.toContain("read_node")
+    expect(tools).toContain("markdown_read")
+    expect(tools).not.toContain("outlines_read")
     expect((await fetch(url)).status).toBe(404)
   } finally { expect(await child.stop()).toBe(130) }
 }, 15000)
@@ -224,8 +237,8 @@ test("CLI extra and removal flags compose a non-notebook MCP host without a vaul
     const listed = await request(url)
     const tools = (await listed.json()).result.tools.map((tool: { name: string }) => tool.name)
     expect(tools).toEqual([])
-    expect(tools).not.toContain("read_node")
-    expect(tools).not.toContain("read_document")
+    expect(tools).not.toContain("outlines_read")
+    expect(tools).not.toContain("markdown_read")
     expect((await fetch(url + "/olai/resync", { method: "POST" })).status).toBe(404)
     expect((await fetch(url)).status).toBe(404)
   } finally { expect(await child.stop()).toBe(130) }
@@ -236,7 +249,7 @@ test("CLI extra and removal flags compose a non-notebook MCP host without a vaul
  * can answer, because they are the case that proves the mechanism rather than
  * the schema.
  *
- * `inspect_plugins`, `run_plugin` and `stop_plugin` were three hand-written
+ * `vault-plugins_inspect`, `vault-plugins_run` and `vault-plugins_stop` were three hand-written
  * `BespokeTool`s inside `olai-plugin-mcp`, advertised or withheld by a
  * `management` name-to-tag map in a `catalog.ts` beside them — one row's
  * vocabulary held by another row, and a map somebody had to keep in step.
@@ -258,20 +271,27 @@ test("CLI extra and removal flags compose a non-notebook MCP host without a vaul
 test("the plugin author's three verbs leave with the row that owns them", async () => {
   await withServing({ root: served(), plugins: ["vault", "vault-plugins", "ws", "mcp"] }, async url => {
     const names = async () => (await (await request(url)).json()).result.tools.map((tool: { name: string }) => tool.name) as string[]
-    expect(await names()).toContain("inspect_plugins")
-    expect(await names()).toContain("run_plugin")
-    expect(await names()).toContain("stop_plugin")
+    expect(await names()).toContain("vault-plugins_inspect")
+    expect(await names()).toContain("vault-plugins_run")
+    expect(await names()).toContain("vault-plugins_stop")
     await flip(url, "vault-plugins", false)
-    expect(await names()).not.toContain("inspect_plugins")
-    expect(await names()).not.toContain("run_plugin")
-    expect(await names()).not.toContain("stop_plugin")
-    const refused = await request(url, "tools/call", { name: "inspect_plugins", arguments: {} })
+    expect(await names()).not.toContain("vault-plugins_inspect")
+    expect(await names()).not.toContain("vault-plugins_run")
+    expect(await names()).not.toContain("vault-plugins_stop")
+    const refused = await request(url, "tools/call", { name: "vault-plugins_inspect", arguments: {} })
     const said = (await refused.json()).result
     expect(said.isError).toBe(true)
-    expect(JSON.stringify(said)).toContain("capability")
+    // THE ADAPTER'S WORDS, and they name the ROW. It was olai's "The capability
+    // for … is not active." — a filter hid the verb from `tools/list` while its
+    // handler stayed in the record and went on answering. A verb rides its row's
+    // sibling entry since juspay/kolu#2234, so `reroster` takes the handler away
+    // with the entry and the refusal can say which sibling left, which is a
+    // sentence a filter could not have written.
+    expect(JSON.stringify(said)).toContain("no longer served")
+    expect(JSON.stringify(said)).toContain("vault-plugins")
     await flip(url, "vault-plugins", true)
-    expect(await names()).toContain("inspect_plugins")
-    const answered = await request(url, "tools/call", { name: "inspect_plugins", arguments: {} })
+    expect(await names()).toContain("vault-plugins_inspect")
+    const answered = await request(url, "tools/call", { name: "vault-plugins_inspect", arguments: {} })
     expect((await answered.json()).result.isError).not.toBe(true)
   })
 })
@@ -279,21 +299,21 @@ test("the plugin author's three verbs leave with the row that owns them", async 
 test("shared write tags retain only their active content cases on the MCP catalog", async () => {
   await withServing({ root: served(), plugins: ["vault", "outlines", "markdown", "files", "capture", "ws", "mcp"] }, async url => {
     const names = async () => (await (await request(url)).json()).result.tools.map((tool: { name: string }) => tool.name) as string[]
-    expect(await names()).toContain("capture")
+    expect(await names()).toContain("capture_add")
     await flip(url, "capture", false)
-    expect(await names()).not.toContain("capture")
-    expect(await names()).toContain("set_title")
+    expect(await names()).not.toContain("capture_add")
+    expect(await names()).toContain("outlines_title")
     await flip(url, "outlines", false)
-    expect(await names()).not.toContain("set_title")
-    expect(await names()).not.toContain("read_node")
-    expect(await names()).toContain("write_document")
-    const created = await request(url, "tools/call", { name: "create_document", arguments: { file: "independent.md", text: "# Independent" } })
+    expect(await names()).not.toContain("outlines_title")
+    expect(await names()).not.toContain("outlines_read")
+    expect(await names()).toContain("markdown_write")
+    const created = await request(url, "tools/call", { name: "markdown_create", arguments: { file: "independent.md", text: "# Independent" } })
     expect((await created.json()).result.isError).not.toBe(true)
     await flip(url, "outlines", true)
-    expect(await names()).toContain("set_title")
-    const wrote = await request(url, "tools/call", { name: "set_title", arguments: { id: "a", title: "Returned" } })
+    expect(await names()).toContain("outlines_title")
+    const wrote = await request(url, "tools/call", { name: "outlines_title", arguments: { id: "a", title: "Returned" } })
     expect((await wrote.json()).result.isError).not.toBe(true)
     await flip(url, "capture", true)
-    expect(await names()).toContain("capture")
+    expect(await names()).toContain("capture_add")
   })
 })

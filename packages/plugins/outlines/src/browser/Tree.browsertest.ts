@@ -217,7 +217,7 @@ test("DECLARED: one row's title re-runs that row's bindings and no other", () =>
 })
 
 test("a reorder MOVES the rows rather than rewriting them", () => {
-  // The half a positional merge could not give, and the one a `move_node`
+  // The half a positional merge could not give, and the one a `outlines_move`
   // landing under somebody's page is about: the row objects a keyed view is
   // following go WITH their rows, so nothing re-runs for a gesture that changed
   // no row's content. Undeclared, every row was rewritten in place.

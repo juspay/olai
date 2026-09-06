@@ -267,7 +267,7 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       seq: 9,
       since: SINCE,
       kind: "refusal",
-      text: "`set_done` was refused",
+      text: "`outlines_done` was refused",
       refusal: REFUSAL,
     },
   },

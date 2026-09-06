@@ -110,7 +110,7 @@ describe("which permissions are answered without asking", () => {
   test("an agent that names its MCP tools some other way asks a person", () => {
     // The bet on the adapter's naming, losing in the direction it can afford.
     expect(allowedWithoutAsking("olai/set_done", GIVEN, TOOL_CALL)).toBeNull()
-    expect(allowedWithoutAsking("set_done", GIVEN, TOOL_CALL)).toBeNull()
+    expect(allowedWithoutAsking("outlines_done", GIVEN, TOOL_CALL)).toBeNull()
   })
 
   test("one of ours that offers no allow at all is a person's", () => {

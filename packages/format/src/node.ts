@@ -196,18 +196,18 @@ export const RegularNode = Schema.Struct({
   title: Schema.String,
   ...STAMPED,
   /**
-   * When the CURRENT round of work started: the instant `set_doing` stamps
+   * When the CURRENT round of work started: the instant `outlines_doing` stamps
    * on EVERY start — a re-open after a settle writes a fresh one, because
    * the round that came before is no longer this field's concern: the
    * settle already banked it into `worked` below, and the pause between
    * two rounds is nobody's work. And it SURVIVES only while the bank can
    * still account for it: a settle keeps it when the round just closed was
    * live (`doing` said so), and buries it when none was — an undone settle
-   * re-settled with no `set_doing` between: the alternative is the same
+   * re-settled with no `outlines_doing` between: the alternative is the same
    * round countable twice (the stamp is dead weight a second settle would
    * mistake for a fresh round's). And where the `doing` comes off WITHOUT
-   * a settle — `set_todo` queueing the work again, or the undo of the
-   * `set_doing` itself — the round banks THERE, at the peel, and the stamp
+   * a settle — `outlines_todo` queueing the work again, or the undo of the
+   * `outlines_doing` itself — the round banks THERE, at the peel, and the stamp
    * goes with it: live minutes never sit on a record that cannot close
    * them, and the settle that lands later is an ordinary one.
    *
@@ -227,10 +227,10 @@ export const RegularNode = Schema.Struct({
   /**
    * How much work is BANKED, in whole seconds: the rounds already CLOSED,
    * summed. A round closes where its `doing` comes off: every settle —
-   * `set_done` and `set_cancelled` alike — adds the round it closes (its
+   * `outlines_done` and `outlines_cancelled` alike — adds the round it closes (its
    * instant minus `started`) into this field, and the two doors that take
-   * a `doing` off WITHOUT settling — the `set_todo` that queues the work
-   * again, the undo of the `set_doing` itself — bank the span at the peel,
+   * a `doing` off WITHOUT settling — the `outlines_todo` that queues the work
+   * again, the undo of the `outlines_doing` itself — bank the span at the peel,
    * the stamp going with the `doing`. So a task picked up, put down and
    * picked up again counts the rounds and never the pauses between them.
    *
@@ -243,7 +243,7 @@ export const RegularNode = Schema.Struct({
    * settle can never bank the same span twice: the `doing` that made the
    * round closable is gone by the time a second settle could reach for
    * it — and a round put down early was already banked at its peel. There
-   * is no verb for it, no request carries one, and `set_prop` turns the
+   * is no verb for it, no request carries one, and `outlines_prop` turns the
    * key away toward them, exactly as `started` above. Never NEGATIVE and
    * never fractional: whole seconds, and the schema says so rather than
    * the read having to argue with a hostile bank. ABSENT is the ordinary
@@ -271,7 +271,7 @@ export const RegularNode = Schema.Struct({
    * The two STAMPS, and the only fields on this record nobody writes on
    * purpose: the ops layer puts `created` on a node when it is captured and
    * re-puts `changed` on it whenever it is written afterwards. There is no verb
-   * for either, and `set_prop` refuses both by name.
+   * for either, and `outlines_prop` refuses both by name.
    *
    * ABSENT is the ordinary state of a node written before this existed, and
    * nothing invents one: a ledger does not make up a past it did not see, and
@@ -283,7 +283,7 @@ export const RegularNode = Schema.Struct({
   created: Schema.optionalKey(Schema.String),
   changed: Schema.optionalKey(Schema.String),
   /** The one OPEN field: named facts this format gives no meaning to, written
-   *  by `set_prop` and read by whoever wrote them (./custom.ts). Every other
+   *  by `outlines_prop` and read by whoever wrote them (./custom.ts). Every other
    *  key on this record is one of the fields above, and a key that is neither
    *  is a `bad-record` — which is exactly what makes one open field worth
    *  having rather than an open record. */
@@ -321,30 +321,30 @@ export type Node = typeof Node.Type
  */
 const DOORS = {
   id: "an id is minted or chosen when the node is captured, and never rewritten",
-  parent: "`move_node` writes where a node sits",
-  ord: "`move_node` writes where a node sits among its siblings",
-  title: "`set_title` writes the title",
-  mirror: "`add_mirror` places a node in a second location",
-  done: "`set_done` writes it, and records the instant",
-  cancelled: "`set_cancelled` writes it, and records the instant",
-  doing: "`set_doing` writes it, and records the instant",
-  todo: "`set_todo` writes it, and records the instant",
+  parent: "`outlines_move` writes where a node sits",
+  ord: "`outlines_move` writes where a node sits among its siblings",
+  title: "`outlines_title` writes the title",
+  mirror: "`outlines_mirror` places a node in a second location",
+  done: "`outlines_done` writes it, and records the instant",
+  cancelled: "`outlines_cancelled` writes it, and records the instant",
+  doing: "`outlines_doing` writes it, and records the instant",
+  todo: "`outlines_todo` writes it, and records the instant",
   started:
-    "`set_doing` stamps it on every start — a settle keeps it when the round banked, buries it when none could; a peel banks the round and takes the stamp with the `doing`",
+    "`outlines_doing` stamps it on every start — a settle keeps it when the round banked, buries it when none could; a peel banks the round and takes the stamp with the `doing`",
   worked:
-    "rounds bank where the `doing` comes off — `set_done` / `set_cancelled` add the round they closed, `set_todo` and an un-done start bank at the peel; only a live `doing` opens one",
+    "rounds bank where the `doing` comes off — `outlines_done` / `outlines_cancelled` add the round they closed, `outlines_todo` and an un-done start bank at the peel; only a live `doing` opens one",
   status:
-    "the mark is `done`, `cancelled`, `doing` or `todo` — `set_done` / `set_cancelled` / `set_doing` / `set_todo` write it",
-  date: "`set_date` writes it, and validates the day",
-  repeat: "`set_repeat` writes the repeat rule, and completing the node hands it to the next occurrence",
-  desc: "`set_desc` writes the note",
-  doc: "a node names its document when it is captured; `write_document` writes what is in it",
-  after: "`set_after` writes it, and refuses a cycle",
-  blocks: "`set_after` writes it, said from the waiting node — `a blocks b` is `b after a`",
-  see: "`set_see` writes it, and resolves the target",
+    "the mark is `done`, `cancelled`, `doing` or `todo` — `outlines_done` / `outlines_cancelled` / `outlines_doing` / `outlines_todo` write it",
+  date: "`outlines_date` writes it, and validates the day",
+  repeat: "`outlines_repeat` writes the repeat rule, and completing the node hands it to the next occurrence",
+  desc: "`outlines_desc` writes the note",
+  doc: "a node names its document when it is captured; `markdown_write` writes what is in it",
+  after: "`outlines_after` writes it, and refuses a cycle",
+  blocks: "`outlines_after` writes it, said from the waiting node — `a blocks b` is `b after a`",
+  see: "`outlines_see` writes it, and resolves the target",
   created: "the ops layer stamps this when a node is captured — nothing else may",
   changed: "the ops layer stamps this on every write — nothing else may",
-  custom: "this is the map itself; a key inside it is what `set_prop` writes",
+  custom: "this is the map itself; a key inside it is what `outlines_prop` writes",
 } as const satisfies Record<keyof RegularNode | keyof MirrorNode | "status", string>
 
 /**
@@ -374,7 +374,7 @@ const FIELD_NAMES: ReadonlySet<string> = new Set([
  *
  * FOLDED, because a `Date` key shadows `date` for every reader who is not a
  * parser: the confusion this prevents is a human one, and humans do not read
- * case. The refusal is the only rule `set_prop` has about a key's spelling;
+ * case. The refusal is the only rule `outlines_prop` has about a key's spelling;
  * everything else is somebody's own vocabulary and none of this format's
  * business.
  */
@@ -639,8 +639,8 @@ export const inboxIn = (files: Iterable<string>): string | undefined =>
  * way the other two do: BY ITS NAME, with no field on any record saying so.
  * What is in it is ORDINARY NODES whose titles name an ADDRESS in this app —
  * which is what a bookmark is — so an agent reads the shelf with
- * `read_subtree`, adds to it with `add_node`, reorders it with `move_node`
- * and takes something off it with `trash_node`. Pinning grew no op and no
+ * `outlines_subtree`, adds to it with `outlines_add`, reorders it with `outlines_move`
+ * and takes something off it with `outlines_trash`. Pinning grew no op and no
  * AGENT tool, which is the whole reason the shelf is a file of nodes rather
  * than a field (docs/format.md's Pins). The browser grew one verb of its own,
  * `pin`, and it resolves to that same `add` — what it saves a tab is the
@@ -718,7 +718,7 @@ const OLAI_PREFIX = `${OLAI_DIR}/`
  * boards somebody keeps and not the shelf, the property declarations or a
  * watcher's knobs (`@olai/web`'s `chat/scopable.ts`, which argues why that is
  * still a drawing rule: what it leaves off a list it does not refuse). It is a
- * DRAWING rule and nothing more: search, the agents, `list_outlines`, the
+ * DRAWING rule and nothing more: search, the agents, `outlines_map`, the
  * trash page and the shelf read the same set either way, and so does the
  * doorbell once a file has been picked.
  *

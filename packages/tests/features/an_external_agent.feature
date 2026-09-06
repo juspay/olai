@@ -51,7 +51,7 @@ Feature: An agent olai did not start
     And there should be no page errors
 
   Scenario: A terminal starts a new outline and the open page lists it
-    # The gap `create_outline` closes: `add_node` refuses any file the set does
+    # The gap `files_create` closes: `outlines_add` refuses any file the set does
     # not already hold, so without this an agent cannot open a fresh outline at
     # all. The store's watcher already handles a new `.olai` (see
     # it_stays_live.feature); this scenario proves the write path that mints
@@ -90,7 +90,7 @@ Feature: An agent olai did not start
 
   Scenario: A terminal captures a whole subtree in one call
     # The item this was filed from: an agent capturing a house outline issued
-    # one add_node per node — thirteen calls, each riding the full write gate,
+    # one outlines_add per node — thirteen calls, each riding the full write gate,
     # and a failure partway through leaving half a subtree behind. `children`
     # makes it one call: one plan, one validation, one atomic rename, one
     # commit. So the page does not watch a tree grow a row at a time; it gets
@@ -136,7 +136,7 @@ Feature: An agent olai did not start
     And there should be no page errors
 
   Scenario: A terminal duplicates a subtree and the page draws the copy beside it
-    # The parity rule on this PR's op: `duplicate_node` is the same
+    # The parity rule on this PR's op: `outlines_duplicate` is the same
     # request the row menu's `Duplicate` and ⌘⇧D send, so what an agent gets is
     # what a person gets — a second subtree, one row below, sharing no id with
     # the first. The page follows because the write went through the one ops
@@ -150,7 +150,7 @@ Feature: An agent olai did not start
     And there should be no page errors
 
   Scenario: A terminal wires a dependency and the page draws what is waiting
-    # `set_after` writes the ordering edge, and blockedness is DERIVED from it
+    # `outlines_after` writes the ordering edge, and blockedness is DERIVED from it
     # together with the MARKS — which is why the agent marks first: an unmarked
     # node is a bullet rather than unstarted work, so an edge onto one holds
     # nothing up. Once `order` is a task, `install` (under way) is waiting on
@@ -170,10 +170,10 @@ Feature: An agent olai did not start
     And there should be no page errors
 
   Scenario: A terminal reads a whole outline in one call
-    # The read side catching up with the write side. `add_node` takes a whole
+    # The read side catching up with the write side. `outlines_add` takes a whole
     # nested capture and `apply` a run of verbs, so a subtree is ONE write —
     # but an outline of N top-level roots had no single-call read at all:
-    # `list_outlines` named the roots and `read_subtree` took an id, so reading
+    # `outlines_map` named the roots and `outlines_subtree` took an id, so reading
     # a file whole was one call per root. Here the agent gives the outline a
     # second root and then reads the file: both come back, walked, in one
     # answer.
@@ -216,7 +216,7 @@ Feature: An agent olai did not start
     Then every row of the shallow walk carries exactly status
     And the row "install" in the shallow walk is said truncated
     # The NODE ITSELF is always whole — projection shapes a LIST, never the
-    # thing a caller named — so `read_node`'s own row keeps its place and its
+    # thing a caller named — so `outlines_read`'s own row keeps its place and its
     # marks while its children are the caller's one field.
     When the terminal agent reads "kitchen" with the children shaped as "status"
     Then the node arrived whole and its children carry exactly status
@@ -235,7 +235,7 @@ Feature: An agent olai did not start
   Scenario: A mistyped outline path is refused with the closest one
     # Refused, never answered empty: an outline that holds nothing and an
     # outline that is not there look identical to a caller, and only one of
-    # them is worth acting on. The sentence is `read_document`'s own — one
+    # them is worth acting on. The sentence is `markdown_read`'s own — one
     # typo, one answer, whichever verb it was typed at.
     When the terminal agent reads the whole outline "hause.olai"
     Then the terminal agent was refused with the kind "not-found"
@@ -246,7 +246,7 @@ Feature: An agent olai did not start
     # The other half of the same item: a hit carries every field of the record
     # except the note, and the note is the one you have to ask for — so "read
     # every one of these with what was written under it" is one call rather
-    # than one call and a `read_node` per row.
+    # than one call and a `outlines_read` per row.
     When the terminal agent searches for "hinges" with the notes
     Then the terminal agent found exactly "#hinges"
     And the terminal agent was handed the note "brass, if the budget survives"
@@ -271,8 +271,8 @@ Feature: An agent olai did not start
     And there should be no page errors
 
   Scenario: A terminal writes a document, both faces of one gate
-    # The consistency rule, end to end: `create_document` mints the file and
-    # `write_document` replaces its text — the same two ops the browser's
+    # The consistency rule, end to end: `markdown_create` mints the file and
+    # `markdown_write` replaces its text — the same two ops the browser's
     # editor sends — and a page that never heard of the terminal follows,
     # sidebar and rendered body both, with no reload.
     # At the ROOT rather than in a fresh subdirectory: a directory born

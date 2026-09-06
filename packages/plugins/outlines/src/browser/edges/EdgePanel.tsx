@@ -9,7 +9,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * affordance to change one. That is a standing consistency deviation rather
  * than a missing feature (`parity-see` / `parity-after`), and this
  * is what closes it. What it sends is the intent every other write on this face
- * sends: one `see` / `after` edit at the same gate `set_see` and `set_after` go
+ * sends: one `see` / `after` edit at the same gate `outlines_see` and `outlines_after` go
  * through, judged by the same planner, refused in the same words. Nothing is
  * echoed — a reference appears when the file says it does.
  *

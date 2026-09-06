@@ -714,19 +714,20 @@ describe("only the registry knows a plugin's name", () => {
     server: [
       "server/src/capabilities.testlib.ts: olai-plugin-vault/testlib",
       "server/src/dial.test.ts: olai-plugin-mcp/testlib",
-      "server/src/faces.test.ts: olai-plugin-mcp/testlib",
+      // `faces.test.ts` LEFT THIS LIST, and that is the change rather than an
+      // omission: it reached the mcp row for `mcpContract` + `AGENT_EXPOSE` —
+      // the flat contract juspay/kolu#2234 deleted — and what it resolves the
+      // published URIs from now is `@olai/bundle`'s own `AGENT_SIBLINGS`, which
+      // is the registry composing plugin-owned declarations and needs no door.
       "server/src/headless.test.ts: olai-plugin-git/testlib",
       "server/src/lock.test.ts: olai-plugin-vault/testlib",
       "server/src/mcp/face.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/face.test.ts: olai-plugin-mcp/testlib",
-      "server/src/mcp/face.test.ts: olai-plugin-mcp/testlib",
+      // ...and the three MCP benches each reach it FEWER times. They imported
+      // the flat contract, the flat client and its route in separate
+      // statements; a bench builds the bundle now, and `route.test.ts`'s six
+      // lines are one braced list.
       "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
-      "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
-      "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
-      "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
-      "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
-      "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
-      "server/src/mcp/tools.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/tools.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/tools.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/tools.test.ts: olai-plugin-mcp/testlib",
@@ -1719,7 +1720,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/kolu/src/server.ts",
       "plugins/markdown/src/server.ts",
       "plugins/markdown/src/tools.ts",
-      "plugins/mcp/src/client.ts",
       "plugins/navigation/src/opens.tsx",
       "plugins/odu/src/appliance/index.ts",
       "plugins/odu/src/server.ts",
@@ -1778,7 +1778,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/chat/src/browser/chat/completion.ts",
       "plugins/chat/src/testids.ts",
       "plugins/journal/src/browser.tsx",
-      "plugins/mcp/src/client.ts",
       "plugins/mcp/src/endpoint.ts",
       "plugins/mcp/src/tools.ts",
       "plugins/navigation/src/palette/Palette.tsx",
@@ -1932,9 +1931,11 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "format/src/committing.ts",
       "format/src/index.ts",
       "format/src/message.ts",
+      "format/src/node.ts",
       "format/src/page.ts",
       "format/src/pointing.bench.ts",
       "format/src/reading.ts",
+      "format/src/searching.ts",
       "format/src/set.ts",
       "format/src/validate.bench.ts",
       "format/src/validate.ts",
@@ -1964,10 +1965,12 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/git/src/tools.ts",
       "plugins/layout/src/Fault.tsx",
       "plugins/markdown/src/tools.ts",
-      "plugins/mcp/src/client.ts",
       "plugins/mcp/src/endpoint.ts",
       "plugins/mcp/src/tools.ts",
       "plugins/search/src/table.bench.ts",
+      "plugins/search/src/tools.ts",
+      "plugins/trash/src/tools.ts",
+      "plugins/vault-plugins/src/tools.ts",
       "plugins/vault/src/browser/errors/Page.tsx",
       "server/src/main.ts"
     ],
@@ -1977,8 +1980,11 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "format/src/document.ts",
       "format/src/incremental.ts",
       "format/src/index.ts",
+      "format/src/node.ts",
       "format/src/page.ts",
+      "format/src/reading.ts",
       "format/src/rules.ts",
+      "format/src/searching.ts",
       "format/src/set.ts",
       "format/src/validate.bench.ts",
       "format/src/validate.ts",
@@ -1989,6 +1995,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "markdown-ui/src/title.ts",
       "ops/src/asked.ts",
       "ops/src/documents.bench.ts",
+      "ops/src/ops.ts",
       "ops/src/plan.ts",
       "ops/src/query.ts",
       "ops/src/refusals.ts",
@@ -1999,14 +2006,15 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/journal/src/server.ts",
       "plugins/kolu/src/appliance/props/EventsFeed.tsx",
       "plugins/kolu/src/appliance/props/TerminalDoor.tsx",
-      "plugins/mcp/src/client.ts",
       "plugins/outlines/src/browser/Note.tsx",
       "plugins/outlines/src/browser/document-properties.tsx",
       "plugins/outlines/src/tools.ts",
+      "plugins/search/src/tools.ts",
       "plugins/test-layout/src/browser.tsx",
       "plugins/xyne-spaces/src/client.ts",
       "plugins/xyne-spaces/src/mirror.ts",
-      "plugins/xyne-spaces/src/testlib/fake-spaces.ts"
+      "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
+      "server/src/main.ts"
     ],
     "files": [
       "format/src/conventions.bench.ts",
@@ -2051,7 +2059,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/markdown/src/browser.tsx",
       "plugins/markdown/src/projection.ts",
       "plugins/markdown/src/tools.ts",
-      "plugins/mcp/src/client.ts",
       "plugins/mcp/src/endpoint.ts",
       "plugins/navigation/src/browser.tsx",
       "plugins/outlines/src/browser.tsx",
@@ -2077,6 +2084,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/vault/src/lock.ts",
       "plugins/vault/src/projection.ts",
       "plugins/web-app/src/manifest.ts",
+      "server/src/main.ts",
       "store/src/probe.ts",
       "store/src/store.ts",
       "surface/src/projection.ts",
@@ -2144,11 +2152,14 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/pins/src/browser/Shelf.tsx",
       "plugins/pins/src/browser/pinning.ts",
       "plugins/vault-plugins/src/tools.ts",
+      "server/src/main.ts",
       "surface/src/edit.ts"
     ],
     "test-layout": [],
     "test-counter": [],
-    "vault-plugins": []
+    "vault-plugins": [
+      "server/src/main.ts"
+    ]
   }
 
 

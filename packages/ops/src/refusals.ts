@@ -122,7 +122,7 @@ export const notFound = (derived: Derived, id: string): OpFailure =>
  * Split out for exactly one caller ({@link ./plan.ts}'s `wiring`): a capture's
  * edges may name a sibling in the same call, so an id that is a typo of one of
  * THOSE has to be offered too. A second spelling of this refusal would be a
- * `see` target corrected one way by `set_see` and another by `add_node`.
+ * `see` target corrected one way by `outlines_see` and another by `outlines_add`.
  *
  * IT TAKES THE MAP, not the ids, and the extra candidates BESIDE it rather than
  * concatenated onto it — which is what lets the offer be answered off an index
@@ -171,7 +171,7 @@ export const notANode = (id: string, target: string): OpFailure =>
  * that can be handed one.
  *
  * {@link notFound}'s counterpart for the other thing an op can name. A
- * `write_document` and a `read_document` refuse the same miss, and each built
+ * `markdown_write` and a `markdown_read` refuse the same miss, and each built
  * the same near-miss list out of the same set and then wrote the same sentence
  * before this was one function: a caller who mistypes a path once should not
  * learn two different things about it depending on which verb the typo landed
@@ -259,7 +259,7 @@ const noSuchOutline = (asked: Asked, file: string): OpFailure => {
  * IT TAKES THE ASKING rather than the set, since `perf-batch-assemble`: what a
  * path holds is one of the three questions a planner used to ask the directory
  * per op, and the point of that node was that they are asked once and handed
- * over. A read holds no batch and no context to carry, so `read_subtree` builds
+ * over. A read holds no batch and no context to carry, so `outlines_subtree` builds
  * one for the call (`./query.ts`) — which costs nothing, because the answers
  * inside one are held with the set and computed only when somebody asks.
  */
@@ -296,8 +296,8 @@ export const notLoadedBecause = (file: string): string =>
  * like {@link noSuchDocument} and {@link noSuchOutline} beside it, over the one
  * thing that goes wrong with a path the set DOES hold.
  *
- * ONE SENTENCE FOR THE TWO READS THAT ANSWER A WHOLE FILE. `read_document` and
- * `read_subtree`'s `file` arm meet the identical fact with the identical
+ * ONE SENTENCE FOR THE TWO READS THAT ANSWER A WHOLE FILE. `markdown_read` and
+ * `outlines_subtree`'s `file` arm meet the identical fact with the identical
  * consequence — the file is there, nobody read what is in it, so there is
  * nothing to answer with — and answering either as an empty document or as an
  * outline holding nothing would be handing back a body nobody read. It is not

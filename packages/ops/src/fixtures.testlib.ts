@@ -78,12 +78,12 @@ export const planning = (
  * "expected `add` to plan, and it refused: …" is the sentence that turns a
  * failing assertion into a fixed test without a debugger, and a second copy of
  * it is one copy that gets better and one that does not. The planner asked for
- * these two first; the READS ask for them now as well — `read_subtree` answers
+ * these two first; the READS ask for them now as well — `outlines_subtree` answers
  * a `Result` since it began taking a path, which can be refused — so they are
  * over any `Result` this package produces rather than over a plan.
  *
  * `what` is the phrase the sentence is built around ("`add` to plan",
- * "`read_subtree` to answer"), so the caller names its own verb.
+ * "`outlines_subtree` to answer"), so the caller names its own verb.
  */
 export const succeeded = <A>(
   outcome: Result.Result<A, OpFailure>,

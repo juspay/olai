@@ -13,7 +13,7 @@ Then("the MCP transport answers with status {int}", async function (this: OlaiWo
   assert.equal(response.status, status);
   if (status === 200) {
     const reply = await response.json();
-    assert.ok(reply.result.tools.some((tool: { name: string }) => tool.name === "read_node"));
+    assert.ok(reply.result.tools.some((tool: { name: string }) => tool.name === "outlines_read"));
   }
 });
 
@@ -21,20 +21,20 @@ Then("the MCP vault refuses a write because no directory is served", async funct
   const response = await fetch(new URL("/mcp", this.baseUrl), {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: {
-      name: "set_title", arguments: { id: "unreachable", title: "must not land" },
+      name: "outlines_title", arguments: { id: "unreachable", title: "must not land" },
     } }), signal: AbortSignal.timeout(10000),
   });
   const result = (await response.json()).result;
   assert.equal(result.isError, true);
   assert.ok(result.content.some((part: { type: string; text?: string }) =>
-    part.type === "text" && part.text?.includes('The capability for "set_title" is not active.')));
+    part.type === "text" && part.text?.includes('The capability for "outlines_title" is not active.')));
 });
 
 Then("the MCP vault can read an outline", async function (this: OlaiWorld) {
   const response = await fetch(new URL("/mcp", this.baseUrl), {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: {
-      name: "list_outlines", arguments: {},
+      name: "outlines_map", arguments: {},
     } }), signal: AbortSignal.timeout(10000),
   });
   const result = (await response.json()).result;

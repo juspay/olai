@@ -26,7 +26,7 @@
  * and the sibling to sit after; that is the surface's own verb, minted for an
  * undo (`../../../surface/src/edit.ts`) and correct here for the same reason it
  * was correct there — it is the one placement `Anchor` cannot spell, and it
- * resolves to the `move_node` an agent would send. Drag-drop needed no new wire
+ * resolves to the `outlines_move` an agent would send. Drag-drop needed no new wire
  * verb and no new op.
  *
  * **Several rows land as several writes**, each after the one before it, which
@@ -249,7 +249,7 @@ export const createDragging = (
    *     among the rows a mirror of `garden.olai` expands — they are drawn in
    *     this tree and they are records of that one. That was the format's rule
    *     when it was written (review, 2026-08-14) and it is the GESTURE's now:
-   *     `move_node` carries a subtree to another outline, so such a drop would
+   *     `outlines_move` carries a subtree to another outline, so such a drop would
    *     be a legal write — and a legal write is not the same as one a hand
    *     dragging inside one tree meant to make. Sending a row to another
    *     outline is `⌘⇧M`'s, which asks for the destination by name; what a drag

@@ -62,7 +62,7 @@ export class McpRefused extends Error {
   constructor(
     message: string,
     /** The tool's own machine-readable reason, when it raised one. Spread onto
-     *  the stderr line by `refusalLine`, so `set_done` refusing with three
+     *  the stderr line by `refusalLine`, so `outlines_done` refusing with three
      *  unfinished children hands those children over rather than a sentence
      *  about them. */
     readonly detail?: Record<string, unknown>,

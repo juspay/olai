@@ -47,33 +47,40 @@ export interface TransportSurface {
    * either: a tool is offered because the row that owns it is HERE, and it
    * leaves when that row does.
    *
-   * `surface` and `tools` are opaque on this side of the wall for the reason
-   * `Sibling`'s are: a row's tools are built against the row's own spec, in the
-   * row's own package, where the compiler can see both.
+   * `surface`, `resources` and `tools` are opaque on this side of the wall for
+   * the reason `Sibling`'s are: a row's tools and its resource map are built
+   * against the row's own spec, in the row's own package, where the compiler
+   * can see both.
+   *
+   * `resources` RIDES ALONG BECAUSE THE BUNDLE IS BUILT FROM THIS READING.
+   * `serveSurfaceAsMcp` takes a rooted bundle since juspay/kolu#2234 — one
+   * entry per standing row, each its own surface beside its OWN expose map —
+   * and there is no other live source for the second half. A row is entered
+   * with `{}` when it publishes nothing addressable, which is most of them, and
+   * `olai-plugin-mcp`'s `siblingsOf` leaves those out of the bundle.
    */
   readonly agentRows: () => ReadonlyArray<{
     readonly name: string
     readonly surface: { readonly spec: unknown }
+    readonly resources: Readonly<Record<string, unknown>>
     readonly tools: ReadonlyArray<unknown>
   }>
   /**
-   * ...AND EVERY VERB THIS BUILD HAS, standing or not, under its owner's name.
+   * ...AND A BELL WHEN THE COMPOSED ROSTER MOVES.
    *
-   * The pair is not redundant, and which one a reader wants depends on whether
-   * the question is about the ROSTER or about the BINARY. An MCP adapter takes
-   * its tool record once and dispatches out of it forever, so a verb missing
-   * from that record can never be called however its row comes and goes; the
-   * list an agent is SHOWN is the live half, and that is {@link agentRows}.
-   * `@olai/bundle`'s `tools.ts` argues it at length, and juspay/kolu#2233 is
-   * what collapses the two back into one reading.
+   * A tab learns it from core's `plugins` cell and REDIALS. A face that is not
+   * a wire client has no cell to watch, and a projecting one holds a RESOLVED
+   * table — `serveSurfaceAsMcp` composes the resource URIs and the tool names
+   * once and dispatches out of them — so it has to be handed a new roster in
+   * place (`reroster`) rather than restarted, which would drop every open
+   * subscription for a row it had nothing to do with.
    *
-   * AN EFFECT AND NOT A VALUE, because the registry loads the rows' tables
-   * through a dynamic `import()`: a static one would put every row's verbs and
-   * the whole ops layer behind them into the host's permanent entry closure,
-   * which `@olai/bundle`'s `fence.test.ts` refuses. Read once, where the face
-   * is built.
+   * Rung at the TAIL of a recompose, after every mount, every drop and the
+   * gate, so a listener reading {@link agentRows} sees the generation that has
+   * just been published. Returns its own removal, and a caller registers it on
+   * its scope like everything else here.
    */
-  readonly agentTools: Effect.Effect<ReadonlyArray<{ readonly owner: string; readonly tools: ReadonlyArray<unknown> }>>
+  readonly agentRosterMoved: (run: () => void) => () => void
   /** Static owner declarations remain reserved while an owner is disabled. */
   readonly writeReservations: readonly { readonly key: string; readonly says: string }[]
 }
