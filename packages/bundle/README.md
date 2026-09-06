@@ -78,7 +78,7 @@ Two more doors exist and neither is a graph. They are here because the fence is 
 | door | why it routes through here |
 | --- | --- |
 | `./all.css` | each plugin's stylesheet, chained. A CSS `@import` is a door a plugin's name can be spelled through — the fence reads a `.css` file's imports for exactly that reason — so `@olai/web`'s `styles.css` names this and no tenant. Each sheet carries a `@source` at its own faces, because Tailwind emits only what it can SEE and a component outside the app's scan path renders with **no layout while nothing errors** |
-| `./testids` | each plugin's names-only testid table, merged and asserted **disjoint** ([`src/testids.test.ts`](src/testids.test.ts)) — a spread would resolve a collision silently, and a scenario asserting on the wrong package's element is green about nothing. `@olai/tests` may not name a plugin either, and the door carries no component, so a suite with no browser in it never pulls SolidJS or an emulator |
+| `./testids` | the plugin, shared-renderer and boot testid tables, merged and asserted **disjoint** ([`src/testids.test.ts`](src/testids.test.ts)) — a spread would resolve a collision silently, and a scenario asserting on the wrong package's element is green about nothing. `@olai/tests` may not name a plugin either, and the door carries no component, so a suite with no browser in it never pulls SolidJS or an emulator |
 
 ## The direction is physics
 
