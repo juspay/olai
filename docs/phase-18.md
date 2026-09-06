@@ -12,15 +12,18 @@ Last complete CI: code commit `55b5bee87` passed all 49 checks, including
 1,446 browser scenarios. That result predates the substantial extraction now
 in progress and does not validate the current working tree.
 
-Current integration: `80248fc35` completed full `just ci`: 39 checks passed and
-3 failed. Every unit test passed; the remaining failures were one test-fixture
-type error and the browser resize assertion that treated Chat as the sidebar's
-owner (plus the aggregate browser check). Both are corrected and verified
-locally. The final integrated patch awaits a complete green CI run.
+Current integration: `7df53a64b` completed full `just ci`: 47 checks passed and
+2 failed. All typechecks and unit tests passed; the sole browser failure was
+initial font loading racing the request recorder (plus the aggregate check).
+The corrected font/theme group passes all nine scenarios and 52 steps.
+Final review also closed loader admission while owner cleanup drains and
+revoked retained MCP credentials at ticket release, including delayed tool
+writes and provider reactivation. Their regression groups pass. The integrated
+repair awaits a complete green CI run.
 
 GitHub CodeQL also flagged case-sensitive script extraction in the theme asset
 test. The regex is corrected and both first-paint tests pass. GitHub CodeQL
-passed on `29b1db404`, `f46e31fe4` and `80248fc35`, reporting no new alerts
+passed on `29b1db404`, `f46e31fe4` `80248fc35` and `7df53a64b`, reporting no new alerts
 in the PR’s changed code.
 
 ## CI repair batch
