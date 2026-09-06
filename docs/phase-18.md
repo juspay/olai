@@ -8,6 +8,11 @@ Checked items describe implemented work or specific passing coverage. A plugin
 with remaining unchecked items is not fully extracted. All acceptance items must
 be complete before this PR is ready to merge.
 
+Current validation: `just ci` at code commit `55b5bee87` passed all 49 checks,
+including 1,446 browser scenarios across six shards. Subsequent documentation
+updates record those results; the unchecked extraction and investigation items
+below remain required.
+
 ## Runtime, locations and loading
 
 - [x] Implement scope-owned locations with only `root` permanent, late owners,
