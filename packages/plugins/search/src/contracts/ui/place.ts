@@ -25,7 +25,7 @@
  * satisfy a function that reads none of them.
  */
 
-import type { NodeHit } from "@olai/surface"
+import type { NodeHit } from "@olai/format"
 
 export const nodePlace = (hit: Pick<NodeHit, "file" | "path">): string =>
   hit.path.length === 0 ? hit.file : [...hit.path].reverse().join(" · ")

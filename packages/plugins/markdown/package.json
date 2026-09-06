@@ -12,7 +12,8 @@
     "./assets": "./src/assets.ts",
     "./surface": "./src/surface.ts",
     "./testids": "./src/testids.ts",
-    "./client": "./src/client.ts"
+    "./client": "./src/client.ts",
+    "./wire": "./src/wire.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -45,7 +46,8 @@
       "./contract",
       "./testids",
       "./surface",
-      "./client"
+      "./client",
+      "./wire"
     ]
   }
 }

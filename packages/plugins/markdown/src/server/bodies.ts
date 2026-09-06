@@ -17,7 +17,7 @@
  *     whether it ends by a tab navigating, a socket dropping or a one-shot
  *     reader taking its frame and leaving.
  *   - {@link Bodies.unread} — paths whose body is not on the wire
- *     (`./published.ts`'s `unread`), from the two moments that produce them: a
+ *     (`../wire.ts`'s `documentProjection`, whose `unread` is the list), from the two moments that produce them: a
  *     reader that has just subscribed to a key the set holds a path and no text
  *     for, and a published revision naming the bodied files that changed. The
  *     ones somebody HOLDS are read; the rest are not touched, so a `git pull`

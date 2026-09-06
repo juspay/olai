@@ -15,7 +15,7 @@
 
 import { type Accessor, createMemo } from "solid-js"
 
-import { type InboxHeld, NO_INBOX } from "@olai/surface"
+import { type InboxHeld, NO_INBOX } from "@olai/format"
 
 import { client } from "./client.ts"
 

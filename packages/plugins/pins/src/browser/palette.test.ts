@@ -9,7 +9,7 @@
  * called.
  */
 
-import { NO_PINS, type Shelf } from "@olai/surface"
+import { NO_PINS, type Shelf } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { pinItem } from "./palette.ts"

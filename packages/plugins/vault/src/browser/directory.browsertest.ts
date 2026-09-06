@@ -40,7 +40,7 @@ import { expect, test } from "bun:test"
 import { type Accessor, createRoot, createSignal, untrack } from "solid-js"
 
 import type { BrokenFile } from "@olai/format"
-import type { Head, Manifest } from "@olai/surface"
+import type { Head, Manifest } from "../wire.ts"
 import type { CollectionFoldOptions } from "@kolu/surface/solid"
 import type { CollectionDelta } from "@kolu/surface/define"
 

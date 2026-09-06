@@ -1,8 +1,19 @@
+/**
+ * WHAT A TYPED NAME MEANS AT A DOOR — the half of `+ New outline` that is a
+ * string and a suffix rather than a dialog.
+ *
+ * It was `@olai/web`'s `client/file/completing.test.ts`, the last plugin-owned
+ * claim left in that package's `file/` directory after the door itself became
+ * this row's. A general package spelling `olai-plugin-files` is what
+ * `@olai/bundle`'s `fence.test.ts` holds an equality against, and a test file
+ * spells a name the same way an implementation does.
+ */
+
 import { expect, test } from "bun:test"
 
 import { DOCUMENT_EXT } from "@olai/format"
 
-import { meantAt } from "olai-plugin-files/completing"
+import { meantAt } from "./completing.ts"
 
 // THE BUG THIS IS WRITTEN AGAINST: a person typed `Foo` into `+ New outline`
 // and got the wire's paragraph about relative `.olai` paths back. A door knows

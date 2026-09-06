@@ -9,10 +9,10 @@ The entry owns `sidebar.entry` and `sidebar.section`. Contributions to these
 locations wait while the sidebar or layout is absent and reactivate when their
 owner returns. Their plugins' independent work remains mounted.
 
-The column and rail implementations live here. Their notebook readings, file
-creation controls, and preferences still consume web implementations during the
-remaining content and navigation extraction; this is not yet the final generic
-sidebar boundary.
+The column and rail implementations live here, and nothing else does: what this
+package reaches for outside itself is a layer token and the slot runtime, both
+`@olai/web`'s. The readings, the file creation controls and the preference rows
+drawn inside the column belong to the plugins that contribute them.
 
 The container declares `sidebar.regions`, `sidebar.rail` and `sidebar.vault`.
 Files, pins, capture and trash occupy these locations independently. Sidebar

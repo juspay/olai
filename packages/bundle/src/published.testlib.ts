@@ -84,10 +84,41 @@ import {
 import { seeded } from "@olai/format/testlib"
 import { decodedVault } from "@olai/format/testlib/scope"
 import type { Snapshot } from "@olai/store"
-import type { DocumentEntry, Head } from "@olai/surface"
+import { type DocumentEntry, documentProjection } from "olai-plugin-markdown/wire"
+import { type OutlineEntry, outlineProjection } from "olai-plugin-outlines/wire"
+import { type Head, headProjection } from "olai-plugin-vault/wire"
 import { Result } from "effect"
 
-import type { Change, Published } from "@olai/surface/projection"
+import type { Change } from "@olai/surface/projection"
+
+/**
+ * THE THREE COLLECTIONS AT ONE REVISION, which is a shape only this package can
+ * hold.
+ *
+ * It used to be `@olai/surface`'s `Published`, built by a `publishedOf` in the
+ * same general package — the monolith's projection, one pass over the set
+ * producing `outlines`, `documents` and `heads` together. Those are three
+ * separate rows' members now and each row builds its own
+ * ({@link outlineProjection}, {@link documentProjection},
+ * {@link headProjection}), so nothing in production assembles the three. This
+ * suite still needs them together, because what it holds up is a claim about
+ * all three at once, and `@olai/bundle` is the one package entitled to name
+ * three rows: it is the registry, and the fence exempts it for exactly this.
+ *
+ * So the composite is a TEST vocabulary now — declared here, beside the walk it
+ * is differenced against, rather than shipped to every browser that bundles the
+ * general package.
+ */
+export interface Published {
+  readonly outlines: Change<OutlineEntry>
+  readonly documents: Change<DocumentEntry>
+  readonly heads: Change<Head>
+  /** The paths this revision moved whose BODY the set does not keep and which
+   *  something here can read — `markdown`'s own second answer, carried on the
+   *  composite because the walk below produces it too and the two are held to
+   *  the same list. */
+  readonly unread: ReadonlyArray<string>
+}
 
 /** What both sides are: a revision, and the revision the wire is holding.
  *  `null` is the first one. */
@@ -95,6 +126,34 @@ export type Projection = (
   snapshot: Snapshot<Reading>,
   published: Published | null,
 ) => Published
+
+/**
+ * THE THREE ROWS' PROJECTIONS RUN AS ONE, which is what the monolith's
+ * `publishedOf` was and what this side of the differential now is.
+ *
+ * The census each row carries between revisions ({@link headProjection}'s
+ * `Projection.files`) is not threaded through {@link Published}, and it does not
+ * have to be: `heads` is the collection that holds EVERY served file, so the
+ * keys of the revision the wire is holding ARE that census. Reading it back out
+ * here rather than storing it beside the changes keeps this composite the same
+ * shape the walk produces, which is the whole requirement of a differential —
+ * a reference that had to carry the projection's own bookkeeping would be a
+ * reference shaped by the thing under test.
+ *
+ * ONE CENSUS FOR ALL THREE, exactly as the monolith computed `complete` once
+ * for all three: the three rows read the same directory at the same revision,
+ * so a departure the store could not name is a departure for each of them.
+ */
+export const publishedOf: Projection = (snapshot, published) => {
+  const files = published === null ? undefined : new Set(published.heads.entries.keys())
+  const documents = documentProjection(snapshot, files && { files, change: published!.documents })
+  return {
+    outlines: outlineProjection(snapshot, files && { files, change: published!.outlines }).change,
+    documents: documents.change,
+    heads: headProjection(snapshot, files && { files, change: published!.heads }).change,
+    unread: documents.unread,
+  }
+}
 
 /** The three collections, by name — every counter, transcript and mutant here
  *  is per-collection, and naming them once is what keeps the three from being

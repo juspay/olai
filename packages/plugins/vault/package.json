@@ -20,7 +20,8 @@
     "./errors/Broken.tsx": "./src/browser/errors/Broken.tsx",
     "./surface": "./src/file-surface.ts",
     "./client": "./src/client.ts",
-    "./errors/Report.tsx": "./src/browser/errors/Report.tsx"
+    "./errors/Report.tsx": "./src/browser/errors/Report.tsx",
+    "./wire": "./src/wire.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -54,7 +55,8 @@
       "./errors/Broken.tsx",
       "./surface",
       "./client",
-      "./errors/Report.tsx"
+      "./errors/Report.tsx",
+      "./wire"
     ]
   }
 }

@@ -1,6 +1,17 @@
+/**
+ * ONE OP, ONE PROMISE, ONE WORDING — the sentence the Trash asks before it
+ * moves anything, held as arithmetic over what the write actually touches.
+ *
+ * It was `@olai/web`'s `client/trash/question.test.ts`, a directory holding a
+ * test and nothing else: the module it reads became this row's when the Trash
+ * did, and the test stayed behind naming `olai-plugin-trash` from a general
+ * package. `@olai/bundle`'s `fence.test.ts` holds that equality, and a bench is
+ * not exempt from it.
+ */
+
 import { expect, test } from "bun:test"
 
-import { trashQuestion, emptyQuestion } from "olai-plugin-trash/questions"
+import { emptyQuestion, trashQuestion } from "./question.ts"
 
 test("one row, named, with nothing under it: the singular all the way through", () => {
   expect(trashQuestion({ kind: "row", title: "pick the knobs" }, 0)).toBe(

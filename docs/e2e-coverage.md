@@ -3,8 +3,10 @@
 Kolu PR #2228 removes the wire-driven app rebuild. The existing document lifecycle
 case checks that an unrelated journal toggle retains the actual editor DOM
 element, followed by a successful save. Cleanup, caret restoration and undo
-cases toggle chat to exercise a real provider removal. The router and undo stack
-now live in App; the remount snapshot/restore store and undo hoist are removed.
+cases toggle chat to exercise a real provider removal. The router is navigation's
+(`plugins/navigation/src/router.tsx`, composed by the frame as `RouterProvider`)
+and the undo stack is `@olai/edit-history`'s; the remount snapshot/restore store
+and undo hoist are removed.
 Other pane and conversation stores still serve navigation and provider changes.
 
 The identity lifecycle scenario changes proxy headers before a journal surface

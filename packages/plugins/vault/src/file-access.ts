@@ -9,10 +9,11 @@ import type { Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import { surface, faces } from "./file-surface.ts"
 
-import { headProjection, type Projection } from "@olai/surface/projection"
-import type { Head } from "@olai/surface"
+import type { Projection } from "@olai/surface/projection"
+import { headProjection } from "./wire.ts"
+import type { Head } from "./wire.ts"
 import { NOTHING_WRONG } from "@olai/format"
-import { LOADED, type Manifest } from "@olai/surface"
+import { LOADED, type Manifest } from "./wire.ts"
 
 export default definePlugin({
   name: "file-access", needs: [Directory, Vault, Surfaces],

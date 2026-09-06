@@ -4,7 +4,7 @@
  * back into the host. */
 import { OpFailure } from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
-import { SearchAnswer, SearchRequest } from "@olai/surface"
+import { SearchAnswer, SearchRequest } from "@olai/format"
 export const surface = defineSurface({
 streams: {
 /** An open search follows vault revisions until its query is dismissed. */

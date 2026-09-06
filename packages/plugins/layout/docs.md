@@ -11,10 +11,11 @@ disabled through the panel, use the authorized non-UI plugin-management
 interface or restart with the desired selection to restore the UI.
 
 The frame and header implementations live in this plugin; `web/App.tsx` and
-`web/AppHeader.tsx` are removed. The frame still composes navigation, outline
-and document providers through implementation imports from web. Those providers
-and the remaining shell components must move to independent capabilities and
-owned locations before this is the completed replaceable shell boundary.
+`web/AppHeader.tsx` are removed. The two providers the frame composes are
+navigation's — `RouterProvider` in `Frame.tsx` and `PaneProvider` in
+`pane/Panes.tsx`, both imported from `olai-plugin-navigation` — and it composes
+no outline or document provider of its own. What it takes from `@olai/web` is
+leaf rendering and connection utilities, never a feature implementation.
 
 The root entry's integration owns visual-viewport and breakpoint listeners,
 layout preference subscriptions, and the Solid effect publishing panel/sidebar

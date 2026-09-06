@@ -4,7 +4,7 @@
  *
  * ONE module owns `client().collections.documents`, and that is the point of it
  * being one. The member is served `keys` + `get` with no `deltas`
- * (`@olai/surface`), so a plain `.use()` — which opens the key stream AND a
+ * (`../../wire.ts`), so a plain `.use()` — which opens the key stream AND a
  * value stream per key — would pull every `.md` body in the directory onto the
  * first paint, which is the defect `snapshot-scale` removed. That rule is
  * enforceable only where the member is reached, so the member is reached here
@@ -49,7 +49,7 @@
  * the same reason the router is a context.
  */
 
-import type { DocumentEntry } from "@olai/surface"
+import type { DocumentEntry } from "../../wire.ts"
 
 import type { Ready } from "./ready.ts"
 import {
@@ -71,7 +71,7 @@ import { client } from "olai-plugin-markdown/client"
  * page has anything to draw from.
  *
  * The wire's entry admits `text: null` — the server saying it holds this file's
- * PATH and not its body (`@olai/surface`'s `DocumentEntry`: a `.html`, whose
+ * PATH and not its body (`../../wire.ts`'s `DocumentEntry`: a `.html`, whose
  * bytes no longer sit in the served set). ONE frame really carries it, and this
  * fold is what makes that harmless: a body ASKED FOR arrives as a body (the
  * server answers a per-key `get` with nothing at all until it has read the

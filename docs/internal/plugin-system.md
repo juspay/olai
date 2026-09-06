@@ -425,14 +425,17 @@ it. The stored value is still a fact somebody greps and edits.
 `chrome` is a slot in the header bar — kolu's padi pill. `mount` is the plugin's
 own half of the tab: **one** subscription however many rows draw. Both are
 components the plugin owns; the app hands them its own *furniture* (the clock, the
-pill's geometry, a popover, a link to a served file) so a plugin never imports
-`@olai/web`, which would be a cycle.
+pill's geometry, a popover, a link to a served file) rather than making each
+plugin build its own. `@olai/web` is the direction a plugin may import — boot,
+build and the shared primitives, and no face of its own — and the arrow that
+would be a cycle is the other one: no production module under `@olai/web` names
+a plugin, so the host never learns what is hanging in a slot in order to draw it.
 
 `app.header` (the slot `chrome` became) takes a **placement word** as well as a
 face: `cluster` is the standing row of pills, desktop only, after the connection
 state; `lead` is the one seat ahead of them, drawn on a phone too, that may
 shrink to nothing before any pill loses a character. What each word MEANS is the
-shell's — `plugins/layout/src/Header.tsx` spends it, `client/plugins/Chrome.tsx` reads the
+shell's — `plugins/layout/src/Header.tsx` spends it, `plugins/layout/src/Chrome.tsx` reads the
 slot twice — and a plugin cannot spell an ordering of its own. It arrived with
 the search box (`olai-plugin-search`), which has always been that seat and has
 always had a phone arm, and it is the same small vocabulary `sidebar.entry`
@@ -842,7 +845,7 @@ process: no settings file, no edit to `olai.yml`, nothing in the state home, and
 restart comes back to the flag, the nix option and the rows' own defaults (the
 human, 2026-09-04 — with `--dump-config` dropped in the same ruling, because the
 panel is the table, and no CLI verb against a running serve, because the flag is
-the boot-time way). `faces.ts` names the member on BROWSER and nowhere else, and
+the boot-time way). `packages/bundle/src/faces.ts` names the member on BROWSER and nowhere else, and
 `faces.test.ts` pins the agent face as an exact set, so an agent cannot turn a
 plugin off — the same physics that kept `chat.scope` off it.
 
@@ -1149,7 +1152,7 @@ names the file.
 
 | File | Holds |
 | --- | --- |
-| `packages/bundle/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — a plugin imports the INTERFACE and never the REGISTRY, and does import the interface — the services door pulls no browser face — and `packages/plugins/` holds the tenants and nothing else, both directions |
+| `packages/bundle/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — a plugin imports the INTERFACE and never the REGISTRY, and does import the interface — the services door pulls no browser face — and `packages/plugins/` holds the plugins and nothing else, both directions |
 | `scripts/prove-fence.sh` | the fence and the mechanics lint go RED when they should. Not a `just check` leg: it mutates tracked files and puts them back, and `check` runs its legs in parallel. Run it when the fence CHANGES — a sweep's one failure mode is going quiet, and a fence that stopped running looks exactly like a fence that is holding |
 | `packages/bundle/src/mechanics.test.ts` | olai names no wire mechanic the framework performs |
 | `packages/bundle/src/tree.testlib.ts` | not a claim — the READING both of the above stand on (workspace members, manifests, sources, the module graph). Split out so the two files above are their claims and nothing else, and so the source walk is written once |
@@ -1228,7 +1231,7 @@ when it returns, and one delivery reaching a node agent's own conversation
 through `Deliveries` — with the key appearing on and disappearing from
 `plugins.inspect` as the journal moves. The worked example it is a near-copy of
 is in [plugins the vault defines](../dynamic-plugins.md#a-worked-example-the-morning-agenda),
-compiled from the page itself by `@olai/server`'s `dynamic/worked.test.ts`.
+compiled from the page itself by `olai-plugin-vault-plugins`' `worked.test.ts`.
 
 ### Vault provider
 

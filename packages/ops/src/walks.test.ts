@@ -32,7 +32,7 @@
  * BY WRAPPING WHAT THE ANSWER IS MADE OF rather than by instrumenting the
  * answer: the derivation's by-file grouping and the set's document list are
  * handed over as counting proxies, so what is measured is records and paths
- * TOUCHED — the same trick `@olai/server`'s published bench plays with `Map`,
+ * TOUCHED — the same trick `@olai/bundle`'s published bench plays with `Map`,
  * and for its reason. An arm that had to be told it was being measured would be
  * measuring something else.
  */

@@ -12,7 +12,7 @@ Nothing. It is on by default, like chat and the appliances. Two things take it a
 
 ```
 olai web ~/outlines                                  # the pill, as always
-olai web ~/outlines --plugins=vault,chat,kolu,odu,ws,web-app,mcp,ui-renderer,layout          # writes land, recorded by nobody
+olai web ~/outlines --plugins=vault,chat,kolu,odu,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector          # writes land, recorded by nobody
 ```
 
 The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag. Switched off at the panel, the pill leaves while you are watching, and `ops.commit` refuses in words.
@@ -41,9 +41,9 @@ They are on the browser face. The MCP tools an agent calls are still named `comm
 
 ## Where it hangs in the tab
 
-| seat | what the shell keeps | what git brings |
+| seat | who declares it, and what they keep | what git brings |
 | --- | --- | --- |
-| `app.header` | where in the bar cluster a readout sits | the Commit pill |
-| `app.mount` | the fold that wraps the page | the phone banner (news only) |
+| `app.header` | `layout` — where in the bar cluster a readout sits | the Commit pill |
+| `app.banner` | `layout` — where a banner sits over the page | the phone banner (news only) |
 
 The panel travels with the pill, portalled against the viewport, the way it always did.

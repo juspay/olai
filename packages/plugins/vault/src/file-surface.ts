@@ -5,7 +5,7 @@
 import { NOTHING_WRONG, Verdict } from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
-import { Head, Manifest } from "@olai/surface"
+import { Head, Manifest } from "./wire.ts"
 const sameSet = (a: Manifest, b: Manifest): boolean => (a === null) === (b === null)
 export const surface = defineSurface({
 cells: {
@@ -78,7 +78,7 @@ collections: {
      * a file the directory holds is a file the sidebar stops listing, and a
      * bodied file's head is always here to open its body against. Every slice
      * is cut in one function, from one binding of one list, through one `keyOf`
-     * (`@olai/server`'s `published.ts`, where that is spelled out and asserted)
+     * (`./wire.ts`'s `headProjection`, where that is spelled out and asserted)
      * — so breaking it takes an edit rather than a drift.
      *
      * Read-only on the wire, like every other file-shaped member: what a head

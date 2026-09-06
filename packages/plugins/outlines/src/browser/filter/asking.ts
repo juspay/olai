@@ -99,7 +99,7 @@ import { type Accessor, createEffect, createMemo, createSignal } from "solid-js"
 
 import type { Filter, NarrowingAnswer, NarrowingRequest, PageRequest } from "@olai/format"
 import { sameNarrowingRequest } from "@olai/format"
-import type { MatchedNode } from "@olai/surface"
+import type { MatchedNode } from "@olai/format"
 
 import { SETTLE_MS } from "@olai/web/client/settled.ts"
 import { client } from "olai-plugin-outlines/client"

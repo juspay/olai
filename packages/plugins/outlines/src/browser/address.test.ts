@@ -15,7 +15,7 @@ import { addressOf } from "@olai/format"
 
 import type { Names } from "olai-plugin-outlines/names"
 import { atElement, atFile, atNode, HOME_ROUTE, hrefOf, routeIn, routeOf } from "olai-plugin-navigation/routes"
-import { ROUTES } from "@olai/web/client/routes.testlib.ts"
+import { ROUTES } from "olai-plugin-navigation/routes.testlib.ts"
 import { requestFor } from "./page.ts"
 import { addressIn, labelIn, nameOf, shownIn } from "olai-plugin-navigation/address/address.ts"
 
@@ -38,10 +38,13 @@ test("an address this app would mint is a pin, whatever page it names", () => {
 // addresses, and which page" — it only decides whether a TITLE is carrying
 // an address at all (the first character, the prose rules, the markdown
 // bracket); the ADDRESS half of every answer is the door's. So it is asked
-// of the SHARED vocabulary — `../routes.testlib.ts`'s table, the same one
-// the bijection is held to: a new computed page is this test's the day it is
-// the bijection's, and a new file kind the day the registry claims it —
-// instead of being asked of a hand list that could rot beside it. A
+// of the SHARED vocabulary — `olai-plugin-navigation/routes.testlib.ts`'s
+// table, the same one the bijection is held to: a new computed page is this
+// test's the day it is the bijection's, and a new file kind the day the
+// registry claims it — instead of being asked of a hand list that could rot
+// beside it. It reached that table through `@olai/web` until the table moved
+// to the row that owns the grammar, which is why the door is a declared
+// contract of that row rather than a path into it. A
 // recognizer grown back inside a title reader diverges from the markdown
 // LINK readers (`../router.tsx`) the day a page moves, and this test names
 // the exact spelling where.

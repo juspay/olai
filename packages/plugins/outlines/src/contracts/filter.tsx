@@ -31,7 +31,7 @@ import { createContext, type JSX, useContext } from "solid-js"
 
 const NO_NEEDLES: ReadonlyArray<string> = []
 import type { Accessor } from "solid-js"
-import type { MatchedNode } from "@olai/surface"
+import type { MatchedNode } from "@olai/format"
 
 /**
  * The three parts of the page's reading (`./narrowing.ts`) that a ROW asks for:

@@ -16,8 +16,20 @@
  * THE LIST IS THE SURFACE, and it is deliberately a list and not a layer:
  * every name below lives in the module that owns it, unchanged — a spelling
  * of it here would be the contract-kept-by-memory this door exists to end.
- * Note the suffix is shared with a different tool: `client/frame.testlib.ts`
- * and its siblings build fixtures for THIS package's own suites and are
+ *
+ * ...AND EVERY NAME BELOW IS THIS PACKAGE'S OWN OR A FLOOR'S, which is the
+ * newer half of the rule and the one that shrank the list. A line here that
+ * re-exported a PLUGIN's constant was doing something a curated list cannot
+ * make safe: five of them put `olai-plugin-files`, `olai-plugin-chat`,
+ * `olai-plugin-layout` and `olai-plugin-outlines` in a general package's
+ * manifest and on this door's import graph, for thirteen strings the suite
+ * could ask the rows it is already driving. The rule is `@olai/bundle`'s
+ * `fence.test.ts`: no general package names a plugin, held as an EQUALITY per
+ * package, and `web`'s entry is `[]` in both of its tables. Where those five
+ * lines went is the last section.
+ *
+ * Note the suffix is shared with a different tool: `client/preference.testlib.ts`
+ * builds fixtures for THIS package's own suites and is
  * exported nowhere. Nothing the browser suite needs built is here because it
  * builds nothing in the client — it drives one, through a browser.
  *
@@ -40,10 +52,12 @@
 //
 // A `data-testid` is a contract between two packages that never otherwise
 // meet (testids.ts's opening paragraph): renamed, it compiles on both sides
-// and fails as a bare timeout. The small tables below it are the same kind
-// of fact one level up — what one KIND of file's row, one minting DOOR or
-// one WAY of referring is called to a test — each a single decision that a
-// projection spelled at a call site would drift from.
+// and fails as a bare timeout. What is left here is the READER of that
+// contract rather than any table of names: `selector` is how a step turns an
+// id into a query, and it is this package's because the attribute is. The
+// tables it reads — which row one KIND of file draws, what one minting DOOR
+// is called — belong to the rows that own those ids, and a step asks them
+// directly (the last section).
 
 export { selector } from "./client/testids.ts"
 // The other name of that kind, and the only one that is not a testid: the
@@ -52,8 +66,6 @@ export { selector } from "./client/testids.ts"
 // approximating — and `client/quiescence.ts` is where the contract is: what
 // holds the count, what deliberately does not, and why.
 export { KEYS_SETTLING } from "./client/quiescence.ts"
-export { ROW_TESTID } from "olai-plugin-files/kinds"
-export { type Making, MAKING_DOCUMENT, MAKING_OUTLINE } from "olai-plugin-files/making"
 
 // ── the CLOCK, and the DEADLINES a wait is measured against ────────────────
 //
@@ -75,22 +87,48 @@ export { LONG_PRESS_MS } from "./client/longPress.ts"
 // markup, so they are imported, which is a type error rather than a timeout
 // the day one is renamed.
 
-export { ALERT_SOUND_KEY, ALERTS_KEY } from "olai-plugin-chat/alert-keys"
-export { SIDEBAR_WIDTH_KEY } from "olai-plugin-layout/preferences"
 export { DEFAULT_THEME, THEME_ATTRIBUTE, THEME_STORAGE_KEY } from "@olai/appearance/palettes.ts"
 export { SIZE_STORAGE_KEY } from "@olai/appearance/sizes.ts"
 export { customProperty } from "@olai/appearance/css.ts"
 
-// ── THREE THAT LEFT WITH THE PANEL ─────────────────────────────────────────
+// ── HOW THE PAGE SAYS ITS PLUGIN MODULES ARRIVED ───────────────────────────
 //
-// `NODE_REF`, `NEAR` and `completingIn` were on this list and are
-// `olai-plugin-chat/testlib`'s now: the transcript, its autoscroll and the
-// composer's trigger are that row's, and a curated list in a general package
-// that re-exported them would be core naming a plugin. The suite reaches them
-// on the plugin's own door, recorded in `@olai/bundle`'s `fence.test.ts` the
-// way kolu's fake padi is.
-
+// The one name that is neither a testid, a deadline nor a stored key: the
+// element id the boot script hands the browser its module map on. A scenario
+// about a plugin arriving or leaving has to find that map, and the id is
+// `@olai/plugin-api`'s because the mount is.
 
 export { BROWSER_MODULES_ID } from "@olai/plugin-api/mount"
 
-export { REFERRINGS, IDLE_COMMIT, DENSITY_KEY, type Density, DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY } from "olai-plugin-outlines/testlib"
+// ── THE NAMES THAT LEFT WITH THEIR ROWS ────────────────────────────────────
+//
+// `NODE_REF`, `NEAR` and `completingIn` went first, when the panel became a
+// row: the transcript, its autoscroll and the composer's trigger are
+// `olai-plugin-chat/testlib`'s, and a curated list in a general package that
+// re-exported them would be core naming a plugin.
+//
+// FIVE LINES FOLLOWED, for the same reason, and they are why nothing above
+// reaches past this package's own `client/`, `@olai/appearance` and
+// `@olai/plugin-api`:
+//
+//   - `ROW_TESTID` is `olai-plugin-files/kinds`' — which row one KIND of file
+//     draws is that row's table;
+//   - `Making`, `MAKING_DOCUMENT` and `MAKING_OUTLINE` are
+//     `olai-plugin-files/making`'s — what a minting door is called is the
+//     door's;
+//   - `ALERT_SOUND_KEY` and `ALERTS_KEY` are `olai-plugin-chat/alert-keys`' —
+//     the panel stores them, so the panel names them;
+//   - `SIDEBAR_WIDTH_KEY` is `olai-plugin-layout/preferences`' — the chrome
+//     that draws the sidebar is the chrome that remembers its width;
+//   - `REFERRINGS`, `IDLE_COMMIT`, `DENSITY_KEY`, `Density`,
+//     `DONE_HIDDEN_KEY` and `DONE_OVERRIDES_KEY` are
+//     `olai-plugin-outlines/testlib`'s.
+//
+// A PASS-THROUGH IS NOT A SMALLER DEPENDENCY THAN AN IMPORT — it is the same
+// edge with this package's name on it. Those five lines carried four of the
+// seven plugin rows this package's manifest declared, for thirteen strings,
+// while its own `//boundary` field claimed it imported none. The suite reaches
+// every one of them on the owning row's door now, which is what the cucumber
+// package is FOR: it drives plugins, so it names them, and `@olai/tests`' rows
+// in `@olai/bundle`'s `fence.test.ts` record each line the way kolu's fake padi
+// is recorded. `web` has no row in that table at all.

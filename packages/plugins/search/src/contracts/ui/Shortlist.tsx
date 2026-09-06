@@ -51,7 +51,7 @@
  */
 
 import type { Signal } from "solid-js"
-import type { NodeHit } from "@olai/surface"
+import type { NodeHit } from "@olai/format"
 import { type Accessor, createMemo, createSignal, Index, onMount, Show } from "solid-js"
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"

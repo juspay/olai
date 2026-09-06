@@ -422,7 +422,7 @@ const heldFor = (set: OutlineSet): Held => {
  * caller (see its header), so a path names a POSITION and this is a binary
  * search over {@link ./paths.ts}'s own comparator rather than a walk of the
  * directory. That matters where it is asked once per file the disk moved
- * — `@olai/server`'s `published.ts` asks it for every path a probe re-decoded,
+ * — `@olai/surface`'s `projection.ts` asks it for every path a probe re-decoded,
  * and a walk there made publishing a `git pull` quadratic in the vault — and it
  * costs the three callers that ask it once nothing at all. It is the SAME
  * comparator the order was made with, which is what makes the search exact:

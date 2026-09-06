@@ -11,7 +11,12 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
-import { SIDEBAR_WIDTH_KEY } from "@olai/web/testlib";
+// THE CHROME THAT DRAWS THE SIDEBAR IS THE CHROME THAT REMEMBERS ITS WIDTH, so
+// the key is the layout row's. It arrived through `@olai/web/testlib` until
+// that pass-through was retired: it made a general package declare
+// `olai-plugin-layout` for one string, against the equality
+// `@olai/bundle`'s `fence.test.ts` holds per package.
+import { SIDEBAR_WIDTH_KEY } from "olai-plugin-layout/preferences";
 import { retypedAndTaken } from "../support/atonce.ts";
 import { countsNothing, foundCount } from "../support/counted.ts";
 import { keysSettled, pressed } from "../support/settling.ts";

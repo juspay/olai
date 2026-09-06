@@ -12,7 +12,7 @@ import { debounce } from "@solid-primitives/scheduled"
 import { createKeyedRoot } from "@kolu/surface/solid"
 import { type Accessor, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 
-import type { NodeHit, Refusal, SearchAnswer, SearchHit } from "@olai/surface"
+import type { NodeHit, Refusal, SearchAnswer, SearchHit } from "@olai/format"
 
 import { SETTLE_MS, type Taking } from "@olai/web/client/settled.ts"
 import { client } from "olai-plugin-search/client"

@@ -30,12 +30,13 @@
     "@olai/edit-intents": "workspace:*"
   },
   "//ws": "Not here any more, and that is the point of serveSurfaceApp: no source in this package names a websocket implementation. `ws` is the hydrated @kolu/surface-app's own peer dependency, declared at the ROOT with the rest of them (bunfig.toml has the argument).",
-  "//devDependencies": "@olai/child is the subprocess socket the process-boundary tests ride (`child.testlib.ts`, `surfaceCli.test.ts`); product spawn is `olai-plugin-chat`'s. `olai-plugin-git/testlib` is the repository builder `headless.test.ts` used to copy, and `olai-plugin-identity/who` is the gravatar hash `identity.test.ts` asserts a chip drew \u2014 one spelling of a URL rather than two, through a door with no Effect and no component in it; the fence carves those two the way it does for `@olai/tests`. Deliberately not a runtime dependency: nothing in the served binary imports it.",
+  "//devDependencies": "@olai/child is the subprocess socket the process-boundary tests ride (`child.testlib.ts`, `surfaceCli.test.ts`); product spawn is `olai-plugin-chat`'s. `olai-plugin-git/testlib` is the repository builder `headless.test.ts` used to copy, and `olai-plugin-identity/who` is the gravatar hash `identity.test.ts` asserts a chip drew — one spelling of a URL rather than two, through a door with no Effect and no component in it; the fence carves those two the way it does for `@olai/tests`. Deliberately not a runtime dependency: nothing in the served binary imports it.",
   "devDependencies": {
     "@olai/child": "workspace:*",
     "@types/node": "^22.0.0",
     "olai-plugin-git": "workspace:*",
     "olai-plugin-identity": "workspace:*",
+    "olai-plugin-markdown": "workspace:*",
     "olai-plugin-mcp": "workspace:*",
     "olai-plugin-vault": "workspace:*",
     "olai-plugin-web-app": "workspace:*"

@@ -1,7 +1,18 @@
+/**
+ * THE PANES, as a value — how many there are, which one is focused, what a
+ * navigation does to the others, and the one URL the whole arrangement is
+ * written to.
+ *
+ * It was `@olai/web`'s `client/workspace.test.ts`, over a module that is this
+ * row's: `@olai/bundle`'s `fence.test.ts` holds an equality that no general
+ * package names a plugin, and the boot package spelled this one twice for a
+ * claim it does not own.
+ */
+
 import { expect, test } from "bun:test"
 
-import type { Route } from "olai-plugin-navigation/routes"
-import { atElement, atFile, atNode, HOME_ROUTE, hrefOf, routeOf } from "olai-plugin-navigation/routes"
+import type { Route } from "./routes.ts"
+import { atElement, atFile, atNode, HOME_ROUTE, hrefOf, routeOf } from "./routes.ts"
 import {
   closeAt,
   closeFocused,
@@ -23,7 +34,7 @@ import {
   splitOf,
   workspaceOf,
   WORKSPACE_PREFIX,
-} from "olai-plugin-navigation/workspace"
+} from "./workspace.ts"
 
 const house: Route = atFile("house.olai")
 const kitchen: Route = atNode("kitchen")

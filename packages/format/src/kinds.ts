@@ -274,7 +274,7 @@ export type NodeKind = {
  *
  * One question, asked by the two ends of the body wire: the server, which reads
  * a body for whoever is holding one open (`@olai/server`'s `bodies.ts`), and
- * the revision that says which paths are owed one (`published.ts`). A `.pdf`
+ * the revision that says which paths are owed one (`olai-plugin-markdown`'s `wire.ts`). A `.pdf`
  * announced as a body somebody could ask for would be a promise to hand back a
  * megabyte of binary decoded as UTF-8, which is not the file and not an error
  * either.
@@ -419,7 +419,7 @@ export const bodyKind = (path: string): BodyKind | null => {
 
 /** The file a path names whose body is TEXT, or `null` — the same move one
  *  question narrower, for the wire that says whose body may be read at all
- *  (`@olai/server`'s `published.ts`). */
+ *  (`olai-plugin-markdown`'s `documentProjection`). */
 export const textKind = (path: string): TextKind | null => {
   const kind = fileKind(path)
   return kind !== null && holdsText(kind) ? kind : null

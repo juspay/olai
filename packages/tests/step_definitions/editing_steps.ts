@@ -32,7 +32,13 @@ import { Then, When } from "@cucumber/cucumber";
 import { MARKS } from "@olai/format";
 
 import { shiftDay } from "@olai/format";
-import { IDLE_COMMIT, isoDayOf } from "@olai/web/testlib"
+import { isoDayOf } from "@olai/web/testlib"
+// HOW LONG THE OUTLINE WAITS BEFORE IT COMMITS is the outline row's number, and
+// a step that asserts "not yet" has to outwait the one the client actually
+// uses. It was re-exported by `@olai/web/testlib`, which put
+// `olai-plugin-outlines` in a general package's manifest for a deadline that is
+// entirely that row's — the equality `@olai/bundle`'s `fence.test.ts` holds.
+import { IDLE_COMMIT } from "olai-plugin-outlines/testlib"
 
 import type { Locator } from "playwright";
 
