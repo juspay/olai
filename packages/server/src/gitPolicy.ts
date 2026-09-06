@@ -34,10 +34,12 @@
 
 import {
   COMMIT_BUTTON,
+  COMMIT_DEFAULT,
   COMMIT_MODES,
   COMMIT_TOOL,
   type CommitMode,
   type GitPin,
+  PUSH_DEFAULT,
   PUSH_MODES,
   type PushMode,
   QUIET_MS,
@@ -175,18 +177,23 @@ export const gitPin = (
  * `--commit` / `--push` AS A PATCH onto the git row's config — the same
  * overlay `--plugins` is onto `disabled`.
  *
- * Only the flags somebody typed: omitted halves stay off the patch, so the
- * plugin's schema folds the built-in default in and the roster draws only
- * what was given. An empty patch is nobody having said, and the row's own
- * `config:` (or none) stands.
+ * A flag overlays the row's own `config:` in olai.yml. Cordis copies a patch
+ * onto the matching field, so a `{ commit: "auto" }` overlay would wipe
+ * `push:` off the row. When anybody typed a flag, the patch is therefore the
+ * WHOLE policy — omitted halves filled from the same defaults the YAML
+ * spells — and an empty patch is nobody having said, so the file stands.
  */
 export const gitConfigPatch = (
   pin: GitPin,
 ): ReadonlyArray<{ readonly id: "git"; readonly config: Record<string, unknown> }> => {
-  const config: Record<string, unknown> = {}
-  if (pin.commit !== null) config.commit = pin.commit
-  if (pin.push !== null) config.push = pin.push
-  return Object.keys(config).length === 0 ? [] : [{ id: "git", config }]
+  if (pin.commit === null && pin.push === null) return []
+  return [{
+    id: "git",
+    config: {
+      commit: pin.commit ?? COMMIT_DEFAULT,
+      push: pin.push ?? PUSH_DEFAULT,
+    },
+  }]
 }
 
 /** The defaults, re-exported beside the flags that decline to apply them — so a

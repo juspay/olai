@@ -42,6 +42,7 @@ Feature: A plugin the vault defines
 
     When I open the plugins panel
     Then the plugins panel says "swatch" is "read the source below and approve it"
+    And the plugins panel groups "swatch" under "Needs you"
     # THE SOURCE TRAVELS, in full, which is why the roster carries it at all:
     # approving is READING, and a panel that asked somebody to say yes to a
     # content hash would be asking them to approve something they cannot see.
@@ -60,6 +61,7 @@ Feature: A plugin the vault defines
     # the roster moves, the tab redials, and it fetches a chunk this serve built
     # out of a note thirty milliseconds ago.
     Then the plugins panel says nothing more about "swatch"
+    And the plugins panel groups "swatch" under "Defined here"
     # ...AND THE FACE DRAWS. The value on that row is `swatch-hex`, which is the
     # plugin's bare word composed with the plugin's own name — claimed by the
     # registration, so it is held to the kind with no declarations file in this

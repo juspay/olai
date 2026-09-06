@@ -134,30 +134,23 @@ import {
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
 import { PANEL_BOX } from "@olai/web/client/readout.ts"
 import { run } from "@olai/web/client/run.ts"
-import { Segmented } from "@olai/ui-primitives/Segmented.tsx"
-import { Row } from "@olai/ui-primitives/SettingRow.tsx"
+import { TESTID as PRIMITIVE } from "@olai/ui-primitives/testids.ts"
 
 import type { BrowserManagement } from "@olai/surface/management"
 import type { InspectorState } from "./state.ts"
+import { Switch } from "./Switch.tsx"
 
 import {
   type PluginPick,
+  groupCount,
   pluginConfig,
-  pluginHint,
-  browserHint,
+  pluginConfirm,
+  pluginGroups,
   pluginRows,
   pluginsStarted,
   pluginSwitch,
+  rowCopy,
 } from "./rows.ts"
-
-/** The two words a plugin's strip can read. LIVE in both directions now: a row
- *  that is off can be started and a row that is running can be stopped, and the
- *  one that will not come back keeps its strip drawn — see `./rows.ts`'s
- *  `pluginSwitch` for why the failed row is not the exception it looks like. */
-const PLUGIN_CHOICES = [
-  { value: "off", label: "Off" },
-  { value: "on", label: "On" },
-] as const
 
 export function Panel(props: {
   readonly state: InspectorState
@@ -180,6 +173,16 @@ export function Panel(props: {
   const roster = props.management.roster()
   const plugins = (): PluginRoster => roster() ?? NO_ROSTER
   const rows = () => pluginRows(plugins())
+  const groups = () => pluginGroups(plugins(), (name) => props.management.look(name), props.management.reports())
+
+  /** WHICH GROUPS THIS READER HAS OPENED OR SHUT — on inspector state, not
+   *  this component: a switch rebuilds the shell, and a walk that lived here
+   *  would fold back up on the remount. Absent is the YAML default. */
+  const groupOpen = (group: { readonly label: string; readonly collapsed: boolean }): boolean =>
+    props.state.opened()[group.label] ?? !group.collapsed
+  const toggleGroup = (label: string, open: boolean): void => {
+    props.state.setGroupOpen(label, open)
+  }
 
   /** WHOSE PRESS IS STILL IN THE AIR — the row's name, or `null`.
    *
@@ -188,6 +191,9 @@ export function Panel(props: {
    *  and a person who pressed the wrong one should be able to press the right
    *  one without waiting for a settle they did not ask for. */
   const [flipping, setFlipping] = createSignal<string | null>(null)
+  /** WHOSE OFF IS WAITING ON A CONFIRM — carrying or a switchHint. Cleared by
+   *  Keep on, by a different press, and by the settle. */
+  const [confirming, setConfirming] = createSignal<string | null>(null)
 
   /** WHAT THE SERVER WOULD NOT TAKE, or `null` — the same arrangement the
    *  preferences panel keeps for Resume (`../settings/Panel.tsx`), and for the
@@ -205,6 +211,22 @@ export function Panel(props: {
    *  been drawn from could land on the state neither asked for. */
   const set = (name: string, pick: PluginPick): void => {
     if (flipping() !== null || props.management.changing()) return
+    // A switch rebuilds the shell. Remember the group this row sits in so
+    // the remount does not fold a walk the reader was just using — including
+    // a quiet group that started open because it was unhealthy and becomes
+    // collapsed once the flip makes it healthy.
+    const group = groups().find((one) => one.rows.some((row) => row.name === name))
+    if (group !== undefined) props.state.setGroupOpen(group.label, true)
+    if (pick === "off") {
+      const plugin = rows().find((one) => one.name === name)
+      const cost = plugin === undefined ? null : pluginConfirm(plugin, props.management.look(name))
+      if (cost !== null && confirming() !== name) {
+        setConfirming(name)
+        setRefused(null)
+        return
+      }
+    }
+    setConfirming(null)
     setFlipping(name)
     setRefused(null)
     run(
@@ -248,7 +270,7 @@ export function Panel(props: {
   return (
     <section
       ref={props.inside}
-      class={`${PANEL_BOX} gap-4`}
+      class={`${PANEL_BOX} gap-1`}
       style={styleOf(props.at)}
       // Focusable, and never in the tab order: opening puts the caret here so a
       // keyboard is standing IN the panel rather than beside it
@@ -259,62 +281,52 @@ export function Panel(props: {
       data-testid={TESTID.pluginsPanel}
       aria-label="plugins"
     >
-      <For each={rows()}>
-        {(plugin) => {
-          const strip = () => pluginSwitch(plugin, flipping() === plugin.name || props.management.changing())
-          return (
-            <Row
-              label={plugin.name}
-              pref={pluginPref(plugin.name)}
-              // `null` ON THE ORDINARY ROW, which draws no paragraph at all —
-              // and NO `setBy` on any of them: where this serve was started is
-              // one fact for the panel and is at the foot. Neither prop being
-              // passed is why these rows are a name and a switch on one line.
-              hint={[pluginHint(plugin, plugins(), props.management.switchHint(plugin.name)), plugin.running ? browserHint(plugin.name, props.management.reports(), plugin.browserOnly) : null].filter(Boolean).join(" ") || null}
-              under={<>
-                <Config values={pluginConfig(plugin)} />
-                <Show when={plugin.running && [...props.management.reports()].some(([name, report]) =>
-                  (name === plugin.name || name.startsWith(plugin.name + "/")) && report.state === "failed") }>
-                  <Show when={props.management.requiresReload(plugin.name)} fallback={
-                    <button type="button" disabled={props.management.changing()} onClick={() => { void props.management.retry() }}>
-                      Retry browser activation
-                    </button>
-                  }>
-                    <p>Reload to recover this browser module. Save any unfinished edits first.</p>
-                    <button type="button" onClick={() => props.management.reload()}>Reload page</button>
-                  </Show>
-                </Show>
-              </>}
+      <For each={groups()}>
+        {(group) => (
+          <section
+            class="border-b border-rule/55 py-2 last:border-b-0"
+            data-testid={TESTID.pluginGroup}
+            data-section={group.label}
+            data-needs={group.needs ? "true" : undefined}
+            data-collapsed={group.needs || groupOpen(group) ? undefined : "true"}
+          >
+            <Show
+              when={!group.needs}
+              fallback={
+                <>
+                  <div class="mb-1 flex items-baseline justify-between gap-3 text-[0.72rem]">
+                    <span class="font-bold tracking-wide text-alarm uppercase">{group.label}</span>
+                    <span class="text-muted">{group.rows.length}</span>
+                  </div>
+                  <For each={group.rows}>
+                    {(plugin) => <PluginRow plugin={plugin} panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}
+                  </For>
+                </>
+              }
             >
-              <Segmented
-                choices={PLUGIN_CHOICES}
-                value={strip().value}
-                frozen={strip().frozen}
-                onPick={(value) => set(plugin.name, value)}
-              />
-            </Row>
-          )
-        }}
-      </For>
-
-      {/* THE DEFINITIONS, WITH THEIR SOURCE — a block per plugin this VAULT
-          defines, under the rows.
-
-          It is a second walk rather than a slot inside the row above, and the
-          reason is what a row IS: a label, a control, and at most a sentence.
-          What a definition needs beside it is the two halves of its source, in
-          full, because approving one is READING it — which is a paragraph of
-          code and not a hint. The rows stay one line each and this hangs under
-          them. */}
-      <For each={rows().filter((one) => one.source !== undefined)}>
-        {(plugin) => (
-          <Defined
-            plugin={plugin}
-            approving={approving}
-            approve={approve}
-            read={props.state.read().get(plugin.name)}
-            onRead={props.state.nowRead}
-          />
+              <details
+                open={groupOpen(group)}
+                class="group/section"
+                onToggle={(event) => {
+                  const next = event.currentTarget.open
+                  if (next === groupOpen(group)) return
+                  toggleGroup(group.label, next)
+                }}
+              >
+                <summary class="flex cursor-pointer list-none items-baseline justify-between gap-3 py-1 text-[0.8rem] text-muted [&::-webkit-details-marker]:hidden">
+                  <span class="flex items-center gap-1.5">
+                    <span class="inline-block w-2.5 group-open/section:hidden">▸</span>
+                    <span class="hidden w-2.5 group-open/section:inline-block">▾</span>
+                    <span class="text-[0.72rem] font-bold tracking-wide text-ink uppercase">{group.label}</span>
+                  </span>
+                  <span>{groupCount(group.rows)}</span>
+                </summary>
+                <For each={group.rows}>
+                  {(plugin) => <PluginRow plugin={plugin} panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}
+                </For>
+              </details>
+            </Show>
+          </section>
         )}
       </For>
 
@@ -360,27 +372,143 @@ export function Panel(props: {
   )
 }
 
-/** A ROW'S CONFIG, as key/value pairs. Nothing renders nothing — a row with
- *  no config is a name and a switch, and an empty `<dl>` would be a box. */
+function PluginRow(props: {
+  readonly plugin: BuiltPlugin
+  readonly panel: {
+    readonly state: InspectorState
+    readonly management: BrowserManagement
+  }
+  readonly plugins: () => PluginRoster
+  readonly flipping: () => string | null
+  readonly confirming: () => string | null
+  readonly dismissConfirm: () => void
+  readonly set: (name: string, pick: PluginPick) => void
+  readonly approve: (name: string, version: string, forever: boolean) => void
+  readonly approving: () => string | null
+}) {
+  const plugin = (): BuiltPlugin => props.plugin
+  const look = () => props.panel.management.look(plugin().name)
+  const strip = () => pluginSwitch(plugin(), props.flipping() === plugin().name || props.panel.management.changing())
+  const copy = () => rowCopy(plugin(), props.plugins(), look(), props.panel.management.reports())
+  const cost = () => pluginConfirm(plugin(), look())
+  const state = () => pluginState(plugin())
+  const pip = (): "wait" | "fail" | "pending" | null => {
+    const word = state()
+    if (word === "waiting") return "wait"
+    if (word === "failed") return "fail"
+    if (word === "pending") return "pending"
+    return null
+  }
+  return (
+    <div
+      data-testid={PRIMITIVE.prefsRow}
+      data-pref={pluginPref(plugin().name)}
+    >
+      <div class="flex min-h-[1.85rem] flex-wrap items-center justify-between gap-x-3 gap-y-1 py-0.5">
+        <span class="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm text-ink">
+          <Show when={pip()}>
+            {(kind) => (
+              <span
+                class={`size-[0.42rem] shrink-0 rounded-full ${
+                  kind() === "fail" ? "bg-alarm" : kind() === "pending" ? "bg-accent" : "bg-doing"
+                }`}
+              />
+            )}
+          </Show>
+          <span class="shrink-0">{plugin().name}</span>
+          <Config values={pluginConfig(plugin())} />
+        </span>
+        <Switch
+          on={strip().value === "on"}
+          frozen={strip().frozen}
+          onPick={(value) => props.set(plugin().name, value)}
+        />
+      </div>
+      <Show when={copy()}>
+        {(said) => (
+          <p
+            class={`pb-1 text-xs leading-relaxed ${
+              state() === "failed" ? "text-alarm" : state() === "waiting" ? "text-doing" : "text-muted"
+            }`}
+            data-testid={PRIMITIVE.prefsHint}
+          >
+            {said()}
+          </p>
+        )}
+      </Show>
+      <Show when={props.confirming() === plugin().name && cost()}>
+        {(said) => (
+          <div
+            class="mb-1.5 rounded-md border border-alarm/25 bg-alarm/5 px-2.5 py-2"
+            data-testid={TESTID.pluginConfirm}
+          >
+            <p class="mb-2 text-xs leading-relaxed text-ink">{said()}</p>
+            <div class="flex gap-1.5">
+              <button
+                type="button"
+                class="rounded border border-rule px-2 py-0.5 text-xs"
+                data-testid={TESTID.pluginConfirmKeep}
+                onClick={() => props.dismissConfirm()}
+              >
+                Keep on
+              </button>
+              <button
+                type="button"
+                class="rounded border border-alarm/45 px-2 py-0.5 text-xs text-alarm"
+                data-testid={TESTID.pluginConfirmOff}
+                onClick={() => props.set(plugin().name, "off")}
+              >
+                Turn off
+              </button>
+            </div>
+          </div>
+        )}
+      </Show>
+      <Show when={plugin().source !== undefined}>
+        <Defined
+          plugin={plugin()}
+          approving={props.approving}
+          approve={props.approve}
+          read={props.panel.state.read().get(plugin().name)}
+          onRead={props.panel.state.nowRead}
+        />
+      </Show>
+      <Show when={plugin().running && [...props.panel.management.reports()].some(([name, report]) =>
+        (name === plugin().name || name.startsWith(plugin().name + "/")) && report.state === "failed") }>
+        <Show when={props.panel.management.requiresReload(plugin().name)} fallback={
+          <button type="button" disabled={props.panel.management.changing()} onClick={() => { void props.panel.management.retry() }}>
+            Retry browser activation
+          </button>
+        }>
+          <p>Reload to recover this browser module. Save any unfinished edits first.</p>
+          <button type="button" onClick={() => props.panel.management.reload()}>Reload page</button>
+        </Show>
+      </Show>
+    </div>
+  )
+}
+
+/** A ROW'S CONFIG, as chips beside the name. `shrink-0` rather than `min-w-0`:
+ *  two chips on git (`commit auto`, `push auto`) were shrinking to nothing
+ *  inside the squeezed label row, while vault's one chip still fit. */
 function Config(props: {
   readonly values: ReadonlyArray<readonly [string, string]>
 }) {
   return (
     <Show when={props.values.length > 0}>
-      <dl class="mt-1.5 text-xs leading-relaxed text-muted">
+      <span class="flex flex-wrap gap-1">
         <For each={props.values}>
           {([key, value]) => (
-            <div
-              class="flex gap-x-2"
+            <span
+              class="shrink-0 rounded-full bg-pill/55 px-1.5 py-0.5 text-[0.68rem] leading-tight text-muted"
               data-testid={TESTID.pluginConfig}
               data-config={key}
             >
-              <dt>{key}</dt>
-              <dd>{value}</dd>
-            </div>
+              {key} {value}
+            </span>
           )}
         </For>
-      </dl>
+      </span>
     </Show>
   )
 }

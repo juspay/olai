@@ -36,6 +36,7 @@ import {
   COMMIT_MODES,
   NO_PIN,
   policyOf,
+  PUSH_DEFAULT,
   PUSH_MODES,
 } from "@olai/format"
 import { COMMIT_BUTTON, commitDoors, COMMIT_TOOL } from "./gitPolicy.ts"
@@ -61,10 +62,10 @@ test("no flag at all pins nothing, and the server still commits manually", () =>
 
 test("a given flag is a patch onto the git row's config, and an omitted one is not", () => {
   expect(gitConfigPatch(gitPin("auto", false, null))).toEqual([
-    { id: "git", config: { commit: "auto" } },
+    { id: "git", config: { commit: "auto", push: PUSH_DEFAULT } },
   ])
   expect(gitConfigPatch(gitPin(null, false, "auto"))).toEqual([
-    { id: "git", config: { push: "auto" } },
+    { id: "git", config: { commit: COMMIT_DEFAULT, push: "auto" } },
   ])
   expect(gitConfigPatch(gitPin("auto", false, "off"))).toEqual([
     { id: "git", config: { commit: "auto", push: "off" } },

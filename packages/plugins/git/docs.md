@@ -21,7 +21,7 @@ The plugins panel — `⧉` in the header — turns it off and on **while the se
 
 ## The config
 
-`--commit` and `--push` are a CLI patch onto this row's `config:`, the way `--plugins` is a patch onto `disabled`. They are the same flags they were: omitted is the built-in default (`manual` / `off`); a given flag is drawn under the git row on the plugins panel. Turning the plugin off is a different fact from `--commit=off`: off is "no provider mounted", so there is no pill and no tool; `--commit=off` with the row on is a mounted ledger that has been told not to record.
+`--commit` and `--push` are a CLI patch onto this row's `config:`, the way `--plugins` is a patch onto `disabled`. The built-in default (`manual` / `off`) lives on the row in `olai.yml`, so the plugins panel always draws it; a flag overlays those values. Turning the plugin off is a different fact from `--commit=off`: off is "no provider mounted", so there is no pill and no tool; `--commit=off` with the row on is a mounted ledger that has been told not to record.
 
 See [running.md](../running.md#the-git-policy).
 

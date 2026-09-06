@@ -5,6 +5,16 @@ It is a browser-only bundle row. Disabling it removes its header and drawer
 controls; the host keeps managing plugins and its non-UI operations remain
 available.
 
+The panel is grouped, not a flat walk. Bundle rows pick a `section` in
+`olai.yml`; quiet sections start collapsed when every member is running and
+silent. A press on the heading opens one, and that walk lives on inspector
+state — the same place the door's open bit lives — so a roster redraw or the
+rebuild a switch causes cannot slam it shut. Failed, pending and waiting rows sit in **Needs you** first. Plugins
+the vault defines are **Defined here** — they have no YAML section because they
+are not in the YAML; pending ones are Needs you until approved. Ordinary
+running rows are a name and a switch; carrying and a row's `switchHint` are a
+confirm on Off, not a caption on On.
+
 Its provider owns panel visibility and the source versions the reader has
 acknowledged. A separate integration consumes `browser-management` and
 `ui-renderer.slots`, contributing through `layout.tools`. Removing the shell
@@ -15,8 +25,8 @@ activation.
 The host adapter provides roster readings, reports, switching and retry
 without handing over a notebook client or importing this plugin. Cell
 subscriptions are acquired under the consuming component's Solid owner. The
-inspector reads build-supplied switch hints through that capability rather than
-importing the bundle that loads it.
+inspector reads build-supplied section, quiet, opt-in and switch-hint
+facts through that capability rather than importing the bundle that loads it.
 
 Source approval belongs to `vault-plugins`. The inspector calls its optional,
 scoped browser client with the source version the reader acknowledged. If that
