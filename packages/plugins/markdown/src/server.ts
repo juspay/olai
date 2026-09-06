@@ -26,11 +26,16 @@
  * requirement of the mount, not a convenience.
  *
  * `writes: ["surface/ops/run"]` is the same claim on the OTHER axis — which of
- * this row's tags the write reservation covers — and `scopedFaces` names the
- * browser map a second time on purpose: `faces` is what the ROOT alias grants
- * and `scopedFaces` is what the namespaced tag grants, and the agent face is
- * deliberately in only the first. Copying the agent map into `scopedFaces`
- * would advertise a second, namespaced set of the same tools.
+ * this row's tags the write reservation covers.
+ *
+ * `scopedFaces` IS `faces`, and the two used to differ. While the root alias
+ * stood, `faces` granted the SHORT names and `scopedFaces` granted the long
+ * ones, and the agent map was deliberately on the short set alone — putting it
+ * on both would have advertised one tool under two names. The short names are
+ * going, which is #540's last finding and the ruling on it, so the long name
+ * becomes the only name and an agent that may reach `ops.run` at all must
+ * reach it here. The two fields are one grant now, and the pair goes when
+ * `root` does.
  */
 import { definePlugin, Directory, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
 import type { Ops as Gate, Store } from "@olai/ops"
@@ -164,7 +169,7 @@ export default definePlugin({
         ops: { documents: () => gate.documents, document: ({ input }) => gate.document(input), run: ({ input }) => runWrite(gate, input) },
       },
     }
-    yield* (yield* Surfaces).register({ surface, faces, dispatch, writes: ["surface/ops/run"], root: true, scopedFaces: { browser: faces.browser }, deps, published: value => { ctx = value as typeof ctx } })
+    yield* (yield* Surfaces).register({ surface, faces, dispatch, writes: ["surface/ops/run"], root: true, scopedFaces: faces, deps, published: value => { ctx = value as typeof ctx } })
   }),
 })
 

@@ -120,7 +120,7 @@ export const components = { wire: definePlugin({
       },
       procedures: { search: { nodes: ({ input }) => gate.search(input) } },
     }
-    yield* (yield* Surfaces).register({ surface, faces, deps, root: true, scopedFaces: { browser: faces.browser } })
+    yield* (yield* Surfaces).register({ surface, faces, deps, root: true, scopedFaces: faces })
   }),
 }) }
 

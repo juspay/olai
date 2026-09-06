@@ -20,7 +20,7 @@ export default definePlugin({
         ops: { paths: () => gate.paths, run: ({ input }) => runWrite(gate, input) },
       },
     }
-    yield* (yield* Surfaces).register({ surface, faces, dispatch, writes: ["surface/ops/run"], root: true, scopedFaces: { browser: faces.browser }, deps })
+    yield* (yield* Surfaces).register({ surface, faces, dispatch, writes: ["surface/ops/run"], root: true, scopedFaces: faces, deps })
   }),
 })
 

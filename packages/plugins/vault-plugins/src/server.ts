@@ -140,7 +140,7 @@ inspect: () =>
               taken: [...loading.reserved, ...dynamic.names()],
             }))
     } } }
-    yield* (yield* Surfaces).register({ surface, deps, root: true, faces, scopedFaces: { browser: faces.browser } })
+    yield* (yield* Surfaces).register({ surface, deps, root: true, faces, scopedFaces: faces })
     yield* (yield* Offers).own("chunks", () => ({ chunk: dynamic.chunk }))
   }),
 })

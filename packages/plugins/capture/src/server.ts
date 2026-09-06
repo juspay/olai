@@ -39,7 +39,7 @@ export default definePlugin({
         edit: { apply: ({ input }) => applyEdit(gate, input) },
       },
     }
-    yield* (yield* Surfaces).register({ surface, faces, dispatch, root: true, scopedFaces: { browser: faces.browser }, deps, published: value => { ctx = value as typeof ctx } })
+    yield* (yield* Surfaces).register({ surface, faces, dispatch, root: true, scopedFaces: faces, deps, published: value => { ctx = value as typeof ctx } })
   }),
 })
 
