@@ -113,7 +113,6 @@ import {
 askInPalette,
 closePalette,
 dropQuestion,
-openPalette,
 paletteAsking,
 paletteOpen,
 } from "./open.ts"
@@ -427,16 +426,16 @@ export function Palette(props: {
     setSaid(null)
   }
 
-  const close = () => {
-    // The question goes with it, because the question is PART of what the
-    // palette is showing (`./open.ts`) rather than a second thing this
-    // component has to remember to put down.
-    closePalette()
+  const close = closePalette
+  // Navigation can close the palette through its activation-owned shortcut.
+  // Every closing door releases this renderer's query and focus identically.
+  createEffect(on(paletteOpen, (opened) => {
+    if (opened) return
     blank()
     const back = previousFocus
     previousFocus = null
     queueMicrotask(() => back?.focus())
-  }
+  }, {defer:true}))
 
   /** The box, primed with a prefix and the caret after it — what the capture
    *  row does, and what a capture that landed leaves behind for the next line.
@@ -825,11 +824,7 @@ export function Palette(props: {
       }
       if (!match.whileEditing && isEditingTarget(event.target)) return
       event.preventDefault()
-      if (match.action === "palette") {
-        if (paletteOpen()) close()
-        else openPalette()
-        return
-      }
+      if (match.action === "palette") return // Navigation owns this shortcut.
       if (match.action === "sidebar") props.toggleDirectory()
       if (match.action === "panel") togglePanel()
       // Reached only with the caret nowhere — both chords are

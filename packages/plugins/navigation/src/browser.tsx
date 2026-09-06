@@ -17,6 +17,7 @@ import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { createMemo,createRoot,createRenderEffect } from "solid-js"
 import { name,navigation } from "./index.ts"
 import { PageView } from "./PageView.tsx"
+import { followPaletteShortcut } from "./palette/shortcut.ts"
 import { scopePaletteState } from "./palette/open-owner.ts"
 import { Palette,resetPaletteMemory } from "./palette/Palette.tsx"
 import { PaneProvider } from "./pane/context.tsx"
@@ -40,6 +41,7 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
   for(const start of [followKeys, protectComposition, followGhosts]) yield* Effect.acquireRelease(Effect.sync(start),stop=>Effect.sync(stop))
   yield* Effect.acquireRelease(Effect.sync(scopePaletteState),stop=>Effect.sync(stop))
   yield* Effect.acquireRelease(Effect.sync(resetPaletteMemory),()=>Effect.sync(resetPaletteMemory))
+  yield* Effect.acquireRelease(Effect.sync(followPaletteShortcut),stop=>Effect.sync(stop))
   yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{
     const stop=holdRoutePages(createMemo(()=>settleRoutePages(hung("app.route"))))
     return ()=>{dispose();stop()}

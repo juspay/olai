@@ -25,3 +25,10 @@ their observable completion work with alternative layouts too.
 Touch ghost-click suppression belongs to the navigation activation. Disabling
 navigation removes its capture listener and clears an armed gesture; retained
 gesture callbacks cannot rearm the departed owner.
+
+The palette shortcut belongs to navigation's activation, not to the overlay
+component. A shortcut received before layout renders is retained as palette
+state and opens the focused input when its overlay arrives. Closing through
+the shortcut, Escape or a command uses the same renderer cleanup for its query
+and prior focus. Removing navigation releases the shortcut listener; changing
+layout does not create a gap in keyboard handling.

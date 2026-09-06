@@ -12,16 +12,24 @@ Last complete CI: code commit `55b5bee87` passed all 49 checks, including
 1,446 browser scenarios. That result predates the substantial extraction now
 in progress and does not validate the current working tree.
 
-Current integration: `66cbb2705` completed full `just ci`: 47 checks passed and
-2 failed. All typechecks and unit tests passed. The font/theme readiness fix
-passed; the sole underlying failure was a self-refreshing HTML preview seen
-loading the app inside its frame. The assertion sampled between permitted
-restoration attempts; it now requires the terminal empty `about:blank` document.
-A controlled delayed-navigation probe reproduces the old assertion failure
-while the terminal guard passes, and all 50 HTML-preview scenarios pass.
-The correction awaits the next integrated run. Final review's loader-admission and retained-ticket
-revocation regressions also pass, including delayed tool writes and provider
-reactivation.
+Current integration: `8f23978a1` completed full `just ci`: 45 checks passed and
+4 failed. Typechecking and the font/theme and HTML-preview corrections passed.
+One headless process exhausted its existing startup deadline without output;
+the unchanged suite and six concurrent reproductions pass, with no concrete
+startup defect identified. The palette failure screenshot shows the overlay never opened. Navigation's
+shortcut listener previously belonged to that overlay and could miss input
+before layout activation. A controlled layout-withdrawal test fails on the old
+build and passes when navigation owns the shortcut. All 29 startup and palette
+action/write scenarios pass. The original CI interleaving was not traced.
+Each failure also failed its aggregate check. The integrated correction and
+unchanged process test await full CI.
+
+The HTML-preview timing failure is explained by sampling between permitted
+restoration attempts. Its assertion now requires the terminal empty
+`about:blank` document; a delayed-navigation probe reproduces the old failure
+while the terminal guard passes. All 50 HTML-preview scenarios pass.
+Final review's loader-admission and retained-ticket revocation regressions
+also pass, including delayed tool writes and provider reactivation.
 
 GitHub CodeQL also flagged case-sensitive script extraction in the theme asset
 test. The regex is corrected and both first-paint tests pass. GitHub CodeQL
