@@ -1337,4 +1337,3 @@ inspector and renderer-free startup diagnostics explain recovery; neither
 silently discards the document. The live roster remains authoritative over a
 late bootstrap response or failure.
 
-The full acceptance record is [phase-18.md](../phase-18.md).
