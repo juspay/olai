@@ -186,11 +186,13 @@ const withRuntime = <A>(
   )
 }
 
-/** Every CORE member whose answer records WHO asked, as the wire spells them.
- *  Git's sibling commit also records the writer, but only when the git row
- *  minted the tag — this harness mounts no plugins, so the rebound set is
- *  ops.run alone. A LITERAL rather than a derivation, deliberately. */
-const RECORDS_THE_WRITER = ["surface/ops/run"]
+/** The harness mounts the content owners. Both their qualified procedures and
+ * the standalone compatibility alias must record transport-supplied authority.
+ * Keep the expected set literal so omitting a provider's attribution is visible. */
+const RECORDS_THE_WRITER = [
+  "surface/files/ops/run", "surface/markdown/ops/run", "surface/ops/run",
+  "surface/outlines/ops/run", "surface/trash/ops/run",
+]
 
 const OUTLINE = `{"id":"a","ord":"a0","title":"a"}\n`
 /** A row whose parent nothing declares — a MEANING error rather than a syntax
