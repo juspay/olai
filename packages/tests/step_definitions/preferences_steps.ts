@@ -1037,16 +1037,7 @@ Then(
 const rowFor = (world: OlaiWorld, plugin: string) =>
   world.page.locator(`${PLUGINS_PANEL} ${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
 
-/** Quiet groups start collapsed. A scenario that names a row in one has to
- *  open it, or the wait for visible is a wait for a summary. */
-const shownRow = async (world: OlaiWorld, plugin: string) => {
-  const row = rowFor(world, plugin);
-  const group = world.page.locator(`${PLUGINS_PANEL} details`).filter({ has: row });
-  if ((await group.count()) > 0 && (await group.getAttribute("open")) === null) {
-    await group.locator("summary").click();
-  }
-  return row;
-};
+const shownRow = (world: OlaiWorld, plugin: string) => world.showPluginRow(plugin);
 
 /** ...and its sentence, or the empty string where it has none. ABSENT IS NOT AN
  *  ERROR here: a row with nothing to say draws no paragraph at all, so
@@ -1203,13 +1194,39 @@ When(
 );
 
 Then(
+  "the plugins panel group {string} is collapsed",
+  async function (this: OlaiWorld, section: string) {
+    await this.page
+      .locator(
+        `${PLUGINS_PANEL} ${PLUGIN_GROUP}${attr("data-section", section)}${attr("data-collapsed", "true")}`,
+      )
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+When(
+  "I open the plugins panel group {string}",
+  async function (this: OlaiWorld, section: string) {
+    const summary = this.page.locator(
+      `${PLUGINS_PANEL} ${PLUGIN_GROUP}${attr("data-section", section)} > details > summary`,
+    );
+    await this.press(summary);
+    await this.page
+      .locator(
+        `${PLUGINS_PANEL} ${PLUGIN_GROUP}${attr("data-section", section)}:not([data-collapsed])`,
+      )
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
   "the plugins panel groups {string} under {string}",
   async function (this: OlaiWorld, plugin: string, section: string) {
     const row = await shownRow(this, plugin);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const group = this.page
       .locator(`${PLUGINS_PANEL} ${PLUGIN_GROUP}${attr("data-section", section)}`)
-      .filter({ has: row });
+      .filter({ has: this.page.locator(`${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`) });
     try {
       await group.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     } catch {

@@ -221,3 +221,17 @@ Feature: A plugin is turned on and off while the serve runs
     # this line for more than it is.
     And the conversation is in the header
     And there should be no page errors
+
+  @scratch:good
+  Scenario: A quiet group starts collapsed, and a press on its heading opens it
+    # Quiet groups fold when every row is running and silent, so the walk is
+    # the groups that need a person rather than thirty switches. A press on
+    # the heading has to STAY open: the roster is live, and a redraw that
+    # slammed the group shut again would make the walk unusable.
+    When I open the app
+    And I open the plugins panel
+    Then the plugins panel group "Pages" is collapsed
+    And the plugins panel group "This tab" is collapsed
+    When I open the plugins panel group "Pages"
+    Then the plugins panel groups "outlines" under "Pages"
+    And the plugins panel group "This tab" is collapsed

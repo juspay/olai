@@ -175,6 +175,18 @@ export function Panel(props: {
   const rows = () => pluginRows(plugins())
   const groups = () => pluginGroups(plugins(), (name) => props.management.look(name), props.management.reports())
 
+  /** WHICH GROUPS THIS READER HAS OPENED OR SHUT — keyed by the heading, so a
+   *  roster redraw does not slam a quiet group closed under a press that just
+   *  opened it. Absent is the YAML default (`collapsed` on a healthy quiet
+   *  group). The live cell republishes; a controlled `open={!collapsed}` would
+   *  treat every one of those as a command to fold the walk back up. */
+  const [opened, setOpened] = createSignal<Record<string, boolean>>({})
+  const groupOpen = (group: { readonly label: string; readonly collapsed: boolean }): boolean =>
+    opened()[group.label] ?? !group.collapsed
+  const toggleGroup = (label: string, open: boolean): void => {
+    setOpened((prev) => (prev[label] === open ? prev : { ...prev, [label]: open }))
+  }
+
   /** WHOSE PRESS IS STILL IN THE AIR — the row's name, or `null`.
    *
    *  A NAME rather than a boolean, so the freeze lands on the row that was
@@ -273,6 +285,7 @@ export function Panel(props: {
             data-testid={TESTID.pluginGroup}
             data-section={group.label}
             data-needs={group.needs ? "true" : undefined}
+            data-collapsed={group.needs || groupOpen(group) ? undefined : "true"}
           >
             <Show
               when={!group.needs}
@@ -288,7 +301,15 @@ export function Panel(props: {
                 </>
               }
             >
-              <details open={!group.collapsed} class="group/section">
+              <details
+                open={groupOpen(group)}
+                class="group/section"
+                onToggle={(event) => {
+                  const next = event.currentTarget.open
+                  if (next === groupOpen(group)) return
+                  toggleGroup(group.label, next)
+                }}
+              >
                 <summary class="flex cursor-pointer list-none items-baseline justify-between gap-3 py-1 text-[0.8rem] text-muted [&::-webkit-details-marker]:hidden">
                   <span class="flex items-center gap-1.5">
                     <span class="inline-block w-2.5 group-open/section:hidden">▸</span>

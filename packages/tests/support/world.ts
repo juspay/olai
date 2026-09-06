@@ -2181,6 +2181,26 @@ export class OlaiWorld extends World {
     return this.node(id).locator(control).first();
   }
 
+  /**
+   * Quiet groups start collapsed. A scenario that names a row in one has to
+   * open the heading first — the same press a person makes — or the wait for
+   * visible is a wait for a summary.
+   */
+  async showPluginRow(plugin: string): Promise<Locator> {
+    const rowSel = `${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`;
+    const row = this.page.locator(`${PLUGINS_PANEL} ${rowSel}`);
+    // `has` is queried FROM the details, so the inner locator is the row
+    // alone — a page-rooted plugins-panel selector would look for a panel
+    // inside the group and match nothing.
+    const details = this.page
+      .locator(`${PLUGINS_PANEL} ${PLUGIN_GROUP} > details`)
+      .filter({ has: this.page.locator(rowSel) });
+    if ((await details.count()) > 0 && (await details.getAttribute("open")) === null) {
+      await this.press(details.locator("summary").first());
+    }
+    return row;
+  }
+
   /** Press something, and let the render settle.
    *
    *  The gesture is a parameter because it is the only thing a phone scenario
@@ -2270,6 +2290,24 @@ export class OlaiWorld extends World {
       ? await this.intoView(target)
       : first;
     if (before.pressable || !before.pinned) return;
+    // A control inside a `fixed` panel (the plugins drawer, preferences) is
+    // not in the page's scroll. Scrolling the document under a sticky header
+    // cannot uncover it; a reader scrolls the panel. Try that before asking
+    // the page to move, and before calling the press impossible.
+    const overlay = await target.evaluate((el) => {
+      for (let node: Element | null = el; node !== null; node = node.parentElement) {
+        if (getComputedStyle(node).position === "fixed") return true;
+      }
+      return false;
+    });
+    if (overlay) {
+      await target.evaluate((el) => {
+        el.scrollIntoView({ block: "nearest", inline: "nearest" });
+      });
+      await this.waitForFrame();
+      const recovered = await coverOf(target);
+      if (recovered.pressable) return;
+    }
     await this.page.evaluate((by) => window.scrollBy(0, by), before.clearBy);
     await this.waitForFrame();
     const after = await coverOf(target);
