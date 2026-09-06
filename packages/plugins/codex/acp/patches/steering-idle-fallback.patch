@@ -1,0 +1,202 @@
+diff --git a/src/AcpExtensions.ts b/src/AcpExtensions.ts
+index a469d515..f018fcac 100644
+--- a/src/AcpExtensions.ts
++++ b/src/AcpExtensions.ts
+@@ -99,11 +99,17 @@ export async function legacySetSessionModel(
+ export type SessionSteerRequest = {
+     sessionId: SessionId;
+     prompt: ContentBlock[];
++    _meta?: {
++        steering?: {
++            /** Leave idle input unconsumed so the host can own a normal prompt lifecycle. */
++            idleBehavior?: "promptRequired";
++        };
++    };
+ }
+ 
+-export type SessionSteeringResponse = {
+-    outcome: "injected" | "startedNewTurn" | "failed";
+-}
++export type SessionSteeringResponse =
++    | {outcome: "injected" | "startedNewTurn" | "failed"}
++    | {outcome: "promptRequired", reason: "noRunningTurn"}
+ 
+ export type SessionSteeringExtRequest = {
+     method: typeof SESSION_STEERING_METHOD;
+diff --git a/src/CodexAcpServer.ts b/src/CodexAcpServer.ts
+index f94978e4..1679693c 100644
+--- a/src/CodexAcpServer.ts
++++ b/src/CodexAcpServer.ts
+@@ -2,6 +2,7 @@ import * as acp from "@agentclientprotocol/sdk";
+ import {RequestError, type SessionId, type SessionModeState} from "@agentclientprotocol/sdk";
+ import {CodexEventHandler, type CompletedPlan} from "./CodexEventHandler";
+ import {CodexApprovalHandler} from "./permissions/CodexApprovalHandler";
++import {isRecord} from "./permissions/json";
+ import {PermissionLifecycleContext} from "./permissions/lifecycle";
+ import {
+     planImplementationApproved,
+@@ -1195,8 +1196,9 @@ export class CodexAcpServer {
+      * check guards against deleting a queue a later request has since reused).
+      *
+      * @param params The target session id and the prompt to steer with.
+-     * @returns Whether the prompt joined the active turn ("injected"), started a
+-     *     new one ("startedNewTurn"), or could not be applied ("failed"); see
++     * @returns Whether the prompt joined the active turn ("injected"), needs a
++     *     host-owned prompt ("promptRequired"), started a new one
++     *     ("startedNewTurn"), or could not be applied ("failed"); see
+      *     {@link performSteeringRequest}.
+      */
+     async executeOrQueueSteeringRequest(params: SessionSteerRequest): Promise<SessionSteeringResponse> {
+@@ -1234,11 +1236,13 @@ export class CodexAcpServer {
+ 
+     /**
+      * Delivers a steering prompt to the session: injects it into the live turn
+-     * when there is one, otherwise starts a new turn.
++     * when there is one. On an idle race, an opted-in host keeps ownership of
++     * the content; legacy clients retain the adapter-started turn behavior.
+      *
+      * @param params The target session id and the prompt to steer with.
+-     * @returns "injected" when the prompt joined an existing turn, otherwise the
+-     *     outcome of starting a new turn.
++     * @returns "injected" when the prompt joined an existing turn,
++     *     "promptRequired" when the host requested an owned idle fallback, or
++     *     the outcome of starting a legacy fallback turn.
+      */
+     private async performSteeringRequest(params: SessionSteerRequest): Promise<SessionSteeringResponse> {
+         logger.log("Steering session requested", {
+@@ -1256,6 +1260,9 @@ export class CodexAcpServer {
+                 return {outcome: "injected"};
+             }
+         }
++        if (params._meta?.steering?.idleBehavior === "promptRequired") {
++            return {outcome: "promptRequired", reason: "noRunningTurn"};
++        }
+         return await this.startNewTurnFromSteering(params);
+     }
+ 
+@@ -1436,9 +1443,24 @@ export class CodexAcpServer {
+         if (typeof sessionId !== "string" || !Array.isArray(prompt)) {
+             throw RequestError.invalidParams();
+         }
++        const meta = params["_meta"];
++        if (meta !== undefined && !isRecord(meta)) {
++            throw RequestError.invalidParams(undefined, "steering _meta must be an object");
++        }
++        const steering = meta?.["steering"];
++        if (steering !== undefined && !isRecord(steering)) {
++            throw RequestError.invalidParams(undefined, "steering _meta.steering must be an object");
++        }
++        const idleBehavior = steering?.["idleBehavior"];
++        if (idleBehavior !== undefined && idleBehavior !== "promptRequired") {
++            throw RequestError.invalidParams(undefined, "unsupported steering idleBehavior");
++        }
+         return {
+             sessionId: sessionId,
+             prompt: prompt as acp.ContentBlock[],
++            ...(idleBehavior === "promptRequired" ? {
++                _meta: {steering: {idleBehavior}},
++            } : {}),
+         };
+     }
+ 
+diff --git a/src/__tests__/CodexACPAgent/steer-events.test.ts b/src/__tests__/CodexACPAgent/steer-events.test.ts
+index c13a719b..aa4006de 100644
+--- a/src/__tests__/CodexACPAgent/steer-events.test.ts
++++ b/src/__tests__/CodexACPAgent/steer-events.test.ts
+@@ -109,6 +109,23 @@ describe('_session/steering', () => {
+         });
+     });
+ 
++    it('leaves idle input unconsumed when the host requests an owned prompt fallback', async () => {
++        const mockFixture = createCodexMockTestFixture();
++        const sessionState = createTestSessionState();
++        vi.spyOn(mockFixture.getCodexAcpAgent(), "getSessionState").mockReturnValue(sessionState);
++        const turnStartSpy = vi.spyOn(mockFixture.getCodexAppServerClient(), "turnStart");
++        const turnSteerSpy = vi.spyOn(mockFixture.getCodexAppServerClient(), "turnSteer");
++
++        await expect(mockFixture.getCodexAcpAgent().extMethod(SESSION_STEERING_METHOD, {
++            sessionId: "session-id",
++            prompt: [{type: "text", text: "host-owned follow-up"}],
++            _meta: {steering: {idleBehavior: "promptRequired"}},
++        })).resolves.toEqual({outcome: "promptRequired", reason: "noRunningTurn"});
++
++        expect(turnStartSpy).not.toHaveBeenCalled();
++        expect(turnSteerSpy).not.toHaveBeenCalled();
++    });
++
+     it('starts a new turn when Codex reports that the tracked turn is no longer active', async () => {
+         const {mockFixture, sessionState, turnCompleted} = startActiveTurn();
+         const nextTurnCompleted = deferred<TurnCompletedNotification>();
+@@ -152,6 +169,38 @@ describe('_session/steering', () => {
+         });
+     });
+ 
++    it('returns the host-owned fallback when the tracked turn wins the idle race', async () => {
++        const {mockFixture, sessionState, turnCompleted} = startActiveTurn();
++        const turnStartSpy = vi.spyOn(mockFixture.getCodexAppServerClient(), "turnStart");
++        vi.spyOn(mockFixture.getCodexAppServerClient(), "turnSteer").mockImplementation(async () => {
++            turnCompleted.resolve({
++                threadId: "session-id",
++                turn: createTurn("turn-id", "completed"),
++            });
++            throw Object.assign(new Error("Internal error"), {
++                data: {details: "no active turn to steer"},
++            });
++        });
++
++        const promptPromise = mockFixture.getCodexAcpAgent().prompt({
++            sessionId: "session-id",
++            prompt: [{type: "text", text: "long running prompt"}],
++        });
++        await vi.waitFor(() => {
++            expect(sessionState.currentTurnId).toBe("turn-id");
++        });
++
++        await expect(mockFixture.getCodexAcpAgent().extMethod(SESSION_STEERING_METHOD, {
++            sessionId: "session-id",
++            prompt: [{type: "text", text: "racing follow-up"}],
++            _meta: {steering: {idleBehavior: "promptRequired"}},
++        })).resolves.toEqual({outcome: "promptRequired", reason: "noRunningTurn"});
++
++        await expect(promptPromise).resolves.toMatchObject({stopReason: "end_turn"});
++        expect(turnStartSpy).toHaveBeenCalledTimes(1);
++        expect(sessionState.currentTurnId).toBeNull();
++    });
++
+     it('serializes concurrent late steering requests without dropping either prompt', async () => {
+         const mockFixture = createCodexMockTestFixture();
+         const sessionState = createTestSessionState();
+@@ -212,6 +261,16 @@ describe('_session/steering', () => {
+         })).rejects.toThrow(RequestError);
+     });
+ 
++    it('rejects an unsupported idle behavior', async () => {
++        const mockFixture = createCodexMockTestFixture();
++
++        await expect(mockFixture.getCodexAcpAgent().extMethod(SESSION_STEERING_METHOD, {
++            sessionId: "session-id",
++            prompt: [{type: "text", text: "follow-up"}],
++            _meta: {steering: {idleBehavior: "startDetachedTurn"}},
++        })).rejects.toThrow("unsupported steering idleBehavior");
++    });
++
+     it('rejects image input when the model does not support it', async () => {
+         const {mockFixture} = startActiveTurn({supportedInputModalities: ["text"]});
+         const turnSteerSpy = vi.spyOn(mockFixture.getCodexAppServerClient(), "turnSteer");
+diff --git a/src/__tests__/SteeringQueue.test.ts b/src/__tests__/SteeringQueue.test.ts
+index 54b5e63b..3b56c546 100644
+--- a/src/__tests__/SteeringQueue.test.ts
++++ b/src/__tests__/SteeringQueue.test.ts
+@@ -58,7 +58,11 @@ describe("SteeringQueue", () => {
+     });
+ 
+     it("delivers each handler result to its own caller", async () => {
+-        const outcomes: SessionSteeringResponse["outcome"][] = ["injected", "startedNewTurn", "injected"];
++        const outcomes: Array<Exclude<SessionSteeringResponse["outcome"], "promptRequired">> = [
++            "injected",
++            "startedNewTurn",
++            "injected",
++        ];
+         let call = 0;
+         const queue = new SteeringQueue(async () => ({outcome: outcomes[call++]!}));
+ 

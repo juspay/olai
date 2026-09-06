@@ -128,6 +128,9 @@ test("PIN (spawn shape): fingerprints differ when the server would start differe
     spawnFingerprint({ ...base, pi: true }),
   );
   expect(spawnFingerprint(base)).not.toBe(
+    spawnFingerprint({ ...base, codex: true }),
+  );
+  expect(spawnFingerprint(base)).not.toBe(
     spawnFingerprint({ ...base, extraPlugins: "xyne-spaces" }),
   );
   expect(spawnFingerprint(base)).not.toBe(

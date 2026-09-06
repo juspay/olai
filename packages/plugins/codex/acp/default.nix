@@ -30,6 +30,16 @@ buildNpmPackage {
   };
   npmDepsHash = "sha256-df1/kPiZFBEq9Um26Qbo9XaYj2J8BOXQmunCQWquDTo=";
 
+  # Upstream PR #441: a steer that loses the completion race leaves its
+  # message with the host, which owns the next prompt and its completion.
+  patches = [ ./patches/steering-idle-fallback.patch ];
+  doCheck = true;
+  checkPhase = ''
+    runHook preCheck
+    ./node_modules/.bin/vitest run src/__tests__/CodexACPAgent/steer-events.test.ts
+    runHook postCheck
+  '';
+
   nativeBuildInputs = [ makeWrapper ];
 
   postInstall =

@@ -19,3 +19,10 @@ nix build .#codex-agent
 ```
 
 Replace each fake hash with the value its failed fixed-output build reports.
+
+`patches/steering-idle-fallback.patch` backports upstream PR #441 (still open
+on 2026-09-06). With `steering.idleBehavior: "promptRequired"`, a steer that
+arrives after completion leaves its input with Olai, which starts and tracks
+the next prompt. Legacy clients keep upstream's default. The upstream steering
+tests included in the patch run in the Nix build. Recheck the backport when
+bumping the adapter; remove it once the release includes the fix.

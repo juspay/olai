@@ -2097,18 +2097,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * have changed was over — and then a cancel threw it away. Both were the
      * same mistake, and neither is what happens now.
      *
-     * ONE VERB, ONE LANE: it goes out as a plain `session/prompt`, busy or
-     * idle. An idle agent starts on it; a busy one holds it behind the turn it
-     * is working on and gets to it next, in order, which it does itself — this
-     * file keeps no queue and never learns what the agent is busy WITH. That
-     * last part is the whole of the `/compact` fix: a compaction is a turn like
-     * any other from here, so a message sent during one waits for it instead of
-     * tearing it down.
-     *
-     * `steer` is the deliberate exception and the only one — an INTERRUPTION,
-     * asked for by a gesture somebody had to make on purpose
-     * ({@link deliver}). Either way the row is written first and the words are
-     * on screen before anything is on the wire.
+     * Queue-capable agents receive ordinary prompts and hold them in order.
+     * This preserves Claude's `/compact` when another message arrives. Agents
+     * advertising steering without a queue use steering for busy sends; the
+     * explicit gesture also selects steering on queue-capable agents.
+     * The row is published before either delivery path starts.
      */
     const send = (
       text: string,
@@ -2280,17 +2273,12 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // which is the oldest — the ones behind it are waiting at the agent and
         // interrupting a turn that has not started is nothing at all.
         const aimed = turns.head
-        // NOBODY IS INTERRUPTED BY ACCIDENT. Without the gesture this is a
-        // plain prompt, mid-turn or not, and the agent takes it in its turn —
-        // which is what every send did on opencode all along and what every
-        // send does everywhere now. And nobody is interrupted on an agent that
-        // never said it could be, or in a conversation where interrupting
-        // would not END ({@link queuedHere}): both are what the composer drew
-        // its control from, and a send arriving with the flag set anyway — a
-        // stale tab, a tab that queued in another window — falls through to
-        // the plain prompt it was going to be rather than being refused. That
-        // is the safe direction, and the only one this file fails in.
-        if (steer && aimed !== null && advertises.steers && !queuedHere) {
+        // An agent that advertises steering but no prompt queue takes busy
+        // sends through steering. A second ordinary prompt can overwrite its
+        // pending turn (Codex), leaving the first request unanswered forever.
+        // Queue-capable agents retain the explicit interruption gesture.
+        const steeringSend = steer || !advertises.queues
+        if (steeringSend && aimed !== null && advertises.steers && !queuedHere) {
           const steered = yield* Effect.result(agent.steer(prompt))
           if (steered._tag === "Failure") {
             // WHICH failure it was is the agent's reading, not ours: it is the

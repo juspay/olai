@@ -1,5 +1,12 @@
 # Browser coverage audit
 
+Codex busy sends now have dedicated browser coverage in `codex_steering.feature`.
+The fixture rejects overlapping prompts and advertises steering without a queue;
+normal sends must reach the running turn, and completion or cancellation must
+clear both busy indicators. Refused steering preserves the message for retry.
+The adapter build runs upstream PR #441’s steering tests, including the idle
+completion race, so a late steer does not start an untracked background turn.
+
 The MCP startup regression in [#548](https://github.com/juspay/olai/issues/548)
 escaped checks that only asserted HTTP 200 and tool names. Transport lifecycle
 scenarios now require an object input schema on every advertised tool, including
