@@ -60,6 +60,13 @@ stale idle state lets the arriving busy turn close the drawer by policy. All
 12 session-feature scenarios and the existing busy-settings guard pass; no
 application policy or generic send-step semantics were changed.
 
+Chat now tracks outstanding send acknowledgements in its own activation state.
+Session controls close and stay disabled during that interval; the idle
+assertion requires both idle state and no pending send, so a previous idle
+frame cannot advance a new turn. A held-acceptance regression fails before the
+fix and passes afterward. The broader agent, stale-control and ACP group
+passes all 125 scenarios and 1,530 steps; send actions remain nonblocking.
+
 ## CI repair batch
 
 - [x] Bind search results to their actual query across subscription changes;

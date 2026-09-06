@@ -109,3 +109,9 @@ chat alerts provider. Withdrawal detaches permission observers and prevents a
 pending permission request from delivering an old notification; reactivation
 reads the browser's current permission. Each mounted attention circuit also
 owns its first-gesture listeners and audio context, closing them when it leaves.
+
+Session settings close and remain disabled while a send is awaiting acceptance,
+including before the server's working-state update arrives. The pending count
+belongs to this browser activation and clears when each send settles. An idle
+panel with an unacknowledged send does not establish that its new turn finished;
+sequential browser workflows wait for both acceptance and idle.

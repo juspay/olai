@@ -13,10 +13,10 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
   const picker = createInlinePicker({
     opening: () => ({ agent: agentIn(state())?.id, session: state().session?.id }),
   })
-  const disabled = () => pending() || state().status !== "idle" || state().session === null
+  const disabled = () => pending() || props.chat.pendingSends() > 0 || state().status !== "idle" || state().session === null
   createEffect(() => {
     const at = picker.showing()
-    if (at !== undefined && (state().status !== "idle" || at.agent !== agentIn(state())?.id || at.session !== state().session?.id)) {
+    if (at !== undefined && (props.chat.pendingSends() > 0 || state().status !== "idle" || at.agent !== agentIn(state())?.id || at.session !== state().session?.id)) {
       picker.shut()
     }
   })

@@ -656,8 +656,11 @@ Then("the panel does not say it is busy", async function (this: OlaiWorld) {
 });
 
 Then("the agent is idle", async function (this: OlaiWorld) {
+  // A send click returns before its acknowledgement. The previous idle frame
+  // is not evidence that the new turn has finished; require both facts from
+  // the same rendered panel. Sends intentionally remain nonblocking above.
   await this.expectAttribute(
-    CHAT_PANEL,
+    `${CHAT_PANEL}${attr("data-pending-sends", "0")}`,
     "data-status",
     "idle",
     "the agent panel",

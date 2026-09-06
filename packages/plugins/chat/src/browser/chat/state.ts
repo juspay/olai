@@ -51,7 +51,7 @@ import { type Accessor, createEffect, createMemo, createSignal, on } from "solid
 import { chatWire } from "../wire.ts"
 
 import { olai } from "@olai/web/client/wire.ts"
-import { type Call, run } from "@olai/web/client/run.ts"
+import { type Call, run, runAsync } from "@olai/web/client/run.ts"
 import { attaching } from "./attach.ts"
 import { createRows } from "./order.ts"
 import { createTail, grownText } from "./growing.ts"
@@ -98,6 +98,9 @@ export interface Chat {
    *  Separate from `state().trouble`, which is what went wrong where nobody was
    *  waiting: this one belongs to the click that caused it. */
   readonly refused: Accessor<OpFailure | null>
+  /** Sends whose acceptance has not arrived in this tab yet. The old idle
+   * frame cannot make session controls usable while a send is in flight. */
+  readonly pendingSends: Accessor<number>
   /** Say what a whole GESTURE refused, on the same line every other refusal is
    *  said on — or clear that line, when it refused nothing.
    *
@@ -321,6 +324,7 @@ export const createChat = (): Chat => {
    * still in flight.
    */
   const [starting, setStarting] = createSignal(0)
+  const [pendingSends, setPendingSends] = createSignal(0)
 
   /**
    * Where the conversation stands, with this tab's own press folded in.
@@ -402,33 +406,31 @@ export const createChat = (): Chat => {
     lanes: rows.lanes,
     entry,
     refused,
+    pendingSends,
     refuse: (reasons) =>
       setRefused(
         reasons.length === 0
           ? null
           : new UsageFailure({ reason: reasons.join("\n") }),
       ),
-    send: (text, attachments, context, steer) =>
-      new Promise((resolve) => {
+    send: async (text, attachments, context, steer) => {
+      setPendingSends(count => count + 1)
+      try {
         setRefused(null)
-        run(
-          // The flag is spelled only when it is TRUE, which is the wire's own
-          // shape for it: an ordinary send says nothing about interrupting,
-          // the way an ordinary row says nothing about a delivery.
-          chatWire().procedures.conversation.send({
-            scope: state().uploadScope,
-            text,
-            attachments,
-            context,
-            ...(steer === true ? { steer: true } : {}),
-          }),
-          (failure) => {
-            setRefused(failure)
-            resolve(false)
-          },
-          () => resolve(true),
-        )
-      }),
+        const outcome = await runAsync(chatWire().procedures.conversation.send({
+          scope: state().uploadScope,
+          text,
+          attachments,
+          context,
+          ...(steer === true ? { steer: true } : {}),
+        }))
+        if (outcome._tag === "Success") return true
+        setRefused(outcome.failure)
+        return false
+      } finally {
+        setPendingSends(count => count - 1)
+      }
+    },
     // The chunk loop is a composed effect ({@link ./attach.ts}) rather than a
     // verb of its own: what a caller waits for is the path, because it is what
     // the next `send` carries.
