@@ -1,23 +1,25 @@
+import type { Surface, SurfaceSpec } from "@kolu/surface/define"
+import type { AgentBinding } from "./binding.ts"
 import { TOOLS } from "@olai/ops"
-import type { OlaiSurfaceClient } from "@olai/surface/client"
-import { currentLogin, currentTicket, mcpTransport, mcpRoute } from "./route.ts"
+import type { McpClient } from "./client.ts"
+import { currentLogin, mcpTransport, mcpRoute } from "./route.ts"
 import { bespokeFrom, pluginTools } from "./tools.ts"
 /** MCP protocol acquisition belongs to the plugin's activation scope. Core
  * supplies the composed, writer-bound face; this plugin owns the HTTP carrier. */
-import { surface } from "@olai/surface"
-import { type BespokeTool, type ClientOrConnection, serveSurfaceAsMcp } from "@kolu/surface-mcp"
+import { mcpContract as surface } from "./client.ts"
+import { type BespokeTool, type ClientOrConnection, serveSurfaceAsMcp, resolveExpose, toInputSchema, ToolFailure } from "@kolu/surface-mcp"
 import type { ExposeMap } from "@kolu/surface/expose"
+import { ListToolsRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema } from "@modelcontextprotocol/sdk/types.js"
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import type { TransportSurface } from "@olai/plugin-api/transport"
 import { Effect, type Scope } from "effect"
 
-export const endpoint = (shared: TransportSurface) => Effect.gen(function*() {
-  const policy = yield* shared.prepareAgent(currentTicket)
+export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effect.gen(function*() {
   const transport = mcpTransport()
   yield* serveFace({
-    client: policy.client, expose: policy.expose, transport,
-    tools: { ...bespokeFrom(TOOLS, { ...policy, login: currentLogin, fenced: (held) => policy.fenced(held) as OlaiSurfaceClient }), ...pluginTools() },
+    surface, client: policy.client, expose: policy.expose, transport, available: policy.available, resourceAvailable: policy.resourceAvailable,
+    tools: { ...bespokeFrom(TOOLS, { ...policy, get root() { return policy.root }, login: currentLogin, fenced: (held) => policy.fenced(held) as McpClient }), ...pluginTools() },
   })
   yield* shared.register({ routes: mcpRoute({ transport, token: shared.token, who: shared.who }) })
 })
@@ -70,7 +72,9 @@ const INSTRUCTIONS =
   "— no shell, no grep, no path outside the served directory, and no way to name part " +
   "of a file — and that is deliberate."
 
-export interface FaceOptions {
+export interface FaceOptions<S extends SurfaceSpec> {
+  /** The caller owns the projection; its exposure map must name this spec. */
+  readonly surface: Surface<S>
   /**
    * Where the surface IS — the adapter's live-client factory, verbatim.
    *
@@ -78,7 +82,7 @@ export interface FaceOptions {
    * the same in-process client every time — nothing to dispose, nothing to
    * re-dial.
    */
-  readonly expose: ExposeMap<typeof surface.spec>
+  readonly expose: ExposeMap<S>
   readonly client: () => ClientOrConnection | Promise<ClientOrConnection>
   /** Where the protocol goes. The HTTP route in the binary, an
    *  `InMemoryTransport` half in a test. Injectable is the whole reason a
@@ -94,6 +98,8 @@ export interface FaceOptions {
    * client the adapter hands each call.
    */
   readonly tools?: Record<string, BespokeTool>
+  readonly available?: (name: string) => boolean
+  readonly resourceAvailable?: (key: string, verb: string) => boolean
 }
 
 /**
@@ -103,21 +109,50 @@ export interface FaceOptions {
  * composition root is, and a caller holding a `close()` it might forget is
  * exactly the arrangement `serve.ts` took the listener's lifetime away from.
  */
-export const serveFace = (
-  options: FaceOptions,
+export const serveFace = <S extends SurfaceSpec>(
+  options: FaceOptions<S>,
 ): Effect.Effect<Server, never, Scope.Scope> =>
   Effect.gen(function*() {
+    const available = options.available
+    const tools = options.tools === undefined ? undefined : Object.fromEntries(Object.entries(options.tools).map(([name, tool]) => [name, {
+      ...tool,
+      handler: (args: unknown, client: unknown, signal: AbortSignal | undefined) => Effect.suspend(() =>
+        available === undefined || available(name) ? tool.handler(args, client, signal)
+          : Effect.fail(new ToolFailure(`The capability for "${name}" is not active.`, { tool: name, unavailable: true }))),
+    }]))
     const served = yield* Effect.promise(() =>
       serveSurfaceAsMcp({
-        surface,
+        surface: options.surface,
         client: options.client,
         expose: options.expose,
         serverInfo: SERVER_INFO,
         instructions: INSTRUCTIONS,
-        ...(options.tools === undefined ? {} : { tools: options.tools }),
+        ...(tools === undefined ? {} : { tools }),
         ...(options.transport === undefined ? {} : { transport: options.transport }),
       })
     )
+    if (available !== undefined && tools !== undefined) {
+      // Public SDK extension point; the framework retains decoding, execution,
+      // cancellation, rendering and error handling for calls and resources.
+      const catalogue = Object.entries(tools).map(([name, tool]) => ({
+        name, title: tool.title, description: tool.description,
+        inputSchema: toInputSchema(tool.input).schema as { type: "object"; [key: string]: unknown },
+        annotations: { readOnlyHint: !(tool.mutates ?? true), destructiveHint: tool.mutates ?? true },
+      }))
+      served.server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: catalogue.filter(tool => available(tool.name)) }))
+    }
+    const resourceAvailable = options.resourceAvailable
+    if (resourceAvailable !== undefined) {
+      const resources = resolveExpose(options.surface.spec, options.expose)
+      served.server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+        resources: resources.resources.filter(entry => resourceAvailable(entry.key, entry.kind === "collection" ? "keys" : "get"))
+          .map(({ uri, name, mimeType }) => ({ uri, name, mimeType })),
+      }))
+      served.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
+        resourceTemplates: resources.resourceTemplates.filter(entry => resourceAvailable(entry.key, "get"))
+          .map(({ uriTemplate, name, mimeType }) => ({ uriTemplate, name, mimeType })),
+      }))
+    }
     // Registered on the scope for the same reason the listener's teardown is:
     // closing olai is closing a scope, and no caller carries a shutdown
     // function. `close()` stops the resource pusher, disposes the connection

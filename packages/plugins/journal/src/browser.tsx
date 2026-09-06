@@ -1,7 +1,14 @@
+import type {} from "olai-plugin-navigation/slots"
+import type {} from "olai-plugin-sidebar/slots"
+import {Clocks} from "@olai/plugin-api"
+import {fileAccess} from "olai-plugin-vault/contract"
+import { rendererSlots } from "olai-plugin-ui-renderer/contract"
+import { propertyRoutes } from "olai-plugin-outlines/contract"
+import { routeIn } from "olai-plugin-navigation/routes"
 import { definePlugin, Slots, Wired } from "@olai/plugin-api"
-import type { Drawn } from "@olai/web/client/page.ts"
+import type { Drawn } from "olai-plugin-outlines/page"
 import { only } from "@olai/web/client/narrow.ts"
-import { defineAppPage } from "@olai/web/client/routes.ts"
+import { defineAppPage } from "olai-plugin-navigation/routes"
 import type { Shown } from "@olai/format"
 import { Effect } from "effect"
 
@@ -42,7 +49,7 @@ function AgendaFace(props: {
 
 export default definePlugin({
   name,
-  needs: [Slots, Wired],
+  needs: [Slots, Wired, fileAccess, Clocks],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
     const wired = yield* Wired
@@ -72,3 +79,10 @@ export default definePlugin({
     })
   }),
 })
+
+/** Date-property navigation is an integration, independent of journal readings. */
+export const components = {
+  properties: definePlugin({ name: "properties", needs: [rendererSlots], apply: Effect.gen(function*() {
+    yield* (yield* rendererSlots).contribute(propertyRoutes, meaning => meaning.kind === "day" ? routeIn(`/d/${encodeURIComponent(meaning.date)}`) ?? undefined : undefined)
+  }) }),
+}

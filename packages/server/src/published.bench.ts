@@ -58,7 +58,7 @@ import { bodyKind, FILE_KINDS, type Reading } from "@olai/format"
 import { median, runtimeSaid, timed, vaultOf } from "@olai/format/testlib"
 import type { Snapshot } from "@olai/store"
 
-import { type Published, publishedOf } from "./published.ts"
+import { type Published, publishedOf } from "@olai/surface/projection"
 import {
   differential,
   type Projection,

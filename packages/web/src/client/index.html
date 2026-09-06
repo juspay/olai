@@ -19,49 +19,6 @@
          which is the same place the waiting mark is composed on. -->
     <title>olai</title>
     <meta name="description" content="outlines in flat-record JSONL" />
-    <!-- INLINE-NESS IS LOAD-BEARING, and this is the only script in the shell.
-         A theme picked in this browser has to be on <html> before the FIRST
-         PAINT; everything else on this page is deferred, so a theme restored
-         from the bundle would land after it, which is a flash of the wrong
-         colours on every single load. So this much runs in <head>, and nothing
-         else does — what happens after a chip is pressed is
-         src/client/theme/.
-
-         THREE preferences ride it, and the third — the type SIZE — is the one
-         whose flash would be worst: a page that painted at 16px and reflowed to
-         18px would move every line under a reader who had just opened it.
-
-         It deliberately knows no theme, font or size names: the sheet carries a
-         block per palette, per typeface and per size, and the tables that
-         generate them live in one place each (src/client/theme/palettes.ts,
-         src/client/theme/sizes.ts, and @olai/fonts's catalog). A stored name no
-         row offers is forgotten by the app once it is up, which is the first
-         moment anything knows the lists. The keys are those tables'
-         THEME_STORAGE_KEY / FONT_STORAGE_KEY / SIZE_STORAGE_KEY and the
-         attributes are THEME_ATTRIBUTE / FONT_ATTRIBUTE / SIZE_ATTRIBUTE;
-         theme/css.test.ts and theme/fonts.test.ts hold this script to them.
-
-         `setAttribute`, not `dataset.theme`: they are the same thing today,
-         and the day a pref's name has a hyphen in it they are not. -->
-    <script>
-      try {
-        var picked = localStorage.getItem("olai.theme");
-        if (picked) document.documentElement.setAttribute("data-theme", picked);
-        var face = localStorage.getItem("olai.font");
-        if (face) document.documentElement.setAttribute("data-font", face);
-        var size = localStorage.getItem("olai.size");
-        if (size) document.documentElement.setAttribute("data-size", size);
-      } catch {}
-    </script>
-    <!-- The browser chrome around an installed app: a phone's status bar, an
-         installed window's title bar. ONE of them, holding the DEFAULT theme's
-         paper — the palette a page that has picked nothing reads in — because
-         that is the only one this shell can know before the bundle runs. A
-         page that did pick repaints this from the table (theme/state.ts). The
-         value is `--color-paper` of the default palette, which cannot be read
-         from here (the sheet is a build artifact and this shell is what loads
-         it) and is pinned by theme/css.test.ts instead. -->
-    <meta name="theme-color" content="#D7F0E8" />
     <!-- The header chip draws a person's picture, and it is a remote <img>.
          WHOSE host that is belongs to whoever deployed this olai: the IdP
          avatar a proxy hands over (`Tailscale-User-Profile-Pic`), the avatar
@@ -84,75 +41,7 @@
       http-equiv="Content-Security-Policy"
       content="img-src 'self' blob: https:"
     />
-    <!-- What the browser should assume before the sheet lands: it cannot know
-         yet which theme this page is in, and the themes come both ways. Once
-         the sheet is in, each palette's own `color-scheme` is what wins. -->
-    <meta name="color-scheme" content="light dark" />
-    <!-- The install surface. The manifest is the SERVER's
-         (packages/server/src/listener.ts, through kolu's manifest layer); the
-         icons are files copied to the dist root by the build. `rel="icon"` is
-         the tab's first paint — the install mark — because the bundle has not
-         run yet; chrome.ts replaces it from the palette in force.
-         `apple-touch-icon` is iOS's Add to Home Screen, which reads no
-         manifest — so the install mark has to be named twice.
-
-         The service worker the framework serves at
-         `/sw.js` is REGISTERED (main.tsx) and is deliberately fetch-less — it
-         caches nothing and intercepts nothing, so this app is still live or
-         nothing; what it is for is `registration.showNotification`, the only
-         notification path an installed PWA has, which the chat panel uses to
-         say the agent is waiting on you. -->
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <!-- iOS's installed-app word: Add to Home Screen reads THIS, not the
-         manifest — and the same landing that retitles the tab above retitles
-         it (theme/chrome.ts), so an installed phone app carries the box's
-         name the manifest already gave a desktop one. -->
-    <meta name="apple-mobile-web-app-title" content="olai" />
-    <!-- THE MARKDOWN PIPELINE, FETCHED FROM HERE — and this line is a reversal
-         of what stood in its place (the human, 2026-08-24, roadmap
-         `markdown-raw-flash`). It used to say the chunk must not be preloaded
-         because "an outline of rows must not fetch it at all, and a preload is
-         a fetch", which is why kolu's own preloader follows static imports only
-         and never a `dynamic-import` edge (@kolu/surface-app's modulePreload.ts
-         — so this tag is olai's, written here rather than derived there).
-
-         What that decision bought was bytes on a page that draws no markdown.
-         What it cost was the WAIT, on every page that draws some: the fetch
-         could not start until the entry had run, so the first frame of a
-         document, a note or a chat reply was the file's own source and the
-         rendering came a round trip later. That flash is now covered — the
-         waiting text is blurred and swept (src/client/styles.css) — and this
-         tag is the other half: the chunk is fetched off the same head as the
-         entry rather than a round trip after it, so on a warm cache the
-         skeleton is about a frame, and on a cold one it is honest progress
-         over the real shape of the answer instead of a wait nobody was told
-         about.
-
-         It is a PRELOAD and not an import: nothing here runs the module. A page
-         of plain outline rows still never executes it — the `import()` in
-         src/client/markdown/chunk.ts is still the only thing that does, and is
-         still what the readiness signal hangs on. -->
-    <!-- The `href`s below and the `<script src>` in the body are the three
-         placeholders the build rewrites to hashed /_olai/assets/* URLs; they must
-         match build.ts byte for byte.
-
-         The preload sits AFTER the stylesheet and at LOW priority, which is the
-         whole of the balance it has to strike: the sheet and the entry are what
-         FIRST paint waits on, and the pipeline is what the frame after it waits
-         on. The preload scanner starts all three off the same head, so the chunk
-         still travels beside the entry; the priority decides only who yields on
-         a narrow link. -->
     <link rel="stylesheet" href="./styles.css" />
-    <link
-      rel="modulepreload"
-      href="./markdown/pipeline.ts"
-      fetchpriority="low"
-    />
   </head>
   <!-- The page's own two utilities. Tailwind's preflight zeroes the body
        margin; the palette and the font are ours. -->

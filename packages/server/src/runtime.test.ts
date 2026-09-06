@@ -1,9 +1,9 @@
+import { VaultBoot } from "olai-plugin-vault/boot"
+import { CONTENT_ROWS } from "./capabilities.testlib.ts"
 import { TestClock } from "effect/testing"
 import { runtimePaths } from "./runtime-paths.ts"
-import { fixedStore } from "./store-source.ts"
 import { mountBundle, offered as door, provide, settled } from "@olai/bundle/bundle"
 import { openPlugins as openHostPlugins, Directory, Ops as OpsDoor } from "@olai/plugin-api/services"
-import { VaultSettings } from "@olai/plugin-api/services"
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * One runtime, several faces, several writers — the rebinding, as a fence.
@@ -26,8 +26,6 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  */
 
 import {
-  NO_LEDGER,
-  NO_SEARCH,
   type Ops,
   type Store as OutlineStore,
 } from "@olai/ops"
@@ -52,9 +50,8 @@ import {
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { defineSurface } from "@kolu/surface/define"
 import { restrictHandlers } from "@kolu/surface/expose"
-import { facesOf } from "./faces.ts"
+import { facesOf } from "@olai/bundle/faces"
 import { inMemoryStore } from "@kolu/surface/server"
-import { NO_KINDS } from "@olai/format"
 import { NodeServices } from "@effect/platform-node"
 import { expect, mock, test } from "bun:test"
 import { Effect, Fiber, Queue, Schema, Scope, Stream } from "effect"
@@ -92,6 +89,7 @@ const withRuntime = <A>(
      *  `@olai/store`.s `body`, which is the one door `./bodies.ts` may use.
      *  Recorded rather than mocked: the real read still happens. */
     readonly reads: ReadonlyArray<string>
+    readonly attached: Effect.Effect<string>
     /** The live host, including the vault row and any test doubles. */
     readonly plugins: Plugins
   }) => Effect.Effect<A, unknown>,
@@ -112,35 +110,33 @@ const withRuntime = <A>(
   return Effect.gen(function*() {
     const onChange = { run: (): void => {} }
     const mounted = yield* openHostPlugins({ vars: {}, now: () => STARTED, changed: () => onChange.run() })
-    yield* mountBundle(mounted.host, { kind: "exact", names: ["vault"] }, [], "test-minimal")
-    yield* provide(mounted.host, VaultSettings, () => ({ root, runtime: runtimePaths, kinds: NO_KINDS, ledger: NO_LEDGER, search: NO_SEARCH }))
-    yield* settled(mounted.host, ["vault"])
+    yield* mountBundle(mounted.host, { kind: "exact", names: ["vault", ...CONTENT_ROWS] }, [], "surface")
+    yield* provide(mounted.host, VaultBoot, () => ({root, runtime: runtimePaths}))
+    yield* settled(mounted.host, ["vault", ...CONTENT_ROWS])
     const directory = door(mounted.host, Directory) as { readonly store: OutlineStore } | undefined
     if (!directory) throw new Error("test-minimal did not open its vault row")
     const opened = directory.store
-    const store: OutlineStore = {
-      ...opened,
-      body: (path) => { reads.push(path); return opened.body(path) },
-    }
+    const readBody = opened.body
+    Object.assign(opened, {body: (path: string) => { reads.push(path); return readBody(path) }})
+    const store = opened
     const gate = door(mounted.host, OpsDoor)?.gate as Ops | undefined
     if (!gate) throw new Error("test-minimal did not offer its gate")
     for (const one of extra.plugins ?? []) yield* mountPlugin(mounted.host, one.plugin)
-    const wired = yield* bind({ store: fixedStore(store),
-      ops: gate,
-      writer: "web",
+    const attachments = yield* Queue.unbounded<string>()
+    const markdown = mounted.composed().find(one => one.name === "markdown")
+    const documents = (markdown?.deps as {collections?: {documents?: {readOne?: (key: string) => unknown}}})?.collections?.documents
+    if (!documents?.readOne) throw new Error("Markdown did not offer its document reader")
+    const readOne = documents.readOne
+    documents.readOne = key => {
+      const value = readOne(key)
+      Queue.offerUnsafe(attachments,key)
+      return value
+    }
+    const wired = yield* bind({
       hostname: hostname(),
       startedAt: STARTED,
-      // NO PLUGINS, unless a case asked for doubles. Every runtime in this file
-      // but the doorbell's is a reader — a bound face, an MCP route — and none
-      // of them is about a terminal door or a CI chip; dialing whatever daemons
-      // happen to be on the machine running the suite would make these tests
-      // depend on them. `null` is the OFF setting, and what it produces is a
-      // rooted bundle with no sibling mounted on it: no tag, no handler and no
-      // expose row, so olai's own group is byte for byte what it always was.
-      //
-      // The doorbell's cases DO take the slot, and they still dial nothing:
-      // what stands behind their names is a double with no appliance under it
-      // ({@link doubleCalled}).
+      // Actual notebook providers supply the wire. Additional rows below are
+      // scoped doubles used only by registry/recomposition cases.
       plugins: {
         // These cases drive registration changes through onChange and read
         // fiber reports directly. Status notifications also force verified
@@ -149,7 +145,7 @@ const withRuntime = <A>(
         // Live status reconciliation is covered by the serve/profile tests.
         plugins: { ...mounted, changes: Stream.empty },
         onChange,
-        built: extra.plugins === undefined ? ["vault"] : extra.plugins.map((one) => one.name),
+        built: extra.plugins === undefined ? ["vault", ...CONTENT_ROWS] : extra.plugins.map((one) => one.name),
         pin: { kind: "omitted" },
         // THE DOUBLES' OWN FIBERS, asked the way a serve asks the bundle's.
         // These runtimes mount doubles directly rather than through the loader,
@@ -158,7 +154,7 @@ const withRuntime = <A>(
         // and asking it here is what makes these cases exercise the same
         // derivation a real boot does rather than a hand-made map.
         report: yield* Effect.map(
-          rowReport(mounted.host, extra.plugins === undefined ? ["vault"] : extra.plugins.map((one) => one.name)),
+          rowReport(mounted.host, extra.plugins === undefined ? ["vault", ...CONTENT_ROWS] : extra.plugins.map((one) => one.name)),
           (read) => () => read,
         ),
         // THESE DOUBLES ARE NOT LOADER ROWS, so there is nothing to name and
@@ -178,7 +174,7 @@ const withRuntime = <A>(
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => runtime.stopped)
-    return yield* use({ wired, ops: gate, store, reads, root, plugins: mounted })
+    return yield* use({ wired, ops: gate, store, reads, attached: Queue.take(attachments), root, plugins: mounted })
   }).pipe(
     Effect.scoped,
     Effect.provide(NodeServices.layer),
@@ -190,11 +186,13 @@ const withRuntime = <A>(
   )
 }
 
-/** Every CORE member whose answer records WHO asked, as the wire spells them.
- *  Git's sibling commit also records the writer, but only when the git row
- *  minted the tag — this harness mounts no plugins, so the rebound set is
- *  ops.run alone. A LITERAL rather than a derivation, deliberately. */
-const RECORDS_THE_WRITER = ["surface/ops/run"]
+/** The harness mounts the content owners. Both their qualified procedures and
+ * the standalone compatibility alias must record transport-supplied authority.
+ * Keep the expected set literal so omitting a provider's attribution is visible. */
+const RECORDS_THE_WRITER = [
+  "surface/files/ops/run", "surface/markdown/ops/run", "surface/ops/run",
+  "surface/outlines/ops/run", "surface/trash/ops/run",
+]
 
 const OUTLINE = `{"id":"a","ord":"a0","title":"a"}\n`
 /** A row whose parent nothing declares — a MEANING error rather than a syntax
@@ -452,9 +450,12 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
  * announcement on the same key.
  */
 test("a reader holding a key across a file's birth is handed the body", () =>
-  withRuntime({ "a.olai": OUTLINE }, ({ wired, store, root }) =>
+  withRuntime({ "a.olai": OUTLINE }, ({ wired, store, root, attached }) =>
     Effect.gen(function*() {
       const open = yield* opening(wired.bound, "report.html")
+      // A scoped sibling handler can yield before its subscription attaches.
+      // Wait for the actual snapshot read before creating the absent key.
+      expect(yield* attached).toBe("report.html")
 
       fs.writeFileSync(path.join(root, "report.html"), "<h1>Born</h1>\n")
       yield* store.refresh("cheap")
@@ -1189,7 +1190,7 @@ test("the roster is served on the plugins cell", () =>
       const get = wired.bound.handlers["surface/plugins/get"]
       if (get === undefined) throw new Error("the plugins cell has no `get`")
       const open = yield* watching(get({}) as Stream.Stream<PluginRoster>)
-      expect((yield* open.take).built.map((row) => [row.name, row.state])).toEqual([["vault", "running"]])
+      expect((yield* open.take).built.map((row) => [row.name, row.state])).toEqual(["vault", ...CONTENT_ROWS].map(name => [name, name === "vault" ? "waiting" : "running"]))
       yield* Fiber.interrupt(open.reader)
     })))
 
@@ -1233,6 +1234,7 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
       Effect.gen(function*() {
         if (plugins === null) throw new Error("this case needs the plugin runtime")
         const before = Object.keys(wired.bound.handlers).length
+        const composedBefore = plugins.composed().map(one => one.name)
 
         // A surface with a cell and DEPS THAT DO NOT MENTION IT — the shape a
         // plugin's own `satisfies` makes unspellable in its own package, which
@@ -1254,7 +1256,7 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
         // state: this file holds what a composition root can see, and what a
         // composition root can see is the four words the bridge answers with.
         expect((yield* refused.report).state).toBe("failed")
-        expect(plugins.composed().map((one) => one.name)).toEqual([])
+        expect(plugins.composed().map((one) => one.name)).toEqual(composedBefore)
         expect(Object.keys(wired.bound.handlers).length).toBe(before)
 
         // ...and the next plugin in is untouched by it, which is the half that
@@ -1274,7 +1276,7 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
           }),
         )
         expect((yield* healthy.report).state).toBe("running")
-        expect(plugins.composed().map((one) => one.name)).toEqual(["healthy"])
+        expect(plugins.composed().map((one) => one.name)).toEqual([...composedBefore, "healthy"])
 
         // The roster a browser reads carries the truth about both: the build has
         // no rows here (these doubles are not the bundle's), so what it says is

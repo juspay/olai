@@ -17,10 +17,16 @@
   "dependencies": {
     "@olai/plugin-api": "workspace:*",
     "effect": "4.0.0-rc.112",
-    "ws": "^8.21.0"
+    "ws": "^8.21.0",
+    "@olai/ui-primitives": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1"
+  },
+  "olai": {
+    "contracts": [
+      "./testids"
+    ]
   }
 }

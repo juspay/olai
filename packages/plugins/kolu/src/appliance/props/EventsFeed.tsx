@@ -38,7 +38,7 @@ import type { KoluEvent } from "olai-plugin-kolu/appliance/wire"
 
 import { eventLine } from "../padi/events.ts"
 import { padiSaid } from "../padi/said.ts"
-import { TESTID } from "../testids.ts"
+import { TESTID } from "../../contracts/appliance-testids.ts"
 import { useFleet } from "./fleet.tsx"
 
 /**

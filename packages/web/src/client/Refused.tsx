@@ -24,7 +24,7 @@
 
 import { Show } from "solid-js"
 
-import type { AnyTestId } from "./testids.ts"
+import type { AnyTestId } from "@olai/ui-primitives/testids.ts"
 
 export function Refused(props: {
   /** The ops layer's own sentence, or `null` when there is nothing to say. */

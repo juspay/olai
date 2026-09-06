@@ -51,7 +51,7 @@ import { vaultOf } from "@olai/format/testlib"
 import { pinnedVault, vaultAt } from "@olai/format/testlib/scope"
 import { expect, test } from "bun:test"
 
-import { publishedOf } from "./published.ts"
+import { publishedOf, outlineProjection, documentProjection, headProjection } from "@olai/surface/projection"
 import {
   differential,
   misplacing,
@@ -432,4 +432,21 @@ test("a write moves the file's entry and nothing else's, in every collection", (
   expect(third.documents.entries.get("notes.md")?.text).toBe("# hello again")
   expect(third.heads.entries.get("notes.md")).not.toBe(wasNotesHead)
   expect(third.outlines.upserts).toEqual([])
+})
+
+/** The extracted providers keep separate projection histories. Run the same
+ * deletion/resync/broken-file corpus through those histories, including the
+ * identity-sensitive subscriber model, to preserve the original wire contract. */
+test("independent capability projections preserve the complete revision corpus", () => {
+  let outlines: ReturnType<typeof outlineProjection> | undefined
+  let documents: ReturnType<typeof documentProjection> | undefined
+  let heads: ReturnType<typeof headProjection> | undefined
+  const project: typeof publishedOf = snapshot => {
+    outlines = outlineProjection(snapshot, outlines)
+    documents = documentProjection(snapshot, documents)
+    heads = headProjection(snapshot, heads)
+    return { outlines: outlines.change, documents: documents.change, heads: heads.change, unread: documents.unread }
+  }
+  holds(differential(CORNERS, CORNER_STEPS, project),
+    { upserts: 20, removes: 3, reused: 10, rebuilt: 10, minted: 8 })
 })

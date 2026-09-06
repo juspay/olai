@@ -20,6 +20,7 @@
  * sentence, which is the whole reason the pieces exist.
  */
 
+import { BUILD_ASSETS } from "@olai/bundle/assets"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test as bunTest } from "bun:test"
 import { Effect } from "effect"
@@ -234,9 +235,8 @@ test("binding off loopback is a warning, not a line among lines", async () => {
 //
 // The walk into `packages/web/src/client` is TEST-ONLY, and deliberate: it is
 // the two ends of a contract whose packages do not import each other. The
-// source `public/` stands in for the built dist because `web/src/build.ts`
-// copies that directory to the dist root as-is (`publicDir: resolve(CLIENT,
-// "public")`).
+// generated bundle asset contributions supply the real install assets and
+// head markup, following the same owner declarations as the browser build.
 //
 // WHICH `/sw.js` this origin serves is asserted here, on the wire, because
 // that is the only place it exists: the source is the framework's constant and
@@ -250,21 +250,17 @@ const WEB_CLIENT = path.join(import.meta.dirname, "../../web/src/client")
 
 /** A dist that is the real shell and the real icons, plus one outline so the
  *  store will boot. Thrown away with the test. */
-const installDist = (): string => {
+const installDist = async (): Promise<string> => {
   const dist = served()
-  fs.copyFileSync(
-    path.join(WEB_CLIENT, "index.html"),
-    path.join(dist, "index.html"),
-  )
-  const publicDir = path.join(WEB_CLIENT, "public")
-  for (const file of fs.readdirSync(publicDir)) {
-    fs.copyFileSync(path.join(publicDir, file), path.join(dist, file))
-  }
+  const shell = fs.readFileSync(path.join(WEB_CLIENT, "index.html"), "utf8")
+  fs.writeFileSync(path.join(dist, "index.html"), shell.replace("</head>",
+    `${BUILD_ASSETS.map(asset => asset.head ?? "").join("\n")}</head>`))
+  for (const asset of BUILD_ASSETS) await asset.install?.(dist)
   return dist
 }
 
-const withInstall = (body: (url: string) => Promise<void>): Promise<void> => {
-  const dist = installDist()
+const withInstall = async (body: (url: string) => Promise<void>): Promise<void> => {
+  const dist = await installDist()
   return withServing({ root: dist, clientDist: dist }, (url) => body(url))
 }
 
@@ -386,9 +382,9 @@ const shadowedVault = (): string => {
   return root
 }
 
-const withShadowed = (body: (url: string) => Promise<void>): Promise<void> =>
+const withShadowed = async (body: (url: string) => Promise<void>): Promise<void> =>
   withServing(
-    { root: shadowedVault(), clientDist: installDist() },
+    { root: shadowedVault(), clientDist: await installDist() },
     (url) => body(url),
   )
 

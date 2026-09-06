@@ -47,14 +47,12 @@
 import type { App } from "@olai/surface"
 import { appName } from "@olai/surface"
 import { Result } from "effect"
-import { type Accessor, createEffect, createRoot, createSignal } from "solid-js"
+import { type Accessor, createEffect, createRoot, createSignal, onCleanup } from "solid-js"
 
 import { reachable } from "./connection/reaching.ts"
 import type { SurfaceReadout } from "./connection/status.ts"
-import { nameChrome } from "./theme/chrome.ts"
 
-const [called, setCalled] = createSignal<string | undefined>(undefined)
-const [started, setStarted] = createSignal<string | undefined>(undefined)
+let current: NameState | undefined
 
 /**
  * Whether this tab should send `app.get` right now.
@@ -85,12 +83,12 @@ export const landingOf = (
 /** What this deployment calls itself, when the server has said. Every face
  *  of the app that can be reactive draws this; the ones that cannot are
  *  handed it below at the one moment it arrives. */
-export const calledApp: Accessor<string | undefined> = called
+export const calledApp: Accessor<string | undefined> = () => current?.called()
 
 /** When the process serving this tab started, when the server has said.
  *  The uptime chip ticks from this. A later value on this page does not
  *  arrive: a replaced process retires the tab. */
-export const startedAt: Accessor<string | undefined> = started
+export const startedAt: Accessor<string | undefined> = () => current?.started()
 
 export interface FollowName {
   /** The wire's readout — `shouldAsk` of it is which states may carry
@@ -99,7 +97,7 @@ export interface FollowName {
   readonly readout: Accessor<SurfaceReadout>
   /** One `app.get`. Injected for the same reason. */
   readonly ask: () => Promise<Result.Result<App, unknown>>
-  /** The chrome half of the name. Defaulted to {@link nameChrome}. */
+  /** The chrome half of the name. Optional imperative consumer; presentation belongs to its plugin. */
   readonly named?: (called: string) => void
 }
 
@@ -107,7 +105,17 @@ export interface FollowName {
  *  once per open of the wire, until the answer has landed (the header
  *  argues why a failed ask is not a settled one, and why a landed one
  *  is: a restart retires this tab rather than handing it a new start). */
-export const followName = (opts: FollowName): (() => void) => {
+export interface NameState {
+  readonly called: Accessor<string | undefined>
+  readonly started: Accessor<string | undefined>
+  readonly dispose: () => void
+}
+
+/** Fresh state and cancellation fence for one deployment provider activation. */
+export const createName = (opts: FollowName): NameState => {
+  const [called, setCalled] = createSignal<string | undefined>()
+  const [started, setStarted] = createSignal<string | undefined>()
+  let active = true
   // TWO triggers, because neither alone closes the window. The live EDGE is
   // the wide one: the ask of the epoch that just closed is orphaned into a
   // failure no fence retries, so each opening is the honest moment to ask
@@ -126,19 +134,32 @@ export const followName = (opts: FollowName): (() => void) => {
   const [tick, pulse] = createSignal(0)
   let inFlight = false
   return createRoot((dispose) => {
+    onCleanup(() => { active = false })
     createEffect(() => {
       tick() // and the readout below: an edge OR a fresh failure re-considers
       if (!shouldAsk(opts.readout(), called(), inFlight)) return
       inFlight = true
       void opts.ask().then((outcome) => {
+        if (!active) return
         inFlight = false
         if (!Result.isSuccess(outcome)) return pulse((n) => n + 1)
         const landed = landingOf(outcome.success)
         setCalled(landed.called)
-        ;(opts.named ?? nameChrome)(landed.called)
+        opts.named?.(landed.called)
         setStarted(landed.startedAt)
       })
     })
-    return dispose
+    return { called, started, dispose }
   })
+}
+
+/** Install only the scoped handle; retained state belongs to the activation. */
+export const followName = (opts: FollowName): (() => void) => {
+  if (current) throw new Error("A deployment name provider is already active")
+  const state = createName(opts)
+  current = state
+  return () => {
+    if (current === state) current = undefined
+    state.dispose()
+  }
 }

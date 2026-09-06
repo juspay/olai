@@ -32,7 +32,7 @@ import type { Edit } from "@olai/surface"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { inverseOf, requestFor } from "./edit.ts"
+import { inverseOf, requestFor } from "@olai/edit-intents"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,

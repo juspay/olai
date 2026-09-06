@@ -18,7 +18,7 @@
 
 import type { JSX } from "solid-js"
 
-import { useShowNode } from "@olai/web/client/focus.ts"
+import { useShowNode } from "olai-plugin-outlines/references"
 import { TESTID } from "../../testids.ts"
 
 export function Reference(props: {

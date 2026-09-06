@@ -1,24 +1,31 @@
 {
   "name": "@olai/bundle",
-  "//name": "THE BUILD'S SET OF PLUGINS, and the one place either tenant's name is spelled \u2014 which since the browser half followed the roster means `olai.yml` and nothing else a person edits. It was the back half of `@olai/plugin-api`, which held both the INTERFACE a plugin is written against and the REGISTRY that names every plugin \u2014 an arrangement that could not survive a plugin importing the interface, because the registry imports the plugin and the manifests decline to express a cycle. So the interface stayed where it was and the registry moved here. `bundle` is the proposal's own word for it and dsh's (a profile stacks bundles, each a list of rows plus the code they mount); it is deliberately NOT the `@kolu/surface` sense of the word, where a rooted bundle is a composed wire \u2014 see src/bundle.ts's header, which is the one place the two could be confused.",
+  "//name": "The application composition boundary. olai.yml selects plugin rows; generated descriptors and assets follow that list. General host packages know the bundle interface, while feature integrations depend on explicit contracts owned by their providers.",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "./src/rows.ts",
   "types": "./src/rows.ts",
-  "//exports": "TWO CODE DOORS, and it was three. Three because three GRAPHS: the manifests whole (SolidJS, and behind kolu's a terminal emulator), the browser-safe wire half, and the composition root's rows. Two of those have collapsed into the ROOT, and the reason is that the graph got EMPTIER rather than fuller \u2014 the root is one row per plugin with a dynamic `import()` of its browser half, so nothing behind it statically imports a plugin at all and each plugin is its own CHUNK, fetched only when the roster names it. `./bundle` is what a COMPOSITION ROOT reads: the base bundle's ROWS, the loader that mounts them, the `--plugins` patch, and the per-row state report the preferences panel's word is made of. Neither door carries a plugin's code; both SPELL every plugin, because a module specifier a loader resolves and a dynamic import's literal both survive where a static import's is stripped. TWO more entries are routing rather than graphs, because the fence is about a NAME in any grammar: `./all.css` is the plugins' stylesheets chained, and `./testids` is the same routing in a third \u2014 a `data-testid` is spent in `@olai/tests`, which may not name a plugin either, and the door is NAMES ONLY so a suite with no browser in it never pulls a component. Both are GENERATED from the rows now (../generate.ts). src/fence.test.ts walks each closure rather than trusting this sentence.",
+  "//exports": "The root exposes inert row metadata and browser module loaders; ./bundle mounts selected rows. ./assets and ./all.css describe build assets. ./testids merges identifiers exported by their rendering owners. ./surface, ./faces and ./client are the complete application contract and compatibility clients for CLI/tests, assembled from provider-owned descriptors; the permanent browser wire imports only the management Surface. ./inputs adapts product boot inputs and ticket lookup into the generic host without importing capability implementations there. The import fence checks these closures independently.",
   "exports": {
     ".": "./src/rows.ts",
     "./bundle": "./src/bundle.ts",
     "./all.css": "./src/all.css",
     "./testids": "./src/testids.ts",
-    "./remote": "./src/remote.ts"
+    "./remote": "./src/remote.ts",
+    "./assets": "./src/assets.ts",
+    "./policy": "./src/policy.ts",
+    "./tree-testlib": "./src/tree.testlib.ts",
+    "./surface": "./src/surface.ts",
+    "./client": "./src/client.ts",
+    "./inputs": "./src/inputs.ts",
+    "./faces": "./src/faces.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//": "WHAT A PLUGIN'S NAME MAY BE SPELLED IN \u2014 olai.yml is the build's rows and the only hand-written spelling; generate.ts writes the other three (the browser's rows, the stylesheet chain and the testid merge) out of it; and src/fence.test.ts is what refuses a general package that names a tenant before a reviewer has to notice.",
-  "//dependencies": "Every plugin this build has \u2014 four ENGINES, three TENANTS and the four core rows \u2014 the interface they are written against, and the bridge that mounts them. The plugin dependencies are declared even though nothing here imports one STATICALLY any more: a dynamic `import()` and a loader-resolved specifier are both real edges, and a manifest that did not declare them would be a package whose install could not resolve its own generated rows. `js-yaml` is NOT declared and is not an omission \u2014 it is the cordis pin.s, read from the root the way every hydrated package.s runtime dependency is, and `../generate.ts` reads the rows with the same one. `@olai/plugin-api` is the INTERFACE and is a dependency in this direction only \u2014 it names no plugin, which is what makes the arrow one-way and the cycle unrepresentable. `@olai/effect-cordis` is the plugin RUNTIME, and this package is one of the two that name it: mounting a bundle is a loader entry and reading a row's state is a registry walk, and both of those are Cordis behind a door that says Effect. `cordis` and `@cordisjs/plugin-loader`/`-include` are NOT named here at all \u2014 src/fence.test.ts refuses them in every package but the bridge \u2014 and they are hydrated from the npins pin (nix/cordis.nix) into the root node_modules, the way every `@kolu/*` member is, with scripts/check-hydrated-deps.sh holding their versions. `effect` is for the schemas a contributed member is declared in.",
+  "//": "olai.yml owns row selection; generate.ts derives browser rows, style routing and the test ID catalogue. Application contract composition is explicit in ./surface and ./faces. Plugins never depend on the bundle; their contracts remain safe to import without activating their implementations.",
+  "//dependencies": "This build declares every selected plugin so generated dynamic imports resolve. Static provider contracts are used only in application composition doors; browser and server entry graphs never acquire feature implementations merely by importing a catalogue. The Cordis runtime arrives through @olai/effect-cordis and the pinned dependency hydration, not direct framework imports. effect describes contributed schemas.",
   "dependencies": {
     "@olai/effect-cordis": "workspace:*",
     "@olai/format": "workspace:*",
@@ -39,6 +46,27 @@
     "olai-plugin-vault": "workspace:*",
     "olai-plugin-ws": "workspace:*",
     "olai-plugin-mcp": "workspace:*",
-    "olai-plugin-web-app": "workspace:*"
+    "olai-plugin-web-app": "workspace:*",
+    "olai-plugin-ui-renderer": "workspace:*",
+    "olai-plugin-layout": "workspace:*",
+    "olai-plugin-sidebar": "workspace:*",
+    "olai-plugin-preferences": "workspace:*",
+    "olai-plugin-theme": "workspace:*",
+    "olai-plugin-plugin-inspector": "workspace:*",
+    "olai-plugin-navigation": "workspace:*",
+    "olai-plugin-outlines": "workspace:*",
+    "olai-plugin-markdown": "workspace:*",
+    "olai-plugin-files": "workspace:*",
+    "olai-plugin-pins": "workspace:*",
+    "olai-plugin-capture": "workspace:*",
+    "olai-plugin-trash": "workspace:*",
+    "olai-plugin-test-layout": "workspace:*",
+    "olai-plugin-test-counter": "workspace:*",
+    "olai-plugin-vault-plugins": "workspace:*",
+    "@olai/surface": "workspace:*",
+    "@olai/web": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "@olai/markdown-ui": "workspace:*",
+    "@olai/edit-history": "workspace:*"
   }
 }

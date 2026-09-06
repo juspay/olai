@@ -89,7 +89,7 @@ import { type Accessor, createMemo } from "solid-js"
 import { dailyNoteDays } from "@olai/format"
 import type { Owed } from "@olai/format"
 
-import { useServed } from "@olai/web/client/served.tsx"
+import { useServed } from "olai-plugin-vault/files"
 import { journalWire } from "./wire.ts"
 
 /**

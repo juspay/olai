@@ -12,7 +12,7 @@ Nothing. It is on by default, like chat, git and the journal. Two things take it
 
 ```
 olai web ~/outlines                                  # the box, as always
-olai web ~/outlines --plugins=vault,chat,journal,git,ws,web-app,mcp       # every query answers with the reason
+olai web ~/outlines --plugins=vault,chat,journal,git,ws,web-app,mcp,ui-renderer,layout       # every query answers with the reason
 ```
 
 The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag. Switched off at the panel, the header's box leaves while you are watching, and the ⌘K palette, the composer's `@` list, the edges panel and the move picker each draw the refusal on the next keystroke.
@@ -21,13 +21,11 @@ The plugins panel — `⧉` in the header — turns it off and on **while the se
 
 ## The filter over a page is not on this row
 
-Narrowing the rows in front of you — the filter bar over an outline, a day, the agenda, the trash — is a different question with a different answer: it is a reading of ONE page a browser already holds, asked as a standing view rather than as a call, and it never touched the index. It stays in core and goes on working with this row off. See [search.md](../search.md).
+Narrowing the rows in front of you — the filter bar over an outline, a day, the agenda, the trash — is a different question with a different answer: it is a reading of ONE page a browser already holds, asked as a standing view rather than as a call, and it never touched the index. It belongs to outlines and goes on working with search off. See [search.md](../search.md).
 
 ## On the wire
 
-Nothing. This row composes no sibling surface, and that is a ruling rather than an omission: `search.nodes` is core's member — on the browser, MCP and agent faces — and the `search_nodes` tool an agent calls lands through it. A row that published `surface/search/` of its own would rename a tool agents already call, for nothing.
-
-What this row contributes is the ANSWER behind that member. Core defines a `Search` door (`@olai/ops`); this plugin stands behind it, and `search.nodes` calls through it.
+Search owns its procedure and query-stream descriptors, registered with the server by its activation. The browser calls that capability's client. MCP keeps the established `search_nodes` spelling while withdrawing it when its provider leaves.
 
 ## Where it hangs in the tab
 
@@ -37,7 +35,9 @@ What this row contributes is the ANSWER behind that member. Core defines a `Sear
 
 The `lead` word arrived with this row. It is the seat ahead of the pills — the one control in the bar that may shrink to nothing before any pill loses a character, and the one drawn on a phone too, where it is a 44px magnifier that opens the ⌘K palette. The panel of results portals against the viewport, the way the commit and preferences panels do.
 
-What did **not** move is the shortlist under every search box — the input, the rows, the cursor, the "8 of 90" count, the refusal line. Four core doors already shared it before this row existed, so it is the shell's furniture and this face draws with it, exactly as it did when it lived in the shell.
+The shortlist, result rows and count are search's public presentation contracts. Navigation, chat and outlines supply their own selection behavior and retain their own editing state. The generic cursor is a UI primitive.
+
+Live queries arrive through the scoped `search.readings` service. Removing search disposes each query subscription, clears actionable results and shows an unavailable message in surviving pickers. Returning search starts a fresh query for the consumer's current input. No implementation is cached in a process-global handle, and no general web module imports a search implementation.
 
 ## Semantic recall
 

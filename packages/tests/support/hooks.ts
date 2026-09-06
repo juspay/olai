@@ -299,8 +299,8 @@ const PIN_TAG = /^@pin:(commit|push)=([a-z]+)$/;
 
 /**
  * `@plugins:<name>[,<name>]` / `@plugins:none`: this scenario's server was
- * started with an exact `--plugins` set. For nonempty tags this browser
- * harness explicitly adds ws, web-app and mcp: its tab and agent tool carrier.
+ * started with an exact `--plugins` set. Each feature explicitly includes its
+ * transport, shell and content capabilities; the harness adds no hidden rows.
  * `none` is left empty, so it starts no listener and is not a browser scenario.
  *
  * A TAG rather than a step for `@pin:`'s reason exactly — it decides how the
@@ -1283,7 +1283,7 @@ Before(
     // word and `--plugins=` has none — the one place the two grammars differ.
     this.pluginPin = scenario.pickle.tags.flatMap((tag) => {
       const asked = PLUGINS_TAG.exec(tag.name);
-      return asked === null ? [] : [asked[1] === "none" ? "" : [...new Set([...asked[1]!.split(","), "ws", "web-app", "mcp"])].join(",")];
+      return asked === null ? [] : [asked[1] === "none" ? "" : asked[1]!];
     })[0];
     this.extraPluginPin = scenario.pickle.tags.flatMap((tag) => {
       const asked = EXTRA_PLUGINS_TAG.exec(tag.name);

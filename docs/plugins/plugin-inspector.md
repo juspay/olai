@@ -1,0 +1,1 @@
+../../packages/plugins/plugin-inspector/docs.md

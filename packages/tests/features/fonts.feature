@@ -8,6 +8,7 @@ Feature: The typeface is a pick, and it is yours
 
   Scenario: Picking a generic font asks the server for nothing
     When I open the app
+    And the appearance controls have finished loading their fonts
     And I watch what the page asks for
     And I pick the font "system"
     Then the page is in the font "system"

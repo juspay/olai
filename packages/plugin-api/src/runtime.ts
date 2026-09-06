@@ -93,6 +93,13 @@
  */
 
 export {
+  location,
+  locations,
+  type Location,
+  type LocationOwner,
+  type Locations,
+  type LocationReport,
+  type Contribution,
   broadcast,
   type Bus,
   definePlugin,

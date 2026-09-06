@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { atElement, atFile, atNode, defineAppPage, defineAppRoute, filterOf, HOME_ROUTE, hrefOf, narrowedTo, type Route, routeIn, routeOf, samePage, settleRoutePages } from "./routes.ts"
+import { atElement, atFile, atNode, defineAppPage, defineAppRoute, filterOf, HOME_ROUTE, hrefOf, narrowedTo, type Route, routeIn, routeOf, samePage, settleRoutePages } from "olai-plugin-navigation/routes"
 import { ROUTES } from "./routes.testlib.ts"
 
 test("every route survives being written to a URL and read back", () => {

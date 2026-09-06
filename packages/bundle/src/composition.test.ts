@@ -276,12 +276,12 @@ describe("the plugins this binary was built with", () => {
     }
   })
 
-  test("no plugin is on the agent's face", () => {
-    // Chat, the appliances, and git are browser-only. MCP tools stay named
-    // `commit` / `push` (ops table) and call through that door; nothing in
-    // `@olai/server` writes an agent map, and no plugin ships one.
-    expect(exposeMapsOf(WIRES, "agent")).toEqual({})
-    expect(siblingFace("agent").tags.size).toBe(0)
+  test("sibling agent exposure is explicitly owned by its capability", () => {
+    expect(exposeMapsOf(WIRES.filter(wire => wire.name !== "test-counter"), "agent")).toEqual({})
+    expect([...siblingFace("agent").tags].sort()).toEqual([
+      "surface/test-counter/counter/increment",
+      "surface/test-counter/counter/read",
+    ])
     expect(siblingFace("browser").tags.size).toBeGreaterThan(0)
   })
 })

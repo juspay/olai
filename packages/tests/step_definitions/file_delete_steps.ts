@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * The FILE's own delete — `document_editing.feature`'s fourth milestone, and
  * `trash_steps.ts`'s shape said once more at file size.
@@ -11,7 +12,7 @@
 
 import { Then, When } from "@cucumber/cucumber"
 import * as assert from "node:assert"
-import { selector, TESTID } from "@olai/web/testlib"
+import { selector } from "@olai/web/testlib"
 
 import type { OlaiWorld } from "../support/world.ts"
 

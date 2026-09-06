@@ -1,20 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-browser_files=(
-  ./packages/web/src/client/settled.browsertest.ts
-  ./packages/web/src/client/fold/refiling.browsertest.ts
-  ./packages/web/src/client/names.browsertest.ts
-  ./packages/web/src/client/doors.browsertest.ts
-  ./packages/web/src/client/licences.browsertest.ts
-  ./packages/web/src/client/Tree.browsertest.ts
-  ./packages/web/src/client/directory.browsertest.ts
-  ./packages/plugins/chat/src/browser/chat/last.browsertest.ts
-  ./packages/plugins/chat/src/browser/chat/attention/asked.browsertest.ts
-  ./packages/plugins/chat/src/browser/chat/attention/elsewhere.browsertest.ts
-  ./packages/web/src/client/declared.browsertest.ts
-  ./packages/plugins/kolu/src/appliance/props/held.browsertest.ts
-)
+# Browser-conditioned tests follow their owning packages. There is no second
+# hand-maintained roster to lose coverage when a capability moves.
+mapfile -t browser_files < <(git ls-files '*.browsertest.ts' | LC_ALL=C sort | sed 's|^|./|')
+
 
 if [[ -z "${ODU_SHARD_INDEX+x}" && -z "${ODU_SHARD_TOTAL+x}" ]]; then
   bun test

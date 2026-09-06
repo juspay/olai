@@ -23,7 +23,7 @@ Feature: The vault is a row
     Then the MCP vault can read an outline
     And there should be no page errors
 
-  @plugins:ws,web-app,mcp
+  @plugins:ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A transport-only selection can enable the vault from the control panel
     Given I open the app
     When I open the plugins panel

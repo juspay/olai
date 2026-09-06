@@ -70,7 +70,7 @@
  * import direction a lie.
  */
 
-import type { Accessor, JSX } from "solid-js"
+import { createComponent, type Accessor, type JSX } from "solid-js"
 
 import { unenrolledStreamCall } from "@kolu/surface/client"
 import type { Effect, Stream } from "effect"
@@ -85,7 +85,7 @@ import type {
   WatchPulse,
 } from "olai-plugin-kolu/appliance/wire"
 
-import { FleetProvider, readingScreen, watchingTerminal } from "./fleet.tsx"
+import { createFleet, type Fleet, FleetProvider, readingScreen, watchingTerminal } from "./fleet.tsx"
 
 /**
  * THE MEMBERS this appliance reads, structurally — the three cells (the link,
@@ -152,15 +152,8 @@ export interface KoluClient {
  * spelled in the composition root with a comment explaining it to a reader who
  * had no other reason to be thinking about panes.
  */
-export function KoluUi(props: {
-  readonly client: KoluClient
-  readonly now: Accessor<number>
-  readonly children: JSX.Element
-}): JSX.Element {
-  return (
-    <FleetProvider
-      now={props.now}
-      sources={{
+export function createKoluUi(props: {readonly client: KoluClient; readonly now: Accessor<number>}): Fleet {
+  return createFleet({now:props.now,sources: {
         link: props.client.cells.link.use().value,
         pulse: props.client.cells.pulse.use().value,
         knobs: props.client.cells.knobs.use().value,
@@ -173,11 +166,11 @@ export function KoluUi(props: {
             input,
           ) as Stream.Stream<TerminalFrame, unknown>
         ),
-      }}
-    >
-      {props.children}
-    </FleetProvider>
-  )
+      }})
+}
+
+export function KoluUi(props: {readonly value: Fleet; readonly children: JSX.Element}): JSX.Element {
+  return createComponent(FleetProvider, {get value() {return props.value}, get children() {return props.children}})
 }
 
 /** Re-exported so a reader of this socket sees the whole contact in one file —

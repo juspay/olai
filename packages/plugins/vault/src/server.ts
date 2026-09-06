@@ -81,3 +81,16 @@ export default definePlugin({
     yield* offers.offer(Vault, events.door)
   }).pipe(Effect.provide(NodeServices.layer), Effect.tapCause((cause) => Effect.logError("vault failed to start", cause)), Effect.orDie),
 })
+
+import fileAccess from "./file-access.ts"
+import { setup, revalidation } from "./setup.ts"
+import http from "./http.ts"
+export const components = { "file-access": fileAccess, setup, revalidation, http }
+
+/** Static sibling metadata matches the browser-owned client. Agent grants
+ * belong to the standalone aliases registered by this activation, so copying
+ * them here would advertise a second set of namespaced agent tools. */
+import { faces as standaloneFaces } from "./file-surface.ts"
+const siblingFaces = { browser: standaloneFaces.browser }
+export { siblingFaces as faces }
+export { surface } from "./file-surface.ts"

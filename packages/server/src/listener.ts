@@ -75,6 +75,7 @@ export const listener = (options: ListenOptions) => Effect.gen(function*() {
   const close = Effect.gen(function*() {
     const old = server
     server = undefined
+    url = undefined
     if (old) {
       yield* Effect.promise(async () => {
         // Bun can miss the server.close callback when a socket is still
@@ -93,7 +94,7 @@ export const listener = (options: ListenOptions) => Effect.gen(function*() {
   })
   const refresh = lock.withPermit(Effect.gen(function*() {
     if (!active) return
-    if (entries.size === 0) {
+    if (![...entries.values()].some(entry => !entry.passive)) {
       yield* close
       yield* Effect.logInfo("no transport rows enabled")
       return

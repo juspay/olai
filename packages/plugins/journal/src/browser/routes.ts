@@ -1,4 +1,4 @@
-import { defineAppRoute, type Route } from "@olai/web/client/routes.ts"
+import { defineAppRoute, type Route } from "olai-plugin-navigation/routes"
 
 import { journalWire } from "./wire.ts"
 import type { AgendaPageRequest, DayPageRequest } from "../wire.ts"

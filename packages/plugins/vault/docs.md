@@ -7,7 +7,7 @@ Core supplies `VaultSettings` after reading the bundle’s declared vocabulary.
 The row lives in `packages/bundle/olai.yml`, with `config: { format: olai }`.
 Every default server profile selects it. An explicit `--plugins` list selects
 only the plugins named: include `vault` to serve files. `--plugins=` opens no listener.
-An exact `--plugins=ws,web-app,mcp` set keeps the control plane available without
+An exact `--plugins=ws,web-app,mcp,ui-renderer,layout` set keeps the control plane available without
 a directory; reads and writes report that absence.
 
 The plugins panel explains that switching this row off clears served files and
@@ -22,3 +22,28 @@ format catalogue and schema; a different storage implementation can stand behind
 
 See [running olai](../running.md) for profiles and configuration, and
 [the plugin system](../internal/plugin-system.md) for lifecycle ordering.
+
+The browser entry supplies `vault.files`: one activation-owned directory/head
+reading and static membership accessors. Content providers consume this file
+access directly. The files plugin owns browsing UI and may leave without
+withdrawing an already open outline or Markdown document. Navigation owns the
+address resolver over the vault's membership, independently of that UI.
+
+The server module has independently injected `setup`, `main`, `file-access`,
+`revalidation`, and `http` components. They share the vault row's authority and
+lifetime. Setup receives only the operator's root and machine-local path policy
+through `VaultBoot`; it builds the complete declared vocabulary and live optional
+ledger/search views, then offers the settings that let the directory open.
+Changing property-kind contributions revalidates the current store. Unrelated
+plugin changes and snapshot publication do not create extra revisions.
+
+Disabling the vault closes all components and drains dependent cleanup before
+releasing the directory. A missing HTTP transport leaves that component waiting
+while headless file access remains available; the row report includes the missing
+component dependency.
+
+The file-access error subscription drains with its Surface registration. Its
+adapter treats Effect's queue-end sentinel during cancellation as normal
+subscription teardown, while retaining genuine publisher failures. Repeated
+withdrawal therefore keeps the management runtime alive and reactivation
+creates a fresh subscription.

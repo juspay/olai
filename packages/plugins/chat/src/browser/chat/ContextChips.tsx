@@ -19,8 +19,8 @@
 import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 
-import { renderTitle } from "@olai/web/client/markdown/title.ts"
-import { TitleHtml } from "@olai/web/client/markdown/TitleHtml.tsx"
+import { renderTitle } from "@olai/markdown-ui/title.ts"
+import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { TESTID } from "../../testids.ts"
 import { Reference } from "./Reference.tsx"
 

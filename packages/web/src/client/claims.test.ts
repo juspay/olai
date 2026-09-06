@@ -1,82 +1,75 @@
-/**
- * Claims this tree's docstrings make about WHERE things are spelled, held as
- * sweeps rather than as sentences.
+/** Browser architecture claims follow the code across owner boundaries.
  *
- * Two files in this client claim a monopoly, and both claims decayed once
- * already — `wire.ts` promised "the only file that knows a websocket exists"
- * while it hand-derived the dial URL a helper already owned, and the readout's
- * states were once folded per consumer. A claim in a docstring is checked at
- * review time by whoever happens to remember it; a claim swept here is checked
- * on every test run, and the failure names the file that broke it.
+ * Every declared browser entry is walked through static and literal dynamic
+ * imports. Shared browser utilities are also scanned even when temporarily
+ * unreachable. Fixtures are excluded: these equalities describe production
+ * callers, while behavior tests remain alongside their owners.
  *
- * The sweeps grip the CALL and the SPELLING, not the import path: a consumer
- * is free to import `@kolu/surface-app/solid` for its types (`status.ts` is
- * the door to the readout's), and a monopoly on a subpath would outlaw that
- * while missing a re-export. What cannot appear twice is the act — dialling
- * (`connectSurface(...)`), or comparing against a raw state name.
- *
- * Comments are stripped before matching, because these are claims about code:
- * prose is allowed to DISCUSS `connectSurface` or quote "live" while
- * explaining why nothing else may spell it.
- *
- * A SWEEP SEES ONE DIRECTORY, which is the limit worth stating at the top now
- * that a face this app draws can live in another package. When the tab's chat
- * and agents became `olai-plugin-chat`'s browser half, two claims whose every
- * name was a `chat/` file moved out whole and three more lost a row apiece —
- * and losing a row is the dangerous one, because the equality goes green while
- * the rule stops being asked of the files it was written against. So each of
- * those three says at its own list which name went with the panel, and
- * `packages/plugins/chat/src/browser/claims.test.ts` is the sibling sweep that
- * asks them again over that tree. A rule about something shared — this client's
- * readout, this client's bundle, this client's dismissal stack — has to be
- * swept on both sides of a package wall or it is only swept where nothing was
- * going to break it.
+ * The explicit path lists retain the original monopolies: one connection,
+ * one names derivation, one dismissal stack and one clock. Moving a module
+ * cannot remove it from review. Menu edges resolve real package aliases, and
+ * dynamic import checks inspect emitted code so TS type queries do not count
+ * as runtime loads. Babel removes comments without treating MIME strings or
+ * quoted comment markers as syntax.
  */
 
 import { expect, test } from "bun:test"
 import * as fs from "node:fs"
 import * as path from "node:path"
+import { transformSync } from "@babel/core"
+import { graphFrom, edgesOf, transpilers, PACKAGES } from "@olai/bundle/tree-testlib"
 
 const CLIENT = import.meta.dirname
-const SELF = import.meta.filename
 
-/** The file's code, with its comments removed. Line comments are only taken
- *  when `//` opens the line or follows whitespace, so a `https://…` inside a
- *  string survives; the cost is a comment pasted mid-expression surviving too,
- *  which for a sweep means a false alarm a human reads, never a silent pass.
- *
- *  ONE PASS, LEFT TO RIGHT, which is not cosmetic: whichever comment starts
- *  first consumes the other. Two passes have a silent-pass hole whichever order
- *  they run in — blocks first honours a block opener written inside a LINE
- *  comment (a MIME type with a star in it), lines first honours a `//` written
- *  inside a BLOCK comment and eats its closer — and either way the stripper
- *  swallows a stretch of real code and the sweep passes without reading it.
- *  `@olai/tests`' `support/sweep.ts` carries the same stripper, deliberately,
- *  with the argument and both fixtures written out. */
-const codeOf = (file: string): string =>
-  fs
-    .readFileSync(file, "utf8")
-    .replace(/\/\*[\s\S]*?\*\/|(^|\s)\/\/[^\n]*/g, (_taken, lead) => lead ?? "")
+const withoutComments = (source: string, file: string): string => transformSync(source, {
+  filename: file, configFile: false, babelrc: false, comments: false,
+  parserOpts: { plugins: file.endsWith(".tsx") ? ["typescript", "jsx"] : ["typescript"] },
+})!.code!
+const codeOf = (file: string) => withoutComments(fs.readFileSync(file, "utf8"), file)
 
-/** Every source file under the client — client-relative path and stripped
- *  code, read ONCE for however many sweeps accrue below. This file is
- *  excluded: the sweeps quote the spellings they hunt, and a sweep that
- *  caught its own net would teach the next reader to weaken the pattern
- *  rather than the code. */
-const SOURCES: ReadonlyArray<{ file: string; code: string }> = fs
-  .readdirSync(CLIENT, { recursive: true, withFileTypes: true })
-  .filter((entry) => entry.isFile() && /\.tsx?$/.test(entry.name))
-  .map((entry) => path.join(entry.parentPath, entry.name))
-  .filter((full) => full !== SELF)
-  .map((full) => ({ file: path.relative(CLIENT, full), code: codeOf(full) }))
 
-/** Where each file that matched is, so a failure is a file list rather than
- *  a boolean. */
-const filesSpelling = (pattern: RegExp): ReadonlyArray<string> =>
-  SOURCES
-    .filter((one) => pattern.test(one.code))
-    .map((one) => one.file)
-    .sort()
+const browserEntries = fs.readdirSync(path.join(PACKAGES, "plugins")).flatMap(name => {
+  const directory = path.join(PACKAGES, "plugins", name)
+  if (!fs.statSync(directory).isDirectory()) return []
+  const manifest = JSON.parse(fs.readFileSync(path.join(directory, "package.json"), "utf8"))
+  const browser = manifest.exports?.["./browser"]
+  return typeof browser === "string" ? [path.resolve(directory, browser)] : []
+})
+const graphs: ReturnType<typeof graphFrom>[] = []
+const visitedEntries = new Set<string>()
+const pending = [path.join(CLIENT, "main.tsx"), ...browserEntries]
+while (pending.length) {
+  const entry = pending.pop()!
+  if (visitedEntries.has(entry)) continue
+  visitedEntries.add(entry)
+  const graph = graphFrom(entry)
+  graphs.push(graph)
+  for (const edge of graph.reached) if (edge.dynamic && (edge.spec.startsWith(".") || edge.spec.startsWith("@olai/") || edge.spec.startsWith("olai-plugin-"))) {
+    pending.push(Bun.resolveSync(edge.spec, path.dirname(path.join(PACKAGES, edge.file))))
+  }
+}
+const production = (file: string) => !/\.(?:test|browsertest|testlib|bench)\./.test(file)
+const inBrowserPackage = (file: string) => file.startsWith("web/src/client/") || file.startsWith("plugins/") || file.startsWith("markdown-ui/") || file.startsWith("appearance/") || file.startsWith("ui-primitives/")
+const files = new Set(graphs.flatMap(graph => graph.files).filter(file => production(file) && inBrowserPackage(file)))
+// Keep unreachable shared browser utilities under review too: making a static
+// helper lazy or temporarily unused must not make a monopoly disappear.
+for (const entry of fs.readdirSync(CLIENT, { recursive: true, withFileTypes: true })) {
+  const full = path.join(entry.parentPath, entry.name)
+  if (entry.isFile() && /\.tsx?$/.test(entry.name) && production(full)) files.add(path.relative(PACKAGES, full))
+}
+const SOURCES = [...files].sort().map(file => {
+  const code = codeOf(path.join(PACKAGES, file))
+  const runtime = transpilers[file.endsWith(".tsx") ? "tsx" : "ts"].transformSync(code)
+  return { file, code, runtime }
+})
+test("browser ownership sweeps resolve every provider graph", () => {
+  expect(browserEntries.length).toBeGreaterThan(10)
+  expect(graphs.flatMap(graph => graph.unresolved)).toEqual([])
+})
+const filesSpelling = (pattern: RegExp): ReadonlyArray<string> => {
+  const matches = SOURCES.filter(one => pattern.test(pattern.source === "\\bimport\\s*\\(" ? one.runtime : one.code)).map(one => one.file).sort()
+  return matches
+}
 
 // wire.ts's own opening line — "the only file in the client that knows a
 // websocket exists" — tested as the CALL: exactly one file dials. Asserting
@@ -98,7 +91,9 @@ const filesSpelling = (pattern: RegExp): ReadonlyArray<string> =>
 // did: `@olai/plugin-api`'s `mechanics.test.ts`, which carries the falsifier the
 // upstream ask travelled with. A client-only sweep could not have made it.
 test("only wire.ts dials: the seam is called exactly once in the client", () => {
-  expect(filesSpelling(/connectSurfaces\s*\(/)).toEqual(["wire.ts"])
+  expect(filesSpelling(/connectSurfaces\s*\(/)).toEqual([
+    "web/src/client/wire.ts"
+  ])
 })
 
 // names.ts's claim — the table is derived ONCE, beside the reading
@@ -110,8 +105,7 @@ test("only wire.ts dials: the seam is called exactly once in the client", () => 
 // is a name on this list.
 test("createNames is called only beside the reading", () => {
   expect(filesSpelling(/createNames\s*\(/)).toEqual([
-    "names.browsertest.ts",
-    "reading.tsx",
+    "plugins/outlines/src/browser/reading.tsx"
   ])
 })
 
@@ -141,14 +135,8 @@ test("createNames is called only beside the reading", () => {
 test("nothing outside connection/status.ts reads the readout's raw states", () => {
   const states = /["'`](connecting|live|degraded|reconnecting|retired)["'`]/
   expect(filesSpelling(states)).toEqual([
-    path.join("connection", "reaching.test.ts"),
-    path.join("connection", "status.test.ts"),
-    path.join("connection", "status.ts"),
-    "declared.browsertest.ts",
-    "named.test.ts",
-    // The connection owner handles the transport's terminal status while
-    // awaiting socket refresh. It does not interpret the UI readout.
-    "wire.ts",
+    "web/src/client/connection/status.ts",
+    "web/src/client/wire.ts"
   ])
 })
 
@@ -186,7 +174,7 @@ test("no file here spells the same-file law — it is the format's", () => {
 // entitled to.
 test("only SaidLine.tsx spells the alarmed band the shortlist panels wear", () => {
   expect(filesSpelling(/border-alarm\/40[^"'`]*bg-alarm\/5/)).toEqual([
-    "SaidLine.tsx",
+    "web/src/client/SaidLine.tsx"
   ])
 })
 
@@ -202,7 +190,9 @@ test("only SaidLine.tsx spells the alarmed band the shortlist panels wear", () =
 // wide. Two hold-outs were found by hand when this test was written (the row
 // editor's line and the selection bar's) — which is the argument for the test.
 test("only SaidLine.tsx reads a said-line's mood", () => {
-  expect(filesSpelling(/data-tone=\{/)).toEqual(["SaidLine.tsx"])
+  expect(filesSpelling(/data-tone=\{/)).toEqual([
+    "web/src/client/SaidLine.tsx"
+  ])
 })
 
 // chrome.ts's claim, and the one that makes its title composer honest: what a
@@ -211,12 +201,16 @@ test("only SaidLine.tsx reads a said-line's mood", () => {
 // a sweep rather than a comment because the failure is silent — a title set
 // somewhere else looks right until the mark clears and puts back a name from
 // before it.
-test("only theme/chrome.ts writes the tab's title", () => {
-  expect(filesSpelling(/document\.title\s*=/)).toEqual([path.join("theme", "chrome.ts")])
+test("only the scoped appearance owner writes the tab title", () => {
+  expect(filesSpelling(/document\.title\s*=/)).toEqual([
+    "plugins/theme/src/chrome.ts"
+  ])
 })
 
 test("only layer.ts spells a z-index", () => {
-  expect(filesSpelling(/(?:^|[\s"'`])z-(?:\[\d+\]|\d+|auto)(?=$|[\s"'`])/m)).toEqual(["layer.ts"])
+  expect(filesSpelling(/(?:^|[\s"'`])z-(?:\[\d+\]|\d+|auto)(?=$|[\s"'`])/m)).toEqual([
+    "web/src/client/layer.ts"
+  ])
 })
 
 // overlay.ts's claim — hanging overlays mount on the socket. A z-index only
@@ -249,14 +243,16 @@ test("statusOf is gone: the type carries a tool row's status", () => {
 // one file: a second one would be a second policy about what this origin's one
 // worker is, and the register-or-retire invariant is the framework's to own.
 test("only the entry point registers a service worker", () => {
-  expect(filesSpelling(/[Ss]erviceWorker/)).toEqual(["main.tsx"])
+  expect(filesSpelling(/[Ss]erviceWorker/)).toEqual([
+    "web/src/client/main.tsx"
+  ])
 })
 
 test("overlays that hang over the outline mount on overlayRoot", () => {
   expect(filesSpelling(/overlayRoot\s*\(/)).toEqual([
-    path.join("complete", "Completions.tsx"),
-    path.join("menu", "Dropdown.tsx"),
-    path.join("menu", "MenuSaid.tsx"),
+    "plugins/outlines/src/browser/complete/Completions.tsx",
+    "plugins/outlines/src/browser/menu/Dropdown.tsx",
+    "plugins/outlines/src/browser/menu/MenuSaid.tsx"
   ])
 })
 
@@ -271,7 +267,7 @@ test("overlays that hang over the outline mount on overlayRoot", () => {
 // and it must argue with this list first.
 test("only the offline overlay takes the top layer", () => {
   expect(filesSpelling(/showModal\s*\(/)).toEqual([
-    path.join("connection", "Offline.tsx"),
+    "web/src/client/connection/Offline.tsx"
   ])
 })
 
@@ -285,9 +281,9 @@ test("only the offline overlay takes the top layer", () => {
 // that quietly stopped being pressable, which nothing else would notice.
 test("only the outline's scaffolding is marked as a sweep surface", () => {
   expect(filesSpelling(/data-sweep/)).toEqual([
-    "Tree.tsx",
-    path.join("drag", "sweeping.ts"),
-    path.join("edit", "Editable.tsx"),
+    "plugins/outlines/src/browser/Tree.tsx",
+    "plugins/outlines/src/browser/drag/sweeping.ts",
+    "plugins/outlines/src/browser/edit/Editable.tsx"
   ])
 })
 
@@ -298,7 +294,10 @@ test("only the outline's scaffolding is marked as a sweep surface", () => {
 // spread path, per row, per frame. A literal cannot be renamed by the type
 // checker; these are what hold the two spellings together.
 test("a row's line is marked in exactly the module that reads it and the tree that draws it", () => {
-  expect(filesSpelling(/data-row-key/)).toEqual(["Tree.tsx", path.join("drag", "lines.ts")])
+  expect(filesSpelling(/data-row-key/)).toEqual([
+    "plugins/outlines/src/browser/Tree.tsx",
+    "plugins/outlines/src/browser/drag/lines.ts"
+  ])
 })
 
 // A PANE'S index, which is the same kind of claim read from the other end. The
@@ -312,11 +311,12 @@ test("a row's line is marked in exactly the module that reads it and the tree th
 // a new reader, which is a new answer to "which page is this in".
 test("a pane's index is drawn by the workspace and read where two panes must be told apart", () => {
   expect(filesSpelling(/data-pane/)).toEqual([
-    "OutlinePage.tsx",
-    path.join("document", "faces.tsx"),
-    path.join("drag", "lines.ts"),
-    path.join("pane", "PageView.tsx"),
-    path.join("pane", "Panes.tsx"),
+    "plugins/layout/src/pane/Panes.tsx",
+    "plugins/markdown/src/browser/PageView.tsx",
+    "plugins/markdown/src/browser/document/faces.tsx",
+    "plugins/outlines/src/browser/OutlinePage.tsx",
+    "plugins/outlines/src/browser/PageView.tsx",
+    "plugins/outlines/src/browser/drag/lines.ts"
   ])
 })
 
@@ -326,8 +326,8 @@ test("a pane's index is drawn by the workspace and read where two panes must be 
 // wears it are literals, and only they need a sweep.
 test("a row's handle is marked in the gesture that owns it and the cell that wears it", () => {
   expect(filesSpelling(/data-handle/)).toEqual([
-    path.join("drag", "Handle.tsx"),
-    path.join("drag", "dragging.ts"),
+    "plugins/outlines/src/browser/drag/Handle.tsx",
+    "plugins/outlines/src/browser/drag/dragging.ts"
   ])
 })
 
@@ -363,7 +363,9 @@ test("a row's handle is marked in the gesture that owns it and the cell that wea
 // to reach for it. `clock.ts` itself is the definition, and the pattern is
 // the CALL — which is why its own name is the only one here.
 test("only clock.ts starts a repeating timer", () => {
-  expect(filesSpelling(/setInterval\s*\(/)).toEqual(["clock.ts"])
+  expect(filesSpelling(/setInterval\s*\(/)).toEqual([
+    "web/src/client/clock.ts"
+  ])
 })
 
 // pointer.ts's claim — one file suppresses the text selection under a gesture.
@@ -373,7 +375,9 @@ test("only clock.ts starts a repeating timer", () => {
 // property. A second writer turns a stray `user-select: none` until reload into
 // a wrong value put back, and this is what says so on the day it appears.
 test("only pointer.ts suppresses the page's text selection", () => {
-  expect(filesSpelling(/userSelect/)).toEqual(["pointer.ts"])
+  expect(filesSpelling(/userSelect/)).toEqual([
+    "web/src/client/pointer.ts"
+  ])
 })
 
 // saying.ts's claim — one receptacle for how long a said-line lingers. SAID_MS
@@ -385,7 +389,9 @@ test("only pointer.ts suppresses the page's text selection", () => {
 // now: the number was declared in `edit/undoing.ts` while the type it belongs
 // to lived there, and both moved out to the module that counts it down.
 test("only saying.ts counts SAID_MS down", () => {
-  expect(filesSpelling(/\bSAID_MS\b/)).toEqual(["saying.ts"])
+  expect(filesSpelling(/\bSAID_MS\b/)).toEqual([
+    "web/src/client/saying.ts"
+  ])
 })
 
 // routes.ts's monopoly, and finding 4's (a) from the debate on some of these
@@ -401,7 +407,9 @@ test("only saying.ts counts SAID_MS down", () => {
 // back to `routeOf` — so the grip is the grammar's own entry point, where a
 // recognizer must start.
 test("address recognition has one door: parseAddress( is called only in routes.ts", () => {
-  expect(filesSpelling(/parseAddress\s*\(/)).toEqual(["routes.ts"])
+  expect(filesSpelling(/parseAddress\s*\(/)).toEqual([
+    "plugins/navigation/src/routes.ts"
+  ])
 })
 
 // menu/chunk.ts's claim — `DropdownMenu` is not on the first-paint chunk, and
@@ -418,9 +426,9 @@ test("address recognition has one door: parseAddress( is called only in routes.t
 // has just re-imported the menu.
 test("only the chunked menu names @kobalte/core's dropdown-menu", () => {
   expect(filesSpelling(/@kobalte\/core\/dropdown-menu/)).toEqual([
-    path.join("menu", "Confirm.tsx"),
-    path.join("menu", "Dropdown.tsx"),
-    path.join("menu", "Panel.tsx"),
+    "plugins/outlines/src/browser/menu/Confirm.tsx",
+    "plugins/outlines/src/browser/menu/Dropdown.tsx",
+    "plugins/outlines/src/browser/menu/Panel.tsx"
   ])
 })
 
@@ -441,15 +449,15 @@ test("only the chunked menu names @kobalte/core's dropdown-menu", () => {
 // file of it, and nobody else. `Dropdown.tsx`'s empty list is the claim that
 // used to be a sweep of its own — the entry is reached by the `import(...)` in
 // `menu/chunk.ts`, which carries no `from` and is the split itself.
-const CHUNK = ["Dropdown.tsx", "Panel.tsx", "Confirm.tsx"].map((one) => path.join("menu", one))
+const CHUNK = ["Dropdown.tsx", "Panel.tsx", "Confirm.tsx"].map((one) => path.join("plugins/outlines/src/browser/menu", one))
 
 /** What a file statically imports, as client-relative paths. A dynamic
  *  `import(...)` is deliberately not one of them: `import` followed by a paren
  *  never matches, which is what makes `menu/chunk.ts` the one legitimate way
  *  in. */
-const importsOf = (source: { file: string; code: string }): ReadonlyArray<string> =>
-  [...source.code.matchAll(/(?:from|import)\s*["'](\.[^"']*)["']/g)]
-    .map(([, spec]) => path.normalize(path.join(path.dirname(source.file), spec!)))
+const importsOf = (source: { file: string; code: string; runtime: string }): ReadonlyArray<string> =>
+  edgesOf(source.file, source.runtime).filter(edge => !edge.dynamic && (edge.spec.startsWith(".") || edge.spec.startsWith("@olai/") || edge.spec.startsWith("olai-plugin-")))
+    .map(edge => path.relative(PACKAGES, Bun.resolveSync(edge.spec, path.dirname(path.join(PACKAGES, source.file)))))
 
 test("nothing outside the menu's chunk imports the menu's chunk", () => {
   const importers = new Map(CHUNK.map((one) => [one, [] as string[]]))
@@ -457,9 +465,9 @@ test("nothing outside the menu's chunk imports the menu's chunk", () => {
     for (const target of importsOf(source)) importers.get(target)?.push(source.file)
   }
   expect([...importers].map(([file, from]) => [file, from.sort()])).toEqual([
-    [path.join("menu", "Dropdown.tsx"), []],
-    [path.join("menu", "Panel.tsx"), [path.join("menu", "Dropdown.tsx")]],
-    [path.join("menu", "Confirm.tsx"), [path.join("menu", "Panel.tsx")]],
+    [CHUNK[0]!, []],
+    [CHUNK[1]!, [CHUNK[0]!]],
+    [CHUNK[2]!, [CHUNK[1]!]],
   ])
 })
 
@@ -518,7 +526,7 @@ test("nothing outside the menu's chunk imports the menu's chunk", () => {
  * computed `import()` somebody writes for an ordinary chunk, which is exactly
  * the mistake this test was written after.
  */
-const COMPUTED_BY_DESIGN: ReadonlyArray<string> = ["wire.ts"]
+const COMPUTED_BY_DESIGN: ReadonlyArray<string> = ["web/src/client/wire.ts"]
 
 test("every dynamic import() the client spells takes a literal the bundler can read", () => {
   // The opener, then the one shape the bundler can read: a complete quoted
@@ -528,23 +536,16 @@ test("every dynamic import() the client spells takes a literal the bundler can r
   const ARG_GEN = /^(?:"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*')\s*\)/
   const offenders = SOURCES.filter((one) =>
     !COMPUTED_BY_DESIGN.includes(one.file) &&
-    [...one.code.matchAll(/\bimport\s*\(\s*/g)].some(
-      (hit) => !ARG_GEN.test(one.code.slice(hit.index + hit[0].length)),
+    [...one.runtime.matchAll(/\bimport\s*\(\s*/g)].some(
+      (hit) => !ARG_GEN.test(one.runtime.slice(hit.index + hit[0].length)),
     ),
   ).map((one) => one.file)
   expect(offenders).toEqual([])
   expect(filesSpelling(/\bimport\s*\(/)).toEqual([
-    // `mock.module` first, `await import` after — a static import would be
-    // hoisted above the mock, which is that file's own header argument.
-    "declared.browsertest.ts",
-    "inlinePicker.test.ts",
-    path.join("layout", "Rail.tsx"),
-    path.join("markdown", "chunk.ts"),
-    path.join("menu", "chunk.ts"),
-    // ...and the one that computes one, which is {@link COMPUTED_BY_DESIGN}'s
-    // whole argument: a plugin the vault defines is fetched from the serve that
-    // compiled it, at a URL the roster carries.
-    "wire.ts",
+    "markdown-ui/src/chunk.ts",
+    "plugins/kolu/src/appliance/props/LivePane.tsx",
+    "plugins/outlines/src/browser/menu/chunk.ts",
+    "web/src/client/wire.ts"
   ])
 })
 
@@ -558,7 +559,7 @@ test("every dynamic import() the client spells takes a literal the bundler can r
 // thing a scenario about the OTHER panels would never catch.
 test("only dismiss.ts reaches for Kobalte's dismissal primitives", () => {
   expect(filesSpelling(/create(?:EscapeKeyDown|InteractOutside)\s*\(/)).toEqual([
-    "dismiss.ts",
+    "web/src/client/dismiss.ts"
   ])
 })
 
@@ -582,10 +583,18 @@ test("only dismiss.ts reaches for Kobalte's dismissal primitives", () => {
 // there, in `packages/plugins/chat/src/browser/claims.test.ts`.
 test("the stack is joined directly only where the gestures are not dismissOn's", () => {
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
-    "dismiss.ts",
-    path.join("menu", "Dropdown.tsx"),
-    path.join("palette", "Palette.tsx"),
-    path.join("palette", "Shortcuts.tsx"),
-    "topmost.ts",
+    "plugins/chat/src/browser/chat/CompletionMenu.tsx",
+    "plugins/navigation/src/palette/Palette.tsx",
+    "plugins/navigation/src/palette/Shortcuts.tsx",
+    "plugins/outlines/src/browser/menu/Dropdown.tsx",
+    "web/src/client/dismiss.ts",
+    "web/src/client/topmost.ts"
   ])
+})
+
+test("comment stripping preserves MIME strings and the code following them", () => {
+  const code = withoutComments('const accept = "image/*"; // a real comment\nconst marker = "data-row-key";', "claim.ts")
+  expect(code).toContain('"image/*"')
+  expect(code).toContain('"data-row-key"')
+  expect(code).not.toContain("a real comment")
 })

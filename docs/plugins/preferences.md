@@ -1,0 +1,1 @@
+../../packages/plugins/preferences/docs.md

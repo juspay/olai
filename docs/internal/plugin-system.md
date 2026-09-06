@@ -432,7 +432,7 @@ pill's geometry, a popover, a link to a served file) so a plugin never imports
 face: `cluster` is the standing row of pills, desktop only, after the connection
 state; `lead` is the one seat ahead of them, drawn on a phone too, that may
 shrink to nothing before any pill loses a character. What each word MEANS is the
-shell's — `client/AppHeader.tsx` spends it, `client/plugins/Chrome.tsx` reads the
+shell's — `plugins/layout/src/Header.tsx` spends it, `client/plugins/Chrome.tsx` reads the
 slot twice — and a plugin cannot spell an ordering of its own. It arrived with
 the search box (`olai-plugin-search`), which has always been that seat and has
 always had a phone arm, and it is the same small vocabulary `sidebar.entry`
@@ -565,20 +565,25 @@ theoretical: importing the manifest door from the server **kills the boot** with
 `Cannot find module 'react/jsx-dev-runtime'`.
 
 Two more entries are routing rather than graphs: `./all.css` chains each plugin's
-stylesheet, and `./testids` merges each plugin's names-only testid table.
+stylesheet, and `./testids` is the browser suite's complete identifier catalogue.
+Every renderer owns a pure identifier table: each plugin exports `./testids`,
+shared rendering libraries own their widget IDs, and the permanent web host
+retains only boot identifiers. The generated plugin aggregate and shared tables
+are checked together for duplicate keys and values. `selector` and `AnyTestId`
+live in UI primitives, whose open type-only `TestIdTables` interface is augmented
+by each owner. No runtime catalogue or plugin import enters a generic widget.
 
 **`@olai/plugin-api` is not on that picture, and that is the point.** It is the
 INTERFACE a plugin is written against — the browser-face types and slots at its
 root, and the server's service tags at `./services` — and it names no plugin at
 all. That is what lets a plugin import it, which the registry could never allow
 while the two were one package. `/effect-cordis` is not on it either, and
-for the mirror reason: it is the ENGINE, it has never heard of a vault, and its
-runtime door has exactly one importer — `@olai/plugin-api`, which re-exports
-that list onto both of its own doors, so a plugin, a tab and a composition root
-all spend it from the same place. The one reach past that door is
-`@olai/bundle` opening `/effect-cordis/loader` to mount the rows, because the
-loader carries `node:fs` and a YAML parser and cannot travel through a package
-a tab imports.
+for the mirror reason: it is the ENGINE and names no feature. `@olai/plugin-api`
+re-exports its plugin authoring primitives. Generic host adapters may consume
+engine operations directly: the browser's scoped service reader resolves an
+offered key without importing the provider or its contract. The bundle opens
+`/effect-cordis/loader` to mount rows; that server-only door carries `node:fs`
+and a YAML parser and cannot travel through a package a tab imports.
 
 **`olai.yml` is the tenant list, and a fourth plugin is ONE ROW.** The browser
 kept two `as const` arrays for one round — a browser bundle is built ahead of
@@ -1151,7 +1156,7 @@ names the file.
 | `packages/bundle/src/report.test.ts` | what became of each row, off a real runtime: a row nothing mounted reads `off`, one whose `apply` failed reads `failed` and carries the plugin's own message verbatim, one short of a service it names reads `waiting` — the words the preferences row's five are composed from |
 | `packages/bundle/src/kinds.test.ts` | the word a vault declares is composed from the PLUGIN's own name; a word leaves the vocabulary when its plugin unloads; the BUILT half carries every row's words whatever the flag said |
 | `packages/bundle/src/composition.test.ts` | an empty roster composes, core's tags do not move, and — the two claims that need the modules LOADED — every module answers to the name its row binds it under, and every face a plugin declares is a face it wrote a map for. There is no `rosters.test.ts` any more: it held three hand-written lists equal, and two of the three are generated from the third |
-| `packages/bundle/src/testids.test.ts` | the plugins’ testid tables are disjoint — and one layer further out, `packages/web/src/client/testids.test.ts` holds the app’s own table disjoint from theirs, which is the seam `selector()` actually spends |
+| `packages/bundle/src/testids.test.ts` | all plugin, boot and shared-renderer ID tables have distinct keys and values; the permanent web table contains only boot overlay IDs |
 | `packages/plugins/kolu/src/testids.ts` | a tenant’s two testid halves share no key and no value — a TYPE-level assertion, so a collision is a `tsc` error naming the offender rather than a test somebody keeps green |
 | `packages/plugins/kolu/src/faces.test.ts` | the tenant’s own two face directories stay apart — `src/browser/` names no part of the appliance’s tier, and `src/appliance/` names none of the vault’s vocabulary, which is the wall `@olai/kolu-ui`’s manifest kept before the fold. In the TENANT, not in the fence: a per-directory rule up there would be the fence inventing a layout convention and enforcing its own invention |
 | `packages/tests/plugin_docs.test.ts` | every plugin's docs page exists, is served, and is linked |
@@ -1229,9 +1234,20 @@ compiled from the page itself by `@olai/server`'s `dynamic/worked.test.ts`.
 
 The ordinary `olai-plugin-vault/server` row lives in `packages/bundle/olai.yml` and is selected by every default profile. Explicit `--plugins` selections may omit it. It waits on `VaultSettings`, supplied after the bundle’s declared vocabulary is available, and acquires the one-brain lock before the store. The row owns its watcher and revision publisher and offers `Vault`, `Directory` and `Ops`; `Kinds` remains core-provided. Late revision subscribers receive the current snapshot. Tenants naming `Vault` wait while it is absent and reactivate when it returns.
 
-Core reads `Directory` and the complete gate carried by `Ops` per call. `makeOps` runs inside the vault row after the store acquisition. The gate owns its caches and count of accepted writes; its scope release closes it to fresh calls and drains accepted writes before the store watcher and lock are released. A serve without the row has no gate and no `Ops` offer. Core’s lookup adapter answers `NO_DIRECTORY`, the same UsageFailure sentence as `NOWHERE_TO_WRITE`; it acquires nothing. Existing plugin gestures remain typed on `Ops`, while core interprets its opaque `gate` at the floor boundary. `VaultSettings` carries the root, vocabulary and optional-provider views, with no `idle` callback.
+Capability providers acquire `Directory` and `Ops` through their scoped needs.
+`makeOps` runs inside the vault row after the store acquisition. The gate owns
+its caches and accepted-write count; its finalizer rejects fresh calls and
+drains accepted writes before releasing the watcher and lock. A serve without
+the vault has no domain gate. Domain Surface handlers leave with their providers,
+while permanent management remains available.
 
-Core composes directory changes through `server/src/store-source.ts`: the binding receives current-store lookup, revisions and errors without observing the plugin host itself. Fixed fixtures preserve the store’s direct initial delivery. Core also owns the machine runtime-path policy and persistent-record pruning; the provider receives a narrow runtime-path capability through `VaultSettings` and owns only lock-file sweeping. `plugins/vault/src/ops-door.ts` translates plugin gestures and attribution into floor operations; the vault row retains acquisition, offer registration and gate release. These boundaries keep surface projection and plugin vocabulary separate from resource lifetime.
+Vault owns file-access projection and publishes revisions to its dependents.
+Content providers register the readings and operations they implement through
+`Surfaces`; the host routes those declarations without importing the store or a
+domain projection. Machine-local facilities arrive through generic host services,
+and runtime path configuration is passed to the vault capability. The provider
+owns lock-file sweeping and resource release. These boundaries separate wire
+vocabulary and renderer state from the lifetime of the directory.
 
 The vault row carries `config: { format: "olai" }`, validated by its `Config` schema. The codec table is the place to add another supported format; Org is not implemented by this PR. The Effect bridge decodes row config before user `apply`, inside the same contained activation as every other initializer. This avoids the pinned Cordis constructor-validation path that could leave an invalid row pending and reject an unobserved loader promise.
 
@@ -1240,9 +1256,9 @@ The vault switch remains available and explains its cost. Disabling it clears se
 
 ### Transport plugins and profiles
 
-`ws`, `mcp` and `web-app` are ordinary bundle plugins with optional browser exports; these three and vault export no browser half or stylesheet. They wait on the composed surface before acquiring their contributions.
+`ws`, `mcp` and `web-app` are ordinary bundle plugins. Transport providers wait on the composed surface before registering routes. Browser exports are independent: web-app supplies browser integration, and vault supplies scoped file access without owning a layout.
 
-`TransportSurface.register` accepts scoped HTTP route layers and upgrade handlers. Core’s `listener.ts` owns one port and rebuilds HTTP dispatch from those contributions; it has no transport flags or transport-specific branch. Each registration owns only its contribution. The ws plugin owns origin checks, header admission, stale-tab checks, heartbeat enrollment and connection cleanup using the framework’s socket primitives. The web-app plugin owns static routes, the service worker and manifest. The MCP plugin owns its route, carrier, protocol server and tool projection; core’s binding and tickets keep writer attribution and the write fence. Route changes preserve existing websocket connections. With only MCP registered, the same listener serves only its HTTP route.
+`TransportSurface.register` accepts scoped HTTP route layers and upgrade handlers. Core’s `listener.ts` owns one port and rebuilds HTTP dispatch from those contributions; it has no transport flags or transport-specific branch. Each registration owns only its contribution. The ws plugin owns origin checks, header admission, stale-tab checks, heartbeat enrollment and connection cleanup using the framework’s socket primitives. The web-app plugin owns static routes, the service worker and manifest. The MCP plugin owns its route, carrier, protocol server, tool projection and scoped ticket registry. It applies request attribution to the host’s composed agent generation; domain providers enforce the supplied fence. Static write reservations come from the bundle’s owner declarations and remain active when their owner is disabled. Route changes preserve existing websocket connections. With only MCP registered, the same listener serves only its HTTP route.
 
 `mountBundle` resolves only the modules in `olai.yml`. Profiles cannot insert rows or supply a special resolver. The default `web` profile preserves the catalogue defaults, while `surface` and `test-minimal` disable rows without their `profiles` membership. An explicit `--plugins` list overrides the profile for every row, including transports: `--plugins=` mounts nothing and opens no listener. The browser test harness explicitly composes its socket, assets and MCP carrier for nonempty test tags. `BUNDLE_NAMES` includes every transport, so dynamic definitions cannot replace those reserved names. The generator reads package exports: only a declared `./browser` gets a browser-table entry and chunk, and only a declared `./all.css` enters the style chain. Server-only packages require neither stub.
 
@@ -1251,3 +1267,104 @@ The plugins panel holds its switches while the browser reconciles a roster. A se
 
 
 Profile policy has one interpreter (`profilePatch`), and every served route has a registration owner. Websocket admission uses the framework’s `restrictServedGeneration` over its narrow generation contract. An accepted HTTP response survives another route provider’s arrival and withdrawal; the platform protects that response, while the routing scope controls which handlers new requests reach. Shutdown rejects new connections and upgrades during the drain and waits for observed socket closes before closing the port.
+
+## Phase 18: shell and content capabilities
+
+The permanent host starts plugins, supplies generic loading and transport
+facilities, and publishes management. The bundle supplies layout, navigation,
+sidebar, outlines, Markdown and the other feature rows. Server capabilities
+require no renderer or workspace. Browser-only rows report host selection
+separately from actual activation in each tab. The maintained `test-counter`
+fixture exercises the same host without Vault, Directory or Ops; `test-layout`
+uses unchanged content plugins in an alternate shell.
+
+General production packages name no plugin package, even through a static
+contract; only the bundle chooses providers. Test and testlib readers may import
+explicit static contracts. This is an equality with an empty production import
+set, not an allowlist of general-package exceptions.
+
+Cross-plugin imports use explicit static doors such as `/contract`, `/slots` and
+`/testids`. They carry service tags, descriptors, types and static data. A supplied-
+prop rendering API may contain JSX, but its closure must not acquire provider
+resources or reach private browser/server implementations. Declare the provider
+as a package dependency and express runtime availability through `needs`.
+Importing a contract does not activate its provider. Import fences check both
+direct imports and the resolved transitive graph.
+
+### Locations and compatibility
+
+Only `root` is permanent. A contribution registers with
+`contribute(location, value, { children, activate })`. Its registration belongs
+to the caller; `activate` acquires location-dependent resources in a separate
+scope, and its children exist only while that entry is active. Withdrawal drains
+dependents before releasing the owner's resources. Returning owners acquire
+fresh integrations; surviving siblings retain their identities. Reservations,
+key policies, duplicate ownership, cycles and failed acquisition are checked
+while entries wait as well as when they activate.
+
+`Slots.register` and `Faces` adapt that same renderer registry. A name-only
+compatibility reference cannot declare an owner or choose cardinality. Outlines,
+navigation, layout, sidebar and chat own their static slot descriptors, types
+and consuming renderers; the API has no fixed application-slot catalog.
+Inspection reads immutable metadata from the supplied bundle modules. See
+[slot ownership](../slot-ownership.md) for the owner table and lifecycle rules.
+
+Providers perform independent work outside their location integrations. Theme
+state survives removal of its preferences UI; inspector reading history survives
+shell replacement. Outlines retains editor state across unrelated Chat changes,
+but leaving Outlines discards its own pending drafts. Separate components name
+extra services only where they use them, so an unavailable integration does not
+stop the rest of its plugin.
+
+### Server composition and source policy
+
+Capability schemas belong to their implementing plugins. The permanent
+`@olai/surface/core` declaration serves process identity and management, while
+`@olai/surface` exports inert shared wire types. No feature descriptor is selected
+from a monolithic core spec. Each server activation registers its own Surface
+through `Surfaces`; its browser activation receives the matching `Wired` client
+and installs an accessor for that scope. Disposal revokes the accessor, so a
+stale consumer cannot retain authority by holding an old client. Shared edit
+algorithms receive the owner's write operation as a value.
+
+Outlines, Markdown, files, pins, capture and trash bind their own server
+readings and operations. Scoped Surface mounts preserve the established public
+tags. Shared discriminated procedures dispatch disjoint owner-declared cases;
+conflicting variants, write authority and face grants are rejected. Retained
+handlers are revoked when their provider leaves. An absent branch reports the
+same lifecycle refusal as a departed sibling, without killing unrelated calls.
+Markdown's metadata stream rejects outline and node addresses, so it works when
+Outlines was never enabled.
+
+MCP owns its adapters and tickets. Its advertised tools and resources follow
+current capability availability, and retained clients resolve current handlers
+and write authority. Supplemental vault and plugin-chunk HTTP routes do not
+open a listener without an actual transport. A failed or absent vault leaves
+the host control plane usable.
+
+`vault-plugins` owns discovery, version approval, compilation and chunk delivery.
+It uses a generic owned loader: acquired children, catalogs and pending starts
+leave with their owner, while accepted vault writes remain durable. The host
+knows module declarations and lifecycle reports, not source approval policy.
+Approval writes remain reserved from agent access even when the policy provider
+is absent. Catalog changes refresh host reports, including definitions waiting
+for another definition's service.
+
+### Presentation resources and recovery
+
+Build-time `/assets` exports contribute head markup, styles, module preloads and
+stable files through a generated catalog. Theme owns first-paint appearance and
+fonts; web-app owns install metadata/icons; Markdown requests its renderer
+preload. The runtime does not import this build graph. Layout owns viewport,
+geometry and deployment naming; theme owns title/favicon presentation. Clock
+factories belong to the renderer and timers belong to their consuming scopes.
+Chat owns alerts, notification permission listeners, audio and attention state.
+Late asynchronous completions cannot republish after those owners leave.
+
+Browser loading retries a failed entry under a fresh entry URL. If that fails,
+it offers **Reload page** because Chromium may retain a failed static dependency
+in its module map. Successful shared runtimes keep their identities. Both the
+inspector and renderer-free startup diagnostics explain recovery; neither
+silently discards the document. The live roster remains authoritative over a
+late bootstrap response or failure.
+

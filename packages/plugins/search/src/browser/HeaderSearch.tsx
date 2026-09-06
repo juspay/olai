@@ -1,3 +1,4 @@
+import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 /**
  * The header's search box — the second door to the one search reading.
  *
@@ -61,19 +62,19 @@ import { Portal } from "solid-js/web"
 import { type Anchor, anchoredTo, styleOf } from "@olai/web/client/anchor.ts"
 import { ALARM_BAND, SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
-import { hitItems, type PaletteItem } from "@olai/web/client/palette/items.ts"
-import { openPalette } from "@olai/web/client/palette/open.ts"
+import { hitItems, type PaletteItem } from "olai-plugin-navigation/palette-model"
+import { openPalette } from "olai-plugin-navigation/palette-open"
 import { Refusals } from "@olai/web/client/refusals.tsx"
-import { useMaybeGo } from "@olai/web/client/router.tsx"
+import { useMaybeGo } from "olai-plugin-navigation/routing"
 import { listKey } from "@olai/web/client/keys.ts"
-import { TESTID as SHELL } from "@olai/web/client/testids.ts"
+
 import { TESTID } from "../testids.ts"
-import { TARGET } from "@olai/web/client/touch.ts"
+import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { useToday } from "@olai/web/client/today.tsx"
-import { SearchCount } from "@olai/web/client/search/Count.tsx"
-import { createCursor } from "@olai/web/client/search/cursor.ts"
-import { createSearch } from "@olai/web/client/search/nodes.ts"
-import { Result, type RowTestids } from "@olai/web/client/search/Result.tsx"
+import { SearchCount } from "olai-plugin-search/ui/Count.tsx"
+import { createCursor } from "@olai/ui-primitives/cursor.ts"
+import { createSearch } from "olai-plugin-search/reading"
+import { Result, type RowTestids } from "olai-plugin-search/ui/Result.tsx"
 import { spend } from "@olai/web/client/settled.ts"
 
 /** WHERE an alarm sits in this panel: a full-width band above the rows, at
@@ -285,7 +286,7 @@ export function HeaderSearch() {
               <Refusals
                 of={nodes.refusals()}
                 class={ALERT_ROW}
-                testid={SHELL.searchRefusal}
+                testid={IDS_NAVIGATION.searchRefusal}
               />
               {/* Down, never sideways — the rows are built not to overflow
                   and this is what keeps that a property of the container. */}

@@ -35,6 +35,7 @@ import type { Entry } from "@cordisjs/plugin-loader"
 import Loader from "@cordisjs/plugin-loader"
 import { Effect } from "effect"
 
+import { pluginModule } from "./module.ts"
 import { interrupt } from "./lifecycle.ts"
 import { ctxOf, type Host } from "./host.ts"
 
@@ -115,7 +116,7 @@ export const mountRows = (host: Host, options: {
     await ctx.plugin(Loader)
     ;(ctx.loader as unknown as { internal: unknown }).internal = {
       version: "v1",
-      import: (specifier: string) => options.resolve(specifier),
+      import: async (specifier: string) => pluginModule(await options.resolve(specifier)),
     }
     // THE ROWS, AS THE INCLUDE MAKES THEM — registered BEFORE the include, which
     // is the whole of why this line is here and not further down: the event

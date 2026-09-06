@@ -72,7 +72,7 @@
  * by carrying a list somebody typed.
  */
 
-import { type Accessor, createContext, createMemo, type JSX, useContext } from "solid-js"
+import { type Accessor, createComponent, createContext, createMemo, type JSX, useContext } from "solid-js"
 import type { CollectionDelta } from "@kolu/surface/define"
 import type { CollectionFold } from "@kolu/surface/solid"
 import { Effect, Result, type Stream } from "effect"
@@ -189,11 +189,7 @@ export interface FleetSources {
   readonly read?: ReadScreen
 }
 
-export function FleetProvider(props: {
-  readonly sources: FleetSources
-  readonly now: Accessor<number>
-  readonly children: JSX.Element
-}) {
+export function createFleet(props: {readonly sources: FleetSources; readonly now: Accessor<number>}): Fleet {
   const held = props.sources.fold<Held>({
     // A SNAPSHOT REPLACES, and a re-seed after a link flap must not leave a row
     // padi dropped while the socket was down. The map is fresh here and mutated
@@ -231,7 +227,12 @@ export function FleetProvider(props: {
     watch: props.sources.watch,
     now: props.now,
   }
-  return <FleetContext.Provider value={fleet}>{props.children}</FleetContext.Provider>
+  return fleet
+}
+
+export function FleetProvider(props: ({readonly value: Fleet} | {readonly sources: FleetSources; readonly now: Accessor<number>}) & {readonly children: JSX.Element}) {
+  const fleet = "value" in props ? props.value : createFleet(props)
+  return createComponent(FleetContext.Provider, {value: fleet, get children() {return props.children}})
 }
 
 /**

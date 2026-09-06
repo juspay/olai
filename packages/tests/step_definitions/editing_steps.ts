@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * The row editor: the caret, the keys, and what the file says afterwards.
  *
@@ -31,7 +32,7 @@ import { Then, When } from "@cucumber/cucumber";
 import { MARKS } from "@olai/format";
 
 import { shiftDay } from "@olai/format";
-import { IDLE_COMMIT, isoDayOf, TESTID } from "@olai/web/testlib";
+import { IDLE_COMMIT, isoDayOf } from "@olai/web/testlib"
 
 import type { Locator } from "playwright";
 
@@ -207,6 +208,20 @@ When(
 
 When("I press {string}", async function (this: OlaiWorld, key: string) {
   await pressed(this, key);
+});
+
+When("a DOM reorder briefly removes and refocuses the title editor", async function (this: OlaiWorld) {
+  // Force the browser ordering that a keyed row move can produce: blur fires
+  // during removal while isConnected is still true; focus returns before the
+  // DOM update task ends. A synchronous blur handler mistakes this for leaving.
+  await this.page.locator(TITLE_EDITOR).first().evaluate((element) => {
+    if (document.activeElement !== element) throw new Error("title editor is not focused");
+    const parent = element.parentNode!;
+    const next = element.nextSibling;
+    parent.removeChild(element);
+    parent.insertBefore(element, next);
+    (element as HTMLElement).focus();
+  });
 });
 
 /** The same key, with nothing waited for afterwards — which is how a person
@@ -1104,4 +1119,16 @@ Then("the note retains the backward selection {string}", async function (this: O
     return input.value.slice(input.selectionStart, input.selectionEnd) === text
       && input.selectionDirection === "backward";
   }, expected), `the note to retain its backward selection of ${JSON.stringify(expected)}`);
+});
+
+const parkedInputs = new WeakMap<OlaiWorld, import("playwright").ElementHandle<HTMLElement | SVGElement>>();
+When("I remember the first parked input", async function (this: OlaiWorld) {
+  const input = await this.page.locator(`${NEW_ROW} ${TITLE_EDITOR}`).first().elementHandle();
+  assert.ok(input);
+  parkedInputs.set(this, input);
+});
+Then("the remembered parked input still holds the caret", async function (this: OlaiWorld) {
+  const input = parkedInputs.get(this);
+  assert.ok(input);
+  assert.equal(await input.evaluate((element) => element.isConnected && document.activeElement === element), true);
 });

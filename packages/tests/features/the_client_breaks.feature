@@ -14,9 +14,9 @@ Feature: When olai itself breaks
 
   There is no way to ASK this app to break, and there should not be: a fault
   switch is a fault switch, on in production too. So the fault is injected from
-  outside, into the one arithmetic every page of this client runs through
-  before it can draw anything (the date padding behind the month and the
-  clock). What it stands in for is any bug at all in a render.
+  outside, when the layout draws its header DOM. The injection leaves scoped
+  provider startup intact and throws the original error inside the rendering
+  boundary. What it stands in for is any bug at all in a render.
 
   Scenario: A fault while drawing is a card, not a white tab
     Given this client's own code throws while it draws

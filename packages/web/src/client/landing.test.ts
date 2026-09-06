@@ -26,9 +26,9 @@
 
 import { describe, expect, test } from "bun:test"
 
-import { landingOf, landingsOf, marked, NOWHERE, spent } from "./landing.ts"
-import { routeOf } from "./routes.ts"
-import { lone, workspaceOf } from "./workspace.ts"
+import { landingOf, landingsOf, marked, NOWHERE, spent } from "olai-plugin-navigation/landing"
+import { routeOf } from "olai-plugin-navigation/routes"
+import { lone, workspaceOf } from "olai-plugin-navigation/workspace"
 
 /** A two-pane address whose panes both name a heading — the shape the whole
  *  per-pane rule exists for. */

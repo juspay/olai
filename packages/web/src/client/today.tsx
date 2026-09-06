@@ -34,7 +34,10 @@ export function TodayProvider(props: {
 /** Today, for a component under the provider — or a throw, which is a bug in
  *  this app rather than a state a reader can reach. */
 export const useToday = (): (() => string) => {
-  const today = useContext(TodayContext)
+  const today = useContext(TodayContext) ?? held
   if (today === undefined) throw new Error("a today lookup outside <TodayProvider>")
   return today
 }
+
+let held: (()=>string) | undefined
+export function holdToday(value:()=>string):()=>void { held=value; return ()=>{if(held===value)held=undefined} }

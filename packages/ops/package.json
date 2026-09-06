@@ -10,7 +10,8 @@
     ".": "./src/index.ts",
     "./testlib": "./src/fixtures.testlib.ts",
     "./testlib/tools": "./src/tools.testlib.ts",
-    "./resolved": "./src/resolved.ts"
+    "./resolved": "./src/resolved.ts",
+    "./resolved-gate": "./src/resolved-gate.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

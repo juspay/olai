@@ -1,3 +1,10 @@
+import type {} from "olai-plugin-layout/slots"
+import type {} from "olai-plugin-navigation/slots"
+import type {} from "olai-plugin-outlines/slots"
+import type {} from "olai-plugin-sidebar/slots"
+import { slotContracts } from "./slots.ts"
+import {Clocks} from "@olai/plugin-api"
+import {fileAccess} from "olai-plugin-vault/contract"
 /**
  * CHAT'S BROWSER HALF — the right panel, the sidebar's agents section, the door
  * on an agent row, the two verbs on a row's `•••`, and the palette's `>`.
@@ -57,13 +64,14 @@
  * write one.
  */
 
-import { definePlugin, Faces, Slots, Wired } from "@olai/plugin-api"
+import { definePlugin, Faces, Slots, Wired, Offers } from "@olai/plugin-api"
 import { Effect } from "effect"
 
 import { AgentDoor } from "./browser/agents/Door.tsx"
 import { Agents } from "./browser/agents/Agents.tsx"
-import { AgentsProvider } from "./browser/agents/answered.tsx"
-import { askCommand, CommandContext, rowVerbs } from "./browser/verbs.tsx"
+import { AgentsProvider, createAgents } from "./browser/agents/answered.tsx"
+import { createAskCommand, rowVerbs } from "./browser/verbs.tsx"
+import { createChatState } from "./browser/chat/state.ts"
 import { trackCamera } from "./browser/chat/camera.ts"
 import { Panel, Toggle } from "./browser/chat/Panel.tsx"
 import { holdFaces } from "./browser/faces.ts"
@@ -87,7 +95,7 @@ const SECTION = "Agents"
 
 export default definePlugin({
   name,
-  needs: [Faces, Slots, Wired],
+  needs: [Faces, Slots, Wired, Offers, alertSettings, fileAccess, Clocks],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
     const faces = yield* Faces
@@ -99,43 +107,69 @@ export default definePlugin({
     // ...AND WHAT OTHER PLUGINS HUNG, for the two slots this panel is the
     // reader of.
     holdFaces(faces)
+    const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+      const conversation = createChatState()
+      return {dispose, conversation, agents: createAgents(conversation)}
+    })), state => Effect.sync(state.dispose))
+    yield* (yield* Offers).own("state", () => state)
 
-    // WHETHER THIS DEVICE HAS A CAMERA to offer, watched once for the tab. It
-    // was `main.tsx`'s, a statement in core's boot about a control that only
-    // this panel's composer draws.
-    trackCamera()
 
     // THE PANEL, in the seat the shell reserves for one. What travels with it is
     // everything that draws INSIDE that seat — the dock, the mobile sheet, the
     // minimized strip and the wake strip — because none of those is a bar
     // readout in this app's geometry and all of them are the panel positioning
     // itself in what it was given.
-    yield* slots.register("app.panel", Panel)
+    yield* slots.register("app.panel", () => <AgentsProvider value={state.agents}><Panel /></AgentsProvider>, {
+      children: [slotContracts["delivery.mark"], slotContracts["engine.install"]],
+      activate: Effect.acquireRelease(Effect.sync(trackCamera), (stop) => Effect.sync(stop)),
+    })
     // ...and the control in the bar that opens and shuts it.
-    yield* slots.register("app.header", { place: "cluster", body: Toggle })
+    yield* slots.register("app.header", { place: "cluster", body: () => <AgentsProvider value={state.agents}><Toggle /></AgentsProvider> })
     // THE ROSTER SECTION, under the app's own sidebar regions.
-    yield* slots.register("sidebar.section", { said: SECTION, body: Agents })
+    yield* slots.register("sidebar.section", { said: SECTION, body: () => <AgentsProvider value={state.agents}><Agents /></AgentsProvider> })
     // THE DOOR ON A ROW — drawn on every row and answering nothing on nearly
     // all of them, which is one map read against a roster this half subscribes
     // to once for the whole tab (`./browser/agents/answered.tsx` argues what
     // subscribing per row would cost).
-    yield* slots.register("outline.row.door", AgentDoor)
+    yield* slots.register("outline.row.door", props => <AgentsProvider value={state.agents}><AgentDoor {...props} /></AgentsProvider>)
     // THE VERBS ON A ROW'S `•••`, as a READING rather than a list — the count
     // is one per installed engine plus the ask, and the roster that decides it
     // arrives after this fiber does (`./browser/verbs.tsx` argues both).
-    yield* slots.register("outline.row.action", rowVerbs)
-    yield* slots.register("app.command", askCommand)
-    // THE ROSTER, AS ONE SUBSCRIPTION AROUND THE WHOLE PAGE. It is a mount
-    // rather than a face because what it provides is a CONTEXT: the sidebar's
-    // section draws the whole of it, every outline row asks whether its node is
-    // on it, and the panel's header asks what the node its conversation belongs
-    // to is called — three readers with the whole app between them.
-    yield* slots.register("app.mount", (props) => (
-      <CommandContext><AgentsProvider>{props.children}</AgentsProvider></CommandContext>
-    ))
+    yield* slots.register("outline.row.action", node => rowVerbs(node,state.agents,state.conversation))
+    yield* slots.register("app.command", createAskCommand(state.conversation))
+
   }),
 })
 
 /** The speaker waits for identity without taking the conversation away. */
 import { speaker } from "./browser/viewer.ts"
-export const components = { speaker }
+// The alert provider lives with the chat row, independently of its panel and
+// preferences. Each UI component names its own dependencies; the section waits
+// for preferences to return without discarding the stored state or listeners.
+import { alertSettings, createAlerts, holdAlerts } from "./browser/alerts.ts"
+import { followNotifications } from "@olai/web/client/notify.ts"
+import { AlertRows } from "./browser/AlertRows.tsx"
+import { rendererSlots } from "olai-plugin-ui-renderer/contract"
+import { sections } from "olai-plugin-preferences/contract"
+import { appearance } from "olai-plugin-theme/contract"
+import { createEffect, createRoot } from "solid-js"
+export const components = {
+  "tab-attention": definePlugin({ name: "tab-attention", needs: [appearance, alertSettings], apply: Effect.gen(function*() {
+    const view = yield* appearance
+    const alerts = yield* alertSettings
+    yield* Effect.acquireRelease(Effect.sync(() => createRoot((dispose) => {
+      createEffect(() => view.chrome.waiting(alerts.tabWaiting()))
+      return dispose
+    })), (dispose) => Effect.sync(() => { dispose(); view.chrome.waiting(false) }))
+  }) }),
+  speaker,
+  alerts: definePlugin({ name: "alerts", needs: [Offers], apply: Effect.gen(function*() {
+    yield* Effect.acquireRelease(Effect.sync(followNotifications), stop => Effect.sync(stop))
+    const state = yield* createAlerts
+    yield* holdAlerts(state)
+    yield* (yield* Offers).own("alerts", () => state)
+  }) }),
+  "alert-controls": definePlugin({ name: "alert-controls", needs: [alertSettings, rendererSlots], apply: Effect.gen(function*() {
+    yield* (yield* rendererSlots).contribute(sections, AlertRows)
+  }) }),
+}

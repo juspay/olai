@@ -168,3 +168,25 @@ Feature: A plugin the vault defines
     Then the plugins panel does not list "swatch"
     And the plugins panel does not show the source of "swatch"
     And there should be no page errors
+
+  @scratch:plugins
+  Scenario: Approval survives its browser provider failing while server definitions remain available
+    Given the browser module for "vault-plugins" cannot be fetched
+    And I open the outline "colours.olai"
+    And I open the plugins panel
+    Then the plugins panel says "vault-plugins" is "Module load failed"
+    And the plugins panel shows the source of "swatch"
+    When I approve the plugin "swatch"
+    Then the plugins panel refuses with "the vault plugin approval capability is not active"
+    And the plugins panel says "swatch" is "read the source below and approve it"
+    And no row wears a swatch
+    Given I mark the page
+    When the browser module can be fetched again
+    And I retry the failed browser activation
+    Then the browser activation has recovered
+    And the page has not reloaded
+    When I approve the plugin "swatch"
+    Then the plugins panel shows no refusal
+    And the plugins panel says nothing more about "swatch"
+    And the row "amber" wears a swatch for "#ff8800"
+    And there should be no page errors

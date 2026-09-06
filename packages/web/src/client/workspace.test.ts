@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 
-import type { Route } from "./routes.ts"
-import { atElement, atFile, atNode, HOME_ROUTE, hrefOf, routeOf } from "./routes.ts"
+import type { Route } from "olai-plugin-navigation/routes"
+import { atElement, atFile, atNode, HOME_ROUTE, hrefOf, routeOf } from "olai-plugin-navigation/routes"
 import {
   closeAt,
   closeFocused,
@@ -23,7 +23,7 @@ import {
   splitOf,
   workspaceOf,
   WORKSPACE_PREFIX,
-} from "./workspace.ts"
+} from "olai-plugin-navigation/workspace"
 
 const house: Route = atFile("house.olai")
 const kitchen: Route = atNode("kitchen")

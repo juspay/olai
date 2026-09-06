@@ -1,192 +1,43 @@
-/**
- * WHAT A BROWSER HALF IS WRITTEN AGAINST — the SLOTS a face is hung in and the
- * four services the app hands over, as Effect tags.
+/** Browser capabilities and notebook compatibility contracts.
  *
- * ## What this replaces, and why the manifest could not survive
+ * The renderer owns the sole location registry. Slots and Faces retain the
+ * notebook extension vocabulary as a typed adapter; openApp supplies no slot
+ * tables. Child locations belong to consuming entries, and contributions wait
+ * until those entries activate. The host binds contributor identity and batches
+ * notifications across roster changes to preserve provider/editor lifetimes.
  *
- * A plugin's browser half was a VALUE: an `OlaiPlugin` object with `dressings`,
- * `chrome`, `mount` and `mark` on it, listed in a compiled-in registry, walked
- * by four different modules in `@olai/web`. It worked while a browser half was
- * a thing the tab HAD. It stopped working the day the roster could move.
- *
- * A manifest is a static value, so it is present whether or not this serve
- * composed the plugin — which is why every one of those four walks had to carry
- * a LICENCE argument beside it, and why the two licences pointed opposite ways
- * (a face drawn early and taken away is a flicker; a subscription opened early
- * LATCHES a `degraded` readout for the life of the page). Four walks, two
- * licences, one `undefined`-means-wait, and a whole module arguing the
- * asymmetry — all of it because the tab held things it had no licence to use.
- *
- * A FIBER is the shape that does not have that problem, and it is the shape the
- * server half already is. A plugin the roster does not name is never mounted,
- * so it registers nothing, so there is nothing to license: *no fiber, no
- * surface, no handler* has an exact browser twin, which is *no fiber, no slot
- * entry*. Every registration below is a finalizer on the plugin's own scope, so
- * a plugin the roster stops naming unwinds its own faces on the way out and the
- * app re-reads what is left.
- *
- * ## THE SEVENTEEN SLOTS, and why the table is data
- *
- * A slot is a place in this app where a plugin's face may hang. There are seventeen
- * and they are DECLARED ({@link SLOTS}) rather than implied by four hooks on an
- * interface, because a registration has to be checkable against something: a
- * plugin hanging a chip in the header is a mistake somebody should be told
- * about at the moment they make it, and an interface with an optional field per
- * hook can only be wrong silently.
- *
- * THE LAST TWO ARE THE CHAT PANEL'S, and they arrived with the engines: an ACP
- * agent is a plugin now, so the mark over a sentence it spoke and its row on the
- * face drawn when this machine has no agent at all are drawings ABOUT a plugin —
- * which core may not hold a table of. What each keeps is the SHAPE (the
- * sixteen-unit box, the list) and what arrives is the strokes and the words.
- *
- * They are the only two whose NAME says `chat`, and the five added since are
- * named for the place rather than for the tenant on the way to it: `app.panel`
- * and not `chat.panel`, `sidebar.section` and not `chat.agents`. The panel is a
- * dock on the right of this app; that a conversation is what will be in it is a
- * fact about the roster and not about the app's geometry, and the day something
- * else wants that dock it wants THIS slot. The two above kept their `chat.`
- * because what they are is genuinely a fact about a conversation: a mark over a
- * spoken sentence has no meaning where there is nobody speaking.
- *
- * A SLOT EARNS ITS PLACE BY BEING SOMETHING CORE CANNOT COMPOSE, and there was
- * briefly a third here that did not: `chat.agent.row`, the words inside the
- * picker's row, whose three shipped faces each drew the same string the SERVER
- * had already sent as `AgentChoice.name` — a slot whose whole output was core's
- * own fallback, and a second authored source for one word. It is gone. A mark
- * is a `<g>` core could not draw, an install sentence is prose core may not
- * compose; a name the wire is already carrying is neither.
- *
- * ONE WAS REMOVED FOR THE OTHER REASON, and the pair is worth reading together:
- * a slot goes when core can compose the face (above), and a slot goes when
- * NOBODY DRAWS IT. `app.drawer` — the panel a header readout's press opens —
- * was declared and read by nobody: the chrome walk draws `app.header` and the
- * one plugin with a panel hangs it on {@link Bar}'s `popover()`, which is the app's
- * whole portalled panel rather than a slot. A slot nobody reads is a face
- * registered into silence, which is the failure `live/dressings.ts` names about
- * this very table — so it is gone until something wants it, and it comes back
- * as a walk beside `PluginHeaders` on the day one does.
- *
- * ## FIVE OF THEM HAD NO OCCUPANT AND NO READER YET, deliberately
- *
- * `app.panel`, `sidebar.section`, `outline.row.door`, `outline.row.action` and
- * `app.keys` are where the CHAT PANEL is going to hang: the right panel, the
- * sidebar's agents section, the door on an agent row, the "ask agent" verb and
- * ⌘J. They are declared one lane BEFORE the tenant that fills them, and that
- * looks exactly like the `app.drawer` mistake one paragraph up until the two are
- * put side by side. `app.drawer` was declared, shipped, and read by nobody for
- * phases, with nothing in the plan that would ever have read it. These five are
- * declared by the lane that moves chat out of core, in the step before the step
- * that registers into them, because the alternative is a single change that
- * widens this table AND moves fifteen thousand lines of panel and has to be read
- * as one thing. The rule the removal established still stands and is the test
- * this table is held to: a slot with no reader at the END of that lane goes back
- * out, and this paragraph is what a reader checks it against.
- *
- * AN UNOCCUPIED SLOT IS A LEGITIMATE STATE in the meantime, and always was — a
- * serve running `--plugins=kolu` has nobody in `delivery.mark` either. Every
- * read below answers empty (an empty array, an empty map, `null`) rather than
- * failing, which is the same *no plugin, no slot entry* the whole runtime is.
- *
- * ## Each slot declares WHAT KEYS IT, and the CARDINALITY FALLS OUT OF THAT
- *
- * There are four answers where there were two, and there are still exactly two
- * register doors, because only ONE of the four takes a key from the caller. That
- * is the argument for one field rather than two: a slot's cardinality is not a
- * second axis to be chosen beside its keying, it is a CONSEQUENCE of it. One key
- * per plugin is one face per plugin because two claims on a key are refused; no
- * key at all is any number of faces because there is nothing left to collide on.
- * A `{keyedBy, many}` pair would spell six combinations of which four mean
- * something, and would let somebody write the two that do not.
- *
- *   - **`plugin`** — one face per plugin, keyed by the fiber's own name. The
- *     header readout, the tab half wrapped around the page, the mark a
- *     delivered sentence wears, and an engine's row on the no-agent face.
- *     The key is the plugin's own word, minted into
- *     the service before the plugin ran, for the reason {@link ./services.ts}'s
- *     doors are minted that way: a key a caller supplies is a key one plugin can
- *     sign another's registration with.
- *   - **`kind`** — one face per property KIND, keyed by the word this plugin's
- *     bare kind composes to. The chip beside a value, the pane its press opens,
- *     the block that owns a row, and the door drawn beside one. The composition
- *     is `kindWordOf`, the same function {@link ./services.ts}'s `Kinds` uses on
- *     the server, so the word a face is looked up by and the word a vault
- *     declares cannot be two spellings.
- *   - **`app`** — ONE FACE IN THE WHOLE APP, whoever hangs it, keyed by the slot
- *     itself. The right panel and the seat that says who is looking, both of
- *     which are a place rather than a list: two panels docked over one another
- *     is not a layout anybody meant, and two chips answering "who am I" is not
- *     an answer. The honest failure is the second plugin refused by name at the
- *     moment it registers rather than a reader picking a winner out of an array
- *     of two. It is the one refusal that names BOTH plugins, because the key
- *     carries neither.
- *   - **`nothing`** — a LIST, in registration order, held by the scope that made
- *     each entry, which is {@link @olai/effect-cordis}'s `roster` and its own
- *     words for why an entry there needs no key. This is the mode the old table
- *     could not spell at all: `registry.claim` refuses a second claim on a key,
- *     so one plugin hanging two sidebar sections or three chords was a plugin
- *     that landed `failed`. A list slot is where the app has room for as many as
- *     arrive — and the price is that there is no refusal here at all, so a
- *     collision that MATTERS in a list (two plugins claiming ⌘K) is the READER's
- *     to refuse, against the map it holds and this table cannot see.
- *
- * A list is READ the way a plugin-keyed slot is, as {@link Hung} rows, because
- * the bundle's order is imposed on both by the same sort in `@olai/web` and a
- * face with no plugin word on it could not be sorted at all.
- *
- * ## The four services, and why they are four rather than one blob
- *
- * They were one — `AppFurniture`, handed to every face as a prop — and the blob
- * was right while a plugin's faces were values the app called: there was
- * nothing to inject them INTO. A fiber has an `inject`, so a browser half now
- * NAMES what it needs and the runtime holds it `waiting` until it exists, which
- * is the same guarantee its server half already has. Four rather than five because
- * the blob's `desktop` is the bar's own fact and travels with the bar's
- * geometry.
- *
- * A face no longer takes the furniture as a prop at all: it closes over the
- * services its own `apply` was handed. That is what makes {@link SlotFaces}'
- * signatures as small as they are — a header readout is `() => JSX.Element`,
- * because everything it used to be handed is on the context that registered it.
- *
- * ## THE TWO DOORS DO NOT SHARE A CONTEXT TYPE ANY MORE, and that is the tags
- *
- * There used to be a `declare module "cordis"` on each door, merging globally, so
- * a file that imported either one saw `ctx.slots` beside `ctx.vault`. A tag is a
- * VALUE: this door's tags are the ones a browser half yields and the server's are
- * the ones a server half yields, and a half that names the wrong one does not
- * typecheck rather than reading `undefined` at its first access. What the fence
- * holds is still the GRAPH, and the graph is what `@olai/bundle`'s
- * `fence.test.ts` walks.
+ * Clocks and Bar are compatibility names for renderer/layout-owned services.
+ * Links remains a transitional host service pending navigation extraction.
  */
 
 import {
   type Host,
+  type ServiceKey,
   hostChanges,
   openHost,
   offer,
   OfferConflict,
   provide,
-  registry,
-  type Registry,
-  roster,
-  type Roster,
+  offered,
+  settled,
+  location,
+  type Locations,
+  type Location,
+  type LocationOwner,
   serviceTag,
 } from "@olai/effect-cordis"
 import { Effect, Scope, type Stream } from "effect"
 
+import { BrowserMount } from "./mount.ts"
 import { ownService, type OwnServices } from "./owned.ts"
 import { kindWordOf, type NotHere } from "./contract.ts"
-import { SLOTS, type SlotKey } from "./slots.ts"
+import { slotReference, type SlotDefinitions, type SlotKey } from "./slots.ts"
 import type {
   AppClocks,
   AppPopover,
   FileLink,
   JSX,
   PillLook,
-  PropBlock,
-  PropChip,
-  PropPane,
 } from "./plugin.ts"
 
 /** WHAT A BROWSER HALF IS WRITTEN WITH, re-exported so it opens ONE door —
@@ -194,32 +45,28 @@ import type {
  *  half. This module's own bench opens it here; a plugin opens `./index.ts`. */
 export * from "./runtime.ts"
 
-/** THE CATALOG IS `./slots.ts`'S and is re-exported here, because a browser half
- *  opens one door and this is it. It moved when a SERVE had to be able to name
- *  the slots too — `plugins.inspect` answers what an agent-written face may
- *  register into — and a serve may not open this door at all. That module's
- *  header carries the argument. */
-export { SLOTS, type SlotKey } from "./slots.ts"
+/** Generic key rules; concrete location descriptors belong to their capabilities. */
+export type { SlotKey } from "./slots.ts"
 
 /** Browser providers publish only their own namespace. Core browser services
  * remain host-owned. This tag resolves independently of server Offers. */
 export interface Offers extends OwnServices {}
 export const Offers = serviceTag<Offers>("offers")
 
-/** One of the seventeen. */
-export type SlotName = keyof typeof SLOTS
+/** A location declared by an imported capability contract. */
+export type SlotName = keyof SlotDefinitions & string
 
-/** The rows of {@link SLOTS} one key rule holds — the four names below are this
+/** The capability declarations one key rule holds — the four names below are this
  *  applied four times, and they are four names rather than one generic because
  *  the register doors and the reads are written against them by name. */
 type SlotsKeyedBy<K extends SlotKey> = {
-  [S in SlotName]: (typeof SLOTS)[S]["keyedBy"] extends K ? S : never
+  [S in SlotName]: SlotDefinitions[S] extends {readonly keyedBy: K} ? S : never
 }[SlotName]
 
-/** ...the four a PLUGIN keys, one face each. */
+/** Locations keyed by the contributing plugin. */
 export type PluginSlot = SlotsKeyedBy<"plugin">
 
-/** ...the three a property KIND keys. */
+/** Locations keyed by a contributed kind. */
 export type KindSlot = SlotsKeyedBy<"kind">
 
 /** ...the eight nothing keys, which is what makes them lists. */
@@ -263,96 +110,42 @@ export type SingleSlot = SlotsKeyedBy<"app">
  * the chord, the sidebar's region and its height budget — and what core cannot
  * write is the words and what the press does.
  */
-export interface SlotFaces {
-  "outline.row.chip": PropChip
-  "outline.row.pane": PropPane
-  "outline.row.block": PropBlock
-  "outline.row.door": (props: { readonly node: string }) => JSX.Element
-  "outline.row.action": RowActions
-  "app.route": AppPage
-  "sidebar.entry": SidebarEntry
-  "sidebar.section": SidebarSection
-  "app.panel": () => JSX.Element
-  "app.header": BarSeat
-  "app.banner": () => JSX.Element
-  "app.viewer": () => JSX.Element
-  "app.keys": AppChord
-  "app.command": AppCommand
-  "app.palette": AppPalette
-  "app.mount": (props: { readonly children: JSX.Element }) => JSX.Element
-  "delivery.mark": () => JSX.Element
-  "engine.install": NotHere
-}
+export type SlotFaces = { [S in SlotName]: SlotDefinitions[S] extends {readonly face: infer F} ? F : never }
 
 /** The transport-shaped part of a standing page reading. Kept structural so
  * the plugin API does not import either Solid or the vault's format. */
-export interface AppPageAnswer {
-  (): unknown | undefined
-  readonly changed?: (handler: () => void) => () => void
-}
 
-export interface AppPageStream {
-  readonly use: (input: () => unknown | null) => AppPageAnswer
-}
+
+
 
 /** One declarative claim on the app's URL namespace. Exact words and prefixes
  * are enough for the address grammars plugins can own, and unlike an arbitrary
  * parser they can be checked against every other mounted claim. */
-export type AppRouteClaim =
-  | { readonly kind: "exact"; readonly path: `/${string}` }
-  | { readonly kind: "prefix"; readonly path: `/${string}` }
+
 
 /** One plugin-owned URL grammar and standing reading. The heterogeneous value
  * positions are deliberately erased at this floor; `@olai/web`'s
  * `defineAppRoute` is the typed adapter that may construct one. */
-export interface AppRoute {
-  readonly claims: ReadonlyArray<AppRouteClaim>
-  readonly parse: (pathname: string) => unknown | null
-  readonly href: (page: unknown) => string
-  readonly breadcrumb: (page: unknown) => string
-  readonly narrowable: boolean
-  readonly request: (page: unknown, today: string) => unknown
-  readonly stream: AppPageStream
-}
+
 
 /** The complete page registration: one route source and the drawing of its
  * answer, acquired and released in the same plugin scope. */
-export interface AppPage {
-  readonly route: AppRoute
-  readonly face: (props: {
-    readonly page: unknown
-    readonly drawn: unknown
-    readonly today: string
-  }) => JSX.Element
-}
+
 
 /** A plugin's one seat in the app's bar, and which of the two the shell should
  * put it in. `cluster` is the standing row of pills — desktop only, after the
  * connection state; `lead` is the seat ahead of them that may shrink to nothing
  * and that a phone still draws. The shell decides what either costs when the
  * width runs out; a plugin cannot spell an ordering of its own. */
-export interface BarSeat {
-  readonly place: "lead" | "cluster"
-  readonly body: () => JSX.Element
-}
+
 
 /** A plugin-owned directory entry. The shell decides where the two supported
  * placements sit; the optional rail face travels with the same entry. */
-export interface SidebarEntry {
-  readonly place: "top" | "bottom"
-  readonly body: () => JSX.Element
-  readonly rail?: () => JSX.Element
-}
+
 
 /** An ordinary palette navigation row. A URL is the shared navigation currency;
  * the shell resolves it against the same exclusive claims as the address bar. */
-export interface AppPalette {
-  readonly id: string
-  readonly label: string
-  readonly hint?: string
-  readonly search: string
-  readonly href: `/${string}`
-}
+
 
 /**
  * A PLUGIN'S VERBS ON A ROW'S ••• MENU — `outline.row.action`.
@@ -419,32 +212,10 @@ export interface AppPalette {
  * The plugin owns its wording; core supplies the alarm presentation. Successful
  * actions return nothing and let their visible effect speak for itself.
  */
-export type RowActions = (node: string) => ReadonlyArray<RowAction>
+
 
 /** One of them. */
-export interface RowAction {
-  /** This plugin's own word for the verb — a testid and a list key, never an
-   *  address. Two plugins may spell it the same: what a reader keys the list by
-   *  is this beside the plugin's own name, which {@link Hung} carries and this
-   *  row deliberately does not repeat. */
-  readonly id: string
-  /** The words on the row. */
-  readonly label: string
-  /**
-   * Does it change the DIRECTORY? A verb that arms a composer, opens a panel or
-   * moves this tab says `false` and sits with core's reads; one that writes a
-   * property, a record or a file says `true` and sits with core's writes, under
-   * the same rule.
-   *
-   * REQUIRED, with no default, because both answers are ordinary and the wrong
-   * one is silent: a default of `false` would put a destructive verb among the
-   * reads and a default of `true` would put a harmless one under Trash, and
-   * neither would say anything at the moment it was written.
-   */
-  readonly writes: boolean
-  /** Act on the node shown; return a sentence when the action is refused. */
-  readonly run: (node: string) => string | void | Promise<string | void>
-}
+
 
 /**
  * A SECTION IN THE SIDEBAR — `sidebar.section`.
@@ -459,12 +230,7 @@ export interface RowAction {
  * a toggle) cannot have one yet. The day one does, the heading grows a face
  * beside `said` and the argument above is what that change has to answer.
  */
-export interface SidebarSection {
-  /** The heading, in the plugin's words. */
-  readonly said: string
-  /** ...and what sits under it. */
-  readonly body: () => JSX.Element
-}
+
 
 /**
  * A KEYBOARD CHORD — `app.keys`.
@@ -478,20 +244,7 @@ export interface SidebarSection {
  * them (`⌘J / Ctrl+J`) out of `key` and `shift` — core keeps the shape, the
  * plugin brings the words, one more time.
  */
-export interface AppChord {
-  /** The letter, lowercase — `j`. */
-  readonly key: string
-  /** ...with Shift, for a chord whose bare form the browser has taken. */
-  readonly shift?: boolean
-  /** Whether it may fire while the caret is in a text field. A chord that means
-   *  something about the PAGE rather than about the caret says `true`; one that
-   *  claims a letter a draft means says `false`. */
-  readonly whileEditing: boolean
-  /** What it does, for the shortcut list — "show or hide the agent". */
-  readonly said: string
-  /** ...and what a press does. */
-  readonly press: () => void
-}
+
 
 /**
  * A VERB BEHIND A PALETTE PREFIX — `app.command`.
@@ -505,17 +258,7 @@ export interface AppChord {
  * just typed in it, so a send that was turned down has to be able to say so
  * there rather than only in a panel that may be shut.
  */
-export interface AppCommand {
-  /** The character that selects it — `>`. */
-  readonly prefix: string
-  /** The words for the prefix strip. */
-  readonly said: string
-  /** ...and the placeholder in the box once the prefix is typed. */
-  readonly placeholder: string
-  /** What a press does with the line. `null` is "it landed"; a string is the
-   *  refusal, in the plugin’s own words, drawn where the palette draws one. */
-  readonly run: (line: string) => Promise<string | null>
-}
+
 
 /** One face, with the plugin that hung it — what a walk over a plugin-keyed slot
  *  or a LIST slot reads. The name is on the row because the app has occasion to
@@ -576,6 +319,7 @@ export interface Hung<F> {
  * shape rather than a rule — and it is why there are still exactly two doors
  * below for four cardinalities.
  */
+export type SlotOptions = Omit<NonNullable<Parameters<LocationOwner["contribute"]>[2]>, "key">
 export interface Slots {
   /** Hang a face where the caller names no key: this plugin's one face in a
    *  plugin-keyed slot, its one claim on the app's single slot, or one more
@@ -584,16 +328,18 @@ export interface Slots {
     <S extends PluginSlot | ListSlot | SingleSlot>(
       slot: S,
       face: SlotFaces[S],
+      options?: SlotOptions,
     ): Effect.Effect<void, never, Scope.Scope>
     /** ...or dress one of this plugin's KINDS, by its bare word. */
     <S extends KindSlot>(
       slot: S,
       kind: string,
       face: SlotFaces[S],
+      options?: SlotOptions,
     ): Effect.Effect<void, never, Scope.Scope>
   }
 }
-export const Slots = serviceTag<Slots>("slots")
+export const Slots = serviceTag<Slots>("ui-renderer.legacy-slots")
 
 /**
  * ...AND THE READ SIDE OF THE SAME TABLE — the door a plugin that DRAWS what
@@ -664,7 +410,7 @@ export interface Faces {
    *  shape every reader has to re-check. */
   readonly only: <S extends SingleSlot>(slot: S) => Hung<SlotFaces[S]> | null
 }
-export const Faces = serviceTag<Faces>("faces")
+export const Faces = serviceTag<Faces>("ui-renderer.faces")
 
 /**
  * THE APP'S CLOCK, and the register it ticks in.
@@ -686,7 +432,7 @@ export const Faces = serviceTag<Faces>("faces")
  * no line for a new field to fail to appear on.
  */
 export type Clocks = AppClocks
-export const Clocks = serviceTag<Clocks>("clocks")
+export const Clocks = serviceTag<Clocks>("ui-renderer.clocks")
 
 /**
  * THE BAR — its geometry, its breakpoint and the popover that shares its one
@@ -710,7 +456,7 @@ export interface Bar {
    *  anchor and the focus cycle already spent. */
   readonly popover: () => AppPopover
 }
-export const Bar = serviceTag<Bar>("bar")
+export const Bar = serviceTag<Bar>("layout.bar")
 
 /** A DOOR ONTO A SERVED FILE — the app's router and its address grammar as the
  *  one thing a plugin wants out of them. Its own service rather than a field on
@@ -719,7 +465,7 @@ export const Bar = serviceTag<Bar>("bar")
 export interface Links {
   readonly File: FileLink
 }
-export const Links = serviceTag<Links>("links")
+export const Links = serviceTag<Links>("navigation.links")
 
 /**
  * THIS PLUGIN'S OWN SIBLING CLIENT — the browser twin of `Surfaces`, read the
@@ -775,25 +521,18 @@ export const Wired = serviceTag<Wired>("wired")
  * {@link Faces.hung}, with the read it is about.
  */
 export interface App extends Faces {
+  readonly settlePlugins: (ids: ReadonlyArray<string>) => Effect.Effect<void>
+  readonly settled: Effect.Effect<void>
+  readonly integrations: Locations["inspect"]
+  readonly retryIntegrations: Effect.Effect<void>
+  readonly attach: (element: Element) => Effect.Effect<void, never, Scope.Scope>
   /** State changes even when a waiting component registered no faces. */
   readonly changes: Stream.Stream<void>
   /** Where the plugins hang — handed to `mountPlugin` and opaque to everybody. */
   readonly host: Host
-  /**
-   * ...AND THE APP'S OWN FURNITURE, provided in a SECOND call.
-   *
-   * Two calls rather than one config, and the reason is a GRAPH rather than
-   * taste: the clock, the bar and the file door are assembled in a `.tsx` (a
-   * link is a component and a popover portals one), and the module that opens
-   * this runtime is a `.ts` reached by the chat panel — so a static import from
-   * there would put a JSX factory on the graph of a suite that only wanted a
-   * lookup. A plugin that beats this call sits `waiting` on the service it named
-   * and starts when it arrives, which is the runtime's own guarantee rather than
-   * something an ordering has to be careful about.
-   */
-  readonly furnish: (
-    furniture: { readonly clocks: Clocks; readonly bar: Bar; readonly links: Links },
-  ) => Effect.Effect<void, never, Scope.Scope>
+  /** Install an explicitly supplied host capability in the caller's scope. */
+  readonly supply: <T>(key: ServiceKey<T>, value: T) => Effect.Effect<void, never, Scope.Scope>
+
 }
 
 /** WHAT THE TAB SUPPLIES — everything a plugin must not reach for itself. */
@@ -850,152 +589,63 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
         )),
       )),
     })))
-    /**
-     * ONE TABLE PER SLOT, and a slot IS a table — the seventeen are declared
-     * ({@link SLOTS}), so they are opened here rather than grown on demand.
-     *
-     * They are `@olai/effect-cordis`'s tables rather than seventeen hand-written
-     * `Map`s, which is what makes the rules mechanical instead of remembered. The
-     * one that had gone missing here is the last: this table told the app it had
-     * changed from INSIDE `acquire`, and an app that refuses throws out of that
-     * call — so the entry stayed while the plugin landed `failed`, which is the
-     * cascade the server's sibling table documents at length and this one had
-     * with no comment anywhere near it.
-     *
-     * WHICH TABLE IS THE SLOT'S OWN DECLARATION, and it is the only place that
-     * decision is made: a `registry` where a key means something, a `roster`
-     * where nothing does. Both were already in that package, and the roster grew
-     * its `changed` for this caller — a list a page draws from is exactly the
-     * "something is served from it" its header had said no roster would ever be.
-     * The alternative, a registry under a synthetic `plugin#2` key, buys the
-     * notification by giving up claim-once and leaves a refusal message that can
-     * no longer be true.
-     *
-     * Two levels rather than one composite key, because the walks read a whole
-     * slot and never a single composite: `dressed` is asked per drawn property
-     * value, and a flat table would make it a scan.
-     *
-     * A RECORD rather than a `Map`, because {@link SLOTS} already proves every
-     * key is there. A `Map` threw that away and every read needed a `!` to
-     * re-assert it — an assertion whose only ground was the line that filled the
-     * map, four statements up. Keyed by the same declaration, the two accessors
-     * below are property reads the compiler already knows the answer to.
-     *
-     * ...and each accessor spends one CAST, which is the declaration being read
-     * back: the line above chose the primitive off `SLOTS[slot].keyedBy`, and
-     * every caller of these two has just branched on the same field. The
-     * compiler cannot carry that from one statement to the other through an
-     * indexed access, so the assertion is re-stated where it is spent rather than
-     * paid for with a second record and a filtered key list.
-     */
-    const tables = Object.fromEntries(
-      (Object.keys(SLOTS) as ReadonlyArray<SlotName>)
-        .map((slot) =>
-          [
-            slot,
-            SLOTS[slot].keyedBy === "nothing"
-              ? roster<Hung<unknown>>(config.changed)
-              : registry<string, unknown>(config.changed),
-          ] as const
-        ),
-    ) as Record<SlotName, Registry<string, unknown> | Roster<Hung<unknown>>>
-    const keyedAt = (slot: SlotName): Registry<string, unknown> =>
-      tables[slot] as Registry<string, unknown>
-    const listAt = (slot: SlotName): Roster<Hung<unknown>> => tables[slot] as Roster<Hung<unknown>>
-
-    /** The sentence a second claim on one key is refused with — one wording for
-     *  the two key rules that have one, because what a reader has to do about it
-     *  is the same either way: take one of the two registrations out. */
-    const twice = (plugin: string, slot: string, key: string): string =>
-      `plugins: "${plugin}" hangs two faces in "${slot}" under "${key}" — `
-      + "the second would replace the first with nothing said."
-
-    yield* provide(host, Slots, forOwner((plugin) => ({
-      register: (slot: SlotName, second: unknown, third?: unknown) =>
-        Effect.suspend(() => {
-          // THE KEY RULE IS THE SLOT'S, four ways — see {@link SLOTS}. Written as
-          // a switch rather than as the two ternaries it was, because a fourth
-          // rule made the pair of them a puzzle: the key, the face's position in
-          // the arguments and the refusal all move together per rule, and a
-          // reader should be able to see one rule whole on one arm.
-          switch (SLOTS[slot].keyedBy) {
-            case "kind": {
-              // The word is composed here with the plugin's own name — the same
-              // `kindWordOf` the server's `Kinds` uses, so the word a face is
-              // looked up by and the word a vault declares cannot be two
-              // spellings. This is the one rule whose caller passes anything.
-              const kind = kindWordOf(plugin, second as string)
-              return keyedAt(slot).claim(kind, third, () => twice(plugin, slot, kind))
-            }
-            case "app":
-              // KEYED BY THE SLOT ITSELF, so every plugin claims the same key and
-              // the second is refused. The entry carries the plugin's word
-              // because the key no longer does — which is what lets the refusal
-              // name the plugin already in the seat, and what `only` reads back.
-              return keyedAt(slot).claim(
-                slot,
-                { plugin, face: second },
-                (held) =>
-                  `plugins: "${plugin}" hangs a face in "${slot}", which holds one for the whole `
-                  + `app — "${(held as Hung<unknown>).plugin}" is already in it, and the second `
-                  + "would replace the first with nothing said.",
-              )
-            case "nothing":
-              // NO KEY, SO NO REFUSAL: a plugin's second entry here is a second
-              // entry. The plugin's word travels in the value for the same reason
-              // it does one arm up, and for one more — `@olai/web` sorts a list
-              // by the bundle's rank, and a face with no name on it cannot be
-              // sorted at all.
-              return listAt(slot).hold({ plugin, face: second })
-            default:
-              return keyedAt(slot).claim(plugin, second, () => twice(plugin, slot, plugin))
-          }
-        }),
-    } as Slots)))
-
     yield* provide(host, Wired, forOwner((plugin) => ({
       client: () => config.clientFor?.(plugin) ?? null,
     })))
 
-    /** THE THREE READS, once — {@link App} is this plus the host and the
-     *  furniture, and {@link Faces} is exactly this, so a plugin and the tab ask
-     *  one implementation rather than two that can drift. */
+    // Compatibility reads resolve the renderer's live facade. No slot storage
+    // or slot provider exists on the permanent host.
     const faces: Faces = {
-      hung: <S extends PluginSlot | ListSlot>(slot: S): ReadonlyArray<Hung<SlotFaces[S]>> => {
-        config.reading?.()
-        return SLOTS[slot].keyedBy === "nothing"
-          ? listAt(slot).read() as ReadonlyArray<Hung<SlotFaces[S]>>
-          : [...keyedAt(slot).read()].map(([plugin, face]) => ({
-            plugin,
-            face: face as SlotFaces[S],
-          }))
-      },
-      dressed: <S extends KindSlot>(slot: S): ReadonlyMap<string, SlotFaces[S]> => {
-        config.reading?.()
-        return keyedAt(slot).read() as ReadonlyMap<string, SlotFaces[S]>
-      },
-      only: <S extends SingleSlot>(slot: S): Hung<SlotFaces[S]> | null => {
-        config.reading?.()
-        // The key is the slot's own name — one arm of `register` up.
-        return (keyedAt(slot).read().get(slot) as Hung<SlotFaces[S]> | undefined) ?? null
-      },
+      hung: (slot) => { config.reading?.(); return offered(host, Faces)?.hung(slot) ?? [] },
+      dressed: (slot) => { config.reading?.(); return offered(host, Faces)?.dressed(slot) ?? new Map() },
+      only: (slot) => { config.reading?.(); return offered(host, Faces)?.only(slot) ?? null },
     }
-
-    // READ-SIDE, ON THE SAME HOST, and the same value for every plugin: unlike
-    // `Slots` and `Wired` there is nothing here to mint per caller, which is the
-    // shape of the fence argument on {@link Faces} — what a plugin learns from
-    // this door does not depend on who is asking, so nothing about it could.
-    yield* provide(host, Faces, () => faces)
 
     return {
       ...faces,
+      settlePlugins: (ids) => settled(host, ids),
+      settled: Effect.suspend(() => offered(host, SlotManagement)?.settled ?? Effect.void),
+      integrations: () => offered(host, SlotManagement)?.inspect() ?? [],
+      retryIntegrations: Effect.suspend(() => offered(host, SlotManagement)?.retry ?? Effect.void),
+      attach: (element) => provide(host, BrowserMount, () => ({
+        element, changed: config.changed, reading: config.reading,
+      })),
+      supply: (key, value) => provide(host, key, () => value),
       host,
       changes: hostChanges(host),
-      furnish: (furniture) =>
-        Effect.gen(function*() {
-          yield* provide(host, Clocks, () => furniture.clocks)
-          yield* provide(host, Bar, () => furniture.bar)
-          yield* provide(host, Links, () => furniture.links)
-        }),
+
     }
   })
+
+/** Typed compatibility contracts for existing notebook extensions. These are
+ * locations in the renderer's sole registry, never independent tables. The
+ * owning UI entry must declare them before registered faces become active. */
+export const slotLocation = <S extends SlotName>(slot: S) => slotReference<SlotFaces[S]>(slot)
+
+/** Adapter only: key rules and face types are notebook API policy. Reservation,
+ * activation, cleanup, identity, and diagnostics all belong to Locations. */
+const SlotManagement = serviceTag<Pick<Locations, "inspect" | "settled" | "retry">>("ui-renderer.integrations")
+export const slotFacade = (store: Locations, reading?: () => void): {
+  readonly forOwner: (owner: string) => Slots
+  readonly faces: Faces
+  readonly management: Pick<Locations, "inspect" | "settled" | "retry">
+} => ({
+  management: { inspect: store.inspect, settled: store.settled, retry: store.retry },
+  forOwner: (plugin) => ({
+    register: ((slot: SlotName, second: unknown, third?: unknown, fourth?: SlotOptions) => {
+      const keyed = typeof second === "string"
+      const key = keyed ? kindWordOf(plugin, second) : undefined
+      return store.forOwner(plugin).contribute(slotLocation(slot), {
+        plugin, face: (keyed ? third : second) as SlotFaces[SlotName],
+      }, { ...(keyed ? fourth : third as SlotOptions | undefined), key })
+    }) as Slots["register"],
+  }),
+  faces: {
+    hung: (slot) => { reading?.(); return store.read(slotLocation(slot)).map((entry) => entry.value) },
+    dressed: (slot) => {
+      reading?.()
+      return new Map(store.read(slotLocation(slot)).map((entry) => [entry.key!, entry.value.face]))
+    },
+    only: (slot) => { reading?.(); return store.read(slotLocation(slot))[0]?.value ?? null },
+  },
+})

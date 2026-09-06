@@ -250,58 +250,30 @@ export type FileLink = (props: {
  *  may read and no more. A face that needed the node, the page or the wire would
  *  be a face the drawer has to know something about, and the point of the seam
  *  is that it does not. */
-export interface PropEntry {
-  readonly key: string
-  /** What it says, as ONE string — a list joined by commas, exactly as the
-   *  drawer has always drawn it. */
-  readonly value: string
-  /** ...and its MEMBERS, which is one element for a value that is text. */
-  readonly values: ReadonlyArray<string>
-  /** A fact the record carries in a field of its own: drawn, never edited. */
-  readonly system: boolean
-}
+
 
 /** What a face is handed to wear the RUN'S OWN CONTRACT — `@olai/web`'s
  *  `BlockChrome`, unchanged, and the precedent {@link AppClocks}' header
  *  extends. */
-export interface BlockChrome {
-  /** The key half of the fact line, with the drawer's editor gesture on it. */
-  readonly Handle: (props: {
-    readonly label: string
-    readonly onOpen?: () => void
-  }) => JSX.Element
-  /** `data-testid` for the fact line — the drawer's contract, spelled once. */
-  readonly factId: string
-  /** `data-testid` for the value half. */
-  readonly valueId: string
-}
+
 
 /** What a BLOCK or a PANE face is handed. */
-export interface BlockContext {
-  readonly entry: PropEntry
-  /** Open this property's editor — `undefined` where the run is read-only, and
-   *  then no half of the face is a button. */
-  readonly onOpen?: () => void
-  readonly chrome: BlockChrome
-}
+
 
 /** What a CHIP face is handed — {@link BlockContext} plus the one thing a chip
  *  has that a block does not: whether its pane is open, and the verb that
  *  toggles it. The state is the DRAWER'S, so opening a second pane closes the
  *  first — a chip holding its own `open` could not know that. */
-export interface ChipContext extends BlockContext {
-  readonly opened: boolean
-  readonly onToggle?: () => void
-}
+
 
 /** A face that draws IN the run, immediately after the property's own chip —
  *  and draws NOTHING whenever the thing it is about is not alive, which is most
  *  of the time and is not a special case. */
-export type PropChip = (context: ChipContext) => JSX.Element
+
 /** ...what its press opens, below the run. */
-export type PropPane = (context: BlockContext) => JSX.Element
+
 /** ...and a face that owns a row whether or not anything is happening. */
-export type PropBlock = (context: BlockContext) => JSX.Element
+
 
 
 /**

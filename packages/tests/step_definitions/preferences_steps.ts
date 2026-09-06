@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * The preferences panel: the one door in the header, the rows behind it, and
  * the promise every one of them makes — that a pick is this browser's and
@@ -21,16 +22,7 @@ import type { Page } from "playwright";
 
 import { fileKind } from "@olai/format";
 
-import {
-  ALERT_SOUND_KEY,
-  ALERTS_KEY,
-  DENSITY_KEY,
-  type Density,
-  DONE_HIDDEN_KEY,
-  DONE_OVERRIDES_KEY,
-  SIZE_STORAGE_KEY,
-  TESTID,
-} from "@olai/web/testlib";
+import { ALERT_SOUND_KEY, ALERTS_KEY, DENSITY_KEY, type Density, DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY, SIZE_STORAGE_KEY } from "@olai/web/testlib"
 
 import { focusedOn } from "../support/caret.ts";
 import { pressed } from "../support/settling.ts";
@@ -1076,6 +1068,10 @@ Then(
   async function (this: OlaiWorld) {
     const chip = this.page.locator(CONNECTION).first();
     await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // A roster switch may draw its surviving faces during a socket refresh.
+    // Await the connection's own readiness before asserting stream health;
+    // a permanently reconnecting or degraded wire still fails this bound.
+    await this.expectAttribute(CONNECTION, "data-connection", "live", "the connection", HYDRATION_TIMEOUT);
     const stopped = (await chip.getAttribute("data-stopped")) ?? "";
     assert.equal(
       stopped,
@@ -1083,9 +1079,8 @@ Then(
       `the page reports nothing arriving on ${JSON.stringify(stopped)} — what is ` +
         "drawn is missing whatever those carry, and is missing it silently",
     );
-    // ...AND THE WORD BESIDE IT, because the two are separate readings: a wire
-    // that dropped entirely is `reconnecting` with nothing stopped, which the
-    // line above would pass.
+    // Check again beside the stopped members so a drop after readiness is
+    // not mistaken for an empty, healthy stream set.
     assert.equal(await chip.getAttribute("data-connection"), "live");
   },
 );

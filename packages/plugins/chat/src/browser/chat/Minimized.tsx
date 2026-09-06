@@ -9,8 +9,8 @@
 
 import { onCleanup, Show } from "solid-js"
 
-import { panelOpen, setPanelOpen } from "@olai/web/client/layout/prefs.ts"
-import { desktop } from "@olai/web/client/layout/media.ts"
+import { panelOpen, setPanelOpen } from "olai-plugin-layout/preferences"
+import { desktop } from "olai-plugin-layout/media"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { TESTID } from "../../testids.ts"
 import { lastAgentPreview, previewText } from "./last.ts"

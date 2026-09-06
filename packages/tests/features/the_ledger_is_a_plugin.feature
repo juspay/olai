@@ -1,4 +1,4 @@
-@scratch:good @git:repo @plugins:vault,chat,claude,kolu,odu
+@scratch:good @git:repo @plugins:vault,chat,claude,kolu,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
 Feature: The ledger is a plugin
   Git is a row. A serve that does not name it has no pill, no `surface/git/`
   on the wire, and `ops.commit` refuses in words. Writes still land; nobody

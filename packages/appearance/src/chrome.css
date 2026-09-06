@@ -1,0 +1,65 @@
+/* The FRAME is ink; the PAGE is a paper sheet sitting in it. Unstyled
+ * flash is the same forest as the spine, so a load does not blink cream. */
+html {
+  background-color: var(--color-ink);
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--color-accent) 38%, transparent);
+}
+
+/* THE FRAME. Ink ground, paper words — inherited, not remapped. The header,
+ * the directory spine and the collapsed rail are ONE surround, and this is
+ * the one place that says what it is made of; a page is the paper sheet
+ * sitting in it (`layout/sheet.ts`). The month is a paper CARD on the spine
+ * (`.olai-card`) and paints its own ink. Palettes invert with their ink: reef
+ * is a forest column beside a lagoon page; aurora is a pale sky beside
+ * midnight paper.
+ *
+ * GROUND ONLY — no `border-color`. Everything in this file is unlayered and
+ * Tailwind's utilities are not, so a `border-color` here would outrank every
+ * `border-*` a consumer wrote on the same element: it is exactly what stopped
+ * the header, whose bottom rule is coral, from wearing this class. The rules
+ * are the consumers' own, named where they are drawn. */
+.olai-frame {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+}
+
+/* ONE overflow bar: thin, currentColour, gutter reserved on desktop so
+ * a classic scrollbar cannot steal a strip (the month's 7 cells, a
+ * conversation). Thumb follows the surface — paper on the spine, ink
+ * on the desk — rather than a second pair of hexes. Phone leaves the
+ * gutter: the drawer's 44px day cells already spend the width. */
+.olai-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, currentColor 34%, transparent) transparent;
+}
+
+.olai-scroll::-webkit-scrollbar {
+  width: 0.5rem;
+}
+
+.olai-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.olai-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, currentColor 34%, transparent);
+  border-radius: 999px;
+}
+
+@media (min-width: 48rem) {
+  .olai-scroll {
+    scrollbar-gutter: stable;
+  }
+}
+
+/* A raised card on the desk — the month, and anything else that sits up off
+ * the workbench. Ink-tinted so it follows every palette rather than a gray. */
+.olai-card {
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--color-ink) 8%, transparent),
+    0 18px 40px -24px color-mix(in srgb, var(--color-ink) 28%, transparent);
+}
+

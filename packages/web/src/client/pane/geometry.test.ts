@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { PANE_MIN_PX, PANE_RAIL_PX, snap } from "./geometry.ts"
+import { PANE_MIN_PX, PANE_RAIL_PX, snap } from "olai-plugin-layout/geometry"
 
 test("a small travel redistributes two siblings", () => {
   const next = snap([0.5, 0.5], 100, 1000, 0, 1)

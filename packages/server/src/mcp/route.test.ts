@@ -1,3 +1,6 @@
+import { surface } from "@olai/bundle/surface"
+import { capabilitiesOver } from "../capabilities.testlib.ts"
+import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
 /**
  * The internal route, over real HTTP.
  *
@@ -18,8 +21,7 @@
  * pipe the chat panel's agent reads its refusals through.
  */
 
-import { MCP } from "../faces.ts"
-import { fixedStore } from "../store-source.ts"
+import { MCP } from "@olai/bundle/faces"
 import {
   codecFor,
   make as makeOps,
@@ -41,10 +43,10 @@ import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
-import { clientOver } from "@olai/surface/client"
+import { clientOver, type McpClient } from "olai-plugin-mcp/testlib"
 import { serveFace } from "olai-plugin-mcp/testlib"
 import { mcpRoute, currentTicket, currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "olai-plugin-mcp/testlib"
-import { type Ticket, ticketing } from "./tickets.ts"
+import { type Ticket, ticketing } from "olai-plugin-mcp/testlib"
 import { bespokeFrom, pluginTools } from "olai-plugin-mcp/testlib"
 
 /** The codec this suite validates through — the vocabulary of a build that
@@ -89,13 +91,14 @@ interface Served {
     message: unknown,
     headers?: Record<string, string>,
   ) => Promise<Response>
+  readonly retainedTicket: (under: string) => { ticket: Ticket; client: McpClient }
   readonly mintTicket: (under: string) => Ticket
   readonly url: string
 }
 
 const withRoute = <A>(
   use: (served: Served) => Promise<A>,
-  listenOn: { readonly host: string } = { host: "127.0.0.1" },
+  listenOn: { readonly host: string; readonly definitions?: boolean } = { host: "127.0.0.1" },
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-route-")))
   fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
@@ -108,19 +111,10 @@ const withRoute = <A>(
       settle: "10 millis",
     })
     const ops = makeOps({ store, root })
-    const wired = yield* bind({ store: fixedStore(store),
-      ops,
-      writer: "mcp",
+    const wired = yield* bind({
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
-      // NO PLUGINS. Every runtime in this file is a reader — a bound face, an
-      // MCP route — and none of them is about a terminal door or a CI chip;
-      // dialing whatever daemons happen to be on the machine running the suite
-      // would make these tests depend on them. `null` is the OFF setting, and
-      // what it produces is a surface with no `surface/<name>/` on it at all:
-      // an empty sibling record composes to no tag, no handler and no expose
-      // row, so olai's own group is byte for byte what it always was.
-      plugins: null,
+      plugins: yield* capabilitiesOver(store, ops, root, {definitions:listenOn.definitions ?? true}),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
@@ -130,8 +124,10 @@ const withRoute = <A>(
       { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },
       wired.faces.agent,
     )
-    const tickets = ticketing({ bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket })
+    let selectingTicket: string | null = null
+    const tickets = ticketing({ reservations: WRITE_RESERVATIONS, bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket: () => selectingTicket ?? currentTicket() })
     yield* serveFace({
+      surface,
       expose: MCP,
       client: () => panel,
       tools: {
@@ -167,6 +163,12 @@ const withRoute = <A>(
       use({
         root,
         url,
+        retainedTicket: (under) => {
+          const ticket = tickets.mint(() => ({ under, forbidden: [] }), () => null, "chat-agent")
+          selectingTicket = ticket.bearer
+          try { return { ticket, client: tickets.doorAt(panel) } }
+          finally { selectingTicket = null }
+        },
         mintTicket: (under) => tickets.mint(
           () => ({ under, forbidden: [] }),
           () => null,
@@ -456,7 +458,7 @@ test("a node ticket can list and call the three plugin verbs", async () => {
  * same bearer, one key apart. The one that lands is what makes the refusal
  * about THAT KEY rather than about the subtree.
  */
-test("a node ticket may not write `approved`, on its own node or any other", async () => {
+for (const definitions of [true, false]) test(`a node ticket cannot write approval with vault policy ${definitions ? "present" : "absent"}`, async () => {
   await withRoute(async ({ mintTicket, post, root }) => {
     await post(initialize)
     await post({ jsonrpc: "2.0", method: "notifications/initialized" })
@@ -484,7 +486,7 @@ test("a node ticket may not write `approved`, on its own node or any other", asy
     const contents = fs.readFileSync(path.join(root, "house.olai"), "utf8")
     expect(contents).toContain("some-other-key")
     expect(contents).not.toContain("approved")
-  })
+  }, {host:"127.0.0.1", definitions})
 })
 
 /**
@@ -743,5 +745,23 @@ test("…and two people behind one proxy do not get each other's", async () => {
     expect(rows.find((row) => row.title === "grace's line")?.custom).toEqual({
       "captured-by": "grace@example.com",
     })
+  })
+})
+
+
+test("releasing a ticket fences a retained client and the delayed next step of a tool", async () => {
+  await withRoute(async ({ retainedTicket, root }) => {
+    const { ticket, client } = retainedTicket("kitchen")
+    await Effect.runPromise(client.surface.ops.run({ op: "title", id: "kitchen", title: "accepted before release" }))
+    // A multi-step tool can already hold both the client and its next lazy
+    // Effect when its owning session is released. It must recheck the fence.
+    const next = client.surface.ops.run({ op: "title", id: "kitchen", title: "forbidden delayed write" })
+    ticket.release()
+    ticket.release()
+    await expect(Effect.runPromise(next)).rejects.toThrow("conversation has been reaped")
+    await expect(Effect.runPromise(client.surface.ops.run({ op: "title", id: "kitchen", title: "forbidden retained write" }))).rejects.toThrow("conversation has been reaped")
+    const contents = fs.readFileSync(path.join(root, "house.olai"), "utf8")
+    expect(contents).toContain("accepted before release")
+    expect(contents).not.toContain("forbidden")
   })
 })

@@ -56,7 +56,7 @@
  * `../browser/` and `../plugin.ts` actually reach for, and a sixth is one line
  * on the day something needs one.
  */
-export { KoluUi } from "./props/KoluUi.tsx"
+export { KoluUi, createKoluUi } from "./props/KoluUi.tsx"
 export type { KoluClient } from "./props/KoluUi.tsx"
 export { TerminalBlock } from "./props/TerminalDoor.tsx"
 export { padiSaid } from "./padi/said.ts"

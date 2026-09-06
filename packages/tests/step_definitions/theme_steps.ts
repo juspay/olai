@@ -360,6 +360,17 @@ Then(
 
 // ── and nothing reaches the server ─────────────────────────────────────
 
+When("the appearance controls have finished loading their fonts", async function (this: OlaiWorld) {
+  await showChips(this);
+  // Opening the picker is a separate action from choosing a color. Let the
+  // browser finish layout and the fonts that drawing it requested before
+  // measuring the pick; every request after that point still counts.
+  await this.page.evaluate(async () => {
+    document.documentElement.getBoundingClientRect();
+    await document.fonts.ready;
+  });
+});
+
 When("I watch what the page asks for", function (this: OlaiWorld) {
   this.watchRequests();
 });

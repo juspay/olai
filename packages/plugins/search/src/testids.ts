@@ -22,4 +22,11 @@ export const TESTID = {
   /** One `key value` pair on a header result row's third line. */
   headerSearchItemProp: "header-search-item-prop",
   headerSearchError: "header-search-error",
+  searchCount: "search-count",
 } as const
+
+import type {} from "@olai/ui-primitives/testids.ts"
+type OwnedTestIds = typeof TESTID
+declare module "@olai/ui-primitives/testids.ts" {
+  interface TestIdTables { readonly "plugins/search": OwnedTestIds }
+}

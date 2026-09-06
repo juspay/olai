@@ -1,0 +1,1 @@
+../../packages/plugins/pins/docs.md

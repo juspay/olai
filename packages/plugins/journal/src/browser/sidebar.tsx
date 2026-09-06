@@ -1,9 +1,9 @@
 import { createMemo, Show } from "solid-js"
 
-import { CountChip } from "@olai/web/client/layout/CountChip.tsx"
-import { ENTRY_SHAPE } from "@olai/web/client/layout/entry.ts"
-import { RailButton } from "@olai/web/client/layout/Rail.tsx"
-import { Link, useRouter } from "@olai/web/client/router.tsx"
+import { CountChip } from "@olai/ui-primitives/CountChip.tsx"
+import { ENTRY_SHAPE } from "olai-plugin-layout/entry"
+import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
+import { Link, useRouter } from "olai-plugin-navigation/routing"
 import { useToday } from "@olai/web/client/today.tsx"
 
 import { TESTID } from "../testids.ts"

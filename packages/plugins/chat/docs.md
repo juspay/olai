@@ -12,8 +12,8 @@ Nothing. It is on by default, like the appliances and the engines. Two things ta
 
 ```
 olai web ~/outlines                                  # the panel, as always
-olai web ~/outlines --plugins=vault,kolu,odu,ws,web-app,mcp               # the outliner alone
-olai web ~/outlines --plugins=vault,chat,claude,ws,web-app,mcp            # a conversation and one engine
+olai web ~/outlines --plugins=vault,kolu,odu,ws,web-app,mcp,ui-renderer,layout               # the outliner alone
+olai web ~/outlines --plugins=vault,chat,claude,ws,web-app,mcp,ui-renderer,layout            # a conversation and one engine
 ```
 
 The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag, the nix option, or the row's own default. It is the switch to reach for when the answer is *not on this machine right now*; the flag is a deployment's word.
@@ -91,7 +91,7 @@ surface/chat/saying/deltas             the row still being said
 surface/chat/conversation/send         …and the fourteen verbs
 ```
 
-**The MCP face is unchanged.** Not one chat member was ever on it: an agent talking to this store reads the vault through `surface://` and the ops tools, and the conversation is the human's session at the other end of that. So no client's tool names or URIs moved, and `--plugins=vault,chat,ws,web-app,mcp` changes nothing an agent can see.
+**The MCP face is unchanged.** Not one chat member was ever on it: an agent talking to this store reads the vault through `surface://` and the ops tools, and the conversation is the human's session at the other end of that. So no client's tool names or URIs moved, and `--plugins=vault,chat,ws,web-app,mcp,ui-renderer,layout` changes nothing an agent can see.
 
 ## Turning it off is not the same as turning the agent off
 
@@ -101,3 +101,17 @@ Two switches, two meanings:
 - `OLAI_ACP_AGENT=""` is **not this time**. The row is there, the panel draws, and it says the agent is switched off — which is what you want when the answer is *not right now* rather than *no conversation here*.
 
 The second is the one to reach for by habit. The first is a deployment's word, or a person deciding this serve should stop being a chat for a while.
+
+The browser activation owns one agent roster and conversation reading. Its panel, header, sidebar and row-door contributions provide that same roster only to their own children; row commands close over the scoped reading. Chat no longer wraps the application to provide state, so switching it off leaves surviving outline and document editor instances intact. Agent-list callbacks from a departed activation cannot trigger another lookup.
+
+Notification permission state and service-worker click listeners belong to the
+chat alerts provider. Withdrawal detaches permission observers and prevents a
+pending permission request from delivering an old notification; reactivation
+reads the browser's current permission. Each mounted attention circuit also
+owns its first-gesture listeners and audio context, closing them when it leaves.
+
+Session settings close and remain disabled while a send is awaiting acceptance,
+including before the server's working-state update arrives. The pending count
+belongs to this browser activation and clears when each send settles. An idle
+panel with an unacknowledged send does not establish that its new turn finished;
+sequential browser workflows wait for both acceptance and idle.

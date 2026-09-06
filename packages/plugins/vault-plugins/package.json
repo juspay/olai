@@ -1,0 +1,33 @@
+{
+  "name": "olai-plugin-vault-plugins",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./contract": "./src/index.ts",
+    "./policy": "./src/policy.ts",
+    "./surface": "./src/surface.ts",
+    "./client": "./src/client.ts",
+    "./browser": "./src/browser.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "@olai/plugin-build": "workspace:*",
+    "@olai/surface": "workspace:*",
+    "@olai/ops": "workspace:*",
+    "@olai/format": "workspace:*",
+    "@olai/store": "workspace:*",
+    "effect": "4.0.0-rc.112"
+  },
+  "olai": {
+    "contracts": [
+      "./surface",
+      "./client"
+    ]
+  }
+}

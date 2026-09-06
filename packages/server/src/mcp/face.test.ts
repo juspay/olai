@@ -1,3 +1,6 @@
+import { surface } from "@olai/bundle/surface"
+import { VaultBoot } from "olai-plugin-vault/boot"
+import { CONTENT_ROWS, runtimeFor } from "../capabilities.testlib.ts"
 /**
  * The read face against a real directory, over a real MCP client.
  *
@@ -26,13 +29,11 @@
  * subscription test is a sequence and not a race.
  */
 
-import { MCP } from "../faces.ts"
+import { MCP } from "@olai/bundle/faces"
 import { runtimePaths } from "../runtime-paths.ts"
-import { fixedStore } from "../store-source.ts"
-import { type Store, type Ops, NO_LEDGER, NO_SEARCH } from "@olai/ops"
-import { NO_KINDS } from "@olai/format"
+import { type Store, type Ops } from "@olai/ops"
 import { mountBundle, provide, offered, settled } from "@olai/bundle/bundle"
-import { openPlugins, Directory, Ops as OpsDoor, VaultSettings } from "@olai/plugin-api/services"
+import { openPlugins, Directory, Ops as OpsDoor } from "@olai/plugin-api/services"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { ResourceUpdatedNotificationSchema } from "@modelcontextprotocol/sdk/types.js"
@@ -46,7 +47,7 @@ import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
-import { clientOver } from "@olai/surface/client"
+import { clientOver } from "@olai/bundle/client"
 import { serveFace } from "olai-plugin-mcp/testlib"
 
 const HOUSE = [
@@ -98,28 +99,19 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
   Effect.gen(function*() {
     const root = served()
     const plugins = yield* openPlugins({ vars: {}, now: () => "" })
-    yield* mountBundle(plugins.host, { kind: "exact", names: ["vault"] })
-    yield* provide(plugins.host, VaultSettings, () => ({ root, runtime: runtimePaths, kinds: NO_KINDS, ledger: NO_LEDGER, search: NO_SEARCH }))
-    yield* settled(plugins.host, ["vault"])
+    yield* mountBundle(plugins.host, { kind: "exact", names: ["vault", ...CONTENT_ROWS] })
+    yield* provide(plugins.host, VaultBoot, () => ({root, runtime: runtimePaths}))
+    yield* settled(plugins.host, ["vault", ...CONTENT_ROWS])
     const store = offered(plugins.host, Directory)!.store as Store
     // A real ops layer with commits OFF: this face is about READING, and `off`
     // is the one mode that asks git nothing at all. The edit procedures are
     // bound to it too and this face exposes none of them, so what they cost
     // here is a binding nobody can reach.
     const ops = offered(plugins.host, OpsDoor)!.gate as Ops
-    const wired = yield* bind({ store: fixedStore(store),
-      ops,
-      writer: "mcp",
+    const wired = yield* bind({
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
-      // NO PLUGINS. Every runtime in this file is a reader — a bound face, an
-      // MCP route — and none of them is about a terminal door or a CI chip;
-      // dialing whatever daemons happen to be on the machine running the suite
-      // would make these tests depend on them. `null` is the OFF setting, and
-      // what it produces is a surface with no `surface/<name>/` on it at all:
-      // an empty sibling record composes to no tag, no handler and no expose
-      // row, so olai's own group is byte for byte what it always was.
-      plugins: null,
+      plugins: yield* runtimeFor(plugins, ["vault", ...CONTENT_ROWS]),
     })
     // Not optional, and not ceremony copied from `serve.ts`: the runtime's
     // `done` REJECTS when it is closed, so something has to be holding the
@@ -133,6 +125,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
+      surface,
       expose: MCP,
       // The group AND the face, from the one call that composed both: an
       // exposure describes a group as a set equality, so a gate built from a
@@ -178,6 +171,8 @@ const textOf = async (client: Client, uri: string): Promise<string> => {
 const readJson = async (client: Client, uri: string): Promise<unknown> =>
   JSON.parse(await textOf(client, uri))
 
+// Every case opens the real scoped server and MCP pair; cold catalog loading
+// and filesystem setup need an integration budget on the shared CI fleet.
 test("the served resources are exactly the allowlist names", async () => {
   await withFace(async ({ client }) => {
     const listed = await client.listResources()
@@ -193,7 +188,7 @@ test("the served resources are exactly the allowlist names", async () => {
       "surface://collections/outlines/{id}",
     ])
   })
-})
+}, 30_000)
 
 test("reading the outlines collection costs the KEY SET, not the corpus", async () => {
   await withFace(async ({ client }) => {
@@ -209,7 +204,7 @@ test("reading the outlines collection costs the KEY SET, not the corpus", async 
     expect(text).not.toContain(BODY_MARKER)
     expect(text.length).toBeLessThan(1024)
   })
-})
+}, 30_000)
 
 test("one outline item is that file's nodes, and no other file's", async () => {
   await withFace(async ({ client }) => {
@@ -227,7 +222,7 @@ test("one outline item is that file's nodes, and no other file's", async () => {
     // write will one day name as the base it edited.
     expect(entry.rev).toBeGreaterThan(0)
   })
-})
+}, 30_000)
 
 test("the errors cell reads as a live value", async () => {
   await withFace(async ({ client }) => {
@@ -236,7 +231,7 @@ test("the errors cell reads as a live value", async () => {
     // agent asks it the same questions a browser does.
     expect(await readJson(client, "surface://cells/errors")).toEqual({ findings: [] })
   })
-})
+}, 30_000)
 
 // A directory that cannot be READ, over the agent's face — the same rows the
 // browser draws its banner from, off the same cell, because there is one cell.
@@ -262,7 +257,7 @@ test("a directory that cannot be read reaches the agent, not just the browser", 
       ],
     })
   })
-})
+}, 30_000)
 
 test("an edited outline notifies its subscribers", async () => {
   await withFace(async ({ client, refresh, root }) => {
@@ -292,7 +287,7 @@ test("an edited outline notifies its subscribers", async () => {
     }
     expect(entry.nodes.map((n) => n.node.title)).toContain("paint it")
   })
-})
+}, 30_000)
 
 test("a member the allowlist omits has no URI at all", async () => {
   await withFace(async ({ client }) => {
@@ -306,7 +301,7 @@ test("a member the allowlist omits has no URI at all", async () => {
       client.readResource({ uri: "surface://collections/transcript" }),
     ).rejects.toThrow(/unknown resource/)
   })
-})
+}, 30_000)
 
 test("reading the documents collection costs the PATHS, not the bodies", async () => {
   await withFace(async ({ client }) => {
@@ -323,7 +318,7 @@ test("reading the documents collection costs the PATHS, not the bodies", async (
     expect(text).not.toContain(BODY_MARKER)
     expect(text.length).toBeLessThan(1024)
   })
-})
+}, 30_000)
 
 test("one document item is that document's body, fetched only when asked", async () => {
   await withFace(async ({ client }) => {
@@ -337,7 +332,7 @@ test("one document item is that document's body, fetched only when asked", async
     expect(entry.text).toContain(BODY_MARKER)
     expect(entry.text.length).toBeGreaterThan(10_000)
   })
-})
+}, 30_000)
 
 // The same read, of the file whose body the server does NOT keep — and the
 // sharp edge it walks. A `resources/read` is ONE SHOT: it takes the first frame
@@ -354,4 +349,4 @@ test("one saved page is read from disk for the agent that asks for it", async ()
 
     expect(entry.text).toBe(SAVED)
   })
-})
+}, 30_000)

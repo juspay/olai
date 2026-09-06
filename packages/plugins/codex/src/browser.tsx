@@ -1,3 +1,4 @@
+import type {} from "olai-plugin-chat/slots"
 /** The Codex engine's mark and no-agent install sentence. */
 import { definePlugin, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"

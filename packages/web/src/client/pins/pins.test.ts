@@ -12,8 +12,8 @@
 import { NO_PINS, type Shelf } from "@olai/surface"
 import { expect, test } from "bun:test"
 
-import { pinnedAt, pinsOf } from "./pins.ts"
-import { atNode } from "../routes.ts"
+import { pinnedAt, pinsOf } from "olai-plugin-pins/values"
+import { atNode } from "olai-plugin-navigation/routes"
 
 /** The shelf as the `pins` cell carries it — the file's own rows, with the one
  *  fact only the set could answer already on them. */

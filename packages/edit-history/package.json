@@ -1,0 +1,20 @@
+{
+  "name": "@olai/edit-history",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/format": "workspace:*",
+    "@olai/surface": "workspace:*",
+    "@olai/web": "workspace:*",
+    "solid-js": "^1.9.0",
+    "effect": "4.0.0-rc.112",
+    "@olai/ui-primitives": "workspace:*"
+  }
+}

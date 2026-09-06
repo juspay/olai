@@ -1,0 +1,73 @@
+{
+  "name": "olai-plugin-outlines",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contract": "./src/index.ts",
+    "./browser": "./src/browser.tsx",
+    "./server": "./src/server.ts",
+    "./all.css": "./src/all.css",
+    "./filter": "./src/contracts/filter.tsx",
+    "./page": "./src/contracts/page.ts",
+    "./references": "./src/contracts/references.ts",
+    "./surface": "./src/surface.ts",
+    "./chrome": "./src/contracts/chrome.ts",
+    "./changes": "./src/contracts/changes.ts",
+    "./filter-values": "./src/contracts/filter-values.ts",
+    "./property-values": "./src/contracts/property-values.ts",
+    "./names": "./src/contracts/names.ts",
+    "./testlib": "./src/testlib.ts",
+    "./slots": "./src/slots.ts",
+    "./testids": "./src/testids.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kobalte/core": "^0.13.13",
+    "@olai/format": "workspace:*",
+    "@olai/surface": "workspace:*",
+    "@solid-primitives/keyed": "^1.5.3",
+    "@solid-primitives/scheduled": "^1.5.3",
+    "effect": "4.0.0-rc.112",
+    "solid-js": "^1.9.0",
+    "@olai/plugin-api": "workspace:*",
+    "@olai/web": "workspace:*",
+    "@olai/markdown-ui": "workspace:*",
+    "olai-plugin-navigation": "workspace:*",
+    "olai-plugin-ui-renderer": "workspace:*",
+    "olai-plugin-preferences": "workspace:*",
+    "@olai/edit-history": "workspace:*",
+    "olai-plugin-files": "workspace:*",
+    "@olai/ops": "workspace:*",
+    "@olai/store": "workspace:*",
+    "@olai/edit-intents": "workspace:*",
+    "olai-plugin-layout": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "olai-plugin-vault": "workspace:*",
+    "olai-plugin-markdown": "workspace:*",
+    "olai-plugin-pins": "workspace:*",
+    "olai-plugin-trash": "workspace:*",
+    "olai-plugin-search": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./contract",
+      "./filter",
+      "./filter-values",
+      "./page",
+      "./references",
+      "./chrome",
+      "./changes",
+      "./property-values",
+      "./names",
+      "./slots",
+      "./testids",
+      "./surface",
+      "./client"
+    ]
+  }
+}

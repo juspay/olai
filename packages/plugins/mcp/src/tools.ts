@@ -60,7 +60,7 @@ import { Effect, Result, Schema } from "effect"
 
 import type { Request } from "@olai/ops"
 import { resolvedWrite } from "@olai/ops/resolved"
-import { type OlaiSurfaceClient } from "@olai/surface/client"
+import { type McpClient } from "./client.ts"
 
 /** The three ops-layer doors a tool call needs, together. `@olai/ops` names
  *  them one per tool arm; nothing but this projection ever wants all three, so
@@ -112,7 +112,7 @@ export const bespokeFrom = (
         // it, which is a capture attributed to the wrong person.
         const said = answer(
           tool,
-          doorFor(at.fenced(client as OlaiSurfaceClient), at),
+          doorFor(at.fenced(client as McpClient), at),
           args,
           at.login(),
         )
@@ -181,7 +181,7 @@ export const pluginTools = (): Record<string, BespokeTool> => ({
       + "rather than a description of it.",
     mutates: false,
     handler: (_args, client) =>
-      asked("inspect_plugins", landed((client as OlaiSurfaceClient).surface.plugins.inspect({}))),
+      asked("inspect_plugins", landed((client as McpClient).surface.plugins.inspect({}))),
   },
   run_plugin: {
     input: Schema.Struct({
@@ -203,7 +203,7 @@ export const pluginTools = (): Record<string, BespokeTool> => ({
     handler: (args, client) =>
       asked(
         "run_plugin",
-        landed((client as OlaiSurfaceClient).surface.plugins.run(args as { readonly name: string })),
+        landed((client as McpClient).surface.plugins.run(args as { readonly name: string })),
       ),
   },
   stop_plugin: {
@@ -222,7 +222,7 @@ export const pluginTools = (): Record<string, BespokeTool> => ({
     handler: (args, client) =>
       asked(
         "stop_plugin",
-        landed((client as OlaiSurfaceClient).surface.plugins.stop(args as { readonly name: string })),
+        landed((client as McpClient).surface.plugins.stop(args as { readonly name: string })),
       ),
   },
 })
@@ -261,7 +261,7 @@ export interface Served {
   readonly vintage: Effect.Effect<Vintage | undefined>
   /** Select the per-request write door before the adapter starts a fresh Effect
    * fiber and request-local context is no longer available. */
-  readonly fenced: (client: OlaiSurfaceClient) => OlaiSurfaceClient
+  readonly fenced: (client: McpClient) => McpClient
   /**
    * RECORD A WRITE, with this face's writer already bound — `ops.commit`
    * through the ledger door. A serve that did not mount the git row refuses
@@ -417,7 +417,7 @@ const isRecord = (said: unknown): said is Record<string, unknown> =>
  * name — and an Effect is an immutable description, so reuse across calls is
  * what it is for.
  */
-const doorFor = (client: OlaiSurfaceClient, at: Served): Door => {
+const doorFor = (client: McpClient, at: Served): Door => {
   const held = DOORS.get(client)
   if (held !== undefined) return held
   const door = doorOver(client, at)
@@ -425,9 +425,9 @@ const doorFor = (client: OlaiSurfaceClient, at: Served): Door => {
   return door
 }
 
-const DOORS = new WeakMap<OlaiSurfaceClient, Door>()
+const DOORS = new WeakMap<McpClient, Door>()
 
-const doorOver = (client: OlaiSurfaceClient, at: Served): Door => {
+const doorOver = (client: McpClient, at: Served): Door => {
   return {
     run: (request) => landed(client.surface.ops.run(request)),
     // The act arm has NO failure channel and says so by type: every way a commit

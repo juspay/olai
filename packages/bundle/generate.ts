@@ -174,7 +174,7 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
   // a specifier does.
   const server = rows
     .map((row) =>
-      `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${
+      `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${hasDoor(row, "./server") ? "" : ", browserOnly: true"}${
         row.disabled === true ? ", disabled: true" : ""
       }${row.profiles === undefined ? "" : `, profiles: [${row.profiles.map(quoted).join(", ")}]`}${row.switchHint === undefined ? "" : `, switchHint: ${prose(row.switchHint)}`} },`
     )
@@ -182,9 +182,7 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
   const entries = rows
     .filter((row) => hasDoor(row, "./browser"))
     .map((row) =>
-      `  { id: ${quoted(row.id)}, load: () => import(${
-        quoted(`${packageOf(row)}/browser`)
-      }) },`
+      `  { id: ${quoted(row.id)}, specifier: ${quoted(`${packageOf(row)}/browser`)}, load: () => import(${quoted(`${packageOf(row)}/browser`)}) },`
     )
     .join("\n")
   return `${HEADER("Every server row, and only the browser exports the tab can load.")}
@@ -243,4 +241,18 @@ export const PLUGIN_TESTID = ${merged} as const
 const rows = readRows()
 writeFileSync(join(SRC, "rows.generated.ts"), rowsModule(rows))
 writeFileSync(join(SRC, "all.generated.css"), styleChain(rows))
-writeFileSync(join(SRC, "testids.generated.ts"), testidsModule(rows))
+writeFileSync(join(SRC, "testids.generated.ts"), testidsModule(rows.filter((row) => hasDoor(row, "./testids"))))
+
+const assetRows = rows.filter((row) => hasDoor(row, "./assets"))
+writeFileSync(join(SRC, "assets.generated.ts"), `${HEADER("Static build contributions; no runtime may import this graph.")}
+import type { BuildAssets } from "./assets.ts"
+${assetRows.map((row, at) => `import p${at} from ${quoted(`${packageOf(row)}/assets`)}`).join("\n")}
+export const BUILD_ASSETS: ReadonlyArray<BuildAssets> = [${assetRows.map((_, at) => `p${at}`).join(", ")}]
+`)
+
+const policyRows = rows.filter((row) => hasDoor(row, "./policy"))
+writeFileSync(join(SRC, "policy.generated.ts"), `${HEADER("Static write reservations; enforced even when the runtime owner is disabled.")}
+import type { WriteReservation } from "./policy.ts"
+${policyRows.map((row, at) => `import { writeReservations as p${at} } from ${quoted(`${packageOf(row)}/policy`)}`).join("\n")}
+export const WRITE_RESERVATIONS: ReadonlyArray<WriteReservation> = [${policyRows.map((_, at) => `...p${at}`).join(", ")}]
+`)

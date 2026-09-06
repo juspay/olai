@@ -1,3 +1,5 @@
+import type { AppCommand } from "olai-plugin-navigation/slots"
+import type { RowAction } from "olai-plugin-outlines/slots"
 /**
  * THE TWO VERBS ON A ROW'S `•••`, AND THE PALETTE'S `>` — chat's contributions
  * to two places in the app that used to spell it themselves.
@@ -39,27 +41,15 @@
  * like any other face that draws inside the app.
  */
 
-import type { AppCommand, RowAction } from "@olai/plugin-api"
-import { setPanelOpen } from "@olai/web/client/layout/prefs.ts"
+
+import { setPanelOpen } from "olai-plugin-layout/preferences"
 import { runAsync } from "@olai/web/client/run.ts"
 import { Result } from "effect"
-import { onCleanup, type JSX } from "solid-js"
 
-import { useAgents } from "./agents/answered.tsx"
+import type { Roster } from "./agents/answered.tsx"
 import { armNode, releaseArmed, restoreArmed } from "./chat/armed.ts"
 import { createChatState } from "./chat/state.ts"
 import { chatWire } from "./wire.ts"
-
-let commandState: ReturnType<typeof createChatState> | null = null
-
-/** Palette commands are imperative slot values. Keep their conversation
- * reading in the app's mounted lifetime, including while the drawer is shut. */
-export function CommandContext(props: { readonly children: JSX.Element }) {
-  const state = createChatState()
-  commandState = state
-  onCleanup(() => { if (commandState === state) commandState = null })
-  return props.children
-}
 
 /**
  * WHAT A ROW'S `•••` OFFERS, READ AT THE WALK.
@@ -79,14 +69,13 @@ export function CommandContext(props: { readonly children: JSX.Element }) {
  * answer at "no engines", which is what every machine looks like before its
  * first roster frame.
  */
-export const rowVerbs = (node: string): ReadonlyArray<RowAction> => {
-  const state = createChatState()
+export const rowVerbs = (node: string, roster: Roster, state: ReturnType<typeof createChatState>): ReadonlyArray<RowAction> => {
   // WHAT THIS ROW IS ALREADY TALKING THROUGH, off the roster this half
   // subscribes to once for the whole tab (`./agents/answered.tsx`). It is the
   // ROSTER rather than the record's own property, and the two agree by
   // construction: the roster IS the query over that property, answered where the
   // set is, so a row that is on it is a row that carries one.
-  const bound = useAgents().at(node)
+  const bound = roster.at(node)
   const verbs: Array<RowAction> = [{
     // THE COMPOSER, ARMED WITH THIS NODE — a READ, and it writes nothing at
     // all. What happens to the node afterwards is whatever is typed next,
@@ -182,7 +171,7 @@ export const rowVerbs = (node: string): ReadonlyArray<RowAction> => {
  * appears; on one that was refused it is the other place a reader can recover,
  * and the palette draws the refusal where it draws every other one.
  */
-export const askCommand: AppCommand = {
+export const createAskCommand = (state: ReturnType<typeof createChatState>): AppCommand => ({
   prefix: ">",
   said: "ask the agent",
   placeholder: "ask the agent…",
@@ -193,7 +182,7 @@ export const askCommand: AppCommand = {
     // `runAsync` answers a `Result`, so there is no throw here to catch and no
     // way for one of the three exits to escape unread.
     const outcome = await runAsync(
-      chatWire().procedures.conversation.send({ scope: commandState?.().uploadScope ?? null, text: line, context }),
+      chatWire().procedures.conversation.send({ scope: state().uploadScope, text: line, context }),
     )
     setPanelOpen(true)
     if (Result.isSuccess(outcome)) return null
@@ -204,4 +193,4 @@ export const askCommand: AppCommand = {
     // would be core's template with a noun dropped in.
     return outcome.failure.message
   },
-}
+})

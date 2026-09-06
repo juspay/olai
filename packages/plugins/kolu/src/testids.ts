@@ -7,7 +7,7 @@
  * held what KOLU draws (the Dock row, the pane, the events list) and this module
  * held what OLAI draws about kolu (the padi pill and the drawer its press
  * opens). The line is still exactly right and it is still drawn — the two tables
- * are two modules, `./appliance/testids.ts` and this one — but it is no longer a
+ * are two modules, `./contracts/appliance-testids.ts` and this one — but it is no longer a
  * PACKAGE line, so it is no longer two doors. The appliance fold made kolu's
  * browser half a module directory of this plugin, and a package has one
  * `./testids` entry the way it has one name.
@@ -40,7 +40,7 @@
  * timeout that says nothing about why. Declaring them once and importing them on
  * both sides makes a rename a type error.
  */
-import { TESTID as appliance } from "./appliance/testids.ts"
+import { TESTID as appliance } from "./contracts/appliance-testids.ts"
 
 /** WHAT OLAI DRAWS ABOUT KOLU — the chrome half, named rather than written
  *  straight into the merge, so the composition below has two values to be
@@ -54,7 +54,7 @@ const CHROME = {
   padi: "padi",
   /** THE FEED the pill's press opens — the box of `./appliance/`'s
    *  `EventsFeed`. THE PANEL'S OWN HANDLE only: the rows are the appliance's and
-   *  are asserted through `./appliance/testids.ts`, spread into the table below (`...appliance` is its first line). */
+   *  are asserted through `./contracts/appliance-testids.ts`, spread into the table below (`...appliance` is its first line). */
   padiFeed: "padi-feed",
   /** THE FEED'S FOOT — the drawer's last line, which is the wrench onto the
    *  config and nothing else (`./browser/Feed.tsx`). Present only when there
@@ -132,3 +132,9 @@ type _NoSharedValue = Assert<[SharedValue] extends [never] ? true : SharedValue>
 /** THE DOOR: both halves, in one table. The `as const` is load-bearing rather
  *  than habitual — see the value assertion's measured limit above. */
 export const TESTID = { ...appliance, ...CHROME } as const
+
+import type {} from "@olai/ui-primitives/testids.ts"
+type OwnedTestIds = typeof TESTID
+declare module "@olai/ui-primitives/testids.ts" {
+  interface TestIdTables { readonly "plugins/kolu": OwnedTestIds }
+}

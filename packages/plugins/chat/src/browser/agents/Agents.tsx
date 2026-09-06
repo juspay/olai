@@ -64,9 +64,9 @@
 import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 
-import { CHIP_QUIET } from "@olai/web/client/layout/chip.ts"
-import { REGION, REGION_LABEL } from "@olai/web/client/layout/entry.ts"
-import { setPanelOpen } from "@olai/web/client/layout/prefs.ts"
+import { CHIP_QUIET } from "olai-plugin-layout/chip"
+import { REGION, REGION_LABEL } from "olai-plugin-layout/entry"
+import { setPanelOpen } from "olai-plugin-layout/preferences"
 import { DOT } from "@olai/web/client/readout.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { TESTID } from "../../testids.ts"

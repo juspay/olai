@@ -5,13 +5,19 @@
  * publishes plugin registrations after the new siblings are available.
  */
 
+import { supplyManagement } from "./plugins/management.ts"
+import { connectSocket } from "./connection/socket.ts"
+import { bootstrapSelected } from "./plugins/bootstrap.ts"
+import { loadRows, retryableModule } from "./plugins/loading.ts"
+import type { bootStatus } from "./plugins/boot-status.ts"
+import { BROWSER_BOOT_PATH, BROWSER_MODULES_ID } from "@olai/plugin-api/mount"
 import { connectSurfaces } from "@kolu/surface-app/solid"
 import type { Surface, SurfaceSpec } from "@kolu/surface/define"
 import type { BrowserHalf, BrowserRow } from "@olai/bundle"
 import { surface } from "@olai/surface"
 import { createEffect, createRoot, createSignal } from "solid-js"
 
-import { composeTo } from "./plugins/runtime.ts"
+import { browserReports, browserRequiresReload, composeTo } from "./plugins/runtime.ts"
 
 /**
  * The word a degraded readout calls olai's own floor.
@@ -19,7 +25,7 @@ import { composeTo } from "./plugins/runtime.ts"
  * It is a LABEL and never a tag segment — the root's members keep their bare
  * `surface/<member>/<verb>`, which is the whole difference between a root and a
  * sibling — so it reaches a reader and nothing else. `surfaceClientsHealth`
- * prefixes every stopped subscription with it (`olai/manifest`), which is what
+ * prefixes every stopped subscription with it (`olai/plugins`), which is what
  * makes a degraded readout say WHICH HALF went quiet rather than only that
  * something did. The framework has no name for an app's own floor and declines
  * to invent one, so it crosses as an argument; it must not be a plugin's name,
@@ -41,10 +47,10 @@ const CORE = "olai"
  * when the `core` slot landed, and core is always here.
  */
 const live = await connectSurfaces({
-  // OLAI'S OWN SURFACE AS THE ROOT — unprefixed, so its tags are unchanged and
-  // the two reserved round-trips address them. That is what makes them
-  // trustworthy on a wire whose SIBLING set varies per serve, and now varies
-  // WITHIN one serve.
+  connect: connectSocket,
+  // Only host management is permanent. Every capability contributes its own
+  // descriptor and receives a namespaced client after redial; removing it
+  // withdraws that client without teaching this module any application verbs.
   core: { surface, name: CORE },
   surfaces: {} as Record<string, Surface<SurfaceSpec>>,
   // What happens when the server retires this wire. Required by the seam, with
@@ -100,7 +106,7 @@ interface Named {
 }
 
 /** THE PLUGINS THIS WIRE CARRIES, as that signature. */
-let composed = ""
+let composed: string | undefined = ""
 
 /**
  * BRING THE WIRE INTO LINE WITH THE ROSTER — load, dial, then mount.
@@ -117,15 +123,11 @@ let composed = ""
  *   3. **compose** the fibers, which is where a plugin's faces are registered
  *      and its own client is first reachable.
  *
- * ## A FAILURE COSTS THE PAGE NOTHING
- *
- * A chunk that will not load and a dial that throws are the same case, and
- * `redial` owns it: the replacement is dialled first and this connection
- * released only once that has resolved, so a throw leaves the working wire
- * exactly as it was. What this function does about it is say so on the console
- * and leave `composed` where it was — so the next roster frame tries again
- * rather than the page being stuck holding a wire it thinks is newer than it
- * is.
+ * Module failures are contained per row and carried to the browser inspector.
+ * Successful halves still redial before mounting, preserving Surface readiness.
+ * A failed redial leaves the previous composition intact and is retried when
+ * the roster next changes. Loading a module is not proof of activation: the
+ * browser runtime reports initialization and dependency failures separately.
  */
 /** A switch can publish its new state before the browser finishes replacing
  * its socket. Keep controls that change the roster frozen through the entire
@@ -186,7 +188,36 @@ let rows: ReadonlyArray<BrowserRow> = []
  * so it is the one place in this package that may still name the registry.
  */
 export const useBrowserRows = (built: ReadonlyArray<BrowserRow>): void => {
-  rows = built
+  const raw = document.getElementById(BROWSER_MODULES_ID)?.textContent
+  const urls: Record<string, string> = raw ? JSON.parse(raw) : {}
+  rows = built.map((row) => ({ ...row, load: retryableModule(row.load, () => urls[row.id], importModule) }))
+}
+
+/** The socket is authoritative once it has answered. A slow bootstrap reply
+ * cannot re-enable a row which a newer roster switched off. */
+let receivedRoster = false
+let boot: ReturnType<typeof bootStatus> | undefined
+let selectedRows: ReadonlyArray<Named> = []
+export const useBootStatus = (status: ReturnType<typeof bootStatus>): void => { boot = status }
+/** An explicit retry retains the host's last selection and does not restart
+ * surviving activations. Failed imports and failed activations get another try. */
+export const retryBrowser = async (): Promise<void> => {
+  composed = undefined
+  if (!receivedRoster) return bootstrapBrowser()
+  await rerost(selectedRows)
+}
+export const bootstrapBrowser = async (): Promise<void> => {
+  try {
+    await bootstrapSelected({
+      authoritative: () => receivedRoster,
+      request: () => fetch(BROWSER_BOOT_PATH, { cache: "no-store", signal: AbortSignal.timeout(5000) }),
+      apply: (selected) => rerost(selected.map((id) => ({ id, chunk: null }))),
+    })
+  } catch (error) {
+    if (receivedRoster) return
+    console.warn("olai: browser bootstrap could not be read", error)
+    boot?.failed(`Browser startup could not read the host selection: ${String(error)}`, retryBrowser)
+  }
 }
 
 let inFlight: Promise<void> = Promise.resolve()
@@ -196,16 +227,16 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
   // the frame ahead of us in the queue may have been for the same roster.
   if (signature === composed) return
   try {
-    const halves = await Promise.all(
+    const { loaded: halves, failed, reloadRequired } = await loadRows(
       want.flatMap((one) => {
         // A PLUGIN THE VAULT DEFINES is fetched from the serve that compiled
         // it; everything else is a chunk of this bundle, and a name with
         // neither is skipped rather than thrown on — a serve running a plugin
         // this build does not have is a tab talking to a newer server, and the
         // honest answer is that its faces are absent.
-        if (one.chunk !== null) return [chunkAt(one.chunk)]
+        if (one.chunk !== null) return [{ id: one.id, load: () => chunkAt(one.chunk!) }]
         const row = rows.find((each) => each.id === one.id)
-        return row === undefined ? [] : [row.load()]
+        return row === undefined ? [] : [row]
       }),
     )
     // The cast is what a tab that follows the roster costs at the type level,
@@ -244,9 +275,17 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
         clearTimeout(deadline)
       }
     }
-    await composeTo(halves, (plugin) => (live.clients as Record<string, unknown>)[plugin])
+    await composeTo(halves, (plugin) => (live.clients as Record<string, unknown>)[plugin], failed, reloadRequired)
     composed = signature
+    const failedReports = [...browserReports()].filter(([, report]) => report.state === "failed")
+    const failures = failedReports.map(([name]) => name)
+    if (failures.length) boot?.failed(`Browser plugins could not start: ${failures.join(", ")}.`
+      + (reloadRequired.size ? " Retry could not recover a browser module. Reload the page to recover its dependencies." : ""),
+      reloadRequired.size ? async () => { globalThis.location.reload() } : retryBrowser,
+      reloadRequired.size ? "reload" : "retry")
+    else boot?.clear()
   } catch (refused) {
+    boot?.failed(`Browser startup could not follow the host selection: ${String(refused)}`, retryBrowser)
     console.error(
       "olai: this tab could not follow the server's plugin roster, so it is still serving the previous one",
       refused,
@@ -272,8 +311,17 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
  * reason a face an agent wrote can sit inside a provider a shipped plugin
  * registered.
  */
-const chunkAt = (url: string): Promise<BrowserHalf> =>
+const importModule = (url: string): Promise<BrowserHalf> =>
   import(/* @vite-ignore */ url) as Promise<BrowserHalf>
+const dynamicModules = new Map<string, () => Promise<BrowserHalf>>()
+const chunkAt = (url: string): Promise<BrowserHalf> => {
+  let load = dynamicModules.get(url)
+  if (!load) {
+    load = retryableModule(() => importModule(url), () => url, importModule)
+    dynamicModules.set(url, load)
+  }
+  return load()
+}
 
 /** The halves' surfaces, keyed by name — the shape every composition door
  *  takes. Built here rather than through `@olai/plugin-api`'s `surfacesOf`
@@ -316,6 +364,7 @@ createRoot(() => {
     // nothing about which plugins are running, and dialling none of them
     // because of it would be this page inventing a policy.
     if (value === undefined) return
+    receivedRoster = true
     // WHAT TO LOAD, per running row — the word, and for a plugin the VAULT
     // defines the URL its browser half is served from. A built row has no
     // `source`, so `chunk` is `null` and the compiled-in table below is what
@@ -324,6 +373,7 @@ createRoot(() => {
     const want = value.built
       .filter((row) => row.running)
       .map((row) => ({ id: row.name, chunk: row.source?.chunk ?? null }))
+    selectedRows = want
     if (signatureOf(want) === composed) {
       settle()
       return
@@ -340,3 +390,13 @@ export const connectionReadout = live.readout
 
 /** Re-fetch per-connection answers after an establishment; never remount UI. */
 export const connectionEpoch = live.connectionEpoch
+
+await supplyManagement({
+  roster: () => olai.cells.plugins.use().value,
+  reports: browserReports,
+  changing: rosterChanging,
+  set: (name, enabled) => olai.procedures.plugins.set({ name, enabled }),
+  retry: retryBrowser,
+  requiresReload: browserRequiresReload,
+  reload: () => globalThis.location.reload(),
+})

@@ -1,0 +1,1 @@
+../../packages/plugins/sidebar/docs.md

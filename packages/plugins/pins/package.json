@@ -1,0 +1,48 @@
+{
+  "name": "olai-plugin-pins",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contract": "./src/contract.ts",
+    "./browser": "./src/browser.tsx",
+    "./server": "./src/server.ts",
+    "./*": "./src/*",
+    "./surface": "./src/surface.ts",
+    "./shelf": "./src/browser/answered.tsx",
+    "./values": "./src/browser/pins.ts",
+    "./testids": "./src/testids.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "solid-js": "^1.9.0",
+    "olai-plugin-ui-renderer": "workspace:*",
+    "@olai/web": "workspace:*",
+    "@olai/format": "workspace:*",
+    "@olai/surface": "workspace:*",
+    "olai-plugin-navigation": "workspace:*",
+    "olai-plugin-sidebar": "workspace:*",
+    "@solid-primitives/keyed": "^1.5.2",
+    "@olai/ops": "workspace:*",
+    "@olai/store": "workspace:*",
+    "@olai/edit-intents": "workspace:*",
+    "@olai/edit-history": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "olai-plugin-layout": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./shelf",
+      "./values",
+      "./testids",
+      "./surface",
+      "./client"
+    ]
+  }
+}

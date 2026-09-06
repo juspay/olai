@@ -9,7 +9,18 @@
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
     "./testids": "./src/testids.ts",
-    "./testlib": "./src/testlib.ts"
+    "./testlib": "./src/testlib.ts",
+    "./browser": "./src/browser.tsx",
+    "./contract": "./src/contract.ts",
+    "./files": "./src/browser/served.tsx",
+    "./directory": "./src/browser/directory.ts",
+    "./file-state": "./src/browser/state.ts",
+    "./status": "./src/browser/Status.tsx",
+    "./boot": "./src/boot.ts",
+    "./errors/Broken.tsx": "./src/browser/errors/Broken.tsx",
+    "./surface": "./src/file-surface.ts",
+    "./client": "./src/client.ts",
+    "./errors/Report.tsx": "./src/browser/errors/Report.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -21,9 +32,29 @@
     "@olai/ops": "workspace:*",
     "@olai/plugin-api": "workspace:*",
     "@olai/store": "workspace:*",
-    "effect": "4.0.0-rc.112"
+    "effect": "4.0.0-rc.112",
+    "@olai/surface": "workspace:*",
+    "@olai/web": "workspace:*",
+    "solid-js": "^1.9.0",
+    "olai-plugin-ui-renderer": "workspace:*",
+    "olai-plugin-layout": "workspace:*",
+    "@olai/edit-intents": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "olai-plugin-navigation": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"
+  },
+  "olai": {
+    "contracts": [
+      "./files",
+      "./file-state",
+      "./boot",
+      "./testids",
+      "./errors/Broken.tsx",
+      "./surface",
+      "./client",
+      "./errors/Report.tsx"
+    ]
   }
 }

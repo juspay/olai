@@ -78,7 +78,7 @@ Two more doors exist and neither is a graph. They are here because the fence is 
 | door | why it routes through here |
 | --- | --- |
 | `./all.css` | each plugin's stylesheet, chained. A CSS `@import` is a door a plugin's name can be spelled through — the fence reads a `.css` file's imports for exactly that reason — so `@olai/web`'s `styles.css` names this and no tenant. Each sheet carries a `@source` at its own faces, because Tailwind emits only what it can SEE and a component outside the app's scan path renders with **no layout while nothing errors** |
-| `./testids` | each plugin's names-only testid table, merged and asserted **disjoint** ([`src/testids.test.ts`](src/testids.test.ts)) — a spread would resolve a collision silently, and a scenario asserting on the wrong package's element is green about nothing. `@olai/tests` may not name a plugin either, and the door carries no component, so a suite with no browser in it never pulls SolidJS or an emulator |
+| `./testids` | the plugin, shared-renderer and boot testid tables, merged and asserted **disjoint** ([`src/testids.test.ts`](src/testids.test.ts)) — a spread would resolve a collision silently, and a scenario asserting on the wrong package's element is green about nothing. `@olai/tests` may not name a plugin either, and the door carries no component, so a suite with no browser in it never pulls SolidJS or an emulator |
 
 ## The direction is physics
 
@@ -109,3 +109,9 @@ The degenerate case is the same code as every other: a runtime with **no** plugi
 - [`@olai/plugin-api`](../plugin-api/README.md) — the interface every plugin here is written against, and the Effect services its server half installs itself into.
 - [`@olai/effect-cordis`](../effect-cordis/README.md) — the plugin runtime, translated. This package opens its `./loader` door to mount the rows and its root door to read what became of them; nothing here names `cordis`.
 - [docs/internal/plugin-system.md](../../docs/internal/plugin-system.md) — the same subject as a tour.
+
+Rows may export `/assets` for build-time head, CSS, module-preload and public-file contributions. Generation writes a separate `assets.generated.ts` graph consumed only through `@olai/bundle/assets` by the build. Runtime bundle doors do not load filesystem/build code. The row list remains the sole source of which static owners are shipped.
+
+Static cross-plugin APIs may declare additional explicit exports in `olai.contracts` beside `/contract`. The fence walks their runtime closure and refuses private provider implementation, observer/listener acquisition and unresolved dependencies. A declaration cannot exempt a `/browser/*` import. `@olai/ui-primitives` owns shared supplied-prop controls separately from layout.
+
+Rows may also export `/policy` with pure `writeReservations` data. `@olai/bundle/policy` carries the combined reservations independently of runtime row selection, so disabling an approval-policy provider cannot enable an agent to pre-authorize code for its next activation.

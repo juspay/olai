@@ -46,11 +46,11 @@ import { type Accessor, createEffect, onCleanup, untrack } from "solid-js"
 import type { ChatState } from "olai-plugin-chat/wire"
 import { calledApp } from "@olai/web/client/named.ts"
 import { notify, onNotifyPress } from "@olai/web/client/notify.ts"
-import { alertsOn, alertSoundOn } from "@olai/web/client/settings/alerts.ts"
+import { useAlerts } from "../../alerts.ts"
 import { type Awaiting, alarmFor } from "./alarm.ts"
 import { askPending } from "./asked.ts"
-import { wear } from "./badge.ts"
-import { armChime, chime } from "./chime.ts"
+import { createBadge } from "./badge.ts"
+import { createChime } from "./chime.ts"
 import { noticeOf } from "./notice.ts"
 import { reveal } from "./reveal.ts"
 import { createWatching } from "./watching.ts"
@@ -61,10 +61,14 @@ import { createWatching } from "./watching.ts"
  */
 export const createAttention = (state: Accessor<ChatState>): void => {
   const watching = createWatching()
+  const alerts = useAlerts()
+  const wear = createBadge(alerts.setTabWaiting)
+  onCleanup(() => wear(0))
 
   // The first gesture this page gets opens the audio context — the platform's
   // rule, not ours ({@link ./chime.ts}).
-  armChime()
+  const sound = createChime()
+  onCleanup(sound.dispose)
 
   // A press of a banner is not a render, so it is routed here rather than in a
   // component: `reveal` opens the panel and leaves the question for the
@@ -85,10 +89,10 @@ export const createAttention = (state: Accessor<ChatState>): void => {
     // Alerts off is off for all three devices, and the icon is put BACK rather
     // than left wearing the last count: a preference switched off has to be
     // able to clear what it was doing.
-    const on = alertsOn()
+    const on = alerts.alertsOn()
     wear(on ? alarm.badge : 0)
     if (on && alarm.alert) {
-      if (alertSoundOn()) chime()
+      if (alerts.alertSoundOn()) sound.chime()
       // UNTRACKED, and both halves of that matter. The words are taken NOW
       // rather than on the far side of the permission round trip, because what
       // a notification is ABOUT must not be re-read after it was raised. And

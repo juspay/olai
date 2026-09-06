@@ -136,3 +136,56 @@
   profiles: [surface]
 - id: web-app
   name: olai-plugin-web-app/server
+
+# Browser-only rows: the host selects them; activation is reported by each tab.
+- id: ui-renderer
+  name: olai-plugin-ui-renderer
+- id: layout
+  name: olai-plugin-layout
+- id: sidebar
+  name: olai-plugin-sidebar
+- id: preferences
+  name: olai-plugin-preferences
+- id: theme
+  name: olai-plugin-theme
+- id: plugin-inspector
+  name: olai-plugin-plugin-inspector
+
+# Independent navigation, content and directory capabilities.
+- id: navigation
+  name: olai-plugin-navigation
+- id: outlines
+  name: olai-plugin-outlines/server
+  profiles: [surface]
+- id: markdown
+  name: olai-plugin-markdown/server
+  profiles: [surface]
+- id: files
+  name: olai-plugin-files/server
+  profiles: [surface]
+- id: pins
+  name: olai-plugin-pins/server
+  profiles: [surface]
+- id: capture
+  name: olai-plugin-capture/server
+  profiles: [surface]
+- id: trash
+  name: olai-plugin-trash/server
+  profiles: [surface]
+
+# Maintained acceptance fixtures, never selected by normal profiles.
+# They share the product catalogue so tests exercise the real resolver, profile
+# selection, reports and compiled assets. A separate test bundle would bypass
+# precisely that boundary; disabled rows add no activation to ordinary starts.
+- id: test-layout
+  name: olai-plugin-test-layout
+  disabled: true
+  profiles: [test-minimal]
+- id: test-counter
+  name: olai-plugin-test-counter/server
+  disabled: true
+  profiles: [test-minimal]
+- id: vault-plugins
+  name: olai-plugin-vault-plugins/server
+  browser: olai-plugin-vault-plugins/browser
+  profiles: [surface]

@@ -22,11 +22,13 @@ import type { Locator } from "playwright";
 import { nodeSelector, POLL_TIMEOUT } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
 
-/** The rows drawn inside `parent`, within `scope`. `.first()` on the parent
+/** Direct children of `parent`, within `scope`. An arbitrary descendant also
+ * matches before an outdent and therefore cannot acknowledge that edit.
+ * `.first()` on the parent
  *  because a scope may hold more than one drawing of it (a mirror's expansion,
  *  a second pane), and the outermost is the one a step means. */
 const inside = (scope: Locator, parent: string, child: string): Locator =>
-  scope.locator(nodeSelector(parent)).first().locator(nodeSelector(child));
+  scope.locator(nodeSelector(parent)).first().locator(`:scope > ul > ${nodeSelector(child)}`);
 
 /** `where` names the scope in a failure, so a message reads "in pane 1" rather
  *  than as a selector. */

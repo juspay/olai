@@ -255,7 +255,7 @@ ROOT=/path/to/another/worktree LABEL=before SHOTS=/tmp/shots bash skew.sh
 
 `skew.ts` / `skew.sh` are a driver, and not part of the suite either. The other drivers drive a wire behaving exactly as it does for everybody — `wire.ts` counts a COST, `reads.ts` prints what a tool surface ANSWERS. This one is about a wire behaving in one of the two ways it is ALLOWED to and normally does not: the `manifest` cell and the `heads` collection are two members on two channels, and the server declines to promise an order between them ([`@olai/server`'s `runtime.ts`](../server/src/runtime.ts), where a revision is published — "a reader tolerates the skew either way"). A reader that tolerates only one of the two is wrong in a window nobody can photograph by waiting for it, because the order that exposes it is the one the server happens not to produce.
 
-So one frame is HELD, and nothing else is touched: the server is a real `olai web` over a real directory that really does not parse, so the manifest cell really does say `null`; the SECOND frame of `surface/manifest/get` — the `{}` that says the set finally loaded — is held for `HOLD_MS` by a Playwright `routeWebSocket`, and the heads of that same revision pass through untouched. Every frame the driver holds or passes is announced on stdout with a clock beside it, so the transcript says what was interfered with rather than asking anybody to take it on trust. Three shots: the boot over a set that never validated, THE WINDOW (`WINDOW_MS` after the files are repaired on disk, that revision's heads already here and the cell's `{}` still held), and the same page once the frame is let through, which is the control.
+So one frame is HELD, and nothing else is touched: the server is a real `olai web` over a real directory that really does not parse, so the manifest cell really does say `null`; the SECOND frame of `surface/vault/manifest/get` — the `{}` that says the set finally loaded — is held for `HOLD_MS` by a Playwright `routeWebSocket`, and the heads of that same revision pass through untouched. Every frame the driver holds or passes is announced on stdout with a clock beside it, so the transcript says what was interfered with rather than asking anybody to take it on trust. Three shots: the boot over a set that never validated, THE WINDOW (`WINDOW_MS` after the files are repaired on disk, that revision's heads already here and the cell's `{}` still held), and the same page once the frame is let through, which is the control.
 
 `ROOT=` is the knob it exists for, exactly as `wire.ts` has one: the driver imports no olai package, so pointing it at a second worktree photographs THAT branch's client through the same frames, and the two runs are of the same window. That is how `manifest-fold-skew`'s before and after were taken — one run drawing the error report over a directory the tab was holding, one drawing the directory, at the same instant of the same held frame.
 
@@ -381,7 +381,7 @@ So it is injected with `addInitScript`, into `String.prototype.padStart` and onl
 
 Steps address the app through `data-testid` and `data-*` attributes, never a CSS class — a class is a styling decision a refactor is entitled to change; a `data-testid` is a promise. Every selector is a named constant at the top of `support/world.ts`.
 
-The names are not written down twice. `support/world.ts` imports the client's own `TESTID` record and its `selector()` helper through the client's `./testlib` door (the first reason `@olai/web` is a dependency of this package), and builds every constant from it. The same rule covers the handful of other constants a step would otherwise re-spell — the day arithmetic, the theme table's attribute, storage key and default — but never MACHINERY: these tests drive the client through a browser, and nothing one imports here may need one. The furthest an import goes is a PURE READ of the client — the door's own two such reads are named in its header as the exception to names-only, one rule and one class. A renamed testid is therefore a type error at `bun run typecheck`, not a thirty-second timeout in a scenario that no longer says why it failed. `#root` stays spelled out locally: it is `index.html`'s mount point, which the client does not own.
+The names are not written down twice. `support/world.ts` imports the complete `TESTID` record through `@olai/bundle/testids` and the generic `selector()` helper from `@olai/ui-primitives/testids.ts`. Each plugin owns its own pure identifier table; the bundle combines those tables with boot and shared-widget identifiers, and checks that keys and values never collide. No feature catalogue lives in the permanent web host. The same rule covers the handful of other constants a step would otherwise re-spell — the day arithmetic, the theme table's attribute, storage key and default — but never MACHINERY: these tests drive the client through a browser, and nothing one imports here may need one. The furthest an import goes is a PURE READ of the client — the door's own two such reads are named in its header as the exception to names-only, one rule and one class. A renamed testid is therefore a type error at `bun run typecheck`, not a thirty-second timeout in a scenario that no longer says why it failed. `#root` stays spelled out locally: it is `index.html`'s mount point, which the client does not own.
 
 **Narrowing a selector by an attribute value goes through one helper.** `support/selectors.ts`' `attr(name, value, match?)` — re-exported by `support/world.ts`, so a step imports it beside every other selector name — builds `[data-file="…"]` with the value QUOTED SAFELY. `match` is the CSS matcher and defaults to `=`; `~=` is the other one that exists, for the step asking whether a blocker is among the several `data-blocked` lists. Sixty steps across seventeen files used to paste the value straight between two quotes, and what that is one value away from is not a missed row: a `"` ends the CSS string early, Playwright refuses the whole selector, and the step dies naming a parse error rather than the thing it could not find. Nothing in the app was ever at risk — Solid writes dynamic attributes through `setAttribute`, so the DOM is escaped by construction — which is why this is a rule about test selectors and lives here. `selectors.test.ts` holds the grammar (the quote and the backslash are escaped, a newline becomes `\a `, and *nothing else* is, because escaping more than the grammar asks for is how a selector quietly stops matching); `it_stays_live.feature`'s scenario about an outline whose file name carries a quote is a real Chromium agreeing with it. Four selectors are built inline instead, and each says why where it is: they sit inside a `page.evaluate` callback, which runs in the browser where `attr` does not exist, and all four interpolate a value from a closed table. **The rule is a sweep, not a sentence** — `selectors.test.ts` reads every step and support file and requires the hand-built set to be exactly those four, because `data-from` was the *fourth* spelling of this idiom when #182 met it and a suite where some steps are careful and some are not teaches the next step to be careless. **And the sweep's own pattern is tested**, which is not belt-and-braces: its first draft read `[` + a literal name + `="${…}"` and was blind to five real call sites — a matcher other than `=` (`[data-blocked~="${blocker}"]`), and four with an interpolated *name*, among them `expectAttribute`'s `[${attribute}="${expected}"]`, which is how most steps reach the DOM at all. None was safe by design; they were safe because no scenario had yet typed a quote. All five go through `attr` now, the pattern reads the shape rather than one spelling of it, and a test spells out both what it must catch and what it must leave alone.
 
@@ -502,6 +502,43 @@ What it does not, and so what still needs a wait of its own:
 
 `I press "…" without waiting` and `I press "…" twice without waiting` are how the two scenarios that MEAN the race say so, and they are the whole of the exception.
 
+Opening an interactive page also waits for the offline dialog to close. A
+painted header alone is insufficient: during connecting or reconnecting the
+dialog deliberately swallows application shortcuts, so a key sent then is
+lost even if the page becomes live a moment later. `world.open()` waits for
+that actual affordance; `world.settle()` remains available to scenarios that
+intentionally inspect connecting or fault states. The held-reconnect case in
+`palette_startup.feature` checks that opening stays pending behind the dialog,
+then spends the first shortcut and verifies its command writes the file.
+
+For cross-tab plugin changes, the controlling tab's switch is not a receipt
+that the editing tab has applied the change. `feature_plugin_lifetimes.feature`
+waits for each capability's actual contribution to leave or return in the
+editing tab, then verifies the offline dialog has closed and the surviving
+editor has regained keyboard focus. The test never refocuses that editor.
+Row identity, exact draft text, and the committed file remain separate claims.
+
+Pending-write scenarios hold incoming WebSocket messages only after the control
+under test is ready. The route matcher compares `/rpc/ws` by pathname: a redial
+adds `?pid=…`, which must not bypass the hold. Daily-note tests also observe the
+created file on disk before releasing replies, proving the request reached the
+server while the browser still awaits its result.
+
+`edge_search_pending.feature` holds the next search answer after the debounced
+request reaches the wire. Retained rows must remain unlabelled as an answer to
+that new query. This catches an actual reactive ordering bug: resetting a
+subscription in an effect let a memo label the old value with the new input.
+Search now gives each query its own scoped subscription and captures that
+query with its response. After release, the test spends Enter and verifies the
+requested edge on disk.
+
+`undo_delayed_page.feature` separately holds outline page frames while allowing
+the structural write's acknowledgement through. Clicking away during that
+window must close the editor; a late redraw must not take focus back and turn
+the next application undo into native text undo. Both indent and outdent are
+covered. Nesting assertions check direct children: a grandchild already lies
+inside its grandparent before an outdent and cannot acknowledge that change.
+
 **What this replaced** was a proxy per key shape, kept in this package: the caret leaving a line for `Enter`, the caret arriving for `Tab`, a draft closing for `Escape`, a list going for a completion. Each was a guess at the thing rather than the thing, and two keys had no proxy at all — `Control+Enter` redraws a row without moving the caret, so nothing visible changes when the client takes the caret back from where it already is, and two of those in a row was a race nobody could write a wait for.
 
 **A gesture aimed at the tab across a DISK assertion.** The newest one, and the one that reads most like a passing step. A write goes: the server writes the file, publishes the new set, and only then answers the tab that asked (`packages/store/src/store.ts` — *rename them all → re-probe and publish → the caller's post-publish hook*). So a step that polls the disk is reading a fact the server has, and the tab has not — and the tab has rules that turn on having been answered:
@@ -553,6 +590,8 @@ to the same protocol. A fake whose shape is chosen by a flag is one that can
 agree with the client by construction.
 
 ### The Claude-shaped one
+
+Scripted commands use the prompt's first line, in both ordinary turns and steering. The complete prompt remains available for binding, node-context and attachment assertions. In particular, a node moved between files can receive fresh binding instructions after `done hinges`; those instructions must never become part of the node id sent to MCP.
 
 `agent/fake-acp-agent.ts` is a deterministic ACP agent: line-delimited JSON-RPC on stdio, just enough of the protocol to be indistinguishable from a real one as far as the server's client is concerned. Every server this suite spawns is pointed at it, for the same reason the Chromium flags are not branched on `CI` — a server configured differently for one feature than for another is a class of bug that only reproduces where it is hardest to see.
 

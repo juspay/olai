@@ -56,8 +56,8 @@ import { type Agenda, nothingDue } from "@olai/format"
 import { Show } from "solid-js"
 
 import { Empty } from "@olai/web/client/Empty.tsx"
-import { useNarrowed } from "@olai/web/client/filter/narrowed.tsx"
-import { unfiltered } from "@olai/web/client/filter/why.ts"
+import { useNarrowed } from "olai-plugin-outlines/filter"
+const unfiltered = (view: ReturnType<typeof useNarrowed>) => !view.active()
 import { PAGE_TITLE } from "@olai/web/client/look.ts"
 import { TESTID } from "../../testids.ts"
 import { Spine } from "./Spine.tsx"

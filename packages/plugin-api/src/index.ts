@@ -80,17 +80,10 @@ export { exposeMapsOf, KIND_SEPARATOR, kindWordOf, surfacesOf } from "./contract
 export type {
   AppClocks,
   AppPopover,
-  BlockChrome,
-  BlockContext,
-  ChipContext,
   FileLink,
   JSX,
   PillLook,
   PluginMark,
-  PropBlock,
-  PropChip,
-  PropEntry,
-  PropPane,
 } from "./plugin.ts"
 /** THE RUNTIME A BROWSER HALF INSTALLS ITSELF INTO — the sixteen slots and the
  *  services, beside the shapes above that say what a face drawn into one
@@ -101,31 +94,20 @@ export type {
  *  cardinality is what a caller writes its own signature against: `@olai/web`'s
  *  `hung` takes a plugin-keyed or a list slot and its `only` takes the single
  *  one, and a package that had to spell those unions itself would be a second
- *  reading of `SLOTS` that can disagree with the first. */
+ *  interpretation of owner declarations that can disagree with the first. */
 export type {
   App,
-  AppChord,
-  AppCommand,
-  AppPage,
-  AppPageAnswer,
-  AppPageStream,
-  AppPalette,
-  AppRoute,
-  AppRouteClaim,
   Hung,
   KindSlot,
   ListSlot,
   PluginSlot,
-  RowAction,
-  RowActions,
-  SidebarEntry,
-  SidebarSection,
   SingleSlot,
   SlotFaces,
+  SlotOptions,
   SlotKey,
   SlotName,
 } from "./browser.ts"
-export { Bar, Clocks, Faces, Links, Offers, openApp, SLOTS, Slots, Wired } from "./browser.ts"
+export { Bar, Clocks, Faces, Links, Offers, openApp, Slots, Wired, slotLocation, slotFacade } from "./browser.ts"
 /** ...and the bridge's own half of it, which is {@link ./runtime.ts}'s one list
  *  rather than this door's copy of it — see that module on why both doors read
  *  from one place. */

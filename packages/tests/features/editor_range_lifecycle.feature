@@ -95,6 +95,10 @@ Feature: A rebuilt editor preserves the selected text before a structural key
     And I press "ArrowLeft"
     And I press "ArrowLeft"
     And I press "ArrowLeft"
+    # Make the first idle commit explicit. Opening a second tab and flipping
+    # chat can cross the autosave deadline, so one undo cannot consistently
+    # mean both edits. Both committed inverses must survive the provider flip.
+    Then "note-caret.olai" holds a node whose note ends "choose the handles and more"
     And I open another browser tab
     And I open the plugins panel
     And I switch the plugin "chat" off
@@ -104,6 +108,8 @@ Feature: A rebuilt editor preserves the selected text before a structural key
     When I type "even "
     And I click away from the editor
     Then "note-caret.olai" holds a node whose note ends "choose the handles and even more"
+    When I press "ControlOrMeta+z"
+    Then "note-caret.olai" holds a node whose note ends "choose the handles and more"
     When I press "ControlOrMeta+z"
     Then "note-caret.olai" holds a node whose note ends "choose the handles"
     And the page has not reloaded

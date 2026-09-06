@@ -1,3 +1,5 @@
+import { surface } from "@olai/bundle/surface"
+import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
 /**
  * The tool surface, through a real MCP client.
  *
@@ -26,8 +28,7 @@
  * the unit-level fence under them.
  */
 
-import { MCP } from "../faces.ts"
-import { fixedStore } from "../store-source.ts"
+import { MCP } from "@olai/bundle/faces"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import {
@@ -57,7 +58,7 @@ import * as path from "node:path"
 import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
-import { clientOver } from "@olai/surface/client"
+import { clientOver } from "@olai/bundle/client"
 import { serveFace } from "olai-plugin-mcp/testlib"
 import { bespokeFrom } from "olai-plugin-mcp/testlib"
 
@@ -166,25 +167,19 @@ const withTools = <A>(
         }),
     })
 
-    const wired = yield* bind({ store: fixedStore(store),
-      ops,
-      writer: "mcp",
+    const wired = yield* bind({
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
-      // NO PLUGINS. Every runtime in this file is a reader — a bound face, an
-      // MCP route — and none of them is about a terminal door or a CI chip;
-      // dialing whatever daemons happen to be on the machine running the suite
-      // would make these tests depend on them. `null` is the OFF setting, and
-      // what it produces is a surface with no `surface/<name>/` on it at all:
-      // an empty sibling record composes to no tag, no handler and no expose
-      // row, so olai's own group is byte for byte what it always was.
-      plugins: null,
+      // The injected gate deliberately has no matcher; the real search row
+      // still owns the transport that returns its structured query refusal.
+      plugins: yield* capabilitiesOver(store, ops, root, { rows: [...CONTENT_ROWS, "search"] }),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
+      surface,
       expose: MCP,
       client: () =>
         clientOver(

@@ -6,7 +6,7 @@
  * is not a lone line of dim type on a field of paper.
  */
 
-import { Leaf } from "./Leaf.tsx"
+import { Leaf } from "@olai/web/client/Leaf.tsx"
 
 export function Empty(props: {
   readonly testid?: string

@@ -46,36 +46,42 @@
  */
 export const GHOST_MS = 300
 
-/**
- * Until when a click is a ghost. `0` — and every instant in the past — is "the
- * next click is somebody's".
- *
- * MODULE state, and one listener, because the fact is the DOCUMENT's rather
- * than any caller's: "the click about to arrive was made up for a gesture that
- * is over" is true of the page, and two gestures overlapping (a press that
- * opened a menu, then the thumb choosing an entry inside it) would otherwise
- * be two listeners each spending themselves on one click. It also settles the
- * lifetime question the other way round: a row that goes away mid-window does
- * not take the arming with it, and the ghost its own gesture left is still not
- * a click anybody aimed.
- */
-let ghostly = 0
-let listening = false
-
-/** Eat the next click, if one comes soon. */
-export const swallowGhost = (): void => {
-  ghostly = performance.now() + GHOST_MS
-  if (listening) return
-  listening = true
-  // Attached on the first gesture that needs it and never taken off: a page
-  // read with a mouse arms this never and pays nothing, and a page read with a
-  // finger would only take it off to put it back.
-  window.addEventListener("click", (event: Event) => {
-    if (performance.now() > ghostly) return
-    // Spent: the ghost is the FIRST click after the gesture, and anything
-    // after it belongs to whoever it landed on.
+/** One gesture arbiter per navigation activation; a departed shell cannot
+ * leave capture listeners or an armed click behind. */
+export const createGhost = (target: EventTarget, now: () => number = () => performance.now()) => {
+  let active = true
+  let ghostly = 0
+  let listening = false
+  const click = (event: Event) => {
+    if (!active || ghostly === 0 || now() > ghostly) return
     ghostly = 0
     event.preventDefault()
     event.stopPropagation()
-  }, true)
+  }
+  return {
+    swallow: () => {
+      if (!active) return
+      ghostly = now() + GHOST_MS
+      if (listening) return
+      listening = true
+      target.addEventListener("click", click, true)
+    },
+    dispose: () => {
+      active = false
+      ghostly = 0
+      if (listening) target.removeEventListener("click", click, true)
+      listening = false
+    },
+  }
 }
+let current: ReturnType<typeof createGhost> | undefined
+export const followGhosts = (): (() => void) => {
+  if (current) throw new Error("A gesture arbiter is already active")
+  const state = createGhost(window)
+  current = state
+  return () => {
+    if (current === state) current = undefined
+    state.dispose()
+  }
+}
+export const swallowGhost = (): void => current?.swallow()

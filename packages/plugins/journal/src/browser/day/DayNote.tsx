@@ -29,58 +29,19 @@
  * otherwise be drawn larger than the date at the top of the page.
  */
 
-import { proseIn } from "@olai/format"
-import { createMemo, Show } from "solid-js"
-
-import { BodyRefused } from "@olai/web/client/document/BodyRefused.tsx"
-import { isServed, useDocument } from "@olai/web/client/document/documents.tsx"
-import { Markdown } from "@olai/web/client/markdown/Markdown.tsx"
-import { Link } from "@olai/web/client/router.tsx"
+import { For, Show } from "solid-js"
+import { documentBodies } from "olai-plugin-markdown/contract"
+import { readLocation } from "olai-plugin-ui-renderer/contract"
+import { Link } from "olai-plugin-navigation/routing"
+import { atFile } from "olai-plugin-navigation/routes"
 import { TESTID } from "../../testids.ts"
-import { TESTID as WEB_TESTID } from "@olai/web/client/testids.ts"
-import { atFile } from "@olai/web/client/routes.ts"
-
-export function DayNote(props: { readonly file: string }) {
-  // The body is asked for by the page SHOWING it, exactly as a `doc` reference
-  // asks (../document/documents.tsx): one narrowed subscription per path, and
-  // it stops arriving when the reader leaves the day.
-  const document = useDocument(() => props.file)
-  const servedBody = createMemo(() => {
-    const entry = document()
-    return isServed(entry) ? entry : undefined
-  })
-
-  return (
+export function DayNote(props: {readonly file: string}) {
+  return <Show when={readLocation(documentBodies).length > 0}>
     <section class="mb-6" data-testid={TESTID.dayNote} data-file={props.file}>
       <h2 class="m-0 mb-2 font-mono text-xs text-muted">
-        <Link
-          route={atFile(props.file)}
-          class="text-muted no-underline hover:text-ink hover:underline"
-          testid={TESTID.dayNoteLink}
-          title="open this document"
-        >
-          {props.file}
-        </Link>
+        <Link route={atFile(props.file)} class="text-muted no-underline hover:text-ink hover:underline" testid={TESTID.dayNoteLink} title="open this document">{props.file}</Link>
       </h2>
-      {/* No placeholder: the body of a document this directory HAS is on its
-          way, and the day below it is already drawn. */}
-      <Show when={servedBody()}>
-        {(served) => (
-          <Markdown
-            /* THE PROSE: a daily note is a document, so its `---` block is its
-               own record rather than the first thing it says
-               (`../markdown/pipeline.ts` says why the strip is here and not
-               in the pipeline). */
-            source={proseIn(served().text)}
-            from={props.file}
-            class="olai-md-compact"
-            testid={WEB_TESTID.documentBody}
-          />
-        )}
-      </Show>
-      <Show when={document()?.refused}>
-        <BodyRefused />
-      </Show>
+      <For each={readLocation(documentBodies)}>{entry => entry.value({get file() {return props.file}})}</For>
     </section>
-  )
+  </Show>
 }

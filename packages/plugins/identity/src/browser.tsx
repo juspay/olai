@@ -1,3 +1,4 @@
+import type {} from "olai-plugin-layout/slots"
 /**
  * IDENTITY'S BROWSER HALF — one face, in the app's last seat.
  *

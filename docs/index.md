@@ -29,7 +29,23 @@ The first four are **engines** — the ACP agents the chat panel can seat, one p
 - [plugins/xyne-spaces.md](plugins/xyne-spaces.md) — the fleet in team chat: doorbell digests and trimmed orchestrator replies mirrored into a bound Xyne Spaces channel, a live working signal while a turn runs, watch-only (nothing comes back), env-held secrets and a `xyne-channel` property on the node agent.
 - [plugins/git.md](plugins/git.md) — the ledger as a row: what `--plugins` without it leaves (writes land, recorded by nobody, no pill), the pin (`--commit` / `--push`), and the sibling cells an agent reads.
 - [plugins/search.md](plugins/search.md) — the matcher as a row: what `--plugins` without it leaves (the grammar, the tool and every box still there, and every query answered with the reason), why it composes nothing on the wire, the bar's `lead` seat, and why the filter over a page is not on this row.
+- [plugins/ui-renderer.md](plugins/ui-renderer.md) — the browser-only Solid renderer, scope-owned locations, waiting contributions, conflict diagnostics and activation reporting.
+- [plugins/layout.md](plugins/layout.md) — the initial root contribution, its independence from server capabilities and the remaining Phase 18 extraction boundary.
+- [plugins/sidebar.md](plugins/sidebar.md) — the directory column and rail, their owned extension locations, and independent removal while content stays open.
+- [plugins/preferences.md](plugins/preferences.md) — the preferences UI and its owned extension location, independent of the state providers behind its controls.
+- [plugins/plugin-inspector.md](plugins/plugin-inspector.md) — switches, activation reports and retry UI over host-management services.
+- [plugins/theme.md](plugins/theme.md) — scoped appearance state, storage following, metadata cleanup, and its independent preferences integration.
 - [plugins/identity.md](plugins/identity.md) — who is looking as a row: what `--plugins` without it leaves (every request nobody, no chip, no `captured-by`), why the operator's `OLAI_IDENTITY_*` family is the environment rather than the row's config, why the row composes nothing on the wire, and the one thing a mid-serve switch-on cannot give an open tab.
+- [plugins/navigation.md](plugins/navigation.md) — addresses, history, pane focus and the command palette, independent of the layout.
+- [plugins/outlines.md](plugins/outlines.md) — outline pages, node editing, contextual commands and scoped property renderers.
+- [plugins/markdown.md](plugins/markdown.md) — document editing, frontmatter, headings and metadata without the outline renderer.
+- [plugins/files.md](plugins/files.md) — file browsing and creation controls, independent of vault file access.
+- [plugins/pins.md](plugins/pins.md) — the pinned shelf, ordering and contextual pin commands with independent activation.
+- [plugins/capture.md](plugins/capture.md) — inbox capture and its contributed palette prefix.
+- [plugins/trash.md](plugins/trash.md) — trash browsing, restoration and emptying.
+- [plugins/vault-plugins.md](plugins/vault-plugins.md) — discovery, approval and scoped activation of definitions in the vault.
+- [plugins/test-layout.md](plugins/test-layout.md) — an opt-in maintained layout fixture using the public navigation outlet.
+- [plugins/test-counter.md](plugins/test-counter.md) — an opt-in non-notebook fixture proving the host runs without a vault.
 - [dynamic-plugins.md](dynamic-plugins.md) — the other kind of plugin: one somebody writes INTO the served directory, as a node with a `plugin` property and its two halves in child notes, which olai compiles and mounts while it runs. What a half may import and what it may not, why the approval is a property on the plugin's own node and names a version, the three tools an agent gets and the two verbs it does not, and why the code runs with the server's authority.
 
 The development docs — the roadmap in the format itself, the decisions and why the alternatives lost, and the root-cause analyses — live in the orchestrator's own vault, [juspay/oss.olai](https://github.com/juspay/oss.olai), under its `olai/` folder:

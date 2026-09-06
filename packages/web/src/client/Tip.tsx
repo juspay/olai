@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/ui-primitives/testids.ts"
 /**
  * A hover tip, drawn by this app rather than by the platform.
  *
@@ -30,11 +31,11 @@
  * is a fact about the text and the window rather than one we can be told.
  */
 
-import { createEffect, createSignal, type JSX, onCleanup, onMount, Show } from "solid-js"
+import { createContext, useContext, createEffect, createSignal, type JSX, onCleanup, onMount, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { LAYER } from "./layer.ts"
-import { TESTID } from "./testids.ts"
+
 import { clampedLeft, clampedTop, hideTip, liftedTop, showTip, takeTip, tipShowing } from "./tip.ts"
 
 /**
@@ -51,6 +52,8 @@ interface At {
    *  with the ask: a RE-ask on new words must answer with the same floor. */
   readonly floor: number
 }
+
+export const TipFloor = createContext<() => number>(() => 0)
 
 export function Tip(props: {
   /** What the tip says. The control it wraps says the same thing in its
@@ -75,6 +78,7 @@ export function Tip(props: {
   readonly layer?: typeof LAYER.page | typeof LAYER.over
 }) {
   const me = takeTip()
+  const tipFloor = useContext(TipFloor)
   const [at, setAt] = createSignal<At | undefined>()
   let anchor: HTMLSpanElement | undefined
 
@@ -91,8 +95,7 @@ export function Tip(props: {
     // to the bar's bottom edge so the coral rule cannot cut the sentence.
     // The effect below then pulls it back if that ran past the window's
     // right edge.
-    const header = document.querySelector(`[data-testid="${TESTID.appHeader}"]`)
-    const floor = header?.getBoundingClientRect().bottom ?? 0
+    const floor = tipFloor()
     setAt({ left: box.left, top: clampedTop(box.bottom, floor), floor })
     showTip(me)
   }

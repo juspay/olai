@@ -1,39 +1,32 @@
-/**
- * This plugin owns the MCP projection and its HTTP carrier on the shared port.
- *
- * TransportSurface is needed after core has composed the surface and bound the
- * writer. Opening another directory or store here would create a second writer
- * with a different view of the files. Preparing an agent binding instead borrows
- * core's handlers, attribution policy and ticket fence. The plugin supplies the
- * request-local credential reader; core decides which writes that credential
- * authorizes, while tools.ts decides how the agent sees those operations as MCP.
- *
- * Acquisition order is part of the endpoint's contract. First prepare the
- * writer binding and its ticket table, then acquire the protocol server and
- * carrier, then register /mcp. No request can enter a server that is still being
- * constructed. Scope release reverses that order: withdraw the route before
- * closing protocol waiters and releasing the ticket mint. A later activation
- * gets a fresh server and tickets, without stopping somebody else's websocket.
- *
- * The HTTP request/reply protocol is argued in route.ts. It belongs here rather
- * than in the listener because its authentication and half-duplex behavior are
- * MCP decisions; the listener only ranks the route alongside other providers.
- * MCP-only serving is therefore an ordinary registration set, not a special
- * listener mode. No browser module is needed to serve an agent or to let core's
- * existing plugins panel switch this row.
- */
+/** MCP owns its HTTP carrier, domain tool adapters and scoped credential mint.
+ * Optional domain services are resolved at call time, so a missing vault leaves
+ * the protocol available and returns ordinary domain refusals. */
 import { definePlugin } from "@olai/plugin-api"
+import { Directory, HostServices, Ledger, Offers, Ops } from "@olai/plugin-api/services"
 import { TransportSurface } from "@olai/plugin-api/transport"
+import type { Directory as OpenDirectory, Ops as Gate } from "@olai/ops"
 import { Effect } from "effect"
 import { name } from "./index.ts"
 export { name } from "./index.ts"
+import { bindAgent } from "./binding.ts"
+import { ticketMint } from "./contract.ts"
 import { endpoint } from "./endpoint.ts"
+import { currentTicket } from "./route.ts"
 
 export default definePlugin({
   name,
-  needs: [TransportSurface],
+  needs: [TransportSurface, HostServices, Offers],
   apply: Effect.gen(function*() {
-    const surface = yield* TransportSurface
-    yield* endpoint(surface)
+    const shared = yield* TransportSurface
+    const services = yield* HostServices
+    const policy = bindAgent({ shared, ticket: currentTicket,
+      directory: () => services.current(Directory) as OpenDirectory | undefined,
+      ops: () => services.current(Ops)?.gate as Gate | undefined,
+      ledger: () => services.current(Ledger) !== undefined,
+    })
+    // Offers and routes belong to the same activation; unloading withdraws the
+    // mint and carrier before any subsequent activation allocates a new table.
+    yield* (yield* Offers).own("ticket-mint", () => policy.tickets)
+    yield* endpoint(shared, policy)
   }),
 })

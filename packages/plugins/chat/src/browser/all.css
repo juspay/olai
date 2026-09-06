@@ -1,3 +1,5 @@
+@import "@olai/ui-primitives/all.css";
+@import "@olai/markdown-ui/all.css";
 /* THIS PLUGIN'S SHEET — a `@source` at every face this row draws.
  *
  * THE FAILURE IS SILENT, which is why this file exists rather than a note in a

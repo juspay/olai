@@ -87,7 +87,7 @@ import type { Snapshot } from "@olai/store"
 import type { DocumentEntry, Head } from "@olai/surface"
 import { Result } from "effect"
 
-import type { Change, Published } from "./published.ts"
+import type { Change, Published } from "@olai/surface/projection"
 
 /** What both sides are: a revision, and the revision the wire is holding.
  *  `null` is the first one. */

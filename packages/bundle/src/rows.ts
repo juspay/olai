@@ -107,6 +107,8 @@ export interface BrowserHalf {
  */
 export interface BrowserRow {
   readonly id: string
+  /** Build metadata: resolve the same entry named by the literal import. */
+  readonly specifier: string
   readonly load: () => Promise<BrowserHalf>
 }
 
@@ -125,6 +127,8 @@ export interface BrowserRow {
  * written by the file or written by the patch.
  */
 export interface BundleRow {
+  /** Selected by the host; executed only in a browser. Derived from package exports. */
+  readonly browserOnly?: boolean
   readonly id: string
   readonly name: string
   readonly disabled?: boolean

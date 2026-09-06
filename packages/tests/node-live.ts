@@ -1,3 +1,4 @@
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 /**
  * NODE AGENTS, against the PINNED ADAPTER — `panel-live.ts`'s other half.
  *
@@ -37,7 +38,7 @@
  */
 import { chromium } from "playwright"
 
-import { selector, type TestId } from "@olai/web/testlib"
+import { selector } from "@olai/web/testlib"
 import type { PluginTestId } from "@olai/bundle/testids"
 
 import { BROWSER_ARGS } from "./support/browser.ts"

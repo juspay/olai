@@ -702,7 +702,7 @@ export default definePlugin({
     /** A SCOPE ITS DOORBELL CANNOT WATCH — the walk, over this revision.
      *  {@link ./server/doorbell.ts} argues every clause of it; what is here is
      *  the two readings it does not take for itself. */
-    const faulted = (snapshot: VaultRevision): void => {
+    function faulted(snapshot: VaultRevision): void {
       const open = chat
       if (open === null) return
       ring(Effect.flatMap(rings, (declared) =>
@@ -844,3 +844,5 @@ export default definePlugin({
 
   }),
 })
+
+export { slotContracts as slots } from "./slots.ts"

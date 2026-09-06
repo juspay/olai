@@ -35,35 +35,18 @@
  * could arm a node nobody can name.
  */
 
-import { Result } from "effect"
-import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
+import { type Accessor, createEffect, createMemo } from "solid-js"
+import { createDeclared } from "olai-plugin-outlines/references"
 
-import { runAsync } from "@olai/web/client/run.ts"
-import { olai } from "@olai/web/client/wire.ts"
-
+/** Node titles follow the optional reference provider. Its absence leaves the
+ * armed IDs intact, and reactivation creates fresh scoped metadata readers. */
 export const createChipTitles = (
   ids: Accessor<ReadonlyArray<string>>,
 ): Accessor<ReadonlyMap<string, string>> => {
-  const [titles, setTitles] = createSignal<ReadonlyMap<string, string>>(new Map())
-  createEffect(() => {
-    const wanted = ids()
-    if (wanted.length === 0) {
-      setTitles(new Map())
-      return
-    }
-    // The GUARD is the cleanup's, not a comparison of what came back against
-    // what is armed now: two asks in flight settle in whatever order the wire
-    // gives them, and the older one must not overwrite the newer. Solid disposes
-    // the previous run of this effect before the next, so `live` is exactly
-    // "this is still the question somebody is waiting on".
-    let live = true
-    onCleanup(() => {
-      live = false
-    })
-    void runAsync(olai.procedures.nodes.named({ ids: wanted })).then((outcome) => {
-      if (!live || Result.isFailure(outcome)) return
-      setTitles(new Map(outcome.success.named.map((one) => [one.asked, one.title])))
-    })
-  })
-  return titles
+  const references = createDeclared()
+  createEffect(() => references.want(ids()))
+  return createMemo(() => new Map(ids().flatMap(id => {
+    const title = references.named(id)
+    return title === null ? [] : [[id, title] as const]
+  })))
 }

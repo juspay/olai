@@ -1,141 +1,18 @@
-/**
- * THE FENCE — that core does not know a plugin's name, held as claims a test
- * can be red about.
+/** Architectural boundaries over the complete workspace and transitive runtime
+ * import graphs. The bundle alone selects plugins. Feature integrations import
+ * explicit static contracts; contract declarations cannot hide private provider
+ * implementation or acquire its runtime resources. Pure helpers have static
+ * library owners. Permanent browser/server entries reach no feature runtime.
  *
- * ## Why a test and not a shell script
+ * Browser and server graphs are checked separately, including unresolved edges
+ * so a missing module cannot make a graph appear clean. Plugin directories and
+ * the row catalog agree; third-party appliance clients stay in their owners.
+ * Static build assets and write reservations are separate generated graphs.
  *
- * The two fences this ABSORBED — `scripts/check-kolu-deps.sh`'s fourth and
- * fifth assertions and `scripts/check-odu-deps.sh`'s second and third — ended
- * in `rg … 2>/dev/null || true` over `packages/<name>/src`, and both halves of
- * that are hazards this file declines to inherit. `ripgrep` is not in the dev
- * shell's package list, so on a machine without an ambient one the redirect
- * turns "command not found" into an empty result and a GREEN fence — a fence
- * that passes by failing to run is worse than none. And `packages/<name>/src`
- * misses `packages/tests` entirely, which is the only member with no `src/`,
- * which is how four product-tier `@kolu/*` imports sat in its geometry harness
- * with `just check` green.
- *
- * A test runs under the pinned bun, walks the PACKAGE rather than its `src`,
- * and reads an import two ways — the shape `@olai/acp`'s manifest test already
- * is, and this file is that test one boundary over.
- *
- * What is LEFT in a shell script is the other job those two files did, which
- * was never the same job: agreeing with a pin's declared VERSIONS, read out of
- * the Nix store, deliberately with no `install` in front of it so it fails
- * fast. That is `scripts/check-hydrated-deps.sh` now — one script, invoked once
- * per pin, with no import fence in it at all.
- *
- * ## What it claims
- *
- *   1. **Only `@olai/bundle` names a plugin.** Held as an EQUALITY per
- *      package — `[]` for every general one — and never as a filtered list
- *      asserted empty: a pattern that rotted would report nothing found and
- *      pass, which is the failure mode the sweeps in `@olai/tests` were
- *      written after two days of exactly it.
- *   2. **No plugin imports the REGISTRY, and every plugin imports the
- *      INTERFACE.** The first is what keeps the direction a DAG the manifests
- *      express: `@olai/bundle` imports every plugin, so a plugin that imported
- *      back would be a cycle. The second is the arrow that made the split
- *      necessary — a server half is an Effect whose `needs` names service tags
- *      `@olai/plugin-api` declares — and it is asserted to EXIST,
- *      because a fence that only forbade would pass on a tree where the
- *      services door had quietly stopped being reachable.
- *
- *      **Plugins consume declared services, not other plugin packages.**
- *      `needs` follows a provider's lifetime; an import does not. The source
- *      claim forbids cross-plugin imports, and the manifest claim requires
- *      zero plugin dependencies, with no exceptions table for tenants.
- *   3. **A plugin is a SIBLING, and core computes none of its addresses.**
- *      Each plugin composes under its own name, no two share one, and a name
- *      is a legal tag segment because it becomes one. The framework would
- *      catch a collision at boot with a duplicate-tag throw; here it is a test,
- *      in a process that has not started yet.
- *   4. **The browser's door names every browser export and imports none, and each
- *      plugin's own chunk stays a browser chunk.** It was one claim about one
- *      door — *the wire door stays a wire door*, `@olai/bundle/wire` being what
- *      every listener pulled in statically, forbidden a UI runtime because a
- *      SERVER read it and an appliance's client because a BROWSER did. There is
- *      no such door: the root is one ROW per plugin with a dynamic `import()`
- *      behind it, so its closure reaches no plugin at all and the bound is
- *      satisfied by there being nothing to bound — which is why the door must
- *      also SPELL every plugin, asserted first, and why what the browser
- *      actually opens is walked separately, per tenant, as the `./browser`
- *      chunk a roster fetches. The confinement went there with it: no `node:`
- *      builtin, and no appliance's product tier — the same claim
- *      `check-kolu-deps.sh`'s fifth assertion makes about the slice one floor
- *      down, made here about the door that would ship it to a reader.
- *   5. **...and the server door stays a server door.** The modules the bundle's
- *      ROWS name MAY pull an appliance's client, the vault's format and a
- *      `node:` builtin — that is what a runtime half is made of — and may not
- *      pull a browser face onto the graph of a process that renders nothing.
- *      It is the complement of claim 4 rather than a repetition of it, and the
- *      two together are why there are three doors. It is walked as each ROW's
- *      module rather than as one array's import graph, because there is no
- *      array: a row names a specifier the loader resolves at mount, so what is
- *      walked is every module this build will actually mount.
- *   6. **An appliance's PRODUCT TIER stays inside its tenant**, and the tenant
- *      is COMPUTED. Which packages may name `@kolu/padi-client` or
- *      `@odu/run-client` used to be two hand-written `grep -v` path
- *      substrings, one per script, and a hand copy of an architecture is the
- *      exact failure a fence exists to prevent — it went red the day a plugin
- *      grew a testlib that legitimately named its own appliance. Here the
- *      answer is derived: a plugin's TENANT is the set of workspace packages
- *      reachable from its own doors and from NO other plugin's, so a package
- *      two tenants share is general by construction and a third plugin brings
- *      its own tenant with it.
- *   7. **...and what a general package may not name is derived too.** The
- *      product tier is not a list either: it is every specifier a tenant
- *      resolves out of the ROOT `node_modules` that the root manifest never
- *      declared — which is exactly the hydrated set, and exactly what the
- *      isolated linker cannot refuse.
- *
- *   8. **...and no general package spells a plugin's NAME in code either.**
- *      The seven above are about imports; this one is about the other door a
- *      name gets in through — a `koluHalf(…)` call, a `wiring.kolu` slot, an
- *      `olai.cells["plugins:odu:ci"]`. None of those is an import, and every
- *      one of them was in this tree before the extraction.
- *
- *   9. **`packages/plugins/` is the tenant container and holds nothing else.**
- *      Two directions, read off two different sources — the registry's roster
- *      and the filesystem — so a plugin left outside it and a general package
- *      dropped inside it are each a red test rather than a thing a reviewer has
- *      to notice. It is what makes the appliance fold's layout an invariant
- *      instead of a habit.
- *
- * ## Where the READING is, and why it is not here
- *
- * Every claim here is an EQUALITY over a corpus, so the corpus is the whole
- * proof — and reading this repository is not what this file is about. The
- * globs, the manifests, the source walk, the four import grammars and the
- * module graph are `./tree.testlib.ts`, which knows nothing about plugins;
- * this file is the nine claims and their reasons. `mechanics.test.ts` reads
- * the same walk, which is what it stopped carrying its own copy of.
- *
- * The corpus comes off the root manifest's own `workspaces` globs rather than
- * a one-level `readdir`, and the difference is not academic: the tenants nest
- * under `packages/plugins/` now, and a one-level walk would have gone on
- * reporting `[]` from every general package while never opening either plugin.
- * A fence whose corpus can quietly shrink is the shell script this file
- * replaced, wearing a `.ts`.
- *
- * ## What it deliberately does NOT claim
- *
- * That no file anywhere SPELLS the word. Prose that names a package is not a
- * dependency, and a fence that failed on a comment is a fence people learn to
- * work around — which is `check-kolu-deps.sh`'s own ruling and is kept. Claim 8
- * therefore reads what a file COMPILES TO rather than what it says, and it is
- * scoped to production sources: a bench's fixture carries a VAULT's words
- * ("Kolu integration" as a node title, `kolu fleet watch` as a command somebody
- * ran), and the end-to-end suite spawns a fake padi over kolu's own testlib,
- * which is what testing kolu looks like.
- *
- * That claim used to be a POINTER — "the companion sweep lives in
- * `@olai/tests`" — and pi's review found it aimed at a sweep nobody had
- * written. Its reason for exile ("a sweep here reading the browser would be the
- * floor reading the roof") overstated the direction: this file already reads
- * every package's sources as text, which is where the four grammars above come
- * from, and reading is not depending. It is a claim now.
- */
+ * Exact lexical collision tables cover public domain vocabulary, UI nouns and
+ * preserved wire names. They grant no import or lifetime exemption: all graph
+ * and resource claims remain independent. The filesystem/parser machinery is
+ * tree.testlib.ts; this file evaluates no plugin implementation. */
 
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import * as path from "node:path"
@@ -231,6 +108,34 @@ const TENANTS_OF: ReadonlyArray<{ name: string; pkg: string; dir: string }> = PL
 
 const PLUGIN_PACKAGES = TENANTS_OF.map((one) => one.pkg)
 const PLUGIN_DIRS = TENANTS_OF.map((one) => one.dir)
+
+/** Explicit static doors are APIs, never wildcard implementation exports. A
+ * declaration only makes an edge eligible: closure checks below prove that it
+ * does not pull a private browser/server implementation through another door. */
+const staticDoors = (pkg: string): ReadonlyArray<string> => {
+  const member = MEMBER_OF_PACKAGE.get(pkg)
+  if (member === undefined) return []
+  const manifest = manifestAt(path.join(PACKAGES, member)) as { readonly olai?: { readonly contracts?: readonly string[] } } | undefined
+  const declared = manifest?.olai?.contracts ?? []
+  if (!Array.isArray(declared) || declared.some(door => typeof door !== "string" || !door.startsWith("./") || door.includes("*"))) {
+    throw new Error(`fence: ${pkg} olai.contracts must name explicit static export doors`)
+  }
+  return [...new Set(["./contract", ...declared])]
+}
+const staticDoor = (spec: string): boolean => {
+  const pkg = packageOf(spec)
+  return staticDoors(pkg).includes(`.${spec.slice(pkg.length)}`)
+}
+const staticTargets = (pkg: string): ReadonlyArray<string> => {
+  const member = MEMBER_OF_PACKAGE.get(pkg)
+  if (!member) return []
+  const manifest = manifestAt(path.join(PACKAGES, member))
+  return staticDoors(pkg).flatMap(door => {
+    const target = manifest === undefined ? undefined : doorsOf(manifest)[door]
+    return target ? [path.resolve(PACKAGES, member, target)] : []
+  })
+}
+
 
 /** WHERE A TENANT LIVES, as a directory rather than a preference:
  *  `packages/plugins/` is the plugin container and holds nothing else. Held as
@@ -427,7 +332,7 @@ const NOT_IN_A_TAB = [
  * below is about.
  */
 const SERVER_DOOR = ((): ReturnType<typeof graphFrom> => {
-  const graphs = ROWS.map((row) => {
+  const graphs = ROWS.filter((row) => !row.browserOnly).map((row) => {
     // `olai-plugin-kolu/server` → `packages/plugins/kolu/src/server.ts`.
     // The one piece of arithmetic, and it is the ecosystem's rather than this
     // file's: a package's `./server` subpath is `src/server.ts` in every member
@@ -541,13 +446,16 @@ describe("a plugin's browser chunk stays a browser chunk", () => {
     expect([...new Set(bad)].sort()).toEqual([])
   })
 
-  test("...and each one DOES carry components, which is what a chunk is for", () => {
-    // The complement, said out loud: this door exists to carry exactly what the
-    // composition root's may not. A version of it that reached nothing would
-    // pass the claim above by being empty, and the faces would be on somebody
-    // else's graph — which is the arrangement the split replaced.
+  test("each browser row carries rendering or an explicit activation", () => {
+    // A scoped client provider need not draw anything. It must still contain
+    // an activation, so an accidentally empty entry cannot satisfy this
+    // browser ownership check simply by importing static contracts.
     for (const { name, door } of BROWSER_DOORS) {
-      expect([name, componentsOn(door).length > 0]).toEqual([name, true])
+      const activated = door.files.some(file => {
+        const source = readFileSync(path.join(PACKAGES, file), "utf8")
+        return runtimeImportsOf(file, source).some(spec => spec === "@olai/plugin-api") && /\bdefinePlugin\s*\(/.test(source)
+      })
+      expect([name, componentsOn(door).length > 0 || activated]).toEqual([name, true])
     }
   })
 })
@@ -589,7 +497,7 @@ describe("the server door pulls no browser face", () => {
     // Not vacuous, for the wire door's reason: a resolver that answered
     // `undefined` for every workspace specifier would walk one file and pass.
     const files = new Set(reached.map((one) => one.file))
-    for (const tenant of TENANTS_OF) {
+    for (const tenant of TENANTS_OF.filter((tenant) => !ROWS.find((row) => row.id === tenant.name)?.browserOnly)) {
       expect([...files].some((f) => f === path.join(tenant.dir, "src", "server.ts")), tenant.name)
         .toBe(true)
     }
@@ -750,6 +658,7 @@ describe("only the registry knows a plugin's name", () => {
    * spelling of it.
    */
   const TESTLIB_IMPORTS: Readonly<Record<string, ReadonlyArray<string>>> = {
+    web: ["web/src/suite.testlib.ts: olai-plugin-outlines/testlib"],
     tests: [
       "tests/step_definitions/chat_steps.ts: olai-plugin-chat/testlib",
       "tests/step_definitions/identity_steps.ts: olai-plugin-identity/who",
@@ -758,41 +667,82 @@ describe("only the registry knows a plugin's name", () => {
       "tests/support/world.ts: olai-plugin-kolu/appliance/testlib",
     ],
     server: [
+      "server/src/capabilities.testlib.ts: olai-plugin-vault/testlib",
       "server/src/dial.test.ts: olai-plugin-mcp/testlib",
       "server/src/headless.test.ts: olai-plugin-git/testlib",
       "server/src/lock.test.ts: olai-plugin-vault/testlib",
       "server/src/mcp/face.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
+    "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
+      "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/tools.test.ts: olai-plugin-mcp/testlib",
       "server/src/mcp/tools.test.ts: olai-plugin-mcp/testlib",
+      "server/src/resync.test.ts: olai-plugin-vault/testlib",
       "server/src/serve.test.ts: olai-plugin-web-app/testlib",
       "server/src/who.test.ts: olai-plugin-identity/who",
     ],
   }
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
+    web: ["olai-plugin-outlines"],
     tests: ["olai-plugin-chat", "olai-plugin-identity", "olai-plugin-kolu"],
     server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-mcp", "olai-plugin-vault", "olai-plugin-web-app"],
   }
 
-  test("plugins consume services and never import another plugin", () => {
-    for (const { name, dir } of TENANTS_OF) {
-      const other = tree.get(dir)?.flatMap((source) =>
-        source.plugins.filter((spec) => packageOf(spec) !== `olai-plugin-${name}`)
-          .map((spec) => `${source.file}: ${spec}`)) ?? []
-      expect(other, dir).toEqual([])
-    }
+  test("plugins consume other plugins only through static contract doors", () => {
+    const other = TENANTS_OF.flatMap(({ name, dir }) => tree.get(dir)?.flatMap((source) =>
+      source.plugins.filter((spec) => packageOf(spec) !== `olai-plugin-${name}` && !staticDoor(spec))
+        .map((spec) => `${source.file}: ${spec}`)) ?? [])
+    expect(other).toEqual([])
   })
 
-  test("no package outside the registry imports a plugin", () => {
+  test("cross-plugin static contracts resolve without private implementation or owned resources", () => {
+    const violations: string[] = []
+    for (const dir of packages) {
+      const specs = new Set(tree.get(dir)?.flatMap((source) => source.plugins.filter((spec) => staticDoor(spec))) ?? [])
+      for (const spec of specs) {
+        const provider = MEMBER_OF_PACKAGE.get(packageOf(spec))
+        expect(provider, spec).toBeDefined()
+        const manifest = manifestAt(path.join(PACKAGES, provider!))
+        const target = manifest === undefined ? undefined : doorsOf(manifest)[`.${spec.slice(packageOf(spec).length)}`]
+        expect(target, spec).toBeDefined()
+        const graph = graphFrom(path.join(PACKAGES, provider!, target!))
+        expect(graph.unresolved, spec).toEqual([])
+        const bad = graph.files.filter(file => {
+          const absolute = path.resolve(PACKAGES, file)
+          const member = memberOf(file)
+          if (!member || !PLUGIN_DIRS.includes(member)) return false
+          const pkg = manifestAt(path.join(PACKAGES, member))?.name
+          if (typeof pkg !== "string") return true
+          const targets = staticTargets(pkg)
+          // A contract can use sibling contract helpers, but not reach back
+          // into its provider's state/presentation implementation.
+          const identity = /^export const name = ["'][a-z0-9-]+["'];?\s*$/.test(transpilers[file.endsWith(".tsx") ? "tsx" : "ts"].transformSync(readFileSync(absolute, "utf8")).trim())
+          return !identity && !targets.includes(absolute) && !absolute.startsWith(path.join(PACKAGES, member, "src/contracts") + path.sep)
+        })
+        violations.push(...bad.map(file => `${spec}: private implementation ${file}`))
+        const acquiring = graph.files.filter(file => {
+          const member = memberOf(file)
+          if (!member || !PLUGIN_DIRS.includes(member)) return false
+          const source = readFileSync(path.join(PACKAGES, file), "utf8")
+          const code = transpilers[file.endsWith(".tsx") ? "tsx" : "ts"].transformSync(source)
+          return /\b(?:setTimeout|setInterval|createRoot|watchPreference|definePlugin)\s*\(|\.addEventListener\s*\(|\bEffect\.(?:acquireRelease|fork)|new (?:MutationObserver|ResizeObserver|WebSocket)\s*\(/.test(code)
+        })
+        violations.push(...acquiring.map(file => `${spec}: runtime acquisition ${file}`))
+      }
+    }
+    expect([...new Set(violations)]).toEqual([])
+  })
+
+  test("general production packages name no plugins; test readers use explicit static doors", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
       // A plugin importing its own doors — `olai-plugin-kolu/appliance` after
       // the fold — is not a general package naming a plugin. Plugins may also
       // consume each other through declared services. This is the general side.
       if (PLUGIN_DIRS.includes(pkg)) continue
-      const reached = tree.get(pkg)?.flatMap((s) => s.plugins.map((p) => `${s.file}: ${p}`)) ?? []
+      const reached = tree.get(pkg)?.flatMap((s) => s.plugins.filter(p => !/\.(?:test|browsertest|testlib)\.tsx?$/.test(s.file) || !staticDoor(p)).map((p) => `${s.file}: ${p}`)) ?? []
       // An EQUALITY against the recorded answer — `[]` for all but the folded
       // testlib door — never a length on a filter: a pattern that rotted would
       // report nothing and pass.
@@ -800,12 +750,13 @@ describe("only the registry knows a plugin's name", () => {
     }
   })
 
-  test("no package outside the registry declares a plugin in its manifest", () => {
+  test("plugin dependencies correspond to static contracts or explicit testlib doors", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
-      expect(declaredBy(pkg), pkg).toEqual([
+      expect([...declaredBy(pkg)].sort(), pkg).toEqual([...new Set([
         ...(TESTLIB_DECLARED[pkg] ?? []),
-      ])
+        ...[...new Set(tree.get(pkg)?.flatMap((source) => source.plugins.filter((spec) => staticDoor(spec)).map(packageOf)) ?? [])].filter(name => name !== manifestAt(path.join(PACKAGES, pkg))?.name),
+      ])].sort())
     }
   })
 
@@ -1269,24 +1220,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
     // red the day it grows, and red again the day it shrinks.
     expect(
       Object.fromEntries([...TENANTS].map(([name, members]) => [name, [...members].sort()])),
-    ).toEqual({
-      chat: ["plugins/chat"],
-      claude: ["plugins/claude"],
-      codex: ["plugins/codex"],
-      git: ["plugins/git"],
-      identity: ["plugins/identity"],
-      journal: ["plugins/journal"],
-      kolu: ["plugins/kolu"],
-      odu: ["plugins/odu"],
-      opencode: ["plugins/opencode"],
-      pi: ["plugins/pi"],
-      search: ["plugins/search"],
-      vault: ["plugins/vault"],
-      ws: ["plugins/ws"],
-      mcp: ["plugins/mcp"],
-      "web-app": ["plugins/web-app"],
-      "xyne-spaces": ["plugins/xyne-spaces"],
-    })
+    ).toEqual(Object.fromEntries(TENANTS_OF.map(({ name, dir }) => [name, [dir]])))
     // ...and each APPLIANCE tenant has a TIER, which is the other way this
     // derivation comes back empty: a `node_modules` that was never hydrated.
     // A plugin that talks HTTP and hydrates nothing (Spaces) is a whole
@@ -1296,34 +1230,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
         name,
         (TIERS.get(name) ?? new Set()).size > 0,
       ])),
-    ).toEqual({
-      // AN ENGINE HYDRATES NOTHING and neither does Spaces: a plugin that talks
-      // a protocol, or HTTP, has no vendored client to confine. An empty tier
-      // there is the truth rather than a missed pin, and the two `true`s are
-      // what keep the derivation from being empty everywhere.
-      // CHAT HYDRATES NOTHING either, and it is the sharpest instance of the
-      // sentence below: it is a plugin over olai's OWN floor rather than over
-      // somebody else's vendored client, so there is no vendored tier to confine.
-      chat: false,
-      claude: false,
-      codex: false,
-      git: false,
-      identity: false,
-      journal: false,
-      kolu: true,
-      odu: true,
-      opencode: false,
-      pi: false,
-      // SEARCH HYDRATES NOTHING for chat's reason exactly: it is a plugin over
-      // olai's own floor — a table on `bun:sqlite` and a walk over the format's
-      // matcher — rather than over somebody else's vendored client.
-      search: false,
-      vault: false,
-      ws: false,
-      mcp: false,
-      "web-app": false,
-      "xyne-spaces": false,
-    })
+    ).toEqual(Object.fromEntries(TENANTS_OF.map(({ name }) => [name, ["kolu", "odu"].includes(name)])))
   })
 
   /**
@@ -1695,257 +1602,480 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * claim can fail in are not symmetric.
    */
   const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = {
-    /** Protocol vocabulary predates these plugins. Core coordinates their
-     * shared listener and writer faces; none of these files resolves modules.
-     * web-app also occurs in the browser install metadata. Exact file equality
-     * keeps every new spelling reviewable, as for vault and search below. */
-    "mcp": [
-      "format/src/committing.ts",
-      "plugins/chat/src/agent.ts",
-      "plugins/chat/src/fixtures/lifecycle-agent.ts",
-      "plugins/chat/src/server.ts",
-      "plugins/claude/src/leg.ts",
-      "plugins/codex/src/leg.ts",
-      "plugins/git/src/browser/commit/said.ts",
-      "plugins/git/src/ledger/pending.ts",
-      "plugins/odu/src/probe.ts",
-      "server/src/dial.ts",
-      "server/src/faces.ts",
-      "server/src/gitPolicy.ts",
-      "server/src/main.ts",
-      "server/src/mcp/binding.ts",
-      "server/src/mcp/tickets.ts",
-      "server/src/mcpClient.ts",
-      "server/src/serve.ts",
-    ],
-    "web-app": [
-      "web/src/client/theme/chrome.ts",
-    ],
+  "chat": [
+    "format/src/committing.ts",
+    "plugins/git/src/browser/commit/said.ts",
+    "plugins/git/src/ledger/pending.ts",
+    "plugins/layout/src/layout/prefs-owner.ts",
+    "plugins/layout/src/layout/prefs.ts",
+    "plugins/xyne-spaces/src/client.ts",
+    "plugins/xyne-spaces/src/testlib/fake-spaces.ts"
+  ],
+  "vault": [
+    "format/src/conventions.bench.ts",
+    "format/src/dates.bench.ts",
+    "format/src/filter.bench.ts",
+    "format/src/meaning.ts",
+    "format/src/page.ts",
+    "format/src/patch.bench.ts",
+    "format/src/pointing.bench.ts",
+    "format/src/scope.bench.ts",
+    "format/src/searching.ts",
+    "format/src/typing.ts",
+    "format/src/validate.bench.ts",
+    "format/src/vocabulary.bench.ts",
+    "format/src/writing.ts",
+    "ops/src/documents.bench.ts",
+    "ops/src/plan.ts",
+    "ops/src/standing.bench.ts",
+    "ops/src/tools.ts",
+    "ops/src/walks.bench.ts",
+    "plugin-api/src/services.ts",
+    "plugin-build/src/bind.ts",
+    "plugin-build/src/imports.ts",
+    "plugins/capture/src/server.ts",
+    "plugins/chat/src/server.ts",
+    "plugins/files/src/Files.tsx",
+    "plugins/files/src/server.ts",
+    "plugins/files/src/testids.ts",
+    "plugins/git/src/server.ts",
+    "plugins/journal/src/agenda.ts",
+    "plugins/journal/src/server.ts",
+    "plugins/kolu/src/server.ts",
+    "plugins/markdown/src/server.ts",
+    "plugins/mcp/src/client.ts",
+    "plugins/mcp/src/tools.ts",
+    "plugins/navigation/src/opens.tsx",
+    "plugins/odu/src/appliance/index.ts",
+    "plugins/odu/src/server.ts",
+    "plugins/outlines/src/server.ts",
+    "plugins/pins/src/server.ts",
+    "plugins/plugin-inspector/src/approval.ts",
+    "plugins/search/src/server.ts",
+    "plugins/search/src/table.bench.ts",
+    "plugins/sidebar/src/browser.tsx",
+    "plugins/sidebar/src/contract.ts",
+    "plugins/trash/src/browser.tsx",
+    "plugins/trash/src/server.ts",
+    "plugins/vault-plugins/src/client.ts",
+    "plugins/vault-plugins/src/index.ts",
+    "plugins/vault-plugins/src/server.ts",
+    "plugins/vault-plugins/src/source.ts",
+    "plugins/xyne-spaces/src/server.ts",
+    "server/src/main.ts",
+    "server/src/published.bench.ts",
+    "surface/src/seal.ts"
+  ],
+  "git": [
+    "format/src/committing.ts",
+    "format/src/index.ts",
+    "format/src/searching.ts",
+    "format/src/writing.ts",
+    "ops/src/tools.ts",
+    "plugins/files/src/file/delete.ts",
+    "plugins/kolu/src/client/fleet.ts",
+    "plugins/preferences/src/Preferences.tsx",
+    "plugins/trash/src/browser/question.ts",
+    "server/src/gitPolicy.ts",
+    "server/src/main.ts",
+    "server/src/published.bench.ts",
+    "server/src/serve.ts"
+  ],
+  "search": [
+    "format/src/address.ts",
+    "format/src/documents.ts",
+    "format/src/filter.ts",
+    "format/src/index.ts",
+    "format/src/searching.ts",
+    "ops/src/live.ts",
+    "ops/src/ops.ts",
+    "ops/src/query.ts",
+    "ops/src/refusals.ts",
+    "ops/src/tools.ts",
+    "plugin-api/src/services.ts",
+    "plugin-build/src/bind.ts",
+    "plugins/capture/src/Palette.tsx",
+    "plugins/chat/src/agents/roster.ts",
+    "plugins/chat/src/browser/chat/completion.ts",
+    "plugins/chat/src/testids.ts",
+    "plugins/journal/src/browser.tsx",
+    "plugins/mcp/src/catalog.ts",
+    "plugins/mcp/src/client.ts",
+    "plugins/mcp/src/endpoint.ts",
+    "plugins/mcp/src/tools.ts",
+    "plugins/navigation/src/palette/Palette.tsx",
+    "plugins/navigation/src/palette/items.ts",
+    "plugins/navigation/src/router.tsx",
+    "plugins/navigation/src/routes.ts",
+    "plugins/navigation/src/testids.ts",
+    "plugins/navigation/src/workspace.ts",
+    "plugins/outlines/src/browser/complete/trigger.ts",
+    "plugins/outlines/src/browser/edges/relation.ts",
+    "plugins/outlines/src/browser/move/MovePicker.tsx",
+    "plugins/outlines/src/browser/palette/ops.ts",
+    "plugins/outlines/src/testids.ts",
+    "plugins/pins/src/browser/palette.ts",
+    "plugins/vault/src/server.ts",
+    "plugins/vault/src/setup.ts",
+    "server/src/main.ts",
+    "surface/src/index.ts",
+    "surface/src/media.ts",
+    "surface/src/search.ts",
+    "web/src/client/keys.ts",
+    "web/src/client/plugins/loading.ts"
+  ],
+  "identity": [
+    "ops/src/tools.ts",
+    "plugin-api/src/services.ts",
+    "plugins/kolu/src/client/detect.ts",
+    "plugins/kolu/src/client/fleet.ts",
+    "plugins/kolu/src/client/link.ts",
+    "plugins/markdown/src/browser/document/DocumentPage.tsx",
+    "plugins/odu/src/appliance/wire/index.ts",
+    "plugins/odu/src/browser/RunMatrix.tsx",
+    "plugins/odu/src/browser/words.ts",
+    "plugins/odu/src/doorbell.ts",
+    "plugins/outlines/src/browser/edit/Editable.tsx",
+    "server/src/serve.ts"
+  ],
+  "journal": [
+    "format/src/patch.ts",
+    "format/src/searching.ts",
+    "ops/src/tools.ts",
+    "sigterm/src/sigterm.ts"
+  ],
+  "claude": [
+    "format/src/filter.ts",
+    "format/src/searching.ts",
+    "ops/src/tools.ts"
+  ],
+  "codex": [],
+  "opencode": [],
+  "pi": [
+    "appearance/src/tagInk.ts"
+  ],
+  "kolu": [],
+  "odu": [],
+  "xyne-spaces": [],
+  "ws": [],
+  "mcp": [
+    "format/src/committing.ts",
+    "plugins/chat/src/agent.ts",
+    "plugins/chat/src/fixtures/lifecycle-agent.ts",
+    "plugins/chat/src/server.ts",
+    "plugins/claude/src/leg.ts",
+    "plugins/codex/src/leg.ts",
+    "plugins/git/src/browser/commit/said.ts",
+    "plugins/git/src/ledger/pending.ts",
+    "plugins/odu/src/probe.ts",
+    "server/src/dial.ts",
+    "server/src/gitPolicy.ts",
+    "server/src/main.ts",
+    "server/src/mcpClient.ts",
+    "server/src/serve.ts"
+  ],
+  "web-app": [
+    "plugins/theme/src/chrome.ts"
+  ],
+  "ui-renderer": [],
+  "layout": [
+    "plugins/chat/src/browser/chat/Panel.tsx",
+    "plugins/mcp/src/tools.ts",
+    "plugins/navigation/src/workspace.ts",
+    "plugins/test-layout/src/browser.tsx",
+    "plugins/test-layout/src/index.ts",
+    "plugins/vault-plugins/src/server.ts",
+    "plugins/vault-plugins/src/surface.ts"
+  ],
+  "sidebar": [
+    "ops/src/tools.ts",
+    "plugins/chat/src/browser.tsx",
+    "plugins/files/src/Files.tsx",
+    "plugins/files/src/browser.tsx",
+    "plugins/files/src/fold/folders.ts",
+    "plugins/files/src/testids.ts",
+    "plugins/journal/src/browser.tsx",
+    "plugins/layout/src/Frame.tsx",
+    "plugins/layout/src/Header.tsx",
+    "plugins/layout/src/browser.tsx",
+    "plugins/layout/src/index.ts",
+    "plugins/layout/src/layout/Handle.tsx",
+    "plugins/layout/src/layout/css.ts",
+    "plugins/layout/src/layout/prefs-owner.ts",
+    "plugins/layout/src/layout/prefs.ts",
+    "plugins/layout/src/testids.ts",
+    "plugins/navigation/src/palette/Palette.tsx",
+    "plugins/navigation/src/palette/items.ts",
+    "plugins/outlines/src/browser/NotFound.tsx",
+    "plugins/outlines/src/browser/menu/verbs.ts",
+    "plugins/pins/src/browser.tsx",
+    "plugins/pins/src/browser/palette.ts",
+    "plugins/trash/src/browser.tsx",
+    "plugins/trash/src/browser/question.ts",
+    "plugins/vault/src/browser/errors/Page.tsx",
+    "web/src/client/keys.ts"
+  ],
+  "preferences": [
+    "plugins/chat/src/browser/chat/NoAgent.tsx",
+    "plugins/outlines/src/browser.tsx",
+    "plugins/theme/src/browser.tsx"
+  ],
+  "theme": [
+    "appearance/src/css.ts",
+    "appearance/src/palettes.ts",
+    "plugins/kolu/src/appliance/props/LivePane.tsx",
+    "plugins/kolu/src/appliance/props/TerminalDoor.tsx",
+    "plugins/kolu/src/client/fleet.ts",
+    "plugins/kolu/src/client/wire/kolu.ts",
+    "plugins/preferences/src/Preferences.tsx",
+    "plugins/web-app/src/manifest.ts"
+  ],
+  "plugin-inspector": [],
+  "navigation": [
+    "plugins/capture/src/Palette.tsx",
+    "plugins/capture/src/browser.tsx",
+    "plugins/files/src/browser.tsx",
+    "plugins/layout/src/browser.tsx",
+    "plugins/markdown/src/browser.tsx",
+    "plugins/outlines/src/browser.tsx",
+    "plugins/outlines/src/browser/PageView.tsx",
+    "plugins/outlines/src/browser/palette/adapter.tsx",
+    "plugins/pins/src/browser.tsx",
+    "plugins/pins/src/browser/Palette.tsx",
+    "plugins/test-layout/src/browser.tsx",
+    "plugins/trash/src/browser.tsx"
+  ],
+  "outlines": [
+    "format/src/committing.ts",
+    "format/src/index.ts",
+    "format/src/message.ts",
+    "format/src/page.ts",
+    "format/src/pointing.bench.ts",
+    "format/src/reading.ts",
+    "format/src/set.ts",
+    "format/src/validate.bench.ts",
+    "format/src/validate.ts",
+    "format/src/window.ts",
+    "format/src/writing.ts",
+    "ops/src/asked.ts",
+    "ops/src/live.ts",
+    "ops/src/ops.ts",
+    "ops/src/plan.ts",
+    "ops/src/query.ts",
+    "ops/src/refusals.ts",
+    "ops/src/standing.bench.ts",
+    "ops/src/tools.ts",
+    "ops/src/walks.bench.ts",
+    "plugins/chat/src/adapter.ts",
+    "plugins/chat/src/browser/chat/NoAgent.tsx",
+    "plugins/chat/src/browser/chat/Unopened.tsx",
+    "plugins/files/src/Rail.tsx",
+    "plugins/files/src/testids.ts",
+    "plugins/git/src/browser/commit/Outlines.tsx",
+    "plugins/git/src/browser/commit/Panel.tsx",
+    "plugins/git/src/browser/commit/said.ts",
+    "plugins/git/src/browser/commit/selection.ts",
+    "plugins/git/src/ledger/pending.bench.ts",
+    "plugins/git/src/ledger/pending.ts",
+    "plugins/layout/src/Fault.tsx",
+    "plugins/mcp/src/binding.ts",
+    "plugins/mcp/src/catalog.ts",
+    "plugins/mcp/src/client.ts",
+    "plugins/mcp/src/endpoint.ts",
+    "plugins/mcp/src/tools.ts",
+    "plugins/search/src/table.bench.ts",
+    "plugins/vault/src/browser/errors/Page.tsx",
+    "server/src/main.ts",
+    "server/src/published.bench.ts",
+    "surface/src/projection.ts"
+  ],
+  "markdown": [
+    "appearance/src/scale.ts",
+    "edit-intents/src/index.ts",
+    "format/src/document.ts",
+    "format/src/incremental.ts",
+    "format/src/index.ts",
+    "format/src/page.ts",
+    "format/src/rules.ts",
+    "format/src/set.ts",
+    "format/src/validate.bench.ts",
+    "format/src/validate.ts",
+    "format/src/writing.ts",
+    "markdown-ui/src/Markdown.tsx",
+    "markdown-ui/src/TitleHtml.tsx",
+    "markdown-ui/src/chunk.ts",
+    "markdown-ui/src/title.ts",
+    "ops/src/asked.ts",
+    "ops/src/documents.bench.ts",
+    "ops/src/plan.ts",
+    "ops/src/query.ts",
+    "ops/src/refusals.ts",
+    "ops/src/sorted.ts",
+    "ops/src/tools.ts",
+    "plugins/chat/src/browser/chat/Entry.tsx",
+    "plugins/chat/src/browser/chat/ToolFrame.tsx",
+    "plugins/journal/src/server.ts",
+    "plugins/kolu/src/appliance/props/EventsFeed.tsx",
+    "plugins/kolu/src/appliance/props/TerminalDoor.tsx",
+    "plugins/mcp/src/client.ts",
+    "plugins/outlines/src/browser/Note.tsx",
+    "plugins/outlines/src/browser/document-properties.tsx",
+    "plugins/test-layout/src/browser.tsx",
+    "plugins/xyne-spaces/src/client.ts",
+    "plugins/xyne-spaces/src/mirror.ts",
+    "plugins/xyne-spaces/src/testlib/fake-spaces.ts"
+  ],
+  "files": [
+    "format/src/conventions.bench.ts",
+    "format/src/dates.bench.ts",
+    "format/src/errors.ts",
+    "format/src/filter.bench.ts",
+    "format/src/message.ts",
+    "format/src/node.ts",
+    "format/src/page.ts",
+    "format/src/patch.bench.ts",
+    "format/src/patch.ts",
+    "format/src/pointing.bench.ts",
+    "format/src/reading.ts",
+    "format/src/scope.bench.ts",
+    "format/src/set.ts",
+    "format/src/validate.bench.ts",
+    "format/src/verdict.ts",
+    "format/src/vocabulary.bench.ts",
+    "ops/src/codec.ts",
+    "ops/src/fenced.ts",
+    "ops/src/following.ts",
+    "ops/src/ops.ts",
+    "ops/src/plan.ts",
+    "ops/src/query.ts",
+    "ops/src/sorted.ts",
+    "ops/src/standing.bench.ts",
+    "ops/src/tools.ts",
+    "ops/src/walks.bench.ts",
+    "plugins/chat/src/browser/chat/Composer.tsx",
+    "plugins/chat/src/browser/chat/DropTarget.tsx",
+    "plugins/chat/src/browser/chat/Panel.tsx",
+    "plugins/chat/src/browser/chat/Wake.tsx",
+    "plugins/chat/src/browser/chat/holding.ts",
+    "plugins/chat/src/browser/chat/naming.ts",
+    "plugins/chat/src/chat.ts",
+    "plugins/git/src/browser/commit/Panel.tsx",
+    "plugins/git/src/browser/commit/selection.ts",
+    "plugins/git/src/git/git.ts",
+    "plugins/git/src/ledger/pending.bench.ts",
+    "plugins/git/src/ledger/pending.ts",
+    "plugins/kolu/src/server.ts",
+    "plugins/layout/src/Fault.tsx",
+    "plugins/markdown/src/browser.tsx",
+    "plugins/mcp/src/client.ts",
+    "plugins/mcp/src/endpoint.ts",
+    "plugins/navigation/src/browser.tsx",
+    "plugins/outlines/src/browser.tsx",
+    "plugins/outlines/src/browser/NotFound.tsx",
+    "plugins/outlines/src/browser/focus.ts",
+    "plugins/outlines/src/browser/fold/memory.ts",
+    "plugins/outlines/src/browser/page.ts",
+    "plugins/search/src/table.bench.ts",
+    "plugins/search/src/table.ts",
+    "plugins/sidebar/src/Sidebar.tsx",
+    "plugins/trash/src/browser/PageView.tsx",
+    "plugins/trash/src/browser/TrashPage.tsx",
+    "plugins/vault/src/browser.tsx",
+    "plugins/vault/src/browser/errors/Banner.tsx",
+    "plugins/vault/src/browser/errors/Page.tsx",
+    "plugins/vault/src/browser/errors/Report.tsx",
+    "plugins/vault/src/browser/errors/banner.ts",
+    "plugins/vault/src/browser/served.tsx",
+    "plugins/vault/src/http/media.ts",
+    "plugins/vault/src/lock.ts",
+    "plugins/web-app/src/manifest.ts",
+    "server/src/published.bench.ts",
+    "store/src/probe.ts",
+    "store/src/store.ts",
+    "surface/src/projection.ts",
+    "web/src/client/connection/status.ts",
+    "web/src/client/file/matching.ts"
+  ],
+  "pins": [
+    "edit-intents/src/index.ts",
+    "format/src/conventions.bench.ts",
+    "format/src/index.ts",
+    "format/src/node.ts",
+    "format/src/shelf.ts",
+    "ops/src/plan.ts",
+    "ops/src/tools.ts",
+    "plugins/outlines/src/browser/Tree.tsx",
+    "plugins/outlines/src/browser/menu/actions.ts"
+  ],
+  "capture": [
+    "edit-intents/src/index.ts",
+    "format/src/conventions.bench.ts",
+    "format/src/inbox.ts",
+    "format/src/index.ts",
+    "format/src/message.ts",
+    "format/src/writing.ts",
+    "ops/src/plan.ts",
+    "ops/src/tools.ts",
+    "ops/src/walks.bench.ts",
+    "plugins/chat/src/browser/chat/Composer.tsx",
+    "plugins/mcp/src/catalog.ts",
+    "plugins/outlines/src/browser/drag/Handle.tsx",
+    "plugins/outlines/src/browser/palette/adapter.tsx",
+    "plugins/pins/src/browser/Pin.tsx",
+    "server/src/main.ts",
+    "surface/src/edit.ts",
+    "web/src/client/Tip.tsx"
+  ],
+  "trash": [
+    "edit-intents/src/index.ts",
+    "format/src/index.ts",
+    "format/src/message.ts",
+    "format/src/moving.ts",
+    "format/src/narrowing.ts",
+    "format/src/node.ts",
+    "format/src/page.ts",
+    "format/src/searching.ts",
+    "format/src/writing.ts",
+    "ops/src/plan.ts",
+    "ops/src/tools.ts",
+    "plugins/layout/src/pane/label.ts",
+    "plugins/mcp/src/endpoint.ts",
+    "plugins/mcp/src/tools.ts",
+    "plugins/navigation/src/address/address.ts",
+    "plugins/navigation/src/palette/items.ts",
+    "plugins/navigation/src/routes.ts",
+    "plugins/outlines/src/browser/PageView.tsx",
+    "plugins/outlines/src/browser/edit/redraws.ts",
+    "plugins/outlines/src/browser/filter/drawn.ts",
+    "plugins/outlines/src/browser/menu/verbs.ts",
+    "plugins/outlines/src/browser/page.ts",
+    "plugins/outlines/src/browser/select/SelectionBar.tsx",
+    "plugins/outlines/src/browser/select/bulk.ts",
+    "plugins/outlines/src/surface.ts",
+    "plugins/outlines/src/testids.ts",
+    "plugins/pins/src/browser/Shelf.tsx",
+    "plugins/pins/src/browser/pinning.ts",
+    "surface/src/edit.ts",
+    "surface/src/index.ts"
+  ],
+  "test-layout": [],
+  "test-counter": [],
+  "vault-plugins": []
+}
 
-    /** Vault is also the domain noun and the core Vault/VaultSettings service
-     * vocabulary. These compiled spellings predate the provider package and
-     * do not select or import it; record the exact collision set. */
-    vault: [
-      "format/src/conventions.bench.ts",
-      "format/src/dates.bench.ts",
-      "format/src/filter.bench.ts",
-      "format/src/meaning.ts",
-      "format/src/page.ts",
-      "format/src/patch.bench.ts",
-      "format/src/pointing.bench.ts",
-      "format/src/scope.bench.ts",
-      "format/src/searching.ts",
-      "format/src/typing.ts",
-      "format/src/validate.bench.ts",
-      "format/src/vocabulary.bench.ts",
-      "format/src/writing.ts",
-      "ops/src/documents.bench.ts",
-      "ops/src/plan.ts",
-      "ops/src/standing.bench.ts",
-      "ops/src/tools.ts",
-      "ops/src/walks.bench.ts",
-      "plugin-api/src/services.ts",
-      "plugin-build/src/bind.ts",
-      "plugin-build/src/imports.ts",
-      "plugins/chat/src/server.ts",
-      "plugins/git/src/server.ts",
-      "plugins/journal/src/agenda.ts",
-      "plugins/journal/src/server.ts",
-      "plugins/kolu/src/server.ts",
-      "plugins/mcp/src/tools.ts",
-      "plugins/odu/src/appliance/index.ts",
-      "plugins/odu/src/server.ts",
-      "plugins/search/src/table.bench.ts",
-      "plugins/xyne-spaces/src/server.ts",
-      "server/src/dynamic/source.ts",
-      "server/src/main.ts",
-      "server/src/published.bench.ts",
-      "server/src/runtime.ts",
-      "server/src/serve.ts",
-      "surface/src/seal.ts",
-      "web/src/client/Sidebar.tsx",
-      "web/src/client/opens.tsx",
-      "web/src/client/testids.ts",
-    ],
-    claude: [
-      "format/src/filter.ts",
-      "format/src/searching.ts",
-      "ops/src/tools.ts",
-    ],
-    pi: ["web/src/client/theme/tagInk.ts"],
-    /** `journal` is also an ordinary domain word: patch/search/tool metadata
-     * use it in their own vocabularies, unrelated to the plugin row. */
-    journal: [
-      "format/src/patch.ts",
-      "format/src/searching.ts",
-      "ops/src/tools.ts",
-      "sigterm/src/sigterm.ts",
-    ],
-    /** Historical writer vocabulary and third-party routes also spell chat.
-     * Core no longer chooses a plugin writer or migrates plugin state. */
-    chat: [
-      "format/src/committing.ts",
-      "plugins/git/src/browser/commit/said.ts",
-      "plugins/git/src/ledger/pending.ts",
-      "plugins/xyne-spaces/src/client.ts",
-      "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
-      "web/src/client/layout/prefs.ts",
-    ],
-    /**
-     * `search` IS THE VERB, and it is the widest collision in this table by a
-     * long way — which is a fact about the word rather than about the row.
-     *
-     * The row is `olai-plugin-search`: a trigram table, a walk over it, and the
-     * header's box. What core keeps, and spells everywhere, is everything the
-     * row is asked THROUGH — one grammar (`@olai/format`'s `filter.ts`,
-     * `searching.ts`: `SearchRequest`, `SearchHit`, `SearchAnswer`,
-     * `DEFAULT_SEARCH_LIMIT`), one member on three faces (`search.nodes`, and
-     * the `search_nodes` tool it lands through), one door
-     * (`@olai/ops`' `Search` / `NO_SEARCH`), and the four browser doors that
-     * ask it — the ⌘K palette, the composer's `@` list, the edges panel and the
-     * move picker, whose shortlist kit is core furniture by the scope ruling
-     * that took this phase. None of those is the plugin's name; every one of
-     * them is the English word for what a person is doing.
-     *
-     * RECORDED AS AN EQUALITY rather than excused with a pattern, exactly as
-     * `git` and `chat` below and above are: a forty-first file is red, and the
-     * day one of these stops spelling it this entry is red until it is trimmed.
-     */
-    search: [
-      "format/src/address.ts",
-      "format/src/documents.ts",
-      "format/src/filter.ts",
-      "format/src/index.ts",
-      "format/src/searching.ts",
-      "ops/src/live.ts",
-      "ops/src/ops.ts",
-      "ops/src/query.ts",
-      "ops/src/refusals.ts",
-      "ops/src/tools.ts",
-      "plugin-api/src/services.ts",
-      "plugin-build/src/bind.ts",
-      "plugins/chat/src/agents/roster.ts",
-      "plugins/chat/src/browser/chat/completion.ts",
-      "plugins/chat/src/testids.ts",
-      "plugins/journal/src/browser.tsx",
-      "plugins/mcp/src/endpoint.ts",
-      "plugins/mcp/src/tools.ts",
-      "plugins/vault/src/server.ts",
-      "server/src/faces.ts",
-      "server/src/main.ts",
-      "server/src/runtime.ts",
-      "server/src/serve.ts",
-      "surface/src/index.ts",
-      "surface/src/media.ts",
-      "surface/src/search.ts",
-      "web/src/client/complete/trigger.ts",
-      "web/src/client/edges/relation.ts",
-      "web/src/client/keys.ts",
-      "web/src/client/move/MovePicker.tsx",
-      "web/src/client/palette/Palette.tsx",
-      "web/src/client/palette/items.ts",
-      "web/src/client/palette/ops.ts",
-      "web/src/client/pins/palette.ts",
-      "web/src/client/router.tsx",
-      "web/src/client/routes.ts",
-      "web/src/client/search/Count.tsx",
-      "web/src/client/search/nodes.ts",
-      "web/src/client/testids.ts",
-      "web/src/client/workspace.ts",
-    ],
-    /**
-     * `git` IS THE COMMAND, and `GitState` / `GIT_OFF` / `gitPolicy` are the
-     * floor's names for a repository reading that stays in core: a write still
-     * waits to be recorded, and the format owns the shape. The plugin is the
-     * provider behind that door. These files spell the word as English or as
-     * those types, not as the row.
-     */
-    git: [
-      "format/src/committing.ts",
-      "format/src/index.ts",
-      "format/src/searching.ts",
-      "format/src/writing.ts",
-      "ops/src/tools.ts",
-      "plugins/kolu/src/client/fleet.ts",
-      "server/src/gitPolicy.ts",
-      "server/src/main.ts",
-      "server/src/published.bench.ts",
-      "server/src/serve.ts",
-      "web/src/client/file/delete.ts",
-      "web/src/client/settings/Preferences.tsx",
-       "web/src/client/trash/question.ts",
-     ],
-    /**
-     * `identity` IS AN ENGLISH WORD, and it is the most ordinary one on this
-     * list — which is why the entry is long and why every line of it is a
-     * different sense of it than the row.
-     *
-     * **THE DOOR, which is core's.** `Identity` is a service tag
-     * `@olai/plugin-api` declares and `@olai/server`'s composition root reads;
-     * the row is the PROVIDER behind it. That is the `git` case one entry up,
-     * exactly — a reading core defines and a plugin stands behind — and the
-     * interface and `serve.ts` are spelling the tag, never the row.
-     *
-     * TWO SERVER FILES AND A THIRD LEFT THIS LIST, and that is the fence
-     * measuring a refactor rather than tolerating one: the listener and the
-     * MCP route used to be handed the DOOR and now take a header list and a
-     * reading, and `server/src/who.ts` mints that reading from a type
-     * import. None of the three can name the tag any more, so the word is
-     * gone from what they compile to — which is the claim this table exists
-     * to be able to notice in either direction.
-     *
-     * **THE PROCESS's identity, which is the framework's.** `system/identity`
-     * is the reserved member every kolu surface answers with its process id —
-     * the stale-tab handshake — and it is a different question from who is
-     * looking, argued at length in `@olai/surface`'s README. kolu's dial and
-     * probe spell it, and its probe also reports on "the daemon's identity",
-     * which is a third sense again.
-     *
-     * **A RUN's identity, which is odu's.** `identityOf(run)` is that
-     * appliance's own `<sha7>#<seq>` spelling of which commit a run is of.
-     *
-     * **AN ATTRIBUTION RULE, in prose.** The capture tool's description says
-     * `captured-by` is written from "the identity this door already has" —
-     * words in a sentence an agent reads.
-     *
-     * **AN EDITOR's identity.** Outline and document panes key their draft
-     * lifetime by file and pane. These local keys do not name the plugin.
-     *
-     * RECORDED AS AN EQUALITY for the reason the four entries above are: a
-     * twelfth file is red, and the day one of these stops spelling the word
-     * this entry is red until the line is deleted.
-     */
-    identity: [
-      "ops/src/tools.ts",
-      "plugin-api/src/services.ts",
-      "plugins/kolu/src/client/detect.ts",
-      "plugins/kolu/src/client/fleet.ts",
-      "plugins/kolu/src/client/link.ts",
-      "plugins/odu/src/appliance/wire/index.ts",
-      "plugins/odu/src/browser/RunMatrix.tsx",
-      "plugins/odu/src/browser/words.ts",
-      "plugins/odu/src/doorbell.ts",
-      "server/src/serve.ts",
-      "web/src/client/document/DocumentPage.tsx",
-      "web/src/client/edit/Editable.tsx",
-    ],
-  }
 
   test("no package outside the registry and the plugin's own tenant spells it", () => {
-    for (const name of PLUGIN_NAMES) {
+    const actual = Object.fromEntries(PLUGIN_NAMES.map((name) => {
       const mine = TENANTS.get(name) ?? new Set<string>()
       const spelled = packages
         .filter((pkg) => pkg !== REGISTRY && !mine.has(pkg))
-        .flatMap((pkg) =>
-          (compiled.get(pkg) ?? [])
-            .filter((one) => spellingOf(name).test(one.code))
-            .map((one) => one.file)
-        )
-      // An EQUALITY against the recorded answer — `[]` for all but the two
-      // collisions above — never a filter asserted empty: a pattern that rotted
-      // would report nothing and pass.
-      expect(spelled.sort(), name).toEqual([...(NOT_A_PLUGIN[name] ?? [])])
-    }
+        .flatMap((pkg) => (compiled.get(pkg) ?? [])
+          .filter((one) => spellingOf(name).test(one.code)).map((one) => one.file))
+      return [name, spelled.sort()]
+    }))
+    // Compare every name together so one moved file cannot mask a second
+    // boundary violation in the same extraction.
+    expect(actual).toEqual(Object.fromEntries(PLUGIN_NAMES.map((name) => [name, [...(NOT_A_PLUGIN[name] ?? [])]])))
   })
 
   test("every recorded collision is a plugin and a file that still exist", () => {
@@ -1981,4 +2111,46 @@ test("the generated style chain contains exactly the declared stylesheet exports
   expect([...actual].sort()).toEqual(expected.sort())
   expect(BROWSER_TENANTS.length).toBeGreaterThan(0)
   expect(BROWSER_TENANTS.length).toBeLessThan(TENANTS_OF.length)
+})
+
+/** Domain-free host closures, not merely clean entry files. Static catalog
+ * declarations may cross a provider directory; runtime implementations may not. */
+test("permanent host entry closures contain no Olai feature implementation", () => {
+  const policyTargets = new Set(TENANTS_OF.flatMap(tenant => {
+    const target = doorsOf(manifestAt(path.join(PACKAGES, tenant.dir))!)["./policy"]
+    return target ? [path.relative(PACKAGES, path.resolve(PACKAGES, tenant.dir, target))] : []
+  }))
+  const contractTargets = new Set(PLUGIN_PACKAGES.flatMap(pkg => staticTargets(pkg).map(file => path.relative(PACKAGES, file))))
+  const entries = ["web/src/client/main.tsx", "server/src/serve.ts"]
+  const violations = entries.flatMap(entry => {
+    const graph = graphFrom(path.join(PACKAGES, entry))
+    expect(graph.unresolved, entry).toEqual([])
+    // The host may carry typed contracts, but concrete extension locations
+    // belong to the provider that draws or implements them. Moving a slot
+    // consumer back into web must not hide behind an otherwise legal door.
+    expect(graph.reached.filter(edge => namesAPlugin(edge.spec) && edge.spec.endsWith("/slots")), entry).toEqual([])
+    return graph.files.filter(file => {
+      const member = memberOf(file)
+      return member !== undefined && (
+        PLUGIN_DIRS.includes(member) && !policyTargets.has(file) && !contractTargets.has(file)
+        || ["ops", "store", "edit-intents", "edit-history", "markdown-ui", "appearance"].includes(member)
+      )
+    }).map(file => `${entry}: ${file}`)
+  })
+  expect(violations).toEqual([])
+})
+
+test("bundle static asset and policy catalogs match declared row exports", () => {
+  for (const [door, file] of [["./assets", "assets.generated.ts"], ["./policy", "policy.generated.ts"]] as const) {
+    const expected = TENANTS_OF.flatMap(tenant => doorsOf(manifestAt(path.join(PACKAGES, tenant.dir))!)[door]
+      ? [`${tenant.pkg}/${door.slice(2)}`] : [])
+    const source = readFileSync(path.join(PACKAGES, REGISTRY, "src", file), "utf8")
+    expect(specifiersOf(source).filter(namesAPlugin).sort()).toEqual(expected.sort())
+    const graph = graphFrom(path.join(PACKAGES, REGISTRY, "src", file))
+    expect(graph.unresolved, file).toEqual([])
+    expect(graph.files.filter(name => /\.(tsx|jsx)$/.test(name) || /\/(browser|server)\.[cm]?[jt]s$/.test(name)), file).toEqual([])
+    if (door === "./policy") {
+      expect(graph.reached.filter(edge => /^node:|^solid-js(?:\/|$)/.test(edge.spec))).toEqual([])
+    }
+  }
 })

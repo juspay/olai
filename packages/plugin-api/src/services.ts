@@ -83,6 +83,7 @@ import {
   contained,
   type Host,
   openHost,
+  offered as readOffered,
   hostChanges,
   closeHost,
   offer,
@@ -94,7 +95,7 @@ import {
   serviceTag,
   type ServiceKey,
 } from "@olai/effect-cordis"
-import { Deferred, Effect, Exit, Scope, Semaphore, type Stream } from "effect"
+import { Deferred, Effect, Exit, Scope, Semaphore, Queue, Stream } from "effect"
 
 import { ownedKey, ownService, type OwnServices } from "./owned.ts"
 import {
@@ -145,6 +146,19 @@ export interface Env {
   readonly dial: unknown
 }
 export const Env = serviceTag<Env>("env")
+
+/** Optional live service access for adapters whose providers may be absent. */
+export interface HostServices {
+  readonly current: <A>(key: ServiceKey<A>) => A | undefined
+  readonly changes: Stream.Stream<void>
+}
+export const HostServices = serviceTag<HostServices>("host.services")
+
+/** Inert module declarations from the selected bundle, including disabled rows. */
+export interface BundleModules {
+  readonly read: Effect.Effect<ReadonlyArray<{ readonly name: string; readonly exports: unknown }>>
+}
+export const BundleModules = serviceTag<BundleModules>("host.bundle-modules")
 
 /** THE CLOCK, as ISO-8601 — what a link's `since` is stamped from, and the
  *  reason a test that asserts "connected · just now" can own the instant it was
@@ -350,6 +364,8 @@ export const Deliveries = serviceTag<Deliveries>("deliveries")
  * untouched rather than killing the boot.
  */
 export interface Kinds {
+  readonly current: () => ReadonlyMap<string, ComposedKind>
+  readonly changes: Stream.Stream<void>
   /** Teach one word, for as long as the calling plugin is loaded. */
   readonly register: (kind: PropKind) => Effect.Effect<void, never, Scope.Scope>
 }
@@ -381,12 +397,30 @@ export interface ComposedKind extends PropKind {
  * is no line anywhere for the two to drift apart on.
  */
 export interface Sibling {
+  /** Preserve this capability's standalone tags at the public boundary.
+   * Ownership and channels remain scoped to its plugin generation; the host
+   * rejects tag collisions before mounting. Used by extracted wire contracts,
+   * not by a permanent catch-all application surface. */
+  readonly root?: boolean
+  /** Public procedure tags whose calls use transport-supplied attribution. */
+  readonly writes?: ReadonlyArray<string>
+  /** Disjoint variants of a preserved procedure can have different owners.
+   * Each public tag names an input field and the literal cases this provider
+   * handles. Composition proves matching schemas and refuses overlaps. */
+  readonly dispatch?: Readonly<Record<string, {
+    readonly field: string
+    readonly cases: ReadonlyArray<string>
+  }>>
   /** The plugin's own surface — a `Surface<Spec>`, opaque on this side of the
    *  wall for the reason `deps` is. */
   readonly surface: { readonly spec: unknown }
   /** Which of its members each face may see — its own `ExposeMap` per face,
    *  written against its own spec. */
   readonly faces: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  /** Additional qualified sibling exposure for clients acquired by this
+   * provider's browser activation. Preserved root aliases keep their own face
+   * policy; granting a sibling does not grant it to every transport face. */
+  readonly scopedFaces?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
   /** This plugin's `ImplementSurfaceDeps`, against its own spec. */
   readonly deps: unknown
   /** This plugin's OWN ctx, handed back the moment its sibling is implemented.
@@ -905,6 +939,7 @@ export interface Offers extends OwnServices {
   readonly browser: (words: ReadonlyArray<string>) => Effect.Effect<void, never, Scope.Scope>
   /** Stand behind one door, for as long as the calling plugin is loaded. */
   readonly offer: {
+    (key: typeof VaultSettings, door: Provision<VaultSettings>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Ops, door: Provision<Ops>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Vault, door: Provision<Vault>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Directory, door: Provision<Directory>): Effect.Effect<void, never, Scope.Scope>
@@ -1070,6 +1105,7 @@ export interface Ops {
 export const Ops = serviceTag<Ops>("ops")
 
 export const OFFERABLE = [
+  VaultSettings,
   Ops,
   Vault,
   Directory,
@@ -1184,9 +1220,8 @@ export interface Plugins {
  *
  * ## ONE ANSWER TO "NOT READY YET", and this file no longer holds a second
  *
- * `./browser.ts` answers it with a SECOND PROVIDE — `App.furnish` provides the
- * chrome services later, and a half that beat the call simply sits `waiting` on
- * the runtime.s own PENDING mechanism. This file used to answer it a second way,
+ * Browser providers publish their scoped services through Offers; a half that
+ * precedes its provider simply sits `waiting` on the runtime's own mechanism. This file used to answer it a second way,
  * with a LOOKUP ASKED PER CALL, so `deliveries` was always present and answered
  * `[]` and a no-op where there was no chat.
  *
@@ -1278,6 +1313,7 @@ export const openPlugins = (
 ): Effect.Effect<Plugins, never, Scope.Scope> =>
   Effect.gen(function*() {
     const host = yield* openHost
+    yield* provide(host, HostServices, (plugin) => ({ current: (key) => readOffered(host, key, plugin), changes: hostChanges(host) }))
 
     yield* provide(host, Env, (plugin) => ({
       vars: config.vars,
@@ -1307,8 +1343,20 @@ export const openPlugins = (
      * accepted cost.
      */
 
-    const kinds = registry<string, ComposedKind>()
+    const kindListeners = new Set<() => void>()
+    const kinds = registry<string, ComposedKind>(() => { for (const notify of kindListeners) notify() })
+    const kindChanges = Stream.callback<void>((queue) => Effect.acquireRelease(
+      Effect.sync(() => {
+        const notify = () => { Queue.offerUnsafe(queue, undefined) }
+        kindListeners.add(notify)
+        notify()
+        return notify
+      }),
+      (notify) => Effect.sync(() => { kindListeners.delete(notify) }),
+    ), { bufferSize: 1, strategy: "sliding" })
     yield* provide(host, Kinds, (plugin) => ({
+      current: kinds.read,
+      changes: kindChanges,
       register: (kind) =>
         Effect.suspend(() => {
           const word = kindWordOf(plugin, kind.kind)
@@ -1525,6 +1573,9 @@ export type { Registering } from "@olai/acp/engine"
  * naming that key would be reaching past a door it already has.
  */
 export const SERVICES = [
+  HostServices,
+  BundleModules,
+  VaultSettings,
   Env,
   Clock,
   Vault,
@@ -1548,4 +1599,6 @@ export const SERVICE_KEYS: ReadonlyArray<string> = SERVICES.map((one) => one.cor
 
 /** THE SLOT CATALOG, from the one module both processes may open — see
  *  `./slots.ts` on why it is not `./browser.ts`'s any more. */
-export { SLOTS, type SlotKey } from "./slots.ts"
+export type { SlotKey } from "./slots.ts"
+
+export { HostLoading, openLoading, type Catalog, type OwnedLoader } from "./loading.ts"
