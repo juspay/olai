@@ -53,6 +53,12 @@ so retained rows keep their original identity. A held-response regression
 fails on the old build and passes after the fix; pending-search, edge-editing
 and palette actions pass all 40 scenarios and 394 steps.
 
+The ACP notification scenario now waits for the actual settings-update answer
+before opening controls. A held-frame experiment confirms that opening against
+stale idle state lets the arriving busy turn close the drawer by policy. All
+12 session-feature scenarios and the existing busy-settings guard pass; no
+application policy or generic send-step semantics were changed.
+
 ## CI repair batch
 
 - [x] Bind search results to their actual query across subscription changes;
