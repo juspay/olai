@@ -11,31 +11,38 @@
  * collection's entries together — which is what makes markdown genuinely
  * absent rather than quiet (`packages/tests/features/content_capabilities.feature`).
  *
- * `root: true`, AND SO IS `olai-plugin-outlines`, which looks like two rows
- * claiming one tag and is the arrangement the phase is built on. A root mount
- * keeps its bare `surface/edit/apply` and `surface/ops/run` beside its scoped
- * `surface/markdown/...` alias, so the wire a browser speaks does not change
- * shape when a row goes away. Two roots may claim one tag only because their
- * `dispatch` CASES are disjoint: `./surface.ts` declares `doc`/`docNew` and
- * `doc`/`create-doc`, outlines declares its own twenty-odd, and
- * `@olai/server`'s `composition.ts` refuses the mount outright if two owners
- * overlap a case, disagree on the dispatch field, disagree on write authority,
- * disagree on exposure, or carry different payload/success/error ASTs for the
- * shared envelope. That is why {@link surface}'s envelopes come from
- * `@olai/surface/dispatch` rather than being spelled here: one spelling is a
- * requirement of the mount, not a convenience.
+ * THIS ROW REGISTERED `root: true` UNTIL #546, and so did outlines and seven
+ * others. A root mount kept every member answering under a BARE tag as well as
+ * its own — `surface/edit/apply` beside `surface/markdown/edit/apply` —
+ * because those were the tags of the monolith these rows were cut out of. This
+ * row and outlines SHARING one bare tag was the arrangement the phase was
+ * built on, and it cost `dispatch` to say whose verbs were whose plus five
+ * refusals in `@olai/server`'s `composition.ts` to make the sharing safe:
+ * overlapping cases, disagreeing fields, disagreeing write authority,
+ * disagreeing exposure, or different payload/success/error ASTs.
+ *
+ * Every one of those is gone. This row answers `surface/markdown/edit/apply`
+ * and `surface/markdown/ops/run`, outlines answers its own, and there is
+ * nothing at composition left to prove. What survives is the SPELLING:
+ * {@link surface}'s envelopes still come from `@olai/surface/dispatch`, now
+ * because one `Edit` schema across the rows is what lets `@olai/edit-history`
+ * route a keystroke by verb without knowing which row will take it, and
+ * `./surface.ts`'s `dispatch` const is what tells it.
  *
  * `writes: ["surface/ops/run"]` is the same claim on the OTHER axis — which of
- * this row's tags the write reservation covers.
+ * this row's tags the write reservation covers. It names the tag as THIS
+ * surface spells it; the composition root is what puts it under
+ * `surface/markdown/`.
  *
- * `scopedFaces` IS `faces`, and the two used to differ. While the root alias
- * stood, `faces` granted the SHORT names and `scopedFaces` granted the long
- * ones, and the agent map was deliberately on the short set alone — putting it
- * on both would have advertised one tool under two names. The short names are
- * going, which is #540's last finding and the ruling on it, so the long name
- * becomes the only name and an agent that may reach `ops.run` at all must
- * reach it here. The two fields are one grant now, and the pair goes when
- * `root` does.
+ * `faces` IS THE WHOLE GRANT. It stood beside a `scopedFaces` that held the
+ * same map, because while the bare tags existed `faces` granted those and
+ * `scopedFaces` granted the qualified ones — and the agent map was on the bare
+ * set alone, since putting it on both would have advertised one tool under two
+ * names. With one name per member there is one map.
+ *
+ * `resources` is the THIRD projection beside them: which of this row's members
+ * an MCP adapter gives a `surface://` address to (`documents`), which needs the
+ * member's KIND and so cannot be read off a tag set.
  */
 import { definePlugin, Directory, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
 import type { Ops as Gate, Store } from "@olai/ops"
