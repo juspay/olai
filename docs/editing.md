@@ -541,6 +541,11 @@ re-anchors the draft, the replacement input restores focus to that clicked slot.
 The transition from parked to active is batched. A blur emitted by moving that
 input within the keyed list cannot close the newly active draft; a removed
 input also cannot enqueue a commit for an unrelated current slot. A file frame
+can fire blur before the removed element reports itself disconnected. Title
+inputs defer that connection check until the DOM update completes, and ignore
+blur when movement has already restored the same input's focus. Real click-away
+still commits and parks an empty draft.
+A file frame
 that moves the clicked input before the RPC reply restores focus to that slot,
 including when the input was moved without being remounted. Escape or a newer selection
 cancels an obsolete pending focus request. `draft_handoff.feature` covers input

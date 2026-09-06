@@ -178,7 +178,17 @@ export function TitleEditor(props: {
           readCaret()
           if (props.active === false) props.onActivate?.()
         }}
-        onBlur={() => { if (!takingOfflineFocus()) props.onBlur(element.isConnected) }}
+        onBlur={() => {
+          if (takingOfflineFocus()) return
+          const blur = props.onBlur
+          // Removal fires blur before isConnected becomes false. Read after
+          // Solid finishes this DOM update, when a redraw can be distinguished
+          // from leaving the editor. Moving the same input may already have
+          // restored its focus, in which case there was no departure at all.
+          queueMicrotask(() => {
+            if (document.activeElement !== element) blur(element.isConnected)
+          })
+        }}
       />
       <completion.Panel />
     </span>
