@@ -3,9 +3,11 @@
  * must not send every inverse through its own sibling. Registration is scoped
  * by each provider; this module declares no default writers or plugin names. */
 import { Effect } from "effect"
-import { NotFoundFailure, type OpFailure } from "@olai/format"
+import { NotFoundFailure } from "@olai/format"
 import type { Applied, Edit } from "@olai/surface"
-export type EditWriter = (edit: Edit) => Effect.Effect<Applied, OpFailure>
+// A provider's call can fail at the transport as well as with its declared
+// operation refusal. Preserve both for the caller's existing execution edge.
+export type EditWriter = (edit: Edit) => Effect.Effect<Applied, unknown>
 const writers = new Map<Edit["verb"], EditWriter>()
 export function registerWriter(verbs: ReadonlyArray<Edit["verb"]>, write: EditWriter): () => void {
   for (const verb of verbs) if (writers.has(verb)) throw new Error(`edit writer already registered: ${verb}`)

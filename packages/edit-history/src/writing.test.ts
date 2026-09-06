@@ -17,8 +17,16 @@ test("an absent owner produces a typed refusal and can activate freshly", async 
   const fresh = registerWriter(["title"], fail)
   stop() // A repeated stale disposer cannot remove the fresh owner.
   const result = await Effect.runPromise(Effect.result(writeEdit(edit)))
-  expect(Result.isFailure(result) && result.failure.message).toBe("owned refusal")
+  expect(Result.isFailure(result) && result.failure instanceof NotFoundFailure && result.failure.message).toBe("owned refusal")
   fresh()
+})
+test("a provider's transport failure reaches the execution edge unchanged", async () => {
+  const transport = { _tag: "SurfaceCallFailure", reason: "connection replaced" }
+  const stop = registerWriter(["title"], () => Effect.fail(transport))
+  try {
+    const result = await Effect.runPromise(Effect.result(writeEdit({ verb: "title", id, title: "new" })))
+    expect(Result.isFailure(result) && result.failure).toBe(transport)
+  } finally { stop() }
 })
 test("duplicate discriminator ownership is refused without partial registration", () => {
   const stop = registerWriter(["title"], fail)
