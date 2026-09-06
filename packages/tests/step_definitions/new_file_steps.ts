@@ -24,7 +24,13 @@ import * as path from "node:path";
 
 import { Then, When } from "@cucumber/cucumber";
 
-import { type Making, MAKING_DOCUMENT, MAKING_OUTLINE, selector } from "@olai/web/testlib"
+import { selector } from "@olai/web/testlib"
+// WHICH DOOR MINTS WHAT is the files row's, and so is the word for it. It was
+// re-exported from `@olai/web/testlib`, which made a general package declare
+// `olai-plugin-files` for three names about a plugin's own door — the equality
+// `@olai/bundle`'s `fence.test.ts` holds per package. Asked of the door itself,
+// a rename over there is a type error here rather than a bare timeout.
+import { type Making, MAKING_DOCUMENT, MAKING_OUTLINE } from "olai-plugin-files/making"
 
 import { saysThat } from "../support/said.ts";
 import { keysSettled } from "../support/settling.ts";

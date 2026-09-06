@@ -9,7 +9,7 @@
  */
 
 import { derive, rowsOf, type Row } from "@olai/format"
-import { NO_PINS, type Shelf } from "@olai/surface"
+import { NO_PINS, type Shelf } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 

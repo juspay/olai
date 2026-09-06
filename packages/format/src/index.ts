@@ -1167,6 +1167,15 @@ export {
  * every page in the app is drawn out of it.
  */
 export {
+  /** A BODIED file's page, which is the only kind `markdown` can be asked
+   *  about — the narrowing that row declares `documentPage` with. */
+  DocumentPageRequest,
+  /** The two narrowings a row that serves FILES declares its members with:
+   *  the request with the journal's `day` and `agenda` taken out of it, and
+   *  the reading to match. `outlines` declares `page` with them; `markdown`
+   *  narrows the request once more and answers in the same reading. */
+  FiledPageReading,
+  FiledPageRequest,
   Named,
   PageReading,
   PageRequest,

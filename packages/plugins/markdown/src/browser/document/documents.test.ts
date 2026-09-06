@@ -7,7 +7,7 @@
  * it.
  */
 
-import type { DocumentEntry } from "@olai/surface"
+import type { DocumentEntry } from "../../wire.ts"
 import { expect, test } from "bun:test"
 
 import { isServed } from "./ready.ts"

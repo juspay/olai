@@ -22,7 +22,7 @@ import type { Snapshot } from "@olai/store"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { publishedOf } from "@olai/surface/projection"
+import { publishedOf } from "./published.testlib.ts"
 
 const HOUSE = '{"id":"kitchen","ord":"a0","title":"kitchen"}\n'
 const GARDEN = '{"id":"garden","ord":"a0","title":"garden"}\n'

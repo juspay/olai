@@ -47,7 +47,7 @@
  */
 
 import type { Situated } from "@olai/format"
-import { NO_PINS } from "@olai/surface"
+import { NO_PINS } from "@olai/format"
 
 import { subjectOfZoom, writeVerbs } from "../menu/verbs.ts"
 import type { PaletteItem } from "olai-plugin-navigation/contract"

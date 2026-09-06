@@ -12,7 +12,7 @@ Nothing. It is on by default, like chat and git. Two things take it away, and th
 
 ```
 olai web ~/outlines                                    # the chip, as always
-olai web ~/outlines --plugins=vault,chat,git,claude,ws,web-app,mcp,ui-renderer,layout          # every request is nobody
+olai web ~/outlines --plugins=vault,chat,git,claude,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector          # every request is nobody
 ```
 
 The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag. Switched off at the panel, the chip leaves while you are watching, `who.get` starts answering nobody, and a capture taken from that moment on records no `captured-by`.
@@ -37,9 +37,9 @@ What the row stands behind is the `Identity` door (`@olai/plugin-api`): the head
 
 ## Where it hangs in the tab
 
-| seat | what the shell keeps | what identity brings |
+| seat | who declares it, and what they keep | what identity brings |
 | --- | --- | --- |
-| `app.viewer` | the last seat in the bar — top right, and the one seat a phone keeps | the chip, its four faces, and every word in them |
+| `app.viewer` | `layout` — the last seat in the bar — top right, and the one seat a phone keeps | the chip, its four faces, and every word in them |
 
 There is one seat and one occupant: two chips answering "who am I" in one bar is not an answer, so a second row claiming it is refused by name at the moment it registers.
 

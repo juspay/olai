@@ -7,7 +7,7 @@
  * the SERVER reads the node an address names — a statement about the directory,
  * so `@olai/format`'s (`pinTargetIn`) — and the BROWSER reads which page it
  * opens and what a `?q=` on it means, at view time, through the bijection that
- * wrote it (`../address/address.ts`).
+ * wrote it (`olai-plugin-navigation`'s `address/address.ts`).
  *
  * ## The property that has to hold, and the one that cannot
  *
@@ -24,6 +24,12 @@
  *
  * A unit test rather than a scenario — a browser has nothing to add to a
  * disagreement between two pure functions.
+ *
+ * IT SITS WITH THE SHELF, and did not: it was `@olai/web`'s
+ * `client/pins/target.test.ts` while the boot package still held a `pins/`
+ * directory of tests over an implementation that had already left. The seam is
+ * a PIN's, so the claim is this row's — and `@olai/bundle`'s `fence.test.ts`
+ * now reads an empty list where `@olai/web` used to name this package.
  */
 
 import { pinTargetIn } from "@olai/format"

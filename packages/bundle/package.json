@@ -67,6 +67,7 @@
     "@olai/web": "workspace:*",
     "@olai/ui-primitives": "workspace:*",
     "@olai/markdown-ui": "workspace:*",
-    "@olai/edit-history": "workspace:*"
+    "@olai/edit-history": "workspace:*",
+    "@olai/store": "workspace:*"
   }
 }

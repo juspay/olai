@@ -55,7 +55,7 @@
  * using. What it CANNOT do is move a file row somebody is already on.
  */
 
-import type { NodeHit } from "@olai/surface"
+import type { NodeHit } from "@olai/format"
 
 import { dirOf, folded, matchFiles, nameOf } from "@olai/web/client/file/matching.ts"
 /** How many rows the list offers — the eight every shortlist in this app shows

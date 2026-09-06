@@ -77,7 +77,7 @@
 import { createMemo, createSignal, For, Show } from "solid-js"
 import { chatWire } from "../wire.ts"
 
-import type { NodeHit } from "@olai/surface"
+import type { NodeHit } from "@olai/format"
 import type { SessionInfo } from "olai-plugin-chat/wire"
 import { type Grouped, groupedByAgent, nameOf } from "../chat/grouped.ts"
 import { AgentMark } from "../chat/AgentMark.tsx"

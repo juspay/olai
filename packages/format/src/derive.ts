@@ -153,7 +153,7 @@ export interface Derived {
    * reader here already spells nothing.
    *
    * It DOES claim every by-file grouping in the tree, which it did not when it
-   * shipped. Two of them — `publishedOf` in `@olai/server` and the pending walk
+   * shipped. Two of them — `changeOf` in `@olai/surface` and the pending walk
    * in `@olai/ops` — were parked here as staying, because each held an
    * `OutlineSet` and never derived, and reaching for this would have meant
    * building a whole derivation to group a corpus. Since slice 2 a snapshot

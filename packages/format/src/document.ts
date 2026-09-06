@@ -428,7 +428,7 @@ export const bodiedDocument = (file: string, text: string | null): Markdown | Un
  *
  * The one question the wire asks of this sum — a published entry carries a
  * document's text, and `null` means "served, and its body is not here"
- * (`@olai/server`'s `published.ts`, which has the argument). It is a function
+ * (`@olai/surface`'s `projection.ts`, which has the argument). It is a function
  * rather than a field so that the arms stay honest: an unkept file has no
  * `body` to be `null`, it has no body.
  */
@@ -446,7 +446,7 @@ export const isOutline = (document: Document): document is Outline =>
  *  beside {@link isOutline} rather than spelled as an inline `kind` test at each
  *  of its two askers — the LIST of them ({@link ./set.ts}'s `bodiedIn`) and the
  *  ONE-FILE question a projection asks of a path it was handed (`@olai/server`'s
- *  `published.ts`) — because a list and a membership test that came to disagree
+ *  `@olai/surface`'s `projection.ts`) — because a list and a membership test that came to disagree
  *  would be a collection whose keys and whose deltas were about different files. */
 export const isBodied = (document: Document): document is Markdown | Unkept =>
   document.kind !== "outline"

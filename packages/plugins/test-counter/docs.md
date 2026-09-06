@@ -2,8 +2,8 @@
 
 This maintained fixture is disabled in normal profiles. Its server owns an
 in-memory counter and two Surface procedures, requiring only the host's
-surface-registration capability. Its browser half supplies a tiny shell through
-`ui-renderer.root` and consumes its own wire. Neither entry imports a vault,
+surface-registration capability. Its browser half consumes `ui-renderer.slots`,
+supplies a tiny shell at `root` and consumes its own wire. Neither entry imports a vault,
 directory, outline, Markdown, navigation or application-layout implementation.
 
 Server activation owns the value; reactivation starts at zero. Browser root

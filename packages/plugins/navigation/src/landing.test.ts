@@ -22,13 +22,19 @@
  *   - **nothing to say is said with the same map**, because the signal these
  *     live on compares by identity and a fresh empty map would wake every pane
  *     to tell it nothing.
+ *
+ * IT SITS BESIDE `./landing.ts` NOW, and did not: routing became this row and
+ * the bench stayed in `@olai/web` as `client/landing.test.ts`, spelling
+ * `olai-plugin-navigation` three times from a package that is supposed to name
+ * no plugin at all. `@olai/bundle`'s `fence.test.ts` is where that equality is
+ * held, and it reads `[]` for every general package now.
  */
 
 import { describe, expect, test } from "bun:test"
 
-import { landingOf, landingsOf, marked, NOWHERE, spent } from "olai-plugin-navigation/landing"
-import { routeOf } from "olai-plugin-navigation/routes"
-import { lone, workspaceOf } from "olai-plugin-navigation/workspace"
+import { landingOf, landingsOf, marked, NOWHERE, spent } from "./landing.ts"
+import { routeOf } from "./routes.ts"
+import { lone, workspaceOf } from "./workspace.ts"
 
 /** A two-pane address whose panes both name a heading — the shape the whole
  *  per-pane rule exists for. */

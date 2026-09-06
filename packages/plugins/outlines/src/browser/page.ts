@@ -26,7 +26,7 @@ import type {
   Shown,
   TrashGroup,
 } from "@olai/format"
-import type { CorePageRequest } from "@olai/surface"
+import type { FiledPageRequest } from "@olai/format"
 
 import { atElement, type Route } from "olai-plugin-navigation/routes"
 
@@ -41,7 +41,7 @@ import { atElement, type Route } from "olai-plugin-navigation/routes"
  * door of its own (`./filter/asking.ts`), so a page reading that carried it
  * would re-ask the whole page on every keystroke.
  */
-export const requestFor = (route: Route): CorePageRequest | null => {
+export const requestFor = (route: Route): FiledPageRequest | null => {
   switch (route.kind) {
     case "at": {
       const address = route.address

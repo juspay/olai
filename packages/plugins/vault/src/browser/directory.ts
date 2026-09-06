@@ -4,7 +4,7 @@
  *
  * ONE subscription: the `heads` COLLECTION, keyed by root-relative path, one
  * entry per SERVED FILE carrying its revision, its face and whether it could be
- * read (`@olai/surface`'s `Head`). No records, no bodies, no derivation — the
+ * read (`../wire.ts`'s `Head`). No records, no bodies, no derivation — the
  * key set plus a title and a suffix each, which is what the sidebar's tree
  * draws and what every membership question in the app is asked of.
  *
@@ -135,7 +135,7 @@
  */
 
 import type { BrokenFile } from "@olai/format"
-import type { Head, Manifest } from "@olai/surface"
+import type { Head, Manifest } from "../wire.ts"
 import type { CollectionFold, CollectionFoldOptions } from "@kolu/surface/solid"
 import { type Accessor, createMemo } from "solid-js"
 

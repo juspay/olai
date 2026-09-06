@@ -5,7 +5,7 @@
  * line went blank for a file that had something to say.
  */
 
-import type { DocumentEntry } from "@olai/surface"
+import type { DocumentEntry } from "../../wire.ts"
 
 export type Served = DocumentEntry & {
   readonly text: string

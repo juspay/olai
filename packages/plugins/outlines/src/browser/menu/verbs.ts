@@ -46,7 +46,8 @@ import {
   type Situated,
   type Status,
 } from "@olai/format"
-import type { Edit, Shelf } from "@olai/surface"
+import type { Edit } from "@olai/surface"
+import type { Shelf } from "@olai/format"
 import { datePick } from "../date/pick.ts"
 import { repeatPick } from "../date/repeat.ts"
 import { type Relation, RELATIONS } from "../edges/relation.ts"

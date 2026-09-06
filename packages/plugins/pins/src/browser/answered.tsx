@@ -31,7 +31,7 @@
 
 import { createContext,createSignal,useContext } from "solid-js"
 
-import { NO_PINS,type Shelf } from "@olai/surface"
+import { NO_PINS, type Shelf } from "@olai/format"
 
 
 const ShelfContext = createContext<() => Shelf>()

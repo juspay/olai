@@ -10,7 +10,7 @@ import { join } from "node:path"
 import { capabilitiesOver } from "./capabilities.testlib.ts"
 import { bind } from "./runtime.ts"
 import { watchFault } from "./fault.ts"
-import { DocumentPageRequest, type CorePageReading } from "@olai/surface"
+import { DocumentPageRequest, type FiledPageReading } from "@olai/format"
 
 test("Markdown owns live frontmatter and missing-file metadata with outlines absent", () => Effect.gen(function*() {
   const root = mkdtempSync(join(tmpdir(),"olai-markdown-capability-"))
@@ -30,8 +30,8 @@ test("Markdown owns live frontmatter and missing-file metadata with outlines abs
   expect(wired.bound.handlers["surface/outlines/get"]).toBeUndefined()
   const get = wired.bound.handlers["surface/documentPage/get"]!
   const request = {kind:"at",address:addressOf("notes.md", null)}
-  const stream = get(request) as Stream.Stream<CorePageReading>
-  const frames = yield* Queue.unbounded<CorePageReading>()
+  const stream = get(request) as Stream.Stream<FiledPageReading>
+  const frames = yield* Queue.unbounded<FiledPageReading>()
   yield* Effect.forkScoped(Stream.runForEach(stream, frame => Queue.offer(frames,frame)))
   const first = yield* Queue.take(frames)
   expect(first).toMatchObject({shows:{kind:"document",props:{agent:"first"}}})
