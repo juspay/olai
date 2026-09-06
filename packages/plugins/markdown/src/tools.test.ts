@@ -11,7 +11,7 @@
  * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/surface-mcp-positions.md).
  *
  * OFF THE TABLE rather than off `Query.documents` directly: what an agent calls
- * is `markdown_map`, and the envelope between the two is exactly the part a
+ * is `markdown_index`, and the envelope between the two is exactly the part a
  * test against the function would not see.
  *
  * THE READS THAT REFUSE ARE NOT CALLED HERE: this walk decodes ANSWERS, and a
@@ -66,7 +66,7 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   // `.md` the set could not read is its errors and nothing else — matching
   // the outline arm — and the `.html` beside it is not in this answer at all:
   // nothing kept its body, so there is nothing to name or measure.
-  const documents = of("map")[0]?.["documents"] as ReadonlyArray<
+  const documents = of("index")[0]?.["documents"] as ReadonlyArray<
     Record<string, unknown>
   >
   expect(documents).toEqual([
@@ -95,6 +95,6 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
  *  have seen it is the model reading `tools/list`. */
 test("no tool describes itself with an escaped newline", () => {
   expect(escapedIn(tools)).toEqual([])
-  expect(paragraphsIn(tools, "map")).toBeGreaterThan(0)
+  expect(paragraphsIn(tools, "index")).toBeGreaterThan(0)
   expect(paragraphsIn(tools, "read")).toBeGreaterThan(0)
 })

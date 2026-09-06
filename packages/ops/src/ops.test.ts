@@ -453,7 +453,7 @@ test("creating an empty outline is a zero-byte file the sidebar can list", () =>
     })))
 
 // The published set is in LISTING order, which is path order — what
-// `outlines_map` answers with and what a search tie breaks on. A create is the
+// `outlines_index` answers with and what a search tie breaks on. A create is the
 // one write that can put a file at the FRONT of that order, and it is the case
 // where the gate's own candidate map disagrees with the listing: the candidate
 // is what the last probe held with the new path appended, so a file sorting
@@ -1267,7 +1267,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
    * write DID land: the revision is published, the file is on disk, the set
    * serves it, and — for the create verb — "try again" is now refused, the
    * file existing. So the sentence says so, names what the disk actually kept
-   * (in bytes — `markdown_map`' vocabulary), and points at `markdown_write`
+   * (in bytes — `markdown_index`' vocabulary), and points at `markdown_write`
    * as the way back.
    */
   describe("a document write whose bytes do not survive its window is refused, not reported", () => {
@@ -1526,7 +1526,7 @@ describe("delete, against a real directory", () => {
         })
         // One revision, one publication: THE GATE'S claim, at the place the
         // claim is made. The disk holds the path no longer, and the set the
-        // read gate hands anybody — the same value a `markdown_map` call
+        // read gate hands anybody — the same value a `markdown_index` call
         // answers with — holds it no longer either.
         expect(fixture.read("ideas.md")).toBeNull()
         expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(2)

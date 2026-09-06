@@ -366,7 +366,7 @@ export const isAsset = (path: string): boolean =>
  *
  * PLAIN TEXT, never rendered markdown, because both callers put it in a space
  * one line high: the web draws it in a row beside a `doc`-carrying node's
- * title, and `markdown_map` puts it in a listing beside the path. A heading,
+ * title, and `markdown_index` puts it in a listing beside the path. A heading,
  * a list or a fenced block drawn there would be a document pretending to be a
  * row.
  *

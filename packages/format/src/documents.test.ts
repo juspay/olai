@@ -263,7 +263,7 @@ test("a page, a picture, a pdf and the parts a page draws with are assets", () =
 // ── the line a document is named by ────────────────────────────────────
 //
 // Moved here with the rule itself, from `@olai/web`'s `document/preview.ts`,
-// when the agent's `markdown_map` wanted the same answer the browser's
+// when the agent's `markdown_index` wanted the same answer the browser's
 // `DocRef` draws.
 
 test("the first line is the first line with anything on it", () => {

@@ -3679,7 +3679,7 @@ const creatable = (raw: string, extension: string): string | null => {
   // Every segment above the file's own is a directory the serve's walk must be
   // willing to descend into. The walk prunes dot-directories and `node_modules`
   // (`@olai/store`'s listing), so a file under one is written and NEVER HELD —
-  // invisible to the set, to `markdown_map`, and to every reader. A mint
+  // invisible to the set, to `markdown_index`, and to every reader. A mint
   // there can only answer success for nothing, so it is refused here, where
   // the path is being judged anyway.
   for (const directory of segments.slice(0, -1)) {

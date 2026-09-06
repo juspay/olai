@@ -718,7 +718,7 @@ const OLAI_PREFIX = `${OLAI_DIR}/`
  * boards somebody keeps and not the shelf, the property declarations or a
  * watcher's knobs (`@olai/web`'s `chat/scopable.ts`, which argues why that is
  * still a drawing rule: what it leaves off a list it does not refuse). It is a
- * DRAWING rule and nothing more: search, the agents, `outlines_map`, the
+ * DRAWING rule and nothing more: search, the agents, `outlines_index`, the
  * trash page and the shelf read the same set either way, and so does the
  * doorbell once a file has been picked.
  *

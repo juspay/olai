@@ -18,7 +18,7 @@
  *
  * `./searching.ts` moved ONE of the four reads down here and argued it from a
  * drift that was live. These are the other three — the directory
- * (`outlines_map`), one node in full (`outlines_read`), and a node with everything
+ * (`outlines_index`), one node in full (`outlines_read`), and a node with everything
  * under it (`outlines_subtree`) — and they were **the last query answers with no
  * wire shape at all**: TypeScript interfaces in `@olai/ops`' `query.ts`, which
  * no surface can declare and no browser can be handed. They are moved BEFORE
@@ -207,7 +207,7 @@ const Unreadable = Schema.Struct({
  *
  * RENAMED at the move, for the reason the module header gives: `Outline` is
  * taken here and means one file's decoded NODES. This is the summary
- * `outlines_map` answers with, and the summary is what a map is: enough to
+ * `outlines_index` answers with, and the summary is what a map is: enough to
  * choose a file, nothing that would make listing a directory cost what reading
  * it does.
  *
@@ -268,7 +268,7 @@ export type OutlineAnswer = typeof OutlineAnswer.Type
  * race needs asks for it twice (roadmap `perf-capture-paths`).
  *
  * NOT A NARROWING OF {@link OutlineAnswer}, and not derived from one: the
- * listing keeps its counts and its roots, because `outlines_map` is what an
+ * listing keeps its counts and its roots, because `outlines_index` is what an
  * AGENT reads to choose a file and those are what it chooses by. This is a
  * second question with a smaller answer, which is what makes the two doors
  * honest — one costs the directory's records and says so, the other costs its
@@ -366,7 +366,7 @@ export type DocumentAnswer = typeof DocumentAnswer.Type
 export const DocumentRequest = Schema.Struct({
   file: Schema.String.annotate({
     description:
-      "Path of a document (`.md`) under the served directory, exactly as `markdown_map` lists it.",
+      "Path of a document (`.md`) under the served directory, exactly as `markdown_index` lists it.",
   }),
 })
 export type DocumentRequest = typeof DocumentRequest.Type
@@ -877,7 +877,7 @@ export const DEFAULT_SUBTREE_DEPTH = 3
  *
  * TWO WAYS IN, AND EXACTLY ONE PER CALL. A node is named by `id` and a file by
  * `file`, and the second is what makes an outline of N top-level roots one call
- * rather than N: `outlines_map` already says which files there are and what
+ * rather than N: `outlines_index` already says which files there are and what
  * each one's roots are CALLED, and until this there was no read that could
  * descend into more than one of them at a time.
  *
@@ -907,7 +907,7 @@ export const SubtreeRequest = Schema.Struct({
   file: Schema.optionalKey(
     Schema.String.annotate({
       description:
-        "An outline (`.olai`) under the served directory, exactly as `outlines_map` lists it. Reads the WHOLE file: every top-level node in it, each walked to `depth`. Give this or `id` — never both, never neither.",
+        "An outline (`.olai`) under the served directory, exactly as `outlines_index` lists it. Reads the WHOLE file: every top-level node in it, each walked to `depth`. Give this or `id` — never both, never neither.",
     }),
   ),
   depth: Schema.optionalKey(

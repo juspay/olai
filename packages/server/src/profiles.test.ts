@@ -28,8 +28,8 @@ for (const profile of ["web", "surface"] as const) {
         // #548: initialization and HTTP 200 succeeded, but the production
         // catalogue omitted inputSchema. The SDK validates every listed tool.
         const { tools } = await client.listTools()
-        expect(tools.map(tool => tool.name)).toContain("read_node")
-        const read = await client.callTool({ name: "read_node", arguments: { id: "a" } })
+        expect(tools.map(tool => tool.name)).toContain("outlines_read")
+        const read = await client.callTool({ name: "outlines_read", arguments: { id: "a" } })
         expect(read.isError).not.toBe(true)
         expect(JSON.stringify(read)).toContain("Discovered through MCP")
       } finally {

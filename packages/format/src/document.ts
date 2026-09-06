@@ -241,7 +241,7 @@ export type Outline = typeof Outline.Type
  *
  * `bytes` is what the body WEIGHS as UTF-8 — remembered here at decode so a
  * listing does not re-encode every served `.md` to report a size
- * (`markdown_map`, `@olai/ops`' `query.ts`). {@link ./documents.ts}'s
+ * (`markdown_index`, `@olai/ops`' `query.ts`). {@link ./documents.ts}'s
  * `bytesOf` is how it is measured; this is that answer given a field.
  *
  * `headings` is what makes a document ADDRESSABLE BELOW THE FILE, which is the

@@ -864,7 +864,7 @@ describe("the caller shapes the rows", () => {
 
 /**
  * A WHOLE OUTLINE IN ONE CALL — `outlines_subtree`'s second way in, and the reason
- * this item exists: `outlines_map` says which files there are and what their
+ * this item exists: `outlines_index` says which files there are and what their
  * roots are CALLED, and until this the only way down was one call per root.
  */
 describe("a whole outline, walked", () => {
@@ -897,7 +897,7 @@ describe("a whole outline, walked", () => {
     // BOTH roots, in the sibling order a reader sees them in — which is the
     // whole claim: two roots used to be two calls.
     expect(rootIds(answer)).toEqual(["today", "later"])
-    // …and each one walked, not merely named: `outlines_map` already answers
+    // …and each one walked, not merely named: `outlines_index` already answers
     // the titles.
     const answered = outlineOf(answer)
     expect(answered.roots[0]?.children.map((child) => child.id)).toEqual(["call"])
@@ -956,7 +956,7 @@ describe("a whole outline, walked", () => {
    * THE ONE PLACE THE TWO ANSWERS ABOUT ONE OUTLINE DIFFER, pinned so it is a
    * decision rather than something that happens.
    *
-   * `outlines_map` names a file's roots in the order the FILE writes them, and
+   * `outlines_index` names a file's roots in the order the FILE writes them, and
    * that is deliberate and has a case of its own ("the directory", below). This
    * walk answers in the TREE's order, `ord`, which is what a page draws and
    * what every `children` list in the same answer is in — a walk that ordered
@@ -1144,7 +1144,7 @@ describe("the directory", () => {
 /**
  * LISTING SIZES ≡ RECOMPUTE-FROM-BODY.
  *
- * `markdown_map` used to UTF-8-encode every served body on every call to
+ * `markdown_index` used to UTF-8-encode every served body on every call to
  * report a size the decode already knew. The size now lives on the document;
  * this is the gate that the remembered number is still the old answer, byte
  * for byte — including over multi-byte UTF-8, which is the case a

@@ -803,7 +803,7 @@ export const EmptyRequest = Schema.Struct({
   op: Schema.Literal("empty"),
   file: Schema.String.annotate({
     description:
-      "The trash this write empties — `_olai/Trash.olai`, root-relative, exactly as `outlines_map` spells it. Every record in it goes, the source-file signposts and ancestor-title scaffold included, and the file stays behind empty. A leftover `Archive.olai` is not the trash and is refused. Refused for an outline that is not the trash, for one the set does not hold, for a trash that holds nothing, and while anything outside it still points into it — naming what to re-point first.",
+      "The trash this write empties — `_olai/Trash.olai`, root-relative, exactly as `outlines_index` spells it. Every record in it goes, the source-file signposts and ancestor-title scaffold included, and the file stays behind empty. A leftover `Archive.olai` is not the trash and is refused. Refused for an outline that is not the trash, for one the set does not hold, for a trash that holds nothing, and while anything outside it still points into it — naming what to re-point first.",
   }),
   was: Schema.optionalKey(
     Schema.Int.annotate({

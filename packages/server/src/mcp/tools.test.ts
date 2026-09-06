@@ -359,7 +359,7 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "git_commit",
       "git_push",
       "markdown_create",
-      "markdown_map",
+      "markdown_index",
       "markdown_read",
       "markdown_write",
       "outlines_add",
@@ -371,7 +371,7 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "outlines_doing",
       "outlines_done",
       "outlines_duplicate",
-      "outlines_map",
+      "outlines_index",
       "outlines_merge",
       "outlines_mirror",
       "outlines_move",
@@ -406,9 +406,9 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
     // fence rather than a formality. Effect compiles `Schema.Struct({})` to
     // `anyOf: [object, array]`, which the adapter reads as a non-object input
     // and advertises wrapped under a `value` property — after which every call
-    // is refused with "Expected object | array". `outlines_map` is the first
+    // is refused with "Expected object | array". `outlines_index` is the first
     // call an agent makes, so that bug is the whole capture flow.
-    const list = tools.find((tool) => tool.name === "outlines_map")
+    const list = tools.find((tool) => tool.name === "outlines_index")
     expect(list?.inputSchema).toMatchObject({ type: "object", properties: {} })
     expect(JSON.stringify(list?.inputSchema)).not.toContain(`"value"`)
   })
@@ -519,7 +519,7 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
     // the caller at `outlines_read`.
     expect(said("outlines_subtree")).toContain("on its row")
     // …and that it reads a whole OUTLINE, which is the only way an agent finds
-    // out: `outlines_map` names the roots of a file and this is what descends
+    // out: `outlines_index` names the roots of a file and this is what descends
     // into all of them at once. A tool nobody is told about is a tool nobody
     // calls, and the fallback — one call per root — looks like it works.
     expect(said("outlines_subtree")).toContain("`file`")
@@ -570,7 +570,7 @@ test("both annotation hints are pinned, for a read and for a write", async () =>
     expect(of("outlines_subtree")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
     // The two document reads are reads on the same terms — neither touches
     // the disk, both answer out of the served snapshot.
-    expect(of("markdown_map")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
+    expect(of("markdown_index")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
     expect(of("markdown_read")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
     expect(of("outlines_done")).toMatchObject({ readOnlyHint: false, destructiveHint: true })
     expect(of("outlines_trash")).toMatchObject({ readOnlyHint: false, destructiveHint: true })
@@ -602,7 +602,7 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
     // this row's four verbs are offered, and that they are what makes the "no
     // file access" sentence above one this face would disprove.
     expect(tools.map((tool) => tool.name).filter((name) => name.startsWith("markdown_")).sort())
-      .toEqual(["markdown_create", "markdown_map", "markdown_read", "markdown_write"])
+      .toEqual(["markdown_create", "markdown_index", "markdown_read", "markdown_write"])
 
     // THE SAME PIN, ONE UNIT ALONG. `trash_empty` empties `_olai/Trash.olai`
     // and `files_delete` removes a file, so an enumeration that stopped at
@@ -839,7 +839,7 @@ test("`fields` with an unknown name refuses, through the wire, saying `usage`", 
 //
 // The read side catching up with the write side. `outlines_add` takes a nested
 // capture and `apply` a run of verbs, so a subtree is one write — but an
-// outline of N top-level roots had NO single-call read: `outlines_map` named
+// outline of N top-level roots had NO single-call read: `outlines_index` named
 // the roots and `outlines_subtree` took an id, so reading a file whole was one call
 // per root. These are that gap closed, through the client an agent uses.
 
@@ -870,7 +870,7 @@ test("outlines_subtree answers a whole outline — every root, one call", async 
     expect(
       ((answered.structured["placed"] ?? []) as ReadonlyArray<{ id: string }>).map((entry) => entry.id),
     ).toEqual(["echo"])
-    // …and walked rather than merely named, which is what `outlines_map`
+    // …and walked rather than merely named, which is what `outlines_index`
     // already does.
     const children = roots[0]?.["children"] as ReadonlyArray<Record<string, unknown>>
     expect(children.map((child) => child["id"])).toEqual(["call"])
@@ -979,7 +979,7 @@ test("outlines_subtree refuses an outline the set could not load", async () => {
     async ({ client }) => {
       // It is LISTED — the directory serves it — carrying its own errors and
       // nothing else: a count and a root list are what a parse produces.
-      const listed = (await call(client, "outlines_map", {})).structured["outlines"] as
+      const listed = (await call(client, "outlines_index", {})).structured["outlines"] as
         ReadonlyArray<Record<string, unknown>>
       expect(listed.find((one) => one["file"] === "torn.olai")).toEqual({
         file: "torn.olai",
@@ -1091,9 +1091,9 @@ const VAULT = {
 // would be a body olai reads for a reader to LOOK at rather than one an edit is
 // judged against. Both reads narrow through `markdownIn`/`markdownAt`
 // (`@olai/format`'s set), which is one place rather than a filter per verb.
-test("markdown_map is the map of the other kind of file", async () => {
+test("markdown_index is the map of the other kind of file", async () => {
   await withTools(VAULT, async ({ client }) => {
-    const answered = await call(client, "markdown_map", {})
+    const answered = await call(client, "markdown_index", {})
     expect(answered.isError).toBe(false)
     // Paths in the set's own order, each with the line it opens with and what
     // its text weighs. The heading marks are off the first — `# Finishes` is a
@@ -1178,7 +1178,7 @@ test("files_delete removes a document, and the listing closes over it", async ()
     // it — which is the claim a caller may not want to check by hand: one
     // write, one publication.
     expect(read("notes/scratch.md")).toBeNull()
-    const answered = await call(client, "markdown_map", {})
+    const answered = await call(client, "markdown_index", {})
     expect(
       (answered.structured["documents"] as ReadonlyArray<{ file: string }>)
         .map((document) => document.file),
@@ -1326,7 +1326,7 @@ test("a document the set could not read is refused, not answered empty", async (
     async ({ client }) => {
       // It is LISTED — the directory serves it — carrying its errors and
       // nothing else: a title and a size are what a read produces.
-      const listed = (await call(client, "markdown_map", {})).structured["documents"] as
+      const listed = (await call(client, "markdown_index", {})).structured["documents"] as
         ReadonlyArray<Record<string, unknown>>
       expect(listed.find((one) => one["file"] === "torn.md")).toEqual({
         file: "torn.md",
@@ -2155,9 +2155,9 @@ test("both capture tools advertise children as a finite nested schema, no $ref",
   })
 })
 
-test("outlines_map then outlines_add — the capture sequence an agent actually runs", async () => {
+test("outlines_index then outlines_add — the capture sequence an agent actually runs", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    const listed = (await call(client, "outlines_map", {})).structured
+    const listed = (await call(client, "outlines_index", {})).structured
 
     const outlines = listed["outlines"] as ReadonlyArray<{ file: string }>
     expect(outlines[0]?.file).toBe("house.olai")
@@ -3032,8 +3032,8 @@ test("every read answers with its age, and a look that agreed says so", async ()
         ["outlines_read", { id: "kitchen" }],
         ["outlines_subtree", { id: "kitchen" }],
         ["markdown_read", { file: "notes/cabinets.md" }],
-        ["outlines_map", {}],
-        ["markdown_map", {}],
+        ["outlines_index", {}],
+        ["markdown_index", {}],
         ["search_nodes", { text: "cabinets" }],
       ] as ReadonlyArray<readonly [string, Record<string, unknown>]>) {
         const answered = await call(client, tool, args)

@@ -2597,7 +2597,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
 
   if (verb === "add") {
-    const outlines = await callMcp("tools/call", { name: "outlines_map", arguments: {} })
+    const outlines = await callMcp("tools/call", { name: "outlines_index", arguments: {} })
     const listed = (outlines["structuredContent"] as
       | { outlines?: ReadonlyArray<{ file: string }> }
       | undefined)?.outlines ?? []

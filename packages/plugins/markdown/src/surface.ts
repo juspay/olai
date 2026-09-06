@@ -59,7 +59,7 @@ streams: {
      * THE BROWSER'S ALONE ({@link faces} below), like the two readings
      * above and for their reason: what comes back is a screen — rows with their
      * fold keys, a rollup, the blockers a checkbox draws. An agent asking what
-     * an outline holds asks `outlines_map` and `outlines_subtree`, and is answered
+     * an outline holds asks `outlines_index` and `outlines_subtree`, and is answered
      * in nodes.
      */
     documentPage: { inputSchema: DocumentPageRequest, outputSchema: FiledPageReading, arrayKey: "key" }
@@ -67,7 +67,7 @@ streams: {
 procedures: {
 edit: editProcedures,
 ops: { /**
-   * Every document under the served directory — what `markdown_map`
+   * Every document under the served directory — what `markdown_index`
    * answers. No input, for {@link outlines}' reason: a directory is not a
    * question with parameters.
    *

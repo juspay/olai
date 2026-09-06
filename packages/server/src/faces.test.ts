@@ -364,7 +364,7 @@ test("the screen-shaped readings are the browser's, and the agent is answered in
     // Each of these answers a SCREEN rather than a fact, and the agent has the
     // node-shaped question instead. `page` is the sharpest: rows carrying the
     // fold keys of the places they are drawn at, a rollup beside a checkbox, the
-    // titles of the ids those rows point at — an agent asks `outlines_map` and
+    // titles of the ids those rows point at — an agent asks `outlines_index` and
     // `outlines_subtree` and is answered in NODES, which is what it can act on.
     // `narrowing` and `searchResults` answer a set of ids and why, useful only to
     // somebody already looking at the rows those ids name; `tagCompletions` and

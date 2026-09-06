@@ -4,7 +4,7 @@
  * These cases were `@olai/ops`' `query.test.ts` and they travelled with the
  * function they are about ({@link ./matcher.ts}, which was `Query.search`).
  * That file keeps every case about what a READ of the set answers — `outlines_read`,
- * `outlines_subtree`, `outlines_map`, the narrowing over one page — and what is
+ * `outlines_subtree`, `outlines_index`, the narrowing over one page — and what is
  * here is every case about the ranked, capped, situated answer this row stands
  * behind.
  *

@@ -26,7 +26,7 @@ cells: {
      * question, free to disagree by a frame.
      *
      * THE BROWSER'S ALONE ({@link faces} below): an agent asking
-     * what the inbox holds asks `outlines_map` and is answered with the
+     * what the inbox holds asks `outlines_index` and is answered with the
      * nodes. A badge is a paint instruction for a door somebody is looking
      * at.
      */
@@ -78,7 +78,7 @@ export const faces = {
     //
     // The browser's alone, and trivially inside the cost rule
     // (`@olai/surface/host`'s `hostFaces`). An agent asking what the inbox
-    // holds asks `outlines_map` and is answered with the nodes; a badge is a
+    // holds asks `outlines_index` and is answered with the nodes; a badge is a
     // paint instruction for a door somebody is looking at.
     "inbox": "resource",
     "edit.apply": "tool"

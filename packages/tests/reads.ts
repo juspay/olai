@@ -57,7 +57,7 @@ const agent = await connectTerminalAgent(`${BASE}/mcp`)
 say("the map: which outlines there are, and what their roots are CALLED")
 // The call that names the roots and cannot descend into them. Two of them here,
 // which used to mean two more calls.
-await call(agent, "outlines_map", {})
+await call(agent, "outlines_index", {})
 
 say("(a) the WHOLE outline, in one call")
 await call(agent, "outlines_subtree", { file: "plan.olai" })

@@ -429,9 +429,10 @@ export interface Sibling {
    *
    * ABSENT ON MOST ROWS, and that is the ordinary case rather than an omission:
    * a row whose whole agent face is verbs publishes nothing addressable. It is
-   * still a sibling of the served bundle — its `tools` ride the same entry, and
-   * that is what makes a verb leave with the row that brought it — with an
-   * empty map beside them saying it has no addresses to give.
+   * still a sibling of the served bundle — EVERY standing row is, whatever it
+   * declares — because its `tools` ride the same entry and that is what makes a
+   * verb leave with the row that brought it. An empty map beside them says it
+   * has no addresses to give.
    *
    * IT WAS `@olai/bundle`'s `MCP`, one flat map naming three rows' members from
    * a package none of them could edit, resolved against one flat aggregate

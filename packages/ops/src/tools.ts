@@ -170,7 +170,7 @@ interface Described {
  * the walks.
  */
 export interface Asking {
-  /** Every outline under the served directory — `outlines_map`. */
+  /** Every outline under the served directory — `outlines_index`. */
   readonly outlines: Effect.Effect<OutlineAnswer, OpFailure>
   /**
    * The outline PATHS of that same directory, and no tool at all: this is the
@@ -199,7 +199,7 @@ export interface Asking {
   readonly search: (
     request: SearchRequest,
   ) => Effect.Effect<SearchAnswer, OpFailure>
-  /** Every document under the served directory — `markdown_map`. The other
+  /** Every document under the served directory — `markdown_index`. The other
    *  kind of file, listed the way the outlines are. */
   readonly documents: Effect.Effect<DocumentAnswer, OpFailure>
   /** One document, whole — `markdown_read`. The only read here that REFUSES a
@@ -506,7 +506,7 @@ export const landed = <A>(call: Effect.Effect<A, unknown>): Effect.Effect<A, OpF
  *  too, for the same reason with the same nothing to ask.
  *
  *  EXPORTED because the three that read it are now in three different rows —
- *  `outlines_map` in outlines, `markdown_map` in markdown, `git_push` in git —
+ *  `outlines_index` in outlines, `markdown_index` in markdown, `git_push` in git —
  *  and three rows each spelling `Schema.Struct({})` is three empty structs free
  *  to stop being the same one. It is grammar rather than vocabulary, so it stays
  *  here with the constructors. */

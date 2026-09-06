@@ -80,12 +80,12 @@ export const at = (): Reading => readingOf(EVERYTHING())
  *
  * A row's own table declares the verb RELATIVE to the row (`list`, `read`), and
  * composition puts the row in front (juspay/kolu#2234) — so `list` alone is
- * three different reads here (`outlines_map`, `markdown_map`) and a flat map
+ * three different reads here (`outlines_index`, `markdown_index`) and a flat map
  * keyed by the declared word could not hold them. The walkers below take the
  * row and compose the key, which is the same composition the served face makes.
  */
 export const CALLS: Record<string, ReadonlyArray<unknown>> = {
-  outlines_map: [{}],
+  outlines_index: [{}],
   search_nodes: [
     { text: "hall" },
     { text: "is:open" },
@@ -119,7 +119,7 @@ export const CALLS: Record<string, ReadonlyArray<unknown>> = {
     { id: "house", fields: ["title", "status", "done"] },
     { file: "house.olai", depth: 1, fields: ["title", "status", "custom"] },
   ],
-  markdown_map: [{}],
+  markdown_index: [{}],
   // The reads that REFUSE are not called here: this walk decodes ANSWERS, and
   // a refusal has none. What `markdown_read` says about a path the set does not
   // hold — and what `outlines_subtree` says about one, and about a call naming both
@@ -152,7 +152,7 @@ export const uncalled = (tools: ReadonlyArray<Tool>, row: string): ReadonlyArray
  * WHICH TOOLS DESCRIBE THEMSELVES WITH AN ESCAPED NEWLINE — over a row's whole
  * table, because the way this breaks is per-description and silent.
  *
- * `markdown_map` and `markdown_read` shipped to review with `\\n\\n` in their
+ * `markdown_index` and `markdown_read` shipped to review with `\\n\\n` in their
  * descriptions: two characters, a backslash and an `n`, where every other entry
  * has a real paragraph break. Nothing catches that. It compiles, the prose
  * assertions elsewhere still pass (they look for words, not shape), and the only

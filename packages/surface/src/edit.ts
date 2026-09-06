@@ -713,7 +713,7 @@ export const Edit = Schema.Union([
    * two piles refuse in one order and plan in the other, and refuse both ways
    * round when they name each other. Nothing an agent cannot send: the op takes
    * the list, and an agent emptying a whole directory makes the same two moves
-   * by hand (`outlines_map`, then the call). What the browser is spared is the
+   * by hand (`outlines_index`, then the call). What the browser is spared is the
    * READING, not an op — quick capture's sentence, a page over.
    *
    * WHAT IT DOES CARRY is the number the confirm showed, and only that

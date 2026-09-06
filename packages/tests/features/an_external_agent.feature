@@ -173,7 +173,7 @@ Feature: An agent olai did not start
     # The read side catching up with the write side. `outlines_add` takes a whole
     # nested capture and `apply` a run of verbs, so a subtree is ONE write —
     # but an outline of N top-level roots had no single-call read at all:
-    # `outlines_map` named the roots and `outlines_subtree` took an id, so reading
+    # `outlines_index` named the roots and `outlines_subtree` took an id, so reading
     # a file whole was one call per root. Here the agent gives the outline a
     # second root and then reads the file: both come back, walked, in one
     # answer.

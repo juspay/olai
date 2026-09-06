@@ -276,7 +276,7 @@ const verb = (
     title: tool.title,
     description: tool.description,
     // Conservative where it matters and honest where it does not: only the six
-    // query tools are read-only (`outlines_map`, `markdown_map`,
+    // query tools are read-only (`outlines_index`, `markdown_index`,
     // `outlines_read`, `outlines_subtree`, `markdown_read`, `search_nodes`), and
     // `readOnlyHint` is what can let a host run a call unconfirmed. Everything
     // else is left mutating.
@@ -427,7 +427,7 @@ const doorOver = (bundle: RootedSurfaceClients, rows: () => ReadonlyArray<Row>, 
  * type, so the adapter's "is this an object?" test says no and advertises the
  * input WRAPPED under a single `value` property — after which dispatch unwraps
  * `args.value`, finds nothing, and every call of a no-argument tool is refused
- * with "Expected object | array". `outlines_map` is that tool, and it is the
+ * with "Expected object | array". `outlines_index` is that tool, and it is the
  * first call an agent makes. An absent `input` is the honest spelling anyway: a
  * tool that takes nothing has no argument schema, and the adapter advertises it
  * as the empty object MCP wants.
@@ -511,7 +511,7 @@ const answer = (
  * IT USED TO ASK FOR THE LISTING and drop everything but the file names, which
  * is the whole corpus materialised per capture — and the retry above means
  * twice. `ops.paths` is the same question without the records
- * (`perf-capture-paths`); the listing is still what `outlines_map` answers,
+ * (`perf-capture-paths`); the listing is still what `outlines_index` answers,
  * counts and all.
  */
 const planned = (

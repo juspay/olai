@@ -955,7 +955,7 @@ const armOf = (
  * would be a second place the depth default, the mirror rule and the
  * `truncated` flag are decided.
  *
- * WHY THE FILE ARM EXISTS AT ALL. `outlines_map` says which outlines there are
+ * WHY THE FILE ARM EXISTS AT ALL. `outlines_index` says which outlines there are
  * and what each one's roots are CALLED, and until this the only way DOWN was by
  * id — so an outline of N top-level roots cost N calls, one per root, each
  * answering a fraction of a file the reader was asking about whole. The write
@@ -1223,7 +1223,7 @@ export const outlines = (
  * resolution throws away. On a vault that is the whole corpus materialised per
  * capture, and twice when the capture race makes the resolver read again
  * (roadmap `perf-capture-paths`). The listing keeps those counts, because
- * `outlines_map` is read by an agent CHOOSING a file; this door is for the one
+ * `outlines_index` is read by an agent CHOOSING a file; this door is for the one
  * that already knows what it is looking for.
  *
  * THE SET ALONE, no derivation, which is the whole shape of the saving: the
@@ -1304,7 +1304,7 @@ export const document = (
   const entry = markdownAt(set, file)
   if (entry === undefined) {
     return Result.fail(
-      noSuchDocument(set, file, "`markdown_map` says what is"),
+      noSuchDocument(set, file, "`markdown_index` says what is"),
     )
   }
   const broken = brokenIn(set, file)

@@ -159,7 +159,7 @@ export type Capturing = Omit<Capture, "after" | "mark">
  * palette's `⌘K` `+` sends a line, the `capture` TOOL sends one from an agent
  * or from `olai surface capture`, and an agent that would rather aim reads the
  * outlines and calls `outlines_add` or `files_create` itself (which is why
- * `outlines_map` says the convention in words — the one door that is handed
+ * `outlines_index` says the convention in words — the one door that is handed
  * the rule rather than the function). The first two resolve through THIS, and
  * that is the whole reason
  * it is here rather than in whichever face happened to need it first: it is a

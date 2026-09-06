@@ -31,7 +31,8 @@ export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effe
     bespokeFrom(row.name, row.tools as ReadonlyArray<Tool>, rows, {
       ...policy, get root() { return policy.root }, login: currentLogin, fenced: policy.fenced,
     }))
-  const served = yield* serveFace({ siblings: bundle(), client: policy.client, transport })
+  const booted = bundle()
+  const served = yield* serveFace({ siblings: booted, client: policy.client, transport })
   /**
    * THE ROSTER, FOLLOWED IN PLACE.
    *
@@ -61,9 +62,27 @@ export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effe
    * longer has is precisely the silent-wrong-answer this whole change is about.
    */
   let moving: Promise<unknown> = Promise.resolve()
+  /** The roster the adapter is currently serving, as names — see the guard. */
+  let applied = Object.entries(booted).map(([key, one]) =>
+    `${key}:${Object.keys(one.tools ?? {}).sort().join(",")}`).sort().join("|")
   yield* Effect.acquireRelease(
     Effect.sync(() => shared.agentRosterMoved(() => {
-      moving = moving.then(() => served.reroster(bundle())).catch((thrown: unknown) => {
+      moving = moving.then(() => {
+        const next = bundle()
+        // NOTHING MOVED, NOTHING TO APPLY. The bell rings on every recompose,
+        // and most recomposes do not touch the agent's roster — a browser-only
+        // row arriving, a service offer changing. Six identical rerosters at
+        // boot is what that looked like before this line, and each one re-runs
+        // the composition, re-dials `client()` and sends both `list_changed`
+        // notifications: a host told four times that a list it has not seen
+        // change has changed. Keyed on the sibling names and their verbs, which
+        // is exactly what the adapter serves out of the bundle.
+        const now = Object.entries(next).map(([key, one]) =>
+          `${key}:${Object.keys(one.tools ?? {}).sort().join(",")}`).sort().join("|")
+        if (now === applied) return undefined
+        applied = now
+        return served.reroster(next)
+      }).catch((thrown: unknown) => {
         Effect.runFork(Effect.logWarning(`mcp: the agent face kept its previous roster — ${String(thrown)}`))
       })
     })),
@@ -87,7 +106,7 @@ const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
  *
  * **IT SAID "there is no file access" UNTIL THIS PR, AND THAT HAD STOPPED
  * BEING TRUE.** `md-editing` added `markdown_create` and `markdown_write` —
- * verbs whose subject is a file — and the read half (`markdown_map`,
+ * verbs whose subject is a file — and the read half (`markdown_index`,
  * `markdown_read`) is what makes the pair usable at all. A charter an agent is
  * handed at `initialize` and can disprove with its second tool call is worse
  * than no charter: what it teaches next is that the rest of this text is

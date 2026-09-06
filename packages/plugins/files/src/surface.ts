@@ -19,7 +19,7 @@ ops: { /**
    * the directory's records and paid twice when the race made it resolve again
    * (roadmap `perf-capture-paths`).
    *
-   * WHY NOT A NARROWED {@link outlines}: `outlines_map` is what an agent reads
+   * WHY NOT A NARROWED {@link outlines}: `outlines_index` is what an agent reads
    * to CHOOSE a file, and the counts and roots are what it chooses by. Two
    * questions, two answers, each costing what it says.
    *

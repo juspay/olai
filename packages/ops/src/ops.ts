@@ -291,7 +291,7 @@ export interface Ops extends Asking {
    * HERE RATHER THAN ON {@link Asking} for {@link dated}'s reason, and it is
    * the sharpest instance of it: what comes back is a SCREEN — rows carrying
    * their own fold keys, a rollup beside a checkbox, the blockers a mark draws.
-   * An agent asking what an outline holds asks `outlines_map` and
+   * An agent asking what an outline holds asks `outlines_index` and
    * `outlines_subtree` and is answered in nodes, which is the thing it can act on.
    *
    * ONE MEMBER for seven routes, because they are one question asked with

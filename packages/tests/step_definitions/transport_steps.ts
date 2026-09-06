@@ -68,7 +68,7 @@ Then("the MCP vault can read an outline", async function (this: OlaiWorld) {
   const response = await fetch(new URL("/mcp", this.baseUrl), {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: {
-      name: "outlines_map", arguments: {},
+      name: "outlines_index", arguments: {},
     } }), signal: AbortSignal.timeout(10000),
   });
   const result = (await response.json()).result;

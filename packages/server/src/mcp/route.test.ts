@@ -288,7 +288,7 @@ test("tools/list and a resource read answer over the same POST", async () => {
       result?: { tools?: ReadonlyArray<{ name: string }> }
     }).result?.tools ?? []
     expect(tools.map((tool) => tool.name)).toContain("outlines_done")
-    expect(tools.map((tool) => tool.name)).toContain("outlines_map")
+    expect(tools.map((tool) => tool.name)).toContain("outlines_index")
 
     const read = await post({
       jsonrpc: "2.0",

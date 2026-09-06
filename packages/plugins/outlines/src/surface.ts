@@ -215,7 +215,7 @@ edit: editProcedures,
         error: OpFailure,
       },
     },
-ops: { /** Every outline under the served directory — what `outlines_map` answers.
+ops: { /** Every outline under the served directory — what `outlines_index` answers.
    *  No input: the question has no parameters, and a `Schema.Struct({})` would
    *  be an empty object a caller has to spell. */
   outlines: { output: OutlineAnswer, error: OpFailure },
@@ -326,7 +326,7 @@ export const faces = {
     // WHAT A SCREEN IS — rows carrying the fold keys of the places they are
     // drawn at, a rollup beside a checkbox, the blockers a mark draws, and the
     // titles of the ids those rows point at. The browser's alone: an agent
-    // asking what an outline holds asks `outlines_map` and `outlines_subtree` and
+    // asking what an outline holds asks `outlines_index` and `outlines_subtree` and
     // is answered in NODES, which is what it can act on and what none of this
     // is.
     "page": "resource",

@@ -89,7 +89,7 @@ test("every answer decodes through the shape its own entry declares", () => {
 test("the fixture reaches every optional field, so the check is not vacuous", () => {
   const of = answers()
 
-  const outlines = of("map")[0]?.["outlines"] as ReadonlyArray<
+  const outlines = of("index")[0]?.["outlines"] as ReadonlyArray<
     Record<string, unknown>
   >
   // Two rows, one of each kind: a file that parsed is a count and its roots,
@@ -179,9 +179,9 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
  *  over this row's whole table rather than over one closed list, since there is
  *  no closed list any more. The paragraph check beside it is the other half of
  *  the same claim: a description with neither spelling would pass the ban by
- *  saying nothing, and `outlines_map` is the tool the two `.md` listings were
+ *  saying nothing, and `outlines_index` is the tool the two `.md` listings were
  *  written against. */
 test("no tool describes itself with an escaped newline", () => {
   expect(escapedIn(tools)).toEqual([])
-  expect(paragraphsIn(tools, "map")).toBeGreaterThan(0)
+  expect(paragraphsIn(tools, "index")).toBeGreaterThan(0)
 })

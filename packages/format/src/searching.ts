@@ -147,7 +147,7 @@ export type NodeHit = typeof NodeHit.Type
 export const DocumentHit = Schema.Struct({
   at: AtDocument,
   /** What the document is called: its own face's title, so this row, the
-   *  palette, `markdown_map` and the page's own heading say one name. */
+   *  palette, `markdown_index` and the page's own heading say one name. */
   title: Schema.String,
   /** Which of `./filter.ts`'s three document fields carried the strongest
    *  match — ABSENT for a query that named no words, on {@link NodeHit}'s own

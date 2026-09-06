@@ -140,7 +140,7 @@ const NO_NODES: ReadonlyArray<Located> = []
  *
  * IN PATH ORDER ({@link ./paths.ts}'s `byPath`), and it sorts for itself rather
  * than inheriting that from whoever built the map. {@link OutlineSet.documents}
- * promises it and every reader spends it: `outlines_map` answers in it, a
+ * promises it and every reader spends it: `outlines_index` answers in it, a
  * search tie breaks on it, the sidebar draws it. Until #208 the promise held
  * only because the one caller in the tree walks a directory in sorted order —
  * so a caller that built its map any other way got a set that broke the
