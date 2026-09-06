@@ -274,7 +274,7 @@ export type NodeKind = {
  *
  * One question, asked by the two ends of the body wire: the server, which reads
  * a body for whoever is holding one open (`@olai/server`'s `bodies.ts`), and
- * the revision that says which paths are owed one (`olai-plugin-markdown`'s `wire.ts`). A `.pdf`
+ * the revision that says which paths are owed one (`olai-plugin-markdown`'s `projection.ts`). A `.pdf`
  * announced as a body somebody could ask for would be a promise to hand back a
  * megabyte of binary decoded as UTF-8, which is not the file and not an error
  * either.

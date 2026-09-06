@@ -443,7 +443,7 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
   ))
 
 /**
- * The birth-announce edge, closed by the same change (`olai-plugin-markdown`'s `wire.ts`).
+ * The birth-announce edge, closed by the same change (`olai-plugin-markdown`'s `projection.ts`).
  *
  * A reader may hold a `get` open on a key the directory does not hold yet — the
  * framework allows it, and a file appearing is what used to leave such a reader
@@ -465,7 +465,7 @@ test("a reader holding a key across a file's birth is handed the body", () =>
 
       // TWO frames, in this order: the upsert that says the collection has a new
       // key (which cannot carry a body — nothing has read one), and the body
-      // read for the reader holding it. That order is `olai-plugin-markdown`'s `wire.ts`'s
+      // read for the reader holding it. That order is `olai-plugin-markdown`'s `projection.ts`'s
       // holder-across-birth contract, and this connector's apply-then-unread.
       expect(yield* open.take).toEqual({ rev: 2, text: null, refused: false })
       expect(yield* open.take).toEqual({

@@ -408,7 +408,7 @@ export function Hypertext(props: { readonly file: string }) {
   // WHICH REVISION THIS FILE IS AT, which is the whole of what this component
   // asks the wire for — the effect at the bottom is what spends it. A number,
   // off the one stream the tab's file list already arrives on
-  // (`@olai/surface`'s `Head`), and never the body: the body is what the frame
+  // (`olai-plugin-vault`'s `Head`), and never the body: the body is what the frame
   // below fetches for itself, over HTTP, which is the point of all this.
   //
   // A MEMO over it, because the head is one ENTRY of a collection and the
@@ -1008,7 +1008,7 @@ export function Hypertext(props: { readonly file: string }) {
   // WHAT ASKING COSTS, named rather than hidden: a path and an integer, off a
   // stream the sidebar's file list is already arriving on. Why that member
   // exists, and what it replaced, is written where it is declared
-  // (`@olai/surface`'s `Head`).
+  // (`olai-plugin-vault`'s `Head`).
   //
   // IT IS ALSO NOT BOUNDED, which is the part that belongs here because it is
   // a fact about THIS frame and nothing else: a head moves on every revision,

@@ -302,6 +302,20 @@ type Door = ReturnType<typeof graphFrom>
  *     `check-kolu-deps.sh` used to make about a `-client`, held here about the
  *     door that would ship it to a reader.
  *
+ * `@olai/surface/projection` IS on it, and the entry is the whole of a split
+ * this fence could not otherwise see. A row's ENTRY SCHEMA crosses to the
+ * browser — `./surface.ts` declares its member with it, and the browser loads
+ * the spec — while the PROJECTION that builds one is the server reading a
+ * revision, and reaches `@olai/format`'s set readers to do it. The two lived
+ * in one `wire.ts` for exactly one commit, which put four hundred lines of
+ * slicing machinery no tab can call onto all three content chunks, and
+ * nothing here went red: the door was a declared contract, the module has no
+ * `node:` import and no side effect, and dead weight is not something an e2e
+ * scenario can see. So the split is by GRAPH rather than by subject —
+ * `olai-plugin-*/wire` is inert and `olai-plugin-*/projection` is the
+ * server's — and this line is what holds it, because a value re-exported back
+ * into a wire door would otherwise pass forever.
+ *
  * `@olai/format` is NOT on this list, and its absence is a measured decision
  * rather than an oversight: odu's chip reads the vault's own file-kind words to
  * decide what a run is about, so the format is on that chunk today and is
@@ -314,6 +328,7 @@ const NOT_IN_A_TAB = [
   /^node:/,
   /^@odu\//,
   /^@kolu\/padi-client(\/|$)/,
+  /^@olai\/surface\/projection$/,
 ] as const
 
 /**

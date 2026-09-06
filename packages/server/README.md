@@ -58,7 +58,7 @@ The tests that DRIVE these behaviours through a real composed server stayed here
 | what was here | where it is now | what still tests it here |
 |---|---|---|
 | `edit.ts` — what a keystroke meant, in terms of ops | `@olai/edit-intents`, with the vocabulary in `packages/surface/src/edit.ts` | `edit.test.ts` |
-| `published.ts` — one revision cut into per-file entries | split three ways, because the three collections it built are three rows' members now: the RULE is `packages/surface/src/projection.ts` (`frame` and `changeOf`, which name no collection), and each row builds its own out of it — `olai-plugin-outlines`' `wire.ts`, `olai-plugin-markdown`'s, `olai-plugin-vault`'s. The differential that holds them up went to `packages/bundle/src/published.testlib.ts`, where all three rows are in view | — |
+| `published.ts` — one revision cut into per-file entries | split three ways, because the three collections it built are three rows' members now: the RULE is `packages/surface/src/projection.ts` (`frame` and `changeOf`, which name no collection), and each row builds its own out of it in a `projection.ts` beside the `wire.ts` its entry schema is declared in — `olai-plugin-outlines`, `olai-plugin-markdown`, `olai-plugin-vault` — the schema crossing to the browser and the projection staying here. The differential that holds them up went to `packages/bundle/src/published.testlib.ts`, where all three rows are in view | — |
 | `faces.ts` — the three faces of one surface | `packages/bundle/src/faces.ts` | `faces.test.ts`, over a real websocket and a real MCP face |
 | `context.ts` — what the composer was armed with | `packages/plugins/chat/src/server/context.ts` | — |
 | `agents.ts` — the agents roster | `packages/plugins/chat/src/agents/roster.ts` | — |
