@@ -1343,8 +1343,11 @@ export const createEditor = (
       setDraft((held) => held?.kind === "new" && held.slot === slot ? typed(held, text) : held)
     },
     blur: (from, left) => {
-      // A blur we caused ourselves — see `settling`.
-      if (settling || takingDraft) return
+      // A pending redraw may remove an editor, but does not own a reader's
+      // later click away from an attached editor. RowEditor has already
+      // deferred this report past synchronous DOM moves and refocusing.
+      if (takingDraft || (settling && !left)) return
+      if (left) settling = false
       // A blur nobody caused on purpose: the editor's element is not in the
       // document any more, so it was REMOVED by a re-render rather than left
       // by a person. The commit below is still right (what was typed should be

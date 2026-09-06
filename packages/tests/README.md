@@ -532,6 +532,13 @@ Search now gives each query its own scoped subscription and captures that
 query with its response. After release, the test spends Enter and verifies the
 requested edge on disk.
 
+`undo_delayed_page.feature` separately holds outline page frames while allowing
+the structural write's acknowledgement through. Clicking away during that
+window must close the editor; a late redraw must not take focus back and turn
+the next application undo into native text undo. Both indent and outdent are
+covered. Nesting assertions check direct children: a grandchild already lies
+inside its grandparent before an outdent and cannot acknowledge that change.
+
 **What this replaced** was a proxy per key shape, kept in this package: the caret leaving a line for `Enter`, the caret arriving for `Tab`, a draft closing for `Escape`, a list going for a completion. Each was a guess at the thing rather than the thing, and two keys had no proxy at all — `Control+Enter` redraws a row without moving the caret, so nothing visible changes when the client takes the caret back from where it already is, and two of those in a row was a race nobody could write a wait for.
 
 **A gesture aimed at the tab across a DISK assertion.** The newest one, and the one that reads most like a passing step. A write goes: the server writes the file, publishes the new set, and only then answers the tab that asked (`packages/store/src/store.ts` — *rename them all → re-probe and publish → the caller's post-publish hook*). So a step that polls the disk is reading a fact the server has, and the tab has not — and the tab has rules that turn on having been answered:

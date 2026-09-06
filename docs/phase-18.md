@@ -74,6 +74,13 @@ regressions and all 15 node-mutation/context scenarios (267 steps) pass,
 including moving an agent-owned subtree between outlines and updating its
 write boundary.
 
+A delayed structural page frame no longer reclaims the caret after a user
+clicks away. The editor distinguishes leaving a connected input from redraw
+removal, and revokes pending focus restoration for that departure. Controlled
+Tab/Shift+Tab regressions fail before the fix and pass afterward; full undo
+and keyboard-editing coverage passes 79 scenarios and 906 steps. Nesting
+assertions now require the immediate parent instead of any ancestor.
+
 ## CI repair batch
 
 - [x] Bind search results to their actual query across subscription changes;
