@@ -229,15 +229,23 @@ export interface Served {
  * side knows: behind a reverse proxy a server cannot tell what address reached
  * it.
  */
-export const remoteFrom = (tools: ReadonlyArray<Tool>): Record<string, BespokeTool> =>
+export const remoteFrom = (owner: string, tools: ReadonlyArray<Tool>): Record<string, BespokeTool> =>
   Object.fromEntries(
     tools.map((tool) => [
       tool.name,
       verb(tool, (args, client) => {
         const door = client as unknown as Dialled
+        // THE NAME THE SERVER SERVES, not the name this row declared. A row
+        // names its verbs relative to itself (`add`) and composition puts the
+        // row in front (`capture_add`); argv spells that composition with a
+        // subcommand, so the CLI's own key stays bare while the CALL has to
+        // carry it. `olai surface capture add` answered `unknown tool "add"`
+        // until it did — the same slip `did` made on the served face, one
+        // door over.
+        const called = scopedToolName(owner, tool.name)
         return Effect.map(
           Effect.tryPromise({
-            try: () => door.callTool(tool.name, args),
+            try: () => door.callTool(called, args),
             // The transport's own failures are already the two values the CLI's
             // classifier reads (`../mcpClient.ts`) — a refusal on exit 1 with its
             // structured detail, an unreachable door on exit 3 naming the URL —

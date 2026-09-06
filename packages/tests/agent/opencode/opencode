@@ -265,9 +265,9 @@ const turn = async (text: string): Promise<string> => {
     // recognise it as one of the servers it handed over and allow it without
     // asking anybody.
     const result = await runTool(
-      `${mcp?.name ?? "olai"}_set_done`,
+      `${mcp?.name ?? "olai"}_outlines_done`,
       { id: node },
-      () => callMcp("tools/call", { name: "set_done", arguments: { id: node } }),
+      () => callMcp("tools/call", { name: "outlines_done", arguments: { id: node } }),
     );
     say(result["isError"] === true ? `could not mark ${node}` : `marked ${node} done`);
     return "end_turn";
@@ -345,7 +345,7 @@ const turn = async (text: string): Promise<string> => {
     // One of olai's own, asked about anyway — which is the path a session whose
     // auto-approval was refused takes, and the one the fail-safe rule's ALLOW
     // half is about.
-    const tool = `${mcp?.name ?? "olai"}_add_node`;
+    const tool = `${mcp?.name ?? "olai"}_outlines_add`;
     const answered = await askPermission(callIdFor(tool), "Add a node?");
     say(`permission: ${JSON.stringify(answered)}`);
     return "end_turn";

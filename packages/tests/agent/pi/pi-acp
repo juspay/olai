@@ -198,7 +198,7 @@ const turn = async (text: string): Promise<string> => {
       update: {
         sessionUpdate: "tool_call",
         toolCallId,
-        title: "olai: read_node",
+        title: "olai: outlines_read",
         kind: "other",
         status: "pending",
         rawInput: { node },

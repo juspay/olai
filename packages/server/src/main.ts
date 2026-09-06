@@ -369,7 +369,7 @@ const surfaceCli = {
   surfaces: Object.fromEntries(Object.entries(AGENT_SIBLINGS).map(([key, row]) => [key, {
     surface: row.surface,
     expose: row.expose,
-    verbs: remoteFrom(row.tools as ReadonlyArray<Tool>),
+    verbs: remoteFrom(key, row.tools as ReadonlyArray<Tool>),
     annotate: annotationsFor(key, row.tools as ReadonlyArray<Tool>),
   }])),
   endpoint: {
