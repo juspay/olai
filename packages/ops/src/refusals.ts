@@ -46,19 +46,6 @@ import {
 import { Result } from "effect"
 
 import type { Asked } from "./asked.ts"
-import type { Barred } from "./door.ts"
-
-export const doorRefusal = (reached: Barred): string => {
-  if (reached.why === "closed") {
-    return "this conversation has been reaped, so the door it was handed is closed and nothing may be written through it."
-  }
-  // THE CLAUSE IS THE DOOR'S, carried on the ticket beside the key it is
-  // about (`./door.ts`'s `Door.forbidden`). It used to be written here, in a
-  // general package, about a word a plugin owns; a second forbidden key —
-  // one that is a person's approval of code rather than a conversation's
-  // binding — is what made that one sentence untrue of half its subjects.
-  return `\`${reached.key}\` is a property this door may not write — ${reached.says}, on “${reached.title}” (\`${reached.id}\`) as anywhere else.`
-}
 
 /**
  * An id nothing in the set declares — ONE refusal, whatever the id was doing.

@@ -45,7 +45,7 @@ import { Deferred, Effect, Fiber, Result, SubscriptionRef } from "effect"
 
 import { codecFor } from "./codec.ts"
 import type { Store as OutlineStore } from "./deps.ts"
-import type { Door } from "./door.ts"
+import type { SessionRule } from "./door.ts"
 import { STAMP, STAMP_SHAPE, steady } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 
@@ -211,15 +211,12 @@ test("the shown kinds join the set as paths; a `.md` brings its text", () =>
 test("PIN (idle): idle is already true when nothing is writing", () =>
   withOps({ "house.olai": HOUSE }, (fixture) => fixture.ops.idle))
 
-test("a run carries its node door through refusal reporting and write tracking", () =>
+test("a run carries its session rule through refusal reporting and write tracking", () =>
   withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
-      const door: Door = {
-        closed: true,
-        forbidden: new Map(),
-      }
+      const rule: SessionRule = { _tag: "closed" }
       const failure = yield* Effect.flip(
-        fixture.ops.run({ op: "done", id: "order" }, "mcp", door),
+        fixture.ops.run({ op: "done", id: "order" }, "mcp", rule),
       )
       expect(failure._tag).toBe("UsageFailure")
       expect(failure.message).toContain("conversation has been reaped")

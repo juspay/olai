@@ -261,7 +261,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     ): Effect.Effect<{ readonly slot: NodeSlot; readonly fresh: boolean }, OpFailure> =>
       gate.withPermit(Effect.gen(function*() {
         // History has its own process and ticket. Reading or continuing it
-        // must not replace the node's current conversation or remove its fence.
+        // must not replace the node's current conversation or remove its credential.
         const key = JSON.stringify([node, history?.agent ?? null, history?.session ?? null])
         const held = nodes.get(key)
         if (held !== undefined && !held.closing) {

@@ -226,7 +226,7 @@ export interface Roster {
    */
   readonly key: () => string
   /**
-   * ...AND EVERY KEY IT COULD BE READ FROM, which is what the FENCE forbids.
+   * ...AND EVERY KEY IT COULD BE READ FROM, which is what the session may not write.
    *
    * ALL OF THEM, and that is not belt-and-braces: a vault mid-migration
    * declares two keys of this kind, and this package's own roster reads a

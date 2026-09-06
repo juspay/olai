@@ -4,7 +4,7 @@ import { exposeFace, type FaceExposure } from "@kolu/surface/expose"
 import { implementSurface } from "@kolu/surface/server"
 import { Effect, Schema } from "effect"
 import { RequestAuthority } from "@olai/plugin-api/authority"
-import { liveOps, type Door } from "@olai/ops"
+import { liveOps, type SessionRule } from "@olai/ops"
 import { ticketing } from "./tickets.ts"
 import { liveClient } from "./live-client.ts"
 import type { Bound } from "./authority.ts"
@@ -16,7 +16,7 @@ test("a released retained ticket remains closed when a provider returns with fre
   const invoked: string[] = []
   const make = (name: string) => implementSurface(contract, { procedures: { ops: { run: () => Effect.gen(function*() {
     const authority = yield* RequestAuthority
-    if ((authority.door as Door).closed) return yield* Effect.die(new Error("released credential"))
+    if ((authority.rule as SessionRule)._tag === "closed") return yield* Effect.die(new Error("released credential"))
     invoked.push(`${name}:${authority.writer}`)
     return {}
   }) } } })
@@ -26,7 +26,7 @@ test("a released retained ticket remains closed when a provider returns with fre
   let bearer: string | null = null
   const tickets = ticketing({ reservations: [], bound: () => active, face: () => active.expose, ops: liveOps(() => undefined), token: "operator", currentTicket: () => bearer })
   const panel = liveClient(() => active, { writer: "mcp" })
-  const one = tickets.mint(() => ({ forbidden: [] }), "chat-agent")
+  const one = tickets.mint(() => [], "chat-agent")
   bearer = one.bearer
   const retained = tickets.doorAt(panel)
   const write = () => retained.surface.ops.run({ op: "title", id: "seat", title: "change" })
@@ -38,7 +38,7 @@ test("a released retained ticket remains closed when a provider returns with fre
     one.release()
     active = { ...second, expose: face, writes: ["surface/ops/run"] }
     await expect(Effect.runPromise(write())).rejects.toThrow("released credential")
-    const next = tickets.mint(() => ({ forbidden: [] }), "chat-agent")
+    const next = tickets.mint(() => [], "chat-agent")
     bearer = next.bearer
     await Effect.runPromise(tickets.doorAt(panel).surface.ops.run({ op: "title", id: "seat", title: "fresh" }))
     expect(invoked).toEqual(["first:chat-agent", "second:chat-agent"])

@@ -91,8 +91,8 @@ interface Served {
     message: unknown,
     headers?: Record<string, string>,
   ) => Promise<Response>
-  readonly retainedTicket: (under: string) => { ticket: Ticket; client: McpClient }
-  readonly mintTicket: (under: string) => Ticket
+  readonly retainedTicket: () => { ticket: Ticket; client: McpClient }
+  readonly mintTicket: () => Ticket
   readonly url: string
 }
 
@@ -121,7 +121,7 @@ const withRoute = <A>(
 
     const transport = mcpTransport()
     const panel = clientOver(
-      { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", door: null }) },
+      { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp" }) },
       wired.faces.agent,
     )
     let selectingTicket: string | null = null
@@ -135,7 +135,7 @@ const withRoute = <A>(
           login: currentLogin,
           root,
           vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
-          fenced: tickets.doorAt,
+          doorAt: tickets.doorAt,
           record: (request) => ops.commit(request, "mcp"),
           push: ops.push,
         }),
@@ -163,14 +163,14 @@ const withRoute = <A>(
       use({
         root,
         url,
-        retainedTicket: (_under) => {
-          const ticket = tickets.mint(() => ({ forbidden: [] }), "chat-agent")
+        retainedTicket: () => {
+          const ticket = tickets.mint(() => [], "chat-agent")
           selectingTicket = ticket.bearer
           try { return { ticket, client: tickets.doorAt(panel) } }
           finally { selectingTicket = null }
         },
-        mintTicket: (_under) => tickets.mint(
-          () => ({ forbidden: [] }),
+        mintTicket: () => tickets.mint(
+          () => [],
           "chat-agent",
         ),
         post: (message, headers) =>
@@ -341,7 +341,7 @@ test("releasing a node ticket closes it without changing arbitrary loopback toke
     await post(initialize)
     await post({ jsonrpc: "2.0", method: "notifications/initialized" })
 
-    const ticket = mintTicket("kitchen")
+    const ticket = mintTicket()
     const call = (id: number, key: string, bearer: string) =>
       post({
         jsonrpc: "2.0",
@@ -392,7 +392,7 @@ test("a node ticket can list and call the three plugin verbs", async () => {
     await post(initialize)
     await post({ jsonrpc: "2.0", method: "notifications/initialized" })
 
-    const ticket = mintTicket("kitchen")
+    const ticket = mintTicket()
     const bearer = { authorization: `Bearer ${ticket.bearer}` }
 
     // ADVERTISED, which is the half a face gate says nothing about.
@@ -462,7 +462,7 @@ for (const definitions of [true, false]) test(`a node ticket cannot write approv
     await post(initialize)
     await post({ jsonrpc: "2.0", method: "notifications/initialized" })
 
-    const ticket = mintTicket("kitchen")
+    const ticket = mintTicket()
     const call = (id: number, key: string) =>
       post({
         jsonrpc: "2.0",
@@ -750,7 +750,7 @@ test("…and two people behind one proxy do not get each other's", async () => {
 
 test("releasing a ticket fences a retained client and the delayed next step of a tool", async () => {
   await withRoute(async ({ retainedTicket, root }) => {
-    const { ticket, client } = retainedTicket("kitchen")
+    const { ticket, client } = retainedTicket()
     await Effect.runPromise(client.surface.ops.run({ op: "title", id: "kitchen", title: "accepted before release" }))
     // A multi-step tool can already hold both the client and its next lazy
     // Effect when its owning session is released. It must recheck the fence.

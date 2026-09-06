@@ -33,7 +33,7 @@
 
 export { codecFor } from "./codec.ts"
 export type { Directory, Store, VaultSettings, RuntimePaths } from "./deps.ts"
-export { type Caller, type Door, type Barred, barred } from "./door.ts"
+export { type Caller, type SessionRule, type Barred, doorRefusal } from "./door.ts"
 export {
   make,
   NO_DIRECTORY,
@@ -50,7 +50,7 @@ export { standing, type Standing } from "./standing.ts"
  *  Exported so the keystroke resolver and the chat context resolver in
  *  `@olai/server` say what a tool call says. */
 export { notANode, notFound, noSuchDocument } from "./refusals.ts"
-export { doorRefusal } from "./refusals.ts"
+
 /** What a `merge` WOULD DO — which row it joins, which branch that row adopts,
  *  and the two texts it ends up with. The keystroke resolver needs all three to
  *  say what would take a merge BACK, and one spelling is what keeps an undo from

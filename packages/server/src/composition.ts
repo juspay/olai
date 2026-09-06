@@ -242,9 +242,9 @@ export function composeCapabilities<const S extends SurfaceSpec>(
      *
      * This list is not a permission, it is an ATTRIBUTION table:
      * `@olai/plugin-api`'s `authorityAt` wraps exactly these tags to provide
-     * `RequestAuthority` — the caller's writer and its door — and leaves every
+     * `RequestAuthority` — the caller's writer and its session rule — and leaves every
      * other handler's identity untouched. A tag left off it does not refuse, it
-     * runs on the Context default, `{ writer: "web" }`, with no session door.
+     * runs on the Context default, `{ writer: "web" }`, with no session rule.
      *
      * So listing only the bare tag would not close the qualified door, it would
      * silence it: an agent's write through `surface/outlines/edit/apply` would

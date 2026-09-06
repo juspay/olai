@@ -62,10 +62,9 @@ import {
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import { type Door, barred } from "./door.ts"
+import { type SessionRule, barred, doorRefusal } from "./door.ts"
 import { type Context, plan, scoping } from "./plan.ts"
 import * as Query from "./query.ts"
-import { doorRefusal } from "./refusals.ts"
 import { standing } from "./standing.ts"
 import { sortOfWrite } from "./sorted.ts"
 import { asking, type Asking } from "./tools.ts"
@@ -359,7 +358,7 @@ export interface Ops extends Asking {
   readonly run: (
     request: Request,
     writer: Writer,
-    door?: Door,
+    rule?: SessionRule,
   ) => Effect.Effect<Applied, OpFailure>
   /**
    * No {@link run} is in flight.
@@ -519,7 +518,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
   const run = (
     request: Request,
     writer: Writer,
-    door?: Door,
+    rule?: SessionRule,
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.gen(function*() {
       const store = yield* currentStore
@@ -643,8 +642,13 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         }
         const { files, documents = [], removed = [], ...about } = planned.success
 
-        if (door !== undefined) {
-          const reached = barred(door, snapshot.value.derived, planned.success)
+        if (rule !== undefined) {
+          if (rule._tag === "closed") {
+            return yield* new UsageFailure({
+              reason: doorRefusal({ why: "closed" }),
+            })
+          }
+          const reached = barred(rule.forbidden, snapshot.value.derived, planned.success)
           if (reached !== null) {
             return yield* new UsageFailure({
               reason: doorRefusal(reached),
@@ -844,12 +848,12 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
   const reported = (
     request: Request,
     writer: Writer,
-    door?: Door,
+    rule?: SessionRule,
   ): Effect.Effect<Applied, OpFailure> =>
     options.onRefusal === undefined
-      ? run(request, writer, door)
+      ? run(request, writer, rule)
       : Effect.tapError(
-        run(request, writer, door),
+        run(request, writer, rule),
         (failure) => options.onRefusal!(request, failure),
       )
 
@@ -884,11 +888,11 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
   const tracked = (
     request: Request,
     writer: Writer,
-    door?: Door,
+    rule?: SessionRule,
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.suspend(() => {
       beginWrite()
-      return Effect.ensuring(reported(request, writer, door), Effect.sync(endWrite))
+      return Effect.ensuring(reported(request, writer, rule), Effect.sync(endWrite))
     })
 
   return {

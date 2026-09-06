@@ -101,6 +101,7 @@ import { ownedKey, ownService, type OwnServices } from "./owned.ts"
 import {
   type ConversationSeen,
   type Deliveries as DeliveryDoor,
+  type Forbidden,
   kindWordOf,
   type MintedTicket,
   NO_TICKET,
@@ -110,7 +111,6 @@ import {
   type PropWrite,
   type Refusal,
   type Refused,
-  type Seated,
   type Wake,
 } from "./contract.ts"
 
@@ -1014,7 +1014,7 @@ export interface Tools {
    * ...AND A CREDENTIAL FOR ONE SESSION.
    *
    * A node agent's door is the same write door loopback MCP has, under the
-   * node's credential. The remaining rule is the keys on {@link Seated}: an
+   * node's credential. The remaining rule is the keys on {@link Forbidden}: an
    * agent may not rewrite who is seated where, its own binding included. The
    * ENFORCEMENT is `@olai/ops`', between `plan` and `commit`; the CHANNEL is
    * a bearer the MCP route resolves per request; and what is minted here is
@@ -1022,7 +1022,7 @@ export interface Tools {
    * that is the same face with that property rule on it.
    *
    * A FUNCTION AND NOT A VALUE, and it is read per request rather than
-   * closed over. `seated` is asked because the keys a vault declares this
+   * closed over. The list is asked because the keys a vault declares this
    * kind on may move mid-conversation — a migration row landing is a
    * different forbidden table, which is exactly the reading the plugin
    * holding the sessions has and core does not.
@@ -1035,7 +1035,7 @@ export interface Tools {
    * same breath rather than leaving a bearer alive for a session that is gone.
    */
   readonly ticket: (
-    seated: () => Seated,
+    forbidden: () => ReadonlyArray<Forbidden>,
     writer: string,
   ) => MintedTicket
 }
@@ -1274,7 +1274,7 @@ export interface PluginsConfig {
    * every bench, which have no MCP face to mint against.
    */
   readonly ticketFor?: (
-    seated: () => Seated,
+    forbidden: () => ReadonlyArray<Forbidden>,
     writer: string,
   ) => MintedTicket | null
   /**
@@ -1463,7 +1463,7 @@ export const openPlugins = (
       // asked per session and a caller has somewhere to put the absence: a root
       // with no MCP face seats a session with no remaining write rule, which is
       // the state it was already in ({@link PluginsConfig.ticketFor}).
-      ticket: (seated, writer) => config.ticketFor?.(seated, writer) ?? NO_TICKET,
+      ticket: (forbidden, writer) => config.ticketFor?.(forbidden, writer) ?? NO_TICKET,
     }))
 
     yield* provide(host, Bundle, () => ({ rank: config.rank ?? (() => 0) }))
@@ -1517,7 +1517,6 @@ export type {
   Refusal,
   Refused,
   Forbidden,
-  Seated,
   StdioServer,
   Wake,
 } from "./contract.ts"

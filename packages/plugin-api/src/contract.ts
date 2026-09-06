@@ -879,20 +879,9 @@ export interface Wake {
   }
 }
 
-/**
- * WHERE A SESSION IS SEATED — the keys its door may not write.
- *
- * Re-declared here for {@link Refusal}'s reason: the shape is
- * `olai-plugin-mcp`'s (`tickets.ts`), and it is fields of strings that both
- * ends have to spell. Contravariance makes the agreement the strong
- * direction — whoever completes the ticket door hands over a value that has to
- * satisfy both spellings at the composition root, so a drift is a type error in
- * the one file that holds both.
- *
- * The subtree is the session's home, not its territory: a node agent writes
- * the vault. What this still carries is the property rule — a node agent may
- * not rewrite the property that says WHICH conversation it is, because that is
- * the binding rather than the work.
+/** One key a session's door may not write, and the clause that says why — spent
+ *  verbatim inside the refusal (`@olai/ops`' `doorRefusal`), so it reads as a
+ *  reason and not as a label.
  *
  * EACH KEY CARRIES ITS OWN SENTENCE, and that is not decoration. The refusal a
  * session reads used to be composed in `@olai/ops` — a general package writing
@@ -902,15 +891,7 @@ export interface Wake {
  * one moves when this plugin's idea of a binding moves, and the composition
  * root's moves when the host's own vocabulary does. So the clause travels from
  * whoever forbade the key, which is this tree's ordinary rule — failure prose is
- * the owner's, and core carries it.
- */
-export interface Seated {
-  readonly forbidden: ReadonlyArray<Forbidden>
-}
-
-/** One key a session's door may not write, and the clause that says why — spent
- *  verbatim inside the refusal (`@olai/ops`' `doorRefusal`), so it reads as a
- *  reason and not as a label. */
+ * the owner's, and core carries it. */
 export interface Forbidden {
   readonly key: string
   readonly says: string

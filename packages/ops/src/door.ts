@@ -7,16 +7,19 @@
  * coding agent on the loopback door. So there is no write fence, and this
  * module is not one.
  *
- * TWO THINGS THIS DOOR STILL REFUSES, and neither of them is a place:
+ * TWO INHABITANTS, and neither of them is a place:
  *
  *   - a released ticket is closed, never widened;
- *   - the keys on {@link Door.forbidden}, each with the clause that says why.
+ *   - an open session, with the keys it may not write, each with the clause
+ *     that says why.
  *
- * The forbidden table is a MAP AND NOT A SET for the reason it always was:
- * the two words are forbidden for different reasons — one is a conversation's
- * binding, the other is a person's approval of code — and the sentence that
- * explains each one travels from whoever forbade it, from the plugin that
- * owns the word, rather than being composed in this general package.
+ * Absence of a rule is absence: a panel keystroke and loopback MCP pass no
+ * third argument to `run`. The forbidden table is a MAP AND NOT A SET for the
+ * reason it always was: the two words are forbidden for different reasons —
+ * one is a conversation's binding, the other is a person's approval of code —
+ * and the sentence that explains each one travels from whoever forbade it,
+ * from the plugin that owns the word, rather than being composed in this
+ * general package.
  */
 import {
   changesOf,
@@ -30,30 +33,14 @@ import {
 
 import type { Plan } from "./plan.ts"
 
-export interface Door {
-  /** True once the session is reaped — closed, never widened. */
-  readonly closed: boolean
-  /**
-   * THE KEYS THIS DOOR MAY NOT WRITE, each with the clause that says why.
-   *
-   * A MAP AND NOT A SET, and the value is prose. It was a set while there was
-   * one key, and the sentence that explained it was written HERE, in a general
-   * package, about a word `olai-plugin-chat` owns (*it is what seats a
-   * conversation on a node*) — which is this tree's own rule broken quietly:
-   * failure prose is the owner's, and core carries it.
-   *
-   * A second key made that visible rather than merely true. The two forbidden
-   * words are forbidden for different reasons, and one sentence cannot be about
-   * both. So the reason travels with the key, from whoever forbade it, and
-   * `./refusals.ts` spends it instead of composing one.
-   */
-  readonly forbidden: ReadonlyMap<string, string>
-}
+export type SessionRule =
+  | { readonly _tag: "closed" }
+  | { readonly _tag: "open"; readonly forbidden: ReadonlyMap<string, string> }
 
 export interface Caller {
   readonly writer: Writer
-  /** Null is loopback MCP or the panel: the same write door, no property rule. */
-  readonly door: Door | null
+  /** Absent is loopback MCP or the panel: the ordinary write face. */
+  readonly rule?: SessionRule
 }
 
 export type Barred =
@@ -63,19 +50,30 @@ export type Barred =
     readonly id: string
     readonly title: string
     readonly key: string
-    /** The clause the door carried for this key — see {@link Door.forbidden}. */
+    /** The clause the open rule carried for this key. */
     readonly says: string
   }
 
-/** Judge the records a plan actually changes for the keys this door may not
- *  write. File and document operations are ordinary writes. */
+export const doorRefusal = (reached: Barred): string => {
+  if (reached.why === "closed") {
+    return "this conversation has been reaped, so the door it was handed is closed and nothing may be written through it."
+  }
+  // THE CLAUSE IS THE RULE'S, carried on the ticket beside the key it is
+  // about. It used to be written in `./refusals.ts`, in a drawer of shared
+  // "no"s, about a word a plugin owns; a second forbidden key — one that is
+  // a person's approval of code rather than a conversation's binding — is
+  // what made that one sentence untrue of half its subjects.
+  return `\`${reached.key}\` is a property this door may not write — ${reached.says}, on “${reached.title}” (\`${reached.id}\`) as anywhere else.`
+}
+
+/** Judge the records a plan actually changes for the keys an open session
+ *  may not write. Closed is refused at `run` without a plan walk. */
 export const barred = (
-  door: Door,
+  forbidden: ReadonlyMap<string, string>,
   derived: Derived,
   plan: Plan,
-): Barred | null => {
-  if (door.closed) return { why: "closed" }
-  if (door.forbidden.size === 0) return null
+): Extract<Barred, { why: "key" }> | null => {
+  if (forbidden.size === 0) return null
 
   const was = new Map(
     plan.files.map((one) => [one.file, nodesOf(derived, one.file).map((at) => at.node)]),
@@ -89,13 +87,13 @@ export const barred = (
   for (const change of changesOf(was, now)) {
     const before = derived.byId.get(change.id)
     const after = planned.get(change.id)
-    for (const [key, says] of door.forbidden) {
+    for (const [key, says] of forbidden) {
       // BOTH DIRECTIONS, which is the comparison rather than a policy: a value
       // that moved is a value this door wrote, and taking one off is writing it
       // as much as putting one on. Un-approving is the fail-safe direction and
       // would be defensible to allow; it is not a capability anything asks for,
       // and an asymmetric rule here would be one more thing a reader of the
-      // door has to hold.
+      // rule has to hold.
       if (keyed(before?.node, key) !== keyed(after, key)) {
         return { why: "key", id: change.id, title: change.title, key, says }
       }
