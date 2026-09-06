@@ -1,4 +1,4 @@
-import { client as definitionClient } from "olai-plugin-vault-plugins/client"
+import { approveDefinition } from "./approval.ts"
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
 /**
@@ -242,16 +242,7 @@ export function Panel(props: {
    */
   const approve = (name: string, version: string, forever: boolean): void => {
     if (approving() !== null) return
-    setApproving(name)
-    setRefused(null)
-    run(
-      definitionClient().procedures.plugins.approve({ name, version, forever }),
-      (failure) => {
-        setApproving(null)
-        setRefused(failure.message)
-      },
-      () => setApproving(null),
-    )
+    void approveDefinition({ name, version, forever }, setApproving, setRefused)
   }
 
   return (
