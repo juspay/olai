@@ -65,10 +65,12 @@
 # in olai's source. What the stamp hides is Cordis's authoring, not Cordis's
 # shape.
 #
-# ## THE TWO UPSTREAM ASKS, kept together because they are the same class
+# ## THE FOUR UPSTREAM ASKS, kept together because they are the same class
 #
-# Both are places olai cannot use the pin as written, and both are written down
-# here rather than worked around silently.
+# Every one of them is a place olai cannot use the pin as written, and every one
+# is written down here rather than worked around silently. The code-side ledger
+# of what each workaround costs is `docs/internal/cordis-assumptions.md`, which
+# names the file, the test and the failure shape for each; this list is the ASK.
 #
 #   1. THE STRICTNESS DELTA above — adopt `noUncheckedIndexedAccess` and
 #      `noImplicitOverride`, retire the three off-switches — which takes the
@@ -78,12 +80,27 @@
 #      own package, which under bun's isolated linker cannot see a workspace
 #      member; the only way through today is to fill `loader.internal` — the
 #      slot upstream keeps for Node's own `ModuleLoader` — with one method and a
-#      cast (`packages/bundle/src/bundle.ts`, which names the revision it was
-#      verified against). A `resolve` option on `Loader.Config`, or a documented
-#      import hook, would make "a consumer whose module graph the loader cannot
-#      walk" a supported case rather than a cast that fails at runtime.
+#      cast (`packages/effect-cordis/src/loader.ts`, which names the revision it
+#      was verified against). A `resolve` option on `Loader.Config`, or a
+#      documented import hook, would make "a consumer whose module graph the
+#      loader cannot walk" a supported case rather than a cast that fails at
+#      runtime.
+#   3. A TYPED DUPLICATE-PROVIDER ERROR. `ctx.provide` refuses a second provider
+#      by throwing a plain `Error` whose PROSE carries the owning fiber's name
+#      (`service "x" has been registered at <owner>`), so the only way to report
+#      which two rows collided is to match that sentence and slice the owner out
+#      of it (`packages/effect-cordis/src/lifecycle.ts`, pinned by a test in
+#      `lifecycle.test.ts`). A `ServiceConflictError` carrying the owner would
+#      make the report structural, and a reword would then cost nothing.
+#   4. SEQUENTIAL DISPOSER UNLOAD, or a documented ordering. A fiber's disposers
+#      are unloaded with `Promise.all`, so a disposer that waits for dependents
+#      does not keep the disposers BESIDE it from releasing first. olai
+#      compensates by taking its provisions' disposers out of that set and
+#      running them itself in order (`lifecycle.ts`'s `offer` and `close`), which
+#      is the pin coupling with the sharpest edge: it asserts the handoff so a
+#      revision that changes disposer ownership names itself.
 #
-# Neither is a blocker: the tree works. Both are the pin's own shape asking to
+# None is a blocker: the tree works. All four are the pin's own shape asking to
 # be a little wider, and a note here is how they stay askable.
 #
 # cosmokit, `@standard-schema/spec` and js-yaml stay on npm, declared at the

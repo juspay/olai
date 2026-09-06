@@ -64,15 +64,21 @@ dependent cleanup **before** closing any of the provider's resource finalizers,
 including finalizers registered after the offer. During host shutdown it also
 joins departing activations already removed from Cordis's registry.
 
-This ownership has one explicit pin coupling in `src/lifecycle.ts`: the bridge
-removes `ctx.provide`'s disposer from the fiber's `_disposables` and becomes its
-only caller. Leaving it in that set would run revocation concurrently with scope
-close; calling its guarded wrapper twice cannot join the first revocation. The
-ordering tests use the provider's resource from asynchronous dependent cleanup,
-not just the fibers' state words. A checked disposer handoff fails immediately
-if the pin stops registering that disposer in the expected set. The activation
-handle owns this ordering and cancellation; plugin configuration and service
-resolution cannot mutate its lifecycle bookkeeping.
+This ownership has two explicit pin couplings in `src/lifecycle.ts`. The first:
+the bridge removes `ctx.provide`'s disposer from the fiber's `_disposables` and
+becomes its only caller. Leaving it in that set would run revocation
+concurrently with scope close; calling its guarded wrapper twice cannot join the
+first revocation. The ordering tests use the provider's resource from
+asynchronous dependent cleanup, not just the fibers' state words. A checked
+disposer handoff fails immediately if the pin stops registering that disposer in
+the expected set. The second: the pinned runtime carries the existing provider's
+identity in the PROSE of its refusal, so the bridge matches that sentence and
+slices the owner out of it. `src/lifecycle.test.ts` asserts the wording verbatim
+beside the owner it yields, so a reworded refusal fails in this package rather
+than as a composed sentence losing a name one package over; `nix/cordis.nix`
+carries the upstream ask for a typed error. The activation handle owns this
+ordering and cancellation; plugin configuration and service resolution cannot
+mutate its lifecycle bookkeeping.
 
 **`openHost` / `closeHost(host)`** own the whole registry. Opening is scoped;
 closing is idempotent and waits for loading initializers, background work and

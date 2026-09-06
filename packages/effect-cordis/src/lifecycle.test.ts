@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { Deferred, Effect, Exit, Fiber, Scope } from "effect"
 import { broadcast } from "./broadcast.ts"
 import { closeHost, type Host, mountPlugin, offered, openHost, provide, settled } from "./host.ts"
-import { offer } from "./lifecycle.ts"
+import { offer, OfferConflict } from "./lifecycle.ts"
 import { definePlugin, detached } from "./plugin.ts"
 import { serviceTag } from "./service.ts"
 
@@ -259,6 +259,67 @@ test("a plugin that stops while its own handler is running waits for it to come 
   yield* Fiber.join(telling)
   yield* Fiber.join(stopping)
   expect(order).toEqual(["handler out", "released"])
+})))
+
+/**
+ * THE PIN'S OWN SENTENCE, PINNED — and it is pinned HERE because this is the
+ * file that reads it.
+ *
+ * Cordis refuses a second provider by throwing a plain `Error` whose PROSE
+ * carries the first provider's name, so `offer` matches that sentence and
+ * slices the owner out of it. `@olai/plugin-api`'s bench asserts the COMPOSED
+ * sentence a person reads, which is the right claim to make there and would
+ * also survive a Cordis reword by quietly dropping the owner from it. This asks
+ * the two questions that reword would actually break: is it an `OfferConflict`,
+ * and does it name the first provider.
+ */
+test("a second offer of one key is an OfferConflict naming the first provider", () => run(Effect.gen(function*() {
+  const host = yield* openHost
+  const refused: Array<unknown> = []
+  // TWO SEPARATE `definePlugin` CALLS. Cordis keys a runtime by the identity of
+  // the `apply` it was handed, so a second row spread off the first would be
+  // the same runtime under a second name — and would report the first name for
+  // both, which is the very thing this case is reading.
+  const first = yield* mountPlugin(host, definePlugin({
+    name: "first-provider", needs: [], apply: offer(Resource, () => ({ use: () => {} })),
+  }))
+  const second = yield* mountPlugin(host, definePlugin({
+    name: "second-provider", needs: [], apply: Effect.gen(function*() {
+      refused.push(yield* Effect.catchDefect(
+        offer(Resource, () => ({ use: () => {} })),
+        (defect) => Effect.succeed(defect),
+      ))
+    }),
+  }))
+  const conflict = refused[0]
+  expect(conflict).toBeInstanceOf(OfferConflict)
+  expect((conflict as OfferConflict).owner).toBe("first-provider")
+  expect((conflict as OfferConflict).key).toBe("resource")
+  // THE WORDING ITSELF, verbatim: a pin bump that rewords the refusal fails
+  // here, beside the match it breaks, rather than one package over inside a
+  // sentence that would still read plausibly.
+  expect((conflict as OfferConflict).message).toBe(
+    "service \"resource\" has been registered at <first-provider>",
+  )
+  // ...and the refusal cost the first provider nothing.
+  expect((yield* first.report).state).toBe("running")
+  expect((yield* second.report).state).toBe("running")
+  expect(offered(host, Resource)).toBeDefined()
+})))
+
+test("an unhandled duplicate offer fails only the row that offered second", () => run(Effect.gen(function*() {
+  const host = yield* openHost
+  yield* mountPlugin(host, definePlugin({
+    name: "first-provider", needs: [], apply: offer(Resource, () => ({ use: () => {} })),
+  }))
+  const second = yield* mountPlugin(host, definePlugin({
+    name: "second-provider", needs: [], apply: offer(Resource, () => ({ use: () => {} })),
+  }))
+  expect(yield* second.report).toEqual({
+    state: "failed",
+    fault: "service \"resource\" has been registered at <first-provider>",
+  })
+  expect(offered(host, Resource)).toBeDefined()
 })))
 
 test("offer transfers its Cordis disposer out of the concurrent disposer set", () => run(Effect.gen(function*() {
