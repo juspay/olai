@@ -1095,6 +1095,23 @@ When(
   },
 );
 
+Then("the preview exhausts its walk-off budget and becomes empty", async function (this: OlaiWorld) {
+  // Each allowed bounce includes a network load; an absence of #root between
+  // bounces is not termination. Observe the terminal navigation itself, then
+  // the resulting inert document, rather than sampling at fixed delays.
+  const frame = await preview(this);
+  await this.waitUntil(
+    async () => (await frame.getAttribute("src")) === "about:blank",
+    "the preview to exhaust its walk-off budget and navigate to about:blank",
+  );
+  const body = (await inside(this)).locator("body");
+  await body.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+  await this.waitUntil(
+    () => body.evaluate(element => element.ownerDocument.URL === "about:blank" && element.childNodes.length === 0),
+    "the preview's terminal document to be empty about:blank",
+  );
+});
+
 /**
  * The app, INSIDE the preview — the thing that must never be left there. Read
  * as the mount point rather than as a testid, because `#root` is in the shell's
