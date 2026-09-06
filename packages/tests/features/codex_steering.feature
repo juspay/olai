@@ -5,6 +5,7 @@ Feature: Messages sent while Codex works steer its current turn
 
   Background:
     Given I open the app
+    And I show the done nodes
     And the agent panel is open
     When I choose the agent "codex"
 
