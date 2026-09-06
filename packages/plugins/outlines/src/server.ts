@@ -33,7 +33,7 @@
  * deliberately in only the first. Copying the agent map into `scopedFaces`
  * would advertise a second, namespaced set of the same tools.
  */
-import { definePlugin, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
+import { definePlugin, Directory, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
 import type { Ops as Gate } from "@olai/ops"
 import { Effect } from "effect"
 import { inMemoryChannel, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
@@ -49,7 +49,13 @@ import { samePageReading, sameNarrowing, sameMoving } from "@olai/format"
 import type { FiledPageReading } from "@olai/format"
 
 export default definePlugin({
-  name, needs: [Ops, Vault, Surfaces],
+  /** `Directory` IS NEEDED AND NOT READ, which is a claim about ORDER rather
+   *  than an oversight. This half touches no store — the records it publishes
+   *  come from `Vault.revision` and the writes go through `Ops` — but it must
+   *  not compose before there is a served directory to compose against, and
+   *  `needs` is the only place that can be said. It was read here once, for a
+   *  `store` binding nothing used. */
+  name, needs: [Directory, Ops, Vault, Surfaces],
   apply: Effect.gen(function*() {
     const gate = (yield* Ops).gate as Gate
     const vault = yield* Vault
