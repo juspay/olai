@@ -136,7 +136,7 @@ export const serveFace = <S extends SurfaceSpec>(
       // cancellation, rendering and error handling for calls and resources.
       const catalogue = Object.entries(tools).map(([name, tool]) => ({
         name, title: tool.title, description: tool.description,
-        inputSchema: toInputSchema(tool.input).schema as { type: "object"; [key: string]: unknown },
+        inputSchema: toInputSchema(tool.input) as { type: "object"; [key: string]: unknown },
         annotations: { readOnlyHint: !(tool.mutates ?? true), destructiveHint: tool.mutates ?? true },
       }))
       served.server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: catalogue.filter(tool => available(tool.name)) }))

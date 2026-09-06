@@ -1,5 +1,13 @@
 # Browser coverage audit
 
+The MCP startup regression in [#548](https://github.com/juspay/olai/issues/548)
+escaped checks that only asserted HTTP 200 and tool names. Transport lifecycle
+scenarios now require an object input schema on every advertised tool, including
+after MCP reactivation and removal of other transports. Server integration tests
+also connect the MCP SDK client to the production web and surface profiles,
+validate the catalogue, and call an advertised read tool. These tests reproduce
+the missing-schema failure introduced by #538 before the production fix.
+
 Kolu PR #2228 removes the wire-driven app rebuild. The existing document lifecycle
 case checks that an unrelated journal toggle retains the actual editor DOM
 element, followed by a successful save. Cleanup, caret restoration and undo
