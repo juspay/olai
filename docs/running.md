@@ -247,7 +247,7 @@ services.olai = {
 };
 ```
 
-**Giving a flag sets the instance's policy; omitting it uses the built-in default.** Either way the config is the same in every browser. Given, the plugins panel draws the value under the git row. Omitted, the built-in default applies. Never hidden — a policy a reader cannot see is one they cannot ask anybody about.
+**Giving a flag sets the instance's policy; omitting it uses the built-in default.** Either way the config is the same in every browser. The git row's `config:` in `olai.yml` is that default, and the plugins panel always draws it. A flag overlays the file. Never hidden — a policy a reader cannot see is one they cannot ask anybody about.
 
 The two are independent, so setting committing does not silently set pushing. `--commit=manual` typed out loud is not the same as saying nothing, even though this server behaves identically either way: the first is a patch onto the git row's config, the second is the built-in default.
 

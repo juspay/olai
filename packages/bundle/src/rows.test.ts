@@ -19,6 +19,8 @@
 
 import { expect, test } from "bun:test"
 
+import { COMMIT_DEFAULT, PUSH_DEFAULT } from "@olai/format"
+
 import { type PluginPin, pluginsPatch, profilePatch } from "./bundle.ts"
 import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, inBundleOrder, ROWS } from "./rows.ts"
 
@@ -67,6 +69,14 @@ test("every row names a plugins panel section", () => {
   for (const row of ROWS) {
     expect(row.section.length).toBeGreaterThan(0)
   }
+})
+
+test("the git row's config is the built-in default, so the panel always has it", () => {
+  expect(ROWS.find((row) => row.id === "git")?.config).toEqual({
+    commit: COMMIT_DEFAULT,
+    push: PUSH_DEFAULT,
+  })
+  expect(ROWS.find((row) => row.id === "vault")?.config).toEqual({ format: "olai" })
 })
 
 test("the chat row is on by default, and reads first", () => {

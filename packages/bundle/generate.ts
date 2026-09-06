@@ -72,6 +72,7 @@ interface Row {
   readonly switchHint?: string
   readonly section: string
   readonly quiet?: boolean
+  readonly config?: Readonly<Record<string, unknown>>
 }
 
 /** The rows, from the one file. It is read here rather than imported from
@@ -91,6 +92,7 @@ function readRows(): ReadonlyArray<Row> {
     if (one.switchHint !== undefined && typeof one.switchHint !== "string") throw new Error(`bundle: ${one.id} switchHint must be a sentence`)
     if (typeof one.section !== "string" || one.section.length === 0) throw new Error(`bundle: ${one.id} needs a \`section\` for the plugins panel`)
     if (one.quiet !== undefined && one.quiet !== true) throw new Error(`bundle: ${one.id} quiet must be true when present`)
+    const config = configOf(one.id, (row as { config?: unknown }).config)
     return {
       id: one.id,
       name: one.name,
@@ -99,6 +101,7 @@ function readRows(): ReadonlyArray<Row> {
       ...(one.profiles === undefined ? {} : { profiles: one.profiles }),
       ...(one.switchHint === undefined ? {} : { switchHint: one.switchHint }),
       ...(one.quiet === true ? { quiet: true } : {}),
+      ...(config === undefined ? {} : { config }),
     }
   })
 }
@@ -130,6 +133,25 @@ function readRows(): ReadonlyArray<Row> {
  * what is forbidden always eventually is.
  */
 const WORDS = /^[@A-Za-z0-9._/-]+$/
+
+const configOf = (id: string, value: unknown): Readonly<Record<string, unknown>> | undefined => {
+  if (value === undefined) return undefined
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`bundle: ${id} config must be a map of keys to values`)
+  }
+  const config: Record<string, unknown> = {}
+  for (const [key, one] of Object.entries(value as Record<string, unknown>)) {
+    if (!WORDS.test(key)) throw new Error(`bundle: ${id} config key ${JSON.stringify(key)} is not a word`)
+    if (typeof one !== "string" && typeof one !== "boolean" && typeof one !== "number") {
+      throw new Error(`bundle: ${id} config.${key} must be a string, boolean or number`)
+    }
+    config[key] = one
+  }
+  return config
+}
+
+const configLiteral = (config: Readonly<Record<string, unknown>>): string =>
+  `{ ${Object.entries(config).map(([key, value]) => `${quoted(key)}: ${JSON.stringify(value)}`).join(", ")} }`
 
 const quoted = (word: string): string => {
   if (!WORDS.test(word)) {
@@ -188,7 +210,7 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
     .map((row) =>
       `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${hasDoor(row, "./server") ? "" : ", browserOnly: true"}${
         row.disabled === true ? ", disabled: true" : ""
-      }${row.profiles === undefined ? "" : `, profiles: [${row.profiles.map(quoted).join(", ")}]`}${row.switchHint === undefined ? "" : `, switchHint: ${prose(row.switchHint)}`}, section: ${prose(row.section)}${row.quiet === true ? ", quiet: true" : ""} },`
+      }${row.profiles === undefined ? "" : `, profiles: [${row.profiles.map(quoted).join(", ")}]`}${row.switchHint === undefined ? "" : `, switchHint: ${prose(row.switchHint)}`}${row.config === undefined ? "" : `, config: ${configLiteral(row.config)}`}, section: ${prose(row.section)}${row.quiet === true ? ", quiet: true" : ""} },`
     )
     .join("\n")
   const entries = rows
