@@ -8,7 +8,13 @@ import { inMemoryStore, inMemoryChannel, type ImplementSurfaceDeps, type Surface
 import type { Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import { applyEdit, runWrite } from "@olai/edit-intents/apply"
-import { surface, faces, dispatch } from "./surface.ts"
+import { surface, faces } from "./surface.ts"
+/** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
+ *  faces. They were entries in `@olai/ops`' one closed table until #546, which
+ *  meant a general package named this row's vocabulary and a serve without this
+ *  row still advertised them; declaring them here is what makes switching the
+ *  row off take its tools along. */
+import { tools } from "./tools.ts"
 import { name } from "./name.ts"
 export { name } from "./name.ts"
 import { NO_INBOX, inboxHeldIn, conventionServed, inboxIn, type Convention } from "@olai/format"
@@ -39,7 +45,7 @@ export default definePlugin({
         edit: { apply: ({ input }) => applyEdit(gate, input) },
       },
     }
-    yield* (yield* Surfaces).register({ surface, faces, dispatch, root: true, scopedFaces: { browser: faces.browser }, deps, published: value => { ctx = value as typeof ctx } })
+    yield* (yield* Surfaces).register({ surface, faces, tools, deps, published: value => { ctx = value as typeof ctx } })
   }),
 })
 

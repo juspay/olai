@@ -272,7 +272,7 @@ export const BuiltPlugin = Schema.Struct({
    * panel that asked them to say yes to a content hash would be asking them to
    * approve something they cannot see. It is the one member on this spec whose
    * size is a person's own writing rather than a bound olai keeps — which is the
-   * honest reading of the cost rule (`@olai/server`'s `faces.ts`) rather than an
+   * honest reading of the cost rule (`./host.ts`'s `hostFaces`) rather than an
    * exemption from it: what is on the wire is what somebody put in their vault
    * for the express purpose of being read here.
    *

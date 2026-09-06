@@ -155,7 +155,7 @@ const weekOf = (word: string): Repeat | undefined => {
  * TWO CALLERS, and they are the two halves of "reading is forgiving about
  * spelling and a write stores the canonical one" (docs/format.md): the per-line
  * rule asks it to find out whether a line holds a rule at all (./parse.ts), and
- * `set_repeat` asks it for the text to actually store (`@olai/ops`' planner).
+ * `outlines_repeat` asks it for the text to actually store (`@olai/ops`' planner).
  * A third caller is the picker, which seeds its list from the rule a node
  * carries however that node came by it.
  *

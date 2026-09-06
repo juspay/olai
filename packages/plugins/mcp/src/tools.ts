@@ -20,7 +20,7 @@
  * Three things the projection has to get right, and each is a place the old
  * hand-rolled dispatch had a matching line:
  *
- *   - **The fixed field never reaches the agent.** `set_done` IS `op: "done"`,
+ *   - **The fixed field never reaches the agent.** `outlines_done` IS `op: "done"`,
  *     so an agent asked to supply it would be filling in a field with one legal
  *     value. The old dispatch compiled the whole request schema and then deleted
  *     those properties out of the JSON Schema; this subtracts them from the
@@ -40,7 +40,7 @@
  *     answer schema for the same reason `root` is: it is a fact about the
  *     SERVER that answered, true of every read the same way, and a field
  *     twelve schemas each declare is twelve places for it to go missing. On
- *     2026-08-25 a running server answered `read_node` normally with week-old
+ *     2026-08-25 a running server answered `outlines_read` normally with week-old
  *     truth for half an hour; what was missing was not a tool, it was this.
  */
 
@@ -54,25 +54,38 @@ import {
   stampOf,
 } from "@olai/format"
 import { isStale, type Vintage } from "@olai/store"
-import { type Acting, type Applied, type Asking, type Planning, type Running, type Tool } from "@olai/ops"
-import { type BespokeTool, ToolFailure, type ToolInputSchema } from "@kolu/surface-mcp"
+import { landed, type Acting, type Applied, type Asking, type Planning, type Running, type Tool } from "@olai/ops"
+import { type BespokeTool, scopedToolName, ToolFailure, type ToolInputSchema } from "@kolu/surface-mcp"
 import { Effect, Result, Schema } from "effect"
 
 import type { Request } from "@olai/ops"
 import { resolvedWrite } from "@olai/ops/resolved"
-import { type McpClient } from "./client.ts"
+import { clientAt, type RootedSurfaceClients, type SurfaceClientCallable } from "@kolu/surface/client"
+import { ownerIn, runnerIn, type Row } from "./bundle.ts"
 
 /** The three ops-layer doors a tool call needs, together. `@olai/ops` names
  *  them one per tool arm; nothing but this projection ever wants all three, so
  *  the union is spelled here rather than exported as a fourth name upstream. */
 type Door = Running & Asking & Acting
 
+
 /**
- * Every tool in the table, as bespoke MCP tools over the SURFACE.
+ * Every verb the ROWS brought, as bespoke MCP tools over the SURFACE.
  *
- * Takes the table rather than reaching for it so the one place it is imported
- * from is the composition root, and so a test can project a subset without a
- * module mock.
+ * Takes the list rather than reaching for it, and since #546 there is nothing
+ * left to reach for: `@olai/ops` held one closed table of thirty verbs, and
+ * each is now its owning row's, handed to the host beside that row's
+ * `faces.agent` and composed by the registry (`@olai/bundle`'s `tools.ts`). A
+ * test can still project a subset without a module mock, which is the other
+ * half of why this is a parameter.
+ *
+ * THREE OF THEM USED TO LIVE IN THIS FILE. `vault-plugins_inspect`, `vault-plugins_run` and
+ * `vault-plugins_stop` were hand-written `BespokeTool`s here, with a name-to-member
+ * map beside them in a `catalog.ts` deciding when to advertise them — one row's
+ * vocabulary held by another row. They are `olai-plugin-vault-plugins`' now,
+ * through the `surface` arm of `Tool`, which was added for exactly the case
+ * they are: a verb whose subject is the row's own procedures rather than the
+ * ops layer's doors.
  *
  * **It takes no ops layer, and that is the change this file exists to record.**
  * A tool used to be a closure over a local `Ops`, which meant an MCP face could
@@ -81,7 +94,7 @@ type Door = Running & Asking & Acting
  * the adapter: a direct dispatch in the process that holds the store. One
  * path — not a second olai kept beside the first that could answer differently.
  *
- * **It takes the face's IDENTITY, and nothing else about the face.** `capture`
+ * **It takes the face's IDENTITY, and nothing else about the face.** `capture_add`
  * records `captured-by` from the identity its door already has, omitting the
  * property when the door has none (ruled, human 2026-08-22) — so this is who
  * the face KNOWS, decided by the composition root that serves it: the login a
@@ -91,13 +104,15 @@ type Door = Running & Asking & Acting
  * same place — a tool that could name an identity could name the wrong one, and
  * an identity a CALLER could send would not be an attribution at all.
  *
- * **`commit` / `push` call through the ledger door**, with the face's writer
+ * **`git_commit` / `git_push` call through the ledger door**, with the face's writer
  * already bound on {@link Served}. They do not reach the git sibling by
  * spelling its tags; a serve that did not mount the row refuses in the same
  * words `ops.commit` / `ops.push` do.
  */
 export const bespokeFrom = (
+  owner: string,
   tools: ReadonlyArray<Tool>,
+  rows: () => ReadonlyArray<Row>,
   at: Served,
 ): Record<string, BespokeTool> =>
   Object.fromEntries(
@@ -105,17 +120,28 @@ export const bespokeFrom = (
       tool,
     ) => [
       tool.name,
-      verb(tool, (args, client) => {
+      // THE NAME AN AGENT ACTUALLY CALLED, which is not the name this row
+      // declared. A row names its verbs relative to itself (`done`) and kolu
+      // puts the row in front (`outlines_done`) — so `did` on an answer, and
+      // the word a refusal quotes, have to be the composed one or they name a
+      // tool the caller never asked for. Composed by `scopedToolName`, which is
+      // the very function the adapter mints the advertised name with, rather
+      // than by a second `${owner}_${name}` here that could drift from it.
+      verb(tool, (args) => {
         // READ HERE, synchronously, on the request's own stack — see
         // `./route.ts`'s `WHOSE`. Deferring it into the Effect would read
         // whichever request happened to be running when the scheduler got to
         // it, which is a capture attributed to the wrong person.
-        const said = answer(
-          tool,
-          doorFor(at.doorAt(client as McpClient), at),
-          args,
-          at.login(),
-        )
+        //
+        // THE ADAPTER'S OWN `client` ARGUMENT IS NOT USED, and that is the one
+        // place this face declines what kolu offers. A bundle-root tool is
+        // handed the bundle the endpoint dialled, and what a tool needs here is
+        // the bundle for THIS request — which the adapter cannot know about,
+        // because a node agent's session rule is minted per ticket
+        // (`./tickets.ts`). So the ticket resolves the bundle and the argument
+        // goes unread rather than being trusted for the half it can answer.
+        const door = at.doorAt()
+        const said = answer(tool, doorOver(door, rows, at), door, owner, scopedToolName(owner, tool.name), args, at.login())
         if (tool.kind !== "read") return Effect.map(said, (it) => named(it, at.root))
         // THE AGE IS ESTABLISHED FIRST, and that order is the honest one: the
         // look happens, then the read runs against a set that is at least as
@@ -130,102 +156,6 @@ export const bespokeFrom = (
       }),
     ]),
   )
-
-/**
- * CORE'S OWN THREE, and the reason they are not in `@olai/ops`' table.
- *
- * ## The hole this fills, which was a whole section of the doc
- *
- * `plugins.inspect`, `plugins.run` and `plugins.stop` are on the AGENT face and
- * pinned there as an exact set (`../faces.test.ts`). That gates what a caller
- * may CALL and says nothing about what it is OFFERED: an ACP engine is handed a
- * tool list, and the tool list is `@olai/ops`' table projected by
- * {@link bespokeFrom}. No row, no tool — so the first instruction in
- * `docs/dynamic-plugins.md`, *read `plugins.inspect` before writing code*, named
- * something no agent could reach, and `plugins.run`, the author's only feedback
- * loop, went with it. A node agent working on this branch found both by trying
- * (juspay/olai#506).
- *
- * ## Why they are HERE and not a row beside `capture`
- *
- * Because `@olai/ops` may not learn what a plugin is. Its table is the
- * OPERATIONS ON A VAULT — the write vocabulary and the reads that resolve one —
- * and a plugin is not an operation on a vault; it is a thing this SERVE mounts.
- * `commit` and `push` are rows in that table for a reason that does not apply
- * here: they are what a write is FOR, and they were there before a ledger was a
- * plugin.
- *
- * So the rows live in the composition root's own projection, which is this file,
- * and they dispatch to the surface members they name — the same procedures the
- * panel's own face reaches, so an agent asking what became of its definition and
- * a person looking at the row are reading one answer.
- *
- * ## What each of them is, in the agent's own words
- *
- * The descriptions below are the ones an engine reads in `tools/list`, and they
- * are written for somebody about to write a plugin rather than for somebody
- * reading this file. They say what the boundary is, because an author who does
- * not know that a person has to approve the thing will read `pending` as a
- * failure.
- */
-export const pluginTools = (): Record<string, BespokeTool> => ({
-  inspect_plugins: {
-    title: "What a plugin may name",
-    description:
-      "Read this BEFORE writing a plugin into the vault. Answers the four lists that decide whether a "
-      + "half will mount at all: the bare modules a half may import (nothing else resolves — a vault has "
-      + "no node_modules), the service keys a server half may put in its `needs`, the slots a browser "
-      + "half may register a face into with what keys each, the node layout a definition takes (the two "
-      + "properties and the two child titles), and every plugin word this serve already has — built rows "
-      + "and other definitions alike, since a definition may take neither. Read off the live registry "
-      + "rather than a description of it.",
-    mutates: false,
-    handler: (_args, client) =>
-      asked("inspect_plugins", landed((client as McpClient).surface.plugins.inspect({}))),
-  },
-  run_plugin: {
-    input: Schema.Struct({
-      name: Schema.String.annotate({
-        description: "The plugin's word — what the defining node's `plugin` property carries.",
-      }),
-    }) as unknown as ToolInputSchema<unknown>,
-    title: "Look at a plugin this vault defines",
-    description:
-      "Asks olai to read a definition as it stands now and say what became of it. THIS DOES NOT MOUNT "
-      + "ANYTHING BY ITSELF: a plugin whose current version nobody has approved answers `pending`, and "
-      + "the answer is the boundary rather than a failure — a person approves it at the plugins panel, "
-      + "with the source in front of them, because the code runs with this server's own authority. "
-      + "`state` is one of the plugin states (`pending`, `running`, `failed`, `waiting`, `switched`, "
-      + "`off`), `version` is the content hash of both halves, and `fault` is a whole sentence where "
-      + "there is one — a half that would not compile, a module olai does not bind, a half that calls "
-      + "itself another word. Write the two halves with `add_node` and `set_desc`, then call this.",
-    mutates: true,
-    handler: (args, client) =>
-      asked(
-        "run_plugin",
-        landed((client as McpClient).surface.plugins.run(args as { readonly name: string })),
-      ),
-  },
-  stop_plugin: {
-    input: Schema.Struct({
-      name: Schema.String.annotate({
-        description: "The plugin's word.",
-      }),
-    }) as unknown as ToolInputSchema<unknown>,
-    title: "Stop a plugin this vault defines",
-    description:
-      "Unmounts one plugin the VAULT defines, for as long as this serve runs — its registrations unwind "
-      + "and a restart comes back to what the vault says. It reaches definitions ONLY: a plugin this "
-      + "build compiled in is not an agent's to stop, and naming one is answered as no such plugin. To "
-      + "retract a definition altogether, trash the node — the source is ordinary vault content.",
-    mutates: true,
-    handler: (args, client) =>
-      asked(
-        "stop_plugin",
-        landed((client as McpClient).surface.plugins.stop(args as { readonly name: string })),
-      ),
-  },
-})
 
 /** What the FACE knows about itself — the two facts a tool's answer needs that
  *  no caller may supply.
@@ -261,7 +191,17 @@ export interface Served {
   readonly vintage: Effect.Effect<Vintage | undefined>
   /** Select the per-request write door before the adapter starts a fresh Effect
    * fiber and request-local context is no longer available. */
-  readonly doorAt: (client: McpClient) => McpClient
+  /** THE BUNDLE THIS REQUEST MAY REACH — the per-ticket session rule resolved
+   *  before the adapter starts a fresh Effect fiber and request-local context
+   *  is no longer available.
+   *
+   *  It took the adapter's own client and handed back a narrowed one; it takes
+   *  NOTHING now, because there is no single client to narrow. The rule is a
+   *  property of the CALLER (`./tickets.ts` mints one per node ticket), so what
+   *  it produces is a whole bundle whose every sibling client carries it — and
+   *  a face with no ticket gets the panel bundle, which is the same answer it
+   *  always got. */
+  readonly doorAt: () => RootedSurfaceClients
   /**
    * RECORD A WRITE, with this face's writer already bound — `ops.commit`
    * through the ledger door. A serve that did not mount the git row refuses
@@ -281,7 +221,7 @@ export interface Served {
  * differs in the one way that matters — it does not RUN the verb, it CALLS it,
  * as an MCP `tools/call` on the connection the projection handed it. So the verb
  * executes on the server, under the server's own gate, with the server's own
- * identity: a `capture` composed in the calling process could name any
+ * identity: a `capture_add` composed in the calling process could name any
  * `captured-by` it liked, which is precisely what "never caller-set" forbids.
  *
  * The answer comes back already naming the vault's `root` — the server stamped
@@ -289,15 +229,23 @@ export interface Served {
  * side knows: behind a reverse proxy a server cannot tell what address reached
  * it.
  */
-export const remoteFrom = (tools: ReadonlyArray<Tool>): Record<string, BespokeTool> =>
+export const remoteFrom = (owner: string, tools: ReadonlyArray<Tool>): Record<string, BespokeTool> =>
   Object.fromEntries(
     tools.map((tool) => [
       tool.name,
       verb(tool, (args, client) => {
         const door = client as unknown as Dialled
+        // THE NAME THE SERVER SERVES, not the name this row declared. A row
+        // names its verbs relative to itself (`add`) and composition puts the
+        // row in front (`capture_add`); argv spells that composition with a
+        // subcommand, so the CLI's own key stays bare while the CALL has to
+        // carry it. `olai surface capture add` answered `unknown tool "add"`
+        // until it did — the same slip `did` made on the served face, one
+        // door over.
+        const called = scopedToolName(owner, tool.name)
         return Effect.map(
           Effect.tryPromise({
-            try: () => door.callTool(tool.name, args),
+            try: () => door.callTool(called, args),
             // The transport's own failures are already the two values the CLI's
             // classifier reads (`../mcpClient.ts`) — a refusal on exit 1 with its
             // structured detail, an unreachable door on exit 3 naming the URL —
@@ -336,11 +284,11 @@ const verb = (
     title: tool.title,
     description: tool.description,
     // Conservative where it matters and honest where it does not: only the six
-    // query tools are read-only (`list_outlines`, `list_documents`,
-    // `read_node`, `read_subtree`, `read_document`, `search_nodes`), and
+    // query tools are read-only (`outlines_index`, `markdown_index`,
+    // `outlines_read`, `outlines_subtree`, `markdown_read`, `search_nodes`), and
     // `readOnlyHint` is what can let a host run a call unconfirmed. Everything
     // else is left mutating.
-    mutates: tool.kind !== "read",
+    mutates: tool.kind === "surface" ? tool.mutates : tool.kind !== "read",
     // The client the ADAPTER holds, not one this projection closed over — so a
     // socket that dropped and was re-dialled is answered by the fresh one, and
     // the tool surface never has to be rebuilt. Typed at this one seam, where
@@ -395,41 +343,61 @@ const isRecord = (said: unknown): said is Record<string, unknown> =>
   typeof said === "object" && said !== null && !Array.isArray(said)
 
 /**
- * The surface, as the three doors `@olai/ops`' arms are declared against.
+ * The surface, as the doors `@olai/ops`' arms are declared against.
  *
  * Every line is one procedure call and there is nothing else to it — which is
  * the property worth having: the ops layer's own implementation of these
  * interfaces and this one answer the same questions, so a tool cannot behave
  * differently for being reached over a socket.
  *
- * `commit` and `push` call through the ledger door with the face's writer
- * already bound on {@link Served}; `search` is `search.nodes` on core; the
- * rest are the agent's own `ops.*`, the two document reads included — a
- * browser draws a `.md` off the `documents` COLLECTION it already subscribes
- * to, which is a different question from the listing an agent asks.
+ * `git_commit` and `git_push` call through the ledger door with the face's writer
+ * already bound on {@link Served}; the rest are surface calls, and each lands
+ * on the ROW that declares it.
  *
- * ONE PER CLIENT, not one per call. Four of the ten lines are Effect VALUES
- * rather than thunks (`push`, `outlines`, `paths`, `documents` — that is the
- * shape the interfaces declare, because a question with no argument is a value), so
- * building a door per tool call would decode `git.push`'s empty input on every
- * `set_done` as well. The adapter hands back the same client object for a
- * connection's whole life, so the key is the connection in everything but
- * name — and an Effect is an immutable description, so reuse across calls is
- * what it is for.
+ * ## Every line RESOLVES ITS OWNER, and none of them names one
+ *
+ * This was ten calls on one flat client — `client.surface.ops.node(request)` —
+ * over a `mcpContract` that copied six rows' members into one un-prefixed
+ * namespace. #546 deleted the flat names and juspay/kolu#2234 deleted the need
+ * for the contract, so a call now picks the client of the row that declares the
+ * member: `ownerIn` walks the standing rows' own specs, and `clientAt` is
+ * kolu's own lookup into the bundle. Nothing here says `ops.node` is outlines'.
+ *
+ * `run` is the one that cannot be settled from the member, because outlines,
+ * markdown, files and trash all declare `ops.run` — so it is settled from the
+ * REQUEST, by which row brought the tool whose `op` this is ({@link runnerIn}).
+ *
+ * NOT ONE DOOR PER CLIENT ANY MORE, and the reason it used to be is gone with
+ * the flat client. Four of these were Effect VALUES rather than thunks
+ * (`git_push`, `outlines`, `paths`, `documents` — a question with no argument is a
+ * value), so a door per call would have decoded `git.push`'s empty input on
+ * every `outlines_done`. They are `Effect.suspend`ed instead: the description is
+ * still built once per call rather than per subscriber, and the owner is read
+ * when the call runs — which is what a roster that moves under a standing face
+ * requires. A door cached against a bundle would answer out of the roster it
+ * was minted for.
  */
-const doorFor = (client: McpClient, at: Served): Door => {
-  const held = DOORS.get(client)
-  if (held !== undefined) return held
-  const door = doorOver(client, at)
-  DOORS.set(client, door)
-  return door
-}
-
-const DOORS = new WeakMap<McpClient, Door>()
-
-const doorOver = (client: McpClient, at: Served): Door => {
+const doorOver = (bundle: RootedSurfaceClients, rows: () => ReadonlyArray<Row>, at: Served): Door => {
+  /** The client of whoever answers this member, or a refusal in the words an
+   *  absent capability already has. One spelling, so no line below can forget
+   *  that a row may be off. */
+  const on = (member: string, verb: string, owner?: string): SurfaceClientCallable => {
+    const who = owner ?? ownerIn(rows(), member, verb)
+    const client = who === undefined ? undefined : clientAt(bundle, who)
+    if (client === undefined) {
+      throw new ToolFailure("The capability for this operation is not active.", { unavailable: `${member}.${verb}` })
+    }
+    return client
+  }
+  const call = <A>(member: string, verb: string, input: unknown, owner?: string): Effect.Effect<A, OpFailure> =>
+    Effect.suspend(() => landed(on(member, verb, owner).surface[member]![verb]!(input) as Effect.Effect<A, unknown>))
   return {
-    run: (request) => landed(client.surface.ops.run(request)),
+    // WHICH ROW RUNS IT is read off the request's own `op`, because four rows
+    // declare this member. A verb no standing row claims resolves to nobody and
+    // is refused, which is the same answer its tool's absence from `tools/list`
+    // already gave.
+    run: request => Effect.suspend(() =>
+      call("ops", "run", request, runnerIn(rows()).get((request as { readonly op: string }).op))),
     // The act arm has NO failure channel and says so by type: every way a commit
     // or a push can go wrong is a value the caller is entitled to see, carried on
     // the answer. So the only thing left for these two to fail with is the
@@ -440,34 +408,15 @@ const doorOver = (client: McpClient, at: Served): Door => {
     // / `ops.push` do.
     commit: (request: CommitRequest) => Effect.orDie(at.record(request)),
     push: Effect.orDie(at.push),
-    outlines: landed(client.surface.ops.outlines(undefined)),
-    paths: landed(client.surface.ops.paths(undefined)),
-    node: (request) => landed(client.surface.ops.node(request)),
-    subtree: (request) => landed(client.surface.ops.subtree(request)),
-    search: (request) => landed(client.surface.search.nodes(request)),
-    documents: landed(client.surface.ops.documents(undefined)),
-    document: (request) => landed(client.surface.ops.document(request)),
+    outlines: call("ops", "outlines", undefined),
+    paths: call("ops", "paths", undefined),
+    node: request => call("ops", "node", request),
+    subtree: request => call("ops", "subtree", request),
+    search: request => call("search", "nodes", request),
+    documents: call("ops", "documents", undefined),
+    document: request => call("ops", "document", request),
   }
 }
-
-/**
- * A member call, narrowed back to the failures the ops layer declares.
- *
- * Every call over a surface carries the framework's transport failure channel
- * on top of the member's own — the socket died, the protocol could not decode —
- * and the ops-layer interfaces do not have an arm for that, correctly: a
- * transport death is not a refusal. It is a DEFECT here for the same reason
- * {@link answer} catches nothing but `OpFailure`: dressing one up as a refusal
- * would tell an agent to try something else about a condition that is not its
- * fault, and the one thing an agent could do about a dead socket — dial again —
- * the adapter already does for it before this is ever reached.
- */
-const landed = <A>(call: Effect.Effect<A, unknown>): Effect.Effect<A, OpFailure> =>
-  Effect.catch(
-    call,
-    (failure) => isOpFailure(failure) ? Effect.fail(failure) : Effect.die(failure),
-  )
-
 
 /**
  * What an agent fills in: the request schema minus the fields the tool's NAME
@@ -486,7 +435,7 @@ const landed = <A>(call: Effect.Effect<A, unknown>): Effect.Effect<A, OpFailure>
  * type, so the adapter's "is this an object?" test says no and advertises the
  * input WRAPPED under a single `value` property — after which dispatch unwraps
  * `args.value`, finds nothing, and every call of a no-argument tool is refused
- * with "Expected object | array". `list_outlines` is that tool, and it is the
+ * with "Expected object | array". `outlines_index` is that tool, and it is the
  * first call an agent makes. An absent `input` is the honest spelling anyway: a
  * tool that takes nothing has no argument schema, and the adapter advertises it
  * as the empty object MCP wants.
@@ -502,25 +451,12 @@ const argsOf = (tool: Tool): ToolInputSchema<unknown> | undefined => {
     : Schema.Struct(fields)) as unknown as ToolInputSchema<unknown>
 }
 
-/**
- * Run one call.
- *
- * The three arms differ in what they carry rather than in a flag, exactly as the
- * table does: a READ answers from a snapshot through the reader the table holds
- * beside it — so a tool the table declares and nothing answers is a type error;
- * a WRITE goes through `ops.run`, which plans, writes and retries; and an ACT
- * carries its own verb, which is how `commit` reaches the same `Ops.commit` the
- * button does without this file knowing what committing is.
- *
- * All three map an `OpFailure` onto {@link refusal}. Nothing else is caught: a
- * defect is a defect, and dressing one up as a refusal would tell an agent to
- * try something else about a condition that is not its fault. The act arm has no
- * error channel at all — every way `commit` can go wrong is a value a caller is
- * entitled to see — so its mapping is vacuous and says so by type.
- */
 const answer = (
   tool: Tool,
   door: Door,
+  bundle: RootedSurfaceClients,
+  owner: string,
+  called: string,
   args: unknown,
   login: string | null,
 ): Effect.Effect<unknown, ToolFailure> =>
@@ -531,20 +467,35 @@ const answer = (
       // there is nothing left to validate.
       ? Effect.map(
         door.run({ ...(args as object), ...tool.fixed } as Request),
-        (applied) => ({ ...applied, did: tool.name }),
+        (applied) => ({ ...applied, did: called }),
       )
       : tool.kind === "act"
       ? Effect.map(
         tool.act(door, args as never),
-        (result) => ({ ...(result as object), did: tool.name }),
+        (result) => ({ ...(result as object), did: called }),
       )
       : tool.kind === "plan"
       ? Effect.map(
         planned(tool, door, args, login),
-        (applied) => ({ ...applied, did: tool.name }),
+        (applied) => ({ ...applied, did: called }),
       )
+      // THE ARM THAT REACHES ITS OWN ROW, and the one that takes the CLIENT
+      // rather than the ops door. `olai-plugin-vault-plugins`' three verbs are
+      // the case: they call `plugins.inspect` / `run` / `stop`, which no
+      // ops-layer door has, and they lived in this file as hand-written
+      // `BespokeTool`s until #546 sent them home. The client handed over is the
+      // FENCED one this handler already resolved, so a row's own verb is under
+      // the same write door every other tool is — a row cannot get an unfenced
+      // client by declaring this arm instead of `write`.
+      : tool.kind === "surface"
+      ? Effect.suspend(() => {
+        const client = clientAt(bundle, owner)
+        return client === undefined
+          ? Effect.die(new Error(`the row "${owner}" is not standing`))
+          : tool.call(client as never, args as never)
+      })
       : tool.ask(door, args as never),
-    (failure: OpFailure) => refusal(tool.name, failure),
+    (failure: OpFailure) => refusal(called, failure),
   )
 
 /**
@@ -568,7 +519,7 @@ const answer = (
  * IT USED TO ASK FOR THE LISTING and drop everything but the file names, which
  * is the whole corpus materialised per capture — and the retry above means
  * twice. `ops.paths` is the same question without the records
- * (`perf-capture-paths`); the listing is still what `list_outlines` answers,
+ * (`perf-capture-paths`); the listing is still what `outlines_index` answers,
  * counts and all.
  */
 const planned = (

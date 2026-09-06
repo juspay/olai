@@ -46,7 +46,7 @@ import { reachable } from "@olai/web/client/connection/reaching.ts"
 export default definePlugin({ name, needs: [Wired, Offers], apply: Effect.gen(function*() {
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
-  yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["surface/edit/apply"].cases, edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))
+  yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))
 
   for (const start of [followDensity, followDonePrefs, followFolds]) {
     yield* Effect.acquireRelease(Effect.sync(start), stop => Effect.sync(stop))

@@ -6,7 +6,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * (#124's `•••` verb) — a standing consistency deviation rather than a missing
  * feature (`editor-op-parity`). This is the affordance that closes
  * it, and what it sends is the intent every other write on this face sends:
- * one `date` edit at the same gate `set_date` goes through
+ * one `date` edit at the same gate `outlines_date` goes through
  * ({@link ../../../../surface/src/edit.ts}), judged by the same planner,
  * refused in the same words. Nothing is echoed — the badge changes when the
  * file says it changed.

@@ -90,7 +90,7 @@ test("what was typed is trimmed before any of this", () => {
 })
 
 // NOTHING ELSE IS JUDGED HERE. A path that climbs out of the directory, or one
-// the set already holds, is `create_outline`'s sentence to say — completed
+// the set already holds, is `files_create`'s sentence to say — completed
 // first, so what the refusal names is the file that was actually asked for.
 test("a path the ops layer will refuse is completed and passed on all the same", () => {
   expect(meantAt("outline", "../escape")).toEqual({ file: "../escape.olai" })

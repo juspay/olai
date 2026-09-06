@@ -457,7 +457,7 @@ When(
 );
 
 /** An existing chip's key is not typeable, and that is the format's rule rather
- *  than the box's: `set_prop` sets ONE key, so a rename is a removal and an
+ *  than the box's: `outlines_prop` sets ONE key, so a rename is a removal and an
  *  addition. The KEY BOX is drawn only while a property is being NAMED. */
 Then(
   "the property editor on {string} offers no key box",

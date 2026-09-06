@@ -26,9 +26,15 @@ test("Markdown owns live frontmatter and missing-file metadata with outlines abs
   const faults = yield* watchFault(wired.bound)
   yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
   yield* Effect.addFinalizer(() => faults.stopped)
-  expect(wired.bound.handlers["surface/page/get"]).toBeUndefined()
-  expect(wired.bound.handlers["surface/outlines/get"]).toBeUndefined()
-  const get = wired.bound.handlers["surface/documentPage/get"]!
+  // SCOPED, and the absences say the same thing they always did. `page` and
+  // `outlines` are `olai-plugin-outlines`' members, so their tags carry that
+  // row's name — this composed without it, so nothing answers them. The bare
+  // `surface/page/get` these read until #546 was the root mount's alias, and a
+  // tag nothing serves is undefined whether or not the row is standing, which
+  // would have made this pair pass for the wrong reason.
+  expect(wired.bound.handlers["surface/outlines/page/get"]).toBeUndefined()
+  expect(wired.bound.handlers["surface/outlines/outlines/get"]).toBeUndefined()
+  const get = wired.bound.handlers["surface/markdown/documentPage/get"]!
   const request = {kind:"at",address:addressOf("notes.md", null)}
   const stream = get(request) as Stream.Stream<FiledPageReading>
   const frames = yield* Queue.unbounded<FiledPageReading>()

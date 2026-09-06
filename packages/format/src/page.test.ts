@@ -255,7 +255,7 @@ test("the trash is the one `_olai/Trash.olai`, and an empty one is a page", () =
     groups: [],
     records: 0,
   })
-  // Nothing put away yet at all — `trash_node` creates the file on first use,
+  // Nothing put away yet at all — `outlines_trash` creates the file on first use,
   // so an absent trash is an empty page, never a missing one.
   expect(readAt({ kind: "trash" }))
     .toEqual({ kind: "trash", files: [], groups: [], records: 0 })

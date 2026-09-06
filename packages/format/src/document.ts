@@ -241,7 +241,7 @@ export type Outline = typeof Outline.Type
  *
  * `bytes` is what the body WEIGHS as UTF-8 — remembered here at decode so a
  * listing does not re-encode every served `.md` to report a size
- * (`list_documents`, `@olai/ops`' `query.ts`). {@link ./documents.ts}'s
+ * (`markdown_index`, `@olai/ops`' `query.ts`). {@link ./documents.ts}'s
  * `bytesOf` is how it is measured; this is that answer given a field.
  *
  * `headings` is what makes a document ADDRESSABLE BELOW THE FILE, which is the
@@ -354,7 +354,7 @@ export const outlineDocument = (
     links,
     tags,
     // A FILE writes no properties of its own here: an outline's named facts
-    // are on its records, where `set_prop` puts them, and a `.olai` has no
+    // are on its records, where `outlines_prop` puts them, and a `.olai` has no
     // frontmatter to read. Empty because nothing wrote one, which is the same
     // sentence the unkept arm's empty `links` says.
     props: {},

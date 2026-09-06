@@ -11,7 +11,7 @@
  * may hold no such row.
  *
  * THAT IS A LIMIT OF THIS GESTURE AND NOT OF THE SET, which is a distinction
- * this module used to be able to skip and no longer can. `move_node` carries a
+ * this module used to be able to skip and no longer can. `outlines_move` carries a
  * row into another outline now, ids intact, and the move-to picker (⌘⇧M) sends
  * exactly that. A drag has no arithmetic for a pane it is not carrying rows of
  * — there is no gap to measure and no depth to read — so what it says is what
@@ -125,7 +125,7 @@ const aimedAt = (
  * with a hole in it. A page of ANOTHER FILE is about the GESTURE: a drag lands
  * a row in a gap between rows of the file it is carrying, and this pane draws
  * none — so it names the door that CAN send the row there rather than a law,
- * because there is no longer a law to name (`move_node` crosses outlines, and
+ * because there is no longer a law to name (`outlines_move` crosses outlines, and
  * `⌘⇧M` is that same op with a search in front of it). A page of the SAME file
  * with nothing left is the gesture having eaten its own candidates — every row
  * drawn there is inside what the hand is holding — which is not about files at

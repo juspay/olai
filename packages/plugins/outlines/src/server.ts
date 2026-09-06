@@ -12,26 +12,36 @@
  * entries together — which is what makes outlines genuinely absent rather than
  * quiet (`packages/tests/features/content_capabilities.feature`).
  *
- * `root: true`, AND SO IS `olai-plugin-markdown`, which looks like two rows
- * claiming one tag and is the arrangement the phase is built on. A root mount
- * keeps its bare `surface/edit/apply` and `surface/ops/run` beside its scoped
- * `surface/outlines/...` alias, so the wire a browser speaks does not change
- * shape when a row goes away. Two roots may claim one tag only because their
- * `dispatch` CASES are disjoint: `./surface.ts` declares this row's twenty-odd
- * edit verbs, markdown declares `doc`/`docNew`, pins declares `pin`, and
- * `@olai/server`'s `composition.ts` refuses the mount outright if two owners
- * overlap a case, disagree on the dispatch field, disagree on write authority,
- * disagree on exposure, or carry different payload/success/error ASTs for the
- * shared envelope. That is why {@link surface}'s envelopes come from
- * `@olai/surface/dispatch` rather than being spelled here: one spelling is a
- * requirement of the mount, not a convenience.
+ * THIS ROW REGISTERED `root: true` UNTIL #546, and so did markdown, pins,
+ * files, trash, capture, search, vault and vault-plugins. A root mount kept
+ * every member answering under a BARE tag as well as its own —
+ * `surface/edit/apply` beside `surface/outlines/edit/apply` — because those
+ * were the tags of the monolith these rows were cut out of. Six rows sharing
+ * `surface/edit/apply` then needed `dispatch` to say whose verbs were whose,
+ * and `@olai/server`'s `composition.ts` needed five refusals to make the
+ * sharing safe: overlapping cases, disagreeing fields, disagreeing write
+ * authority, disagreeing exposure, or different payload/success/error ASTs.
+ *
+ * Every one of those is gone. This row answers `surface/outlines/edit/apply`
+ * and `surface/outlines/ops/run`, markdown answers its own, and there is
+ * nothing at composition left to prove. What survives is the SPELLING:
+ * {@link surface}'s envelopes still come from `@olai/surface/dispatch`, now
+ * because one `Edit` schema across the rows is what lets `@olai/edit-history`
+ * route a keystroke by verb without knowing which row will take it, and
+ * `./surface.ts`'s `dispatch` const is what tells it.
  *
  * `writes: ["surface/ops/run"]` is the same claim on the OTHER axis — which of
- * this row's tags the write reservation covers — and `scopedFaces` names the
- * browser map a second time on purpose: `faces` is what the ROOT alias grants
- * and `scopedFaces` is what the namespaced tag grants, and the agent face is
- * deliberately in only the first. Copying the agent map into `scopedFaces`
- * would advertise a second, namespaced set of the same tools.
+ * this row's tags the write reservation covers. It names the tag as THIS
+ * surface spells it; the composition root is what puts it under
+ * `surface/outlines/`. Four rows carrying the identical string is four rows
+ * each naming their own member.
+ *
+ * `faces` IS THE WHOLE GRANT. It stood beside a `scopedFaces` that held the
+ * same map, because while the bare tags existed `faces` granted those and
+ * `scopedFaces` granted the qualified ones — and the agent map was on the bare
+ * set alone, since putting it on both would have advertised one tool under two
+ * names. With one name per member there is one map, and an agent that may
+ * reach `ops.run` at all reaches it here.
  */
 import { definePlugin, Directory, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
 import type { Ops as Gate } from "@olai/ops"
@@ -40,7 +50,13 @@ import { inMemoryChannel, type ImplementSurfaceDeps, type SurfaceRuntime } from 
 import type { Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import { applyEdit, runWrite } from "@olai/edit-intents/apply"
-import { surface, faces, dispatch } from "./surface.ts"
+import { surface, faces, resources } from "./surface.ts"
+/** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
+ *  faces. They were entries in `@olai/ops`' one closed table until #546, which
+ *  meant a general package named this row's vocabulary and a serve without this
+ *  row still advertised them; declaring them here is what makes switching the
+ *  row off take its tools along. */
+import { tools } from "./tools.ts"
 import { name } from "./name.ts"
 export { name } from "./name.ts"
 import type { Projection } from "@olai/surface/projection"
@@ -149,7 +165,7 @@ export default definePlugin({
         ops: { outlines: () => gate.outlines, node: ({ input }) => gate.node(input), subtree: ({ input }) => gate.subtree(input), run: ({ input }) => runWrite(gate, input) },
       },
     }
-    yield* (yield* Surfaces).register({ surface, faces, dispatch, writes: ["surface/ops/run"], root: true, scopedFaces: { browser: faces.browser }, deps, published: value => { ctx = value as typeof ctx } })
+    yield* (yield* Surfaces).register({ surface, faces, resources, tools, writes: ["surface/ops/run"], deps, published: value => { ctx = value as typeof ctx } })
   }),
 })
 

@@ -364,7 +364,7 @@ export const writeVerbs = (
     // re-derived (`../props/drawer.ts`), and it is the custom half only. The
     // node's own facts are drawn in that run too and are not writable there or
     // here: each has a verb of its own — the mark section above, `Change
-    // date…`, the two edge verbs below — and `set_prop` refuses every one of
+    // date…`, the two edge verbs below — and `outlines_prop` refuses every one of
     // them by name.
     if (customEntries(customOf(shown.node)).length === 0) {
       verbs.push({
@@ -459,7 +459,7 @@ export const writeVerbs = (
     // line. The entry SPEAKS Trash — the human-facing name for the archive
     // (`../trash/TrashPage.tsx`) — while the id below, the wire verb and the
     // op stay `archive`: the file is still `_olai/Trash.olai` and the agent's
-    // tool is still `trash_node`; only the surface a person reads renames.
+    // tool is still `outlines_trash`; only the surface a person reads renames.
     verbs.push({
       id: "trash",
       label: "Move to Trash",

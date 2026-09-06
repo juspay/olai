@@ -13,6 +13,7 @@
     "./page": "./src/contracts/page.ts",
     "./references": "./src/contracts/references.ts",
     "./surface": "./src/surface.ts",
+    "./tools": "./src/tools.ts",
     "./chrome": "./src/contracts/chrome.ts",
     "./changes": "./src/contracts/changes.ts",
     "./filter-values": "./src/contracts/filter-values.ts",

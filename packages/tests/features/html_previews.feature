@@ -119,7 +119,7 @@ Feature: A `.html` in the vault
 
   @corpus:good
   Scenario: A `.html` is read, not written — there is no editor on its page
-    # `write_document` takes a `.md` and refuses anything else (`@olai/ops`),
+    # `markdown_write` takes a `.md` and refuses anything else (`@olai/ops`),
     # so an Edit control here would be a door onto a refusal. The document page
     # beside it still has one, which is what makes this an assertion about the
     # KIND rather than about the page having lost a button.

@@ -34,10 +34,10 @@ describe("Codex steering", () => {
 
 describe("Codex's conservative wire readings", () => {
   test("never infers a programmatic tool name or auto-approves a call", () => {
-    const meta = { is_mcp_tool_call: true, codex: { tool: "olai.read_node" } }
+    const meta = { is_mcp_tool_call: true, codex: { tool: "olai.outlines_read" } }
     expect(CODEX.toolNameIn(meta)).toBeNull()
     expect(CODEX.toolNameOf("opaque-call-id")).toBeNull()
-    expect(CODEX.allowedWithoutAsking("olai.read_node", ["olai"], [
+    expect(CODEX.allowedWithoutAsking("olai.outlines_read", ["olai"], [
       { optionId: "yes", name: "Allow", kind: "allow_once" },
     ])).toBeNull()
   })

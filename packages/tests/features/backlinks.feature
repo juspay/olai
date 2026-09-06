@@ -15,7 +15,7 @@ Feature: Referenced by — a zoomed node says what points at it
   What is deliberately NOT in it is as much of the feature as what is:
 
     - a MIRROR is a placement, which is a second view of a node rather than a
-      claim about it — and `read_node`'s `mirrors` already answers where else a
+      claim about it — and `outlines_read`'s `mirrors` already answers where else a
       node is drawn;
     - an `after` or a `blocks` is the ordering graph, and both directions of it
       are already on the page (`blocked by`, and the node's own `after` row);

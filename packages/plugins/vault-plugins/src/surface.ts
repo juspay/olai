@@ -30,7 +30,7 @@ plugins: { /**
        *
        * For `plugins.set`'s reason, sharpened: an agent that could approve a
        * plugin could approve the plugin it just wrote, which is the whole of the
-       * boundary this phase has. `./faces.ts` names it on that face and no
+       * boundary this phase has. {@link faces} below names it on that face and no
        * other, and its suite pins the agent face as an exact set.
        */
       approve: {
@@ -91,7 +91,8 @@ plugins: { /**
        * turn a row off could turn off the row that seats it, the row that
        * watches its writes, or the row whose tools it is holding — and then not
        * be able to turn any of them back on, because the face it was calling
-       * through went with them (`./faces.ts` argues it where the switch is).
+       * through went with them (`@olai/surface/host`'s `hostFaces` argues it
+       * where the switch is).
        * A definition is different in the one way that matters: it is code the
        * agent wrote, in a vault the agent can write, and retracting it is
        * deleting the node.
@@ -150,4 +151,38 @@ plugins: { /**
 }
 })
 
+/**
+ * WHICH FACE SEES WHAT — this row's whole grant, over this row's own spec, and
+ * the one place in the tree where the split between the two faces IS the
+ * feature.
+ *
+ * ## Three verbs are an agent's, because the agent is the author
+ *
+ * {@link inspect} is a READ of what a plugin may name — the modules, the
+ * services, the slots, the words already taken — asked before the code is
+ * written. {@link run} asks olai to look at a definition and answers what became
+ * of it, which for anything nobody has approved is `pending`. {@link stop}
+ * unmounts one, and is narrowed to DEFINITIONS so an agent cannot turn off the
+ * row that seats it.
+ *
+ * WRITING the definition needs nothing on this map: a plugin is a node with two
+ * child notes, so an agent writes one with `outlines_add`, `outlines_desc` and
+ * `outlines_prop` — the ordinary write door, under the ordinary subtree fence,
+ * recorded by the ordinary ledger commit.
+ *
+ * ## ...and the fourth is a person's
+ *
+ * {@link approve} is the one verb in olai that says yes to CODE. A plugin the
+ * vault defines is source somebody — usually an agent — wrote into the
+ * directory this serve is about, and mounting it runs that source with the
+ * process's authority. The boundary is a PERSON, at a panel, having read the
+ * two halves the row carries. An agent on the face below can write a definition
+ * and can ask what became of it; the one thing it cannot do is be the reader.
+ *
+ * `plugins.set` — the panel's own switch, which turns any row off — is core's
+ * and is on the browser face there (`@olai/surface/host`'s `hostFaces`). The
+ * pair is the whole boundary, and `@olai/server`'s `faces.test.ts` pins the
+ * agent face as an EXACT SET so those two absences are asserted rather than
+ * trusted to nobody having typed them.
+ */
 export const faces = { browser: { "plugins.approve": "tool" }, agent: { "plugins.inspect": "tool", "plugins.run": "tool", "plugins.stop": "tool" } } as const

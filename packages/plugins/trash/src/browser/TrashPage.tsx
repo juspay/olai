@@ -8,7 +8,7 @@ import { TESTID as IDS_TRASH } from "olai-plugin-trash/testids"
  * and the subtrees hanging off it exactly as they left. The web calls it
  * TRASH because that is what it is to a person (Workflowy's word, and the
  * confirm's promise); the file keeps its name, the ops vocabulary keeps
- * `trash_node`, and only this human-facing surface renames anything.
+ * `outlines_trash`, and only this human-facing surface renames anything.
  *
  * IT IS NOT A PLACE YOU EDIT, and that is drawn rather than fenced: no
  * editor mounts here, no `•••`, no checkbox, no date pill — a row is its
@@ -17,7 +17,7 @@ import { TESTID as IDS_TRASH } from "olai-plugin-trash/testids"
  * layer's own answer (the recorded chain of ancestor titles, matched back
  * against the live outlines), a refusal comes back in the ops layer's own
  * words under the row, and ⌘Z after a put-back archives it again — the
- * inverse the server records. An agent's `untrash_node` is the same call,
+ * inverse the server records. An agent's `trash_restore` is the same call,
  * which is what the consistency rule demands of a new verb.
  *
  * THE PAGE HAS ONE VERB OF ITS OWN, and it is the app's only delete:
@@ -25,7 +25,7 @@ import { TESTID as IDS_TRASH } from "olai-plugin-trash/testids"
  * in every archive the directory holds (`./EmptyTrash.tsx`). It is not a row's
  * verb and could not be — what it is about is the piles rather than anything
  * in one — and it sits behind a confirm naming how many rows go, counted over
- * the SET, saying plainly that nothing puts them back. `empty_trash` is the
+ * the SET, saying plainly that nothing puts them back. `trash_empty` is the
  * same op for an agent, so the rule that put **Put back** here put this here
  * too.
  *
@@ -157,7 +157,7 @@ function Branch(props: {
   const { said, say } = createSaying()
 
   // The id the verb names is the ROW's own record — for the one row that
-  // offers it, a regular node, so it is the id `untrash_node` takes. A
+  // offers it, a regular node, so it is the id `trash_restore` takes. A
   // placement in the trash draws as the footnote it is and offers nothing:
   // the way to take a mirror out is to put its node back.
   const putBack = async () => {

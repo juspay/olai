@@ -87,7 +87,7 @@ interface Drawn {
  * is not its identity; `titled` is that fact, decided where the declarations
  * are ({@link Meaning}) and never guessed at here. Then the STORED id is what
  * the pointer is told, so the value the record actually holds is one hover
- * away — which is the half somebody writing a `set_prop` needs, and the half a
+ * away — which is the half somebody writing a `outlines_prop` needs, and the half a
  * title would otherwise take off the screen.
  *
  * `says` NAMES WHERE THE CLICK GOES, everywhere else: the resolved document,

@@ -11,17 +11,17 @@
  *
  * Every clause of that is kept HERE, and the way it is kept is that the source
  * is a NOTE. A node's note is markdown stored verbatim with embedded newlines
- * (`@olai/format`'s `desc`), `set_desc` is the ordinary write door onto one, and
+ * (`@olai/format`'s `desc`), `outlines_desc` is the ordinary write door onto one, and
  * a `.olai` outline is a file the ledger commits like any other. A `.ts` on the
  * disk beside the outlines would have been none of those things: `@olai/format`
  * claims six kinds of file and `.ts` is not one of them, so the store would not
- * serve it, `write_document` refuses anything that is not a `.md`, and the
+ * serve it, `markdown_write` refuses anything that is not a `.md`, and the
  * ledger records the paths olai WROTE — which, for a file olai does not know
  * about, is no path at all.
  *
  * So the two halves are two child nodes, titled for the files they would have
- * been, each carrying its half in its note. An agent writes them with `add_node`
- * and `set_desc`; a person reads them in the outliner like anything else; a
+ * been, each carrying its half in its note. An agent writes them with `outlines_add`
+ * and `outlines_desc`; a person reads them in the outliner like anything else; a
  * revision moves them like anything else. There is no second write door and no
  * new kind of file.
  *
@@ -121,7 +121,7 @@ export const isApproved = (one: Defined): boolean =>
  * a regular node in `_olai/Trash.olai`, and without this skip the panel draws
  * it as a vault-defined plugin with the trash as its file. The rest of the
  * tree treats the trash as absent (`isPutAway`); this reader does too, so
- * `trash_node` is the retraction the doc already names.
+ * `outlines_trash` is the retraction the doc already names.
  */
 export const definedIn = (
   derived: Derived,

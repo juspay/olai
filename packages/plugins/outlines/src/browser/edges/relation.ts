@@ -5,8 +5,8 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * the {@link Edit} that adds or drops one target.
  *
  * `see` and `after` are one gesture over two fields — that is the ops layer's
- * own reading (`@olai/ops`' `planEdges`, one function for both `set_see` and
- * `set_after`), and it is why this client draws one panel and one refs row for
+ * own reading (`@olai/ops`' `planEdges`, one function for both `outlines_see` and
+ * `outlines_after`), and it is why this client draws one panel and one refs row for
  * both rather than two of each. What differs between them is entirely in this
  * table: the words, and the fact that an `after` add can be refused for what it
  * MEANS (a loop) where a `see` never can.
@@ -86,7 +86,7 @@ export const relating = (relation: Relation): Relating => RELATING[relation]
  *  `Record` has no order to promise. */
 export const RELATIONS: ReadonlyArray<Relating> = [RELATING.see, RELATING.after]
 
-/** Name this target on the node's edge list — `set_see` / `set_after` with one
+/** Name this target on the node's edge list — `outlines_see` / `outlines_after` with one
  *  id in `add`, which is what choosing a row in the panel means. */
 export const linking = (id: string, relation: Relation, target: string): Edit => ({
   verb: relation,

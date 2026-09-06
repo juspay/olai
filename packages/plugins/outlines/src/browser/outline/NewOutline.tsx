@@ -1,7 +1,7 @@
 /**
  * The sidebar's way to an outline that does not exist yet.
  *
- * MCP could mint one — `create_outline` — and a person could not: the tree
+ * MCP could mint one — `files_create` — and a person could not: the tree
  * listed every file in the directory and offered no way to start another. A
  * standing consistency deviation rather than a missing feature
  * (`parity-create-outline`), and this closes it.
@@ -9,7 +9,7 @@
  * The BOX is `../file/NewFile.tsx`, shared with the document's door, so what is
  * left here is the two things that are actually this file's: the op it sends,
  * and where a write that landed goes. Every rule about the path belongs to
- * neither — `create_outline` judges it and its sentence is what is drawn. The
+ * neither — `files_create` judges it and its sentence is what is drawn. The
  * box settles the SUFFIX before it asks, because that half is the door's own
  * and this file is the door (`../file/completing.ts`).
  *

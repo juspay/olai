@@ -45,7 +45,7 @@
  *
  * A TAG is text: the span is replaced in the draft and nothing is sent, because
  * a tag lives inline in the title and the draft commits like any other typing.
- * The other two are OPS — `set_date` and `add_mirror`, through the editor's own
+ * The other two are OPS — `outlines_date` and `outlines_mirror`, through the editor's own
  * gate (`../edit/editing.tsx`) — and both take their trigger's text back OUT of
  * the line first, because `!next fri` is not something anybody wants left in a
  * title.

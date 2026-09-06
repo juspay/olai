@@ -18,9 +18,9 @@
  *     the format would give a fact it means to declare, and it costs a field
  *     every node may carry that exactly one view reads, plus an op on both
  *     faces to write it. A field only the shelf understands is a field the
- *     tree, the search grammar and `read_node` would each have to say nothing
+ *     tree, the search grammar and `outlines_read` would each have to say nothing
  *     about.
- *   - **a `custom` key** costs nothing to write (`set_prop` is already there)
+ *   - **a `custom` key** costs nothing to write (`outlines_prop` is already there)
  *     and costs the one sentence that makes `custom` a namespace at all:
  *     *nothing in olai reads a key in here* (docs/format.md's Properties). A
  *     key olai reads is a system field with none of a system field's
@@ -33,8 +33,8 @@
  *     second copy of the tree rather than a row of doors. A pin says GO THERE.
  *
  * What the chosen shape buys is that pinning grew no verb on the agent's face:
- * `add_node` pins, `move_node` reorders, `trash_node` unpins, and
- * `read_subtree` reads the shelf. The one verb the BROWSER grew (`pin`) resolves
+ * `outlines_add` pins, `outlines_move` reorders, `outlines_trash` unpins, and
+ * `outlines_subtree` reads the shelf. The one verb the BROWSER grew (`pin`) resolves
  * to the `add` an agent would have sent — it exists so a tab does not have to
  * work out which file the shelf is (`@olai/surface`'s `edit.ts`).
  *
@@ -219,7 +219,7 @@ const showing = (route: Route, row: Pinned): string | undefined => {
  * arriving.
  *
  * The ORDER and the ROWS are the answer's (`ord`, the sort every other reading
- * of a file uses — so a drag on the shelf is the same `move_node` a drag in the
+ * of a file uses — so a drag on the shelf is the same `outlines_move` a drag in the
  * tree is). What this adds is the reading of each title, which is why the list
  * can be shorter than the answer: a row that names no page of this app is not
  * a door.

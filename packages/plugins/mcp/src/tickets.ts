@@ -7,8 +7,9 @@ import type { SessionRule, Ops } from "@olai/ops"
 import { randomBytes } from "node:crypto"
 
 import { type Bound } from "./authority.ts"
-import { type McpClient } from "./client.ts"
-import { liveClient } from "./live-client.ts"
+import type { RootedSurfaceClients } from "@kolu/surface/client"
+import { clientsFor, type Row } from "./bundle.ts"
+import type { Reading } from "./live-client.ts"
 
 /**
  * THE WORDS NO SESSION MAY WRITE, whatever node it is on.
@@ -63,7 +64,7 @@ export interface Tickets {
     forbidden: () => ReadonlyArray<{ readonly key: string; readonly says: string }>,
     writer: string,
   ) => Ticket
-  readonly doorAt: (held: McpClient) => McpClient
+  readonly doorAt: (held: RootedSurfaceClients) => RootedSurfaceClients
 }
 
 export const ticketing = (options: {
@@ -73,14 +74,24 @@ export const ticketing = (options: {
   readonly ops: Ops
   readonly currentTicket: () => string | null
   readonly token: string
+  /** Which rows are standing, so a ticketed bundle carries a client for exactly
+   *  the siblings the unticketed one does. Read afresh per mint — a ticket
+   *  outlives a recompose. */
+  readonly rows: () => ReadonlyArray<Row>
 }): Tickets => {
   const prefix = "olai-node-"
-  const tickets = new Map<string, McpClient>()
+  const tickets = new Map<string, RootedSurfaceClients>()
 
-  const composed = (rule: SessionRule, writer: Writer): McpClient => liveClient(() => ({
+  /** ONE BUNDLE PER RULE, and every sibling client in it carries that rule. It
+   *  was one flat client until juspay/kolu#2234 gave the adapter a rooted
+   *  bundle; what a caller is narrowed to is unchanged, because the rule rides
+   *  the writer on each row's dispatch exactly as it did on the one. */
+  const reading: Reading = () => ({
     ...(typeof options.bound === "function" ? options.bound() : options.bound),
     expose: typeof options.face === "function" ? options.face() : options.face,
-  }), { writer, rule })
+  })
+  const composed = (rule: SessionRule, writer: Writer): RootedSurfaceClients =>
+    clientsFor(options.rows(), reading, { writer, rule })
 
   const closed = composed({ _tag: "closed" }, "mcp")
 

@@ -1,4 +1,3 @@
-import { surface } from "@olai/bundle/surface"
 import { capabilitiesOver } from "../capabilities.testlib.ts"
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
 /**
@@ -21,12 +20,11 @@ import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
  * pipe the chat panel's agent reads its refusals through.
  */
 
-import { MCP } from "@olai/bundle/faces"
 import {
   codecFor,
   make as makeOps,
   type Store as OutlineStore,
-  TOOLS,
+  type Tool,
 } from "@olai/ops"
 import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
@@ -42,12 +40,28 @@ import type { Reading } from "../who.ts"
 import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { hostname } from "../hostname.ts"
-import { bind, writerAt } from "../runtime.ts"
-import { clientOver, type McpClient } from "olai-plugin-mcp/testlib"
-import { serveFace } from "olai-plugin-mcp/testlib"
-import { mcpRoute, currentTicket, currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "olai-plugin-mcp/testlib"
-import { type Ticket, ticketing } from "olai-plugin-mcp/testlib"
-import { bespokeFrom, pluginTools } from "olai-plugin-mcp/testlib"
+import { bind } from "../runtime.ts"
+import type { RootedSurfaceClients } from "@kolu/surface/client"
+/** ONE STATEMENT, where six stood. `mcpContract`, `AGENT_EXPOSE`, `McpClient`,
+ *  `liveClient` and `toOwner` are all gone with the flat contract
+ *  (juspay/kolu#2234), and what is left of the served face's shape is the two
+ *  halves of `bundle.ts` beside the door and the transport. */
+import {
+  bespokeFrom,
+  clientsFor,
+  currentLogin,
+  currentTicket,
+  fromLoopback,
+  MCP_PATH,
+  mcpAllowed,
+  mcpRoute,
+  mcpTransport,
+  serveFace,
+  siblingsOf,
+  ticketing,
+  type Row,
+  type Ticket,
+} from "olai-plugin-mcp/testlib"
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about
@@ -91,7 +105,9 @@ interface Served {
     message: unknown,
     headers?: Record<string, string>,
   ) => Promise<Response>
-  readonly retainedTicket: () => { ticket: Ticket; client: McpClient }
+  /** A ticket and the BUNDLE it was minted for — one client per standing
+   *  row, where it was one flat client until juspay/kolu#2234. */
+  readonly retainedTicket: () => { ticket: Ticket; client: RootedSurfaceClients }
   readonly mintTicket: () => Ticket
   readonly url: string
 }
@@ -120,30 +136,43 @@ const withRoute = <A>(
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const transport = mcpTransport()
-    const panel = clientOver(
-      { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp" }) },
-      wired.faces.agent,
+    // THE BUNDLE THE SERVED FACE IS, off the rows this bind actually composed —
+    // `bundle.ts`'s two halves, called as `binding.ts` and `endpoint.ts` call
+    // them.
+    //
+    // IT WAS A FLAT CONTRACT AND A HAND-WRITTEN EXPOSE MAP OVER ONE `liveClient`
+    // ROUTED BY `toOwner`, and none of those names exists. A member is addressed
+    // through the row that declares it (`ops.node` is
+    // `surface/outlines/ops/node`), which the per-sibling client does by
+    // construction rather than by consulting a route.
+    const rows = (): ReadonlyArray<Row> =>
+      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [] }))
+    const panel = () => clientsFor(
+      rows(),
+      () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }),
+      { writer: "mcp" },
     )
     let selectingTicket: string | null = null
-    const tickets = ticketing({ reservations: WRITE_RESERVATIONS, bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket: () => selectingTicket ?? currentTicket() })
+    const tickets = ticketing({ reservations: WRITE_RESERVATIONS, bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket: () => selectingTicket ?? currentTicket(), rows })
     yield* serveFace({
-      surface,
-      expose: MCP,
-      client: () => panel,
-      tools: {
-        ...bespokeFrom(TOOLS, {
-          login: currentLogin,
-          root,
-          vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
-          doorAt: tickets.doorAt,
-          record: (request) => ops.commit(request, "mcp"),
-          push: ops.push,
-        }),
-        // ...composed exactly as `../serve.ts` composes them, because the
-        // question this bench asks about them is whether an AGENT can reach
-        // them at all.
-        ...pluginTools(),
-      },
+      // EVERY VERB COMES OFF ITS OWN ROW, including the plugin ones.
+      // `vault-plugins_inspect`, `vault-plugins_run` and `vault-plugins_stop` used to arrive through
+      // a second spread (`pluginTools()`), because they call a row's own client
+      // rather than an ops-layer door; then through one build-wide table
+      // (`agentTools()`) handed in flat. They are `olai-plugin-vault-plugins`'
+      // own `tools.ts` now and they ride that row's SIBLING ENTRY, so the case
+      // below that lists and calls all three is asking whether the roster
+      // carries them — which is the question that replaced "does the filter
+      // still name them".
+      siblings: siblingsOf(rows(), row => bespokeFrom(row.name, row.tools as ReadonlyArray<Tool>, rows, {
+        login: currentLogin,
+        root,
+        vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+        doorAt: () => tickets.doorAt(panel()),
+        record: (request) => ops.commit(request, "mcp"),
+        push: ops.push,
+      })),
+      client: panel,
       transport,
     })
     yield* Effect.addFinalizer(() => runtime.stopped)
@@ -166,7 +195,7 @@ const withRoute = <A>(
         retainedTicket: () => {
           const ticket = tickets.mint(() => [], "chat-agent")
           selectingTicket = ticket.bearer
-          try { return { ticket, client: tickets.doorAt(panel) } }
+          try { return { ticket, client: tickets.doorAt(panel()) } }
           finally { selectingTicket = null }
         },
         mintTicket: () => tickets.mint(
@@ -226,7 +255,7 @@ test("a tool call goes through and comes back as one reply", async () => {
     const ack = await post({ jsonrpc: "2.0", method: "notifications/initialized" })
     expect(ack.status).toBe(202)
 
-    // `read_node` rather than `search_nodes`, which this used to call: the
+    // `outlines_read` rather than `search_nodes`, which this used to call: the
     // matcher is a ROW now (`olai-plugin-search`) and this harness mounts none,
     // so a search here answers with the row's absence in words — one reply, which is
     // all this test claims, but a payload about an absent plugin rather than
@@ -236,7 +265,7 @@ test("a tool call goes through and comes back as one reply", async () => {
       jsonrpc: "2.0",
       id: 2,
       method: "tools/call",
-      params: { name: "read_node", arguments: { id: "kitchen" } },
+      params: { name: "outlines_read", arguments: { id: "kitchen" } },
     })
 
     expect(response.status).toBe(200)
@@ -257,14 +286,14 @@ test("tools/list and a resource read answer over the same POST", async () => {
     const tools = (await listed.json() as {
       result?: { tools?: ReadonlyArray<{ name: string }> }
     }).result?.tools ?? []
-    expect(tools.map((tool) => tool.name)).toContain("set_done")
-    expect(tools.map((tool) => tool.name)).toContain("list_outlines")
+    expect(tools.map((tool) => tool.name)).toContain("outlines_done")
+    expect(tools.map((tool) => tool.name)).toContain("outlines_index")
 
     const read = await post({
       jsonrpc: "2.0",
       id: 3,
       method: "resources/read",
-      params: { uri: "surface://collections/outlines" },
+      params: { uri: "surface://collections/outlines/outlines" },
     })
     expect(read.status).toBe(200)
     expect(JSON.stringify(await read.json())).toContain("house.olai")
@@ -293,7 +322,7 @@ test("a refused write crosses as a 200 result carrying its structured detail", a
       jsonrpc: "2.0",
       id: 3,
       method: "tools/call",
-      params: { name: "set_done", arguments: { id: "nowhere" } },
+      params: { name: "outlines_done", arguments: { id: "nowhere" } },
     })
 
     // 200 and a RESULT: a refused write is something the server answered, not
@@ -347,7 +376,7 @@ test("releasing a node ticket closes it without changing arbitrary loopback toke
         jsonrpc: "2.0",
         id,
         method: "tools/call",
-        params: { name: "set_prop", arguments: { id: "kitchen", key, value: "yes" } },
+        params: { name: "outlines_prop", arguments: { id: "kitchen", key, value: "yes" } },
       }, { authorization: `Bearer ${bearer}` })
 
     const active = await call(20, "active-ticket", ticket.bearer)
@@ -399,9 +428,9 @@ test("a node ticket can list and call the three plugin verbs", async () => {
     const listed = await (await post({ jsonrpc: "2.0", id: 40, method: "tools/list" }, bearer))
       .json() as { result?: { tools?: ReadonlyArray<{ name: string }> } }
     const names = (listed.result?.tools ?? []).map((one) => one.name)
-    expect(names).toContain("inspect_plugins")
-    expect(names).toContain("run_plugin")
-    expect(names).toContain("stop_plugin")
+    expect(names).toContain("vault-plugins_inspect")
+    expect(names).toContain("vault-plugins_run")
+    expect(names).toContain("vault-plugins_stop")
 
     // ...and answered. The catalog is read off the live registry, so the
     // assertion is that it names the things a half is written against rather
@@ -410,7 +439,7 @@ test("a node ticket can list and call the three plugin verbs", async () => {
       jsonrpc: "2.0",
       id: 41,
       method: "tools/call",
-      params: { name: "inspect_plugins", arguments: {} },
+      params: { name: "vault-plugins_inspect", arguments: {} },
     }, bearer)).json() as { result?: { structuredContent?: Record<string, unknown> } }
     const said = inspected.result?.structuredContent
     expect(said?.modules).toEqual(["@olai/plugin-api", "effect", "solid-js"])
@@ -431,7 +460,7 @@ test("a node ticket can list and call the three plugin verbs", async () => {
       jsonrpc: "2.0",
       id: 42,
       method: "tools/call",
-      params: { name: "run_plugin", arguments: { name: "swatch" } },
+      params: { name: "vault-plugins_run", arguments: { name: "swatch" } },
     }, bearer)).json() as {
       result?: { isError?: boolean; structuredContent?: { reason?: string } }
     }
@@ -449,7 +478,7 @@ test("a node ticket can list and call the three plugin verbs", async () => {
  * pins that as an exact set. What that does not cover is the FACT the verb
  * guards: an approval is an ordinary custom property on an ordinary node, a
  * definition an agent wrote is inside that agent's own subtree by construction,
- * and `set_prop` writes any custom key that is not spelled like a field. So the
+ * and `outlines_prop` writes any custom key that is not spelled like a field. So the
  * agent could approve itself through a door it already held.
  *
  * The door's forbidden table is what closes it (`olai-plugin-mcp`'s `tickets.ts`), and this is
@@ -468,7 +497,7 @@ for (const definitions of [true, false]) test(`a node ticket cannot write approv
         jsonrpc: "2.0",
         id,
         method: "tools/call",
-        params: { name: "set_prop", arguments: { id: "kitchen", key, value: "always" } },
+        params: { name: "outlines_prop", arguments: { id: "kitchen", key, value: "always" } },
       }, { authorization: `Bearer ${ticket.bearer}` })
 
     const ordinary = await call(30, "some-other-key")
@@ -671,7 +700,7 @@ test("a capture is recorded as the login the proxy named on THAT request", async
         jsonrpc: "2.0",
         id: 2,
         method: "tools/call",
-        params: { name: "capture", arguments: { title: "from the tailnet" } },
+        params: { name: "capture_add", arguments: { title: "from the tailnet" } },
       },
       { "Tailscale-User-Login": "srid@github" },
     )
@@ -682,7 +711,7 @@ test("a capture is recorded as the login the proxy named on THAT request", async
       jsonrpc: "2.0",
       id: 3,
       method: "tools/call",
-      params: { name: "capture", arguments: { title: "from nobody" } },
+      params: { name: "capture_add", arguments: { title: "from nobody" } },
     })
 
     const inbox = fs.readFileSync(path.join(root, "_olai", "Inbox.olai"), "utf8")
@@ -723,7 +752,7 @@ test("…and two people behind one proxy do not get each other's", async () => {
           jsonrpc: "2.0",
           id,
           method: "tools/call",
-          params: { name: "capture", arguments: { title } },
+          params: { name: "capture_add", arguments: { title } },
         },
         { "Tailscale-User-Login": login },
       )
@@ -748,17 +777,25 @@ test("…and two people behind one proxy do not get each other's", async () => {
 })
 
 
-test("releasing a ticket fences a retained client and the delayed next step of a tool", async () => {
+test("releasing a ticket closes a retained client and the delayed next step of a tool", async () => {
   await withRoute(async ({ retainedTicket, root }) => {
     const { ticket, client } = retainedTicket()
-    await Effect.runPromise(client.surface.ops.run({ op: "title", id: "kitchen", title: "accepted before release" }))
+    // THROUGH THE ROW THAT DECLARES IT. It was `client.surface.ops.run(…)` on
+    // one flat client over an un-prefixed namespace; a ticketed door is a
+    // bundle now (juspay/kolu#2234) and `ops.run` is four rows' member, so the
+    // caller says which one it means. What is being asked is unchanged — the
+    // rule
+    // rides the writer, per call, on whichever client the caller holds.
+    const run = (title: string) =>
+      client.clients!["outlines"]!.surface.ops!.run!({ op: "title", id: "kitchen", title })
+    await Effect.runPromise(run("accepted before release"))
     // A multi-step tool can already hold both the client and its next lazy
     // Effect when its owning session is released. It must recheck the fence.
-    const next = client.surface.ops.run({ op: "title", id: "kitchen", title: "forbidden delayed write" })
+    const next = run("forbidden delayed write")
     ticket.release()
     ticket.release()
     await expect(Effect.runPromise(next)).rejects.toThrow("conversation has been reaped")
-    await expect(Effect.runPromise(client.surface.ops.run({ op: "title", id: "kitchen", title: "forbidden retained write" }))).rejects.toThrow("conversation has been reaped")
+    await expect(Effect.runPromise(run("forbidden retained write"))).rejects.toThrow("conversation has been reaped")
     const contents = fs.readFileSync(path.join(root, "house.olai"), "utf8")
     expect(contents).toContain("accepted before release")
     expect(contents).not.toContain("forbidden")

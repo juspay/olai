@@ -54,6 +54,28 @@ export const surface = defineSurface({
   },
 })
 
+/**
+ * WHICH FACE SEES WHAT — this row's whole grant, over this row's own spec.
+ *
+ * THE BROWSER'S, ALL FIVE, and there is no `agent` map at all: `exposeFaces`
+ * denies a sibling that writes no map under a face key in full, which is the
+ * default-deny this row wants (`@olai/surface/host`'s `hostFaces` argues the
+ * grammar).
+ *
+ * {@link dated} and {@link owed} are the two streams the sidebar grew for
+ * `vault-in-browser`'s PR 4 — a month of dots, and a count of what is late —
+ * and they are the clearest case of the render/request split in this tree. A
+ * month of dots is a paint instruction for a grid somebody is looking at, and
+ * two integers about the reader's own today are a badge. An agent asking what
+ * is late asks `search_nodes` with a date clause and is answered with the
+ * NODES, which is the thing it can act on and the thing neither of these
+ * carries.
+ *
+ * They also take an INPUT, which the `surface://` resource vocabulary has no
+ * place to put: an agent could not name a month if it wanted one. {@link day}
+ * and {@link agenda} are page readings and are the browser's for the reason
+ * every page reading is.
+ */
 export const faces = {
   browser: {
     dated: "resource",

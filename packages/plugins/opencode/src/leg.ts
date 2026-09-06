@@ -88,7 +88,7 @@ export const toolNameOf = (toolCallId: string): string | null => {
  * allow-flavoured option. Any of those three missing and a person is asked.
  *
  * `_` IS A WEAK SEPARATOR and that is the whole of the risk here. `mcp__x__y`
- * could not collide with anything; `olai_read_node` and a hypothetical builtin
+ * could not collide with anything; `olai_outlines_read` and a hypothetical builtin
  * called `olai_something` are told apart by nothing but the server's name, so a
  * session handed a server called `bash` would bypass a builtin `bash_…`. Three
  * things bound it, and they are why the rule is written as narrowly as it is:

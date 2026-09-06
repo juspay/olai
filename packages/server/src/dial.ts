@@ -35,14 +35,13 @@
  * interrupts the rest, and a door that answers once answers all of them.
  */
 
-import type { SurfaceClientCallable } from "@kolu/surface/client"
+import type { RootedSurfaceClients } from "@kolu/surface/client"
 import type { ResolvedEndpoint, SurfaceCliConnection } from "@kolu/surface-cli"
 import { resolveExpose } from "@kolu/surface-mcp"
-import { surface } from "@olai/bundle/surface"
 import { Effect, Stream } from "effect"
 import { Command, Flag } from "effect/unstable/cli"
 
-import { MCP } from "@olai/bundle/faces"
+import { AGENT_SIBLINGS } from "@olai/bundle/agent-face"
 import { type McpConnection, McpUnreachable, openMcp } from "./mcpClient.ts"
 
 /**
@@ -96,16 +95,18 @@ export const dialOlai = (values: Dialled): Effect.Effect<ResolvedEndpoint> =>
   }))
 
 /**
- * The `/mcp` connection, dressed as the client `@kolu/surface-cli` reads.
+ * The `/mcp` connection, dressed as the ROOTED BUNDLE `@kolu/surface-cli`
+ * reads — one client per row, keyed as the served face keys them.
  *
  * The projection addresses members as `client.surface[member][verb](input)` and
  * expects a `Stream`; MCP addresses the same members as `surface://` resources
  * and answers one value. So this is the join, and it is a SHIM rather than a
  * second protocol: `resolveExpose` is the very function the server's own MCP
  * face resolves its resource list with, so the URIs read here are the URIs
- * published there, member for member. A member this face does not publish is
- * simply not in the table, and the projection never offers it either — both
- * halves read {@link MCP}.
+ * published there, member for member — the sibling key included, since
+ * juspay/kolu#2234 folds it into every name the resolver mints. A member this
+ * face does not publish is simply not in the table, and the projection never
+ * offers it either: both halves read the ROW's own `resources` map.
  *
  * ONE FRAME, then done. Every reader in the projection takes the opening
  * snapshot and interrupts the rest, so a single-element stream is not a
@@ -119,46 +120,67 @@ export const dialOlai = (values: Dialled): Effect.Effect<ResolvedEndpoint> =>
  * therefore runs on the SERVER, which is the point — a `capture` composed in
  * this process could name any `captured-by` it liked.
  */
-const clientOver = (connection: McpConnection, url: string): SurfaceClientCallable => {
-  const resolved = resolveExpose(surface.spec, MCP)
-  const byKey = new Map(resolved.resources.map((resource) => [resource.key, resource]))
-  const templateByKey = new Map(
-    resolved.resourceTemplates.map((template) => [template.key, template]),
-  )
-
-  const members: Record<string, Record<string, (input: unknown) => Stream.Stream<unknown, unknown>>> = {}
-  for (const [key, resource] of byKey) {
-    const verbs: Record<string, (input: unknown) => Stream.Stream<unknown, unknown>> = {}
-    if (resource.kind === "collection") {
-      // The key SET, at the collection's own URI…
-      verbs.keys = () => once(() => connection.readResource(resource.uri))
-      // …and one item, at the template the face publishes beside it. The key
-      // travels as a path segment, encoded exactly as `collectionItemTemplate`
-      // spells the placeholder it replaces.
-      const template = templateByKey.get(key)
-      if (template !== undefined) {
-        verbs.get = (input) =>
-          once(() =>
-            connection.readResource(
-              template.uriTemplate.replace("{id}", encodeURIComponent(keyOf(input))),
+const clientOver = (connection: McpConnection, url: string): RootedSurfaceClients => {
+  const clients: Record<string, {
+    surface: Record<string, Record<string, (input: unknown) => Stream.Stream<unknown, unknown>>>
+    callTool: McpConnection["callTool"]
+    url: string
+  }> = {}
+  for (const [key, sibling] of Object.entries(AGENT_SIBLINGS)) {
+    // THE SIBLING'S KEY IS PASSED IN, and that is the whole of the composition:
+    // `resolveExpose` folds it into every name it mints, so the URI read here
+    // is `surface://collections/markdown/documents` — the very one the server
+    // published for that row, minted by the same function from the same map.
+    const resolved = resolveExpose(sibling.surface.spec as never, sibling.expose as never, key)
+    const byKey = new Map(resolved.resources.map((resource) => [resource.key, resource]))
+    const templateByKey = new Map(
+      resolved.resourceTemplates.map((template) => [template.key, template]),
+    )
+    const members: Record<string, Record<string, (input: unknown) => Stream.Stream<unknown, unknown>>> = {}
+    for (const [member, resource] of byKey) {
+      const verbs: Record<string, (input: unknown) => Stream.Stream<unknown, unknown>> = {}
+      if (resource.kind === "collection") {
+        // The key SET, at the collection's own URI…
+        verbs.keys = () => once(() => connection.readResource(resource.uri))
+        // …and one item, at the template the face publishes beside it. The key
+        // travels as a path segment, encoded exactly as `collectionItemTemplate`
+        // spells the placeholder it replaces.
+        const template = templateByKey.get(member)
+        if (template !== undefined) {
+          verbs.get = (input) =>
+            once(() =>
+              connection.readResource(
+                template.uriTemplate.replace("{id}", encodeURIComponent(keyOf(input))),
+              )
             )
-          )
+        }
+      } else {
+        verbs.get = () => once(() => connection.readResource(resource.uri))
       }
-    } else {
-      verbs.get = () => once(() => connection.readResource(resource.uri))
+      members[member] = verbs
     }
-    members[key] = verbs
+    // THE TOOL DOOR RIDES EVERY CLIENT, not only the bundle. kolu hands a
+    // SIBLING's verb that sibling's own client (`clients[key]`) — one rule for
+    // every table these faces take — so `remoteFrom`'s handler reaches
+    // `callTool` through whichever client it was declared on. It is a property
+    // of the CONNECTION and there is one of those, so putting it on each is a
+    // second reference rather than a second door. Without it a sibling's verb
+    // is `door.callTool is not a function`, which is what `olai surface
+    // capture add` answered until it was.
+    clients[key] = { surface: members, callTool: connection.callTool, url }
   }
 
   return {
-    surface: members,
+    clients,
     // The two things this shim carries that a real client does not: the tool
     // door, for the verbs whose handlers dispatch remotely, and the address it
     // was opened on — which is the half of "which vault answered" that only this
     // side knows, since a server behind a proxy cannot tell what reached it.
+    // They ride the BUNDLE rather than a surface, because a bundle-root verb is
+    // handed the bundle — kolu's one rule for every table these faces take.
     callTool: connection.callTool,
     url,
-  } as unknown as SurfaceClientCallable
+  } as unknown as RootedSurfaceClients
 }
 
 /** One answer, as the one-frame stream a reader consumes.

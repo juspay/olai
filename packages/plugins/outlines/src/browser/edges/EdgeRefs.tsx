@@ -35,7 +35,7 @@
  * resolved through mirrors. Half of what it draws may live on somebody ELSE's
  * record, and a finished blocker is not in it at all, so there is no single edge
  * an `×` there would name. This row is the FIELD: what this node declares,
- * exactly as written, which is precisely what `set_after` writes.
+ * exactly as written, which is precisely what `outlines_after` writes.
  */
 
 import type { RegularNode } from "@olai/format"
@@ -51,7 +51,7 @@ export function EdgeRefs(props: {
    *  since a placement carries no edges of its own. */
   readonly node: RegularNode
   readonly relation: Relation
-  /** Drop one of them — the removal half of `set_see` / `set_after`, drawn as
+  /** Drop one of them — the removal half of `outlines_see` / `outlines_after`, drawn as
    *  an `×` per link (`../NodeRefs.tsx`). ABSENT is read-only, which is what a
    *  day page and the agenda pass: they draw a node they do not offer to
    *  change, the rule a title's own `onEdit` already follows. */

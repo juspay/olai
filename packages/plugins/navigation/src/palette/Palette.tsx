@@ -242,8 +242,8 @@ export function Palette(props: {
    * send is judged against the reading the first has not landed in yet, so on
    * a directory with no inbox both resolve to the same `create _olai/Inbox.olai`,
    * and the write gate re-plans that REQUEST rather than re-resolving the
-   * edit: the second comes back refused in the words `create_outline` gets —
-   * *already an outline … capture into this one with `add_node`* — over a line
+   * edit: the second comes back refused in the words `files_create` gets —
+   * *already an outline … capture into this one with `outlines_add`* — over a line
    * that DID land, and the refusal overwrites the remark saying so. Found by
    * review, 2026-08-14.
    *

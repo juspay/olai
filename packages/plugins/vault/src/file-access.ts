@@ -7,7 +7,7 @@ import { followSubscription } from "./subscription.ts"
 import { inMemoryStore, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
 import type { Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
-import { surface, faces } from "./file-surface.ts"
+import { surface, faces, resources } from "./file-surface.ts"
 
 import type { Projection } from "@olai/surface/projection"
 import { headProjection } from "./projection.ts"
@@ -48,6 +48,6 @@ export default definePlugin({
         heads: { readAll: () => held?.change.entries ?? empty, upsert: () => {}, remove: () => {},  }
       },
     }
-    yield* (yield* Surfaces).register({ surface, faces, root: true, scopedFaces: { browser: faces.browser }, deps, published: value => { ctx = value as typeof ctx } })
+    yield* (yield* Surfaces).register({ surface, faces, resources, deps, published: value => { ctx = value as typeof ctx } })
   }),
 })

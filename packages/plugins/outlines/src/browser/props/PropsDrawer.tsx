@@ -74,7 +74,7 @@ import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
  * and closes quietly otherwise, which is what stops "open a chip, click away"
  * from being a refusal (`./editor.ts`'s `writes`). CLEARING THE VALUE REMOVES
  * THE PROPERTY, and that is the op's own reading rather than a gesture this
- * face invented — `set_prop` with `""` takes the key off exactly as `null`
+ * face invented — `outlines_prop` with `""` takes the key off exactly as `null`
  * does.
  *
  * A `+` at the end of the run is the door onto ADDING one. It opens a chip with
@@ -132,8 +132,8 @@ import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
  * others: same run, same type. Nothing here greys them out, because they are
  * not disabled versions of anything — they are facts, drawn where facts are.
  * What says they cannot be typed over is that their key is not a button: each
- * is a field with a verb of its own (`set_done`, `set_date`) or nothing to
- * write at all (`id`, the stamps), and `set_prop` refuses every one of them by
+ * is a field with a verb of its own (`outlines_done`, `outlines_date`) or nothing to
+ * write at all (`id`, the stamps), and `outlines_prop` refuses every one of them by
  * name.
  *
  * They take NO DOORS either, and for the neighbouring reason. Every system chip
@@ -584,7 +584,7 @@ function Chip(props: {
    * seeded with the joined members, and committing it UNCHANGED writes nothing
    * (`./editor.ts`'s `writes`), so a list cannot be flattened by opening a chip
    * and pressing Enter. Flattening now takes deliberately typing over it — and
-   * that is an ordinary `set_prop`, which replaces one key's value outright.
+   * that is an ordinary `outlines_prop`, which replaces one key's value outright.
    *
    * The SYSTEM half stays out: those are fields with verbs of their own.
    */
@@ -878,7 +878,7 @@ function Folded(props: { readonly value: string }) {
  *
  * ENTER IN THE KEY BOX MOVES TO THE VALUE rather than committing, because a key
  * with nothing behind it is not a property (`./editor.ts`: it would be the
- * removal of a key that is not there, the one thing `set_prop` refuses about
+ * removal of a key that is not there, the one thing `outlines_prop` refuses about
  * removals). Tab does the same by the browser's own doing; Enter is spelled
  * because a person typing a fact does not reach for Tab.
  *

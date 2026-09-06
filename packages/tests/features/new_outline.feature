@@ -1,7 +1,7 @@
 @share-scratch
 @scratch:good
 Feature: Starting a new outline from the sidebar
-  An agent could mint an outline — `create_outline` — and a person could not:
+  An agent could mint an outline — `files_create` — and a person could not:
   the sidebar listed every file in the directory and offered no way to start
   another. A standing consistency violation rather than a missing feature
   ("MCP and Web ops must be consistent; never deviate"), and this
@@ -13,7 +13,7 @@ Feature: Starting a new outline from the sidebar
   for as `Foo.olai` and `Foo.olai` is asked for as itself. Nothing else about
   the path is judged in the browser — it goes to the ops layer completed and
   otherwise as it was typed, and what comes back for one it will not take is
-  `create_outline`'s own sentence, drawn verbatim under the box.
+  `files_create`'s own sentence, drawn verbatim under the box.
 
   `@scratch:` because these write the directory they are served. They share
   one copy per worker (`@share-scratch`); the corpus is restored between
@@ -31,7 +31,7 @@ Feature: Starting a new outline from the sidebar
     And there should be no page errors
 
   Scenario: The first row of it is written where the page offers one
-    # No seed on the wire, deliberately: an agent's `create_outline` may be born
+    # No seed on the wire, deliberately: an agent's `files_create` may be born
     # holding a tree, and a person types the first line where it will live —
     # which the empty outline's own page is already the affordance for.
     When I create the outline "plans/next.olai" from the sidebar

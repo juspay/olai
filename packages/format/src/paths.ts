@@ -4,7 +4,7 @@
  * ONE RULE, in a module of its own, because everything in this package that
  * asks "which of these two files comes first" has to get the same answer and
  * the askers are spread across it: {@link ./set.ts}'s `assemble` puts a set in
- * this order and every reader spends it (`list_outlines` answers in it, a
+ * this order and every reader spends it (`outlines_index` answers in it, a
  * search tie breaks on it, the sidebar draws it), {@link ./patch.ts} places an
  * arriving file by it, the browser folds its frames in it (`@olai/web`'s
  * `paths.ts`), and the five other questions this package asks about WHICH FILE

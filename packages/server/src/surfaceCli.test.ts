@@ -6,6 +6,15 @@
  * ends up with: which argument is a position rather than a flag, which endpoint
  * flags exist, and what a caller sees when nothing is serving.
  *
+ * ## THE ROW IS THE FIRST WORD, and it was not
+ *
+ * Every command below was `olai surface <verb>` over one flat table.
+ * juspay/kolu#2234 gives this face a rooted bundle and mounts ONE SUBCOMMAND PER
+ * ROW, so it is `olai surface outlines outlines_read` — the sibling key spelled in
+ * the separator argv already has, which is the ruling on #546. `capture
+ * capture` reads like a stutter and is not one: `capture` is a row whose whole
+ * table is one verb of the same name.
+ *
  * No server is started and none is needed — a `--help` never dials, and the
  * nothing-serving case is precisely the one where there is nothing to dial. So
  * these run against the source entry point directly, in a second or two.
@@ -33,10 +42,13 @@ const olai = async (
 }
 
 test("a capture's title is a POSITION, and a note is all else it takes", async () => {
-  const { out } = await olai(["surface", "capture", "--help"])
+  const { out } = await olai(["surface", "capture", "add", "--help"])
   // The one CLI-only ergonomic this verb is annotated with: `olai surface
-  // capture "…"` rather than `--title "…"`, because a title is the whole point
-  // of the call and a flag would be ceremony around it.
+  // capture add "…"` rather than `--title "…"`, because a title is the
+  // whole point of the call and a flag would be ceremony around it. The
+  // annotation is the ROW's now (`main.ts`'s `annotationsFor`) rather than one
+  // map at the top of the face, which is what this case would notice if a row's
+  // ergonomics stopped travelling with it.
   expect(out).toContain("[<title>]")
   expect(out).not.toContain("--title")
   expect(out).toContain("--text")
@@ -61,7 +73,7 @@ test("naming no server is a usage error, and never a guess", async () => {
   // to a per-user path when nobody said where, which is how a capture meant for
   // one vault landed in another and answered exactly like a success. Exit 2:
   // the command was wrong and never left this process.
-  const { code } = await olai(["surface", "keys", "outlines"])
+  const { code } = await olai(["surface", "outlines", "keys", "outlines"])
   expect(code).toBe(2)
 }, 30_000)
 
@@ -70,10 +82,10 @@ test("nothing serving is exit 3, and it names the address it tried", async () =>
   // caller spelled it — not the `/mcp` this client derived from it, which is a
   // path they never typed and cannot act on.
   const nowhere = "http://127.0.0.1:1"
-  // `keys outlines` and not `list`: `list` is this face's own table, read off
+  // `outlines keys outlines` and not `list`: `list` is this face's own table, read off
   // the spec without dialling anything, so it answers 0 with no server at all —
   // which is right, and is why it cannot be the verb that tests the dial.
-  const { out, err, code } = await olai(["surface", "keys", "outlines", "--url", nowhere])
+  const { out, err, code } = await olai(["surface", "outlines", "keys", "outlines", "--url", nowhere])
   expect(code).toBe(3)
   expect(err).toContain(nowhere)
   expect(err).toContain("no surface at")
@@ -90,12 +102,16 @@ test("`olai surface --help` is a page, not a dump of every verb", async () => {
   for (const said of [
     // A purpose line…
     "Call any verb of a running olai from a terminal",
-    // …the groups, in the order somebody reads them…
+    // …the groups, in the order somebody reads them. THEY NAME ROWS: they were
+    // "Capture" / "Read" / "Search" / "Write" over verb names, and a group
+    // naming a verb is a group naming something this parent command has no
+    // subcommand for — which `surfaceHelp` refuses at BUILD, inside `main.ts`'s
+    // module body, so `olai web` exited 1 before it served.
     "Capture",
-    "Read",
+    "Outlines and documents",
     "Search",
     // …an example a person can paste…
-    'olai surface capture "look into the new cabinets"',
+    'olai surface capture add "look into the new cabinets"',
     // …the two flags every verb takes, and where the answer goes — including
     // the one-line summary a write prints, which is the half a person acts on
     // and the half the ops layer's own answer has no room for.
@@ -115,8 +131,11 @@ test("no `watch`, and no `--follow`, because the door pushes nothing", async () 
   // subscription is not something this transport can carry. It is subtracted
   // from the projection rather than offered and then always failing — a caller
   // finds out what a face can do from `--help`.
-  const { code } = await olai(["surface", "watch", "outlines", "--url", "http://127.0.0.1:1"])
+  // Asked INSIDE a row, because that is where a reader is mounted now — a
+  // `watch` at the top of `surface` would be exit 2 for naming no subcommand at
+  // all, which is a weaker claim than the one this case makes.
+  const { code } = await olai(["surface", "outlines", "watch", "outlines", "--url", "http://127.0.0.1:1"])
   expect(code).toBe(2)
-  const { out } = await olai(["surface", "get", "--help"])
+  const { out } = await olai(["surface", "outlines", "get", "--help"])
   expect(out).not.toContain("--follow")
 }, 30_000)

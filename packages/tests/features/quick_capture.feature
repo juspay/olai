@@ -1,6 +1,6 @@
 @scratch:good @share-scratch
 Feature: A line captured from a terminal arrives on the page
-  `olai surface capture` is the door now. It speaks MCP over HTTP to the `/mcp`
+  `olai surface capture add` is the door now. It speaks MCP over HTTP to the `/mcp`
   the server already serves — the same protocol, the same path and the same
   admission rule as any bridged agent — and sends the same `capture` verb an
   agent sends. There is no second face and nothing was widened for it. The
