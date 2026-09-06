@@ -11,7 +11,8 @@
     "./testids": "./src/testids.ts",
     "./testlib": "./src/testlib.ts",
     "./client": "./src/tools.ts",
-    "./contract": "./src/contract.ts"
+    "./contract": "./src/contract.ts",
+    "./face": "./src/client.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

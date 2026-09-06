@@ -1,3 +1,8 @@
+import { AGENT_TOOLS } from "@olai/bundle/tools"
+/** Every verb this build has, as one list — the rows' own tables, composed.
+ *  `@olai/ops`' `TOOLS` was this list until #546 sent each verb home to the
+ *  row that owns it. */
+const EVERY_TOOL = AGENT_TOOLS.flatMap((row) => row.tools)
 import { surface } from "@olai/bundle/surface"
 import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
 /**
@@ -44,7 +49,6 @@ import {
   codecFor,
   make as makeOps,
   type Store as OutlineStore,
-  TOOLS,
 } from "@olai/ops"
 import { STAMP, steady } from "@olai/ops/testlib"
 import * as Store from "@olai/store"
@@ -186,7 +190,7 @@ const withTools = <A>(
           { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },
           wired.faces.agent,
         ),
-      tools: bespokeFrom(TOOLS, {
+      tools: bespokeFrom(EVERY_TOOL, {
         login: () => login,
         root,
         // The face's own currency, composed the way `../serve.ts` composes it:

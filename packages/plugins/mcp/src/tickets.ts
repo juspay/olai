@@ -8,7 +8,7 @@ import { randomBytes } from "node:crypto"
 
 import { type Bound } from "./authority.ts"
 import { type McpClient } from "./client.ts"
-import { liveClient } from "./live-client.ts"
+import { liveClient, type Route } from "./live-client.ts"
 
 /**
  * THE WORDS NO SESSION MAY WRITE, whatever it is seated on.
@@ -78,6 +78,9 @@ export const ticketing = (options: {
   readonly ops: Ops
   readonly currentTicket: () => string | null
   readonly token: string
+  /** Where a flat tag lands, so a fenced door routes exactly as the unfenced
+   *  one does — see `./live-client.ts`'s `Route`. */
+  readonly route: Route
 }): Tickets => {
   const prefix = "olai-node-"
   const tickets = new Map<string, McpClient>()
@@ -85,7 +88,7 @@ export const ticketing = (options: {
   const composed = (fence: Fence, writer: Writer): McpClient => liveClient(() => ({
     ...(typeof options.bound === "function" ? options.bound() : options.bound),
     expose: typeof options.face === "function" ? options.face() : options.face,
-  }), { writer, fence })
+  }), { writer, fence }, options.route)
 
   const closed = composed({ under: null, ask: () => null, forbidden: new Map() }, "mcp")
 

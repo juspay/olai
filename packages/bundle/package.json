@@ -19,6 +19,7 @@
     "./surface": "./src/surface.ts",
     "./client": "./src/client.ts",
     "./inputs": "./src/inputs.ts",
+    "./tools": "./src/tools.ts",
     "./faces": "./src/faces.ts"
   },
   "scripts": {
@@ -63,6 +64,7 @@
     "olai-plugin-test-layout": "workspace:*",
     "olai-plugin-test-counter": "workspace:*",
     "olai-plugin-vault-plugins": "workspace:*",
+    "@olai/ops": "workspace:*",
     "@olai/surface": "workspace:*",
     "@olai/web": "workspace:*",
     "@olai/ui-primitives": "workspace:*",

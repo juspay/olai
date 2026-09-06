@@ -2,6 +2,12 @@ import { Ops, Vault, Surfaces } from "@olai/plugin-api/services"
 import type { Ops as Gate } from "@olai/ops"
 import { inMemoryChannel, type ImplementSurfaceDeps } from "@kolu/surface/server"
 import { surface, faces } from "./surface.ts"
+/** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
+ *  faces. They were entries in `@olai/ops`' one closed table until #546, which
+ *  meant a general package named this row's vocabulary and a serve without this
+ *  row still advertised them; declaring them here is what makes switching the
+ *  row off take its tools along. */
+import { tools } from "./tools.ts"
 /**
  * SEARCH'S SERVER HALF — one table, one walk, and the door they stand behind.
  *
@@ -120,7 +126,7 @@ export const components = { wire: definePlugin({
       },
       procedures: { search: { nodes: ({ input }) => gate.search(input) } },
     }
-    yield* (yield* Surfaces).register({ surface, faces, deps, root: true, scopedFaces: faces })
+    yield* (yield* Surfaces).register({ surface, faces, tools, deps })
   }),
 }) }
 

@@ -168,6 +168,23 @@ export const bespokeFrom = (
  * not know that a person has to approve the thing will read `pending` as a
  * failure.
  */
+/**
+ * THE MEMBER EACH OF {@link pluginTools}' THREE VERBS LANDS ON, so a face can
+ * ask whether the row that answers them is standing.
+ *
+ * It sits beside the tools rather than in a catalogue of its own — `./catalog.ts`
+ * was that catalogue, and #546 deleted it — because the two are one statement:
+ * a tool that calls `plugins.run` is offered exactly while some row serves
+ * `plugins.run`. Both go to `olai-plugin-vault-plugins` the day a row can carry
+ * a tool that calls its own members; these three do not fit `@olai/ops`' four
+ * arms, which name the ops-layer doors rather than a surface.
+ */
+export const pluginVerbs: Readonly<Record<string, string>> = {
+  inspect_plugins: "inspect",
+  run_plugin: "run",
+  stop_plugin: "stop",
+}
+
 export const pluginTools = (): Record<string, BespokeTool> => ({
   inspect_plugins: {
     title: "What a plugin may name",

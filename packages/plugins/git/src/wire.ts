@@ -74,12 +74,15 @@ export const surface = defineSurface({
 /**
  * WHICH FACE SEES WHAT.
  *
- * Browser sees the two cells and the three verbs. MCP tools stay named
- * `commit` / `push` (the ops table) and call through that door with the
- * face's writer; the adapter has no sibling segment for `surface://` cells,
- * and this row puts nothing on the agent face. `resume` is the browser's
- * alone: it is the commit panel's button, and an agent has no loop of its
- * own to restart.
+ * Browser sees the two cells and the three verbs. THIS ROW PUTS NOTHING ON THE
+ * AGENT FACE, and that is still true now that it carries its own tools
+ * ({@link ./tools.ts}): `commit` and `push` are entries in THIS row's table
+ * since #546 — there is no `@olai/ops` table left for them to sit in — but they
+ * reach the ledger through the ops layer's `Acting` door (`ops.commit`,
+ * `ops.push`), not through these members. The adapter has no sibling segment for
+ * `surface://` cells either way, so what an agent gets is the two tools and none
+ * of this surface. `resume` is the browser's alone: it is the commit panel's
+ * button, and an agent has no loop of its own to restart.
  */
 export const faces = {
   browser: {

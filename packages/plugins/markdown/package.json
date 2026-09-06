@@ -11,6 +11,7 @@
     "./all.css": "./src/all.css",
     "./assets": "./src/assets.ts",
     "./surface": "./src/surface.ts",
+    "./tools": "./src/tools.ts",
     "./testids": "./src/testids.ts",
     "./client": "./src/client.ts",
     "./wire": "./src/wire.ts",

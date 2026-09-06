@@ -236,9 +236,9 @@ ops: { /** Every outline under the served directory — what `list_outlines` ans
  *
  * THE KEYS WERE WIRE TAGS AND ARE NOT TAGS ANY MORE. They read
  * `surface/edit/apply` and `surface/ops/run`, which were the monolith-era
- * SHORT names: this row registers `root: true` (`./server.ts`), so each member
+ * SHORT names: this row registered `root: true` (`./server.ts`), so each member
  * answered under both its own `surface/outlines/edit/apply` and a bare
- * `surface/edit/apply` that six rows shared. The short names are deleted, so a
+ * `surface/edit/apply` that six rows shared. The short names are gone, so a
  * key still spelled like one would name a tag nothing serves — a lie in the
  * one place a reader comes to learn what this row writes.
  *

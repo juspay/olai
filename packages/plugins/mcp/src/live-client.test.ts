@@ -18,7 +18,12 @@ test("a retained MCP dispatch uses fresh generations and preserves its credentia
   const first = make("first"), second = make("second"), absent = implementSurface(empty, {})
   const activeFace = exposeFace(surface, { "counter.read": "tool" })
   let bound = { ...first, expose: activeFace }
-  const held = liveDispatch(() => ({ ...bound, writes: [tag] }), { writer: "node-agent" })
+    // ROUTED BY IDENTITY, because this test is about GENERATIONS rather than
+  // about owners: the surface here is a standalone one, mounted as itself, and
+  // what is being asked is whether a retained dispatch reaches the current
+  // handlers and carries its credential. `toOwner` is the served face's route
+  // and has its own coverage in `./route-owner.test.ts`.
+  const held = liveDispatch(() => ({ ...bound, writes: [tag] }), { writer: "node-agent" }, (at) => at)
   try {
     expect(await Effect.runPromise(held.unary(tag, undefined))).toBe("first:node-agent")
     bound = { ...absent, expose: exposeFace(empty, {}) }

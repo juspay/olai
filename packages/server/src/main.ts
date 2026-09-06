@@ -45,8 +45,7 @@
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
 import { reportingRunEdge, surfaceCommands, surfaceHelp } from "@kolu/surface-cli"
 import { addressOf, printAddress } from "@olai/format"
-import { TOOLS } from "@olai/ops"
-import { surface } from "@olai/bundle/surface"
+import { AGENT_TOOLS } from "@olai/bundle/tools"
 import { atLevel, toStdout } from "@olai/log"
 import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
@@ -55,7 +54,7 @@ import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
 import { dialOlai, endpointFlags } from "./dial.ts"
 import { dieWithParent } from "./dieWithParent.ts"
-import { MCP } from "@olai/bundle/faces"
+import { AGENT_EXPOSE, mcpContract } from "olai-plugin-mcp/face"
 import { remoteFrom } from "@olai/bundle/remote"
 import { gitFlags, gitPin } from "./gitPolicy.ts"
 import { pluginFlags, pluginPin } from "./pluginPolicy.ts"
@@ -168,6 +167,18 @@ const READING = [
   "list_documents",
   "read_document",
 ] as const
+
+/**
+ * EVERY VERB THIS BUILD HAS, in one list, gathered from the rows that own them.
+ *
+ * It was `@olai/ops`' `TOOLS` — thirty entries in a general package naming
+ * every row's vocabulary — and #546 sent each one home to its row. What arrives
+ * here is the same set through `@olai/bundle`'s composition of the rows' own
+ * tables, so `olai surface <verb>` offers exactly what `/mcp` does and neither
+ * list is written twice. A verb added to a row appears on both with no edit
+ * here.
+ */
+const TOOLS = AGENT_TOOLS.flatMap((row) => row.tools)
 
 /** Everything else the table offers, alphabetically — see the group's comment. */
 const writing = (): ReadonlyArray<string> =>
@@ -313,8 +324,13 @@ const rowAt = (said: { readonly file?: string; readonly id?: string; readonly ur
  * `Applied` record, which is nine fields of which none is a thing to click.
  */
 const surfaceCli = {
-  surface,
-  expose: MCP,
+  // THE AGENT FACE'S OWN CONTRACT, and the same expose map it is served with.
+  // Both were `@olai/bundle`'s until #546 — a flat aggregate surface and a
+  // hand-written `MCP` map beside it — and they belong to the row that serves
+  // that face: `olai surface` DIALS `/mcp`, so a second statement of what is
+  // published there could only be a way to name a URI nobody answers.
+  surface: mcpContract,
+  expose: AGENT_EXPOSE,
   verbs: remoteFrom(TOOLS),
   endpoint: {
     flags: endpointFlags,

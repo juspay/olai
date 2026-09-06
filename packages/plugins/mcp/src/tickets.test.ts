@@ -24,8 +24,8 @@ test("a released retained ticket remains fenced when a provider returns with fre
   const face = exposeFace(contract, { "ops.run": "tool" })
   let active: Bound & { expose: FaceExposure } = { ...first, expose: face, writes: ["surface/ops/run"] }
   let bearer: string | null = null
-  const tickets = ticketing({ reservations: [], bound: () => active, face: () => active.expose, ops: liveOps(() => undefined), token: "operator", currentTicket: () => bearer })
-  const panel = liveClient(() => active, { writer: "mcp" })
+  const tickets = ticketing({ reservations: [], bound: () => active, face: () => active.expose, ops: liveOps(() => undefined), token: "operator", currentTicket: () => bearer, route: (at) => at })
+  const panel = liveClient(() => active, { writer: "mcp" }, (at) => at)
   const one = tickets.mint(() => ({ under: "seat", forbidden: [] }), () => null, "chat-agent")
   bearer = one.bearer
   const retained = tickets.doorAt(panel)

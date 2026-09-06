@@ -37,7 +37,7 @@ Git's members compose as a sibling, under its own key:
 - `surface/git/pending` — what is waiting
 - `surface/git/git/commit`, `surface/git/git/push`, `surface/git/git/resume` — the three verbs
 
-They are on the browser face. The MCP tools an agent calls are still named `commit` and `push` — they are the ops table's, landing on these sibling verbs when the row is mounted and refusing in words when it is not. An agent cannot see what is pending, and `commit` records everything waiting unless it passes `paths`. The `surface://cells/git` and `surface://cells/pending` URIs leave with core's members; the adapter has no sibling segment.
+They are on the browser face. The MCP tools an agent calls are still named `commit` and `push` — and they are THIS ROW'S now (`packages/plugins/git/src/tools.ts`, juspay/olai#546): they used to be two entries in `@olai/ops`' one closed table, which meant a serve with no ledger row still advertised them. They do not land on the sibling verbs above; they call through the ops layer's own ledger door, which this row stands behind when it is mounted and which refuses in words when it is not. So the row still puts nothing on the agent face. An agent cannot see what is pending, and `commit` records everything waiting unless it passes `paths`. The `surface://cells/git` and `surface://cells/pending` URIs leave with core's members; the adapter has no sibling segment.
 
 ## Where it hangs in the tab
 

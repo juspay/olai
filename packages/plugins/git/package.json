@@ -6,7 +6,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "//name": "UNSCOPED, like every other row. `@olai/*` is the scope for the packages that ARE olai; this one is a plugin the loader mounts by name off a row in `packages/bundle/olai.yml`. The directory is `packages/plugins/git` and the package name is `olai-plugin-git`.",
-  "//exports": "SIX doors. `./wire` is the member declarations: the two cells and three procedures, no UI runtime and no subprocess. `./server` is everything that runs in a server process \u2014 the plumbing, what is waiting, the quiet-window loop \u2014 and it is the module the row names. `./browser` is the pill, the phone banner and the commit panel, registered into the app's slots. The ROOT is the wire identity. `./testids` is names only. `./all.css` is the sheet. `./testlib` is a real repository for the packages that still test against one without becoming this plugin.",
+  "//exports": "EIGHT doors. `./tools` is this row's two agent verbs, `commit` and `push` \u2014 entries that used to sit in `@olai/ops`' closed table, so a serve with no ledger row still advertised them; they reach the ledger through the ops `Acting` door and this row still puts nothing on the agent face. `./wire` is the member declarations: the two cells and three procedures, no UI runtime and no subprocess. `./server` is everything that runs in a server process \u2014 the plumbing, what is waiting, the quiet-window loop \u2014 and it is the module the row names. `./browser` is the pill, the phone banner and the commit panel, registered into the app's slots. The ROOT is the wire identity. `./testids` is names only. `./all.css` is the sheet. `./testlib` is a real repository for the packages that still test against one without becoming this plugin.",
   "exports": {
     ".": "./src/index.ts",
     "./wire": "./src/wire.ts",
@@ -14,7 +14,8 @@
     "./browser": "./src/browser.tsx",
     "./testids": "./src/testids.ts",
     "./all.css": "./src/browser/all.css",
-    "./testlib": "./src/git/fixtures.testlib.ts"
+    "./testlib": "./src/git/fixtures.testlib.ts",
+    "./tools": "./src/tools.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

@@ -1,6 +1,5 @@
 import type { Surface, SurfaceSpec } from "@kolu/surface/define"
 import type { AgentBinding } from "./binding.ts"
-import { TOOLS } from "@olai/ops"
 import type { McpClient } from "./client.ts"
 import { currentLogin, mcpTransport, mcpRoute } from "./route.ts"
 import { bespokeFrom, pluginTools } from "./tools.ts"
@@ -19,7 +18,7 @@ export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effe
   const transport = mcpTransport()
   yield* serveFace({
     surface, client: policy.client, expose: policy.expose, transport, available: policy.available, resourceAvailable: policy.resourceAvailable,
-    tools: { ...bespokeFrom(TOOLS, { ...policy, get root() { return policy.root }, login: currentLogin, fenced: (held) => policy.fenced(held) as McpClient }), ...pluginTools() },
+    tools: { ...bespokeFrom(policy.tools, { ...policy, get root() { return policy.root }, login: currentLogin, fenced: (held) => policy.fenced(held) as McpClient }), ...pluginTools() },
   })
   yield* shared.register({ routes: mcpRoute({ transport, token: shared.token, who: shared.who }) })
 })

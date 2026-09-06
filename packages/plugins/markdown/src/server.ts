@@ -44,7 +44,13 @@ import { inMemoryChannel, type ImplementSurfaceDeps, type SurfaceRuntime } from 
 import { type Reading, samePageReading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import { applyEdit, runWrite } from "@olai/edit-intents/apply"
-import { surface, faces, dispatch } from "./surface.ts"
+import { surface, faces } from "./surface.ts"
+/** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
+ *  faces. They were entries in `@olai/ops`' one closed table until #546, which
+ *  meant a general package named this row's vocabulary and a serve without this
+ *  row still advertised them; declaring them here is what makes switching the
+ *  row off take its tools along. */
+import { tools } from "./tools.ts"
 import { name } from "./name.ts"
 export { name } from "./name.ts"
 import type { Projection } from "@olai/surface/projection"
@@ -169,7 +175,7 @@ export default definePlugin({
         ops: { documents: () => gate.documents, document: ({ input }) => gate.document(input), run: ({ input }) => runWrite(gate, input) },
       },
     }
-    yield* (yield* Surfaces).register({ surface, faces, dispatch, writes: ["surface/ops/run"], root: true, scopedFaces: faces, deps, published: value => { ctx = value as typeof ctx } })
+    yield* (yield* Surfaces).register({ surface, faces, tools, writes: ["surface/ops/run"], deps, published: value => { ctx = value as typeof ctx } })
   }),
 })
 

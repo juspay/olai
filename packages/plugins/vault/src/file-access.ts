@@ -48,6 +48,6 @@ export default definePlugin({
         heads: { readAll: () => held?.change.entries ?? empty, upsert: () => {}, remove: () => {},  }
       },
     }
-    yield* (yield* Surfaces).register({ surface, faces, root: true, scopedFaces: faces, deps, published: value => { ctx = value as typeof ctx } })
+    yield* (yield* Surfaces).register({ surface, faces, deps, published: value => { ctx = value as typeof ctx } })
   }),
 })

@@ -17,7 +17,7 @@ import { hostSurface, hostFaces } from "@olai/surface/host"
 import { composeCapabilities } from "./composition.ts"
 import { authorityAt } from "@olai/plugin-api/authority"
 import { CurrentWho } from "./who.ts"
-export type Bound = Omit<SurfaceRuntime<typeof hostSurface.spec>, "ctx"> & { readonly writes: ReadonlyArray<string>; readonly dispatch?: Readonly<Record<string, { readonly field: string; readonly cases: ReadonlyArray<string> }>> }
+export type Bound = Omit<SurfaceRuntime<typeof hostSurface.spec>, "ctx"> & { readonly writes: ReadonlyArray<string>; readonly rows: ReadonlyArray<Registered> }
 export interface PluginRuntime {
   readonly plugins: Plugins
   readonly onChange: { run: () => void }
@@ -224,41 +224,34 @@ app: {
     }
     const runtime = composeCapabilities(hostSurface, deps, hostFaces)
     const mounted = new Map<string, MountedSurface<SurfaceSpec>>()
+    const standing = new Map<string, Registered>()
     /**
      * THE SIBLING REGISTRY, MADE INTO THE COMPOSED ROSTER — one movement of the
      * table, synchronous, and ARRIVALS ARE COMPOSED BEFORE DEPARTURES ARE
      * DROPPED.
      *
-     * That order is not a preference: with root-claimed tags it decides what a
-     * COLLISION MEANS. Six rows claim `surface/edit/apply` — `outlines`,
-     * `markdown`, `files`, `capture`, `trash` and `pins` — each owning its own
-     * verbs, and `./composition.ts`'s `mount` judges a new claim against the
-     * generation as it STANDS: every current owner of that tag must already
-     * declare dispatch, the fields must agree, and the cases must not overlap.
-     * Composing first holds every arrival to the FULL roster, the rows on their
-     * way out included — so "two capabilities in this build claim the same verb"
-     * is answered the same way on every recompose, which is what makes it a
-     * statement about the BUILD that `./capability-dispatch.test.ts` can settle
-     * once for every module the bundle has.
+     * THE ORDER USED TO DECIDE WHAT A COLLISION MEANT, and that reason is gone
+     * with the bare tags (#546). While six rows shared `surface/edit/apply`,
+     * `./composition.ts` judged each new claim against the generation as it
+     * STOOD — every current owner had to declare dispatch, the fields had to
+     * agree, the cases had to be disjoint — so composing first held every
+     * arrival to the FULL roster and made "two capabilities in this build claim
+     * one verb" answer the same way on every recompose. Dropping first would
+     * have made that defect intermittent: a pass that happened to remove the
+     * incumbent would accept the claim, one that did not would throw, and which
+     * a person got would depend on which rows their press moved together.
      *
-     * Dropping first would make that same defect INTERMITTENT. A recompose that
-     * happened to remove the incumbent in the same pass would find no owner left
-     * to overlap with and accept the claim; one that did not would throw. Which
-     * of the two a person got would depend on which rows their press moved
-     * together, and a build shipping two owners of one verb could be green
-     * everywhere it was tested and refuse a flip in front of somebody.
+     * Every member now answers under its owner's name alone, so there is no
+     * cross-row claim left for an order to arbitrate — two mounts can only
+     * collide on the mount NAME, which kolu refuses on its own and which the
+     * `mounted.has` / `leaving` pair below is what handles.
      *
-     * WHAT IT COSTS is a hand-off between two DIFFERENTLY-named rows inside one
-     * pass: row A leaving and row B arriving to claim A's verb is refused,
-     * because A is still an owner when B is judged. That is not a case this
-     * bundle has — a verb belongs to exactly one plugin in the build, which is
-     * the assertion above — and it is not the same thing as a plugin switched
-     * off and on again, which returns under its own key and goes through
-     * `leaving` below.
-     *
-     * A SURVIVOR IS NEVER TOUCHED by either loop, so the arrivals pass only ever
-     * adds: `mounted.has(key)` is what keeps a row that did not move on the same
-     * handler values, stores, channels and running sources it had.
+     * WHAT THE ORDER STILL BUYS is the survivor. A row that did not move is
+     * touched by neither loop, so the arrivals pass only ever adds:
+     * `mounted.has(key)` is what keeps it on the same handler values, stores,
+     * channels and running sources it had. Recomposing the whole table is
+     * `./composition.ts`'s discipline; not recomposing a row that did not move
+     * is this one's.
      */
     const recompose = (): void => {
       const wanted = new Map(siblings().map((one) => [one.name, one] as const))
@@ -286,9 +279,15 @@ app: {
           key,
           one.surface as never,
           one.deps as never,
-          { root: one.root, writes: one.writes, dispatch: one.dispatch, faces: one.faces as never, scopedFaces: one.scopedFaces as never },
+          { writes: one.writes, faces: one.faces as never },
         )
         mounted.set(key, mount)
+        // WHAT WAS REGISTERED, held beside what was MOUNTED. The two tables are
+        // not the same reading — `leaving` above is what pulls them apart — and
+        // the agent's tool list has to come from the second: a row registered
+        // and not yet composed serves no tag, so a verb of its offered now would
+        // be a tool that refuses.
+        standing.set(key, one)
         one.published?.(mount.ctx)
       }
       // Drop revokes dispatch immediately; asynchronous resource cleanup can
@@ -297,6 +296,7 @@ app: {
       for (const [key, mount] of [...mounted]) {
         if (wanted.has(key)) continue
         mounted.delete(key)
+        standing.delete(key)
         const settling = mount.drop().catch((thrown: unknown) => {
           say(
             Effect.logWarning(
@@ -450,7 +450,7 @@ app: {
     return {
       bound: {
         get writes() { return runtime.writes },
-        get dispatch() { return runtime.dispatch },
+        get rows() { return [...standing.values()] },
         get group() {
           return runtime.group
         },

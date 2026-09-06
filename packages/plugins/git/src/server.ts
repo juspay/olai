@@ -32,6 +32,12 @@ import { Duration, Effect, Schema, Stream, SubscriptionRef } from "effect"
 
 import { type Committing, fixedPolicy, make } from "./ledger/pending.ts"
 import { faces, name, surface } from "./wire.ts"
+/** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
+ *  faces. They were entries in `@olai/ops`' one closed table until #546, which
+ *  meant a general package named this row's vocabulary and a serve without this
+ *  row still advertised them; declaring them here is what makes switching the
+ *  row off take its tools along. */
+import { tools } from "./tools.ts"
 
 export { faces, name, surface } from "./wire.ts"
 
@@ -97,6 +103,7 @@ export default definePlugin({
     yield* surfaces.register({
       surface,
       faces,
+      tools,
       deps: {
         cells: {
           git: { store: inMemoryStore<GitState>(GIT_OFF) },

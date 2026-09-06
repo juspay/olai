@@ -1,4 +1,8 @@
-import { surface } from "@olai/bundle/surface"
+import { AGENT_TOOLS } from "@olai/bundle/tools"
+/** Every verb this build has, as one list — the rows' own tables, composed.
+ *  `@olai/ops`' `TOOLS` was this list until #546 sent each verb home to the
+ *  row that owns it. */
+const EVERY_TOOL = AGENT_TOOLS.flatMap((row) => row.tools)
 import { capabilitiesOver } from "../capabilities.testlib.ts"
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
 /**
@@ -21,12 +25,10 @@ import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
  * pipe the chat panel's agent reads its refusals through.
  */
 
-import { MCP } from "@olai/bundle/faces"
 import {
   codecFor,
   make as makeOps,
   type Store as OutlineStore,
-  TOOLS,
 } from "@olai/ops"
 import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
@@ -43,7 +45,8 @@ import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
-import { clientOver, type McpClient } from "olai-plugin-mcp/testlib"
+import { AGENT_EXPOSE, mcpContract, type McpClient } from "olai-plugin-mcp/testlib"
+import { liveClient, toOwner } from "olai-plugin-mcp/testlib"
 import { serveFace } from "olai-plugin-mcp/testlib"
 import { mcpRoute, currentTicket, currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "olai-plugin-mcp/testlib"
 import { type Ticket, ticketing } from "olai-plugin-mcp/testlib"
@@ -120,18 +123,25 @@ const withRoute = <A>(
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const transport = mcpTransport()
-    const panel = clientOver(
-      { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },
-      wired.faces.agent,
+    // ROUTED THE WAY THE SERVED FACE IS, off the rows this bind actually
+    // composed. The flat contract's `ops.node` is `surface/outlines/ops/node`
+    // now, and `toOwner` is the one thing that knows so — a hand-built client
+    // over the composed handlers would name tags nothing serves.
+    const rows = () => wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, tools: row.tools ?? [] }))
+    const route = toOwner(rows)
+    const panel = liveClient(
+      () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }),
+      { writer: "mcp", fence: null },
+      route,
     )
     let selectingTicket: string | null = null
-    const tickets = ticketing({ reservations: WRITE_RESERVATIONS, bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket: () => selectingTicket ?? currentTicket() })
+    const tickets = ticketing({ reservations: WRITE_RESERVATIONS, bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket: () => selectingTicket ?? currentTicket(), route })
     yield* serveFace({
-      surface,
-      expose: MCP,
+      surface: mcpContract,
+      expose: AGENT_EXPOSE,
       client: () => panel,
       tools: {
-        ...bespokeFrom(TOOLS, {
+        ...bespokeFrom(EVERY_TOOL, {
           login: currentLogin,
           root,
           vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),

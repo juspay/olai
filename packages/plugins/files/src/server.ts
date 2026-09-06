@@ -6,7 +6,13 @@ import type { Ops as Gate } from "@olai/ops"
 import { Effect } from "effect"
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"
 import { applyEdit, runWrite } from "@olai/edit-intents/apply"
-import { surface, faces, dispatch } from "./surface.ts"
+import { surface, faces } from "./surface.ts"
+/** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
+ *  faces. They were entries in `@olai/ops`' one closed table until #546, which
+ *  meant a general package named this row's vocabulary and a serve without this
+ *  row still advertised them; declaring them here is what makes switching the
+ *  row off take its tools along. */
+import { tools } from "./tools.ts"
 import { name } from "./name.ts"
 export { name } from "./name.ts"
 
@@ -20,7 +26,7 @@ export default definePlugin({
         ops: { paths: () => gate.paths, run: ({ input }) => runWrite(gate, input) },
       },
     }
-    yield* (yield* Surfaces).register({ surface, faces, dispatch, writes: ["surface/ops/run"], root: true, scopedFaces: faces, deps })
+    yield* (yield* Surfaces).register({ surface, faces, tools, writes: ["surface/ops/run"], deps })
   }),
 })
 

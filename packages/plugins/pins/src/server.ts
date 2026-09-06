@@ -8,7 +8,7 @@ import { inMemoryStore, inMemoryChannel, type ImplementSurfaceDeps, type Surface
 import type { Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import { applyEdit, runWrite } from "@olai/edit-intents/apply"
-import { surface, faces, dispatch } from "./surface.ts"
+import { surface, faces } from "./surface.ts"
 import { name } from "./name.ts"
 export { name } from "./name.ts"
 import { NO_PINS, shelfIn, conventionRecorded, pinsIn, type Convention } from "@olai/format"
@@ -39,7 +39,7 @@ export default definePlugin({
         edit: { apply: ({ input }) => applyEdit(gate, input) },
       },
     }
-    yield* (yield* Surfaces).register({ surface, faces, dispatch, root: true, scopedFaces: faces, deps, published: value => { ctx = value as typeof ctx } })
+    yield* (yield* Surfaces).register({ surface, faces, deps, published: value => { ctx = value as typeof ctx } })
   }),
 })
 

@@ -29,6 +29,7 @@ import { type Profile } from "./profiles.ts";
 import { listener } from "./listener.ts";
 import { provideInputs, ticketsFor } from "@olai/bundle/inputs";
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy";
+import { AGENT_TOOLS } from "@olai/bundle/tools";
 import { runtimePaths } from "./runtime-paths.ts"
 import { TransportSurface } from "@olai/plugin-api/transport";
 import { gitConfigPatch } from "./gitPolicy.ts";
@@ -284,7 +285,9 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
         browserBoot: () => ROWS.filter((row) => row.browserOnly && report.get(row.id)?.state === "running").map((row) => row.id),
         hostname: theMachine,
         token,
-        agent: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.agent, writes: wired.bound.writes, dispatch: wired.bound.dispatch }),
+        agent: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.agent, writes: wired.bound.writes }),
+        agentRows: () => wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, tools: row.tools ?? [] })),
+        agentTools: () => AGENT_TOOLS,
         writeReservations: WRITE_RESERVATIONS,
     }));
     // Shutdown step 2 of the four the paragraph above orders — registered here,

@@ -38,11 +38,10 @@
 import type { SurfaceClientCallable } from "@kolu/surface/client"
 import type { ResolvedEndpoint, SurfaceCliConnection } from "@kolu/surface-cli"
 import { resolveExpose } from "@kolu/surface-mcp"
-import { surface } from "@olai/bundle/surface"
 import { Effect, Stream } from "effect"
 import { Command, Flag } from "effect/unstable/cli"
 
-import { MCP } from "@olai/bundle/faces"
+import { AGENT_EXPOSE, mcpContract } from "olai-plugin-mcp/face"
 import { type McpConnection, McpUnreachable, openMcp } from "./mcpClient.ts"
 
 /**
@@ -105,7 +104,7 @@ export const dialOlai = (values: Dialled): Effect.Effect<ResolvedEndpoint> =>
  * face resolves its resource list with, so the URIs read here are the URIs
  * published there, member for member. A member this face does not publish is
  * simply not in the table, and the projection never offers it either — both
- * halves read {@link MCP}.
+ * halves read `olai-plugin-mcp`'s `AGENT_EXPOSE`.
  *
  * ONE FRAME, then done. Every reader in the projection takes the opening
  * snapshot and interrupts the rest, so a single-element stream is not a
@@ -120,7 +119,7 @@ export const dialOlai = (values: Dialled): Effect.Effect<ResolvedEndpoint> =>
  * this process could name any `captured-by` it liked.
  */
 const clientOver = (connection: McpConnection, url: string): SurfaceClientCallable => {
-  const resolved = resolveExpose(surface.spec, MCP)
+  const resolved = resolveExpose(mcpContract.spec, AGENT_EXPOSE)
   const byKey = new Map(resolved.resources.map((resource) => [resource.key, resource]))
   const templateByKey = new Map(
     resolved.resourceTemplates.map((template) => [template.key, template]),

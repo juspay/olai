@@ -10,6 +10,7 @@
     "./server": "./src/server.ts",
     "./*": "./src/*",
     "./surface": "./src/surface.ts",
+    "./tools": "./src/tools.ts",
     "./questions": "./src/browser/question.ts",
     "./testids": "./src/testids.ts",
     "./client": "./src/client.ts"
