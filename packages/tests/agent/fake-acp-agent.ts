@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { nativeActivity } from "./native-activity.ts"
 /**
  * A scripted ACP agent, for driving the chat loop without a language model.
  *
@@ -1266,6 +1267,20 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // that produced not one frame leaves the client unable to tell a prompt that
   // was read from one that never arrived, which is the case a message may
   // honestly be marked for. `crash` speaks first and must NOT be markable.
+  if (verb === "native") {
+    const air = (capabilities._meta as { jetbrains?: { air?: { version?: number; capabilities?: string[] } } } | undefined)?.jetbrains?.air
+    if (air?.version !== 1 || !air.capabilities?.includes("nativeSubagentSessions") || !air.capabilities.includes("asyncTasks")) {
+      refuse(id, -32603, "native activity capabilities were not negotiated"); return
+    }
+    await nativeActivity(argument, sessionId, notify, request, async () => {
+      if (argument !== "slow") return released()
+      while (!cancelled && !existsSync(`${cwd}/${MARKER.release}`)) { await takeSteering(); await sleep(20) }
+      if (!cancelled) rmSync(`${cwd}/${MARKER.release}`, { force: true })
+    }, () => cancelled)
+    if (endedCancelled(id)) return
+    say("Native work handled")
+    reply(id, { stopReason: "end_turn" }); return
+  }
   if (verb === "settings") {
     if (argument === "update") {
       reasoning = "high"; mode = "plan"; fast = true
@@ -2947,6 +2962,9 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         for (const update of sessionStore(cwd).read(sessionId)?.updates ?? []) {
           sendNotification("session/update", { sessionId, update })
         }
+      } else if (CODEX && sessionId === "fake-stored-old") {
+        await nativeActivity("agents", sessionId, notify, request, released)
+        await nativeActivity("watch stopped", sessionId, notify, request, released)
       } else replay()
       // THE PIN, ASSERTED OVER THE CONVERSATION'S OWN MODEL — which is the bug
       // `chat-model-reverts-on-restart` is about, and what the real adapter

@@ -3922,3 +3922,10 @@ Then("my transcript speaker wears an anonymous silhouette", async function (this
   await speaker.locator("svg").waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.strictEqual(await speaker.locator("img").count(), 0);
 });
+
+When(
+  "I pick the conversation {string} under the agent {string}",
+  async function (this: OlaiWorld, title: string, agent: string) {
+    await this.page.locator(`${CHAT_SESSION}${attr("data-agent", agent)}`, { hasText: title }).first().click();
+  },
+);

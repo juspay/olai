@@ -115,6 +115,7 @@ import { acceptsSetting, settingsIn } from "./agents/settings.ts"
 import type { SessionSetting } from "olai-plugin-chat/wire"
 import { modelPickerIn, type Picker, pickerValueFor, sameModel } from "./agents/models.ts"
 import { Calls } from "./calls.ts"
+import { Activity, ACTIVITY_METHOD, activityStream, field } from "./activity.ts"
 import { sameDirectory } from "./directory.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import type { MemorySnapshot, Memory, MemoryFailure } from "./memory.ts"
@@ -508,6 +509,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       options.onEvent(event)
     }
 
+    const activity = options.leg.nativeActivity ? new Activity(emit) : null
+    const sessionRoot = (id: string): string => activity?.root(id) ?? id
+    const callId = (session: string, id: string): string => activity?.toolId(session, id) ?? id
     const terminalTools = new Map<string, readonly string[]>()
     const terminals = new Terminals((id) => {
       for (const [tool, ids] of terminalTools) if (ids.includes(id)) {
@@ -516,7 +520,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }, options.cwd)
     let terminalCleanup = Promise.resolve()
     const terminalSession = (session: string): void => {
-      if (session !== activeSession || replaying) throw RequestError.invalidParams("inactive terminal session")
+      if (sessionRoot(session) !== activeSession || replaying) throw RequestError.invalidParams("inactive terminal session")
     }
 
     const trouble = (message: string) => {
@@ -595,6 +599,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       terminalTools.clear()
       questions.withdrawAll()
       calls.forget()
+      activity?.clear(closed)
       forgetModel()
       // ... and the doubled-prologue arm along with the rest: it names a chunk
       // the session BEING LEFT announced. Spared this line, an arm whose
@@ -631,14 +636,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * A form drawn in nobody's name is drawn as the main agent's, which is the
      * one thing a subagent's question must not say.
      */
-    const put = (form: Form, signal: AbortSignal): Promise<Questions.Settled> =>
+    const put = (form: Form, signal: AbortSignal, parent?: string): Promise<Questions.Settled> =>
       questions.ask(form, signal, (id) => {
         emit({
           _tag: "asked",
           id,
           message: form.message,
           fields: form.fields,
-          parent: calls.about(form.toolCall).parent,
+          parent: parent ?? calls.about(form.toolCall).parent,
         })
       })
 
@@ -658,7 +663,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         undrawable(form.reason)
         return { action: "decline" }
       }
-      const settled = await put(form, signal)
+      const named = field(params, "sessionId")
+      if (typeof named === "string" && fromElsewhere(sessionRoot(named), activeSession, closed)) return { action: "cancel" }
+      const settled = await put(form, signal, typeof named === "string" ? activity?.parent(named) : undefined)
       // A dismissal is a DECLINE and a withdrawal is a CANCEL, and the adapter
       // reads them differently: decline tells the model the person skipped and
       // lets the turn go on, cancel aborts the tool use. Saying "cancel" for a
@@ -697,7 +704,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       if (allowed !== null) {
         return { outcome: { outcome: "selected", optionId: allowed } }
       }
-      const settled = await put(permissionFormOf(params), signal)
+      if (fromElsewhere(sessionRoot(params.sessionId), activeSession, closed)) return { outcome: { outcome: "cancelled" } }
+      const settled = await put(permissionFormOf(params), signal, activity?.parent(params.sessionId))
       const picked = settled.content[PERMISSION_FIELD]
       // Dismissed, withdrawn, or — impossible, since the field is required, but
       // said in one place rather than assumed in two — nothing chosen. All
@@ -715,8 +723,18 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // conversation nobody had spoken in. Replay is not this — a load
       // un-closes the id it is about to replay, below, before the frames
       // land.
-      if (fromElsewhere(notification.sessionId, activeSession, closed)) return
+      if (fromElsewhere(sessionRoot(notification.sessionId), activeSession, closed)) return
       const update = notification.update
+      const parent = activity?.parent(notification.sessionId)
+      // A child's prose belongs in its own fold; its settings, title, usage,
+      // plan and replayed user messages must never replace the root's.
+      if (parent !== undefined) {
+        if (update.sessionUpdate === "agent_message_chunk") {
+          activity?.report(notification.sessionId, textOf(update.content))
+          return
+        }
+        if (update.sessionUpdate !== "tool_call" && update.sessionUpdate !== "tool_call_update") return
+      }
       reportServers(options.leg.serversInUpdate?.(update) ?? null)
       switch (update.sessionUpdate) {
         case "agent_message_chunk": {
@@ -779,22 +797,23 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // by which fields it guarantees, and a consumer keyed by call id does
         // the same thing with either.
         case "tool_call":
-        case "tool_call_update":
+        case "tool_call_update": {
+          const id = callId(notification.sessionId, update.toolCallId)
           // Not drawn, and not an event: what this frame said about its call —
           // which tool it is, and which agent made it — is what the two
           // handlers above need and what neither question they answer carries
           // ({@link ./calls.ts}).
-          calls.heard(update.toolCallId, update._meta)
+          calls.heard(id, update._meta)
           emit({
             _tag: "tool",
-            id: update.toolCallId,
+            id,
             title: update.title ?? undefined,
             // NO CAST. The protocol's four words and the panel's are the same
             // four, and this is the one seam that says so: a fifth status on
             // either side stops compiling HERE, where a person can decide what
             // the panel should do with it, rather than riding a cast onto a row
             // whose look-up table has no entry for it.
-            status: update.status ?? undefined,
+            status: activity?.status(id, update.status ?? undefined) ?? update.status ?? undefined,
             detail: detailOf(update.rawInput, update.rawOutput),
             progress: progressOf(update.content),
             // The two vocabularies for what a call CHANGED, and a call is at
@@ -810,7 +829,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // from. A subagent's frames arrive on this one feed with nothing
             // in the protocol to tell them apart, so this is the only thing
             // that says a turn had more than one agent in it.
-            parent: options.leg.parentToolUse(update._meta) ?? undefined,
+            parent: parent ?? options.leg.parentToolUse(update._meta) ?? undefined,
             // ... and, the other way round, whether this call SENT an agent
             // out. Read here rather than left to the parent stamp because the
             // stamp is answered by a subagent's own frames and a subagent that
@@ -829,17 +848,18 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           {
             const meta = options.leg.terminalOutput ? terminalMetaIn(update._meta) : []
             const refs = update.content?.flatMap((item) => item.type === "terminal" ? [item.terminalId] : [])
-            const ids = [...new Set([...(refs ?? terminalTools.get(update.toolCallId) ?? []), ...meta.map((item) => item.id)])]
-            terminalTools.set(update.toolCallId, ids)
+            const ids = [...new Set([...(refs ?? terminalTools.get(id) ?? []), ...meta.map((item) => item.id)])]
+            terminalTools.set(id, ids)
             for (const item of meta) {
               if (item.kind === "begin") terminals.begin(item.id)
               else if (item.kind === "output") terminals.append(item.id, item.data)
               else terminals.finish(item.id, item.code, item.signal)
             }
-            if (refs !== undefined || ids.length > 0) emit({ _tag: "toolTerminals", id: update.toolCallId,
+            if (refs !== undefined || ids.length > 0) emit({ _tag: "toolTerminals", id,
               terminals: ids.map((id) => terminals.view(id)) })
           }
           return
+        }
         case "plan":
           emit({ _tag: "plan", entries: update.entries })
           return
@@ -1279,6 +1299,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           .onNotification(methods.client.session.update, (context) => {
             onUpdate(context.params)
           })
+        if (activity !== null) opened.onNotification(ACTIVITY_METHOD, (params: unknown) => params, ({ params }) => {
+          const session = field(params, "sessionId")
+          if (typeof session !== "string" || fromElsewhere(sessionRoot(session), activeSession, closed)) return
+          activity.read(session, field(params, "update"))
+        })
         // The agent's own message, forwarded verbatim because the call that
         // OPENED this conversation asked for it (the leg's `openMeta`, on
         // `session/new` and `session/load` both — the Claude adapter reads the
@@ -1332,7 +1357,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           .onRequest(methods.client.terminal.waitForExit, ({ params }) => { terminalSession(params.sessionId); return terminals.wait(params) })
           .onRequest(methods.client.terminal.kill, ({ params }) => { terminalSession(params.sessionId); return terminals.kill(params) })
           .onRequest(methods.client.terminal.release, ({ params }) => { terminalSession(params.sessionId); return terminals.release(params) })
-          .connect(streamOver(child))
+          .connect(activity === null ? streamOver(child) : activityStream(streamOver(child)))
 
         const initialized = (yield* Effect.raceFirst(
           ask(
@@ -1350,7 +1375,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 // empty object is how the protocol spells "yes" here.
                 elicitation: { form: {} },
                 terminal: true,
-                ...(options.leg.terminalOutput ? { _meta: { terminal_output: true } } : {}),
+                _meta: {
+                  ...(options.leg.terminalOutput ? { terminal_output: true } : {}),
+                  ...(activity !== null ? { jetbrains: { air: { version: 1,
+                    capabilities: ["nativeSubagentSessions", "asyncTasks"],
+                  } } } : {}),
+                },
                 session: { configOptions: { boolean: {} } },
                 // WHAT IS NOT ASKED FOR, named here because this is where it
                 // would be asked for and a decision recorded anywhere else is a

@@ -285,6 +285,9 @@ export interface Reported {
  * can start, and its `agent.ts` does the talking.
  */
 export interface Leg {
+  /** Native child-session and AIR async-task lifecycle streams. Opt in only
+   * where the adapter implements these versioned extensions. */
+  readonly nativeActivity?: boolean
   /** Connection reports carried by ordinary session updates, where an adapter
    * exposes them. Display only: this must never grant tool permissions. */
   readonly serversInUpdate?: (update: unknown) => ReadonlyArray<Reported> | null
