@@ -12,6 +12,16 @@ Last complete CI: code commit `55b5bee87` passed all 49 checks, including
 1,446 browser scenarios. That result predates the substantial extraction now
 in progress and does not validate the current working tree.
 
+Current integration: `f5093a416` completed full `just ci`: 34 checks passed and
+15 failed. Failures include stale extraction assertions, passive routes opening
+a listener without a transport, MCP availability after withdrawal, and browser
+workflow regressions. Fixes and focused verification are in progress; the
+current working tree is not yet validated by full CI.
+
+GitHub CodeQL also flagged case-sensitive script extraction in the theme asset
+test. The regex is corrected and both first-paint tests pass; verification of
+the pushed fix by GitHub CodeQL remains pending.
+
 ## Current implementation batch
 
 - [x] Move navigation/router/history/focus and palette implementation into
@@ -45,9 +55,9 @@ in progress and does not validate the current working tree.
   The counter's headless test passes with Vault/Directory/Ops absent.
 - [x] Run the non-notebook browser workflow: all seven steps pass, including
   server reads, increment and reload with Vault/Directory/Ops absent.
-- [ ] Pass the alternate-layout browser workflow. It has exposed stream setup,
-  location naming, chat provider ownership and frame-owned keyboard readiness
-  defects. Those fixes are implemented; the complete rerun remains pending.
+- [x] Pass the alternate-layout browser workflow: all 17 steps pass after
+  fixing stream setup, location naming, chat provider ownership and scoped
+  keyboard readiness.
 - [x] Finish removing indirect notebook dependencies from the permanent browser
   and server hosts, and enforce the final boundary with import fences.
 - [ ] Complete capability absence/restoration and scoped state integration tests.
@@ -71,10 +81,10 @@ in progress and does not validate the current working tree.
   deletion, broken-file and resync differential corpus.
 - [x] Give Markdown its own metadata stream. A live test passes frontmatter
   updates and file disappearance with outline handlers absent.
-- [ ] Restore the inherited deployment title when layout leaves while theme
-  remains active; the focused lifecycle audit found retained naming state.
+- [x] Restore the inherited deployment title when layout leaves while theme
+  remains active. The focused naming lifecycle test passes all 12 assertions.
 - [ ] Run full CI for this substantial batch and fix every failure before the
-  next batch. No CI has yet validated these combined extraction changes.
+  next batch. The first complete run exposed the failures listed above.
 
 The checklist below remains the full acceptance contract. A moved implementation
 above is not a claim that its complete absence/lifecycle requirement is proved.

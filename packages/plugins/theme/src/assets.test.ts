@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { runInNewContext } from "node:vm"
 import assets from "./assets.ts"
 
-const bootstrap = assets.head.match(/<script>([\s\S]*?)<\/script>/)?.[1]
+const bootstrap = assets.head.match(/<script>([\s\S]*?)<\/script>/i)?.[1]
 
 test("first-paint bootstrap applies all stored choices before runtime activation", () => {
   expect(bootstrap).toBeDefined()
