@@ -8,7 +8,7 @@ Feature: Splitting and merging a row
   — the same rule every outliner has, and Workflowy's own.
 
   Both are ONE op at the same write gate the agent's tools go through
-  (`split_node` and `merge_node` are the same two ops), so a merge that moves
+  (`outlines_split` and `outlines_merge` are the same two ops), so a merge that moves
   four children and archives a record either happens whole or does not happen.
   `@scratch:` because they write the directory they are served. They share
   one copy per worker (`@share-scratch`); the corpus is restored between

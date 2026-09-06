@@ -8,7 +8,7 @@
  * kind vocabulary its grammar reads, and the situating a hit carries — all
  * three of the first come IN through the door, and the fourth is imported from
  * the layer that owns it, because a second answer to *where does this node
- * live* would be free to disagree with `read_node`'s in the same turn.
+ * live* would be free to disagree with `outlines_read`'s in the same turn.
  *
  * A serve that does not mount this row answers every one of the five doors with
  * no hits and the reason, in words (`@olai/ops`' `NO_SEARCH`).

@@ -9,7 +9,7 @@ Feature: A property key that declares its type
 
   Then the write gate refuses a value that does not fit, in the same words
   wherever the write came from — and this is the person's door onto that: the
-  chip editor commits a `set_prop` at the same gate an agent's does, so a typed
+  chip editor commits a `outlines_prop` at the same gate an agent's does, so a typed
   refusal has to arrive HERE, in full, rather than as a value that quietly went
   back to what it was.
 
@@ -202,7 +202,7 @@ Feature: A property key that declares its type
   Scenario: A ref chip draws the variant's title, and stores the id underneath
     # The other half of the same declaration. `agent grok` reads `agent Grok`
     # because the vault declared `agent` a reference — names rename, ids don't —
-    # and the file goes on holding the id, which is what a `set_prop` takes.
+    # and the file goes on holding the id, which is what a `outlines_prop` takes.
     Given I open the address "/roadmap/board.olai"
     Then the node "board-lane" shows the property "agent" holding "Grok"
     And the property "agent" on "board-lane" is a "node" door to "/#grok"

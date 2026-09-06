@@ -21,7 +21,7 @@
  * plain form below ({@link nearestId}) answers it by walking every candidate
  * and computing an edit distance for the ones a length difference does not rule
  * out. That is the right shape for a handful of paths — the outlines of a
- * directory, the `.md` a `write_document` could have meant — and it is the
+ * directory, the `.md` a `markdown_write` could have meant — and it is the
  * wrong shape for the ids, which is where every burst comes from: a stale tab
  * replaying refused edits asks it once per refusal, and a hand-edited file with
  * a dozen dangling references asks it a dozen times PER WRITE, through the

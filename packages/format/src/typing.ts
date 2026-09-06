@@ -108,7 +108,7 @@
  * ## Two doors, one rule
  *
  * The check is asked at the PLAN — every door that writes a property, which is
- * `set_prop`, `add_node`'s `props` (children included), `apply`, `update` and
+ * `outlines_prop`, `outlines_add`'s `props` (children included), `apply`, `update` and
  * `capture` — and again by the VALIDATOR over what is on disk. A live write is
  * REFUSED, with the allowed values named; a hand edit that lands a bad value
  * makes the file broken, naming the key. Exactly the arrangement `after`
@@ -117,7 +117,7 @@
  * read one sentence, so the sentence is written once, here
  * ({@link wrongValue}), and both callers wrap it.
  *
- * `duplicate_node` of an ordinary subtree has no value-refusal of its own: a
+ * `outlines_duplicate` of an ordinary subtree has no value-refusal of its own: a
  * copy is isomorphic to something the validator has already approved, so it
  * can carry no value the set did not already hold. A copy of a Properties
  * ROOT is a declaration, and is the same existing-values fence every other
@@ -852,7 +852,7 @@ const declaringIn0 = (
  * key a spelling ({@link ./filter.ts}'s `propKeyOf`). A vault declaring `pr`
  * and a record carrying `PR` are one key to a reader and to a search, so they
  * have to be one key to the fence as well — otherwise `prop:RECORDS=190..200` is a
- * span while `set_prop {"key":"PR"}` is untyped, which is the grammar and the
+ * span while `outlines_prop {"key":"PR"}` is untyped, which is the grammar and the
  * gate disagreeing about the same word.
  *
  * ONE FUNCTION, for the reason everything else here is one: the reading, the
@@ -1142,7 +1142,7 @@ export const textDeclaredAs = (
  * date at all.
  *
  * TWO WIDTHS, and only two: a DAY (`2026-08-25`) and an INSTANT written the way
- * `set_done` writes one (`2026-08-25T10:06:00-04:00` — local ISO, seconds, the
+ * `outlines_done` writes one (`2026-08-25T10:06:00-04:00` — local ISO, seconds, the
  * offset spelled out). That pair is the format's own, not this module's: a
  * date-only value that round-tripped through an instant would come back a
  * datetime, which is the reason `./parse.ts` validates dates as TEXT, and
@@ -1158,7 +1158,7 @@ export const textDeclaredAs = (
  *
  * `offset` IS WHAT A VALUE WITH A CLOCK FACE AND NO ZONE IS GIVEN, and passing
  * `null` is how a reader asks whether the text is ALREADY canonical. A door
- * hands the offset the write is being stamped with — the same clock `set_done`
+ * hands the offset the write is being stamped with — the same clock `outlines_done`
  * reads, so a property and a mark written in one gesture agree about where the
  * writer is standing. The VALIDATOR hands `null`, because a rule about bytes on
  * disk may not consult a clock: it would make one file two verdicts depending
@@ -1316,7 +1316,7 @@ export interface Typed {
  * A LIST IS CHECKED MEMBER BY MEMBER. `custom` holds text or a list of it — a
  * fact can be several — so a typed key holding several is several values of
  * that type, and the first bad member is what the sentence quotes. No door
- * writes a list (`set_prop` and `add_node`'s map are text), so this arm is
+ * writes a list (`outlines_prop` and `outlines_add`'s map are text), so this arm is
  * reached by a hand-edited file alone.
  *
  * `from` is the outline the record lives in, which only `doc` reads — and what
@@ -1610,7 +1610,7 @@ export const storedValue = (
  * directory failed to parse (`./errors.ts`'s `Reach`).
  */
 export interface Wrong {
-  /** The sentence, written to teach — what `set_prop` refuses with and what
+  /** The sentence, written to teach — what `outlines_prop` refuses with and what
    *  the validator's row says. */
   readonly said: string
   /** Whether reaching it resolved a bare id that may live in any file. */
@@ -1766,7 +1766,7 @@ export const wrongDeclaration = (
  * `undefined` for a record {@link wrongDeclaration} would already refuse.
  *
  * Shared by the write planner so a `type` of `doc` on a new row and a
- * `set_prop` of `type` on an existing one ask the same question about the
+ * `outlines_prop` of `type` on an existing one ask the same question about the
  * values the vault already holds ({@link unfitHeld}). The reading
  * ({@link typeIn}) is the same one the validator uses, asked of the record
  * rather than of a fabricated site, so a declaration this accepts and the
@@ -1789,7 +1789,7 @@ export const declaringOf = (
  *
  * `file`, the node's title and id, and the value as a reader was shown —
  * the three the declaration door names, and the sentence {@link wrongValue}
- * would say about the same value if `set_prop` had tried to write it.
+ * would say about the same value if `outlines_prop` had tried to write it.
  */
 export interface UnfitHeld {
   readonly file: string
@@ -1807,7 +1807,7 @@ export interface UnfitHeld {
 /**
  * EVERY VALUE THE SET ALREADY HOLDS under this key that would not fit what
  * `typed` now declares it as — the walk the declaration door asks, through
- * the same {@link wrongValue} `set_prop` and the validator already share.
+ * the same {@link wrongValue} `outlines_prop` and the validator already share.
  *
  * A MIRROR CARRIES NO PROPERTIES, so a placement is stepped over exactly as
  * {@link reportPropValues} steps over one. The trash is NOT skipped: a

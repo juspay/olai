@@ -379,7 +379,7 @@ export const TIP = selector(TESTID.tip);
 export const SEE_REFS = selector(TESTID.seeRefs);
 /** What a node itself says it comes AFTER — its own field, drawn on its page
  *  beside the DERIVED `blocked by` row above it. The two are different claims:
- *  this one is what `set_after` writes, and only this one carries an `×`. */
+ *  this one is what `outlines_after` writes, and only this one carries an `×`. */
 export const AFTER_REFS = selector(TESTID.afterRefs);
 /** The `×` on one drawn reference — drop that target. `data-ref` is which. */
 export const REF_DROP = selector(TESTID.refDrop);

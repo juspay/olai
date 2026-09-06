@@ -11,7 +11,7 @@
  * told nothing.
  *
  * ONE OF THEM IS GONE, and its absence is tested beside the rest: another
- * outline. `move_node` crosses files now, so a destination this reading dims is
+ * outline. `outlines_move` crosses files now, so a destination this reading dims is
  * a destination the planner would have taken — which is the one thing the
  * header's standing rule forbids.
  *
@@ -159,7 +159,7 @@ test("...and may go anywhere else in its file, including beside what it shows", 
 // ── the other three refusals ───────────────────────────────────────────
 
 test("a destination in another outline is not refused at all any more", () => {
-  // The fence this module used to be most of. `move_node` carries a row and
+  // The fence this module used to be most of. `outlines_move` carries a row and
   // everything under it into another outline with its id
   // (`@olai/ops`' `planMove`), so the picker's search of the whole set now
   // OFFERS what it finds there rather than dimming it — and this reading, whose

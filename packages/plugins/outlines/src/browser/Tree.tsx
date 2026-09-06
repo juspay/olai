@@ -842,7 +842,7 @@ function Branch(props: {
                     )}
 
                   // The `×` on a `see` link the expanded note draws — one op,
-                  // `set_see`'s own removal, through the row's own edge editing
+                  // `outlines_see`'s own removal, through the row's own edge editing
                   // so a refusal lands in the same line the panel's writes use.
                   // Handed in beside `onEdit` and for the same reason: a body
                   // drawn where a node is READ ONLY (a day page) passes neither

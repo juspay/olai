@@ -29,7 +29,7 @@
  * who named the node:
  *
  *   - an id the CALLER named travels as it is. `toggle` on a mirror is refused
- *     by the ops layer, naming the node to use instead — and `set_done` on that
+ *     by the ops layer, naming the node to use instead — and `outlines_done` on that
  *     same mirror is refused the same way. Resolving it here would make the
  *     keyboard succeed where the tool refuses, which is the deviation read
  *     backwards.
@@ -124,7 +124,7 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     //
     // The title travels VERBATIM, blank and all: a capture of nothing is
     // refused by the ops layer in its own words ("a node needs a title"),
-    // which is the same sentence an agent's `add_node` gets.
+    // which is the same sentence an agent's `outlines_add` gets.
     //
     // It carries NO DATE where the `capture` tool's does, and that is a
     // difference between two GESTURES rather than a deviation between two
@@ -140,16 +140,16 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       return moveRequest(at.derived, edit)
     // The FIFTH move, and the one that resolves NOTHING: the picker names the
     // parent outright, and where among that parent's children is the ops
-    // layer's own default (last — `move_node` with a `parent` and no anchor,
+    // layer's own default (last — `outlines_move` with a `parent` and no anchor,
     // which is the request `move in` above ends at). So there is nothing here
     // to read off the snapshot, and every refusal is `planMove`'s own: a parent
     // inside the subtree being moved, a parent inside what it draws, a trash at
     // either end, an id nothing declares. The picker draws those before `Enter`
     // as well (`@olai/format`'s `moving.ts`), which is an aim and not a fence —
-    // this request is still the one an agent's `move_node` sends.
+    // this request is still the one an agent's `outlines_move` sends.
     //
     // THE PARENT MAY BE IN ANOTHER OUTLINE and nothing here changes for it: a
-    // `move_node` naming a parent lands in the parent's file, so the picker's
+    // `outlines_move` naming a parent lands in the parent's file, so the picker's
     // search of the whole set reaches every outline the directory holds without
     // this arm learning a second field.
     case "under":
@@ -195,7 +195,7 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       return Result.succeed({ op: "date", id: edit.id, date: edit.date })
     // A rule resolves nothing either: it is TEXT the format itself reads, and
     // what it may say is the per-line check at the write gate — refused there
-    // in the same words an agent's `set_repeat` meets, with `file:line`.
+    // in the same words an agent's `outlines_repeat` meets, with `file:line`.
     case "repeat":
       return Result.succeed({ op: "repeat", id: edit.id, repeat: edit.repeat })
     // A property resolves nothing either: the key is the caller's and the value
@@ -260,8 +260,8 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     // direction. Every rule about what may go in them is the planner's: an id
     // the set does not declare, a call that names neither list, a `see` that
     // would change nothing, an `after` that would close a loop. Each of those
-    // sentences reaches the browser exactly as it reaches an agent's `set_see`
-    // and `set_after`.
+    // sentences reaches the browser exactly as it reaches an agent's `outlines_see`
+    // and `outlines_after`.
     //
     // ONE arm for both, because the verb IS the op — the same discriminant
     // trick `toggle` above uses for the marks, and the same pairing `inverseOf`
@@ -294,7 +294,7 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       return Result.succeed({ op: "create-doc", file: edit.file })
     // …and the outline's own creation door, which resolves nothing for the same
     // reason: the path is the caller's, and whether it is a relative `.olai`
-    // the set does not already hold is `create_outline`'s own judgement, in its
+    // the set does not already hold is `files_create`'s own judgement, in its
     // own words. No `seed` — a person's first row is an `add` at the anchor the
     // empty file offers (`Anchor`'s `first`).
     case "outlineNew":
@@ -383,10 +383,10 @@ const addRequest = (
 }
 
 /** A second placement of a node that already exists, where the anchor says —
- *  `add_mirror`, with the target travelling as the caller named it. Whether
+ *  `outlines_mirror`, with the target travelling as the caller named it. Whether
  *  that id is a node at all, and whether a mirror of it may sit there (a
  *  placement inside the subtree it shows expands forever), is the ops layer's
- *  to judge, in its own words, exactly as it judges an agent's `add_mirror`. */
+ *  to judge, in its own words, exactly as it judges an agent's `outlines_mirror`. */
 const mirrorRequest = (
   at: Reading,
   edit: Extract<Edit, { verb: "mirror" }>,
@@ -559,7 +559,7 @@ const moveRequest = (
       // refuses a placement, naming its target instead), and what hangs under a
       // mirror on screen belongs to that target. Emitting the placement's own
       // id would be a request the ops layer always refuses — a keyboard that
-      // could not do what the equivalent `move_node` does, which is exactly the
+      // could not do what the equivalent `outlines_move` does, which is exactly the
       // deviation the consistency rule forbids.
       const parent = nodeNamed(derived, above.node.id)
       if (parent === undefined) {
@@ -615,7 +615,7 @@ const moveRequest = (
  * is nothing there at all the anchor is dropped and the ops layer's own
  * default — last — is the only place it can go.
  *
- * THE OUTLINE IS PART OF THE PLACE, and that is what a cross-file `move_node`
+ * THE OUTLINE IS PART OF THE PLACE, and that is what a cross-file `outlines_move`
  * made true: "the top level of its file" is a different file once a row has
  * been carried to another one, so an undo that named only a parent of `null`
  * would put the row back at the top of wherever it had got to. It travels on
@@ -792,7 +792,7 @@ const walkRequest = (
  * `archive` is the whole of it, because `archive` is the whole of what the set
  * can do about a record it no longer wants: the node goes to `_olai/Trash.olai`
  * keeping its id, so anything pointing at it goes on resolving. That is a
- * trash rather than a shredder, and it is the same op `trash_node` runs.
+ * trash rather than a shredder, and it is the same op `outlines_trash` runs.
  *
  * The guard is the one thing this adds, and it is about what an undo is
  * ENTITLED to: the row it takes back is the row it added, never a branch. A
@@ -944,7 +944,7 @@ export const inverseOf = (
     // The DATE this write is about to replace, which is the same shape as the
     // text pair one line up minus the guard: a date is one field with no
     // half-typed state behind it, so there is no draft for a stale undo to
-    // overwrite — the ops layer's own `set_date` is what judges it either way.
+    // overwrite — the ops layer's own `outlines_date` is what judges it either way.
     case "date":
       return dateOf(at.derived, edit.id)
     // The RULE this write is about to replace — the date arm one field along,
@@ -975,7 +975,7 @@ export const inverseOf = (
     // and no guard either): a concurrent retitle of the head is concatenated
     // rather than refused, and rows somebody hung under the tail are adopted
     // rather than refusing. Closing it means guarding `merge` itself — on both
-    // faces, so an agent's `merge_node` gets the same field — which is a change
+    // faces, so an agent's `outlines_merge` gets the same field — which is a change
     // to the op rather than to this arm.
     //
     // The `under` reading the browser asks for (the tail is the head's FIRST
@@ -1031,7 +1031,7 @@ export const inverseOf = (
     // A placement is taken back by retiring it, and `applied` is the placement
     // the write minted — never the target, which this write did not touch. One
     // edit, exact, and its own inverse is refused by the ops layer for the same
-    // reason any `remove_mirror` is when something still names the row.
+    // reason any `outlines_unmirror` is when something still names the row.
     case "mirror":
       return [{ verb: "unmirror", id: applied }]
     // An `unmirror` still answers with NOTHING, and the reason narrowed rather
@@ -1093,7 +1093,7 @@ export const inverseOf = (
  * What an edge write would put back — the same verb with its two lists
  * swapped, narrowed to what the write actually CHANGES.
  *
- * The narrowing is the whole of it. `set_see` is incremental on purpose: adding
+ * The narrowing is the whole of it. `outlines_see` is incremental on purpose: adding
  * a target the node already lists is a no-op for that target, and removing one
  * it never had is the same read backwards. An inverse spelled off the REQUEST
  * would drop an edge that was there before the write — the undo of "link to X"
@@ -1106,13 +1106,13 @@ export const inverseOf = (
  * so putting back an edge that was removed from the MIDDLE of a list lands it
  * at the end. The relation is the same set either way — blockedness is a set,
  * and `see` is a list of links — and closing it would mean a whole-array write
- * on both faces, which is a change to `set_see` rather than to an undo.
+ * on both faces, which is a change to `outlines_see` rather than to an undo.
  *
  * AND THE COUPLING WORTH NAMING, because it is the first of its kind here:
  * every other inverse in this file reads a FACT the op is about to destroy
  * (where a row sat, which mark it carried), and this one reproduces the op's
  * own incremental add/remove ARITHMETIC. Nothing in the type system ties the
- * two, so a `set_see` that became a whole-array replace would leave this
+ * two, so a `outlines_see` that became a whole-array replace would leave this
  * silently wrong — and the append-order residual above is the same split read
  * from the other end. That is exactly the move this function's own header
  * records as deferred: down, into `@olai/ops`' planner, beside the op whose
@@ -1269,7 +1269,7 @@ const placementOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
     // The OUTLINE, always, because a place is a place in a directory rather
     // than in a file the row is assumed not to leave. It decides nothing when
     // there is a parent (the parent's file does), and it is the whole of the
-    // answer when there is not: `move_node` crosses outlines, so an undo of a
+    // answer when there is not: `outlines_move` crosses outlines, so an undo of a
     // top-level row's move that named no file would put it back at the top of
     // wherever it had got to.
     file: located.file,
@@ -1343,7 +1343,7 @@ const repeatOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
  * can take back rather than a one-way door.
  *
  * A key holding a LIST answers as nothing, which is honest rather than
- * reachable: `set_prop` writes text, so a `prop` edit can only ever be about a
+ * reachable: `outlines_prop` writes text, so a `prop` edit can only ever be about a
  * key holding some. If one ever arrives about a list, the undo declines to
  * spell it rather than flattening a set of values into a string nobody wrote.
  */
@@ -1354,7 +1354,7 @@ const propOf = (
   const located = derived.byId.get(edit.id)
   if (located === undefined || isMirror(located.node)) return []
   const held = customOfNode(located.node)[edit.key]
-  // A LIST, and there is NO inverse for one. `set_prop` writes text, so an undo
+  // A LIST, and there is NO inverse for one. `outlines_prop` writes text, so an undo
   // that spelled a list would have to flatten three values into one string with
   // commas in it — and the arm that used to be here did something quieter and
   // worse: `customText` answers `undefined` for a list, so `?? null` turned the

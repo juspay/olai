@@ -93,4 +93,112 @@ collections: {
     }
 }
 })
-export const faces = { browser: { errors: "resource", manifest: "resource", heads: "resource" }, agent: { errors: "resource" } } as const
+/**
+ * WHICH FACE SEES WHAT — this row's whole grant, over this row's own spec.
+ *
+ * The general rule these three are decided by — a cell is exposable iff its
+ * value is O(1)-ish, and the render-shaped/request-shaped split beside it — is
+ * `@olai/surface/host`'s `hostFaces`. This row is where that rule bites
+ * hardest, because the three members below are the three answers it gives.
+ */
+/**
+ * WHAT AN AGENT MAY SEE OF THIS ROW AS A `surface://` RESOURCE — a THIRD
+ * projection, and not a fourth face.
+ *
+ * `faces` above says which of this row's tags each WIRE caller may reach.
+ * This says which of its members the MCP adapter publishes as a resource at
+ * all, because that adapter needs the member's KIND to build a URI and a tag
+ * set has thrown that away. The two answer different questions and a member on
+ * one and not the other is an ordinary state: every `ops.*` on `faces.agent` is
+ * reachable and is no resource, because a procedure is not a thing with an
+ * address.
+ *
+ * IT WAS `@olai/bundle`'s `MCP`, one flat map naming three rows' members from a
+ * package none of them could edit. #546 sent each line home, and juspay/kolu#2234
+ * is what made a per-sibling map the framework's own shape: the adapter takes a
+ * rooted bundle, resolves each row's map against that row's spec, and mints
+ * `surface://collections/<row>/<member>` from the key it was mounted under.
+ *
+ * THE RULE THIS IS WRITTEN AGAINST is the wire-cost one in
+ * `@olai/surface`'s `host.ts`: a cell is exposable only if its value is
+ * O(1)-ish, and anything O(corpus) must be a COLLECTION, whose resource reads
+ * the KEY SET and hands a body one at a time.
+ */
+export const resources = {
+  // What is wrong across the set right now — and NOT how current the set is,
+  // which is a different fact and lives on a read's own vintage. A CELL, and
+  // eligible, because per-file breakage does not come through it: that rides
+  // `OutlineEntry.broken` on the outlines collection, per entity, leaving this
+  // one holding cross-file failures only.
+  errors: "resource",
+} as const
+
+export const faces = {
+  browser: {
+    // WHAT IS WRONG ACROSS THE SET RIGHT NOW, on both faces — the one member
+    // here that is, and the reason it is worth saying out loud.
+    //
+    // It carries the store's other kind of failure too: a directory that could
+    // not be READ, as an `unreadable-directory` error (`@olai/store`'s
+    // `Codec.unreadable`). That lands here rather than needing a second channel
+    // precisely because this is ONE member with two faces on it — the browser
+    // draws it as the banner over its last-good tree and an agent reads the
+    // identical rows off `surface://cells/errors`: the same fact, in the same
+    // vocabulary, at the same instant. "MCP and Web ops must be consistent" is
+    // a property of this line rather than something two renderers have to be
+    // kept in step about, which is the argument for putting it on the cell
+    // rather than on the reply of whichever verb noticed.
+    errors: "resource",
+    // WHETHER THERE IS A SET — the browser's alone, and the sharpest case of
+    // the render/request asymmetry in the tree.
+    //
+    // A render-shaped consumer genuinely needs the "has this directory ever
+    // loaded" bit, because a page has to draw something before it has heard. A
+    // request-shaped one gets it for free: `resources/read` blocks on the first
+    // frame either way, so "the store has not loaded yet" is absorbed by the
+    // read waiting rather than needing a tri-state.
+    //
+    // IT IS ALSO THE MEMBER THE COST RULE WAS WRITTEN ABOUT, and the absence
+    // from the agent face is older than the cell's present shape. It used to be
+    // `NullOr({ documents: Array({ file, text }) })` — nothing but the corpus of
+    // `.md` bodies — so `surface://cells/manifest` would have handed an agent
+    // every document in the served directory as one blob, re-read in full
+    // whenever any one of them changed. `snapshot-scale` cut the documents out
+    // into `olai-plugin-markdown`'s collection, which is what the rule says to
+    // do; what is left is a fact with no fields whose whole job is the
+    // never-loaded bit. So the cell was never exposed to an agent and now has
+    // nothing to expose: no URI was published and withdrawn.
+    manifest: "resource",
+    // EVERY SERVED FILE, ONE HEAD EACH — the browser's alone, and it answers a
+    // question only a render-shaped consumer asks.
+    //
+    // A tab keeps a `.html` on screen and has to notice the file moving
+    // underneath it without ever wanting what it now says (the frame fetches
+    // that over HTTP), which is a subscription no request-shaped reader has an
+    // analogue of. An agent reads a body when it wants one and hears about the
+    // change on `notifications/resources/updated` for the key it already holds;
+    // a second resource carrying the revision it would then read anyway is a
+    // URI published for nobody. It costs nothing to add the day something asks.
+    heads: "resource",
+  },
+  agent: {
+    // ...AND THE OTHER HALF OF THE MEMBER ABOVE.
+    //
+    // A CELL, and eligible, because per-file breakage does NOT come through it
+    // — that rides `OutlineEntry.broken` on `olai-plugin-outlines`' collection,
+    // per entity — leaving this one holding cross-file failures only. It is the
+    // lesser instance of the cost rule: a corpus that somehow produced
+    // thousands of cross-file errors would want the treatment `manifest` got.
+    //
+    // WHAT IT DOES NOT SAY is how CURRENT the set is, and that was this
+    // comment's old claim: that an agent could tell a stale-but-valid tree from
+    // a current one through this cell. That was grok's opening position in the
+    // 2026-08-25 lowy-electricity sitting, retracted by him in round two and
+    // signed retracted in the closing. The cell was EMPTY for the thirty
+    // minutes the server spent answering with week-old truth, because nothing
+    // was invalid. Validity and currency are two axes, and the second one is
+    // the vintage on a read's own answer (`@olai/store`, and
+    // `olai-plugin-mcp`'s `tools.ts` for the face an agent reads it on).
+    errors: "resource",
+  },
+} as const

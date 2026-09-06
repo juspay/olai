@@ -171,7 +171,7 @@ test("a file merely ENDING in the name is not an inbox", () => {
 })
 
 test("a blank capture is left to the ops layer, which has the words for it", () => {
-  // No second rule here: `add_node` refuses an empty title in the sentence an
+  // No second rule here: `outlines_add` refuses an empty title in the sentence an
   // agent gets, and a fence in this resolver would be a fence one face has.
   expect(asked({ verb: "capture", title: "   " }))
     .toEqual({
@@ -336,7 +336,7 @@ test("indenting under a MIRROR names the node it shows", () => {
   // has to be the id an agent would have named: a parent is a regular record,
   // and what hangs under a mirror on screen belongs to its target. Naming the
   // placement would be a request the ops layer always refuses — a keyboard
-  // that cannot do what the equivalent `move_node` does.
+  // that cannot do what the equivalent `outlines_move` does.
   //
   // `later` is the row under `echo`, which mirrors `order`, so `Tab` on it is
   // "go under what that row shows".
@@ -410,7 +410,7 @@ test("the walk goes bullet → todo → doing → bullet, one op a step", () => 
 test("the walk asks a done node for `todo`, and the ops layer is what says no", () => {
   // `done` is not a stop on the ring — nothing should finish work on the way
   // past — so a walk from it asks for the ring's first answer OUTRIGHT, which
-  // is the request `set_todo` makes and the one the ops layer refuses in its
+  // is the request `outlines_todo` makes and the one the ops layer refuses in its
   // own words ("undo that first"). Fencing it here would hide the refusal a
   // person needs to meet, and teach a rule this layer does not own.
   expect(asked({ verb: "walk", id: "demo" })).toEqual({ op: "todo", id: "demo" })
@@ -431,7 +431,7 @@ test("a walk on a node nothing declares is not found", () => {
 })
 
 test("an id the CALLER named travels as it is, mirror or not", () => {
-  // The other half of the consistency rule. `set_done` on a mirror is refused
+  // The other half of the consistency rule. `outlines_done` on a mirror is refused
   // by the ops layer, naming the node to use instead — so `toggle` on one is
   // refused the same way, by the same layer, with the same sentence. Resolving
   // it HERE would make the keyboard succeed where the tool refuses, which is
@@ -474,7 +474,7 @@ test("a note's condition travels too, `null` and all", () => {
 
 test("no condition is what a person typing sends, and it stays absent", () => {
   // Absent, not `undefined` in the payload: the ops layer reads presence, and
-  // last-one-wins is what `set_title` has always meant. The draft's commit path
+  // last-one-wins is what `outlines_title` has always meant. The draft's commit path
   // sends this and nothing else.
   expect(asked({ verb: "title", id: "order", title: "anything" }))
     .toEqual({ op: "title", id: "order", title: "anything" })
@@ -529,7 +529,7 @@ test("clearing a mark from a node that carries none says so", () => {
 test("a mark on a mirror travels as the caller named it", () => {
   // The consistency rule again, from the menu's side: the client sends the id
   // of the node a row SHOWS, and an id that arrives here is not second-guessed
-  // — `set_doing` on a placement is refused by the ops layer in its own words,
+  // — `outlines_doing` on a placement is refused by the ops layer in its own words,
   // so this must be too.
   expect(asked({ verb: "mark", id: "echo", mark: "doing" }))
     .toEqual({ op: "doing", id: "echo" })
@@ -559,10 +559,10 @@ test("a repeat rule is the op's own field, set and stopped alike", () => {
 })
 
 // The whole point of the spawn living in the PLANNER: `Complete` on a row is
-// `toggle`, which resolves to the same `done` request `set_done` sends — so
+// `toggle`, which resolves to the same `done` request `outlines_done` sends — so
 // there is no web-side rule to keep in step with the agent's, and this test is
 // about the ABSENCE of one. The occurrence itself is the ops suite's.
-test("completing a repeating row asks for exactly what `set_done` asks for", () => {
+test("completing a repeating row asks for exactly what `outlines_done` asks for", () => {
   const at = reading(setOf({
     "chores.olai": `{"id":"bins","ord":"a0","title":"put the bins out",` +
       `"todo":true,"date":"2026-08-17","repeat":"every week on monday"}`,
@@ -577,7 +577,7 @@ test("retiring a placement names the row's own record", () => {
 })
 
 test("retiring something that is not a placement is the OPS layer's to refuse", () => {
-  // Not caught here, deliberately: `remove_mirror` on a node answers with a
+  // Not caught here, deliberately: `outlines_unmirror` on a node answers with a
   // paragraph explaining what a placement is and which op puts a node away,
   // and a shorter refusal invented here would be a worse answer to the same
   // mistake — told to a person and not to an agent.
@@ -606,7 +606,7 @@ test("the inverse of a put-back is the archive that made the row a trash row", (
 test("archive is the op, subtree and all — the fence is the menu's question", () => {
   // `kitchen` has three children and a placement under it. Nothing here counts
   // them: the reader was asked, in the panel, before this was ever sent, and a
-  // fence in this layer would be a rule `trash_node` does not have.
+  // fence in this layer would be a rule `outlines_trash` does not have.
   expect(asked({ verb: "trash", id: "kitchen" }))
     .toEqual({ op: "trash", id: "kitchen" })
 })
@@ -621,7 +621,7 @@ test("duplicate is the op and nothing else — the copy is the op's to build", (
 
 test("a duplicate through a placement is refused where every other op refuses one", () => {
   // `echo` is a mirror of `order`. The id travels as the caller named it, so
-  // the refusal is `duplicate_node`'s own — a placement is not a node — rather
+  // the refusal is `outlines_duplicate`'s own — a placement is not a node — rather
   // than this file quietly copying the target's subtree into a file the reader
   // is not looking at.
   expect(asked({ verb: "duplicate", id: "echo" }))
@@ -658,7 +658,7 @@ test("back to the top level is `parent: null`, like an outdent", () => {
 })
 
 test("back to the top level of ANOTHER outline names that outline", () => {
-  // What the `file` on a place is for. `move_node` carries a row between
+  // What the `file` on a place is for. `outlines_move` carries a row between
   // outlines now, so an undo of a top-level row's crossing has to say which
   // top level — `parent: null` alone would put it back at the top of wherever
   // it had got to. The neighbour is still resolved against the set as it
@@ -801,7 +801,7 @@ test("the FIRST of its siblings records `after: null` — a place with no neighb
 test("a top-level row records `parent: null`, the OUTLINE, and the row above it", () => {
   // The file is the half that only matters here, and it is why a place carries
   // one at all: with a parent, the parent's own file is the answer — with none,
-  // "the top level" is the top level of a named outline, and `move_node` can
+  // "the top level" is the top level of a named outline, and `outlines_move` can
   // carry a row out of it into another.
   expect(inverse({ verb: "move", id: "loose", how: "in" }))
     .toEqual([{ verb: "place", id: "loose", parent: null, file: "house.olai", after: "kitchen" }])
@@ -1016,7 +1016,7 @@ test("a property is put back as the value it held, conditional on the write's ow
 /**
  * A key holding a LIST has NO inverse, and nothing is the honest answer.
  *
- * The menu offers `Remove tags` on such a key (`set_prop` writes text, so it
+ * The menu offers `Remove tags` on such a key (`outlines_prop` writes text, so it
  * cannot offer to edit one), and the arm that used to be here read the value
  * as text — `undefined` for a list — and then spelled `?? null`. So the undo of
  * a removal was a SECOND removal: ⌘Z looked like it worked and the list was
@@ -1324,7 +1324,7 @@ test("a new outline names its path outright, and the op judges it", () => {
   expect(asked({ verb: "outlineNew", file: "plans.olai" }))
     .toEqual({ op: "create", file: "plans.olai" })
   // Nothing about the path is checked HERE: a `..`, a `.md`, a file the set
-  // already holds are each `create_outline`'s own refusal, in its own words.
+  // already holds are each `files_create`'s own refusal, in its own words.
   expect(asked({ verb: "outlineNew", file: "../escape.olai" }))
     .toEqual({ op: "create", file: "../escape.olai" })
   expect(asked({ verb: "outlineNew", file: "house.olai" }))

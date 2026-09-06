@@ -53,7 +53,6 @@ import {
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { defineSurface } from "@kolu/surface/define"
 import { restrictHandlers } from "@kolu/surface/expose"
-import { facesOf } from "@olai/bundle/faces"
 import { inMemoryStore } from "@kolu/surface/server"
 import { NodeServices } from "@effect/platform-node"
 import { expect, mock, test } from "bun:test"
@@ -82,7 +81,12 @@ const STARTED = "2026-08-29T09:31:00.000Z"
 const withRuntime = <A>(
   files: Readonly<Record<string, string>>,
   use: (bound: {
-    readonly wired: { readonly bound: Bound; readonly faces: ReturnType<typeof facesOf> }
+    // `bind`'s own return type, read off the function rather than named: the
+    // gate pair used to be typed by `@olai/bundle`'s `facesOf`, which is one of
+    // the three hand-written face tables #546 deleted. There is nothing left to
+    // import — a face's grant is composed from the rows' own `faces` maps now —
+    // and the composer is the only thing that knows the shape.
+    readonly wired: { readonly bound: Bound; readonly faces: Effect.Success<ReturnType<typeof bind>>["faces"] }
     readonly ops: Ops
     readonly store: OutlineStore
     /** The directory this runtime is serving, for the one test that rewrites a
@@ -189,11 +193,24 @@ const withRuntime = <A>(
   )
 }
 
-/** The harness mounts the content owners. Both their qualified procedures and
- * the standalone compatibility alias must record transport-supplied authority.
- * Keep the expected set literal so omitting a provider's attribution is visible. */
+/**
+ * ONE ENTRY PER WRITING ROW, under that row's own name.
+ *
+ * The harness mounts the six content owners; four of them declare `writes:
+ * ["surface/ops/run"]` (`olai-plugin-{outlines,markdown,files,trash}`'s
+ * `server.ts`) and `pins` and `capture` declare none — they write through
+ * `edit.apply`, which is a browser door and carries the browser's writer.
+ *
+ * There was a FIFTH entry here, the bare `surface/ops/run`, and it was the root
+ * mount's alias rather than a fifth writer: while those rows registered `root:
+ * true`, `./composition.ts` emitted the bare tag beside the scoped one so
+ * attribution held on whichever door a caller used. #546 left one tag per
+ * member, so the alias is not served and there is no second name left to
+ * launder a write through. Keep the set literal: a row that grows a write and
+ * forgets to declare it is invisible any other way.
+ */
 const RECORDS_THE_WRITER = [
-  "surface/files/ops/run", "surface/markdown/ops/run", "surface/ops/run",
+  "surface/files/ops/run", "surface/markdown/ops/run",
   "surface/outlines/ops/run", "surface/trash/ops/run",
 ]
 
@@ -243,7 +260,7 @@ const opening = (
   readonly reader: Fiber.Fiber<void>
 }> =>
   Effect.gen(function*() {
-    const get = bound.handlers["surface/documents/get"]
+    const get = bound.handlers["surface/markdown/documents/get"]
     if (get === undefined) throw new Error("the documents collection has no `get`")
     return yield* watching(get({ key }) as Stream.Stream<DocumentEntry>)
   })
@@ -291,7 +308,7 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
     { "a.olai": OUTLINE, "report.html": "<h1>Cabinet quote</h1>\n" },
     ({ wired, store }) =>
       Effect.gen(function*() {
-        const get = wired.bound.handlers["surface/documents/get"]
+        const get = wired.bound.handlers["surface/markdown/documents/get"]
         if (get === undefined) throw new Error("the documents collection has no `get`")
 
         const frames = yield* Stream.runCollect(
@@ -305,7 +322,7 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
         // assertion the whole change is for.
         const keys = yield* Stream.runCollect(
           Stream.take(
-            wired.bound.handlers["surface/documents/keys"]?.({}) as Stream.Stream<
+            wired.bound.handlers["surface/markdown/documents/keys"]?.({}) as Stream.Stream<
               ReadonlyArray<string>
             >,
             1,
@@ -333,7 +350,7 @@ test("a reader watching a head is told the file moved, and no body is read", () 
     { "a.olai": OUTLINE, "report.html": "<h1>Before</h1>\n" },
     ({ wired, store, root, reads }) =>
       Effect.gen(function*() {
-        const get = wired.bound.handlers["surface/heads/get"]
+        const get = wired.bound.handlers["surface/vault/heads/get"]
         if (get === undefined) throw new Error("the heads collection has no `get`")
 
         const open = yield* watching(get({ key: "report.html" }) as Stream.Stream<Head>)
@@ -420,7 +437,7 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
         // took its frame and exited.
         yield* Fiber.interrupt(open.reader)
 
-        const heads = wired.bound.handlers["surface/heads/get"]
+        const heads = wired.bound.handlers["surface/vault/heads/get"]
         if (heads === undefined) throw new Error("the heads collection has no `get`")
         const moved = yield* watching(heads({ key: "report.html" }) as Stream.Stream<Head>)
         yield* moved.take
@@ -539,8 +556,8 @@ test("a broken outline publishes its head, with its own rows on it", () =>
     { "a.olai": REFUSED, "b.olai": `{"id":"b","ord":"a0","title":"b"}\n` },
     ({ wired }) =>
       Effect.gen(function*() {
-        const said = wired.bound.handlers["surface/manifest/get"]
-        const framed = wired.bound.handlers["surface/heads/deltas"]
+        const said = wired.bound.handlers["surface/vault/manifest/get"]
+        const framed = wired.bound.handlers["surface/vault/heads/deltas"]
         if (said === undefined) throw new Error("the manifest cell has no `get`")
         if (framed === undefined) throw new Error("the heads collection has no `deltas`")
 
@@ -587,7 +604,7 @@ test("the shelf is answered per revision, so a rename elsewhere renames the pin"
     },
     ({ wired, store, root }) =>
       Effect.gen(function*() {
-        const get = wired.bound.handlers["surface/pins/get"]
+        const get = wired.bound.handlers["surface/pins/pins/get"]
         if (get === undefined) throw new Error("the pins cell has no `get`")
 
         const open = yield* watching(get({}) as Stream.Stream<Shelf>)
@@ -632,7 +649,7 @@ test("a revision that changes no pin sends no frame", () =>
     },
     ({ wired, store, root }) =>
       Effect.gen(function*() {
-        const get = wired.bound.handlers["surface/pins/get"]
+        const get = wired.bound.handlers["surface/pins/pins/get"]
         if (get === undefined) throw new Error("the pins cell has no `get`")
         const open = yield* watching(get({}) as Stream.Stream<Shelf>)
         expect(yield* open.take).toEqual([

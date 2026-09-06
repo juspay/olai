@@ -17,7 +17,7 @@ import { TESTID } from "olai-plugin-pins/testids"
  * WHAT IT DRAWS IS THE DIRECTORY, never a local list — the server's own
  * reading of `Pins.olai`, re-answered on every revision that changes it
  * (`./answered.tsx`, `./pins.ts`). So a pin an AGENT wrote — into `Pins.olai`,
- * with `add_node`, from a terminal — is on the shelf on the frame the store
+ * with `outlines_add`, from a terminal — is on the shelf on the frame the store
  * publishes it, exactly like a row appearing in an outline, and a pinned node
  * RENAMED anywhere says its new name on that same frame. Nothing here is
  * optimistic and nothing is echoed: a pin, an unpin and a reorder each go to

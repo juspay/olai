@@ -113,8 +113,8 @@ test("a second olai serves its panel while the vault row refuses the held direct
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
     })
     const tools = (await response.json()).result.tools.map((tool: { name: string }) => tool.name)
-    expect(tools).not.toContain("set_title")
-    expect(tools).not.toContain("read_node")
+    expect(tools).not.toContain("outlines_title")
+    expect(tools).not.toContain("outlines_read")
     await second.stop()
 
     // The control plane remains available, but no store was opened.

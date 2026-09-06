@@ -69,7 +69,7 @@ const Anchor = {
  * What a capture may say about ONE node.
  *
  * Declared once because it is asked twice, and the two answers must not differ:
- * `add_node` names a node with these fields, and every node hanging off its
+ * `outlines_add` names a node with these fields, and every node hanging off its
  * `children` is described with exactly the same ones. A child that could carry
  * less than the node above it would make "capture this subtree" mean something
  * different depending on where in the subtree you stood.
@@ -78,7 +78,7 @@ const Anchor = {
  * (`olai-batch-verbs`). A capture used to say what a node IS — its title, its
  * note, its date, its mark — and nothing about what it POINTS AT or what it
  * KNOWS, so a subtree arrived and then thirteen more calls wired it: one
- * `set_after` per dependency, one `set_prop` per fact, each its own round trip
+ * `outlines_after` per dependency, one `outlines_prop` per fact, each its own round trip
  * and its own revision. {@link props}, {@link see} and {@link waitsOn} are those
  * verbs' own payloads, spelled at capture time, so a subtree arrives WITH its
  * edges and its facts in one plan, one validation and one all-or-none rename.
@@ -101,7 +101,7 @@ const CAPTURE = {
   mark: Schema.optionalKey(
     Status.annotate({
       description:
-        "The mark this node is born with, written exactly as `set_done` / `set_doing` / `set_todo` would: `done` records the instant, so it lands on today's page; the other two store `true` and place it on no day — and a `doing` birth also stamps `started`, exactly as `set_doing` stamps it, since work born under way has no later door for a start. Absent leaves a bullet, which is not an unstarted task.",
+        "The mark this node is born with, written exactly as `outlines_done` / `outlines_doing` / `outlines_todo` would: `done` records the instant, so it lands on today's page; the other two store `true` and place it on no day — and a `doing` birth also stamps `started`, exactly as `outlines_doing` stamps it, since work born under way has no later door for a start. Absent leaves a bullet, which is not an unstarted task.",
     }),
   ),
   /** A chosen slug. Absent mints one — which is the usual case; supply one
@@ -113,11 +113,11 @@ const CAPTURE = {
     }),
   ),
   /**
-   * The named facts this node is BORN carrying — `set_prop`'s map, written at
+   * The named facts this node is BORN carrying — `outlines_prop`'s map, written at
    * capture time instead of one call per key.
    *
    * A map rather than a list of `{key, value}` pairs, because that is what a
-   * record's `custom` IS and what `set_prop` writes into. No `null` arm: there
+   * record's `custom` IS and what `outlines_prop` writes into. No `null` arm: there
    * is nothing on a node being born to take off, so the shape cannot spell the
    * removal and the planner has one fewer thing to refuse (`""` is still
    * absence, which is the writer's own rule rather than a second one).
@@ -125,26 +125,26 @@ const CAPTURE = {
   props: Schema.optionalKey(
     Schema.Record(Schema.String, Schema.String).annotate({
       description:
-        "Named facts this node is born with — the map `set_prop` writes into, several keys at once, with that verb's own refusals: for a key spelled like a field the format already has, and for a value that does not fit what its key DECLARES in `_olai/Properties.olai`. One bad value refuses the whole capture, children included, and nothing is written. A key holding an empty string is a key the file does not carry.",
+        "Named facts this node is born with — the map `outlines_prop` writes into, several keys at once, with that verb's own refusals: for a key spelled like a field the format already has, and for a value that does not fit what its key DECLARES in `_olai/Properties.olai`. One bad value refuses the whole capture, children included, and nothing is written. A key holding an empty string is a key the file does not carry.",
     }),
   ),
-  /** The free cross-references this node is born with — `set_see`'s list.
+  /** The free cross-references this node is born with — `outlines_see`'s list.
    *  Same targets as {@link waitsOn} below, and the same forward references. */
   see: Schema.optionalKey(
     Schema.Array(Schema.String).annotate({
       description:
-        "Free cross-references this node is born with — `set_see`'s list. Each names a node in the loaded set OR another node in THIS capture, by a chosen `id`, wherever it sits in the tree and including one declared LATER. An unknown target refuses the whole capture, with the closest id that exists.",
+        "Free cross-references this node is born with — `outlines_see`'s list. Each names a node in the loaded set OR another node in THIS capture, by a chosen `id`, wherever it sits in the tree and including one declared LATER. An unknown target refuses the whole capture, with the closest id that exists.",
     }),
   ),
   /**
-   * The ordering edges this node is born with — `set_after`'s list.
+   * The ordering edges this node is born with — `outlines_after`'s list.
    *
    * `waitsOn` AND NOT `after`, which is the one place this vocabulary bends and
    * the bend is forced: at the top of a capture `after` already names the
    * SIBLING the node is placed after ({@link Anchor}), and it is a string where
    * this is a list. Two meanings for one word, differing by how deep in the tree
    * you are standing, is exactly the trap {@link CAPTURE} exists to prevent — so
-   * the edge list takes the name `set_after`'s own title gives it ("what a node
+   * the edge list takes the name `outlines_after`'s own title gives it ("what a node
    * waits on") and the anchor keeps the word it has always had.
    *
    * IT LEAVES ONE EDGE WITH TWO NAMES — `waitsOn` here, `after` on
@@ -158,14 +158,14 @@ const CAPTURE = {
   waitsOn: Schema.optionalKey(
     Schema.Array(Schema.String).annotate({
       description:
-        "The ids this node must come AFTER — `set_after`'s edges, written at capture time. Same targets as `see`: a node in the loaded set, or one in this capture named by its chosen `id`, forward references included. Spelled `waitsOn` rather than `after` because at the top of a capture `after` already names the SIBLING this node is placed after. An edge that would close a loop is refused NAMING the loop.",
+        "The ids this node must come AFTER — `outlines_after`'s edges, written at capture time. Same targets as `see`: a node in the loaded set, or one in this capture named by its chosen `id`, forward references included. Spelled `waitsOn` rather than `after` because at the top of a capture `after` already names the SIBLING this node is placed after. An edge that would close a loop is refused NAMING the loop.",
     }),
   ),
   /**
    * THE BENT WORD, DECLARED SO IT CAN BE REFUSED.
    *
    * {@link waitsOn} is `after` under another name, and the bend is what makes
-   * this field necessary: an agent that has read `set_after`, or that is
+   * this field necessary: an agent that has read `outlines_after`, or that is
    * looking at the anchor one level up, writes `after` on a child and means the
    * edge list. An Effect struct DROPS a key it does not declare, so without
    * this the dependency would vanish and the call would report success — a
@@ -178,9 +178,9 @@ const CAPTURE = {
    * read: what arrives is whatever the host sent, and it is being turned away
    * rather than interpreted.
    *
-   * AT `add_node`'S ROOT IT IS OVERRIDDEN and means the placement anchor
+   * AT `outlines_add`'S ROOT IT IS OVERRIDDEN and means the placement anchor
    * ({@link Anchor} is spread after {@link ROOT}), which is the whole collision
-   * this exists to make loud one level down. `create_outline`'s seed has no
+   * this exists to make loud one level down. `files_create`'s seed has no
    * anchor — the first row of an empty file has no siblings — so its root gets
    * this one, and refuses, which is right for the same reason.
    */
@@ -244,7 +244,7 @@ const TERSE = stripped(CAPTURE)
  * a `$defs` pool — and the adapter that projects these schemas onto MCP INLINES
  * every local ref and STRIPS the pool, because `$ref` is rejected across the
  * host matrix it is byte-compatible with. A ref that cannot be inlined finitely
- * survives as a pointer into a pool that is no longer there, so `add_node`
+ * survives as a pointer into a pool that is no longer there, so `outlines_add`
  * would advertise a dangling reference and a whole tool would be unusable.
  *
  * So the nesting is unrolled, three levels of it, and the schema stays a finite
@@ -282,7 +282,7 @@ const childrenOf = (below: number) =>
       // and it exists to be refused — so it is the one place a cast is needed.
       ? Schema.Array(Schema.Unknown).annotate({
         description:
-          `A capture nests ${NESTING} levels of children and this node is at the last of them, so anything here refuses the whole call. Hang it off a second \`add_node\` instead, under an id from \`captured\`.`,
+          `A capture nests ${NESTING} levels of children and this node is at the last of them, so anything here refuses the whole call. Hang it off a second \`outlines_add\` instead, under an id from \`captured\`.`,
       }) as unknown as Schema.Codec<ReadonlyArray<Capture>>
       : Schema.Array(childAt(below - 1)).annotate({
         description:
@@ -316,7 +316,7 @@ const childAt = (below: number): Schema.Codec<Capture> =>
  * A capture as a CALL names it: the documented fields, and the subtree that may
  * hang off them.
  *
- * Both ops that bring nodes into being take exactly this — the node `add_node`
+ * Both ops that bring nodes into being take exactly this — the node `outlines_add`
  * adds, and the first node a new outline is born with — so "what one call may
  * capture" has one spelling and one depth. A tool that could capture less than
  * the other would be a reason to make two calls where the point is to make one.
@@ -327,8 +327,8 @@ const ROOT = { ...CAPTURE, children: childrenOf(NESTING) } as const
  * Where a record a call brings into being LANDS: under a node, or at the top
  * level of an outline.
  *
- * One declaration for the two ops that create a record — `add_node` and
- * `add_mirror` — because the planner answers it with one function
+ * One declaration for the two ops that create a record — `outlines_add` and
+ * `outlines_mirror` — because the planner answers it with one function
  * (`@olai/ops`' `plan.ts`'s `landsIn`) and two copies of the prose would be two
  * agent-facing descriptions of one rule, free to drift. Neither field says
  * "node" or "mirror": what lands is the caller's business, and where it lands
@@ -379,7 +379,7 @@ export const MarkRequest = Schema.Struct({
  *
  * It exists because "put back what I replaced" is a narrower claim than "set
  * this": it is only entitled to overwrite the words it wrote. Absent, a write
- * is last-one-wins, which is what `set_title` has always meant and what a
+ * is last-one-wins, which is what `outlines_title` has always meant and what a
  * person retyping a line means. Present, the planner refuses when the field
  * says something else — and it refuses on EVERY attempt, which is the whole
  * reason this lives here rather than in a caller: the write gate re-plans a
@@ -510,7 +510,7 @@ export const PropRequest = Schema.Struct({
  * **`file` is the field that made the third case sayable**, and it is
  * {@link LANDING}'s own pair arriving on a verb that used to refuse it. A
  * `parent` in another outline just works — the parent decides the file, exactly
- * as it does for `add_node` — and `file` alone is that outline's top level.
+ * as it does for `outlines_add` — and `file` alone is that outline's top level.
  * What crossing costs is nothing: the record keeps its id, so every `see`,
  * `after`, `blocks`, `mirror` and typed `node` property aimed at it (or at
  * anything under it) goes on resolving, and the ordering graph was never
@@ -540,8 +540,8 @@ export const PropRequest = Schema.Struct({
  * silently detaches every reference into what moved. That was the gap.
  *
  * **The trash is neither end of it.** A node goes into `_olai/Trash.olai`
- * through `trash_node`, which records the outline it left, and comes back out
- * through `untrash_node`, which tidies the scaffold above it and re-opens the
+ * through `outlines_trash`, which records the outline it left, and comes back out
+ * through `trash_restore`, which tidies the scaffold above it and re-opens the
  * marks that stop being true the moment a branch is live again. Naming a trash
  * here is refused toward whichever of those two the caller meant. Reordering
  * rows INSIDE a trash is a move like any other, because nothing crosses.
@@ -580,7 +580,7 @@ export const MoveRequest = Schema.Struct({
  * position would be naming a range into a field — the one thing this whole
  * table refuses — and a position re-planned against a newer snapshot would cut
  * somebody else's retitle in half. Two texts mean the same thing against any
- * revision, exactly as `set_title`'s one does.
+ * revision, exactly as `outlines_title`'s one does.
  *
  * EVERYTHING ELSE STAYS WITH THE HEAD — children, note, mark, date, edges — and
  * the tail is born a bare bullet, which is what `add` mints. That is Workflowy's
@@ -613,7 +613,7 @@ export const SplitRequest = Schema.Struct({
  * stop in the middle with the outline saying something nobody wrote. One plan,
  * one validation, one rename.
  *
- * THE ROW ABOVE IS NOT A FIELD, for the reason `move_node`'s `parent` is one
+ * THE ROW ABOVE IS NOT A FIELD, for the reason `outlines_move`'s `parent` is one
  * and this is not: "the row above" is a fact about the set, so it is read off
  * the snapshot this write is judged against — which is also what makes the
  * request re-plannable when the store moves under it.
@@ -668,7 +668,7 @@ export const TrashRequest = Schema.Struct({
  * SAYS is already on disk: the op reads the subtree it is pointed at and writes
  * it again. There is no anchor, no parent and no title here — a duplicate lands
  * beside the thing it duplicates, which is the whole of the gesture, and
- * `move_node` is what carries it somewhere else afterwards.
+ * `outlines_move` is what carries it somewhere else afterwards.
  *
  * WHAT DIFFERS BETWEEN THE COPY AND THE ORIGINAL IS EXACTLY TWO THINGS, and
  * both of them are about identity rather than about content:
@@ -773,7 +773,7 @@ export const UntrashRequest = Schema.Struct({
  * the same file twice (or none) is a fossil of the old convention. A leftover
  * `Archive.olai` is not the trash and is refused.
  *
- * **WHAT IT IS REFUSED FOR is the rule `remove_mirror` already keeps**, read
+ * **WHAT IT IS REFUSED FOR is the rule `outlines_unmirror` already keeps**, read
  * over every record this write deletes: a record that is still NAMED by
  * something staying behind — a mirror placed in a live outline, a `see`, an
  * `after` — is not deletable, because the set it would leave is one the
@@ -787,7 +787,7 @@ export const UntrashRequest = Schema.Struct({
  * re-plan of this one silently widens: a record put away in between is a record
  * the retry deletes, and nobody agreed to it. The field is the count — the very
  * number the web's confirm puts in front of somebody — checked on every attempt
- * against the snapshot that attempt is judged on, which is where `set_title`'s
+ * against the snapshot that attempt is judged on, which is where `outlines_title`'s
  * own `was` learned to live. Optional, because an agent sweeping a directory
  * means "whatever is there" and a caller that showed a number means the number.
  *
@@ -803,7 +803,7 @@ export const EmptyRequest = Schema.Struct({
   op: Schema.Literal("empty"),
   file: Schema.String.annotate({
     description:
-      "The trash this write empties — `_olai/Trash.olai`, root-relative, exactly as `list_outlines` spells it. Every record in it goes, the source-file signposts and ancestor-title scaffold included, and the file stays behind empty. A leftover `Archive.olai` is not the trash and is refused. Refused for an outline that is not the trash, for one the set does not hold, for a trash that holds nothing, and while anything outside it still points into it — naming what to re-point first.",
+      "The trash this write empties — `_olai/Trash.olai`, root-relative, exactly as `outlines_index` spells it. Every record in it goes, the source-file signposts and ancestor-title scaffold included, and the file stays behind empty. A leftover `Archive.olai` is not the trash and is refused. Refused for an outline that is not the trash, for one the set does not hold, for a trash that holds nothing, and while anything outside it still points into it — naming what to re-point first.",
   }),
   was: Schema.optionalKey(
     Schema.Int.annotate({
@@ -814,7 +814,7 @@ export const EmptyRequest = Schema.Struct({
 })
 
 /**
- * What a brand-new outline is born holding: a capture, exactly as `add_node`
+ * What a brand-new outline is born holding: a capture, exactly as `outlines_add`
  * takes one — the same fields, the same `children`, the same depth.
  *
  * No parent (it is top-level by definition) and no placement (it is the first
@@ -839,7 +839,7 @@ export const CreateRequest = Schema.Struct({
   seed: Schema.optionalKey(
     Seed.annotate({
       description:
-        "What the new outline is born holding — a capture, exactly as `add_node` takes " +
+        "What the new outline is born holding — a capture, exactly as `outlines_add` takes " +
         "one: a title, optional note/date/mark/id, the `props` / `see` / `waitsOn` a " +
         "node is born carrying, and `children` nesting the same way, with the same " +
         "forward references. So a new outline, everything in it AND the order its steps " +
@@ -890,7 +890,7 @@ export const WriteDocumentRequest = Schema.Struct({
 })
 
 /**
- * A brand-new document under the served directory — `create_outline`'s twin
+ * A brand-new document under the served directory — `files_create`'s twin
  * for the other kind of file, and split from {@link WriteDocumentRequest} for
  * the reason those two are split: a write that could mint a file on a mistyped
  * path would turn every typo into a new document, silently. Create refuses a
@@ -932,7 +932,7 @@ export const CreateDocumentRequest = Schema.Struct({
  *
  * **THE GUARDS, and each is the refusal a load would otherwise hand a stranger
  * LATER.** An outline still carrying RECORDS is refused, naming them — this is
- * a delete, not a move: `trash_node` is how a node leaves an outline, and what
+ * a delete, not a move: `outlines_trash` is how a node leaves an outline, and what
  * empties one is nobody's verb to guess. A document still NAMED — a `doc`
  * field, or a value of a `doc`-declared property — is refused, naming the
  * records that name it: deleting under them would break THEIR files, which is
@@ -995,7 +995,7 @@ export const SeeRequest = Schema.Struct({
 /**
  * A second PLACEMENT of a node that already exists.
  *
- * It takes what `add_node` takes minus everything that describes a node, and
+ * It takes what `outlines_add` takes minus everything that describes a node, and
  * that subtraction is the format's own: a mirror is exactly
  * `{id, parent?, ord, mirror}`, because any field describing the node itself has
  * an authoritative copy at the target and a second one here could only disagree
@@ -1004,7 +1004,7 @@ export const SeeRequest = Schema.Struct({
  * the planner has to refuse.
  *
  * What is left is where the placement GOES, which is the same question
- * `add_node` answers: under a `parent`, or at the top level of a `file`, placed
+ * `outlines_add` answers: under a `parent`, or at the top level of a `file`, placed
  * among the siblings there by `before` / `after`.
  */
 export const MirrorRequest = Schema.Struct({
@@ -1074,8 +1074,8 @@ export const AfterRequest = Schema.Struct({
  *
  * The narrow half of the batching pair ({@link ApplyRequest} is the wide one),
  * and it exists because the common shape of an agent's edit is not a batch of
- * unrelated ops at all: it is one node, four facts. `set_title` then `set_desc`
- * then `set_prop` then `set_done` is four round trips, four revisions and four
+ * unrelated ops at all: it is one node, four facts. `outlines_title` then `outlines_desc`
+ * then `outlines_prop` then `outlines_done` is four round trips, four revisions and four
  * pending rows for a gesture a person would call one.
  *
  * **It is the single verbs, folded — not a fifth way to write a node.** Every
@@ -1083,7 +1083,7 @@ export const AfterRequest = Schema.Struct({
  * against the set as the fields before it left it, so every refusal arrives
  * word for word: a shadowed property key, an unknown `after` target answered
  * with the closest id, an edge that would close a loop named as a loop, and the
- * done-over-open-work gate refusing precisely as `set_done` would. There is no
+ * done-over-open-work gate refusing precisely as `outlines_done` would. There is no
  * second planner here and therefore no second policy.
  *
  * **The order is fixed and it is a decision** — `title`, `desc`, `date`,
@@ -1094,12 +1094,12 @@ export const AfterRequest = Schema.Struct({
  * `{mark: "doing", after: ["order"]}` is a caller saying "start this" and "this
  * waits on `order`" in one breath, and it is REFUSED, because the edge is in
  * place by the time the mark is asked for. The other order would have landed a
- * `doing` and drawn it blocked a frame later, which is the state `set_doing`'s
+ * `doing` and drawn it blocked a frame later, which is the state `outlines_doing`'s
  * own gate exists to make unreachable.
  *
  * **`null` removes, everywhere it is spellable** — the note, the date, one
  * property, and the mark, which is the one new spelling: `mark: null` takes off
- * whatever mark the node carries, where `set_done`/`set_doing`/`set_todo` each
+ * whatever mark the node carries, where `outlines_done`/`outlines_doing`/`outlines_todo` each
  * need to be told which one it is to undo it. A node carrying none is refused,
  * as taking a mark off a node that has none has always been.
  *
@@ -1109,16 +1109,16 @@ export const AfterRequest = Schema.Struct({
  * verbs has and this one cannot spell is a hole in the claim — and it is the
  * one hole that is UNSAFE rather than merely inconvenient. An Effect struct
  * silently drops a key it does not declare, so an agent moving from
- * `set_title {id, title, was}` to `update {id, title, desc, was}` would have
+ * `outlines_title {id, title, was}` to `update {id, title, desc, was}` would have
  * been handed exactly what it asked for minus the guard it asked for, with
  * nothing anywhere saying so — the `children`-at-the-floor trap
  * ({@link childrenOf}) wearing another verb's clothes.
  *
  * It covers `title` and `desc` and NOTHING ELSE, and the shape of the rule
- * is not this shape's invention. `set_date` and `set_after` have no `was` at
- * all, and `set_prop`'s is ONE condition about ONE key ({@link PropRequest}),
+ * is not this shape's invention. `outlines_date` and `outlines_after` have no `was` at
+ * all, and `outlines_prop`'s is ONE condition about ONE key ({@link PropRequest}),
  * which a key-by-key merge cannot spell — `props` here stays an outright
- * write, key by key, exactly as one unconditional `set_prop` per key would be.
+ * write, key by key, exactly as one unconditional `outlines_prop` per key would be.
  * A `was` naming a field this call is not writing is refused too: a condition
  * on a write that is not happening is a caller that has mis-typed one of the
  * two.
@@ -1138,7 +1138,7 @@ export const UpdateRequest = Schema.Struct({
         "ISO date (`2026-08-10`) or datetime, scheduling the node; `null` clears it.",
     }),
   ),
-  /** The repeat rule, `set_repeat`'s own field — in the fold for the reason
+  /** The repeat rule, `outlines_repeat`'s own field — in the fold for the reason
    *  every other single verb is: a shape claiming to be the verbs folded with
    *  one of them missing is a hole a caller finds by having a field silently
    *  dropped. Written BEFORE the mark, like the date it needs, so a call that
@@ -1150,12 +1150,12 @@ export const UpdateRequest = Schema.Struct({
         `The repeat rule, in the format's own words — ${REPEAT_GRAMMAR}; \`null\` stops the recurrence. Needs a \`date\` on the node (set one in the same call if it has none).`,
     }),
   ),
-  /** MERGED per key, which is `set_prop`'s own semantics repeated: this is not
+  /** MERGED per key, which is `outlines_prop`'s own semantics repeated: this is not
    *  the node's whole map. A key not named here is left exactly as it is. */
   props: Schema.optionalKey(
     Schema.Record(Schema.String, Schema.NullOr(Schema.String)).annotate({
       description:
-        "Properties to write, MERGED key by key — exactly as one `set_prop` per key would, and in the same words when one is refused. A key not named here is left alone; `null` (or `\"\"`) removes the one it names. A key spelled like a field the format already has is refused toward the verb that writes that fact, and a value that does not fit what its key DECLARES in `_olai/Properties.olai` is refused with the values it may hold named.",
+        "Properties to write, MERGED key by key — exactly as one `outlines_prop` per key would, and in the same words when one is refused. A key not named here is left alone; `null` (or `\"\"`) removes the one it names. A key spelled like a field the format already has is refused toward the verb that writes that fact, and a value that does not fit what its key DECLARES in `_olai/Properties.olai` is refused with the values it may hold named.",
     }),
   ),
   /** REPLACED, and it is the one field here that could plausibly have been
@@ -1163,7 +1163,7 @@ export const UpdateRequest = Schema.Struct({
   after: Schema.optionalKey(
     Schema.Array(Schema.String).annotate({
       description:
-        "What this node must come AFTER, as the WHOLE list — this REPLACES the node's `after` rather than adding to it, and `[]` clears it. Written that way because every other field here is the field's whole value; `set_after` is the incremental verb, taking `add` / `remove`. The difference against what the node holds now is what is actually written, so the refusals are that verb's: an unknown target is answered with the closest id that exists, and an edge that would close a loop is refused NAMING the loop.",
+        "What this node must come AFTER, as the WHOLE list — this REPLACES the node's `after` rather than adding to it, and `[]` clears it. Written that way because every other field here is the field's whole value; `outlines_after` is the incremental verb, taking `add` / `remove`. The difference against what the node holds now is what is actually written, so the refusals are that verb's: an unknown target is answered with the closest id that exists, and an edge that would close a loop is refused NAMING the loop.",
     }),
   ),
   /** What this write expects to find — {@link TitleRequest}'s and
@@ -1188,14 +1188,14 @@ export const UpdateRequest = Schema.Struct({
       ),
     }).annotate({
       description:
-        "What this write expects those fields to hold RIGHT NOW, checked before anything is written and on every retry — `set_title`'s and `set_desc`'s `was`, per field. Supply the half you read; the write is refused, naming what is there, if anything else has been written since. Only `title` and `desc` take one here — a condition on one KEY is `set_prop`'s own `was`, which a merged map cannot spell. A `was` for a field this call is not writing is refused.",
+        "What this write expects those fields to hold RIGHT NOW, checked before anything is written and on every retry — `outlines_title`'s and `outlines_desc`'s `was`, per field. Supply the half you read; the write is refused, naming what is there, if anything else has been written since. Only `title` and `desc` take one here — a condition on one KEY is `outlines_prop`'s own `was`, which a merged map cannot spell. A `was` for a field this call is not writing is refused.",
     }),
   ),
   /** LAST in the fold, whatever order the caller wrote the fields in. */
   mark: Schema.optionalKey(
     Schema.NullOr(Status).annotate({
       description:
-        "The mark, written exactly as `set_done` / `set_doing` / `set_todo` writes it — `done` records the instant, the other two store `true`. `null` takes off whatever mark the node carries. Applied LAST, after every other field here, so it is judged against the node this call has finished making: asking for `doing` in the same breath as an `after` edge on an unfinished task is refused, as `set_doing` refuses it.",
+        "The mark, written exactly as `outlines_done` / `outlines_doing` / `outlines_todo` writes it — `done` records the instant, the other two store `true`. `null` takes off whatever mark the node carries. Applied LAST, after every other field here, so it is judged against the node this call has finished making: asking for `doing` in the same breath as an `after` edge on an unfinished task is refused, as `outlines_doing` refuses it.",
     }),
   ),
 })
@@ -1226,14 +1226,14 @@ const arm = <F extends Schema.Struct.Fields>(schema: Schema.Struct<F>): Schema.S
  *
  * THE ARMS ARE THE REQUESTS THEMSELVES, not tagged copies of them: each schema
  * above already carries the `op` literal that names it, so a batched
- * `set_done` and a called `set_done` decode against one declaration. A parallel
+ * `outlines_done` and a called `outlines_done` decode against one declaration. A parallel
  * list of "batch forms" is the drift this whole file is arranged to prevent —
  * it would be nineteen shapes free to fall behind the nineteen they mirror (nineteen SCHEMAS, carrying twenty-one verbs — the three marks share one request, as they do everywhere else). What
  * {@link arm} takes off is the PROSE and nothing else, so the two still decode
  * identically and are still one declaration.
  *
  * **WHAT IS LEFT OUT, and why it is exactly five.** The file ops —
- * `create_outline`, `create_document`, `write_document`, `delete_file` — are
+ * `files_create`, `markdown_create`, `markdown_write`, `files_delete` — are
  * the writes whose subject is a FILE rather than a node, and the tool
  * surface's own sentence is that everything there is about nodes. Each is
  * already atomic over the thing it makes (a `create` with a seed that is
@@ -1319,7 +1319,7 @@ export const BATCH_AT_MOST = 100
  *
  * That is the property a caller cannot build for itself. Thirteen calls in a
  * loop is thirteen revisions, and the seventh refusing leaves six on disk with
- * nothing to say which six — the half-captured outline `add_node`'s `children`
+ * nothing to say which six — the half-captured outline `outlines_add`'s `children`
  * was built to make impossible, at the scale of a lane rather than a subtree.
  *
  * **It is not a transaction language.** There is no rollback verb, no
@@ -1449,9 +1449,9 @@ export const WriteResult = Schema.Struct({
    *  which is how the format spells an empty list everywhere else.
    *
    *  A placed mirror is absent from it, and that is the same word read
-   *  strictly: `add_mirror` creates a placement of a node that already exists,
+   *  strictly: `outlines_mirror` creates a placement of a node that already exists,
    *  not a node, and it has no title to report. `id` above names the placement
-   *  it made, which is what `remove_mirror` takes. */
+   *  it made, which is what `outlines_unmirror` takes. */
   captured: Schema.optionalKey(Schema.Array(Minted)),
   /** The store revision this write produced. */
   rev: Schema.Int,

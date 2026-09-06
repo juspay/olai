@@ -96,7 +96,7 @@ test("Enter with nothing is the BARE pin — the write this app always made", ()
   }
 })
 
-test("a rename is `set_title` on the pin's own row, keeping the address", () => {
+test("a rename is `outlines_title` on the pin's own row, keeping the address", () => {
   // The address as the FILE holds it, not the one this app would mint: the
   // gesture was about the name.
   expect(wrote({ kind: "rename", pin: pinned({ at: "/trash?q=is:todo", title: "/trash?q=is:todo" }) }, "What is late"))

@@ -16,7 +16,7 @@
  *
  * ONE QUESTION PER MESSAGE is the design's unit (§3's transcript row), and it
  * is the right one: a paragraph holds a dozen backticks of which two are ids,
- * and which is which is one question about all of them. A `read_node` per span
+ * and which is which is one question about all of them. A `outlines_read` per span
  * would be a dozen round trips carrying a dozen nodes in full to decide which
  * two words are pressable.
  *

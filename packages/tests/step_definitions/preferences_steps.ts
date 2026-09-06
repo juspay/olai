@@ -1153,6 +1153,41 @@ const switchOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
   return "neither";
 };
 
+/**
+ * PRESS A CONTROL ON A ROW THAT IS ALLOWED TO BE REDRAWN UNDER THE FINGER.
+ *
+ * A flip is a roster change, a roster change is a redial, and a redial rebuilds
+ * the tab's whole tree — so the plugins panel replaces its rows while a press
+ * against one is being aimed. Playwright retries an action whose element
+ * detaches, but it retries against the SAME resolved row, and a row drawn by
+ * the outgoing tree never comes back: the retries run out and the step dies on
+ * `scrollIntoViewIfNeeded: Element is not attached to the DOM`, naming the DOM
+ * rather than the rebuild that emptied it.
+ *
+ * So the re-resolution happens HERE, one level up, where `shownRow` can reopen
+ * the group and hand back the row the NEW tree drew. The post-flip wait below
+ * already polls this way for the same reason; the press had been left with the
+ * one row it resolved first (juspay/olai#547 CI, `98362ac`).
+ */
+const pressOnRow = async (
+  world: OlaiWorld,
+  plugin: string,
+  control: string,
+): Promise<void> => {
+  const deadline = Date.now() + POLL_TIMEOUT;
+  let last: unknown;
+  for (;;) {
+    try {
+      await world.press((await shownRow(world, plugin)).locator(control));
+      return;
+    } catch (error) {
+      last = error;
+      if (Date.now() >= deadline) break;
+    }
+  }
+  throw last;
+};
+
 const confirmIfAsked = async (
   world: OlaiWorld,
   plugin: string,
@@ -1162,11 +1197,7 @@ const confirmIfAsked = async (
   const confirm = row.locator(PLUGIN_CONFIRM);
   if ((await confirm.count()) === 0) return;
   if (!(await confirm.isVisible().catch(() => false))) return;
-  if (pick === "off") {
-    await world.press(row.locator(PLUGIN_CONFIRM_OFF));
-  } else {
-    await world.press(row.locator(PLUGIN_CONFIRM_KEEP));
-  }
+  await pressOnRow(world, plugin, pick === "off" ? PLUGIN_CONFIRM_OFF : PLUGIN_CONFIRM_KEEP);
 };
 
 /**
@@ -1270,8 +1301,7 @@ When(
   "I confirm turning the plugin {string} off",
   { timeout: FLIP_STEP_TIMEOUT },
   async function (this: OlaiWorld, plugin: string) {
-    const row = await shownRow(this, plugin);
-    await this.press(row.locator(PLUGIN_CONFIRM_OFF));
+    await pressOnRow(this, plugin, PLUGIN_CONFIRM_OFF);
     await (await shownRow(this, plugin))
       .locator(`${PLUGIN_SWITCH}${attr("aria-checked", "false")}`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -1302,7 +1332,7 @@ When(
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const current = await switchOn(this, plugin);
     if (current !== pick) {
-      await this.press(row.locator(PLUGIN_SWITCH));
+      await pressOnRow(this, plugin, PLUGIN_SWITCH);
       await confirmIfAsked(this, plugin, pick);
     }
     // THE PANEL SURVIVES THE REBUILD THE PRESS CAUSED, which is what makes this

@@ -99,7 +99,7 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
     And I open the plugins panel
     When I approve the plugin "morning-agenda"
     Then the plugins panel says nothing more about "morning-agenda"
-    # DISCOVERY IS LIVE, which is what makes `inspect_plugins` an answer rather
+    # DISCOVERY IS LIVE, which is what makes `vault-plugins_inspect` an answer rather
     # than a description: the key is on the catalog because a row is behind it
     # right now.
     And the agent service catalog includes "journal.agenda"

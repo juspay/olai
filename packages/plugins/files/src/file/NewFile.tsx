@@ -14,7 +14,7 @@
  * ## Nothing here judges a path, and one thing completes one
  *
  * A path that is absolute, climbs with `..` or names a file the set already
- * holds is refused by `create_outline` / `create_document` in its own words,
+ * holds is refused by `files_create` / `markdown_create` in its own words,
  * and that sentence is what is drawn. A browser that pre-checked any of it
  * would be a second rule, free to disagree with the one an agent meets — which
  * is the consistency rule read at the smallest scale there is.

@@ -13,7 +13,7 @@ import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
  * inherit.
  *
  * FOUR OF THE FIVE ARE READ-ONLY, and that is one decision rather than four
- * omissions: `write_document` takes a `.md` and nothing else (`@olai/ops`), so
+ * omissions: `markdown_write` takes a `.md` and nothing else (`@olai/ops`), so
  * an Edit control on any of the others would be a door onto a refusal. The
  * viewers are viewers.
  *
@@ -88,7 +88,7 @@ export interface Face {
    * edit is a page that opens no body, which is why a `.html` preview costs
    * this tab a revision and not a megabyte.
    *
-   * `edits` is not a preference. `write_document` takes a `.md` and nothing
+   * `edits` is not a preference. `markdown_write` takes a `.md` and nothing
    * else (`@olai/ops`), so a page offering Edit for a `.html` would be a door
    * onto a refusal.
    */

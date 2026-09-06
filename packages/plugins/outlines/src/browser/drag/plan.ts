@@ -16,7 +16,7 @@
  *
  * WHAT COMES OUT is a parent and the sibling to sit after, which is exactly the
  * surface's existing `place` verb: no new wire verb, no new op, and the same
- * request an agent's `move_node` sends. `after: null` means FIRST among that
+ * request an agent's `outlines_move` sends. `after: null` means FIRST among that
  * parent's children — the one placement `Anchor` cannot spell, which is why
  * `place` exists at all (`../../../surface/src/edit.ts`).
  *

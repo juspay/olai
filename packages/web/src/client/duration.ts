@@ -144,7 +144,7 @@ export const createNow = (
 /**
  * What the record CAN enumerate, and what it can only sum.
  *
- * A round opens when `set_doing` stamps `started` and closes where its
+ * A round opens when `outlines_doing` stamps `started` and closes where its
  * `doing` comes off — settled, queued, or un-started — banking its span
  * into `worked` (@olai/ops's plan). The record therefore holds AT MOST one
  * round still windowed — the current one, or the one a settle just closed

@@ -19,7 +19,7 @@ ops: { /**
    * the directory's records and paid twice when the race made it resolve again
    * (roadmap `perf-capture-paths`).
    *
-   * WHY NOT A NARROWED {@link outlines}: `list_outlines` is what an agent reads
+   * WHY NOT A NARROWED {@link outlines}: `outlines_index` is what an agent reads
    * to CHOOSE a file, and the counts and roots are what it chooses by. Two
    * questions, two answers, each costing what it says.
    *
@@ -28,15 +28,47 @@ ops: { /**
   paths: { output: PathsAnswer, error: OpFailure }, run: writeProcedure }
 }
 })
+/**
+ * WHICH `Edit.verb`s AND `WriteRequest.op`s THIS ROW OWNS, keyed by the MEMBER
+ * PATH that answers them.
+ *
+ * THE KEYS WERE WIRE TAGS AND ARE NOT TAGS ANY MORE: `surface/edit/apply` and
+ * `surface/ops/run` were the monolith-era SHORT names this row answered under
+ * beside its own `surface/files/edit/apply`, and those short names are deleted,
+ * so spelling one here would name a tag nothing serves. Nothing dispatches on
+ * these strings — `./browser.tsx` uses `dispatch["edit.apply"]` as a key and
+ * writes through this row's own scoped client.
+ *
+ * EXHAUSTIVE AND DISJOINT ACROSS THE BUNDLE, or a verb reaches `writeEdit` with
+ * no writer and fails at runtime with "the capability for X is not active"
+ * (`@olai/edit-history`'s `writing.ts`). `@olai/server`'s
+ * `capability-dispatch.test.ts` holds it.
+ *
+ * `field` WENT WITH THE ENVELOPE. Each entry used to be
+ * `{ field: "verb", cases: [...] }`, because the composition root routed one
+ * shared bare tag to an owner by reading that field off the payload. There is
+ * no shared tag and no envelope, and the discriminator is already implied by
+ * the member — `edit.apply`'s cases are `Edit.verb`s, `ops.run`'s are
+ * `WriteRequest.op`s — so the word was a second statement of a fact with no
+ * reader left. `capability-dispatch.test.ts` is what checks the cases are the
+ * right union's.
+ */
 export const dispatch = {
-  "surface/edit/apply": { field: "verb", cases: ["outlineNew", "fileDelete"] },
-  "surface/ops/run": { field: "op", cases: ["create", "delete"] },
+  "edit.apply": ["outlineNew", "fileDelete"],
+  "ops.run": ["create", "delete"],
 } as const
 export const faces = {
   "browser": {
     "edit.apply": "tool"
   },
   "agent": {
+    // THE READING THE `capture` TOOL RESOLVES AGAINST, and the one member on
+    // this face that is not itself a tool: which outlines there are, which is
+    // what the inbox convention is read off (`@olai/ops`' `Planning`). It is
+    // exposed for the same reason `ops.run` is — a tool this face advertises
+    // lands through it — and it is `"tool"` like its neighbour because a face
+    // map reads MEMBERSHIP and nothing else (`@olai/surface/host`'s
+    // `hostFaces`).
     "ops.paths": "tool",
     "ops.run": "tool"
   }

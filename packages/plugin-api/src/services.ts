@@ -397,30 +397,64 @@ export interface ComposedKind extends PropKind {
  * is no line anywhere for the two to drift apart on.
  */
 export interface Sibling {
-  /** Preserve this capability's standalone tags at the public boundary.
-   * Ownership and channels remain scoped to its plugin generation; the host
-   * rejects tag collisions before mounting. Used by extracted wire contracts,
-   * not by a permanent catch-all application surface. */
-  readonly root?: boolean
-  /** Public procedure tags whose calls use transport-supplied attribution. */
+  /** Public procedure tags whose calls use transport-supplied attribution,
+   * named as this plugin's OWN surface spells them. The composition root is
+   * what puts them under `surface/<name>/`, so four rows declaring
+   * `["surface/ops/run"]` is four rows each naming their own member. */
   readonly writes?: ReadonlyArray<string>
-  /** Disjoint variants of a preserved procedure can have different owners.
-   * Each public tag names an input field and the literal cases this provider
-   * handles. Composition proves matching schemas and refuses overlaps. */
-  readonly dispatch?: Readonly<Record<string, {
-    readonly field: string
-    readonly cases: ReadonlyArray<string>
-  }>>
   /** The plugin's own surface — a `Surface<Spec>`, opaque on this side of the
    *  wall for the reason `deps` is. */
   readonly surface: { readonly spec: unknown }
   /** Which of its members each face may see — its own `ExposeMap` per face,
-   *  written against its own spec. */
+   *  written against its own spec.
+   *
+   * ONE GRANT, NOT TWO. This used to have a `scopedFaces` beside it, because a
+   * row could register `root: true` and keep its members answering under the
+   * monolith's bare tags as well: `faces` granted those and `scopedFaces`
+   * granted the qualified ones, and a member could be on one and not the other.
+   * #546 deleted the bare tags, so a member has one name and this is the map
+   * that says who may reach it. */
   readonly faces: Readonly<Record<string, Readonly<Record<string, unknown>>>>
-  /** Additional qualified sibling exposure for clients acquired by this
-   * provider's browser activation. Preserved root aliases keep their own face
-   * policy; granting a sibling does not grant it to every transport face. */
-  readonly scopedFaces?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  /**
+   * WHICH OF ITS MEMBERS AN AGENT MAY ADDRESS AS A `surface://` RESOURCE — this
+   * row's OWN `ExposeMap`, written against its own spec, opaque here for the
+   * reason `faces` is.
+   *
+   * A SECOND MAP RATHER THAN A READING OF `faces.agent`, and the difference is
+   * the one `olai-plugin-markdown`'s `surface.ts` argues: `faces.agent` is what
+   * a caller may CALL, and every `ops.*` on it is reachable and is no resource,
+   * because a procedure is not a thing with an address. Deriving one from the
+   * other would either publish a URI for a verb or take a resource away from a
+   * row that grants both.
+   *
+   * ABSENT ON MOST ROWS, and that is the ordinary case rather than an omission:
+   * a row whose whole agent face is verbs publishes nothing addressable. It is
+   * still a sibling of the served bundle — EVERY standing row is, whatever it
+   * declares — because its `tools` ride the same entry and that is what makes a
+   * verb leave with the row that brought it. An empty map beside them says it
+   * has no addresses to give.
+   *
+   * IT WAS `@olai/bundle`'s `MCP`, one flat map naming three rows' members from
+   * a package none of them could edit, resolved against one flat aggregate
+   * spec. #546 sent each line home to its row and juspay/kolu#2234 made the
+   * per-sibling map the framework's own shape; this field is the wall those
+   * maps travel across, and without it the served bundle has no siblings at all
+   * — `@olai/server`'s `mcp/face.test.ts` reads the URIs that proves.
+   */
+  readonly resources?: Readonly<Record<string, unknown>>
+  /**
+   * THIS ROW'S AGENT VERBS — the tools an MCP host is offered while this row is
+   * standing, opaque here for the reason `deps` and `faces` are.
+   *
+   * They used to be one closed table in `@olai/ops`, thirty entries naming
+   * every row's vocabulary from a general package, with a second table in
+   * `olai-plugin-mcp` saying which row each one belonged to. That is the same
+   * permissions duplication `faces` was pulled apart to end, one seam over: a
+   * row switched off left its verbs advertised until somebody edited a filter
+   * two packages away. A tool leaves with its row now, because the row is what
+   * brought it.
+   */
+  readonly tools?: ReadonlyArray<unknown>
   /** This plugin's `ImplementSurfaceDeps`, against its own spec. */
   readonly deps: unknown
   /** This plugin's OWN ctx, handed back the moment its sibling is implemented.

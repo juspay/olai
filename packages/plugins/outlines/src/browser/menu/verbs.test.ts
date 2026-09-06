@@ -189,7 +189,7 @@ test("the menu's clear and the picker's emptied box are ONE edit", () => {
 
 test("every row that draws a node can reach the picker, under the name that fits it", () => {
   // The one entry offered whatever the row carries, because both halves of
-  // `set_date` are now a person's: an undated node is being SCHEDULED, a dated
+  // `outlines_date` are now a person's: an undated node is being SCHEDULED, a dated
   // one CHANGED. A dated row's other door is the pill on the line itself.
   expect(labels("install")).toContain("Set date…")
   expect(labels("order")).toContain("Change date…")

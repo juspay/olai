@@ -84,7 +84,7 @@ describe("node-agent write rule", () => {
    *
    * A vault-defined plugin's approval is an ordinary custom property on an
    * ordinary node, and a definition an agent wrote is inside that agent's own
-   * subtree by construction — so `set_prop approved` was a legal write through
+   * subtree by construction — so `outlines_prop approved` was a legal write through
    * the door the agent already held, and the plugin mounted having been read by
    * nobody. The verb was closed on the face and the fact was not.
    */

@@ -157,7 +157,7 @@ function Zoom(props: {
           <Blocked blocked={props.zoomed.blocked} />
           {/* …and the FIELD under it: what this node itself declares it comes
               after, whether or not the target is still in the way. That is what
-              `set_after` writes, so that is what carries the `×`. */}
+              `outlines_after` writes, so that is what carries the `×`. */}
           <EdgeRefs
             node={props.zoomed.shows.node}
             relation="after"

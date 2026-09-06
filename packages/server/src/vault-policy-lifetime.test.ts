@@ -35,17 +35,22 @@ test("withdrawing vault source policy removes its children, catalog, chunks and 
   const runtime = yield* runtimeFor(plugins,["vault-plugins"],onChange)
   const wired = yield* bind({hostname:"test",startedAt:"",plugins:{...runtime,catalogs:loading.catalogs}})
   yield* Effect.addFinalizer(()=>Effect.promise(()=>wired.bound.close()))
-  const retained = wired.bound.handlers["surface/plugins/inspect"]!
+  // THE DOUBLED SEGMENT IS THE POINT, not a typo: `vault-plugins` is the ROW
+  // and `plugins` is the member it declares, so the tag is the row's name over
+  // the member's. It read `surface/plugins/inspect` until #546, which was the
+  // root mount's bare alias and collided in spelling with CORE's own `plugins`
+  // cell — the one member name in the tree with two owners.
+  const retained = wired.bound.handlers["surface/vault-plugins/plugins/inspect"]!
   expect(retained).toBeDefined()
   yield* setRow(plugins.host,"vault-plugins",false)
   expect(offered(plugins.host,value)).toBeUndefined()
   expect(offered(plugins.host,chunks)).toBeUndefined()
   expect(loading.names()).toEqual([])
-  expect(wired.bound.handlers["surface/plugins/inspect"]).toBeUndefined()
+  expect(wired.bound.handlers["surface/vault-plugins/plugins/inspect"]).toBeUndefined()
   expect(yield* Effect.exit(retained({}) as Effect.Effect<unknown>)).toHaveProperty("_tag","Failure")
   yield* setRow(plugins.host,"vault-plugins",true)
   yield* settled(plugins.host,["swatch"])
   expect(offered(plugins.host,value)).toEqual({value:1})
   expect(loading.names()).toEqual(["swatch"])
-  expect(wired.bound.handlers["surface/plugins/inspect"]).not.toBe(retained)
+  expect(wired.bound.handlers["surface/vault-plugins/plugins/inspect"]).not.toBe(retained)
 }))))

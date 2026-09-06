@@ -8,7 +8,7 @@ Feature: A `.pdf`, a `.csv` and a picture in the vault
   its own, and has a page at its own prefix-free address.
 
   All three are VIEW ONLY, and that is one decision rather than three
-  omissions: `write_document` takes a `.md` and nothing else, so an Edit
+  omissions: `markdown_write` takes a `.md` and nothing else, so an Edit
   control on any of these would be a door onto a refusal.
 
   What each is DRAWN AS is the whole of what differs, and each answer is a
@@ -75,7 +75,7 @@ Feature: A `.pdf`, a `.csv` and a picture in the vault
     # The whole file is on the screen, so there is nothing to say about what
     # was left out — and saying nothing is what that has to look like.
     And the csv page says nothing was left out
-    # VIEW ONLY: no Edit control, because write_document takes a `.md` and
+    # VIEW ONLY: no Edit control, because markdown_write takes a `.md` and
     # nothing else — a control here would be a door onto a refusal.
     And this file has no editor
     And there should be no page errors

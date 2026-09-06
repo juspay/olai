@@ -6,7 +6,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//exports": "FIVE, and the split is the tree's three-door rule with nothing added. `./server` is what the row mounts: the trigram table, the matcher over it, and the one door this row stands behind — no `solid-js` anywhere on that graph, because a process that renders nothing must not pull a UI runtime. `./browser` is the chunk the tab fetches when the roster names this row, and it carries exactly one face: the header's search box, which used to be imported by `@olai/web`'s `AppHeader.tsx`. The ROOT is the plugin's word — this row composes no sibling surface, because `search.nodes` is CORE's member and stays on core's three faces (a row that renamed it would rename a tool an agent already calls). `./testids` and `./all.css` are the two contracts the generated bundle files need of every row.",
+  "//exports": "SIX now, and the split is the tree's three-door rule plus the one #546 added. `./tools` is this row's agent verbs \u2014 the single `search_nodes` entry that used to sit in `@olai/ops`' closed table, declared here so a serve without this row advertises no search at all. `./server` is what the row mounts: the trigram table, the matcher over it, and the one door this row stands behind — no `solid-js` anywhere on that graph, because a process that renders nothing must not pull a UI runtime. `./browser` is the chunk the tab fetches when the roster names this row, and it carries exactly one face: the header's search box, which used to be imported by `@olai/web`'s `AppHeader.tsx`. The ROOT is the plugin's word — this row composes no sibling surface, because `search.nodes` is CORE's member and stays on core's three faces (a row that renamed it would rename a tool an agent already calls). `./testids` and `./all.css` are the two contracts the generated bundle files need of every row.",
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
@@ -14,6 +14,7 @@
     "./testids": "./src/testids.ts",
     "./all.css": "./src/browser/all.css",
     "./surface": "./src/surface.ts",
+    "./tools": "./src/tools.ts",
     "./reading": "./src/contracts/reading.ts",
     "./ui/*": "./src/contracts/ui/*",
     "./client": "./src/client.ts",

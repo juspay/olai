@@ -299,7 +299,7 @@ export {
    *  own: a discriminant test on `at.node` leaves the place around it as wide
    *  as it was, so a caller that wanted `LocatedRegular` either re-spelled the
    *  predicate or reached for a cast. Both were in `@olai/ops`' reads — the
-   *  outline listing spelled it, `read_node` and `read_subtree` cast — because
+   *  outline listing spelled it, `outlines_read` and `outlines_subtree` cast — because
    *  this guard was declared for exactly that and never left the package
    *  (`./node.ts`). */
   isRegular,
@@ -346,7 +346,7 @@ export {
   storedMarker,
   /** Which words a `custom` key may not take, and what writes each of them
    *  instead — asked of the record's own field names, so a new field cannot
-   *  arrive without one. `set_prop` is its only caller. */
+   *  arrive without one. `outlines_prop` is its only caller. */
   shadowFor,
   targetsOf,
 } from "./node.ts"
@@ -467,7 +467,7 @@ export {
    *
    *  On the surface because the answer left the package: every drawing of
    *  blockedness in the browser rides a reading that already carries it (a
-   *  `Row`'s `blocked`, a `Zoomed`'s), and `read_node` answers it about ONE id
+   *  `Row`'s `blocked`, a `Zoomed`'s), and `outlines_read` answers it about ONE id
    *  that is not a page — so the ops layer asks for it directly. Exported for
    *  `standingBefore`'s reason below, arrived at from the other end of the same
    *  arrow: the row a person sees dimmed and the `blockedBy` an agent is handed
@@ -516,17 +516,17 @@ export {
    *  when there is no span to tell (the todo→done jump has none; `created`
    *  is never the fallback; a running node is the tick's question, not
    *  this one's). The browser's settled chip and the reads' `took` —
-   *  `read_node`'s own row and a caller-shaped walk row alike — are the
+   *  `outlines_read`'s own row and a caller-shaped walk row alike — are the
    *  readers; the doing half of the same story is bank plus a tick the
    *  wire does not carry at all. */
   tookOf,
   /** What a node's `after` targets hold up, asked of a node that is not work
    *  yet. Exported for the reason `drawnFrom` above is: two rules read
-   *  blockedness and they must agree. The rows a page draws and `read_node`'s
+   *  blockedness and they must agree. The rows a page draws and `outlines_read`'s
    *  `blockedBy` both come off `blockersOf` above, and the search grammar's
    *  `is:blocked` asks the same index for the yes-or-no (`isBlocked`, one file
    *  over), so an agent's answer and the drawn row are one reading; the ops
-   *  layer refuses `set_doing` with THIS one, which is the same reading from
+   *  layer refuses `outlines_doing` with THIS one, which is the same reading from
    *  the other end of the arrow. */
   standingBefore,
   isTagName,
@@ -1222,7 +1222,7 @@ export {
  *
  * `SAME_FILE` used to come through this door as well, for the app's other
  * cross-file gesture — a row dragged over another outline's pane. It is gone
- * with the law it spelled: `move_node` crosses outlines now, so a destination
+ * with the law it spelled: `outlines_move` crosses outlines now, so a destination
  * in another file is an ordinary destination and there is no shared sentence
  * left to keep two faces honest about. What the drag still cannot do is a fact
  * about that GESTURE rather than about the set, and it says so in its own words

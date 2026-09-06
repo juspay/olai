@@ -92,7 +92,7 @@ export function OutlinePage(props: {
    * being left pointing at somewhere they cannot see.
    *
    * The id asked OF THE SET when the rows answer nothing, because a fragment
-   * may spell a PLACEMENT: the mirror's own record id, which `read_node`
+   * may spell a PLACEMENT: the mirror's own record id, which `outlines_read`
    * reports in `mirrors` and an agent citing a row naturally spells
    * (`./fold/landing.ts`'s `answer`). A placement the page draws is found
    * with no wire crossed; one it does not keeps its target in a row of some

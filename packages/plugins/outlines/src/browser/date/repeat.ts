@@ -21,7 +21,7 @@
  *
  * WHAT IS NOT HERE is any judgement about the rule. The validator is the gate
  * — on the set the write would produce, exactly as it is for an agent's
- * `set_repeat` — so a value this layer disliked would be a rule the web has and
+ * `outlines_repeat` — so a value this layer disliked would be a rule the web has and
  * MCP does not (the consistency rule). The one thing it fences is a GESTURE that would
  * produce no write at all, which is the draft's own rule ({@link pressOf}).
  */
@@ -53,7 +53,7 @@ export const startsAt = (stored: string | undefined): string =>
   stored === undefined ? "" : canonicalRepeat(stored) ?? ""
 
 /**
- * The one edit a pick sends — `set_repeat`'s own reach, and the constructor
+ * The one edit a pick sends — `outlines_repeat`'s own reach, and the constructor
  * the `•••` menu's `Stop repeating` calls as well ({@link ../menu/verbs.ts}).
  *
  * ONE FUNCTION FOR BOTH DOORS, for {@link ../date/pick.ts}'s reason word for

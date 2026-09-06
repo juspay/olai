@@ -9,6 +9,11 @@ import type { Ops as Gate } from "@olai/ops"
 import { WRITABLE_MODULES } from "@olai/plugin-build"
 import { Effect } from "effect"
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"
+/** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
+ *  faces. They were hand-written `BespokeTool`s inside `olai-plugin-mcp` until
+ *  #546 — one row's vocabulary held by another row — and they leave with this
+ *  row now, because this row is what brought them. */
+import { tools } from "./tools.ts"
 import { surface, faces } from "./surface.ts"
 import { NotFoundFailure, isPutAway, type Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
@@ -140,7 +145,7 @@ inspect: () =>
               taken: [...loading.reserved, ...dynamic.names()],
             }))
     } } }
-    yield* (yield* Surfaces).register({ surface, deps, root: true, faces, scopedFaces: { browser: faces.browser } })
+    yield* (yield* Surfaces).register({ surface, deps, faces, tools })
     yield* (yield* Offers).own("chunks", () => ({ chunk: dynamic.chunk }))
   }),
 })

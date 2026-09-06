@@ -1119,7 +1119,7 @@ export const progressOf = (derived: Derived, id: string): Progress | undefined =
  * two readers answer with it — {@link tookOf}, for the node whose rounds
  * predate the bank, and the ops layer's own writes, at the moment a round
  * CLOSES: a settle banking the one it closed into `worked`, or a peel —
- * the queueing `set_todo`, the un-done start — doing the same where the
+ * the queueing `outlines_todo`, the un-done start — doing the same where the
  * `doing` came off (`@olai/ops`' plan).
  * Spelled twice, the rounding or the clamp would drift between what a
  * settle counts and what a read reports, and the bank and the answer must
@@ -1333,7 +1333,7 @@ const orderings = (
    *  one edge. Every reader takes this as a set: the row a page draws keyed by
    *  the blocker's id (a repeat crashes the client,
    *  `web/client/NodeRefs.tsx`), the `blocked by` tip, the walk the acyclicity
-   *  rule and `set_after`'s loop refusal share. A duplicate would say one node
+   *  rule and `outlines_after`'s loop refusal share. A duplicate would say one node
    *  is in the way twice — and, read backwards, that one node has to be looked
    *  at twice when the other's mark flips. The reverse is a `Set` for that
    *  reason, so the two directions cannot disagree about how many edges a pair
@@ -1589,7 +1589,7 @@ export const isBlocked = (derived: Derived, id: string): boolean =>
  *
  * CHAINS FOLLOWED and THE TRASH INCLUDED, both inherited from the index
  * rather than decided here — which is what makes this the same answer
- * `read_node` hands back as `mirrors` (`@olai/ops`' `placementsOf`). A
+ * `outlines_read` hands back as `mirrors` (`@olai/ops`' `placementsOf`). A
  * placement in an `_olai/Trash.olai` is a placement: it is where the node is drawn
  * on the trash page, and a reader who put one copy away has not thereby
  * unmirrored the node.
@@ -1607,8 +1607,8 @@ export const isMirrored = (derived: Pick<Derived, "mirrorsOf">, id: string): boo
  * and is therefore not being told it cannot start — that is what every DRAWING
  * of blockedness wants. This is what a node WOULD be waiting on the moment it
  * became work, and it is what a WRITE that is about to make it work has to ask:
- * the ops layer refuses `set_doing` with it, and asking `blockersOf` there
- * would let `set_doing` on a bullet slip past the gate its own `after` edges
+ * the ops layer refuses `outlines_doing` with it, and asking `blockersOf` there
+ * would let `outlines_doing` on a bullet slip past the gate its own `after` edges
  * declare — the row landing `doing` and the app drawing it blocked a frame
  * later, which is precisely the state the refusal exists to make unreachable.
  *
@@ -1923,7 +1923,7 @@ export const ancestryOver = (
  *
  * Its own function because it had three callers spelling one `.map` — the ops
  * layer's `foundOf` (which is public precisely so a second `ancestorsOf(…).map`
- * could not drift from what `read_node` answers), the line a chat message's
+ * could not drift from what `outlines_read` answers), the line a chat message's
  * node arrives on, and the chat composer's `@` row, which cannot reach the ops
  * layer at all. Three copies of one expression is three chances for "where does
  * this node hang" to come to mean three things about one id in one turn.

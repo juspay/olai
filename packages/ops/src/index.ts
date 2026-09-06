@@ -20,15 +20,20 @@
  *     tests reach it directly;
  *   - `Query` — how a reader that is not a browser sees the set, over parsed
  *     nodes and never over bytes;
- *   - `TOOLS` — the closed list of what an agent may do, each entry carrying
- *     its own schema and, for a read, its own reader.
+ *   - the TOOL GRAMMAR — `Tool`, the four constructors that build one, and the
+ *     doors an entry reaches. NOT a list of tools: there was a closed `TOOLS`
+ *     table here, and it went out to the rows (juspay/olai#546), because a
+ *     general package naming every row's verbs is a general package that
+ *     advertises `search_nodes` on a serve with no matcher and `commit` on one
+ *     with no ledger. A tool leaves with the row that owns it; what a row needs
+ *     from here is the grammar to spell its own table in.
  *
- * The table was private while this package also owned an MCP server (`Mcp`,
+ * The grammar was private while this package also owned an MCP server (`Mcp`,
  * a hand-rolled JSON-RPC dispatch): what a consumer wanted then was the server,
  * and the list was what the server was made of. `@kolu/surface-mcp` is the
- * server now, so the list is what a consumer wants — and the projection onto MCP
- * moved up to `@olai/server`, which keeps the SDK out of this layer's dependency
- * closure. An op still does not know it is being called over a wire.
+ * server now, so the projection onto MCP moved up to `@olai/server`, which keeps
+ * the SDK out of this layer's dependency closure. An op still does not know it
+ * is being called over a wire.
  */
 
 export { codecFor } from "./codec.ts"
@@ -66,13 +71,24 @@ export { type Merging, merging } from "./plan.ts"
  *  layer that knows exactly one kind, and `WriteResult` is the `Applied` every
  *  caller of `run` already speaks. */
 export { WriteRequest as Request, type WriteResult as Applied } from "@olai/format"
+/** The tool grammar, for the rows that spell their own tables in it: the four
+ *  constructors, the union they build, the three doors an entry reaches, and the
+ *  one schema three of those tables share (`NoArgs`, for the two listings and
+ *  `push`). `asking` is not here — it is the envelope the ops layer builds over
+ *  its own gated read, and `./ops.ts` is where that is made. */
 export {
+  act,
+  calls,
+  landed,
   type Acting,
   type Asking,
+  NoArgs,
+  plan,
   type Planning,
+  read,
   type Running,
   type Tool,
-  TOOLS,
+  write,
 } from "./tools.ts"
 
 export * as Query from "./query.ts"

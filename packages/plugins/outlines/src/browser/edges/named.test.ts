@@ -62,7 +62,7 @@ const targets = (id: string, relation: Relation): ReadonlyArray<string> =>
   refs(id, relation).map((one) => one.id)
 
 test("a target the file names three times is drawn once", () => {
-  // `set_see` re-adding a target the node already names is a silent no-op, so
+  // `outlines_see` re-adding a target the node already names is a silent no-op, so
   // the field is a set on the way in; this is the reading saying the same
   // thing on the way out. One ref, and it still carries the target's own
   // title — the repeat is dropped, not the resolution.

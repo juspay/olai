@@ -105,9 +105,9 @@ export const NodeHit = Schema.Struct({
    * under a bug, and twelve of those is an answer many times the size of the
    * question. So it is asked for, once, by the caller that is going to read it.
    *
-   * WHOLE OR ABSENT, never cut. `set_desc` and `update`'s `was` both take the
+   * WHOLE OR ABSENT, never cut. `outlines_desc` and `update`'s `was` both take the
    * note as one text, so a hit carrying a shortened one would be a note an edit
-   * gets written against — which is the same reason `read_document` refuses a
+   * gets written against — which is the same reason `markdown_read` refuses a
    * file it could not read rather than answering it empty. The dial is
    * `withDesc` and `limit`, and both are exact.
    *
@@ -147,7 +147,7 @@ export type NodeHit = typeof NodeHit.Type
 export const DocumentHit = Schema.Struct({
   at: AtDocument,
   /** What the document is called: its own face's title, so this row, the
-   *  palette, `list_documents` and the page's own heading say one name. */
+   *  palette, `markdown_index` and the page's own heading say one name. */
   title: Schema.String,
   /** Which of `./filter.ts`'s three document fields carried the strongest
    *  match — ABSENT for a query that named no words, on {@link NodeHit}'s own
@@ -229,7 +229,7 @@ export const SearchRequest = Schema.Struct({
     description:
       "What to look for. Case-folded substring WORDS — every word must appear somewhere in the same node, unless `OR` joins it to an alternative (below), where either one will do — composed with OPERATORS:\n" +
       "- `is:done` / `is:doing` / `is:todo` — the mark the node stores (never a derived one). `is:marked` is any of the three; `is:trashed` reaches what was put away.\n" +
-      "- `is:mirrored` — the node is DRAWN SOMEWHERE ELSE as well: some placement shows it (chains followed), which is what `read_node` answers as `mirrors` and what putting a node on a curated list does to it. Asked of the NODE, never of the placement — a search never returns a placement. A copy filed in an `_olai/Trash.olai` still counts, since it is still where the node is drawn on the trash page.\n" +
+      "- `is:mirrored` — the node is DRAWN SOMEWHERE ELSE as well: some placement shows it (chains followed), which is what `outlines_read` answers as `mirrors` and what putting a node on a curated list does to it. Asked of the NODE, never of the placement — a search never returns a placement. A copy filed in an `_olai/Trash.olai` still counts, since it is still where the node is drawn on the trash page.\n" +
       "- `is:blocked` — the node is WAITING: something it must come after is a task that is not finished. Derived, and the same derivation the app draws a blocked row with, so it reads the ORDERING GRAPH rather than the field — an edge spelled `blocks` on the other record counts, and a node can be blocked while carrying no `after` of its own (`has:after` is the question about the field). A node with no mark is not blocked (a bullet is not work), a target with no mark blocks nothing, and put-away work is out of it at both ends. `-is:blocked` takes the waiting ones back out.\n" +
       "- `has:desc` / `has:date` / `has:created` / `has:changed` / `has:see` / `has:after` / `has:doc` / `has:repeat` — a field the record carries. `has:repeat` is what COMES BACK: a repeat rule needs a date to repeat from, so it selects inside `has:date`, and `has:date -has:repeat` is everything dated once. `has:created -has:changed` is a node nothing has been written to since it was captured.\n" +
       "- `date:2026-08-10`, `date:2026-08`, `date:2026`, `date:2026-08-01..2026-08-14`, `date:..2026-08-10`, `date:2026-08-10..` — the two dates a journal reads: what the node is scheduled for, and when it was finished.\n" +
@@ -276,13 +276,13 @@ export const SearchRequest = Schema.Struct({
    * cheap, invented for one field.
    *
    * NODES ONLY, and that is the grammar rather than a narrowing chosen here: a
-   * document's "note" is its whole body, which `read_document` answers as one
+   * document's "note" is its whole body, which `markdown_read` answers as one
    * text. A document hit is unchanged by this.
    */
   withDesc: Schema.optionalKey(
     Schema.Boolean.annotate({
       description:
-        "Carry each node hit's `desc` — its note, whole — so a selection arrives WITH its notes in one call. Off by default: a note is unbounded prose, and a query that will not read one should not pay for it. Documents are unaffected; a `.md`'s prose is `read_document`.",
+        "Carry each node hit's `desc` — its note, whole — so a selection arrives WITH its notes in one call. Off by default: a note is unbounded prose, and a query that will not read one should not pay for it. Documents are unaffected; a `.md`'s prose is `markdown_read`.",
     }),
   ),
   /**

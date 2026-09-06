@@ -284,7 +284,15 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
         browserBoot: () => ROWS.filter((row) => row.browserOnly && report.get(row.id)?.state === "running").map((row) => row.id),
         hostname: theMachine,
         token,
-        agent: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.agent, writes: wired.bound.writes, dispatch: wired.bound.dispatch }),
+        agent: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.agent, writes: wired.bound.writes }),
+        // `resources ?? {}` because MOST ROWS PUBLISH NONE — a row whose whole
+        // agent face is verbs has nothing addressable, and the empty map is
+        // what `siblingsOf` reads to leave it out of the bundle. Dropping this
+        // line is not a missing resource but an empty bundle:
+        // `serveSurfaceAsMcp` would be handed no siblings and the served face
+        // would publish no `surface://` URI at all.
+        agentRows: () => wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [] })),
+        agentRosterMoved: wired.bound.rosterMoved,
         writeReservations: WRITE_RESERVATIONS,
     }));
     // Shutdown step 2 of the four the paragraph above orders — registered here,

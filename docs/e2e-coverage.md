@@ -131,8 +131,8 @@ harness and the production 15-minute idle lifetime. The background node
 node remained idle and selected at 09:33:17, more than 15 minutes after its
 09:18:00 idle transition. Clicking the sleeping node restored session
 `ff9ac910-6f2b-4214-bd8b-25ea76f5d0a2`, replayed its original reply and accepted
-a new prompt. Its real `read_node` call returned the node's title; an attempted
-`set_title` on sibling `reap-foreground` was refused by the subtree boundary
+a new prompt. Its real `outlines_read` call returned the node's title; an attempted
+`outlines_title` on sibling `reap-foreground` was refused by the subtree boundary
 then in force, and the served file retained the sibling's original title. No browser errors
 were recorded. The disposable server was stopped afterward. This manual runtime evidence complements `node_agent_idle_lifecycle`, whose three automated browser scenarios now cover those protections with the production timer. The private-scratch `@node-idle-fast` tag sets `OLAI_CHAT_IDLE_MS=2000`; ordinary scenarios clear the override. Assertions observe the selected node, unanswered question or watcher continuously across two deadlines, then verify eligible background eviction and durable restoration. No fake clock or test-only server route is used. These cases do not establish completion of the broader node or cross-domain audit.
 

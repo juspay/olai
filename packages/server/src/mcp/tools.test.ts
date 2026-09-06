@@ -1,4 +1,3 @@
-import { surface } from "@olai/bundle/surface"
 import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
 /**
  * The tool surface, through a real MCP client.
@@ -28,7 +27,6 @@ import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
  * the unit-level fence under them.
  */
 
-import { MCP } from "@olai/bundle/faces"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import {
@@ -44,7 +42,7 @@ import {
   codecFor,
   make as makeOps,
   type Store as OutlineStore,
-  TOOLS,
+  type Tool,
 } from "@olai/ops"
 import { STAMP, steady } from "@olai/ops/testlib"
 import * as Store from "@olai/store"
@@ -57,8 +55,8 @@ import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
-import { bind, writerAt } from "../runtime.ts"
-import { clientOver } from "@olai/bundle/client"
+import { bind } from "../runtime.ts"
+import { clientsFor, siblingsOf, type Row } from "olai-plugin-mcp/testlib"
 import { serveFace } from "olai-plugin-mcp/testlib"
 import { bespokeFrom } from "olai-plugin-mcp/testlib"
 
@@ -112,7 +110,7 @@ interface Fixture {
  * `set.broken` only when the store hands over a failed read, which on the disk
  * store fails the whole probe rather than one file. The refusal that arm
  * produces is still real, still reachable through a socket, and still what
- * `write_document`'s own `writable` gate has always done; naming these paths
+ * `markdown_write`'s own `writable` gate has always done; naming these paths
  * fails their decode and leaves EVERYTHING above the codec — store, set,
  * surface, adapter, client — exactly as it is. What is injected is one
  * `Result`, at the one place production would have injected it.
@@ -172,21 +170,54 @@ const withTools = <A>(
       startedAt: "2026-08-29T09:31:00.000Z",
       // The injected gate deliberately has no matcher; the real search row
       // still owns the transport that returns its structured query refusal.
-      plugins: yield* capabilitiesOver(store, ops, root, { rows: [...CONTENT_ROWS, "search"] }),
+      //
+      // `git` AND `vault-plugins` ARE MOUNTED FOR THEIR VERBS, and they were not
+      // until juspay/kolu#2234. A tool used to come from a BUILD-wide table
+      // (`@olai/bundle`'s `agentTools()`), so `commit`, `push` and the three
+      // plugin verbs were offered whether or not their rows were standing, and
+      // the closed-table case below could enumerate the whole vocabulary out of
+      // a fixture that mounted neither. A verb rides its row's sibling entry
+      // now: the table this face publishes IS the roster's, so the roster has to
+      // carry every row whose words the charter enumerates.
+      //
+      // WHAT IS BEHIND THEM IS STILL ABSENT, which is the half that keeps the
+      // cases below saying what they said. This `ops` was made with no ledger,
+      // so `push` answers `Failed` in words — the row contributes the VERB and
+      // the ops layer answers it, and those were always two different questions.
+      plugins: yield* capabilitiesOver(store, ops, root, { rows: [...CONTENT_ROWS, "search", "git"], definitions: true }),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
+    // THE VERY BUNDLE THE ROW BUILDS, off the rows this bind composed — the two
+    // halves of `olai-plugin-mcp`'s `bundle.ts`, called here exactly as
+    // `binding.ts` calls them.
+    //
+    // IT WAS A FLAT CONTRACT AND A HAND-WRITTEN EXPOSE MAP (`mcpContract` +
+    // `AGENT_EXPOSE`) OVER ONE `liveClient` ROUTED BY `toOwner`, and none of the
+    // four exists: `serveSurfaceAsMcp` takes a rooted bundle since
+    // juspay/kolu#2234, so each row's own spec and own resource map go in
+    // directly and one client is minted per standing row. A member is addressed
+    // through the row that declares it — `ops.node` is
+    // `surface/outlines/ops/node` — which the scoped dispatch does without
+    // anything here consulting a route.
+    const rows = (): ReadonlyArray<Row> =>
+      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [] }))
+    // Minted per call for the reason `binding.ts` mints it per call: the roster
+    // it describes moves, and a bundle held across a recompose would carry a
+    // client for a row that has left.
+    const panel = () => clientsFor(rows(), () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }), { writer: "mcp" })
+    // EVERY VERB COMES OFF ITS OWN ROW, which is why there is no build-wide
+    // table imported at the top of this file any more. `@olai/bundle/tools`'
+    // `agentTools()` composed one and it was handed in flat beside a
+    // `mcpContract` + `AGENT_EXPOSE` pair over one `liveClient`; none of the
+    // four exists. `siblingsOf` walks the rows this bind actually composed and
+    // projects each row's own `tools` onto that row's sibling entry, so a verb
+    // whose row is absent from this fixture is absent from the tool list for
+    // the same structural reason its resource is.
     yield* serveFace({
-      surface,
-      expose: MCP,
-      client: () =>
-        clientOver(
-          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp" }) },
-          wired.faces.agent,
-        ),
-      tools: bespokeFrom(TOOLS, {
+      siblings: siblingsOf(rows(), row => bespokeFrom(row.name, row.tools as ReadonlyArray<Tool>, rows, {
         login: () => login,
         root,
         // The face's own currency, composed the way `../serve.ts` composes it:
@@ -194,10 +225,15 @@ const withTools = <A>(
         // here would make every assertion about a read's `vintage` an
         // assertion about the stub.
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
-        doorAt: (client) => client,
+        // NO TICKET ON THIS BENCH, so the ticketed bundle IS the panel bundle —
+        // which is what `bindAgent` hands a face with no ticket too. It takes no
+        // argument now: a door is minted from the roster rather than narrowed
+        // from a client that was handed in.
+        doorAt: panel,
         record: (request) => ops.commit(request, "mcp"),
         push: ops.push,
-      }),
+      })),
+      client: panel,
       transport: serverSide,
     })
 
@@ -305,49 +341,64 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
     // stage → rename → commit gate — never a byte range, never a path the set
     // does not already hold.
     expect(tools.map((tool) => tool.name).sort()).toEqual([
-      "add_mirror",
-      "add_node",
-      "apply",
-      "capture",
-      "commit",
-      "create_document",
-      "create_outline",
-      "delete_file",
-      "duplicate_node",
-      "empty_trash",
-      "list_documents",
-      "list_outlines",
-      "merge_node",
-      "move_node",
-      "push",
-      "read_document",
-      "read_node",
-      "read_subtree",
-      "remove_mirror",
+      // SORTED, and the sort is the agent-visible name — so the list reads by
+      // ROW, which is what the naming rule buys a person scanning it: every
+      // verb a row owns is together, and a row that is not standing leaves a
+      // gap you can see.
+      //
+      // THE THREE A PLUGIN'S AUTHOR HAS joined this list rather than arriving
+      // beside it: they were hand-written `BespokeTool`s inside
+      // `olai-plugin-mcp`, spread into the face by a second call, and they are
+      // `olai-plugin-vault-plugins`' own `tools.ts` now — one row's verbs, on
+      // that row's sibling entry, like every other row's. None of them names a
+      // byte either: what they read and write is this SERVE's roster, not the
+      // disk.
+      "capture_add",
+      "files_create",
+      "files_delete",
+      "git_commit",
+      "git_push",
+      "markdown_create",
+      "markdown_index",
+      "markdown_read",
+      "markdown_write",
+      "outlines_add",
+      "outlines_after",
+      "outlines_apply",
+      "outlines_cancelled",
+      "outlines_date",
+      "outlines_desc",
+      "outlines_doing",
+      "outlines_done",
+      "outlines_duplicate",
+      "outlines_index",
+      "outlines_merge",
+      "outlines_mirror",
+      "outlines_move",
+      "outlines_prop",
+      "outlines_read",
+      "outlines_repeat",
+      "outlines_see",
+      "outlines_split",
+      "outlines_subtree",
+      "outlines_title",
+      "outlines_todo",
+      "outlines_trash",
+      "outlines_unmirror",
+      "outlines_update",
       "search_nodes",
-      "set_after",
-      "set_cancelled",
-      "set_date",
-      "set_desc",
-      "set_doing",
-      "set_done",
-      "set_prop",
-      "set_repeat",
-      "set_see",
-      "set_title",
-      "set_todo",
-      "split_node",
-      "trash_node",
-      "untrash_node",
-      "update",
-      "write_document",
+      "trash_empty",
+      "trash_restore",
+      "vault-plugins_inspect",
+      "vault-plugins_run",
+      "vault-plugins_stop",
     ])
 
     // The discriminator the tool NAME already decides is not a field the agent
     // has to fill in. Subtracted from the SCHEMA now rather than from the
     // compiled JSON Schema, so what is advertised and what is decoded against
     // are one object.
-    const done = tools.find((tool) => tool.name === "set_done")
+    const done = tools.find((tool) => tool.name === "outlines_done")
     expect(Object.keys(done?.inputSchema.properties ?? {}).sort()).toEqual(["id", "undo"])
     expect(JSON.stringify(done?.inputSchema)).not.toContain(`"op"`)
 
@@ -355,9 +406,9 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
     // fence rather than a formality. Effect compiles `Schema.Struct({})` to
     // `anyOf: [object, array]`, which the adapter reads as a non-object input
     // and advertises wrapped under a `value` property — after which every call
-    // is refused with "Expected object | array". `list_outlines` is the first
+    // is refused with "Expected object | array". `outlines_index` is the first
     // call an agent makes, so that bug is the whole capture flow.
-    const list = tools.find((tool) => tool.name === "list_outlines")
+    const list = tools.find((tool) => tool.name === "outlines_index")
     expect(list?.inputSchema).toMatchObject({ type: "object", properties: {} })
     expect(JSON.stringify(list?.inputSchema)).not.toContain(`"value"`)
   })
@@ -373,7 +424,7 @@ test("the git verbs offer an agent what the panel offers a person", async () => 
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const { tools } = await client.listTools()
 
-    const commit = tools.find((tool) => tool.name === "commit")
+    const commit = tools.find((tool) => tool.name === "git_commit")
     expect(Object.keys(commit?.inputSchema.properties ?? {}).sort())
       .toEqual(["message", "paths"])
     // Both halves of the selection story reach the model, because a tool it has
@@ -383,7 +434,7 @@ test("the git verbs offer an agent what the panel offers a person", async () => 
     expect(commit?.description).toContain("index")
 
     // Push takes NOTHING, and that is the design rather than an omission.
-    const push = tools.find((tool) => tool.name === "push")
+    const push = tools.find((tool) => tool.name === "git_push")
     expect(push?.inputSchema).toMatchObject({ type: "object", properties: {} })
     expect(push?.description).toContain("upstream")
   })
@@ -396,7 +447,7 @@ test("the git verbs offer an agent what the panel offers a person", async () => 
  *  lives with the plugin. */
 test("push answers rather than failing when nobody stands behind the ledger", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
-    const answered = await call(client, "push", {})
+    const answered = await call(client, "git_push", {})
     expect(answered.isError).toBe(false)
     expect(answered.structured).toMatchObject({
       _tag: "Failed",
@@ -423,7 +474,7 @@ test("each tool carries its title and its description", async () => {
  *
  * The 2026-08-11 review's must-fix, and it is a contract rather than a comment:
  * placements are kept out of search and out of every child list on purpose, so
- * `read_node` is the ONLY way to reach one — and an agent chooses a tool by its
+ * `outlines_read` is the ONLY way to reach one — and an agent chooses a tool by its
  * description, never by this repository's source. `mirrors` retires an entry
  * from the finished item's side, `placed` reads the list from the list's side,
  * and `after` is what a dependency is removed by. The data was already answered
@@ -445,7 +496,7 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
         "`mirrors`",
         "`placed`",
         "`after`",
-        "`remove_mirror`",
+        "`outlines_unmirror`",
         "`referencedBy`",
         // …and blockedness, which joined for the same reason `referencedBy`
         // did: the app dims a row with it and names what a page is waiting on,
@@ -455,7 +506,7 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
         "`blockedBy`",
       ]
     ) {
-      expect(said("read_node")).toContain(field)
+      expect(said("outlines_read")).toContain(field)
     }
     expect(said("search_nodes")).toContain("`after`")
     // …and that a hit answers the properties too, which is the whole reason to
@@ -465,31 +516,31 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
     expect(said("search_nodes")).toContain("`custom`")
     expect(said("search_nodes")).toContain("`matchedProps`")
     // …and the subtree read names them on the row, rather than pointing
-    // the caller at `read_node`.
-    expect(said("read_subtree")).toContain("on its row")
+    // the caller at `outlines_read`.
+    expect(said("outlines_subtree")).toContain("on its row")
     // …and that it reads a whole OUTLINE, which is the only way an agent finds
-    // out: `list_outlines` names the roots of a file and this is what descends
+    // out: `outlines_index` names the roots of a file and this is what descends
     // into all of them at once. A tool nobody is told about is a tool nobody
     // calls, and the fallback — one call per root — looks like it works.
-    expect(said("read_subtree")).toContain("`file`")
+    expect(said("outlines_subtree")).toContain("`file`")
     // …and that a selection can arrive WITH its notes, for the same reason: it
     // is off by default, so an agent that is not told will read a node per hit.
     expect(said("search_nodes")).toContain("`withDesc: true`")
     // The parent's id, on every situated read: `path` is titles, a write takes
     // the id, and an agent that is not told will dump a subtree for one fact.
-    expect(said("read_node")).toContain("`parent`")
-    expect(said("read_subtree")).toContain("`parent`")
+    expect(said("outlines_read")).toContain("`parent`")
+    expect(said("outlines_subtree")).toContain("`parent`")
     expect(said("search_nodes")).toContain("`parent`")
     // …and that a subtree can be walked WITHOUT its notes. ON by default, so
     // an agent that is not told will haul every root's forensics for a TOC.
-    expect(said("read_subtree")).toContain("`withDesc: false`")
+    expect(said("outlines_subtree")).toContain("`withDesc: false`")
     // …and that EITHER read can be SHAPED — this is the vocabulary an agent
     // otherwise gets wrong by joining the question's words: `fields` names
     // the row's content, `custom.<key>` is the only way to one property.
-    expect(said("read_node")).toContain("`fields`")
-    expect(said("read_subtree")).toContain("`fields`")
-    expect(said("read_node")).toContain("`custom.<key>`")
-    expect(said("read_subtree")).toContain("`custom.<key>`")
+    expect(said("outlines_read")).toContain("`fields`")
+    expect(said("outlines_subtree")).toContain("`fields`")
+    expect(said("outlines_read")).toContain("`custom.<key>`")
+    expect(said("outlines_subtree")).toContain("`custom.<key>`")
   })
 })
 
@@ -500,7 +551,7 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
  * The hand-rolled `describe()` emitted `destructiveHint: false` for every tool,
  * read or write. The adapter derives both hints from one `mutates` flag, so a
  * write is now advertised destructive and that is no longer separately
- * expressible. It is arguably the honest answer — `set_title` replacing a title
+ * expressible. It is arguably the honest answer — `outlines_title` replacing a title
  * is not an additive update — but it is a wire change hosts key off: a host that
  * groups tools, or asks before running a destructive one, will treat every olai
  * write differently than it did.
@@ -516,13 +567,13 @@ test("both annotation hints are pinned, for a read and for a write", async () =>
     // `readOnlyHint` can let a host run a call without asking, so it is a
     // conscious opt-in and only the query tools get it.
     expect(of("search_nodes")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
-    expect(of("read_subtree")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
+    expect(of("outlines_subtree")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
     // The two document reads are reads on the same terms — neither touches
     // the disk, both answer out of the served snapshot.
-    expect(of("list_documents")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
-    expect(of("read_document")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
-    expect(of("set_done")).toMatchObject({ readOnlyHint: false, destructiveHint: true })
-    expect(of("trash_node")).toMatchObject({ readOnlyHint: false, destructiveHint: true })
+    expect(of("markdown_index")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
+    expect(of("markdown_read")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
+    expect(of("outlines_done")).toMatchObject({ readOnlyHint: false, destructiveHint: true })
+    expect(of("outlines_trash")).toMatchObject({ readOnlyHint: false, destructiveHint: true })
   })
 })
 
@@ -537,30 +588,42 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
     expect(client.getServerVersion()).toMatchObject({ name: "olai" })
 
     // AND IT IS HELD TO THE TABLE. The charter said "there is no file access"
-    // while `write_document` was already on the list, which is a claim an agent
+    // while `markdown_write` was already on the list, which is a claim an agent
     // disproves with its second call — after which the rest of the text is
     // decoration. So the one sentence that cannot come back is pinned against
     // the tools actually offered: documents are files, and four of these verbs
     // name one.
     expect(said).not.toContain("no file access")
     const { tools } = await client.listTools()
-    expect(tools.map((tool) => tool.name).filter((name) => name.includes("document")).sort())
-      .toEqual(["create_document", "list_documents", "read_document", "write_document"])
+    // BY ROW rather than by the word "document", and the filter had to change
+    // because the NAMES did: a verb is named relative to the row that owns it
+    // now, so the four that are about documents say `markdown_` and no longer
+    // say `document` at all (#546). What is being asserted is unchanged — that
+    // this row's four verbs are offered, and that they are what makes the "no
+    // file access" sentence above one this face would disprove.
+    expect(tools.map((tool) => tool.name).filter((name) => name.startsWith("markdown_")).sort())
+      .toEqual(["markdown_create", "markdown_index", "markdown_read", "markdown_write"])
 
-    // THE SAME PIN, ONE UNIT ALONG. `empty_trash` empties `_olai/Trash.olai`
-    // and `delete_file` removes a file, so an enumeration that stopped at
+    // THE SAME PIN, ONE UNIT ALONG. `trash_empty` empties `_olai/Trash.olai`
+    // and `files_delete` removes a file, so an enumeration that stopped at
     // nodes and documents would be the same disprovable sentence in a newer
     // coat — and this one is worse to get wrong, because the verbs it leaves
     // out are the two that DELETE. The charter names both; a table that grows
     // a third such verb, or loses either of these, fails here.
-    expect(said).toContain("`empty_trash` empties `_olai/Trash.olai`")
-    expect(said).toContain("`delete_file`")
-    // TABLE ORDER, not alphabetical: the filter keeps the table's.
+    expect(said).toContain("`trash_empty` empties `_olai/Trash.olai`")
+    expect(said).toContain("`files_delete`")
+    // TABLE ORDER, and the table is the ROWS' now: the adapter walks the
+    // standing siblings in turn, so `files_delete` (files) precedes `trash_empty`
+    // (trash) where one closed array in `@olai/ops` had them the other way
+    // round. The order coincides with alphabetical here by accident, which is
+    // why the claim is spelled as the filter's output rather than as a sort —
+    // it is that BOTH verbs are on the table the charter enumerates, in the
+    // order the composition produced.
     expect(
       tools.map((tool) => tool.name).filter((name) =>
         name.includes("empty") || name.includes("delete")
       ),
-    ).toEqual(["empty_trash", "delete_file"])
+    ).toEqual(["files_delete", "trash_empty"])
 
     // …and the claims that actually do the work still hold over the whole
     // table: no path outside the served directory, and nothing that can name
@@ -574,12 +637,12 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
 
 test("a read answers over parsed nodes, with file:line and the marks", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
-    // `read_node` rather than `search_nodes`, which this used to lead with: the
+    // `outlines_read` rather than `search_nodes`, which this used to lead with: the
     // matcher is a ROW now and this harness mounts none, so a hit is not a
     // shape reachable from this package at all (see the search test below).
     // What is claimed here is unchanged — an agent reads NODES, with the file
     // and line a person can be pointed at, and never a byte.
-    const order = (await call(client, "read_node", { id: "order" })).structured
+    const order = (await call(client, "outlines_read", { id: "order" })).structured
     expect(order).toMatchObject({
       id: "order",
       file: "house.olai",
@@ -594,7 +657,7 @@ test("a read answers over parsed nodes, with file:line and the marks", async () 
     // `kitchen` carries no mark either, so what an agent learns instead is the
     // ROLLUP: two of its children are tasks, one of them done. An annotation,
     // and the reason it is not a status is that nobody has called `kitchen` work.
-    const kitchen = (await call(client, "read_node", { id: "kitchen" })).structured
+    const kitchen = (await call(client, "outlines_read", { id: "kitchen" })).structured
     expect(kitchen).not.toHaveProperty("status")
     expect(kitchen["progress"]).toEqual({ done: 1, total: 2 })
   })
@@ -639,7 +702,7 @@ test("a subtree carries a node's see so an agent can traverse", async () => {
   ].join("\n")
 
   await withTools({ "house.olai": SEEING }, async ({ client }) => {
-    const tree = (await call(client, "read_subtree", { id: "kitchen", depth: 1 })).structured
+    const tree = (await call(client, "outlines_subtree", { id: "kitchen", depth: 1 })).structured
     const children = tree["children"] as ReadonlyArray<Record<string, unknown>>
     expect(children.find((child) => child["id"] === "order")).toMatchObject({
       see: ["install"],
@@ -673,7 +736,7 @@ test("a subtree carries a node's properties, so a board is one read", async () =
   ].join("\n")
 
   await withTools({ "house.olai": PROPPED }, async ({ client }) => {
-    const tree = (await call(client, "read_subtree", { id: "kitchen", depth: 1 })).structured
+    const tree = (await call(client, "outlines_subtree", { id: "kitchen", depth: 1 })).structured
     const children = tree["children"] as ReadonlyArray<Record<string, unknown>>
     expect(children.find((child) => child["id"] === "order")).toMatchObject({
       custom: { agent: "claude-opus" },
@@ -707,7 +770,7 @@ test("a `fields` walk answers the caller's exact rows, and only those", async ()
     // `custom.took` the property ("4m", the file's own text). Two spellings,
     // two facts, one row — neither shadows the other.
     const tree = withoutAge((
-      await call(client, "read_subtree", {
+      await call(client, "outlines_subtree", {
         id: "lane",
         depth: 1,
         fields: ["title", "status", "done", "custom.took", "took"],
@@ -736,7 +799,7 @@ test("a `fields` walk answers the caller's exact rows, and only those", async ()
     // The other read, the other arm: the node is whole, the CHILD LIST is the
     // shaped one — same vocabulary, one place narrower.
     const named = withoutAge(
-      (await call(client, "read_node", { id: "lane", fields: ["status", "done"] })).structured,
+      (await call(client, "outlines_read", { id: "lane", fields: ["status", "done"] })).structured,
     )
     const children = named["children"] as ReadonlyArray<Record<string, unknown>>
     expect(children).toEqual([
@@ -755,14 +818,14 @@ test("a `fields` walk answers the caller's exact rows, and only those", async ()
 test("`fields` with an unknown name refuses, through the wire, saying `usage`", async () => {
   const PROPPED = `{"id":"lane","ord":"a0","title":"the lane"}\n`
   await withTools({ "steps.olai": PROPPED }, async ({ client }) => {
-    const refused = await call(client, "read_subtree", { id: "lane", fields: ["props"] })
+    const refused = await call(client, "outlines_subtree", { id: "lane", fields: ["props"] })
     expect(refused.isError).toBe(true)
     expect(refused.structured).toMatchObject({ kind: "usage" })
     expect(String(refused.structured["reason"])).toContain("`props` is not a field `fields` names")
     expect(String(refused.structured["reason"])).toContain("`custom.<key>`")
 
     // …and `fields` and `withDesc` is one dial spelled twice, said in words.
-    const both = await call(client, "read_subtree", {
+    const both = await call(client, "outlines_subtree", {
       id: "lane",
       fields: ["desc"],
       withDesc: false,
@@ -774,10 +837,10 @@ test("`fields` with an unknown name refuses, through the wire, saying `usage`", 
 
 // ── a whole outline, in one call ───────────────────────────────────────
 //
-// The read side catching up with the write side. `add_node` takes a nested
+// The read side catching up with the write side. `outlines_add` takes a nested
 // capture and `apply` a run of verbs, so a subtree is one write — but an
-// outline of N top-level roots had NO single-call read: `list_outlines` named
-// the roots and `read_subtree` took an id, so reading a file whole was one call
+// outline of N top-level roots had NO single-call read: `outlines_index` named
+// the roots and `outlines_subtree` took an id, so reading a file whole was one call
 // per root. These are that gap closed, through the client an agent uses.
 
 /** An outline with SEVERAL roots — the shape the `file` arm exists for — and a
@@ -792,9 +855,9 @@ const PLAN = [
   "",
 ].join("\n")
 
-test("read_subtree answers a whole outline — every root, one call", async () => {
+test("outlines_subtree answers a whole outline — every root, one call", async () => {
   await withTools({ "plan.olai": PLAN, "house.olai": HOUSE }, async ({ client }) => {
-    const answered = await call(client, "read_subtree", { file: "plan.olai" })
+    const answered = await call(client, "outlines_subtree", { file: "plan.olai" })
     expect(answered.isError).toBe(false)
     // The path rides back, so an agent holding several reads in flight knows
     // which file this one is about.
@@ -807,7 +870,7 @@ test("read_subtree answers a whole outline — every root, one call", async () =
     expect(
       ((answered.structured["placed"] ?? []) as ReadonlyArray<{ id: string }>).map((entry) => entry.id),
     ).toEqual(["echo"])
-    // …and walked rather than merely named, which is what `list_outlines`
+    // …and walked rather than merely named, which is what `outlines_index`
     // already does.
     const children = roots[0]?.["children"] as ReadonlyArray<Record<string, unknown>>
     expect(children.map((child) => child["id"])).toEqual(["call"])
@@ -819,7 +882,7 @@ test("read_subtree answers a whole outline — every root, one call", async () =
 
     // And `depth` means the same thing on this arm, per ROOT: one bottoms out
     // where it was told to and says so, the other bottoms out at a leaf.
-    const cut = (await call(client, "read_subtree", { file: "plan.olai", depth: 0 }))
+    const cut = (await call(client, "outlines_subtree", { file: "plan.olai", depth: 0 }))
       .structured["roots"] as ReadonlyArray<Record<string, unknown>>
     expect(cut[0]).toMatchObject({ id: "today", truncated: true })
     expect(cut[1]).not.toHaveProperty("truncated")
@@ -833,16 +896,16 @@ test("read_subtree answers a whole outline — every root, one call", async () =
  * walk that produced it. ON by default, so this is the arm that has to be
  * asked for.
  */
-test("read_subtree omits the notes when asked, and keeps them otherwise", async () => {
+test("outlines_subtree omits the notes when asked, and keeps them otherwise", async () => {
   await withTools({ "plan.olai": PLAN }, async ({ client }) => {
-    const withNotes = (await call(client, "read_subtree", { id: "call" }))
+    const withNotes = (await call(client, "outlines_subtree", { id: "call" }))
       .structured
     expect(withNotes).toMatchObject({
       id: "call",
       desc: "about the hinges, and the delivery slot",
     })
 
-    const lean = (await call(client, "read_subtree", {
+    const lean = (await call(client, "outlines_subtree", {
       id: "call",
       withDesc: false,
     })).structured
@@ -852,26 +915,26 @@ test("read_subtree omits the notes when asked, and keeps them otherwise", async 
 })
 
 /**
- * A PATH THAT IS NOT AN OUTLINE REFUSES IN `read_document`'s VOICE — the kind
+ * A PATH THAT IS NOT AN OUTLINE REFUSES IN `markdown_read`'s VOICE — the kind
  * as data, the near miss in the sentence. Refused, never answered empty: an
  * outline that "holds nothing" and an outline that is not there look identical
  * to a caller, and only one of them is worth acting on.
  */
-test("read_subtree refuses a file that is not an outline, with the closest one", async () => {
+test("outlines_subtree refuses a file that is not an outline, with the closest one", async () => {
   const files = {
     "plan.olai": PLAN,
     "house.olai": HOUSE,
     "finishes.md": "# Finishes\n",
   }
   await withTools(files, async ({ client }) => {
-    const missed = await call(client, "read_subtree", { file: "plans.olai" })
+    const missed = await call(client, "outlines_subtree", { file: "plans.olai" })
     expect(missed.isError).toBe(true)
     expect(missed.structured).toMatchObject({ kind: "not-found", named: "plans.olai" })
     expect(missed.structured["reason"]).toContain("did you mean `plan.olai`")
 
     // The same typo at the WRITE verb that names an outline is told the same
     // thing, which is the property worth pinning: two tools, one sentence.
-    const refusedWrite = await call(client, "add_node", {
+    const refusedWrite = await call(client, "outlines_add", {
       file: "plans.olai",
       title: "anything",
     })
@@ -880,13 +943,13 @@ test("read_subtree refuses a file that is not an outline, with the closest one",
     // Nothing close, and the answer is the outlines themselves — the right
     // answer for a directory of a handful of files, and deliberately not the
     // one an unknown NODE id gets, where the same list would be thousands long.
-    const nowhere = await call(client, "read_subtree", { file: "nothing/like/this.olai" })
+    const nowhere = await call(client, "outlines_subtree", { file: "nothing/like/this.olai" })
     expect(nowhere.structured["reason"]).toContain("plan.olai")
     expect(nowhere.structured["reason"]).toContain("house.olai")
 
     // A `.md` is not an outline either, and is refused by the same door rather
     // than walked as an empty one.
-    const document = await call(client, "read_subtree", { file: "finishes.md" })
+    const document = await call(client, "outlines_subtree", { file: "finishes.md" })
     expect(document.isError).toBe(true)
     expect(document.structured).toMatchObject({ kind: "not-found" })
   })
@@ -910,13 +973,13 @@ test("read_subtree refuses a file that is not an outline, with the closest one",
  * — which is the format's error scope, and is exactly what makes "listed, and
  * refused" the honest pair of answers about it.
  */
-test("read_subtree refuses an outline the set could not load", async () => {
+test("outlines_subtree refuses an outline the set could not load", async () => {
   await withTools(
     { "plan.olai": PLAN, "torn.olai": "{ not a record" },
     async ({ client }) => {
       // It is LISTED — the directory serves it — carrying its own errors and
       // nothing else: a count and a root list are what a parse produces.
-      const listed = (await call(client, "list_outlines", {})).structured["outlines"] as
+      const listed = (await call(client, "outlines_index", {})).structured["outlines"] as
         ReadonlyArray<Record<string, unknown>>
       expect(listed.find((one) => one["file"] === "torn.olai")).toEqual({
         file: "torn.olai",
@@ -926,7 +989,7 @@ test("read_subtree refuses an outline the set could not load", async () => {
       // …and walking it refuses. Answering it as an outline holding nothing
       // would be indistinguishable, to a caller, from an outline somebody
       // emptied — and only one of those is worth acting on.
-      const refused = await call(client, "read_subtree", { file: "torn.olai" })
+      const refused = await call(client, "outlines_subtree", { file: "torn.olai" })
       expect(refused.isError).toBe(true)
       expect(refused.structured).toMatchObject({ kind: "validation" })
       expect(findingsOf(refused.structured)).toBeArrayOfSize(1)
@@ -944,24 +1007,24 @@ test("read_subtree refuses an outline the set could not load", async () => {
   )
 })
 
-test("read_subtree refuses a call naming both ways in, or neither", async () => {
+test("outlines_subtree refuses a call naming both ways in, or neither", async () => {
   await withTools({ "plan.olai": PLAN }, async ({ client, root }) => {
     // Two questions in one call: the schema an MCP host reads is an object with
     // properties rather than an `anyOf` it may or may not honour, so "exactly
     // one" is the reader's to say — in words that name which is which.
-    const both = await call(client, "read_subtree", { id: "today", file: "plan.olai" })
+    const both = await call(client, "outlines_subtree", { id: "today", file: "plan.olai" })
     expect(both.isError).toBe(true)
     expect(both.structured).toMatchObject({ kind: "usage" })
     expect(both.structured["reason"]).toContain("two different reads")
 
-    const neither = await call(client, "read_subtree", {})
+    const neither = await call(client, "outlines_subtree", {})
     expect(neither.isError).toBe(true)
     expect(neither.structured).toMatchObject({ kind: "usage" })
     expect(neither.structured["reason"]).toContain("whole outline")
 
     // …while an id the set does not hold is still an ANSWER. An id is minted
     // and carried around in prose; a path was listed or typed.
-    const gone = await call(client, "read_subtree", { id: "nope" })
+    const gone = await call(client, "outlines_subtree", { id: "nope" })
     expect(gone.isError).toBe(false)
     // `root` on every answer, this one included: which vault answered is a fact
     // about the ANSWER, not about the kind of answer, so an absence names its
@@ -974,12 +1037,12 @@ test("read_subtree refuses a call naming both ways in, or neither", async () => 
  *  (`olai-plugin-search`); the two core reads are here. */
 test("a node read and a subtree row both carry the parent's id", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
-    const order = (await call(client, "read_node", { id: "order" })).structured
+    const order = (await call(client, "outlines_read", { id: "order" })).structured
     expect(order).toMatchObject({ id: "order", parent: "kitchen" })
-    const kitchen = (await call(client, "read_node", { id: "kitchen" })).structured
+    const kitchen = (await call(client, "outlines_read", { id: "kitchen" })).structured
     expect(kitchen).not.toHaveProperty("parent")
 
-    const tree = (await call(client, "read_subtree", { id: "kitchen", depth: 1 }))
+    const tree = (await call(client, "outlines_subtree", { id: "kitchen", depth: 1 }))
       .structured
     const children = tree["children"] as ReadonlyArray<Record<string, unknown>>
     expect(children.find((child) => child["id"] === "order"))
@@ -1023,14 +1086,14 @@ const VAULT = {
 
 // A `.md` AND NOTHING ELSE, which is the sentence that did not change when the
 // registry gained three kinds. What an agent is handed here is what it can
-// WRITE BACK through `write_document` — a document's text, verbatim — so a
+// WRITE BACK through `markdown_write` — a document's text, verbatim — so a
 // picture in the answer would be a path the write verb refuses, and a `.csv`
 // would be a body olai reads for a reader to LOOK at rather than one an edit is
 // judged against. Both reads narrow through `markdownIn`/`markdownAt`
 // (`@olai/format`'s set), which is one place rather than a filter per verb.
-test("list_documents is the map of the other kind of file", async () => {
+test("markdown_index is the map of the other kind of file", async () => {
   await withTools(VAULT, async ({ client }) => {
-    const answered = await call(client, "list_documents", {})
+    const answered = await call(client, "markdown_index", {})
     expect(answered.isError).toBe(false)
     // Paths in the set's own order, each with the line it opens with and what
     // its text weighs. The heading marks are off the first — `# Finishes` is a
@@ -1051,9 +1114,9 @@ test("list_documents is the map of the other kind of file", async () => {
   })
 })
 
-test("read_document answers the text a write would replace", async () => {
+test("markdown_read answers the text a write would replace", async () => {
   await withTools(VAULT, async ({ client, root }) => {
-    const answered = await call(client, "read_document", { file: "notes/cabinets.md" })
+    const answered = await call(client, "markdown_read", { file: "notes/cabinets.md" })
     expect(answered.isError).toBe(false)
     // Verbatim, blank lines and leading spaces included: what the listing
     // named is not what the read answers with, and an edit is derived from
@@ -1071,16 +1134,16 @@ test("read_document answers the text a write would replace", async () => {
 /**
  * THE LOOP THE `was` GUARD WAS ALWAYS FOR, now closed at both ends.
  *
- * `write_document` refuses to land on text the caller never read, and until
+ * `markdown_write` refuses to land on text the caller never read, and until
  * this PR there was no tool that could hand an agent that text — so the guard
  * was either skipped or filled in from a resource a host may never have
  * surfaced. Read, edit, write back what you read: one snapshot, one gate.
  */
 test("read then write is one loop: what was read is what the guard takes", async () => {
   await withTools(VAULT, async ({ client, read }) => {
-    const was = (await call(client, "read_document", { file: "finishes.md" }))
+    const was = (await call(client, "markdown_read", { file: "finishes.md" }))
       .structured["text"] as string
-    const wrote = await call(client, "write_document", {
+    const wrote = await call(client, "markdown_write", {
       file: "finishes.md",
       text: `${was}Handles: brass.\n`,
       was,
@@ -1089,33 +1152,33 @@ test("read then write is one loop: what was read is what the guard takes", async
     expect(read("finishes.md")).toBe("# Finishes\n\nDoors: matte.\nHandles: brass.\n")
 
     // And the read moved with the write — same snapshot, no second read path.
-    expect((await call(client, "read_document", { file: "finishes.md" })).structured["text"])
+    expect((await call(client, "markdown_read", { file: "finishes.md" })).structured["text"])
       .toBe("# Finishes\n\nDoors: matte.\nHandles: brass.\n")
   })
 })
 
 /**
- * THE FOURTH UNIT: a `delete_file` call is a create's own round trip with a
+ * THE FOURTH UNIT: a `files_delete` call is a create's own round trip with a
  * fourth leg — mint it, list it, delete it, and the listing closes over the
  * gap. Same gate, same snapshot: the listing the delete is judged against IS
  * the one the read verbs answer from.
  */
-test("delete_file removes a document, and the listing closes over it", async () => {
+test("files_delete removes a document, and the listing closes over it", async () => {
   await withTools(VAULT, async ({ client, read }) => {
-    const made = await call(client, "create_document", {
+    const made = await call(client, "markdown_create", {
       file: "notes/scratch.md",
       text: "scratch\n",
     })
     expect(made.isError).toBe(false)
 
-    const gone = await call(client, "delete_file", { file: "notes/scratch.md" })
+    const gone = await call(client, "files_delete", { file: "notes/scratch.md" })
     expect(gone.isError).toBe(false)
     expect(gone.structured["sort"]).toBe("gone")
     // The disk first, and then the listing the way any READ verb would say
     // it — which is the claim a caller may not want to check by hand: one
     // write, one publication.
     expect(read("notes/scratch.md")).toBeNull()
-    const answered = await call(client, "list_documents", {})
+    const answered = await call(client, "markdown_index", {})
     expect(
       (answered.structured["documents"] as ReadonlyArray<{ file: string }>)
         .map((document) => document.file),
@@ -1124,15 +1187,15 @@ test("delete_file removes a document, and the listing closes over it", async () 
 })
 
 /**
- * THE 2026-09-01 INCIDENT'S OWN BATCH. The orchestrator's `create_document`,
- * carrying a ~2KB brief, rode a parallel MCP batch beside a `delete_file` of
+ * THE 2026-09-01 INCIDENT'S OWN BATCH. The orchestrator's `markdown_create`,
+ * carrying a ~2KB brief, rode a parallel MCP batch beside a `files_delete` of
  * another document — and the file it reported a revision for was 0 bytes on
  * disk. The honest reproduction, through this face rather than below it:
  * both calls in flight at once, the created file's bytes read off the disk at
  * the moment both answers are back. Run as ROUNDS, not once — a race that
  * lands wrong lands wrong sometimes, and a single pass is a coin flip.
  */
-test("a create_document racing a delete_file keeps its body — the incident's batch", async () => {
+test("a markdown_create racing a files_delete keeps its body — the incident's batch", async () => {
   const BRIEF = [
     "---",
     "lane: doorbell-missing-claim",
@@ -1154,8 +1217,8 @@ test("a create_document racing a delete_file keeps its body — the incident's b
       const created = `briefs/dispatch-${round}.md`
       const deleting = round === 0 ? "empty.md" : `briefs/dispatch-${round - 1}.md`
       const [made, gone] = await Promise.all([
-        call(client, "create_document", { file: created, text: BRIEF }),
-        call(client, "delete_file", { file: deleting }),
+        call(client, "markdown_create", { file: created, text: BRIEF }),
+        call(client, "files_delete", { file: deleting }),
       ])
       expect({ round, isError: made.isError }).toEqual({ round, isError: false })
       expect({ round, isError: gone.isError }).toEqual({ round, isError: false })
@@ -1172,22 +1235,22 @@ test("a create_document racing a delete_file keeps its body — the incident's b
  * planner says them: an outline that still holds records names them, and a
  * `.html` is the writer's own, never this verb's.
  */
-test("delete_file refuses an outline with records, naming them", async () => {
+test("files_delete refuses an outline with records, naming them", async () => {
   await withTools(VAULT, async ({ client, read }) => {
-    const refused = await call(client, "delete_file", { file: "house.olai" })
+    const refused = await call(client, "files_delete", { file: "house.olai" })
     expect(refused.isError).toBe(true)
     expect(refused.structured["kind"]).toBe("usage")
     expect(refused.structured["reason"]).toContain("`kitchen`")
-    expect(refused.structured["reason"]).toContain("trash_node")
+    expect(refused.structured["reason"]).toContain("outlines_trash")
     // NOTHING WAS WRITTEN, at the unit the refusal was about and at the verb
     // the WRITER would have taken: the bytes are as the fixture typed them.
     expect(read("house.olai")).toBe(VAULT["house.olai"])
   })
 })
 
-test("delete_file refuses a kind the app only shows", async () => {
+test("files_delete refuses a kind the app only shows", async () => {
   await withTools(VAULT, async ({ client, read }) => {
-    const refused = await call(client, "delete_file", { file: "saved/page.html" })
+    const refused = await call(client, "files_delete", { file: "saved/page.html" })
     expect(refused.isError).toBe(true)
     expect(refused.structured["reason"]).toContain("hypertext")
     expect(read("saved/page.html")).toBe("<p>from the web</p>")
@@ -1197,19 +1260,19 @@ test("delete_file refuses a kind the app only shows", async () => {
 /**
  * A MISSING PATH REFUSES IN THE VOICE EVERY OTHER TOOL REFUSES IN — the kind
  * as data, the near miss in the sentence, and the same near miss
- * `write_document` gives for the same typo. One path, one answer, whichever
+ * `markdown_write` gives for the same typo. One path, one answer, whichever
  * verb it was typed at.
  */
-test("read_document refuses a path the set does not hold, with the closest one", async () => {
+test("markdown_read refuses a path the set does not hold, with the closest one", async () => {
   await withTools(VAULT, async ({ client }) => {
-    const missed = await call(client, "read_document", { file: "finishs.md" })
+    const missed = await call(client, "markdown_read", { file: "finishs.md" })
     expect(missed.isError).toBe(true)
     expect(missed.structured).toMatchObject({ kind: "not-found", named: "finishs.md" })
     expect(missed.structured["reason"]).toContain("did you mean `finishes.md`")
 
     // The same typo at the write verb is told the same thing, which is the
     // property worth pinning: two tools, one sentence.
-    const refusedWrite = await call(client, "write_document", {
+    const refusedWrite = await call(client, "markdown_write", {
       file: "finishs.md",
       text: "anything",
     })
@@ -1220,7 +1283,7 @@ test("read_document refuses a path the set does not hold, with the closest one",
     // answer for the four of them, because it is one narrowing and not a
     // filter per kind.
     for (const file of ["saved/page.html", "data/sales.csv", "art/handle.png", "reports/q3.pdf"]) {
-      const shown = await call(client, "read_document", { file })
+      const shown = await call(client, "markdown_read", { file })
       expect({ file, isError: shown.isError }).toEqual({ file, isError: true })
       expect({ file, kind: shown.structured["kind"] }).toEqual({ file, kind: "not-found" })
     }
@@ -1232,7 +1295,7 @@ test("read_document refuses a path the set does not hold, with the closest one",
     // a property of the current construction: the day somebody resolves a path
     // here to be helpful, this is what says no.
     for (const file of ["../finishes.md", "/etc/passwd.md", "notes/../finishes.md", "./finishes.md"]) {
-      const refused = await call(client, "read_document", { file })
+      const refused = await call(client, "markdown_read", { file })
       expect({ file, isError: refused.isError }).toEqual({ file, isError: true })
       expect({ file, kind: refused.structured["kind"] }).toEqual({ file, kind: "not-found" })
     }
@@ -1263,7 +1326,7 @@ test("a document the set could not read is refused, not answered empty", async (
     async ({ client }) => {
       // It is LISTED — the directory serves it — carrying its errors and
       // nothing else: a title and a size are what a read produces.
-      const listed = (await call(client, "list_documents", {})).structured["documents"] as
+      const listed = (await call(client, "markdown_index", {})).structured["documents"] as
         ReadonlyArray<Record<string, unknown>>
       expect(listed.find((one) => one["file"] === "torn.md")).toEqual({
         file: "torn.md",
@@ -1273,15 +1336,15 @@ test("a document the set could not read is refused, not answered empty", async (
       // And reading it refuses. The empty text is what the SET carries for a
       // file it could not read; handing that back as a body would be a lie an
       // agent then writes its edit against — which is exactly what
-      // `write_document`'s own gate refuses for the same file.
-      const refused = await call(client, "read_document", { file: "torn.md" })
+      // `markdown_write`'s own gate refuses for the same file.
+      const refused = await call(client, "markdown_read", { file: "torn.md" })
       expect(refused.isError).toBe(true)
       expect(refused.structured).toMatchObject({ kind: "validation" })
       expect(findingsOf(refused.structured)).toBeArrayOfSize(1)
 
       // The same file at the write verb, refused by the same rule — one fact,
       // two verbs, and neither of them touching a file nobody read.
-      const write = await call(client, "write_document", { file: "torn.md", text: "x" })
+      const write = await call(client, "markdown_write", { file: "torn.md", text: "x" })
       expect(write.isError).toBe(true)
       expect(write.structured).toMatchObject({ kind: "validation" })
     },
@@ -1304,7 +1367,7 @@ test("a document the set could not read is refused, not answered empty", async (
  * would not validate. It does, and the two records are byte-identical
  * afterwards, which is the promise said as a diff.
  */
-test("move_node carries a subtree into another outline, and nothing pointing at it moves", async () => {
+test("outlines_move carries a subtree into another outline, and nothing pointing at it moves", async () => {
   await withTools(
     {
       "house.olai": HOUSE,
@@ -1318,10 +1381,10 @@ test("move_node carries a subtree into another outline, and nothing pointing at 
     async ({ client, read }) => {
       const pointing = read("garden.olai") ?? ""
 
-      const answer = await call(client, "move_node", { id: "install", parent: "garden" })
+      const answer = await call(client, "outlines_move", { id: "install", parent: "garden" })
       expect(answer.isError).toBe(false)
       expect(answer.structured).toMatchObject({
-        did: "move_node",
+        did: "outlines_move",
         id: "install",
         file: "garden.olai",
       })
@@ -1344,13 +1407,13 @@ test("move_node carries a subtree into another outline, and nothing pointing at 
 })
 
 /** `file` is the other half of the pair, and it is the top level of that
- *  outline — the same field `add_node` and `untrash_node` take, arriving on the
+ *  outline — the same field `outlines_add` and `trash_restore` take, arriving on the
  *  verb that used to refuse the whole question. */
-test("move_node with a `file` lands the subtree at that outline's top level", async () => {
+test("outlines_move with a `file` lands the subtree at that outline's top level", async () => {
   await withTools(
     { "house.olai": HOUSE, "garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}\n` },
     async ({ client, read }) => {
-      const answer = await call(client, "move_node", { id: "kitchen", file: "garden.olai" })
+      const answer = await call(client, "outlines_move", { id: "kitchen", file: "garden.olai" })
       expect(answer.isError).toBe(false)
       // The outline it left holds nothing at all, and is still there.
       expect(read("house.olai")).toBe("")
@@ -1375,7 +1438,7 @@ test("move_node with a `file` lands the subtree at that outline's top level", as
  * file is written — which is the law working, and is why this is a refusal with
  * nothing on disk rather than a hole.
  */
-test("move_node is refused when it would take a `ref` variant out of its root", async () => {
+test("outlines_move is refused when it would take a `ref` variant out of its root", async () => {
   await withTools(
     {
       "_olai/Properties.olai":
@@ -1395,7 +1458,7 @@ test("move_node is refused when it would take a `ref` variant out of its root", 
       const agents = read("agents.olai")
       const lanes = read("lanes.olai")
 
-      const out = await call(client, "move_node", { id: "claude", parent: "elsewhere" })
+      const out = await call(client, "outlines_move", { id: "claude", parent: "elsewhere" })
       expect(out.isError).toBe(true)
       // The gate's own shape: the summary says nothing was written, and the
       // validator's rows say WHY, with the `file:line` of the record that can
@@ -1420,7 +1483,7 @@ test("move_node is refused when it would take a `ref` variant out of its root", 
 
       // …and moving the ROOT is fine, because the subtree travels and the
       // variants keep the parent they had.
-      const root = await call(client, "move_node", { id: "roster", parent: "elsewhere" })
+      const root = await call(client, "outlines_move", { id: "roster", parent: "elsewhere" })
       expect(root.isError).toBe(false)
       expect(read("agents.olai")).toBe("")
       expect(read("lanes.olai")).toContain(`{"id":"claude","parent":"roster"`)
@@ -1431,19 +1494,19 @@ test("move_node is refused when it would take a `ref` variant out of its root", 
 
 /**
  * A bad `type` in a Properties declaration used to meet the generic write
- * gate — `add_node was refused (validation): \`capture: took\` would leave
+ * gate — `outlines_add was refused (validation): \`capture: took\` would leave
  * \`_olai/Properties.olai\` invalid` — which named nothing. The planner now
  * refuses as `usage`, naming the legal kinds, which is the sentence an agent
  * actually reads.
  */
-test("add_node of a bad type in Properties.olai names the legal vocabulary", async () => {
+test("outlines_add of a bad type in Properties.olai names the legal vocabulary", async () => {
   await withTools(
     {
       "_olai/Properties.olai":
         `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}\n`,
     },
     async ({ client }) => {
-      const unknown = await call(client, "add_node", {
+      const unknown = await call(client, "outlines_add", {
         file: "_olai/Properties.olai",
         title: "took",
         props: { type: "took" },
@@ -1459,7 +1522,7 @@ test("add_node of a bad type in Properties.olai names the legal vocabulary", asy
       )
       expect(String(unknown.structured["reason"])).not.toContain("would leave")
 
-      const missing = await call(client, "add_node", {
+      const missing = await call(client, "outlines_add", {
         file: "_olai/Properties.olai",
         title: "musts",
       })
@@ -1496,7 +1559,7 @@ test("declaring a type over unfit values is refused; one apply repairs; then it 
       "briefs/three.md": "three\n",
     },
     async ({ client, read }) => {
-      const refused = await call(client, "add_node", {
+      const refused = await call(client, "outlines_add", {
         file: "_olai/Properties.olai",
         title: "brainstorm",
         props: { type: "doc" },
@@ -1510,7 +1573,7 @@ test("declaring a type over unfit values is refused; one apply repairs; then it 
       expect(reason).toContain("`lanes.olai` `third` (`c`) holds \"still not\"")
       expect(read("_olai/Properties.olai")).not.toContain("brainstorm")
 
-      const cleaned = await call(client, "apply", {
+      const cleaned = await call(client, "outlines_apply", {
         ops: [
           { op: "prop", id: "a", key: "brainstorm", value: "briefs/one.md" },
           { op: "prop", id: "b", key: "brainstorm", value: "briefs/two.md" },
@@ -1519,7 +1582,7 @@ test("declaring a type over unfit values is refused; one apply repairs; then it 
       })
       expect(cleaned.isError).toBe(false)
 
-      const declared = await call(client, "add_node", {
+      const declared = await call(client, "outlines_add", {
         file: "_olai/Properties.olai",
         title: "brainstorm",
         props: { type: "doc" },
@@ -1533,39 +1596,39 @@ test("declaring a type over unfit values is refused; one apply repairs; then it 
 
 /** The one rule the crossing adds, met where an agent meets it: the trash has
  *  two verbs of its own, and this is neither of them. */
-test("move_node refuses a trash at either end, toward the verb that does that job", async () => {
+test("outlines_move refuses a trash at either end, toward the verb that does that job", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
-    await call(client, "trash_node", { id: "demo" })
-    const into = await call(client, "move_node", { id: "order", file: "_olai/Trash.olai" })
+    await call(client, "outlines_trash", { id: "demo" })
+    const into = await call(client, "outlines_move", { id: "order", file: "_olai/Trash.olai" })
     expect(into.isError).toBe(true)
-    expect(String(into.structured["reason"])).toContain("`trash_node`")
+    expect(String(into.structured["reason"])).toContain("`outlines_trash`")
 
-    const out = await call(client, "move_node", { id: "demo", parent: "order" })
+    const out = await call(client, "outlines_move", { id: "demo", parent: "order" })
     expect(out.isError).toBe(true)
-    expect(String(out.structured["reason"])).toContain("`untrash_node`")
+    expect(String(out.structured["reason"])).toContain("`trash_restore`")
   })
 })
 
 test("a write through a tool changes the directory", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    const answer = await call(client, "set_done", { id: "order" })
+    const answer = await call(client, "outlines_done", { id: "order" })
     expect(answer.isError).toBe(false)
-    expect(answer.structured).toMatchObject({ did: "set_done", id: "order" })
+    expect(answer.structured).toMatchObject({ did: "outlines_done", id: "order" })
     expect(read("house.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
   })
 })
 
 /**
- * `set_prop`'s CONDITIONAL half, through the agent's own face: the wire half
+ * `outlines_prop`'s CONDITIONAL half, through the agent's own face: the wire half
  * of it is the chip's, the ops half the planner's — what only the tool can
  * prove is that the ask reaches an agent with the field advertised, the
  * refusal arrives as an `isError` with the kind as data, and the message
  * names what the key says NOW, which is the "read again" half of the loop.
  */
-test("set_prop with a stale `was` is refused, naming what is there", async () => {
+test("outlines_prop with a stale `was` is refused, naming what is there", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
     const { tools } = await client.listTools()
-    const setProp = tools.find((tool) => tool.name === "set_prop")
+    const setProp = tools.find((tool) => tool.name === "outlines_prop")
     // The door advertises the guard — the what-it-is-for, not just the key:
     // this is the sentence that tells a model the read-then-write loop exists.
     expect(setProp?.description).toContain("`was`")
@@ -1574,17 +1637,17 @@ test("set_prop with a stale `was` is refused, naming what is there", async () =>
 
     // `null` expects the key GONE — the add's own condition, and it lands
     // while the key is absent.
-    const added = await call(client, "set_prop", { id: "order", key: "stage", value: "review", was: null })
+    const added = await call(client, "outlines_prop", { id: "order", key: "stage", value: "review", was: null })
     expect(added.isError).toBe(false)
     expect(read("house.olai")).toContain(`"custom":{"stage":"review"}`)
 
     // Read, then write back what you read: the loop the guard is for.
-    const moved = await call(client, "set_prop", { id: "order", key: "stage", value: "submitted", was: "review" })
+    const moved = await call(client, "outlines_prop", { id: "order", key: "stage", value: "submitted", was: "review" })
     expect(moved.isError).toBe(false)
 
     // ...and the same write judged against a premise somebody else wrote
     // first: refused, naming the value the key says NOW.
-    const stale = await call(client, "set_prop", { id: "order", key: "stage", value: "audit", was: "review" })
+    const stale = await call(client, "outlines_prop", { id: "order", key: "stage", value: "audit", was: "review" })
     expect(stale.isError).toBe(true)
     expect(String(stale.structured["reason"])).toContain(
       "expected to replace (`review`) — it now says `submitted`, so nothing was written",
@@ -1592,8 +1655,8 @@ test("set_prop with a stale `was` is refused, naming what is there", async () =>
     expect(read("house.olai")).toContain(`"custom":{"stage":"submitted"}`)
 
     // Omitting the guard is unchanged: last-one-wins, which is what a plain
-    // `set_prop` has always meant.
-    const plain = await call(client, "set_prop", { id: "order", key: "stage", value: "audit" })
+    // `outlines_prop` has always meant.
+    const plain = await call(client, "outlines_prop", { id: "order", key: "stage", value: "audit" })
     expect(plain.isError).toBe(false)
     expect(read("house.olai")).toContain(`"custom":{"stage":"audit"}`)
   })
@@ -1602,16 +1665,16 @@ test("set_prop with a stale `was` is refused, naming what is there", async () =>
 /**
  * The recurrence, end to end through the agent's own face — the half of MCP
  * parity that is not a schema: writing the rule, reading it back, and the
- * `set_done` that makes the next occurrence.
+ * `outlines_done` that makes the next occurrence.
  *
  * The spawn itself is the planner's and is tested there; what this asserts is
  * that it reaches an AGENT — the new node named in `captured`, the day it
  * landed on in the `nudge`, and the rule gone from the record that was
  * finished, all through the same tool call a person's `Complete` resolves to.
  */
-test("set_repeat, read_node and set_done are one recurrence through the tools", async () => {
+test("outlines_repeat, outlines_read and outlines_done are one recurrence through the tools", async () => {
   await withTools({ "chores.olai": CHORES }, async ({ client, read }) => {
-    const set = await call(client, "set_repeat", {
+    const set = await call(client, "outlines_repeat", {
       id: "bins",
       repeat: "every week on monday",
     })
@@ -1620,10 +1683,10 @@ test("set_repeat, read_node and set_done are one recurrence through the tools", 
 
     // READING it back is the other half of parity: an agent about to change a
     // rule has to be able to see the one that is there.
-    expect((await call(client, "read_node", { id: "bins" })).structured)
+    expect((await call(client, "outlines_read", { id: "bins" })).structured)
       .toMatchObject({ id: "bins", date: "2026-08-17", repeat: "every week on monday" })
 
-    const done = await call(client, "set_done", { id: "bins" })
+    const done = await call(client, "outlines_done", { id: "bins" })
     expect(done.isError).toBe(false)
     const made = done.structured["captured"] as ReadonlyArray<Record<string, unknown>>
     expect(made).toHaveLength(1)
@@ -1635,7 +1698,7 @@ test("set_repeat, read_node and set_done are one recurrence through the tools", 
     // date any more, which is what "one live head" means on the file itself.
     expect(read("chores.olai"))
       .toContain(`"todo":true,"date":"2026-08-24","repeat":"every week on monday"`)
-    expect((await call(client, "read_node", { id: "bins" })).structured)
+    expect((await call(client, "outlines_read", { id: "bins" })).structured)
       .not.toHaveProperty("repeat")
   })
 })
@@ -1655,7 +1718,7 @@ test("set_repeat, read_node and set_done are one recurrence through the tools", 
  */
 test("a repeat with no date to repeat from is refused, and nothing is written", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
-    const answer = await call(client, "set_repeat", { id: "order", repeat: "every day" })
+    const answer = await call(client, "outlines_repeat", { id: "order", repeat: "every day" })
     expect(answer.isError).toBe(true)
     expect(answer.structured["kind"]).toBe("validation")
     expect(findingsOf(answer.structured)).toMatchObject([
@@ -1669,7 +1732,7 @@ test("a repeat with no date to repeat from is refused, and nothing is written", 
 
 test("a rule the grammar does not have is refused, quoting the grammar", async () => {
   await withTools({ "chores.olai": CHORES }, async ({ client, read }) => {
-    const answer = await call(client, "set_repeat", { id: "bins", repeat: "every 2 weeks" })
+    const answer = await call(client, "outlines_repeat", { id: "bins", repeat: "every 2 weeks" })
     expect(answer.isError).toBe(true)
     expect(findingsOf(answer.structured)).toMatchObject([
       { file: "chores.olai", line: 1, code: "bad-repeat" },
@@ -1683,11 +1746,11 @@ test("a rule the grammar does not have is refused, quoting the grammar", async (
  * The same gate, met through a verb that has nothing to do with recurrence —
  * which is the half of it that is not this feature's. A `date` that is not a
  * date used to LAND: the file stopped parsing, the set absorbed it as broken,
- * and `set_date` answered success while the outline left every page.
+ * and `outlines_date` answered success while the outline left every page.
  */
 test("a date that is not a date is refused too, by the same gate", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    const answer = await call(client, "set_date", { id: "order", date: "someday" })
+    const answer = await call(client, "outlines_date", { id: "order", date: "someday" })
     expect(answer.isError).toBe(true)
     expect(findingsOf(answer.structured)).toMatchObject([
       { file: "house.olai", code: "bad-date" },
@@ -1696,14 +1759,14 @@ test("a date that is not a date is refused too, by the same gate", async () => {
   })
 })
 
-test("create_outline mints a file through the same tool surface as every other write", async () => {
+test("files_create mints a file through the same tool surface as every other write", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read, set }) => {
-    const answer = await call(client, "create_outline", {
+    const answer = await call(client, "files_create", {
       file: "inbox.olai",
       seed: { title: "something to capture" },
     })
     expect(answer.structured).toMatchObject({
-      did: "create_outline",
+      did: "files_create",
       file: "inbox.olai",
       title: "something to capture",
       summary: "capture: something to capture",
@@ -1727,7 +1790,7 @@ test("create_outline mints a file through the same tool surface as every other w
  */
 test("marking a parent over unfinished work is refused, with the tasks as data", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
-    const answer = await call(client, "set_done", { id: "kitchen" })
+    const answer = await call(client, "outlines_done", { id: "kitchen" })
     expect(answer.isError).toBe(true)
     expect(answer.structured["kind"]).toBe("usage")
     expect(String(answer.structured["reason"])).toContain("`install them` (`install`, doing)")
@@ -1748,10 +1811,10 @@ test("filing work under a finished branch re-opens it, and the answer says so", 
   await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
     // `order` is the bullet, so this is the first thing that makes the branch
     // unfinished — and `demo` above it is where the stale mark sits.
-    const shut = await call(client, "set_done", { id: "order" })
+    const shut = await call(client, "outlines_done", { id: "order" })
     expect(shut.isError).toBe(false)
 
-    const filed = await call(client, "add_node", {
+    const filed = await call(client, "outlines_add", {
       parent: "order",
       title: "chase the delivery date",
       mark: "todo",
@@ -1777,7 +1840,7 @@ test("filing work under a finished branch re-opens it, and the answer says so", 
  */
 test("a refused write is an isError result carrying its kind", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
-    const answer = await call(client, "set_done", { id: "nowhere" })
+    const answer = await call(client, "outlines_done", { id: "nowhere" })
     expect(answer.isError).toBe(true)
     expect(answer.structured["kind"]).toBe("not-found")
     expect(answer.structured["named"]).toBe("nowhere")
@@ -1790,7 +1853,7 @@ test("a refused write is an isError result carrying its kind", async () => {
 
 test("arguments that do not fit the tool are refused before any planning", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
-    const answer = await call(client, "set_done", { nope: 1 })
+    const answer = await call(client, "outlines_done", { nope: 1 })
     expect(answer.isError).toBe(true)
     // Refused at the SCHEMA, so the ops layer was never asked and has nothing to
     // report: a malformed call is not a refused write.
@@ -1826,14 +1889,14 @@ type Unreachable = { readonly unreachable: string }
 const PINNED: Record<FailureKind, Provocation | Unreachable> = {
   "not-found": {
     files: { "house.olai": HOUSE },
-    tool: "set_done",
+    tool: "outlines_done",
     args: { id: "nowhere" },
   },
   usage: {
     files: { "house.olai": HOUSE },
     // A loop is refused NAMING the loop, and being refused for what a write
     // MEANS rather than for what it names is what makes this kind its own.
-    tool: "set_after",
+    tool: "outlines_after",
     args: { id: "order", add: ["order"] },
   },
   validation: {
@@ -1845,7 +1908,7 @@ const PINNED: Record<FailureKind, Provocation | Unreachable> = {
     // nothing would be indistinguishable from an outline somebody emptied.
     // The rows this comes back with are the subject of the test below.
     files: { "house.olai": HOUSE, "orphan.olai": ORPHAN },
-    tool: "read_subtree",
+    tool: "outlines_subtree",
     args: { file: "orphan.olai" },
   },
   busy: {
@@ -1888,11 +1951,11 @@ test("every refusal kind the format declares comes back as an isError result nam
  * at once: the healthy file answers reads AND accepts writes, and the broken
  * one refuses with its own rows.
  *
- * AND THE ROWS ARRIVE ON THE FILE. `surface://cells/errors` used to be the
+ * AND THE ROWS ARRIVE ON THE FILE. `surface://cells/<vault>/errors` used to be the
  * other door onto "what is wrong here" and is now EMPTY over a directory like
  * this one, correctly: that cell says the directory could not be read, and this
  * directory was read perfectly. What carries the same rows is
- * `surface://collections/outlines/orphan.olai` — the entry an agent can watch,
+ * `surface://collections/outlines/outlines/orphan.olai` — the entry an agent can watch,
  * beside the entry for the file that is fine. One report, filed where the
  * trouble is.
  */
@@ -1905,13 +1968,13 @@ test("a broken outline refuses with its own rows while its neighbours answer", a
 
     // …AND ACCEPTS WRITES, which is the half `broken-file-blocks-healthy-writes`
     // was filed about and could not itself be filed because of.
-    const wrote = await call(client, "set_done", { id: "order" })
+    const wrote = await call(client, "outlines_done", { id: "order" })
     expect(wrote.isError).toBeFalsy()
     expect(read("house.olai")).toContain(`"done"`)
 
     // THE BROKEN FILE refuses, and the refusal is data rather than a sentence
     // to parse: the rows themselves, situated.
-    const refused = await call(client, "read_subtree", { file: "orphan.olai" })
+    const refused = await call(client, "outlines_subtree", { file: "orphan.olai" })
     expect(refused.isError).toBe(true)
     expect(refused.structured["kind"]).toBe("validation")
     const rows = findingsOf(refused.structured)
@@ -1926,21 +1989,21 @@ test("a broken outline refuses with its own rows while its neighbours answer", a
 
     // The errors CELL is empty: nothing is wrong with the directory, one thing
     // is wrong with a file in it.
-    const cell = await client.readResource({ uri: "surface://cells/errors" })
+    const cell = await client.readResource({ uri: "surface://cells/file-access/errors" })
     const said = cell.contents[0]
     if (said === undefined || !("text" in said)) {
-      throw new Error("surface://cells/errors: expected one text part")
+      throw new Error("surface://cells/file-access/errors: expected one text part")
     }
     expect(JSON.parse(said.text as string)).toEqual({ findings: [] })
 
     // …and the same rows are on the file's own entry, which is what an agent
     // watches.
     const entry = await client.readResource({
-      uri: "surface://collections/outlines/orphan.olai",
+      uri: "surface://collections/outlines/outlines/orphan.olai",
     })
     const part = entry.contents[0]
     if (part === undefined || !("text" in part)) {
-      throw new Error("surface://collections/outlines/orphan.olai: expected one text part")
+      throw new Error("surface://collections/outlines/outlines/orphan.olai: expected one text part")
     }
     const published = JSON.parse(part.text as string) as Record<string, unknown>
     expect((published["broken"] as { errors: ReadonlyArray<unknown> }).errors).toEqual(rows)
@@ -1969,9 +2032,9 @@ test("a tool that does not exist is an error result, not a protocol error", asyn
  * which is what lets the next call reach one of them without a search for an id
  * nobody chose.
  */
-test("one add_node lands a whole subtree, and says what it made", async () => {
+test("one outlines_add lands a whole subtree, and says what it made", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read, set }) => {
-    const answer = await call(client, "add_node", {
+    const answer = await call(client, "outlines_add", {
       parent: "kitchen",
       title: "the pantry",
       children: [
@@ -1982,7 +2045,7 @@ test("one add_node lands a whole subtree, and says what it made", async () => {
 
     expect(answer.isError).toBe(false)
     expect(answer.structured).toMatchObject({
-      did: "add_node",
+      did: "outlines_add",
       title: "the pantry",
       summary: "capture: the pantry (+3)",
     })
@@ -2072,10 +2135,10 @@ test("both capture tools advertise children as a finite nested schema, no $ref",
         .properties["children"] as Record<string, unknown>
       expect(floor["type"]).toBe("array")
       expect(floor["items"]).toBeUndefined()
-      expect(String(floor["description"])).toContain("second `add_node`")
+      expect(String(floor["description"])).toContain("second `outlines_add`")
     }
 
-    const add = tools.find((tool) => tool.name === "add_node")
+    const add = tools.find((tool) => tool.name === "outlines_add")
     expect(JSON.stringify(add?.inputSchema)).not.toContain("$ref")
     walk(add?.inputSchema)
 
@@ -2083,7 +2146,7 @@ test("both capture tools advertise children as a finite nested schema, no $ref",
     // way. Effect inlines it a second time rather than sharing a `$defs` entry
     // — which is the cost of the pool being stripped, and is measured in the
     // PR rather than hidden here.
-    const create = tools.find((tool) => tool.name === "create_outline")
+    const create = tools.find((tool) => tool.name === "files_create")
     expect(JSON.stringify(create?.inputSchema)).not.toContain("$ref")
     walk(
       (create?.inputSchema as { properties: Record<string, unknown> })
@@ -2092,14 +2155,14 @@ test("both capture tools advertise children as a finite nested schema, no $ref",
   })
 })
 
-test("list_outlines then add_node — the capture sequence an agent actually runs", async () => {
+test("outlines_index then outlines_add — the capture sequence an agent actually runs", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    const listed = (await call(client, "list_outlines", {})).structured
+    const listed = (await call(client, "outlines_index", {})).structured
 
     const outlines = listed["outlines"] as ReadonlyArray<{ file: string }>
     expect(outlines[0]?.file).toBe("house.olai")
 
-    const added = await call(client, "add_node", {
+    const added = await call(client, "outlines_add", {
       file: outlines[0]?.file,
       title: "water the plants",
     })
@@ -2122,7 +2185,7 @@ const LEDGER = [
  * gesture: an item becomes live, so it is PLACED on the Now list; it finishes,
  * so the placement is RETIRED. Neither step touches the item.
  *
- * This is the loop the roadmap item was filed for — `add_node` mints only
+ * This is the loop the roadmap item was filed for — `outlines_add` mints only
  * regular nodes, so keeping Now up to date meant hand-editing the file, which is
  * exactly the practice the 2026-08-11 RCA condemns.
  */
@@ -2130,14 +2193,14 @@ test("a mirror is placed, found from the node, and retired — the node untouche
   await withTools(
     { "house.olai": HOUSE, "now.olai": LEDGER },
     async ({ client, read }) => {
-      const placed = await call(client, "add_mirror", {
+      const placed = await call(client, "outlines_mirror", {
         target: "order",
         parent: "now",
         id: "now-order",
       })
       expect(placed.isError).toBe(false)
       expect(placed.structured).toMatchObject({
-        did: "add_mirror",
+        did: "outlines_mirror",
         // The placement's id is what the answer names — it is what retires it —
         // and the title is the node's, which is what a person reads.
         id: "now-order",
@@ -2155,21 +2218,21 @@ test("a mirror is placed, found from the node, and retired — the node untouche
       // …and it is FINDABLE, which is what makes retiring it possible in a
       // session that did not place it: mirrors are left out of search and out of
       // every child list, so the node is where you ask.
-      const node = (await call(client, "read_node", { id: "order" })).structured
+      const node = (await call(client, "outlines_read", { id: "order" })).structured
       expect(node["mirrors"]).toEqual([
         { id: "now-order", file: "now.olai", line: 2, parent: "now" },
       ])
 
-      const retired = await call(client, "remove_mirror", { id: "now-order" })
+      const retired = await call(client, "outlines_unmirror", { id: "now-order" })
       expect(retired.isError).toBe(false)
       expect(retired.structured).toMatchObject({
-        did: "remove_mirror",
+        did: "outlines_unmirror",
         summary: "unmirror: order the cabinets",
       })
       expect(read("now.olai")).toBe(LEDGER)
       expect(read("house.olai")).toBe(HOUSE)
       // Nothing shows it any more, and the field goes rather than emptying.
-      expect((await call(client, "read_node", { id: "order" })).structured)
+      expect((await call(client, "outlines_read", { id: "order" })).structured)
         .not.toHaveProperty("mirrors")
     },
   )
@@ -2183,14 +2246,14 @@ test("a mirror is placed, found from the node, and retired — the node untouche
  * an item where it is placed. It asks the list what is on it, and each row
  * carries both the id that retires the entry and the node it stands for.
  */
-test("read_node answers what a curated list holds, with what each entry shows", async () => {
+test("outlines_read answers what a curated list holds, with what each entry shows", async () => {
   await withTools(
     { "house.olai": HOUSE, "now.olai": LEDGER },
     async ({ client }) => {
-      await call(client, "add_mirror", { target: "order", parent: "now", id: "now-order" })
-      await call(client, "add_mirror", { target: "install", parent: "now", id: "now-install" })
+      await call(client, "outlines_mirror", { target: "order", parent: "now", id: "now-order" })
+      await call(client, "outlines_mirror", { target: "install", parent: "now", id: "now-install" })
 
-      const now = (await call(client, "read_node", { id: "now" })).structured
+      const now = (await call(client, "outlines_read", { id: "now" })).structured
       expect(now["children"]).toEqual([])
       expect(now["placed"]).toEqual([
         {
@@ -2227,28 +2290,28 @@ test("read_node answers what a curated list holds, with what each entry shows", 
   )
 })
 
-test("remove_mirror on a node refuses, and says what does put a node away", async () => {
+test("outlines_unmirror on a node refuses, and says what does put a node away", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
-    const answer = await call(client, "remove_mirror", { id: "order" })
+    const answer = await call(client, "outlines_unmirror", { id: "order" })
     expect(answer.isError).toBe(true)
     expect(answer.structured["kind"]).toBe("usage")
-    expect(String(answer.structured["reason"])).toContain("trash_node")
+    expect(String(answer.structured["reason"])).toContain("outlines_trash")
     expect(refusals).toEqual(["unmirror: UsageFailure"])
     expect(read("house.olai")).toBe(HOUSE)
   })
 })
 
-/** The trash, both ways, on the agent's face: `trash_node` puts a subtree
- *  away and `untrash_node` brings it back where the recorded chain says it
+/** The trash, both ways, on the agent's face: `outlines_trash` puts a subtree
+ *  away and `trash_restore` brings it back where the recorded chain says it
  *  came from — the op `parity-unarchive` was owed on BOTH faces at once. */
-test("untrash_node takes back what trash_node put away", async () => {
+test("trash_restore takes back what outlines_trash put away", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    const away = await call(client, "trash_node", { id: "order" })
+    const away = await call(client, "outlines_trash", { id: "order" })
     expect(away.isError).toBe(false)
     expect(read("house.olai")).not.toContain(`"id":"order"`)
     expect(read("_olai/Trash.olai")).toContain(`"id":"order"`)
 
-    const back = await call(client, "untrash_node", { id: "order" })
+    const back = await call(client, "trash_restore", { id: "order" })
     expect(back.isError).toBe(false)
     expect(back.structured).toMatchObject({
       summary: "untrash: order the cabinets",
@@ -2267,7 +2330,7 @@ test("untrash_node takes back what trash_node put away", async () => {
  *
  * Both gates skip archived writes, deliberately: work put away is over. So the
  * contradiction can be MINTED in there (step 2 below is refused nowhere), and
- * `untrash_node` is the write that would otherwise carry it into the live
+ * `trash_restore` is the write that would otherwise carry it into the live
  * set — where a `done` over a `todo` is exactly the state that vanishes from
  * the page. It comes back out repaired, and the answer says which mark it took
  * off.
@@ -2277,15 +2340,15 @@ test("a done mark minted in the archive is re-opened when the subtree comes back
     // `install` is `doing`, so `kitchen` cannot be marked done in the live set
     // — that is door one, and the refusal is asserted above. Put it away and
     // the same write goes through.
-    const away = await call(client, "trash_node", { id: "install" })
+    const away = await call(client, "outlines_trash", { id: "install" })
     expect(away.isError).toBe(false)
-    const shut = await call(client, "set_done", { id: "install" })
+    const shut = await call(client, "outlines_done", { id: "install" })
     expect(shut.isError).toBe(false)
     expect(read("_olai/Trash.olai")).toContain(`"id":"install"`)
 
     // Now the branch is done in the trash with nothing unfinished under it, so
     // give it something: a task filed under it, still inside the archive.
-    const filed = await call(client, "add_node", {
+    const filed = await call(client, "outlines_add", {
       parent: "install",
       title: "chase the fitter",
       mark: "todo",
@@ -2294,7 +2357,7 @@ test("a done mark minted in the archive is re-opened when the subtree comes back
     // Nothing was re-opened in there: the archive is exempt at both doors.
     expect(String(filed.structured["nudge"] ?? "")).not.toContain("marked done")
 
-    const back = await call(client, "untrash_node", { id: "install" })
+    const back = await call(client, "trash_restore", { id: "install" })
     expect(back.isError).toBe(false)
     expect(String(back.structured["nudge"]))
       .toContain("`install them` was marked done over work that is not finished")
@@ -2308,7 +2371,7 @@ test("a done mark minted in the archive is re-opened when the subtree comes back
 
 /**
  * The trash's THIRD verb on the agent's face, and the only destructive one in
- * this whole surface: `empty_trash`.
+ * this whole surface: `trash_empty`.
  *
  * Driven end to end because that is where the two things worth pinning are —
  * that a no-`op` argument list reaches the planner as the right request, and
@@ -2317,19 +2380,19 @@ test("a done mark minted in the archive is re-opened when the subtree comes back
  * deleting it would leave that edge pointing at nothing, and the archive is
  * still on disk afterwards, byte for byte.
  */
-test("empty_trash deletes the pile, and refuses while something still points into it", async () => {
+test("trash_empty deletes the pile, and refuses while something still points into it", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
     // A live row that names what is about to be put away. Ids move with a node
     // when it is archived, so this edge goes on resolving INTO the archive —
     // which is exactly what makes the pile undeletable.
-    const linked = await call(client, "set_see", { id: "demo", add: ["order"] })
+    const linked = await call(client, "outlines_see", { id: "demo", add: ["order"] })
     expect(linked.isError).toBe(false)
-    const away = await call(client, "trash_node", { id: "order" })
+    const away = await call(client, "outlines_trash", { id: "order" })
     expect(away.isError).toBe(false)
     const filled = read("_olai/Trash.olai")
     expect(filled).toContain(`"id":"order"`)
 
-    const held = await call(client, "empty_trash", { file: "_olai/Trash.olai" })
+    const held = await call(client, "trash_empty", { file: "_olai/Trash.olai" })
     expect(held.isError).toBe(true)
     expect(held.structured["kind"]).toBe("usage")
     expect(String(held.structured["reason"])).toContain("`demo`")
@@ -2340,14 +2403,14 @@ test("empty_trash deletes the pile, and refuses while something still points int
 
     // Re-point the edge and the pile deletes — the way through the refusal
     // named, taken.
-    const freed = await call(client, "set_see", { id: "demo", remove: ["order"] })
+    const freed = await call(client, "outlines_see", { id: "demo", remove: ["order"] })
     expect(freed.isError).toBe(false)
-    const gone = await call(client, "empty_trash", { file: "_olai/Trash.olai" })
+    const gone = await call(client, "trash_empty", { file: "_olai/Trash.olai" })
     expect(gone.isError).toBe(false)
     expect(gone.structured).toMatchObject({
       summary: "empty: _olai/Trash.olai (3 records)",
       file: "_olai/Trash.olai",
-      did: "empty_trash",
+      did: "trash_empty",
     })
     expect(read("_olai/Trash.olai")).toBe("")
     // …and the live outline is untouched: the blast radius is one file.
@@ -2355,19 +2418,19 @@ test("empty_trash deletes the pile, and refuses while something still points int
   })
 })
 
-test("empty_trash refuses a live outline, and an archive with nothing in it", async () => {
+test("trash_empty refuses a live outline, and an archive with nothing in it", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    const live = await call(client, "empty_trash", { file: "house.olai" })
+    const live = await call(client, "trash_empty", { file: "house.olai" })
     expect(live.isError).toBe(true)
     expect(String(live.structured["reason"])).toContain("is not the trash")
     expect(read("house.olai")).toBe(HOUSE)
 
     // The state a put-back leaves: the file stands, holding nothing. Emptying
     // it is refused rather than committed as a diff-less write.
-    await call(client, "trash_node", { id: "order" })
-    await call(client, "untrash_node", { id: "order" })
+    await call(client, "outlines_trash", { id: "order" })
+    await call(client, "trash_restore", { id: "order" })
     expect(read("_olai/Trash.olai")).toBe("")
-    const twice = await call(client, "empty_trash", { file: "_olai/Trash.olai" })
+    const twice = await call(client, "trash_empty", { file: "_olai/Trash.olai" })
     expect(twice.isError).toBe(true)
     expect(String(twice.structured["reason"])).toContain("already empty")
   })
@@ -2382,7 +2445,7 @@ test("empty_trash refuses a live outline, and an archive with nothing in it", as
  *
  * Named together, they are one call and the order of the list means nothing.
  */
-test("empty_trash over two piles judges the edge between them as a record that goes", async () => {
+test("trash_empty over two piles judges the edge between them as a record that goes", async () => {
   await withTools({
     "house.olai": HOUSE,
     "garden/plot.olai": [
@@ -2393,12 +2456,12 @@ test("empty_trash over two piles judges the edge between them as a record that g
   }, async ({ client, read }) => {
     // `quote` names `order`, and both are about to be archived into DIFFERENT
     // archives — which is exactly the edge that used to read as a holder.
-    expect((await call(client, "trash_node", { id: "order" })).isError).toBe(false)
-    expect((await call(client, "trash_node", { id: "beds" })).isError).toBe(false)
+    expect((await call(client, "outlines_trash", { id: "order" })).isError).toBe(false)
+    expect((await call(client, "outlines_trash", { id: "beds" })).isError).toBe(false)
     expect(read("_olai/Trash.olai")).toContain(`"id":"order"`)
     expect(read("_olai/Trash.olai")).toContain(`"id":"quote"`)
 
-    const gone = await call(client, "empty_trash", {
+    const gone = await call(client, "trash_empty", {
       file: "_olai/Trash.olai",
     })
     expect(gone.isError).toBe(false)
@@ -2411,13 +2474,13 @@ test("empty_trash over two piles judges the edge between them as a record that g
 /** The same edge, with only ONE of the two piles named: what is inside the
  *  emptying is what the call names, so the record in the archive nobody named
  *  is outside it and holds — the rule read from the other side. */
-test("empty_trash still refuses for a namer in a leftover Archive.olai", async () => {
+test("trash_empty still refuses for a namer in a leftover Archive.olai", async () => {
   await withTools({
     "house.olai": HOUSE,
     "Archive.olai": `{"id":"quote","ord":"a0","title":"a leftover quote","see":["order"]}`,
   }, async ({ client, read }) => {
-    await call(client, "trash_node", { id: "order" })
-    const held = await call(client, "empty_trash", { file: "_olai/Trash.olai" })
+    await call(client, "outlines_trash", { id: "order" })
+    const held = await call(client, "trash_empty", { file: "_olai/Trash.olai" })
     expect(held.isError).toBe(true)
     expect(String(held.structured["reason"])).toContain("`quote`")
     expect(read("_olai/Trash.olai")).toContain(`"id":"order"`)
@@ -2428,17 +2491,17 @@ test("empty_trash still refuses for a namer in a leftover Archive.olai", async (
 /** `was` — the count somebody was shown, checked against the set the write is
  *  judged on. What it closes is the retry's window: a re-plan against a newer
  *  snapshot silently widens this write. */
-test("empty_trash with a stale `was` deletes nothing and names both counts", async () => {
+test("trash_empty with a stale `was` deletes nothing and names both counts", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    await call(client, "trash_node", { id: "order" })
+    await call(client, "outlines_trash", { id: "order" })
     const filled = read("_olai/Trash.olai")
 
-    const stale = await call(client, "empty_trash", { file: "_olai/Trash.olai", was: 1 })
+    const stale = await call(client, "trash_empty", { file: "_olai/Trash.olai", was: 1 })
     expect(stale.isError).toBe(true)
     expect(String(stale.structured["reason"])).toContain("held 1 record when this was asked for")
     expect(read("_olai/Trash.olai")).toBe(filled)
 
-    const right = await call(client, "empty_trash", { file: "_olai/Trash.olai", was: 3 })
+    const right = await call(client, "trash_empty", { file: "_olai/Trash.olai", was: 3 })
     expect(right.isError).toBe(false)
     expect(read("_olai/Trash.olai")).toBe("")
   })
@@ -2446,18 +2509,18 @@ test("empty_trash with a stale `was` deletes nothing and names both counts", asy
 
 /** The other half of ledger-complete: a dependency, written from the node that
  *  waits, read back off the node, and refused when it would close a loop. */
-test("set_after writes a dependency, and a loop is refused naming it", async () => {
+test("outlines_after writes a dependency, and a loop is refused naming it", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    const wired = await call(client, "set_after", { id: "install", add: ["order"] })
+    const wired = await call(client, "outlines_after", { id: "install", add: ["order"] })
     expect(wired.isError).toBe(false)
     expect(wired.structured).toMatchObject({ summary: "after: install them" })
     expect(read("house.olai")).toContain(`"after":["order"]`)
 
     // Read back off the node, so the next call can remove one by id.
-    expect((await call(client, "read_node", { id: "install" })).structured)
+    expect((await call(client, "outlines_read", { id: "install" })).structured)
       .toMatchObject({ after: ["order"] })
 
-    const loop = await call(client, "set_after", { id: "order", add: ["install"] })
+    const loop = await call(client, "outlines_after", { id: "order", add: ["install"] })
     expect(loop.isError).toBe(true)
     expect(loop.structured["kind"]).toBe("usage")
     expect(String(loop.structured["reason"])).toContain("`order` → `install` → `order`")
@@ -2483,14 +2546,14 @@ test("set_after writes a dependency, and a loop is refused naming it", async () 
  * "nothing". Which marks block and which do not is the derivation's, and is
  * pinned one layer down against the function that decides it.
  */
-test("read_node says what a node is waiting on, and drops the field when it clears", async () => {
+test("outlines_read says what a node is waiting on, and drops the field when it clears", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
-    await call(client, "set_after", { id: "install", add: ["order"] })
-    await call(client, "set_todo", { id: "order" })
+    await call(client, "outlines_after", { id: "install", add: ["order"] })
+    await call(client, "outlines_todo", { id: "order" })
 
     // The blocker arrives SITUATED — with its title, its place, its ancestors
     // and the mark that makes it one — not as the id the record already holds.
-    expect((await call(client, "read_node", { id: "install" })).structured["blockedBy"])
+    expect((await call(client, "outlines_read", { id: "install" })).structured["blockedBy"])
       .toEqual([{
         id: "order",
         title: "order the cabinets",
@@ -2502,8 +2565,8 @@ test("read_node says what a node is waiting on, and drops the field when it clea
       }])
 
     // Finishing it clears the way, and the field GOES rather than emptying.
-    await call(client, "set_done", { id: "order" })
-    expect((await call(client, "read_node", { id: "install" })).structured)
+    await call(client, "outlines_done", { id: "order" })
+    expect((await call(client, "outlines_read", { id: "install" })).structured)
       .not.toHaveProperty("blockedBy")
   })
 })
@@ -2520,9 +2583,9 @@ test("read_node says what a node is waiting on, and drops the field when it clea
  * discriminator each op carries survived the round trip, and the refusal arrives
  * as structured detail rather than as prose to parse.
  */
-test("`apply` runs a list of ops as one write, and names the op that refused", async () => {
+test("`outlines_apply` runs a list of ops as one write, and names the op that refused", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
-    const done = await call(client, "apply", {
+    const done = await call(client, "outlines_apply", {
       ops: [
         { op: "done", id: "order" },
         { op: "prop", id: "install", key: "pr", value: "https://x/1" },
@@ -2533,7 +2596,7 @@ test("`apply` runs a list of ops as one write, and names the op that refused", a
       ],
     })
     expect(done.isError).toBe(false)
-    expect(done.structured["did"]).toBe("apply")
+    expect(done.structured["did"]).toBe("outlines_apply")
     expect(String(done.structured["summary"])).toContain("apply: 4 ops")
     // One revision for the whole run: the load is 1, so this is 2.
     expect(done.structured["rev"]).toBe(2)
@@ -2546,7 +2609,7 @@ test("`apply` runs a list of ops as one write, and names the op that refused", a
 
     // And a batch that cannot finish finishes nothing.
     const before = read("house.olai")
-    const stopped = await call(client, "apply", {
+    const stopped = await call(client, "outlines_apply", {
       ops: [
         { op: "title", id: "order", title: "renamed" },
         { op: "done", id: "nowhere" },
@@ -2563,7 +2626,7 @@ test("`apply` runs a list of ops as one write, and names the op that refused", a
 
 test("`update` writes several fields of one node, and the mark goes last", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    const written = await call(client, "update", {
+    const written = await call(client, "outlines_update", {
       id: "order",
       title: "order the cabinets #kitchen",
       desc: "from the joiner",
@@ -2582,13 +2645,13 @@ test("`update` writes several fields of one node, and the mark goes last", async
 
     // The properties MERGE: a second call naming one key leaves the other
     // standing, and `null` takes one off.
-    const merged = await call(client, "update", { id: "order", props: { pr: null } })
+    const merged = await call(client, "outlines_update", { id: "order", props: { pr: null } })
     expect(merged.isError).toBe(false)
     expect(read("house.olai")).toContain(`"custom":{"agent":"claude-opus"}`)
 
     // The mark is applied after the edge, so this pair is refused — `install`
     // is `doing`, which is unfinished work standing in the way.
-    const blocked = await call(client, "update", {
+    const blocked = await call(client, "outlines_update", {
       id: "kitchen",
       mark: "doing",
       after: ["install"],
@@ -2603,7 +2666,7 @@ test("`update` writes several fields of one node, and the mark goes last", async
 
 test("a capture arrives with its edges and its properties, pointing forward", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    const captured = await call(client, "add_node", {
+    const captured = await call(client, "outlines_add", {
       parent: "kitchen",
       title: "worktop",
       props: { agent: "claude-opus" },
@@ -2620,7 +2683,7 @@ test("a capture arrives with its edges and its properties, pointing forward", as
     expect(text).toContain(`"custom":{"agent":"claude-opus"}`)
 
     // The refusals are the edge verbs' own, met at capture time.
-    const loop = await call(client, "add_node", {
+    const loop = await call(client, "outlines_add", {
       parent: "kitchen",
       title: "ring",
       children: [
@@ -2631,7 +2694,7 @@ test("a capture arrives with its edges and its properties, pointing forward", as
     expect(loop.isError).toBe(true)
     expect(String(loop.structured["reason"])).toContain("closes a loop")
 
-    const shadowed = await call(client, "add_node", {
+    const shadowed = await call(client, "outlines_add", {
       parent: "kitchen",
       title: "shadow",
       props: { done: "yesterday" },
@@ -2649,14 +2712,14 @@ test("a capture arrives with its edges and its properties, pointing forward", as
  * the shape most likely to compile to a `$ref` into a `$defs` pool — and the
  * adapter inlines local refs and STRIPS the pool, so a ref it could not inline
  * would survive as a pointer into nothing and take the whole tool down. That is
- * the same fence `add_node`'s unrolled `children` has, over the other schema
+ * the same fence `outlines_add`'s unrolled `children` has, over the other schema
  * this feature added.
  */
-test("`apply` and `update` advertise finite schemas with no $ref", async () => {
+test("`outlines_apply` and `outlines_update` advertise finite schemas with no $ref", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const { tools } = await client.listTools()
 
-    const apply = tools.find((tool) => tool.name === "apply")
+    const apply = tools.find((tool) => tool.name === "outlines_apply")
     expect(JSON.stringify(apply?.inputSchema)).not.toContain("$ref")
     expect(JSON.stringify(apply?.inputSchema)).not.toContain("$defs")
     // The `op` the tool's own NAME decides is subtracted from the top level, as
@@ -2707,7 +2770,7 @@ test("`apply` and `update` advertise finite schemas with no $ref", async () => {
       expect(verbs).not.toContain(op)
     }
 
-    const update = tools.find((tool) => tool.name === "update")
+    const update = tools.find((tool) => tool.name === "outlines_update")
     expect(JSON.stringify(update?.inputSchema)).not.toContain("$ref")
     expect(Object.keys(update?.inputSchema.properties ?? {}).sort())
       .toEqual([
@@ -2729,7 +2792,7 @@ test("`apply` and `update` advertise finite schemas with no $ref", async () => {
  *
  * Both are the same failure mode — an Effect struct DROPS a key it does not
  * declare — met from the two directions this PR opened it: a `was` an agent
- * carries over from `set_title`, and an `after` an agent writes on a captured
+ * carries over from `outlines_title`, and an `after` an agent writes on a captured
  * child because the anchor one level up spells it that way. Neither may be
  * silently swallowed, so both are declared purely to be refused, and this is
  * the level at which "declared" has to be true: the adapter's schema bridge is
@@ -2737,9 +2800,9 @@ test("`apply` and `update` advertise finite schemas with no $ref", async () => {
  */
 test("a `was` and a bent `after` reach the planner instead of vanishing", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    // The conditional an agent migrating from `set_title` brings with it. It is
+    // The conditional an agent migrating from `outlines_title` brings with it. It is
     // CHECKED — this one holds, so the write lands.
-    const held = await call(client, "update", {
+    const held = await call(client, "outlines_update", {
       id: "order",
       title: "order the walnut cabinets",
       was: { title: "order the cabinets" },
@@ -2749,7 +2812,7 @@ test("a `was` and a bent `after` reach the planner instead of vanishing", async 
 
     // …and this one does not, so nothing lands — where before the field would
     // have been dropped and the write would have gone through regardless.
-    const stale = await call(client, "update", {
+    const stale = await call(client, "outlines_update", {
       id: "order",
       title: "renamed again",
       desc: "a note",
@@ -2762,7 +2825,7 @@ test("a `was` and a bent `after` reach the planner instead of vanishing", async 
     expect(read("house.olai")).not.toContain("a note")
 
     // A condition on a field this call does not write is a mis-typed call.
-    const idle = await call(client, "update", {
+    const idle = await call(client, "outlines_update", {
       id: "order",
       desc: "x",
       was: { title: "anything" },
@@ -2771,7 +2834,7 @@ test("a `was` and a bent `after` reach the planner instead of vanishing", async 
     expect(String(idle.structured["reason"])).toContain("`was.title`")
 
     // And the bent word on a captured child, refused rather than dropped.
-    const bent = await call(client, "add_node", {
+    const bent = await call(client, "outlines_add", {
       parent: "kitchen",
       title: "lane",
       children: [{ title: "cut", after: ["order"] }],
@@ -2802,7 +2865,7 @@ const captured = (set: OutlineSet, title: string) => {
 
 test("a capture lands in a minted inbox, dated and attributed", async () => {
   await withTools({ "a.olai": HOUSE }, async ({ client, set }) => {
-    const answered = await call(client, "capture", {
+    const answered = await call(client, "capture_add", {
       title: "the thread about cabinets",
       text: "worth a reply",
     })
@@ -2810,7 +2873,7 @@ test("a capture lands in a minted inbox, dated and attributed", async () => {
     // The directory had never captured, so this write MINTED the inbox — the
     // convention's own answer, not a path this tool spells.
     expect(answered.structured["file"]).toBe("_olai/Inbox.olai")
-    expect(answered.structured["did"]).toBe("capture")
+    expect(answered.structured["did"]).toBe("capture_add")
 
     const node = captured(await set(), "the thread about cabinets")
     // The note is the text, verbatim, and nothing under it. The `url` field
@@ -2838,7 +2901,7 @@ test("…and into the inbox the directory already keeps, wherever that is", asyn
   await withTools(
     { "a.olai": HOUSE, "notes/inbox.olai": "" },
     async ({ client, set }) => {
-      const answered = await call(client, "capture", { title: "buy milk" })
+      const answered = await call(client, "capture_add", { title: "buy milk" })
       expect(answered.isError).toBe(false)
       expect(answered.structured["file"]).toBe("notes/inbox.olai")
       // Nothing was minted beside it.
@@ -2852,7 +2915,7 @@ test("a door that knows nobody writes no attribution, rather than a false one", 
   // loopback call to `/mcp` is, and what a `just run` with no proxy in front of
   // it is. The ruling: such a door OMITS the property rather than inventing one.
   return withTools({ "a.olai": HOUSE }, async ({ client, set }) => {
-    await call(client, "capture", { title: "unattributed" })
+    await call(client, "capture_add", { title: "unattributed" })
     const node = captured(await set(), "unattributed")
     expect("custom" in node ? node.custom : undefined).toBeUndefined()
   })
@@ -2866,7 +2929,7 @@ test("…and a door that DOES know somebody writes it on", async () => {
   await withTools(
     { "a.olai": HOUSE },
     async ({ client, set }) => {
-      await call(client, "capture", { title: "attributed" })
+      await call(client, "capture_add", { title: "attributed" })
       const node = captured(await set(), "attributed")
       expect("custom" in node ? node.custom : undefined).toEqual({
         "captured-by": "srid",
@@ -2892,7 +2955,7 @@ test("a client cannot say who captured this — there is nowhere to say it", asy
     // (the case above); this door knows nobody, so the row carries nothing. The
     // outcome the old guard protected is reached by there being nothing to
     // guard.
-    const answered = await call(client, "capture", {
+    const answered = await call(client, "capture_add", {
       title: "x",
       props: { "captured-by": "someone@else" },
     })
@@ -2904,10 +2967,10 @@ test("a client cannot say who captured this — there is nowhere to say it", asy
 
 test("an empty capture is refused in the ops layer's own words", async () => {
   await withTools({ "a.olai": HOUSE }, async ({ client, set }) => {
-    const answered = await call(client, "capture", { title: "" })
+    const answered = await call(client, "capture_add", { title: "" })
     expect(answered.isError).toBe(true)
     // A capture of nothing is refused by the write planner, which is the same
-    // sentence an agent's `add_node` gets — this tool adds no rule of its own.
+    // sentence an agent's `outlines_add` gets — this tool adds no rule of its own.
     expect(outlinePaths(await set())).toEqual(["a.olai"])
   })
 })
@@ -2920,7 +2983,7 @@ test("an empty capture is refused in the ops layer's own words", async () => {
  * re-plans the request it was handed rather than re-making that choice. So
  * before the arm resolved a second time, simultaneous captures into a fresh
  * directory answered one success and a row of refusals — and each refusal told
- * the caller to use `add_node`, which is advice the `capture` TOOL cannot take:
+ * the caller to use `outlines_add`, which is advice the `capture` TOOL cannot take:
  * it resolves one request and runs it, and choosing a different verb is not
  * something a caller of this verb can do.
  *
@@ -2932,7 +2995,7 @@ test("several captures at once into a directory with no inbox all land", async (
   await withTools({ "a.olai": HOUSE }, async ({ client, set }) => {
     const many = [1, 2, 3, 4, 5, 6]
     const answered = await Promise.all(
-      many.map((n) => call(client, "capture", { title: `capture ${n}` })),
+      many.map((n) => call(client, "capture_add", { title: `capture ${n}` })),
     )
     expect(answered.map((one) => one.isError)).toEqual(many.map(() => false))
 
@@ -2948,7 +3011,7 @@ test("several captures at once into a directory with no inbox all land", async (
 //
 // The 2026-08-25 incident happened HERE, in the answers this file projects: a
 // `git rebase` replaced the served files, the watcher missed it, and
-// `read_node` went on answering normally with week-old truth for thirty
+// `outlines_read` went on answering normally with week-old truth for thirty
 // minutes. Nothing was invalid, so nothing came back as an error — the only
 // symptom was every WRITE refusing, because the stale set violated
 // declarations the disk had already moved past, and it took a disk-vs-MCP diff
@@ -2966,11 +3029,11 @@ test("every read answers with its age, and a look that agreed says so", async ()
       // and not about one of them: a seventh read added without its age would
       // be exactly the hole this closes.
       for (const [tool, args] of [
-        ["read_node", { id: "kitchen" }],
-        ["read_subtree", { id: "kitchen" }],
-        ["read_document", { file: "notes/cabinets.md" }],
-        ["list_outlines", {}],
-        ["list_documents", {}],
+        ["outlines_read", { id: "kitchen" }],
+        ["outlines_subtree", { id: "kitchen" }],
+        ["markdown_read", { file: "notes/cabinets.md" }],
+        ["outlines_index", {}],
+        ["markdown_index", {}],
         ["search_nodes", { text: "cabinets" }],
       ] as ReadonlyArray<readonly [string, Record<string, unknown>]>) {
         const answered = await call(client, tool, args)
@@ -2995,12 +3058,12 @@ test("every read answers with its age, and a look that agreed says so", async ()
 // would be a sentence about a different question.
 test("a write's answer carries no age — it is not a read of anything", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
-    const written = await call(client, "set_done", { id: "order" })
+    const written = await call(client, "outlines_done", { id: "order" })
     expect(written.isError).toBe(false)
     expect(written.structured["vintage"]).toBeUndefined()
     // …and the read that follows it does carry one, so the absence above is
     // this projection's rule and not the fixture being quiet.
-    const answered = await call(client, "read_node", { id: "order" })
+    const answered = await call(client, "outlines_read", { id: "order" })
     expect(answered.structured["vintage"]).toMatchObject({ stale: false })
   })
 })
@@ -3012,7 +3075,7 @@ test("a write's answer carries no age — it is not a read of anything", async (
 // and which file it is about. That sentence is the thirty minutes.
 test("PIN (the rebase shape): a read whose set the disk has moved past says so", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, root, read }) => {
-    const before = await call(client, "read_node", { id: "order" })
+    const before = await call(client, "outlines_read", { id: "order" })
     expect(before.structured["vintage"]).toMatchObject({ stale: false })
     const proved = (before.structured["vintage"] as Record<string, unknown>)["asOf"]
 
@@ -3024,7 +3087,7 @@ test("PIN (the rebase shape): a read whose set the disk has moved past says so",
     fs.writeFileSync(incoming, `${held as string}\n`)
     fs.renameSync(incoming, path.join(root, "house.olai"))
 
-    const after = await call(client, "read_node", { id: "order" })
+    const after = await call(client, "outlines_read", { id: "order" })
     // The answer still comes back — a last good set is worth more than a
     // blank refusal, and an agent that can see the divergence can decide.
     expect(after.isError).toBe(false)
@@ -3094,7 +3157,7 @@ test("PIN (what `stale: false` is worth): a same-stamp rewrite reads confirmed",
       fs.closeSync(fd)
     }
 
-    const answered = await call(client, "read_node", { id: "order" })
+    const answered = await call(client, "outlines_read", { id: "order" })
     expect(answered.isError).toBe(false)
     // The old title, and the wire saying the set is one to act on.
     expect(answered.structured["title"]).toBe("order the cabinets")

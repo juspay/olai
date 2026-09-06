@@ -10,6 +10,7 @@
     "./server": "./src/server.ts",
     "./*": "./src/*",
     "./surface": "./src/surface.ts",
+    "./tools": "./src/tools.ts",
     "./served": "./src/served.tsx",
     "./opens": "./src/opens.tsx",
     "./making": "./src/file/making.ts",

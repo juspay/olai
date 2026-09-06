@@ -9,7 +9,7 @@ import { TESTID } from "olai-plugin-markdown/testids"
  * rows look like, whether it is the file they meant. An editable grid is a
  * different product, and half of one — cells you can type in that write back
  * through an op nobody has written — would be a page that looks like it holds
- * your changes. So there is no editor, no create verb, and `write_document`
+ * your changes. So there is no editor, no create verb, and `markdown_write`
  * refuses the file if anything asks (`@olai/ops`). That is the registry's
  * `edits: false` (./faces.tsx) rather than a `Show` in this file.
  *
