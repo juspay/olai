@@ -1,13 +1,12 @@
-/** files owns these legacy wire members for its activation. The vault
- * remains the write authority. All readings and subscriptions are acquired on
- * this provider's scope; UI and layout are not dependencies of this half. */
-import { definePlugin, Directory, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
-import type { Ops as Gate, Store } from "@olai/ops"
-import { Effect, Stream, SubscriptionRef } from "effect"
-import { inMemoryStore, inMemoryChannel, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
+/** Vault owns file-access wire members and the write authority. Readings and
+ * subscriptions are acquired on this provider's scope; UI and layout are not dependencies of this half. */
+import { definePlugin, Directory, Surfaces, Vault } from "@olai/plugin-api/services"
+import type { Store } from "@olai/ops"
+import { Effect } from "effect"
+import { followSubscription } from "./subscription.ts"
+import { inMemoryStore, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
 import type { Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
-import { applyEdit, runWrite } from "@olai/edit-intents/apply"
 import { surface, faces } from "./file-surface.ts"
 
 import { headProjection, type Projection } from "@olai/surface/projection"
@@ -41,7 +40,7 @@ export default definePlugin({
     }))
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       cells: {
-        errors: { store: errors, connect: cell => Stream.runForEach(SubscriptionRef.changes(store.errors), value => Effect.sync(() => cell.set(value ?? NOTHING_WRONG))) },
+        errors: { store: errors, connect: cell => followSubscription(store.errors, value => cell.set(value ?? NOTHING_WRONG)) },
         manifest: { store: manifest }
       },
       collections: {

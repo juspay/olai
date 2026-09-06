@@ -944,7 +944,6 @@
         "@types/babel__core": "^7.20.5",
         "@types/hast": "^3.0.5",
         "babel-preset-solid": "^1.9.0",
-        "olai-plugin-sidebar": "workspace:*",
         "remark-frontmatter": "^5.0.0",
         "tailwindcss": "^4.3.3",
       },

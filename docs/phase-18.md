@@ -14,13 +14,15 @@ in progress and does not validate the current working tree.
 
 Current integration: `fda9df1b1` completed full `just ci`: 40 checks passed and
 9 failed, with 17 unique browser failures (down from 58 in the prior batch).
-Focused fixes now cover those browser failures except vault withdrawal, whose
-server shutdown fault is under investigation. Fixture export/type corrections
-are also implemented. The current working tree awaits full CI validation.
+Focused fixes now cover those browser failures, including vault withdrawal.
+The `f46e31fe4` full CI run is finishing; its remaining known failures are
+stale fence metadata and the now-fixed vault shutdown fault. The current
+working tree awaits full CI validation.
 
 GitHub CodeQL also flagged case-sensitive script extraction in the theme asset
 test. The regex is corrected and both first-paint tests pass. GitHub CodeQL
-passed on `29b1db404`, reporting no new alerts in the PR’s changed code.
+passed on both `29b1db404` and `f46e31fe4`, reporting no new alerts in the
+PR’s changed code.
 
 ## CI repair batch
 
@@ -53,6 +55,9 @@ passed on `29b1db404`, reporting no new alerts in the PR’s changed code.
   server writes observed while client replies remain held.
 - [x] Verify fault cards and independently loaded document previews: all 33
   scenarios pass. Render fault injection preserves the exact error assertion.
+- [x] Repair vault withdrawal without hiding actual runtime faults. A scoped
+  subscription normalizes Effect’s cancellation sentinel; two regression tests
+  preserve real defect reporting, and both vault workflows pass all 28 steps.
 - [x] Repair Chat reactivation cleanup; all three question workflows pass.
   Observer cleanup tests also cover notification, click, audio and naming scopes.
 
@@ -204,8 +209,9 @@ above is not a claim that its complete absence/lifecycle requirement is proved.
   panel entry lifetime.
 - [x] Move property extensions and node-reference behavior to outlines; make
   journal date links and Markdown document links independent integrations.
-- [ ] Preserve bundle/profile selection and all three plugin flags, including
-  headless domain providers and exact minimal test configurations.
+- [x] Preserve bundle/profile selection and all three plugin flags, including
+  headless domain providers and exact minimal test configurations. The focused
+  profile, independent metadata and policy group passes 18 tests/116 assertions.
 
 ## Validation and merge acceptance
 
@@ -222,20 +228,27 @@ above is not a claim that its complete absence/lifecycle requirement is proved.
 - [x] Cover theme/preferences independent lifetimes and cross-tab storage updates
   in e2e; test listener, metadata and icon cleanup and failed initialization.
 - [x] Validate appearance storage updates with layout or renderer absent.
-- [ ] Prove outlines with Markdown disabled, and Markdown with outlines disabled,
-  in both browser and headless profiles.
+- [x] Prove outlines with Markdown disabled, and Markdown with outlines disabled,
+  in the browser, including exact startup rosters that never activate the other
+  content provider.
+- [x] Confirm independent headless profile acceptance: scoped provider tests
+  cover omitted outlines, preserved Markdown metadata and writes, outlines
+  without Markdown, exact selections and all three CLI flag forms.
 - [x] Maintain an alternate-layout fixture using unchanged content plugins;
   all 17 browser steps pass.
 - [x] Maintain a tiny non-notebook capability with a shell and headless, using
   the same host without Olai domain services.
-- [ ] Prove surviving drafts, navigation and component state across unrelated
+- [x] Prove surviving drafts, navigation and component state across unrelated
   feature flips, with fresh state for re-enabled departed capabilities.
-- [ ] Prove property links and file handlers appear/retract with their providers.
+  Content acceptance passes 28 scenarios / 543 steps; relocated slot renderers
+  pass 2 scenarios / 38 steps, and independent startup passes 2 / 16.
+- [x] Prove property links and file handlers appear/retract with their providers.
 - [x] Prove authorized non-UI host management remains usable with inspector off,
   and preserve inspector state across shell replacement.
-- [ ] Prove dynamic-plugin version checks, approval, scope ownership and write
+- [x] Prove dynamic-plugin version checks, approval, scope ownership and write
   fences survive extraction; unloading their owner retracts contributions
-  without undoing emitted vault writes.
+  without undoing emitted vault writes. Policy tests pass, and the full
+  service-sharing browser scenario passes all 33 steps after report refresh.
 - [ ] Complete mobile, history, cancellation, failed/hanging cleanup and observer
   leak coverage across the extracted capabilities.
 - [x] Fix the parked-draft failure reproduced from `keyboard_editing.feature:129`:
@@ -250,10 +263,14 @@ above is not a claim that its complete absence/lifecycle requirement is proved.
   Both the original scenario and the new deterministic regression pass.
 - [x] Keep assignment controls busy until the session handoff replies. Both the
   held-reply regression and original migration scenario passed at `05dabd441`.
-- [ ] Establish whether the assignment guard explains the earlier
-  `node_agents.feature:377` failure: `3a8629ad` observed zero initial contract
-  messages instead of one. The guard closes a concrete race, but passing
-  coverage alone does not prove that original failure's cause.
+- [x] Reproduce the zero-initial-contract assignment race and prove the guard
+  prevents it. `assignment-order.test.ts` stages the actual binding write with
+  Deferred, over the scoped Chat and a real ACP echo subprocess: sending before
+  ownership is published produces zero contracts; waiting for the assignment
+  reply produces exactly one migration contract in both transcript and actual
+  agent prompt. This reproduces the symptom seen at `3a8629ad`; the old run had
+  no event trace identifying its precise interleaving. The original browser
+  scenario and held-reply regression also pass.
 - [ ] Finish plugin, architecture, profile/running and dynamic-plugin docs for
   the final ownership and absence behavior. Existing extracted rows have docs.
 - [ ] Pass the complete PR's required checks and acceptance coverage. A green

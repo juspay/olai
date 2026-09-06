@@ -44,15 +44,19 @@ process.stdin.on("data", (chunk: string) => {
     const message = JSON.parse(line) as {
       readonly id?: unknown
       readonly method?: string
-      readonly params?: { readonly prompt?: ReadonlyArray<{ readonly text?: string }> }
+      readonly params?: { readonly sessionId?: string; readonly prompt?: ReadonlyArray<{ readonly text?: string }> }
     }
     switch (message.method) {
       case "initialize":
-        respond(message.id, { protocolVersion: 1, agentCapabilities: {} })
+        respond(message.id, { protocolVersion: 1, agentCapabilities: { loadSession: true } })
         continue
       case "session/new":
         sessions += 1
         session = `sess-${sessions}`
+        respond(message.id, { sessionId: session })
+        continue
+      case "session/load":
+        session = message.params?.sessionId ?? session
         respond(message.id, { sessionId: session })
         continue
       case "session/prompt": {

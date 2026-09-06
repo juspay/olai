@@ -1809,7 +1809,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "plugins/trash/src/browser/question.ts",
     "web/src/client/errors/Page.tsx",
     "web/src/client/keys.ts",
-    "web/src/client/plugins/Seats.tsx",
     "web/src/client/testids.ts",
   ],
   "preferences": [
@@ -2127,6 +2126,10 @@ test("permanent host entry closures contain no Olai feature implementation", () 
   const violations = entries.flatMap(entry => {
     const graph = graphFrom(path.join(PACKAGES, entry))
     expect(graph.unresolved, entry).toEqual([])
+    // The host may carry typed contracts, but concrete extension locations
+    // belong to the provider that draws or implements them. Moving a slot
+    // consumer back into web must not hide behind an otherwise legal door.
+    expect(graph.reached.filter(edge => namesAPlugin(edge.spec) && edge.spec.endsWith("/slots")), entry).toEqual([])
     return graph.files.filter(file => {
       const member = memberOf(file)
       return member !== undefined && (

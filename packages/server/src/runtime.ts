@@ -243,10 +243,15 @@ app: {
     if (offered !== null) {
       const statusChanges = yield* Queue.unbounded<void>()
       yield* Effect.addFinalizer(() => Queue.shutdown(statusChanges))
-      offered.onChange.run = () => {
+      const previousChange = offered.onChange.run
+      const notifyChange = () => {
         recompose()
         Queue.offerUnsafe(statusChanges, undefined)
       }
+      offered.onChange.run = notifyChange
+      yield* Effect.addFinalizer(() => Effect.sync(() => {
+        if (offered.onChange.run === notifyChange) offered.onChange.run = previousChange
+      }))
       yield* Stream.runForEach(Stream.merge(offered.plugins.changes, Stream.fromQueue(statusChanges)), () =>
         Effect.suspend(() => {
           if (!moving) return refreshPlugins

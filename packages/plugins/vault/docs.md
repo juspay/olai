@@ -41,3 +41,9 @@ Disabling the vault closes all components and drains dependent cleanup before
 releasing the directory. A missing HTTP transport leaves that component waiting
 while headless file access remains available; the row report includes the missing
 component dependency.
+
+The file-access error subscription drains with its Surface registration. Its
+adapter treats Effect's queue-end sentinel during cancellation as normal
+subscription teardown, while retaining genuine publisher failures. Repeated
+withdrawal therefore keeps the management runtime alive and reactivation
+creates a fresh subscription.
