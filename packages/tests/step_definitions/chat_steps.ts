@@ -3935,3 +3935,7 @@ Then("the open agent's work contains {string} but not {string}", async function 
   await this.waitUntil(async () => (await work.innerText()).includes(own), `the child work to contain ${own}`, HYDRATION_TIMEOUT);
   assert.ok(!(await work.innerText()).includes(other), `the child work contains another session's output: ${other}`);
 });
+
+When("I open {string} from the open agent's work", async function (this: OlaiWorld, named: string) {
+  await this.page.locator(`${CHAT_PREVIEW} ${CHAT_LANE_DOOR}`, { hasText: named }).click();
+});

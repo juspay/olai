@@ -44,6 +44,10 @@ Feature: Codex subagents and background terminals are visible
     And the call that spawned it offers a door to 3 calls, as "explore the outline"
     When I open the agent's work from the transcript
     Then the agent's work shows 3 calls
+    When I open "inspect nested work" from the open agent's work
+    Then the agent's work is open, and it is "inspect nested work"
+    And the agent's work shows 1 calls
+    And the open agent's work contains "nested command output" but not "child command output"
 
   Scenario: A child permission remains visible and attributed to the child
     When I ask the agent "native asks"
@@ -102,4 +106,16 @@ Feature: Codex subagents and background terminals are visible
     And I ask the agent "hello"
     Then the agent's answer mentions "hello"
     And the strip lists no agent still out
+    And the chat says no background task is still running
+
+  Scenario: A child agent's terminal remains visible after the child finishes
+    When I ask the agent "native child-watch"
+    Then the agent is idle
+    And the strip lists no agent still out
+    And the strip says "watch files" is running
+    When I open the agent's work from the transcript
+    Then the agent's work is open, and it is "supervise files"
+    And the chat says a background task is watching "watch files"
+    When the agent is released
+    Then the chat says that task ended "failed"
     And the chat says no background task is still running

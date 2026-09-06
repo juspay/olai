@@ -39,6 +39,12 @@ describe("native session activity", () => {
     expect(events).toHaveLength(4)
     expect(events.at(-1)).toMatchObject({ status: "completed" })
   })
+  test.each(["failed", "cancelled", "disconnected"])("child %s extinguishes its live card", (state) => {
+    const { activity, events, spawn } = setup()
+    spawn()
+    activity.read("root", { sessionUpdate: "subagent_state_update", subagentSessionId: "child", state })
+    expect(events.at(-1)).toMatchObject({ id: activity.parent("child"), status: "failed" })
+  })
   test.each(["completed", "failed", "stopped"])("task %s wins over late command updates", (state) => {
     const { activity, events, task } = setup()
     task()

@@ -18,6 +18,13 @@ export const nativeActivity = async (
       terminal_output: { terminal_id: "shared-terminal", data: `${title} output` },
       terminal_exit: { terminal_id: "shared-terminal", exit_code: 0, signal: null } },
   })
+  if (argument === "child-watch") {
+    const child = `${root}:watcher`
+    spawn(root, child, "supervise files")
+    await nativeActivity("watch failed", child, notify, request, released)
+    update(root, { sessionUpdate: "subagent_state_update", subagentSessionId: child, state: "completed" })
+    return
+  }
   if (argument.startsWith("watch")) {
     const state = argument.split(" ")[1] ?? "failed"
     call(root, "watch files")
