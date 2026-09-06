@@ -70,6 +70,8 @@ interface Row {
   readonly disabled?: boolean
   readonly profiles?: ReadonlyArray<string>
   readonly switchHint?: string
+  readonly section: string
+  readonly quiet?: boolean
 }
 
 /** The rows, from the one file. It is read here rather than imported from
@@ -87,7 +89,17 @@ function readRows(): ReadonlyArray<Row> {
     }
     if (one.profiles !== undefined && (!Array.isArray(one.profiles) || one.profiles.some((profile) => typeof profile !== "string"))) throw new Error(`bundle: ${one.id} profiles must be words`)
     if (one.switchHint !== undefined && typeof one.switchHint !== "string") throw new Error(`bundle: ${one.id} switchHint must be a sentence`)
-    return { id: one.id, name: one.name, ...(one.disabled === true ? { disabled: true } : {}), ...(one.profiles === undefined ? {} : { profiles: one.profiles }), ...(one.switchHint === undefined ? {} : { switchHint: one.switchHint }) }
+    if (typeof one.section !== "string" || one.section.length === 0) throw new Error(`bundle: ${one.id} needs a \`section\` for the plugins panel`)
+    if (one.quiet !== undefined && one.quiet !== true) throw new Error(`bundle: ${one.id} quiet must be true when present`)
+    return {
+      id: one.id,
+      name: one.name,
+      section: one.section,
+      ...(one.disabled === true ? { disabled: true } : {}),
+      ...(one.profiles === undefined ? {} : { profiles: one.profiles }),
+      ...(one.switchHint === undefined ? {} : { switchHint: one.switchHint }),
+      ...(one.quiet === true ? { quiet: true } : {}),
+    }
   })
 }
 
@@ -176,7 +188,7 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
     .map((row) =>
       `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${hasDoor(row, "./server") ? "" : ", browserOnly: true"}${
         row.disabled === true ? ", disabled: true" : ""
-      }${row.profiles === undefined ? "" : `, profiles: [${row.profiles.map(quoted).join(", ")}]`}${row.switchHint === undefined ? "" : `, switchHint: ${prose(row.switchHint)}`} },`
+      }${row.profiles === undefined ? "" : `, profiles: [${row.profiles.map(quoted).join(", ")}]`}${row.switchHint === undefined ? "" : `, switchHint: ${prose(row.switchHint)}`}, section: ${prose(row.section)}${row.quiet === true ? ", quiet: true" : ""} },`
     )
     .join("\n")
   const entries = rows

@@ -47,7 +47,7 @@ The server half's `@olai/plugin-api` is the runtime door (`Kinds`, `Vault`, `Sur
 
 Nothing mounts until a person approves it, at the plugins panel, with the source in front of them.
 
-The panel draws a block under the rows for each definition: the two halves in full, and — on a row that is `pending` — two buttons.
+The panel draws the definition **on its own row**, in **Defined here** once it is running, and in **Needs you** while it is `pending`: the two halves in full, and — on a row that is `pending` — two buttons.
 
 - **Approve this version** writes `approved: <content hash>` on the plugin's node.
 - **Approve always** writes `approved: always`.

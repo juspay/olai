@@ -136,6 +136,10 @@ export interface BundleRow {
   readonly profiles?: ReadonlyArray<string>
   /** The plugin’s explanation of what stopping its row costs. */
   readonly switchHint?: string
+  /** The plugins panel group this row sits in. Verbatim on screen. */
+  readonly section: string
+  /** The group may start collapsed when every member is running and quiet. */
+  readonly quiet?: boolean
 }
 
 export { ROWS } from "./rows.generated.ts"

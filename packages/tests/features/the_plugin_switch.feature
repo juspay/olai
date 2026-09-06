@@ -180,16 +180,16 @@ Feature: A plugin is turned on and off while the serve runs
     # assertion on the page that answers whether `surface/chat/` is on the wire.
     Then the conversation is in the header
     When I open the plugins panel
-    # THE SENTENCE A SWITCH OWES BEFORE IT IS PRESSED. It is the other end of
-    # the `waiting` line: that one is a row saying what it is short of after the
-    # fact, and this is the row that HAS it saying so while there is still a
-    # decision to make. Read off two live tables — who stands behind which door,
-    # and which doors each running fiber names — so a plugin added to this build
+    # THE SENTENCE A SWITCH OWES BEFORE IT MOVES. It used to sit under On as a
+    # caption; it is a confirm now, because the ordinary running row says
+    # nothing. Read off two live tables — who stands behind which door, and
+    # which doors each running fiber names — so a plugin added to this build
     # reaches this sentence with nothing anywhere moving.
-    Then the plugins panel says "chat" is "Turning it off also stops"
-    And the plugins panel says "chat" is "kolu"
+    And I request that the plugin "chat" be off
+    Then the plugins panel asks to confirm turning "chat" off
+    And the confirm for "chat" names "kolu"
 
-    When I switch the plugin "chat" off
+    When I confirm turning the plugin "chat" off
     # KOLU NAMES BOTH ITS DOORS, because it names two and a sentence that owned
     # up to one would send somebody to fix half of it. This is the same reading
     # `the_doorbell_rings.feature` gets from a serve BOOTED without chat — the
@@ -213,7 +213,7 @@ Feature: A plugin is turned on and off while the serve runs
     # because the same service was provided again — which is the reactive half
     # doing the whole of the work this phase is about.
     Then the plugins panel says nothing more about "kolu"
-    And the plugins panel says "chat" is "Turning it off also stops"
+    And the plugins panel says nothing more about "chat"
     # THE CHROME COMES BACK, and that is all this claims. The browser half is
     # mounted again and draws off the roster; whether the MEMBERS behind it are
     # being served again is the listener's question, and the two scenarios above

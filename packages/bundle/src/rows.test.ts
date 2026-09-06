@@ -63,6 +63,12 @@ test("the built-in default is the rows that did not opt out", () => {
  * and a row that mounts late is picked up when its `apply` provides — so this
  * is a claim about the FILE rather than about the boot.
  */
+test("every row names a plugins panel section", () => {
+  for (const row of ROWS) {
+    expect(row.section.length).toBeGreaterThan(0)
+  }
+})
+
 test("the chat row is on by default, and reads first", () => {
   expect(DEFAULT_BUNDLE_NAMES).toContain("chat")
   expect(ROWS.find((row) => row.id === "chat")?.disabled).toBeUndefined()

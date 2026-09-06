@@ -28,6 +28,13 @@
 #             `apply`; an invalid value fails the row with a sentence.
 #             `--commit` / `--push` are a CLI patch onto the git row's config,
 #             the way `--plugins` is a patch onto `disabled`.
+#   section   THE PLUGINS PANEL GROUP this row sits in. The inspector walks
+#             groups rather than a flat list; a new plugin picks a section here
+#             and appears in it with no inspector edit. The word is verbatim on
+#             screen. Required.
+#   quiet     THE GROUP MAY START COLLAPSED when every row in it is running and
+#             has nothing to say. Absent is always-open. A group is quiet when
+#             every member is.
 #
 # `--plugins` does NOT edit this file. It is a PATCH applied over these rows on
 # the way in — one `disabled` per row, set from whether the flag named it — so
@@ -54,9 +61,11 @@
 # read by people, and the thing everything else waits on reads first.
 - id: chat
   name: olai-plugin-chat/server
+  section: Conversation
 # THE DIRECTORY — an ordinary plugin, selected in every default profile.
 - id: vault
   name: olai-plugin-vault/server
+  section: Vault
   profiles: [surface, test-minimal]
   switchHint: Turning it off clears the served files and stops plugins that need the vault. Turn it on to reopen the directory.
   config:
@@ -68,6 +77,7 @@
 # the tenants).
 - id: git
   name: olai-plugin-git/server
+  section: Vault
 # THE MATCHER — search as a row. Off is "no provider mounted": `search_nodes`
 # and the four boxes a person types into are answered with no hits and the
 # reason, in words. It carries the trigram table with it, so a serve without it
@@ -75,6 +85,7 @@
 # somebody is not on this row: it is a reading of one page and it stays core.
 - id: search
   name: olai-plugin-search/server
+  section: Vault
 # WHO IS LOOKING — the login a reverse proxy injected, or nobody. Its server
 # half stands behind the `Identity` door core reads at the websocket upgrade, at
 # `GET /olai/who` and at `/mcp`; its browser half is the chip in the bar's last
@@ -88,11 +99,13 @@
 # proxy is.
 - id: identity
   name: olai-plugin-identity/server
+  section: Vault
 # THE JOURNAL — the date-shaped reading of the vault. Its server half owns the
 # four live readings and daily-note mint; its browser half owns the three URLs,
 # agenda entry, calendar section and palette navigation.
 - id: journal
   name: olai-plugin-journal/server
+  section: Vault
 # THE ENGINES, FIRST AND IN THE ORDER THE PICKER DRAWS THEM.
 #
 # One row per ACP agent olai can seat, and ORDER IS LOAD-BEARING HERE in a way
@@ -109,17 +122,23 @@
 # Claude row, no probe of one, and no mark for one anywhere.
 - id: claude
   name: olai-plugin-claude/server
+  section: Conversation
 - id: codex
   name: olai-plugin-codex/server
+  section: Conversation
 - id: opencode
   name: olai-plugin-opencode/server
+  section: Conversation
 - id: pi
   name: olai-plugin-pi/server
+  section: Conversation
 # ...AND THE TENANTS: olai's judgement about somebody else's appliance.
 - id: kolu
   name: olai-plugin-kolu/server
+  section: Appliances
 - id: odu
   name: olai-plugin-odu/server
+  section: Appliances
 # OFF BY DEFAULT, and the row is where that is said rather than a `defaultOn`
 # field on a manifest: a Spaces app JWT is a secret this machine may not have,
 # and a pill in every bar for an integration nobody pointed at is the wrong
@@ -127,50 +146,83 @@
 # mechanism doing exactly what it is for.
 - id: xyne-spaces
   name: olai-plugin-xyne-spaces/server
+  section: Appliances
   disabled: true
 # TRANSPORTS — ordinary plugins, selected by profiles or an exact --plugins set.
 - id: ws
   name: olai-plugin-ws/server
+  section: Transports
+  quiet: true
 - id: mcp
   name: olai-plugin-mcp/server
+  section: Transports
+  quiet: true
   profiles: [surface]
 - id: web-app
   name: olai-plugin-web-app/server
+  section: Transports
+  quiet: true
 
 # Browser-only rows: the host selects them; activation is reported by each tab.
 - id: ui-renderer
   name: olai-plugin-ui-renderer
+  section: This tab
+  quiet: true
 - id: layout
   name: olai-plugin-layout
+  section: This tab
+  quiet: true
 - id: sidebar
   name: olai-plugin-sidebar
+  section: This tab
+  quiet: true
 - id: preferences
   name: olai-plugin-preferences
+  section: This tab
+  quiet: true
 - id: theme
   name: olai-plugin-theme
+  section: This tab
+  quiet: true
 - id: plugin-inspector
   name: olai-plugin-plugin-inspector
+  section: This tab
+  quiet: true
 
 # Independent navigation, content and directory capabilities.
 - id: navigation
   name: olai-plugin-navigation
+  section: This tab
+  quiet: true
 - id: outlines
   name: olai-plugin-outlines/server
+  section: Pages
+  quiet: true
   profiles: [surface]
 - id: markdown
   name: olai-plugin-markdown/server
+  section: Pages
+  quiet: true
   profiles: [surface]
 - id: files
   name: olai-plugin-files/server
+  section: Pages
+  quiet: true
   profiles: [surface]
 - id: pins
   name: olai-plugin-pins/server
+  section: Pages
+  quiet: true
   profiles: [surface]
 - id: capture
   name: olai-plugin-capture/server
+  section: Pages
+  quiet: true
   profiles: [surface]
 - id: trash
   name: olai-plugin-trash/server
+  section: Pages
+  quiet: true
   profiles: [surface]
 
 # Maintained acceptance fixtures, never selected by normal profiles.
@@ -179,13 +231,18 @@
 # precisely that boundary; disabled rows add no activation to ordinary starts.
 - id: test-layout
   name: olai-plugin-test-layout
+  section: Fixtures
+  quiet: true
   disabled: true
   profiles: [test-minimal]
 - id: test-counter
   name: olai-plugin-test-counter/server
+  section: Fixtures
+  quiet: true
   disabled: true
   profiles: [test-minimal]
 - id: vault-plugins
   name: olai-plugin-vault-plugins/server
+  section: Vault
   browser: olai-plugin-vault-plugins/browser
   profiles: [surface]

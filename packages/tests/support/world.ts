@@ -906,6 +906,11 @@ export const PLUGINS_PANEL = selector(TESTID.pluginsPanel);
  *  line and not a row's: it used to be repeated under every row, which is the
  *  arrangement the loader surface ended. */
 export const PLUGINS_STARTED = selector(TESTID.pluginsStarted);
+export const PLUGIN_SWITCH = selector(TESTID.pluginSwitch);
+export const PLUGIN_GROUP = selector(TESTID.pluginGroup);
+export const PLUGIN_CONFIRM = selector(TESTID.pluginConfirm);
+export const PLUGIN_CONFIRM_OFF = selector(TESTID.pluginConfirmOff);
+export const PLUGIN_CONFIRM_KEEP = selector(TESTID.pluginConfirmKeep);
 /** ...and what the serve would not take, when a press is refused. */
 export const PLUGINS_REFUSED = selector(TESTID.pluginsRefused);
 /** A row's config, as data under it. `data-config` is the key. */

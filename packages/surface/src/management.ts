@@ -7,12 +7,22 @@ import type { RowReport } from "@olai/plugin-api"
 import type { Effect } from "effect"
 import type { PluginRoster } from "./plugins.ts"
 
+/** Build-supplied facts about a row the inspector draws, keyed by name. */
+export type PluginLook = {
+  readonly switchHint?: string
+  /** Plugins panel group. Verbatim. Absent on a vault-defined row. */
+  readonly section?: string
+  readonly quiet?: boolean
+  /** The build ships this row off until somebody asks. */
+  readonly optIn?: boolean
+}
+
 export interface BrowserManagement {
   /** Called under a consumer's Solid owner so its cell subscription is scoped. */
   readonly roster: () => () => PluginRoster | undefined
   readonly reports: () => ReadonlyMap<string, RowReport>
   readonly changing: () => boolean
-  readonly switchHint: (name: string) => string | undefined
+  readonly look: (name: string) => PluginLook
   readonly set: (name: string, enabled: boolean) => Effect.Effect<unknown, unknown>
   readonly retry: () => Promise<void>
   readonly requiresReload: (name: string) => boolean
