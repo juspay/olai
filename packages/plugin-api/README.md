@@ -140,7 +140,7 @@ Two key rules, which is why there are two register doors and not seven. A **plug
 
 ## What is deliberately not here
 
-Interception on the `vault` service — the subtree write fence a node agent runs under — arrives with node-agent scopes. So does HMR: no Bun cache bust exists. **Browser slots were on this list and have left it** — they are [`src/browser.ts`](src/browser.ts) now, and the entry is kept rather than deleted because what moved them is worth reading: the tab following the roster is what made a manifest unholdable, so the slots did not arrive as the next convenience on a queue, they arrived as the only shape a browser half could have once a plugin could stop being here. The Cordis proposal's §6 has the order for the rest.
+Interception on the `vault` service arrives with later phases. So does HMR: no Bun cache bust exists. **Browser slots were on this list and have left it** — they are [`src/browser.ts`](src/browser.ts) now, and the entry is kept rather than deleted because what moved them is worth reading: the tab following the roster is what made a manifest unholdable, so the slots did not arrive as the next convenience on a queue, they arrived as the only shape a browser half could have once a plugin could stop being here. The Cordis proposal's §6 has the order for the rest.
 
 ---
 

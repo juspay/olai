@@ -183,7 +183,7 @@ const withTools = <A>(
       expose: MCP,
       client: () =>
         clientOver(
-          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },
+          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", door: null }) },
           wired.faces.agent,
         ),
       tools: bespokeFrom(TOOLS, {

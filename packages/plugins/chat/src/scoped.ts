@@ -303,9 +303,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // An empty bearer is what `@olai/plugin-api`'s `NO_TICKET` is: the
             // bench and headless arm, a serve with no MCP face to mint against.
             // Handed on, it reached the tool door as a session carrying no
-            // bearer — which is a session the door cannot place, so the subtree
-            // write fence is simply off for it. That is the one thing a seat
-            // must not be able to be: seated, and unfenced.
+            // bearer — which is a session the door cannot place, so the
+            // remaining write rule is simply off for it. That is the one thing
+            // a seat must not be able to be: seated, and with no credential.
             //
             // `null` rather than a refusal to acquire, because the scope is not
             // the thing at fault and a node agent with no tools is a state this

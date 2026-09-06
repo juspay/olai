@@ -121,7 +121,7 @@ const withRoute = <A>(
 
     const transport = mcpTransport()
     const panel = clientOver(
-      { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },
+      { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", door: null }) },
       wired.faces.agent,
     )
     let selectingTicket: string | null = null
@@ -163,15 +163,14 @@ const withRoute = <A>(
       use({
         root,
         url,
-        retainedTicket: (under) => {
-          const ticket = tickets.mint(() => ({ under, forbidden: [] }), () => null, "chat-agent")
+        retainedTicket: (_under) => {
+          const ticket = tickets.mint(() => ({ forbidden: [] }), "chat-agent")
           selectingTicket = ticket.bearer
           try { return { ticket, client: tickets.doorAt(panel) } }
           finally { selectingTicket = null }
         },
-        mintTicket: (under) => tickets.mint(
-          () => ({ under, forbidden: [] }),
-          () => null,
+        mintTicket: (_under) => tickets.mint(
+          () => ({ forbidden: [] }),
           "chat-agent",
         ),
         post: (message, headers) =>
@@ -453,7 +452,7 @@ test("a node ticket can list and call the three plugin verbs", async () => {
  * and `set_prop` writes any custom key that is not spelled like a field. So the
  * agent could approve itself through a door it already held.
  *
- * The fence's forbidden table is what closes it (`./tickets.ts`), and this is
+ * The door's forbidden table is what closes it (`olai-plugin-mcp`'s `tickets.ts`), and this is
  * the test that asks the question the way an agent would: the same call, the
  * same bearer, one key apart. The one that lands is what makes the refusal
  * about THAT KEY rather than about the subtree.

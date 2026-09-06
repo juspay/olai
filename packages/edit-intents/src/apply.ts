@@ -19,5 +19,5 @@ export const applyEdit = (ops: Ops, edit: Edit): Effect.Effect<Applied, OpFailur
 })
 export const runWrite = (ops: Ops, request: Parameters<Ops["run"]>[0]) => Effect.gen(function*() {
   const caller = (yield* RequestAuthority) as Caller
-  return yield* ops.run(request, caller.writer, caller.fence ?? undefined)
+  return yield* ops.run(request, caller.writer, caller.door ?? undefined)
 })

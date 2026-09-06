@@ -33,7 +33,7 @@ export const bindAgent = (options: {
 }): AgentBinding & { readonly tickets: Tickets } => {
   const { shared } = options
   const ops = liveOps(options.ops)
-  const panel = liveClient(shared.agent, { writer: "mcp", fence: null })
+  const panel = liveClient(shared.agent, { writer: "mcp", door: null })
   const tickets = ticketing({ reservations: shared.writeReservations, bound: shared.agent, face: () => shared.agent().expose, ops, token: shared.token, currentTicket: options.ticket })
   return {
     tickets,

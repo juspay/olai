@@ -31,7 +31,6 @@ import {
   type CommitResult,
   type HomesAnswer,
   type HomesRequest,
-  inboxIn,
   type KindVocabulary,
   NO_KINDS,
   type MovingAnswer,
@@ -43,8 +42,6 @@ import {
   NOTHING_WRONG,
   type OpFailure,
   type OutlineError,
-  outlineNames,
-  outlinePaths,
   type PageReading,
   type PageRequest,
   type PushResult,
@@ -65,10 +62,10 @@ import {
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import { type Fence, outsideFence } from "./fenced.ts"
+import { type Door, barred } from "./door.ts"
 import { type Context, plan, scoping } from "./plan.ts"
 import * as Query from "./query.ts"
-import { fenceRefusal } from "./refusals.ts"
+import { doorRefusal } from "./refusals.ts"
 import { standing } from "./standing.ts"
 import { sortOfWrite } from "./sorted.ts"
 import { asking, type Asking } from "./tools.ts"
@@ -362,7 +359,7 @@ export interface Ops extends Asking {
   readonly run: (
     request: Request,
     writer: Writer,
-    fence?: Fence,
+    door?: Door,
   ) => Effect.Effect<Applied, OpFailure>
   /**
    * No {@link run} is in flight.
@@ -522,7 +519,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
   const run = (
     request: Request,
     writer: Writer,
-    fence?: Fence,
+    door?: Door,
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.gen(function*() {
       const store = yield* currentStore
@@ -622,7 +619,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
            * `ValidationFailure` ({@link ./plan.ts}'s `writable` — the file
            * answered, and the answer was rows from the broken list). Every
            * other refusal the planner makes is a `UsageFailure` about the
-           * REQUEST — a typo, a misuse, a fence the write ran into — and
+           * REQUEST — a typo, a misuse, a door the write ran into — and
            * those are words about what was ASKED, never about bytes the
            * set holds: a stale copy cannot invent a usage fault, so the
            * hottest refusal path pays no byte check for it.
@@ -646,17 +643,11 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         }
         const { files, documents = [], removed = [], ...about } = planned.success
 
-        if (fence !== undefined) {
-          const outside = outsideFence(
-            fence,
-            snapshot.value.derived,
-            outlineNames(snapshot.value.set),
-            inboxIn(outlinePaths(snapshot.value.set)),
-            planned.success,
-          )
-          if (outside !== null) {
+        if (door !== undefined) {
+          const reached = barred(door, snapshot.value.derived, planned.success)
+          if (reached !== null) {
             return yield* new UsageFailure({
-              reason: fenceRefusal(snapshot.value.derived, fence, outside),
+              reason: doorRefusal(reached),
             })
           }
         }
@@ -853,12 +844,12 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
   const reported = (
     request: Request,
     writer: Writer,
-    fence?: Fence,
+    door?: Door,
   ): Effect.Effect<Applied, OpFailure> =>
     options.onRefusal === undefined
-      ? run(request, writer, fence)
+      ? run(request, writer, door)
       : Effect.tapError(
-        run(request, writer, fence),
+        run(request, writer, door),
         (failure) => options.onRefusal!(request, failure),
       )
 
@@ -893,11 +884,11 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
   const tracked = (
     request: Request,
     writer: Writer,
-    fence?: Fence,
+    door?: Door,
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.suspend(() => {
       beginWrite()
-      return Effect.ensuring(reported(request, writer, fence), Effect.sync(endWrite))
+      return Effect.ensuring(reported(request, writer, door), Effect.sync(endWrite))
     })
 
   return {

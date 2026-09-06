@@ -3,7 +3,7 @@
 import { Schema } from "effect"
 import { Writer } from "@olai/format"
 import type { FaceExposure } from "@kolu/surface/expose"
-import type { Fence, Ops } from "@olai/ops"
+import type { Door, Ops } from "@olai/ops"
 import { randomBytes } from "node:crypto"
 
 import { type Bound } from "./authority.ts"
@@ -20,9 +20,9 @@ import { liveClient } from "./live-client.ts"
  * the STATE that member guards is an ordinary custom property on an ordinary
  * node — `approved`, recorded in the vault so it travels with it and is in the
  * ledger like the source (the ruling, 2026-09-05) — and `set_prop` writes any
- * custom key that is not spelled like a field. A session's fence is a SUBTREE
- * fence, and the plugin an agent defines is inside that agent's subtree by
- * construction. So:
+ * custom key that is not spelled like a field. A node agent's door writes the
+ * vault, and the plugin an agent defines is a node the agent can otherwise
+ * edit. So:
  *
  *     set_prop {"id": "<its own plugin node>", "key": "approved", "value": "always"}
  *
@@ -37,7 +37,7 @@ import { liveClient } from "./live-client.ts"
  * Because this is the one place that holds both halves. `@olai/ops` may not
  * know what a plugin is; `olai-plugin-chat` supplies the keys a SESSION is
  * seated on, with its own sentence for them, and has no business knowing phase
- * 12's words; and the fence itself is minted right here, per session, by the
+ * 12's words; and the door itself is minted right here, per session, by the
  * MCP activation. So the ticket's forbidden table is the union of what the
  * seat contributed and what this build's own vocabulary reserves — each half
  * carrying the clause its own author wrote.
@@ -50,11 +50,10 @@ import { liveClient } from "./live-client.ts"
  * and a word core claims is one a session's door does not write.
  *
  * A PERSON'S face is untouched: `plugins.approve` runs under this runtime's own
- * writer with no fence at all, which is the same shape a keystroke has.
+ * writer with no door rule at all, which is the same shape a keystroke has.
  */
 
 export interface Seated {
-  readonly under: string
   /** Each key this session may not write, with the clause that says why — see
    *  `@olai/plugin-api`'s `Seated` on why the sentence travels from whoever
    *  forbade the key rather than being composed where it is spent. */
@@ -67,7 +66,7 @@ export interface Ticket {
 }
 
 export interface Tickets {
-  readonly mint: (fence: () => Seated, above: (node: string) => string | null, writer: string) => Ticket
+  readonly mint: (seated: () => Seated, writer: string) => Ticket
   readonly doorAt: (held: McpClient) => McpClient
 }
 
@@ -82,29 +81,28 @@ export const ticketing = (options: {
   const prefix = "olai-node-"
   const tickets = new Map<string, McpClient>()
 
-  const composed = (fence: Fence, writer: Writer): McpClient => liveClient(() => ({
+  const composed = (door: Door, writer: Writer): McpClient => liveClient(() => ({
     ...(typeof options.bound === "function" ? options.bound() : options.bound),
     expose: typeof options.face === "function" ? options.face() : options.face,
-  }), { writer, fence })
+  }), { writer, door })
 
-  const closed = composed({ under: null, ask: () => null, forbidden: new Map() }, "mcp")
+  const closed = composed({ closed: true, forbidden: new Map() }, "mcp")
 
   return {
-    mint: (seated, above, writer) => {
+    mint: (seated, writer) => {
       const bearer = `${prefix}${randomBytes(24).toString("hex")}`
       let released = false
-      const fence: Fence = {
-        get under() {
-          return released ? null : seated().under
+      const door: Door = {
+        get closed() {
+          return released
         },
-        ask: () => released ? null : above(seated().under),
         get forbidden() {
           return new Map<string, string>(
             [...(released ? [] : seated().forbidden), ...options.reservations].map((one) => [one.key, one.says]),
           )
         },
       }
-      tickets.set(bearer, composed(fence, Schema.decodeUnknownSync(Writer)(writer)))
+      tickets.set(bearer, composed(door, Schema.decodeUnknownSync(Writer)(writer)))
       return {
         bearer,
         release: () => {

@@ -242,14 +242,14 @@ export function composeCapabilities<const S extends SurfaceSpec>(
      *
      * This list is not a permission, it is an ATTRIBUTION table:
      * `@olai/plugin-api`'s `authorityAt` wraps exactly these tags to provide
-     * `RequestAuthority` — the caller's writer and its fence — and leaves every
+     * `RequestAuthority` — the caller's writer and its door — and leaves every
      * other handler's identity untouched. A tag left off it does not refuse, it
-     * runs on the Context default, `{ writer: "web" }`, unfenced.
+     * runs on the Context default, `{ writer: "web" }`, with no session door.
      *
      * So listing only the bare tag would not close the qualified door, it would
      * silence it: an agent's write through `surface/outlines/edit/apply` would
      * land with the browser's word in git's `X-Olai-Writer` trailer and with no
-     * fence narrowing what the door reaches. Both tags reach the same handler —
+     * remaining write rule. Both tags reach the same handler —
      * the alias in `rebuild` is the same function object — so both must carry
      * the same attribution or the pair is a way to launder one.
      * `./composition.test.ts` asserts the pair, and asserts a mount that claims

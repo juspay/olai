@@ -880,19 +880,19 @@ export interface Wake {
 }
 
 /**
- * WHERE A SESSION IS SEATED — the subtree its writes are fenced to, and the keys
- * it may not touch inside it.
+ * WHERE A SESSION IS SEATED — the keys its door may not write.
  *
  * Re-declared here for {@link Refusal}'s reason: the shape is
- * `@olai/server`'s (`mcp/tickets.ts`), and it is three fields of strings that
- * both ends have to spell. Contravariance makes the agreement the strong
+ * `olai-plugin-mcp`'s (`tickets.ts`), and it is fields of strings that both
+ * ends have to spell. Contravariance makes the agreement the strong
  * direction — whoever completes the ticket door hands over a value that has to
  * satisfy both spellings at the composition root, so a drift is a type error in
  * the one file that holds both.
  *
- * `forbidden` is inside the fence rather than beside it: a node agent may write
- * anywhere under its own node and still may not rewrite the property that says
- * WHICH conversation it is, because that is the binding rather than the work.
+ * The subtree is the session's home, not its territory: a node agent writes
+ * the vault. What this still carries is the property rule — a node agent may
+ * not rewrite the property that says WHICH conversation it is, because that is
+ * the binding rather than the work.
  *
  * EACH KEY CARRIES ITS OWN SENTENCE, and that is not decoration. The refusal a
  * session reads used to be composed in `@olai/ops` — a general package writing
@@ -905,12 +905,11 @@ export interface Wake {
  * the owner's, and core carries it.
  */
 export interface Seated {
-  readonly under: string
   readonly forbidden: ReadonlyArray<Forbidden>
 }
 
 /** One key a session's door may not write, and the clause that says why — spent
- *  verbatim inside the refusal (`@olai/ops`' `fenceRefusal`), so it reads as a
+ *  verbatim inside the refusal (`@olai/ops`' `doorRefusal`), so it reads as a
  *  reason and not as a label. */
 export interface Forbidden {
   readonly key: string
@@ -938,11 +937,12 @@ export const NOWHERE_TO_WRITE: Refusal & { readonly reason: string } = {
  *
  *  THE BEARER IS EMPTY RATHER THAN ABSENT so the type stays one shape, and the
  *  empty string is a value a caller must TEST: handed to a tool door it is a
- *  session the door cannot place, so the subtree write fence is off for it —
- *  seated, and unfenced, which is the one thing a seat may not be.
+ *  session the door cannot place, so the session's remaining write rule is off
+ *  for it — seated, and with no credential, which is the one thing a seat may
+ *  not be.
  *
  *  The one caller in this tree tests it (`olai-plugin-chat`'s `scoped.ts`, which
- *  hands no MCP face at all rather than an unfenced one). It said so here for a
- *  while when that caller did not, which is how a sentence about a fence stops
- *  being a fence. */
+ *  hands no MCP face at all rather than a door with no credential). It said so
+ *  here for a while when that caller did not, which is how a sentence about a
+ *  door stops being a door. */
 export const NO_TICKET: MintedTicket = { bearer: "", release: () => {} }

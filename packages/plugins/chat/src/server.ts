@@ -185,7 +185,7 @@ const asFailure = (refusal: Refusal): OpFailure => refusal as OpFailure
  * A node agent may write anywhere under its own node and still may not rewrite
  * the property that says WHICH conversation it is: that is the binding rather
  * than the work, and it is a person's gesture in the panel. The refusal spends
- * this clause verbatim (`@olai/ops`' `fenceRefusal`), which is why it reads as a
+ * this clause verbatim (`@olai/ops`' `doorRefusal`), which is why it reads as a
  * reason and starts in lower case.
  */
 const SEATS =
@@ -811,11 +811,11 @@ export default definePlugin({
         nearestAt: (node, candidates) => nodeAgents.nearestAt(node, candidates),
         // EVERY KEY THIS VAULT DECLARES THE BINDING KIND ON, not the one a write
         // would land on: a board mid-migration has two, this plugin's roster
-        // reads a binding off either, and a fence that named only the writing
-        // key would leave the other as a door a seated agent could re-seat
-        // itself through. A THUNK, so the answer follows the revision — a
+        // reads a binding off either, and a door that forbade only the writing
+        // key would leave the other as a way a seated agent could re-seat
+        // itself. A THUNK, so the answer follows the revision — a
         // migration row landing mid-conversation moves what the ticket forbids.
-        ticket: (node) =>
+        ticket: (_node) =>
           tools.ticket(
             // ...AND THE SENTENCE IS THIS PLUGIN'S, beside the keys it is
             // about. It used to be composed inside `@olai/ops`' refusal, which
@@ -823,10 +823,8 @@ export default definePlugin({
             // package owns — invisible while there was one forbidden key and
             // untrue of half its subjects the moment there were two.
             () => ({
-              under: node,
               forbidden: nodeAgents.keys().map((key) => ({ key, says: SEATS })),
             }),
-            nodeAgents.above,
             "chat-agent",
           ),
         onState: publishState,
