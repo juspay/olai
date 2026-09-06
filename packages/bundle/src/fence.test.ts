@@ -312,7 +312,7 @@ type Door = ReturnType<typeof graphFrom>
  * nothing here went red: the door was a declared contract, the module has no
  * `node:` import and no side effect, and dead weight is not something an e2e
  * scenario can see. So the split is by GRAPH rather than by subject —
- * `olai-plugin-*/wire` is inert and `olai-plugin-*/projection` is the
+ * a row's `./wire` door is inert and its `./projection` is the
  * server's — and this line is what holds it, because a value re-exported back
  * into a wire door would otherwise pass forever.
  *
