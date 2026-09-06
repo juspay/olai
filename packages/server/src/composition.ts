@@ -30,6 +30,7 @@ export function composeCapabilities<const S extends SurfaceSpec>(
     readonly writes: ReadonlyArray<string>
     readonly dispatch: Readonly<Record<string, Dispatch>>
     readonly faces: Readonly<Record<string, ExposeMap<SurfaceSpec>>>
+    readonly scopedFaces: Readonly<Record<string, ExposeMap<SurfaceSpec>>>
   }>()
   let group = runtime.group
   let handlers = runtime.handlers
@@ -58,10 +59,16 @@ export function composeCapabilities<const S extends SurfaceSpec>(
     const next: SurfaceHandlers = emptyHandlers()
     const rpcs = new Map<string, typeof root.group.requests extends ReadonlyMap<string, infer R> ? R : never>()
     for (const [tag, rpc] of runtime.group.requests) {
-      const alias = renamed.get(tag) ?? tag
-      if (Object.hasOwn(next, alias) && !routes.has(alias)) throw new Error(`Surface tag collision: ${alias}`)
-      next[alias] = runtime.handlers[tag]!
-      rpcs.set(alias, renamed.has(tag) ? publicRpcs.get(alias)! : rpc)
+      // Keep the provider's own contract for scoped clients. Compatibility
+      // aliases are additional routes, never the browser's permanent spec.
+      next[tag] = runtime.handlers[tag]!
+      rpcs.set(tag, rpc)
+      const alias = renamed.get(tag)
+      if (alias) {
+        if (Object.hasOwn(next, alias) && !routes.has(alias)) throw new Error(`Surface tag collision: ${alias}`)
+        next[alias] = runtime.handlers[tag]!
+        rpcs.set(alias, publicRpcs.get(alias)!)
+      }
     }
     for (const [tag, branches] of routes) {
       // Capture this generation's revoked handlers, never a live lookup that
@@ -69,6 +76,17 @@ export function composeCapabilities<const S extends SurfaceSpec>(
       const cases = new Map(branches.flatMap(({tag, dispatch}) =>
         dispatch.cases.map(value => [value, runtime.handlers[tag]!] as const)))
       const field = branches[0]!.dispatch.field
+      // The shared envelope describes all variants; a qualified provider tag
+      // may still invoke only variants that provider owns.
+      for (const branch of branches) {
+        const handler = runtime.handlers[branch.tag]!
+        next[branch.tag] = (input: unknown) => {
+          const value = input && typeof input === "object" ? (input as Record<string, unknown>)[field] : undefined
+          return typeof value === "string" && branch.dispatch.cases.includes(value)
+            ? handler(input)
+            : Effect.die(new SurfaceSiblingDropped({ key: `${branch.tag}[${field}=${String(value)}]`, at: { face: "wire", tag: branch.tag } }))
+        }
+      }
       next[tag] = (input: unknown) => {
         const value = input && typeof input === "object" ? (input as Record<string, unknown>)[field] : undefined
         const handler = typeof value === "string" ? cases.get(value) : undefined
@@ -87,6 +105,9 @@ export function composeCapabilities<const S extends SurfaceSpec>(
       for (const [key, map] of Object.entries(one.faces)) {
         add(key, exposeFace(one.surface, map), one.root ? "surface/" : `surface/${name}/`)
       }
+      for (const [key, map] of Object.entries(one.scopedFaces)) {
+        add(key, exposeFace(one.surface, map), `surface/${name}/`)
+      }
     }
     // Publish one coherent generation after every descriptor and handler agrees.
     dispatch = Object.fromEntries([...routes].map(([tag, branches]) => [tag, { field: branches[0]!.dispatch.field, cases: branches.flatMap(branch => branch.dispatch.cases) }]))
@@ -102,7 +123,10 @@ export function composeCapabilities<const S extends SurfaceSpec>(
     get dispatch() { return dispatch },
     get roster() { return runtime.roster },
     get writes() { return [...new Set([...mounts].flatMap(([name, one]) =>
-      one.writes.map(tag => one.root ? tag : `surface/${name}/${tag.slice("surface/".length)}`)))] },
+      one.writes.flatMap(tag => {
+        const scoped = `surface/${name}/${tag.slice("surface/".length)}`
+        return one.root ? [tag, scoped] : [scoped]
+      })))] },
     ctx: runtime.ctx,
     done: runtime.done,
     close: runtime.close,
@@ -111,6 +135,7 @@ export function composeCapabilities<const S extends SurfaceSpec>(
       readonly writes?: ReadonlyArray<string>
       readonly dispatch?: Readonly<Record<string, Dispatch>>
       readonly faces?: Readonly<Record<string, ExposeMap<T>>>
+      readonly scopedFaces?: Readonly<Record<string, ExposeMap<T>>>
     } = {}) {
       for (const tag of options.writes ?? []) {
         if (!surface.group.requests.has(tag) || isReservedSurfaceTag(tag)) {
@@ -156,10 +181,10 @@ export function composeCapabilities<const S extends SurfaceSpec>(
         }
       }
       // Validate exposure before mount: an invalid grant must acquire nothing.
-      for (const map of Object.values(options.faces ?? {})) exposeFace(surface, map)
+      for (const map of [...Object.values(options.faces ?? {}), ...Object.values(options.scopedFaces ?? {})]) exposeFace(surface, map)
       const mounted = runtime.mount(name, surface, deps)
-      mounts.set(name, { surface, root: options.root ?? false, writes: options.writes ?? [], dispatch: options.dispatch ?? {}, faces: options.faces ?? {} } as {
-        surface: Surface<SurfaceSpec>, root: boolean, writes: ReadonlyArray<string>, dispatch: Readonly<Record<string, Dispatch>>, faces: Readonly<Record<string, ExposeMap<SurfaceSpec>>>
+      mounts.set(name, { surface, root: options.root ?? false, writes: options.writes ?? [], dispatch: options.dispatch ?? {}, faces: options.faces ?? {}, scopedFaces: options.scopedFaces ?? {} } as {
+        surface: Surface<SurfaceSpec>, root: boolean, writes: ReadonlyArray<string>, dispatch: Readonly<Record<string, Dispatch>>, faces: Readonly<Record<string, ExposeMap<SurfaceSpec>>>, scopedFaces: Readonly<Record<string, ExposeMap<SurfaceSpec>>>
       })
       const registration = mounts.get(name)!
       rebuild()

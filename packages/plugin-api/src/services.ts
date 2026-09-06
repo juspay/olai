@@ -417,6 +417,10 @@ export interface Sibling {
   /** Which of its members each face may see — its own `ExposeMap` per face,
    *  written against its own spec. */
   readonly faces: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  /** Additional qualified sibling exposure for clients acquired by this
+   * provider's browser activation. Preserved root aliases keep their own face
+   * policy; granting a sibling does not grant it to every transport face. */
+  readonly scopedFaces?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
   /** This plugin's `ImplementSurfaceDeps`, against its own spec. */
   readonly deps: unknown
   /** This plugin's OWN ctx, handed back the moment its sibling is implemented.

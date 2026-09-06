@@ -16,7 +16,7 @@ test("standalone tags follow independent provider generations and preserve unrel
     const old = host.handlers["surface/count/get"]!
     expect(await Effect.runPromise(old(undefined) as Effect.Effect<number>)).toBe(1)
     expect(host.faces.browser!.tags.has("surface/count/get")).toBe(true)
-    expect(host.group.requests.has("surface/one/count/get")).toBe(false)
+    expect(host.group.requests.has("surface/one/count/get")).toBe(true)
     await one.drop()
     expect(host.group.requests.has("surface/count/get")).toBe(false)
     expect(host.handlers["surface/other/count/get"]).toBe(otherHandler)
@@ -87,12 +87,43 @@ test("shared variants cannot widen face access or lose write attribution", async
       ...options, writes: [], faces: { agent: { "write.apply": "tool" } },
     })).toThrow("write authority")
     expect(host.roster).toEqual(["one"])
-    expect(host.writes).toEqual([tag])
+    expect(host.writes).toEqual([tag, "surface/one/write/apply"])
     expect(() => host.mount("bad", contract, deps, { writes: ["surface/missing"] })).toThrow("unknown write")
     expect(() => host.mount("bad", contract, deps, {
       root: true, dispatch: { [tag]: { field: "kind", cases: [] } },
     })).toThrow("invalid dispatch")
     host.mount("scoped", contract, deps, { writes: [tag] })
     expect(host.writes).toContain("surface/scoped/write/apply")
+  } finally { await host.close() }
+})
+
+
+test("qualified clients retain provider authority without duplicating agent exposure", async () => {
+  const contract = defineSurface({ procedures: { write: { apply: {
+    input: Schema.Struct({ kind: Schema.String }), output: Schema.Number,
+  } } } })
+  const tag = "surface/write/apply"
+  const scoped = "surface/one/write/apply"
+  const host = composeCapabilities(root, {}, {})
+  try {
+    const one = host.mount("one", contract, { procedures: { write: { apply: () => Effect.succeed(1) } } }, {
+      root: true, writes: [tag], dispatch: { [tag]: { field: "kind", cases: ["one"] } },
+      faces: { agent: { "write.apply": "tool" } },
+      scopedFaces: { browser: { "write.apply": "tool" } },
+    })
+    const held = host.handlers[scoped]!
+    expect(host.faces.agent!.tags.has(tag)).toBe(true)
+    expect(host.faces.agent!.tags.has(scoped)).toBe(false)
+    expect(host.faces.browser!.tags.has(scoped)).toBe(true)
+    expect(host.writes).toContain(scoped)
+    expect(await Effect.runPromise(held({ kind: "one" }) as Effect.Effect<number>)).toBe(1)
+    const wrongOwner = await Effect.runPromiseExit(held({ kind: "two" }) as Effect.Effect<number>)
+    expect(wrongOwner._tag).toBe("Failure")
+    if (wrongOwner._tag === "Failure") expect(Cause.squash(wrongOwner.cause)).toHaveProperty("_tag", "SurfaceSiblingDropped")
+    await one.drop()
+    expect(host.group.requests.has(scoped)).toBe(false)
+    expect(host.writes).not.toContain(scoped)
+    expect(host.faces.browser?.tags.has(scoped) ?? false).toBe(false)
+    expect(await Effect.runPromiseExit(held({ kind: "one" }) as Effect.Effect<number>)).toHaveProperty("_tag", "Failure")
   } finally { await host.close() }
 })
