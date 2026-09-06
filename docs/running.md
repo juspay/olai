@@ -247,7 +247,7 @@ services.olai = {
 };
 ```
 
-**Giving a flag sets the instance's policy; omitting it uses the built-in default.** Either way the config is the same in every browser. Given, the plugins panel draws the value under the git row. Omitted, the built-in default applies. Never hidden — a policy a reader cannot see is one they cannot ask anybody about.
+**Giving a flag sets the instance's policy; omitting it uses the built-in default.** Either way the config is the same in every browser. The git row's `config:` in `olai.yml` is that default, and the plugins panel always draws it. A flag overlays the file. Never hidden — a policy a reader cannot see is one they cannot ask anybody about.
 
 The two are independent, so setting committing does not silently set pushing. `--commit=manual` typed out loud is not the same as saying nothing, even though this server behaves identically either way: the first is a patch onto the git row's config, the second is the built-in default.
 
@@ -319,7 +319,7 @@ Include `vault` in an explicit list to serve files. `--plugins=` opens no listen
 
 ### The switch, and how long it lasts
 
-**The plugins panel has a switch on every row**, and pressing it moves the running serve. Turn kolu off and its Dock rows stop being drawn, its chip leaves the bar, its members leave the wire and the words it taught the vault go back to being ordinary text — no reload, no restart, and the page follows on its own. Turn it back on and all of it returns.
+**The plugins panel has a switch on every row**, grouped by the section `olai.yml` names, with quiet groups (transports, this tab, pages) collapsed while they are healthy. A press on the heading opens one and the panel keeps that through roster redraws and the rebuild a switch causes; folding the group back up would make the walk unusable. Plugins written into the vault sit in **Defined here**; a pending definition is **Needs you** until somebody approves it. Pressing a switch moves the running serve. Turn kolu off and its Dock rows stop being drawn, its chip leaves the bar, its members leave the wire and the words it taught the vault go back to being ordinary text — no reload, no restart, and the page follows on its own. Turn it back on and all of it returns. A row that carries others, or that has a `switchHint`, asks before Off.
 
 **A flip lasts as long as this serve, and is written nowhere.** There is no settings file, `olai.yml` is not edited, and nothing lands in `$XDG_STATE_HOME`. A restart comes back to what the flag, the nix option and the build's own rows say — which is the whole of why the switch is safe to have: the answer to *what does this machine run* stays the one thing an operator set, and the switch is what you reach for to find out what something is doing, or to make it stop until you have looked.
 
@@ -333,7 +333,7 @@ Include `vault` in an explicit list to serve files. `--plugins=` opens no listen
 
 **An agent cannot touch it.** The verb is on the browser's face and no other, so nothing reachable over `/mcp` can turn a plugin off. An agent that could would be an agent that could turn off the thing watching it.
 
-**Turning a row off takes its dependants with it, and the panel says so.** The chat row stands behind four doors ([plugins/chat.md](plugins/chat.md)), so switching it off leaves every engine, every doorbell and the mirror `waiting` — each row naming the door it is short of. Switch chat back on and they re-start themselves; nothing has to be pressed twice, and a plugin that comes back is holding the same machine-local record it left.
+**Turning a row off takes its dependants with it, and the panel asks first.** The chat row stands behind four doors ([plugins/chat.md](plugins/chat.md)), so switching it off leaves every engine, every doorbell and the mirror `waiting` — each row naming the door it is short of. The confirm names those rows before Off moves. Switch chat back on and they re-start themselves; nothing has to be pressed twice, and a plugin that comes back is holding the same machine-local record it left.
 
 A service can have only one provider. If two plugins offer the same service,
 the second fails with a sentence naming both plugins and the service; the

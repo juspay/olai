@@ -47,7 +47,7 @@ const DEFINITION = "swatch.olai";
  *  carries — the same way a person finds it and the same way `--plugins` would
  *  name it if it were a built row. */
 const blockFor = (world: OlaiWorld, plugin: string) =>
-  world.page.locator(`${PLUGINS_PANEL} ${PLUGINS_SOURCE}${attr("data-plugin", plugin)}`);
+  world.pluginsPanel().locator(`${PLUGINS_SOURCE}${attr("data-plugin", plugin)}`);
 
 Then(
   "the plugins panel shows the source of {string}",
@@ -95,7 +95,13 @@ Then(
  * somebody iterating with an agent and is a different claim.
  */
 When("I approve the plugin {string}", async function (this: OlaiWorld, plugin: string) {
-  await this.press(blockFor(this, plugin).locator(PLUGINS_APPROVE));
+  await this.showPluginRow(plugin);
+  const block = blockFor(this, plugin);
+  await block.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  if ((await block.getAttribute("open")) === null) {
+    await this.press(block.locator("summary"));
+  }
+  await this.press(block.locator(PLUGINS_APPROVE));
 });
 
 /** ...and the press that arms them again after the definition moved under the

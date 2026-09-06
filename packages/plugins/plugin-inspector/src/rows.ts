@@ -106,6 +106,7 @@ import type { RowReport } from "@olai/plugin-api"
 import { pluginPinOf } from "@olai/format"
 import type { BuiltPlugin, PluginRoster } from "@olai/surface"
 import { pluginState } from "@olai/surface"
+import type { PluginLook } from "@olai/surface/management"
 
 /** The rows to draw, in the order the build lists its plugins. A build with no
  *  plugins, and a page that has not heard from the server yet, both draw none —
@@ -240,26 +241,18 @@ export const pluginConfig = (
 export const pluginHint = (
   plugin: BuiltPlugin,
   roster: PluginRoster = { built: [], pinned: null },
-  switchHint?: string,
+  look: PluginLook = {},
 ): string | null => {
   const pin = pluginPinOf(roster)
   switch (pluginState(plugin)) {
     case "running": {
-      if (plugin.browserOnly) return "Selected by the host; runs only in the browser."
-      const hint = switchHint
       // NOTHING, on the ordinary row: the switch reads On and there is no
-      // second thing to know. A row that carries others has one, and it is
-      // about the press rather than about the state. `--extra-plugins`
-      // naming this row is the pin, sitting next to the row, not a second
-      // fiber word — so the carrying sentence still rides.
-      const extra = pin.kind === "delta" && namedBy(pin.extra, plugin.name)
+      // second thing to know. What carrying costs is a confirm on Off, not a
+      // caption on On. `--extra-plugins` naming a default-on row is the
+      // foot's; the per-row line is only for an opt-in the flag turned on.
+      return pin.kind === "delta" && look.optIn === true && namedBy(pin.extra, plugin.name)
         ? `On — --extra-plugins named it.`
         : null
-      if (hint !== undefined) return extra === null ? hint : `${extra} ${hint}`
-      const carry = carries(plugin) === undefined
-        ? null
-        : `Turning it off also stops ${carries(plugin)}.`
-      return extra === null ? carry : carry === null ? extra : `${extra} ${carry}`
     }
     case "optIn":
       // THE BUILD'S OWN DEFAULT, and the flag value that changes it. This is
@@ -437,6 +430,122 @@ export const browserHint = (plugin: string, reports: ReadonlyMap<string, RowRepo
     if (report.state === "failed") lines.push(`${label}: failed to start. ${report.fault ?? "It gave no message."}`)
   }
   if (lines.length) return lines.join(" ")
-  if (browserOnly) return reports.get(plugin)?.state === "running" ? "Browser: running." : "Browser: awaiting activation."
+  if (browserOnly && reports.get(plugin)?.state !== "running") return "Browser: awaiting activation."
   return null
+}
+
+/**
+ * WHAT PRESSING OFF WILL COST — carrying, or the row's own switchHint.
+ *
+ * On the running row this used to be a caption. It is a confirm now: the
+ * ordinary On says nothing, and the sentence appears when the switch is about
+ * to move. {@link pluginHint}'s running arm is `null` for the same rows.
+ */
+export const pluginConfirm = (
+  plugin: BuiltPlugin,
+  look: PluginLook = {},
+): string | null => {
+  const carry = carries(plugin)
+  if (carry !== undefined) return `Turning it off also stops ${carry}.`
+  return look.switchHint ?? null
+}
+
+/** The sentence the panel draws under a row — hint plus a waiting/failed browser. */
+export const rowCopy = (
+  plugin: BuiltPlugin,
+  roster: PluginRoster = { built: [], pinned: null },
+  look: PluginLook = {},
+  reports: ReadonlyMap<string, RowReport> = new Map(),
+): string | null => {
+  const hint = pluginHint(plugin, roster, look)
+  const browser = plugin.running ? browserHint(plugin.name, reports, plugin.browserOnly) : null
+  return [hint, browser].filter(Boolean).join(" ") || null
+}
+
+/**
+ * A plugin the VAULT defines — presence of {@link BuiltPlugin.source} is the
+ * whole distinction. Not a YAML section: these rows are not in `olai.yml`, and
+ * a section spelled here would be the inspector naming a plugin's origin in
+ * the one file that must not.
+ */
+export const THIS_VAULT = "Defined here"
+
+export const NEEDS_YOU = "Needs you"
+
+export type PluginGroup = {
+  readonly label: string
+  readonly needs: boolean
+  readonly collapsed: boolean
+  readonly rows: ReadonlyArray<BuiltPlugin>
+}
+
+const needsYou = (
+  plugin: BuiltPlugin,
+  reports: ReadonlyMap<string, RowReport>,
+): boolean => {
+  const state = pluginState(plugin)
+  if (state === "failed" || state === "pending" || state === "waiting") return true
+  for (const [name, report] of reports) {
+    if (name !== plugin.name && !name.startsWith(plugin.name + "/")) continue
+    if (report.state === "waiting" || report.state === "failed") return true
+  }
+  return false
+}
+
+const sectionOf = (plugin: BuiltPlugin, look: PluginLook): string =>
+  plugin.source !== undefined ? THIS_VAULT : look.section ?? plugin.name
+
+/**
+ * THE PANEL'S WALK, grouped.
+ *
+ * Needs-you first (failed, pending, waiting, a browser that failed or waits).
+ * Then YAML sections in roster order. Vault-defined rows that are not in
+ * Needs you sit in {@link THIS_VAULT}, after the built-in catalogue, because
+ * that is where they arrive on the cell.
+ *
+ * A group of only `optIn` rows is hidden — fixtures nobody asked for. A quiet
+ * group whose every row is running and silent starts collapsed.
+ */
+export const pluginGroups = (
+  roster: PluginRoster,
+  look: (name: string) => PluginLook,
+  reports: ReadonlyMap<string, RowReport> = new Map(),
+): ReadonlyArray<PluginGroup> => {
+  const rows = pluginRows(roster)
+  const attention = rows.filter((plugin) => needsYou(plugin, reports))
+  const rest = rows.filter((plugin) => !needsYou(plugin, reports))
+  const groups: PluginGroup[] = []
+  if (attention.length > 0) {
+    groups.push({ label: NEEDS_YOU, needs: true, collapsed: false, rows: attention })
+  }
+  const order: string[] = []
+  const buckets = new Map<string, BuiltPlugin[]>()
+  for (const plugin of rest) {
+    const label = sectionOf(plugin, look(plugin.name))
+    const bucket = buckets.get(label)
+    if (bucket === undefined) {
+      order.push(label)
+      buckets.set(label, [plugin])
+    } else {
+      bucket.push(plugin)
+    }
+  }
+  for (const label of order) {
+    const members = buckets.get(label)!
+    if (members.every((plugin) => pluginState(plugin) === "optIn")) continue
+    const quiet = members.every((plugin) => look(plugin.name).quiet === true)
+    const healthy = members.every((plugin) =>
+      pluginState(plugin) === "running" && rowCopy(plugin, roster, look(plugin.name), reports) === null
+    )
+    groups.push({ label, needs: false, collapsed: quiet && healthy, rows: members })
+  }
+  return groups
+}
+
+export const groupCount = (rows: ReadonlyArray<BuiltPlugin>): string => {
+  const on = rows.filter((plugin) => plugin.running).length
+  const off = rows.length - on
+  if (off === 0) return `${on} on`
+  if (on === 0) return `${off} off`
+  return `${on} on · ${off} off`
 }

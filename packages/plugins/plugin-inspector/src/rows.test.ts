@@ -29,16 +29,21 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * here.
  */
 
-import { NO_ROSTER, type PluginRoster } from "@olai/surface"
+import { NO_ROSTER, type BuiltPlugin, type PluginRoster } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import {
+  groupCount,
+  NEEDS_YOU,
   pluginConfig,
+  pluginConfirm,
+  pluginGroups,
   pluginHint,
   PLUGINS_SESSION_ONLY,
   pluginRows,
   pluginsStarted,
   pluginSwitch,
+  THIS_VAULT,
 } from "./rows.ts"
 
 
@@ -153,7 +158,7 @@ test("every arm core writes in full is one short line", () => {
     pluginHint(only(row("optIn"))),
     pluginHint(only(row("off"))),
     pluginHint(only(row("waiting"))),
-    pluginHint(only(row("running", undefined, undefined, ["kolu"]))),
+    pluginConfirm(only(row("running", undefined, undefined, ["kolu"]))),
   ]
   for (const said of every) {
     expect([said, said !== null && said.length < 100]).toEqual([said, true])
@@ -350,9 +355,10 @@ test("a wait with nothing named yet keeps the sentence it always had", () => {
  */
 test("a running row that carries others names them", () => {
   const carrier = only(row("running", undefined, undefined, ["kolu", "odu"]))
-  const said = pluginHint(carrier)
+  expect(pluginHint(carrier)).toBe(null)
+  const said = pluginConfirm(carrier)
   expect(said).toContain("kolu, odu")
-  // ...and it says what pressing Off would DO, which is the whole reason the
+  // ...and it says what pressing Off would DO, which is the whole of why the
   // names are on screen rather than the fact that they exist.
   expect(said).toContain("Turning it off")
 })
@@ -484,7 +490,8 @@ test("an extra-plugins row names the flag that turned it on, and still names who
     pinned: null,
     pin: { kind: "delta" as const, extra: ["alpha"], without: null },
   }
-  const said = pluginHint(extra.built[0]!, extra)
+  expect(pluginHint(extra.built[0]!, extra)).toBe(null)
+  const said = pluginHint(extra.built[0]!, extra, { optIn: true })
   expect(said).toContain("--extra-plugins")
   expect(said).not.toContain("--plugins=")
   expect(pluginSwitch(extra.built[0]!, false).value).toBe("on")
@@ -494,7 +501,8 @@ test("an extra-plugins row names the flag that turned it on, and still names who
     pinned: null,
     pin: { kind: "delta" as const, extra: ["alpha"], without: null },
   }
-  expect(pluginHint(carrier.built[0]!, carrier)).toContain("Turning it off")
+  expect(pluginHint(carrier.built[0]!, carrier, { optIn: true })).not.toContain("Turning it off")
+  expect(pluginConfirm(carrier.built[0]!)).toContain("Turning it off")
 })
 
 test("a without-plugins row names the flag that turned it off", () => {
@@ -592,4 +600,66 @@ test("a row's config is pairs of the keys it carries, and nothing without one", 
     ["commit", "auto"],
     ["push", "off"],
   ])
+})
+
+/**
+ * A PLUGIN THE VAULT DEFINES IS NOT A YAML SECTION. It has no `section` in
+ * `olai.yml` because it is not in `olai.yml`. Presence of `source` is the
+ * whole of the distinction, and the group is one word for every such row —
+ * so a second definition does not invent a second heading, and a pending
+ * one is Needs you rather than a silent neighbour of an approved one.
+ */
+test("vault-defined plugins are Defined here; pending ones are Needs you", () => {
+  const defined = (
+    name: string,
+    state: "running" | "pending",
+  ): BuiltPlugin => ({
+    name,
+    running: state === "running",
+    state,
+    source: {
+      node: name,
+      file: "plugins.olai",
+      version: "v",
+      approved: state === "running",
+      server: "export {}",
+    },
+  })
+  const sent: PluginRoster = {
+    built: [
+      { name: "alpha", running: true, state: "running" },
+      defined("gamma", "running"),
+      defined("delta", "pending"),
+      { name: "beta", running: false, state: "failed", fault: "no" },
+    ],
+    pinned: null,
+    pin: { kind: "omitted" },
+  }
+  const look = (name: string) =>
+    name === "alpha" || name === "beta" ? { section: "Conversation" } : {}
+  const groups = pluginGroups(sent, look)
+  expect(groups.map((group) => group.label)).toEqual([NEEDS_YOU, "Conversation", THIS_VAULT])
+  expect(groups[0]!.rows.map((row) => row.name)).toEqual(["delta", "beta"])
+  expect(groups[1]!.rows.map((row) => row.name)).toEqual(["alpha"])
+  expect(groups[2]!.rows.map((row) => row.name)).toEqual(["gamma"])
+  expect(groups[2]!.collapsed).toBe(false)
+})
+
+test("a quiet healthy group starts collapsed, and an all-optIn group is hidden", () => {
+  const sent: PluginRoster = {
+    built: [
+      { name: "alpha", running: true, state: "running" },
+      { name: "beta", running: false, state: "optIn" },
+    ],
+    pinned: null,
+    pin: { kind: "omitted" },
+  }
+  const look = (name: string) =>
+    name === "alpha"
+      ? { section: "Shell", quiet: true }
+      : { section: "Fixtures", quiet: true, optIn: true }
+  const groups = pluginGroups(sent, look)
+  expect(groups.map((group) => group.label)).toEqual(["Shell"])
+  expect(groups[0]!.collapsed).toBe(true)
+  expect(groupCount(groups[0]!.rows)).toBe("1 on")
 })

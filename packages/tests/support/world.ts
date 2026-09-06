@@ -915,6 +915,11 @@ export const PLUGINS_PANEL = selector(TESTID.pluginsPanel);
  *  line and not a row's: it used to be repeated under every row, which is the
  *  arrangement the loader surface ended. */
 export const PLUGINS_STARTED = selector(TESTID.pluginsStarted);
+export const PLUGIN_SWITCH = selector(TESTID.pluginSwitch);
+export const PLUGIN_GROUP = selector(TESTID.pluginGroup);
+export const PLUGIN_CONFIRM = selector(TESTID.pluginConfirm);
+export const PLUGIN_CONFIRM_OFF = selector(TESTID.pluginConfirmOff);
+export const PLUGIN_CONFIRM_KEEP = selector(TESTID.pluginConfirmKeep);
 /** ...and what the serve would not take, when a press is refused. */
 export const PLUGINS_REFUSED = selector(TESTID.pluginsRefused);
 /** A row's config, as data under it. `data-config` is the key. */
@@ -2185,6 +2190,39 @@ export class OlaiWorld extends World {
     return this.node(id).locator(control).first();
   }
 
+  /**
+   * The plugins panel that is on screen. Header and closet both portal one
+   * when the door is held open; locators that take the first match otherwise
+   * wait on the drawer copy, which is hidden.
+   */
+  pluginsPanel(): Locator {
+    return this.page.locator(`${PLUGINS_PANEL}:visible`);
+  }
+
+  /**
+   * Quiet groups start collapsed. A scenario that names a row in one has to
+   * open the heading first — the same press a person makes — or the wait for
+   * visible is a wait for a summary.
+   */
+  async showPluginRow(plugin: string): Promise<Locator> {
+    const panel = this.pluginsPanel();
+    const row = panel.locator(`${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
+    await row.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    // Walk from the row, not from a group selector: after a shell remount the
+    // heading is still a `<details>` wrapping the row, and a CSS walk that
+    // missed it left every quiet row hidden.
+    const opened = await row.evaluate((el) => {
+      const details = el.closest("details");
+      if (!(details instanceof HTMLDetailsElement) || details.open) return false;
+      const summary = details.querySelector(":scope > summary");
+      if (summary instanceof HTMLElement) summary.click();
+      details.open = true;
+      return true;
+    });
+    if (opened) await this.waitForFrame();
+    return row;
+  }
+
   /** Press something, and let the render settle.
    *
    *  The gesture is a parameter because it is the only thing a phone scenario
@@ -2274,6 +2312,24 @@ export class OlaiWorld extends World {
       ? await this.intoView(target)
       : first;
     if (before.pressable || !before.pinned) return;
+    // A control inside a `fixed` panel (the plugins drawer, preferences) is
+    // not in the page's scroll. Scrolling the document under a sticky header
+    // cannot uncover it; a reader scrolls the panel. Try that before asking
+    // the page to move, and before calling the press impossible.
+    const overlay = await target.evaluate((el) => {
+      for (let node: Element | null = el; node !== null; node = node.parentElement) {
+        if (getComputedStyle(node).position === "fixed") return true;
+      }
+      return false;
+    });
+    if (overlay) {
+      await target.evaluate((el) => {
+        el.scrollIntoView({ block: "nearest", inline: "nearest" });
+      });
+      await this.waitForFrame();
+      const recovered = await coverOf(target);
+      if (recovered.pressable) return;
+    }
     await this.page.evaluate((by) => window.scrollBy(0, by), before.clearBy);
     await this.waitForFrame();
     const after = await coverOf(target);

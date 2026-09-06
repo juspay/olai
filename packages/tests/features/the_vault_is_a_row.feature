@@ -8,7 +8,7 @@ Feature: The vault is a row
     Then the node "mint" is shown
     When I open the plugins panel
     Then the plugins panel shows "vault" configured "format" as "olai"
-    And the plugins panel says "vault" is "Turning it off clears the served files"
+    And the plugins panel says nothing more about "vault"
     When I switch the plugin "vault" off
     Then the node "mint" is not shown
     And the MCP vault refuses a write because no directory is served
@@ -30,7 +30,7 @@ Feature: The vault is a row
     Then the plugins panel says "vault" is "was not asked for"
     And the MCP vault refuses a write because no directory is served
     When I switch the plugin "vault" on
-    Then the plugins panel says "vault" is "Turning it off clears the served files"
+    Then the plugins panel says nothing more about "vault"
     And the MCP vault can read an outline
     When I switch the plugin "vault" off
     Then the MCP vault refuses a write because no directory is served

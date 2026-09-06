@@ -44,6 +44,11 @@ import {
   CHAT_TOGGLE,
   PADI_PILL,
   PLUGIN_CONFIG,
+  PLUGIN_CONFIRM,
+  PLUGIN_CONFIRM_KEEP,
+  PLUGIN_CONFIRM_OFF,
+  PLUGIN_GROUP,
+  PLUGIN_SWITCH,
   PLUGINS_PANEL,
   PLUGINS_REFUSED,
   PLUGINS_STARTED,
@@ -907,20 +912,18 @@ Then(
 /** Open it unless it is open, on `showPreferences`'s terms and for its
  *  reason. */
 When("I open the plugins panel", async function (this: OlaiWorld) {
-  if ((await this.page.locator(PLUGINS_PANEL).count()) > 0) return;
-  await this.press(this.page.locator(PLUGINS_TRIGGER));
-  await this.page
-    .locator(PLUGINS_PANEL)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  if ((await this.pluginsPanel().count()) > 0) return;
+  await this.press(this.page.locator(PLUGINS_TRIGGER).locator("visible=true"));
+  await this.pluginsPanel().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 When("I close the plugins panel", async function (this: OlaiWorld) {
-  const trigger = this.page.locator(PLUGINS_TRIGGER);
+  const trigger = this.page.locator(`${PLUGINS_TRIGGER}:visible`);
   // A plugin rebuild can retain the panel while resetting the phone drawer.
   // Keep the ordinary toggle where it is reachable; Escape is the phone's
   // remaining door when its trigger is hidden behind the retained panel.
-  if (await trigger.isVisible()) await this.press(trigger);
-  else await this.page.locator(PLUGINS_PANEL).press("Escape");
+  if ((await trigger.count()) > 0) await this.press(trigger);
+  else await this.pluginsPanel().press("Escape");
   await this.page.locator(PLUGINS_PANEL).waitFor({ state: "detached" });
 });
 
@@ -944,7 +947,7 @@ Then(
     // The WAIT is a locator carrying the words, which is what auto-waits; the
     // catch is what turns "timed out on a selector" back into the sentence the
     // row actually says, which is the whole of what a reader of a failure needs.
-    const row = rowFor(this, plugin);
+    const row = await shownRow(this, plugin);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     try {
       await row
@@ -978,7 +981,7 @@ Then(
 Then(
   "the plugins panel says nothing more about {string}",
   async function (this: OlaiWorld, plugin: string) {
-    const row = rowFor(this, plugin);
+    const row = await shownRow(this, plugin);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     // `detached` rather than a count read: this is asked after a flip, so the
     // sentence that has to be gone may still be on screen for a frame — and a
@@ -999,7 +1002,7 @@ Then(
 Then(
   "the plugins panel shows {string} configured {string} as {string}",
   async function (this: OlaiWorld, plugin: string, key: string, value: string) {
-    const row = rowFor(this, plugin);
+    const row = await shownRow(this, plugin);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const pair = row.locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`);
     try {
@@ -1039,7 +1042,9 @@ Then(
  *  is the label the row wears, so a scenario names it the way the operator who
  *  caused this state did. */
 const rowFor = (world: OlaiWorld, plugin: string) =>
-  world.page.locator(`${PLUGINS_PANEL} ${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
+  world.pluginsPanel().locator(`${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
+
+const shownRow = (world: OlaiWorld, plugin: string) => world.showPluginRow(plugin);
 
 /** ...and its sentence, or the empty string where it has none. ABSENT IS NOT AN
  *  ERROR here: a row with nothing to say draws no paragraph at all, so
@@ -1047,7 +1052,7 @@ const rowFor = (world: OlaiWorld, plugin: string) =>
  *  is "it says nothing", and the caller's `includes` refuses it in words a
  *  reader can act on. */
 const hintOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
-  const row = rowFor(world, plugin);
+  const row = await shownRow(world, plugin);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const hint = row.locator(PREFS_HINT);
   if ((await hint.count()) === 0) return "";
@@ -1139,12 +1144,29 @@ Then(
  *  strip that is drawn but has no segment pressed, which is not a state the
  *  panel has and is worth saying rather than guessing at. */
 const switchOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
-  const pressed = rowFor(world, plugin).locator(
-    `${PREFS_CHOICE}${attr("aria-pressed", "true")}`,
-  );
-  return (await pressed.count()) === 0
-    ? "neither"
-    : (await pressed.first().getAttribute("data-value")) ?? "neither";
+  const row = await shownRow(world, plugin);
+  const strip = row.locator(PLUGIN_SWITCH);
+  if ((await strip.count()) === 0) return "neither";
+  const checked = await strip.first().getAttribute("aria-checked");
+  if (checked === "true") return "on";
+  if (checked === "false") return "off";
+  return "neither";
+};
+
+const confirmIfAsked = async (
+  world: OlaiWorld,
+  plugin: string,
+  pick: string,
+): Promise<void> => {
+  const row = rowFor(world, plugin);
+  const confirm = row.locator(PLUGIN_CONFIRM);
+  if ((await confirm.count()) === 0) return;
+  if (!(await confirm.isVisible().catch(() => false))) return;
+  if (pick === "off") {
+    await world.press(row.locator(PLUGIN_CONFIRM_OFF));
+  } else {
+    await world.press(row.locator(PLUGIN_CONFIRM_KEEP));
+  }
 };
 
 /**
@@ -1173,7 +1195,95 @@ const FLIP_STEP_TIMEOUT = 90_000;
 When(
   "I request that the plugin {string} be {word}",
   async function (this: OlaiWorld, plugin: string, pick: string) {
-    await this.press(rowFor(this, plugin).locator(`${PREFS_CHOICE}${attr("data-value", pick)}`));
+    const row = await shownRow(this, plugin);
+    await this.press(row.locator(PLUGIN_SWITCH));
+  },
+);
+
+Then(
+  "the plugins panel group {string} is collapsed",
+  async function (this: OlaiWorld, section: string) {
+    await this.pluginsPanel()
+      .locator(`${PLUGIN_GROUP}${attr("data-section", section)}${attr("data-collapsed", "true")}`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+When(
+  "I open the plugins panel group {string}",
+  async function (this: OlaiWorld, section: string) {
+    const summary = this.pluginsPanel().locator(
+      `${PLUGIN_GROUP}${attr("data-section", section)} > details > summary`,
+    );
+    await this.press(summary);
+    await this.pluginsPanel()
+      .locator(`${PLUGIN_GROUP}${attr("data-section", section)}:not([data-collapsed])`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the plugins panel groups {string} under {string}",
+  async function (this: OlaiWorld, plugin: string, section: string) {
+    const row = await shownRow(this, plugin);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const group = this.pluginsPanel()
+      .locator(`${PLUGIN_GROUP}${attr("data-section", section)}`)
+      .filter({ has: this.page.locator(`${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`) });
+    try {
+      await group.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    } catch {
+      const said = await this.pluginsPanel().locator(PLUGIN_GROUP).evaluateAll(
+        (nodes) => nodes.map((node) => node.getAttribute("data-section")).join(", "),
+      );
+      assert.fail(
+        `the row for ${JSON.stringify(plugin)} to sit under ${JSON.stringify(section)}, ` +
+          `and the panel's groups are ${JSON.stringify(said)}`,
+      );
+    }
+  },
+);
+
+Then(
+  "the plugins panel asks to confirm turning {string} off",
+  async function (this: OlaiWorld, plugin: string) {
+    const row = await shownRow(this, plugin);
+    await row.locator(PLUGIN_CONFIRM).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the confirm for {string} names {string}",
+  async function (this: OlaiWorld, plugin: string, named: string) {
+    const row = await shownRow(this, plugin);
+    const box = row.locator(PLUGIN_CONFIRM);
+    await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const said = (await box.innerText()).replaceAll("\n", " ");
+    assert.ok(
+      said.includes(named),
+      `the confirm for ${JSON.stringify(plugin)} to name ${JSON.stringify(named)}, and it says ${JSON.stringify(said)}`,
+    );
+  },
+);
+
+When(
+  "I confirm turning the plugin {string} off",
+  { timeout: FLIP_STEP_TIMEOUT },
+  async function (this: OlaiWorld, plugin: string) {
+    const row = await shownRow(this, plugin);
+    await this.press(row.locator(PLUGIN_CONFIRM_OFF));
+    await (await shownRow(this, plugin))
+      .locator(`${PLUGIN_SWITCH}${attr("aria-checked", "false")}`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+When(
+  "I keep the plugin {string} on",
+  async function (this: OlaiWorld, plugin: string) {
+    const row = await shownRow(this, plugin);
+    await this.press(row.locator(PLUGIN_CONFIRM_KEEP));
+    await row.locator(PLUGIN_CONFIRM).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
   },
 );
 
@@ -1188,17 +1298,35 @@ When(
   // stages did not happen.
   { timeout: FLIP_STEP_TIMEOUT },
   async function (this: OlaiWorld, plugin: string, pick: string) {
-    const row = rowFor(this, plugin);
+    const row = await shownRow(this, plugin);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await this.press(row.locator(`${PREFS_CHOICE}${attr("data-value", pick)}`));
+    const current = await switchOn(this, plugin);
+    if (current !== pick) {
+      await this.press(row.locator(PLUGIN_SWITCH));
+      await confirmIfAsked(this, plugin, pick);
+    }
     // THE PANEL SURVIVES THE REBUILD THE PRESS CAUSED, which is what makes this
     // wait a wait for the flip rather than a wait for a control that has gone:
     // a roster change is a redial and a redial rebuilds the tab's whole tree,
     // so the row this is waiting on is a NEW element drawn by a panel that
-    // reopened itself (`@olai/web`'s `client/plugins/`).
-    await rowFor(this, plugin)
-      .locator(`${PREFS_CHOICE}${attr("data-value", pick)}${attr("aria-pressed", "true")}`)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // reopened itself (`@olai/web`'s `client/plugins/`). Re-open the group on
+    // every try: the first shownRow can land on the outgoing tree.
+    const wanted = `${PLUGIN_SWITCH}${attr("aria-checked", pick === "on" ? "true" : "false")}`;
+    const deadline = Date.now() + POLL_TIMEOUT;
+    let last: unknown;
+    while (Date.now() < deadline) {
+      try {
+        await (await shownRow(this, plugin)).locator(wanted).waitFor({
+          state: "visible",
+          timeout: 1000,
+        });
+        last = undefined;
+        break;
+      } catch (error) {
+        last = error;
+      }
+    }
+    if (last !== undefined) throw last;
   },
 );
 

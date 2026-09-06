@@ -14,7 +14,7 @@ Feature: The inspector is a consumer of independent host management
     When the non-UI controller sets plugin "plugin-inspector" on
     Then the inspector panel is closed
     When I open the plugins panel
-    Then the plugins panel says "plugin-inspector" is "Browser: running."
+    Then the plugins panel says nothing more about "plugin-inspector"
     And the page has not reloaded
     And there should be no page errors
 
@@ -22,7 +22,7 @@ Feature: The inspector is a consumer of independent host management
     When the non-UI controller sets plugin "layout" off
     Then the browser mount has no rendered application
     When the non-UI controller sets plugin "layout" on
-    Then the plugins panel says "layout" is "Browser: running."
-    And the plugins panel says "plugin-inspector" is "Browser: running."
+    Then the plugins panel says nothing more about "layout"
+    And the plugins panel says nothing more about "plugin-inspector"
     And the page has not reloaded
     And there should be no page errors

@@ -117,7 +117,7 @@ The agent has this one too, as a `push` tool that takes nothing at all.
   It used to be a second, differently-shaped feature with the same name: one commit per write, made inside the write gate, never pushed. **That is retired.** A train of thought arrived as a dozen commits, which is the thing manual mode was introduced to end, and there is no per-write commit left in olai.
 - `--commit=off` (or `--no-commit`) is for a directory whose history is somebody else's job. The pill says which of those two it is rather than vanishing, and nothing is ever `git init`ed on your behalf.
 
-Giving `--commit` at all — or `--push`, its neighbour — is a patch onto the git row's config, drawn under that row on the plugins panel, read-only. `--commit=auto` shows `commit: auto` there. Omitting the flag uses the built-in default and draws nothing extra. That is the instance's answer for a directory more than one person is looking at, and it is [running.md](running.md#the-git-policy)'s subject.
+The git row's `config:` in `olai.yml` is the built-in default (`commit: manual`, `push: off`) and the plugins panel always draws it. Giving `--commit` or `--push` is a patch onto that config; `--commit=auto` shows `commit auto` there. Omitting the flag leaves the file's values, still drawn. That is the instance's answer for a directory more than one person is looking at, and it is [running.md](running.md#the-git-policy)'s subject.
 
 ## The audit view
 
