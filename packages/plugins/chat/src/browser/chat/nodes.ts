@@ -82,7 +82,7 @@
  */
 
 import type { SearchField } from "@olai/format"
-import type { NodeHit } from "@olai/surface"
+import type { NodeHit } from "@olai/format"
 
 import { nodePlace } from "olai-plugin-search/ui/place.ts"
 

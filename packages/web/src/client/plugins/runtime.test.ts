@@ -1,9 +1,38 @@
-import type {} from "olai-plugin-layout/slots"
 import { location as slotContract } from "@olai/plugin-api"
 import { afterEach, expect, test } from "bun:test"
 import { definePlugin, Offers, serviceTag, Slots, Wired, locations, location, slotFacade, slotLocation } from "@olai/plugin-api"
+import type { SlotDefinition } from "@olai/plugin-api/slots"
 import { Effect } from "effect"
 import { app, browserReports, composeTo as compose } from "./runtime.ts"
+
+/**
+ * THE HOST, NOT THE FURNITURE — and so the two slot names this bench needs are
+ * its own.
+ *
+ * It got them by importing `olai-plugin-layout/slots` for the side effect of
+ * that module's `declare module`, which is the whole of what a `import type {}`
+ * with no bindings was doing: the boot package's own runtime suite spelled a
+ * plugin to borrow two type-level names. What is under test here is
+ * `./runtime.ts` — who is mounted, whose fibers survive a re-compose, which
+ * owner a component spends, what a failed `apply` leaves behind — and none of
+ * that knows or cares what `app.header` draws. A borrowed fixture is how
+ * `@olai/bundle`'s `fence.test.ts` came to read `olai-plugin-layout` for
+ * `@olai/web`, where the table now holds an empty list.
+ *
+ * TWO NAMES NOBODY SERVES, therefore, and one of each KIND the assertions
+ * below actually exercise: an `app`-keyed seat, so `only` has a single slot to
+ * answer for, and a `plugin`-keyed one, so `hung` has an owner to carry. The
+ * faces answer STRINGS because every assertion reads what a face returned, and
+ * a string is the smallest value two registrations can be told apart by — a
+ * `JSX.Element` here would put a UI runtime on the graph of a test about
+ * fibers.
+ */
+declare module "@olai/plugin-api/slots" {
+  interface SlotDefinitions {
+    "bench.seat": SlotDefinition<() => string, "app">
+    "bench.mark": SlotDefinition<{ readonly place: string; readonly body: () => string }, "plugin">
+  }
+}
 
 
 const renderer = { default: definePlugin({ name: "ui-renderer", needs: [Offers], apply: Effect.gen(function*() {
@@ -14,7 +43,7 @@ const renderer = { default: definePlugin({ name: "ui-renderer", needs: [Offers],
   yield* offers.own("faces", () => facade.faces)
   yield* offers.own("integrations", () => facade.management)
   yield* store.forOwner("test-shell").contribute(location("root", "one"), null, {
-    children: [location("app.header","many","owner"),location("app.viewer","one")],
+    children: [location("bench.mark","many","owner"),location("bench.seat","one")],
   })
 }) }) }
 const composeTo: typeof compose = (halves, client) => compose(halves.length ? [renderer, ...halves] : [], client)
@@ -32,7 +61,7 @@ test("a browser component reports its missing key while its parent keeps its fac
   let reading: string | null = null
   const consumer = {
     default: definePlugin({ name: "reader", needs: [Slots], apply: Effect.gen(function*() {
-      yield* (yield* Slots).register("app.viewer", () => "surviving parent")
+      yield* (yield* Slots).register("bench.seat", () => "surviving parent")
     }) }),
     components: { detail: definePlugin({ name: "ignored", needs: [Value], apply: Effect.gen(function*() {
       const value = yield* Value
@@ -45,14 +74,14 @@ test("a browser component reports its missing key while its parent keeps its fac
   }) }) })
   await composeTo([consumer], client)
   expect(browserReports().get("reader/detail")).toEqual({ state: "waiting", missing: ["source.value"] })
-  expect(app.only("app.viewer")?.face()).toBe("surviving parent")
+  expect(app.only("bench.seat")?.face()).toBe("surviving parent")
   await composeTo([consumer, source("first")], client)
   expect<string | null>(reading).toBe("first")
   expect(hint("reader")).toBeNull()
   await composeTo([consumer], client)
   expect(reading).toBeNull()
   expect(hint("reader")).toContain("source.value")
-  expect(app.only("app.viewer")?.face()).toBe("surviving parent")
+  expect(app.only("bench.seat")?.face()).toBe("surviving parent")
   await composeTo([consumer, source("second")], client)
   expect<string | null>(reading).toBe("second")
   await composeTo([], client)
@@ -62,16 +91,16 @@ test("a browser component reports its missing key while its parent keeps its fac
 test("failed browser activation stays visible after cleanup and clears on retry", async () => {
   let fail = true
   const half = { default: definePlugin({ name: "flaky", needs: [Slots], apply: Effect.gen(function*() {
-    yield* (yield* Slots).register("app.viewer", () => "ready")
+    yield* (yield* Slots).register("bench.seat", () => "ready")
     if (fail) yield* Effect.die(new Error("reader failed"))
   }) }) }
   await composeTo([half], client)
   expect(hint("flaky")).toContain("reader failed")
-  expect(app.only("app.viewer")).toBeNull()
+  expect(app.only("bench.seat")).toBeNull()
   fail = false
   await composeTo([half], client)
   expect(hint("flaky")).toBeNull()
-  expect(app.only("app.viewer")?.face()).toBe("ready")
+  expect(app.only("bench.seat")?.face()).toBe("ready")
 })
 
 test("a consumer that fails after waiting is visible and retried on the next composition", async () => {
@@ -105,7 +134,7 @@ test("component lifetimes spend their owning plugin's wire, slot and service nam
       // The author of a component cannot choose a different plugin owner.
       name: "somebody-else", needs: [Offers, Slots, Wired], apply: Effect.gen(function*() {
         wire = (yield* Wired).client()
-        yield* (yield* Slots).register("app.header", { place: "cluster", body: () => "detail" })
+        yield* (yield* Slots).register("bench.mark", { place: "cluster", body: () => "detail" })
         yield* (yield* Offers).own("value", (consumer) => {
           consumers.push(consumer)
           return { version: "component" }
@@ -121,11 +150,11 @@ test("component lifetimes spend their owning plugin's wire, slot and service nam
   await composeTo([reader, provider], (owner) => ({ owner }))
   expect(consumers).toEqual(["reader"])
   expect(wire).toEqual({ owner: "source" })
-  expect(app.hung("app.header").map((row) => row.plugin)).toEqual(["source"])
+  expect(app.hung("bench.mark").map((row) => row.plugin)).toEqual(["source"])
   expect<string | null>(reading).toBe("component")
   expect(hint("source")).toBeNull()
   await composeTo([reader, { default: provider.default }], client)
-  expect(app.hung("app.header")).toEqual([])
+  expect(app.hung("bench.mark")).toEqual([])
   expect(reading).toBeNull()
   expect(hint("reader")).toContain("source.value")
 })
@@ -133,7 +162,7 @@ test("component lifetimes spend their owning plugin's wire, slot and service nam
 
 test("a legacy contribution waits for the renderer and uses the same location failure ledger", async () => {
   const half = { default: definePlugin({ name: "legacy", needs: [Slots], apply: Effect.gen(function*() {
-    yield* (yield* Slots).register("app.viewer", () => "ready", {
+    yield* (yield* Slots).register("bench.seat", () => "ready", {
       activate: Effect.die(new Error("integration refused")),
     })
   }) }) }
@@ -141,5 +170,5 @@ test("a legacy contribution waits for the renderer and uses the same location fa
   expect(hint("legacy")).toContain("ui-renderer.legacy-slots")
   await composeTo([half], client)
   expect(hint("legacy")).toContain("integration refused")
-  expect(app.only("app.viewer")).toBeNull()
+  expect(app.only("bench.seat")).toBeNull()
 })

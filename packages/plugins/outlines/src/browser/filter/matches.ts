@@ -17,7 +17,7 @@
  * (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md`).
  */
 
-import type { MatchedNode } from "@olai/surface"
+import type { MatchedNode } from "@olai/format"
 
 /** What a query selected, ready for a row to look itself up in: id → why. The
  *  server's own answer rows, kept as they arrived rather than re-shaped — the

@@ -8,7 +8,7 @@
  */
 
 import { DocumentPath, NodeId } from "@olai/format"
-import type { DocumentHit, NodeHit } from "@olai/surface"
+import type { DocumentHit, NodeHit } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { documentProps, nodeProps } from "olai-plugin-search/ui/props.ts"

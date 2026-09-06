@@ -53,7 +53,7 @@
  */
 
 import { type Custom, customOf } from "@olai/format"
-import type { DocumentHit, NodeHit } from "@olai/surface"
+import type { DocumentHit, NodeHit } from "@olai/format"
 
 import { customEntries } from "olai-plugin-outlines/property-values"
 

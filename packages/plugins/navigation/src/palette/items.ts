@@ -3,7 +3,8 @@ import type { AppCommand } from "olai-plugin-navigation/slots"
  * character, write behavior and continuation of every contributed prefix. */
 import type { BodyKind } from "@olai/format"
 import type {Hung } from "@olai/plugin-api"
-import type { Edit,SearchHit } from "@olai/surface"
+import type { Edit } from "@olai/surface"
+import type { SearchHit } from "@olai/format"
 
 import type { Search } from "olai-plugin-search/reading"
 import type { NodeProp } from "olai-plugin-search/ui/props.ts"

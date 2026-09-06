@@ -663,7 +663,7 @@ Then(
  * A `.html`'s bytes stopped crossing the websocket when the browser stopped
  * asking for them: a preview draws a frame that fetches the file over HTTP, so
  * what it needs from the wire is the file's REVISION and nothing more
- * (`@olai/surface`'s `Head`). That is a change to what one READER asks for, and
+ * (`olai-plugin-vault`'s `Head`). That is a change to what one READER asks for, and
  * this is the assertion that it was only that: an agent has no frame, so a
  * `resources/read` of the same file must still be answered with the file.
  *

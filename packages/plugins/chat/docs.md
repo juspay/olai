@@ -12,8 +12,8 @@ Nothing. It is on by default, like the appliances and the engines. Two things ta
 
 ```
 olai web ~/outlines                                  # the panel, as always
-olai web ~/outlines --plugins=vault,kolu,odu,ws,web-app,mcp,ui-renderer,layout               # the outliner alone
-olai web ~/outlines --plugins=vault,chat,claude,ws,web-app,mcp,ui-renderer,layout            # a conversation and one engine
+olai web ~/outlines --plugins=vault,kolu,odu,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector               # the outliner alone
+olai web ~/outlines --plugins=vault,chat,claude,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector            # a conversation and one engine
 ```
 
 The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag, the nix option, or the row's own default. It is the switch to reach for when the answer is *not on this machine right now*; the flag is a deployment's word.
@@ -65,17 +65,17 @@ You can also simply rename the key to `chat-agent-session`, which needs no decla
 
 ## Where it hangs in the tab
 
-The shell declares the seats and the plugin brings the faces. That split is worth knowing if you are reading the code rather than using it:
+Each seat is declared by the plugin that owns the place it is in, and chat brings the face. That split is worth knowing if you are reading the code rather than using it:
 
-| seat | what the shell keeps | what chat brings |
+| seat | who declares it, and what they keep | what chat brings |
 | --- | --- | --- |
-| `app.panel` | the width the page reserves, the open/closed preference, the drag handle | the dock, the mobile sheet, the minimized strip, the wake strip |
-| `app.header` | where in the bar cluster a readout sits | the toggle, and what it says about a waiting question |
-| `sidebar.section` | the region and its place above the shelf | the agents roster |
-| `outline.row.door` | where under a property run a door is drawn | the agent's row, drawn only where there is one |
-| `outline.row.action` | the menu's order and its dividers | *Ask agent*, and one *Start an agent session* per installed engine |
-| `app.command` | the palette's box, its prefix strip, where a refusal is drawn | `>`, and what it sends |
-| `app.mount` | the fold that wraps the page | one roster subscription for the whole tab |
+| `app.panel` | `layout` — the width the page reserves, the open/closed preference, the drag handle | the dock, the mobile sheet, the minimized strip, the wake strip |
+| `app.header` | `layout` — where in the bar cluster a readout sits | the toggle, and what it says about a waiting question |
+| `sidebar.section` | `sidebar` — the region and its place above the shelf | the agents roster |
+| `outline.row.door` | `outlines` — where under a property run a door is drawn | the agent's row, drawn only where there is one |
+| `outline.row.action` | `outlines` — the menu's order and its dividers | *Ask agent*, and one *Start an agent session* per installed engine |
+| `app.command` | `navigation` — the palette's box, its prefix strip, where a refusal is drawn | `>`, and what it sends |
+| `preferences.sections` | `preferences` — the panel and the shape of a row | the alert controls |
 
 Two slots go the other way — chat is the *reader*. An engine plugin hangs its install sentence on `engine.install` and any plugin hangs the mark its delivered sentences wear on `delivery.mark`; the panel draws both, and composes no word of either.
 
@@ -91,7 +91,7 @@ surface/chat/saying/deltas             the row still being said
 surface/chat/conversation/send         …and the fourteen verbs
 ```
 
-**The MCP face is unchanged.** Not one chat member was ever on it: an agent talking to this store reads the vault through `surface://` and the ops tools, and the conversation is the human's session at the other end of that. So no client's tool names or URIs moved, and `--plugins=vault,chat,ws,web-app,mcp,ui-renderer,layout` changes nothing an agent can see.
+**The MCP face is unchanged.** Not one chat member was ever on it: an agent talking to this store reads the vault through `surface://` and the ops tools, and the conversation is the human's session at the other end of that. So no client's tool names or URIs moved, and `--plugins=vault,chat,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector` changes nothing an agent can see.
 
 ## Turning it off is not the same as turning the agent off
 

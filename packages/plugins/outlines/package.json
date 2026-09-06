@@ -21,7 +21,9 @@
     "./testlib": "./src/testlib.ts",
     "./slots": "./src/slots.ts",
     "./testids": "./src/testids.ts",
-    "./client": "./src/client.ts"
+    "./client": "./src/client.ts",
+    "./wire": "./src/wire.ts",
+    "./projection": "./src/projection.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -67,7 +69,8 @@
       "./slots",
       "./testids",
       "./surface",
-      "./client"
+      "./client",
+      "./wire"
     ]
   }
 }

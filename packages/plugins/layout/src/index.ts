@@ -1,6 +1,6 @@
 import { location } from "@olai/plugin-api/contracts"
 import type { BrokenFile } from "@olai/format"
-import type { InboxHeld } from "@olai/surface"
+import type { InboxHeld } from "@olai/format"
 import type { JSX } from "solid-js"
 
 export const name = "layout"

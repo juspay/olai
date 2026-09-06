@@ -95,7 +95,7 @@
  */
 
 import { addressWritten } from "@olai/format"
-import type { Pinned,Shelf } from "@olai/surface"
+import type { Pinned, Shelf } from "@olai/format"
 
 import { addressIn,nameOf,titleFace } from "olai-plugin-navigation/address/address.ts"
 import { hrefOf,type Route } from "olai-plugin-navigation/routes"

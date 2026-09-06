@@ -8,7 +8,7 @@
 import { type Accessor, createEffect, createMemo, createSignal } from "solid-js"
 import { debounce } from "@solid-primitives/scheduled"
 
-import type { TagCompletion, TagsAnswer, TagsRequest } from "@olai/surface"
+import type { TagCompletion, TagsAnswer, TagsRequest } from "@olai/format"
 
 import { SETTLE_MS, type Taking } from "@olai/web/client/settled.ts"
 import { client } from "olai-plugin-outlines/client"

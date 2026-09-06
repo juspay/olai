@@ -1,19 +1,26 @@
 /**
  * WHAT IS ON THE SHELF, over the answer the server sends.
  *
- * WHICH TITLES ARE DOORS is one module over and has its own suite
- * (`../address/address.test.ts`); WHICH ROWS TRAVEL and what a pinned node is
- * called are the reading's, on the other side of the wire, and have theirs
- * (`@olai/format`'s `shelf.test.ts`). What is here is what this module is left
- * holding: reading each answered row into a door, and whether a given page is
- * already one.
+ * WHICH TITLES ARE DOORS is `olai-plugin-navigation`'s grammar and has its own
+ * suite (`olai-plugin-outlines`'s `browser/address.test.ts`); WHICH ROWS TRAVEL
+ * and what a pinned node is called are the reading's, on the other side of the
+ * wire, and have theirs (`@olai/format`'s `shelf.test.ts`). What is here is what
+ * this module is left holding: reading each answered row into a door, and
+ * whether a given page is already one.
+ *
+ * IT LIVES BESIDE THE MODULE NOW, and did not: it was `@olai/web`'s
+ * `client/pins/pins.test.ts`, a directory holding tests and no implementation,
+ * left behind when the shelf became this row. A general package spelling
+ * `olai-plugin-pins` is the thing `@olai/bundle`'s `fence.test.ts` holds an
+ * equality against, and a test is not an exemption from it.
  */
 
-import { NO_PINS, type Shelf } from "@olai/surface"
+import { NO_PINS, type Shelf } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { pinnedAt, pinsOf } from "olai-plugin-pins/values"
 import { atNode } from "olai-plugin-navigation/routes"
+
+import { pinnedAt, pinsOf } from "./pins.ts"
 
 /** The shelf as the `pins` cell carries it — the file's own rows, with the one
  *  fact only the set could answer already on them. */
@@ -69,9 +76,9 @@ test("a name is spent only where THIS parser agrees the row addresses that node"
 })
 
 // A title an escape nothing can read is not a door
-// (`../address/address.test.ts`), and what that has to be here is the SHELF
-// surviving one: the parse runs during render, so a throw took the sidebar
-// down rather than skipping a row (review, 2026-08-18).
+// (`olai-plugin-outlines`'s `browser/address.test.ts`), and what that has to be
+// here is the SHELF surviving one: the parse runs during render, so a throw
+// took the sidebar down rather than skipping a row (review, 2026-08-18).
 test("…and the shelf drawn over one is the shelf without it", () => {
   const shelf: Shelf = [
     { id: "p-bad", title: "/%" },

@@ -1,13 +1,23 @@
-import type { AppCommand } from "olai-plugin-navigation/slots"
+/**
+ * WHAT THE PALETTE PUTS IN FRONT OF A PERSON — the rows, the modes and which
+ * prefix wins — beside the module that decides it.
+ *
+ * It was `@olai/web`'s `client/palette/items.test.ts`, in a directory that held
+ * this bench and no palette: the box became this row's and its test did not
+ * follow, so the boot package went on spelling `olai-plugin-navigation` three
+ * times. `@olai/bundle`'s `fence.test.ts` reads that as a general package naming
+ * a plugin, which is the one thing it holds an equality against.
+ */
+
 import { expect, test } from "bun:test"
 
-import { DocumentPath, NodeId } from "@olai/format"
+import { DocumentPath, type NodeHit, NodeId } from "@olai/format"
 import type { Hung } from "@olai/plugin-api"
-import type { NodeHit } from "@olai/surface"
-
-import { atFile, atNode } from "olai-plugin-navigation/routes"
 import { atOnce } from "@olai/web/client/settled.ts"
-import { boxOf, prefixesIn, type PalettePrefix, commandsIn, filterItems, hitItem, modeOf, SHELL_ITEMS } from "olai-plugin-navigation/palette-model"
+
+import { atFile, atNode } from "../routes.ts"
+import type { AppCommand } from "../slots.ts"
+import { boxOf, prefixesIn, type PalettePrefix, commandsIn, filterItems, hitItem, modeOf, SHELL_ITEMS } from "./items.ts"
 
 /** A plugin's command, as the slot hands it over. `run` answers "it landed",
  *  which is the one thing none of these tests presses. */
@@ -19,7 +29,7 @@ const command = (prefix: string, said = "send to agent"): AppCommand => ({
 })
 
 /** ...and hung, with the plugin's own word beside it — the shape
- *  `../plugins/runtime.ts`'s `hung` reads a list slot back as. */
+ *  `@olai/web`'s `client/plugins/runtime.ts` `hung` reads a list slot back as. */
 const hung = (plugin: string, face: AppCommand): Hung<AppCommand> => ({ plugin, face })
 
 /** The one every prefix test is written against: a chat plugin holding `>`. */

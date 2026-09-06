@@ -22,7 +22,16 @@ import type { Page } from "playwright";
 
 import { fileKind } from "@olai/format";
 
-import { ALERT_SOUND_KEY, ALERTS_KEY, DENSITY_KEY, type Density, DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY, SIZE_STORAGE_KEY } from "@olai/web/testlib"
+import { SIZE_STORAGE_KEY } from "@olai/web/testlib"
+// A PREFERENCE IS KEPT BY WHOEVER DRAWS THE THING, and the key it is kept
+// under is that row's name for it. These six came through `@olai/web/testlib`,
+// which is how a general package came to declare `olai-plugin-chat` and
+// `olai-plugin-outlines` for six strings about two plugins' own storage —
+// exactly the pass-through `@olai/bundle`'s `fence.test.ts` holds an equality
+// against. The SIZE key above stays on that door, because the door hands it on
+// from `@olai/appearance`, which really does own it.
+import { ALERT_SOUND_KEY, ALERTS_KEY } from "olai-plugin-chat/alert-keys"
+import { DENSITY_KEY, type Density, DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY } from "olai-plugin-outlines/testlib"
 
 import { focusedOn } from "../support/caret.ts";
 import { pressed } from "../support/settling.ts";

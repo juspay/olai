@@ -51,7 +51,10 @@ import { vaultOf } from "@olai/format/testlib"
 import { pinnedVault, vaultAt } from "@olai/format/testlib/scope"
 import { expect, test } from "bun:test"
 
-import { publishedOf, outlineProjection, documentProjection, headProjection } from "@olai/surface/projection"
+import { publishedOf } from "./published.testlib.ts"
+import { documentProjection } from "olai-plugin-markdown/projection"
+import { outlineProjection } from "olai-plugin-outlines/projection"
+import { headProjection } from "olai-plugin-vault/projection"
 import {
   differential,
   misplacing,

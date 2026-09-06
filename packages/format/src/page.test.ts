@@ -35,7 +35,7 @@ import { derive, type Derived, nodesOf, rowsOf } from "./derive.ts"
 import type { Document, Face } from "./document.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
-import { PageReading, type PageRequest, pageOf, samePageReading } from "./page.ts"
+import { DocumentPageRequest, FiledPageReading, FiledPageRequest, PageReading, type PageRequest, pageOf, samePageReading } from "./page.ts"
 import { pointingOf } from "./pointing.ts"
 import type { BrokenFile, OutlineSet } from "./set.ts"
 import type { Reading } from "./validate.ts"
@@ -477,5 +477,50 @@ test("two readings of one set are the same reading, and a moved set is not", () 
     ) as ReadonlyArray<Located>,
   )
   expect(samePageReading(before, pageOf(readingAt(moved, facesOf(FILES)), at("house.olai"))))
+    .toBe(false)
+})
+
+// ── the narrowings a row declares its member with ──────────────────────
+//
+// THREE FILTERS AND NOT THREE UNIONS, which is what these tests are about:
+// each is `PageRequest` or `PageReading` with arms taken OUT, so a shape that
+// passes one passes the wider one by construction and there is no second
+// declaration to drift. What is worth asserting is the boundary — that the arm
+// a row cannot answer is actually refused at the door rather than at the
+// handler, one frame late.
+
+test("a filed page request admits a file, a node and the trash, and refuses the journal", () => {
+  const admits = Schema.is(FiledPageRequest)
+  expect(admits(at("house.olai"))).toBe(true)
+  expect(admits(node("kitchen"))).toBe(true)
+  expect(admits(HOME)).toBe(true)
+  expect(admits({ kind: "trash" })).toBe(true)
+  // The journal's two pages are `olai-plugin-journal`'s, and a member declared
+  // over this shape would be promising an answer its owner cannot compute.
+  expect(admits({ kind: "day", date: "2026-09-06" })).toBe(false)
+  expect(admits({ kind: "agenda", today: "2026-09-06" })).toBe(false)
+})
+
+test("a document page request admits only a bodied file's address", () => {
+  const admits = Schema.is(DocumentPageRequest)
+  expect(admits(at("notes.md"))).toBe(true)
+  // A `.olai` has records rather than a body, so there is no metadata reading
+  // of one to ask for — and the trash and the front page name no file at all.
+  expect(admits(at("house.olai"))).toBe(false)
+  expect(admits(HOME)).toBe(false)
+  expect(admits({ kind: "trash" })).toBe(false)
+  // `bodyKind` is the one place that decides which kinds have a body, so this
+  // filter asks it rather than listing extensions a second time — which is why
+  // a picture is admitted (it is a bodied file whose page fetches its bytes off
+  // the media route) and a file no kind claims is not.
+  expect(admits(at("diagram.png"))).toBe(true)
+  expect(admits(at("notes.rtf"))).toBe(false)
+})
+
+test("a filed page reading is what those requests are answered in, and a day is not", () => {
+  const admits = Schema.is(FiledPageReading)
+  expect(admits(pageOf(readingAt(SET, facesOf(FILES)), at("house.olai")))).toBe(true)
+  expect(admits(pageOf(readingAt(SET, facesOf(FILES)), { kind: "trash" }))).toBe(true)
+  expect(admits(pageOf(readingAt(SET, facesOf(FILES)), { kind: "day", date: "2026-09-06" })))
     .toBe(false)
 })

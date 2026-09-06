@@ -10,7 +10,8 @@ UI removes its panels and those contributions while the theme provider keeps
 following stored preferences. Re-enabling the UI reads the existing provider.
 Disabling theme removes its controls without removing the rest of the panel.
 
-Notes, Done and alert controls still use shared notebook implementations during
-the remaining content extraction. Their provider state does not belong to this
-UI. Those controls will move to integrations owned by their respective feature
-plugins before Phase 18 is complete.
+The Notes and Done rows are contributed by `outlines` and the alert rows by
+`chat`, each into `preferences.sections` from its own browser half. Their
+provider state does not belong to this UI, and this package holds no control of
+theirs: the panel is a shell, and a row arrives with the plugin that owns what
+it sets.

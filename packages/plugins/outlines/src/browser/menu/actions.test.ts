@@ -29,7 +29,7 @@
 
 import { derive, rowsOf, type Row } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
-import { NO_PINS } from "@olai/surface"
+import { NO_PINS } from "@olai/format"
 import { expect, spyOn, test } from "bun:test"
 
 import type { Relation } from "../edges/relation.ts"

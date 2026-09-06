@@ -47,8 +47,8 @@ launched while the maintainer's separate manual CI run was underway.
 | `chat/succession.test.ts`: missing intermediate sessions, harness boundaries and cycles | Creating real distinct sessions, choosing Fresh/history/current, header identity and navigation; the cycle permutations stay below e2e |
 | `chat/attachments.test.ts` and `browser/chat/attach.test.ts`: chunking, cumulative cap, ownership and concurrent writes | Actual file picker/drop and asynchronous reads, retained previews/drafts, resolved server filenames, RPC upload and the harness reading resulting bytes |
 | `chat/questions.test.ts`: unique registry IDs and rejection of foreign/late answers | Draft isolation in rendered forms across node selection, drawer remount and harness restart, followed by submitted answers |
-| `web/client/edit/undoing.test.ts`: pending inverses, failed replay and older history | Actual blur-save/key ordering, retained text and Undo/Redo through the browser; the refusal permutations stay below e2e |
-| `web/client/pins/reorder.test.ts`: gap/neighbor arithmetic | Held mouse gestures, Escape/secondary-button handling, live shelf identity changes, indicator cleanup and subsequent reorder/Undo |
+| `outlines/browser/edit/undoing.test.ts`: pending inverses, failed replay and older history | Actual blur-save/key ordering, retained text and Undo/Redo through the browser; the refusal permutations stay below e2e |
+| `pins/browser/reorder.test.ts`: gap/neighbor arithmetic | Held mouse gestures, Escape/secondary-button handling, live shelf identity changes, indicator cleanup and subsequent reorder/Undo |
 | `ops/plan.test.ts`: title/property preconditions and removed-pin refusal | The browser captures and sends the original baseline; refusal stays visible and the draft remains correctable |
 | `git/browser/commit/selection.test.ts`: selected-file derivation | Prepared state survives a plugin rebuild and the resulting Git commit contains exactly the reviewed files |
 

@@ -7,13 +7,12 @@ import { keyings, type Keying } from "@olai/surface/testlib"
 
 import {
   ASSET_PREFIX,
-  DocumentEntry,
-  LOADED,
-  Manifest,
   NO_ROSTER,
   PluginRoster,
   WHO_PATH,
 } from "@olai/surface"
+import { DocumentEntry } from "olai-plugin-markdown/wire"
+import { LOADED, Manifest } from "olai-plugin-vault/wire"
 
 const tags = [...surface.group.requests.keys()].sort()
 

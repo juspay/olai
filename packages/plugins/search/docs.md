@@ -12,7 +12,7 @@ Nothing. It is on by default, like chat, git and the journal. Two things take it
 
 ```
 olai web ~/outlines                                  # the box, as always
-olai web ~/outlines --plugins=vault,chat,journal,git,ws,web-app,mcp,ui-renderer,layout       # every query answers with the reason
+olai web ~/outlines --plugins=vault,chat,journal,git,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector       # every query answers with the reason
 ```
 
 The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag. Switched off at the panel, the header's box leaves while you are watching, and the ⌘K palette, the composer's `@` list, the edges panel and the move picker each draw the refusal on the next keystroke.
@@ -29,9 +29,9 @@ Search owns its procedure and query-stream descriptors, registered with the serv
 
 ## Where it hangs in the tab
 
-| seat | what the shell keeps | what search brings |
+| seat | who declares it, and what they keep | what search brings |
 | --- | --- | --- |
-| `app.header` (`lead`) | the seat, and what it costs when the bar runs out of width | the box, and the phone's magnifier |
+| `app.header` (`lead`) | `layout` — the seat, and what it costs when the bar runs out of width | the box, and the phone's magnifier |
 
 The `lead` word arrived with this row. It is the seat ahead of the pills — the one control in the bar that may shrink to nothing before any pill loses a character, and the one drawn on a phone too, where it is a 44px magnifier that opens the ⌘K palette. The panel of results portals against the viewport, the way the commit and preferences panels do.
 

@@ -34,7 +34,7 @@
  */
 
 import type { Row } from "@olai/format"
-import type { Shelf } from "@olai/surface"
+import type { Shelf } from "@olai/format"
 
 import type { Relation } from "../edges/relation.ts"
 import type { Said } from "@olai/web/client/saying.ts"

@@ -6,8 +6,8 @@
  *
  *   - `./routes.test.ts`'s bijection: a link the app WRITES that it cannot
  *     READ BACK is a page that loads as something else on a reload;
- *   - `./address/address.test.ts`'s delegation: `addressIn` adds nothing of
- *     its own, so a title and a written link come to ONE answer.
+ *   - `olai-plugin-outlines`'s `browser/address.test.ts` delegation: `addressIn`
+ *     adds nothing of its own, so a title and a written link come to ONE answer.
  *
  * THE TABLE IS THE MECHANISM: a new claim must be a row here the day it is
  * the grammar's (`./routes.ts`'s `NAMED` table is deliberately module-private,
@@ -15,11 +15,20 @@
  * block below is not even a hand list: it enumerates `@olai/format`'s
  * `FILE_KINDS`, so a suffix the registry claims the day it is claimed is a row
  * here the same day.
+ *
+ * IT IS A DECLARED DOOR (`./routes.testlib.ts` in this manifest's `exports` and
+ * `olai.contracts`), and that is the second reader's doing rather than a
+ * decoration. The table used to live in `@olai/web` as `client/routes.testlib.ts`
+ * — a general package spelling `olai-plugin-navigation` to build it, which is
+ * the equality `@olai/bundle`'s `fence.test.ts` holds — and the outlines bench
+ * that reads it is another plugin, which may reach this package only through a
+ * STATIC door. Undeclared, the same import would be red in that file's
+ * "plugins consume other plugins only through static contract doors".
  */
 
 import { FILE_KINDS } from "@olai/format"
 
-import { atElement, atFile, atNode, HOME_ROUTE, type Route } from "olai-plugin-navigation/routes"
+import { atElement, atFile, atNode, HOME_ROUTE, type Route } from "./routes.ts"
 
 export const ROUTES: ReadonlyArray<Route> = [
   HOME_ROUTE,

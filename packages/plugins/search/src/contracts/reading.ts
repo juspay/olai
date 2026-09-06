@@ -5,7 +5,7 @@ import { serviceTag } from "@olai/plugin-api/contracts"
 import { createKeyedRoot } from "@kolu/surface/solid"
 import { readService } from "@olai/web/client/services.ts"
 import type { Accessor } from "solid-js"
-import type { NodeHit, Refusal, SearchHit } from "@olai/surface"
+import type { NodeHit, Refusal, SearchHit } from "@olai/format"
 import type { Taking } from "@olai/web/client/settled.ts"
 export const LIMIT = 8
 export interface Search<H extends SearchHit = SearchHit> {

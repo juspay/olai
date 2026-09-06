@@ -6,7 +6,8 @@ import { OpFailure, DocumentAnswer, DocumentBody, DocumentRequest } from "@olai/
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 import { editProcedures, writeProcedure } from "@olai/surface/dispatch"
-import { CorePageReading, DocumentPageRequest, DocumentEntry } from "@olai/surface"
+import { FiledPageReading, DocumentPageRequest } from "@olai/format"
+import { DocumentEntry } from "./wire.ts"
 export const surface = defineSurface({
 collections: {
 /**
@@ -61,7 +62,7 @@ streams: {
      * an outline holds asks `list_outlines` and `read_subtree`, and is answered
      * in nodes.
      */
-    documentPage: { inputSchema: DocumentPageRequest, outputSchema: CorePageReading, arrayKey: "key" }
+    documentPage: { inputSchema: DocumentPageRequest, outputSchema: FiledPageReading, arrayKey: "key" }
 },
 procedures: {
 edit: editProcedures,

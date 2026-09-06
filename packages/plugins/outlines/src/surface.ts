@@ -6,7 +6,9 @@ import { HomesAnswer, HomesRequest, NamedAnswer, NamedRequest, OpFailure, TagsAn
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 import { editProcedures, writeProcedure } from "@olai/surface/dispatch"
-import { MovingAnswer, MovingRequest, NarrowingAnswer, NarrowingRequest, CorePageRequest, CorePageReading, OutlineEntry } from "@olai/surface"
+import { FiledPageRequest, FiledPageReading } from "@olai/format"
+import { OutlineEntry } from "./wire.ts"
+import { MovingAnswer, MovingRequest, NarrowingAnswer, NarrowingRequest } from "@olai/format"
 import { MARKS } from "@olai/format"
 export const surface = defineSurface({
 collections: {
@@ -34,8 +36,8 @@ collections: {
 },
 streams: {
 page: {
-      inputSchema: CorePageRequest,
-      outputSchema: CorePageReading,
+      inputSchema: FiledPageRequest,
+      outputSchema: FiledPageReading,
       /**
        * A ROW IS ITS `key`, and this is the declaration that says so — the one
        * thing `solid-js/store`'s `reconcile` cannot be told anywhere else, and

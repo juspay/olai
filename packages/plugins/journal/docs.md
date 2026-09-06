@@ -7,7 +7,7 @@ The difference is ownership. Those screens and their wire readings now arrive wi
 ```
 olai web ~/outlines                         # journal included
 olai web ~/outlines --without-plugins=journal  # the default, minus the journal
-olai web ~/outlines --plugins=vault,chat,claude,ws,web-app,mcp,ui-renderer,layout  # no journal UI or routes
+olai web ~/outlines --plugins=vault,chat,claude,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector  # no journal UI or routes
 ```
 
 Turning the plugin off does not change the files. `date`, `repeat`, stamped marks and daily-note filenames remain ordinary parts of the [file format](../format.md). Re-enabling journal reads the same values again.

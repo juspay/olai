@@ -29,7 +29,7 @@
  * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`.
  */
 
-import type { Shelf } from "@olai/surface"
+import type { Shelf } from "@olai/format"
 
 import type { PaletteItem } from "olai-plugin-navigation/palette-model"
 import { atOnce } from "@olai/web/client/settled.ts"

@@ -16,7 +16,7 @@ Olai is a bundle of plugins, run on [Cordis](https://github.com/cordiverse/cordi
 
 Each plugin documents itself, in its own package, and this list is the door to it. A page here is a symlink onto the plugin's own `docs.md`, so what is served and what sits beside the code are one file rather than two that can drift; `packages/tests/plugin_docs.test.ts` holds every line below to a page that is actually there.
 
-The first four are **engines** — the ACP agents the chat panel can seat, one plugin each, enabled by default. What a conversation IS, for all of them, is [chat.md](chat.md); these pages are what is only true of one wire.
+Four of the pages below are **engines** — [claude](plugins/claude.md), [codex](plugins/codex.md), [opencode](plugins/opencode.md) and [pi](plugins/pi.md), the ACP agents the chat panel can seat, one plugin each, enabled by default. What a conversation IS, for all of them, is [chat.md](chat.md); those four are what is only true of one wire.
 
 - [plugins/ws.md](plugins/ws.md) — the browser websocket, with scoped registration on the shared listener.
 - [plugins/mcp.md](plugins/mcp.md) — the MCP protocol server, its activation lifetime and session tickets.

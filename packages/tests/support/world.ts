@@ -29,7 +29,7 @@ import * as os from "node:os";
 // and this is the ATTRIBUTE a pressable node reference in the chat panel
 // carries. Two different things, one word — so the import says which.
 import { NODE_REF as CHAT_NODE_REF_ATTR } from "olai-plugin-chat/testlib";
-import { LONG_PRESS_MS, REFERRINGS, ROW_TESTID, selector } from "@olai/web/testlib"
+import { LONG_PRESS_MS, selector } from "@olai/web/testlib"
 // ...and the PLUGINS' half of the same table, which is where the bulk of this
 // file's selectors now come from. The ids split by RENDERER — a scenario
 // asserting on the padi pill is asserting on `olai-plugin-kolu`'s output, not
@@ -42,11 +42,20 @@ import { LONG_PRESS_MS, REFERRINGS, ROW_TESTID, selector } from "@olai/web/testl
 //
 // They route through the REGISTRY rather than through each plugin's own door
 // because `packages/bundle/src/fence.test.ts` holds, as an equality per
-// package, that nothing outside it names a plugin except this suite's two
-// recorded testlib imports. The testid door is NAMES ONLY, which is what keeps
-// a component (and behind kolu's, a terminal emulator) off the graph of a
-// process with no browser in it.
+// package, that nothing outside it names a plugin except the doors that file
+// records line by line — this suite's among them. The testid door is NAMES
+// ONLY, which is what keeps a component (and behind kolu's, a terminal
+// emulator) off the graph of a process with no browser in it.
 import { PLUGIN_TESTID } from "@olai/bundle/testids";
+// ...and two names that WERE on `@olai/web`'s door and are their rows' again.
+// Re-exporting them put `olai-plugin-files` and `olai-plugin-outlines` in a
+// general package's manifest and on its import graph, for two strings this
+// suite can ask the rows it is already driving — which is the equality above,
+// read from the other end: the boot package's line in that table is empty now,
+// and these two are the suite's, recorded. `ROW_TESTID` is which row one KIND
+// of file draws; `REFERRINGS` is the outline's word for a reference.
+import { ROW_TESTID } from "olai-plugin-files/kinds";
+import { REFERRINGS } from "olai-plugin-outlines/testlib";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
 import type { LivePadi } from "olai-plugin-kolu/appliance/testlib";
 import {

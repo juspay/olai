@@ -1,6 +1,17 @@
+/**
+ * THE BIJECTION — every address this app can SPELL, read back to the route it
+ * was written from, and the grammar's refusals beside it.
+ *
+ * It was `@olai/web`'s `client/routes.test.ts`, over a module that had already
+ * become this row's: a general package spelling `olai-plugin-navigation` is
+ * exactly what `@olai/bundle`'s `fence.test.ts` holds an equality against, and
+ * the boot package's list is empty now. The shared vocabulary it reads came
+ * with it (`./routes.testlib.ts`).
+ */
+
 import { expect, test } from "bun:test"
 
-import { atElement, atFile, atNode, defineAppPage, defineAppRoute, filterOf, HOME_ROUTE, hrefOf, narrowedTo, type Route, routeIn, routeOf, samePage, settleRoutePages } from "olai-plugin-navigation/routes"
+import { atElement, atFile, atNode, defineAppPage, defineAppRoute, filterOf, HOME_ROUTE, hrefOf, narrowedTo, type Route, routeIn, routeOf, samePage, settleRoutePages } from "./routes.ts"
 import { ROUTES } from "./routes.testlib.ts"
 
 test("every route survives being written to a URL and read back", () => {
