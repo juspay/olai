@@ -502,6 +502,15 @@ What it does not, and so what still needs a wait of its own:
 
 `I press "…" without waiting` and `I press "…" twice without waiting` are how the two scenarios that MEAN the race say so, and they are the whole of the exception.
 
+Opening an interactive page also waits for the offline dialog to close. A
+painted header alone is insufficient: during connecting or reconnecting the
+dialog deliberately swallows application shortcuts, so a key sent then is
+lost even if the page becomes live a moment later. `world.open()` waits for
+that actual affordance; `world.settle()` remains available to scenarios that
+intentionally inspect connecting or fault states. The held-reconnect case in
+`palette_startup.feature` checks that opening stays pending behind the dialog,
+then spends the first shortcut and verifies its command writes the file.
+
 Pending-write scenarios hold incoming WebSocket messages only after the control
 under test is ready. The route matcher compares `/rpc/ws` by pathname: a redial
 adds `?pid=…`, which must not bypass the hold. Daily-note tests also observe the

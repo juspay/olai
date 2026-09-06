@@ -1933,6 +1933,14 @@ export class OlaiWorld extends World {
           oneLine(await fault.innerText()),
       );
     }
+    // The header can paint while a socket is still connecting or redialling.
+    // Offline deliberately swallows global shortcuts in the capture phase;
+    // a painted page is therefore not yet an interactive page. Explicit
+    // connecting/fault scenarios use settle() and inspect that state themselves.
+    await this.page.locator(OFFLINE).waitFor({
+      state: "hidden",
+      timeout: HYDRATION_TIMEOUT,
+    });
   }
 
   /** Go to a path and wait for the app to commit to one of its shapes — the

@@ -12,21 +12,23 @@ Last complete CI: code commit `55b5bee87` passed all 49 checks, including
 1,446 browser scenarios. That result predates the substantial extraction now
 in progress and does not validate the current working tree.
 
-Current integration: `79b0770f0` passed typechecking and the previously failing
-headless process case. Browser shards are still completing. A real-Git test
-hit Bun's five-second default while executing repository setup, status,
-commit and two pushes; its cleanup then killed the active subprocess. That
-case now has an explicit 30-second integration budget. All 32 Git tests pass;
-a probe delaying every Git invocation by 400ms also passes in 7.47 seconds,
-exceeding the old default without changing any assertions.
+Current integration: `79b0770f0` completed full `just ci` with 44 checks
+passing and five failing. The underlying failures were the real-Git upstream
+test's five-second default deadline and two palette shortcuts lost during
+startup (plus their aggregates). Both now have verified corrections awaiting
+full CI. The Git case has an explicit 30-second integration budget: all 32 Git
+tests pass, and a probe delaying every Git invocation by 400ms passes in
+7.47 seconds without changing any assertions.
 
+The palette failures are reproduced by a real held reconnect: the old `open()`
+helper returned behind Offline's painted dialog, whose capture listener
+swallows shortcuts. It now waits for that dialog to hide; `settle()` still
+supports intentional connection/fault workflows. The regression fails before
+the fix and passes afterward, and all 30 palette scenarios pass (327 steps).
+Navigation also owns its shortcut before its layout integration mounts, with
+a separate before/after regression preserving pending shortcut intent.
 The earlier headless startup timeout remains unreproduced: the unchanged
-suite, six concurrent cases and the next CI run pass. The palette screenshot
-showed its overlay never opened. Its shortcut listener previously belonged to
-that overlay and could miss input before layout activation. A controlled
-layout-withdrawal test fails on the old build and passes when navigation owns
-the shortcut; 33 affected browser scenarios pass. The original CI interleaving
-was not traced. Full green integration remains outstanding.
+suite, six concurrent cases and the next CI run pass.
 
 The HTML-preview timing failure is explained by sampling between permitted
 restoration attempts. Its assertion now requires the terminal empty

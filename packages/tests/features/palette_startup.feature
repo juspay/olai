@@ -16,3 +16,13 @@ Feature: Navigation owns the palette shortcut before its layout arrives
     When I choose "Complete" from the palette
     Then "garden.olai" holds a node marked done titled "split the mint"
     And there should be no page errors
+
+  Scenario: Opening a node waits for the frozen connection before the first shortcut
+    Given I open the node "order"
+    When I open the node "mint" through a held reconnect
+    And I press "ControlOrMeta+k"
+    Then the command palette is open
+    And the palette offers "Complete"
+    When I choose "Complete" from the palette
+    Then "garden.olai" holds a node marked done titled "split the mint"
+    And there should be no page errors
