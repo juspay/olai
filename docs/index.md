@@ -10,6 +10,10 @@
 - [architecture.md](architecture.md) — how the packages fit, and the reasoning behind the layering.
 - [internal/plugin-system.md](internal/plugin-system.md) — a tour of the plugin system for people working on olai: what a plugin is, the vocabulary (probes, kinds, dressings, faces, the roster, the doorbell a plugin speaks into a conversation through), the three doors and why there are three, how core and a plugin share one wire, and the path a declaration takes to become a face on a row.
 
+## Plugins
+
+Olai is a bundle of plugins, run on [Cordis](https://github.com/cordiverse/cordis) ([arXiv:2608.25512](https://arxiv.org/abs/2608.25512)). The public site’s [Plugins section](https://olai.kolu.dev/#plugins) is the pitch: what a plugin is, which ones ship, that you can switch one off, that an agent can write one, and how to pick what runs. The pages below are how.
+
 Each plugin documents itself, in its own package, and this list is the door to it. A page here is a symlink onto the plugin's own `docs.md`, so what is served and what sits beside the code are one file rather than two that can drift; `packages/tests/plugin_docs.test.ts` holds every line below to a page that is actually there.
 
 The first four are **engines** — the ACP agents the chat panel can seat, one plugin each, enabled by default. What a conversation IS, for all of them, is [chat.md](chat.md); these pages are what is only true of one wire.
