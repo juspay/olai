@@ -1,14 +1,14 @@
 import * as assert from "node:assert";
 import { Then } from "@cucumber/cucumber";
-import { TESTID } from "@olai/web/testlib";
+import { selector, TESTID } from "@olai/web/testlib";
 import { CHAT_TOGGLE, HYDRATION_TIMEOUT, OFFLINE, TITLE_EDITOR } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 const contributions: Readonly<Record<string, string>> = {
-  files: `[data-testid="${TESTID.sidebarFiles}"]`,
-  pins: `[data-testid="${TESTID.pinShelf}"]`,
-  capture: `[data-testid="${TESTID.inboxLink}"]`,
-  trash: `[data-testid="${TESTID.trashLink}"]`,
+  files: selector(TESTID.sidebarFiles),
+  pins: selector(TESTID.pinShelf),
+  capture: selector(TESTID.inboxLink),
+  trash: selector(TESTID.trashLink),
   chat: CHAT_TOGGLE,
 };
 
