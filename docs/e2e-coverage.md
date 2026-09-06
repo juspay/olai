@@ -123,3 +123,17 @@ Transport coverage: `transports_are_rows.feature` flips MCP twice through the pl
 `server/src/transports.test.ts` additionally withdraws browser-build and websocket registrations, checks that MCP remains reachable on the same port, restores the browser, and proves that releasing the last transport closes the port. The MCP-only busy-port case uses two real CLI processes.
 
 The transport lifecycle bench also checks the MCP ticket mint before activation, after withdrawal and after restart: each activation has a fresh ticket table, while the listener keeps the serve's address.
+
+Phase 18 review coverage: `shell_rows.feature` rejects a real static dependency
+of both the renderer and sidebar entries, verifies that entry retry cannot clear
+Chromium's cached failure, and recovers through an explicit page reload. The
+sidebar case checks surviving content element identity before that reload.
+`draft_handoff.feature` preserves the parked input's actual element during
+activation and its text across a held save reply. Browser event traces exposed
+an absent-input interval before the new anchor's page frame and a removal blur
+misread as click-away; both now have fixes. Six isolated scenarios also verify
+real click-away and filling a skeleton after a plugin rebuild. The assignment
+held-reply case in `node_agents.feature` verifies that Done cannot return to the
+composer before the session handoff completes. These cases establish specific
+contracts, not completion of the Phase 18 checklist or an explanation for every
+previous intermittent failure.

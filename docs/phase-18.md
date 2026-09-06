@@ -25,8 +25,8 @@ be complete before this PR is ready to merge.
   a renderer, and retry failed entry imports without reloading the page.
 - [x] Offer explicit page reload recovery when a retry cannot recover a cached
   failed dependency, preserving successful shared runtime identity.
-- [ ] Validate dependency-chunk recovery through both inspector and renderer-free
-  startup in Chromium; scenarios added in the current review batch.
+- [x] Validate dependency-chunk recovery through both inspector and renderer-free
+  startup in Chromium, including cached dependency failure and explicit reload.
 - [x] Keep the live roster authoritative over a late bootstrap response or failure.
 - [x] Document static `/contract` imports and fence them against implementations.
 - [ ] Move all application-specific slot contracts to their capability owners.
@@ -117,19 +117,20 @@ be complete before this PR is ready to merge.
   without undoing emitted vault writes.
 - [ ] Complete mobile, history, cancellation, failed/hanging cleanup and observer
   leak coverage across the extracted capabilities.
-- [ ] Investigate intermittent keyboard/draft e2e failures: parked-draft ordering
-  in `keyboard_editing.feature:129` failed at `3a8629ad`, and keyboard status after
-  moving a row failed at `8f077cd7`. At `ef33309d`, the failure screenshot showed
-  missing text, not a misplaced record. Parked slots now own pending focus and
-  retain their input across activation; new identity/held-reply scenarios await
-  validation. The keyboard-status case is still unexplained.
-- [ ] Investigate the agent-migration contract failure in
-  `node_agents.feature:377`: the browser rerun at `3a8629ad` observed zero initial
-  contract messages instead of one. Assignment now keeps its list busy until
-  the session handoff replies, with a held-reply regression scenario awaiting CI.
-  This closes a concrete race; the original failure is not yet proven resolved.
-  The draft-ordering scenario passed that run;
-  five of six browser shards passed, so validation is still incomplete.
+- [x] Fix the parked-draft failure reproduced from `keyboard_editing.feature:129`:
+  clicked slots own focus and retain their input across activation. A temporary
+  visual fallback keeps the input present between the create reply and page
+  frame; deferred blur checks distinguish DOM removal from click-away.
+  Local browser coverage passes for both handoff timings, input identity,
+  actual click-away and a skeleton surviving an unrelated plugin rebuild.
+- [ ] Investigate the intermittent keyboard-status failure after moving a row
+  at `8f077cd7`; its cause remains unexplained.
+- [x] Keep assignment controls busy until the session handoff replies. Both the
+  held-reply regression and original migration scenario passed at `05dabd441`.
+- [ ] Establish whether the assignment guard explains the earlier
+  `node_agents.feature:377` failure: `3a8629ad` observed zero initial contract
+  messages instead of one. The guard closes a concrete race, but passing
+  coverage alone does not prove that original failure's cause.
 - [ ] Finish plugin, architecture, profile/running and dynamic-plugin docs for
   the final ownership and absence behavior. Existing extracted rows have docs.
 - [ ] Pass the complete PR's required checks and acceptance coverage. A green
