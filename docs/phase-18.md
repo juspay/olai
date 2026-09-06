@@ -12,17 +12,21 @@ Last complete CI: code commit `55b5bee87` passed all 49 checks, including
 1,446 browser scenarios. That result predates the substantial extraction now
 in progress and does not validate the current working tree.
 
-Current integration: `8f23978a1` completed full `just ci`: 45 checks passed and
-4 failed. Typechecking and the font/theme and HTML-preview corrections passed.
-One headless process exhausted its existing startup deadline without output;
-the unchanged suite and six concurrent reproductions pass, with no concrete
-startup defect identified. The palette failure screenshot shows the overlay never opened. Navigation's
-shortcut listener previously belonged to that overlay and could miss input
-before layout activation. A controlled layout-withdrawal test fails on the old
-build and passes when navigation owns the shortcut. All 29 startup and palette
-action/write scenarios pass. The original CI interleaving was not traced.
-Each failure also failed its aggregate check. The integrated correction and
-unchanged process test await full CI.
+Current integration: `79b0770f0` passed typechecking and the previously failing
+headless process case. Browser shards are still completing. A real-Git test
+hit Bun's five-second default while executing repository setup, status,
+commit and two pushes; its cleanup then killed the active subprocess. That
+case now has an explicit 30-second integration budget. All 32 Git tests pass;
+a probe delaying every Git invocation by 400ms also passes in 7.47 seconds,
+exceeding the old default without changing any assertions.
+
+The earlier headless startup timeout remains unreproduced: the unchanged
+suite, six concurrent cases and the next CI run pass. The palette screenshot
+showed its overlay never opened. Its shortcut listener previously belonged to
+that overlay and could miss input before layout activation. A controlled
+layout-withdrawal test fails on the old build and passes when navigation owns
+the shortcut; 33 affected browser scenarios pass. The original CI interleaving
+was not traced. Full green integration remains outstanding.
 
 The HTML-preview timing failure is explained by sampling between permitted
 restoration attempts. Its assertion now requires the terminal empty

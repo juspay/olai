@@ -474,7 +474,10 @@ test("dirty says where the branch stands against its upstream", async () => {
   expect((await surveyed(root)).upstream)
     .toEqual({ name: "origin/main", ahead: 0 })
   expect(git(bare)("log", "--format=%s", "-1", "main").trim()).toBe("one of mine")
-})
+// Real repository creation, status, commit and two pushes share this budget.
+// The default five seconds can terminate an otherwise successful Git process
+// when browser shards compete for the same runner.
+}, 30_000)
 
 /**
  * A push that git refuses comes back with git's own words, exactly as a refused
