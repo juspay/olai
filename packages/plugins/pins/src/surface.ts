@@ -35,7 +35,7 @@ cells: {
      * ordinary outline, and the only way to write one is the ops layer — which
      * is what a pin, a reorder and an unpin already resolve to.
      *
-     * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`): an agent reads the
+     * THE BROWSER'S ALONE ({@link faces} below): an agent reads the
      * shelf as the ordinary outline it is.
      */
     pins: {
@@ -88,14 +88,43 @@ edit: editProcedures
  * no writer and fails at runtime with "the capability for X is not active"
  * (`@olai/edit-history`'s `writing.ts`). `@olai/server`'s
  * `capability-dispatch.test.ts` holds it.
+ *
+ * `field` WENT WITH THE ENVELOPE. Each entry used to be
+ * `{ field: "verb", cases: [...] }`, because the composition root routed one
+ * shared bare tag to an owner by reading that field off the payload. There is
+ * no shared tag and no envelope, and the discriminator is already implied by
+ * the member — `edit.apply`'s cases are `Edit.verb`s, `ops.run`'s are
+ * `WriteRequest.op`s — so the word was a second statement of a fact with no
+ * reader left. `capability-dispatch.test.ts` is what checks the cases are the
+ * right union's.
  */
 export const dispatch = {
-  "edit.apply": { field: "verb", cases: ["pin"] },
+  "edit.apply": ["pin"],
 } as const
 export const faces = {
   "browser": {
+    // THE SIDEBAR'S SHELF, answered per revision (`@olai/format`'s `shelfOf`)
+    // — a READING rather than a projection of the files, and the browser's
+    // alone.
+    //
+    // An agent has no use for it and is not offered it: the shelf is an
+    // ordinary outline, `Pins.olai`, and an agent reads it with `read_subtree`
+    // and writes it with `add_node` / `move_node` / `trash_node`, which is the
+    // whole point of the convention being titles in a file (docs/format.md's
+    // Pins). What this member adds for a BROWSER is the RESOLUTION — a pin's
+    // node named as it is called right now — which is a paint instruction for a
+    // column somebody is looking at.
+    //
+    // It satisfies the cost rule (`@olai/surface/host`'s `hostFaces`) the way a
+    // badge does rather than trivially: the value is O(what somebody PINNED),
+    // which is a curated short list — it is exactly the rows the sidebar draws,
+    // so a shelf too big for this member is a shelf too big for the column it
+    // is drawn in.
     "pins": "resource",
     "edit.apply": "tool"
   },
+  // NO AGENT MAP, which is the decision rather than a gap: `exposeFaces` denies
+  // a sibling with no map under a face key in full. See the paragraph above for
+  // why an agent wants the outline and not the shelf.
   "agent": {}
 } as const

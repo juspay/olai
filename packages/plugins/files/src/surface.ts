@@ -43,16 +43,32 @@ ops: { /**
  * no writer and fails at runtime with "the capability for X is not active"
  * (`@olai/edit-history`'s `writing.ts`). `@olai/server`'s
  * `capability-dispatch.test.ts` holds it.
+ *
+ * `field` WENT WITH THE ENVELOPE. Each entry used to be
+ * `{ field: "verb", cases: [...] }`, because the composition root routed one
+ * shared bare tag to an owner by reading that field off the payload. There is
+ * no shared tag and no envelope, and the discriminator is already implied by
+ * the member — `edit.apply`'s cases are `Edit.verb`s, `ops.run`'s are
+ * `WriteRequest.op`s — so the word was a second statement of a fact with no
+ * reader left. `capability-dispatch.test.ts` is what checks the cases are the
+ * right union's.
  */
 export const dispatch = {
-  "edit.apply": { field: "verb", cases: ["outlineNew", "fileDelete"] },
-  "ops.run": { field: "op", cases: ["create", "delete"] },
+  "edit.apply": ["outlineNew", "fileDelete"],
+  "ops.run": ["create", "delete"],
 } as const
 export const faces = {
   "browser": {
     "edit.apply": "tool"
   },
   "agent": {
+    // THE READING THE `capture` TOOL RESOLVES AGAINST, and the one member on
+    // this face that is not itself a tool: which outlines there are, which is
+    // what the inbox convention is read off (`@olai/ops`' `Planning`). It is
+    // exposed for the same reason `ops.run` is — a tool this face advertises
+    // lands through it — and it is `"tool"` like its neighbour because a face
+    // map reads MEMBERSHIP and nothing else (`@olai/surface/host`'s
+    // `hostFaces`).
     "ops.paths": "tool",
     "ops.run": "tool"
   }

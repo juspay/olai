@@ -45,7 +45,7 @@
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
 import { reportingRunEdge, surfaceCommands, surfaceHelp } from "@kolu/surface-cli"
 import { addressOf, printAddress } from "@olai/format"
-import { AGENT_TOOLS } from "@olai/bundle/tools"
+import { agentTools } from "@olai/bundle/tools"
 import { atLevel, toStdout } from "@olai/log"
 import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
@@ -54,7 +54,7 @@ import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
 import { dialOlai, endpointFlags } from "./dial.ts"
 import { dieWithParent } from "./dieWithParent.ts"
-import { AGENT_EXPOSE, mcpContract } from "olai-plugin-mcp/face"
+import { AGENT_EXPOSE, mcpContract } from "@olai/bundle/agent-face"
 import { remoteFrom } from "@olai/bundle/remote"
 import { gitFlags, gitPin } from "./gitPolicy.ts"
 import { pluginFlags, pluginPin } from "./pluginPolicy.ts"
@@ -178,7 +178,7 @@ const READING = [
  * list is written twice. A verb added to a row appears on both with no edit
  * here.
  */
-const TOOLS = AGENT_TOOLS.flatMap((row) => row.tools)
+const TOOLS = (await agentTools()).flatMap((row) => row.tools)
 
 /** Everything else the table offers, alphabetically — see the group's comment. */
 const writing = (): ReadonlyArray<string> =>

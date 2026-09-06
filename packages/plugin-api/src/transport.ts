@@ -66,8 +66,14 @@ export interface TransportSurface {
    * list an agent is SHOWN is the live half, and that is {@link agentRows}.
    * `@olai/bundle`'s `tools.ts` argues it at length, and juspay/kolu#2233 is
    * what collapses the two back into one reading.
+   *
+   * AN EFFECT AND NOT A VALUE, because the registry loads the rows' tables
+   * through a dynamic `import()`: a static one would put every row's verbs and
+   * the whole ops layer behind them into the host's permanent entry closure,
+   * which `@olai/bundle`'s `fence.test.ts` refuses. Read once, where the face
+   * is built.
    */
-  readonly agentTools: () => ReadonlyArray<{ readonly owner: string; readonly tools: ReadonlyArray<unknown> }>
+  readonly agentTools: Effect.Effect<ReadonlyArray<{ readonly owner: string; readonly tools: ReadonlyArray<unknown> }>>
   /** Static owner declarations remain reserved while an owner is disabled. */
   readonly writeReservations: readonly { readonly key: string; readonly says: string }[]
 }

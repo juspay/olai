@@ -6,7 +6,7 @@
   "type": "module",
   "main": "./src/rows.ts",
   "types": "./src/rows.ts",
-  "//exports": "The root exposes inert row metadata and browser module loaders; ./bundle mounts selected rows. ./assets and ./all.css describe build assets. ./testids merges identifiers exported by their rendering owners. ./surface, ./faces and ./client are the complete application contract and compatibility clients for CLI/tests, assembled from provider-owned descriptors; the permanent browser wire imports only the management Surface. ./inputs adapts product boot inputs and ticket lookup into the generic host without importing capability implementations there. The import fence checks these closures independently.",
+  "//exports": "The root exposes inert row metadata and browser module loaders; ./bundle mounts selected rows. ./assets and ./all.css describe build assets. ./testids merges identifiers exported by their rendering owners. ./tools gathers each row's own agent verbs. ./inputs adapts product boot inputs and ticket lookup into the generic host without importing capability implementations there. The import fence checks these closures independently.\n\nTHERE IS NO ./surface, ./client OR ./faces, and the three left together in #546. ./surface composed every row's members into one flat aggregate under BARE names, ./client was a typed client over that aggregate, and ./faces was three hand-written allowlists naming those bare members from a package no row could edit. A member has one tag now and it carries its owner, so the aggregate described a wire nothing serves: shrunk to what it still had a right to compose it was `@olai/surface/host`'s hostSurface verbatim, on a second identity, which is the thing that package's own doors exist to prevent. Core's grant is hostFaces beside it; each row's grant is that row's own `faces`; the flat contract the MCP adapter still needs — because serveSurfaceAsMcp builds every surface:// URI out of ONE spec's member keys, juspay/kolu#2233 — is olai-plugin-mcp/face, where the dispatch under it is scoped through the rows themselves.",
   "exports": {
     ".": "./src/rows.ts",
     "./bundle": "./src/bundle.ts",
@@ -16,16 +16,14 @@
     "./assets": "./src/assets.ts",
     "./policy": "./src/policy.ts",
     "./tree-testlib": "./src/tree.testlib.ts",
-    "./surface": "./src/surface.ts",
-    "./client": "./src/client.ts",
     "./inputs": "./src/inputs.ts",
     "./tools": "./src/tools.ts",
-    "./faces": "./src/faces.ts"
+    "./agent-face": "./src/agent-face.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//": "olai.yml owns row selection; generate.ts derives browser rows, style routing and the test ID catalogue. Application contract composition is explicit in ./surface and ./faces. Plugins never depend on the bundle; their contracts remain safe to import without activating their implementations.",
+  "//": "olai.yml owns row selection; generate.ts derives browser rows, style routing and the test ID catalogue. Nothing here composes an application contract any more: a member's descriptor and its face grant are both the owning row's, and this package only selects which rows are built. Plugins never depend on the bundle; their contracts remain safe to import without activating their implementations.",
   "//dependencies": "This build declares every selected plugin so generated dynamic imports resolve. Static provider contracts are used only in application composition doors; browser and server entry graphs never acquire feature implementations merely by importing a catalogue. The Cordis runtime arrives through @olai/effect-cordis and the pinned dependency hydration, not direct framework imports. effect describes contributed schemas.",
   "dependencies": {
     "@olai/effect-cordis": "workspace:*",

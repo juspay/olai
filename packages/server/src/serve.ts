@@ -29,7 +29,7 @@ import { type Profile } from "./profiles.ts";
 import { listener } from "./listener.ts";
 import { provideInputs, ticketsFor } from "@olai/bundle/inputs";
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy";
-import { AGENT_TOOLS } from "@olai/bundle/tools";
+import { agentTools } from "@olai/bundle/tools";
 import { runtimePaths } from "./runtime-paths.ts"
 import { TransportSurface } from "@olai/plugin-api/transport";
 import { gitConfigPatch } from "./gitPolicy.ts";
@@ -287,7 +287,7 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
         token,
         agent: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.agent, writes: wired.bound.writes }),
         agentRows: () => wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, tools: row.tools ?? [] })),
-        agentTools: () => AGENT_TOOLS,
+        agentTools: Effect.promise(agentTools),
         writeReservations: WRITE_RESERVATIONS,
     }));
     // Shutdown step 2 of the four the paragraph above orders — registered here,

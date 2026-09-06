@@ -56,7 +56,7 @@ streams: {
      * used to do instead was hold every record of every file and answer the
      * same question locally.
      *
-     * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`), like the two readings
+     * THE BROWSER'S ALONE ({@link faces} below), like the two readings
      * above and for their reason: what comes back is a screen — rows with their
      * fold keys, a rollup, the blockers a checkbox draws. An agent asking what
      * an outline holds asks `list_outlines` and `read_subtree`, and is answered
@@ -122,15 +122,42 @@ ops: { /**
  * no writer and fails at runtime with "the capability for X is not active"
  * (`@olai/edit-history`'s `writing.ts`). `@olai/server`'s
  * `capability-dispatch.test.ts` holds it.
+ *
+ * `field` WENT WITH THE ENVELOPE. Each entry used to be
+ * `{ field: "verb", cases: [...] }`, because the composition root routed one
+ * shared bare tag to an owner by reading that field off the payload. There is
+ * no shared tag and no envelope, and the discriminator is already implied by
+ * the member — `edit.apply`'s cases are `Edit.verb`s, `ops.run`'s are
+ * `WriteRequest.op`s — so the word was a second statement of a fact with no
+ * reader left. `capability-dispatch.test.ts` is what checks the cases are the
+ * right union's.
  */
 export const dispatch = {
-  "edit.apply": { field: "verb", cases: ["doc", "docNew"] },
-  "ops.run": { field: "op", cases: ["doc", "create-doc"] },
+  "edit.apply": ["doc", "docNew"],
+  "ops.run": ["doc", "create-doc"],
 } as const
+/**
+ * WHICH FACE SEES WHAT — this row's whole grant, over this row's own spec.
+ *
+ * The general rule it is written against — a cell is exposable iff its value is
+ * O(1)-ish, and anything O(corpus) must be a COLLECTION — is
+ * `@olai/surface/host`'s `hostFaces`. {@link documents} is the worked example
+ * of the second half: it is the bodied half of the served directory, every `.md`
+ * and every `.html`, and it is on BOTH faces for exactly that reason. Its key
+ * set costs the paths and a body travels only when somebody asks for that one
+ * file. It is also declared `keys` + `get` with no `deltas`, so there is not
+ * even a batched verb here to reach for by mistake — `olai-plugin-vault`'s
+ * `heads` argues why the omission and its own `deltas` are one decision read
+ * twice.
+ */
 export const faces = {
   "browser": {
     "documents": "resource",
+    // A SCREEN, not a file — see the member's own paragraph above. The
+    // browser's alone, like every other page reading in the tree.
     "documentPage": "resource",
+    // THE KEYBOARD'S DOOR. `ops.*` is the agent's and does not cross, which is
+    // `olai-plugin-outlines`' `faces` header in full.
     "edit.apply": "tool"
   },
   "agent": {

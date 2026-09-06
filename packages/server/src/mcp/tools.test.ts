@@ -1,9 +1,8 @@
-import { AGENT_TOOLS } from "@olai/bundle/tools"
+import { agentTools } from "@olai/bundle/tools"
 /** Every verb this build has, as one list — the rows' own tables, composed.
  *  `@olai/ops`' `TOOLS` was this list until #546 sent each verb home to the
  *  row that owns it. */
-const EVERY_TOOL = AGENT_TOOLS.flatMap((row) => row.tools)
-import { surface } from "@olai/bundle/surface"
+const EVERY_TOOL = (await agentTools()).flatMap((row) => row.tools)
 import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
 /**
  * The tool surface, through a real MCP client.
@@ -33,7 +32,6 @@ import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
  * the unit-level fence under them.
  */
 
-import { MCP } from "@olai/bundle/faces"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import {
@@ -61,8 +59,9 @@ import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
-import { bind, writerAt } from "../runtime.ts"
-import { clientOver } from "@olai/bundle/client"
+import { bind } from "../runtime.ts"
+import { AGENT_EXPOSE, mcpContract } from "olai-plugin-mcp/testlib"
+import { liveClient, toOwner } from "olai-plugin-mcp/testlib"
 import { serveFace } from "olai-plugin-mcp/testlib"
 import { bespokeFrom } from "olai-plugin-mcp/testlib"
 
@@ -182,14 +181,24 @@ const withTools = <A>(
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
+    // ROUTED THE WAY THE SERVED FACE IS, off the rows this bind composed. The
+    // contract stays FLAT — `serveSurfaceAsMcp` builds every `surface://` URI
+    // out of one spec's member keys (juspay/kolu#2233) — but the dispatch under
+    // it is scoped: `ops.node` is `surface/outlines/ops/node` now, and `toOwner`
+    // is the one thing that knows so. This used to be `@olai/bundle`'s
+    // `clientOver` over that package's flat aggregate and its hand-written `MCP`
+    // map, all three of which #546 deleted; a client built that way names tags
+    // nothing serves, so every call below missed.
+    const rows = () => wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, tools: row.tools ?? [] }))
+    const panel = liveClient(
+      () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }),
+      { writer: "mcp", fence: null },
+      toOwner(rows),
+    )
     yield* serveFace({
-      surface,
-      expose: MCP,
-      client: () =>
-        clientOver(
-          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },
-          wired.faces.agent,
-        ),
+      surface: mcpContract,
+      expose: AGENT_EXPOSE,
+      client: () => panel,
       tools: bespokeFrom(EVERY_TOOL, {
         login: () => login,
         root,
@@ -319,6 +328,14 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "delete_file",
       "duplicate_node",
       "empty_trash",
+      // THE THREE A PLUGIN'S AUTHOR HAS, and they joined this list rather than
+      // arriving beside it: they were hand-written `BespokeTool`s inside
+      // `olai-plugin-mcp`, spread into the face by a second call, and they are
+      // `olai-plugin-vault-plugins`' own `tools.ts` now — one row's verbs, in
+      // the row that owns them, composed by `agentTools()` like every other
+      // row's. None of them names a byte either: what they read and write is
+      // this SERVE's roster, not the disk.
+      "inspect_plugins",
       "list_documents",
       "list_outlines",
       "merge_node",
@@ -328,6 +345,7 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "read_node",
       "read_subtree",
       "remove_mirror",
+      "run_plugin",
       "search_nodes",
       "set_after",
       "set_cancelled",
@@ -341,6 +359,7 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "set_title",
       "set_todo",
       "split_node",
+      "stop_plugin",
       "trash_node",
       "untrash_node",
       "update",
@@ -559,12 +578,18 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
     // a third such verb, or loses either of these, fails here.
     expect(said).toContain("`empty_trash` empties `_olai/Trash.olai`")
     expect(said).toContain("`delete_file`")
-    // TABLE ORDER, not alphabetical: the filter keeps the table's.
+    // TABLE ORDER, and the table is the ROWS' now: `agentTools()` walks the
+    // build's rows in turn, so `delete_file` (files) precedes `empty_trash`
+    // (trash) where one closed array in `@olai/ops` had them the other way
+    // round. The order coincides with alphabetical here by accident, which is
+    // why the claim is spelled as the filter's output rather than as a sort —
+    // it is that BOTH verbs are on the table the charter enumerates, in the
+    // order the composition produced.
     expect(
       tools.map((tool) => tool.name).filter((name) =>
         name.includes("empty") || name.includes("delete")
       ),
-    ).toEqual(["empty_trash", "delete_file"])
+    ).toEqual(["delete_file", "empty_trash"])
 
     // …and the claims that actually do the work still hold over the whole
     // table: no path outside the served directory, and nothing that can name

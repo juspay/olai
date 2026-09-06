@@ -62,6 +62,7 @@ import { Effect, Result, Schema } from "effect"
 import {
   CommitRequest,
   type CommitResult,
+  isOpFailure,
   DocumentAnswer,
   DocumentBody,
   DocumentRequest,
@@ -428,7 +429,71 @@ export type Tool =
       args: never,
     ) => Result.Result<Request, OpFailure>
   })
+  | (Described & {
+    /**
+     * THE ARM THAT REACHES A ROW'S OWN SURFACE, and the one that names no door
+     * of this package at all.
+     *
+     * The four above it each take one of the ops-layer doors — {@link Asking},
+     * {@link Running}, {@link Acting}, {@link Planning} — which is what made
+     * them expressible in a general package: every one of them is a question or
+     * a write about the SET, and the set is what `@olai/ops` is. A row whose
+     * verbs are about its own procedures has none of those. `olai-plugin-vault-plugins`
+     * is the case that forced it: `inspect_plugins` reads the live registry,
+     * `run_plugin` and `stop_plugin` move a definition, and there is no arm
+     * above that can say any of it.
+     *
+     * They lived as three hand-written `BespokeTool`s inside `olai-plugin-mcp`
+     * until #546, with a name-to-member map beside them in a `catalog.ts` that
+     * decided when to advertise them. That was one row's vocabulary held by
+     * another row — the same duplication `TOOLS` was in a general package — and
+     * this arm is what let it go home.
+     *
+     * `client` IS THE CALLER'S, opaque here. A row narrows it to a
+     * `SurfaceClient` over its OWN spec, where the members are compiler-checked;
+     * this package cannot name that type without naming every row. It is the
+     * same erasure `Sibling.faces` and `Sibling.deps` take, for the same reason
+     * and at the same wall.
+     *
+     * `mutates` is SPELLED rather than derived. The other four arms answer it
+     * from their kind — a read does not, everything else does — and this arm
+     * cannot: `inspect_plugins` is a read of the registry and `run_plugin` is
+     * not, and both are the same kind here. It is what an MCP host draws as
+     * `readOnlyHint`, so guessing would mislabel one of them for a live agent.
+     */
+    readonly kind: "surface"
+    readonly mutates: boolean
+    readonly call: (client: never, args: never) => Effect.Effect<unknown, OpFailure>
+  })
 
+/**
+ * A SURFACE CALL, NARROWED BACK TO THE FAILURES A TOOL MAY DECLARE — the rule
+ * every arm of {@link Tool} answers under, and the reason it lives beside the
+ * union rather than in the adapter that used to own it.
+ *
+ * It was private to `olai-plugin-mcp`'s `tools.ts` until the `surface` arm
+ * existed. That arm hands a ROW its own client and asks for
+ * `Effect<unknown, OpFailure>` back, so a row now has to apply this rule too —
+ * and a row spelling it again would be a second copy of a claim about a channel
+ * this package declares. `olai-plugin-vault-plugins`' three verbs are the first
+ * caller; the adapter is the second, unchanged.
+ *
+ * A member call, narrowed back to the failures the ops layer declares.
+ *
+ * Every call over a surface carries the framework's transport failure channel
+ * on top of the member's own — the socket died, the protocol could not decode —
+ * and the ops-layer interfaces do not have an arm for that, correctly: a
+ * transport death is not a refusal. It is a DEFECT here for the same reason
+ * `olai-plugin-mcp`'s `answer` catches nothing but `OpFailure`: dressing one up as a refusal
+ * would tell an agent to try something else about a condition that is not its
+ * fault, and the one thing an agent could do about a dead socket — dial again —
+ * the adapter already does for it before this is ever reached.
+ */
+export const landed = <A>(call: Effect.Effect<A, unknown>): Effect.Effect<A, OpFailure> =>
+  Effect.catch(
+    call,
+    (failure) => isOpFailure(failure) ? Effect.fail(failure) : Effect.die(failure),
+  )
 // ── asking nothing ─────────────────────────────────────────────────────
 
 /** A read asks NOTHING that is not on the floor either — the request schemas a
@@ -553,6 +618,33 @@ export const act = <S extends Arguments>(
   schema,
   kind: "act",
   act: answer,
+})
+
+/**
+ * The surface arm's constructor, inferring its `args` the way {@link read} does
+ * and for the same reason.
+ *
+ * `C` is the ROW's client type and is inferred from the callback, so the row
+ * writes `calls("run_plugin", …, schema, true, (client: Client, args) => …)`
+ * and gets its own members checked where it wrote them. Nothing about `C`
+ * survives into {@link Tool}, which is the point: a general package that could
+ * name one row's client could name them all.
+ */
+export const calls = <S extends Arguments, C>(
+  name: string,
+  title: string,
+  description: string,
+  schema: S,
+  mutates: boolean,
+  answer: (client: C, args: S["Type"]) => Effect.Effect<unknown, OpFailure>,
+): Tool => ({
+  name,
+  title,
+  description,
+  schema,
+  kind: "surface",
+  mutates,
+  call: answer as (client: never, args: never) => Effect.Effect<unknown, OpFailure>,
 })
 
 /** The plan arm's constructor, inferring its `args` the way {@link read} does

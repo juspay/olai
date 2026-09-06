@@ -54,7 +54,7 @@ import {
   stampOf,
 } from "@olai/format"
 import { isStale, type Vintage } from "@olai/store"
-import { type Acting, type Applied, type Asking, type Planning, type Running, type Tool } from "@olai/ops"
+import { landed, type Acting, type Applied, type Asking, type Planning, type Running, type Tool } from "@olai/ops"
 import { type BespokeTool, ToolFailure, type ToolInputSchema } from "@kolu/surface-mcp"
 import { Effect, Result, Schema } from "effect"
 
@@ -68,11 +68,22 @@ import { type McpClient } from "./client.ts"
 type Door = Running & Asking & Acting
 
 /**
- * Every tool in the table, as bespoke MCP tools over the SURFACE.
+ * Every verb the ROWS brought, as bespoke MCP tools over the SURFACE.
  *
- * Takes the table rather than reaching for it so the one place it is imported
- * from is the composition root, and so a test can project a subset without a
- * module mock.
+ * Takes the list rather than reaching for it, and since #546 there is nothing
+ * left to reach for: `@olai/ops` held one closed table of thirty verbs, and
+ * each is now its owning row's, handed to the host beside that row's
+ * `faces.agent` and composed by the registry (`@olai/bundle`'s `tools.ts`). A
+ * test can still project a subset without a module mock, which is the other
+ * half of why this is a parameter.
+ *
+ * THREE OF THEM USED TO LIVE IN THIS FILE. `inspect_plugins`, `run_plugin` and
+ * `stop_plugin` were hand-written `BespokeTool`s here, with a name-to-member
+ * map beside them in a `catalog.ts` deciding when to advertise them — one row's
+ * vocabulary held by another row. They are `olai-plugin-vault-plugins`' now,
+ * through the `surface` arm of `Tool`, which was added for exactly the case
+ * they are: a verb whose subject is the row's own procedures rather than the
+ * ops layer's doors.
  *
  * **It takes no ops layer, and that is the change this file exists to record.**
  * A tool used to be a closure over a local `Ops`, which meant an MCP face could
@@ -110,12 +121,8 @@ export const bespokeFrom = (
         // `./route.ts`'s `WHOSE`. Deferring it into the Effect would read
         // whichever request happened to be running when the scheduler got to
         // it, which is a capture attributed to the wrong person.
-        const said = answer(
-          tool,
-          doorFor(at.fenced(client as McpClient), at),
-          args,
-          at.login(),
-        )
+        const fenced = at.fenced(client as McpClient)
+        const said = answer(tool, doorFor(fenced, at), fenced, args, at.login())
         if (tool.kind !== "read") return Effect.map(said, (it) => named(it, at.root))
         // THE AGE IS ESTABLISHED FIRST, and that order is the honest one: the
         // look happens, then the read runs against a set that is at least as
@@ -130,119 +137,6 @@ export const bespokeFrom = (
       }),
     ]),
   )
-
-/**
- * CORE'S OWN THREE, and the reason they are not in `@olai/ops`' table.
- *
- * ## The hole this fills, which was a whole section of the doc
- *
- * `plugins.inspect`, `plugins.run` and `plugins.stop` are on the AGENT face and
- * pinned there as an exact set (`../faces.test.ts`). That gates what a caller
- * may CALL and says nothing about what it is OFFERED: an ACP engine is handed a
- * tool list, and the tool list is `@olai/ops`' table projected by
- * {@link bespokeFrom}. No row, no tool — so the first instruction in
- * `docs/dynamic-plugins.md`, *read `plugins.inspect` before writing code*, named
- * something no agent could reach, and `plugins.run`, the author's only feedback
- * loop, went with it. A node agent working on this branch found both by trying
- * (juspay/olai#506).
- *
- * ## Why they are HERE and not a row beside `capture`
- *
- * Because `@olai/ops` may not learn what a plugin is. Its table is the
- * OPERATIONS ON A VAULT — the write vocabulary and the reads that resolve one —
- * and a plugin is not an operation on a vault; it is a thing this SERVE mounts.
- * `commit` and `push` are rows in that table for a reason that does not apply
- * here: they are what a write is FOR, and they were there before a ledger was a
- * plugin.
- *
- * So the rows live in the composition root's own projection, which is this file,
- * and they dispatch to the surface members they name — the same procedures the
- * panel's own face reaches, so an agent asking what became of its definition and
- * a person looking at the row are reading one answer.
- *
- * ## What each of them is, in the agent's own words
- *
- * The descriptions below are the ones an engine reads in `tools/list`, and they
- * are written for somebody about to write a plugin rather than for somebody
- * reading this file. They say what the boundary is, because an author who does
- * not know that a person has to approve the thing will read `pending` as a
- * failure.
- */
-/**
- * THE MEMBER EACH OF {@link pluginTools}' THREE VERBS LANDS ON, so a face can
- * ask whether the row that answers them is standing.
- *
- * It sits beside the tools rather than in a catalogue of its own — `./catalog.ts`
- * was that catalogue, and #546 deleted it — because the two are one statement:
- * a tool that calls `plugins.run` is offered exactly while some row serves
- * `plugins.run`. Both go to `olai-plugin-vault-plugins` the day a row can carry
- * a tool that calls its own members; these three do not fit `@olai/ops`' four
- * arms, which name the ops-layer doors rather than a surface.
- */
-export const pluginVerbs: Readonly<Record<string, string>> = {
-  inspect_plugins: "inspect",
-  run_plugin: "run",
-  stop_plugin: "stop",
-}
-
-export const pluginTools = (): Record<string, BespokeTool> => ({
-  inspect_plugins: {
-    title: "What a plugin may name",
-    description:
-      "Read this BEFORE writing a plugin into the vault. Answers the four lists that decide whether a "
-      + "half will mount at all: the bare modules a half may import (nothing else resolves — a vault has "
-      + "no node_modules), the service keys a server half may put in its `needs`, the slots a browser "
-      + "half may register a face into with what keys each, the node layout a definition takes (the two "
-      + "properties and the two child titles), and every plugin word this serve already has — built rows "
-      + "and other definitions alike, since a definition may take neither. Read off the live registry "
-      + "rather than a description of it.",
-    mutates: false,
-    handler: (_args, client) =>
-      asked("inspect_plugins", landed((client as McpClient).surface.plugins.inspect({}))),
-  },
-  run_plugin: {
-    input: Schema.Struct({
-      name: Schema.String.annotate({
-        description: "The plugin's word — what the defining node's `plugin` property carries.",
-      }),
-    }) as unknown as ToolInputSchema<unknown>,
-    title: "Look at a plugin this vault defines",
-    description:
-      "Asks olai to read a definition as it stands now and say what became of it. THIS DOES NOT MOUNT "
-      + "ANYTHING BY ITSELF: a plugin whose current version nobody has approved answers `pending`, and "
-      + "the answer is the boundary rather than a failure — a person approves it at the plugins panel, "
-      + "with the source in front of them, because the code runs with this server's own authority. "
-      + "`state` is one of the plugin states (`pending`, `running`, `failed`, `waiting`, `switched`, "
-      + "`off`), `version` is the content hash of both halves, and `fault` is a whole sentence where "
-      + "there is one — a half that would not compile, a module olai does not bind, a half that calls "
-      + "itself another word. Write the two halves with `add_node` and `set_desc`, then call this.",
-    mutates: true,
-    handler: (args, client) =>
-      asked(
-        "run_plugin",
-        landed((client as McpClient).surface.plugins.run(args as { readonly name: string })),
-      ),
-  },
-  stop_plugin: {
-    input: Schema.Struct({
-      name: Schema.String.annotate({
-        description: "The plugin's word.",
-      }),
-    }) as unknown as ToolInputSchema<unknown>,
-    title: "Stop a plugin this vault defines",
-    description:
-      "Unmounts one plugin the VAULT defines, for as long as this serve runs — its registrations unwind "
-      + "and a restart comes back to what the vault says. It reaches definitions ONLY: a plugin this "
-      + "build compiled in is not an agent's to stop, and naming one is answered as no such plugin. To "
-      + "retract a definition altogether, trash the node — the source is ordinary vault content.",
-    mutates: true,
-    handler: (args, client) =>
-      asked(
-        "stop_plugin",
-        landed((client as McpClient).surface.plugins.stop(args as { readonly name: string })),
-      ),
-  },
-})
 
 /** What the FACE knows about itself — the two facts a tool's answer needs that
  *  no caller may supply.
@@ -357,7 +251,7 @@ const verb = (
     // `read_node`, `read_subtree`, `read_document`, `search_nodes`), and
     // `readOnlyHint` is what can let a host run a call unconfirmed. Everything
     // else is left mutating.
-    mutates: tool.kind !== "read",
+    mutates: tool.kind === "surface" ? tool.mutates : tool.kind !== "read",
     // The client the ADAPTER holds, not one this projection closed over — so a
     // socket that dropped and was re-dialled is answered by the fresh one, and
     // the tool surface never has to be rebuilt. Typed at this one seam, where
@@ -467,24 +361,6 @@ const doorOver = (client: McpClient, at: Served): Door => {
   }
 }
 
-/**
- * A member call, narrowed back to the failures the ops layer declares.
- *
- * Every call over a surface carries the framework's transport failure channel
- * on top of the member's own — the socket died, the protocol could not decode —
- * and the ops-layer interfaces do not have an arm for that, correctly: a
- * transport death is not a refusal. It is a DEFECT here for the same reason
- * {@link answer} catches nothing but `OpFailure`: dressing one up as a refusal
- * would tell an agent to try something else about a condition that is not its
- * fault, and the one thing an agent could do about a dead socket — dial again —
- * the adapter already does for it before this is ever reached.
- */
-const landed = <A>(call: Effect.Effect<A, unknown>): Effect.Effect<A, OpFailure> =>
-  Effect.catch(
-    call,
-    (failure) => isOpFailure(failure) ? Effect.fail(failure) : Effect.die(failure),
-  )
-
 
 /**
  * What an agent fills in: the request schema minus the fields the tool's NAME
@@ -538,6 +414,7 @@ const argsOf = (tool: Tool): ToolInputSchema<unknown> | undefined => {
 const answer = (
   tool: Tool,
   door: Door,
+  client: McpClient,
   args: unknown,
   login: string | null,
 ): Effect.Effect<unknown, ToolFailure> =>
@@ -560,6 +437,16 @@ const answer = (
         planned(tool, door, args, login),
         (applied) => ({ ...applied, did: tool.name }),
       )
+      // THE ARM THAT REACHES ITS OWN ROW, and the one that takes the CLIENT
+      // rather than the ops door. `olai-plugin-vault-plugins`' three verbs are
+      // the case: they call `plugins.inspect` / `run` / `stop`, which no
+      // ops-layer door has, and they lived in this file as hand-written
+      // `BespokeTool`s until #546 sent them home. The client handed over is the
+      // FENCED one this handler already resolved, so a row's own verb is under
+      // the same write door every other tool is — a row cannot get an unfenced
+      // client by declaring this arm instead of `write`.
+      : tool.kind === "surface"
+      ? tool.call(client as never, args as never)
       : tool.ask(door, args as never),
     (failure: OpFailure) => refusal(tool.name, failure),
   )

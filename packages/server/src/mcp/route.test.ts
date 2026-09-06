@@ -1,8 +1,8 @@
-import { AGENT_TOOLS } from "@olai/bundle/tools"
+import { agentTools } from "@olai/bundle/tools"
 /** Every verb this build has, as one list — the rows' own tables, composed.
  *  `@olai/ops`' `TOOLS` was this list until #546 sent each verb home to the
  *  row that owns it. */
-const EVERY_TOOL = AGENT_TOOLS.flatMap((row) => row.tools)
+const EVERY_TOOL = (await agentTools()).flatMap((row) => row.tools)
 import { capabilitiesOver } from "../capabilities.testlib.ts"
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
 /**
@@ -50,7 +50,7 @@ import { liveClient, toOwner } from "olai-plugin-mcp/testlib"
 import { serveFace } from "olai-plugin-mcp/testlib"
 import { mcpRoute, currentTicket, currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "olai-plugin-mcp/testlib"
 import { type Ticket, ticketing } from "olai-plugin-mcp/testlib"
-import { bespokeFrom, pluginTools } from "olai-plugin-mcp/testlib"
+import { bespokeFrom } from "olai-plugin-mcp/testlib"
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about
@@ -140,20 +140,21 @@ const withRoute = <A>(
       surface: mcpContract,
       expose: AGENT_EXPOSE,
       client: () => panel,
-      tools: {
-        ...bespokeFrom(EVERY_TOOL, {
-          login: currentLogin,
-          root,
-          vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
-          fenced: tickets.doorAt,
-          record: (request) => ops.commit(request, "mcp"),
-          push: ops.push,
-        }),
-        // ...composed exactly as `../serve.ts` composes them, because the
-        // question this bench asks about them is whether an AGENT can reach
-        // them at all.
-        ...pluginTools(),
-      },
+      // ONE TABLE, INCLUDING THE PLUGIN VERBS. `inspect_plugins`, `run_plugin`
+      // and `stop_plugin` used to arrive through a second spread
+      // (`pluginTools()`), because they call a row's own client rather than an
+      // ops-layer door. They are `olai-plugin-vault-plugins`' own `tools.ts`
+      // now, built on the `Tool` union's `surface` arm, so `agentTools()`
+      // carries them like every other row's — and the case below that calls all
+      // three through the route is what would notice if it stopped.
+      tools: bespokeFrom(EVERY_TOOL, {
+        login: currentLogin,
+        root,
+        vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+        fenced: tickets.doorAt,
+        record: (request) => ops.commit(request, "mcp"),
+        push: ops.push,
+      }),
       transport,
     })
     yield* Effect.addFinalizer(() => runtime.stopped)

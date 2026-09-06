@@ -23,11 +23,18 @@
  *
  * THE PAIRS ARE KEYED BY MEMBER PATH NOW (`ops.run`, `edit.apply`) rather than
  * by wire tag, because that is how the consts are keyed: see any of the six
- * `surface.ts` files for why the key stopped being a tag. `field` is still
- * asserted — it is a different word from the key (the member is `ops.run`, its
- * discriminator is `op`), and `packages/plugins/mcp/src/catalog.ts` gates a tool
- * on `dispatch.field` matching, so a row that declared the wrong one would
- * silently hide its own tools.
+ * `surface.ts` files for why the key stopped being a tag.
+ *
+ * AND AN ENTRY IS A BARE LIST NOW. It used to be `{ field, cases }`, and this
+ * test asserted the `field` — because `./composition.ts`'s envelope read it off
+ * the payload to pick an owner, and `packages/plugins/mcp/src/catalog.ts` gated
+ * a tool on it matching, so a row declaring the wrong word silently hid its own
+ * tools. Both of those readers are deleted, and the discriminator is implied by
+ * the member anyway. What replaced the assertion is the table below: it names
+ * the field ONCE, per member, and the coverage check is against THAT union — so
+ * a row listing `WriteRequest.op`s under `edit.apply` fails as a verb the union
+ * does not have, which is the same defect caught one step later and with no
+ * second copy of the word anywhere.
  */
 import { expect, test } from "bun:test"
 import { Effect, SchemaAST } from "effect"
@@ -59,12 +66,8 @@ test("every canonical operation and edit intent has one declared capability owne
   for (const [member, field, schema] of [
     ["ops.run", "op", WriteRequest], ["edit.apply", "verb", Edit],
   ] as const) {
-    const declarations = modules.flatMap(module => {
-      const dispatch = (module.exports as { dispatch?: Record<string, {field: string; cases: readonly string[]}> }).dispatch?.[member]
-      if (!dispatch) return []
-      expect(dispatch.field).toBe(field)
-      return dispatch.cases
-    })
+    const declarations = modules.flatMap(module =>
+      (module.exports as { dispatch?: Record<string, readonly string[]> }).dispatch?.[member] ?? [])
     // COVERAGE: every arm of the schema is claimed by somebody, so no verb
     // reaches `writeEdit` unrouted.
     expect(declarations.toSorted()).toEqual(variants(schema.ast, field).toSorted())

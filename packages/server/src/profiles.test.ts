@@ -3,7 +3,12 @@ import { join } from "node:path"
 import { expect, test } from "bun:test"
 import { createSurfaceSocket } from "@kolu/surface-app/connect"
 import { SURFACE_WS_PATH } from "@kolu/surface-app"
-import { surface } from "@olai/bundle/surface"
+/** CORE'S OWN SURFACE, which is all this dial addresses: `plugins.set` is the
+ *  HOST ROOT's member and its tag stays bare. It read `@olai/bundle`'s flat
+ *  aggregate of every row until #546 deleted that door — a group with every
+ *  row's members in it was never what this call needed, and the aggregate
+ *  described a wire nothing serves once a member carried its owner. */
+import { surface } from "@olai/surface"
 import { findSaid } from "@olai/log/testlib"
 import { Effect } from "effect"
 import { WebSocket as WsClient } from "ws"

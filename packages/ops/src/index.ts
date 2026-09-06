@@ -78,6 +78,8 @@ export { WriteRequest as Request, type WriteResult as Applied } from "@olai/form
  *  its own gated read, and `./ops.ts` is where that is made. */
 export {
   act,
+  calls,
+  landed,
   type Acting,
   type Asking,
   NoArgs,

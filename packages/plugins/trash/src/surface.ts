@@ -25,10 +25,19 @@ ops: { run: writeProcedure }
  * no writer and fails at runtime with "the capability for X is not active"
  * (`@olai/edit-history`'s `writing.ts`). `@olai/server`'s
  * `capability-dispatch.test.ts` holds it.
+ *
+ * `field` WENT WITH THE ENVELOPE. Each entry used to be
+ * `{ field: "verb", cases: [...] }`, because the composition root routed one
+ * shared bare tag to an owner by reading that field off the payload. There is
+ * no shared tag and no envelope, and the discriminator is already implied by
+ * the member — `edit.apply`'s cases are `Edit.verb`s, `ops.run`'s are
+ * `WriteRequest.op`s — so the word was a second statement of a fact with no
+ * reader left. `capability-dispatch.test.ts` is what checks the cases are the
+ * right union's.
  */
 export const dispatch = {
-  "edit.apply": { field: "verb", cases: ["untrash", "emptyTrash"] },
-  "ops.run": { field: "op", cases: ["untrash", "empty"] },
+  "edit.apply": ["untrash", "emptyTrash"],
+  "ops.run": ["untrash", "empty"],
 } as const
 export const faces = {
   "browser": {

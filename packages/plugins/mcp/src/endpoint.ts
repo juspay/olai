@@ -1,8 +1,9 @@
 import type { Surface, SurfaceSpec } from "@kolu/surface/define"
 import type { AgentBinding } from "./binding.ts"
+import type { Tool } from "@olai/ops"
 import type { McpClient } from "./client.ts"
 import { currentLogin, mcpTransport, mcpRoute } from "./route.ts"
-import { bespokeFrom, pluginTools } from "./tools.ts"
+import { bespokeFrom } from "./tools.ts"
 /** MCP protocol acquisition belongs to the plugin's activation scope. Core
  * supplies the composed, writer-bound face; this plugin owns the HTTP carrier. */
 import { mcpContract as surface } from "./client.ts"
@@ -16,9 +17,16 @@ import { Effect, type Scope } from "effect"
 
 export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effect.gen(function*() {
   const transport = mcpTransport()
+  // EVERY VERB THIS BUILD HAS, read ONCE, here. The adapter takes its tool
+  // record at construction and dispatches `tools/call` out of it for the
+  // connection's whole life, so a verb absent from it can never be called
+  // however its row comes and goes — which is why this is the BUILD's list and
+  // `policy.available` is the roster's. `@olai/bundle`'s `tools.ts` argues the
+  // pair, and juspay/kolu#2233 is what collapses them back into one reading.
+  const verbs = (yield* shared.agentTools).flatMap(row => row.tools as ReadonlyArray<Tool>)
   yield* serveFace({
     surface, client: policy.client, expose: policy.expose, transport, available: policy.available, resourceAvailable: policy.resourceAvailable,
-    tools: { ...bespokeFrom(policy.tools, { ...policy, get root() { return policy.root }, login: currentLogin, fenced: (held) => policy.fenced(held) as McpClient }), ...pluginTools() },
+    tools: { ...bespokeFrom(verbs, { ...policy, get root() { return policy.root }, login: currentLogin, fenced: (held) => policy.fenced(held) as McpClient }) },
   })
   yield* shared.register({ routes: mcpRoute({ transport, token: shared.token, who: shared.who }) })
 })

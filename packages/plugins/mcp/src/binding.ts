@@ -11,17 +11,12 @@ import type { Vintage } from "@olai/store"
 import { Effect } from "effect"
 import { liveClient, toOwner } from "./live-client.ts"
 import { ticketing, type Tickets } from "./tickets.ts"
-import { pluginVerbs } from "./tools.ts"
 
 export interface AgentBinding {
   readonly available: (name: string) => boolean
   readonly resourceAvailable: (key: string, verb: string) => boolean
   readonly client: () => ClientOrConnection
   readonly expose: ExposeMap<typeof mcpContract.spec>
-  /** Every verb this BUILD has, as the adapter's static tool record — see
-   *  `@olai/bundle`'s `tools.ts` for why it is the build's and not the
-   *  roster's, and {@link available} for the half that is the roster's. */
-  readonly tools: ReadonlyArray<Tool>
   readonly root: string
   readonly vintage: Effect.Effect<Vintage | undefined>
   readonly fenced: (client: ClientOrConnection) => ClientOrConnection
@@ -60,11 +55,8 @@ export const bindAgent = (options: {
    * with it in the same instant it stops serving their tags
    * (`@olai/server`'s `profiles.test.ts`).
    */
-  const offered = (name: string): boolean => {
-    const verb = pluginVerbs[name]
-    if (verb !== undefined) return ownerIn(rows(), "plugins", verb) !== undefined
-    return rows().some(row => row.tools.some(tool => (tool as Tool).name === name))
-  }
+  const offered = (name: string): boolean =>
+    rows().some(row => row.tools.some(tool => (tool as Tool).name === name))
   return {
     tickets,
     /**
@@ -84,7 +76,6 @@ export const bindAgent = (options: {
       return bound.expose.tags.has(tag) && tag in bound.handlers
     },
     available: offered,
-    tools: shared.agentTools().flatMap(row => row.tools as ReadonlyArray<Tool>),
     expose: AGENT_EXPOSE,
     client: () => panel,
     get root() { return options.directory()?.root ?? "" },

@@ -31,4 +31,20 @@ procedures: {
 }
 })
 
+/**
+ * WHICH FACE SEES WHAT — this row's whole grant, over this row's own spec.
+ *
+ * {@link search.nodes} IS THE ONE MEMBER IN THE TREE ON BOTH FACES UNCHANGED,
+ * and that is the point of it rather than an oversight: it answers with NODES,
+ * which is what an agent can act on and what the palette draws, so there is no
+ * agent-specific version to write. Everywhere else the two faces differ, they
+ * differ because one consumer wants a paint instruction and the other wants
+ * something to act on (`@olai/surface/host`'s `hostFaces`).
+ *
+ * {@link searchResults} is the browser's alone for that same reason one step
+ * on: it is the SAME reading delivered as a stream that follows vault
+ * revisions until the query is dismissed. An agent asks its question once and
+ * is answered; a subscription that re-answers while nobody is looking is a URI
+ * published for nobody.
+ */
 export const faces = { browser: { searchResults: "resource", "search.nodes": "tool" }, agent: { "search.nodes": "tool" } } as const

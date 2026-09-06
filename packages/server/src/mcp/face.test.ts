@@ -1,4 +1,3 @@
-import { surface } from "@olai/bundle/surface"
 import { VaultBoot } from "olai-plugin-vault/boot"
 import { CONTENT_ROWS, runtimeFor } from "../capabilities.testlib.ts"
 /**
@@ -29,7 +28,6 @@ import { CONTENT_ROWS, runtimeFor } from "../capabilities.testlib.ts"
  * subscription test is a sequence and not a race.
  */
 
-import { MCP } from "@olai/bundle/faces"
 import { runtimePaths } from "../runtime-paths.ts"
 import { type Store, type Ops } from "@olai/ops"
 import { mountBundle, provide, offered, settled } from "@olai/bundle/bundle"
@@ -45,9 +43,10 @@ import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
-import { bind, writerAt } from "../runtime.ts"
+import { bind } from "../runtime.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
-import { clientOver } from "@olai/bundle/client"
+import { AGENT_EXPOSE, mcpContract } from "olai-plugin-mcp/testlib"
+import { liveClient, toOwner } from "olai-plugin-mcp/testlib"
 import { serveFace } from "olai-plugin-mcp/testlib"
 
 const HOUSE = [
@@ -125,12 +124,27 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
-      surface,
-      expose: MCP,
+      // THE FLAT CONTRACT, OVER A SCOPED DISPATCH — `olai-plugin-mcp`'s
+      // `client.ts` argues why the pair: `serveSurfaceAsMcp` builds every
+      // `surface://` URI out of ONE spec's member keys (juspay/kolu#2233), and
+      // the members underneath carry their owners. `toOwner` reads which row
+      // declares each off the rows this bind actually composed, so
+      // `collections/outlines` lands on `surface/outlines/outlines/keys`.
+      //
+      // This was `@olai/bundle`'s flat aggregate and its hand-written `MCP` map
+      // until #546 deleted both. A client over the composed handlers under BARE
+      // names is a client whose every read misses, which is exactly what the
+      // resource reads below then measured.
+      surface: mcpContract,
+      expose: AGENT_EXPOSE,
       // The group AND the face, from the one call that composed both: an
       // exposure describes a group as a set equality, so a gate built from a
       // second reading of which plugins are on refuses to bind.
-      client: () => clientOver(wired.bound, wired.faces.agent),
+      client: () => liveClient(
+        () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }),
+        { writer: "mcp", fence: null },
+        toOwner(() => wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, tools: row.tools ?? [] }))),
+      ),
       transport: serverSide,
     })
 

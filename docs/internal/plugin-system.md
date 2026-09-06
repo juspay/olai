@@ -109,6 +109,15 @@ export default definePlugin({
 })
 ```
 
+`Surfaces.register` takes three more things where a row has them: `writes`
+(which of its tags carry the caller's attribution), `faces` (which of its
+members each face may reach, written against its own spec) and `tools` (the
+agent verbs it brings). All three are the ROW's, and that is #546's point:
+`tools` used to be thirty entries in `@olai/ops`' one closed table with a filter
+in `olai-plugin-mcp` deciding which row each belonged to, so a row switched off
+left its verbs advertised until somebody edited a package two walls away. A tool
+leaves with its row now, because the row is what brought it.
+
 Every one of those `register` calls is an `Effect.acquireRelease` on the plugin's
 own scope, so unloading the plugin unregisters exactly what it registered, in
 reverse. It used to be a `serve(services)` that returned a blob core took apart,
@@ -611,12 +620,13 @@ terminal emulator is 336 KB a machine that does not run kolu never downloads.
 
 ## 6. The wire: one root, N siblings
 
-Core does **not** become a sibling. Its tags are byte-unchanged, because an MCP
-client already writes `surface://collections/documents` and the suite asserts
-those addresses.
+Core does **not** become a sibling. What is left of it is four members — the
+plugin roster, the switch beside it, who is looking and what this deployment is
+called — and those keep three-segment tags.
 
 ```
-  surface/outlines/get          ← core.  3 segments.  unchanged, forever
+  surface/plugins/get           ← core.  3 segments.  the roster
+  surface/outlines/outlines/get ← outlines. 4 segments. declared `outlines`
   surface/kolu/fleet/get        ← kolu.  4 segments.  declared `fleet`
   surface/odu/ci/get            ← odu.   4 segments.  declared `ci`
             ▲     ▲
@@ -628,6 +638,24 @@ The two sets **cannot** intersect: a core tag has three segments, a sibling's ha
 four, and the framework forbids a `/` inside any name. That is a proof, and it is
 counted anyway — the merge underneath is last-writer-wins, and a silently dropped
 tag is a member that answers nothing with nobody told.
+
+**Nine rows kept a THREE-segment alias until #546, and the doubled segment above
+is what replaced it.** `outlines`, `markdown`, `files`, `trash`, `pins`,
+`capture`, `search`, `vault` and `vault-plugins` registered `root: true`, so
+every member of theirs answered under a bare tag as well — `surface/edit/apply`
+beside `surface/outlines/edit/apply` — because those were the tags of the
+monolith the rows were cut out of. Six of them then SHARED `surface/edit/apply`
+and `surface/ops/run`, which needed an envelope in the composition root that
+picked an owner by a payload field, five mount-time refusals to make the sharing
+safe, and a hand-written face table in `@olai/bundle` that granted the bare
+names — one permission typed in two places, in two packages, where a member
+added to a row's own `faces` was refused under its short name until somebody
+edited the bundle.
+
+All of it is gone. `surface/outlines/outlines/get` reads oddly and is correct:
+the first `outlines` is the row and the second is its member, exactly as
+`surface/kolu/fleet/get` is. The same goes for `surface/pins/pins/get`,
+`surface/search/search/nodes` and `surface/vault-plugins/plugins/inspect`.
 
 This whole shape is the framework's, end to end (juspay/kolu#2222, #2223):
 
@@ -845,9 +873,13 @@ process: no settings file, no edit to `olai.yml`, nothing in the state home, and
 restart comes back to the flag, the nix option and the rows' own defaults (the
 human, 2026-09-04 — with `--dump-config` dropped in the same ruling, because the
 panel is the table, and no CLI verb against a running serve, because the flag is
-the boot-time way). `packages/bundle/src/faces.ts` names the member on BROWSER and nowhere else, and
-`faces.test.ts` pins the agent face as an exact set, so an agent cannot turn a
-plugin off — the same physics that kept `chat.scope` off it.
+the boot-time way). Core's own `hostFaces` (`packages/surface/src/host.ts`) names the member on the
+browser face and nowhere else, and `faces.test.ts` pins each face as an exact
+set, so an agent cannot turn a plugin off — the same physics that kept
+`chat.scope` off it. That map was `packages/bundle/src/faces.ts`'s `BROWSER`
+until #546 deleted the bundle's face tables; the decision did not change, only
+which package holds it — core's members are core's to grant, and a row's are the
+row's.
 
 ### Which vocabulary answers which question
 

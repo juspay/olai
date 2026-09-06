@@ -41,7 +41,7 @@ import { resolveExpose } from "@kolu/surface-mcp"
 import { Effect, Stream } from "effect"
 import { Command, Flag } from "effect/unstable/cli"
 
-import { AGENT_EXPOSE, mcpContract } from "olai-plugin-mcp/face"
+import { AGENT_EXPOSE, mcpContract } from "@olai/bundle/agent-face"
 import { type McpConnection, McpUnreachable, openMcp } from "./mcpClient.ts"
 
 /**

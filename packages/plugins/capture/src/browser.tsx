@@ -24,7 +24,7 @@ export const components={palette:capturePalette}
 export default definePlugin({name:"capture", needs:[Wired, rendererSlots, navigation, fileAccess], apply:Effect.gen(function*(){
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
-  yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["edit.apply"].cases, edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))
+  yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))
 
  const nav=yield* navigation
  yield* (yield* rendererSlots).contribute(regions, {at:"primary" as const, Body:props=><Entry {...props} active={()=>fileNamed(nav.route())??nav.focused()?.file}/>})

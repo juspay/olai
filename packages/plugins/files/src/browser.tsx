@@ -20,7 +20,7 @@ import { followFolders } from "./fold/folders.ts"
 export default definePlugin({name:"files", needs:[Wired, Offers, fileAccess], apply:Effect.gen(function*(){
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
-  yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["edit.apply"].cases, edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))
+  yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))
 
  yield* Effect.acquireRelease(Effect.sync(()=>holdFileControls({Delete:DeleteFile,New:NewFile})),stop=>Effect.sync(()=>{stop();clearNewFileMemory()}))
  yield* Effect.acquireRelease(Effect.sync(followFolders), stop => Effect.sync(stop))
