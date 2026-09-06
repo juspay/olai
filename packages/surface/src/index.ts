@@ -18,8 +18,10 @@
  * `olai-plugin-chat`'s transcript shapes were never re-exported here when chat
  * became a row. A consumer of a row's shapes imports that row's door. A
  * consumer of the floor's shapes imports `@olai/format`. Neither of them goes
- * through here, and `@olai/bundle`'s `fence.test.ts` holds this file's export
- * list to exactly what is below.
+ * through here, and that is not left to the reading: `./doors.test.ts` holds
+ * this file's export list to an equality and refuses a re-export from any
+ * package but the floor, because the residue this removed is the kind that
+ * comes back one name at a time.
  *
  * WHAT IS LEFT is what no row owns:
  *

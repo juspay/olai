@@ -45,9 +45,9 @@ export interface ServeOptions {
     readonly pluginPin: PluginPin;
 }
 export const serve = (options: ServeOptions) => Effect.gen(function* () {
-    // THE STATE HOME IS SWEPT ON THE BOOT THAT HOLDS THE VAULT, and it is the
-    // first statement because it is the only one in this function that nothing
-    // else waits on. Every temp directory a test or a script ever served leaves
+    // THE STATE HOME IS SWEPT ONCE PER BOOT, and this is the first statement
+    // because it is the only one in this function that nothing else waits on.
+    // Every temp directory a test or a script ever served leaves
     // a record behind, and the read path can never meet one — it is only ever
     // asked about the directory being served right now, which by construction
     // exists — so the home grows a file per directory the machine has ever seen
