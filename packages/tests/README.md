@@ -584,6 +584,8 @@ agree with the client by construction.
 
 ### The Claude-shaped one
 
+Scripted commands use the prompt's first line, in both ordinary turns and steering. The complete prompt remains available for binding, node-context and attachment assertions. In particular, a node moved between files can receive fresh binding instructions after `done hinges`; those instructions must never become part of the node id sent to MCP.
+
 `agent/fake-acp-agent.ts` is a deterministic ACP agent: line-delimited JSON-RPC on stdio, just enough of the protocol to be indistinguishable from a real one as far as the server's client is concerned. Every server this suite spawns is pointed at it, for the same reason the Chromium flags are not branched on `CI` — a server configured differently for one feature than for another is a class of bug that only reproduces where it is hardest to see.
 
 What makes it worth having is the last thing it does: it calls the **real** internal MCP server, over the real HTTP route, with the token the real `session/new` handed it. So a chat scenario drives the real panel, the real ops layer and the real store — everything except the part that would need a language model, which is the one thing a CI lane cannot afford to be non-deterministic about. Behaviour is keyed on the prompt text (`done <id>`, `add <title>`, `edit [file]`, `hunks [file]`, `servers`, `slow`, `hold`, `model <id>`, `crash`), so a scenario asks for what it needs.

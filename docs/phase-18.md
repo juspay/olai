@@ -67,6 +67,13 @@ frame cannot advance a new turn. A held-acceptance regression fails before the
 fix and passes afterward. The broader agent, stale-control and ACP group
 passes all 125 scenarios and 1,530 steps; send actions remain nonblocking.
 
+The fake agent's mutation parser now reads command arguments from the first
+line instead of treating appended ownership instructions as part of a node
+ID. Raw prompts remain available to teaching/context assertions. Parser
+regressions and all 15 node-mutation/context scenarios (267 steps) pass,
+including moving an agent-owned subtree between outlines and updating its
+write boundary.
+
 ## CI repair batch
 
 - [x] Bind search results to their actual query across subscription changes;

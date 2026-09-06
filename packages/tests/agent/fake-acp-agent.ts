@@ -202,6 +202,7 @@ import { basename, join } from "node:path"
 import { readMessages } from "../support/ndjson.ts"
 import { emitter, MARKER, RELEASE, released as releasedIn, speaking } from "../support/scripted.ts"
 import { sessionStore } from "./session-store.ts"
+import { commandWords } from "./command.ts"
 
 const OUT = process.stdout
 
@@ -1136,7 +1137,7 @@ const takeSteering = async (): Promise<void> => {
   // unreachable `?? ""` standing in for a `shift` the loop guard already made
   // impossible.
   for (const text of steered.splice(0)) {
-    const [verb, ...rest] = text.trim().split(/\s+/)
+    const [verb, ...rest] = commandWords(text)
     const argument = rest.join(" ")
     if (verb === "done") {
       await useTool("set_done", { id: argument })
@@ -1255,7 +1256,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // adapter's own order, and the reason a `/model` is heard one turn late.
   sdkInit(liveModel)
 
-  const [verb, ...rest] = text.trim().split(/\s+/)
+  const [verb, ...rest] = commandWords(text)
   const argument = rest.join(" ")
 
   // FALL OVER SAYING NOTHING, and BEFORE the usage frames below — which is the
