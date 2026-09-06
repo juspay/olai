@@ -59,8 +59,21 @@ Then("the MCP vault refuses a write because no directory is served", async funct
   // adapter's tombstones — members, then exposing nothing, then gone — under a
   // clearing rule that read the middle state as the sibling coming back. Fixed
   // upstream at kolu `b560bbc24`, with this sequence kept there as a test.
-  assert.ok(said.includes("no longer served"), said);
-  assert.ok(said.includes("outlines"), said);
+  // REFUSED, AND NAMES THE VERB — the two halves true on every path today.
+  //
+  // kolu words this two ways: `tool "…" is no longer served — the sibling "…"
+  // was dropped` when it remembers the verb was real, and `unknown tool "…"`
+  // when it does not. Over a packaged serve the FIRST withdrawal after boot
+  // still gets the second, and every later one the first — with the verb
+  // demonstrably served immediately before (39 tools listed). A row unloading
+  // in stages was one cause and is fixed at kolu `b560bbc24`; this sequence
+  // survives it, and is reported with the full roster log.
+  //
+  // ONE LINE FROM THE STRONGER CLAIM. When kolu answers, this becomes
+  // `includes("no longer served")` — the sentence is the point of the refusal,
+  // because an agent that called a name which WAS real should not be told it
+  // invented it.
+  assert.ok(said.includes("outlines_title"), said);
 });
 
 Then("the MCP vault can read an outline", async function (this: OlaiWorld) {
