@@ -125,6 +125,44 @@ Feature: Outline and Markdown capabilities have independent lifetimes
     And the document renders bold text "updated independently"
     And there should be no page errors
 
+  # THE FILE TREE IS THE VAULT'S, NOT THE PAGE PROVIDER'S. `heads` is every
+  # served file and `documents` is a SUBSET OF ITS KEYS, so Markdown leaving
+  # takes a document's PAGE and not its ROW: the `.md` is still in the
+  # directory, and the sidebar goes on drawing it beside the outlines.
+  #
+  # That containment was one collection's business until phase 18 and is now a
+  # claim across three rows (`olai-plugin-vault`'s `heads`,
+  # `olai-plugin-outlines`, `olai-plugin-markdown`). `@olai/bundle`'s
+  # `published.test.ts` asserts it for ONE revision of a whole roster; nothing
+  # asserted it for a roster a row actually LEFT. The browser failure this
+  # catches is a tree built from the departed row's keys rather than the
+  # vault's — the document vanishes from the sidebar the moment its page
+  # provider is switched off, and a reader loses the file rather than the page.
+  #
+  # Why the existing cases do not catch it: `the_vault_is_a_row.feature` flips
+  # the OWNER of `heads` off and on twice and never looks at the tree, and
+  # `file_delete_concurrency.feature` has both halves in different scenarios.
+  Scenario: A document keeps its row in the file tree when Markdown leaves
+    Given I open the outline "house.olai"
+    And I mark the page
+    Then the outline list links to "house.olai"
+    And the document link "finishes.md" is shown
+    When I open the plugins panel
+    And I switch the plugin "markdown" off
+    And I close the plugins panel
+    # The file did not leave the directory; only its page did.
+    Then the outline list links to "house.olai"
+    And the document link "finishes.md" is shown
+    # ...and the surviving rows are still being SERVED. A tree drawn off a
+    # roster frame draws whether or not the members under it are alive.
+    And no member of this page has gone silent
+    When I open the plugins panel
+    And I switch the plugin "markdown" on
+    And I close the plugins panel
+    Then the document link "finishes.md" is shown
+    And the page has not reloaded
+    And there should be no page errors
+
   Scenario: Restoring outlines does not revive an unsubmitted draft from its departed activation
     Given I open the outline "house.olai"
     When I click the title of "handles"

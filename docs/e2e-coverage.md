@@ -139,3 +139,21 @@ held-reply case in `node_agents.feature` verifies that Done cannot return to the
 composer before the session handoff completes. These cases establish specific
 contracts, not completion of the Phase 18 checklist or an explanation for every
 previous intermittent failure.
+
+The content-row split (#544) moved each row's wire vocabulary into the row that
+owns it, and two cases cover the containment the three rows now share.
+`content_capabilities.feature` opens an outline, switches markdown off and
+checks that the document keeps its row in the sidebar tree: `heads` is every
+served file and `documents` is a subset of its keys, so a departing page
+provider takes a document's page and not its place in the directory. It then
+checks no member has gone silent, switches markdown back on, and finishes with
+no reload and no browser errors. `the_vault_is_a_row.feature` flips the owner of
+`heads` and never reads the tree; `file_delete_concurrency.feature` holds both
+halves in separate scenarios. `documents.feature` adds markdown's own
+`documentPage` refusal, which was proved on a `.html`'s page and on a node's
+`doc` line and nowhere else: an unreadable `.md` says so on its page while the
+outline beside it stays listed. A new `the served file {string} can be read
+again` step chmods back to 0644 and asks the same verified-look door the refusal
+uses, so both markdown refusals are now provably left as well as reached; the
+existing `doc`-line case ends the same way. The unreadable `.html` page case in
+`html_previews.feature` still has no recovery half.

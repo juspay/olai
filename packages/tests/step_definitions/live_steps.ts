@@ -93,6 +93,40 @@ When(
 );
 
 /**
+ * …and readable again — the mirror of the step above, and the half that turns a
+ * refusal into a claim.
+ *
+ * A state provably REACHED and never provably LEFT says nothing about whether
+ * the page can come back from it: a face that latched its refusal, or a store
+ * that never looks at a file it has already given up on, is green in a suite
+ * whose only chmod goes one way. Every reader of a refusal that this suite
+ * asserts (a document's page, a node's `doc` line, a saved page) is therefore
+ * owed the other direction from the same door.
+ *
+ * 0644 rather than whatever the file wore before, for the reason the step above
+ * hard-codes 000: the mode a served file has here is the mode this suite gives
+ * it, and remembering the old one would be a second place holding that fact.
+ *
+ * Pending on root for its twin's reason — root reads a 0000 file, so a root run
+ * skips the PAIR rather than half of it and leaves the recovery unasserted
+ * against a refusal that never happened.
+ */
+When(
+  "the served file {string} can be read again",
+  async function (this: OlaiWorld, file: string) {
+    if (typeof process.getuid === "function" && process.getuid() === 0) {
+      return "pending";
+    }
+    const target = path.join(this.scratch(), file);
+    fs.chmodSync(target, 0o644);
+    // chmod changes neither size nor mtime, so the stamps say nothing moved —
+    // which is exactly the trade the verified class exists to refuse. Same
+    // door as the refusal, so recovery is asked for the way it was caused.
+    await askResync(this.baseUrl, POLL_TIMEOUT);
+  },
+);
+
+/**
  * Somebody else, writing, mid-scenario.
  *
  * The same door as `I rewrite` — a file changing under a running server — but
