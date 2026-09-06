@@ -92,19 +92,19 @@ export const ticketing = (options: {
   return {
     mint: (seated, above, writer) => {
       const bearer = `${prefix}${randomBytes(24).toString("hex")}`
+      let released = false
       const fence: Fence = {
         get under() {
-          return seated().under
+          return released ? null : seated().under
         },
-        ask: () => above(seated().under),
+        ask: () => released ? null : above(seated().under),
         get forbidden() {
           return new Map<string, string>(
-            [...seated().forbidden, ...options.reservations].map((one) => [one.key, one.says]),
+            [...(released ? [] : seated().forbidden), ...options.reservations].map((one) => [one.key, one.says]),
           )
         },
       }
       tickets.set(bearer, composed(fence, Schema.decodeUnknownSync(Writer)(writer)))
-      let released = false
       return {
         bearer,
         release: () => {

@@ -106,7 +106,7 @@ Feature: The theme is a pick, and it is yours
 
   Scenario: Picking a theme asks the server for nothing
     When I open the app
-    And the theme controls have finished loading their fonts
+    And the appearance controls have finished loading their fonts
     And I watch what the page asks for
     And I pick the theme "ember"
     Then the page is in the theme "ember"

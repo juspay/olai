@@ -42,7 +42,7 @@ import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
-import { clientOver } from "@olai/surface/client"
+import { clientOver, type OlaiSurfaceClient } from "@olai/surface/client"
 import { serveFace } from "olai-plugin-mcp/testlib"
 import { mcpRoute, currentTicket, currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "olai-plugin-mcp/testlib"
 import { type Ticket, ticketing } from "olai-plugin-mcp/testlib"
@@ -90,6 +90,7 @@ interface Served {
     message: unknown,
     headers?: Record<string, string>,
   ) => Promise<Response>
+  readonly retainedTicket: (under: string) => { ticket: Ticket; client: OlaiSurfaceClient }
   readonly mintTicket: (under: string) => Ticket
   readonly url: string
 }
@@ -122,7 +123,8 @@ const withRoute = <A>(
       { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },
       wired.faces.agent,
     )
-    const tickets = ticketing({ reservations: WRITE_RESERVATIONS, bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket })
+    let selectingTicket: string | null = null
+    const tickets = ticketing({ reservations: WRITE_RESERVATIONS, bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket: () => selectingTicket ?? currentTicket() })
     yield* serveFace({
       expose: MCP,
       client: () => panel,
@@ -159,6 +161,12 @@ const withRoute = <A>(
       use({
         root,
         url,
+        retainedTicket: (under) => {
+          const ticket = tickets.mint(() => ({ under, forbidden: [] }), () => null, "chat-agent")
+          selectingTicket = ticket.bearer
+          try { return { ticket, client: tickets.doorAt(panel) } }
+          finally { selectingTicket = null }
+        },
         mintTicket: (under) => tickets.mint(
           () => ({ under, forbidden: [] }),
           () => null,
@@ -735,5 +743,23 @@ test("…and two people behind one proxy do not get each other's", async () => {
     expect(rows.find((row) => row.title === "grace's line")?.custom).toEqual({
       "captured-by": "grace@example.com",
     })
+  })
+})
+
+
+test("releasing a ticket fences a retained client and the delayed next step of a tool", async () => {
+  await withRoute(async ({ retainedTicket, root }) => {
+    const { ticket, client } = retainedTicket("kitchen")
+    await Effect.runPromise(client.surface.ops.run({ op: "title", id: "kitchen", title: "accepted before release" }))
+    // A multi-step tool can already hold both the client and its next lazy
+    // Effect when its owning session is released. It must recheck the fence.
+    const next = client.surface.ops.run({ op: "title", id: "kitchen", title: "forbidden delayed write" })
+    ticket.release()
+    ticket.release()
+    await expect(Effect.runPromise(next)).rejects.toThrow("conversation has been reaped")
+    await expect(Effect.runPromise(client.surface.ops.run({ op: "title", id: "kitchen", title: "forbidden retained write" }))).rejects.toThrow("conversation has been reaped")
+    const contents = fs.readFileSync(path.join(root, "house.olai"), "utf8")
+    expect(contents).toContain("accepted before release")
+    expect(contents).not.toContain("forbidden")
   })
 })

@@ -28,10 +28,10 @@ export const openLoading = (host: Host, reserved: ReadonlyArray<string>, changed
     reports: Effect.suspend(() => rowReport(host, [...reserved, ...[...catalogs.values()].flatMap(one => one.names())])),
     acquire: Effect.gen(function*() {
       const parent = yield* Effect.scope
-      let active = true
-      yield* Effect.addFinalizer(() => Effect.sync(() => { active = false }))
       return { mount: (plugin: Plugin) => Effect.gen(function*() {
-        if (!active) return yield* Effect.die(new Error(`Plugin loader owned by "${owner}" has closed`))
+        // Scope marks itself closed before it starts awaiting child finalizers.
+        // A finalizer-owned flag would revoke admission only after their drain.
+        if (parent.state._tag === "Closed") return yield* Effect.die(new Error(`Plugin loader owned by "${owner}" has closed`))
         if (reserved.includes(plugin.name)) return yield* Effect.die(new Error(`Plugin "${plugin.name}" is reserved by the bundle`))
         const scope = yield* Scope.fork(parent)
         const mounted = yield* Effect.acquireRelease(mountPlugin(host, plugin, { wait: false }), mounted => mounted.dispose).pipe(Scope.provide(scope))

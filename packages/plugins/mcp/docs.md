@@ -14,3 +14,9 @@ Every request and node-session credential resolves the current provider
 generation while retaining its writer and subtree fence. A departed generation
 cannot be reused, and a replacement does not inherit an earlier provider's
 resources. The protocol remains available when no notebook capability is enabled.
+
+Releasing a node ticket closes its fence before removing the credential lookup.
+A retained client, including the delayed next write of a multi-step tool, then
+receives the same reaped-conversation refusal. A provider returning with fresh
+handlers cannot revive that credential; writes accepted before release remain
+on disk.

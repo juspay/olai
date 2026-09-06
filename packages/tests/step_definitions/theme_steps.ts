@@ -360,7 +360,7 @@ Then(
 
 // ── and nothing reaches the server ─────────────────────────────────────
 
-When("the theme controls have finished loading their fonts", async function (this: OlaiWorld) {
+When("the appearance controls have finished loading their fonts", async function (this: OlaiWorld) {
   await showChips(this);
   // Opening the picker is a separate action from choosing a color. Let the
   // browser finish layout and the fonts that drawing it requested before

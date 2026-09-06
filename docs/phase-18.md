@@ -81,7 +81,10 @@ in the PR’s changed code.
 - [x] Move source discovery/compiler/approval/chunk code into `vault-plugins`.
 - [x] Validate owned-loader cleanup: children and catalogs leave with their
   owner, retained loaders are revoked, reactivation is fresh, and disposal
-  waits for pending-child cleanup. Both focused tests pass. This uncovered and
+  waits for pending-child cleanup. Admission closes immediately when the owner
+  begins draining, before blocked child finalizers finish: a deterministic
+  regression previously mounted a late child during that window. The loader
+  now checks the public Scope state; all three focused tests pass. This uncovered and
   fixed non-idempotent disposal in the direct Cordis mount adapter.
 - [x] Run relocated dynamic policy and documentation-example tests: 23 pass.
 - [x] Test actual policy withdrawal/reactivation: owned definitions, catalogs,

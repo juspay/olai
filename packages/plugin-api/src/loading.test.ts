@@ -68,3 +68,29 @@ test("owner disposal waits for child cleanup and interrupts an acquiring child",
     yield* Fiber.join(dropping)
   })))
 })
+
+
+test("a loader rejects new children as soon as its owner begins draining", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const host = yield* openHost
+    yield* openLoading(host, [], () => {}, metadata)
+    const cleanup = yield* Deferred.make<void>()
+    const release = yield* Deferred.make<void>()
+    let retained!: OwnedLoader
+    let acquired = 0
+    const owner = yield* mountPlugin(host, definePlugin({ name: "owner", needs: [HostLoading], apply: Effect.gen(function*() {
+      retained = yield* (yield* HostLoading).acquire
+      yield* retained.mount(definePlugin({ name: "child", needs: [], apply: Effect.addFinalizer(() =>
+        Effect.andThen(Deferred.succeed(cleanup, undefined), Deferred.await(release))) }))
+    }) }))
+    yield* settled(host, ["child"])
+    const dropping = yield* Effect.forkChild(owner.dispose)
+    yield* Deferred.await(cleanup)
+    const late = yield* Effect.exit(retained.mount(definePlugin({ name: "late", needs: [], apply: Effect.sync(() => { acquired++ }) })))
+    // Finish the held cleanup even if a subsequent assertion fails.
+    yield* Deferred.succeed(release, undefined)
+    yield* Fiber.join(dropping)
+    expect(Exit.isFailure(late)).toBe(true)
+    expect(acquired).toBe(0)
+  })))
+})
