@@ -1,26 +1,22 @@
 # Phase 18 implementation checklist
 
-Phase 18 is in progress. The acceptance contract is the September 5 proposal
-in `oss.olai/brainstorming/cordis-for-olai.md`. This work must land as one
-complete PR; intermediate commits are not separately complete phases.
+Phase 18 is implemented in one PR. The acceptance contract is the September 5
+proposal in `oss.olai/brainstorming/cordis-for-olai.md`; the completed checklist
+below records ownership, lifecycle and workflow evidence for that contract.
 
-Checked items describe implemented work or specific passing coverage. A plugin
-with remaining unchecked items is not fully extracted. All acceptance items must
-be complete before this PR is ready to merge.
+Final implementation validation: `7d31368a5` passed full `just ci`, all 49
+checks, including all 1,467 browser scenarios. GitHub CodeQL's Actions, C/C++
+and JavaScript/TypeScript analyses passed, as did the Linux and macOS builds.
+The acceptance audit includes new independent-capability, alternate-layout,
+non-notebook, withdrawal/restoration and failure/recovery coverage; completion
+is supported by those boundary tests as well as the existing suite.
 
-Last complete CI: code commit `55b5bee87` passed all 49 checks, including
-1,446 browser scenarios. That result predates the substantial extraction now
-in progress and does not validate the current working tree.
-
-Current integration: `01217d774` completed full `just ci`: 47 checks passed
-and two failed. All unit tests, typechecks and palette scenarios passed. The
-sole failure was a cross-tab Files lifecycle test typing before the original
-tab had observed the provider change and restored focus after reconnect.
-The screenshot shows the missing character, not a replaced editor. All five
-feature cases now witness their contribution leave/return in the original tab,
-assert restored focus without refocusing, and check the exact draft before
-its disk assertion. Those cases plus editor range lifecycle coverage pass
-10 scenarios and 241 steps. The strengthened acceptance awaits full CI.
+Integration exposed a cross-tab test typing before the original tab had
+observed a provider change and restored focus after reconnect. All five feature
+cases now witness their contribution leave/return in the original tab, assert
+restored focus without refocusing, and check the exact draft before its disk
+assertion. Those cases and editor range lifecycle coverage pass both their
+focused run (10 scenarios, 241 steps) and the final full CI.
 
 The real-Git upstream case has an explicit 30-second integration budget:
 all 32 Git tests pass, and a probe delaying every Git invocation by 400ms
@@ -43,10 +39,9 @@ while the terminal guard passes. All 50 HTML-preview scenarios pass.
 Final review's loader-admission and retained-ticket revocation regressions
 also pass, including delayed tool writes and provider reactivation.
 
-GitHub CodeQL also flagged case-sensitive script extraction in the theme asset
-test. The regex is corrected and both first-paint tests pass. GitHub CodeQL
-passed on `29b1db404`, `f46e31fe4` `80248fc35`, `7df53a64b` and `66cbb2705`, reporting no new alerts
-in the PR’s changed code.
+GitHub CodeQL flagged case-sensitive script extraction in the theme asset
+test. The regex is corrected, both first-paint tests pass, and the final
+implementation's CodeQL analysis reports no new alerts in the changed code.
 
 ## CI repair batch
 
@@ -70,7 +65,7 @@ in the PR’s changed code.
 - [x] Move Kolu, Odu and Spaces state into activation scopes with providers
   around their own contributions. The Kolu test proves five subscriptions
   are released and a fresh activation reacquires them.
-- [ ] Pass the next complete CI run on the integrated repair commit.
+- [x] Pass full CI on the integrated implementation (`7d31368a5`: 49 checks).
 - [x] Validate content withdrawal, history and owner changes: 28 scenarios and
   543 steps pass; two cold-start selections prove independently enabled
   Markdown and outlines, and two renderer smoke scenarios pass.
@@ -149,8 +144,8 @@ in the PR’s changed code.
   updates and file disappearance with outline handlers absent.
 - [x] Restore the inherited deployment title when layout leaves while theme
   remains active. The focused naming lifecycle test passes all 12 assertions.
-- [ ] Run full CI for this substantial batch and fix every failure before the
-  next batch. The first complete run exposed the failures listed above.
+- [x] Run full CI for the integrated extraction and resolve the failures it
+  exposed. The final implementation passes all 49 checks.
 
 The checklist below remains the full acceptance contract. A moved implementation
 above is not a claim that its complete absence/lifecycle requirement is proved.
@@ -304,5 +299,5 @@ above is not a claim that its complete absence/lifecycle requirement is proved.
 - [x] Finish plugin, architecture, profile/running and dynamic-plugin docs for
   the final ownership and absence behavior, including exact selections and
   independently owned slot contracts, renderers and source policy.
-- [ ] Pass the complete PR's required checks and acceptance coverage. A green
+- [x] Pass the complete PR's required checks and acceptance coverage. A green
   existing suite alone does not establish Phase 18 completion.
