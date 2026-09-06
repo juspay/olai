@@ -41,7 +41,7 @@
  * knows how wide this box is.
  */
 
-import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
+import { createEffect, createSignal, on, onCleanup, Show } from "solid-js"
 
 import type { FitAddon } from "@xterm/addon-fit"
 import type { Terminal } from "@xterm/xterm"
@@ -63,6 +63,7 @@ import {
   spent,
 } from "./attaching.ts"
 import { useFleet } from "./fleet.tsx"
+import { mountLater } from "./mounting.ts"
 
 export function LivePane(props: {
   readonly value: string
@@ -133,92 +134,108 @@ export function LivePane(props: {
    * and a horizontal scrollbar hides exactly the right-hand column an agent's
    * output runs into. Small-and-whole beats crisp-and-cropped for a glance;
    * the day this pane grows a "pop out" it can scroll at full size instead.
+   *
+   * ## ...and it mounts through {@link ./mounting.ts}, which is the other rule
+   *
+   * The emulator arrives in a chunk, so the mount has to WAIT — and this was an
+   * `onMount(async …)` that awaited the import and registered its `onCleanup`
+   * afterwards. Solid restores the owner at the first `await`, so that cleanup
+   * was an empty statement: closing a pane left a live terminal and a live
+   * `ResizeObserver` behind, every time, in every browser. The cleanup is
+   * registered before the fetch now, and what makes the terminal is what hands
+   * back the way to take it away.
    */
-  onMount(async () => {
+  mountLater(
     // IMPORTED HERE rather than at the top, and it is the pane's whole weight
     // argument: xterm is a terminal emulator, and a page that draws forty lanes
     // and opens no pane should not have paid for one. A dynamic import puts it
     // in its own chunk, fetched the first time somebody presses a row.
-    const [{ Terminal }, { FitAddon }] = await Promise.all([
-      import("@xterm/xterm"),
-      import("@xterm/addon-fit"),
-    ])
-    const created = new Terminal({
-      // READ-ONLY, which is the whole of what this pane is — confirmed as
-      // design by the human on the live look: monitoring lives in olai and
-      // typing stays in kolu until the actions phase. `disableStdin` is the
-      // difference between a window and a session.
-      disableStdin: true,
-      // KOLU'S OWN THEME, and this is the whole of the theming decision: the
-      // catalog is `terminal-themes`, the record carries the name its terminal
-      // was created with, and the lookup falls back on its own. olai declares
-      // no palette — a terminal that looked different here than in the Dock
-      // would be the same drift the row's own extraction exists to prevent, one
-      // surface down.
-      theme: theme(),
-      // ...and kolu's own type. The stack is the catalog's constant rather than
-      // a string spelled here, for the reason the palette is.
-      fontFamily: FONT_FAMILY,
-      fontSize: DEFAULT_FONT_SIZE,
-      convertEol: true,
-      // The three rendering options kolu's own terminal sets and a reader would
-      // notice the absence of. A block cursor while UNFOCUSED especially: this
-      // pane is never focused, so xterm's default hollow outline would be the
-      // one state a reader of olai always sees and a reader of kolu never does.
-      cursorBlink: true,
-      cursorInactiveStyle: "block",
-      reflowCursorLine: true,
-      // NOT `allowProposedApi`, which kolu sets for the serialize and image
-      // addons: this pane loads neither, and an option that only unlocks APIs
-      // nothing calls is a promise about a surface that does not exist here.
+    () => Promise.all([import("@xterm/xterm"), import("@xterm/addon-fit")]),
+    ([{ Terminal }, { FitAddon }]) => {
+      const created = new Terminal({
+        // READ-ONLY, which is the whole of what this pane is — confirmed as
+        // design by the human on the live look: monitoring lives in olai and
+        // typing stays in kolu until the actions phase. `disableStdin` is the
+        // difference between a window and a session.
+        disableStdin: true,
+        // KOLU'S OWN THEME, and this is the whole of the theming decision: the
+        // catalog is `terminal-themes`, the record carries the name its terminal
+        // was created with, and the lookup falls back on its own. olai declares
+        // no palette — a terminal that looked different here than in the Dock
+        // would be the same drift the row's own extraction exists to prevent, one
+        // surface down.
+        theme: theme(),
+        // ...and kolu's own type. The stack is the catalog's constant rather than
+        // a string spelled here, for the reason the palette is.
+        fontFamily: FONT_FAMILY,
+        fontSize: DEFAULT_FONT_SIZE,
+        convertEol: true,
+        // The three rendering options kolu's own terminal sets and a reader would
+        // notice the absence of. A block cursor while UNFOCUSED especially: this
+        // pane is never focused, so xterm's default hollow outline would be the
+        // one state a reader of olai always sees and a reader of kolu never does.
+        cursorBlink: true,
+        cursorInactiveStyle: "block",
+        reflowCursorLine: true,
+        // NOT `allowProposedApi`, which kolu sets for the serialize and image
+        // addons: this pane loads neither, and an option that only unlocks APIs
+        // nothing calls is a promise about a surface that does not exist here.
+        //
+        // The pane is a box in a document, not a full screen: kolu keeps fifty
+        // thousand lines because its terminal is the window you work in, and this
+        // one has no scrollback reader of its own — a line this pane cannot reach
+        // is memory spent to look identical while scrolled to a place it does not
+        // go.
+        scrollback: 1_000,
+      })
+      const fitted = new FitAddon()
+      created.loadAddon(fitted)
+      created.open(host)
+      fitted.fit()
+      term = created
+      fit = fitted
+      // A RESIZE IS A RE-ATTACH. The pane asks padi for the grid it can show, and
+      // padi resizes the terminal to it — last-attach-wins on a shared pty, which
+      // is what attaching MEANS: every client is looking at the same size.
       //
-      // The pane is a box in a document, not a full screen: kolu keeps fifty
-      // thousand lines because its terminal is the window you work in, and this
-      // one has no scrollback reader of its own — a line this pane cannot reach
-      // is memory spent to look identical while scrolled to a place it does not
-      // go.
-      scrollback: 1_000,
-    })
-    const fitted = new FitAddon()
-    created.loadAddon(fitted)
-    created.open(host)
-    fitted.fit()
-    term = created
-    fit = fitted
-    // A RESIZE IS A RE-ATTACH. The pane asks padi for the grid it can show, and
-    // padi resizes the terminal to it — last-attach-wins on a shared pty, which
-    // is what attaching MEANS: every client is looking at the same size.
-    //
-    // This lane spent a round going observe-only instead, on the theory that a
-    // monitor must not perturb what it monitors. The human overruled it, and
-    // the overruling is the simpler design as well as the ruled one: a pane
-    // that renders 1:1 at the grid it asked for has no scaling, no adoption,
-    // and none of the three ways the scaled version came apart on a real busy
-    // terminal.
-    const observer = new ResizeObserver(() => {
-      // ONLY WHEN THE GRID ACTUALLY MOVED. `fit()` resizes the terminal, which
-      // resizes the DOM, which fires this observer again — so an unguarded
-      // re-attach here is a loop that never settles: every attach is torn down
-      // by the next one before its first-frame deadline can fire, and a pane
-      // over a terminal with nothing to send sits open and silent forever
-      // rather than spending its budget and saying so. Thirty seconds of that,
-      // with no error anywhere, is what the probe found.
-      const was = term === undefined ? undefined : { cols: term.cols, rows: term.rows }
-      fit?.fit()
-      const now = term === undefined ? undefined : { cols: term.cols, rows: term.rows }
-      if (was === undefined || now === undefined) return
-      if (!gridsEqual(was, now)) setGeneration((g) => g + 1)
-    })
-    observer.observe(host)
-    onCleanup(() => {
-      observer.disconnect()
-      created.dispose()
-      term = undefined
-      fit = undefined
-    })
-    // The terminal exists now, so the first attach can ask at a real grid.
-    setGeneration((g) => g + 1)
-  })
+      // This lane spent a round going observe-only instead, on the theory that a
+      // monitor must not perturb what it monitors. The human overruled it, and
+      // the overruling is the simpler design as well as the ruled one: a pane
+      // that renders 1:1 at the grid it asked for has no scaling, no adoption,
+      // and none of the three ways the scaled version came apart on a real busy
+      // terminal.
+      const observer = new ResizeObserver(() => {
+        // ONLY WHEN THE GRID ACTUALLY MOVED. `fit()` resizes the terminal, which
+        // resizes the DOM, which fires this observer again — so an unguarded
+        // re-attach here is a loop that never settles: every attach is torn down
+        // by the next one before its first-frame deadline can fire, and a pane
+        // over a terminal with nothing to send sits open and silent forever
+        // rather than spending its budget and saying so. Thirty seconds of that,
+        // with no error anywhere, is what the probe found.
+        const was = term === undefined ? undefined : { cols: term.cols, rows: term.rows }
+        fit?.fit()
+        const now = term === undefined ? undefined : { cols: term.cols, rows: term.rows }
+        if (was === undefined || now === undefined) return
+        if (!gridsEqual(was, now)) setGeneration((g) => g + 1)
+      })
+      observer.observe(host)
+      // The terminal exists now, so the first attach can ask at a real grid.
+      setGeneration((g) => g + 1)
+      // ...and the way back out, handed to the mount rather than registered here:
+      // what made the terminal is what says how to take it away.
+      return () => {
+        observer.disconnect()
+        created.dispose()
+        term = undefined
+        fit = undefined
+      }
+    },
+    // A CHUNK THAT WILL NOT FETCH is an ordinary thing on a flaky connection,
+    // and it used to be nothing at all: the rejection went to the console as an
+    // unhandled promise and the reader watched an empty box that never said
+    // why. It says why now, in the same place every other refusal lands.
+    () => { setSays("this browser could not load the terminal viewer — check the connection and open the pane again.") },
+  )
 
   /**
    * ONE ATTACH PER GENERATION.
@@ -273,6 +290,13 @@ export function LivePane(props: {
         act(onSilence(state))
       }, FIRST_FRAME_MS)
 
+      /** THE OTHER TIMER, and its handle used to be thrown away at the call.
+       *  The write it carries wakes nothing once this effect has been disposed
+       *  — the generation has no observer left — so it was never a runaway; it
+       *  was simply a callback with a lifetime nobody had written down, which
+       *  is the one thing a pane that closes may not leave behind. */
+      let reattach: ReturnType<typeof setTimeout> | undefined
+
       const act = (next: ReturnType<typeof onFrame>["next"]): void => {
         // A STOP IS TERMINAL FOR THE PANE, and this guard is what makes it so.
         // Without it a refusal arrives, the pane says why — and then the same
@@ -306,7 +330,7 @@ export function LivePane(props: {
             // ON A LATER TURN OF THE EVENT LOOP, never inline: a stream that
             // ends synchronously would otherwise re-enter the very effect that
             // owns it (see `./attaching.ts`'s REATTACH_MS).
-            setTimeout(() => setGeneration((was) => was + 1), REATTACH_MS)
+            reattach = setTimeout(() => setGeneration((was) => was + 1), REATTACH_MS)
             return
           case "stop":
             halted = true
@@ -358,6 +382,7 @@ export function LivePane(props: {
 
       onCleanup(() => {
         clearTimeout(deadline)
+        clearTimeout(reattach)
         void Effect.runPromise(Fiber.interrupt(fiber))
       })
     }),
