@@ -63,11 +63,8 @@
 
   a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
   code, pre, kbd { font-family: var(--mono); }
-  code {
-    font-size: 0.86em;
-    background: var(--well);
-    border-radius: 4px;
-    padding: 0.08em 0.35em;
+  :not(pre) > code {
+    font-size: 0.88em;
   }
   pre {
     background: var(--desk);
@@ -77,7 +74,7 @@
     font-size: 0.82rem;
     line-height: 1.6;
   }
-  pre code { background: none; padding: 0; font-size: inherit; }
+  pre code { font-size: inherit; }
 
   .wrap { max-width: 72rem; margin: 0 auto; padding: 0 1.4rem; }
 
@@ -367,13 +364,7 @@
       <p class="sub">Indent, check off, search. Markdown sits beside the
       outline. Git records every edit.</p>
       <pre class="run" id="install" title="click to copy"><code>nix run github:juspay/olai -- web path/to/outlines</code></pre>
-      <p>The vault is a bundle plugin, selected by every default profile. Include <code>vault</code> in an explicit <code>--plugins</code> list to serve files. The plugins panel can close and reopen it. Turning its vault switch off clears served files and stops dependent plugins while the panel stays available. If another olai holds the directory, the vault row shows the failure and can be retried. The row also owns the write gate and reports its configured file format; only <code>olai</code> is supported today.</p>
-      <p>The browser socket (<code>ws</code>), MCP endpoint (<code>mcp</code>) and browser build (<code>web-app</code>) are plugins too. They share one listener and appear in the plugins panel. Turning MCP off leaves browser control available; turning it back on starts a fresh endpoint. Removing the browser build withdraws its asset routes while keeping existing browser connections. Chat contributes its Alerts and Alert sound settings to preferences; disabling chat removes those controls, and restoring it rereads the saved choices. Profiles choose their defaults from the same plugin catalogue. An explicit <code>--plugins</code> list is exact: include <code>ws</code>, <code>web-app</code>, <code>ui-renderer</code> and <code>layout</code> for a tab, <code>sidebar</code> for its directory column and rail, <code>preferences</code> and <code>theme</code> for appearance settings, <code>plugin-inspector</code> for plugin controls, <code>vault</code> for files, and <code>mcp</code> for agent tools.</p>
-      <p>Olai is a bundle of shell and content plugins. <code>outlines</code> and <code>markdown</code> own their readers and editors independently; <code>navigation</code> owns routes, history and the palette. <code>files</code>, <code>pins</code>, <code>capture</code> and <code>trash</code> supply their own browsing and actions. Include these rows when using an exact plugin list. The vault keeps file metadata available when the file browser is disabled. <code>vault-plugins</code> owns approved source plugins and unloads them when switched off.</p>
-      <p>The renderer owns the browser mount; layout owns the frame, header and geometry observers. The plugins panel reports browser activation failures separately from host selection and offers a retry. If the renderer cannot start, a startup error view provides the retry without requiring a working shell.</p>
-      <p>Only need MCP? Add <code>--profile surface</code> to serve your vault without the browser. <code>olai surface</code> remains the terminal client.</p>
       <p class="run-hint">one directory. a browser. that’s the whole install.</p>
-      <p class="run-hint">Remembered node conversations restore directly into their node. Kolu no longer needs a preflight connection; reported MCP connection problems appear in chat and warning logs. Compact terminal logs show startup timings, chat activity, and why an agent was stopped. Set <code>OLAI_LOG_LEVEL=debug</code> for diagnostics. <a href="https://github.com/juspay/olai/blob/main/docs/running.md#logging">Logging options</a>.</p>
     </div>
 
     <div class="hero-stage">
@@ -406,7 +397,7 @@
         <tbody>
           <tr><td>Storage</td><td>A hosted database</td><td>Plain files in a directory you choose</td></tr>
           <tr><td>Sync</td><td>Their cloud</td><td>git, or anything that moves files</td></tr>
-          <tr><td>History</td><td>In-app version history</td><td><code>git log</code></td></tr>
+          <tr><td>History</td><td>In-app version history</td><td>git log</td></tr>
           <tr><td>Search</td><td>Keyword, in their app</td><td>Filter the page you’re on, or search the whole directory</td></tr>
           <tr><td>Source</td><td>Proprietary</td><td><a href="https://github.com/juspay/olai">Open source</a> (AGPL-3.0)</td></tr>
         </tbody>
@@ -423,25 +414,7 @@
     <h2>What’s due</h2>
     <p class="lead">Dated work from every outline, on one page. Late things
     sit above today. A birthday isn’t a task — it stays on its day and never
-    turns red. The journal is a default plugin, so deployments that do not need
-    dates can leave the whole calendar and agenda out.</p>
-    <p>Plugins can also share services with other plugins. Dependent plugins wait
-    for their provider, stop when it leaves, and resume when it returns.
-    The Spaces mirror uses this for chat’s node seating: it waits when chat is off and resumes when chat returns.
-    Browser plugins can share their own services too: dependent faces disappear
-    when their provider stops and return when it restarts. Browser keys are
-    separate from server keys; shell and content services belong to their scoped plugin activations.
-    The plugins panel names missing browser dependencies, and agents can discover
-    browser service declarations alongside server keys. Identity’s viewer reading
-    is shared this way with chat; chat stays usable when identity is off.
-    Core server service providers can be replaced by other plugins, one at a time.
-    <a href="https://github.com/juspay/olai/blob/master/docs/dynamic-plugins.md#sharing-a-plugin-owned-service">Write a plugin that shares a service</a>.</p>
-    <p>The agenda is one of them. The journal offers its reading of a day —
-    what is on it, and what is owed as of it — to any other plugin, over the
-    vault snapshot the caller hands in. The worked example is a morning agenda
-    an agent writes into its own outline and you approve: each morning it reads
-    that answer and puts the day into the conversation.
-    <a href="https://github.com/juspay/olai/blob/master/docs/dynamic-plugins.md#a-worked-example-the-morning-agenda">Read the morning agenda</a>.</p>
+    turns red.</p>
     <div class="cols">
       <div class="panel">
         <div class="file">/agenda · 2026-08-12</div>
@@ -481,7 +454,7 @@
         </div>
       </div>
       <div>
-        <p>A file named for the day — <code>2026-08-12.md</code>, anywhere in
+        <p>A file named for the day — 2026-08-12.md, anywhere in
         the directory — is that day’s note. Open the day and the note is on
         top, with everything dated that day underneath it.</p>
         <p>Weekly chores come back as a fresh row on the next date, so eleven
@@ -509,8 +482,8 @@
         bare title still makes sense.</p>
       </div>
       <div>
-        <p><code>is:done</code>, <code>date:last-week</code>, a quoted phrase,
-        <code>OR</code> — the rest of the query language is in the
+        <p>Done, last week, a quoted phrase — the rest of the query language
+        is in the
         <a href="https://github.com/juspay/olai/blob/master/docs/search.md">search docs</a>.</p>
       </div>
     </div>
@@ -585,9 +558,7 @@
     <h2>An agent in the same notebook</h2>
     <p class="lead">Chat lives in a side panel. You keep the keyboard. The
     agent ticks boxes and rewrites the markdown, and you see it happen.
-    Git records both of you. Follow live execution plans and command output, and adjust the agent’s advertised session settings. Choose a model from the chat header, including
-    when chatting with Codex. Olai bundles the Codex adapter and CLI; update
-    olai to receive newer Codex model support.</p>
+    Git records both of you.</p>
     <div class="cols">
       <div class="panel chat">
         <div class="file">chat</div>
@@ -655,8 +626,8 @@
 └───────────────────────────────────────────┘</code></pre>
       </div>
       <div>
-        <p>Commit messages start with <code>olai:</code>, so
-        <code>git log --grep '^olai'</code> is the trail. The rest is in the
+        <p>Commit messages start with olai, so the trail is easy to find.
+        The rest is in the
         <a href="https://github.com/juspay/olai/blob/master/docs/git.md">git docs</a>.</p>
       </div>
     </div>
