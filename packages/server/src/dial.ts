@@ -121,7 +121,11 @@ export const dialOlai = (values: Dialled): Effect.Effect<ResolvedEndpoint> =>
  * this process could name any `captured-by` it liked.
  */
 const clientOver = (connection: McpConnection, url: string): RootedSurfaceClients => {
-  const clients: Record<string, { surface: Record<string, Record<string, (input: unknown) => Stream.Stream<unknown, unknown>>> }> = {}
+  const clients: Record<string, {
+    surface: Record<string, Record<string, (input: unknown) => Stream.Stream<unknown, unknown>>>
+    callTool: McpConnection["callTool"]
+    url: string
+  }> = {}
   for (const [key, sibling] of Object.entries(AGENT_SIBLINGS)) {
     // THE SIBLING'S KEY IS PASSED IN, and that is the whole of the composition:
     // `resolveExpose` folds it into every name it mints, so the URI read here
@@ -155,7 +159,15 @@ const clientOver = (connection: McpConnection, url: string): RootedSurfaceClient
       }
       members[member] = verbs
     }
-    clients[key] = { surface: members }
+    // THE TOOL DOOR RIDES EVERY CLIENT, not only the bundle. kolu hands a
+    // SIBLING's verb that sibling's own client (`clients[key]`) — one rule for
+    // every table these faces take — so `remoteFrom`'s handler reaches
+    // `callTool` through whichever client it was declared on. It is a property
+    // of the CONNECTION and there is one of those, so putting it on each is a
+    // second reference rather than a second door. Without it a sibling's verb
+    // is `door.callTool is not a function`, which is what `olai surface
+    // capture add` answered until it was.
+    clients[key] = { surface: members, callTool: connection.callTool, url }
   }
 
   return {
