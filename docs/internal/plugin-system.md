@@ -141,6 +141,15 @@ package sees.** That is the ruling this layer is shaped by, and it is checkable:
 all, and `packages/bundle/src/fence.test.ts` holds that as an equality
 (`scripts/prove-fence.sh`'s mutation 16 is what proves the claim is not asleep).
 
+Being the only package that names it means being the only package that ASSUMES
+things about it, and the assumptions are worth a list of their own — the ones
+with no type on them can drift green. That list is
+[`packages/effect-cordis/README.md`](../../packages/effect-cordis/README.md)'s
+*Where the pin's instability lives*: what the bridge assumes, where it assumes
+it, what the pin does today, and how each one would show if a bump moved it.
+`nix/cordis.nix` carries the upstream asks that list implies. Neither is
+duplicated here — a second copy is a copy that goes stale.
+
 Three ideas do all the work, and each replaced something olai used to hand-write.
 
 **A registration is a revertible effect.** `kinds.register(kind)` is an
@@ -1246,6 +1255,9 @@ names the file.
 | `packages/server/src/runtime.test.ts` | a `wake` sentence reaches the roster only for a plugin this serve MOUNTED, so no picker is offered for a doorbell nothing would ring — and a plugin the flag left on that nothing mounted draws as off, which is the row the old derivation could not express |
 | `packages/plugins/chat/src/deliveries.test.ts` | a body delivered mid-turn is HELD and the conversation keeps its interruption — the one claim a machine speaking into a person's lane could quietly cost them |
 | `scripts/check-hydrated-deps.sh` | the appliance dependency walls, per pin — kolu, odu, and cordis |
+| `packages/effect-cordis/src/lifecycle.test.ts` | the bridge's ORDERING against the pin: a dependent's asynchronous cleanup calls through a provider that is still live — on removal, on replacement and on host close; a loading initializer is cancelled by a stop, by a withdrawal and by host close; a loader flip cancels without rewriting its file; a duplicate offer is an `OfferConflict` naming the first provider, with the pin's wording asserted verbatim; and `offer` takes its Cordis disposer out of the concurrently-unloaded set |
+| `packages/effect-cordis/src/upstream.test.ts` | the PIN'S OWN behaviour, asked directly and with no bridge in the way — a fiber's disposers are unloaded concurrently, which is the reproduction `nix/cordis.nix`'s fourth ask is about and the reason `lifecycle.ts` takes the ordering itself |
+| `packages/effect-cordis/src/gate.test.ts` | that a handler removed while a dispatch is parked is not called, that stopping waits out a call already inside one, that a handler which stops its own plugin is not waited for, and that a hung one is given a bounded patience and said about |
 | `packages/effect-cordis/src/plugin.test.ts` | the bridge itself, on TOY services and with no olai noun in the file: a plugin sits `waiting` until the service it names is provided, its finalizers run in reverse when it unloads, a REPLACED provider re-runs it, a plugin whose Effect dies lands `failed` having installed nothing with its siblings untouched, and the stamp a keyed service is minted with is the word the registry bound it under |
 
 ---

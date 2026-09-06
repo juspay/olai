@@ -193,17 +193,63 @@ member is; `scripts/check-hydrated-deps.sh` holds their versions, and the fence
 holds the fact that this package is the only one allowed to name them. A pin bump
 that moves the API changes this package and nothing else.
 
-Three couplings are worth a reviewer's eye at a bump, and each is spelled where
-it is made: the module-resolution seam `mountRows` fills
-([`src/loader.ts`](src/loader.ts) — verified against
-`@cordisjs/plugin-loader@1.0.0-rc.6`, and a cast, so a moved slot fails at RUNTIME
-rather than at typecheck); the `FiberState` reading `rowReport` collapses into
-four words ([`src/host.ts`](src/host.ts)); and `settled`'s reading of a fiber's
-`inertia` as the runtime's own record of movement, which is a claim that the
-field is CLEARED when a transition finishes. That last one is bounded rather than
-trusted — a revision that left a settled promise on the field turns the loop into
-a warning and a slow boot instead of a hang at every start — and the bound is
-argued beside it.
+### The three kinds, because "private" is the wrong axis
+
+The pin declares its API unstable outright and ships no reference documentation,
+so "public" and "private" do not sort these. What sorts them is WHAT WOULD
+NOTICE a change:
+
+1. **Exported and typed** — `Context`, `FiberState`, `ctx.provide`,
+   `fiber.await`, the loader's config shapes. A revision that moved one of these
+   is red in this package's own `tsc`, which is the cheapest possible failure
+   and needs no list.
+2. **Reachable but underscored, or absent from the index** — `fiber._disposables`,
+   `fiber.uid`, `Impl`. Legal to touch, unlisted, and typed only by accident.
+3. **Behaviour with no type at all** — the concurrency of an unload, an ordering,
+   the wording of an error, when an event fires relative to a field being set.
+   THESE ARE THE ONLY ONES THAT CAN DRIFT GREEN, and they are why this section
+   is a table rather than a paragraph.
+
+Each coupling is argued where it is MADE; this is the index, not a second copy.
+
+### The inventory
+
+| what the bridge assumes | where it assumes it | what the pin does | how drift shows |
+| --- | --- | --- | --- |
+| a fiber's disposers are unloaded CONCURRENTLY, so a disposer that joins dependents may not sit beside the one closing their resources | [`src/lifecycle.ts`](src/lifecycle.ts)'s `close` | `Fiber._unload` is one `Promise.all` over the set | [`src/upstream.test.ts`](src/upstream.test.ts) asks the runtime directly; [`src/lifecycle.test.ts`](src/lifecycle.test.ts)'s dependent-cleanup cases go red |
+| `ctx.provide` answers with the very disposer it pushed, so the bridge can take it out of that set and become its only caller | [`src/lifecycle.ts`](src/lifecycle.ts)'s `offer` | pushes an epoch-guarded wrapper and returns it; a second call through the wrapper joins nothing | CHECKED — the offer throws, naming the pin, rather than failing later inside a dependent's cleanup |
+| the duplicate-provider refusal carries the owning fiber's name in its PROSE | [`src/lifecycle.ts`](src/lifecycle.ts)'s `offer` | a plain `Error`: `service "x" has been registered at <owner>` | [`src/lifecycle.test.ts`](src/lifecycle.test.ts) asserts the wording verbatim beside the owner it yields |
+| a fiber's `store` is the impls it injects, snapshot-able at activation | [`src/lifecycle.ts`](src/lifecycle.ts)'s `activate` | `Impl` is not exported from the index | SILENT — dependents stop being joined |
+| the registry entry is removed BEFORE asynchronous cleanup ends | [`src/lifecycle.ts`](src/lifecycle.ts)'s live table, [`src/host.ts`](src/host.ts)'s `closeHost` | a disposing fiber leaves the registry first | [`src/lifecycle.test.ts`](src/lifecycle.test.ts) — "host close joins cleanup that already left the registry" |
+| `uid === null` means disposed | [`src/plugin.ts`](src/plugin.ts), [`src/lifecycle.ts`](src/lifecycle.ts), [`src/host.ts`](src/host.ts) | set when the fiber leaves | interruption stops reaching a disposing fiber |
+| `inertia` is set across a transition and CLEARED when it ends | [`src/host.ts`](src/host.ts)'s `settled`, [`src/loader.ts`](src/loader.ts)'s flip | a promise on the fiber while it moves | BOUNDED — a pass limit turns a hang into a warning and a slow boot, argued beside it |
+| `FiberState`'s six states collapse into four honest words | [`src/host.ts`](src/host.ts)'s `rowReport` | an enum | typed, so a bump is red |
+| `loader.internal` is a slot with exactly one method called on it | [`src/loader.ts`](src/loader.ts) — verified against `@cordisjs/plugin-loader@1.0.0-rc.6` | upstream's slot for Node's own `ModuleLoader`, left `undefined` under bun; only `.import` is ever called, never the `version` beside it | RUNTIME, not typecheck — the cast is what makes the assignment legal at all |
+| `loader/entry-init` fires from the `Entry` constructor, before its options exist | [`src/loader.ts`](src/loader.ts) | the event is emitted by the constructor | rows collected with no id; a flip answers `false` |
+| disabling a row before disposing it keeps the loader from rewriting the bundle file | [`src/loader.ts`](src/loader.ts)'s `flipRow` | the update arm reads `disabled` first | [`src/lifecycle.test.ts`](src/lifecycle.test.ts) asserts the file's bytes are unchanged |
+| `ctx.loader.await()` walks the LOADER's tree, which the include's rows were never linked into | [`src/loader.ts`](src/loader.ts)'s header, [`src/host.ts`](src/host.ts)'s `fibersOf` | the include is an `EntryTree` mounted as an ordinary plugin | SILENT — `settled` is the real guarantee, and is why it exists |
+| a symbol key on the reflect proxy passes straight through to the object | [`src/host.ts`](src/host.ts), [`src/loader.ts`](src/loader.ts), [`src/module.ts`](src/module.ts) | the proxy routes strings, not symbols | a host, or a row list, becomes a service a plugin could name |
+| the root fiber's `dispose()` is a RESTART, leaving an empty ACTIVE root | [`src/host.ts`](src/host.ts)'s `closeHost` | disposal of the root re-enters it | a mount after close succeeds, which `mountPlugin` refuses by remembering |
+
+`nix/cordis.nix` carries the four upstream ASKS this list implies, so a bump has
+one place to look for what olai wants the pin to grow.
+
+### Two things this package does NOT claim
+
+**Initialization cancellation is olai's, not the paper's.** A plugin whose start
+is stopped mid-flight — by a switch, by a withdrawal, by host close — has its
+Effect fiber interrupted and its scope closed with that exit. That is an
+Effect-backed adaptation this bridge adds; it is not a property the paper's
+inertial asynchronous model hands over, and the pin has no equivalent. What the
+pin owns is readiness and reactive reload; what this owns is that stopping
+mid-start unwinds exactly what had been installed.
+
+**A recorded inverse is not a proved one.** The bridge holds an author's cleanup
+actions and runs them in reverse, on the right occasion, in the right order
+relative to dependents. It cannot check that a release is genuinely the inverse
+of its acquisition, and it cannot establish that two plugins' shared operations
+commute. Those are properties of what authors wrote; the accumulator is a place
+to put them, not a proof about them.
 
 A loaded module may export `components`, a record of independently injected
 plugins beside its default plugin. The loader creates one scoped container and
