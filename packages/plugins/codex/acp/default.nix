@@ -2,7 +2,7 @@
 # binary that pin resolves, and the ACP wrapper olai spawns. It lives with the
 # plugin because neither its release clock nor its platform layout is shared by
 # the patched Claude/Pi adapter bundle in nix/acp-agent.nix.
-{ lib, stdenv, buildNpmPackage, fetchFromGitHub, makeWrapper, nodejs }:
+{ lib, stdenv, buildNpmPackage, fetchFromGitHub, fetchpatch, makeWrapper, nodejs }:
 
 let
   adapterVersion = "1.10.0";
@@ -29,6 +29,22 @@ buildNpmPackage {
     hash = "sha256-D8uYd30NRXQYUSBFCi66Oq0iRZXpl8P7nWv2m3+KBig=";
   };
   npmDepsHash = "sha256-df1/kPiZFBEq9Um26Qbo9XaYj2J8BOXQmunCQWquDTo=";
+
+  # Upstream PR #441: a steer that loses the completion race leaves its
+  # message with the host, which owns the next prompt and its completion.
+  patches = [
+    (fetchpatch {
+      name = "codex-steering-idle-fallback.patch";
+      url = "https://github.com/agentclientprotocol/codex-acp/commit/84bfbe8318400b139214e9aa51352585aae19368.patch";
+      hash = "sha256-C8lIfgcbXXifUdrdvv29eMJMKAC7uyvHuBYtqGbcScM=";
+    })
+  ];
+  doCheck = true;
+  checkPhase = ''
+    runHook preCheck
+    ./node_modules/.bin/vitest run src/__tests__/CodexACPAgent/steer-events.test.ts
+    runHook postCheck
+  '';
 
   nativeBuildInputs = [ makeWrapper ];
 

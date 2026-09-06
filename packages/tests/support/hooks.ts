@@ -588,6 +588,7 @@ interface Spawn {
    *  scripted adapter named by `OLAI_ACP_PI` — the two halves of the row.
    *  See {@link FAKE_PI_DIR}. */
   readonly pi?: boolean;
+  readonly codex?: boolean;
   /** Absent is `--no-commit`, which is what every scenario but the git ones
    *  wants. Present drops the opt-out and says which of the three git
    *  situations this server is being started into. */
@@ -690,7 +691,8 @@ const startServerChild = async (
         // The packaged binary now carries Codex too. Every scenario here is
         // deterministic against the scripted engine(s) it explicitly asks
         // for, so its real baked adapter must not silently add a picker row.
-        OLAI_ACP_CODEX: "",
+        OLAI_ACP_CODEX: spawnOptions.codex === true ? FAKE_AGENT : "",
+        ...(spawnOptions.codex === true ? { OLAI_FAKE_CODEX: "yes" } : {}),
         ...(spawnOptions.stored === true ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
         // WHERE OLAI LOOKS FOR AGENTS, and by default nowhere: the empty
         // string is "look on no path at all", so a developer's own opencode
@@ -900,6 +902,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       agent: world.hasAgent,
       opencode: world.hasOpencode,
       pi: world.hasPi,
+      codex: world.hasCodex,
       kolu: world.hasKolu,
       stateRoot: scratchState(world.scratch()),
       ...(world.gitMode === undefined ? {} : { git: world.gitMode }),
@@ -1260,6 +1263,7 @@ Before(
       (tag) => tag.name === OPENCODE_TAG,
     );
     this.hasPi = scenario.pickle.tags.some((tag) => tag.name === PI_TAG);
+    this.hasCodex = scenario.pickle.tags.some((tag) => tag.name === "@codex");
 
     // On the world rather than in a local, because a restart mid-scenario has
     // to reproduce this boot (`startOwnServer`).
@@ -1355,9 +1359,9 @@ Before(
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
-    if (this.hasPi && !writes) {
+    if ((this.hasPi || this.hasCodex) && !writes) {
       throw new Error(
-        `${PI_TAG} decides which agents its server finds, so the scenario must own ` +
+        `The agent tag decides which agents its server finds, so the scenario must own ` +
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
@@ -1393,6 +1397,7 @@ Before(
         agent: this.hasAgent,
         opencode: this.hasOpencode,
         pi: this.hasPi,
+        codex: this.hasCodex,
         kolu: this.hasKolu,
         ...(this.padi === undefined ? {} : { padiSocket: this.padi.socket }),
         ...(this.avatarTemplate === undefined

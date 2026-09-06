@@ -69,7 +69,7 @@ export const CODEX: Leg = {
   bypassMode: null,
   steering: {
     method: "_session/steering",
-    meta: undefined,
+    meta: { steering: { idleBehavior: "promptRequired" } },
     timeout: "30 seconds",
     taken: steerTaken,
     advertised: steeringAdvertised,
