@@ -22,6 +22,7 @@
     "olai-plugin-preferences": "workspace:*",
     "@olai/fonts": "workspace:*",
     "@olai/appearance": "workspace:*",
-    "olai-plugin-layout": "workspace:*"
+    "olai-plugin-layout": "workspace:*",
+    "@olai/ui-primitives": "workspace:*"
   }
 }

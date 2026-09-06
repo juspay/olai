@@ -55,7 +55,7 @@
 import { type Custom, customOf } from "@olai/format"
 import type { DocumentHit, NodeHit } from "@olai/surface"
 
-import { customEntries } from "../props/drawer.ts"
+import { customEntries } from "olai-plugin-outlines/property-values"
 
 /** One property as the row draws it: what the drawer's line holds, plus
  *  whether it is why this hit is on screen. */

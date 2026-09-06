@@ -66,7 +66,7 @@
 
 import { Show } from "solid-js"
 
-import { filterOf, hrefOf, type Route } from "../routes.ts"
+import { filterOf, hrefOf, type Route } from "olai-plugin-navigation/routes"
 import { TESTID } from "../testids.ts"
 
 export function Face(props: {

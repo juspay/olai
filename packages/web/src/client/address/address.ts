@@ -25,8 +25,8 @@
 
 import { addressWritten, basenameOf, linkedTitle } from "@olai/format"
 
-import type { Names } from "../names.ts"
-import { hrefOf, type Route, routeFace, routeIn } from "../routes.ts"
+import type { Names } from "olai-plugin-outlines/names"
+import { hrefOf, type Route, routeFace, routeIn } from "olai-plugin-navigation/routes"
 
 /**
  * The address a title names, or `undefined`.

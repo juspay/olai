@@ -10,9 +10,9 @@
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { askingFor, namedEdit, namingFor } from "./naming.ts"
-import type { Pin } from "./pins.ts"
-import { atNode } from "../routes.ts"
+import { askingFor, namedEdit, namingFor } from "olai-plugin-pins/browser/naming.ts"
+import type { Pin } from "olai-plugin-pins/values"
+import { atNode } from "olai-plugin-navigation/routes"
 
 const TRASH = { kind: "trash" } as const
 const NARROWED = { kind: "trash", filter: "is:todo" } as const

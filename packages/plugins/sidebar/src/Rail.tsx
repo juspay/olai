@@ -15,11 +15,13 @@
  * buttons rather than clipping the last of them.
  */
 
-import { Glyph } from "@olai/web/client/file/icons.tsx"
+import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
 import { PluginRailEntries } from "@olai/web/client/plugins/Seats.tsx"
 import { TESTID } from "@olai/web/client/testids.ts"
-import { RailButton } from "@olai/web/client/layout/RailButton.tsx"
-import { setSidebarOpen } from "@olai/web/client/layout/prefs.ts"
+import { setSidebarOpen } from "olai-plugin-layout/preferences"
+import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
+import { For } from "solid-js"
+import { railEntries } from "./contract.ts"
 
 /** How big an icon on this rail is. Spelled once because five buttons draw one
  *  — three inline here and two that are the directory's own glyphs
@@ -29,6 +31,7 @@ import { setSidebarOpen } from "@olai/web/client/layout/prefs.ts"
 const ICON = "size-4"
 
 export function Rail(props: {
+  readonly slots: RendererSlots
   /** Navigate without a full Link tree — the rail is outside the router
    *  provider on some screens, so it takes a callback the shell already has. */
   readonly home: () => void
@@ -53,31 +56,7 @@ export function Rail(props: {
 
       <PluginRailEntries place="top" />
 
-      <RailButton
-        testid={TESTID.railOutlines}
-        label="open outlines"
-        title="outlines"
-        onClick={() => {
-          setSidebarOpen(true)
-          props.home()
-        }}
-      >
-        {/* The tree's own outline glyph (../file/icons.tsx), at the rail's
-            size. Both faces of this column already agree about what is OWED;
-            they agree about what an OUTLINE is for the same reason — a reader
-            who collapses the column has not gone somewhere else. */}
-        <Glyph of="outline" size={ICON} />
-      </RailButton>
-
-      <RailButton
-        testid={TESTID.railDocs}
-        label="open the directory"
-        title="documents"
-        onClick={() => setSidebarOpen(true)}
-      >
-        {/* And the tree's document glyph, for the same reason. */}
-        <Glyph of="document" size={ICON} />
-      </RailButton>
+      <For each={props.slots.read(railEntries)}>{({value: Entry}) => <Entry />}</For>
 
       <PluginRailEntries place="bottom" />
     </div>

@@ -47,7 +47,7 @@
 import { Show } from "solid-js"
 
 import { isDegraded, lookOf, type SurfaceReadout } from "./status.ts"
-import { desktop } from "../layout/media.ts"
+import { desktop } from "olai-plugin-layout/media"
 import { BANNER, DOT, PILL } from "../readout.ts"
 import { TESTID } from "../testids.ts"
 

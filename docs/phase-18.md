@@ -25,19 +25,40 @@ in progress and does not validate the current working tree.
 - [x] Move theme tables, first-paint bootstrap, generated styles/font assets and
   scoped browser chrome to their owners. A full browser build has succeeded.
 - [x] Implement scoped Surface composition for preserved unprefixed tags and
-  disjoint procedure variants. Three focused tests pass, including withdrawal,
-  retained-handler revocation, collisions and fresh generations.
+  disjoint procedure variants. Four focused tests pass, including withdrawal,
+  retained-handler revocation, collisions, fresh generations, and refusal of
+  inconsistent face grants or write attribution between shared variants.
 - [x] Add independent server bindings for outlines, Markdown, files, pins,
   capture and trash; the permanent runtime no longer binds those readings.
 - [x] Move source discovery/compiler/approval/chunk code into `vault-plugins`.
+- [x] Validate owned-loader cleanup: children and catalogs leave with their
+  owner, retained loaders are revoked, reactivation is fresh, and disposal
+  waits for pending-child cleanup. Both focused tests pass. This uncovered and
+  fixed non-idempotent disposal in the direct Cordis mount adapter.
+- [x] Run relocated dynamic policy and documentation-example tests: 23 pass.
 - [ ] Finish integrating owned host loading, catalog reporting and approval
   write reservations, including policy absence and reactivation.
 - [x] Add maintained alternate-layout and non-notebook counter fixtures.
   The counter's headless test passes with Vault/Directory/Ops absent.
-- [ ] Run both fixture browser workflows after server integration is complete.
+- [x] Run the non-notebook browser workflow: all seven steps pass, including
+  server reads, increment and reload with Vault/Directory/Ops absent.
+- [ ] Pass the alternate-layout browser workflow. Its first run exposed a
+  missing outline stream error handler and a chat revision replay initialization
+  error; both are fixed, with the rerun pending.
 - [ ] Finish removing indirect notebook dependencies from the permanent browser
   and server hosts, and enforce the final boundary with import fences.
 - [ ] Complete capability absence/restoration and scoped state integration tests.
+  Seven content browser scenarios and four shell lifetime scenarios are
+  authored; focused content checks pass. Backend fixtures now mount actual
+  providers and have exposed integration bugs being fixed before full CI.
+- [x] Pass migrated MCP route/tool tests with actual providers: 97 tests and
+  610 assertions. Fix missing mark-operation dispatch and scoped pins/capture
+  cell broadcasts discovered during integration.
+- [x] Pass the combined ownership regression group: 18 tests and 73 assertions
+  across Cordis lifecycle, owned loading and Surface composition.
+- [ ] Finish the generic server component loader and MCP policy extraction.
+  These are integration work in progress in the current commit; the current
+  combined tree is not yet claimed to compile or pass CI.
 - [ ] Run full CI for this substantial batch and fix every failure before the
   next batch. No CI has yet validated these combined extraction changes.
 

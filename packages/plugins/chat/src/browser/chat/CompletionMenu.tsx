@@ -24,8 +24,8 @@ import { createEffect, createMemo, Index, on, onCleanup, onMount, Show } from "s
 
 import { listKey } from "@olai/web/client/keys.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
-import { renderTitle, sameDrawing } from "@olai/web/client/markdown/title.ts"
-import { TitleHtml } from "@olai/web/client/markdown/TitleHtml.tsx"
+import { renderTitle, sameDrawing } from "@olai/markdown-ui/title.ts"
+import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { createCursor } from "@olai/web/client/search/cursor.ts"
 import { spend, type Taking } from "@olai/web/client/settled.ts"
 import { TESTID } from "../../testids.ts"

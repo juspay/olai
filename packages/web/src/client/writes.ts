@@ -37,7 +37,7 @@ import { Result } from "effect"
 
 import { runAsync } from "./run.ts"
 import { olai } from "./wire.ts"
-import type { Undo } from "./edit/undoing.ts"
+import type { Undo } from "@olai/edit-history/undoing.ts"
 
 /** What a verb has to say afterwards, in the two moods a write has: `alarm`
  *  for a refusal, which is why nothing happened, and `aside` for a remark

@@ -1,14 +1,19 @@
 /** Layout owns popover placement, chrome geometry and the desktop reading.
  * This value is published in its renderer-dependent plugin scope. Factories
  * allocate component resources under their callers' Solid owners. */
+import type { AppPopover,Bar } from "@olai/plugin-api"
+import { styleOf } from "@olai/web/client/anchor.ts"
+import { createPopover } from "@olai/web/client/popover.ts"
+import {
+DOT,
+DOT_HOLLOW_ALARM,DOT_HOLLOW_WARN,
+PANEL_BOX,
+PILL,
+PILL_ALARM_COAT,PILL_WARN_COAT,TEXT_ALARM,TEXT_WARN
+} from "@olai/web/client/readout.ts"
+import { desktop } from "olai-plugin-layout/media"
 import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
-import type { AppPopover, Bar } from "@olai/plugin-api"
-import { styleOf } from "@olai/web/client/anchor.ts"
-import { desktop } from "@olai/web/client/layout/media.ts"
-import { createPopover } from "@olai/web/client/popover.ts"
-import { DOT, PANEL_BOX, DOT_HOLLOW_ALARM, DOT_HOLLOW_WARN, PILL,
-  PILL_ALARM_COAT, PILL_WARN_COAT, TEXT_ALARM, TEXT_WARN } from "@olai/web/client/readout.ts"
 
 const panelPopover = (): AppPopover => {
   const popover = createPopover()

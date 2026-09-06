@@ -111,3 +111,7 @@ The degenerate case is the same code as every other: a runtime with **no** plugi
 - [docs/internal/plugin-system.md](../../docs/internal/plugin-system.md) — the same subject as a tour.
 
 Rows may export `/assets` for build-time head, CSS, module-preload and public-file contributions. Generation writes a separate `assets.generated.ts` graph consumed only through `@olai/bundle/assets` by the build. Runtime bundle doors do not load filesystem/build code. The row list remains the sole source of which static owners are shipped.
+
+Static cross-plugin APIs may declare additional explicit exports in `olai.contracts` beside `/contract`. The fence walks their runtime closure and refuses private provider implementation, observer/listener acquisition and unresolved dependencies. A declaration cannot exempt a `/browser/*` import. `@olai/ui-primitives` owns shared supplied-prop controls separately from layout.
+
+Rows may also export `/policy` with pure `writeReservations` data. `@olai/bundle/policy` carries the combined reservations independently of runtime row selection, so disabling an approval-policy provider cannot enable an agent to pre-authorize code for its next activation.

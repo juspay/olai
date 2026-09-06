@@ -99,20 +99,20 @@
 
 import { Show } from "solid-js"
 
+import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
+import { Indicator } from "@olai/web/client/connection/Indicator.tsx"
+import { LAYER } from "@olai/web/client/layer.ts"
 import { Leaf } from "@olai/web/client/Leaf.tsx"
 import { WORDMARK } from "@olai/web/client/look.ts"
 import { calledApp } from "@olai/web/client/named.ts"
-import { Uptime } from "@olai/web/client/Uptime.tsx"
-import { Indicator } from "@olai/web/client/connection/Indicator.tsx"
 import { PluginHeaders } from "@olai/web/client/plugins/Chrome.tsx"
-import { LAYER } from "@olai/web/client/layer.ts"
-import { desktop } from "@olai/web/client/layout/media.ts"
-import { connectionReadout } from "@olai/web/client/wire.ts"
-import { Tools } from "./Tools.tsx"
-import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
-import { TESTID } from "@olai/web/client/testids.ts"
-import { TARGET_BOX } from "@olai/web/client/touch.ts"
 import { PluginViewer } from "@olai/web/client/plugins/Seats.tsx"
+import { TESTID } from "@olai/web/client/testids.ts"
+import { Uptime } from "@olai/web/client/Uptime.tsx"
+import { connectionReadout } from "@olai/web/client/wire.ts"
+import { desktop } from "olai-plugin-layout/media"
+import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
+import { Tools } from "./Tools.tsx"
 
 export function Header(props: {
   readonly slots: RendererSlots

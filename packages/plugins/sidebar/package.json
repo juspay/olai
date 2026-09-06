@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./browser": "./src/browser.tsx",
-    "./all.css": "./src/all.css"
+    "./all.css": "./src/all.css",
+    "./contract": "./src/contract.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -20,6 +21,7 @@
     "@olai/format": "workspace:*",
     "olai-plugin-layout": "workspace:*",
     "@solid-primitives/keyed": "^1.5.2",
-    "@olai/surface": "workspace:*"
+    "@olai/surface": "workspace:*",
+    "@olai/ui-primitives": "workspace:*"
   }
 }

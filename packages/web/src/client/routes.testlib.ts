@@ -19,7 +19,7 @@
 
 import { FILE_KINDS } from "@olai/format"
 
-import { atElement, atFile, atNode, HOME_ROUTE, type Route } from "./routes.ts"
+import { atElement, atFile, atNode, HOME_ROUTE, type Route } from "olai-plugin-navigation/routes"
 
 export const ROUTES: ReadonlyArray<Route> = [
   HOME_ROUTE,

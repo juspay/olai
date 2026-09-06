@@ -13,3 +13,7 @@ The column and rail implementations live here. Their notebook readings, file
 creation controls, and preferences still consume web implementations during the
 remaining content and navigation extraction; this is not yet the final generic
 sidebar boundary.
+
+The container declares `sidebar.regions`, `sidebar.rail` and `sidebar.vault`.
+Files, pins, capture and trash occupy these locations independently. Sidebar
+itself creates no notebook reading and imports no file tree or content editor.

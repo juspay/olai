@@ -13,5 +13,6 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "None, and that is the shape rather than an accident: this package is a table and two pure functions over it. It has no `effect` because it never fails and never does IO — the one thing that touches the disk is the Nix derivation, which is not JavaScript. A dependency here would be carried into the browser bundle by a client that only wanted to know what a typeface is called."
+  "//dependencies": "None, and that is the shape rather than an accident: this package is a table and two pure functions over it. It has no `effect` because it never fails and never does IO — the one thing that touches the disk is the Nix derivation, which is not JavaScript. A dependency here would be carried into the browser bundle by a client that only wanted to know what a typeface is called.",
+  "dependencies": {}
 }

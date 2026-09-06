@@ -576,7 +576,7 @@ export const Bar = serviceTag<Bar>("layout.bar")
 export interface Links {
   readonly File: FileLink
 }
-export const Links = serviceTag<Links>("links")
+export const Links = serviceTag<Links>("navigation.links")
 
 /**
  * THIS PLUGIN'S OWN SIBLING CLIENT — the browser twin of `Surfaces`, read the

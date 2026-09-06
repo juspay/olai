@@ -18,7 +18,7 @@ import { report as reportTransport } from "./report.ts"
 import { CurrentWho, whoRoute } from "./who.ts"
 import { mediaLayer } from "./media.ts"
 import { resyncRoute } from "./resync.ts"
-import { pluginChunks } from "./dynamic/route.ts"
+
 // The upgrade seam owns header-name grammar; boot validates its initial list.
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers"
 import { type GitPin, type PluginPin } from "@olai/format"
@@ -63,14 +63,15 @@ import type { Directory as OpenDirectory } from "@olai/ops"
 import { runtimePaths } from "./runtime-paths.ts"
 import { pruneGone } from "@olai/state"
 import { liveStore } from "./store-source.ts"
-import { openDynamic } from "./dynamic/runtime.ts"
+import { openLoading } from "@olai/plugin-api/services"
 import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { NOBODY, readingOf } from "./who.ts"
 import { type Profile } from "./profiles.ts"
 import { listener } from "./listener.ts"
-import { mcpBinding } from "./mcp/binding.ts"
+import { ticketMint, type TicketMint } from "olai-plugin-mcp/contract"
+import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
 import { TransportSurface } from "@olai/plugin-api/transport"
 import { gitConfigPatch } from "./gitPolicy.ts"
 import { resyncDirectory } from "./resync.ts"
@@ -149,7 +150,7 @@ export const serve = (options: ServeOptions) =>
     // A process credential; session tickets are minted only while the MCP row stands.
     const token = randomBytes(24).toString("hex")
 
-    const mcp = mcpBinding(token)
+    let currentMint: () => TicketMint | undefined = () => undefined
 
     /** WHERE A RELATIVE PATH RESOLVES FROM, resolved the way `openDirectory`
      *  resolves it and BEFORE it, because the plugin runtime is opened first.
@@ -232,7 +233,7 @@ export const serve = (options: ServeOptions) =>
       // ...AND THE FENCE MINTED OFF IT. Read per call rather than captured,
       // because the endpoint has no mint until its row is active — and the row
       // that seats sessions is mounted long before that.
-      ticketFor: mcp.ticketFor,
+      ticketFor: (...args) => currentMint()?.mint(...args) ?? null,
       // WHERE EACH ROW SITS IN THIS BUILD'S OWN LIST, handed over as the function
       // `@olai/bundle` already exports rather than as the list itself: a plugin
       // that owns a table a person reads has to be able to order it, and nothing
@@ -253,6 +254,7 @@ export const serve = (options: ServeOptions) =>
       changed: () => onChange.run(),
       // NO `dials`: the injectables are a test's, and this is the product.
     })
+    currentMint = () => offered(plugins.host, ticketMint)
     const pluginPin = options.pluginPin
     yield* mountBundle(plugins.host, pluginPin, gitConfigPatch(options.pin), profile)
 
@@ -266,7 +268,7 @@ export const serve = (options: ServeOptions) =>
      * built list is reserved here: a vault definition may not replace any
      * shipped plugin, including a transport.
      */
-    const dynamic = openDynamic(plugins.host, built)
+    const loading = yield* openLoading(plugins.host, built, () => onChange.run(), { services: plugins.serviceKeys, browserServices: plugins.browserKeys })
 
     /**
      * WHAT BECAME OF EACH ROW, read once the bundle has settled — the word a
@@ -285,7 +287,7 @@ export const serve = (options: ServeOptions) =>
      * synchronously by the roster, so a Ref would buy nothing but two more
      * `yield*` on a path that has no concurrency to protect against.
      */
-    let report = yield* reportBundle(plugins.host, dynamic.names())
+    let report = yield* reportBundle(plugins.host, loading.names())
 
     /**
      * WHICH ROWS A PERSON HAS TURNED OFF HERE — the third author of a row's
@@ -307,7 +309,7 @@ export const serve = (options: ServeOptions) =>
     const flipped = (id: string, enabled: boolean) =>
       Effect.gen(function*() {
         const found = yield* setRow(plugins.host, id, enabled)
-        report = yield* reportBundle(plugins.host, dynamic.names())
+        report = yield* reportBundle(plugins.host, loading.names())
         if (found) {
           if (enabled) switched.delete(id)
           else switched.add(id)
@@ -400,7 +402,7 @@ export const serve = (options: ServeOptions) =>
     const ops = liveOps(currentGate)
     yield* provide(plugins.host, VaultSettings, () => ({ root, kinds, ledger, search, runtime: runtimePaths }))
     yield* settled(plugins.host, built)
-    report = yield* reportBundle(plugins.host, dynamic.names())
+    report = yield* reportBundle(plugins.host, loading.names())
     /** Minted once for the serve: app.get and the install manifest must name
      * the same machine even if the host is renamed underneath us. The start
      * instant is process start rather than this function's return, so the
@@ -429,10 +431,10 @@ export const serve = (options: ServeOptions) =>
         configs: () => configsOf(plugins.host),
         set: flipped,
         reread: Effect.gen(function*() {
-          report = yield* reportBundle(plugins.host, dynamic.names())
+          report = yield* reportBundle(plugins.host, loading.names())
         }),
         switched: () => switched,
-        dynamic,
+        catalogs: loading.catalogs,
       },
     })
     /**
@@ -459,7 +461,7 @@ export const serve = (options: ServeOptions) =>
       register: transports.register,
       live: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.browser }),
       services: (connection) => Layer.succeed(CurrentWho)(who(connection.headers)),
-      routes: Layer.mergeAll(mediaLayer(root), whoRoute(who), resyncRoute(resyncDirectory(currentDirectory, currentGate)), pluginChunks(dynamic)),
+      routes: Layer.mergeAll(mediaLayer(root), whoRoute(who), resyncRoute(resyncDirectory(currentDirectory, currentGate))),
       upgradeHeaders: () => currentIdentity().headers,
       allowedOrigins: options.allowedOrigins,
       report: (event) => reportTransport(event, say),
@@ -468,33 +470,15 @@ export const serve = (options: ServeOptions) =>
       browserBoot: () => ROWS.filter((row) => row.browserOnly && report.get(row.id)?.state === "running").map((row) => row.id),
       hostname: theMachine,
       token,
-      prepareAgent: (ticket) => mcp.prepare({
-        ticket,
-        bound: wired.bound,
-        face: wired.faces.agent,
-        ops,
-        root,
-        writer: "mcp",
-        // Verified READ, not REFRESH: a tool read must remain independent of
-        // the publish-loop permit, so a wedged loop is observable as stale
-        // vintage rather than hanging the diagnostic tool too. Refresh would
-        // also reread and republish every file on every tool read. A verified
-        // read checks stamps; it cannot detect a rewrite that preserved both
-        // length and mtime. /olai/resync is the explicit stronger operation.
-        vintage: Effect.suspend(() => {
-          const directory = currentDirectory()
-          return directory
-            ? Effect.map(directory.store.read("verified"), (aged) => aged.vintage)
-            : Effect.succeed(undefined)
-        }),
-      }),
+      agent: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.agent, writes: wired.bound.writes }),
+      writeReservations: WRITE_RESERVATIONS,
     }))
     yield* Effect.addFinalizer(() => transports.stop)
     // Wait for both the rows and their protocol acquisitions before publishing
     // readiness. Binding earlier could hand a newly spawned session a port
     // whose mcp row was still loading.
     yield* settled(plugins.host, built)
-    report = yield* reportBundle(plugins.host, dynamic.names())
+    report = yield* reportBundle(plugins.host, loading.names())
     onChange.run()
     /*
      * WHAT THIS SERVE CAME UP WITH MUST BE SERVABLE — the one thing the bind
@@ -551,7 +535,7 @@ export const serve = (options: ServeOptions) =>
      * answer, including a busy-port fallback. The name and bearer come from
      * the endpoint shared with the row; a session must not guess either one.
      * No transport means no address and no agent started against a fiction. */
-    if (url) yield* Deferred.succeed(toolsReady, mcp.address(url))
+    if (url) yield* Deferred.succeed(toolsReady, { name: "olai", url: `${url}/mcp`, token })
 
     return runtime.faulted
   })

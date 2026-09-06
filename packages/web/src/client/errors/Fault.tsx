@@ -38,9 +38,9 @@ import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
 import { Lede } from "./Lede.tsx"
 import { PAGE_TITLE } from "../look.ts"
 import { Reload } from "../Reload.tsx"
-import { HOME_ROUTE, hrefOf } from "../routes.ts"
+import { HOME_ROUTE, hrefOf } from "olai-plugin-navigation/routes"
 import { TESTID } from "../testids.ts"
-import { TARGET } from "../touch.ts"
+import { TARGET } from "@olai/ui-primitives/touch.ts"
 
 export function Fault(props: { readonly text: string }) {
   return (

@@ -7,7 +7,14 @@
     ".": "./src/index.ts",
     "./browser": "./src/browser.tsx",
     "./all.css": "./src/all.css",
-    "./contract": "./src/index.ts"
+    "./contract": "./src/index.ts",
+    "./*": "./src/*",
+    "./preferences": "./src/layout/prefs.ts",
+    "./media": "./src/layout/media.ts",
+    "./chip": "./src/layout/chip.ts",
+    "./entry": "./src/layout/entry.ts",
+    "./sheet": "./src/layout/sheet.ts",
+    "./geometry": "./src/pane/geometry.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -19,6 +26,18 @@
     "olai-plugin-ui-renderer": "workspace:*",
     "@olai/web": "workspace:*",
     "@olai/format": "workspace:*",
-    "@olai/surface": "workspace:*"
+    "@olai/surface": "workspace:*",
+    "olai-plugin-navigation": "workspace:*",
+    "@olai/ui-primitives": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./preferences",
+      "./media",
+      "./chip",
+      "./entry",
+      "./sheet",
+      "./geometry"
+    ]
   }
 }

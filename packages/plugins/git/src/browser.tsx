@@ -7,7 +7,7 @@
  */
 
 import { definePlugin, Slots, Wired } from "@olai/plugin-api"
-import { desktop } from "@olai/web/client/layout/media.ts"
+import { desktop } from "olai-plugin-layout/media"
 import { Effect } from "effect"
 import { Show } from "solid-js"
 

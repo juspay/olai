@@ -1,9 +1,9 @@
-/** Candidate-selection keys belong to the platform IME. Keep their native
- * default action, but do not deliver them to Olai's shortcuts and popovers.
- * The legacy 229 code also covers browsers whose final confirmation key no
- * longer reports isComposing. Installed once for the lifetime of the page. */
-export const protectComposition = (): void => {
-  window.addEventListener("keydown", (event) => {
+/** Candidate-selection keys belong to the platform IME. The navigation
+ * activation owns this listener, including the legacy confirmation key. */
+export const protectComposition = (): (() => void) => {
+  const protect = (event: KeyboardEvent) => {
     if (event.isComposing || event.keyCode === 229) event.stopPropagation()
-  }, true)
+  }
+  window.addEventListener("keydown", protect, true)
+  return () => window.removeEventListener("keydown", protect, true)
 }

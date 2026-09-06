@@ -51,7 +51,7 @@ import { vaultOf } from "@olai/format/testlib"
 import { pinnedVault, vaultAt } from "@olai/format/testlib/scope"
 import { expect, test } from "bun:test"
 
-import { publishedOf } from "./published.ts"
+import { publishedOf } from "@olai/surface/projection"
 import {
   differential,
   misplacing,

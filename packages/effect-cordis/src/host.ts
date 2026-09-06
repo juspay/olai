@@ -207,6 +207,7 @@ export const mountPlugin = (
     // siblings — and the boot — are untouched. What it threw is not lost; it is
     // what {@link rowReport} quotes.
     if (options.wait !== false) await fiber.await().catch(() => undefined)
+    let dropping: Promise<void> | undefined
     return {
       // THE SAME TWO STEPS {@link rowReport} TAKES, for one fiber: the state
       // synchronously, and the plugin's own words only where there are some to
@@ -218,8 +219,12 @@ export const mountPlugin = (
         return said.state === "failed" ? Effect.promise(() => faulted(fiber)) : Effect.succeed(said)
       }),
       dispose: Effect.promise(() => {
-        interrupt(fiber)
-        return fiber.dispose().then(() => fiber.await().then(() => undefined, () => undefined))
+        if (!dropping) dropping = Promise.resolve().then(async () => {
+          interrupt(fiber)
+          await fiber.dispose()
+          await fiber.await().catch(() => undefined)
+        })
+        return dropping
       }),
     }
   })
@@ -543,4 +548,3 @@ const faultOf = (reason: unknown): string | undefined => {
   const trimmed = said.trim()
   return trimmed === "" ? undefined : trimmed
 }
-

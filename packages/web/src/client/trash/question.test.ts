@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { trashQuestion, emptyQuestion } from "./question.ts"
+import { trashQuestion, emptyQuestion } from "olai-plugin-trash/questions"
 
 test("one row, named, with nothing under it: the singular all the way through", () => {
   expect(trashQuestion({ kind: "row", title: "pick the knobs" }, 0)).toBe(

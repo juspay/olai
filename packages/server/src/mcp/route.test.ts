@@ -1,3 +1,5 @@
+import { capabilitiesOver } from "../capabilities.testlib.ts"
+import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
 /**
  * The internal route, over real HTTP.
  *
@@ -44,7 +46,7 @@ import { bind, writerAt } from "../runtime.ts"
 import { clientOver } from "@olai/surface/client"
 import { serveFace } from "olai-plugin-mcp/testlib"
 import { mcpRoute, currentTicket, currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "olai-plugin-mcp/testlib"
-import { type Ticket, ticketing } from "./tickets.ts"
+import { type Ticket, ticketing } from "olai-plugin-mcp/testlib"
 import { bespokeFrom, pluginTools } from "olai-plugin-mcp/testlib"
 
 /** The codec this suite validates through — the vocabulary of a build that
@@ -113,14 +115,7 @@ const withRoute = <A>(
       writer: "mcp",
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
-      // NO PLUGINS. Every runtime in this file is a reader — a bound face, an
-      // MCP route — and none of them is about a terminal door or a CI chip;
-      // dialing whatever daemons happen to be on the machine running the suite
-      // would make these tests depend on them. `null` is the OFF setting, and
-      // what it produces is a surface with no `surface/<name>/` on it at all:
-      // an empty sibling record composes to no tag, no handler and no expose
-      // row, so olai's own group is byte for byte what it always was.
-      plugins: null,
+      plugins: yield* capabilitiesOver(store, ops, root, true),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
@@ -130,7 +125,7 @@ const withRoute = <A>(
       { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },
       wired.faces.agent,
     )
-    const tickets = ticketing({ bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket })
+    const tickets = ticketing({ reservations: WRITE_RESERVATIONS, bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket })
     yield* serveFace({
       expose: MCP,
       client: () => panel,

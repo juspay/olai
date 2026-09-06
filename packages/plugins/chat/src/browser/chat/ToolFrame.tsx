@@ -78,7 +78,7 @@ import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
-import { Markdown } from "@olai/web/client/markdown/Markdown.tsx"
+import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { armedOf, endedOf, watchOf } from "./background.ts"
 import { Diff } from "./Diff.tsx"
 import { diffKey, isUnfolded, toggleFold } from "./folds.ts"

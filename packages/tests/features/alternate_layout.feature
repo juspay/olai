@@ -6,7 +6,7 @@ Feature: Content runs under an independent layout
   contracts. Neither content implementation imports or detects this fixture.
 
   Scenario: The unchanged editor and Markdown reader share another layout
-    When I open the address "/house.olai"
+    When I open the alternate layout at "/house.olai"
     Then the alternate layout fixture is mounted
     And the node "handles" is shown
     When I mark the page

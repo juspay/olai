@@ -5,7 +5,7 @@
 
 import { expect, test } from "bun:test"
 
-import { parseFolders, printFolders, prunedFolders } from "./folders.ts"
+import { parseFolders, printFolders, prunedFolders } from "olai-plugin-files/fold/folders.ts"
 
 test("what is stored is the folders left OPEN", () => {
   expect(printFolders(new Set(["notes", "Daily"]))).toBe(`["Daily","notes"]`)

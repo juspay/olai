@@ -90,7 +90,7 @@ import {
   untrack,
 } from "solid-js"
 
-import { type Call, runAsync } from "./run.ts"
+import { type Call, runAsync } from "@olai/web/client/run.ts"
 
 /** How long a keystroke waits for the next one. A whole round trip sits behind
  *  this, so it is pitched just past an ordinary inter-keystroke gap rather than

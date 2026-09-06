@@ -13,11 +13,12 @@
  * `/d/<anything>` that is not a day) is drawn beside the button, verbatim.
  */
 
-import { createSignal } from "solid-js"
+import { createSignal, Show } from "solid-js"
 
-import { openMintedFile } from "@olai/web/client/document/minted.ts"
+import { useDocumentActions } from "olai-plugin-markdown/contract"
+import { Result } from "effect"
 import { Refused } from "@olai/web/client/Refused.tsx"
-import { useRouter } from "@olai/web/client/router.tsx"
+import { useRouter } from "olai-plugin-navigation/routing"
 import { TESTID } from "../../testids.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { journalWire } from "../wire.ts"
@@ -28,23 +29,24 @@ export function DayMint(props: { readonly date: string }) {
   const [sending, setSending] = createSignal(false)
 
   const mint = async (): Promise<void> => {
-    if (sending()) return
+    const actions = useDocumentActions()
+    if (sending() || actions === undefined) return
     const date = props.date
     setSending(true)
     setSaid(null)
     try {
-      const answer = await openMintedFile(
-        runAsync(journalWire().procedures.note.mint({ date })),
-        router,
-      )
-      if (props.date === date) setSaid(answer)
+      const started = router.workspace()
+      const answer = await runAsync(journalWire().procedures.note.mint({ date }))
+      if (Result.isFailure(answer)) { if (props.date === date) setSaid(answer.failure.message) }
+      else if (router.workspace() === started && useDocumentActions() === actions) actions.openCreated(answer.success.file, router)
+
     } finally {
       setSending(false)
     }
   }
 
   return (
-    <div class="flex flex-col items-end gap-2">
+    <Show when={useDocumentActions()}><div class="flex flex-col items-end gap-2">
       <button
         type="button"
         class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
@@ -58,6 +60,6 @@ export function DayMint(props: { readonly date: string }) {
         {sending() ? "Creating…" : "+ day note"}
       </button>
       <Refused said={said()} testid={TESTID.dayMintSaid} />
-    </div>
+    </div></Show>
   )
 }

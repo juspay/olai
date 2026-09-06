@@ -33,7 +33,7 @@ import { type BodyKind, bodyKind, isNodeHit, printAddress, type SearchHit } from
 import type { NodeProp } from "./props.ts"
 import { documentProps, nodeProps } from "./props.ts"
 import { nodePlace } from "./place.ts"
-import { atFile, atNode, type Route } from "../routes.ts"
+import { atFile, atNode, type Route } from "olai-plugin-navigation/routes"
 
 export interface HitRow {
   /** What identifies the row: its ADDRESS, written. A node's is `#a1b2c3` and

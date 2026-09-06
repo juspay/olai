@@ -1,4 +1,4 @@
-import { TARGET } from "./touch.ts"
+import { TARGET } from "@olai/ui-primitives/touch.ts"
 
 /**
  * The quiet pill button: a bordered verb beside something louder.

@@ -17,7 +17,7 @@ import {
   SIDEBAR_MAX_PX,
   SIDEBAR_MIN_PX,
   SIDEBAR_WIDTH_KEY,
-} from "./prefs.ts"
+} from "olai-plugin-layout/preferences"
 import { parseBool } from "../preference.ts"
 import { remembering } from "../preference.testlib.ts"
 

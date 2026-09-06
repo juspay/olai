@@ -61,6 +61,7 @@ import { createWatching } from "./watching.ts"
  */
 export const createAttention = (state: Accessor<ChatState>): void => {
   const watching = createWatching()
+  onCleanup(() => wear(0))
 
   // The first gesture this page gets opens the audio context — the platform's
   // rule, not ours ({@link ./chime.ts}).

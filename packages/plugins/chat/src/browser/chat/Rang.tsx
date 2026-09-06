@@ -46,7 +46,7 @@
 import type { UserEntry } from "olai-plugin-chat/wire"
 import { createEffect, createMemo, Show } from "solid-js"
 
-import { createDeclared } from "@olai/web/client/declared.ts"
+import { createDeclared } from "olai-plugin-outlines/references"
 import { isUnfolded, toggleFold } from "./folds.ts"
 import { Quoted } from "./Quoted.tsx"
 import { rangRow } from "./rang.ts"

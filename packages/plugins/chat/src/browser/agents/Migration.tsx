@@ -36,7 +36,7 @@
 
 import { Show } from "solid-js"
 
-import { REGION_LABEL } from "@olai/web/client/layout/entry.ts"
+import { REGION_LABEL } from "olai-plugin-layout/entry"
 import type { Migration } from "olai-plugin-chat/wire"
 import { TESTID } from "../../testids.ts"
 

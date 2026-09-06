@@ -47,12 +47,12 @@ import { isOverdue, owedFact, type Standing } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
-import { CRUMB } from "@olai/web/client/Breadcrumbs.tsx"
+import { CRUMB } from "olai-plugin-outlines/chrome"
 import { DayNode } from "../day/DayNode.tsx"
 import { placeOf } from "../day/place.ts"
-import { useNarrowed } from "@olai/web/client/filter/narrowed.tsx"
-import { unfiltered } from "@olai/web/client/filter/why.ts"
-import { Link } from "@olai/web/client/router.tsx"
+import { useNarrowed } from "olai-plugin-outlines/filter"
+const unfiltered = (view: ReturnType<typeof useNarrowed>) => !view.active()
+import { Link } from "olai-plugin-navigation/routing"
 import { TESTID } from "../../testids.ts"
 import { useToday } from "@olai/web/client/today.tsx"
 import {

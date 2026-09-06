@@ -9,3 +9,5 @@ export interface RendererSlots extends LocationOwner {
   readonly inspect: Locations["inspect"]
 }
 export const rendererSlots = serviceTag<RendererSlots>("ui-renderer.slots")
+
+export { readLocation } from "./contracts/read.ts"

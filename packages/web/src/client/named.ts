@@ -51,7 +51,6 @@ import { type Accessor, createEffect, createRoot, createSignal } from "solid-js"
 
 import { reachable } from "./connection/reaching.ts"
 import type { SurfaceReadout } from "./connection/status.ts"
-import { nameChrome } from "./theme/chrome.ts"
 
 const [called, setCalled] = createSignal<string | undefined>(undefined)
 const [started, setStarted] = createSignal<string | undefined>(undefined)
@@ -99,7 +98,7 @@ export interface FollowName {
   readonly readout: Accessor<SurfaceReadout>
   /** One `app.get`. Injected for the same reason. */
   readonly ask: () => Promise<Result.Result<App, unknown>>
-  /** The chrome half of the name. Defaulted to {@link nameChrome}. */
+  /** The chrome half of the name. Optional imperative consumer; presentation belongs to its plugin. */
   readonly named?: (called: string) => void
 }
 
@@ -135,7 +134,7 @@ export const followName = (opts: FollowName): (() => void) => {
         if (!Result.isSuccess(outcome)) return pulse((n) => n + 1)
         const landed = landingOf(outcome.success)
         setCalled(landed.called)
-        ;(opts.named ?? nameChrome)(landed.called)
+        opts.named?.(landed.called)
         setStarted(landed.startedAt)
       })
     })

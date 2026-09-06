@@ -1,3 +1,4 @@
+import { CONTENT_ROWS } from "./capabilities.testlib.ts"
 import { TestClock } from "effect/testing"
 import { runtimePaths } from "./runtime-paths.ts"
 import { fixedStore } from "./store-source.ts"
@@ -112,16 +113,15 @@ const withRuntime = <A>(
   return Effect.gen(function*() {
     const onChange = { run: (): void => {} }
     const mounted = yield* openHostPlugins({ vars: {}, now: () => STARTED, changed: () => onChange.run() })
-    yield* mountBundle(mounted.host, { kind: "exact", names: ["vault"] }, [], "test-minimal")
+    yield* mountBundle(mounted.host, { kind: "exact", names: ["vault", ...CONTENT_ROWS] }, [], "surface")
     yield* provide(mounted.host, VaultSettings, () => ({ root, runtime: runtimePaths, kinds: NO_KINDS, ledger: NO_LEDGER, search: NO_SEARCH }))
-    yield* settled(mounted.host, ["vault"])
+    yield* settled(mounted.host, ["vault", ...CONTENT_ROWS])
     const directory = door(mounted.host, Directory) as { readonly store: OutlineStore } | undefined
     if (!directory) throw new Error("test-minimal did not open its vault row")
     const opened = directory.store
-    const store: OutlineStore = {
-      ...opened,
-      body: (path) => { reads.push(path); return opened.body(path) },
-    }
+    const readBody = opened.body
+    Object.assign(opened, {body: (path: string) => { reads.push(path); return readBody(path) }})
+    const store = opened
     const gate = door(mounted.host, OpsDoor)?.gate as Ops | undefined
     if (!gate) throw new Error("test-minimal did not offer its gate")
     for (const one of extra.plugins ?? []) yield* mountPlugin(mounted.host, one.plugin)
@@ -130,17 +130,8 @@ const withRuntime = <A>(
       writer: "web",
       hostname: hostname(),
       startedAt: STARTED,
-      // NO PLUGINS, unless a case asked for doubles. Every runtime in this file
-      // but the doorbell's is a reader — a bound face, an MCP route — and none
-      // of them is about a terminal door or a CI chip; dialing whatever daemons
-      // happen to be on the machine running the suite would make these tests
-      // depend on them. `null` is the OFF setting, and what it produces is a
-      // rooted bundle with no sibling mounted on it: no tag, no handler and no
-      // expose row, so olai's own group is byte for byte what it always was.
-      //
-      // The doorbell's cases DO take the slot, and they still dial nothing:
-      // what stands behind their names is a double with no appliance under it
-      // ({@link doubleCalled}).
+      // Actual notebook providers supply the wire. Additional rows below are
+      // scoped doubles used only by registry/recomposition cases.
       plugins: {
         // These cases drive registration changes through onChange and read
         // fiber reports directly. Status notifications also force verified
@@ -149,7 +140,7 @@ const withRuntime = <A>(
         // Live status reconciliation is covered by the serve/profile tests.
         plugins: { ...mounted, changes: Stream.empty },
         onChange,
-        built: extra.plugins === undefined ? ["vault"] : extra.plugins.map((one) => one.name),
+        built: extra.plugins === undefined ? ["vault", ...CONTENT_ROWS] : extra.plugins.map((one) => one.name),
         pin: { kind: "omitted" },
         // THE DOUBLES' OWN FIBERS, asked the way a serve asks the bundle's.
         // These runtimes mount doubles directly rather than through the loader,
@@ -158,7 +149,7 @@ const withRuntime = <A>(
         // and asking it here is what makes these cases exercise the same
         // derivation a real boot does rather than a hand-made map.
         report: yield* Effect.map(
-          rowReport(mounted.host, extra.plugins === undefined ? ["vault"] : extra.plugins.map((one) => one.name)),
+          rowReport(mounted.host, extra.plugins === undefined ? ["vault", ...CONTENT_ROWS] : extra.plugins.map((one) => one.name)),
           (read) => () => read,
         ),
         // THESE DOUBLES ARE NOT LOADER ROWS, so there is nothing to name and
@@ -1189,7 +1180,7 @@ test("the roster is served on the plugins cell", () =>
       const get = wired.bound.handlers["surface/plugins/get"]
       if (get === undefined) throw new Error("the plugins cell has no `get`")
       const open = yield* watching(get({}) as Stream.Stream<PluginRoster>)
-      expect((yield* open.take).built.map((row) => [row.name, row.state])).toEqual([["vault", "running"]])
+      expect((yield* open.take).built.map((row) => [row.name, row.state])).toEqual(["vault", ...CONTENT_ROWS].map(name => [name, "running"]))
       yield* Fiber.interrupt(open.reader)
     })))
 
@@ -1233,6 +1224,7 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
       Effect.gen(function*() {
         if (plugins === null) throw new Error("this case needs the plugin runtime")
         const before = Object.keys(wired.bound.handlers).length
+        const composedBefore = plugins.composed().map(one => one.name)
 
         // A surface with a cell and DEPS THAT DO NOT MENTION IT — the shape a
         // plugin's own `satisfies` makes unspellable in its own package, which
@@ -1254,7 +1246,7 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
         // state: this file holds what a composition root can see, and what a
         // composition root can see is the four words the bridge answers with.
         expect((yield* refused.report).state).toBe("failed")
-        expect(plugins.composed().map((one) => one.name)).toEqual([])
+        expect(plugins.composed().map((one) => one.name)).toEqual(composedBefore)
         expect(Object.keys(wired.bound.handlers).length).toBe(before)
 
         // ...and the next plugin in is untouched by it, which is the half that
@@ -1274,7 +1266,7 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
           }),
         )
         expect((yield* healthy.report).state).toBe("running")
-        expect(plugins.composed().map((one) => one.name)).toEqual(["healthy"])
+        expect(plugins.composed().map((one) => one.name)).toEqual([...composedBefore, "healthy"])
 
         // The roster a browser reads carries the truth about both: the build has
         // no rows here (these doubles are not the bundle's), so what it says is

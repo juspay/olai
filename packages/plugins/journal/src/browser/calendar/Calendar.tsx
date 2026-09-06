@@ -52,7 +52,7 @@ import { createMemo, createSelector, For, Show } from "solid-js"
 import { createDated, createNoted } from "../dates.ts"
 import { createStamped } from "@olai/web/client/stamped.ts"
 import { TESTID, type TestId } from "../../testids.ts"
-import { TARGET_BOX } from "@olai/web/client/touch.ts"
+import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 import { monthGrid, monthLabel, WEEKDAY_HEADINGS } from "./month.ts"
 import { Day } from "./Day.tsx"
 

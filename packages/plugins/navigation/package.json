@@ -1,0 +1,51 @@
+{
+  "name": "olai-plugin-navigation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contract": "./src/index.ts",
+    "./browser": "./src/browser.tsx",
+    "./*": "./src/*",
+    "./routing": "./src/routing.tsx",
+    "./routes": "./src/routes.ts",
+    "./workspace": "./src/workspace.ts",
+    "./landing": "./src/landing.ts",
+    "./pane": "./src/pane/context.tsx",
+    "./opens": "./src/opens.tsx",
+    "./palette-model": "./src/palette/items.ts",
+    "./palette-asking": "./src/palette/asking.ts",
+    "./palette-open": "./src/palette/open.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "solid-js": "^1.9.0",
+    "olai-plugin-ui-renderer": "workspace:*",
+    "@olai/web": "workspace:*",
+    "@olai/format": "workspace:*",
+    "@olai/surface": "workspace:*",
+    "olai-plugin-outlines": "workspace:*",
+    "@solid-primitives/keyed": "^1.5.2",
+    "olai-plugin-layout": "workspace:*",
+    "@olai/edit-history": "workspace:*",
+    "olai-plugin-vault": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./routing",
+      "./routes",
+      "./workspace",
+      "./landing",
+      "./pane",
+      "./opens",
+      "./palette-model",
+      "./palette-asking",
+      "./palette-open"
+    ]
+  }
+}

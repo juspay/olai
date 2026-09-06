@@ -53,8 +53,7 @@ export { selector, TESTID, type TestId } from "./client/testids.ts"
 // holds the count, what deliberately does not, and why.
 export { KEYS_SETTLING } from "./client/quiescence.ts"
 export { ROW_TESTID } from "./client/file/kinds.ts"
-export { type Making, MAKING_DOCUMENT, MAKING_OUTLINE } from "./client/file/making.ts"
-export { REFERRINGS } from "./client/backlinks/way.ts"
+export { type Making, MAKING_DOCUMENT, MAKING_OUTLINE } from "olai-plugin-files/making"
 
 // ── the CLOCK, and the DEADLINES a wait is measured against ────────────────
 //
@@ -64,7 +63,6 @@ export { REFERRINGS } from "./client/backlinks/way.ts"
 // (editing_steps' `tomorrow`'s own argument).
 
 export { isoDayOf } from "./client/clock.ts"
-export { IDLE_COMMIT } from "./client/edit/draft.ts"
 export { LONG_PRESS_MS } from "./client/longPress.ts"
 
 // ── what THIS BROWSER keeps, and the words it is kept under ────────────────
@@ -78,12 +76,10 @@ export { LONG_PRESS_MS } from "./client/longPress.ts"
 // the day one is renamed.
 
 export { ALERT_SOUND_KEY, ALERTS_KEY } from "./client/settings/alerts.ts"
-export { DENSITY_KEY, type Density } from "./client/settings/density.ts"
-export { DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY } from "./client/settings/done.ts"
-export { SIDEBAR_WIDTH_KEY } from "./client/layout/prefs.ts"
-export { DEFAULT_THEME, THEME_ATTRIBUTE, THEME_STORAGE_KEY } from "./client/theme/palettes.ts"
-export { SIZE_STORAGE_KEY } from "./client/theme/sizes.ts"
-export { customProperty } from "./client/theme/css.ts"
+export { SIDEBAR_WIDTH_KEY } from "olai-plugin-layout/preferences"
+export { DEFAULT_THEME, THEME_ATTRIBUTE, THEME_STORAGE_KEY } from "@olai/appearance/palettes.ts"
+export { SIZE_STORAGE_KEY } from "@olai/appearance/sizes.ts"
+export { customProperty } from "@olai/appearance/css.ts"
 
 // ── THREE THAT LEFT WITH THE PANEL ─────────────────────────────────────────
 //
@@ -96,3 +92,5 @@ export { customProperty } from "./client/theme/css.ts"
 
 
 export { BROWSER_MODULES_ID } from "@olai/plugin-api/mount"
+
+export { REFERRINGS, IDLE_COMMIT, DENSITY_KEY, type Density, DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY } from "olai-plugin-outlines/testlib"

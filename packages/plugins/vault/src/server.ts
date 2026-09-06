@@ -81,3 +81,6 @@ export default definePlugin({
     yield* offers.offer(Vault, events.door)
   }).pipe(Effect.provide(NodeServices.layer), Effect.tapCause((cause) => Effect.logError("vault failed to start", cause)), Effect.orDie),
 })
+
+import fileAccess from "./file-access.ts"
+export const components = { fileAccess }

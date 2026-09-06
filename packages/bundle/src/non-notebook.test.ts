@@ -12,7 +12,9 @@ const fixture = "test-counter"
 test("a non-notebook capability runs headless through the ordinary host and returns fresh", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "2026-09-05T00:00:00Z" })
   yield* mountBundle(plugins.host, { kind: "exact", names: [fixture] }, [], "test-minimal")
-  for (const service of [Vault, Directory, Ops]) expect(door(plugins.host, service)).toBeUndefined()
+  expect(door(plugins.host, Vault)).toBeUndefined()
+  expect(door(plugins.host, Directory)).toBeUndefined()
+  expect(door(plugins.host, Ops)).toBeUndefined()
   expect(plugins.composed().map(row => row.name)).toEqual([fixture])
   const runtime = implementRootedSurfaces(defineSurface({}), {}, {})
   const genericTags = Object.keys(runtime.handlers)

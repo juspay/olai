@@ -360,6 +360,8 @@ export const quiescence: Quiescence = createQuiescence(inTheBrowser)
  * It counts a SYNTHETIC key too, because a synthetic key is answered by the
  * same handlers and its effects land the same way.
  */
-export const followKeys = (): void => {
-  window.addEventListener("keydown", () => quiescence.began(), true)
+export const followKeys = (): (()=>void) => {
+  const began=()=>quiescence.began()
+  window.addEventListener("keydown", began, true)
+  return ()=>window.removeEventListener("keydown",began,true)
 }

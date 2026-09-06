@@ -25,7 +25,7 @@
 import { For } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { TARGET } from "../touch.ts"
+import { TARGET } from "@olai/ui-primitives/touch.ts"
 
 export interface Choice<T extends string> {
   readonly value: T

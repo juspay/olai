@@ -41,8 +41,8 @@
 
 import { For, Show } from "solid-js"
 
-import { Link } from "../router.tsx"
-import { atFile } from "../routes.ts"
+import { Link } from "olai-plugin-navigation/routing"
+import { atFile } from "olai-plugin-navigation/routes"
 import { TESTID } from "../testids.ts"
 import { SAID, type Trouble } from "./banner.ts"
 import { Lede } from "./Lede.tsx"

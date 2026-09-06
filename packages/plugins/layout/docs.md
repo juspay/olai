@@ -40,3 +40,9 @@ implementation. Tools may opt into the mobile header when there is no sidebar.
 Both preferences and the inspector now contribute through `layout.tools`;
 layout imports neither implementation. Entries supply their header/drawer order
 and decide whether to appear on mobile pages without a sidebar.
+
+Pane geometry, resizing and responsive preferences live in the layout package.
+The frame consumes navigation state and renders registered overlays and content
+status presentations. It creates no outline history, drag registry, document
+state or directory subscription. Alternate layouts can use navigation's public
+page outlet with the same content registrations.

@@ -23,7 +23,7 @@
  */
 
 import { TESTID } from "./testids.ts"
-import { TARGET } from "./touch.ts"
+import { TARGET } from "@olai/ui-primitives/touch.ts"
 
 export function Reload(props: { readonly onReload: () => void }) {
   return (

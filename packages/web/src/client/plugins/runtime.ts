@@ -493,7 +493,6 @@ export const only = <S extends SingleSlot>(slot: S): Hung<SlotFaces[S]> | null =
 }
 
 /** Transitional navigation publication; other furniture belongs to plugins. */
-export const provideFileLinks = (links: Links): Promise<void> => run(app.supply(Links, links))
 
 export { browserReports }
 

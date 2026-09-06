@@ -40,7 +40,7 @@
  */
 
 import type { AppCommand, RowAction } from "@olai/plugin-api"
-import { setPanelOpen } from "@olai/web/client/layout/prefs.ts"
+import { setPanelOpen } from "olai-plugin-layout/preferences"
 import { runAsync } from "@olai/web/client/run.ts"
 import { Result } from "effect"
 import { onCleanup, type JSX } from "solid-js"

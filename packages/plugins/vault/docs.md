@@ -22,3 +22,9 @@ format catalogue and schema; a different storage implementation can stand behind
 
 See [running olai](../running.md) for profiles and configuration, and
 [the plugin system](../internal/plugin-system.md) for lifecycle ordering.
+
+The browser entry supplies `vault.files`: one activation-owned directory/head
+reading and static membership accessors. Content providers consume this file
+access directly. The files plugin owns browsing UI and may leave without
+withdrawing an already open outline or Markdown document. Navigation owns the
+address resolver over the vault's membership, independently of that UI.

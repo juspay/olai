@@ -117,7 +117,7 @@ import { dirOf, folded, type Folded, matchFiles, nameOf } from "@olai/web/client
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
 import { QUIET_PILL } from "@olai/web/client/pill.ts"
-import { useServed } from "@olai/web/client/served.tsx"
+import { useServed } from "olai-plugin-vault/files"
 import { TESTID } from "../../testids.ts"
 import { olai } from "@olai/web/client/wire.ts"
 import { scopable } from "./scopable.ts"

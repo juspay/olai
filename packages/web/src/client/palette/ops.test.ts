@@ -13,7 +13,7 @@ import { derive, zoom } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { filterItems } from "./items.ts"
+import { filterItems } from "olai-plugin-navigation/palette-model"
 import { opItems } from "./ops.ts"
 
 const HOUSE = [

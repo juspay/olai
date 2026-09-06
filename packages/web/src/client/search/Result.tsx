@@ -79,8 +79,8 @@
 
 import { createMemo, For, Show } from "solid-js"
 
-import { renderTitle, sameDrawing } from "../markdown/title.ts"
-import { TitleHtml } from "../markdown/TitleHtml.tsx"
+import { renderTitle, sameDrawing } from "@olai/markdown-ui/title.ts"
+import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 
 import type { DirectoryKind } from "../file/icons.tsx"
 import { Glyph } from "../file/icons.tsx"

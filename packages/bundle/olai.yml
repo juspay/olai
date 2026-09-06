@@ -150,3 +150,38 @@
   name: olai-plugin-theme
 - id: plugin-inspector
   name: olai-plugin-plugin-inspector
+
+# Independent navigation, content and directory capabilities.
+- id: navigation
+  name: olai-plugin-navigation
+- id: outlines
+  name: olai-plugin-outlines/server
+  profiles: [surface]
+- id: markdown
+  name: olai-plugin-markdown/server
+  profiles: [surface]
+- id: files
+  name: olai-plugin-files/server
+  profiles: [surface]
+- id: pins
+  name: olai-plugin-pins/server
+  profiles: [surface]
+- id: capture
+  name: olai-plugin-capture/server
+  profiles: [surface]
+- id: trash
+  name: olai-plugin-trash/server
+  profiles: [surface]
+
+# Maintained acceptance fixture, never selected by normal profiles.
+- id: test-layout
+  name: olai-plugin-test-layout
+  disabled: true
+  profiles: [test-minimal]
+- id: test-counter
+  name: olai-plugin-test-counter/server
+  disabled: true
+  profiles: [test-minimal]
+- id: vault-plugins
+  name: olai-plugin-vault-plugins/server
+  profiles: [surface]

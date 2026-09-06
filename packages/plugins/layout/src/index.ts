@@ -7,9 +7,7 @@ export const name = "layout"
 /** Transitional notebook inputs, removed as content readings become services.
  * The contract imports no sidebar implementation. */
 export interface SidebarProps {
-  readonly active: string | undefined
-  readonly broken: ReadonlyMap<string, BrokenFile>
-  readonly inboxHeld: InboxHeld
+  readonly Resize:()=>JSX.Element
   readonly foot?: JSX.Element
   readonly open: boolean
   readonly onClose: () => void
@@ -29,3 +27,19 @@ export interface LayoutTool {
   readonly mobileWithoutSidebar?: boolean
 }
 export const tools = location<LayoutTool>("layout.tools")
+
+import { serviceTag } from "@olai/plugin-api/contracts"
+import type { Accessor } from "solid-js"
+export const deployment = serviceTag<{readonly called: Accessor<string | undefined>}>("layout.deployment")
+
+/** Optional capability status can hold its content while initial data arrives,
+ * and render its own diagnosis. Layout knows neither files nor domain errors. */
+export const contentStatus = location<{readonly ready:()=>boolean;readonly Message:()=>JSX.Element}>("layout.contentStatus")
+
+export const overlays = location<(props:{readonly toggleDirectory:()=>void})=>JSX.Element>("layout.overlays")
+
+let panelHandle:(()=>JSX.Element)|undefined
+export function holdPanelHandle(value:()=>JSX.Element):()=>void {
+ panelHandle=value;return ()=>{if(panelHandle===value)panelHandle=undefined}
+}
+export function PanelHandle():JSX.Element {return panelHandle?.()}

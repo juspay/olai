@@ -1,3 +1,5 @@
+import {Clocks} from "@olai/plugin-api"
+import {fileAccess} from "olai-plugin-vault/contract"
 /**
  * CHAT'S BROWSER HALF — the right panel, the sidebar's agents section, the door
  * on an agent row, the two verbs on a row's `•••`, and the palette's `>`.
@@ -87,7 +89,7 @@ const SECTION = "Agents"
 
 export default definePlugin({
   name,
-  needs: [Faces, Slots, Wired, alertSettings],
+  needs: [Faces, Slots, Wired, alertSettings, fileAccess, Clocks],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
     const faces = yield* Faces
@@ -143,7 +145,17 @@ import { alertSettings, createAlerts, holdAlerts } from "./browser/alerts.ts"
 import { AlertRows } from "./browser/AlertRows.tsx"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { sections } from "olai-plugin-preferences/contract"
+import { appearance } from "olai-plugin-theme/contract"
+import { createEffect, createRoot } from "solid-js"
 export const components = {
+  "tab-attention": definePlugin({ name: "tab-attention", needs: [appearance, alertSettings], apply: Effect.gen(function*() {
+    const view = yield* appearance
+    const alerts = yield* alertSettings
+    yield* Effect.acquireRelease(Effect.sync(() => createRoot((dispose) => {
+      createEffect(() => view.chrome.waiting(alerts.tabWaiting()))
+      return dispose
+    })), (dispose) => Effect.sync(() => { dispose(); view.chrome.waiting(false) }))
+  }) }),
   speaker,
   alerts: definePlugin({ name: "alerts", needs: [Offers], apply: Effect.gen(function*() {
     const state = yield* createAlerts

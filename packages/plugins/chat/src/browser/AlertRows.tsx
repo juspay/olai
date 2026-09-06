@@ -3,7 +3,7 @@ import { Show } from "solid-js"
 import { askToNotify, notifyConsent } from "@olai/web/client/notify.ts"
 import { Row } from "@olai/web/client/settings/Row.tsx"
 import { Segmented } from "@olai/web/client/settings/Segmented.tsx"
-import { TARGET } from "@olai/web/client/touch.ts"
+import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { TESTID } from "@olai/web/client/testids.ts"
 import { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } from "./alerts.ts"
 

@@ -1,5 +1,5 @@
-import { For } from "solid-js"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
+import { For } from "solid-js"
 import { tools } from "./index.ts"
 
 export function Tools(props: {

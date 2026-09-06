@@ -25,7 +25,10 @@
     "@olai/plugin-api": "workspace:*",
     "@olai/web": "workspace:*",
     "effect": "4.0.0-rc.112",
-    "solid-js": "^1.9.0"
+    "solid-js": "^1.9.0",
+    "olai-plugin-navigation": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "@olai/store": "workspace:*"
   },
   "//devDependencies": "@olai/store for the differential test that drives the real write gate across a series of writes (src/matcher.index.test.ts, which was `@olai/ops`' `search.index.test.ts` and moved with the table it is about). @effect/platform-node is that test's file system. @types/node is the path and fs it stages a directory with.",
   "devDependencies": {

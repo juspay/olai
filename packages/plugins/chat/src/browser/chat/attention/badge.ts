@@ -58,7 +58,7 @@
 import { isInstalledFromEnv } from "@kolu/surface-app/solid"
 
 import { grumble } from "@olai/web/client/grumble.ts"
-import { markWaiting } from "@olai/web/client/theme/chrome.ts"
+import { tabWaiting } from "../../alerts.ts"
 
 /** Which of the two channels a page in this shape uses. */
 export type Channel = "app" | "tab"
@@ -133,5 +133,5 @@ export const wear = (count: number): void => {
     void asked?.catch(noBadge)
     return
   }
-  markWaiting(count > 0)
+  tabWaiting(count > 0)
 }

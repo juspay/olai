@@ -47,3 +47,5 @@ node_modules
 /*.log
 
 /packages/bundle/src/assets.generated.ts
+
+/packages/bundle/src/policy.generated.ts

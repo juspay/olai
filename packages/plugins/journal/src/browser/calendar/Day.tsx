@@ -32,9 +32,9 @@
  * a reader moves through it.
  */
 
-import { Link } from "@olai/web/client/router.tsx"
+import { Link } from "olai-plugin-navigation/routing"
 import { TESTID } from "../../testids.ts"
-import { TARGET } from "@olai/web/client/touch.ts"
+import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { dayNumber } from "./month.ts"
 import { dayRoute } from "../routes.ts"
 

@@ -22,9 +22,9 @@
 import type { FileDiff } from "@olai/acp/wire"
 import { createMemo, For, Show } from "solid-js"
 
-import { GLYPH, SAID } from "@olai/web/client/changes.ts"
-import { renderTitle } from "@olai/web/client/markdown/title.ts"
-import { TitleHtml } from "@olai/web/client/markdown/TitleHtml.tsx"
+import { GLYPH, SAID } from "olai-plugin-outlines/changes"
+import { renderTitle } from "@olai/markdown-ui/title.ts"
+import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { TESTID } from "../../testids.ts"
 import { isUnfolded, toggleFold } from "./folds.ts"
 import { outlineDiffOf } from "./outline.ts"

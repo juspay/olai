@@ -12,8 +12,9 @@
 import { definePlugin, locations, Offers, slotFacade } from "@olai/plugin-api"
 import { BrowserMount } from "@olai/plugin-api/mount"
 import { Effect } from "effect"
-import { createSignal, ErrorBoundary, For, untrack } from "solid-js"
+import { createRoot, createSignal, ErrorBoundary, For, untrack } from "solid-js"
 import { render } from "solid-js/web"
+import { holdLocationReader } from "./contracts/read.ts"
 import { name, root } from "./index.ts"
 
 export default definePlugin({
@@ -26,6 +27,7 @@ export default definePlugin({
       changed: () => { changed?.(); setRevision((value) => value + 1) },
       reading: () => { revision() },
     })
+    yield* Effect.acquireRelease(Effect.sync(() => holdLocationReader(slots.read)), stop => Effect.sync(stop))
     const compatibility = slotFacade({ ...slots, read: (slot) => {
       // Legacy consumers track the host's batched signal. The registry's own
       // signal is for renderer roots and native location readers.
@@ -51,8 +53,13 @@ export default definePlugin({
 // Clock consumers can wait for their locations independently of the renderer
 // root. Withdrawal of this row releases the service and its consumers.
 import { clocks } from "./clocks.ts"
+import { createToday } from "@olai/web/client/clock.ts"
+import { holdToday } from "@olai/web/client/today.tsx"
 export const components = {
   clocks: definePlugin({ name: "clocks", needs: [Offers], apply: Effect.gen(function*() {
+    yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{
+      const stop=holdToday(createToday()); return ()=>{dispose();stop()}
+    })),stop=>Effect.sync(stop))
     yield* (yield* Offers).own("clocks", () => clocks)
   }) }),
 }

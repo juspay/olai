@@ -55,7 +55,7 @@ import { type JSX, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import type { Anchor } from "./anchor.ts"
-import { ENTRY_SHAPE, ROW_GAP } from "./layout/entry.ts"
+import { ENTRY_SHAPE, ROW_GAP } from "olai-plugin-layout/entry"
 import { createPopover, type HeldOpen } from "./popover.ts"
 import { ICON_BUTTON } from "./readout.ts"
 

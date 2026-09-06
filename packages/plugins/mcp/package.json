@@ -10,7 +10,8 @@
     "./server": "./src/server.ts",
     "./testids": "./src/testids.ts",
     "./testlib": "./src/testlib.ts",
-    "./client": "./src/tools.ts"
+    "./client": "./src/tools.ts",
+    "./contract": "./src/contract.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

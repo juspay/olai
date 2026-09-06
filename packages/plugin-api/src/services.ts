@@ -381,6 +381,20 @@ export interface ComposedKind extends PropKind {
  * is no line anywhere for the two to drift apart on.
  */
 export interface Sibling {
+  /** Preserve this capability's standalone tags at the public boundary.
+   * Ownership and channels remain scoped to its plugin generation; the host
+   * rejects tag collisions before mounting. Used by extracted wire contracts,
+   * not by a permanent catch-all application surface. */
+  readonly root?: boolean
+  /** Public procedure tags whose calls use transport-supplied attribution. */
+  readonly writes?: ReadonlyArray<string>
+  /** Disjoint variants of a preserved procedure can have different owners.
+   * Each public tag names an input field and the literal cases this provider
+   * handles. Composition proves matching schemas and refuses overlaps. */
+  readonly dispatch?: Readonly<Record<string, {
+    readonly field: string
+    readonly cases: ReadonlyArray<string>
+  }>>
   /** The plugin's own surface — a `Surface<Spec>`, opaque on this side of the
    *  wall for the reason `deps` is. */
   readonly surface: { readonly spec: unknown }
@@ -1548,3 +1562,5 @@ export const SERVICE_KEYS: ReadonlyArray<string> = SERVICES.map((one) => one.cor
 /** THE SLOT CATALOG, from the one module both processes may open — see
  *  `./slots.ts` on why it is not `./browser.ts`'s any more. */
 export { SLOTS, type SlotKey } from "./slots.ts"
+
+export { HostLoading, openLoading, type Catalog, type OwnedLoader } from "./loading.ts"

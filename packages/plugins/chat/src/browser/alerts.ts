@@ -1,6 +1,7 @@
 /** Fresh browser preferences per chat activation. The provider has no shell or
  * preferences dependency; its UI integration can wait without stopping alerts.
  * Withdrawals detach storage listeners and invalidate retained setters. */
+import { createSignal } from "solid-js"
 import { Effect } from "effect"
 import { serviceTag } from "@olai/plugin-api/contracts"
 import { boolCodec, createPreference } from "@olai/web/client/preference.ts"
@@ -9,6 +10,7 @@ import { ALERTS_KEY, ALERT_SOUND_KEY } from "@olai/web/client/settings/alerts.ts
 export const createAlerts = Effect.gen(function*() {
   const alerts = createPreference(ALERTS_KEY, boolCodec(true))
   const sound = createPreference(ALERT_SOUND_KEY, boolCodec(true))
+  const [tabWaiting, setTabWaiting] = createSignal(false)
   let active = true
   yield* Effect.addFinalizer(() => Effect.sync(() => { active = false }))
   for (const preference of [alerts, sound]) {
@@ -18,7 +20,7 @@ export const createAlerts = Effect.gen(function*() {
     if (!active) throw new Error("The chat alert provider is no longer active")
     preference.set(value)
   }
-  return { alertsOn: alerts.value, alertSoundOn: sound.value,
+  return { tabWaiting, setTabWaiting: (value: boolean) => { if (active) setTabWaiting(value) }, alertsOn: alerts.value, alertSoundOn: sound.value,
     setAlertsOn: (value: boolean) => set(alerts, value),
     setAlertSoundOn: (value: boolean) => set(sound, value) }
 })
@@ -37,3 +39,5 @@ export const alertsOn = () => read().alertsOn()
 export const alertSoundOn = () => read().alertSoundOn()
 export const setAlertsOn = (value: boolean) => read().setAlertsOn(value)
 export const setAlertSoundOn = (value: boolean) => read().setAlertSoundOn(value)
+
+export const tabWaiting = (value: boolean) => read().setTabWaiting(value)

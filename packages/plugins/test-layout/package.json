@@ -3,8 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./browser": "./src/browser.tsx", "./all.css": "./src/all.css" },
-  "scripts": { "typecheck": "tsc --noEmit" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./browser": "./src/browser.tsx",
+    "./all.css": "./src/all.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "@olai/plugin-api": "workspace:*",
     "@olai/format": "workspace:*",

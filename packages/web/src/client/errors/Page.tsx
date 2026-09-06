@@ -31,7 +31,7 @@
 
 import type { Verdict } from "@olai/format"
 
-import { SHEET } from "../layout/sheet.ts"
+import { SHEET } from "olai-plugin-layout/sheet"
 import { PAGE_TITLE } from "../look.ts"
 import { TESTID } from "../testids.ts"
 import { Lede } from "./Lede.tsx"

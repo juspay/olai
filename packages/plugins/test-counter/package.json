@@ -3,7 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/wire.ts", "./wire": "./src/wire.ts", "./server": "./src/server.ts", "./browser": "./src/browser.tsx", "./all.css": "./src/all.css" },
-  "scripts": { "typecheck": "tsc --noEmit" },
-  "dependencies": { "@olai/plugin-api": "workspace:*", "effect": "4.0.0-rc.112", "solid-js": "^1.9.0", "olai-plugin-ui-renderer": "workspace:*" }
+  "exports": {
+    ".": "./src/wire.ts",
+    "./wire": "./src/wire.ts",
+    "./server": "./src/server.ts",
+    "./browser": "./src/browser.tsx",
+    "./all.css": "./src/all.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "solid-js": "^1.9.0",
+    "olai-plugin-ui-renderer": "workspace:*"
+  }
 }

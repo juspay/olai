@@ -249,3 +249,10 @@ import type { BuildAssets } from "./assets.ts"
 ${assetRows.map((row, at) => `import p${at} from ${quoted(`${packageOf(row)}/assets`)}`).join("\n")}
 export const BUILD_ASSETS: ReadonlyArray<BuildAssets> = [${assetRows.map((_, at) => `p${at}`).join(", ")}]
 `)
+
+const policyRows = rows.filter((row) => hasDoor(row, "./policy"))
+writeFileSync(join(SRC, "policy.generated.ts"), `${HEADER("Static write reservations; enforced even when the runtime owner is disabled.")}
+import type { WriteReservation } from "./policy.ts"
+${policyRows.map((row, at) => `import { writeReservations as p${at} } from ${quoted(`${packageOf(row)}/policy`)}`).join("\n")}
+export const WRITE_RESERVATIONS: ReadonlyArray<WriteReservation> = [${policyRows.map((_, at) => `...p${at}`).join(", ")}]
+`)

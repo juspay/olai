@@ -4,9 +4,9 @@ import { DocumentPath, NodeId } from "@olai/format"
 import type { AppCommand, Hung } from "@olai/plugin-api"
 import type { NodeHit } from "@olai/surface"
 
-import { atFile, atNode } from "../routes.ts"
-import { atOnce } from "../settled.ts"
-import { commandsIn, filterItems, hitItem, modeOf, SHELL_ITEMS } from "./items.ts"
+import { atFile, atNode } from "olai-plugin-navigation/routes"
+import { atOnce } from "@olai/web/client/settled.ts"
+import { commandsIn, filterItems, hitItem, modeOf, SHELL_ITEMS } from "olai-plugin-navigation/palette-model"
 
 /** A plugin's command, as the slot hands it over. `run` answers "it landed",
  *  which is the one thing none of these tests presses. */

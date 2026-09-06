@@ -1,6 +1,6 @@
-import { sidebar } from "./index.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { For } from "solid-js"
+import { contentStatus,overlays,sidebar } from "./index.ts"
 /**
  * The whole app: a header of the app's own chrome, a sidebar of the directory,
  * and one or more panes, each a full page.
@@ -22,87 +22,32 @@ import { For } from "solid-js"
  * (`./reading.tsx`), asked of the address that pane is drawing.
  */
 
-import { NOTHING_WRONG } from "@olai/format"
 import {
-  createEffect,
-  createMemo,
-  createRenderEffect,
-  createSignal,
-  Match,
-  on,
-  Show,
-  Switch,
+createEffect,
+createRenderEffect,
+createSignal,
+Show
 } from "solid-js"
 
-import { Header } from "./Header.tsx"
-import { PluginBanners } from "@olai/web/client/plugins/Chrome.tsx"
-import { createToday } from "@olai/web/client/clock.ts"
-import { createInboxHeld } from "@olai/web/client/inbox.ts"
 import { Offline } from "@olai/web/client/connection/Offline.tsx"
-import { createDirectory } from "@olai/web/client/directory.ts"
-import { AirProvider, createAir } from "@olai/web/client/drag/air.ts"
-import { createFields, FieldsProvider } from "@olai/web/client/drag/fields.ts"
-import { reachable } from "@olai/web/client/connection/reaching.ts"
-import { createRefiling } from "@olai/web/client/fold/refiling.ts"
-import { createDocuments, DocumentsProvider } from "@olai/web/client/document/documents.tsx"
-import { createUndo, UndoContext } from "@olai/web/client/edit/undoing.ts"
-import { UndoSaid } from "@olai/web/client/edit/UndoSaid.tsx"
-import { troubleIn } from "@olai/web/client/errors/banner.ts"
-import { Page as ErrorPage } from "@olai/web/client/errors/Page.tsx"
-import { desktop } from "@olai/web/client/layout/media.ts"
-import { panelOpen, sidebarOpen, toggleSidebar } from "@olai/web/client/layout/prefs.ts"
-import { only } from "@olai/web/client/narrow.ts"
-import { OpensProvider } from "@olai/web/client/opens.tsx"
-import { fileOf, opensAt, requestFor } from "@olai/web/client/page.ts"
-import { HOME_ROUTE, fileNamed } from "@olai/web/client/routes.ts"
-import { createReadings, ReadingsProvider } from "@olai/web/client/reading.tsx"
-import { Palette } from "@olai/web/client/palette/Palette.tsx"
-import { PinsProvider } from "@olai/web/client/pins/answered.tsx"
-import { pinSaid } from "@olai/web/client/pins/pinning.ts"
-import { Panes } from "@olai/web/client/pane/Panes.tsx"
-import { KEYS_SETTLING, quiescence } from "@olai/web/client/quiescence.ts"
-import { SHEET, SHELL_LONE, SHELL_SPLIT } from "@olai/web/client/layout/sheet.ts"
-import { createRouter, RouterProvider } from "@olai/web/client/router.tsx"
-import { runAsync } from "@olai/web/client/run.ts"
-import { ServedProvider } from "@olai/web/client/served.tsx"
+import { Panes } from "olai-plugin-layout/pane/Panes.tsx"
+import { PluginBanners } from "@olai/web/client/plugins/Chrome.tsx"
 import { PluginsMounted } from "@olai/web/client/plugins/Mounted.tsx"
 import { PluginPanel } from "@olai/web/client/plugins/Seats.tsx"
-import { pageFileOf } from "@olai/web/client/settings/done.ts"
+import { KEYS_SETTLING,quiescence } from "@olai/web/client/quiescence.ts"
+import { connectionReadout } from "@olai/web/client/wire.ts"
+import { desktop } from "olai-plugin-layout/media"
+import { panelOpen,sidebarOpen,toggleSidebar } from "olai-plugin-layout/preferences"
+import { SHELL_LONE,SHELL_SPLIT } from "olai-plugin-layout/sheet"
+import { HOME_ROUTE } from "olai-plugin-navigation/routes"
+import { RouterProvider } from "olai-plugin-navigation/routing"
+import { isLone } from "olai-plugin-navigation/workspace"
+import { Header } from "./Header.tsx"
+import { SidebarHandle } from "./layout/Handle.tsx"
 import { Tools } from "./Tools.tsx"
-import { TodayProvider } from "@olai/web/client/today.tsx"
-import { connectionReadout, olai } from "@olai/web/client/wire.ts"
-import { isLone } from "@olai/web/client/workspace.ts"
 
-export default function Frame(props: { readonly slots: RendererSlots }) {
-  // The frame outlives plugin provider changes; its undo history needs no outer store.
-  const undo = createUndo((edit) => runAsync(olai.procedures.edit.apply(edit)))
-  /** THE DIRECTORY — every served file's path, title and breakage, and nothing
-   *  else about the vault (`./directory.ts`). What this replaced was a
-   *  subscription to every record of every outline, folded into a second copy
-   *  of the whole set. */
-  const directory = createDirectory(
-    olai.collections.heads.use(),
-    olai.cells.manifest.use().value,
-  )
-  /** Every open pane's own reading, for the chrome that has to agree with the
-   *  FOCUSED one — the sidebar entry that lights up, the palette's write verbs,
-   *  undo's idea of the open file (`./reading.tsx`). Each pane joins as it
-   *  mounts, exactly as it joins the drag register below. */
-  const readings = createReadings()
-  /** Every editable page on screen, for the one gesture that is about more
-   *  than the page it began in: a row dragged out of one pane and dropped in
-   *  the next (`./drag/fields.ts`). The WORKSPACE owns it because the drag is
-   *  the workspace's; each page joins as it mounts and leaves with itself. */
-  const fields = createFields()
-  /** What a live drag is carrying, for the WORKSPACE rather than for the pane
-   *  the press landed in: the same rows may be drawn in two panes at once, and
-   *  both have to show them lifted (`./drag/air.ts`). */
-  const air = createAir()
-  const documents = createDocuments()
-  const errors = olai.cells.errors.use()
-
-  const router = createRouter()
-  const today = createToday()
+export default function Frame(props: { readonly slots: RendererSlots; readonly router: import("olai-plugin-navigation/contract").Navigation }) {
+  const router = props.router
 
   const [menuOpen, setMenuOpen] = createSignal(false)
 
@@ -111,175 +56,10 @@ export default function Frame(props: { readonly slots: RendererSlots }) {
     if (desktop()) setMenuOpen(false)
   })
 
-  const problems = () => errors.value() ?? NOTHING_WRONG
-  /** WHAT IS WRONG with the served directory, as the one value the banner
-   *  draws — read here rather than in the pane list, because the two facts it
-   *  is made of are both this component's (`./errors/banner.ts`). */
-  const trouble = createMemo(() => troubleIn(directory.broken(), problems()))
-
-  /**
-   * Whether there is a set at all — the directory's three states (still
-   * reading, never loaded, a directory) folded to the one bit every reader
-   * below needs.
-   *
-   * ONE SPELLING, and it is worth a name because there were about to be two:
-   * a question worth asking the server about (`owed`, below) and the chrome
-   * that only draws over a directory (the header's `docked`) are the same bit,
-   * and the two predicates this replaces differed on the frame before the
-   * first — the exact shape of divergence a second spelling exists to produce.
-   * A THIRD nearly appeared with the page readings and was collapsed into this
-   * one rather than written: the chrome used to be gated on the focused PAGE
-   * existing, which could only ever be true once a directory had loaded, and is
-   * now a page each pane waits for where its own `Reading…` line is. The one
-   * reader that genuinely needs all THREE states is the `Switch` below, which
-   * has to tell "still reading" from "never loaded"; it names the state
-   * itself, because folding is what this is and that reader is not folding.
-   *
-   * NEITHER OF THEM DECIDES ANYTHING, and that is `manifest-fold-skew`'s
-   * change: this used to read the manifest cell's own `Manifest | undefined`
-   * and spell the three-way test here, one of two spellings in this file. Which
-   * of the three states a tab is in is answered where both halves of the answer
-   * are held (`./directory.ts` — the cell alone can be the older of the two),
-   * and what is left here is a name for the bit the chrome wants.
-   */
-  const loaded = () => directory.standing() === "loaded"
-
-  /**
-   * THE FOCUSED PANE's reading — the ONE thing the chrome outside the panes
-   * takes from a page rather than from the address: what a `/#id` turned out to
-   * name, and what the ids that page points at are called.
-   *
-   * READ OFF THE PANE rather than asked for again here, which is the whole
-   * reason the register exists: each pane subscribes to the address it is
-   * drawing, and a second subscription to the focused one would be the same
-   * page fetched twice, on every revision, for the length of every split
-   * workspace. `undefined` is a pane that has not mounted or has never been
-   * answered — the frame where the chrome knows no file, which is what it drew
-   * before the first snapshot in any case. It is NOT the beat a navigation
-   * spends in flight: a reading holds its last answer across the next question
-   * (`./reading.tsx`), so what this reads is what is on screen.
-   *
-   * AND IT IS ASKED LAST, which is this composition's rule since
-   * `reactivity-after-the-flip`: where am I is the ROUTE's answer and it is
-   * synchronous, so the entry that lights, the day the month opens on and the
-   * page undo belongs to are read off the address that names them — and the
-   * reading is consulted only for what an address cannot say. Derived from the
-   * page instead, every one of them went `A → undefined → B` on every click:
-   * the open file's folder chain folded and was rebuilt, the current wash went
-   * out for a round trip, and undo's stack was cleared twice
-   * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §3.1).
-   */
-  const focused = createMemo(() => readings.at(router.workspace().focus))
-
-  /** How full the inbox is — the door beside Agenda wears this number. One
-   *  subscription, so a second reader cannot open a second cell. */
-  const inboxHeld = createInboxHeld()
-
-  /**
-   * This browser's fold memory, kept filed against the set — a node that moved
-   * keeps its fold under the file it moved to, and a node that is gone stops
-   * being remembered (`./fold/refiling.ts`).
-   *
-   * HERE rather than beside `followFolds()` in `main.tsx`, which is where the
-   * rest of the fold's wiring is started: this one is a computation over two
-   * signals and Solid only owns a computation inside a render. Nothing on
-   * screen reads it and it returns nothing — the memory it tidies is read
-   * wherever a row asks `collapsedNodes`, exactly as before.
-   *
-   * THE WIRE IS HANDED IN, exactly as `createUndo` below is handed its write:
-   * that module is a rule about when to ask and what to believe, and one that
-   * could only be exercised by pressing a triangle in a browser is one nothing
-   * checks. This is the caller that has a wire.
-   */
-  createRefiling({
-    ask: (request) => runAsync(olai.procedures.nodes.homes(request)),
-    reachable: () => reachable(connectionReadout()),
-  })
-
-  const zoomed = createMemo(() => {
-    const shows = focused()?.shows
-    if (shows === undefined) return undefined
-    const node = only(shows, "node")
-    return node === undefined ? undefined : only(node.zoomed, "node")
-  })
-
-  /**
-   * THE OPEN FILE — the sidebar entry that lights up, and the outline undo's
-   * stack belongs to.
-   *
-   * THE ADDRESS ANSWERS IT wherever an address can: every file route names its
-   * file (`./routes.ts`'s `fileNamed`), so the entry lights in the same frame the
-   * link is clicked and the open folder above it never folds. What is left is
-   * the two addresses that name no file — a `/#id`, whose canonical file is the
-   * set's answer and not the URL's, and the front page, which is "whichever
-   * outline was found first" — and those are read off the page, which is where
-   * they were resolved (`./page.ts`'s `fileOf`).
-   *
-   * SO A ZOOM KEEPS THE STACK. `/house.olai` → `/#install` is one file
-   * throughout: the address stops naming it and the page on screen still says
-   * it, so this memo does not move and the effect below does not fire. It used
-   * to fire twice per navigation — once on the blank and once on the answer —
-   * which cleared the outline's undo stack for a zoom in or out of a node of the
-   * outline being read, against `./edit/undoing.ts`'s own promise ("the edits
-   * you made on this outline").
-   */
-  const openFile = createMemo(() => {
-    const named = fileNamed(router.route())
-    if (named !== undefined) return named
-    const shows = focused()?.shows
-    return shows === undefined ? undefined : fileOf(shows)
-  })
-  createEffect(on(openFile, () => undo.clear(), { defer: true }))
-
-  /**
-   * What the ids the FOCUSED page points at are called — the one field of a
-   * reading the chrome outside the panes needs, for the shelf's ⌘K row: a
-   * `/#id` page is called whatever that node is called right now
-   * (`./pins/palette.ts`).
-   *
-   * READ OFF THE PANE'S TABLE, not built here. `createReading` derives it
-   * once beside the page; a second `createNames` over `focused` was a
-   * duplicate Map and a second copy on every navigation (`./reading.tsx`).
-   */
-  const names = () => readings.names(router.workspace().focus)
-
   const split = () => !isLone(router.workspace())
 
   return (
-    <UndoContext.Provider value={undo}>
       <RouterProvider router={router}>
-      {/* EVERY OPEN PANE'S READING, for the chrome that is about more than one
-          page: the sidebar's active entry, the palette's verbs, undo's file
-          (./reading.tsx). */}
-      <ReadingsProvider value={readings}>
-      {/* THE SHELF, as the server answers it — a subscription and a context,
-          around everything that reads it: the sidebar draws it, the palette's
-          row and the ⌘⇧P chord ask whether this page is on it, and every row's
-          ••• asks the same about its node (./pins/answered.tsx). */}
-      <PinsProvider>
-      <FieldsProvider value={fields}>
-      <AirProvider value={air}>
-      <OpensProvider opens={(path, at) => opensAt(directory.paths(), path, at)}>
-      <ServedProvider paths={directory.paths()} head={directory.head}>
-      {/* EVERY PLUGIN'S TAB HALF, around the page — one line, and this file
-          names no tenant (`./plugins/Mounted.tsx`).
-
-          It used to be two providers here, each with a paragraph explaining an
-          appliance to a reader of the app's composition root, and each holding
-          one of that appliance's own surface members: a kolu half bound to the
-          composed client, and a CI half bound to `cells.ci`. Both sat where
-          they did for one reason and it is still the reason each of them sits
-          inside its own package now — its reader is a LEAF DRAWN PER ROW (a
-          property chip), and a subscription per chip is what this arrangement
-          exists to refuse, so a plugin subscribes ONCE, here, and hands every
-          leaf an accessor.
-
-          What the app supplies is the plugin's own client, addressed by the
-          one word core has about it, and the app's own FURNITURE — the clock,
-          the bar's geometry, the popover, a door onto a file — because the
-          wire is the app's to compose and the cadence is the app's to choose.
-          Which members exist and how they are bound is each appliance's
-          business, and this file no longer contains a word of it. */}
       <PluginsMounted>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
           the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
@@ -289,7 +69,6 @@ export default function Frame(props: { readonly slots: RendererSlots }) {
           would be a second `createToday()` — a second midnight timer and a
           second answer to what day it is, in a tab that is supposed to have
           one. */}
-      <TodayProvider today={today()}>
       {/* THE FREEZE, over everything — the app takes no gesture at all while
           the wire cannot carry a question (`./connection/Offline.tsx`, the
           human's §5b ruling). It is drawn beside the chrome rather than inside
@@ -302,25 +81,9 @@ export default function Frame(props: { readonly slots: RendererSlots }) {
           of a feature by name; the shell keeps the seat's geometry and the plugin
           draws inside it (`./plugins/Seats.tsx`). */}
       <PluginPanel />
-      <Palette
-        zoomed={zoomed()}
-        names={names()}
-        doneAt={pageFileOf(focused()?.shows)}
-        go={(route) => router.go(route)}
-        toggleDirectory={() => {
-          if (desktop()) toggleSidebar()
-          else setMenuOpen(!menuOpen())
-        }}
-      />
-      {/* ONE LINE for the two gestures in this app that have no row to hang
-          one under: ⌘Z, which is pressed with no draft open, and the shelf's
-          (⌘⇧P and the sidebar's own controls), which is pressed at whatever
-          page the reader is looking at and may be refused before there is a
-          shelf drawn to say so. The pin's is the one that fades — it takes
-          itself away after the usual dwell, where an undo's stands until the
-          next ⌘Z — so "the newer of the two" is what this reads as in
-          practice, and the older one is still there when it goes. */}
-      <UndoSaid said={pinSaid() ?? undo.said()} />
+      <For each={props.slots.read(overlays)}>{({value: Overlay})=><Overlay
+        toggleDirectory={()=>{if(desktop())toggleSidebar();else setMenuOpen(!menuOpen())}}
+      />}</For>
       {/* No ground of its own: `html` is already ink (./styles.css), and what
           shows through here — the strip under a sticky spine on a page taller
           than the viewport — is that same forest either way. */}
@@ -345,9 +108,9 @@ export default function Frame(props: { readonly slots: RendererSlots }) {
       >
         <Header
           slots={props.slots}
-          docked={loaded()}
+          docked={true}
           menu={
-            loaded() && props.slots.read(sidebar).length > 0
+            props.slots.read(sidebar).length > 0
               ? {
                   open: menuOpen(),
                   onToggle: () => setMenuOpen(!menuOpen()),
@@ -363,19 +126,6 @@ export default function Frame(props: { readonly slots: RendererSlots }) {
             "min-h-0": split(),
           }}
         >
-          <Switch fallback={<p class={`${SHEET} p-8 text-muted`}>Reading…</p>}>
-          <Match when={directory.standing() === "never"}>
-            <ErrorPage verdict={problems()} />
-          </Match>
-          {/* THE GATE IS THE DIRECTORY, not the page. It used to be the focused
-              page's own existence, which was the same bit said in a longer way:
-              a page could only be resolved once the tab held a derivation, and a
-              derivation only existed once the manifest had loaded. Each pane
-              waits for its OWN answer now, where its own `Reading…` line is
-              (./pane/PageView.tsx) — so a second pane opening does not blank the
-              sidebar the first one is drawn beside. */}
-          <Match when={loaded()}>
-                <DocumentsProvider documents={documents}>
                   <div
                     class="relative md:grid"
                     classList={{
@@ -390,9 +140,7 @@ export default function Frame(props: { readonly slots: RendererSlots }) {
                     </Show>
                     <Show when={desktop() ? sidebarOpen() : true}>
                       <parts.Sidebar
-                        active={openFile()}
-                        broken={directory.broken()}
-                        inboxHeld={inboxHeld()}
+                        Resize={SidebarHandle}
                         open={desktop() ? true : menuOpen()}
                         onClose={() => setMenuOpen(false)}
                         foot={
@@ -410,22 +158,14 @@ export default function Frame(props: { readonly slots: RendererSlots }) {
                       />
                     </Show>
                     </>}</For>
-                    <Panes trouble={trouble()} />
+                    <div class="min-w-0 bg-paper">
+                      <For each={props.slots.read(contentStatus)}>{({value})=><value.Message/>}</For>
+                      <Show when={props.slots.read(contentStatus).every(({value})=>value.ready())}><Panes trouble={null}/></Show>
+                    </div>
                   </div>
-                </DocumentsProvider>
-            </Match>
-          </Switch>
         </div>
       </div>
-      </TodayProvider>
       </PluginsMounted>
-      </ServedProvider>
-      </OpensProvider>
-      </AirProvider>
-      </FieldsProvider>
-      </PinsProvider>
-      </ReadingsProvider>
       </RouterProvider>
-    </UndoContext.Provider>
   )
 }

@@ -1,6 +1,7 @@
+import type { AgentBinding } from "./binding.ts"
 import { TOOLS } from "@olai/ops"
 import type { OlaiSurfaceClient } from "@olai/surface/client"
-import { currentLogin, currentTicket, mcpTransport, mcpRoute } from "./route.ts"
+import { currentLogin, mcpTransport, mcpRoute } from "./route.ts"
 import { bespokeFrom, pluginTools } from "./tools.ts"
 /** MCP protocol acquisition belongs to the plugin's activation scope. Core
  * supplies the composed, writer-bound face; this plugin owns the HTTP carrier. */
@@ -12,8 +13,7 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import type { TransportSurface } from "@olai/plugin-api/transport"
 import { Effect, type Scope } from "effect"
 
-export const endpoint = (shared: TransportSurface) => Effect.gen(function*() {
-  const policy = yield* shared.prepareAgent(currentTicket)
+export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effect.gen(function*() {
   const transport = mcpTransport()
   yield* serveFace({
     client: policy.client, expose: policy.expose, transport,

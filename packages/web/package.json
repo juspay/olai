@@ -38,7 +38,18 @@
     "unified": "^11.0.5",
     "@olai/bundle": "workspace:*",
     "@olai/plugin-api": "workspace:*",
-    "@olai/plugin-build": "workspace:*"
+    "@olai/plugin-build": "workspace:*",
+    "@olai/appearance": "workspace:*",
+    "olai-plugin-navigation": "workspace:*",
+    "@olai/markdown-ui": "workspace:*",
+    "olai-plugin-files": "workspace:*",
+    "olai-plugin-layout": "workspace:*",
+    "olai-plugin-outlines": "workspace:*",
+    "olai-plugin-pins": "workspace:*",
+    "olai-plugin-trash": "workspace:*",
+    "@olai/edit-history": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "olai-plugin-vault": "workspace:*"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",

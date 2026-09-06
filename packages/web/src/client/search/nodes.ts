@@ -13,7 +13,7 @@ import { type Accessor, createEffect, createMemo, createSignal } from "solid-js"
 
 import type { NodeHit, Refusal, SearchAnswer, SearchHit } from "@olai/surface"
 
-import { SETTLE_MS, type Taking } from "../settled.ts"
+import { SETTLE_MS, type Taking } from "@olai/web/client/settled.ts"
 import { olai } from "../wire.ts"
 
 /** Below this the answer is noise: two characters match half an outline by

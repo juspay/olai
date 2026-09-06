@@ -7,4 +7,4 @@
  * separate listener.
  */
 
-export { panelOpen, setPanelOpen, togglePanel } from "@olai/web/client/layout/prefs.ts"
+export { panelOpen, setPanelOpen, togglePanel } from "olai-plugin-layout/preferences"
