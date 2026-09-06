@@ -912,20 +912,18 @@ Then(
 /** Open it unless it is open, on `showPreferences`'s terms and for its
  *  reason. */
 When("I open the plugins panel", async function (this: OlaiWorld) {
-  if ((await this.page.locator(PLUGINS_PANEL).count()) > 0) return;
-  await this.press(this.page.locator(PLUGINS_TRIGGER));
-  await this.page
-    .locator(PLUGINS_PANEL)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  if ((await this.pluginsPanel().count()) > 0) return;
+  await this.press(this.page.locator(PLUGINS_TRIGGER).locator("visible=true"));
+  await this.pluginsPanel().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 When("I close the plugins panel", async function (this: OlaiWorld) {
-  const trigger = this.page.locator(PLUGINS_TRIGGER);
+  const trigger = this.page.locator(`${PLUGINS_TRIGGER}:visible`);
   // A plugin rebuild can retain the panel while resetting the phone drawer.
   // Keep the ordinary toggle where it is reachable; Escape is the phone's
   // remaining door when its trigger is hidden behind the retained panel.
-  if (await trigger.isVisible()) await this.press(trigger);
-  else await this.page.locator(PLUGINS_PANEL).press("Escape");
+  if ((await trigger.count()) > 0) await this.press(trigger);
+  else await this.pluginsPanel().press("Escape");
   await this.page.locator(PLUGINS_PANEL).waitFor({ state: "detached" });
 });
 
@@ -1044,7 +1042,7 @@ Then(
  *  is the label the row wears, so a scenario names it the way the operator who
  *  caused this state did. */
 const rowFor = (world: OlaiWorld, plugin: string) =>
-  world.page.locator(`${PLUGINS_PANEL} ${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
+  world.pluginsPanel().locator(`${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
 
 const shownRow = (world: OlaiWorld, plugin: string) => world.showPluginRow(plugin);
 
@@ -1205,10 +1203,8 @@ When(
 Then(
   "the plugins panel group {string} is collapsed",
   async function (this: OlaiWorld, section: string) {
-    await this.page
-      .locator(
-        `${PLUGINS_PANEL} ${PLUGIN_GROUP}${attr("data-section", section)}${attr("data-collapsed", "true")}`,
-      )
+    await this.pluginsPanel()
+      .locator(`${PLUGIN_GROUP}${attr("data-section", section)}${attr("data-collapsed", "true")}`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
@@ -1216,14 +1212,12 @@ Then(
 When(
   "I open the plugins panel group {string}",
   async function (this: OlaiWorld, section: string) {
-    const summary = this.page.locator(
-      `${PLUGINS_PANEL} ${PLUGIN_GROUP}${attr("data-section", section)} > details > summary`,
+    const summary = this.pluginsPanel().locator(
+      `${PLUGIN_GROUP}${attr("data-section", section)} > details > summary`,
     );
     await this.press(summary);
-    await this.page
-      .locator(
-        `${PLUGINS_PANEL} ${PLUGIN_GROUP}${attr("data-section", section)}:not([data-collapsed])`,
-      )
+    await this.pluginsPanel()
+      .locator(`${PLUGIN_GROUP}${attr("data-section", section)}:not([data-collapsed])`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
@@ -1233,13 +1227,13 @@ Then(
   async function (this: OlaiWorld, plugin: string, section: string) {
     const row = await shownRow(this, plugin);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const group = this.page
-      .locator(`${PLUGINS_PANEL} ${PLUGIN_GROUP}${attr("data-section", section)}`)
+    const group = this.pluginsPanel()
+      .locator(`${PLUGIN_GROUP}${attr("data-section", section)}`)
       .filter({ has: this.page.locator(`${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`) });
     try {
       await group.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     } catch {
-      const said = await this.page.locator(`${PLUGINS_PANEL} ${PLUGIN_GROUP}`).evaluateAll(
+      const said = await this.pluginsPanel().locator(PLUGIN_GROUP).evaluateAll(
         (nodes) => nodes.map((node) => node.getAttribute("data-section")).join(", "),
       );
       assert.fail(
@@ -1315,10 +1309,24 @@ When(
     // wait a wait for the flip rather than a wait for a control that has gone:
     // a roster change is a redial and a redial rebuilds the tab's whole tree,
     // so the row this is waiting on is a NEW element drawn by a panel that
-    // reopened itself (`@olai/web`'s `client/plugins/`).
-    await (await shownRow(this, plugin))
-      .locator(`${PLUGIN_SWITCH}${attr("aria-checked", pick === "on" ? "true" : "false")}`)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // reopened itself (`@olai/web`'s `client/plugins/`). Re-open the group on
+    // every try: the first shownRow can land on the outgoing tree.
+    const wanted = `${PLUGIN_SWITCH}${attr("aria-checked", pick === "on" ? "true" : "false")}`;
+    const deadline = Date.now() + POLL_TIMEOUT;
+    let last: unknown;
+    while (Date.now() < deadline) {
+      try {
+        await (await shownRow(this, plugin)).locator(wanted).waitFor({
+          state: "visible",
+          timeout: 1000,
+        });
+        last = undefined;
+        break;
+      } catch (error) {
+        last = error;
+      }
+    }
+    if (last !== undefined) throw last;
   },
 );
 

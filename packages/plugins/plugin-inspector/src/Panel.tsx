@@ -175,16 +175,13 @@ export function Panel(props: {
   const rows = () => pluginRows(plugins())
   const groups = () => pluginGroups(plugins(), (name) => props.management.look(name), props.management.reports())
 
-  /** WHICH GROUPS THIS READER HAS OPENED OR SHUT — keyed by the heading, so a
-   *  roster redraw does not slam a quiet group closed under a press that just
-   *  opened it. Absent is the YAML default (`collapsed` on a healthy quiet
-   *  group). The live cell republishes; a controlled `open={!collapsed}` would
-   *  treat every one of those as a command to fold the walk back up. */
-  const [opened, setOpened] = createSignal<Record<string, boolean>>({})
+  /** WHICH GROUPS THIS READER HAS OPENED OR SHUT — on inspector state, not
+   *  this component: a switch rebuilds the shell, and a walk that lived here
+   *  would fold back up on the remount. Absent is the YAML default. */
   const groupOpen = (group: { readonly label: string; readonly collapsed: boolean }): boolean =>
-    opened()[group.label] ?? !group.collapsed
+    props.state.opened()[group.label] ?? !group.collapsed
   const toggleGroup = (label: string, open: boolean): void => {
-    setOpened((prev) => (prev[label] === open ? prev : { ...prev, [label]: open }))
+    props.state.setGroupOpen(label, open)
   }
 
   /** WHOSE PRESS IS STILL IN THE AIR — the row's name, or `null`.
@@ -214,6 +211,12 @@ export function Panel(props: {
    *  been drawn from could land on the state neither asked for. */
   const set = (name: string, pick: PluginPick): void => {
     if (flipping() !== null || props.management.changing()) return
+    // A switch rebuilds the shell. Remember the group this row sits in so
+    // the remount does not fold a walk the reader was just using — including
+    // a quiet group that started open because it was unhealthy and becomes
+    // collapsed once the flip makes it healthy.
+    const group = groups().find((one) => one.rows.some((row) => row.name === name))
+    if (group !== undefined) props.state.setGroupOpen(group.label, true)
     if (pick === "off") {
       const plugin = rows().find((one) => one.name === name)
       const cost = plugin === undefined ? null : pluginConfirm(plugin, props.management.look(name))

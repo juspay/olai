@@ -235,3 +235,10 @@ Feature: A plugin is turned on and off while the serve runs
     When I open the plugins panel group "Pages"
     Then the plugins panel groups "outlines" under "Pages"
     And the plugins panel group "This tab" is collapsed
+    # A SWITCH REBUILDS THE SHELL. The walk has to survive that remount, or
+    # turning a quiet row on folds its group and the switch you just pressed
+    # disappears under the heading.
+    When I switch the plugin "outlines" off
+    And I switch the plugin "outlines" on
+    Then the plugins panel groups "outlines" under "Pages"
+    And the plugins panel group "This tab" is collapsed

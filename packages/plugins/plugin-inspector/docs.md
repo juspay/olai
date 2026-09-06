@@ -7,9 +7,9 @@ available.
 
 The panel is grouped, not a flat walk. Bundle rows pick a `section` in
 `olai.yml`; quiet sections start collapsed when every member is running and
-silent. A press on the heading opens one, and the panel keeps that through
-roster redraws — a live cell that slammed the group shut again would make the
-walk unusable. Failed, pending and waiting rows sit in **Needs you** first. Plugins
+silent. A press on the heading opens one, and that walk lives on inspector
+state — the same place the door's open bit lives — so a roster redraw or the
+rebuild a switch causes cannot slam it shut. Failed, pending and waiting rows sit in **Needs you** first. Plugins
 the vault defines are **Defined here** — they have no YAML section because they
 are not in the YAML; pending ones are Needs you until approved. Ordinary
 running rows are a name and a switch; carrying and a row's `switchHint` are a

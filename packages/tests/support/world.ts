@@ -2191,22 +2191,35 @@ export class OlaiWorld extends World {
   }
 
   /**
+   * The plugins panel that is on screen. Header and closet both portal one
+   * when the door is held open; locators that take the first match otherwise
+   * wait on the drawer copy, which is hidden.
+   */
+  pluginsPanel(): Locator {
+    return this.page.locator(`${PLUGINS_PANEL}:visible`);
+  }
+
+  /**
    * Quiet groups start collapsed. A scenario that names a row in one has to
    * open the heading first — the same press a person makes — or the wait for
    * visible is a wait for a summary.
    */
   async showPluginRow(plugin: string): Promise<Locator> {
-    const rowSel = `${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`;
-    const row = this.page.locator(`${PLUGINS_PANEL} ${rowSel}`);
-    // `has` is queried FROM the details, so the inner locator is the row
-    // alone — a page-rooted plugins-panel selector would look for a panel
-    // inside the group and match nothing.
-    const details = this.page
-      .locator(`${PLUGINS_PANEL} ${PLUGIN_GROUP} > details`)
-      .filter({ has: this.page.locator(rowSel) });
-    if ((await details.count()) > 0 && (await details.getAttribute("open")) === null) {
-      await this.press(details.locator("summary").first());
-    }
+    const panel = this.pluginsPanel();
+    const row = panel.locator(`${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
+    await row.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    // Walk from the row, not from a group selector: after a shell remount the
+    // heading is still a `<details>` wrapping the row, and a CSS walk that
+    // missed it left every quiet row hidden.
+    const opened = await row.evaluate((el) => {
+      const details = el.closest("details");
+      if (!(details instanceof HTMLDetailsElement) || details.open) return false;
+      const summary = details.querySelector(":scope > summary");
+      if (summary instanceof HTMLElement) summary.click();
+      details.open = true;
+      return true;
+    });
+    if (opened) await this.waitForFrame();
     return row;
   }
 

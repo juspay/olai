@@ -47,7 +47,7 @@ const DEFINITION = "swatch.olai";
  *  carries — the same way a person finds it and the same way `--plugins` would
  *  name it if it were a built row. */
 const blockFor = (world: OlaiWorld, plugin: string) =>
-  world.page.locator(`${PLUGINS_PANEL} ${PLUGINS_SOURCE}${attr("data-plugin", plugin)}`);
+  world.pluginsPanel().locator(`${PLUGINS_SOURCE}${attr("data-plugin", plugin)}`);
 
 Then(
   "the plugins panel shows the source of {string}",
