@@ -79,7 +79,7 @@ export const paletteBlock = (palette: Palette): string => {
 export const paletteCss = (): string =>
   [
     "/* The named palettes — GENERATED from",
-    " * packages/web/src/client/theme/palettes.ts by that directory's css.ts.",
+    " * packages/appearance/src/palettes.ts by that directory's css.ts.",
     " * Do not edit: edit the table. */",
     ...PALETTES.map(paletteBlock),
     "",

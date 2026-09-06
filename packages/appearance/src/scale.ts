@@ -325,7 +325,7 @@ export const scaleCss = (): string => {
   ]
   return [
     "/* The markdown type and spacing scales — GENERATED from",
-    " * packages/web/src/client/theme/scale.ts. Do not edit: edit the table.",
+    " * packages/appearance/src/scale.ts. Do not edit: edit the table.",
     " * packages/tests asserts the rendered page against these same values. */",
     `.${BLOCK_CLASS} {\n${base.join("\n")}\n}`,
     `.${COMPACT_CLASS} {\n${compact.join("\n")}\n}`,
