@@ -165,3 +165,36 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     Then this conversation's "kolu" wake is on nothing
     And this conversation's "odu" wake is on "backlog.olai"
     And there should be no page errors
+
+
+  @scratch:chat
+  Scenario: A fresh node session starts off and its history keeps separate wake choices
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
+    When I open the node menu of "install"
+    And I choose "Start an agent session" from the node menu
+    And the agent panel is open
+    And I ask the agent "wake history"
+    Then the agent has answered "wake history" exactly once
+    When I remember this conversation as "first"
+    And I point this conversation's "kolu" wake at "house.olai"
+    And I point this conversation's "odu" wake at "yard.olai"
+    And I open the session picker
+    And I start a fresh session
+    Then the panel is ready in a new conversation after "first"
+    And this conversation's "kolu" wake is on nothing
+    And this conversation's "odu" wake is on nothing
+    When I remember this conversation as "current"
+    And I point this conversation's "kolu" wake at "yard.olai"
+    And I open the session picker
+    And I open the past session "wake history"
+    Then the panel is in the remembered conversation "first"
+    And this conversation's "kolu" wake is on "house.olai"
+    And this conversation's "odu" wake is on "yard.olai"
+    When I clear this conversation's "odu" wake
+    And I open the session picker
+    And I return to the node agent's current session
+    Then the panel is in the remembered conversation "current"
+    And this conversation's "kolu" wake is on "yard.olai"
+    And this conversation's "odu" wake is on nothing
+    And there should be no page errors
