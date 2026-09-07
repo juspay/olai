@@ -2303,7 +2303,8 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
  */
 describe("a module another package can open holds no live value", () => {
   /**
-   * THE NINE THAT MAY, and why each is not an activation's state.
+   * THE TEN THAT MAY — nine of the app's, and this package's own bench reader
+   * at the end — and why each is not an activation's state.
    *
    * The reason is the entry: a module that grows one of these without one is a
    * module somebody has to argue for in review rather than add to a list.
@@ -2396,7 +2397,7 @@ describe("a module another package can open holds no live value", () => {
     expect([...OPENED.keys()].some((file) => file.startsWith("web/src/client/"))).toBe(true)
   })
 
-  test("nothing opened across a boundary holds live state, but the nine that are not state", () => {
+  test("nothing opened across a boundary holds live state, but the ten that are not state", () => {
     const found = [...OPENED.keys()].sort()
       .flatMap((file) => (file in ALLOWED ? [] : liveStateIn(file)))
     expect(found).toEqual([])

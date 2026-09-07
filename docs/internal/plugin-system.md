@@ -1252,7 +1252,7 @@ names the file.
 
 | File | Holds |
 | --- | --- |
-| `packages/bundle/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — a plugin imports the INTERFACE and never the REGISTRY, and does import the interface — the services door pulls no browser face — `packages/plugins/` holds the plugins and nothing else, both directions — and **no module another package can open holds a live value**: no module-scope `let`, no Solid cell minted at module load, no `const` the module writes into, over every cross-package door in the tree, with nine allowed by name and reason (the audit's §12). Fixtures hold the reading itself, so a pattern that stopped seeing is red rather than quiet |
+| `packages/bundle/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — a plugin imports the INTERFACE and never the REGISTRY, and does import the interface — the services door pulls no browser face — `packages/plugins/` holds the plugins and nothing else, both directions — and **no module another package can open holds a live value**: no module-scope `let`, no Solid cell minted at module load, no `const` the module writes into, over every cross-package door in the tree, with ten allowed by name and reason (the audit's §12). Fixtures hold the reading itself, so a pattern that stopped seeing is red rather than quiet |
 | `scripts/prove-fence.sh` | the fence and the mechanics lint go RED when they should. Not a `just check` leg: it mutates tracked files and puts them back, and `check` runs its legs in parallel. Run it when the fence CHANGES — a sweep's one failure mode is going quiet, and a fence that stopped running looks exactly like a fence that is holding |
 | `packages/bundle/src/mechanics.test.ts` | olai names no wire mechanic the framework performs |
 | `packages/bundle/src/tree.testlib.ts` | not a claim — the READING both of the above stand on (workspace members, manifests, sources, the module graph). Split out so the two files above are their claims and nothing else, and so the source walk is written once |
@@ -1482,12 +1482,13 @@ the consumer holds rather than the provider, the hold is an activation's and
 clears by identity, and the read answers the absence. What changed is which
 side of the wall the holder is on.
 
-Nine modules keep module state and are named in the fence with a reason each,
+Ten modules keep module state and are named in the fence with a reason each,
 because none of it is an activation's: the process's signal handlers, a
 per-process nonce for staged filenames, the page's layer stack, a re-entrancy
 guard held across one call, a warn-once set, two memos over immutable input, a
-verb-keyed registry whose entries are each one activation's, and `wire.ts` —
-the `Wired` broker §6 establishes, whose readers name the service.
+verb-keyed registry whose entries are each one activation's, `wire.ts` — the
+`Wired` broker §6 establishes, whose readers name the service — and the fence's
+own corpus reader, which one bench opens.
 
 ### Server composition and source policy
 

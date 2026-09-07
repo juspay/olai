@@ -445,6 +445,6 @@ process last installed.
 
 `@olai/bundle`'s `fence.test.ts` holds all of it: no module opened across a
 package boundary holds a `let`, a module-scope Solid cell, or a `const` it
-writes into, except nine that are named there with a reason each — a process's
+writes into, except ten that are named there with a reason each — a process's
 signals, a page's layer stack, a memo over immutable input, and the `Wired`
 broker §6 establishes.
