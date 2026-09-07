@@ -71,7 +71,9 @@
 # is written down here rather than worked around silently. The code-side ledger
 # of what each workaround costs is `packages/effect-cordis/README.md`'s "Where
 # the pin's instability lives", which names the file, the test and the failure
-# shape for each; this list is the ASK.
+# shape for asks 2 to 4; this list is the ASK. The first has no row there and
+# could not: it is a property of how the pin is HYDRATED rather than an
+# assumption the bridge makes about its behaviour, and it is argued here alone.
 #
 #   1. THE STRICTNESS DELTA above — adopt `noUncheckedIndexedAccess` and
 #      `noImplicitOverride`, retire the three off-switches — which takes the

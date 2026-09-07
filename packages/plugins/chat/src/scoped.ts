@@ -98,11 +98,15 @@ export interface Options extends PanelOptions {
    * person gets when a re-bound session cannot enter its node scope, and it was
    * going nowhere.
    *
-   * Optional, defaulting to `Effect.runFork`, because `make` is typed
-   * `Effect<Chat, never, never>` and the focused tests that call it directly
-   * have no host to ask.
+   * REQUIRED, and no default. A default would have to be `Effect.runFork`,
+   * which is the exact thing this field exists to stop: a caller that simply
+   * omitted it would get unowned fibers on the default runtime with nothing red
+   * anywhere — the defect this field closed, silently re-admitted at the one
+   * place it could be. The focused tests that stand this scheduler up without a
+   * host pass `Effect.runFork` themselves, which puts the test-only runtime
+   * where it is chosen rather than in the production type.
    */
-  readonly fork?: (work: Effect.Effect<void>) => Fiber.Fiber<void>
+  readonly fork: (work: Effect.Effect<void>) => Fiber.Fiber<void>
 }
 
 interface NodeSlot {
@@ -141,7 +145,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       onLive,
       seatableAt,
       ticket: mintTicket,
-      fork = Effect.runFork,
+      fork,
       ...givenPanelOptions
     } = options
     const memory = givenPanelOptions.memory
@@ -526,15 +530,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const relocationFailed = (where: string, failure: OpFailure): Effect.Effect<void> =>
       Effect.logWarning(`${where} could not enter its node scope: ${failure.message}`)
 
-    /** THE BOOT, AS A HANDLE. It is `forkDetach` on purpose — the caller of
-     *  `start` must not wait for a session to be recalled, a node to be
-     *  located and a panel to be acquired — but detached is not the same word
-     *  as unowned, and it was both. `stopWithReason` interrupts this, and
-     *  interrupting AWAITS, so whatever the boot did manage to register is in
-     *  `nodes` before the shutdown reads that map. */
+    /** THE BOOT, AS A HANDLE. Detached is not the same word as unowned, and it
+     *  was both. `stopWithReason` interrupts this, and interrupting AWAITS, so
+     *  whatever the boot did manage to register is in `nodes` before the
+     *  shutdown reads that map. */
     let booting: Fiber.Fiber<void> | null = null
 
-    const start = Effect.asVoid(Effect.tap(Effect.forkDetach(Effect.gen(function*() {
+    const boot = Effect.gen(function*() {
       const recalled = yield* Effect.result(memory.recall)
       if (recalled._tag === "Failure" || recalled.success === null) {
         yield* root.start
@@ -564,7 +566,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         )),
         (failure) => relocationFailed("the remembered node agent", failure),
       )
-    })), (fiber) => Effect.sync(() => { booting = fiber })))
+    })
+
+    /** THROUGH THE SAME SEAM as everything else this scheduler starts, which is
+     *  what `Detach.held` is for and what the boot was hand-rolling beside it:
+     *  the plugin's runtime, the plugin's scope, and the handle
+     *  {@link stopWithReason} joins. It stays a fork rather than an await —
+     *  nobody calling `start` should wait for a session to be recalled and a
+     *  panel acquired — and that was never the part that was missing. */
+    const start = Effect.sync(() => { booting = fork(boot) })
 
     const scopedDoor = (plugin: string) => {
       const scopes = (): ReadonlyArray<WakeScope> => {

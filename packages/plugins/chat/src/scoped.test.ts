@@ -25,10 +25,17 @@ import { makePanel } from "./chat.ts"
 
 const logging = () => {
   const { layer, said } = collector()
-  const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(
-    effect.pipe(Effect.provideService(References.MinimumLogLevel, "Info"), Effect.provide(layer)),
-  )
-  return { run, said }
+  const under = <A, E>(effect: Effect.Effect<A, E>): Effect.Effect<A, E> =>
+    effect.pipe(Effect.provideService(References.MinimumLogLevel, "Info"), Effect.provide(layer))
+  const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(under(effect))
+  /** THE BENCH'S OWN FORK, and it carries the bench's logger for the reason the
+   *  scheduler asks for one at all: work started through `Options.fork` runs on
+   *  whatever runtime the caller supplied, so a fork that dropped this layer
+   *  would be a case asserting on lines the collector never saw. Under a serve
+   *  that runtime is the plugin's, which carries the operator's settings; here
+   *  it is this. */
+  const fork = (work: Effect.Effect<void>) => Effect.runFork(under(work))
+  return { run, fork, said }
 }
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "doorbell-agent.ts")
@@ -67,13 +74,18 @@ afterEach(() => {
 })
 
 test("two node scopes work together, then an idle one is reaped and woken in place", async () => {
-  const { run, said } = logging()
+  const { run, fork, said } = logging()
   let nodes: ReadonlyArray<NodeAgent> = [
     { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
     { id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
   ]
   const released: Array<string> = []
   const chat = await run(make({
+    // THE BENCH'S OWN RUNTIME, said out loud. `Options.fork` has no default —
+    // one would have to be `Effect.runFork`, which is the unowned default
+    // runtime this scheduler stopped reaching for. A bench chooses it here,
+    // where the choice is visible, and `logging()`'s carries the collector.
+    fork,
     roster: () => [installed("alpha"), installed("beta")],
     engines: () => ["alpha", "beta"],
     cwd,
@@ -164,13 +176,14 @@ test("boot routes a remembered node session before spawning any panel", async ()
   await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
 
   const { layer, said } = collector()
-  const logged = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(
+  const under = <A, E>(effect: Effect.Effect<A, E>): Effect.Effect<A, E> =>
     effect.pipe(
       Effect.provideService(References.MinimumLogLevel, "Info"),
       Effect.provide(layer),
-    ),
-  )
+    )
+  const logged = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(under(effect))
   const chat = await logged(make({
+    fork: (work) => Effect.runFork(under(work)),
     roster: () => [installed("alpha")],
     engines: () => ["alpha"],
     cwd,
@@ -224,7 +237,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
  * that was told it was ready and never told to go.
  */
 test("a shutdown that lands mid-boot leaves no scope, no ticket and no process", async () => {
-  const { run, said } = logging()
+  const { run, fork, said } = logging()
   const node: NodeAgent = {
     id: "one",
     file: "Work.olai",
@@ -248,6 +261,7 @@ test("a shutdown that lands mid-boot leaves no scope, no ticket and no process",
   // that quick is refused at the check rather than racing past it.
   const minting = Promise.withResolvers<void>()
   const chat = await run(make({
+    fork,
     roster: () => [installed("alpha")],
     engines: () => ["alpha"],
     cwd,
@@ -283,7 +297,7 @@ test("a shutdown that lands mid-boot leaves no scope, no ticket and no process",
 }, 30_000)
 
 test("boot moves a newly identified node session into its scope", async () => {
-  const { run, said } = logging()
+  const { run, fork, said } = logging()
   const node: NodeAgent = {
     id: "one",
     file: "Work.olai",
@@ -296,6 +310,7 @@ test("boot moves a newly identified node session into its scope", async () => {
   }
   const released: Array<string> = []
   const chat = await run(make({
+    fork,
     roster: () => [installed("alpha")],
     engines: () => ["alpha"],
     cwd,
@@ -335,13 +350,14 @@ test("boot moves a newly identified node session into its scope", async () => {
 })
 
 test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wake", async () => {
-  const { run, said } = logging()
+  const { run, fork, said } = logging()
   let nodes: ReadonlyArray<NodeAgent> = [
     { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
     { id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
   ]
   const released: Array<string> = []
   const chat = await run(make({
+    fork,
     roster: () => [installed("alpha"), installed("beta")],
     engines: () => ["alpha", "beta"],
     cwd,
@@ -405,7 +421,7 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
 })
 
 test("agent switches, disabled plugins and listing probes have distinct exit reasons", async () => {
-  const { run, said } = logging()
+  const { run, fork, said } = logging()
   let roster = [installed("alpha"), installed("beta")]
   const panel = await run(makePanel({
     roster: () => roster,

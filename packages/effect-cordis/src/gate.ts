@@ -40,22 +40,29 @@
  * `close` already keeps one level up: revoke first, join what is still inside,
  * release the resources last.
  *
- * ## ...AND THE WAIT IS BOUNDED, in two different ways
+ * ## ...AND THE WAIT IS BOUNDED, twice, because one bound is not enough
  *
- * **A handler that asks for its own removal is not waited for at all.** A
- * handler that unloads its own plugin — a row that turns itself off, a probe
- * that fails and stops — reaches this release ON THE FIBER THAT IS STILL INSIDE
- * THE GATE. Waiting for it would be waiting for a fiber that is waiting for this
- * wait, which is a hang with no timer long enough to save it. So the closing
- * fiber's own calls are excluded by identity and everybody else's are waited
- * for: the one arrangement that is both live and honest.
+ * **{@link PATIENCE} is the bound that always holds.** After it the release says
+ * so — with the plugin's word and the occasion on the line — and goes on to
+ * close the resources, which is exactly what happens today except that today it
+ * happens instantly and in silence. A finalizer that could block forever on a
+ * plugin's own misbehaviour would be a worse failure than the one this module
+ * exists to fix.
  *
- * **And a handler that hangs is given {@link PATIENCE} and no more.** After it
- * the release says so, with the plugin's word and the occasion on the line, and
- * goes on to close the resources — which is exactly what happens today, except
- * that today it happens instantly and in silence. A finalizer that could block
- * forever on a plugin's own misbehaviour is a worse failure than the one this
- * module exists to fix.
+ * **The closing fiber's own calls are not waited for at all.** A `Scope.close`
+ * made from INSIDE a call — the same fiber, synchronously — would otherwise be
+ * a fiber waiting for itself, and no timer makes that anything but five wasted
+ * seconds. Excluding it by fiber identity costs nothing and is exact.
+ *
+ * WHAT THAT ESCAPE DOES NOT REACH, measured rather than assumed: a handler that
+ * stops its own PLUGIN. `definePlugin`'s disposer runs the scope close through
+ * `Effect.runPromiseWith` on a fresh fiber, so the closer's identity can never
+ * be the handler's however the stop was asked for. Such a handler is served by
+ * the first bound instead — the release waits five seconds, says so, and the
+ * handler then finishes — so it is bounded and loud rather than excluded, and
+ * the line it produces names that reading beside the other one. Threading the
+ * asking fiber across the disposer boundary is what would close it; that is
+ * `./lifecycle.ts`'s shape to change, not this module's.
  */
 
 import { Deferred, Duration, Effect, Scope } from "effect"
@@ -118,7 +125,8 @@ const open = (plugin: string, what: string): Held => {
   const inside = new Map<number, number>()
   let waiting: { readonly closer: number; readonly idle: Deferred.Deferred<void> } | undefined
   /** Everybody the release is genuinely waiting for — which is everybody except
-   *  the fiber doing the releasing. See the header's second bound. */
+   *  the fiber doing the releasing. See the header's second bound, including
+   *  what it does not reach. */
   const outstanding = (closer: number): number => {
     let calls = 0
     for (const [fiber, depth] of inside) if (fiber !== closer) calls += depth
@@ -163,10 +171,13 @@ const open = (plugin: string, what: string): Held => {
           return Effect.timeoutOrElse(Deferred.await(idle), {
             duration: patience,
             orElse: () =>
+              // BOTH READINGS, because the release cannot tell them apart and a
+              // line that named only the first would be wrong half the time.
               Effect.logWarning(
                 `plugins: stopped waiting for "${plugin}" to come out of ${what} after `
                   + `${Duration.format(Duration.fromInputUnsafe(patience))} — its resources `
-                  + "close under a handler that is still running",
+                  + "close under a handler that is still running, which is either stuck "
+                  + "or waiting on this plugin's own stop",
               ),
           })
         })),

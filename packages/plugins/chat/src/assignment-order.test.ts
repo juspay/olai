@@ -29,6 +29,11 @@ for (const waitForReply of [false,true]) test(`assignment ${waitForReply ? "repl
   const ready = new Promise<void>(resolve => {booted=resolve})
   const answer = new Promise<void>(resolve => {answered=resolve})
   const chat = await run(make({
+    // THE TEST'S OWN RUNTIME, said out loud. `Options.fork` has no default —
+    // one would have to be `Effect.runFork`, which is the unowned default
+    // runtime this scheduler stopped reaching for. A bench that stands it up
+    // without a host chooses it here, where the choice is visible.
+    fork: Effect.runFork,
     roster:()=>[{id:"opencode",name:"opencode",adapter:{command:process.execPath,args:[fixture]},leg:QUEUES,prompt:{kind:"first-turn"}}],
     engines:()=>[],cwd,tools:()=>null,
     overheard:await run(sessionsIn(local.forDirectory(cwd))),

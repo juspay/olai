@@ -112,6 +112,13 @@ interface Said {
   readonly said: string
   /** stdout, verbatim. Trailing newlines are data when the answer is a list. */
   readonly out: string
+  /** GIT NEVER ANSWERED, as opposed to answering no. Both are `ok: false`,
+   *  and for every caller but one that is the right collapse — a wedged hook
+   *  and a refusal are equally "the write did not go through". {@link commit}
+   *  is the exception: it has a backup to dispose of, and "git refused" and
+   *  "git was killed at the budget, possibly after moving HEAD" want opposite
+   *  answers. See its `hung` arm. */
+  readonly hung?: true
 }
 
 /** Run git, and answer with whether it worked and what it said. Never fails:
@@ -136,7 +143,7 @@ const git = (root: string, argv: ReadonlyArray<string>): Effect.Effect<Said> =>
       return { ok: result.ok, said: result.said, out: result.out }
     } catch (cause) {
       if (!(cause instanceof Hung)) throw cause
-      return { ok: false, said: cause.message, out: cause.out }
+      return { ok: false, said: cause.message, out: cause.out, hung: true }
     }
   })
 
@@ -798,7 +805,7 @@ export interface CommitInput {
  * orphaned in `.git/`, and nothing would ever put either right. Reproduced both
  * halves — a commit stopped during `git add` left `A  slow.md` staged with no
  * commit, and one stopped inside a `post-commit` hook left the commit landed
- * with a pre-`add` backup beside it whose restoration reads `D  fresh.md`, a
+ * with a pre-`add` backup beside it whose restoration reads `D  fresh.olai`, a
  * staged deletion of the file that had just been committed.
  *
  * So the disposition is the INDEX'S, decided once and acted on once, and
@@ -888,8 +895,9 @@ const keptIndex = (placed: Placement): Index => {
  * plain, because an abandoned one costs a sha and not an index.
  *
  * WHAT THAT COSTS is that a shutdown waits out a wedged git: two steps at
- * {@link BUDGET} plus the child's own stopping grace, so about twenty seconds
- * in the worst case, against a service manager that allows ninety. Reading the
+ * {@link BUDGET}, plus up to three seconds of `@olai/child`'s stopping grace
+ * each — so about twenty-six seconds in the worst case, against a service
+ * manager that allows ninety. Reading the
  * ref back in the finalizer instead was tried and is worse: at the moment of an
  * interrupt HEAD may already have moved while olai's own git is still alive
  * inside a `post-commit` hook, so the read races olai's own child and answers
@@ -901,14 +909,19 @@ const commit = (
   placed: Placement,
   what: CommitInput,
 ): Effect.Effect<Done> =>
-  Effect.gen(function*() {
-    const index = keptIndex(placed)
-    // EVERY WAY OUT, IN ONE PLACE. `onExit` and not four statements: a
-    // refusal, a defect and an interrupt are three ways of not having
-    // committed, and the fourth — having committed — is the one the body says
-    // so about. There is no reading of the exit here, deliberately: see
-    // {@link keptIndex}.
-    return yield* Effect.onExit(
+  // EVERY WAY OUT, IN ONE PLACE — and the copy is made in the same step that
+  // says how to dispose of it. `keptIndex` writes a file, which makes it an
+  // acquisition however plainly it is spelled, and a `const` followed by a
+  // `yield*` that installs the finalizer is the exact gap the MCP endpoint's
+  // own header names one plugin over: an interrupt observed at that step
+  // boundary leaves the backup on disk with nothing that will ever settle it.
+  // `acquireUseRelease` closes it, and the release runs on every exit — a
+  // refusal, a defect and an interrupt are three ways of not having committed,
+  // and the fourth is the one the body says so about. There is no reading of
+  // the exit here, deliberately: see {@link keptIndex}.
+  Effect.acquireUseRelease(
+    Effect.sync(() => keptIndex(placed)),
+    (index) =>
       Effect.gen(function*() {
         // ONLY THE PATHS THAT ARE THERE, which is the whole of `commit-op-staged-rename`.
         //
@@ -936,18 +949,47 @@ const commit = (
           }
         }
 
-        const committed = yield* Effect.uninterruptible(Effect.tap(
-          git(root, ["commit", "--no-verify", "-m", what.message, "--", ...what.paths]),
-          // SAID HERE, inside the step that observed it. This is the only
-          // sentence in the file that can move the index's disposition, and it
-          // is one line away from the answer it reads.
-          (said) => Effect.sync(() => { if (said.ok) index.keep() }),
-        ))
+        const committed = yield* Effect.uninterruptible(Effect.gen(function*() {
+          const said = yield* git(
+            root,
+            ["commit", "--no-verify", "-m", what.message, "--", ...what.paths],
+          )
+          // SAID HERE, inside the step that observed it. These are the only two
+          // sentences in the file that can move the index's disposition, and
+          // both are a line away from the answer they read.
+          if (said.ok) {
+            index.keep()
+            return said
+          }
+          if (said.hung !== true) return said
+          // GIT NEVER ANSWERED, which is not the same as git saying no and must
+          // not be treated as it. A `commit` killed at {@link BUDGET} may have
+          // moved HEAD already — a `post-commit` hook that outlives the budget
+          // does exactly that — and restoring the pre-`add` backup over a
+          // landed commit stages a DELETION of the file just recorded, which is
+          // the corruption {@link keptIndex}'s header exists to prevent,
+          // reached through the timeout rather than through an interrupt.
+          //
+          // So the index is ASKED. `git commit -- <paths>` writes those paths
+          // back into the real index, so a landed commit leaves nothing staged
+          // for them and a commit that never ran leaves what the `add` staged.
+          // One extra subprocess, on the one path where olai does not know what
+          // happened, and no race behind it: `@olai/child` kills the child and
+          // awaits it before this arm is reached, so nothing of olai's is still
+          // moving HEAD while this reads.
+          //
+          // The one reading it can get wrong is a commit that never ran and
+          // staged nothing — and there the backup and the live index are the
+          // same bytes, so keeping either is keeping the same thing.
+          const staged = yield* git(root, ["diff", "--cached", "--name-only", "--", ...what.paths])
+          if (staged.ok && staged.out.trim() === "") index.keep()
+          return said
+        }))
         if (!committed.ok) {
           // The ordinary case is "nothing to commit" — a write that produced the
-          // bytes already there. Worth a line in the log, never worth failing. The
-          // index goes back to what it was either way: what this call staged was
-          // staged in order to commit it, and it did not.
+          // bytes already there. Worth a line in the log, never worth failing.
+          // What becomes of the index was decided above, where the answer was
+          // read; this arm is the sentence, not the disposition.
           yield* Effect.annotateLogs(
             Effect.logWarning("olai git: the write was not committed"),
             { commitMessage: what.message.split("\n")[0] ?? "", said: committed.said },
@@ -958,9 +1000,8 @@ const commit = (
         const head = yield* git(root, ["rev-parse", "HEAD"])
         return { _tag: "Committed", sha: head.ok ? head.said : "" } as const
       }),
-      () => Effect.sync(index.settle),
-    )
-  })
+    (index) => Effect.sync(index.settle),
+  )
 
 /** What pushing did. `said` on BOTH arms, because git talks on both: what it
  *  wrote to a remote is worth showing once, and why it would not is worth

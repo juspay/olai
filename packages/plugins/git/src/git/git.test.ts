@@ -851,6 +851,38 @@ test("a commit stopped after it lands keeps it, and does not un-stage what it re
 }, 30_000)
 
 /**
+ * ...AND THE FOURTH WAY OUT, which is neither a refusal nor a stop: git NEVER
+ * ANSWERED.
+ *
+ * A `post-commit` hook that outlives the ten-second budget is killed, and what
+ * comes back is `ok: false` — the same shape a refusal has, over a commit that
+ * has already moved HEAD. Restoring the pre-`add` backup there stages a
+ * deletion of the file just recorded, which is the corruption `keptIndex`'s
+ * header is about, reached through the timeout rather than through an
+ * interrupt. It is slow on purpose and it cannot be made fast: the budget is
+ * what has to be outlived.
+ */
+test("a commit whose hook outlives the budget is not un-staged over a landed commit", async () => {
+  const { root } = repo()
+  const run = git(root)
+  const hook = path.join(root, ".git", "hooks", "post-commit")
+  fs.writeFileSync(hook, "#!/bin/sh\nsleep 14\n")
+  fs.chmodSync(hook, 0o755)
+  const fresh = path.join(root, "wedged.olai")
+  fs.writeFileSync(fresh, `{"id":"w","ord":"a0","title":"w"}\n`)
+
+  const done = await asked(root, (git) => git.commit({ paths: [fresh], message: "olai: wedged" }))
+  // GIT SAID NOTHING, so olai reports the write as not committed — which is
+  // honest, and is not the same as knowing it did not land.
+  expect(done._tag).toBe("Failed")
+  // ...and it DID land, which is what the index must agree with.
+  expect(run("log", "--format=%s").trim().split("\n")[0]).toBe("olai: wedged")
+  expect(run("status", "--porcelain").trim()).toBe("")
+  expect(fs.readdirSync(path.join(root, ".git")).filter((one) => one.startsWith("olai-index-")))
+    .toEqual([])
+}, 60_000)
+
+/**
  * And the SUCCESS path still updates the index for what it committed, which is
  * the half a "never touch the index at all" fix would have broken.
  *

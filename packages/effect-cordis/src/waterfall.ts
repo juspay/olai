@@ -131,7 +131,19 @@ export const waterfall = <A>(cordis: string): Waterfall<A> => {
               // arm below takes, for the same reason: a link that was never
               // entered has consulted nobody, and the ones after it are not its
               // to take with it.
-              return yield* link.gate.through(link.middleware(value, next), step(at + 1, value)).pipe(
+              return yield* link.gate.through(
+                // SUSPENDED, which is not decoration: `link.middleware(value,
+                // next)` is an ordinary call, so writing it as the argument
+                // would RUN the plugin's middleware and hand the gate only the
+                // Effect it came back with. A middleware is typed
+                // `(value, next) => Effect<A>` and is under no obligation to be
+                // lazy — this file's own bench happens to write every fixture
+                // with an `Effect.suspend` inside, which is exactly why the
+                // hole survived the first pass. {@link ./broadcast.ts}'s
+                // handler is wrapped the same way for the same reason.
+                Effect.suspend(() => link.middleware(value, next)),
+                step(at + 1, value),
+              ).pipe(
                 // CONTAINED, and the SENTENCE is {@link ./broadcast.ts}'s — one
                 // line for every plugin bus in the tree rather than one per
                 // dispatch mode, because the thing that must not drift is what a
@@ -163,7 +175,7 @@ export const waterfall = <A>(cordis: string): Waterfall<A> => {
                 // it alone.
                 Effect.catchCause((cause) =>
                   Effect.flatMap(
-                    failed(link.plugin, `the "${cordis}" waterfall`, cause),
+                    failed(link.plugin, occasion, cause),
                     () => continued ? Effect.succeed(value) : step(at + 1, value),
                   )
                 ),

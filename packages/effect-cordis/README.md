@@ -223,7 +223,7 @@ Each coupling is argued where it is MADE; this is the index, not a second copy.
 | the registry entry is removed BEFORE asynchronous cleanup ends | [`src/lifecycle.ts`](src/lifecycle.ts)'s live table, [`src/host.ts`](src/host.ts)'s `closeHost` | a disposing fiber leaves the registry first | [`src/lifecycle.test.ts`](src/lifecycle.test.ts) — "host close joins cleanup that already left the registry" |
 | `uid === null` means disposed | [`src/plugin.ts`](src/plugin.ts), [`src/lifecycle.ts`](src/lifecycle.ts), [`src/host.ts`](src/host.ts) | set when the fiber leaves | interruption stops reaching a disposing fiber |
 | `inertia` is set across a transition and CLEARED when it ends | [`src/host.ts`](src/host.ts)'s `settled`, [`src/loader.ts`](src/loader.ts)'s flip | a promise on the fiber while it moves | BOUNDED — a pass limit turns a hang into a warning and a slow boot, argued beside it |
-| `FiberState`'s six states collapse into four honest words | [`src/host.ts`](src/host.ts)'s `rowReport` | an enum | typed, so a bump is red |
+| `FiberState`'s six states collapse into four honest words | [`src/host.ts`](src/host.ts)'s `rowReport` | an enum | HALF RED — renaming or removing one of the four handled members is a type error; a state ADDED falls into the reading's `default` and draws that row as `off` in silence |
 | `loader.internal` is a slot with exactly one method called on it | [`src/loader.ts`](src/loader.ts) — verified against `@cordisjs/plugin-loader@1.0.0-rc.6` | upstream's slot for Node's own `ModuleLoader`, left `undefined` under bun; only `.import` is ever called, never the `version` beside it | RUNTIME, not typecheck — the cast is what makes the assignment legal at all |
 | `loader/entry-init` fires from the `Entry` constructor, before its options exist | [`src/loader.ts`](src/loader.ts) | the event is emitted by the constructor | rows collected with no id; a flip answers `false` |
 | disabling a row before disposing it keeps the loader from rewriting the bundle file | [`src/loader.ts`](src/loader.ts)'s `flipRow` | the update arm reads `disabled` first | [`src/lifecycle.test.ts`](src/lifecycle.test.ts) asserts the file's bytes are unchanged |
@@ -231,8 +231,12 @@ Each coupling is argued where it is MADE; this is the index, not a second copy.
 | a symbol key on the reflect proxy passes straight through to the object | [`src/host.ts`](src/host.ts), [`src/loader.ts`](src/loader.ts), [`src/module.ts`](src/module.ts) | the proxy routes strings, not symbols | a host, or a row list, becomes a service a plugin could name |
 | the root fiber's `dispose()` is a RESTART, leaving an empty ACTIVE root | [`src/host.ts`](src/host.ts)'s `closeHost` | disposal of the root re-enters it | a mount after close succeeds, which `mountPlugin` refuses by remembering |
 
-`nix/cordis.nix` carries the four upstream ASKS this list implies, so a bump has
-one place to look for what olai wants the pin to grow.
+Three of the four upstream ASKS in `nix/cordis.nix` come from this list — the
+resolver seam, the untyped duplicate error and the concurrent unload — so a bump
+has one place to look for what olai wants the pin to grow. The fourth, the
+strictness delta behind the `@ts-nocheck` stamp, is about how the pin is
+HYDRATED rather than about anything the bridge assumes at runtime, and is
+argued there alone.
 
 ### Two things this package does NOT claim
 

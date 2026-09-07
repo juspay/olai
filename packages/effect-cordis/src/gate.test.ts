@@ -5,8 +5,9 @@
  * `./broadcast.test.ts` asks the first two again through a real bus and
  * `./lifecycle.test.ts` asks them through two real plugins, which is where the
  * failure was reproduced. These are here because a gate that lost its
- * self-removal escape or its patience would hang a plugin's unload — and a hang
- * is diagnosed in whichever file has the fewest moving parts.
+ * same-fiber escape or its patience would stall a plugin's unload for five
+ * seconds apiece — and a stall is diagnosed in whichever file has the fewest
+ * moving parts.
  */
 
 import { expect, test } from "bun:test"
@@ -67,10 +68,14 @@ test("closing waits for a call that is already inside", async () => {
 })
 
 test("a call that closes the gate from inside is not waited for", async () => {
-  // THE ONE ARRANGEMENT NO TIMER COULD SAVE: a handler that stops its own
-  // plugin reaches the release on the fiber that is still inside the gate, so a
-  // release that waited for everybody would be waiting for itself. This case
-  // hangs rather than fails if that escape goes.
+  // A FIBER WAITING FOR ITSELF, which no timer makes anything but five wasted
+  // seconds: the close is made from inside the call, on the same fiber. Without
+  // the identity escape this case takes the whole patience rather than
+  // answering at once.
+  //
+  // It is the SAME-FIBER close and only that. A handler that stops its own
+  // PLUGIN goes through `definePlugin`'s disposer, which closes the scope on a
+  // fresh fiber — the header says what happens there instead.
   const { gate: shut, close } = await opened()
   await Effect.runPromise(shut.through(close(), Effect.void))
   let called = 0

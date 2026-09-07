@@ -1160,7 +1160,15 @@ that matters.
    acquisition and cannot be interrupted between the two.
 3. **`packages/plugins/<name>/src/browser.tsx`**, if the plugin draws UI — the browser half, the same
    shape: a `name` and a `surface` re-exported off `./wire.ts`, and a `default`
-   `definePlugin` whose Effect registers your faces into `Slots`. Browser graph,
+   `definePlugin` whose Effect registers your faces into `Slots`. THE SOLID
+   TWIN OF THE RULE IN STEP 2 APPLIES HERE: an `onCleanup` registered after an
+   `await` inside `onMount` runs with a null owner, where Solid's production
+   build makes it an empty statement — not a race, since `await` always yields,
+   so the cleanup is ALWAYS dropped. Anything you have to LOAD before you can
+   build (a `import()`ed chunk) registers its cleanup before the load, over an
+   empty slot, and guards the continuation against an owner that has already
+   gone; `packages/plugins/kolu/src/appliance/props/mounting.ts` is that shape,
+   written out, with the reason a `runWithOwner` rescue does not cover it. Browser graph,
    and its own chunk. An ENGINE re-exports only its `name` and registers TWO
    faces: its mark and its install sentence (step 6). A server-only plugin
    omits `./browser` and `./all.css` from its package exports; no empty modules

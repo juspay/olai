@@ -43,6 +43,31 @@ const speaker = (name: string) =>
     }),
   })
 
+/**
+ * ...AND THE SAME PLUGIN WITH AN EAGER BODY, which is the fixture this file did
+ * not have and needed.
+ *
+ * `Middleware` is `(value, next) => Effect<A>` and puts no laziness obligation
+ * on a plugin: a link may do its work on the way to RETURNING an effect, and
+ * two of the three real waterfall links in this tree could be written that way
+ * tomorrow. Every fixture above happens to wrap its body in an
+ * `Effect.suspend`, which meant a dispatch that ran the middleware FUNCTION
+ * before consulting the gate would have been invisible here. It was.
+ */
+const eagerSpeaker = (name: string) =>
+  definePlugin({
+    name,
+    needs: [Opening.key],
+    apply: Effect.gen(function*() {
+      const chain = yield* Opening.key
+      const who = yield* PluginName
+      yield* chain.use((value, next) => {
+        value.said.push(who)
+        return next(value)
+      })
+    }),
+  })
+
 test("every mounted plugin sees one dispatch, in registration order", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const host = yield* openHost
@@ -65,7 +90,8 @@ test("a plugin that unloads is off the chain", async () => {
   })))
 })
 
-test("a link whose plugin unloads mid-dispatch is skipped, and the chain carries on", async () => {
+for (const [shape, make] of [["a suspended", speaker], ["an eager", eagerSpeaker]] as const) {
+test(`a link whose plugin unloads mid-dispatch is skipped, and the chain carries on (${shape} body)`, async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     // OFF THE ROSTER IS NOT OFF THE WALK: the dispatch took its snapshot before
     // "leaver" stopped, so the copy still names it. What must not happen is the
@@ -91,8 +117,8 @@ test("a link whose plugin unloads mid-dispatch is skipped, and the chain carries
         )
       }),
     }))
-    const leaving = yield* mountPlugin(host, speaker("leaver"))
-    yield* mountPlugin(host, speaker("other"))
+    const leaving = yield* mountPlugin(host, make("leaver"))
+    yield* mountPlugin(host, make("other"))
     const opening = yield* Effect.forkScoped(dispatch({ said: [] }))
     yield* Deferred.await(entered)
     yield* leaving.dispose
@@ -100,6 +126,7 @@ test("a link whose plugin unloads mid-dispatch is skipped, and the chain carries
     expect((yield* Fiber.join(opening)).said).toEqual(["slow", "other"])
   })))
 })
+}
 
 test("a middleware that dies is contained, and the rest of the chain runs", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
