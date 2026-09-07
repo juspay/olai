@@ -335,13 +335,13 @@ Four lane steps in three states, each carrying a `terminal`, and the lines of
 {"id":"prop-agent-session","ord":"a2","title":"agent-session","custom":{"type":"chat-agent-session"}}
 ```
 
-**The second row is the MIGRATION, exercised rather than described.** `chat` is
-a plugin, so the key a node agent carries is its composed kind word
-`chat-agent-session` — and every vault written before that carries the bare
-`agent-session`, which is exactly what `lanes.olai` still carries. That row is
-the one line `docs/plugins/chat.md` tells a person to add, and this corpus keeps
-the bare key on purpose so that the documented path is the path the suite walks.
-A fixture renamed to the claimed word would have tested the easy half.
+**The second row is a BOARD KEEPING THIS KIND ON A COLUMN OF ITS OWN NAME,
+exercised rather than described.** `chat` is a plugin, so the key a node agent
+carries is its composed kind word `chat-agent-session` — and `lanes.olai` carries
+the bare `agent-session` instead, which is a word olai claims for nobody and
+reads as a binding only because that row says to. This corpus keeps the bare key
+on purpose so that the declared-column path is the path the suite walks. A
+fixture renamed to the claimed word would have tested the easy half.
 
 **That row is load-bearing and its absence is silent.** `terminal` is a kind
 `olai-plugin-kolu` contributes, and the ownership walk finds its key by that
