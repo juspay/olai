@@ -78,14 +78,29 @@ Then(
   },
 );
 
+/**
+ * ...AND THE SAME LINK GONE.
+ *
+ * IT WAITS, and the reason is what every caller of this step is actually
+ * saying. A deletion is a write: the press goes to the gate, the gate answers,
+ * the store publishes and the sidebar redraws — three hops after the frame the
+ * confirm step waits for. Read once, this asserted that the sidebar had ALREADY
+ * caught up, which is not a claim any scenario here means to make and is not
+ * one a loaded machine keeps: it passed for as long as the round trip fitted
+ * inside one animation frame and failed the day a shard put four workers on one
+ * box.
+ *
+ * Waiting costs nothing where the link was never there — the first read
+ * answers zero and the loop ends — so the absence a scenario asserts from a
+ * standing start is the same absence it was.
+ */
 Then(
   "the outline list does not link to {string}",
   async function (this: OlaiWorld, file: string) {
     await this.showSidebar();
-    assert.strictEqual(
-      await this.outlineLink(file).count(),
-      0,
-      `the sidebar links to "${file}", which is not an outline`,
+    await this.waitUntil(
+      async () => (await this.outlineLink(file).count()) === 0,
+      `the sidebar to stop linking to "${file}", which is not an outline`,
     );
   },
 );
