@@ -4,6 +4,8 @@ import {Clocks} from "@olai/plugin-api"
 import {fileAccess} from "olai-plugin-vault/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { holdLocations } from "./browser/locations.ts"
+import { documentEditing } from "olai-plugin-markdown/contract"
+import { holdDocumentActions } from "./browser/editing.ts"
 import { propertyRoutes } from "olai-plugin-outlines/contract"
 import { routeIn } from "olai-plugin-navigation/routes"
 import { definePlugin, Slots, Wired } from "@olai/plugin-api"
@@ -88,6 +90,13 @@ export default definePlugin({
 
 /** Date-property navigation is an integration, independent of journal readings. */
 export const components = {
+  /** Where a minted note is opened, DECLARED — a component of its own so the
+   *  calendar, the agenda and every day page keep working with no document row
+   *  mounted (`./browser/editing.ts`). */
+  editing: definePlugin({ name: "editing", needs: [documentEditing], apply: Effect.gen(function*() {
+    const actions = yield* documentEditing
+    yield* Effect.acquireRelease(Effect.sync(() => holdDocumentActions(actions)), stop => Effect.sync(stop))
+  }) }),
   properties: definePlugin({ name: "properties", needs: [rendererSlots], apply: Effect.gen(function*() {
     yield* (yield* rendererSlots).contribute(propertyRoutes, meaning => meaning.kind === "day" ? routeIn(`/d/${encodeURIComponent(meaning.date)}`) ?? undefined : undefined)
   }) }),

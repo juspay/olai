@@ -30,7 +30,7 @@ import { NewDocument } from "./browser/document/NewDocument.tsx"
 import { documentReferences, propertyRoutes } from "olai-plugin-outlines/contract"
 import { atFile } from "olai-plugin-navigation/routes"
 import { DocRef } from "./browser/document/DocRef.tsx"
-import { name, browserState, documentBodies, properties, holdDocumentActions } from "./index.ts"
+import { name, browserState, documentBodies, properties, type MarkdownBrowser } from "./index.ts"
 import { client } from "./client.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 
@@ -39,11 +39,21 @@ export default definePlugin({ name, needs: [Wired, Offers], apply: Effect.gen(fu
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
   yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))
 
-  yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
-    const release = [holdDocumentActions({openCreated}), holdDocuments(createDocuments()), holdHistory(createUndo(edit => runAsync(writeEdit(edit))))]
-    return () => { dispose(); for (const stop of release) stop(); clearDocumentDrafts(); clearMinted() }
-  })), stop => Effect.sync(stop))
-  yield* (yield* Offers).own("browser-state", () => ({}))
+  const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+    const documents = createDocuments()
+    const history = createUndo(edit => runAsync(writeEdit(edit)))
+    const release = [holdDocuments(documents), holdHistory(history)]
+    return {
+      value: { client, documents, history, editing: { openCreated } } satisfies MarkdownBrowser,
+      dispose: () => { dispose(); for (const stop of release) stop(); clearDocumentDrafts(); clearMinted() },
+    }
+  })), state => Effect.sync(state.dispose))
+  const offers = yield* Offers
+  yield* offers.own("browser-state", () => state.value)
+  // WHAT A ROW THAT MINTS A DOCUMENT DOES WITH THE ANSWER — offered rather than
+  // pushed into a module signal the journal read across the wall
+  // (`./index.ts`'s `DocumentActions`).
+  yield* offers.own("editing", () => state.value.editing)
 }) })
 export const components = {
   messages: definePlugin({name:"messages",needs:[browserState,navigation,Slots],apply:Effect.gen(function*(){
