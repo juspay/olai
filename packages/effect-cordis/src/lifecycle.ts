@@ -47,6 +47,19 @@ export interface Quieting {
    *  Signalling a cancellation is not joining one; a resource may not close
    *  until this has answered. */
   readonly cut: () => Promise<void>
+  /**
+   * Settled when this registration's own lifetime has ended — its scope closed
+   * and its cut joined. The activation prunes on it.
+   *
+   * A PROMISE THE REGISTRATION KEEPS rather than a withdrawal it is handed,
+   * because a withdrawal is a return value and a return value can be dropped:
+   * the first shape of this was `quiet` answering with a remover, and the very
+   * first thing that wrapped `quiet` — a probe forwarding the call and
+   * intending to leave ownership alone — swallowed it and the records piled up
+   * exactly as before. Nothing about pruning should depend on a caller passing
+   * something back.
+   */
+  readonly done: Promise<void>
 }
 
 /** The plugin adapter can bind initialization and close its lifetime, but cannot
@@ -57,6 +70,11 @@ export interface Activation {
   readonly interrupt: () => void
   readonly close: (exit: Exit.Exit<void>) => Promise<void>
   readonly offer: <Shape>(key: ServiceKey<Shape>, provision: Provision<Shape>) => void
+  /** Enrol a registration's stop in this activation's pre-close stage. The
+   *  record is dropped again when {@link Quieting.done} settles, so a plugin
+   *  that subscribes and unsubscribes in a loop does not accumulate one closed
+   *  record per cycle for the rest of its life — measured at a hundred, still
+   *  retained after a collection. */
   readonly quiet: (quieting: Quieting) => void
 }
 
@@ -91,7 +109,10 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
   const drained = Promise.withResolvers<void>()
   let closing: Promise<void> | undefined
   const revokes: Array<() => Promise<void>> = []
-  const quiets: Array<Quieting> = []
+  /** A SET rather than a list, because entries LEAVE now: a child scope's
+   *  withdrawal removes its own, and deleting from a `Set` while `close` walks
+   *  it is safe in a way that splicing a list is not. */
+  const quiets = new Set<Quieting>()
   let running: Fiber.Fiber<void> | undefined
   let interrupted = false
   const interrupt = (): void => {
@@ -118,7 +139,7 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
       // because the `finally` has to be able to wait for the cut whatever the
       // withdrawal did, and a resource may not close before it has.
       for (const quiet of quiets) quiet.shut()
-      const cutting = joinCuts(quiets, ctx.fiber.name ?? "a plugin", services)
+      const cutting = joinCuts([...quiets], ctx.fiber.name ?? "a plugin", services)
       try {
         // WHY THE SHUT IS FIRST: it is the paper's L-Leave, and the one
         // ordering a scope cannot express. A handler that has not started is
@@ -175,7 +196,12 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
         quieting.shut()
         return
       }
-      quiets.push(quieting)
+      quiets.add(quieting)
+      // DROPPED WHEN THE REGISTRATION ITSELF ENDS, which is its own promise and
+      // not a caller's diligence. Safe against the walk in `close`: deleting
+      // from a `Set` mid-iteration skips what has not been reached, and the
+      // stage's own snapshot is taken before any of it.
+      void quieting.done.then(() => { quiets.delete(quieting) })
     },
     offer: (key, provision) => {
       if (closing !== undefined) throw new Error("effect-cordis: offer requires an open plugin activation")
@@ -243,16 +269,11 @@ const joinCuts = async (
   }
 }
 
-/** Register a bus registration's stop with the CALLING plugin's activation, and
- *  say whether there was one. `false` is a gate opened on a bare scope — a
- *  bench, a `standing()` runtime — which falls back to a scope finalizer and
- *  the LIFO ordering that comes with it. */
-export const quieting = (quieting: Quieting): Effect.Effect<boolean> =>
-  Effect.map(Offering, (activation) => {
-    if (activation === undefined) return false
-    activation.quiet(quieting)
-    return true
-  })
+/** Enrol a bus registration's stop with the CALLING plugin's activation, where
+ *  there is one. A gate opened on a bare scope — a bench, a `standing()`
+ *  runtime — has no activation to enrol with and only its own finalizer. */
+export const quieting = (quieting: Quieting): Effect.Effect<void> =>
+  Effect.map(Offering, (activation) => { activation?.quiet(quieting) })
 
 /** The offering context is ambient, so authors receive a capability, never the
  * Cordis fiber or a caller-supplied identity. Readiness remains Cordis's: a

@@ -175,6 +175,11 @@ export const gate = (plugin: string, what: string): Effect.Effect<Gate, never, S
       Effect.promise(async () => {
         held.quiet.shut()
         await held.quiet.cut()
+        // ...AND THE ACTIVATION'S RECORD OF IT GOES TOO, which it does by
+        // WATCHING this rather than by being told: settled after the cut rather
+        // than before, so a pre-close running concurrently still finds this
+        // registration and joins the same memoised cut.
+        held.ended()
       })
     )
     return held.gate
@@ -185,6 +190,9 @@ export const gate = (plugin: string, what: string): Effect.Effect<Gate, never, S
 interface Held {
   readonly gate: Gate
   readonly quiet: Quieting
+  /** Say that this registration's own lifetime is over — see
+   *  {@link Quieting.done}, which is what the activation prunes on. */
+  readonly ended: () => void
 }
 
 /**
@@ -211,6 +219,28 @@ interface Inside {
   readonly left: () => void
 }
 
+/**
+ * ...AND `out` IS THE FIBER'S OWN EXIT, which is a different moment from the
+ * handler body's last line and was briefly confused with it.
+ *
+ * A record settled by an `Effect.ensuring` around the BODY reports completion
+ * before the fiber has interrupted and joined its own children — so a handler
+ * that forks an ordinary `Effect.forkChild` with a finalizer of its own had
+ * that finalizer running over released resources, with nothing detached or
+ * unowned anywhere in it:
+ *
+ * ```text
+ * resource released
+ * dispose completed
+ * child fiber cleanup; resource alive=false
+ * ```
+ *
+ * `addObserver` is the fiber's exit and nothing earlier, which is what "the
+ * call is out" has to mean. It is also why the cut below can signal with
+ * `interruptUnsafe` and wait on the record: the signal and the joining are two
+ * things, and only the second one answers.
+ */
+
 const open = (_plugin: string, _what: string): Held => {
   let shut = false
   const inside = new Set<Inside>()
@@ -219,9 +249,15 @@ const open = (_plugin: string, _what: string): Held => {
    *  rather than find an empty set and answer at once, or a resource would
    *  close beside a call that is still unwinding. */
   let cutting: Promise<void> | undefined
+  /** ...and this registration's own end, which is the activation's cue to stop
+   *  holding a record of it. */
+  const over = Promise.withResolvers<void>()
   const stop = (call: Inside): void => {
     call.cut = true
-    if (call.fiber !== undefined) Effect.runFork(Fiber.interrupt(call.fiber))
+    // SIGNALLED HERE AND JOINED BELOW, which is the split this module is about:
+    // `interruptUnsafe` asks, and the record's `out` — the fiber's own exit —
+    // is what answers.
+    call.fiber?.interruptUnsafe()
   }
   return {
     gate: {
@@ -256,13 +292,7 @@ const open = (_plugin: string, _what: string): Held => {
               inside.add(call)
               let started: Fiber.Fiber<A>
               try {
-                started = Effect.runForkWith(services)(Effect.ensuring(
-                  work,
-                  Effect.sync(() => {
-                    inside.delete(call)
-                    call.left()
-                  }),
-                ))
+                started = Effect.runForkWith(services)(work)
               } catch (thrown) {
                 // A FORK THAT DID NOT TAKE would otherwise leave a record in
                 // the set that nothing will ever settle, and a later cut would
@@ -274,10 +304,15 @@ const open = (_plugin: string, _what: string): Held => {
                 throw thrown
               }
               call.fiber = started
+              // THE FIBER'S EXIT, not the body's last line — see {@link Inside}.
+              started.addObserver(() => {
+                inside.delete(call)
+                call.left()
+              })
               // A CUT THAT ARRIVED WHILE THE FORK'S OWN PREFIX WAS RUNNING has
               // marked this record and could not reach the fiber, because there
-              // was not one yet. This is that interrupt, on the way back.
-              if (call.cut) Effect.runFork(Fiber.interrupt(started))
+              // was not one yet. This is that signal, on the way back.
+              if (call.cut) started.interruptUnsafe()
               // ...AND THE HOLD, in the same step. A gated call is a root
               // fiber, so nothing carries the caller's interruption down to it;
               // this frame is what does, and it is installed before anything
@@ -297,14 +332,16 @@ const open = (_plugin: string, _what: string): Held => {
           if (cut.length === 0) return
           // INTERRUPT AND JOIN, and they are two steps because a call whose
           // fiber is not known yet can be asked for but not yet interrupted.
-          // What is awaited is the record's own promise, which settles when the
-          // call has run its finalizers — the difference between this and the
-          // timer it replaced is that the resources below are not closed on a
-          // promise that the call will stop, but after it has.
+          // What is awaited is the record's own promise, which settles at the
+          // fiber's EXIT — after its finalizers and after its children — so the
+          // resources below are not closed on a promise that the call will
+          // stop, but after it has.
           for (const call of cut) stop(call)
           await Promise.all(cut.map((call) => call.out))
         })(),
+      done: over.promise,
     },
+    ended: () => over.resolve(),
   }
 }
 

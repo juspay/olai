@@ -90,6 +90,43 @@ test("a call already inside is CUT, and the stop does not answer until it has un
     .toBe(true)
 })
 
+for (const how of ["cut" , "left of its own accord"] as const) {
+  test(`a call is out when its FIBER is, children and all — ${how}`, async () => {
+    // THE BODY'S LAST LINE IS NOT THE FIBER'S EXIT, and for a round this module
+    // confused them: the record was settled by an `ensuring` around the handler
+    // body, which runs BEFORE the fiber interrupts and joins its own children.
+    // A handler that forks an ordinary `Effect.forkChild` with a finalizer of
+    // its own therefore had that finalizer running after the stop had answered
+    // — with nothing detached or unowned anywhere in it.
+    const { gate: shut, close } = await opened()
+    const said: Array<string> = []
+    const entered = Deferred.makeUnsafe<void>()
+    const finish = Deferred.makeUnsafe<void>()
+    const calling = Effect.runPromise(shut.through(
+      Effect.gen(function*() {
+        yield* Effect.forkChild(Effect.ensuring(
+          Effect.andThen(Deferred.succeed(entered, undefined), Effect.never),
+          Effect.gen(function*() {
+            yield* Effect.sleep("40 millis")
+            said.push("the child finished")
+          }),
+        ))
+        if (how === "cut") yield* Effect.never
+        else yield* Deferred.await(finish)
+      }),
+      (started) => Effect.asVoid(Fiber.await(started!)),
+    ))
+    await Effect.runPromise(Deferred.await(entered))
+    if (how !== "cut") await Effect.runPromise(Deferred.succeed(finish, undefined))
+    await Effect.runPromise(close())
+    said.push("the gate stopped")
+    await calling
+    // THE CHILD FIRST, whichever way the call ended. A stop that answered on
+    // the body alone would put these the other way round.
+    expect(said).toEqual(["the child finished", "the gate stopped"])
+  })
+}
+
 test("cutting a call does not disturb the fiber that started it", async () => {
   // The publisher's own fiber is what a handler used to run on, which is why
   // the first version could not cut anything. It holds the call now instead:

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { Deferred, Effect, Exit, Fiber, Scope } from "effect"
 import { broadcast } from "./broadcast.ts"
 import { closeHost, type Host, mountPlugin, offered, openHost, provide, settled } from "./host.ts"
-import { offer, OfferConflict } from "./lifecycle.ts"
+import { offer, OfferConflict, Offering } from "./lifecycle.ts"
 import { definePlugin, detached } from "./plugin.ts"
 import { serviceTag } from "./service.ts"
 
@@ -416,6 +416,89 @@ test("a gate's two owners join one cut rather than the second finding an empty s
  * or does not finish at all; the runner's own timeout is the only backstop and
  * the case is bounded so a failure cannot strand it.
  */
+test("a plugin's stop waits for a handler's own child fibers, not just its body", () => run(Effect.gen(function*() {
+  // THE SAME CLAIM AS `./gate.test.ts`'s, through a real plugin and a real
+  // resource, because this is where it was reproduced: a handler that forks an
+  // ordinary `Effect.forkChild` had that child's finalizer running over
+  // released resources — `resource released` / `dispose completed` / `child
+  // fiber cleanup; resource alive=false` — with nothing detached or unowned
+  // anywhere in the handler.
+  const host = yield* openHost
+  const bus = events()
+  yield* bus.open(host)
+  const entered = Deferred.makeUnsafe<void>()
+  const order: string[] = []
+  let alive = true
+  const owner = yield* mountPlugin(host, definePlugin({ name: "owner", needs: [bus.key], apply: Effect.gen(function*() {
+    yield* Effect.addFinalizer(() => Effect.sync(() => { alive = false; order.push("resource released") }))
+    yield* (yield* bus.key).listen(() =>
+      Effect.gen(function*() {
+        yield* Effect.forkChild(Effect.ensuring(
+          Effect.andThen(Deferred.succeed(entered, undefined), Effect.never),
+          Effect.gen(function*() {
+            yield* Effect.sleep("40 millis")
+            order.push(`the child unwound; resource alive = ${alive}`)
+          }),
+        ))
+        yield* Effect.never
+      })
+    )
+  }) }))
+  const telling = yield* Effect.forkScoped(bus.tell(undefined))
+  yield* Deferred.await(entered)
+  yield* owner.dispose
+  order.push("dispose completed")
+  yield* Fiber.join(telling)
+  expect(order).toEqual([
+    "the child unwound; resource alive = true",
+    "resource released",
+    "dispose completed",
+  ])
+})), 20_000)
+
+test("a registration whose scope ends stops being one of the activation's", () => run(Effect.gen(function*() {
+  // A PLUGIN THAT SUBSCRIBES AND UNSUBSCRIBES IN A LOOP kept one closed record
+  // per cycle for the rest of its life, because enrolling with the activation
+  // only ever appended. The activation drops each record when the registration
+  // says its own lifetime is over — which it does by settling a promise the
+  // activation watches, rather than by anything a caller has to pass back.
+  const host = yield* openHost
+  const bus = events()
+  yield* bus.open(host)
+  const held: Array<WeakRef<object>> = []
+  const owner = yield* mountPlugin(host, definePlugin({ name: "owner", needs: [bus.key], apply: Effect.gen(function*() {
+    const activation = yield* Offering
+    const enrol = activation!.quiet
+    // WRAPPED WITHOUT CHANGING ANYTHING, which is the point: a wrapper that
+    // forwards the call and nothing else must not be able to break the
+    // pruning, and the first shape of this — a withdrawal handed back — could
+    // be dropped by exactly this much instrumentation.
+    Object.defineProperty(activation, "quiet", {
+      value: (quieting: object) => {
+        held.push(new WeakRef(quieting))
+        enrol(quieting as never)
+      },
+    })
+    const door = yield* bus.key
+    // A HUNDRED, which is what the probe used and is not arbitrary: a handful
+    // can be held alive by whichever frame the collector happens to see last,
+    // and the claim here is about ACCUMULATION rather than about any one
+    // record.
+    for (let round = 0; round < 100; round += 1) {
+      const child = Scope.makeUnsafe()
+      yield* door.listen(() => Effect.void).pipe(Effect.provideService(Scope.Scope, child))
+      yield* Scope.close(child, Exit.void)
+    }
+  }) }))
+  // The prunes ride a promise, so they land a beat after the closes do.
+  yield* Effect.sleep("20 millis")
+  Bun.gc(true)
+  yield* Effect.sleep("20 millis")
+  Bun.gc(true)
+  expect(held.filter((one) => one.deref() !== undefined)).toHaveLength(0)
+  expect(yield* owner.report).toEqual({ state: "running" })
+})), 20_000)
+
 test("a dependent's cleanup waiting on a provider's handler does not block the cut", () => run(Effect.gen(function*() {
   const host = yield* openHost
   const bus = events()
