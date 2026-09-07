@@ -1,5 +1,5 @@
 import {createMemo,createRoot,createSignal} from "solid-js"
-import {CLOSED,holdPaletteState,type Opened} from "./open.ts"
+import {CLOSED,holdPaletteState,type Opened} from "./state.ts"
 export function scopePaletteState():()=>void {
  return createRoot(dispose=>{
   const [opened,setOpened]=createSignal<Opened>(CLOSED)

@@ -30,6 +30,36 @@ export interface PaletteAdapter {
 }
 export const paletteAdapters = location<PaletteAdapter>("navigation.palette-adapters")
 
+/**
+ * OPENING THE PALETTE, AND ASKING A QUESTION IN IT — what a row that is not
+ * this one may do to the box.
+ *
+ * Two rows do: `olai-plugin-search`'s header box opens it, and
+ * `olai-plugin-pins` asks for a name in it. Both used to reach a module
+ * variable in this row's `palette/open.ts`, a declared door carrying live
+ * state, so neither declared a dependency and neither stopped asking when this
+ * row left (the audit's §12).
+ *
+ * WHAT IS ON IT is the four verbs and the two readings those two rows spend,
+ * and no more: there is no `set`, so a sibling cannot put the box into a state
+ * this row has no words for. The box itself, its input, its shortlist and every
+ * decision about what a query means stay here.
+ */
+export interface PaletteControl {
+  /** Whether the box is open at all. */
+  readonly open: Accessor<boolean>
+  /** ...and what it is asking, or `null` while it is merely listing. */
+  readonly asking: Accessor<import("./palette/asking.ts").Asking | null>
+  /** Open it on the ordinary list. */
+  readonly show: () => void
+  /** ...or open it on a question. */
+  readonly ask: (asking: import("./palette/asking.ts").Asking) => void
+  /** Put a question down without shutting the box. */
+  readonly dropQuestion: () => void
+  readonly close: () => void
+}
+export const paletteControl = serviceTag<PaletteControl>("navigation.palette")
+
 export type {PaletteItem, PalettePrefix} from "./palette/items.ts"
 export const fileLinks=serviceTag<import("./opens.tsx").Opens>("navigation.file-links")
 

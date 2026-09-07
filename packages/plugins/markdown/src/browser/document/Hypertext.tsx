@@ -116,7 +116,7 @@ import {
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
 import { Lede } from "@olai/web/client/errors/Lede.tsx"
-import { useOpens } from "olai-plugin-navigation/opens"
+import { useOpens } from "../links.ts"
 import { useGo, useLanding } from "olai-plugin-navigation/routing"
 import { fileNamed } from "olai-plugin-navigation/routes"
 

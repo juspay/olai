@@ -10,6 +10,8 @@ import { Effect } from "effect"
 import { HeaderSearch } from "./browser/HeaderSearch.tsx"
 import { createSearch } from "./browser/kit/nodes.ts"
 import { holdReading } from "./browser/reading.ts"
+import { holdPalette } from "./browser/palette.ts"
+import { paletteControl } from "olai-plugin-navigation/contract"
 import type { SearchProvider } from "./contracts/reading.ts"
 import { name } from "./index.ts"
 
@@ -34,5 +36,16 @@ export default definePlugin({
     yield* slots.register("app.header", { place: "lead", body: HeaderSearch })
   }),
 })
+
+/** The ⌘K box this row's control opens, DECLARED — a component of its own so
+ *  the header box keeps searching with no navigation row mounted, and the
+ *  press that would open a palette that is not there simply does nothing
+ *  (`./browser/palette.ts`). */
+export const components = {
+  palette: definePlugin({ name: "palette", needs: [paletteControl], apply: Effect.gen(function*() {
+    const box = yield* paletteControl
+    yield* Effect.acquireRelease(Effect.sync(() => holdPalette(box)), stop => Effect.sync(stop))
+  }) }),
+}
 
 export { surface } from "./surface.ts"

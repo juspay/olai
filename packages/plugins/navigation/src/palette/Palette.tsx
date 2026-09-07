@@ -116,7 +116,7 @@ closePalette,
 dropQuestion,
 paletteAsking,
 paletteOpen,
-} from "./open.ts"
+} from "./state.ts"
 import { Question } from "./Question.tsx"
 import { Shortcuts } from "./Shortcuts.tsx"
 

@@ -4,8 +4,8 @@ import type { Edit } from "@olai/surface"
 import { nameOf } from "olai-plugin-navigation/address/address.ts"
 import { applying } from "@olai/web/client/writes.ts"
 import { Effect } from "effect"
-import { navigation,paletteAdapters } from "olai-plugin-navigation/contract"
-import { paletteAsking } from "olai-plugin-navigation/palette-open"
+import { navigation,paletteAdapters,paletteControl } from "olai-plugin-navigation/contract"
+import { holdPalette, paletteAsking } from "./box.ts"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { pinsState } from "../contract.ts"
 import { usePins } from "./answered.tsx"
@@ -14,8 +14,11 @@ import { askName,namingFor } from "./naming.ts"
 import { pinItem } from "./palette.ts"
 import { sayPin,togglePin } from "./pinning.ts"
 import { pinnedAt } from "./pins.ts"
-export const paletteIntegration=definePlugin({name:"palette",needs:[navigation,rendererSlots,pinsState],apply:Effect.gen(function*(){
+export const paletteIntegration=definePlugin({name:"palette",needs:[navigation,rendererSlots,pinsState,paletteControl],apply:Effect.gen(function*(){
  const nav=yield* navigation
+ // The box this row asks a name in, held for this activation (`./box.ts`).
+ const box=yield* paletteControl
+ yield* Effect.acquireRelease(Effect.sync(()=>holdPalette(box)),stop=>Effect.sync(stop))
  const pins=usePins(), undo=usePinUndo()
  const called=()=>nav.focused()?.title??nameOf(nav.route(),undefined)
  const run=async()=>{

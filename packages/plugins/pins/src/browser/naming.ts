@@ -64,7 +64,7 @@ import type { Edit } from "@olai/surface"
 import { Result } from "effect"
 
 import type { Line } from "olai-plugin-navigation/palette-asking"
-import { askInPalette } from "olai-plugin-navigation/palette-open"
+import { askInPalette } from "./box.ts"
 import { filterOf,hrefOf,type Route } from "olai-plugin-navigation/routes"
 import type { Pin } from "./pins.ts"
 

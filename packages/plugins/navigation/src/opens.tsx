@@ -27,36 +27,22 @@
  * stands this frame), so the component asks a question and gets a route.
  */
 
-import { createContext,type JSX,useContext } from "solid-js"
+/**
+ * ## NOTHING LIVE CROSSES THIS DOOR ANY MORE
+ *
+ * There was a Solid context here with a module-variable FALLBACK beside it: the
+ * row's `files` component called `holdOpens`, and `olai-plugin-markdown`'s
+ * hypertext preview read `useOpens` across the package wall with no dependency
+ * declared anywhere (the audit's §12). The provider itself had no user at all —
+ * every reader went through the fallback.
+ *
+ * `navigation.file-links` already carried the same value, which is what the one
+ * consumer names now. What is left here is the SHAPE, which is what a contract
+ * door is for.
+ */
 
 import type { Route } from "olai-plugin-navigation/routes"
 
 /** Where a vault path opens, or nothing for a path this directory does not
- *  hold — {@link opensAt}, bound to the set as it stands. */
+ *  hold — `opensAt`, bound to the set as it stands. */
 export type Opens = (path: string, at?: string) => Route | undefined
-
-const OpensContext = createContext<Opens>()
-
-export function OpensProvider(props: {
-  readonly opens: Opens
-  readonly children: JSX.Element
-}) {
-  return (
-    <OpensContext.Provider value={props.opens}>
-      {props.children}
-    </OpensContext.Provider>
-  )
-}
-
-/** Where a vault path opens — or a throw when a consumer is drawn outside the
- *  provider, which is a bug in this app rather than a state a reader reaches. */
-export const useOpens = (): Opens => {
-  const opens = useContext(OpensContext) ?? held
-  if (opens === undefined) {
-    throw new Error("a vault path looked up outside <OpensProvider>")
-  }
-  return opens
-}
-
-let held: Opens | undefined
-export function holdOpens(value: Opens): () => void { held=value; return ()=>{if(held===value) held=undefined} }

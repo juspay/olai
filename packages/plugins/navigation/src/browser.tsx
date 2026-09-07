@@ -3,7 +3,6 @@ import { followGhosts } from "@olai/web/client/ghost.ts"
 import { protectComposition } from "@olai/web/client/composition.ts"
 import { followKeys, KEYS_SETTLING, quiescence } from "@olai/web/client/quiescence.ts"
 import { fileAccess } from "olai-plugin-vault/contract"
-import { holdOpens } from "./opens.tsx"
 import { atElement } from "./routes.ts"
 /** History and focus activate without layout or renderer. A separate renderer
  * integration owns content registrations; layout withdrawal leaves history and
@@ -18,7 +17,9 @@ import { Effect } from "effect"
 import { overlays } from "olai-plugin-layout/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { createMemo,createRoot,createRenderEffect } from "solid-js"
-import { name,navigation } from "./index.ts"
+import { name,navigation,type PaletteControl } from "./index.ts"
+import { askInPalette,closePalette,dropQuestion,openPalette,paletteAsking } from "./palette/state.ts"
+import { paletteOpen } from "./palette/state.ts"
 import { PageView } from "./PageView.tsx"
 import { followPaletteShortcut } from "./palette/shortcut.ts"
 import { scopePaletteState } from "./palette/open-owner.ts"
@@ -43,6 +44,12 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
   })), stop => Effect.sync(stop))
   for(const start of [followKeys, protectComposition, followGhosts]) yield* Effect.acquireRelease(Effect.sync(start),stop=>Effect.sync(stop))
   yield* Effect.acquireRelease(Effect.sync(scopePaletteState),stop=>Effect.sync(stop))
+  // WHAT A SIBLING ROW MAY DO TO THE BOX — offered rather than reachable
+  // through a module variable in a declared door (`./index.ts`'s
+  // `PaletteControl`, `./palette/state.ts`).
+  yield* (yield* Offers).own("palette",():PaletteControl=>({
+    open:paletteOpen, asking:paletteAsking, show:openPalette, ask:askInPalette, dropQuestion, close:closePalette,
+  }))
   yield* Effect.acquireRelease(Effect.sync(resetPaletteMemory),()=>Effect.sync(resetPaletteMemory))
   yield* Effect.acquireRelease(Effect.sync(followPaletteShortcut),stop=>Effect.sync(stop))
   const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot((dispose) => ({
@@ -84,7 +91,6 @@ export const components = {
 })}), files:definePlugin({name:"files",needs:[fileAccess,Offers],apply:Effect.gen(function*(){
  const files=yield* fileAccess
  const opens=(path:string,at?:string)=>files.paths().includes(path)?atElement(path,at??null):undefined
- yield* Effect.acquireRelease(Effect.sync(()=>holdOpens(opens)),stop=>Effect.sync(stop))
  yield* (yield* Offers).own("file-links",()=>opens)
 })}), palette:definePlugin({name:"palette",needs:[navigation,rendererSlots,Clocks,Faces],apply:Effect.gen(function*(){
  yield* holdFaces(yield* Faces)

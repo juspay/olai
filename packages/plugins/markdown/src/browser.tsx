@@ -23,6 +23,7 @@ import { clearDocumentDrafts } from "./browser/document/drafts.ts"
 import { holdHistory, useHistory } from "./browser/history.ts"
 import { holdLocations } from "./browser/locations.ts"
 import { holdVault } from "./browser/vault.ts"
+import { holdOpens } from "./browser/links.ts"
 import { EmbeddedDocument } from "./browser/EmbeddedDocument.tsx"
 import { openCreated, clearMinted } from "./browser/document/minted.ts"
 import { MarkdownPageView } from "./browser/PageView.tsx"
@@ -85,6 +86,9 @@ export const components = {
     // preview watches (`./browser/vault.ts`).
     const served = yield* fileAccess
     yield* Effect.acquireRelease(Effect.sync(() => holdVault(served)), stop => Effect.sync(stop))
+    // ...and where a path inside a saved page opens (`./browser/links.ts`).
+    const opens = yield* fileLinks
+    yield* Effect.acquireRelease(Effect.sync(() => holdOpens(opens)), stop => Effect.sync(stop))
     yield* slots.contribute(content, { matches: route => documentFile(route) !== undefined, Page: MarkdownPageView }, {children:[documentBodies, properties]})
     yield* slots.contribute(documentBodies, EmbeddedDocument)
   }) }),
