@@ -147,13 +147,18 @@ Then(
  * asks is the pane's own `data-drawn-file`: the file of the page it is
  * DRAWING, which is the arrival itself.
  *
- * ANY PANE that is drawing it, rather than an index: a one-pane app is pane 0
- * and a split may open the file in either, and no caller of this knows which.
- * A step that means a particular pane asks `paneAt` instead.
+ * ## THE INTENDED PANE, which is the FOCUSED one
+ *
+ * "Any pane drawing it" was the same false positive one step out: a split with
+ * the destination already open beside the reader satisfies it before the pane
+ * they are IN has moved. The destination pane is not a guess — `router.go` is
+ * `goIn(workspace().focus, next)`, so a plain link navigates the pane you are
+ * in, and both callers of this are plain links. A step that means a particular
+ * pane asks `paneAt` instead.
  */
 const treeOf = (world: OlaiWorld, file: string) =>
   world.page
-    .locator(`${PANE}${attr("data-drawn-file", file)} ${OUTLINE_TREE}`)
+    .locator(`${PANE}[data-pane-focused="true"]${attr("data-drawn-file", file)} ${OUTLINE_TREE}`)
     .first();
 
 /** The same click one kind over from "I click the document": the entry in the

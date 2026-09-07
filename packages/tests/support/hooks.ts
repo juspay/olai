@@ -136,6 +136,10 @@ const ATTEMPT = process.env["OLAI_E2E_ATTEMPT"] ?? (() => {
  *  `After` is handed the scenario's result and not the step that produced it. */
 let failingStep: string | undefined;
 
+/** How many failures this worker has kept, so two of them cannot take one
+ *  name even where Cucumber's ids are unavailable. */
+let failures = 0;
+
 
 AfterStep(function (this: OlaiWorld, step) {
   if (step.result.status === Status.FAILED) failingStep = step.pickleStep?.text;
@@ -150,13 +154,33 @@ AfterStep(function (this: OlaiWorld, step) {
  * evidence would be the worst possible bug in this file.
  */
 const keepEvidence = async (world: OlaiWorld, scenario: {
-  readonly pickle: { readonly name: string; readonly uri: string };
+  readonly pickle: { readonly id?: string; readonly name: string; readonly uri: string };
+  readonly testCaseStartedId?: string;
   readonly result?: { readonly message?: string };
 }): Promise<void> => {
   const name = scenario.pickle.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
     || "scenario";
   const worker = process.env["CUCUMBER_WORKER_ID"] ?? "0";
-  const stem = `${worker}-${name}`;
+  /**
+   * THE NAME IS PER EXECUTION, and a title is not enough to make one.
+   *
+   * Two features in this tree carry the identical scenario title ("A write
+   * that landed with something to say says it here too"), a Scenario Outline's
+   * examples all share theirs, and a retry runs the same case twice. Named by
+   * worker and title alone, the second failure in an attempt silently replaced
+   * the first — a review reproduced exactly that, with those two real
+   * scenarios.
+   *
+   * So the stem carries the CASE (Cucumber's pickle id, which is distinct per
+   * example) and the EXECUTION (`testCaseStartedId`, distinct per retry), with
+   * the feature's own file in front of the title so a reader can tell the two
+   * same-named scenarios apart without decoding an id. A counter closes the
+   * last gap: if either id is ever absent, two failures still cannot collide.
+   */
+  const feature = path.basename(scenario.pickle.uri).replace(/\.feature$/, "");
+  const runs = String(++failures).padStart(3, "0");
+  const execution = (scenario.testCaseStartedId ?? scenario.pickle.id ?? "").slice(0, 8);
+  const stem = [`${worker}-${runs}`, feature, name, execution].filter((one) => one !== "").join("-");
   const url = (() => { try { return world.page?.url() ?? "no page"; } catch { return "unreadable"; } })();
   const errors = world.errors ?? [];
   // ONE LINE PER FACT, prefixed, so a reviewer can grep a 300,000-line shard
@@ -186,6 +210,17 @@ const keepEvidence = async (world: OlaiWorld, scenario: {
     ].join("\n") + "\n");
   } catch (cause) {
     process.stderr.write(`olai-e2e-evidence: could not write the failure note: ${String(cause)}\n`);
+  }
+  // INDEPENDENTLY OF THE SCREENSHOT, and before it: the server's own output is
+  // what distinguishes an intermediate valid revision from a reset, and a
+  // failure that could not be photographed is exactly the failure whose log is
+  // wanted most. A page that has gone will not screenshot; the log is already
+  // in hand.
+  try {
+    const printed = world.serverLog?.text ?? "";
+    if (printed !== "") fs.writeFileSync(path.join(dir, `${stem}.server.log`), printed);
+  } catch (cause) {
+    process.stderr.write(`olai-e2e-evidence: could not write the server log: ${String(cause)}\n`);
   }
   try {
     await world.page?.screenshot({ path: path.join(dir, `${stem}.png`), fullPage: true });
@@ -1526,6 +1561,7 @@ Before(
         this.baseUrl = own.baseUrl;
         this.served = own.root;
         this.ownServer = own.child;
+        this.serverLog = own.said;
       };
       if (asked.mode === "share") {
         const featureKey = `${scenario.pickle.uri}::${asked.corpus}::${spawnFingerprint(spawnOptions)}`;
@@ -1540,13 +1576,22 @@ Before(
           this.baseUrl = slot.server.baseUrl;
           this.served = slot.server.root;
           this.ownServer = slot.server.child;
+          this.serverLog = slot.server.said;
           this.scratchShare = { key: featureKey };
         }
       } else {
         await ownCopy();
       }
     } else {
-      this.baseUrl = (await serverFor(this.corpus)).baseUrl;
+      // THE SHARED SERVER'S OUTPUT COMES WITH ITS URL. `world.serverLog` used
+      // to be filled only by a scenario that RESTARTED its own server, so the
+      // one place a log is most wanted — a failure on an ordinary shared-corpus
+      // scenario — retained none. The box is the server's own and is shared
+      // deliberately: it is what that process has printed, and a scenario that
+      // borrowed the process borrowed the printing.
+      const shared = await serverFor(this.corpus);
+      this.baseUrl = shared.baseUrl;
+      this.serverLog = shared.said;
     }
 
     const handheld = scenario.pickle.tags.some((tag) => tag.name === PHONE_TAG);
