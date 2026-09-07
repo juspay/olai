@@ -14,10 +14,18 @@ import { expect, test } from "bun:test"
 import { addressOf } from "@olai/format"
 
 import type { Names } from "olai-plugin-outlines/names"
-import { atElement, atFile, atNode, HOME_ROUTE, hrefOf, routeIn, routeOf } from "olai-plugin-navigation/routes"
-import { ROUTES } from "olai-plugin-navigation/routes.testlib.ts"
+import { atElement, atFile, atNode, HOME_ROUTE } from "olai-plugin-navigation/routes"
+import { ROUTES, routingIn } from "olai-plugin-navigation/routes.testlib.ts"
 import { requestFor } from "./page.ts"
-import { addressIn, labelIn, nameOf, shownIn } from "olai-plugin-navigation/address/address.ts"
+import { addressIn as addressWith, labelIn, nameOf as nameWith, shownIn } from "olai-plugin-navigation/address/address.ts"
+
+/** No plugin claims a URL, which is what every case here is about: the address
+ *  grammar's own arms. The roster-dependent half is asked THROUGH this rather
+ *  than off a module-scope table (`olai-plugin-navigation/routes`' header). */
+const routes = routingIn()
+const { href: hrefOf, routeIn, routeOf } = routes
+const addressIn = (title: string) => addressWith(routes, title)
+const nameOf = (route: Parameters<typeof nameWith>[1], shows: Parameters<typeof nameWith>[2]) => nameWith(routes, route, shows)
 
 // ── what is an address ─────────────────────────────────────────────────
 

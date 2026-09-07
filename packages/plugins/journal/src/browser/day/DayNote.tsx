@@ -31,7 +31,7 @@
 
 import { For, Show } from "solid-js"
 import { documentBodies } from "olai-plugin-markdown/contract"
-import { readLocation } from "olai-plugin-ui-renderer/contract"
+import { readLocation } from "../locations.ts"
 import { Link } from "olai-plugin-navigation/routing"
 import { atFile } from "olai-plugin-navigation/routes"
 import { TESTID } from "../../testids.ts"

@@ -27,8 +27,8 @@ import type { AppRouteClaim } from "olai-plugin-navigation/slots"
  *   - a NARROWING — `?q=`, and nothing else rides in a query here.
  *
  * The bijection is over that pair, in both directions, which is why
- * {@link hrefOf} reads as *place, then narrowing, then the element half* and
- * {@link routeNamed} reads as *the words this app claimed, then the grammar*.
+ * {@link hrefOfIn} reads as *place, then narrowing, then the element half* and
+ * {@link routeNamedIn} reads as *the words this app claimed, then the grammar*.
  *
  * {@link Route} IS spelled that way since PR 2 of the design: one content arm
  * carrying an address, and a filter beside it. The three arms it replaced —
@@ -215,6 +215,19 @@ export type Route =
     readonly filter?: string
   }
 
+/**
+ * EVERY ARM THIS APP'S OWN GRAMMAR SPELLS WHOLE — the union minus the one a
+ * mounted plugin owns.
+ *
+ * It exists so that "this route needs no roster" is a fact the COMPILER holds
+ * rather than a sentence somebody keeps true: {@link hrefOfPlain} takes one,
+ * the three constructors answer one, and a caller that spells
+ * `hrefOfPlain(atNode(id))` is statically proved not to be asking about a
+ * tenant. A caller holding a `Route` that may be a plugin's cannot reach that
+ * function at all, and goes through the {@link Routing} capability instead.
+ */
+export type PlainRoute = Exclude<Route, { readonly kind: "plugin" }>
+
 export interface DefinedAppRoute<Value, Request extends PageRequest> {
   readonly source: NodePageRoute
   readonly to: (value: Value) => Route
@@ -287,8 +300,8 @@ const HOME = "/"
 /**
  * THE PAGES THIS APP CLAIMS BY NAME, as ONE table read in both directions.
  *
- * They were three constants printed in {@link hrefOf} and compared again in
- * {@link routeNamed} — two lists of the same fact, which is the shape where a
+ * They were three constants printed in {@link hrefOfIn} and compared again in
+ * {@link routeNamedIn} — two lists of the same fact, which is the shape where a
  * page can end up printed and not parsed: a link the app writes, that loads as
  * the front page. Nothing fails when they disagree, which is why it is worth
  * making impossible rather than watching for.
@@ -420,12 +433,31 @@ export const settleRoutePages = (
   return pages
 }
 
-/** The settled claim table follows the runtime's mounted-plugin revision and
- * is shared by parsing, printing and tenant lookup until that revision moves. */
-let routePages: () => ReturnType<typeof settleRoutePages> = () => settleRoutePages([])
-export function holdRoutePages(read:typeof routePages):()=>void {
- const before=routePages;routePages=read;return ()=>{if(routePages===read)routePages=before}
-}
+/**
+ * THE ROUTES THE MOUNTED PLUGINS CLAIM, as this grammar is handed them.
+ *
+ * It was a module variable here, with a `holdRoutePages` beside it that
+ * navigation's renderer integration called — so five other packages parsed and
+ * printed URLs against a live table nobody had declared a dependency on, and a
+ * serve whose renderer had not yet contributed answered a DIFFERENT grammar
+ * (`/d/2026-09-07` becomes a vault file rather than a day) with nothing saying
+ * so. That is the audit's §2 and §12, in the one module every package in this
+ * tree spells an address with.
+ *
+ * The table travels as an ARGUMENT now. The pure half of the grammar — the
+ * constructors, the address reading, the narrowing — is exported as it always
+ * was; the four operations that genuinely read the roster are exported as pure
+ * functions OVER it, and {@link routingOver} binds them into the {@link Routing}
+ * capability `Navigation` carries. A consumer that prints or parses a plugin
+ * URL names `navigation.state` and is handed that capability; a consumer whose
+ * routes are this app's own keeps {@link hrefOfPlain}, which needs no roster
+ * because there is no tenant in it.
+ */
+export type MountedPages = ReturnType<typeof settleRoutePages>
+
+/** No plugin claims a URL — the honest reading before a renderer has
+ *  contributed anything, and the one a bench starts from. */
+export const NO_PAGES: MountedPages = []
 
 const claims = (route: NodePageRoute, pathname: string): boolean =>
   route.claims.some((claim) =>
@@ -433,14 +465,14 @@ const claims = (route: NodePageRoute, pathname: string): boolean =>
   )
 
 /** The mounted tenant for a plugin route, or null after that tenant left. */
-export const routeFace = (route: Route): MountedAppPage | null => {
+export const routeFaceIn = (pages: MountedPages, route: Route): MountedAppPage | null => {
   if (route.kind !== "plugin") return null
-  return routePages().find((one) => one.page.route === route.source)?.page ?? null
+  return pages.find((one) => one.page.route === route.source)?.page ?? null
 }
 
 /** The front page: the address that names no place. One value, since it is
  *  only ever read. */
-export const HOME_ROUTE: Route = { kind: "at", address: null }
+export const HOME_ROUTE: PlainRoute = { kind: "at", address: null }
 
 /**
  * WHERE AN ADDRESS OPENS.
@@ -448,23 +480,23 @@ export const HOME_ROUTE: Route = { kind: "at", address: null }
  * The one constructor for a content route, so that no caller assembles the arm
  * itself — which is what makes "the page kind is derived" true rather than
  * merely intended. `null` is the front page, and it is what an unnameable
- * pair falls back to, on {@link routeOf}'s own kindness: a route that names
+ * pair falls back to, on {@link routeOfIn}'s own kindness: a route that names
  * nothing is the page that names nothing.
  */
-const atAddress = (address: Address | null): Route => ({ kind: "at", address })
+const atAddress = (address: Address | null): PlainRoute => ({ kind: "at", address })
 
 /** The page a served FILE opens — an outline drawn as a tree, a body drawn
  *  whole, and which of those is nobody's decision here (`./page.ts` asks the
  *  registry when it picks the page). */
-export const atFile = (file: string): Route => atAddress(addressOf(file, null))
+export const atFile = (file: string): PlainRoute => atAddress(addressOf(file, null))
 
 /** One node's page, by the id that is the whole of its address: bare, global,
  *  and right about where the node lives after every move short of a delete. */
-export const atNode = (id: string): Route => atAddress(addressOf(null, id))
+export const atNode = (id: string): PlainRoute => atAddress(addressOf(null, id))
 
 /** A place INSIDE a file — a heading of a body, or a node of an outline, which
  *  is the grammar's own reading of what a `#` after a path means. */
-export const atElement = (file: string, element: string | null): Route =>
+export const atElement = (file: string, element: string | null): PlainRoute =>
   atAddress(addressOf(file, element))
 
 /**
@@ -477,16 +509,34 @@ export const atElement = (file: string, element: string | null): Route =>
  * why the address is written in halves ({@link writtenAddress}) rather than
  * whole and cut back open here.
  */
-export const hrefOf = (route: Route): string => {
-  const narrowed = narrowing(filterOf(route))
-  if (route.kind === "plugin") {
-    return (routeFace(route)?.route.href(route.value) ?? HOME) + narrowed
-  }
+export const hrefOfPlain = (route: PlainRoute): string => {
+  const narrowed = narrowing(filterOfPlain(route))
   if (isNamed(route.kind)) return NAMED[route.kind] + narrowed
   const address = addressNamed(route)
   if (address === null) return HOME + narrowed
   const { path, element } = writtenAddress(address)
   return HOME + path + narrowed + (element === undefined ? "" : `#${element}`)
+}
+
+/**
+ * ...AND THE SAME QUESTION ABOUT A ROUTE THAT MAY BE A PLUGIN'S, which needs
+ * the roster.
+ *
+ * A PLUGIN ROUTE WHOSE TENANT HAS LEFT SPELLS THE FRONT PAGE, and that is a
+ * product contract rather than an implementation detail: a pinned link to a
+ * page nobody serves any more takes a reader somewhere that exists.
+ * `routes.test.ts` holds it, together with the other half of the same
+ * sentence — {@link samePageIn} still tells that route APART from the front
+ * page, so the router's own reinterpretation is not suppressed by the URL it
+ * happens to print.
+ *
+ * The presence check is `route.source` looked up in the roster BY IDENTITY, so
+ * a replacement provider's page is a different route rather than the same one
+ * (`samePageIn`'s third case).
+ */
+export const hrefOfIn = (pages: MountedPages, route: Route): string => {
+  if (route.kind !== "plugin") return hrefOfPlain(route)
+  return (routeFaceIn(pages, route)?.route.href(route.value) ?? HOME) + narrowing(filterOfIn(pages, route))
 }
 
 /** The `?q=…` a filtered page wears — and nothing at all for an unfiltered
@@ -543,7 +593,7 @@ export const fileNamed = (route: Route): string | undefined => {
  * The route a link on the page names, or `null` for an address this app should
  * let the browser have.
  *
- * STRICTER THAN {@link routeOf} on purpose, and the difference is who is
+ * STRICTER THAN {@link routeOfIn} on purpose, and the difference is who is
  * asking. `routeOf` reads the address bar, where an unrecognised path is a
  * reader who typed something and the kindest answer is the app's front page.
  * This reads an `href` inside RENDERED MARKDOWN — a link somebody wrote in a
@@ -551,7 +601,7 @@ export const fileNamed = (route: Route): string | undefined => {
  * page for silently opening the default outline instead of going where it says.
  *
  * SO IT ASKS THE PARSER WHETHER IT RECOGNISED ANYTHING, which is a question
- * {@link routeNamed} can answer and {@link routeOf} cannot: the front page is
+ * {@link routeNamedIn} can answer and {@link routeOfIn} cannot: the front page is
  * what an unread address FALLS BACK to there, so a caller holding the answer
  * cannot tell "the reader typed `/`" from "this is not one of ours". It used
  * to be tested by the BIJECTION instead — print the route back and compare —
@@ -568,8 +618,8 @@ export const fileNamed = (route: Route): string | undefined => {
  * front of it (`#md-1a2b-beds`): that is an anchor inside the page being read,
  * and an app address always starts with a slash.
  */
-export const routeIn = (href: string): Route | null =>
-  href.startsWith("/") ? routeNamed(splitAddress(href)) : null
+export const routeInIn = (pages: MountedPages, href: string): Route | null =>
+  href.startsWith("/") ? routeNamedIn(pages, splitAddress(href)) : null
 
 /**
  * Anything this does not recognise is the default outline: an unknown path is
@@ -581,13 +631,13 @@ export const routeIn = (href: string): Route | null =>
  * `location.pathname + location.search + location.hash`; a bare path parses
  * exactly as it did before.
  *
- * The reading itself is {@link routeNamed}'s, which answers `null` where this
+ * The reading itself is {@link routeNamedIn}'s, which answers `null` where this
  * answers the front page — one grammar, read once, with the KINDNESS added
  * here rather than baked into it.
  */
-export const routeOf = (address: string): Route => {
+export const routeOfIn = (pages: MountedPages, address: string): Route => {
   const parts = splitAddress(address)
-  const named = routeNamed(parts)
+  const named = routeNamedIn(pages, parts)
   if (named !== null) return named
   /** What an address this does not recognise means, and — since {@link spelled}
    *  — what one it cannot READ means too. The kindness is the same either way:
@@ -601,7 +651,7 @@ export const routeOf = (address: string): Route => {
  * The route an address NAMES, or `null` for a string that names no page of
  * this app — the whole of the grammar, and the only place it is read.
  *
- * The `null` is what {@link routeIn} needs and what {@link routeOf} spends: a
+ * The `null` is what {@link routeInIn} needs and what {@link routeOfIn} spends: a
  * parser that answered the front page for everything could never say whether
  * it had recognised anything, and both callers want that answer for opposite
  * reasons.
@@ -611,11 +661,11 @@ export const routeOf = (address: string): Route => {
  * those paths do not silently become vault-file addresses. Claims are checked
  * against every other computed-page claim before one is read.
  */
-const routeNamed = (parts: Split): Route | null => {
+const routeNamedIn = (pages: MountedPages, parts: Split): Route | null => {
   const { pathname, search, fragment } = parts
   const narrowed = narrowedBy(search)
 
-  const tenant = routePages().find((one) => claims(one.page.route, pathname))?.page
+  const tenant = pages.find((one) => claims(one.page.route, pathname))?.page
   if (tenant !== undefined) {
     const value = tenant.route.parse(pathname)
     if (value === null) return null
@@ -644,7 +694,7 @@ const routeNamed = (parts: Split): Route | null => {
   // collapse — an address and a sidebar click cannot open two different pages
   // for one file, because neither of them says which page.
   const route = atAddress(named)
-  return narrowable(route) ? { ...route, ...narrowed } : route
+  return narrowablePlain(route) ? { ...route, ...narrowed } : route
 }
 
 /**
@@ -652,7 +702,7 @@ const routeNamed = (parts: Split): Route | null => {
  * place that list is written down.
  *
  * It was said three times before it was a function: once in the arms that carry
- * a `filter`, once in {@link narrowedTo}'s guard and once in {@link filterOf}'s.
+ * a `filter`, once in {@link narrowedToIn}'s guard and once in {@link filterOfIn}'s.
  * Three spellings of the same list is three edits the day another page grows a
  * filter, and two of them are easy to miss because nothing fails when they
  * disagree — the filter simply goes nowhere. The day a day page grew one, this
@@ -668,33 +718,44 @@ const routeNamed = (parts: Split): Route | null => {
  * `filter` field, which was the rule spelled in the TYPE — a stronger promise,
  * and one the type could only make while the route stored what it drew. What
  * replaces it is that nothing can build a document route with a filter without
- * going through {@link narrowedTo}, which asks this.
+ * going through {@link narrowedToIn}, which asks this.
  */
-export const narrowable = (route: Route): boolean => {
-  if (route.kind === "plugin") return routeFace(route)?.route.narrowable ?? false
+export const narrowablePlain = (route: PlainRoute): boolean => {
   const address = addressNamed(route)
   return address === null || address.kind === "node" ||
     fileKind(address.path) === "outline"
 }
+
+/** ...and the same question about a route that may be a plugin's, where the
+ *  answer is the TENANT'S own declaration and a departed tenant narrows
+ *  nothing. */
+export const narrowableIn = (pages: MountedPages, route: Route): boolean =>
+  route.kind === "plugin"
+    ? routeFaceIn(pages, route)?.route.narrowable ?? false
+    : narrowablePlain(route)
 
 /**
  * The same page, narrowed — or not, when `filter` is blank.
  *
  * Here rather than at the call site because a filter typed on a document page
  * has nowhere to go, and a caller that spread it onto the route anyway would
- * mint an address {@link hrefOf} silently drops and {@link routeOf} never
+ * mint an address {@link hrefOfIn} silently drops and {@link routeOfIn} never
  * returns.
  */
-export const narrowedTo = (route: Route, filter: string): Route => {
-  if (!narrowable(route)) return route
+export const narrowedToIn = (pages: MountedPages, route: Route, filter: string): Route => {
+  if (!narrowableIn(pages, route)) return route
   return { ...route, filter: filter.trim() === "" ? undefined : filter }
 }
 
 /** What a page is narrowed BY, for the one component that draws it and the
  *  memo that parses it. Read off the route for the reason `fileNamed` is: the
  *  route is what an address decodes to, and a copy beside it could differ. */
-export const filterOf = (route: Route): string =>
-  (narrowable(route) ? route.filter : undefined) ?? ""
+export const filterOfPlain = (route: PlainRoute): string =>
+  (narrowablePlain(route) ? route.filter : undefined) ?? ""
+
+/** ...and the same reading of a route that may be a plugin's. */
+export const filterOfIn = (pages: MountedPages, route: Route): string =>
+  (narrowableIn(pages, route) ? route.filter : undefined) ?? ""
 
 /**
  * The same PAGE, whatever it is narrowed by.
@@ -706,7 +767,51 @@ export const filterOf = (route: Route): string =>
  * bijection rather than field by field, so it cannot go stale against a route
  * arm added later.
  */
-export const samePage = (a: Route, b: Route): boolean =>
+export const samePageIn = (pages: MountedPages, a: Route, b: Route): boolean =>
   a.kind === b.kind
   && (a.kind !== "plugin" || b.kind !== "plugin" || a.source === b.source)
-  && hrefOf(narrowedTo(a, "")) === hrefOf(narrowedTo(b, ""))
+  && hrefOfIn(pages, narrowedToIn(pages, a, "")) === hrefOfIn(pages, narrowedToIn(pages, b, ""))
+
+/**
+ * THE FOUR OPERATIONS THAT READ THE ROSTER, BOUND — what `Navigation` carries
+ * and what a consumer that prints or parses a plugin URL is handed.
+ *
+ * A FACTORY over an accessor rather than a snapshot: the roster moves while a
+ * tab is open, and a capability holding the table as it stood when the row
+ * applied would print a departed tenant's URL for the life of the page. The
+ * accessor is navigation's own, fed by the renderer integration that declares
+ * `Faces` — so the dependency the audit is about is declared once, by the row
+ * that brokers it, and every consumer names that row.
+ */
+export interface Routing {
+  /** The mounted tenant for a plugin route, or `null` after it left. */
+  readonly face: (route: Route) => MountedAppPage | null
+  /** Whether a page takes a filter at all — the tenant's own declaration where
+   *  the page is a plugin's. */
+  readonly narrowable: (route: Route) => boolean
+  /** The same page, narrowed — or not, where it takes no filter. */
+  readonly narrowedTo: (route: Route, filter: string) => Route
+  /** What a page is narrowed BY. */
+  readonly filterOf: (route: Route) => string
+  /** The URL a route is at — the front page for a departed tenant. */
+  readonly href: (route: Route) => string
+  /** The route a link on the page names, or `null` for an address this app
+   *  should let the browser have. */
+  readonly routeIn: (href: string) => Route | null
+  /** ...and the address bar's kinder reading, which falls back to the front
+   *  page rather than answering nothing. */
+  readonly routeOf: (address: string) => Route
+  /** The same PAGE, whatever it is narrowed by. */
+  readonly samePage: (a: Route, b: Route) => boolean
+}
+
+export const routingOver = (pages: () => MountedPages): Routing => ({
+  face: (route) => routeFaceIn(pages(), route),
+  narrowable: (route) => narrowableIn(pages(), route),
+  narrowedTo: (route, filter) => narrowedToIn(pages(), route, filter),
+  filterOf: (route) => filterOfIn(pages(), route),
+  href: (route) => hrefOfIn(pages(), route),
+  routeIn: (href) => routeInIn(pages(), href),
+  routeOf: (address) => routeOfIn(pages(), address),
+  samePage: (a, b) => samePageIn(pages(), a, b),
+})

@@ -1,6 +1,7 @@
 import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
-import { nameOf, shownIn } from "olai-plugin-navigation/address/address.ts"
+import { shownIn } from "olai-plugin-navigation/address/address.ts"
+import { nameOf } from "./routing.ts"
 import { useUndo } from "./edit/undoing.ts"
 /**
  * ONE pane's page: the same chrome a lone view has always drawn.
@@ -26,17 +27,17 @@ import { FilterBar } from "./filter/FilterBar.tsx"
 import { NarrowedProvider } from "./filter/narrowed.tsx"
 import { createNarrowing } from "./filter/narrowing.ts"
 import { tagPressed } from "./filter/tag.ts"
-import { desktop } from "olai-plugin-layout/media"
-import { panelOpen } from "olai-plugin-layout/preferences"
+import { desktop, panelOpen } from "./shell.ts"
 import { only } from "@olai/web/client/narrow.ts"
-import { useToday } from "@olai/web/client/today.tsx"
+import { useToday } from "./clock.ts"
 import { NodePage } from "./NodePage.tsx"
 import { Nothing } from "./Nothing.tsx"
 import { drawnBy, requestFor, fileOf } from "./page.ts"
 import { createReading, ReadingProvider, useReadings } from "./reading.tsx"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { useFollow, useHere, useRouter } from "olai-plugin-navigation/routing"
-import { filterOf, hrefOf, type MountedAppPage, narrowable, narrowedTo, routeFace, samePage } from "olai-plugin-navigation/routes"
+import type { MountedAppPage } from "olai-plugin-navigation/routes"
+import { filterOf, hrefOf, narrowable, narrowedTo, routeFace, samePage } from "./routing.ts"
 import { panesOf } from "olai-plugin-navigation/workspace"
 import { pageFileOf, visibleIn } from "./settings/done.ts"
 
@@ -237,6 +238,25 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
       data-pane={String(here())}
       data-pane-focused={here() === router.workspace().focus ? "true" : undefined}
       data-href={hrefOf(route())}
+      /**
+       * WHICH PAGE THIS PANE IS DRAWING — which is not the same fact as
+       * {@link data-href}, and the difference is the whole reason this exists.
+       *
+       * `data-href` is what the pane has been ASKED for: it moves the frame a
+       * link is clicked. What is on screen until the answer lands is the page
+       * that was already there (the `<Show when={page()}>` below, and the
+       * paragraph above it on why a later navigation swaps rather than tears
+       * down). So a reader — or a suite — asking "has the destination arrived"
+       * off the href is asking a question the href answers too early.
+       *
+       * This says what {@link page} IS, by the file it stands in. A suite waits
+       * on it rather than on a row's `data-file`: rows carry the file of the
+       * RECORD they draw, and a mirror pulls another outline's records into
+       * this one, so a row of `garden.olai` is on screen while `house.olai` is
+       * the page (`@olai/tests`' `outline_list_steps.ts`, and the review that
+       * found the wait it made vacuous).
+       */
+      data-drawn-file={pageFileOf(page())}
       data-narrowable={narrowable(route()) ? "true" : undefined}
       onPointerDown={() => router.focus(here())}
       onClick={(event) => {

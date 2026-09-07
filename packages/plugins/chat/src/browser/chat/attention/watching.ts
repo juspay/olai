@@ -48,7 +48,7 @@
 
 import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
 
-import { panelOpen } from "olai-plugin-layout/preferences"
+import { panelOpen } from "../../shell.ts"
 import { createTicking } from "@olai/web/client/clock.ts"
 import { broadcast, createElsewhere, WATCHED_BEAT } from "./elsewhere.ts"
 

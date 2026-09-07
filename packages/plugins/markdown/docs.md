@@ -6,6 +6,14 @@ The browser provider owns a document reader and a fresh edit-history scope. Its 
 
 Heading fragments remain in each pane's navigation route and scroll history. Metadata requests use only the document path, so opening a section still fetches the correct file, and two panes can land independently at headings in the same document. Moving between headings of that file reuses its metadata subscription.
 
+`markdown.browser-state` carries what this row owns in a tab — its sibling
+client, the open documents and their drafts, and its own edit history — rather
+than announcing readiness over values kept in module variables. Where a minted
+document is OPENED travels beside it on `markdown.editing`, which the journal's
+day page names on a component of its own: with no document row mounted the
+journal's calendar, agenda and day pages are whole and the *+ day note* button
+is simply not drawn.
+
 Separate integrations contribute document previews and document-property navigation to outlines. Journal consumes Markdown's body location for daily notes and its creation handoff capability for opening newly created notes. Those integrations retract when Markdown leaves. Outline notes and chat messages continue rendering Markdown text through `@olai/markdown-ui`, which is a static renderer independent of this plugin.
 
 Drafts retain their original conflict baseline across unrelated shell changes. Removing Markdown withdraws its content and integrations and clears retained drafts and creation handoffs. Re-enabling starts a fresh activation; it does not resurrect unsaved text from the departed one.

@@ -36,7 +36,7 @@ import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 
-import { applying } from "@olai/web/client/writes.ts"
+import { applying } from "../writes.ts"
 import { EdgePanel } from "./EdgePanel.tsx"
 import { type Relation, unlinking } from "./relation.ts"
 

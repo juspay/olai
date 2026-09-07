@@ -47,7 +47,7 @@ import { flatten, neighbour, refound } from "../edit/order.ts"
 import { selectionMemory } from "./memory.ts"
 import type { Said } from "@olai/web/client/saying.ts"
 import { useUndo } from "../edit/undoing.ts"
-import { applyingAll } from "@olai/web/client/writes.ts"
+import { applyingAll } from "../writes.ts"
 import { type Bulk, bulkEdits } from "./bulk.ts"
 import { alongside, recordOf, spanning, topmost } from "./range.ts"
 

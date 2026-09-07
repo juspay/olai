@@ -4,7 +4,10 @@ import type { AppClocks } from "@olai/plugin-api"
 import { createTicking, MINUTE, SECOND } from "@olai/web/client/clock.ts"
 import { createNow, exactOf, tickingOf, wordsOf } from "@olai/web/client/duration.ts"
 
-export const clocks: AppClocks = {
+/** The renderer's clock, as its `clocks` component minted it — see
+ *  `./browser.tsx`, which is the activation that owns the timer behind it. */
+export const clocksOver = (today: () => string): AppClocks => ({
+  today,
   SECOND,
   MINUTE,
   createTicking,
@@ -12,5 +15,5 @@ export const clocks: AppClocks = {
   wordsOf,
   exactOf,
   tickingOf,
-}
+})
 

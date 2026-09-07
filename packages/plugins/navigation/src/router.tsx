@@ -36,7 +36,8 @@ marked,
 NOWHERE,
 spent
 } from "./landing.ts"
-import { hrefOf,type Route } from "./routes.ts"
+import type { Route } from "./routes.ts"
+import { routing } from "./pages.ts"
 import { createScrollMemory } from "./scroll.ts"
 import {
 closeAt,
@@ -84,21 +85,21 @@ const here = (): string =>
   location.pathname + location.search + location.hash
 
 export const createRouter = (): Router => {
-  const first = workspaceOf(here())
+  const first = workspaceOf(routing, here())
   const [workspace, setWorkspace] = createSignal<Workspace>(first)
   // A newly available plugin can claim the address already in the bar (for
   // example, Back into a disabled journal followed by enabling journal).
   // Reinterpret those routes when the claim table changes without navigating
   // or replacing the route objects that still mean the same thing.
   createEffect(() => {
-    const parsed = workspaceOf(here())
+    const parsed = workspaceOf(routing, here())
     const current = untrack(workspace)
     let next = current
     const previous = panesOf(current)
     for (const [index, pane] of panesOf(parsed).entries()) {
       const before = previous[index]?.route
       if (before === undefined) continue
-      if (before.kind === pane.route.kind && hrefOf(before) === hrefOf(pane.route)
+      if (before.kind === pane.route.kind && routing.href(before) === routing.href(pane.route)
         && (before.kind !== "plugin" || pane.route.kind !== "plugin"
           || before.source === pane.route.source)) continue
       next = navigateIn(next, index, pane.route)
@@ -150,7 +151,7 @@ export const createRouter = (): Router => {
     how: "push" | "replace",
     land: (all: Landings) => Landings,
   ): void => {
-    const href = hrefOfWorkspace(next)
+    const href = hrefOfWorkspace(routing, next)
     if (how === "push") {
       currentKey = mintKey()
       history.pushState({ key: currentKey } as Entry, "", href)
@@ -187,7 +188,7 @@ export const createRouter = (): Router => {
       // first paint mints it, and where it lands is the act's to spend — a
       // reload of this URL would owe exactly that. The scroll memory's "the
       // position you left" belongs to entries, and none was traversed to.
-      const next = workspaceOf(here())
+      const next = workspaceOf(routing, here())
       currentKey = nameHere()
       batch(() => {
         setLandings(landingsOf(next))
@@ -202,7 +203,7 @@ export const createRouter = (): Router => {
     // the scroll memory's. One statement about the whole address, because a
     // `popstate` IS one: every pane on it is the pane the reader left.
     setLandings(NOWHERE)
-    setWorkspace(workspaceOf(here()))
+    setWorkspace(workspaceOf(routing, here()))
     scroll.restore(nameHere())
   }
   addEventListener("popstate", onPopState)
@@ -227,6 +228,10 @@ export const createRouter = (): Router => {
   }
 
   return {
+    // THE ROSTER-DEPENDENT HALF OF THE GRAMMAR, on the router that holds the
+    // routes — one binding over this row's own claim table (`./pages.ts`), so
+    // every `<Link>`, every pane label and every consuming row asks one thing.
+    routes: routing,
     workspace,
     route: () => focusedRoute(workspace()),
     landing: (index) => landings().get(index),

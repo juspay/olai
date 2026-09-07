@@ -17,6 +17,11 @@ import { datePick } from "../date/pick.ts"
 import { repeatPick } from "../date/repeat.ts"
 import { flatten } from "../edit/order.ts"
 import { subjectOfRow, writeVerbs } from "./verbs.ts"
+import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
+/** No plugin claims a URL — the roster these cases are about. A pinned plugin
+ *  page is a case for a bench that binds its own (`routingIn(pages)`). */
+const routes = routingIn()
+
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"kitchen remodel","doing":true}`,
@@ -45,10 +50,10 @@ const row = (id: string): Row => {
 }
 
 const labels = (id: string): ReadonlyArray<string> =>
-  writeVerbs(subjectOfRow(row(id)), row(id).under, NO_PINS).map((verb) => verb.label)
+  writeVerbs(routes, subjectOfRow(row(id)), row(id).under, NO_PINS).map((verb) => verb.label)
 
 const verb = (id: string, label: string) => {
-  const found = writeVerbs(subjectOfRow(row(id)), row(id).under, NO_PINS)
+  const found = writeVerbs(routes, subjectOfRow(row(id)), row(id).under, NO_PINS)
     .find((one) => one.label === label)
   if (found === undefined) {
     throw new Error(`\`${id}\` offers no ${JSON.stringify(label)}: ${labels(id).join(", ")}`)
@@ -80,7 +85,7 @@ test("a mirror pins the node it SHOWS, never the placement standing there", () =
 
 test("a node the shelf already holds is offered the way OFF it instead", () => {
   const shelf: Shelf = [{ id: "p-install", title: "/#install" }]
-  const offered = writeVerbs(subjectOfRow(row("install")), row("install").under, shelf)
+  const offered = writeVerbs(routes, subjectOfRow(row("install")), row("install").under, shelf)
   expect(offered.map((one) => one.label)).toContain("Unpin from sidebar")
   expect(offered.map((one) => one.label)).not.toContain("Pin to sidebar")
   // The PIN's own node — the row on the shelf — and archived rather than
@@ -243,7 +248,7 @@ test("a repeating row says CHANGE, and gains the entry that stops it", () => {
   const found = flatten(rowsOf(repeating, "house.olai"), new Set())
     .find((one) => one.at.node.id === "order")
   if (found === undefined) throw new Error("no row for `order`")
-  const verbs = writeVerbs(subjectOfRow(found), found.under, NO_PINS)
+  const verbs = writeVerbs(routes, subjectOfRow(found), found.under, NO_PINS)
   const said = verbs.map((one) => one.label)
   expect(said).toContain("Change repeat…")
   expect(said).not.toContain("Set repeat…")
@@ -368,7 +373,7 @@ test("a childless row is asked about on its own", () => {
 
 test("nothing but the put-away asks a question first", () => {
   expect(
-    writeVerbs(subjectOfRow(row("kitchen")), row("kitchen").under, NO_PINS)
+    writeVerbs(routes, subjectOfRow(row("kitchen")), row("kitchen").under, NO_PINS)
       .filter((verb) => verb.confirm !== undefined)
       .map((verb) => verb.label),
   ).toEqual(["Move to Trash"])
@@ -378,7 +383,7 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
   // A moment no row is drawn in — the first frame has not arrived — but the
   // one verb whose question is about the SET may not be offered with a number
   // read off something else.
-  expect(writeVerbs(subjectOfRow(row("kitchen")), undefined, NO_PINS).map((verb) => verb.label))
+  expect(writeVerbs(routes, subjectOfRow(row("kitchen")), undefined, NO_PINS).map((verb) => verb.label))
     .toEqual([
       "Pin to sidebar",
       "Mark todo",

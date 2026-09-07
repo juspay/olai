@@ -10,4 +10,17 @@ export interface RendererSlots extends LocationOwner {
 }
 export const rendererSlots = serviceTag<RendererSlots>("ui-renderer.slots")
 
-export { readLocation } from "./contracts/read.ts"
+/**
+ * NO `readLocation` HERE, and the absence is the phase.
+ *
+ * This door used to carry a Solid signal holding the renderer's live `read`,
+ * installed by this row's activation and spent by five other packages — a
+ * value crossing five package walls as a module variable, with no dependency
+ * declared anywhere and nothing to withdraw when the renderer stopped (the
+ * Cordis audit's §12).
+ *
+ * {@link rendererSlots} already carries that reading, and each of those
+ * packages declares it on the component that draws: the walk is a service read
+ * now, and a serve with no renderer leaves those components `waiting` with
+ * their rows running, which is the state the runtime is for.
+ */

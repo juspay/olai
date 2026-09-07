@@ -1252,7 +1252,7 @@ names the file.
 
 | File | Holds |
 | --- | --- |
-| `packages/bundle/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — a plugin imports the INTERFACE and never the REGISTRY, and does import the interface — the services door pulls no browser face — and `packages/plugins/` holds the plugins and nothing else, both directions |
+| `packages/bundle/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — a plugin imports the INTERFACE and never the REGISTRY, and does import the interface — the services door pulls no browser face — `packages/plugins/` holds the plugins and nothing else, both directions — and **no module another package can open holds a live value**: no module-scope `let`, no Solid cell or `heldService`/`heldFaces` minted at module load, no state-bearing IIFE or instance of a locally declared class, no `const` the module writes into. Over every cross-package door in the tree, and — for a general package's doors — over the implementation BEHIND them, because a `let` one import back is state a package can open with nothing in the door to see. A plugin's contract doors get the same walk from the claim above them; a plugin's `./browser` does not, because the bundle opens that to MOUNT the row rather than to read values out of it. What is allowed is named with a reason each (the audit's §12). Fixtures hold the reading itself — every prohibited shape and the legitimate twin it is easiest to confuse with, aliases and namespace imports included — so a pattern that stopped seeing is red rather than quiet |
 | `scripts/prove-fence.sh` | the fence and the mechanics lint go RED when they should. Not a `just check` leg: it mutates tracked files and puts them back, and `check` runs its legs in parallel. Run it when the fence CHANGES — a sweep's one failure mode is going quiet, and a fence that stopped running looks exactly like a fence that is holding |
 | `packages/bundle/src/mechanics.test.ts` | olai names no wire mechanic the framework performs |
 | `packages/bundle/src/tree.testlib.ts` | not a claim — the READING both of the above stand on (workspace members, manifests, sources, the module graph). Split out so the two files above are their claims and nothing else, and so the source walk is written once |
@@ -1422,6 +1422,93 @@ shell replacement. Outlines retains editor state across unrelated Chat changes,
 but leaving Outlines discards its own pending drafts. Separate components name
 extra services only where they use them, so an unavailable integration does not
 stop the rest of its plugin.
+
+### Who owns a live value
+
+Phase 2 of the Cordis audit. The rule is one sentence — **a module another
+package can open holds no live value** — and everything below is that applied.
+
+A service carries a value; a module variable does not. Twenty modules used to
+hand one activation's live state across a package wall through an exported
+`let`, a module-scope Solid signal, or a `const` the module wrote into: the
+served directory and its per-file revisions, the shell's geometry and its panel
+handle, the URL grammar's roster-dependent half and the mounted page behind a
+plugin route, what day it is, the pinned shelf, the file controls, the outline's
+naming of a node, where a minted document opens, the walk over a location, the
+palette's control, the matcher, and each row's own sibling client. Cordis saw
+none of it: no consumer declared a dependency, nobody was held `waiting`, the
+panel had nothing to report, and a consumer went on reading a provider that had
+stopped because nothing told it.
+
+Each of them now travels on the service that names it, offered by the row that
+owns it and named in `needs` by the row that spends it. Two doors that
+published a live value with no reader outside their own package stopped being
+doors at all — eight rows' `./client` and the renderer's `readLocation` — and
+one generic capability went with them: `HostServices`, whose whole shape was
+*give me whatever stands behind this key*, was named by two rows and spent on
+five keys neither had declared. One of the five turned out to be dead: MCP asked
+whether a ledger was mounted and never read the answer.
+
+**A registry instance is owned too, not only a holder.** Where a verb's write
+goes was a `Map` at `@olai/edit-history`'s module scope: five plugin activations
+claimed verbs in it and four packages spent them, with nothing declared. Scoped
+entries and a refused double claim are lifetime discipline; ownership is a
+different question, and the answer is `Edits` — a browser service `openApp`
+supplies, one table per attached app, the twin of `Kinds` and `Surfaces` on the
+server. A row claims through a key it named and spends through a key it named;
+the dispatch and both its answers are unchanged.
+
+**Optional access is DECLARED, and a component is the wrong way to declare it.**
+MCP works without a vault and the vault works without git, and both did so
+through that lookup. The obvious repair — put each optional reach on a component
+naming its key, so the wait is a state the runtime holds and reports — is
+WRONG, and the reason is worth knowing before you reach for it: a row's report
+folds its components, so a component sitting `waiting` for a provider that will
+never arrive makes the whole ROW read `waiting`, and `@olai/server`'s runtime
+reports a row as `running` only when it does not. A vault short of git would
+have stopped being loaded by the tab at all. A component is for a half that is
+*optional to have*, never for a provider that is *optional to exist*.
+
+The two shapes that are right, one each:
+
+- **The provider registers** — the vault's `VaultViews`, where git and search
+  tell the store about their ledger and matcher. Both already name `Vault`, so
+  neither gains a wait, the edge is in the graph at the end that can carry it,
+  and the registration is a finalizer on the provider's scope. This is the shape
+  `Kinds.register`, `Surfaces.register` and `Wakes.register` already have, and
+  it is the default answer.
+- **A narrow broker** — MCP's `host.served`, two readings about one provider,
+  for the case where the arrow cannot invert: a vault that registered its gate
+  with the transport would be the directory knowing what an MCP endpoint is. It
+  is a service, so `needs` says the row wants it, and its documented job is the
+  arrival and departure of the vault. What makes it legitimate where
+  `HostServices` was not is that it is CLOSED — two readings, named in the type,
+  about one provider — rather than `current<A>(key: ServiceKey<A>)`.
+
+**A private holder is still how a value reaches a face**, and its rules are in
+[the authoring contract](../dynamic-plugins.md#where-a-live-value-may-live):
+the consumer holds rather than the provider, the hold is an activation's and
+clears by identity, and the read answers the absence. What changed is which
+side of the wall the holder is on.
+
+The fence names what may keep module state, with a reason each, because none of
+it is an activation's: the process's signal handlers, a per-process nonce for
+staged filenames, two warn-once flags, the page's layer stack and its one open
+tip, a re-entrancy guard held across one call, a dozen `WeakMap` memos keyed by
+the immutable value they fold, the engine's own bookkeeping keyed by the host or
+fiber it is about, a sticky regex's cursor, one slot a suite installs a listener
+in, `wire.ts` — the `Wired` broker §6 establishes, whose readers name the
+service — and the fence's own corpus reader, which one bench opens.
+
+Two entries are worth knowing about. `edit-history`'s verb-keyed writer table
+was allowed for one commit and should not have been: its entries were each one
+activation's and a second claimant was refused, which is lifetime discipline
+rather than ownership — the table itself was a general package's `Map` that five
+plugin activations wrote into and four packages read. It is the app's now,
+behind `Edits`, and the allowance is gone. Most of the rest arrived when the
+claim started walking BEHIND a general package's doors rather than reading the
+door file; none of it was introduced by that widening, and all of it falls into
+the three classes the list already had.
 
 ### Server composition and source policy
 

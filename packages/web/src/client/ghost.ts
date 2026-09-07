@@ -74,14 +74,14 @@ export const createGhost = (target: EventTarget, now: () => number = () => perfo
     },
   }
 }
-let current: ReturnType<typeof createGhost> | undefined
-export const followGhosts = (): (() => void) => {
-  if (current) throw new Error("A gesture arbiter is already active")
-  const state = createGhost(window)
-  current = state
-  return () => {
-    if (current === state) current = undefined
-    state.dispose()
-  }
-}
-export const swallowGhost = (): void => current?.swallow()
+/**
+ * ## THE HOLDER IS GONE, and it was the only live thing on this door
+ *
+ * `followGhosts` minted one arbiter into a module variable and `swallowGhost`
+ * read it — so navigation's activation installed the value and
+ * `olai-plugin-outlines` swallowed a ghost through it, across a package wall,
+ * with nothing declared (the Cordis audit's §12). The arbiter travels on
+ * `navigation.gestures` now; what is left here is the FACTORY, which allocates
+ * nothing until somebody calls it.
+ */
+export type Ghosts = ReturnType<typeof createGhost>

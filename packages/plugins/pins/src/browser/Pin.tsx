@@ -29,7 +29,7 @@ import { Face } from "olai-plugin-navigation/address/Face.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
 
 import { ENTRY_SHAPE,ROW_GAP } from "olai-plugin-layout/entry"
-import { hrefOf } from "olai-plugin-navigation/routes"
+import { useRouter } from "olai-plugin-navigation/routing"
 import { Link } from "olai-plugin-navigation/routing"
 import type { Pin } from "./pins.ts"
 
@@ -68,7 +68,7 @@ export function Pin(props: {
       class="group/pin relative mb-0.5"
       data-testid={TESTID.pin}
       data-pin={props.pin.id}
-      data-at={hrefOf(props.pin.route)}
+      data-at={useRouter().routes.href(props.pin.route)}
       data-lifted={props.lifted ? "true" : undefined}
       classList={{ "opacity-40": props.lifted }}
       // THE WHOLE ROW IS THE HANDLE, which is what a shelf of five doors wants

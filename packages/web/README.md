@@ -9,17 +9,26 @@ The browser host creates no fallback application when an owner is absent.
 `src/client/main.tsx` supplies the mount element and starts browser composition.
 `src/client/wire.ts` connects the permanent management surface, learns the
 selected rows, and acquires their browser contracts before activating consumers.
-`src/client/plugins/` is what an activation costs and what a failed one is owed:
+`src/host/` is what an activation costs and what a failed one is owed:
 the runtime that holds each row's registrations, the loader, the shared module
 identities a chunk reuses, and the boot status the recovery overlay reads. A
 plugin's client and subscriptions follow its own activation. Removing a provider
 revokes its client; unrelated providers retain their clients and component
 scopes. The bundle owns the product catalogue; the host does not enumerate
 feature members or import plugin implementations or contracts. What the host
-reads off the catalogue is only what a row is — the entry hands the rows and
-their order down through `useBrowserRows` and `useBundleOrder`, and the one
-other reader takes a row's own switch hint for the management adapter — so the
-runtime that mounts and sorts them names no plugin and imports no list.
+reads off the catalogue is only what a row is — the entry hands the rows down
+through `useBrowserRows` and the build's own order down with the mount
+(`attachRenderer(root, bundleRank)`), and the one other reader takes a row's own
+switch hint for the management adapter — so the runtime that mounts them names
+no plugin and imports no list.
+
+The runtime is `src/host/` rather than `src/client/plugins/` because
+`./client/*` is the door a plugin opens, and five of them were importing the
+module that assembles the whole application to read a slot other plugins had
+filled. What a plugin reads now is `Faces`, named in its own `needs`; the
+ORDER those reads come back in is the one thing this host adds to them, and it
+moved with them, onto `BrowserMount.rank` where the renderer's own facade
+spends it. Nothing under `src/host/` is reachable from outside this package.
 
 ## Startup and recovery
 
@@ -48,8 +57,11 @@ and touch behaviours a face composes from (`press.ts`, `longPress.ts`,
 (`Pill.tsx`, `Tip.tsx`, `ProgressBadge.tsx`, `Empty.tsx`), and the clock, the
 notifier and the settle helpers beside them. They must not reach upward into a
 plugin. A utility that needs application behavior accepts that behavior from its
-caller; a module that owns a feature belongs with the feature, which is why no
-directory here is named after one. Dedicated static libraries own shared UI
+caller — `writes.ts` is the worked example: it turns a write's two answers into
+one sentence over a writer HANDED IN, because where a verb's write goes belongs
+to the app's own `Edits` table and not to this package. A module that owns a
+feature belongs with the feature, which is why no directory here is named after
+one. Dedicated static libraries own shared UI
 primitives, Markdown rendering, and edit-history presentation.
 
 Test IDs follow the component that renders them. This package exports only its

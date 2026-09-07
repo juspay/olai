@@ -77,7 +77,7 @@ import { createMemo, Show } from "solid-js"
 
 import { PluginDoors } from "./Doors.tsx"
 import { documentReferences } from "../index.ts"
-import { readLocation } from "olai-plugin-ui-renderer/contract"
+import { readLocation } from "./locations.ts"
 import { For } from "solid-js"
 import { excerptOf } from "./note/excerpt.ts"
 import { NoteLine } from "./note/Line.tsx"

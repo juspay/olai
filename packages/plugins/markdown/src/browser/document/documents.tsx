@@ -64,7 +64,7 @@ import {
 } from "solid-js"
 
 import { sameList } from "@olai/web/client/same.ts"
-import { client } from "olai-plugin-markdown/client"
+import { client } from "../../client.ts"
 
 /**
  * One bodied file's entry once its BODY is here — which is the only state a

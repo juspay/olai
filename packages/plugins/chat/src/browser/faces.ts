@@ -19,26 +19,30 @@
  * once would pin whichever answer the page happened to be built on, and for a
  * tab that follows the roster that is a real state rather than a theoretical
  * one.
+ *
+ * ## THE HOLD IS THE ACTIVATION'S, and it was not
+ *
+ * `holdFaces` used to be a bare assignment with no undo at all: the table of a
+ * stopped activation stayed reachable for the life of the tab, and a second
+ * activation's value was overwritten by nothing but arrival order. It is
+ * `heldFaces`' scoped acquisition now — one algorithm, minted per package,
+ * cleared BY IDENTITY so a stopped activation cannot clear its replacement's
+ * value. The three other rows that read a slot mint their own
+ * (`olai-plugin-layout`'s `faces.ts` argues why the holder is never shared).
+ *
+ * An unheld read answers the empty table rather than throwing. It was a throw,
+ * under the argument that a face of this plugin is drawn only after this
+ * plugin's fiber applied — which is true of every face here and is not a reason
+ * to take a page down: "nobody has hung a mark" is a real answer and the
+ * transcript draws its plain row for it.
  */
 
-import type { Faces } from "@olai/plugin-api"
+import { heldFaces } from "@olai/plugin-api"
 
-let held: Faces | null = null
+const own = heldFaces()
 
-/** TOLD BY `../browser.tsx`, and by nothing else. */
-export const holdFaces = (faces: Faces): void => {
-  held = faces
-}
+/** TOLD BY `../browser.tsx`, and by nothing else — for that activation. */
+export const holdFaces = own.hold
 
-/** ...and read by the two walks beside this file. A THROW rather than an empty
- *  table, for the reason the wire's own accessor throws: a face of this plugin
- *  is drawn only after this plugin's fiber applied, so a read before that has
- *  not raced — it has been mounted somewhere the roster does not reach. */
-export const faces = (): Faces => {
-  if (held === null) {
-    throw new Error(
-      "olai-plugin-chat: a face read the slot table before the plugin was mounted",
-    )
-  }
-  return held
-}
+/** ...and read by the two walks beside this file. */
+export const faces = (): typeof own => own

@@ -51,6 +51,7 @@ import { type Accessor, createSignal } from "solid-js"
 
 import { HANDLE } from "../drag/dragging.ts"
 import { type LongPress, longPressOn } from "@olai/web/client/longPress.ts"
+import { swallowGhost } from "../gestures.ts"
 
 /** All of what a row's menu is. */
 type Door = "unasked" | "shut" | "open"
@@ -111,7 +112,7 @@ export const createMenuDoor = (): MenuDoor => {
   const show = (): void => {
     setDoor("open")
   }
-  const press = longPressOn(show)
+  const press = longPressOn(show, swallowGhost)
   /** Not a signal: it is read when the panel is placed, which is after the row
    *  has been drawn, and nothing re-runs when it arrives. */
   let line: HTMLElement | undefined

@@ -54,7 +54,7 @@ import { useNarrowed } from "olai-plugin-outlines/filter"
 const unfiltered = (view: ReturnType<typeof useNarrowed>) => !view.active()
 import { Link } from "olai-plugin-navigation/routing"
 import { TESTID } from "../../testids.ts"
-import { useToday } from "@olai/web/client/today.tsx"
+import { useToday } from "../clock.ts"
 import {
   QUIET_INDENT,
   SPINE_CELL,

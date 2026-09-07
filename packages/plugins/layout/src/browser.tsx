@@ -10,7 +10,9 @@ import { PanelHandle } from "./layout/Handle.tsx"
  * The frame consumes navigation and content contributions. Each content
  * provider owns its own models and editor state.
  */
-import { definePlugin,Offers } from "@olai/plugin-api"
+import { definePlugin,Faces,Offers } from "@olai/plugin-api"
+import { holdFaces } from "./faces.ts"
+import { holdRouting } from "./routing.ts"
 import { Fault } from "./Fault.tsx"
 import { publishLayoutCss } from "olai-plugin-layout/layout/css.ts"
 import { trackVisibleViewport } from "olai-plugin-layout/viewport.ts"
@@ -19,22 +21,39 @@ import { content,navigation,paletteAdapters } from "olai-plugin-navigation/contr
 import { rendererSlots,root } from "olai-plugin-ui-renderer/contract"
 import { createRoot,ErrorBoundary } from "solid-js"
 import Frame from "./Frame.tsx"
-import { contentStatus,holdPanelHandle,name,overlays,sidebar,tools } from "./index.ts"
+import { contentStatus,name,overlays,type Shell,sidebar,tools } from "./index.ts"
 import { trackDesktop } from "./layout/media-owner.ts"
+import {
+  desktop, panelOpen, panelSnap, panelWidth, resetPanelWidths, setPanelOpen, setPanelSnap,
+  setPanelWidth, setSidebarOpen, setSidebarWidth, sidebarOpen, sidebarWidth, toggleSidebar, togglePanel,
+} from "./layout/live.ts"
 import { followLayout } from "./layout/prefs-owner.ts"
 
 export default definePlugin({
   name,
-  needs: [rendererSlots, Offers, navigation],
+  needs: [rendererSlots, Offers, navigation, Faces],
   apply: Effect.gen(function*() {
-    yield* Effect.acquireRelease(Effect.sync(()=>holdPanelHandle(PanelHandle)),stop=>Effect.sync(stop))
+    // WHAT OTHER PLUGINS HUNG, held for this activation — `./faces.ts` on why
+    // the shell holds it rather than threading it through every seat.
+    yield* holdFaces(yield* Faces)
     const slots = yield* rendererSlots
     const router = yield* navigation
+    // The app's URL grammar, for the label a pane wears (`./routing.ts`).
+    yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
     // Offers publishes in the outer plugin activation. Location activations
     // run in their own Cordis host; publishing there would make the bar
     // invisible to the plugins that consume it. This provider needs the
     // renderer, so either row leaving revokes the service.
     yield* (yield* Offers).own("bar", () => bar)
+    // THE SHELL'S GEOMETRY, offered rather than left in module signals six
+    // other rows read across the wall (`./index.ts`'s `Shell`,
+    // `./layout/live.ts`). The readings are installed by the root
+    // contribution's `activate` below, on this same activation.
+    yield* (yield* Offers).own("shell", (): Shell => ({
+      desktop, sidebarOpen, setSidebarOpen, toggleSidebar, sidebarWidth, setSidebarWidth,
+      panelOpen, setPanelOpen, togglePanel, panelWidth, setPanelWidth, panelSnap, setPanelSnap,
+      resetPanelWidths, PanelHandle,
+    }))
     yield* slots.contribute(root, () => <ErrorBoundary fallback={(error) => {
       console.error(error)
       return <Fault text={String(error)} />
@@ -55,7 +74,7 @@ export default definePlugin({
 
 import { bar } from "./bar.tsx"
 
-import { calledApp,followName } from "@olai/web/client/named.ts"
+import { calledApp,followName,startedAt } from "./named.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { connectionReadout,olai } from "@olai/web/client/wire.ts"
 export const components = {
@@ -63,6 +82,6 @@ export const components = {
     yield* Effect.acquireRelease(Effect.sync(() => followName({
       readout: connectionReadout, ask: () => runAsync(olai.procedures.app.get()),
     })), stop => Effect.sync(stop))
-    yield* (yield* Offers).own("deployment", () => ({called: calledApp}))
+    yield* (yield* Offers).own("deployment", () => ({called: calledApp, started: startedAt}))
   })}),
 }

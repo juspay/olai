@@ -56,8 +56,8 @@ import { useUndo } from "../edit/undoing.ts"
 import { sameIds } from "@olai/web/client/ids.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 
-import { client } from "olai-plugin-outlines/client"
-import { applying } from "@olai/web/client/writes.ts"
+import { client } from "../../client.ts"
+import { applying } from "../writes.ts"
 import { MovePicker } from "./MovePicker.tsx"
 
 export interface Moving {

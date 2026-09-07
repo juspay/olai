@@ -54,7 +54,7 @@ import type {} from "./slots.ts"
 import { createMemo, For } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
-import { hung } from "@olai/web/client/plugins/runtime.ts"
+import { hung } from "./faces.ts"
 
 /**
  * Every plugin's header readout IN ONE OF THE BAR'S TWO SEATS, in mount order —

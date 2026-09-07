@@ -12,7 +12,12 @@
 import { expect, test } from "bun:test"
 
 import type { Route } from "./routes.ts"
-import { atElement, atFile, atNode, HOME_ROUTE, hrefOf, routeOf } from "./routes.ts"
+import { atElement, atFile, atNode, HOME_ROUTE } from "./routes.ts"
+import { routingIn } from "./routes.testlib.ts"
+
+/** No plugin claims a URL — see `./routes.test.ts`. */
+const routes = routingIn()
+const { href: hrefOf, routeOf } = routes
 import {
   closeAt,
   closeFocused,
@@ -44,13 +49,13 @@ const doc: Route = atElement("notes/finishes.md", "beds")
 const filtered: Route = { ...atFile("house.olai"), filter: "is:done" }
 
 test("a lone page is exactly the address it always was", () => {
-  expect(hrefOfWorkspace(lone(house))).toBe("/house.olai")
-  expect(hrefOfWorkspace(lone(filtered))).toBe("/house.olai?q=is%3Adone")
-  expect(hrefOfWorkspace(lone(doc))).toBe("/notes/finishes.md#beds")
-  expect(hrefOfWorkspace(lone(trash))).toBe("/trash")
-  expect(workspaceOf("/house.olai")).toEqual(lone(house))
-  expect(workspaceOf("/house.olai?q=is%3Adone")).toEqual(lone(filtered))
-  expect(workspaceOf("/notes/finishes.md#beds")).toEqual(lone(doc))
+  expect(hrefOfWorkspace(routes, lone(house))).toBe("/house.olai")
+  expect(hrefOfWorkspace(routes, lone(filtered))).toBe("/house.olai?q=is%3Adone")
+  expect(hrefOfWorkspace(routes, lone(doc))).toBe("/notes/finishes.md#beds")
+  expect(hrefOfWorkspace(routes, lone(trash))).toBe("/trash")
+  expect(workspaceOf(routes, "/house.olai")).toEqual(lone(house))
+  expect(workspaceOf(routes, "/house.olai?q=is%3Adone")).toEqual(lone(filtered))
+  expect(workspaceOf(routes, "/notes/finishes.md#beds")).toEqual(lone(doc))
 })
 
 test("every existing page address is a workspace of one", () => {
@@ -64,9 +69,9 @@ test("every existing page address is a workspace of one", () => {
     "/?q=is:done#kitchen",
   ]
   for (const address of addresses) {
-    const ws = workspaceOf(address)
+    const ws = workspaceOf(routes, address)
     expect(isLone(ws)).toBe(true)
-    expect(hrefOfWorkspace(ws)).toBe(hrefOf(routeOf(address)))
+    expect(hrefOfWorkspace(routes, ws)).toBe(hrefOf(routeOf(address)))
   }
 })
 
@@ -75,19 +80,19 @@ test("two panes encode as /s/ segments and read back", () => {
   expect(isLone(ws)).toBe(false)
   expect(panesOf(ws).map((pane) => pane.route)).toEqual([house, kitchen])
   expect(ws.focus).toBe(1)
-  const href = hrefOfWorkspace(ws)
+  const href = hrefOfWorkspace(routes, ws)
   expect(href.startsWith(WORKSPACE_PREFIX)).toBe(true)
-  expect(panesOf(workspaceOf(href)).map((pane) => pane.route)).toEqual([
+  expect(panesOf(workspaceOf(routes, href)).map((pane) => pane.route)).toEqual([
     house,
     kitchen,
   ])
-  expect(workspaceOf(href).focus).toBe(1)
+  expect(workspaceOf(routes, href).focus).toBe(1)
 })
 
 test("a pane's own filter and a document fragment survive the split", () => {
   const ws = openRight(lone(filtered), 0, doc)
-  const href = hrefOfWorkspace(ws)
-  const back = workspaceOf(href)
+  const href = hrefOfWorkspace(routes, ws)
+  const back = workspaceOf(routes, href)
   expect(panesOf(back)[0]!.route).toEqual(filtered)
   expect(panesOf(back)[1]!.route).toEqual(doc)
 })
@@ -97,8 +102,8 @@ test("three panes, a width split and a collapsed rail round-trip", () => {
   ws = openRight(ws, 1, trash, true)
   ws = resizeTo(ws, [0.5, 0.5, 0])
   ws = focusAt(ws, 2)
-  const href = hrefOfWorkspace(ws)
-  const back = workspaceOf(href)
+  const href = hrefOfWorkspace(routes, ws)
+  const back = workspaceOf(routes, href)
   expect(panesOf(back).map((pane) => pane.route)).toEqual([house, kitchen, trash])
   expect(back.focus).toBe(2)
   expect(isCollapsed(panesOf(back)[2]!)).toBe(true)
@@ -138,7 +143,7 @@ test("closing the second-to-last pane returns a plain page address", () => {
   const one = closeFocused(two)
   expect(isLone(one)).toBe(true)
   expect(panesOf(one)[0]!.route).toEqual(house)
-  expect(hrefOfWorkspace(one)).toBe("/house.olai")
+  expect(hrefOfWorkspace(routes, one)).toBe("/house.olai")
 })
 
 test("closing a middle pane keeps the others and moves focus right", () => {
@@ -203,7 +208,7 @@ test("an expanded sliver does not print as a collapsed rail", () => {
   let ws = openRight(lone(house), 0, kitchen)
   ws = resizeTo(ws, [0.996, 0.004])
   expect(isCollapsed(panesOf(ws)[1]!)).toBe(false)
-  const back = workspaceOf(hrefOfWorkspace(ws))
+  const back = workspaceOf(routes, hrefOfWorkspace(routes, ws))
   expect(isCollapsed(panesOf(back)[1]!)).toBe(false)
   expect(flexOf(panesOf(back))[1]!).toBeGreaterThan(0)
 })
@@ -211,15 +216,15 @@ test("an expanded sliver does not print as a collapsed rail", () => {
 test("pathological w= is a kindness, not a throw", () => {
   const two = "/s/house.olai/%23kitchen"
   // Both zeros: nothing expanded to be a fraction of. Equal shares.
-  const allRails = workspaceOf(`${two}?w=0,0`)
+  const allRails = workspaceOf(routes, `${two}?w=0,0`)
   expect(panesOf(allRails).length).toBe(2)
   expect(panesOf(allRails).every((pane) => pane.width === undefined)).toBe(true)
   // Junk beside a number: the junk is no share, the number is.
-  const junk = workspaceOf(`${two}?w=abc,50`)
+  const junk = workspaceOf(routes, `${two}?w=abc,50`)
   expect(panesOf(junk)[0]!.width).toBeUndefined()
   expect(panesOf(junk)[1]!.width).toBe(1)
   // A negative is a rail, not a throw.
-  const neg = workspaceOf(`${two}?w=-10,50`)
+  const neg = workspaceOf(routes, `${two}?w=-10,50`)
   expect(isCollapsed(panesOf(neg)[0]!)).toBe(true)
   expect(panesOf(neg)[1]!.width).toBe(1)
 })
@@ -241,22 +246,22 @@ test("flexOf gives collapsed panes nothing and shares the rest", () => {
 })
 
 test("an empty /s/ is the default outline, not a throw", () => {
-  expect(workspaceOf("/s/")).toEqual(lone(HOME_ROUTE))
-  expect(workspaceOf("/s")).toEqual(lone(routeOf("/s")))
+  expect(workspaceOf(routes, "/s/")).toEqual(lone(HOME_ROUTE))
+  expect(workspaceOf(routes, "/s")).toEqual(lone(routeOf("/s")))
 })
 
 test("a one-level row writes the flat `/s/` URL, byte for byte", () => {
   const ws = openRight(lone(house), 0, kitchen)
-  expect(hrefOfWorkspace(ws)).toBe("/s/house.olai/%23kitchen?w=50%2C50&f=1")
-  expect(hrefOfWorkspace(ws).includes("a=")).toBe(false)
-  expect(hrefOfWorkspace(ws).includes("t=")).toBe(false)
+  expect(hrefOfWorkspace(routes, ws)).toBe("/s/house.olai/%23kitchen?w=50%2C50&f=1")
+  expect(hrefOfWorkspace(routes, ws).includes("a=")).toBe(false)
+  expect(hrefOfWorkspace(routes, ws).includes("t=")).toBe(false)
 })
 
 test("an absent or unknown axis is a row", () => {
-  const flat = workspaceOf("/s/house.olai/%23kitchen")
+  const flat = workspaceOf(routes, "/s/house.olai/%23kitchen")
   expect(flat.layout.kind).toBe("split")
   if (flat.layout.kind === "split") expect(flat.layout.axis).toBe("row")
-  const unknown = workspaceOf("/s/house.olai/%23kitchen?a=diagonal")
+  const unknown = workspaceOf(routes, "/s/house.olai/%23kitchen?a=diagonal")
   expect(unknown.layout.kind).toBe("split")
   if (unknown.layout.kind === "split") expect(unknown.layout.axis).toBe("row")
 })
@@ -276,13 +281,13 @@ test("a nested value round-trips through the address", () => {
     ],
     2,
   )
-  const href = hrefOfWorkspace(nested)
+  const href = hrefOfWorkspace(routes, nested)
   expect(href.includes("t=")).toBe(true)
   expect(href.includes("col")).toBe(true)
-  const back = workspaceOf(href)
+  const back = workspaceOf(routes, href)
   expect(back.layout).toEqual(nested.layout)
   expect(back.focus).toBe(2)
-  expect(hrefOfWorkspace(back)).toBe(href)
+  expect(hrefOfWorkspace(routes, back)).toBe(href)
 })
 
 test("a one-level column is a=col, not a tree", () => {
@@ -290,10 +295,10 @@ test("a one-level column is a=col, not a tree", () => {
     { layout: { kind: "leaf", route: house }, fraction: 0.5 },
     { layout: { kind: "leaf", route: kitchen }, fraction: 0.5 },
   ])
-  const href = hrefOfWorkspace(col)
+  const href = hrefOfWorkspace(routes, col)
   expect(href.includes("a=col")).toBe(true)
   expect(href.includes("t=")).toBe(false)
-  const back = workspaceOf(href)
+  const back = workspaceOf(routes, href)
   expect(back.layout.kind).toBe("split")
   if (back.layout.kind === "split") expect(back.layout.axis).toBe("col")
 })

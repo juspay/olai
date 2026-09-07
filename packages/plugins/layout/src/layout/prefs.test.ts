@@ -12,13 +12,15 @@ import {
   parsePx,
   parseSnap,
   RAIL_WIDTH_PX,
-  setPanelWidth,
-  setSidebarWidth,
   SIDEBAR_DEFAULT_PX,
   SIDEBAR_MAX_PX,
   SIDEBAR_MIN_PX,
   SIDEBAR_WIDTH_KEY,
 } from "olai-plugin-layout/preferences"
+// The live half is this row's own now, and private: the door carries the keys,
+// the bounds and the arithmetic (`./prefs.ts`), and the readings a consumer
+// spends travel on `layout.shell` (`../index.ts`).
+import { setPanelWidth, setSidebarWidth } from "./live.ts"
 import { parseBool } from "@olai/web/client/preference.ts"
 import { remembering } from "@olai/web/client/preference.testlib.ts"
 

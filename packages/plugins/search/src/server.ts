@@ -1,4 +1,4 @@
-import { Ops, Vault, Surfaces } from "@olai/plugin-api/services"
+import { Ops, Vault, Surfaces, VaultViews } from "@olai/plugin-api/services"
 import type { Ops as Gate } from "@olai/ops"
 import { inMemoryChannel, type ImplementSurfaceDeps } from "@kolu/surface/server"
 import { surface, faces } from "./surface.ts"
@@ -106,9 +106,22 @@ export default definePlugin({
  * table; this component owns its protocol, so withdrawing search removes its
  * procedures and streams without depending on the outline renderer. */
 export const components = { wire: definePlugin({
-  name: "wire", needs: [Search, Ops, Vault, Surfaces],
+  name: "wire", needs: [Search, Ops, Vault, Surfaces, VaultViews],
   apply: Effect.gen(function*() {
     const gate = (yield* Ops).gate as Gate
+    /**
+     * WHAT A QUERY IS ANSWERED BY, TOLD TO THE STORE THAT ASKS.
+     *
+     * The vault's settings carry a matcher, and the vault cannot name `Search`:
+     * this component waits for `Vault`, so the reverse edge would be a cycle.
+     * It used to be a lookup at the far end (`HostServices.current(Search)`,
+     * over the whole host, for a key the vault never declared — the audit's
+     * §5), so the PROVIDER registers instead. This component is where it goes
+     * because it is the half that already waits for the vault; the row above
+     * stands behind the door on `Offers` alone and keeps answering a serve with
+     * no vault at all.
+     */
+    yield* (yield* VaultViews).search(yield* Search)
     const revisions = inMemoryChannel<void>()
     const vault = yield* Vault
     yield* vault.revision(() => Effect.sync(() => revisions.publish(undefined)))

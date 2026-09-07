@@ -3,7 +3,7 @@
 import { NotFoundFailure } from "@olai/format"
 import { runAsync } from "@olai/web/client/run.ts"
 import { Effect, Result } from "effect"
-import { maybeClient } from "olai-plugin-vault-plugins/client"
+import { approvals } from "./approvals.ts"
 
 export async function approveDefinition(
   request: { readonly name: string; readonly version: string; readonly forever: boolean },
@@ -14,10 +14,10 @@ export async function approveDefinition(
   refused(null)
   try {
     const result = await runAsync(Effect.suspend(() => {
-      const client = maybeClient()
-      return client === undefined
+      const approval = approvals()
+      return approval === undefined
         ? Effect.fail(new NotFoundFailure({ reason: "the vault plugin approval capability is not active" }))
-        : client.procedures.plugins.approve(request)
+        : approval.approve(request)
     }))
     if (Result.isFailure(result)) refused(result.failure.message)
   } finally {

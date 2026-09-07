@@ -16,7 +16,7 @@
 
 import { useHistory } from "../history.ts"
 import { MAKING_DOCUMENT } from "olai-plugin-files/making"
-import { NewFile } from "olai-plugin-files/contract"
+import { NewFile } from "../files.tsx"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { mintAndOpen } from "./minted.ts"
 

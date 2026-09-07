@@ -2,7 +2,7 @@ import type {} from "./slots.ts"
 /** Layout owns the panel and viewer placements; contributors supply their faces. */
 import { createMemo, Show } from "solid-js"
 
-import { only } from "@olai/web/client/plugins/runtime.ts"
+import { only } from "./faces.ts"
 
 /**
  * ONE FACE OR NONE — what a single-occupancy slot draws, said once.

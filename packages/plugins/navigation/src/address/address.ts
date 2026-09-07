@@ -26,7 +26,7 @@
 import { addressWritten, basenameOf, linkedTitle } from "@olai/format"
 
 import type { Names } from "olai-plugin-outlines/names"
-import { hrefOf, type Route, routeFace, routeIn } from "olai-plugin-navigation/routes"
+import type { Route, Routing } from "olai-plugin-navigation/routes"
 
 /**
  * The address a title names, or `undefined`.
@@ -54,14 +54,20 @@ import { hrefOf, type Route, routeFace, routeIn } from "olai-plugin-navigation/r
  * its own address ({@link nameOf}) — the honest dead row. What is refused here
  * is text that is not an address at all.
  */
-export const addressIn = (title: string): Route | undefined => {
+export const addressIn = (
+  /** The grammar to read the address with — the router's own, handed in rather
+   *  than reached for, because a plugin's URL is a question about the mounted
+   *  roster ({@link Routing}). */
+  routes: Routing,
+  title: string,
+): Route | undefined => {
   const text = title.trim()
   // Cheap first: nearly every title in a directory is neither, and this runs
   // once per title per draw now that the tree reads it too.
   if (!text.startsWith("/") && !text.startsWith("[")) return undefined
   const address = addressWritten(text)
   if (/\s/.test(address)) return undefined
-  return routeIn(address) ?? undefined
+  return routes.routeIn(address) ?? undefined
 }
 
 /** The name written INTO a title, for the address somebody named — `undefined`
@@ -105,6 +111,7 @@ export interface Faced {
  * to refuse.
  */
 export const titleFace = (
+  routes: Routing,
   title: string,
   route: Route,
   /** {@link nameOf}'s missing fact — from the server for a shelf row, from
@@ -112,7 +119,7 @@ export const titleFace = (
   shows: string | undefined,
 ): Faced => {
   const written = labelIn(title)
-  return { name: written ?? nameOf(route, shows), written: written !== undefined }
+  return { name: written ?? nameOf(routes, route, shows), written: written !== undefined }
 }
 
 /**
@@ -172,6 +179,7 @@ export const titleFace = (
  * work out for itself.
  */
 export const nameOf = (
+  routes: Routing,
   route: Route,
   /** What the node this address names is CALLED, when it names one and
    *  somebody could say — `undefined` for every other address, and for a node
@@ -189,7 +197,7 @@ export const nameOf = (
       // is a fact about the set, so what is drawn is what somebody answered —
       // and its own address when nothing did, which is the honest dead row
       // (docs/format.md's Pins).
-      if (address.kind === "node") return shows ?? hrefOf(route)
+      if (address.kind === "node") return shows ?? routes.href(route)
       // A ROW is at once the node and a heading: where the set was asked, it
       // is the node — an in-tree title or a pin names the live id — and
       // where nobody could have asked, it is its file: the page model strips
@@ -209,7 +217,7 @@ export const nameOf = (
     case "trash":
       return "Trash"
     case "plugin":
-      return routeFace(route)?.route.breadcrumb(route.value) ?? hrefOf(route)
+      return routes.face(route)?.route.breadcrumb(route.value) ?? routes.href(route)
   }
 }
 

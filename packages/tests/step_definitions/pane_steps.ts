@@ -171,6 +171,35 @@ Then("there are {int} panes", async function (this: OlaiWorld, n: number) {
   );
 });
 
+/**
+ * WHAT A PANE IS DRAWING, READ ONCE — and the read-once is the whole point.
+ *
+ * Every other assertion here waits, which is right for a claim about where the
+ * app ends up and useless for a claim about a STEP: an assertion that waits
+ * cannot tell "the action established this" from "the action returned early and
+ * the app caught up while I looked". So this reads now, and it is used
+ * immediately after an action whose own wait is the thing under test.
+ *
+ * It is discriminating because a navigation is a round trip: a click step that
+ * returned before the destination arrived cannot have had it arrive in the same
+ * tick.
+ */
+Then(
+  "pane {int} is already drawing the outline {string}",
+  async function (this: OlaiWorld, index: number, file: string) {
+    const drawn = await this.page
+      .locator(`${PANE}${attr("data-pane", String(index))}`)
+      .first()
+      .getAttribute("data-drawn-file");
+    assert.strictEqual(
+      drawn,
+      file,
+      `pane ${index} is drawing ${JSON.stringify(drawn)} — the step before this one returned `
+        + "before the page it was waiting for had arrived",
+    );
+  },
+);
+
 Then("pane {int} is focused", async function (this: OlaiWorld, index: number) {
   await this.expectAttribute(
     `${PANE}${attr("data-pane", String(index))}`,

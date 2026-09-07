@@ -1,7 +1,7 @@
 import { TESTID } from "olai-plugin-navigation/testids"
 import type { AppCommand } from "olai-plugin-navigation/slots"
 import { type Navigation,paletteAdapters } from "../index.ts"
-import {readLocation} from "olai-plugin-ui-renderer/contract"
+import { readLocation } from "../locations.ts"
 /**
  * ⌘K command palette — the shell, jump-to-node search, and what it can WRITE.
  *
@@ -82,21 +82,20 @@ import { Result as Outcome } from "effect"
 import { isEditingTarget,listKey,matchKey,paneKey } from "@olai/web/client/keys.ts"
 import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
 import { only } from "@olai/web/client/narrow.ts"
-import { hung } from "@olai/web/client/plugins/runtime.ts"
+import { paletteFaces } from "../faces.ts"
 import { Refusals } from "@olai/web/client/refusals.tsx"
 import { ALARM_BAND,SaidLine } from "@olai/web/client/SaidLine.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
 import { SearchCount } from "olai-plugin-search/ui/Count.tsx"
 import { createCursor } from "@olai/ui-primitives/cursor.ts"
-import { createSearch } from "olai-plugin-search/reading"
+import { createSearch } from "./reading.ts"
 import { Result,type RowTestids } from "olai-plugin-search/ui/Result.tsx"
 import { atOnce,spend } from "@olai/web/client/settled.ts"
 
-import { useToday } from "@olai/web/client/today.tsx"
+import { useToday } from "./clock.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
-import { desktop } from "olai-plugin-layout/media"
-import { resetPanelWidths,togglePanel } from "olai-plugin-layout/preferences"
-import { type Route,routeOf } from "olai-plugin-navigation/routes"
+import { desktop, resetPanelWidths, togglePanel } from "./shell.ts"
+import type { Route } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { isLone } from "olai-plugin-navigation/workspace"
 import { type Asking } from "./asking.ts"
@@ -116,7 +115,7 @@ closePalette,
 dropQuestion,
 paletteAsking,
 paletteOpen,
-} from "./open.ts"
+} from "./state.ts"
 import { Question } from "./Question.tsx"
 import { Shortcuts } from "./Shortcuts.tsx"
 
@@ -289,7 +288,7 @@ export function Palette(props: {
    */
   const prefixes = createMemo(() => prefixesIn(readLocation(paletteAdapters).flatMap(entry =>
     entry.value.prefix ? [{ owner: entry.owner, value: entry.value.prefix }] : [])))
-  const commands = createMemo<ReadonlyArray<AppCommand>>(() => commandsIn(hung("app.command"), prefixes()))
+  const commands = createMemo<ReadonlyArray<AppCommand>>(() => commandsIn(paletteFaces("app.command"), prefixes()))
 
   const box = createMemo(() => boxOf(query(), paletteAsking(), commands(), prefixes()))
   const listing = () => box().kind === "filter"
@@ -381,11 +380,11 @@ export function Palette(props: {
     const commands = [
       ...opRows(),
       ...SHELL_ITEMS,
-      ...hung("app.palette").map(({ face }) => ({
+      ...paletteFaces("app.palette").map(({ face }) => ({
         id: face.id,
         label: face.label,
         ...(face.hint === undefined ? {} : { hint: face.hint }),
-        action: { kind: "route" as const, route: routeOf(face.href) },
+        action: { kind: "route" as const, route: router.routes.routeOf(face.href) },
         taking: atOnce,
         search: face.search,
       })),

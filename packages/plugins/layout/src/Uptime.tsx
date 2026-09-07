@@ -17,7 +17,7 @@ import { TESTID } from "olai-plugin-layout/testids"
 import { Show } from "solid-js"
 
 import { LAYER } from "@olai/web/client/layer.ts"
-import { startedAt } from "@olai/web/client/named.ts"
+import { startedAt } from "./named.ts"
 import { PILL } from "@olai/web/client/readout.ts"
 
 import { Tip } from "@olai/web/client/Tip.tsx"

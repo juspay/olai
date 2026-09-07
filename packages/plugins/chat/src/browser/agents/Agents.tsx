@@ -66,7 +66,7 @@ import { Show } from "solid-js"
 
 import { CHIP_QUIET } from "olai-plugin-layout/chip"
 import { REGION, REGION_LABEL } from "olai-plugin-layout/entry"
-import { setPanelOpen } from "olai-plugin-layout/preferences"
+import { setPanelOpen } from "../shell.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { TESTID } from "../../testids.ts"

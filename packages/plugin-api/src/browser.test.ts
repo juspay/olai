@@ -49,6 +49,7 @@ import {
  *  call that reached the real value is told apart from one that returned a
  *  default. */
 const CLOCKS = {
+  today: () => "2026-09-07",
   SECOND: 1000,
   MINUTE: 60_000,
   createTicking: () => () => 7,

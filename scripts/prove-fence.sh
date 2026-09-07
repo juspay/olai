@@ -155,20 +155,60 @@ general=packages/server
 general_src=$general/src/main.ts
 sheet=packages/web/src/client/styles.css
 other_dial=packages/plugins/odu/src/appliance/index.ts
+# ...and A PLUGIN'S CONTRACT DOOR ANOTHER PLUGIN OPENS, for mutation 19. Typed
+# for the sheet's reason, and guarded below for `Mark.tsx`'s: the app's URL
+# grammar is opened by six other rows, and it is the module the Cordis audit's
+# own §12 finding was in.
+contract_door=packages/plugins/navigation/src/routes.ts
+contract_spec=olai-plugin-navigation/routes
+
+# ...and the SHELL DOOR every browser half opens, which is where three of the
+# Cordis audit's §12 findings were: a general package's wildcard `./client/*`,
+# holding one row's live value for every other row to read. Typed for the sheet's
+# reason — a derived "first module a plugin opens from `@olai/web`" would pick
+# alphabetically and mean nothing — and `run.ts` is chosen because it is opened
+# by three tenants and holds nothing today, so the mutation is the whole defect.
+shell_door=packages/web/src/client/run.ts
 
 [ -n "$plugin_b" ] || { echo "prove-fence: fewer than two plugins found" >&2; exit 1; }
 case "$plugins" in *"$registry"*) echo "prove-fence: the registry came back as a plugin" >&2; exit 1 ;; esac
+# ...AND A COMPONENT THAT PLUGIN ACTUALLY HAS, for mutation 8.
+#
+# It was `$plugin_b/src/browser/Mark.tsx` — a path typed into a block whose
+# whole subject is derivation, and one no tenant has had since the marks moved
+# under `browser/agents/`. `plugin_b` is `chat` today; the file has not existed
+# for several phases, and the guard below turned that into this script's own
+# refusal to start, so the falsifier had been dead with nothing red anywhere.
+# That is the failure mode it was written to detect, arriving in its own
+# derivation — which is the argument for deriving this one too: any `.tsx`
+# under that plugin's `src/` is a component, and a component is the whole of
+# what mutation 8 needs.
+component_b=$(find "$plugin_b/src" -name '*.tsx' | sort | sed -n 1p)
+[ -n "$component_b" ] || { echo "prove-fence: $plugin_b has no component for mutation 8" >&2; exit 1; }
+# ...as a specifier relative to that plugin's `src/server.ts`, which is where
+# the mutation appends it.
+component_b_spec=./$(printf '%s' "${component_b#"$plugin_b/src/"}")
+
 # EVERY PATH A MUTATION TOUCHES, not just the roots they are derived from. Five
-# mutations reach `$plugin_x/src/<file>` and mutation 8 reaches a browser
-# directory the architecture explicitly contemplates a tenant not having (odu
-# has no separate appliance-face directory and needs none). Without these, a missing one dies
+# mutations reach `$plugin_x/src/<file>`. Without these, a missing one dies
 # mid-run on `cp`/`sed` rather than here, with this block's own diagnostic.
 for path in "$registry" "$plugin_a" "$plugin_b" "$general_src" "$sheet" "$other_dial" \
   "$container" "$plugin_a/src/browser.tsx" "$plugin_b/src/browser.tsx" \
   "$tenant_a/src/wire.ts" "$plugin_a/src/server.ts" "$plugin_b/src/server.ts" \
-  "$plugin_b/src/browser/Mark.tsx"; do
+  "$shell_door" "$contract_door" "$component_b"; do
   [ -e "$path" ] || { echo "prove-fence: derived path $path does not exist" >&2; exit 1; }
 done
+
+# A TYPED PATH NEEDS A GUARD THAT IT IS STILL ABOUT SOMETHING, which is
+# `Mark.tsx`'s lesson: existing is not the property mutation 19 rests on — being
+# OPENED BY ANOTHER PACKAGE is, and a door every consumer stopped importing
+# would make the mutation green for a reason that has nothing to do with the
+# fence.
+opens_contract=$(git grep -l "$contract_spec" -- "$container" | grep -v "^$(dirname "$(dirname "$contract_door")")/" | head -1)
+[ -n "$opens_contract" ] || {
+  echo "prove-fence: no plugin outside its own opens $contract_spec — mutation 19 has no subject" >&2
+  exit 1
+}
 
 # THE CONTAINER GETS ITS OWN GUARD, because `restore` hands it to `git clean`
 # and a derivation that came back empty would hand over `.` — `dirname ""` is
@@ -201,6 +241,8 @@ restore() {
   # `git clean` below would not remove.
   [ -n "$touched" ] && git checkout -- $touched
   touched=""
+  [ -n "$created" ] && rm -f $created
+  created=""
   # ...and anything a mutation CREATED. `-fd` and never `-x`: an ignored path
   # (every `node_modules`, the generated mark) is left alone, and the clean-tree
   # precondition at the top is what makes "untracked in here" mean "this script
@@ -246,6 +288,21 @@ append() {
   printf '\n%s\n' "$2" >> "$1"
 }
 
+# ...AND THE ONE THAT WRITES A NEW MODULE BEHIND A DOOR, for the claim that the
+# fence reads the implementation rather than the door file. `restore` puts
+# tracked files back with `git checkout` and sweeps untracked ones out of the
+# plugin container only, so a file written into a general package records
+# itself here and is removed by name.
+created=""
+behind_door() {
+  created="$created $2"
+  printf '%s\n' 'let heldByProveFence: unknown
+export const holdByProveFence = (value: unknown): void => { heldByProveFence = value }
+export const provenCurrent = (): unknown => heldByProveFence' > "$2"
+  hold "$1"
+  printf '\nexport { holdByProveFence, provenCurrent } from "./%s"\n' "$(basename "$2")" >> "$1"
+}
+
 # ...and the three that are not an appended line.
 declare_dep() {
   hold "$1/package.json"
@@ -286,7 +343,7 @@ unnamed=0
 # this script's own indictment of the lints reproduced on its one argument.
 #
 # Plugin package edges are forbidden again: services carry the dependency.
-DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18"
+DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22"
 for want in $only; do
   case " $DECLARED " in
     *" $want "*) ;;
@@ -372,17 +429,24 @@ run() {
 # One per claim the two lints make, each written as the defect it is about —
 # the shape that was actually in this tree before the extraction, or the shape
 # the door split exists to prevent.
+#
+# THE EXPECTATIONS ARE THE CLAIMS' CURRENT NAMES, and five of them were not:
+# claims 1, 2, 4, 12 and 18 named sentences the fence stopped saying several
+# phases ago, so each went red and was scored `RED, BUT NOT BY THE CLAIM IT
+# NAMES`. That is the scorer working — a mutation is caught because the claim it
+# is about refused it — and it had been unreadable because this script could not
+# start at all (the guard block above, and `Mark.tsx`).
 
 # A SUBPATH rather than the bare name, deliberately: a claim that matched only
 # `olai-plugin-<name>` would be green under the door a consumer would actually
 # reach for. `./server` rather than `./wire`, because every plugin has one and
 # an ENGINE has no `./wire` at all — `plugin_a` is alphabetically an engine now.
 run 1 "a general package IMPORTS a plugin" \
-  'outside the registry imports a plugin' \
+  'general production packages name no plugins' \
   append "$general_src" "import \"$name_a/server\""
 
 run 2 "a general package DECLARES a plugin in its manifest" \
-  'declares a plugin in its manifest' \
+  'plugin dependencies correspond to static contracts' \
   declare_dep "$general" "$name_a"
 
 # THE DIRECTION MUTATION goes in the BROWSER half rather than in `./wire`, and
@@ -402,11 +466,11 @@ run 3 "a plugin imports the REGISTRY back (the cycle)" \
 
 # A service key is the dependency arm; a package import bypasses its lifecycle.
 run 4 "a plugin imports ANOTHER plugin" \
-  'plugins consume services and never import another plugin' \
+  'plugins consume other plugins only through static contract doors' \
   append "$plugin_a/src/browser.tsx" "import \"$name_b/server\""
 
 run 18 "a plugin DECLARES another plugin in its manifest" \
-  'no package outside the registry declares a plugin in its manifest' \
+  'plugin dependencies correspond to static contracts' \
   declare_dep "$plugin_a" "$name_b"
 
 # MUTATIONS 5 AND 6 WERE ONE DOOR AND ARE NOW TWO, and the split is the whole
@@ -460,7 +524,7 @@ run 7 "the SERVER door pulls an emulator" \
 
 run 8 "the SERVER door pulls a COMPONENT (the .tsx claim)" \
   'no file on it is a component at all' \
-  append "$plugin_b/src/server.ts" 'import "./browser/Mark.tsx"'
+  append "$plugin_b/src/server.ts" "import \"$component_b_spec\""
 
 run 9 "a general package names an appliance's PRODUCT TIER" \
   'outside a tenant names a hydrated specifier' \
@@ -475,7 +539,7 @@ run 11 "a general package SPELLS a plugin's name in code" \
   append "$general_src" 'export const koluHalf = () => null'
 
 run 12 "a general package reaches a plugin's SHEET (the CSS grammar)" \
-  'outside the registry imports a plugin' \
+  'general production packages name no plugins' \
   append "$sheet" "@import \"$name_a/all.css\";"
 
 # ONE DIRECTION of an equality, and the other is not mutated here: moving a
@@ -518,6 +582,37 @@ run 16 "a plugin imports the ENGINE directly" \
 #
 # `packages/server` is where this defect historically WAS in its other form: the
 # composition root held the roster and the composition root named the agents.
+# ── the audit's §12: a door that HOLDS rather than reaches ───────────────────
+#
+# The eighteen above are all about what a module REACHES FOR. Neither of these
+# two reaches for anything: they are the shape the Cordis audit names — a live
+# value at module scope behind a door another package opens — and before this
+# branch the fence was green on both.
+
+run 19 "a plugin's CONTRACT DOOR holds another activation's value" \
+  'cross-plugin static contracts resolve|opened across a boundary holds live state' \
+  append "$contract_door" 'let heldByProveFence: unknown
+export const provenCurrent = () => heldByProveFence'
+
+run 20 "the SHELL DOOR every browser half opens holds one" \
+  'nothing opened across a boundary holds live state' \
+  append "$shell_door" 'let heldByProveFence: unknown
+export const provenCurrent = () => heldByProveFence'
+
+# THE TWO SHAPES A REVIEW FOUND THE §12 CLAIM BLIND TO. The first is this
+# phase's own primitive published through a door — live state with a `const` and
+# no cell in sight, under an ALIAS so a table of bare words would miss it. The
+# second is a `let` one import behind a door, which the claim could not see at
+# all while it read the door file and stopped.
+run 21 "a CONTRACT DOOR exports one of this tree's own holders, under an alias" \
+  'opened across a boundary holds live state' \
+  append "$contract_door" 'import { heldService as provenSlot } from "@olai/ui-primitives/held.ts"
+export const provenHeld = provenSlot<unknown>()'
+
+run 22 "a SHELL DOOR re-exports a holder from a module BEHIND it" \
+  'nothing opened across a boundary holds live state' \
+  behind_door "$shell_door" packages/web/src/client/proven-fence-leak.ts
+
 run 17 "a general package SPELLS AN ENGINE'S name in code" \
   "outside the registry and the plugin's own tenant spells it" \
   append "$general_src" 'export const claudeSeat = () => null'

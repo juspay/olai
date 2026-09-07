@@ -14,25 +14,23 @@ import { BrowserMount } from "@olai/plugin-api/mount"
 import { Effect } from "effect"
 import { createRoot, createSignal, ErrorBoundary, For, untrack } from "solid-js"
 import { render } from "solid-js/web"
-import { holdLocationReader } from "./contracts/read.ts"
 import { name, root } from "./index.ts"
 
 export default definePlugin({
   name,
   needs: [BrowserMount, Offers],
   apply: Effect.gen(function*() {
-    const { element, changed, reading } = yield* BrowserMount
+    const { element, changed, reading, rank } = yield* BrowserMount
     const [revision, setRevision] = createSignal(0)
     const slots = yield* locations({
       changed: () => { changed?.(); setRevision((value) => value + 1) },
       reading: () => { revision() },
     })
-    yield* Effect.acquireRelease(Effect.sync(() => holdLocationReader(slots.read)), stop => Effect.sync(stop))
     const compatibility = slotFacade({ ...slots, read: (slot) => {
       // Legacy consumers track the host's batched signal. The registry's own
       // signal is for renderer roots and native location readers.
       return untrack(() => slots.read(slot))
-    } }, reading)
+    } }, reading, rank)
     yield* (yield* Offers).own("legacy-slots", compatibility.forOwner)
     yield* (yield* Offers).own("faces", () => compatibility.faces)
     yield* (yield* Offers).own("integrations", () => compatibility.management)
@@ -52,14 +50,16 @@ export default definePlugin({
 
 // Clock consumers can wait for their locations independently of the renderer
 // root. Withdrawal of this row releases the service and its consumers.
-import { clocks } from "./clocks.ts"
+import { clocksOver } from "./clocks.ts"
 import { createToday } from "@olai/web/client/clock.ts"
-import { holdToday } from "@olai/web/client/today.tsx"
 export const components = {
   clocks: definePlugin({ name: "clocks", needs: [Offers], apply: Effect.gen(function*() {
-    yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{
-      const stop=holdToday(createToday()); return ()=>{dispose();stop()}
-    })),stop=>Effect.sync(stop))
-    yield* (yield* Offers).own("clocks", () => clocks)
+    // THE CLOCK ITSELF IS THIS ACTIVATION'S — one timer, minted in a root this
+    // component disposes — and WHAT DAY IT IS rides out on the same service
+    // rather than in a module variable five rows read across the wall
+    // (`@olai/plugin-api`'s `AppClocks.today`).
+    const state = yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>
+      ({ today: createToday(), dispose }))), state=>Effect.sync(state.dispose))
+    yield* (yield* Offers).own("clocks", () => clocksOver(state.today))
   }) }),
 }

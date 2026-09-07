@@ -24,6 +24,21 @@ inline CSS declarations. A fresh activation re-reads preferences from storage,
 including changes made by another tab while layout was absent. These observers
 are no longer started by the permanent browser entry point.
 
+Those readings are what `layout.shell` carries: the breakpoint, whether each
+panel is open and how wide, which snap the mobile sheet is on, and the panel's
+own drag handle. Six other rows spend some of it — the outline and the document
+size their column against the panel, chat is the tenant of the right seat, git
+chooses between a pill and a banner, the sidebar and the file rail open the
+column, and the palette resets both widths — and each declares the key on a
+COMPONENT of its own rather than on its row, because content runs under another
+layout entirely (`olai-plugin-test-layout`). With no shell mounted those
+readings answer what they always answered — a phone-width viewport, a shut
+panel, an open sidebar — and the presses do nothing.
+
+`layout.deployment` carries what this deployment calls itself and when it
+started, which is one answer to one `app.get` asked and re-asked by the
+`deployment` component. Chat's notification title names it.
+
 Viewport width is a reactive input to column fitting. Resizing an open desktop
 layout recomputes both columns while preserving stored preferred widths, so the
 main content keeps its minimum available space when the window narrows.

@@ -42,9 +42,9 @@ import { ProgressBadge } from "@olai/web/client/ProgressBadge.tsx"
 import { RepeatBadge } from "./RepeatBadge.tsx"
 import { doneHiddenOn } from "./settings/done.ts"
 import { PAGE_TITLE } from "@olai/web/client/look.ts"
-import { applying } from "@olai/web/client/writes.ts"
+import { applying } from "./writes.ts"
 
-import { useToday } from "@olai/web/client/today.tsx"
+import { useToday } from "./clock.ts"
 import { toneOf } from "./tone.ts"
 import { Tree } from "./Tree.tsx"
 

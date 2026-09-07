@@ -4,6 +4,15 @@ Outlines supplies `.olai` pages, node addresses and the tree editor. It owns nod
 
 The browser provider starts before its presentation. It acquires its reading, drag and undo registers and storage observers in its activation scope. Content integrates through `navigation.content`; file creation contributes to `files.types`; settings contribute to `preferences.sections`. File metadata belongs to the vault, so the Files sidebar is optional. Removing preferences removes only its controls. Removing Markdown removes document previews and document destinations while ordinary outline notes keep their shared Markdown text renderer.
 
+`outlines.browser-state` carries what this row owns in a tab — its sibling
+client, the undo stack, the page readings, the two drag registers, its naming of
+a node and the socket its floating menus hang from — rather than announcing
+readiness over values kept in module variables. The naming of a node is offered
+beside it as `outlines.references`, because its consumer is the chat panel and
+that panel must keep working when the outline row stops: with no provider its
+chips draw the ids they carry. The overlay socket is minted and removed inside
+this row's activation, so turning the row off takes the container off the page.
+
 An outline page declares the row chip, pane, block, action and door locations, along with typed title, dated-row, page-shell, document-reference and property-navigation extension points. Journal supplies date destinations. Markdown supplies document destinations and previews. Missing integrations produce ordinary text or no contribution, rather than importing or starting the missing provider.
 
 Unrelated plugin changes preserve existing editor instances and drafts. Removing outlines withdraws its pages and row locations, releases its observers, clears its focus and retained draft/form memory and prevents old reference lookups from publishing into a new activation. Restoring outlines creates a new activation and reads persisted browser preferences again.

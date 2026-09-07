@@ -65,7 +65,7 @@ import { createDoors, type Doors } from "./doors.ts"
 import type { NodePageRoute } from "olai-plugin-navigation/routes"
 import { createLicences, type Licences } from "./licences.ts"
 import { createNames, type Names } from "./names.ts"
-import { client } from "olai-plugin-outlines/client"
+import { client } from "../client.ts"
 
 /**
  * One page, asked and kept live — and a token that moves when its answer did.

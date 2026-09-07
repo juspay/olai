@@ -9,6 +9,12 @@ import { Effect } from "effect"
 
 import { HeaderSearch } from "./browser/HeaderSearch.tsx"
 import { createSearch } from "./browser/kit/nodes.ts"
+import { holdReading } from "./browser/reading.ts"
+import { holdPalette } from "./browser/palette.ts"
+import { Clocks } from "@olai/plugin-api"
+import { holdClocks } from "./browser/clock.ts"
+import { paletteControl } from "olai-plugin-navigation/contract"
+import type { SearchProvider } from "./contracts/reading.ts"
 import { name } from "./index.ts"
 
 export { name } from "./index.ts"
@@ -23,10 +29,31 @@ export default definePlugin({
     const slots = yield* Slots
     // A new callable identity for each activation makes replacement observable
     // even when a browser sees off/on registry events in the same batch.
-    const reading: typeof createSearch = (...args: Parameters<typeof createSearch>) => createSearch(...args)
+    const reading: SearchProvider = (...args: Parameters<SearchProvider>) => createSearch(...args)
+    // HELD FOR THIS ACTIVATION as well as offered: the header box below is a
+    // face of this same row, and `./browser/reading.ts` is how an `apply`'s
+    // value reaches a component that draws with it.
+    yield* Effect.acquireRelease(Effect.sync(() => holdReading(reading)), stop => Effect.sync(stop))
     yield* (yield* Offers).own("readings", () => reading)
     yield* slots.register("app.header", { place: "lead", body: HeaderSearch })
   }),
 })
+
+/** The ⌘K box this row's control opens, DECLARED — a component of its own so
+ *  the header box keeps searching with no navigation row mounted, and the
+ *  press that would open a palette that is not there simply does nothing
+ *  (`./browser/palette.ts`). */
+export const components = {
+  /** The app's clock, DECLARED — a component of its own so the box keeps
+   *  searching with no renderer clock mounted (`./browser/clock.ts`). */
+  clock: definePlugin({ name: "clock", needs: [Clocks], apply: Effect.gen(function*() {
+    const clock = yield* Clocks
+    yield* Effect.acquireRelease(Effect.sync(() => holdClocks(clock)), stop => Effect.sync(stop))
+  }) }),
+  palette: definePlugin({ name: "palette", needs: [paletteControl], apply: Effect.gen(function*() {
+    const box = yield* paletteControl
+    yield* Effect.acquireRelease(Effect.sync(() => holdPalette(box)), stop => Effect.sync(stop))
+  }) }),
+}
 
 export { surface } from "./surface.ts"

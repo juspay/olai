@@ -39,7 +39,7 @@ import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
 import { Lede } from "@olai/web/client/errors/Lede.tsx"
 import { PAGE_TITLE } from "@olai/web/client/look.ts"
 import { Reload } from "@olai/web/client/Reload.tsx"
-import { HOME_ROUTE, hrefOf } from "olai-plugin-navigation/routes"
+import { HOME_ROUTE, hrefOfPlain } from "olai-plugin-navigation/routes"
 
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 
@@ -72,7 +72,7 @@ export function Fault(props: { readonly text: string }) {
           // Through `routes.ts` like every other address this app writes: it is
           // the one bijection between a URL and what it means, and it is pure —
           // nothing about the page being down stops it answering.
-          href={hrefOf(HOME_ROUTE)}
+          href={hrefOfPlain(HOME_ROUTE)}
           data-testid={TESTID.faultHome}
         >
           Start over on the first outline

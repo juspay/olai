@@ -17,7 +17,6 @@
     "./tools": "./src/tools.ts",
     "./reading": "./src/contracts/reading.ts",
     "./ui/*": "./src/contracts/ui/*",
-    "./client": "./src/client.ts",
     "./ui/Shortlist.tsx": "./src/contracts/ui/Shortlist.tsx",
     "./ui/Count.tsx": "./src/contracts/ui/Count.tsx",
     "./ui/Result.tsx": "./src/contracts/ui/Result.tsx",
@@ -64,8 +63,7 @@
       "./ui/count.ts",
       "./ui/place.ts",
       "./ui/props.ts",
-      "./ui/row.ts",
-      "./client"
+      "./ui/row.ts"
     ]
   }
 }

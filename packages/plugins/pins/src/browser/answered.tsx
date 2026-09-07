@@ -29,19 +29,26 @@
  * pretends, and nothing here is queued.
  */
 
-import { createContext,createSignal,useContext } from "solid-js"
+import { heldService } from "@olai/ui-primitives/held.ts"
 
 import { NO_PINS, type Shelf } from "@olai/format"
 
+/**
+ * ## PRIVATE TO THIS PACKAGE, and that is what moved
+ *
+ * This module was a declared contract (`olai-plugin-pins/shelf`) and
+ * `olai-plugin-outlines`' tree opened it to draw a pin glyph on a row: the live
+ * value crossed a package wall as a module signal with nothing declared
+ * anywhere (the audit's §12). The shelf travels on `pins.state` now
+ * (`../contract.ts`), which the outline declares on a component of its own, and
+ * this holder is this row's own — installed by the activation that offers the
+ * service, so the two cannot be different answers.
+ */
+const shelf = heldService<() => Shelf>()
 
-const ShelfContext = createContext<() => Shelf>()
+/** The shelf as the server last answered it — the empty shelf before this
+ *  row's own activation has subscribed, which is what every reader here draws
+ *  for a directory with no `Pins.olai` in it either. */
+export const usePins = (): (() => Shelf) => () => shelf.read()?.() ?? NO_PINS
 
-/** The shelf as the server last answered it, or a throw when a consumer is
- *  drawn outside the provider — which is a bug in this app, not a state a
- *  reader can reach. */
-export const usePins = (): (()=>Shelf) => {
- const scoped=useContext(ShelfContext)
- return scoped??(()=>held()?.()??NO_PINS)
-}
-const [held,setHeld]=createSignal<(()=>Shelf)|undefined>()
-export function holdPins(value:()=>Shelf):()=>void {setHeld(()=>value);return()=>{if(held()===value)setHeld(undefined)}}
+export const holdPins = shelf.hold

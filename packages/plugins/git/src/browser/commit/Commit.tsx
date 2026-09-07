@@ -78,7 +78,7 @@ import {
   unpushedIn,
 } from "./said.ts"
 import { Panel } from "./Panel.tsx"
-import { desktop } from "olai-plugin-layout/media"
+import { desktop } from "../shell.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { BANNER, PILL } from "@olai/web/client/readout.ts"
 import { createPopover } from "@olai/web/client/popover.ts"

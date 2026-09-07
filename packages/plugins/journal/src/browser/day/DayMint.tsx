@@ -15,7 +15,7 @@
 
 import { createSignal, Show } from "solid-js"
 
-import { useDocumentActions } from "olai-plugin-markdown/contract"
+import { useDocumentActions } from "../editing.ts"
 import { Result } from "effect"
 import { Refused } from "@olai/web/client/Refused.tsx"
 import { useRouter } from "olai-plugin-navigation/routing"

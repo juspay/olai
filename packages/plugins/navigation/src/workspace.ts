@@ -24,7 +24,7 @@
 import { splitAddress } from "@olai/format"
 import type { Axis } from "olai-plugin-layout/geometry"
 
-import { HOME_ROUTE,hrefOf,type Route,routeOf } from "./routes.ts"
+import { HOME_ROUTE,hrefOfPlain,type Route,type Routing } from "./routes.ts"
 
 export type { Axis } from "olai-plugin-layout/geometry"
 
@@ -123,25 +123,30 @@ const isFlatSplit = (layout: Split, axis?: Axis): boolean =>
  *  A one-level row prints as today's `/s/` list — no `a=`, no `t=` —
  *  so every existing split link stays. A column or a nested tree writes
  *  the growth keys; a one-level row never does. */
-export const hrefOfWorkspace = (workspace: Workspace): string => {
+export const hrefOfWorkspace = (
+  /** The grammar to print a plugin's page with — the router's own, handed in
+   *  rather than reached for ({@link Routing}). */
+  routing: Routing,
+  workspace: Workspace,
+): string => {
   const layout = workspace.layout
-  if (layout.kind === "leaf") return hrefOf(layout.route)
+  if (layout.kind === "leaf") return routing.href(layout.route)
   const routes = leavesOf(layout)
-  if (routes.length === 0) return hrefOf(HOME_ROUTE)
-  const path = WORKSPACE_PREFIX + routes.map(encodePane).join("/")
+  if (routes.length === 0) return hrefOfPlain(HOME_ROUTE)
+  const path = WORKSPACE_PREFIX + routes.map((route) => encodePane(routing, route)).join("/")
   const query = workspaceQuery(workspace)
   return query === "" ? path : `${path}?${query}`
 }
 
-export const workspaceOf = (address: string): Workspace => {
+export const workspaceOf = (routing: Routing, address: string): Workspace => {
   const { pathname, search } = splitAddress(address)
   if (!pathname.startsWith(WORKSPACE_PREFIX)) {
-    return lone(routeOf(address))
+    return lone(routing.routeOf(address))
   }
   const rest = pathname.slice(WORKSPACE_PREFIX.length)
   const segments = rest === "" ? [] : rest.split("/")
   const routes = segments
-    .map(decodePane)
+    .map((segment) => decodePane(routing, segment))
     .filter((route): route is Route => route !== undefined)
   if (routes.length === 0) return lone(HOME_ROUTE)
   const params = new URLSearchParams(search)
@@ -162,15 +167,15 @@ export const workspaceOf = (address: string): Workspace => {
   return { layout: { kind: "split", axis, children }, focus }
 }
 
-const encodePane = (route: Route): string => {
-  const href = hrefOf(route)
+const encodePane = (routing: Routing, route: Route): string => {
+  const href = routing.href(route)
   return encodeURIComponent(href.startsWith("/") ? href.slice(1) : href)
 }
 
-const decodePane = (segment: string): Route | undefined => {
+const decodePane = (routing: Routing, segment: string): Route | undefined => {
   if (segment === "") return undefined
   try {
-    return routeOf("/" + decodeURIComponent(segment))
+    return routing.routeOf("/" + decodeURIComponent(segment))
   } catch {
     return undefined
   }

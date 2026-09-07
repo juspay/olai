@@ -4,9 +4,27 @@ import { ours,splitClick } from "@olai/web/client/press.ts"
 import { type Accessor,createContext,createMemo,type JSX,useContext } from "solid-js"
 import type { Landing } from "./landing.ts"
 import { usePane } from "./pane/context.tsx"
-import { fileNamed,hrefOf,type Route,routeIn } from "./routes.ts"
+import { fileNamed,type Route,type Routing } from "./routes.ts"
 import type { Workspace } from "./workspace.ts"
 export interface Router {
+  /**
+   * THE ROUTE OPERATIONS THAT READ THE MOUNTED ROSTER — printing a URL,
+   * parsing one, finding the tenant behind one, and the three narrowing
+   * readings that ask a tenant whether its page takes a filter.
+   *
+   * ON THE ROUTER because a router is what HOLDS a route, and the four
+   * questions are about the roster the route was made under: a `<Link>` three
+   * levels inside a page has the router and cannot be handed anything else.
+   * `Navigation` extends this, so a row that declares `navigation.state` is
+   * handed the same capability without a second door.
+   *
+   * They were module-scope functions in `./routes.ts` over a module-scope
+   * table, so every package parsed and printed against another activation's
+   * live claims with nothing declared — the audit's §2 and §12. What stayed on
+   * the door is the pure grammar: the constructors, the address reading, and
+   * `hrefOfPlain` for a route this app's own grammar spells whole.
+   */
+  readonly routes: Routing
   readonly workspace: () => Workspace
   /** The focused pane's route — what the palette, the filter chord and
    *  anything that does not name a pane act on. */
@@ -207,6 +225,10 @@ export interface LinkProps {
  * right without this claiming the event as a same-pane go.
  */
 const routeFrom = (
+  /** The grammar to read the `href` with — the router's own, handed in rather
+   *  than reached for, because parsing a plugin's URL is a question about the
+   *  mounted roster ({@link Router.routes}). */
+  routes: Routing,
   event: MouseEvent,
   claimed: (event: MouseEvent) => boolean,
 ): Route | null => {
@@ -214,16 +236,16 @@ const routeFrom = (
   const target = event.target
   if (!(target instanceof Element)) return null
   const href = target.closest("a")?.getAttribute("href")
-  return href === undefined || href === null ? null : routeIn(href)
+  return href === undefined || href === null ? null : routes.routeIn(href)
 }
 
-export const followed = (event: MouseEvent): Route | null =>
-  routeFrom(event, ours)
+export const followed = (routes: Routing, event: MouseEvent): Route | null =>
+  routeFrom(routes, event, ours)
 
 /** The route an Alt+click on a written link is asking to open to the right,
  *  or `null`. Pair of {@link followed}, for the press `ours` declines. */
-export const followedSplit = (event: MouseEvent): Route | null =>
-  routeFrom(event, (event) => splitClick(event) !== null)
+export const followedSplit = (routes: Routing, event: MouseEvent): Route | null =>
+  routeFrom(routes, event, (event) => splitClick(event) !== null)
 
 /**
  * TAKE a click on a link inside rendered markdown — the pair above, answered.
@@ -261,7 +283,7 @@ export const useFollow = (): ((event: MouseEvent) => void) => {
   const here = useHere()
   const go = useGo()
   return (event) => {
-    const split = followedSplit(event)
+    const split = followedSplit(router.routes, event)
     if (split !== null) {
       event.preventDefault()
       // `splitClick`'s own answer for "a new pane or the one already there".
@@ -272,7 +294,7 @@ export const useFollow = (): ((event: MouseEvent) => void) => {
       router.openRight(here(), split, splitClick(event) === "force")
       return
     }
-    const next = followed(event)
+    const next = followed(router.routes, event)
     if (next === null) return
     event.preventDefault()
     go(next)
@@ -298,7 +320,7 @@ export function Link(props: LinkProps) {
 
   return (
     <a
-      href={hrefOf(props.route)}
+      href={router.routes.href(props.route)}
       class={props.class}
       title={props.title}
       aria-label={props.label}

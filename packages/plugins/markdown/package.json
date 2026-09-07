@@ -13,7 +13,6 @@
     "./surface": "./src/surface.ts",
     "./tools": "./src/tools.ts",
     "./testids": "./src/testids.ts",
-    "./client": "./src/client.ts",
     "./wire": "./src/wire.ts",
     "./projection": "./src/projection.ts"
   },
@@ -48,7 +47,6 @@
       "./contract",
       "./testids",
       "./surface",
-      "./client",
       "./wire"
     ]
   }

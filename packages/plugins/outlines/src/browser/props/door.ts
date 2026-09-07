@@ -36,7 +36,7 @@ import type { Meaning } from "@olai/format"
 
 import type { Names } from "../names.ts"
 import { propertyRoutes } from "../../index.ts"
-import { readLocation } from "olai-plugin-ui-renderer/contract"
+import { readLocation } from "../locations.ts"
 import { atNode, type Route } from "olai-plugin-navigation/routes"
 
 /**

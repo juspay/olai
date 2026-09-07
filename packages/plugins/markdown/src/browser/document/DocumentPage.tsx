@@ -73,7 +73,7 @@ import { bodyKind, type Custom } from "@olai/format"
 import { createMemo, onCleanup, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
-import { DeleteFile } from "olai-plugin-files/contract"
+import { DeleteFile } from "../files.tsx"
 import { Properties } from "../Properties.tsx"
 
 import { DocEditor } from "./DocEditor.tsx"

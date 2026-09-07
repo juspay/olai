@@ -30,3 +30,32 @@ Then("the surviving title editor has keyboard focus", async function(this: OlaiW
   await this.page.locator(OFFLINE).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
   await this.page.waitForFunction(selector => document.activeElement?.matches(selector) === true, TITLE_EDITOR);
 });
+
+/**
+ * THE OVERLAY SOCKET, COUNTED — the one page element whose lifetime this phase
+ * moved.
+ *
+ * Every overlay the outline hangs over the page (the completions popper, the
+ * row menu's dropdown, the sentence beside it) mounts into one fixed box at the
+ * viewport origin. That box used to be `@olai/web`'s: appended the first time
+ * an overlay asked and remembered in a module variable for the life of the tab,
+ * so turning the outline off left it behind and turning it on again reused a
+ * container nobody was responsible for (the audit's §10).
+ *
+ * It is the outline row's now, minted inside the same acquisition that holds
+ * the rest of that row's browser state — so this counts the boxes rather than
+ * asking whether a menu opens: a residue is invisible by definition, and the
+ * only way to see one is to switch the row and count. `data-olai-overlay` is
+ * the socket's own marker (`olai-plugin-outlines/browser/overlay.ts`), not a
+ * testid, because nothing draws it and nothing presses it.
+ */
+Then(
+  "the page has {int} overlay socket(s)",
+  async function (this: OlaiWorld, many: number) {
+    const sockets = this.page.locator("[data-olai-overlay]");
+    await this.waitUntil(
+      async () => (await sockets.count()) === many,
+      `${many} overlay socket(s) on the page, and there are ${await sockets.count()}`,
+    );
+  },
+);

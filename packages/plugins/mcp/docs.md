@@ -12,6 +12,29 @@ returns a capability-unavailable refusal. Providers that share a write procedure
 retain only their own operation cases. Re-enabling a provider makes its tools
 usable through the existing MCP server without restarting it.
 
+The vault's own doors are DECLARED now. This row names `host.served`, a narrow
+broker with two readings — the served directory, and its write gate — and
+nothing else. What it replaced was `HostServices`, a capability whose whole
+shape is *give me whatever stands behind this key*, named on the row and then
+spent on three keys the row never declared. The graph a person reads said this
+row wanted a transport; the code reached for the vault's gate on every tool
+call.
+
+The reach could not become a `needs` on the row or a component of it, and both
+reasons are the same fact from two sides: the protocol server, its carrier, its
+route and its ticket mint stand up on a serve with **no vault at all**, and a
+row reported as `waiting` — which is what a row with a permanently-waiting
+component reads as — is a row the roster reports as not running. So `/mcp`
+survives a failed vault, a `--plugins` set that omits it, and the panel switch,
+and the domain tools refuse in the vault's own words. Both readings resolve per
+call, so a vault switched off mid-session refuses the next tool call rather than
+the one after the next reconnect.
+
+The third key is simply gone. `bindAgent` took a `ledger` predicate, the lookup
+answered it, and no line in the package ever read it — `git_commit` and
+`git_push` go through the write gate, which refuses in the vault's own words on
+a serve with no history.
+
 Every request and node-session credential resolves the current provider
 generation while retaining its writer and remaining write rule. A departed
 generation cannot be reused, and a replacement does not inherit an earlier

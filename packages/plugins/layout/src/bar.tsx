@@ -11,7 +11,7 @@ PANEL_BOX,
 PILL,
 PILL_ALARM_COAT,PILL_WARN_COAT,TEXT_ALARM,TEXT_WARN
 } from "@olai/web/client/readout.ts"
-import { desktop } from "olai-plugin-layout/media"
+import { desktop } from "./layout/live.ts"
 import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 

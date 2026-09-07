@@ -33,11 +33,13 @@ import type { Shelf } from "@olai/format"
 
 import type { PaletteItem } from "olai-plugin-navigation/palette-model"
 import { atOnce } from "@olai/web/client/settled.ts"
-import type { Route } from "olai-plugin-navigation/routes"
+import type { Route, Routing } from "olai-plugin-navigation/routes"
 import { namingFor } from "./naming.ts"
 import { pinnedAt } from "./pins.ts"
 
 export const pinItem = (
+  /** The app's URL grammar, handed in — see `./pins.ts`'s `pinsOf`. */
+  routes: Routing,
   route: Route,
   shelf: Shelf,
   /** What this page is CALLED — resolved by the palette, once, because the
@@ -50,12 +52,12 @@ export const pinItem = (
   // ASKED ONCE, and handed to the rule beside it: whether this page is on the
   // shelf is a parse of every row, and the label and the question are two
   // readings of that one answer rather than two walks of the same list.
-  const already = pinnedAt(shelf, route)
+  const already = pinnedAt(routes, shelf, route)
   return {
     id: "pin-page",
     label: already !== undefined
       ? "Unpin this page"
-      : namingFor(route, already, called) === null
+      : namingFor(routes, route, already, called) === null
       ? "Pin this page"
       : "Pin this page…",
     hint: "⌘⇧P",

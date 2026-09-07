@@ -75,6 +75,15 @@ import { createChatState } from "./browser/chat/state.ts"
 import { trackCamera } from "./browser/chat/camera.ts"
 import { Panel, Toggle } from "./browser/chat/Panel.tsx"
 import { holdFaces } from "./browser/faces.ts"
+import { readings } from "olai-plugin-search/reading"
+import { holdReading } from "./browser/search.ts"
+import { references as outlineReferences } from "olai-plugin-outlines/references"
+import { holdReferences } from "./browser/references.ts"
+import { holdServed } from "./browser/vault.ts"
+import { shell as appShell } from "olai-plugin-layout/contract"
+import { holdShell } from "./browser/shell.ts"
+import { deployment as appDeployment } from "olai-plugin-layout/contract"
+import { holdDeployment } from "./browser/deployment.ts"
 import { type ChatClient, holdChatWire } from "./browser/wire.ts"
 
 /** THE WIRE IDENTITY, on this door too — and `surface` is the load-bearing
@@ -100,13 +109,17 @@ export default definePlugin({
     const slots = yield* Slots
     const faces = yield* Faces
     const wired = yield* Wired
+    // The served directory the composer completes a path out of, held for this
+    // activation (`./browser/vault.ts`).
+    const served = yield* fileAccess
+    yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
 
     // THIS PLUGIN'S OWN MEMBERS, held for the thirty modules that read them at
     // module scope — see `./browser/wire.ts`.
-    holdChatWire(() => wired.client() as ChatClient)
+    yield* holdChatWire(() => wired.client() as ChatClient)
     // ...AND WHAT OTHER PLUGINS HUNG, for the two slots this panel is the
-    // reader of.
-    holdFaces(faces)
+    // reader of — for THIS activation, cleared by identity when it stops.
+    yield* holdFaces(faces)
     const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const conversation = createChatState()
       return {dispose, conversation, agents: createAgents(conversation)}
@@ -147,13 +160,41 @@ import { speaker } from "./browser/viewer.ts"
 // preferences. Each UI component names its own dependencies; the section waits
 // for preferences to return without discarding the stored state or listeners.
 import { alertSettings, createAlerts, holdAlerts } from "./browser/alerts.ts"
-import { followNotifications } from "@olai/web/client/notify.ts"
+import { followNotifications } from "./browser/notify.ts"
 import { AlertRows } from "./browser/AlertRows.tsx"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { sections } from "olai-plugin-preferences/contract"
 import { appearance } from "olai-plugin-theme/contract"
 import { createEffect, createRoot } from "solid-js"
 export const components = {
+  /** What this deployment is called, DECLARED — a component of its own so a
+   *  notification is raised with the bare word rather than not at all when the
+   *  shell is absent (`./browser/deployment.ts`). */
+  deployment: definePlugin({ name: "deployment", needs: [appDeployment], apply: Effect.gen(function*() {
+    const named = yield* appDeployment
+    yield* Effect.acquireRelease(Effect.sync(() => holdDeployment(named)), stop => Effect.sync(stop))
+  }) }),
+  /** The shell's geometry, DECLARED — a component of its own because content
+   *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
+   *  that waited for this one could not (`./browser/shell.ts`). */
+  shell: definePlugin({ name: "shell", needs: [appShell], apply: Effect.gen(function*() {
+    const geometry = yield* appShell
+    yield* Effect.acquireRelease(Effect.sync(() => holdShell(geometry)), stop => Effect.sync(stop))
+  }) }),
+  /** The matcher, DECLARED — a component of its own so the panel, the
+   *  transcript and the roster keep working with no matcher mounted
+   *  (`./browser/search.ts`). */
+  matcher: definePlugin({ name: "matcher", needs: [readings], apply: Effect.gen(function*() {
+    const reading = yield* readings
+    yield* Effect.acquireRelease(Effect.sync(() => holdReading(reading)), stop => Effect.sync(stop))
+  }) }),
+  /** The outline's naming of a node, DECLARED — a component of its own so the
+   *  transcript keeps its chips (as ids) when the outline row leaves
+   *  (`./browser/references.ts`). */
+  references: definePlugin({ name: "references", needs: [outlineReferences], apply: Effect.gen(function*() {
+    const value = yield* outlineReferences
+    yield* Effect.acquireRelease(Effect.sync(() => holdReferences(value)), stop => Effect.sync(stop))
+  }) }),
   "tab-attention": definePlugin({ name: "tab-attention", needs: [appearance, alertSettings], apply: Effect.gen(function*() {
     const view = yield* appearance
     const alerts = yield* alertSettings

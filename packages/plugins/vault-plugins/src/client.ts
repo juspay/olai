@@ -1,5 +1,13 @@
-/** The vault-plugins browser capability's scoped client. Importing the contract
- * opens no connection; its activation supplies Wired and revokes it on exit. */
+/**
+ * THIS ROW'S OWN SIBLING CLIENT — PRIVATE to this package.
+ *
+ * It was a declared contract (`./client`) and `olai-plugin-plugin-inspector`
+ * opened it for one verb, which is one plugin holding another plugin's wire
+ * through a module variable. That reach is a declared service now
+ * (`./index.ts`'s `Approvals`), so this module publishes nothing across a
+ * package boundary and `maybeClient` — the optional read that existed only for
+ * that consumer — is gone with it.
+ */
 import type { SurfaceClient } from "@kolu/surface/solid"
 import type { surface } from "./surface.ts"
 export type Client = SurfaceClient<typeof surface.spec>
@@ -12,8 +20,4 @@ export function holdClient(read: () => Client): () => void {
 export function client(): Client {
   if (held === undefined) throw new Error("vault-plugins client read outside its activation")
   return held()
-}
-/** Optional integrations may remain mounted when this browser provider leaves. */
-export function maybeClient(): Client | undefined {
-  return held?.()
 }

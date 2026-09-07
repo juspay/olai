@@ -12,7 +12,7 @@ import { useUndo } from "../edit/undoing.ts"
 import { UndoSaid } from "@olai/edit-history/UndoSaid.tsx"
 import { useReadings } from "../reading.tsx"
 import { opItems } from "./ops.ts"
-import { applying } from "@olai/web/client/writes.ts"
+import { applying } from "../writes.ts"
 import { only } from "@olai/web/client/narrow.ts"
 import { fileNamed } from "olai-plugin-navigation/routes"
 import { fileOf } from "../page.ts"
@@ -34,7 +34,7 @@ export const palette = definePlugin({ name: "palette", needs: [browserState, ren
       const shows = focused()
       const zoomed = shows === undefined ? undefined : only(shows, "node")?.zoomed
       const node = zoomed?.kind === "node" ? zoomed : undefined
-      return opItems(node, node?.under)
+      return opItems(nav.routes, node, node?.under)
     },
     accepts: request => Schema.is(Edit)(request) && !["doc", "docNew", "pin", "capture"].includes(request.verb),
     write: request => applying(Schema.decodeUnknownSync(Edit)(request), undo.record),

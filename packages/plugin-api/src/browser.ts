@@ -27,6 +27,7 @@ import {
   type LocationOwner,
   serviceTag,
 } from "@olai/effect-cordis"
+import { NotFoundFailure } from "@olai/format"
 import { Effect, Scope, type Stream } from "effect"
 
 import { BrowserMount } from "./mount.ts"
@@ -414,6 +415,209 @@ export interface Faces {
 export const Faces = serviceTag<Faces>("ui-renderer.faces")
 
 /**
+ * ONE ROW'S OWN HOLD ON THE TABLE IT READS — the shape a plugin whose FACES
+ * read a slot is written with, and the reason no plugin imports the tab's
+ * runtime any more.
+ *
+ * ## The problem it is the answer to
+ *
+ * A read of {@link Faces} happens where the drawing does: three levels inside a
+ * component, in a memo, in a `<For>`. The service arrives where the DEPENDENCY
+ * is declared, which is an `apply`. Threading it between those two places makes
+ * every component's signature a function of what one descendant needs — so five
+ * plugins reached for `@olai/web`'s `client/plugins/runtime.ts` instead, which
+ * is the module that assembles the whole browser application and carries the
+ * mount table, the redial's client holder and every failure report beside the
+ * three reads they wanted.
+ *
+ * ## What this is, and the two rules that make it safe
+ *
+ * A FACTORY, not a place. Calling it mints one holder; a package calls it once
+ * in a module of its own, and that module is private to the package — this
+ * function is what makes the algorithm shared without the STATE being shared.
+ * Nothing here is module scope: two callers get two holders, and a package that
+ * re-exported its holder through a door would be publishing live state across a
+ * package boundary, which `@olai/bundle`'s fence refuses by name.
+ *
+ * {@link HeldFaces.hold} is an acquisition on the CALLING activation's scope
+ * and clears BY THE HOLD, so a stopped activation cannot clear the value a
+ * replacement installed — the rule every holder in this tree keeps and the four
+ * that did not were the audit's §4.
+ *
+ * BY THE HOLD and not by the VALUE, which is a distinction that cost a review
+ * finding: the release used to ask `held === faces`, and the service value is
+ * one object the provider hands to everybody — so two components of one row
+ * holding the same `Faces` made the second's release match the first's hold and
+ * clear it. A token minted per call cannot be mistaken for another call's.
+ *
+ * IT IS ONE SLOT, THOUGH, and a token does not change that: a second hold
+ * displaces the first, and releasing the second leaves the first consumer
+ * reading the empty answer. So a holder belongs to ONE consumer — two
+ * consumers with two lifetimes are two holders, which is what this being a
+ * factory is for. `olai-plugin-navigation`'s `faces.ts` is the worked example,
+ * and the finding.
+ *
+ * ## An empty answer rather than a throw, where nobody is holding
+ *
+ * A read before the hold is a face drawing without its own row's renderer
+ * dependency satisfied, and the honest reading of the table then is that
+ * nothing is hung — which is exactly what the tab itself answered before any
+ * renderer was offered. A throw would take down a page for a state that has a
+ * true empty answer. What it costs is that such a read is UNTRACKED: the
+ * tracking is `Faces`' own (`AppConfig.reading`), so there is nothing to
+ * subscribe to while the service is absent. That is not reachable for a face
+ * drawn by the row that holds — the hold precedes every contribution it makes —
+ * and it is why this is a holder rather than a signal.
+ */
+/**
+ * WHERE A VERB'S WRITE GOES — the browser's twin of {@link Kinds},
+ * {@link Surfaces} and {@link Wakes}, and one table per attached app.
+ *
+ * ## What it is about
+ *
+ * A row that owns an `edit.apply` arm CLAIMS the verbs it implements; anything
+ * with an edit in hand SPENDS one. The two are usually different rows and often
+ * different packages, because history contains inverses from several providers:
+ * ⌘Z over a mark, a move to the Trash and a document's rename come off one
+ * stack and go to three rows' sibling clients. A surviving editor must not send
+ * every inverse through its own.
+ *
+ * ## THE TABLE WAS A MODULE VARIABLE, and that was the audit's §12
+ *
+ * `const writers = new Map()` lived at `@olai/edit-history`'s module scope —
+ * a general package. Five plugin activations wrote into it and four packages
+ * read it, with nothing declared anywhere. The fence allowed it by name for one
+ * commit on the reasoning that the entries were each one activation's and a
+ * second claimant was refused; that is lifetime discipline, and it is not
+ * ownership. Nothing in the runtime said that markdown's editor spends
+ * outlines' writer, and nothing withdrew when a provider left except a
+ * finalizer the module trusted its callers to run.
+ *
+ * ## Why HERE, and not in the package that owns the edit algorithm
+ *
+ * Two reasons, and the second is the fence's. Which row implements which verb
+ * is a fact about the COMPOSITION rather than about editing — it is the same
+ * question `Kinds` and `Surfaces` answer on the server, and those live beside
+ * this one. And the table has to be stood behind by something every browser
+ * plugin can name without waiting: {@link openApp} supplies it, the way it
+ * supplies {@link Offers} and {@link Wired}, so no row stands behind it, no row
+ * leaving takes it away, and naming it costs a consumer no wait. The browser
+ * host is the only other place that could have minted one, and the composition
+ * root may not carry a feature package (`@olai/bundle`'s fence says so, and
+ * caught the attempt).
+ *
+ * ## The `unknown` is one cast at each end, deliberately
+ *
+ * An `Edit` and an `Applied` are `@olai/surface`'s, and that package names this
+ * one — so the door is spelled structurally here and with the real types at
+ * both ends, which is exactly what {@link Ledger} and {@link Search} do for the
+ * floor. `@olai/web`'s `client/writes.ts` casts once on the reading side; each
+ * row's `browser.tsx` casts once on the claiming side.
+ */
+export interface EditWriters {
+  /**
+   * CLAIM THESE VERBS for as long as the calling activation stands, and clear
+   * BY IDENTITY — so a stopped activation whose finalizer runs after a
+   * replacement claimed the verb cannot take the replacement's writer out from
+   * under an edit in flight.
+   *
+   * A DEFECT on a second claimant, which is what the throw it replaces always
+   * was: the bundle's `edit.apply` arms are exhaustive and disjoint by
+   * construction (each row's `surface.ts` says so), so two rows claiming one
+   * verb is a composition that is wrong rather than a state to draw.
+   */
+  readonly register: (
+    verbs: ReadonlyArray<string>,
+    write: (edit: never) => Effect.Effect<unknown, unknown>,
+  ) => Effect.Effect<void, never, Scope.Scope>
+  /** ...and the dispatch, refusing in words for a verb whose row is not here. */
+  readonly write: (edit: { readonly verb: string }) => Effect.Effect<unknown, unknown>
+}
+export const Edits = serviceTag<EditWriters>("edit-writers")
+
+/**
+ * A TABLE FOR AN APP THAT IS NOT STANDING — what a package's own holder answers
+ * with before its row has held one, and after it has stopped.
+ *
+ * The refusal is the SAME sentence a verb whose provider left already got, so a
+ * face that somehow outlived its row says what it has always said rather than
+ * throwing inside a click handler.
+ */
+export const NO_EDITS: EditWriters = {
+  register: () => Effect.die(new Error("edit writers: registered into a table nobody is holding")),
+  write: (edit) => Effect.fail(new NotFoundFailure({ reason: `the capability for ${edit.verb} is not active` })),
+}
+
+const editWriters = (): EditWriters => {
+  const writers = new Map<string, (edit: never) => Effect.Effect<unknown, unknown>>()
+  return {
+    /**
+     * THE CHECK AND EVERY INSERTION ARE ONE STEP.
+     *
+     * This was `Effect.suspend(() => taken.length ? die : acquire)` — look at
+     * the table in one Effect, fill it in the next — and Effect can yield
+     * between two Effects. A review reproduced two claimants both finding
+     * their verbs free and both installing, with the dispatch then answering
+     * through the second. The synchronous `registerWriter` this replaced had
+     * no such gap, which is the sort of thing a migration loses quietly.
+     *
+     * So the acquisition is ONE `Effect.sync`: it decides and writes inside a
+     * single synchronous body, and a partial claim installs NOTHING — the
+     * overlap is computed before the first `set`, so a claim on two verbs one
+     * of which is taken leaves the other free. Uninterruptible would not have
+     * done it; uninterruptible is about interruption, not about yielding.
+     */
+    register: (verbs, write) =>
+      Effect.acquireRelease(
+        Effect.sync((): ReadonlyArray<string> => {
+          const taken = verbs.filter((verb) => writers.has(verb))
+          if (taken.length === 0) for (const verb of verbs) writers.set(verb, write)
+          return taken
+        }),
+        // A LOSER RELEASES NOTHING: its scope closes like any other — the die
+        // below is raised after this finalizer is on it — and a release that
+        // did not ask would take the WINNER's writer out of the table.
+        (taken) => Effect.sync(() => {
+          if (taken.length > 0) return
+          for (const verb of verbs) if (writers.get(verb) === write) writers.delete(verb)
+        }),
+      ).pipe(Effect.flatMap((taken) =>
+        taken.length === 0
+          ? Effect.void
+          : Effect.die(new Error(`edit writer already registered: ${taken.join(", ")}`)),
+      )),
+    write: (edit) =>
+      Effect.suspend(() => {
+        const write = writers.get(edit.verb)
+        return write === undefined
+          ? Effect.fail(new NotFoundFailure({ reason: `the capability for ${edit.verb} is not active` }))
+          : write(edit as never)
+      }),
+  }
+}
+
+export interface HeldFaces extends Faces {
+  readonly hold: (faces: Faces) => Effect.Effect<void, never, Scope.Scope>
+}
+export const heldFaces = (): HeldFaces => {
+  // WRAPPED, so the token is this call's and not the service's — the same
+  // reason `@olai/ui-primitives`' `heldService` wraps, one door over.
+  let held: { readonly faces: Faces } | undefined
+  return {
+    hold: (faces) => Effect.suspend(() => {
+      const own = { faces }
+      return Effect.acquireRelease(
+        Effect.sync(() => { held = own }),
+        () => Effect.sync(() => { if (held === own) held = undefined }),
+      )
+    }),
+    hung: (slot) => held?.faces.hung(slot) ?? [],
+    dressed: (slot) => held?.faces.dressed(slot) ?? new Map(),
+    only: (slot) => held?.faces.only(slot) ?? null,
+  }
+}
+
+/**
  * THE APP'S CLOCK, and the register it ticks in.
  *
  * Every field is the app's own arithmetic ({@link AppClocks}), handed over
@@ -526,7 +730,13 @@ export interface App extends Faces {
   readonly settled: Effect.Effect<void>
   readonly integrations: Locations["inspect"]
   readonly retryIntegrations: Effect.Effect<void>
-  readonly attach: (element: Element) => Effect.Effect<void, never, Scope.Scope>
+  /** Mount the renderer, in the build's own row order — see
+   *  {@link BrowserMount.rank}, which is the one place that order is supplied
+   *  and the reason no reader of a slot imposes one of its own. */
+  readonly attach: (
+    element: Element,
+    rank?: (plugin: string) => number,
+  ) => Effect.Effect<void, never, Scope.Scope>
   /** State changes even when a waiting component registered no faces. */
   readonly changes: Stream.Stream<void>
   /** Where the plugins hang — handed to `mountPlugin` and opaque to everybody. */
@@ -593,6 +803,10 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
     yield* provide(host, Wired, forOwner((plugin) => ({
       client: () => config.clientFor?.(plugin) ?? null,
     })))
+    // ONE EDIT TABLE PER APP, supplied rather than offered for {@link Edits}'
+    // own reason: no row stands behind it, so naming it costs no wait.
+    const edits = editWriters()
+    yield* provide(host, Edits, () => edits)
 
     // Compatibility reads resolve the renderer's live facade. No slot storage
     // or slot provider exists on the permanent host.
@@ -608,8 +822,8 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
       settled: Effect.suspend(() => offered(host, SlotManagement)?.settled ?? Effect.void),
       integrations: () => offered(host, SlotManagement)?.inspect() ?? [],
       retryIntegrations: Effect.suspend(() => offered(host, SlotManagement)?.retry ?? Effect.void),
-      attach: (element) => provide(host, BrowserMount, () => ({
-        element, changed: config.changed, reading: config.reading,
+      attach: (element, rank) => provide(host, BrowserMount, () => ({
+        element, changed: config.changed, reading: config.reading, rank,
       })),
       supply: (key, value) => provide(host, key, () => value),
       host,
@@ -626,7 +840,11 @@ export const slotLocation = <S extends SlotName>(slot: S) => slotReference<SlotF
 /** Adapter only: key rules and face types are notebook API policy. Reservation,
  * activation, cleanup, identity, and diagnostics all belong to Locations. */
 const SlotManagement = serviceTag<Pick<Locations, "inspect" | "settled" | "retry">>("ui-renderer.integrations")
-export const slotFacade = (store: Locations, reading?: () => void): {
+export const slotFacade = (
+  store: Locations,
+  reading?: () => void,
+  rank: (plugin: string) => number = () => 0,
+): {
   readonly forOwner: (owner: string) => Slots
   readonly faces: Faces
   readonly management: Pick<Locations, "inspect" | "settled" | "retry">
@@ -642,7 +860,14 @@ export const slotFacade = (store: Locations, reading?: () => void): {
     }) as Slots["register"],
   }),
   faces: {
-    hung: (slot) => { reading?.(); return store.read(slotLocation(slot)).map((entry) => entry.value) },
+    // IN THE BUILD'S ORDER, imposed here and nowhere else — see
+    // {@link BrowserMount.rank}. `sort` is stable, so one plugin's four verbs
+    // stay in the order that plugin registered them.
+    hung: (slot) => {
+      reading?.()
+      return store.read(slotLocation(slot)).map((entry) => entry.value)
+        .sort((one, other) => rank(one.plugin) - rank(other.plugin))
+    },
     dressed: (slot) => {
       reading?.()
       return new Map(store.read(slotLocation(slot)).map((entry) => [entry.key!, entry.value.face]))

@@ -41,7 +41,7 @@
  * — so it draws no press at all (`./Door.tsx`).
  */
 
-import { setPanelOpen } from "olai-plugin-layout/preferences"
+import { setPanelOpen } from "../shell.ts"
 import { atElement, type Route } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { run } from "@olai/web/client/run.ts"

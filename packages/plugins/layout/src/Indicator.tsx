@@ -48,7 +48,7 @@ import { TESTID } from "olai-plugin-layout/testids"
 import { Show } from "solid-js"
 
 import { isDegraded, lookOf, type SurfaceReadout } from "@olai/web/client/connection/status.ts"
-import { desktop } from "olai-plugin-layout/media"
+import { desktop } from "./layout/live.ts"
 import { BANNER, DOT, PILL } from "@olai/web/client/readout.ts"
 
 

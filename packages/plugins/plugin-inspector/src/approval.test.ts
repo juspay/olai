@@ -1,9 +1,10 @@
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
-import { holdClient, type Client } from "olai-plugin-vault-plugins/client"
+import type { Approvals } from "olai-plugin-vault-plugins/contract"
+import { holdApprovals } from "./approvals.ts"
 import { approveDefinition } from "./approval.ts"
 
-test("approval refuses an absent browser provider, clears pending, and uses its fresh return", async () => {
+test("approval refuses an absent declared provider, clears pending, and uses its fresh return", async () => {
   let pending: string | null = null
   const pendingStates: (string | null)[] = []
   let refused: string | null = null
@@ -15,10 +16,10 @@ test("approval refuses an absent browser provider, clears pending, and uses its 
   expect(message()).toContain("approval capability is not active")
 
   const calls: typeof request[] = []
-  const client = {
-    procedures: { plugins: { approve: (input: typeof request) => Effect.sync(() => { calls.push(input); return {} }) } },
-  } as unknown as Client
-  const stop = holdClient(() => client)
+  const approval: Approvals = {
+    approve: (input) => Effect.sync(() => { calls.push(input); return {} }),
+  }
+  const stop = holdApprovals(approval)
   try {
     await approve()
     expect(pending).toBeNull()

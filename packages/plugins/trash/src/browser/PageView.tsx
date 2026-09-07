@@ -1,7 +1,7 @@
 import type { Navigation } from "olai-plugin-navigation/contract"
 import { useHere,useRouter } from "olai-plugin-navigation/routing"
 import { pageView,titles,type TitleProps } from "olai-plugin-outlines/contract"
-import { readLocation } from "olai-plugin-ui-renderer/contract"
+import { readLocation } from "./locations.ts"
 import { For } from "solid-js"
 import { useTrashUndo } from "./history.ts"
 import { TrashPage } from "./TrashPage.tsx"

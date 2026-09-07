@@ -1,4 +1,4 @@
-import { writeEdit } from "@olai/edit-history/writing.ts"
+import { writeEdit } from "../writes.ts"
 /**
  * The editor: one draft, the keys that move it, and the writes they cause.
  *
@@ -68,7 +68,7 @@ import { runAsync } from "@olai/web/client/run.ts"
 import type { Moving } from "../move/moving.tsx"
 import { parentKeyOf } from "../select/range.ts"
 import type { Selection } from "../select/selection.ts"
-import { client } from "olai-plugin-outlines/client"
+import { client } from "../../client.ts"
 import {
   after,
   besideOf,

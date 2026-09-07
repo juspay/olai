@@ -43,8 +43,9 @@ import { type Accessor,createRoot } from "solid-js"
 import type { Undo } from "@olai/edit-history/undoing.ts"
 import type { Said } from "@olai/web/client/saying.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
-import { applying } from "@olai/web/client/writes.ts"
-import { hrefOf,type Route } from "olai-plugin-navigation/routes"
+import { applying } from "./writes.ts"
+import type { Route } from "olai-plugin-navigation/routes"
+import type { Routing } from "olai-plugin-navigation/routes"
 import type { Pin } from "./pins.ts"
 
 /**
@@ -85,6 +86,8 @@ export const sayPin = (message: Said | null | void): void => line?.say(message)
  * nothing but {@link sayPin}.
  */
 export const togglePin = async (
+  /** The app's URL grammar, handed in — see `./pins.ts`'s `pinsOf`. */
+  routes: Routing,
   route: Route,
   /** The pin this page ALREADY has, or `undefined` — which way this address's
    *  answer goes is a fact about the DIRECTORY, resolved by the door
@@ -97,5 +100,5 @@ export const togglePin = async (
   record: Undo["record"],
 ): Promise<Said | undefined> =>
   already === undefined
-    ? applying({ verb: "pin", at: hrefOf(route) }, record)
+    ? applying({ verb: "pin", at: routes.href(route) }, record)
     : applying({ verb: "trash", id: already.id }, record)

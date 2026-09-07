@@ -36,7 +36,7 @@
  */
 
 import { type Accessor, createEffect, createMemo } from "solid-js"
-import { createDeclared } from "olai-plugin-outlines/references"
+import { createDeclared } from "../references.ts"
 
 /** Node titles follow the optional reference provider. Its absence leaves the
  * armed IDs intact, and reactivation creates fresh scoped metadata readers. */

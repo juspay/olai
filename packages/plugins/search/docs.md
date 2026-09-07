@@ -27,6 +27,8 @@ Narrowing the rows in front of you — the filter bar over an outline, a day, th
 
 Search owns its procedure and query-stream descriptors, registered with the server by its activation. The browser calls that capability's client. MCP keeps the established `search_nodes` spelling while withdrawing it when its provider leaves.
 
+The row stands behind `Search` on `Offers` alone, so it answers on a serve with no vault at all. Its `wire` component — the half that already waits for `Vault` — is where the same door is TOLD TO THE VAULT, through `vault-views`: the vault's settings carry a matcher, and the vault cannot name `Search` without a cycle. That was a lookup at the far end over the whole host; the provider registers now, and the registration leaves with this row.
+
 ## Where it hangs in the tab
 
 | seat | who declares it, and what they keep | what search brings |

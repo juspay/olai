@@ -33,12 +33,16 @@
 import { describe, expect, test } from "bun:test"
 
 import { landingOf, landingsOf, marked, NOWHERE, spent } from "./landing.ts"
-import { routeOf } from "./routes.ts"
+import { routingIn } from "./routes.testlib.ts"
+
+/** No plugin claims a URL — see `./routes.test.ts`. */
+const routes = routingIn()
+const { routeOf } = routes
 import { lone, workspaceOf } from "./workspace.ts"
 
 /** A two-pane address whose panes both name a heading — the shape the whole
  *  per-pane rule exists for. */
-const BOTH = workspaceOf("/s/notes%2Fbeds.md%23slats/notes%2Fdeep.html%23beds")
+const BOTH = workspaceOf(routes, "/s/notes%2Fbeds.md%23slats/notes%2Fdeep.html%23beds")
 
 describe("what an address is owed", () => {
   test("a heading address is a landing; a whole page is not", () => {
@@ -68,7 +72,7 @@ describe("what an address is owed", () => {
   })
 
   test("a pane at a whole page is owed nothing, beside one that is", () => {
-    const owed = landingsOf(workspaceOf("/s/house.olai/notes%2Fbeds.md%23slats"))
+    const owed = landingsOf(workspaceOf(routes, "/s/house.olai/notes%2Fbeds.md%23slats"))
     expect(owed.has(0)).toBe(false)
     expect(owed.get(1)?.at).toBe("slats")
   })

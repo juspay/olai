@@ -19,13 +19,15 @@ import { WITHIN } from "@olai/web/client/layer.ts"
 import {
 PANEL_MAX_PX,
 PANEL_MIN_PX,
+SIDEBAR_MAX_PX,
+SIDEBAR_MIN_PX,
+} from "./prefs.ts"
+import {
 panelWidth,
 setPanelWidth,
 setSidebarWidth,
-SIDEBAR_MAX_PX,
-SIDEBAR_MIN_PX,
 sidebarWidth,
-} from "./prefs.ts"
+} from "./live.ts"
 import { startResize,type ResizeEdge } from "./resize.ts"
 
 export function SidebarHandle() {
