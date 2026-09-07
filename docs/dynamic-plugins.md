@@ -444,7 +444,10 @@ what keeps it testable over a roster a bench names rather than over whatever the
 process last installed.
 
 `@olai/bundle`'s `fence.test.ts` holds all of it: no module opened across a
-package boundary holds a `let`, a module-scope Solid cell, or a `const` it
-writes into, except ten that are named there with a reason each — a process's
-signals, a page's layer stack, a memo over immutable input, and the `Wired`
-broker §6 establishes.
+package boundary holds a `let`, a module-scope Solid cell, a `heldService` or
+`heldFaces` minted at load, a state-bearing IIFE, an instance of a class it
+declared, or a `const` it writes into — and for a general package's doors the
+same is asked of the implementation behind them, because a `let` one import back
+is state you can open with nothing in the door to see. What is allowed is named
+there with a reason each: a process's signals, a page's layer stack, memos over
+immutable input, and the `Wired` broker §6 establishes.

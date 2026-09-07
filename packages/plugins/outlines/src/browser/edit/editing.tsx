@@ -1,4 +1,4 @@
-import { writeEdit } from "@olai/edit-history/writing.ts"
+import { writeEdit } from "../writes.ts"
 /**
  * The editor: one draft, the keys that move it, and the writes they cause.
  *

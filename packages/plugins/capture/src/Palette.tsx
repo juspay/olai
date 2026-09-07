@@ -2,7 +2,7 @@ import { TESTID } from "olai-plugin-capture/testids"
 import { definePlugin } from "@olai/plugin-api"
 import { atOnce } from "@olai/web/client/settled.ts"
 
-import { applied } from "@olai/web/client/writes.ts"
+import { applied } from "./writes.ts"
 import { Effect,Result } from "effect"
 import { navigation,paletteAdapters } from "olai-plugin-navigation/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"

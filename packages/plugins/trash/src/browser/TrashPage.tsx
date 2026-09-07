@@ -64,7 +64,7 @@ import { PAGE_TITLE } from "@olai/web/client/look.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { createSaying } from "@olai/web/client/saying.ts"
 
-import { applying } from "@olai/web/client/writes.ts"
+import { applying } from "./writes.ts"
 import { useNarrowed } from "olai-plugin-outlines/filter"
 import { CONTEXT_DIM,lighting,matchedAttr,unfiltered } from "olai-plugin-outlines/filter-values"
 import { EmptyTrash } from "./EmptyTrash.tsx"

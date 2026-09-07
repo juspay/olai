@@ -2303,8 +2303,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
  */
 describe("a module another package can open holds no live value", () => {
   /**
-   * THE TEN THAT MAY — nine of the app's, and this package's own bench reader
-   * at the end — and why each is not an activation's state.
+   * WHAT MAY, and why each is not an activation's state.
    *
    * The reason is the entry: a module that grows one of these without one is a
    * module somebody has to argue for in review rather than add to a list.
@@ -2342,14 +2341,15 @@ describe("a module another package can open holds no live value", () => {
     "web/src/client/file/matching.ts": "a WeakMap memo keyed on the list it folds",
     // ...and the same shape one package over, over rendered markdown.
     "markdown-ui/src/render.ts": "a memo over the text it renders",
-    // A REGISTRY, which is a different thing from a holder and the difference
-    // is the whole of why this is here. Each entry is keyed by the VERB its own
-    // activation owns, a second claimant is refused at registration, and the
-    // undo clears the entry BY IDENTITY. So no row ever reads another row's
-    // value out of it: outlines registers `edit.apply` and outlines' own undo
-    // spends it. It is `@olai/effect-cordis`'s `registry.ts` shape, in the
-    // package that owns the shared edit algorithm.
-    "edit-history/src/writing.ts": "a verb-keyed registry, one entry per activation, refused twice",
+    // `edit-history/src/writing.ts` WAS HERE, and the reasoning was wrong. It
+    // said the entries were each one activation's and refused twice, which is
+    // true and is about LIFETIME rather than ownership — and then that no row
+    // reads another row's value out of it, which is false: the module's own
+    // header says history contains inverses from several providers, so
+    // markdown's editor spends outlines' writer out of one stack. Five plugin
+    // activations wrote into a general package's `Map` and four packages read
+    // it, which is the sentence this claim is built on. The algorithm is still
+    // that package's; the TABLE is the app's, behind `Edits`.
     // THE PROCESS'S OWN SIGNALS. `sigterm` installs a handler on the binary and
     // remembers what it replaced; its lifetime is the process, and the one
     // package that opens it is the composition root's entry.
@@ -2364,6 +2364,55 @@ describe("a module another package can open holds no live value", () => {
     // differently if something rewrote the tree mid-run, which no claim here
     // does.
     "bundle/src/tree.testlib.ts": "the corpus reader's own memos, over a tree read once",
+
+    // ── AND WHAT THE WALK BEHIND THE DOORS ADDED ──────────────────────────
+    //
+    // The claim used to read the door FILE and stop. It walks the providing
+    // package now (a review finding: a `let` one import behind a door is state
+    // a package can open with nothing in the door to see), and what that found
+    // is below — none of it introduced here, all of it in the same three
+    // classes the list above already has.
+
+    // THE ENGINE'S OWN BOOKKEEPING, keyed by the thing each entry is about: a
+    // host's close, a fiber's activation, a module fiber's children. It is
+    // Cordis' runtime state in the one package this tree lets be an engine, and
+    // an "owner" for it would be the runtime owning itself.
+    "effect-cordis/src/host.ts": "a host's own close, keyed by that host",
+    "effect-cordis/src/lifecycle.ts": "the engine's activation table, keyed by fiber",
+    "effect-cordis/src/module.ts": "a module fiber's children, keyed by that fiber",
+
+    // MEMOS OVER IMMUTABLE INPUT, every one a `WeakMap` keyed by the value it
+    // folds — the same shape as `file/matching.ts` and `markdown-ui`'s
+    // `render.ts` above. A new input computes a new answer and the old entry
+    // goes with the object it was about; there is no moment at which one holds
+    // a value somebody else installed.
+    "format/src/filter.ts": "two WeakMap memos of a record's folded text, keyed by the record",
+    "format/src/set.ts": "a WeakMap memo of a set's derived reading, keyed by the set",
+    "format/src/suggest.ts": "a WeakMap memo of a known table's index, keyed by the table",
+    "format/src/tape.ts": "two WeakMap memos over a derived pair, keyed by the pair",
+    "format/src/typing.ts": "a WeakMap memo of a derivation's declared kinds, keyed by it",
+    "format/src/vocabulary.ts": "a WeakMap memo of a derivation's tag counts, keyed by it",
+    // ...and one file with a memo AND a diagnostic slot: `watching(null)` is the
+    // default, a suite installs a listener for the length of its own case, and
+    // what it hears is every narrowed write rather than any activation's value.
+    "format/src/validate.ts": "a WeakMap ledger memo, and one slot a suite installs a listener in",
+
+    // WARN-ONCE FLAGS, which is `grumble.ts`'s class one package over: what they
+    // hold is whether this process has already said a sentence, and forgetting
+    // it would only mean saying it twice.
+    "log/src/level.ts": "whether this process has already warned about OLAI_LOG_LEVEL",
+    "log/src/sinks.ts": "whether this process has already warned about OLAI_LOG",
+
+    // A REGEX CURSOR, which is a `lastIndex` and not a value: the scan sets it
+    // to 0 before it starts and moves it as it goes, so what is kept between
+    // two calls is nothing.
+    "plugin-build/src/bind.ts": "a sticky regex's cursor, reset at the top of every scan",
+
+    // THE PAGE'S ONE OPEN TIP — `topmost.ts`'s class exactly. "At most one tip
+    // is on screen" is a fact about the DOCUMENT, its lifetime is the
+    // document's, and a row that owned it would be a row whose withdrawal
+    // decided what a pointer resting somewhere else is showing.
+    "web/src/client/tip.ts": "which tip the document has open, with no owner but the page",
   }
 
   /** Every module the tree opens from another package, with the openers — the
@@ -2397,18 +2446,62 @@ describe("a module another package can open holds no live value", () => {
     expect([...OPENED.keys()].some((file) => file.startsWith("web/src/client/"))).toBe(true)
   })
 
-  test("nothing opened across a boundary holds live state, but the ten that are not state", () => {
-    const found = [...OPENED.keys()].sort()
-      .flatMap((file) => (file in ALLOWED ? [] : liveStateIn(file)))
-    expect(found).toEqual([])
+  /**
+   * ...AND WHAT IS BEHIND EACH DOOR, not only the door.
+   *
+   * The claim read the door FILE and stopped there, which is a hole the size of
+   * one import: a `let` in a private helper, re-exported from the door, is
+   * live state a package can open with nothing in the door itself to see. The
+   * plugin-contract claim above has walked its graph since it was written;
+   * this one is the reading over the OTHER doors — `@olai/web/client/*`,
+   * `@olai/plugin-api`, `@olai/ui-primitives`, `@olai/edit-history` — which is
+   * exactly where `today.tsx`, `named.ts` and `ghost.ts` used to live and
+   * where three of the audit's findings were.
+   *
+   * WITHIN THE PROVIDING PACKAGE. A door reaches its own package's private
+   * modules and that is the point of a door; it also reaches `effect` and
+   * `solid-js` and half the tree, and a walk that judged those would be judging
+   * somebody else's package through an import it does not control. So the
+   * files judged are the door's own package's, and a door that re-exported
+   * ANOTHER package's holder is caught at that package's own door.
+   *
+   * AND ONLY FOR A GENERAL PACKAGE, which is the other half of the rule and not
+   * a softening of it. A plugin's `./browser` is a door the BUNDLE opens to
+   * MOUNT the row, not to read values out of — everything behind it is that
+   * row's own activation state, which is precisely where this phase put things.
+   * A plugin's CONTRACT doors are walked, with the same reading, by
+   * "cross-plugin static contracts resolve…" above; between the two, every door
+   * whose values cross a wall is read to its implementation and no row is told
+   * its private modules may hold nothing.
+   */
+  const behind = (file: string): ReadonlyArray<string> => {
+    const member = memberOf(file)
+    if (member === undefined || PLUGIN_DIRS.includes(member)) return [file]
+    const graph = graphFrom(path.join(PACKAGES, file))
+    expect(graph.unresolved, file).toEqual([])
+    return [file, ...graph.files.filter((one) => memberOf(one) === member)]
+  }
+
+  test("nothing opened across a boundary holds live state, but the ones that are not state", () => {
+    const found = [...OPENED.keys()].sort().flatMap((door) =>
+      door in ALLOWED ? [] : [...new Set(behind(door))].flatMap((file) =>
+        file in ALLOWED ? [] : liveStateIn(file).map((said) =>
+          file === door ? said : `${said} (behind ${door})`,
+        ),
+      ),
+    )
+    expect([...new Set(found)]).toEqual([])
   })
 
-  test("every allowance names a module that is still a cross-package door and still holds state", () => {
+  test("every allowance names a module that is still reachable across a boundary and still holds state", () => {
     // The other half of an equality, and the half a plain filter cannot make: an
-    // allowance for a module nobody opens any more, or one that stopped holding
-    // anything, is a sentence nobody has to keep true. Both are red here.
+    // allowance for a module nobody can open any more, or one that stopped
+    // holding anything, is a sentence nobody has to keep true. Both are red
+    // here — over the SAME reach the claim above walks, so an allowance is
+    // judged by the rule it is an exception to rather than by a narrower one.
+    const reachable = new Set([...OPENED.keys()].flatMap((door) => [...behind(door)]))
     for (const [file, why] of Object.entries(ALLOWED)) {
-      expect([file, OPENED.has(file)]).toEqual([file, true])
+      expect([file, reachable.has(file)]).toEqual([file, true])
       expect([file, liveStateIn(file).length > 0]).toEqual([file, true])
       expect([file, why.length > 20]).toEqual([file, true])
     }
@@ -2446,6 +2539,38 @@ describe("a module another package can open holds no live value", () => {
     expect(said(`const by = {}\nexport const put = (k, v) => { by[k] = v }`).length).toBe(1)
     // A `var`, which is a `let` with an older spelling.
     expect(said(`var held\nexport const current = () => held`).length).toBe(1)
+
+    // ── THE SHAPES A REVIEW FOUND THIS READING BLIND TO ────────────────────
+    //
+    // Every one of them carries a `let` without writing one, and the first is
+    // this phase's OWN primitive: a provider exporting a holder through a door
+    // publishes live state with a `const` and no cell in sight.
+    expect(said(`import { heldService } from "@olai/ui-primitives/held.ts"\nexport const box = heldService()`))
+      .toEqual(["fixture.ts: `box` is a module-scope heldService() holder"])
+    // ...UNDER AN ALIAS, which is the first thing anybody reaches for and what
+    // a table of bare words would miss. Matched by the door and the EXPORTED
+    // name, so the local spelling is free.
+    expect(said(`import { heldService as slot } from "@olai/ui-primitives/held.ts"\nexport const box = slot()`))
+      .toEqual(["fixture.ts: `box` is a module-scope slot() holder"])
+    // ...and through a namespace import, the same way.
+    expect(said(`import * as held from "@olai/ui-primitives/held.ts"\nexport const box = held.heldService()`))
+      .toEqual(["fixture.ts: `box` is a module-scope held.heldService() holder"])
+    // ...and the slot table's twin, from the other door.
+    expect(said(`import { heldFaces } from "@olai/plugin-api"\nexport const f = heldFaces()`))
+      .toEqual(["fixture.ts: `f` is a module-scope heldFaces() holder"])
+    // A STATE-BEARING IIFE: the `let` is inside, and what escapes closes over it.
+    expect(said(`export const count = (() => { let n = 0; return () => ++n })()`))
+      .toEqual(["fixture.ts: `count` is a module-scope IIFE"])
+    // ...and one that mints a cell rather than a `let`.
+    expect(said(`export const seat = (() => { const [a, setA] = createSignal(); return { a, setA } })()`))
+      .toEqual(["fixture.ts: `seat` is a module-scope IIFE"])
+    // AN INSTANCE OF A CLASS THIS MODULE DECLARED, which is the same slot with
+    // a `this` in front of it.
+    expect(said(`class R { held = new Map()\n put(k) { this.held.set(k, 1) } }\nexport const registry = new R()`))
+      .toEqual(["fixture.ts: `registry` is a module-scope new R()"])
+    // ...including one that assigns the field rather than filling a collection.
+    expect(said(`class Box { at = null\n put(v) { this.at = v } }\nexport const box = new Box()`))
+      .toEqual(["fixture.ts: `box` is a module-scope new Box()"])
   })
 
   test("...and passes every legitimate contract", () => {
@@ -2474,6 +2599,36 @@ describe("a module another package can open holds no live value", () => {
       .toEqual([])
     // ...and the same words inside a string.
     expect(said(`export const SAID = "let held = createSignal()"`)).toEqual([])
+
+    // ── AND THE LEGITIMATE TWINS OF THE THREE SHAPES ABOVE ────────────────
+    //
+    // A FACTORY THAT MINTS A HOLDER is the whole point of the primitive: it is
+    // where two callers get two holders, and it keeps nothing itself.
+    expect(said(`import { heldService } from "@olai/ui-primitives/held.ts"\nexport const open = () => heldService()`))
+      .toEqual([])
+    // A HOLDER-SHAPED NAME FROM SOMEWHERE ELSE is not this tree's primitive: the
+    // match is on the DOOR, so a same-named import from another package says
+    // nothing here (and would be caught at that package's own door).
+    expect(said(`import { heldService } from "some-other-lib"\nexport const box = heldService()`))
+      .toEqual([])
+    // AN IIFE THAT COMPUTES A CONSTANT — half a dozen doors in this tree pick a
+    // row out of a frozen table this way and throw if it is not there
+    // (`@olai/appearance`'s `DEFAULT_PALETTE`). Nothing survives the call.
+    expect(said(`export const DEFAULT = (() => { const one = TABLE.get("a"); if (!one) throw new Error("no"); return one })()`))
+      .toEqual([])
+    // AN INSTANCE OF A CLASS THAT KEEPS NOTHING, which is a value like any
+    // other: it reads a frozen table and does arithmetic.
+    expect(said(`class Clock { at(ms) { return Math.floor(ms / 1000) } }\nexport const CLOCK = new Clock()`))
+      .toEqual([])
+    // ...and `new` of a class this module did NOT declare, which is somebody
+    // else's shape and is judged where it is written.
+    expect(said(`export const stamp = new Date(0)`)).toEqual([])
+    // A LOCAL THAT SHARES A MODULE-SCOPE NAME. `@olai/ops`' `query.ts` exports
+    // a function called `homes` that builds a local array called `homes` and
+    // pushes to it; a reading that could not tell them apart said the module
+    // writes to a `const` it never touches.
+    expect(said(`export const homes = (rows) => { const homes = []\n for (const r of rows) homes.push(r)\n return homes }`))
+      .toEqual([])
   })
 })
 

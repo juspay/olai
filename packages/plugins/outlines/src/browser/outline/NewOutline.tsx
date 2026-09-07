@@ -31,7 +31,7 @@ import { useUndo } from "../edit/undoing.ts"
 import { MAKING_OUTLINE } from "olai-plugin-files/making"
 import { NewFile } from "../files.tsx"
 import { useRouter } from "olai-plugin-navigation/routing"
-import { applied } from "@olai/web/client/writes.ts"
+import { applied } from "../writes.ts"
 import { atFile } from "olai-plugin-navigation/routes"
 
 export function NewOutline() {

@@ -34,7 +34,7 @@ import { expect, spyOn, test } from "bun:test"
 
 import type { Relation } from "../edges/relation.ts"
 import { flatten } from "../edit/order.ts"
-import * as writes from "@olai/web/client/writes.ts"
+import * as writes from "../writes.ts"
 import { nodeMenuActions } from "./actions.ts"
 import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
 /** No plugin claims a URL — the roster these cases are about. A pinned plugin

@@ -38,7 +38,7 @@ import { createMemo, onMount, Show } from "solid-js"
 import { useHistory } from "../history.ts"
 import { Refused } from "@olai/web/client/Refused.tsx"
 
-import { applying } from "@olai/web/client/writes.ts"
+import { applying } from "../writes.ts"
 import type { DocumentDraft } from "./drafts.ts"
 
 export function DocEditor(props: {

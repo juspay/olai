@@ -1,8 +1,7 @@
-import { Wired } from "@olai/plugin-api"
+import { Edits, Wired } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
-import { registerWriter } from "@olai/edit-history/writing.ts"
 import { dispatch } from "./surface.ts"
-import { writeEdit } from "@olai/edit-history/writing.ts"
+import { holdEdits, writeEdit } from "./browser/writes.ts"
 import { fileKind } from "@olai/format"
 import type {} from "olai-plugin-layout/slots"
 import { UndoSaid } from "@olai/edit-history/UndoSaid.tsx"
@@ -40,10 +39,16 @@ import { name, browserState, documentBodies, properties, type MarkdownBrowser } 
 import { client } from "./client.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 
-export default definePlugin({ name, needs: [Wired, Offers], apply: Effect.gen(function*() {
+export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect.gen(function*() {
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
-  yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))
+  // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through
+  // `Edits` rather than pushed into a module-scope map in a general package
+  // (`@olai/edit-history`'s `writing.ts` carries the whole of why). The hold
+  // beside it is how this row's faces spend the same table (`./browser/writes.ts`).
+  const edits = yield* Edits
+  yield* edits.register(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))
+  yield* Effect.acquireRelease(Effect.sync(() => holdEdits(edits)), stop => Effect.sync(stop))
 
   const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
     const documents = createDocuments()

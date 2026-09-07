@@ -690,6 +690,14 @@ export const liveStateIn = (
   /** The module-scope `const` bindings, by name — the candidates rule 3 asks
    *  about after the whole file has been read for writes. */
   const bound = new Set<string>()
+  /** ...and the two things this file has to read the IMPORTS for: which local
+   *  names are this tree's holder factories, and which are classes it declared
+   *  itself. */
+  const minting = holdersIn(source)
+  const declared = new Set(
+    source.statements.filter(ts.isClassDeclaration)
+      .flatMap((one) => one.name === undefined || !keepsState(one) ? [] : [one.name.text]),
+  )
 
   for (const statement of source.statements) {
     if (!ts.isVariableStatement(statement)) continue
@@ -703,9 +711,9 @@ export const liveStateIn = (
       if (ts.isIdentifier(declaration.name)) bound.add(declaration.name.text)
       const cell = declaration.initializer === undefined
         ? undefined
-        : reactiveAt(declaration.initializer)
+        : reactiveAt(declaration.initializer, minting, declared)
       if (cell !== undefined) {
-        found.push(`${file}: \`${spelled}\` is a module-scope ${cell}()`)
+        found.push(`${file}: \`${spelled}\` is a module-scope ${cell}`)
       }
     }
   }
@@ -726,23 +734,140 @@ const REACTIVE: ReadonlySet<string> = new Set([
   "createResource",
 ])
 
-/** Which cell an initializer mints when the module is evaluated, or nothing —
- *  a call inside a function body is that function's, however deep. */
-const reactiveAt = (initializer: ts.Expression): string | undefined => {
+/**
+ * ...AND THIS TREE'S OWN HOLDER FACTORIES, by the DOOR they come from.
+ *
+ * `heldService()` and `heldFaces()` mint exactly the thing this claim is about:
+ * a slot with a `hold` and a `read` over it. A provider that exported one
+ * through a door would be publishing live state across a package boundary with
+ * a `const` and no `let` in sight — which is what both helpers' own headers say
+ * the fence refuses, and what it did not until a review found the gap.
+ *
+ * BY THE SPECIFIER AND THE EXPORTED NAME, not by the local one: an alias
+ * (`import { heldService as box }`) is the first thing anybody would reach for,
+ * deliberately or not, and a table of bare words would miss it. A namespace
+ * import is read the same way.
+ */
+const HOLDERS: ReadonlyArray<{ readonly from: RegExp; readonly named: string }> = [
+  { from: /held\.ts$/, named: "heldService" },
+  { from: /^@olai\/plugin-api$|plugin-api\/(src\/)?browser\.ts$/, named: "heldFaces" },
+]
+
+/** The local names, in ONE module, that mint a holder — however they were
+ *  spelled on the way in. */
+const holdersIn = (source: ts.SourceFile): ReadonlySet<string> => {
+  const local = new Set<string>()
+  for (const statement of source.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
+    const spec = statement.moduleSpecifier.text
+    const doors = HOLDERS.filter((one) => one.from.test(spec))
+    if (doors.length === 0) continue
+    const bindings = statement.importClause?.namedBindings
+    if (bindings === undefined) continue
+    if (ts.isNamespaceImport(bindings)) {
+      for (const door of doors) local.add(`${bindings.name.text}.${door.named}`)
+      continue
+    }
+    for (const element of bindings.elements) {
+      const exported = (element.propertyName ?? element.name).text
+      if (doors.some((one) => one.named === exported)) local.add(element.name.text)
+    }
+  }
+  return local
+}
+
+/**
+ * WHAT AN INITIALIZER MINTS when the module is evaluated, or nothing — a call
+ * inside a function body is that function's, however deep.
+ *
+ * Four shapes, and the last two were a review finding of their own: a holder
+ * factory ({@link HOLDERS}), a Solid cell ({@link REACTIVE}), an IIFE, and
+ * `new` of a class this module declared. The two additions are the ways to
+ * carry a `let` without writing one — `(() => { let n = 0; return () => ++n })()`
+ * and `class R { held = new Map() }` — and both are reported only where they
+ * are EVALUATED at module load, so a factory returning either is still a
+ * factory.
+ */
+const reactiveAt = (
+  initializer: ts.Expression,
+  minting: ReadonlySet<string>,
+  declared: ReadonlySet<string>,
+): string | undefined => {
   let found: string | undefined
   const walk = (node: ts.Node): void => {
     if (found !== undefined) return
+    if (ts.isCallExpression(node) && atModuleScope(node, initializer)) {
+      const called = ts.isIdentifier(node.expression)
+        ? node.expression.text
+        : ts.isPropertyAccessExpression(node.expression) ? node.expression.getText() : undefined
+      if (called !== undefined && REACTIVE.has(called)) { found = `${called}()`; return }
+      if (called !== undefined && minting.has(called)) { found = `${called}() holder`; return }
+      // AN IIFE THAT KEEPS SOMETHING: a function expression called where it
+      // stands, whose body holds a `let` or mints a cell — so what it closed
+      // over belongs to the module rather than to a caller.
+      //
+      // The body is what decides, and it has to be: half a dozen doors in this
+      // tree compute an inert constant this way (`@olai/appearance`'s
+      // `DEFAULT_PALETTE` picks a row out of a frozen table and throws if it is
+      // not there), and a rule that reported the SHAPE would refuse those to
+      // catch `(() => { let n = 0; return () => ++n })()`.
+      const body = ts.isParenthesizedExpression(node.expression)
+        ? node.expression.expression
+        : node.expression
+      if (ts.isFunctionLike(body) && keepsState(body)) { found = "IIFE"; return }
+    }
     if (
-      ts.isCallExpression(node) && ts.isIdentifier(node.expression)
-      && REACTIVE.has(node.expression.text) && atModuleScope(node, initializer)
+      ts.isNewExpression(node) && ts.isIdentifier(node.expression)
+      && declared.has(node.expression.text) && atModuleScope(node, initializer)
     ) {
-      found = node.expression.text
+      // ...and the same reading for a class this module declared: an instance
+      // minted at module load is state only if the class HAS any — a class that
+      // wraps a frozen table or does arithmetic is a value like any other.
+      found = `new ${node.expression.text}()`
       return
     }
     ts.forEachChild(node, walk)
   }
   walk(initializer)
   return found
+}
+
+/**
+ * DOES THIS BODY KEEP ANYTHING — the question that tells an IIFE or a class
+ * that is a VALUE from one that is a SLOT.
+ *
+ * Three ways to keep something, and they are the same three the module-scope
+ * rules above are built on: a `let`/`var`, a Solid cell or a holder, and a
+ * binding the body writes THROUGH (`this.held.set(…)`, `this.at = …`). A body
+ * with none of them computed its answer and stopped.
+ */
+const keepsState = (body: ts.Node): boolean => {
+  let keeps = false
+  const walk = (node: ts.Node): void => {
+    if (keeps) return
+    if (ts.isVariableStatement(node) && (node.declarationList.flags & ts.NodeFlags.Const) === 0) {
+      keeps = true
+      return
+    }
+    if (
+      ts.isCallExpression(node) && ts.isIdentifier(node.expression)
+      && REACTIVE.has(node.expression.text)
+    ) { keeps = true; return }
+    // A field written after construction, or one initialised to a collection
+    // that some method fills — both read as `this.<x>` being written.
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+      && (ts.isPropertyAccessExpression(node.left) || ts.isElementAccessExpression(node.left))
+      && node.left.expression.kind === ts.SyntaxKind.ThisKeyword) { keeps = true; return }
+    if (
+      ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+      && MUTATORS.has(node.expression.name.text)
+      && ts.isPropertyAccessExpression(node.expression.expression)
+      && node.expression.expression.expression.kind === ts.SyntaxKind.ThisKeyword
+    ) { keeps = true; return }
+    ts.forEachChild(node, walk)
+  }
+  ts.forEachChild(body, walk)
+  return keeps
 }
 
 /** Is this node evaluated when the module is — outside every function and class
@@ -773,18 +898,29 @@ const MUTATORS: ReadonlySet<string> = new Set([
   "fill",
 ])
 
-/** Every identifier this module writes THROUGH — `x.set(…)`, `x.y = …`,
- *  `x[k] = …`. Read over the whole file rather than at module scope, because a
- *  module-scope `const` written from inside an exported function is exactly the
- *  shape this is about. */
+/**
+ * Every identifier this module writes THROUGH — `x.set(…)`, `x.y = …`,
+ * `x[k] = …`. Read over the whole file rather than at module scope, because a
+ * module-scope `const` written from inside an exported function is exactly the
+ * shape this is about.
+ *
+ * ...AND NOT A LOCAL THAT HAPPENS TO SHARE THE NAME, which is the difference
+ * between this reading and a `grep`. `@olai/ops`' `query.ts` exports a function
+ * called `homes` that builds a local array called `homes` and pushes to it;
+ * reading the file flat says the module writes to `homes` and the module writes
+ * to nothing. A claim with false positives is a claim people add allowances to.
+ */
 const mutatedIn = (source: ts.SourceFile): ReadonlySet<string> => {
   const written = new Set<string>()
+  const wrote = (target: ts.Identifier): void => {
+    if (!shadowed(target)) written.add(target.text)
+  }
   const visit = (node: ts.Node): void => {
     if (
       ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
       && ts.isIdentifier(node.expression.expression) && MUTATORS.has(node.expression.name.text)
     ) {
-      written.add(node.expression.expression.text)
+      wrote(node.expression.expression)
     }
     if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
       const target = node.left
@@ -792,11 +928,42 @@ const mutatedIn = (source: ts.SourceFile): ReadonlySet<string> => {
         (ts.isPropertyAccessExpression(target) || ts.isElementAccessExpression(target))
         && ts.isIdentifier(target.expression)
       ) {
-        written.add(target.expression.text)
+        wrote(target.expression)
       }
     }
     ts.forEachChild(node, visit)
   }
   visit(source)
   return written
+}
+
+/** Does a scope between this use and the module declare the same word — a
+ *  local, a parameter, or a `for (const x of …)`? Then the write is that
+ *  binding's and says nothing about the module's. */
+const shadowed = (used: ts.Identifier): boolean => {
+  const declares = (node: ts.Node): boolean => {
+    let names = false
+    const spelt = (name: ts.BindingName): void => {
+      if (ts.isIdentifier(name)) { names ||= name.text === used.text; return }
+      for (const element of name.elements) {
+        if (!ts.isOmittedExpression(element)) spelt(element.name)
+      }
+    }
+    const scan = (at: ts.Node): void => {
+      if (ts.isVariableDeclaration(at) || ts.isParameter(at)) spelt(at.name)
+      // Nested functions have their own bindings; those are found on their own
+      // way up rather than through this one.
+      if (at !== node && (ts.isFunctionLike(at) || ts.isClassLike(at))) return
+      ts.forEachChild(at, scan)
+    }
+    if (ts.isFunctionLike(node)) for (const parameter of node.parameters) spelt(parameter.name)
+    ts.forEachChild(node, scan)
+    return names
+  }
+  for (let at: ts.Node | undefined = used.parent; at !== undefined; at = at.parent) {
+    if (ts.isSourceFile(at)) return false
+    if ((ts.isFunctionLike(at) || ts.isBlock(at) || ts.isForOfStatement(at) || ts.isForInStatement(at)
+      || ts.isForStatement(at) || ts.isCaseBlock(at)) && declares(at)) return true
+  }
+  return false
 }

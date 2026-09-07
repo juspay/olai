@@ -45,7 +45,7 @@ import { createEffect,createMemo,createSelector,createSignal,Show } from "solid-
 
 import { createDrags,TRAVEL_PX } from "@olai/web/client/pointer.ts"
 import { selector } from "@olai/ui-primitives/testids.ts"
-import { applying } from "@olai/web/client/writes.ts"
+import { applying } from "./writes.ts"
 import { REGION,REGION_LABEL } from "olai-plugin-layout/entry"
 
 import { useRouter } from "olai-plugin-navigation/routing"

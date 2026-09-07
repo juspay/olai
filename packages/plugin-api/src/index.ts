@@ -108,8 +108,9 @@ export type {
   SlotOptions,
   SlotKey,
   SlotName,
+  EditWriters,
 } from "./browser.ts"
-export { Bar, Clocks, Faces, heldFaces, Links, Offers, openApp, Slots, Wired, slotLocation, slotFacade } from "./browser.ts"
+export { Bar, Clocks, Edits, Faces, heldFaces, Links, NO_EDITS, Offers, openApp, Slots, Wired, slotLocation, slotFacade } from "./browser.ts"
 /** ...and the bridge's own half of it, which is {@link ./runtime.ts}'s one list
  *  rather than this door's copy of it — see that module on why both doors read
  *  from one place. */

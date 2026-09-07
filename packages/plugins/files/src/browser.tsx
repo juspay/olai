@@ -1,7 +1,7 @@
-import { Wired } from "@olai/plugin-api"
+import { Edits, Wired } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
-import { registerWriter } from "@olai/edit-history/writing.ts"
 import { dispatch } from "./surface.ts"
+import { holdEdits } from "./writes.ts"
 import { fileAccess } from "olai-plugin-vault/contract"
 import { holdServed } from "./vault.ts"
 import { shell as appShell } from "olai-plugin-layout/contract"
@@ -20,14 +20,20 @@ import { Files } from "./Files.tsx"
 import { FileRail } from "./Rail.tsx"
 import { fileState,fileTypes } from "./contract.ts"
 import { followFolders } from "./fold/folders.ts"
-export default definePlugin({name:"files", needs:[Wired, Offers, fileAccess], apply:Effect.gen(function*(){
+export default definePlugin({name:"files", needs:[Wired, Offers, Edits, fileAccess], apply:Effect.gen(function*(){
  // The served directory the tree is drawn from, held for this activation
  // (`./vault.ts`).
  const served = yield* fileAccess
  yield* Effect.acquireRelease(Effect.sync(()=>holdServed(served)),stop=>Effect.sync(stop))
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
-  yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))
+  // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through
+  // `Edits` rather than pushed into a module-scope map in a general package
+  // (`@olai/edit-history`'s `writing.ts` carries the whole of why). The hold
+  // beside it is how this row's faces spend the same table (`./writes.ts`).
+  const edits = yield* Edits
+  yield* edits.register(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))
+  yield* Effect.acquireRelease(Effect.sync(() => holdEdits(edits)), stop => Effect.sync(stop))
 
  // The minting box keeps a draft per activation; the CONTROLS themselves
  // travel on `files.state` below rather than in a signal on a declared door.

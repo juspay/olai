@@ -37,7 +37,7 @@ import { ALARM_PILL,QUIET_PILL } from "@olai/web/client/pill.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { createSaying } from "@olai/web/client/saying.ts"
 
-import { applying } from "@olai/web/client/writes.ts"
+import { applying } from "../writes.ts"
 
 export function DeleteFile(props: { readonly file: string }) {
   const { said, say } = createSaying()

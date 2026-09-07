@@ -27,7 +27,7 @@ import { Result } from "effect"
 
 import type { Undo } from "@olai/edit-history/undoing.ts"
 import type { Router } from "olai-plugin-navigation/routing"
-import { applied } from "@olai/web/client/writes.ts"
+import { applied } from "../writes.ts"
 import { atFile } from "olai-plugin-navigation/routes"
 
 let minted: string | null = null

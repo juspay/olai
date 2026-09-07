@@ -2,7 +2,7 @@
 import { definePlugin } from "@olai/plugin-api"
 import type { Edit } from "@olai/surface"
 import { nameOf } from "olai-plugin-navigation/address/address.ts"
-import { applying } from "@olai/web/client/writes.ts"
+import { applying } from "./writes.ts"
 import { Effect } from "effect"
 import { navigation,paletteAdapters,paletteControl } from "olai-plugin-navigation/contract"
 import { holdPalette, paletteAsking } from "./box.ts"

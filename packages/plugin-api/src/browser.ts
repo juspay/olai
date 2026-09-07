@@ -27,6 +27,7 @@ import {
   type LocationOwner,
   serviceTag,
 } from "@olai/effect-cordis"
+import { NotFoundFailure } from "@olai/format"
 import { Effect, Scope, type Stream } from "effect"
 
 import { BrowserMount } from "./mount.ts"
@@ -468,6 +469,110 @@ export const Faces = serviceTag<Faces>("ui-renderer.faces")
  * drawn by the row that holds — the hold precedes every contribution it makes —
  * and it is why this is a holder rather than a signal.
  */
+/**
+ * WHERE A VERB'S WRITE GOES — the browser's twin of {@link Kinds},
+ * {@link Surfaces} and {@link Wakes}, and one table per attached app.
+ *
+ * ## What it is about
+ *
+ * A row that owns an `edit.apply` arm CLAIMS the verbs it implements; anything
+ * with an edit in hand SPENDS one. The two are usually different rows and often
+ * different packages, because history contains inverses from several providers:
+ * ⌘Z over a mark, a move to the Trash and a document's rename come off one
+ * stack and go to three rows' sibling clients. A surviving editor must not send
+ * every inverse through its own.
+ *
+ * ## THE TABLE WAS A MODULE VARIABLE, and that was the audit's §12
+ *
+ * `const writers = new Map()` lived at `@olai/edit-history`'s module scope —
+ * a general package. Five plugin activations wrote into it and four packages
+ * read it, with nothing declared anywhere. The fence allowed it by name for one
+ * commit on the reasoning that the entries were each one activation's and a
+ * second claimant was refused; that is lifetime discipline, and it is not
+ * ownership. Nothing in the runtime said that markdown's editor spends
+ * outlines' writer, and nothing withdrew when a provider left except a
+ * finalizer the module trusted its callers to run.
+ *
+ * ## Why HERE, and not in the package that owns the edit algorithm
+ *
+ * Two reasons, and the second is the fence's. Which row implements which verb
+ * is a fact about the COMPOSITION rather than about editing — it is the same
+ * question `Kinds` and `Surfaces` answer on the server, and those live beside
+ * this one. And the table has to be stood behind by something every browser
+ * plugin can name without waiting: {@link openApp} supplies it, the way it
+ * supplies {@link Offers} and {@link Wired}, so no row stands behind it, no row
+ * leaving takes it away, and naming it costs a consumer no wait. The browser
+ * host is the only other place that could have minted one, and the composition
+ * root may not carry a feature package (`@olai/bundle`'s fence says so, and
+ * caught the attempt).
+ *
+ * ## The `unknown` is one cast at each end, deliberately
+ *
+ * An `Edit` and an `Applied` are `@olai/surface`'s, and that package names this
+ * one — so the door is spelled structurally here and with the real types at
+ * both ends, which is exactly what {@link Ledger} and {@link Search} do for the
+ * floor. `@olai/web`'s `client/writes.ts` casts once on the reading side; each
+ * row's `browser.tsx` casts once on the claiming side.
+ */
+export interface EditWriters {
+  /**
+   * CLAIM THESE VERBS for as long as the calling activation stands, and clear
+   * BY IDENTITY — so a stopped activation whose finalizer runs after a
+   * replacement claimed the verb cannot take the replacement's writer out from
+   * under an edit in flight.
+   *
+   * A DEFECT on a second claimant, which is what the throw it replaces always
+   * was: the bundle's `edit.apply` arms are exhaustive and disjoint by
+   * construction (each row's `surface.ts` says so), so two rows claiming one
+   * verb is a composition that is wrong rather than a state to draw.
+   */
+  readonly register: (
+    verbs: ReadonlyArray<string>,
+    write: (edit: never) => Effect.Effect<unknown, unknown>,
+  ) => Effect.Effect<void, never, Scope.Scope>
+  /** ...and the dispatch, refusing in words for a verb whose row is not here. */
+  readonly write: (edit: { readonly verb: string }) => Effect.Effect<unknown, unknown>
+}
+export const Edits = serviceTag<EditWriters>("edit-writers")
+
+/**
+ * A TABLE FOR AN APP THAT IS NOT STANDING — what a package's own holder answers
+ * with before its row has held one, and after it has stopped.
+ *
+ * The refusal is the SAME sentence a verb whose provider left already got, so a
+ * face that somehow outlived its row says what it has always said rather than
+ * throwing inside a click handler.
+ */
+export const NO_EDITS: EditWriters = {
+  register: () => Effect.die(new Error("edit writers: registered into a table nobody is holding")),
+  write: (edit) => Effect.fail(new NotFoundFailure({ reason: `the capability for ${edit.verb} is not active` })),
+}
+
+const editWriters = (): EditWriters => {
+  const writers = new Map<string, (edit: never) => Effect.Effect<unknown, unknown>>()
+  return {
+    register: (verbs, write) =>
+      Effect.suspend(() => {
+        const taken = verbs.filter((verb) => writers.has(verb))
+        return taken.length > 0
+          ? Effect.die(new Error(`edit writer already registered: ${taken.join(", ")}`))
+          : Effect.acquireRelease(
+            Effect.sync(() => { for (const verb of verbs) writers.set(verb, write) }),
+            () => Effect.sync(() => {
+              for (const verb of verbs) if (writers.get(verb) === write) writers.delete(verb)
+            }),
+          ).pipe(Effect.asVoid)
+      }),
+    write: (edit) =>
+      Effect.suspend(() => {
+        const write = writers.get(edit.verb)
+        return write === undefined
+          ? Effect.fail(new NotFoundFailure({ reason: `the capability for ${edit.verb} is not active` }))
+          : write(edit as never)
+      }),
+  }
+}
+
 export interface HeldFaces extends Faces {
   readonly hold: (faces: Faces) => Effect.Effect<void, never, Scope.Scope>
 }
@@ -675,6 +780,10 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
     yield* provide(host, Wired, forOwner((plugin) => ({
       client: () => config.clientFor?.(plugin) ?? null,
     })))
+    // ONE EDIT TABLE PER APP, supplied rather than offered for {@link Edits}'
+    // own reason: no row stands behind it, so naming it costs no wait.
+    const edits = editWriters()
+    yield* provide(host, Edits, () => edits)
 
     // Compatibility reads resolve the renderer's live facade. No slot storage
     // or slot provider exists on the permanent host.

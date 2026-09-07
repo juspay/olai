@@ -33,11 +33,20 @@
 
 import type { Applied, Edit } from "@olai/surface"
 import type { OpFailure } from "@olai/format"
-import { Result } from "effect"
+import { type Effect, Result } from "effect"
 
 import { runAsync } from "./run.ts"
-import { writeEdit } from "@olai/edit-history/writing.ts"
 import type { Undo } from "@olai/edit-history/undoing.ts"
+
+/**
+ * HOW AN EDIT REACHES ITS ROW, with the real types on it.
+ *
+ * `Edits` is spelled structurally in `@olai/plugin-api` because that package
+ * may not import `@olai/surface` (which names it), so the `unknown` is cast
+ * once at each end. This is the reading end: everything below is typed, and a
+ * caller binds the service's `write` to this alias in one line.
+ */
+export type EditWriter = (edit: Edit) => Effect.Effect<Applied, unknown>
 
 /** What a verb has to say afterwards, in the two moods a write has: `alarm`
  *  for a refusal, which is why nothing happened, and `aside` for a remark
@@ -64,7 +73,22 @@ import type { Said } from "./saying.ts"
  * sat — and a `Put back` pressed in the Trash, whose inverse is the archive
  * again.
  */
-export const applying = async (
+/** The three, over one row's writer. `olai-plugin-outlines`' `browser/writes.ts`
+ *  is the worked example: one `writingWith` per activation, held for it. */
+export interface Writing {
+  readonly applying: (edit: Edit, record: Undo["record"]) => Promise<Said | undefined>
+  readonly applyingAll: (
+    edits: ReadonlyArray<Edit>,
+    record: Undo["record"],
+  ) => Promise<Said | undefined>
+  readonly applied: (
+    edit: Edit,
+    record: Undo["record"],
+  ) => Promise<Result.Result<Applied, OpFailure>>
+}
+
+export const writingWith = (write: EditWriter): Writing => {
+const applying = async (
   edit: Edit,
   record: Undo["record"],
 ): Promise<Said | undefined> => {
@@ -96,7 +120,7 @@ export const applying = async (
  * shown. What already landed stays landed, exactly as it would have if a person
  * had pressed the key once per row and stopped when it would not go.
  */
-export const applyingAll = async (
+const applyingAll = async (
   edits: ReadonlyArray<Edit>,
   record: Undo["record"],
 ): Promise<Said | undefined> => {
@@ -119,11 +143,14 @@ export const applyingAll = async (
  * reply. Recording is the same either way — which writes have an inverse is
  * the server's answer, filed here so no caller can forget to file it.
  */
-export const applied = async (
+const applied = async (
   edit: Edit,
   record: Undo["record"],
 ): Promise<Result.Result<Applied, OpFailure>> => {
-  const outcome = await runAsync(writeEdit(edit))
+  const outcome = await runAsync(write(edit))
   if (Result.isSuccess(outcome)) record(outcome.success.undo)
   return outcome
+}
+
+  return { applying, applyingAll, applied }
 }

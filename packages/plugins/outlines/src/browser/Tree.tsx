@@ -130,7 +130,7 @@ import {
   ROOT_RAIL,
   ROW_TITLE,
 } from "@olai/ui-primitives/touch.ts"
-import { applying } from "@olai/web/client/writes.ts"
+import { applying } from "./writes.ts"
 
 export function Tree(props: {
   readonly rows: ReadonlyArray<Row>

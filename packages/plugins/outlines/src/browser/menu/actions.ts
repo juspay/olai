@@ -46,7 +46,7 @@ import { atNode, hrefOfPlain, type Route, type Routing } from "olai-plugin-navig
 import { asText } from "./subtree.ts"
 import type { MenuAction } from "./action.ts"
 import { subjectOfRow, writeVerbs } from "./verbs.ts"
-import { applying } from "@olai/web/client/writes.ts"
+import { applying } from "../writes.ts"
 
 /**
  * What a copy that LANDED says, in the one place both copies say it.

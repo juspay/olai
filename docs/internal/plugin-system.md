@@ -1252,7 +1252,7 @@ names the file.
 
 | File | Holds |
 | --- | --- |
-| `packages/bundle/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — a plugin imports the INTERFACE and never the REGISTRY, and does import the interface — the services door pulls no browser face — `packages/plugins/` holds the plugins and nothing else, both directions — and **no module another package can open holds a live value**: no module-scope `let`, no Solid cell minted at module load, no `const` the module writes into, over every cross-package door in the tree, with ten allowed by name and reason (the audit's §12). Fixtures hold the reading itself, so a pattern that stopped seeing is red rather than quiet |
+| `packages/bundle/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — a plugin imports the INTERFACE and never the REGISTRY, and does import the interface — the services door pulls no browser face — `packages/plugins/` holds the plugins and nothing else, both directions — and **no module another package can open holds a live value**: no module-scope `let`, no Solid cell or `heldService`/`heldFaces` minted at module load, no state-bearing IIFE or instance of a locally declared class, no `const` the module writes into. Over every cross-package door in the tree, and — for a general package's doors — over the implementation BEHIND them, because a `let` one import back is state a package can open with nothing in the door to see. A plugin's contract doors get the same walk from the claim above them; a plugin's `./browser` does not, because the bundle opens that to MOUNT the row rather than to read values out of it. What is allowed is named with a reason each (the audit's §12). Fixtures hold the reading itself — every prohibited shape and the legitimate twin it is easiest to confuse with, aliases and namespace imports included — so a pattern that stopped seeing is red rather than quiet |
 | `scripts/prove-fence.sh` | the fence and the mechanics lint go RED when they should. Not a `just check` leg: it mutates tracked files and puts them back, and `check` runs its legs in parallel. Run it when the fence CHANGES — a sweep's one failure mode is going quiet, and a fence that stopped running looks exactly like a fence that is holding |
 | `packages/bundle/src/mechanics.test.ts` | olai names no wire mechanic the framework performs |
 | `packages/bundle/src/tree.testlib.ts` | not a claim — the READING both of the above stand on (workspace members, manifests, sources, the module graph). Split out so the two files above are their claims and nothing else, and so the source walk is written once |
@@ -1449,6 +1449,15 @@ one generic capability went with them: `HostServices`, whose whole shape was
 five keys neither had declared. One of the five turned out to be dead: MCP asked
 whether a ledger was mounted and never read the answer.
 
+**A registry instance is owned too, not only a holder.** Where a verb's write
+goes was a `Map` at `@olai/edit-history`'s module scope: five plugin activations
+claimed verbs in it and four packages spent them, with nothing declared. Scoped
+entries and a refused double claim are lifetime discipline; ownership is a
+different question, and the answer is `Edits` — a browser service `openApp`
+supplies, one table per attached app, the twin of `Kinds` and `Surfaces` on the
+server. A row claims through a key it named and spends through a key it named;
+the dispatch and both its answers are unchanged.
+
 **Optional access is DECLARED, and a component is the wrong way to declare it.**
 MCP works without a vault and the vault works without git, and both did so
 through that lookup. The obvious repair — put each optional reach on a component
@@ -1482,13 +1491,24 @@ the consumer holds rather than the provider, the hold is an activation's and
 clears by identity, and the read answers the absence. What changed is which
 side of the wall the holder is on.
 
-Ten modules keep module state and are named in the fence with a reason each,
-because none of it is an activation's: the process's signal handlers, a
-per-process nonce for staged filenames, the page's layer stack, a re-entrancy
-guard held across one call, a warn-once set, two memos over immutable input, a
-verb-keyed registry whose entries are each one activation's, `wire.ts` — the
-`Wired` broker §6 establishes, whose readers name the service — and the fence's
-own corpus reader, which one bench opens.
+The fence names what may keep module state, with a reason each, because none of
+it is an activation's: the process's signal handlers, a per-process nonce for
+staged filenames, two warn-once flags, the page's layer stack and its one open
+tip, a re-entrancy guard held across one call, a dozen `WeakMap` memos keyed by
+the immutable value they fold, the engine's own bookkeeping keyed by the host or
+fiber it is about, a sticky regex's cursor, one slot a suite installs a listener
+in, `wire.ts` — the `Wired` broker §6 establishes, whose readers name the
+service — and the fence's own corpus reader, which one bench opens.
+
+Two entries are worth knowing about. `edit-history`'s verb-keyed writer table
+was allowed for one commit and should not have been: its entries were each one
+activation's and a second claimant was refused, which is lifetime discipline
+rather than ownership — the table itself was a general package's `Map` that five
+plugin activations wrote into and four packages read. It is the app's now,
+behind `Edits`, and the allowance is gone. Most of the rest arrived when the
+claim started walking BEHIND a general package's doors rather than reading the
+door file; none of it was introduced by that widening, and all of it falls into
+the three classes the list already had.
 
 ### Server composition and source policy
 
