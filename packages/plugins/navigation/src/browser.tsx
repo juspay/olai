@@ -1,5 +1,5 @@
 import {Clocks} from "@olai/plugin-api"
-import { followGhosts } from "@olai/web/client/ghost.ts"
+import { createGhost } from "@olai/web/client/ghost.ts"
 import { protectComposition } from "@olai/web/client/composition.ts"
 import { followKeys, KEYS_SETTLING, quiescence } from "@olai/web/client/quiescence.ts"
 import { fileAccess } from "olai-plugin-vault/contract"
@@ -13,8 +13,9 @@ import { holdFaces, hung } from "./faces.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./palette/reading.ts"
 import { holdLocations } from "./locations.ts"
-import { shell as layoutShell } from "olai-plugin-layout/contract"
+import { shell as appShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./palette/shell.ts"
+import { holdClocks } from "./palette/clock.ts"
 import { Effect } from "effect"
 import { overlays } from "olai-plugin-layout/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -45,7 +46,11 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
       else root.setAttribute(KEYS_SETTLING, previous)
     }
   })), stop => Effect.sync(stop))
-  for(const start of [followKeys, protectComposition, followGhosts]) yield* Effect.acquireRelease(Effect.sync(start),stop=>Effect.sync(stop))
+  for(const start of [followKeys, protectComposition]) yield* Effect.acquireRelease(Effect.sync(start),stop=>Effect.sync(stop))
+  // THE PAGE'S GESTURE ARBITER, minted here and OFFERED — one per activation,
+  // rather than a module variable in `@olai/web`'s own door that another row
+  // read across the wall (`./index.ts`'s `Gestures`).
+  const ghosts=yield* Effect.acquireRelease(Effect.sync(()=>createGhost(window)),state=>Effect.sync(state.dispose))
   yield* Effect.acquireRelease(Effect.sync(scopePaletteState),stop=>Effect.sync(stop))
   // WHAT A SIBLING ROW MAY DO TO THE BOX — offered rather than reachable
   // through a module variable in a declared door (`./index.ts`'s
@@ -61,6 +66,7 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
   const offers = yield* Offers
   yield* offers.own("state", () => ({...state.value, routes: routing, page: (index: number | (()=>number)) => <RouterProvider router={state.value}><PaneProvider index={typeof index==="function"?index():index}><PageView /></PaneProvider></RouterProvider>}))
   yield* offers.own("links", () => ({ File }))
+  yield* offers.own("gestures", () => ({ swallowGhost: ghosts.swallow }))
 }) })
 /**
  * WHAT THIS ROW READS OF THE RENDERER — a COMPONENT, because the row is not
@@ -79,7 +85,7 @@ export const components = {
  /** The matcher, DECLARED — a component of its own so the palette keeps opening
   *  and keeps saying *no matcher* when the row is absent
   *  (`./palette/reading.ts`). */
- search:definePlugin({name:"search",needs:[readings],apply:Effect.gen(function*(){
+ matcher:definePlugin({name:"matcher",needs:[readings],apply:Effect.gen(function*(){
   const reading=yield* readings
   yield* Effect.acquireRelease(Effect.sync(()=>holdReading(reading)),stop=>Effect.sync(stop))
  })}),
@@ -95,12 +101,15 @@ export const components = {
  const files=yield* fileAccess
  const opens=(path:string,at?:string)=>files.paths().includes(path)?atElement(path,at??null):undefined
  yield* (yield* Offers).own("file-links",()=>opens)
-})}), palette:definePlugin({name:"palette",needs:[navigation,rendererSlots,Clocks,Faces,layoutShell],apply:Effect.gen(function*(){
+})}), palette:definePlugin({name:"palette",needs:[navigation,rendererSlots,Clocks,Faces,appShell],apply:Effect.gen(function*(){
  yield* holdFaces(yield* Faces)
  // The two panel verbs and the breakpoint the palette spends
  // (`./palette/shell.ts`).
- const geometry=yield* layoutShell
+ const geometry=yield* appShell
  yield* Effect.acquireRelease(Effect.sync(()=>holdShell(geometry)),stop=>Effect.sync(stop))
+ // ...and the clock a `date:` hint is read against (`./palette/clock.ts`).
+ const clock=yield* Clocks
+ yield* Effect.acquireRelease(Effect.sync(()=>holdClocks(clock)),stop=>Effect.sync(stop))
  const nav=yield* navigation
  yield* (yield* rendererSlots).contribute(overlays,props=><RouterProvider router={nav}><Palette go={nav.go} toggleDirectory={props.toggleDirectory}/></RouterProvider>)
 })}),}

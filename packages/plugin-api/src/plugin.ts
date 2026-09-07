@@ -146,6 +146,22 @@ import type { JSX } from "solid-js"
  * package that asked, which is nearer the mistake than the registry ever was.
  */
 export interface AppClocks {
+  /**
+   * WHAT DAY IT IS, in the reader's own time zone, as the ISO text the format
+   * stores.
+   *
+   * An ACCESSOR, because today MOVES — at the next local midnight, and whenever
+   * a sleeping tab comes back — and a value would be the day the page mounted
+   * on, which is exactly the stale thing this app promises never to show.
+   *
+   * It is here rather than beside the factories because it is the same
+   * activation's: the renderer's `clocks` component mints the clock and offers
+   * this door, so what a row reads and what the app ticks cannot be two
+   * answers. It reached five rows as a module variable in `@olai/web`'s
+   * `client/today.tsx` before — a live value on a general package's door, with
+   * no consumer declaring anything (the Cordis audit's §12).
+   */
+  readonly today: () => string
   /** The ladders' units, read rather than re-typed: a readout spelling `1000`
    *  would be a second answer to what a second is. */
   readonly SECOND: number

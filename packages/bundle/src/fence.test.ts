@@ -1683,6 +1683,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "format/src/committing.ts",
       "plugins/git/src/browser/commit/said.ts",
       "plugins/git/src/ledger/pending.ts",
+      "plugins/layout/src/layout/live.ts",
       "plugins/layout/src/layout/prefs-owner.ts",
       "plugins/layout/src/layout/prefs.ts",
       "plugins/xyne-spaces/src/client.ts",
@@ -1720,7 +1721,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/kolu/src/server.ts",
       "plugins/markdown/src/server.ts",
       "plugins/markdown/src/tools.ts",
-      "plugins/navigation/src/opens.tsx",
       "plugins/odu/src/appliance/index.ts",
       "plugins/odu/src/server.ts",
       "plugins/outlines/src/server.ts",
@@ -1798,7 +1798,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "server/src/main.ts",
       "surface/src/media.ts",
       "web/src/client/keys.ts",
-      "web/src/client/plugins/loading.ts"
+      "web/src/host/loading.ts"
     ],
     "identity": [
       "plugin-api/src/services.ts",
@@ -1881,6 +1881,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/layout/src/index.ts",
       "plugins/layout/src/layout/Handle.tsx",
       "plugins/layout/src/layout/css.ts",
+      "plugins/layout/src/layout/live.ts",
       "plugins/layout/src/layout/prefs-owner.ts",
       "plugins/layout/src/layout/prefs.ts",
       "plugins/layout/src/testids.ts",
@@ -2079,7 +2080,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/vault/src/browser/errors/Page.tsx",
       "plugins/vault/src/browser/errors/Report.tsx",
       "plugins/vault/src/browser/errors/banner.ts",
-      "plugins/vault/src/browser/served.tsx",
       "plugins/vault/src/http/media.ts",
       "plugins/vault/src/lock.ts",
       "plugins/vault/src/projection.ts",

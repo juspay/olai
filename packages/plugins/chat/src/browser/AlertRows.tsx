@@ -1,7 +1,7 @@
 import { TESTID } from "olai-plugin-chat/testids"
 /** Chat owns both controls; preferences only supplies their location. */
 import { Show } from "solid-js"
-import { askToNotify, notifyConsent } from "@olai/web/client/notify.ts"
+import { askToNotify, notifyConsent } from "./notify.ts"
 import { Row } from "@olai/ui-primitives/SettingRow.tsx"
 import { Segmented } from "@olai/ui-primitives/Segmented.tsx"
 import { TARGET } from "@olai/ui-primitives/touch.ts"

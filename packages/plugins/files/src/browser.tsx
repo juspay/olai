@@ -3,8 +3,8 @@ import { holdClient, type Client } from "./client.ts"
 import { registerWriter } from "@olai/edit-history/writing.ts"
 import { dispatch } from "./surface.ts"
 import { fileAccess } from "olai-plugin-vault/contract"
-import { holdVault } from "./vault.ts"
-import { shell as layoutShell } from "olai-plugin-layout/contract"
+import { holdServed } from "./vault.ts"
+import { shell as appShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./shell.ts"
 import { DeleteFile } from "./file/DeleteFile.tsx"
 import { clearNewFileMemory,NewFile } from "./file/NewFile.tsx"
@@ -24,7 +24,7 @@ export default definePlugin({name:"files", needs:[Wired, Offers, fileAccess], ap
  // The served directory the tree is drawn from, held for this activation
  // (`./vault.ts`).
  const served = yield* fileAccess
- yield* Effect.acquireRelease(Effect.sync(()=>holdVault(served)),stop=>Effect.sync(stop))
+ yield* Effect.acquireRelease(Effect.sync(()=>holdServed(served)),stop=>Effect.sync(stop))
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
   yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))
@@ -38,8 +38,8 @@ export default definePlugin({name:"files", needs:[Wired, Offers, fileAccess], ap
 export const components = {
  /** The shell's geometry, DECLARED — a component of its own because content
   *  runs under another layout entirely (`./shell.ts`). */
- shell: definePlugin({name:"shell", needs:[layoutShell], apply:Effect.gen(function*(){
-  const geometry=yield* layoutShell
+ shell: definePlugin({name:"shell", needs:[appShell], apply:Effect.gen(function*(){
+  const geometry=yield* appShell
   yield* Effect.acquireRelease(Effect.sync(()=>holdShell(geometry)),stop=>Effect.sync(stop))
  })}),
  sidebar: definePlugin({name:"sidebar", needs:[fileState,fileAccess, rendererSlots, navigation], apply:Effect.gen(function*(){

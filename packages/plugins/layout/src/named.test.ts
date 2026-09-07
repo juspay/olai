@@ -11,7 +11,7 @@
 
 import { expect, test } from "bun:test"
 
-import type { SurfaceReadout, SurfaceReadoutStatus } from "./connection/status.ts"
+import type { SurfaceReadout, SurfaceReadoutStatus } from "@olai/web/client/connection/status.ts"
 import { landingOf, shouldAsk } from "./named.ts"
 
 const STARTED = "2026-08-29T09:31:00.000Z"

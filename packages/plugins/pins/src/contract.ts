@@ -19,4 +19,4 @@ import type { Shelf } from "@olai/format"
  * shelf changes, and a service handing over the rows themselves would hand out
  * the ones that were current when its consumer activated.
  */
-export const pinsState = serviceTag<{ readonly shelf: () => Shelf }>("pins.state")
+export const pinnedShelf = serviceTag<{ readonly shelf: () => Shelf }>("pins.state")

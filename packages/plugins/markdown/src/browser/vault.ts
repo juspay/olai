@@ -23,7 +23,7 @@ import type { Directory } from "olai-plugin-vault/file-state"
 const provider = heldService<Directory>()
 
 /** Told by `../browser.tsx`'s `content` component, for that activation. */
-export const holdVault = provider.hold
+export const holdServed = provider.hold
 
 /** The served directory itself, or nothing. */
 export const servedDirectory = provider.read

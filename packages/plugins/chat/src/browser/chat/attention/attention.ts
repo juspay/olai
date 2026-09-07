@@ -44,8 +44,8 @@
 import { type Accessor, createEffect, onCleanup, untrack } from "solid-js"
 
 import type { ChatState } from "olai-plugin-chat/wire"
-import { calledApp } from "@olai/web/client/named.ts"
-import { notify, onNotifyPress } from "@olai/web/client/notify.ts"
+import { calledApp } from "../../deployment.ts"
+import { notify, onNotifyPress } from "../../notify.ts"
 import { useAlerts } from "../../alerts.ts"
 import { type Awaiting, alarmFor } from "./alarm.ts"
 import { askPending } from "./asked.ts"

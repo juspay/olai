@@ -74,7 +74,7 @@ export default definePlugin({
 
 import { bar } from "./bar.tsx"
 
-import { calledApp,followName } from "@olai/web/client/named.ts"
+import { calledApp,followName,startedAt } from "./named.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { connectionReadout,olai } from "@olai/web/client/wire.ts"
 export const components = {
@@ -82,6 +82,6 @@ export const components = {
     yield* Effect.acquireRelease(Effect.sync(() => followName({
       readout: connectionReadout, ask: () => runAsync(olai.procedures.app.get()),
     })), stop => Effect.sync(stop))
-    yield* (yield* Offers).own("deployment", () => ({called: calledApp}))
+    yield* (yield* Offers).own("deployment", () => ({called: calledApp, started: startedAt}))
   })}),
 }

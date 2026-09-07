@@ -70,7 +70,7 @@ import { listKey } from "@olai/web/client/keys.ts"
 
 import { TESTID } from "../testids.ts"
 import { TARGET } from "@olai/ui-primitives/touch.ts"
-import { useToday } from "@olai/web/client/today.tsx"
+import { useToday } from "./clock.ts"
 import { SearchCount } from "olai-plugin-search/ui/Count.tsx"
 import { createCursor } from "@olai/ui-primitives/cursor.ts"
 import { createSearch } from "./reading.ts"

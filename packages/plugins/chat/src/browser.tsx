@@ -79,9 +79,11 @@ import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./browser/search.ts"
 import { references as outlineReferences } from "olai-plugin-outlines/references"
 import { holdReferences } from "./browser/references.ts"
-import { holdVault } from "./browser/vault.ts"
-import { shell as layoutShell } from "olai-plugin-layout/contract"
+import { holdServed } from "./browser/vault.ts"
+import { shell as appShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./browser/shell.ts"
+import { deployment as appDeployment } from "olai-plugin-layout/contract"
+import { holdDeployment } from "./browser/deployment.ts"
 import { type ChatClient, holdChatWire } from "./browser/wire.ts"
 
 /** THE WIRE IDENTITY, on this door too — and `surface` is the load-bearing
@@ -109,8 +111,8 @@ export default definePlugin({
     const wired = yield* Wired
     // The served directory the composer completes a path out of, held for this
     // activation (`./browser/vault.ts`).
-    const files = yield* fileAccess
-    yield* Effect.acquireRelease(Effect.sync(() => holdVault(files)), stop => Effect.sync(stop))
+    const served = yield* fileAccess
+    yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
 
     // THIS PLUGIN'S OWN MEMBERS, held for the thirty modules that read them at
     // module scope — see `./browser/wire.ts`.
@@ -158,24 +160,31 @@ import { speaker } from "./browser/viewer.ts"
 // preferences. Each UI component names its own dependencies; the section waits
 // for preferences to return without discarding the stored state or listeners.
 import { alertSettings, createAlerts, holdAlerts } from "./browser/alerts.ts"
-import { followNotifications } from "@olai/web/client/notify.ts"
+import { followNotifications } from "./browser/notify.ts"
 import { AlertRows } from "./browser/AlertRows.tsx"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { sections } from "olai-plugin-preferences/contract"
 import { appearance } from "olai-plugin-theme/contract"
 import { createEffect, createRoot } from "solid-js"
 export const components = {
+  /** What this deployment is called, DECLARED — a component of its own so a
+   *  notification is raised with the bare word rather than not at all when the
+   *  shell is absent (`./browser/deployment.ts`). */
+  deployment: definePlugin({ name: "deployment", needs: [appDeployment], apply: Effect.gen(function*() {
+    const named = yield* appDeployment
+    yield* Effect.acquireRelease(Effect.sync(() => holdDeployment(named)), stop => Effect.sync(stop))
+  }) }),
   /** The shell's geometry, DECLARED — a component of its own because content
    *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
    *  that waited for this one could not (`./browser/shell.ts`). */
-  shell: definePlugin({ name: "shell", needs: [layoutShell], apply: Effect.gen(function*() {
-    const geometry = yield* layoutShell
+  shell: definePlugin({ name: "shell", needs: [appShell], apply: Effect.gen(function*() {
+    const geometry = yield* appShell
     yield* Effect.acquireRelease(Effect.sync(() => holdShell(geometry)), stop => Effect.sync(stop))
   }) }),
   /** The matcher, DECLARED — a component of its own so the panel, the
    *  transcript and the roster keep working with no matcher mounted
    *  (`./browser/search.ts`). */
-  search: definePlugin({ name: "search", needs: [readings], apply: Effect.gen(function*() {
+  matcher: definePlugin({ name: "matcher", needs: [readings], apply: Effect.gen(function*() {
     const reading = yield* readings
     yield* Effect.acquireRelease(Effect.sync(() => holdReading(reading)), stop => Effect.sync(stop))
   }) }),

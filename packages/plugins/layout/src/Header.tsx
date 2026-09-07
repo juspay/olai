@@ -105,7 +105,7 @@ import { Indicator } from "./Indicator.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { Leaf } from "@olai/web/client/Leaf.tsx"
 import { WORDMARK } from "@olai/web/client/look.ts"
-import { calledApp } from "@olai/web/client/named.ts"
+import { calledApp } from "./named.ts"
 import { PluginHeaders } from "./Chrome.tsx"
 import { PluginViewer } from "./Seats.tsx"
 

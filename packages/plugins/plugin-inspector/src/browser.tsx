@@ -15,7 +15,7 @@ import { Effect } from "effect"
 import { name } from "./index.ts"
 import { createInspectorState, type InspectorState } from "./state.ts"
 import { Plugins } from "./Plugins.tsx"
-import { approvals as vaultApprovals } from "olai-plugin-vault-plugins/contract"
+import { approvals as sourceApprovals } from "olai-plugin-vault-plugins/contract"
 import { holdApprovals } from "./approvals.ts"
 
 const inspectorState = serviceTag<InspectorState>("plugin-inspector.state")
@@ -27,8 +27,8 @@ export const components = {
   /** Saying yes to code, DECLARED — a component of its own so the panel keeps
    *  showing what a serve is running when there is no approval provider
    *  (`./approvals.ts`). */
-  approval: definePlugin({ name: "approval", needs: [vaultApprovals], apply: Effect.gen(function*() {
-    const value = yield* vaultApprovals
+  approval: definePlugin({ name: "approval", needs: [sourceApprovals], apply: Effect.gen(function*() {
+    const value = yield* sourceApprovals
     yield* Effect.acquireRelease(Effect.sync(() => holdApprovals(value)), stop => Effect.sync(stop))
   }) }),
   tools: definePlugin({ name: "tools", needs: [inspectorState, browserManagement, rendererSlots], apply: Effect.gen(function*() {

@@ -49,8 +49,8 @@ import { appName } from "@olai/surface"
 import { Result } from "effect"
 import { type Accessor, createEffect, createRoot, createSignal, onCleanup } from "solid-js"
 
-import { reachable } from "./connection/reaching.ts"
-import type { SurfaceReadout } from "./connection/status.ts"
+import { reachable } from "@olai/web/client/connection/reaching.ts"
+import type { SurfaceReadout } from "@olai/web/client/connection/status.ts"
 
 let current: NameState | undefined
 

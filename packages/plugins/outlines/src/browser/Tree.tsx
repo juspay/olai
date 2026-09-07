@@ -117,7 +117,7 @@ import { NodeMenu } from "./menu/NodeMenu.tsx"
 import { followed, followedSplit, useGo, useRouter } from "olai-plugin-navigation/routing"
 import { density, showsPreview, startsOpen } from "./settings/density.ts"
 
-import { useToday } from "@olai/web/client/today.tsx"
+import { useToday } from "./clock.ts"
 import { TookChip } from "./live/duration/index.ts"
 import {
   CHILD_INDENT,

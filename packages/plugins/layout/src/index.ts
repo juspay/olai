@@ -32,7 +32,27 @@ import { serviceTag } from "@olai/plugin-api/contracts"
 import type { Accessor } from "solid-js"
 import type { SetOptions } from "@olai/web/client/preference.ts"
 import type { ChatSnap } from "./layout/prefs.ts"
-export const deployment = serviceTag<{readonly called: Accessor<string | undefined>}>("layout.deployment")
+/**
+ * WHAT THIS DEPLOYMENT CALLS ITSELF, and how long it has been up.
+ *
+ * Both are one reading of one procedure (`app.get`), asked and re-asked by the
+ * layout row's `deployment` component. `started` is BESIDE `called` rather than
+ * on a second key because it is the same answer: a row that wants the uptime
+ * and a row that wants the name are asking the same question of the same
+ * activation.
+ *
+ * `startedAt` used to reach `olai-plugin-layout`'s own uptime readout, and
+ * `calledApp` reached `olai-plugin-chat`'s notification title, through a module
+ * variable in `@olai/web`'s `client/named.ts` — a live value on a general
+ * package's door, installed by this row and read by another with nothing
+ * declared (the Cordis audit's §12).
+ */
+export const deployment = serviceTag<{
+  readonly called: Accessor<string | undefined>
+  /** When this serve started, as the format's own stamp — `undefined` until
+   *  the first answer lands. */
+  readonly started: Accessor<string | undefined>
+}>("layout.deployment")
 
 /** Optional capability status can hold its content while initial data arrives,
  * and render its own diagnosis. Layout knows neither files nor domain errors. */

@@ -6,7 +6,8 @@ import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { holdLocations } from "./browser/locations.ts"
 import { documentEditing } from "olai-plugin-markdown/contract"
 import { holdDocumentActions } from "./browser/editing.ts"
-import { holdVault } from "./browser/vault.ts"
+import { holdServed } from "./browser/vault.ts"
+import { holdClocks } from "./browser/clock.ts"
 import { propertyRoutes } from "olai-plugin-outlines/contract"
 import { definePlugin, Slots, Wired } from "@olai/plugin-api"
 import type { Drawn } from "olai-plugin-outlines/page"
@@ -61,8 +62,11 @@ export default definePlugin({
     const locations = yield* rendererSlots
     yield* Effect.acquireRelease(Effect.sync(() => holdLocations(locations.read)), stop => Effect.sync(stop))
     // The served directory, held for this activation (`./browser/vault.ts`).
-    const files = yield* fileAccess
-    yield* Effect.acquireRelease(Effect.sync(() => holdVault(files)), stop => Effect.sync(stop))
+    const served = yield* fileAccess
+    yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
+    // ...and the clock a day is drawn against (`./browser/clock.ts`).
+    const clock = yield* Clocks
+    yield* Effect.acquireRelease(Effect.sync(() => holdClocks(clock)), stop => Effect.sync(stop))
     const wired = yield* Wired
     yield* holdJournalWire(() => wired.client() as JournalClient)
 

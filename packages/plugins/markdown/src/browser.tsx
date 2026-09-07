@@ -23,10 +23,10 @@ import { createDocuments, holdDocuments } from "./browser/document/documents.tsx
 import { clearDocumentDrafts } from "./browser/document/drafts.ts"
 import { holdHistory, useHistory } from "./browser/history.ts"
 import { holdLocations } from "./browser/locations.ts"
-import { holdVault } from "./browser/vault.ts"
+import { holdServed } from "./browser/vault.ts"
 import { holdOpens } from "./browser/links.ts"
 import { holdRouting } from "./browser/routing.ts"
-import { shell as layoutShell } from "olai-plugin-layout/contract"
+import { shell as appShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./browser/shell.ts"
 import { EmbeddedDocument } from "./browser/EmbeddedDocument.tsx"
 import { openCreated, clearMinted } from "./browser/document/minted.ts"
@@ -71,8 +71,8 @@ export const components = {
   /** The shell's geometry, DECLARED — a component of its own because content
    *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
    *  that waited for this one could not (`./browser/shell.ts`). */
-  shell: definePlugin({ name: "shell", needs: [layoutShell], apply: Effect.gen(function*() {
-    const geometry = yield* layoutShell
+  shell: definePlugin({ name: "shell", needs: [appShell], apply: Effect.gen(function*() {
+    const geometry = yield* appShell
     yield* Effect.acquireRelease(Effect.sync(() => holdShell(geometry)), stop => Effect.sync(stop))
   }) }),
   messages: definePlugin({name:"messages",needs:[browserState,navigation,Slots],apply:Effect.gen(function*(){
@@ -102,7 +102,7 @@ export const components = {
     // ...and which revision a served file is at, which is what a hypertext
     // preview watches (`./browser/vault.ts`).
     const served = yield* fileAccess
-    yield* Effect.acquireRelease(Effect.sync(() => holdVault(served)), stop => Effect.sync(stop))
+    yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
     // ...and where a path inside a saved page opens (`./browser/links.ts`).
     const opens = yield* fileLinks
     yield* Effect.acquireRelease(Effect.sync(() => holdOpens(opens)), stop => Effect.sync(stop))

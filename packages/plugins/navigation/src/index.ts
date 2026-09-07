@@ -81,4 +81,19 @@ export const paletteControl = serviceTag<PaletteControl>("navigation.palette")
 export type {PaletteItem, PalettePrefix} from "./palette/items.ts"
 export const fileLinks=serviceTag<import("./opens.tsx").Opens>("navigation.file-links")
 
+/**
+ * THE PAGE'S GESTURE ARBITER — one verb, and the only one another row wants.
+ *
+ * A finger held on a row opens a menu, and the lift leaves a synthetic click
+ * behind that would land on whatever the menu put under it. This row owns the
+ * arbiter that eats it (`@olai/web`'s `client/ghost.ts`, started and stopped by
+ * this row's activation); `olai-plugin-outlines` is the one that asks for a
+ * ghost to be eaten, and it used to ask through a module variable on that
+ * general door with nothing declared (the Cordis audit's §12).
+ */
+export interface Gestures {
+  readonly swallowGhost: () => void
+}
+export const gestures = serviceTag<Gestures>("navigation.gestures")
+
 export { slotContracts as slots } from "./slots.ts"

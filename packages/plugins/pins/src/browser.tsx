@@ -18,7 +18,7 @@ import { holdPins, usePins } from "./browser/answered.tsx"
 import { holdPinUndo, usePinUndo } from "./browser/history.ts"
 import { paletteIntegration } from "./browser/Palette.tsx"
 import { scopePinSaid } from "./browser/pinning.ts"
-import { pinsState } from "./contract.ts"
+import { pinnedShelf } from "./contract.ts"
 export default definePlugin({name:"pins", needs:[Wired, Offers], apply:Effect.gen(function*(){
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
@@ -34,7 +34,7 @@ export default definePlugin({name:"pins", needs:[Wired, Offers], apply:Effect.ge
  // declared door the outline read across the wall (`./contract.ts`).
  yield* (yield* Offers).own("state",()=>({ shelf: usePins() }))
 })})
-export const components={palette:paletteIntegration,sidebar:definePlugin({name:"sidebar", needs:[rendererSlots,pinsState,navigation], apply:Effect.gen(function*(){
+export const components={palette:paletteIntegration,sidebar:definePlugin({name:"sidebar", needs:[rendererSlots,pinnedShelf,navigation], apply:Effect.gen(function*(){
  const nav = yield* navigation
  const undo = usePinUndo()
  yield* (yield* rendererSlots).contribute(regions, {at:"shelf" as const, Body: () => <Shelf record={nav.focused()?.history?.record ?? undo.record} />})

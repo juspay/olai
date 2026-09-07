@@ -7,14 +7,14 @@ import { Effect } from "effect"
 import { navigation,paletteAdapters,paletteControl } from "olai-plugin-navigation/contract"
 import { holdPalette, paletteAsking } from "./box.ts"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
-import { pinsState } from "../contract.ts"
+import { pinnedShelf } from "../contract.ts"
 import { usePins } from "./answered.tsx"
 import { usePinUndo } from "./history.ts"
 import { askName,namingFor } from "./naming.ts"
 import { pinItem } from "./palette.ts"
 import { sayPin,togglePin } from "./pinning.ts"
 import { pinnedAt } from "./pins.ts"
-export const paletteIntegration=definePlugin({name:"palette",needs:[navigation,rendererSlots,pinsState,paletteControl],apply:Effect.gen(function*(){
+export const paletteIntegration=definePlugin({name:"palette",needs:[navigation,rendererSlots,pinnedShelf,paletteControl],apply:Effect.gen(function*(){
  const nav=yield* navigation
  // THE APP'S URL GRAMMAR, taken off the router this component declared and
  // handed to every pure helper below (`./pins.ts`'s `pinsOf`).

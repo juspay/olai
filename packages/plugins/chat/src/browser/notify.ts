@@ -3,6 +3,18 @@
  * delayed permission responses from delivering a departed activation's notice.
  * The framework owns the service-worker delivery and click handshake. */
 
+/**
+ * ## IT LIVES WITH ITS ONE ROW NOW
+ *
+ * This module was `@olai/web`'s `client/notify.ts` — a general door carrying a
+ * module-scope holder and a `read()` that threw — and every reader of it is in
+ * this package: the alert rows ask for consent, the attention rule raises a
+ * notice, and this row's own activation is what starts and stops the
+ * permission listener. A live value on a general package's door with one row
+ * behind it is the Cordis audit's §12 whether or not a second row ever opened
+ * it, and the honest fix for a helper nobody else uses is to put it behind the
+ * wall of the row that owns it.
+ */
 import { type Accessor, createSignal } from "solid-js"
 import { createNotify } from "@kolu/surface-app/notify"
 

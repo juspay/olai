@@ -13,16 +13,18 @@ import { definePlugin, Faces, Offers } from "@olai/plugin-api"
 import { holdFaces } from "./browser/faces.ts"
 import { holdLocations } from "./browser/locations.ts"
 import { holdRouting } from "./browser/routing.ts"
+import { holdClocks } from "./browser/clock.ts"
+import { holdGestures } from "./browser/gestures.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./browser/search.ts"
-import { pinsState } from "olai-plugin-pins/contract"
+import { pinnedShelf } from "olai-plugin-pins/contract"
 import { holdPins } from "./browser/pins.ts"
-import { shell as layoutShell } from "olai-plugin-layout/contract"
+import { shell as appShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./browser/shell.ts"
 import { Effect } from "effect"
 import { createRoot } from "solid-js"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
-import { navigation, content } from "olai-plugin-navigation/contract"
+import { navigation, content, gestures } from "olai-plugin-navigation/contract"
 import {fileAccess} from "olai-plugin-vault/contract"
 import { fileTypes, fileState } from "olai-plugin-files/contract"
 import { holdFileControls } from "./browser/files.tsx"
@@ -115,11 +117,11 @@ export const components = {
   /** The shell's geometry, DECLARED — a component of its own because content
    *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
    *  that waited for this one could not (`./browser/shell.ts`). */
-  shell: definePlugin({ name: "shell", needs: [layoutShell], apply: Effect.gen(function*() {
-    const geometry = yield* layoutShell
+  shell: definePlugin({ name: "shell", needs: [appShell], apply: Effect.gen(function*() {
+    const geometry = yield* appShell
     yield* Effect.acquireRelease(Effect.sync(() => holdShell(geometry)), stop => Effect.sync(stop))
   }) }),
-  content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks, Faces], apply: Effect.gen(function*() {
+  content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks, Faces, gestures], apply: Effect.gen(function*() {
     // The row doors, row verbs and kind dressings other plugins hang — held for
     // this activation, which is the one that draws every page they appear on
     // (`./browser/faces.ts`).
@@ -128,6 +130,13 @@ export const components = {
     // (`./browser/routing.ts`).
     const router = yield* navigation
     yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
+    // ...and the clock a date badge is drawn against (`./browser/clock.ts`).
+    const clock = yield* Clocks
+    yield* Effect.acquireRelease(Effect.sync(() => holdClocks(clock)), stop => Effect.sync(stop))
+    // ...and the arbiter that eats the ghost click a long press leaves behind
+    // (`./browser/gestures.ts`).
+    const touch = yield* gestures
+    yield* Effect.acquireRelease(Effect.sync(() => holdGestures(touch)), stop => Effect.sync(stop))
     const slots = yield* rendererSlots
     // ...and the walks over the locations this page draws, from the same
     // renderer (`./browser/locations.ts`).
@@ -150,15 +159,15 @@ export const components = {
   /** The pinned shelf, DECLARED — a component of its own so an outline with no
    *  pins row mounted is a whole outline, with no glyph on a row
    *  (`./browser/pins.ts`). */
-  pins: definePlugin({ name: "pins", needs: [pinsState], apply: Effect.gen(function*() {
-    const shelf = yield* pinsState
+  shelf: definePlugin({ name: "shelf", needs: [pinnedShelf], apply: Effect.gen(function*() {
+    const shelf = yield* pinnedShelf
     yield* Effect.acquireRelease(Effect.sync(() => holdPins(shelf)), stop => Effect.sync(stop))
   }) }),
   /** The matcher, DECLARED — a component of its own so the outline keeps
    *  editing and navigating when the row leaves, and its completions and
    *  shortlists say *no matcher* rather than disappearing
    *  (`./browser/search.ts`). */
-  search: definePlugin({ name: "search", needs: [readings], apply: Effect.gen(function*() {
+  matcher: definePlugin({ name: "matcher", needs: [readings], apply: Effect.gen(function*() {
     const reading = yield* readings
     yield* Effect.acquireRelease(Effect.sync(() => holdReading(reading)), stop => Effect.sync(stop))
   }) }),

@@ -92,7 +92,7 @@ import { createSearch } from "./reading.ts"
 import { Result,type RowTestids } from "olai-plugin-search/ui/Result.tsx"
 import { atOnce,spend } from "@olai/web/client/settled.ts"
 
-import { useToday } from "@olai/web/client/today.tsx"
+import { useToday } from "./clock.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
 import { desktop, resetPanelWidths, togglePanel } from "./shell.ts"
 import type { Route } from "olai-plugin-navigation/routes"
