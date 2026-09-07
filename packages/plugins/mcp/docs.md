@@ -12,6 +12,15 @@ returns a capability-unavailable refusal. Providers that share a write procedure
 retain only their own operation cases. Re-enabling a provider makes its tools
 usable through the existing MCP server without restarting it.
 
+The vault's own doors are two COMPONENTS of this row rather than a lookup over
+the host. `mcp/served-doors` names `Directory` and `Ops`; `mcp/ledger` names
+`Ledger`. Neither is on the row, because the protocol server, its carrier, its
+route and its ticket mint stand up on a serve with no directory at all — so
+`/mcp` survives a failed vault, a `--plugins` set that omits it, and the panel
+switch, and the domain tools refuse in the vault's own words. What each
+component buys over the capability it replaces is that the wait is a state:
+the panel says which key, and the doors leave with the row that offered them.
+
 Every request and node-session credential resolves the current provider
 generation while retaining its writer and remaining write rule. A departed
 generation cannot be reused, and a replacement does not inherit an earlier

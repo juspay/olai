@@ -1252,7 +1252,7 @@ names the file.
 
 | File | Holds |
 | --- | --- |
-| `packages/bundle/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — a plugin imports the INTERFACE and never the REGISTRY, and does import the interface — the services door pulls no browser face — and `packages/plugins/` holds the plugins and nothing else, both directions |
+| `packages/bundle/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — a plugin imports the INTERFACE and never the REGISTRY, and does import the interface — the services door pulls no browser face — `packages/plugins/` holds the plugins and nothing else, both directions — and **no module another package can open holds a live value**: no module-scope `let`, no Solid cell minted at module load, no `const` the module writes into, over every cross-package door in the tree, with nine allowed by name and reason (the audit's §12). Fixtures hold the reading itself, so a pattern that stopped seeing is red rather than quiet |
 | `scripts/prove-fence.sh` | the fence and the mechanics lint go RED when they should. Not a `just check` leg: it mutates tracked files and puts them back, and `check` runs its legs in parallel. Run it when the fence CHANGES — a sweep's one failure mode is going quiet, and a fence that stopped running looks exactly like a fence that is holding |
 | `packages/bundle/src/mechanics.test.ts` | olai names no wire mechanic the framework performs |
 | `packages/bundle/src/tree.testlib.ts` | not a claim — the READING both of the above stand on (workspace members, manifests, sources, the module graph). Split out so the two files above are their claims and nothing else, and so the source walk is written once |
@@ -1422,6 +1422,52 @@ shell replacement. Outlines retains editor state across unrelated Chat changes,
 but leaving Outlines discards its own pending drafts. Separate components name
 extra services only where they use them, so an unavailable integration does not
 stop the rest of its plugin.
+
+### Who owns a live value
+
+Phase 2 of the Cordis audit. The rule is one sentence — **a module another
+package can open holds no live value** — and everything below is that applied.
+
+A service carries a value; a module variable does not. Twenty modules used to
+hand one activation's live state across a package wall through an exported
+`let`, a module-scope Solid signal, or a `const` the module wrote into: the
+served directory and its per-file revisions, the shell's geometry and its panel
+handle, the URL grammar's roster-dependent half and the mounted page behind a
+plugin route, what day it is, the pinned shelf, the file controls, the outline's
+naming of a node, where a minted document opens, the walk over a location, the
+palette's control, the matcher, and each row's own sibling client. Cordis saw
+none of it: no consumer declared a dependency, nobody was held `waiting`, the
+panel had nothing to report, and a consumer went on reading a provider that had
+stopped because nothing told it.
+
+Each of them now travels on the service that names it, offered by the row that
+owns it and named in `needs` by the row that spends it. Two doors that
+published a live value with no reader outside their own package stopped being
+doors at all — eight rows' `./client` and the renderer's `readLocation` — and
+one generic capability went with them: `HostServices`, whose whole shape was
+*give me whatever stands behind this key*, was named by two rows and spent on
+five keys neither had declared.
+
+**Optional access is a COMPONENT, not a lookup.** MCP works without a vault and
+the vault works without git, and both did so through that lookup. Each is now a
+component naming one key — MCP's `served-doors` and `ledger`, the vault's
+`ledger-view` and `search-view` — so the wait is a state the runtime holds and
+reports rather than an `undefined` nobody can see. No cycle is introduced: git
+needs the vault, and a vault COMPONENT that waits for git leaves the vault row
+running.
+
+**A private holder is still how a value reaches a face**, and its rules are in
+[the authoring contract](../dynamic-plugins.md#where-a-live-value-may-live):
+the consumer holds rather than the provider, the hold is an activation's and
+clears by identity, and the read answers the absence. What changed is which
+side of the wall the holder is on.
+
+Nine modules keep module state and are named in the fence with a reason each,
+because none of it is an activation's: the process's signal handlers, a
+per-process nonce for staged filenames, the page's layer stack, a re-entrancy
+guard held across one call, a warn-once set, two memos over immutable input, a
+verb-keyed registry whose entries are each one activation's, and `wire.ts` —
+the `Wired` broker §6 establishes, whose readers name the service.
 
 ### Server composition and source policy
 

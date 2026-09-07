@@ -396,3 +396,55 @@ registration still closes with its component. A service factory receives the
 consuming plugin’s owner name, including when that consumer is a component.
 A waiting speaker leaves chat's anonymous face available. Components have no
 host access and cannot offer a different row's keys.
+
+### Where a live value may live
+
+A service carries a value; a module variable does not. The rule is one
+sentence: **a module another package can open holds no live value.** Every
+reading one row hands another — the served directory, the shell's geometry, the
+URL grammar's roster-dependent half, what day it is, the pinned shelf, the file
+controls, the outline's naming of a node, where a minted document opens —
+travels on a service the provider offers and the consumer names in `needs`.
+None of them travels as an exported `let` behind a door.
+
+What that buys is the thing a module variable cannot have: the runtime knows
+who is asking. A consumer that named the key is held `waiting` while nobody
+stands behind it, the plugins panel says which key and on whose account, the
+value is withdrawn when the provider stops, and a replacement is a fresh
+activation rather than an overwrite.
+
+**A private holder is still how a value reaches a face.** A service arrives
+where the dependency is declared, which is an `apply`; it is spent three levels
+inside a component, in a memo, in a `<For>`. So a consuming package keeps a
+holder of its own — `@olai/ui-primitives`' `heldService`, or the same six lines
+written out — and the rules are three:
+
+- **the consumer holds, never the provider.** What crosses the wall is the
+  service; what lives at module scope is the consumer's own copy of it.
+- **the hold is an activation's**, registered with `Effect.acquireRelease` on
+  the scope of the component that declared the key, and cleared BY IDENTITY so
+  a stopped activation cannot take a replacement's value away.
+- **the read answers the absence.** `undefined` is *the service that carries
+  this is not mounted*, and a consumer draws its own absent arm for it — the
+  transcript keeps its chips as ids with no outline row, the palette says *no
+  matcher* with no search row, the day page hides its mint button with no
+  document row.
+
+**Declare it on a COMPONENT, not on the row,** wherever the row has work of its
+own that must survive the provider leaving. That is nearly always: content runs
+under another layout (`olai-plugin-test-layout`), chat runs without outlines,
+the inspector runs without the row that approves source. A `needs` on the row
+would take the whole row away with the provider, which is the opposite of what
+the dependency is for.
+
+**And a plain helper takes the operation, not the holder.** A module with no
+activation of its own — a catalogue of menu verbs, a fold over the pinned shelf
+— is handed the narrow function it spends by the component that has it. That is
+what keeps it testable over a roster a bench names rather than over whatever the
+process last installed.
+
+`@olai/bundle`'s `fence.test.ts` holds all of it: no module opened across a
+package boundary holds a `let`, a module-scope Solid cell, or a `const` it
+writes into, except nine that are named there with a reason each — a process's
+signals, a page's layer stack, a memo over immutable input, and the `Wired`
+broker §6 establishes.

@@ -6,6 +6,16 @@ Solid root, its disposal and the location registry. It provides
 `ui-renderer.slots`. Its static `/contract` export carries the typed root
 location and service contract without importing presentation code.
 
+`ui-renderer.slots` is also how another row WALKS a location: five packages
+read what is contributed at one, and each declares this service on the
+component that draws rather than reaching a module variable in this row's
+contract door. `ui-renderer.faces` is the same reading in the legacy slot
+vocabulary, and it answers in the BUILD's own row order — the rank arrives with
+the mount (`BrowserMount.rank`) and this row's facade spends it, so the tab and
+a plugin cannot get two different orders. `ui-renderer.clocks` carries what day
+it is beside its clock factories, because one timer ticks in a tab and it is
+this row's.
+
 Only `root` is permanent, and it permits one contribution. Register a face
 with `contribute(location, face, { children, activate })`. Child declarations
 belong to that particular entry, not merely to a plugin or a parent name.
