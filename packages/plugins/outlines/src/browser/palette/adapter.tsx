@@ -34,7 +34,7 @@ export const palette = definePlugin({ name: "palette", needs: [browserState, ren
       const shows = focused()
       const zoomed = shows === undefined ? undefined : only(shows, "node")?.zoomed
       const node = zoomed?.kind === "node" ? zoomed : undefined
-      return opItems(node, node?.under)
+      return opItems(nav.routes, node, node?.under)
     },
     accepts: request => Schema.is(Edit)(request) && !["doc", "docNew", "pin", "capture"].includes(request.verb),
     write: request => applying(Schema.decodeUnknownSync(Edit)(request), undo.record),

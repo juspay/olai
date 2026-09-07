@@ -65,7 +65,8 @@ import { Result } from "effect"
 
 import type { Line } from "olai-plugin-navigation/palette-asking"
 import { askInPalette } from "./box.ts"
-import { filterOf,hrefOf,type Route } from "olai-plugin-navigation/routes"
+import type { Route } from "olai-plugin-navigation/routes"
+import type { Routing } from "olai-plugin-navigation/routes"
 import type { Pin } from "./pins.ts"
 
 /** WHICH pin a name is being asked for — the page about to become one, or the
@@ -159,6 +160,8 @@ export const namedEdit = (
  * wrong thing entirely.
  */
 export const namingFor = (
+  /** The app's URL grammar, handed in — see `./pins.ts`'s `pinsOf`. */
+  routes: Routing,
   route: Route,
   /** The pin this page ALREADY has, as the caller resolved it — the same
    *  answer the door beside this one draws its label from, asked once
@@ -169,8 +172,8 @@ export const namingFor = (
    *  the focused page's own reading (`../reading.tsx`). */
   bare: string,
 ): Naming | null =>
-  filterOf(route) !== "" && already === undefined
-    ? { kind: "pin", at: hrefOf(route), bare }
+  routes.filterOf(route) !== "" && already === undefined
+    ? { kind: "pin", at: routes.href(route), bare }
     : null
 
 /** Ask for a name in the ⌘K palette, opening it if it is not up — the one door

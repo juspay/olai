@@ -7,7 +7,8 @@ import { useDocumentReading } from "./reading.tsx"
 import { readLocation } from "./locations.ts"
 import { properties } from "../index.ts"
 import { content } from "olai-plugin-navigation/contract"
-import { atFile, atNode, hrefOf, routeIn } from "olai-plugin-navigation/routes"
+import { atFile, atNode, hrefOfPlain } from "olai-plugin-navigation/routes"
+import { hrefOf, routeIn } from "./routing.ts"
 
 function PlainProperties(props: { readonly custom: Custom; readonly from: string }) {
   const reading = useDocumentReading()

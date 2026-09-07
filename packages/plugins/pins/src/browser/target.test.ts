@@ -35,7 +35,11 @@
 import { pinTargetIn } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { addressIn } from "olai-plugin-navigation/address/address.ts"
+import { addressIn as addressWith } from "olai-plugin-navigation/address/address.ts"
+import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
+
+/** No plugin claims a URL — these titles are the address grammar's own arms. */
+const addressIn = (title: string) => addressWith(routingIn(), title)
 
 /** What the BROWSER's parser says this title's node is, if it says one — the
  *  reference the answer is judged against. A ROW names a node too (the

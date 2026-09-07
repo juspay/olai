@@ -24,6 +24,7 @@ import { holdHistory, useHistory } from "./browser/history.ts"
 import { holdLocations } from "./browser/locations.ts"
 import { holdVault } from "./browser/vault.ts"
 import { holdOpens } from "./browser/links.ts"
+import { holdRouting } from "./browser/routing.ts"
 import { shell as layoutShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./browser/shell.ts"
 import { EmbeddedDocument } from "./browser/EmbeddedDocument.tsx"
@@ -98,6 +99,10 @@ export const components = {
     // ...and where a path inside a saved page opens (`./browser/links.ts`).
     const opens = yield* fileLinks
     yield* Effect.acquireRelease(Effect.sync(() => holdOpens(opens)), stop => Effect.sync(stop))
+    // ...and the app's URL grammar, for the routes a property run prints
+    // (`./browser/routing.ts`).
+    const router = yield* navigation
+    yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
     yield* slots.contribute(content, { matches: route => documentFile(route) !== undefined, Page: MarkdownPageView }, {children:[documentBodies, properties]})
     yield* slots.contribute(documentBodies, EmbeddedDocument)
   }) }),

@@ -45,7 +45,8 @@ import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { only } from "@olai/web/client/narrow.ts"
 import { useDocumentReading } from "../reading.tsx"
-import { atFile, atNode, hrefOf, type Route } from "olai-plugin-navigation/routes"
+import { atFile, atNode, type Route } from "olai-plugin-navigation/routes"
+import { hrefOf } from "../routing.ts"
 
 
 export function Referrers(props: {

@@ -12,6 +12,7 @@ import {Clocks} from "@olai/plugin-api"
 import { definePlugin, Faces, Offers } from "@olai/plugin-api"
 import { holdFaces } from "./browser/faces.ts"
 import { holdLocations } from "./browser/locations.ts"
+import { holdRouting } from "./browser/routing.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./browser/search.ts"
 import { shell as layoutShell } from "olai-plugin-layout/contract"
@@ -120,6 +121,10 @@ export const components = {
     // this activation, which is the one that draws every page they appear on
     // (`./browser/faces.ts`).
     yield* holdFaces(yield* Faces)
+    // The app's URL grammar, for the routes this page prints and parses
+    // (`./browser/routing.ts`).
+    const router = yield* navigation
+    yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
     const slots = yield* rendererSlots
     // ...and the walks over the locations this page draws, from the same
     // renderer (`./browser/locations.ts`).

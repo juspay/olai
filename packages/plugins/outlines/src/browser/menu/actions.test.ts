@@ -36,6 +36,11 @@ import type { Relation } from "../edges/relation.ts"
 import { flatten } from "../edit/order.ts"
 import * as writes from "@olai/web/client/writes.ts"
 import { nodeMenuActions } from "./actions.ts"
+import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
+/** No plugin claims a URL — the roster these cases are about. A pinned plugin
+ *  page is a case for a bench that binds its own (`routingIn(pages)`). */
+const routes = routingIn()
+
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"kitchen remodel","doing":true}`,
@@ -59,6 +64,7 @@ const actionsFor = (
   opens: (relation?: Relation) => unknown,
 ) =>
   nodeMenuActions({
+    routes,
     row: row(id),
     pins: NO_PINS,
     collapsed: false,

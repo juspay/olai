@@ -27,7 +27,8 @@ import { followPaletteShortcut } from "./palette/shortcut.ts"
 import { scopePaletteState } from "./palette/open-owner.ts"
 import { Palette,resetPaletteMemory } from "./palette/Palette.tsx"
 import { PaneProvider } from "./pane/context.tsx"
-import { atFile,holdRoutePages,settleRoutePages } from "./routes.ts"
+import { atFile,settleRoutePages } from "./routes.ts"
+import { holdRoutePages,routing } from "./pages.ts"
 import { Link,RouterProvider } from "./routing.tsx"
 import { createNavigation } from "./state.ts"
 
@@ -58,7 +59,7 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
     value: createNavigation(), dispose,
   }))), ({ dispose }) => Effect.sync(dispose))
   const offers = yield* Offers
-  yield* offers.own("state", () => ({...state.value, page: (index: number | (()=>number)) => <RouterProvider router={state.value}><PaneProvider index={typeof index==="function"?index():index}><PageView /></PaneProvider></RouterProvider>}))
+  yield* offers.own("state", () => ({...state.value, routes: routing, page: (index: number | (()=>number)) => <RouterProvider router={state.value}><PaneProvider index={typeof index==="function"?index():index}><PageView /></PaneProvider></RouterProvider>}))
   yield* offers.own("links", () => ({ File }))
 }) })
 /**

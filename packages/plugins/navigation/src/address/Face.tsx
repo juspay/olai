@@ -67,7 +67,8 @@ import { TESTID } from "olai-plugin-navigation/testids"
 
 import { Show } from "solid-js"
 
-import { filterOf, hrefOf, type Route } from "olai-plugin-navigation/routes"
+import type { Route } from "olai-plugin-navigation/routes"
+import { useRouter } from "olai-plugin-navigation/routing"
 
 
 export function Face(props: {
@@ -82,6 +83,11 @@ export function Face(props: {
    *  whatever the title said. */
   readonly pressable?: boolean
 }) {
+  // THE ROUTER'S OWN GRAMMAR, read from the context this face is always drawn
+  // inside. Printing a plugin's URL and asking whether its page takes a filter
+  // are questions about the MOUNTED ROSTER, and this face used to ask them of
+  // a module-scope table nobody had declared (`../routes.ts`'s header).
+  const routes = useRouter().routes
   return (
     <>
       <Mark />
@@ -99,14 +105,14 @@ export function Face(props: {
             (`../router.tsx`'s `followed`, `../pane/PageView.tsx`). A `<Link>`
             here would be a second answer to the same click. */}
         <a
-          href={hrefOf(props.route)}
+          href={routes.href(props.route)}
           class="min-w-0 flex-1 truncate underline decoration-rule underline-offset-2 hover:decoration-accent"
           data-testid={TESTID.addressName}
         >
           {props.name}
         </a>
       </Show>
-      <Show when={filterOf(props.route) !== ""}>
+      <Show when={routes.filterOf(props.route) !== ""}>
         {/* INHERITS the row's ink, and that is the visibility: `text-muted`
             is contrast-tested on paper, desk, panel, pill — never on the
             sidebar's ink, which is where a pin actually sits. A long query
@@ -116,9 +122,9 @@ export function Face(props: {
         <span
           class="min-w-0 max-w-[55%] truncate rounded bg-current/15 px-1 font-mono text-[0.65rem]"
           data-testid={TESTID.addressFilter}
-          title={filterOf(props.route)}
+          title={routes.filterOf(props.route)}
         >
-          {filterOf(props.route)}
+          {routes.filterOf(props.route)}
         </span>
       </Show>
     </>

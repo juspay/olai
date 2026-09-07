@@ -11,8 +11,15 @@
 
 import { expect, test } from "bun:test"
 
-import { atElement, atFile, atNode, defineAppPage, defineAppRoute, filterOf, HOME_ROUTE, hrefOf, narrowedTo, type Route, routeIn, routeOf, samePage, settleRoutePages } from "./routes.ts"
-import { ROUTES } from "./routes.testlib.ts"
+import { atElement, atFile, atNode, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
+import { ROUTES, routingIn } from "./routes.testlib.ts"
+
+/** No plugin claims a URL — the roster these cases are about, named rather
+ *  than implicit (`./routes.ts`'s header on why the table travels as an
+ *  argument now). A case that IS about a mounted claim binds its own. */
+const routes = routingIn()
+const { face: routeFace, filterOf, href: hrefOf, narrowable, narrowedTo, routeIn, routeOf, samePage } = routes
+
 
 test("every route survives being written to a URL and read back", () => {
   for (const route of ROUTES) {

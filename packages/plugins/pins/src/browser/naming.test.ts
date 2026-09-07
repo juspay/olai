@@ -13,6 +13,11 @@ import { Result } from "effect"
 import { askingFor, namedEdit, namingFor } from "./naming.ts"
 import type { Pin } from "olai-plugin-pins/values"
 import { atNode } from "olai-plugin-navigation/routes"
+import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
+/** No plugin claims a URL — the roster these cases are about. A pinned plugin
+ *  page is a case for a bench that binds its own (`routingIn(pages)`). */
+const routes = routingIn()
+
 
 const TRASH = { kind: "trash" } as const
 const NARROWED = { kind: "trash", filter: "is:todo" } as const
@@ -41,22 +46,22 @@ const wrote = (naming: Parameters<typeof namedEdit>[0], name: string) => {
 // ── which press asks ───────────────────────────────────────────────────
 
 test("a NARROWED page is asked about — nothing in the set can name a query", () => {
-  expect(namingFor(NARROWED, undefined, "Trash"))
+  expect(namingFor(routes, NARROWED, undefined, "Trash"))
     .toEqual({ kind: "pin", at: "/trash?q=is%3Atodo", bare: "Trash" })
 })
 
 test("a page with no query pins in one press, exactly as it always did", () => {
   // Its name is derived and live — the node's own title, the file's own
   // filename, the word Trash — so there is nothing to ask.
-  expect(namingFor(TRASH, undefined, "Trash")).toBeNull()
-  expect(namingFor(atNode("herbs"), undefined, "the herb bed")).toBeNull()
+  expect(namingFor(routes, TRASH, undefined, "Trash")).toBeNull()
+  expect(namingFor(routes, atNode("herbs"), undefined, "the herb bed")).toBeNull()
 })
 
 test("a page already on the shelf is never asked: that press is an UNPIN", () => {
   // The door resolves that once and hands it over — the same answer its label
   // is drawn from (`./pins.ts`'s `pinnedAt`, which compares through the
   // bijection, so a shelf spelling the query by hand is the same door).
-  expect(namingFor(NARROWED, pinned(), "Trash")).toBeNull()
+  expect(namingFor(routes, NARROWED, pinned(), "Trash")).toBeNull()
 })
 
 // ── what the box says ──────────────────────────────────────────────────

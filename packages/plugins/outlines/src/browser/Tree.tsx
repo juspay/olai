@@ -114,7 +114,7 @@ import { nodeMenuActions } from "./menu/actions.ts"
 import { usePins } from "olai-plugin-pins/shelf"
 import { createMenuDoor } from "./menu/door.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
-import { followed, followedSplit, useGo } from "olai-plugin-navigation/routing"
+import { followed, followedSplit, useGo, useRouter } from "olai-plugin-navigation/routing"
 import { density, showsPreview, startsOpen } from "./settings/density.ts"
 
 import { useToday } from "@olai/web/client/today.tsx"
@@ -242,6 +242,12 @@ function Branch(props: {
   // SPA navigate for the menu's "Zoom in" — same path as the bullet, never
   // location.assign (which reloads the document and kills the reading).
   const go = useGo()
+  // THE ROUTER'S OWN GRAMMAR, read at setup rather than inside the handler
+  // below: a context is resolved against the owner a component was created
+  // under, and a press is not one. Reading a written link's `href` is a
+  // question about the mounted roster, which is what makes it the router's
+  // (`olai-plugin-navigation/routing`'s `Router.routes`).
+  const routes = useRouter().routes
   // THE SHELF, for the one menu verb whose question is about the sidebar rather
   // than about this row: whether this node is already a door on it. Answered by
   // the server, like everything else a menu asks about the vault — how much an
@@ -454,7 +460,7 @@ function Branch(props: {
     // pane's delegated listener answers the same click (`./pane/PageView.tsx`
     // through `./router.tsx`'s `followed`). The caret is still one press away
     // — anywhere else on the line — which is how the label gets edited.
-    if (followed(event) !== null || followedSplit(event) !== null) return
+    if (followed(routes, event) !== null || followedSplit(routes, event) !== null) return
     if (event.shiftKey) {
       selection.extend(props.row.key)
       return
@@ -608,6 +614,7 @@ function Branch(props: {
           <NodeMenu
             door={menu}
             actions={nodeMenuActions({
+              routes,
               row: props.row,
               pins: pins(),
               collapsed: collapsed(),

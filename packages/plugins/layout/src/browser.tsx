@@ -12,6 +12,7 @@ import { PanelHandle } from "./layout/Handle.tsx"
  */
 import { definePlugin,Faces,Offers } from "@olai/plugin-api"
 import { holdFaces } from "./faces.ts"
+import { holdRouting } from "./routing.ts"
 import { Fault } from "./Fault.tsx"
 import { publishLayoutCss } from "olai-plugin-layout/layout/css.ts"
 import { trackVisibleViewport } from "olai-plugin-layout/viewport.ts"
@@ -37,6 +38,8 @@ export default definePlugin({
     yield* holdFaces(yield* Faces)
     const slots = yield* rendererSlots
     const router = yield* navigation
+    // The app's URL grammar, for the label a pane wears (`./routing.ts`).
+    yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
     // Offers publishes in the outer plugin activation. Location activations
     // run in their own Cordis host; publishing there would make the bar
     // invisible to the plugins that consume it. This provider needs the

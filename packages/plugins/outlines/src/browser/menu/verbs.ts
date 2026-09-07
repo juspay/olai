@@ -53,7 +53,7 @@ import { repeatPick } from "../date/repeat.ts"
 import { type Relation, RELATIONS } from "../edges/relation.ts"
 import { pinnedAt } from "olai-plugin-pins/values"
 import { customEntries } from "olai-plugin-outlines/property-values"
-import { atNode, hrefOf } from "olai-plugin-navigation/routes"
+import { atNode, hrefOfPlain, type Routing } from "olai-plugin-navigation/routes"
 import { trashQuestion } from "olai-plugin-trash/questions"
 
 /**
@@ -199,6 +199,12 @@ const MARK_LABEL: ReadonlyArray<readonly [Status, string]> = MARKS
   .map(([mark, entry]) => [mark, entry.label] as const)
 
 export const writeVerbs = (
+  /** The app's URL grammar, handed in — whether this node's page is already a
+   *  door on the shelf is asked through it (`olai-plugin-pins/values`'s
+   *  `pinnedAt`), and a pinned plugin page can only be printed by the plugin
+   *  that owns it. The caller has it off the router it is drawn inside; this
+   *  catalogue is pure over what it is given. */
+  routes: Routing,
   subject: Subject,
   /** How many records hang under the node this subject shows, IN THE SET — the
    *  one question a subject cannot answer, and the number the archive's confirm
@@ -239,13 +245,13 @@ export const writeVerbs = (
     // and a mirror's page is its target's; storing the placement's id instead
     // would leave a pin that stops resolving the day somebody retires that
     // placement, which is a write about a line and not about the shelf.
-    const pinned = pinnedAt(shelf, atNode(shown.node.id))
+    const pinned = pinnedAt(routes, shelf, atNode(shown.node.id))
     verbs.push(
       pinned === undefined
         ? {
           id: "pin",
           label: "Pin to sidebar",
-          does: sends({ verb: "pin", at: hrefOf(atNode(shown.node.id)) }),
+          does: sends({ verb: "pin", at: hrefOfPlain(atNode(shown.node.id)) }),
         }
         : {
           id: "unpin",

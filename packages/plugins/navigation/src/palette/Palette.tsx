@@ -95,7 +95,7 @@ import { atOnce,spend } from "@olai/web/client/settled.ts"
 import { useToday } from "@olai/web/client/today.tsx"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
 import { desktop, resetPanelWidths, togglePanel } from "./shell.ts"
-import { type Route,routeOf } from "olai-plugin-navigation/routes"
+import type { Route } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { isLone } from "olai-plugin-navigation/workspace"
 import { type Asking } from "./asking.ts"
@@ -384,7 +384,7 @@ export function Palette(props: {
         id: face.id,
         label: face.label,
         ...(face.hint === undefined ? {} : { hint: face.hint }),
-        action: { kind: "route" as const, route: routeOf(face.href) },
+        action: { kind: "route" as const, route: router.routes.routeOf(face.href) },
         taking: atOnce,
         search: face.search,
       })),

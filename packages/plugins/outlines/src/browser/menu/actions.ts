@@ -42,7 +42,7 @@ import type { Undo } from "../edit/undoing.ts"
 import { setFolded } from "../fold/memory.ts"
 import { type Fold, foldIdOf, foldOf } from "../fold/rows.ts"
 import { hung } from "../faces.ts"
-import { atNode, hrefOf, type Route } from "olai-plugin-navigation/routes"
+import { atNode, hrefOfPlain, type Route, type Routing } from "olai-plugin-navigation/routes"
 import { asText } from "./subtree.ts"
 import type { MenuAction } from "./action.ts"
 import { subjectOfRow, writeVerbs } from "./verbs.ts"
@@ -80,6 +80,9 @@ const copied = (what: "link" | "text"): Said => ({ tone: "aside", text: `${what}
  * which is where the reasoning is.
  */
 export const nodeMenuActions = (args: {
+  /** The app's URL grammar, handed in — the shelf verb asks through it
+   *  (`./verbs.ts`), and the caller has it off the router it is drawn inside. */
+  readonly routes: Routing
   readonly row: Row
   /** The shelf as the server answered it, for the ONE verb that is about the
    *  sidebar rather than about the row: whether this node is already a door on
@@ -174,7 +177,7 @@ export const nodeMenuActions = (args: {
     // then to say WHICH, since the clipboard is somewhere the page cannot
     // show ({@link copied}).
     run: async () => {
-      const url = new URL(hrefOf(atNode(id)), location.href).href
+      const url = new URL(hrefOfPlain(atNode(id)), location.href).href
       await navigator.clipboard.writeText(url)
       return copied("link")
     },
@@ -189,6 +192,7 @@ export const nodeMenuActions = (args: {
   // it is counted where the set is and sent with the page
   // (`@olai/format`'s `Row.under`).
   const writes: MenuAction[] = writeVerbs(
+    args.routes,
     subjectOfRow(args.row),
     args.row.under,
     args.pins,

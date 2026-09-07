@@ -28,7 +28,28 @@
 
 import { FILE_KINDS } from "@olai/format"
 
-import { atElement, atFile, atNode, HOME_ROUTE, type Route } from "./routes.ts"
+import {
+  atElement,
+  atFile,
+  atNode,
+  HOME_ROUTE,
+  type MountedPages,
+  type Route,
+  type Routing,
+  routingOver,
+} from "./routes.ts"
+
+/**
+ * THE GRAMMAR BOUND OVER A GIVEN ROSTER — what a bench spends where the app
+ * spends `Router.routes`.
+ *
+ * The roster-dependent half of the grammar takes the mounted claim table as an
+ * argument now (`./routes.ts`'s header), so a bench that used to call
+ * `hrefOf(route)` names the roster it is asking about. `routingIn([])` is *no
+ * plugin claims a URL*, which is what nearly every bench means and what the
+ * app itself answers before a renderer has contributed anything.
+ */
+export const routingIn = (pages: MountedPages = []): Routing => routingOver(() => pages)
 
 export const ROUTES: ReadonlyArray<Route> = [
   HOME_ROUTE,

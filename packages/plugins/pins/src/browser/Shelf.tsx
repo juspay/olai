@@ -47,7 +47,7 @@ import { createDrags,TRAVEL_PX } from "@olai/web/client/pointer.ts"
 import { selector } from "@olai/ui-primitives/testids.ts"
 import { applying } from "@olai/web/client/writes.ts"
 import { REGION,REGION_LABEL } from "olai-plugin-layout/entry"
-import { hrefOf } from "olai-plugin-navigation/routes"
+
 import { useRouter } from "olai-plugin-navigation/routing"
 import { usePins } from "./answered.tsx"
 import { askName } from "./naming.ts"
@@ -100,7 +100,9 @@ export function Shelf(props: { readonly record: Undo["record"] }) {
   // A MEMO over the answer, so the titles are read when the SHELF moves rather
   // than whenever this column redraws — and so the drag's arithmetic is over
   // one list rather than a fresh one per frame.
-  const pins = createMemo(() => pinsOf(shelf()))
+  // THE APP'S URL GRAMMAR, off the router this column is drawn inside.
+  const routes = router.routes
+  const pins = createMemo(() => pinsOf(routes, shelf()))
   const order = createMemo(() => JSON.stringify(pins().map((pin) => pin.id)))
 
   const [carrying, setCarrying] = createSignal<Carrying | undefined>(undefined)
@@ -214,7 +216,7 @@ export function Shelf(props: { readonly record: Undo["record"] }) {
   // pin to the open page, and this notifies exactly the row that lit and the
   // one that went out. Through the BIJECTION rather than `samePage`, because a
   // pinned filtered page and the same page unfiltered are two different doors.
-  const isHere = createSelector(() => hrefOf(router.route()))
+  const isHere = createSelector(() => routes.href(router.route()))
 
   return (
     <Show when={pins().length > 0}>
@@ -238,7 +240,7 @@ export function Shelf(props: { readonly record: Undo["record"] }) {
             {(pin, at) => (
               <Pin
                 pin={pin()}
-                current={isHere(hrefOf(pin().route))}
+                current={isHere(routes.href(pin().route))}
                 lifted={carrying()?.from === at()}
                 onGrab={(event) => grab(at(), event)}
                 dragged={() => travelled}

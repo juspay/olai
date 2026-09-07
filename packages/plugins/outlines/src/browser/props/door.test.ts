@@ -30,7 +30,12 @@ import { meaningOf, type MeaningVault, NO_KINDS, NO_TYPING } from "@olai/format"
 
 import { type Door, doorFor } from "./door.ts"
 import type { Names } from "../names.ts"
-import { hrefOf, atFile, routeIn } from "olai-plugin-navigation/routes"
+import { atFile } from "olai-plugin-navigation/routes"
+import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
+
+/** No plugin claims a URL, which is what these cases are about — the address
+ *  grammar's own arms (`olai-plugin-navigation/routes`' header). */
+const { href: hrefOf, routeIn } = routingIn()
 
 /** The directory these cases are read against: two documents, one node the set
  *  declares, and a file the vault does NOT serve. */

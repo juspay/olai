@@ -98,7 +98,8 @@ import { addressWritten } from "@olai/format"
 import type { Pinned, Shelf } from "@olai/format"
 
 import { addressIn,nameOf,titleFace } from "olai-plugin-navigation/address/address.ts"
-import { hrefOf,type Route } from "olai-plugin-navigation/routes"
+import type { Route } from "olai-plugin-navigation/routes"
+import type { Routing } from "olai-plugin-navigation/routes"
 
 /** One door on the shelf: the node that IS the pin, where it goes, and what it
  *  is called. */
@@ -162,8 +163,8 @@ export interface Pin {
  *  than drawn: `Pins.olai` is an ordinary outline, and a heading or a note in
  *  it is a thing somebody may write. (A MIRROR never reaches here: it carries
  *  no title to address with, and the reading leaves it out.) */
-const pinOf = (row: Pinned): Pin | undefined => {
-  const route = addressIn(row.title)
+const pinOf = (routes: Routing, row: Pinned): Pin | undefined => {
+  const route = addressIn(routes, row.title)
   if (route === undefined) return undefined
   const shows = showing(route, row)
   // THE PAIR IS `titleFace`'s ANSWER, taken whole rather than assembled here:
@@ -171,7 +172,7 @@ const pinOf = (row: Pinned): Pin | undefined => {
   // is one rule with one home (`../address/address.ts`) — the same one an
   // ordinary outline row is drawn by. So `name` and `written` cannot say two
   // different things about one title, because nothing here decides either.
-  const { name, written } = titleFace(row.title, route, shows)
+  const { name, written } = titleFace(routes, row.title, route, shows)
   return {
     id: row.id,
     title: row.title,
@@ -182,7 +183,7 @@ const pinOf = (row: Pinned): Pin | undefined => {
     // asked when a written name displaced it: with nothing written, the drawn
     // name IS what the address answers, and asking twice would be two calls
     // that have to agree rather than one that cannot disagree.
-    bare: written ? nameOf(route, shows) : name,
+    bare: written ? nameOf(routes, route, shows) : name,
     written,
   }
 }
@@ -224,9 +225,17 @@ const showing = (route: Route, row: Pinned): string | undefined => {
  * can be shorter than the answer: a row that names no page of this app is not
  * a door.
  */
-export const pinsOf = (shelf: Shelf): ReadonlyArray<Pin> =>
+export const pinsOf = (
+  /** The app's URL grammar, HANDED IN — reading a shelf row's title means
+   *  parsing an address, and a plugin's URL is a question about the mounted
+   *  roster (`olai-plugin-navigation/routes`' `Routing`). A door that reached
+   *  for it would be this contract holding another activation's live state,
+   *  which is what the Cordis audit's §12 refuses. */
+  routes: Routing,
+  shelf: Shelf,
+): ReadonlyArray<Pin> =>
   shelf.flatMap((row) => {
-    const pin = pinOf(row)
+    const pin = pinOf(routes, row)
     return pin === undefined ? [] : [pin]
   })
 
@@ -245,7 +254,7 @@ export const pinsOf = (shelf: Shelf): ReadonlyArray<Pin> =>
  * `?q=is:todo` by hand and the address a browser would mint for the same page
  * are one pin.
  */
-export const pinnedAt = (shelf: Shelf, route: Route): Pin | undefined => {
-  const address = hrefOf(route)
-  return pinsOf(shelf).find((pin) => hrefOf(pin.route) === address)
+export const pinnedAt = (routes: Routing, shelf: Shelf, route: Route): Pin | undefined => {
+  const address = routes.href(route)
+  return pinsOf(routes, shelf).find((pin) => routes.href(pin.route) === address)
 }

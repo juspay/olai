@@ -19,7 +19,8 @@
  * one table quietly falling behind the other.
  */
 
-import { type Route,routeFace } from "olai-plugin-navigation/routes"
+import type { Route } from "olai-plugin-navigation/routes"
+import { routeFace } from "../routing.ts"
 
 export const labelOf = (route: Route): string => {
   if (route.kind === "at") {

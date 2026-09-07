@@ -3,7 +3,7 @@ import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
 /** A document route reads only document metadata/body. Outline absence does not
  * create an outline page subscription, editor context, filter or drag register. */
 import { createMemo, Match, Show, Switch } from "solid-js"
-import { nameOf } from "olai-plugin-navigation/address/address.ts"
+import { nameOf } from "./routing.ts"
 import { Empty } from "@olai/web/client/Empty.tsx"
 import { NAMED } from "olai-plugin-files/kinds"
 import { desktop, panelOpen } from "./shell.ts"
@@ -12,7 +12,7 @@ import type { DocumentPageRequest } from "@olai/format"
 import { useHistory } from "./history.ts"
 import type { Navigation } from "olai-plugin-navigation/contract"
 import { useRouter, useHere, useFollow } from "olai-plugin-navigation/routing"
-import { hrefOf } from "olai-plugin-navigation/routes"
+import { hrefOf } from "./routing.ts"
 import { panesOf } from "olai-plugin-navigation/workspace"
 import { client } from "../client.ts"
 

@@ -10,6 +10,24 @@ export interface Navigation extends Router {
   readonly page: (index: number | Accessor<number>) => JSX.Element
   readonly focused: Accessor<PageInfo | undefined>
   readonly report: (index: Accessor<number>, info: Accessor<PageInfo>) => void
+  /**
+   * THE FOUR ROUTE OPERATIONS THAT READ THE MOUNTED ROSTER — printing a URL,
+   * parsing one, finding the mounted tenant behind one, and telling two pages
+   * apart.
+   *
+   * This row is the broker of that table: it is a projection of `Faces`, the
+   * `renderer` component is where the dependency on the renderer is declared,
+   * and `./pages.ts` is where its answer is held. A consumer that prints or
+   * parses a PLUGIN route names this service and spends these; a consumer
+   * whose routes are this app's own uses `hrefOfPlain` and needs no roster at
+   * all.
+   *
+   * It was a module variable in `./routes.ts` with the four operations reading
+   * it in place, so every caller in every package parsed and printed against
+   * another activation's live table with nothing declared — the audit's §2 and
+   * §12 in the one module the whole tree spells an address with.
+   */
+  readonly routes: import("./routes.ts").Routing
 }
 export const navigation = serviceTag<Navigation>("navigation.state")
 export interface ContentHandler {

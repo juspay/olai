@@ -1,6 +1,7 @@
 import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
-import { nameOf, shownIn } from "olai-plugin-navigation/address/address.ts"
+import { shownIn } from "olai-plugin-navigation/address/address.ts"
+import { nameOf } from "./routing.ts"
 import { useUndo } from "./edit/undoing.ts"
 /**
  * ONE pane's page: the same chrome a lone view has always drawn.
@@ -35,7 +36,8 @@ import { drawnBy, requestFor, fileOf } from "./page.ts"
 import { createReading, ReadingProvider, useReadings } from "./reading.tsx"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { useFollow, useHere, useRouter } from "olai-plugin-navigation/routing"
-import { filterOf, hrefOf, type MountedAppPage, narrowable, narrowedTo, routeFace, samePage } from "olai-plugin-navigation/routes"
+import type { MountedAppPage } from "olai-plugin-navigation/routes"
+import { filterOf, hrefOf, narrowable, narrowedTo, routeFace, samePage } from "./routing.ts"
 import { panesOf } from "olai-plugin-navigation/workspace"
 import { pageFileOf, visibleIn } from "./settings/done.ts"
 

@@ -21,6 +21,11 @@ import { expect, test } from "bun:test"
 import { atNode } from "olai-plugin-navigation/routes"
 
 import { pinnedAt, pinsOf } from "./pins.ts"
+import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
+/** No plugin claims a URL — the roster these cases are about. A pinned plugin
+ *  page is a case for a bench that binds its own (`routingIn(pages)`). */
+const routes = routingIn()
+
 
 /** The shelf as the `pins` cell carries it — the file's own rows, with the one
  *  fact only the set could answer already on them. */
@@ -35,7 +40,7 @@ const ANSWERED: Shelf = [
 // ── reading the answer ─────────────────────────────────────────────────
 
 test("the doors are the answered rows whose titles name a page, in order", () => {
-  expect(pinsOf(ANSWERED).map((pin) => pin.id)).toEqual([
+  expect(pinsOf(routes, ANSWERED).map((pin) => pin.id)).toEqual([
     "p-herbs",
     "p-doc",
     "p-late",
@@ -44,7 +49,7 @@ test("the doors are the answered rows whose titles name a page, in order", () =>
 })
 
 test("what a door is CALLED: the written name, then the set's, then the address", () => {
-  expect(pinsOf(ANSWERED).map((pin) => pin.name)).toEqual([
+  expect(pinsOf(routes, ANSWERED).map((pin) => pin.name)).toEqual([
     // The node's own title, as the server answered it.
     "the herb bed",
     // A file names itself — the server says nothing about one, and never did.
@@ -61,7 +66,7 @@ test("a node RENAMED is a new answer, and the shelf says the new name", () => {
   const renamed = ANSWERED.map((row) =>
     row.id === "p-herbs" ? { ...row, shows: { id: "herbs", name: "the herb spiral" } } : row
   )
-  expect(pinsOf(renamed)[0]?.name).toBe("the herb spiral")
+  expect(pinsOf(routes, renamed)[0]?.name).toBe("the herb spiral")
 })
 
 // The two sides read one title with two parsers, each its own half of the seam
@@ -72,7 +77,7 @@ test("a name is spent only where THIS parser agrees the row addresses that node"
   const crossed: Shelf = [
     { id: "p", title: "/#herbs", shows: { id: "elsewhere", name: "the kitchen" } },
   ]
-  expect(pinsOf(crossed)[0]?.name).toBe("/#herbs")
+  expect(pinsOf(routes, crossed)[0]?.name).toBe("/#herbs")
 })
 
 // A title an escape nothing can read is not a door
@@ -84,22 +89,22 @@ test("…and the shelf drawn over one is the shelf without it", () => {
     { id: "p-bad", title: "/%" },
     { id: "p-good", title: "/trash" },
   ]
-  expect(pinsOf(shelf).map((pin) => pin.id)).toEqual(["p-good"])
+  expect(pinsOf(routes, shelf).map((pin) => pin.id)).toEqual(["p-good"])
 })
 
 test("a directory with no shelf, and one whose shelf holds nothing, both draw none", () => {
-  expect(pinsOf(NO_PINS)).toEqual([])
+  expect(pinsOf(routes, NO_PINS)).toEqual([])
 })
 
 // ── is this page already on it ─────────────────────────────────────────
 
 test("a page is pinned when the shelf holds its address, however either is spelled", () => {
-  expect(pinnedAt(ANSWERED, atNode("herbs"))?.id).toBe("p-herbs")
-  expect(pinnedAt(ANSWERED, { kind: "trash", filter: "is:todo" })?.id).toBe("p-late")
+  expect(pinnedAt(routes, ANSWERED, atNode("herbs"))?.id).toBe("p-herbs")
+  expect(pinnedAt(routes, ANSWERED, { kind: "trash", filter: "is:todo" })?.id).toBe("p-late")
   // The SAME page without its query is a different page, and a different pin.
-  expect(pinnedAt(ANSWERED, { kind: "trash" })).toBeUndefined()
-  expect(pinnedAt(ANSWERED, atNode("kitchen"))).toBeUndefined()
+  expect(pinnedAt(routes, ANSWERED, { kind: "trash" })).toBeUndefined()
+  expect(pinnedAt(routes, ANSWERED, atNode("kitchen"))).toBeUndefined()
   // And a shelf that has answered nothing has nothing pinned, rather than a
   // caller having to ask whether there is one first.
-  expect(pinnedAt(NO_PINS, { kind: "trash" })).toBeUndefined()
+  expect(pinnedAt(routes, NO_PINS, { kind: "trash" })).toBeUndefined()
 })
