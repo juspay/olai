@@ -15,7 +15,10 @@
  * rows' doors on every write and every query (the audit's §5).
  *
  * So this component stands behind {@link VaultViews} and the providers register
- * into it — git and search already name `Vault`, so neither gains a wait.
+ * into it — git and search already name `Vault`, so neither gains a wait. The
+ * table they register into is minted HERE, inside this activation, which is the
+ * difference between a vault owning its views and a process holding one pair of
+ * them for every vault it ever opens.
  * `./views.ts` carries the whole of why the arrow points that way rather than
  * at two components of this row. The reads stay PER CALL for the reason they
  * always did, and the absent answer is unchanged: `NO_LEDGER` and `NO_SEARCH`,
@@ -26,7 +29,7 @@ import { BundleModules, Directory, Kinds, Offers, VaultSettings, VaultViews } fr
 import { type Directory as OpenDirectory, type VaultSettings as Settings } from "@olai/ops"
 import { Effect, Stream } from "effect"
 import { VaultBoot } from "./boot.ts"
-import { ledgerView, searchView, vaultViews } from "./views.ts"
+import { openViews } from "./views.ts"
 
 export const setup = definePlugin({
   name: "vault-setup", needs: [VaultBoot, BundleModules, Kinds, Offers],
@@ -42,8 +45,13 @@ export const setup = definePlugin({
         built.set(word, { ...kind, kind: word })
       }
     }
-    const ledger = ledgerView
-    const search = searchView
+    // ONE TABLE, MINTED HERE — this activation's, not the module's. Its own
+    // paragraph carries why that distinction is the whole finding: two hosts in
+    // one process used to share a pair of module variables, so the second
+    // serve's git row answered the first serve's writes.
+    const views = openViews()
+    const ledger = views.ledger
+    const search = views.search
     const settings: Settings = {
       root: boot.root,
       runtime: boot.runtime,
@@ -58,7 +66,7 @@ export const setup = definePlugin({
       search: { nodes: ask => search().nodes(ask) },
     }
     yield* offers.offer(VaultSettings, () => settings)
-    yield* offers.offer(VaultViews, () => vaultViews)
+    yield* offers.offer(VaultViews, () => views.door)
   }),
 })
 

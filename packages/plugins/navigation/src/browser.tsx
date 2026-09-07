@@ -9,7 +9,7 @@ import { atElement } from "./routes.ts"
  * the focused location alive. Each reactivation creates fresh subscriptions. */
 import type { FileLink } from "@olai/plugin-api"
 import { definePlugin,Faces,Offers } from "@olai/plugin-api"
-import { holdFaces, hung } from "./faces.ts"
+import { holdPaletteFaces, holdRouteFaces, routeFaces } from "./faces.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./palette/reading.ts"
 import { holdLocations } from "./locations.ts"
@@ -90,11 +90,14 @@ export const components = {
   yield* Effect.acquireRelease(Effect.sync(()=>holdReading(reading)),stop=>Effect.sync(stop))
  })}),
  renderer:definePlugin({name:"renderer",needs:[Faces,rendererSlots],apply:Effect.gen(function*(){
- yield* holdFaces(yield* Faces)
+ // THIS COMPONENT'S OWN HOLD, not one shared with the palette below: the two
+ // stop at different moments, and a holder cleared by the departing one is a
+ // holder the survivor is still reading through (`./faces.ts`).
+ yield* holdRouteFaces(yield* Faces)
  const slots=yield* rendererSlots
  yield* Effect.acquireRelease(Effect.sync(()=>holdLocations(slots.read)),stop=>Effect.sync(stop))
  yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{
-   const stop=holdRoutePages(createMemo(()=>settleRoutePages(hung("app.route"))))
+   const stop=holdRoutePages(createMemo(()=>settleRoutePages(routeFaces("app.route"))))
    return ()=>{dispose();stop()}
  })),stop=>Effect.sync(stop))
 })}), files:definePlugin({name:"files",needs:[fileAccess,Offers],apply:Effect.gen(function*(){
@@ -102,7 +105,7 @@ export const components = {
  const opens=(path:string,at?:string)=>files.paths().includes(path)?atElement(path,at??null):undefined
  yield* (yield* Offers).own("file-links",()=>opens)
 })}), palette:definePlugin({name:"palette",needs:[navigation,rendererSlots,Clocks,Faces,appShell],apply:Effect.gen(function*(){
- yield* holdFaces(yield* Faces)
+ yield* holdPaletteFaces(yield* Faces)
  // The two panel verbs and the breakpoint the palette spends
  // (`./palette/shell.ts`).
  const geometry=yield* appShell

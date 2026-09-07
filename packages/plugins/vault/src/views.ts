@@ -24,6 +24,21 @@
  * whole shape is *give me whatever stands behind this key*, spent on two keys
  * this row never declared (the audit's §5).
  *
+ * ## A TABLE PER ACTIVATION, and it was one per PROCESS
+ *
+ * The two views were a `let` apiece at this module's scope, which is private to
+ * the package and belongs to nobody. One process can open two hosts — the
+ * benches do it, and `openPlugins` makes no claim otherwise — and both vaults
+ * read the same pair of variables, so the second serve's git row answered the
+ * first serve's writes. That is the counterexample the paper's Def. 30 is
+ * about, and it is the very fault this phase exists to remove: private to a
+ * package is not owned by an activation.
+ *
+ * {@link openViews} is the repair. `./setup.ts` mints one inside its own
+ * `apply`, builds the settings over THAT instance's readers, and stands behind
+ * `VaultViews` with THAT instance's door — so a table's reach is one vault's
+ * activation and nothing wider.
+ *
  * ## The reads stay PER CALL, and the absence is the ops layer's own word
  *
  * Either provider can come and go under a standing store, so a write resolves
@@ -37,29 +52,71 @@ import type { VaultViews } from "@olai/plugin-api/services"
 import { NO_LEDGER, NO_SEARCH, type Ledger as OpsLedger, type Search as OpsSearch } from "@olai/ops"
 import { Effect } from "effect"
 
-let ledger: OpsLedger | undefined
-let matcher: OpsSearch | undefined
+/** One vault activation's pair of optional views: what its settings read, and
+ *  the door its providers register through. */
+export interface Views {
+  /** Where a write is recorded, or the refusal for a serve with no history. */
+  readonly ledger: () => OpsLedger
+  /** ...and what a query is answered by. */
+  readonly search: () => OpsSearch
+  /** What `./setup.ts` stands behind — this instance's, and no other's. */
+  readonly door: VaultViews
+}
 
-/** Where a write is recorded, or the refusal for a serve with no history. */
-export const ledgerView = (): OpsLedger => ledger ?? NO_LEDGER
+/**
+ * ONE REGISTRATION EACH, and a second is REFUSED rather than taken.
+ *
+ * The alternative is what this used to do: write unconditionally, so a second
+ * `ledger(door)` replaced the first silently and the first's release — guarded
+ * by identity — then did nothing at all. Two rows answering *where is this
+ * write recorded* would resolve in favour of whichever mounted last, which is
+ * the failure {@link VaultViews} says out loud it does not have.
+ *
+ * It adds no failure mode a provider could reach by restarting. A provider
+ * registers from the same activation that stands behind `Ledger` or `Search`,
+ * and Cordis already refuses a second row behind either of those — so an
+ * overlap that could reach this refusal is an overlap that would have died one
+ * door earlier.
+ *
+ * A DEFECT and not a failure, for the reason every other double-claim on this
+ * path is one: there is no arm a caller could write for "somebody else got
+ * here first", and a serve that composed two ledgers is a serve whose
+ * composition is wrong.
+ */
+const holding = <Door>(what: string) => {
+  let held: Door | undefined
+  return {
+    read: () => held,
+    hold: (door: Door) =>
+      Effect.suspend(() =>
+        held !== undefined
+          ? Effect.die(new Error(
+            `olai-plugin-vault: a second row registered the ${what} this vault records `
+              + "through — a store reads one, and the second would leave every write "
+              + "landing in whichever was mounted last.",
+          ))
+          : Effect.acquireRelease(
+            Effect.sync(() => { held = door }),
+            // BY IDENTITY still, though the refusal above makes a replacement
+            // unreachable: a release that did not check is one line away from
+            // being wrong the day the refusal is relaxed.
+            () => Effect.sync(() => { if (held === door) held = undefined }),
+          ).pipe(Effect.asVoid),
+      ),
+  }
+}
 
-/** ...and what a query is answered by. */
-export const searchView = (): OpsSearch => matcher ?? NO_SEARCH
-
-/** BY IDENTITY, both of them: a registration whose finalizer runs after a
- *  replacement installed its own must not take the replacement's view out from
- *  under a write in flight. */
-const held = <Door>(read: () => Door | undefined, write: (door: Door | undefined) => void) =>
-(door: Door) =>
-  Effect.acquireRelease(
-    Effect.sync(() => { write(door) }),
-    () => Effect.sync(() => { if (read() === door) write(undefined) }),
-  ).pipe(Effect.asVoid)
-
-/** What `./setup.ts` stands behind. ONE VIEW EACH is not enforced here: Cordis
- *  refuses a second row behind `Ledger` or `Search` at the door those come
- *  from, so a second registration cannot be reached without a second provider. */
-export const vaultViews: VaultViews = {
-  ledger: held(() => ledger, (door) => { ledger = door as OpsLedger | undefined }) as VaultViews["ledger"],
-  search: held(() => matcher, (door) => { matcher = door as OpsSearch | undefined }) as VaultViews["search"],
+/** Mint one activation's views. Called by `./setup.ts` inside its `apply`, and
+ *  by nothing else — a second caller would be a second vault. */
+export const openViews = (): Views => {
+  const ledger = holding<OpsLedger>("ledger")
+  const search = holding<OpsSearch>("matcher")
+  return {
+    ledger: () => ledger.read() ?? NO_LEDGER,
+    search: () => search.read() ?? NO_SEARCH,
+    door: {
+      ledger: ledger.hold as VaultViews["ledger"],
+      search: search.hold as VaultViews["search"],
+    },
+  }
 }

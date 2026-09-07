@@ -82,7 +82,7 @@ import { Result as Outcome } from "effect"
 import { isEditingTarget,listKey,matchKey,paneKey } from "@olai/web/client/keys.ts"
 import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
 import { only } from "@olai/web/client/narrow.ts"
-import { hung } from "../faces.ts"
+import { paletteFaces } from "../faces.ts"
 import { Refusals } from "@olai/web/client/refusals.tsx"
 import { ALARM_BAND,SaidLine } from "@olai/web/client/SaidLine.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
@@ -288,7 +288,7 @@ export function Palette(props: {
    */
   const prefixes = createMemo(() => prefixesIn(readLocation(paletteAdapters).flatMap(entry =>
     entry.value.prefix ? [{ owner: entry.owner, value: entry.value.prefix }] : [])))
-  const commands = createMemo<ReadonlyArray<AppCommand>>(() => commandsIn(hung("app.command"), prefixes()))
+  const commands = createMemo<ReadonlyArray<AppCommand>>(() => commandsIn(paletteFaces("app.command"), prefixes()))
 
   const box = createMemo(() => boxOf(query(), paletteAsking(), commands(), prefixes()))
   const listing = () => box().kind === "filter"
@@ -380,7 +380,7 @@ export function Palette(props: {
     const commands = [
       ...opRows(),
       ...SHELL_ITEMS,
-      ...hung("app.palette").map(({ face }) => ({
+      ...paletteFaces("app.palette").map(({ face }) => ({
         id: face.id,
         label: face.label,
         ...(face.hint === undefined ? {} : { hint: face.hint }),

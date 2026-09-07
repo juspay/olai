@@ -438,10 +438,23 @@ export const Faces = serviceTag<Faces>("ui-renderer.faces")
  * re-exported its holder through a door would be publishing live state across a
  * package boundary, which `@olai/bundle`'s fence refuses by name.
  *
- * {@link Held.hold} is an acquisition on the CALLING activation's scope and
- * clears BY IDENTITY, so a stopped activation cannot clear the value a
+ * {@link HeldFaces.hold} is an acquisition on the CALLING activation's scope
+ * and clears BY THE HOLD, so a stopped activation cannot clear the value a
  * replacement installed — the rule every holder in this tree keeps and the four
  * that did not were the audit's §4.
+ *
+ * BY THE HOLD and not by the VALUE, which is a distinction that cost a review
+ * finding: the release used to ask `held === faces`, and the service value is
+ * one object the provider hands to everybody — so two components of one row
+ * holding the same `Faces` made the second's release match the first's hold and
+ * clear it. A token minted per call cannot be mistaken for another call's.
+ *
+ * IT IS ONE SLOT, THOUGH, and a token does not change that: a second hold
+ * displaces the first, and releasing the second leaves the first consumer
+ * reading the empty answer. So a holder belongs to ONE consumer — two
+ * consumers with two lifetimes are two holders, which is what this being a
+ * factory is for. `olai-plugin-navigation`'s `faces.ts` is the worked example,
+ * and the finding.
  *
  * ## An empty answer rather than a throw, where nobody is holding
  *
@@ -459,15 +472,20 @@ export interface HeldFaces extends Faces {
   readonly hold: (faces: Faces) => Effect.Effect<void, never, Scope.Scope>
 }
 export const heldFaces = (): HeldFaces => {
-  let held: Faces | undefined
+  // WRAPPED, so the token is this call's and not the service's — the same
+  // reason `@olai/ui-primitives`' `heldService` wraps, one door over.
+  let held: { readonly faces: Faces } | undefined
   return {
-    hold: (faces) => Effect.acquireRelease(
-      Effect.sync(() => { held = faces }),
-      () => Effect.sync(() => { if (held === faces) held = undefined }),
-    ),
-    hung: (slot) => held?.hung(slot) ?? [],
-    dressed: (slot) => held?.dressed(slot) ?? new Map(),
-    only: (slot) => held?.only(slot) ?? null,
+    hold: (faces) => Effect.suspend(() => {
+      const own = { faces }
+      return Effect.acquireRelease(
+        Effect.sync(() => { held = own }),
+        () => Effect.sync(() => { if (held === own) held = undefined }),
+      )
+    }),
+    hung: (slot) => held?.faces.hung(slot) ?? [],
+    dressed: (slot) => held?.faces.dressed(slot) ?? new Map(),
+    only: (slot) => held?.faces.only(slot) ?? null,
   }
 }
 

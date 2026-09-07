@@ -7,7 +7,7 @@ import { Deferred, Effect, Fiber, Result, Stream } from "effect"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { VaultViews } from "@olai/plugin-api/services"
+import { VaultSettings, VaultViews } from "@olai/plugin-api/services"
 import { VaultBoot } from "olai-plugin-vault/boot"
 
 const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
@@ -155,4 +155,38 @@ test("vault teardown drains an accepted write before releasing the directory loc
   yield* flip(contender.plugins.host, "vault", false)
   yield* flip(contender.plugins.host, "vault", true)
   expect(JSON.stringify(yield* contender.ops.read)).toContain("accepted")
+}))))
+
+/**
+ * TWO HOSTS IN ONE PROCESS ARE TWO VAULTS, and until this branch's review they
+ * were not.
+ *
+ * The vault's optional views — where a write is RECORDED, what a query is
+ * ANSWERED BY — were a `let` apiece at `olai-plugin-vault`'s `views.ts` module
+ * scope. Private to that package, and owned by nobody: the second serve's git
+ * row registered over the first serve's, so host A's settings recorded through
+ * host B's ledger. `openPlugins` makes no claim to be a singleton, the benches
+ * open several, and the paper's Def. 30 is exactly about the difference
+ * between a name being unreachable and a value being owned.
+ *
+ * The table is minted inside `vault-setup`'s own `apply` now, so this asks the
+ * only question that distinguishes the two: with a ledger registered in EACH
+ * host, does A still answer A's?
+ */
+test("one process's two vaults do not share the ledger a row registered with either", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+  const named = (name: string): Ledger => ({ ...NO_LEDGER, whyWaiting: () => Effect.succeed(name) })
+  const a = yield* opening(rootWithNote(), { ledger: named("host A") })
+  const b = yield* opening(rootWithNote(), { ledger: named("host B") })
+  // Through the SETTINGS rather than the table: what the finding was about is
+  // which ledger a vault's store writes through, and the settings are what
+  // carries it (`vault-setup` builds them over the views it minted).
+  const said = (host: typeof a) =>
+    Effect.promise(() => Effect.runPromise(
+      (offered(host.plugins.host, VaultSettings) as { ledger: Ledger }).ledger.whyWaiting("web"),
+    ))
+  expect(yield* said(a)).toBe("host A")
+  expect(yield* said(b)).toBe("host B")
+  // ...and still A's after B is up, which is the ordering the shared module
+  // variable failed: B's registration used to answer for both.
+  expect(yield* said(a)).toBe("host A")
 }))))

@@ -159,16 +159,41 @@ export const Env = serviceTag<Env>("env")
  * would go `waiting` if this row were turned off — said one thing while the
  * code did another (the Cordis audit's §5).
  *
- * The five are components of their own rows now, each naming ONE key: MCP's
- * `vault-tools` and `ledger`, the vault's `ledger-view` and `search-view`. That
- * keeps every optional behaviour the lookup was reached for — **MCP works
- * without a vault, and the vault works without git** — and none of it
- * introduces the cycle a mandatory `needs` would: a component waits on its own
- * while its row runs, which is exactly what `waiting` is for.
+ * ## A COMPONENT IS THE WRONG REPAIR, and the reason cost a CI run
  *
- * A key nobody could name is a key nobody can be waiting on, so the capability
- * is not replaced by a narrower lookup. What replaced it is declaration.
+ * The obvious answer is a component per optional key: the runtime holds it
+ * `waiting` while its provider is absent, says which key on the panel, and
+ * unwinds it when the provider leaves. It is wrong, and the paragraph is here
+ * because nothing else on this page would tell you why: a row's report FOLDS
+ * its components, so a component waiting for a provider that will never arrive
+ * makes the whole ROW read `waiting` — and `@olai/server`'s runtime reports a
+ * row as `running` only when it does not. A vault short of git would have
+ * stopped being loaded by the tab at all. A component is for a half that is
+ * *optional to have*; it is not for a provider that is *optional to exist*.
  *
+ * ## What replaced it is two shapes, and both are declared
+ *
+ * The PROVIDER REGISTERS, wherever the arrow can be turned around:
+ * {@link VaultViews} is a door the vault stands behind, and git and search tell
+ * it about their {@link Ledger} and {@link Search}. Both already name
+ * {@link Vault}, so neither gains a wait, the edge is in the graph at the end
+ * that can carry it, and the registration is a finalizer on the PROVIDER's
+ * scope. It is the shape {@link Kinds.register}, {@link Surfaces.register} and
+ * {@link Wakes.register} already have.
+ *
+ * ...and a NARROW BROKER where it cannot: {@link Served} carries the served
+ * directory and its write gate for MCP, which must stand up with no vault at
+ * all and cannot invert (a vault registering its gate with the transport would
+ * be the directory knowing what an MCP endpoint is). What makes that legitimate
+ * where `HostServices` was not is that it is CLOSED — two readings, named in
+ * the type, about one provider — rather than a lookup over every key there is.
+ *
+ * The fifth reach was DEAD: `bindAgent` took a `ledger` predicate the lookup
+ * answered and no line in that package ever read.
+ *
+ * Every optional behaviour the lookup was reached for is kept — **MCP works
+ * without a vault, and the vault works without git** — and neither shape
+ * introduces the cycle a mandatory `needs` would.
  */
 
 /** Inert module declarations from the selected bundle, including disabled rows. */
@@ -917,9 +942,16 @@ export const Search = serviceTag<Search>("search")
  * unloads takes its view with it and the store falls back to refusing in the
  * vault's own words.
  *
- * ONE VIEW EACH, and a second registration of either is refused: two rows
- * answering "where is this write recorded" would resolve silently in favour of
- * whichever mounted last.
+ * ONE VIEW EACH, and a second registration of either is REFUSED — a defect, the
+ * way every other double-claim on this page is one: two rows answering "where is
+ * this write recorded" would resolve silently in favour of whichever mounted
+ * last. That sentence stood here for a commit while the implementation wrote
+ * unconditionally; it is `olai-plugin-vault`'s `views.ts` that keeps it.
+ *
+ * ONE TABLE PER VAULT ACTIVATION is the other half, and it is the vault's to
+ * keep rather than this door's: what a provider registers into belongs to the
+ * activation that stood behind this key, so two hosts in one process are two
+ * tables. A module variable would be private to a package and owned by nobody.
  */
 export interface VaultViews {
   /** Record writes through this ledger, for as long as the calling plugin is
