@@ -566,7 +566,7 @@ wake on CI runs · runs from  [ lanes.olai ▾ ]
 {"id":"spaces","ord":"a0","title":"Xyne Spaces — the org OS","custom":{"chat-agent-session":"grok"}}
 ```
 
-`chat-agent-session` is the one custom kind this plugin contributes, and [format.md](format.md#properties) names it as the exception it is. A vault written before chat became a plugin carries the bare key `agent-session` and keeps it with one declaration row ([plugins/chat.md](plugins/chat.md#an-existing-vault-needs-one-row)). **One key carries both halves** — which engine, and which conversation — split on the first colon:
+`chat-agent-session` is the one custom kind this plugin contributes, and [format.md](format.md#properties) names it as the exception it is. A vault that would rather keep its bindings under a column of its own name — `agent-session`, say — declares that key as this kind with one row ([plugins/chat.md](plugins/chat.md#keeping-it-on-a-column-of-your-own-name)). **One key carries both halves** — which engine, and which conversation — split on the first colon:
 
 ```
 chat-agent-session: grok            a node agent nobody has started a session for
