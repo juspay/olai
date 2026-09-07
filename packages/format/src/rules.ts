@@ -61,8 +61,6 @@ import {
   heldCustoms,
   keyOf,
   type KindVocabulary,
-  listed,
-  NAMED_AT_MOST,
   resolvesId,
   type Typed,
   wrongDeclaration,

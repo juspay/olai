@@ -1493,26 +1493,18 @@ const wrongRef = (
  * Eight, because the enums this is really for have two to four members and the
  * cap should never fire on one — a refusal that says "and 0 more" would be a
  * cap that had started deciding things.
- *
- * EXPORTED BESIDE {@link listed} and for its reason: a finding that names
- * records in its sentence AND as related sites has to cap both at one number,
- * or the sentence says eight and the error view draws two hundred rows.
  */
-export const NAMED_AT_MOST = 8
+const NAMED_AT_MOST = 8
 
 /** The variants a refusal shows, capped — the first few and a count, never a
  *  wall. `join`ed with the separator the sentence is built around, since a sum
  *  reads as `a | b` and a roster as a list.
  *
- *  EXPORTED FOR ONE OTHER SENTENCE, and it is the same sentence-shaped problem
- *  rather than a general-purpose helper escaping: {@link ./rules.ts}'s
- *  `reportLegacyKeys` names the records still holding a retired key, and a
- *  vault with two hundred of them would put its whole node list in one finding
- *  — the very failure the cap above was added for. One cap, one wording, one
- *  place to move them both. It is NOT on the package's surface
- *  ({@link ./index.ts} lists what leaves), because a caller outside the
- *  validator wording a refusal of its own is not a thing this idiom is for. */
-export const listed = (all: ReadonlyArray<string>, between: string): string =>
+ *  MODULE-LOCAL, like the cap above. It is a wording this file's own refusals
+ *  share; a caller outside the validator wording a refusal of its own is not a
+ *  thing this idiom is for, and it is not on the package's surface
+ *  ({@link ./index.ts} lists what leaves). */
+const listed = (all: ReadonlyArray<string>, between: string): string =>
   all.slice(0, NAMED_AT_MOST).map((one) => `\`${one}\``).join(between) +
   (all.length > NAMED_AT_MOST ? `, and ${all.length - NAMED_AT_MOST} more` : "")
 
