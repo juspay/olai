@@ -29,8 +29,8 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   re-arms a hold that is already standing — so writing the config is the gesture
   that fires the watcher, and this scenario never sits out a clock.
 
-  @agent-stored @scratch:lanes @padi:lanes
-  Scenario: The conversation I pointed at the board hears from it, and my half-typed message does not move
+  @scratch:lanes @padi:lanes
+  Scenario Outline: The <chat> conversation hears its selected board without moving my draft
     Given I open the outline "lanes.olai"
     And the agent panel is open
     # The default, and it is a ruling rather than an oversight: nobody is opted
@@ -72,6 +72,15 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     # is the one place they meet.
     Then that sentence names "22222222-2222-4222-8222-222222222222"
     And there should be no page errors
+
+    Examples:
+      | chat       |
+      | node-bound |
+
+    @agent-stored
+    Examples:
+      | chat       |
+      | unassigned |
 
   @scratch:lanes @plugins:vault,kolu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that composed no chat row says which door kolu is waiting behind
@@ -131,4 +140,28 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     When I point this conversation's "kolu" wake at "lanes.olai"
     Then this conversation's "kolu" wake is on "lanes.olai"
     And this conversation's "odu" wake is on nothing
+    And there should be no page errors
+
+
+  @scratch:lanes
+  Scenario: Wake choices survive a plugin leaving and returning through Cordis
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I point this conversation's "kolu" wake at "lanes.olai"
+    And I point this conversation's "odu" wake at "backlog.olai"
+    And I open the plugins panel
+    And I switch the plugin "kolu" off
+    And I close the plugins panel
+    Then this conversation offers no "kolu" wake control
+    And this conversation's "odu" wake is on "backlog.olai"
+    When I open the plugins panel
+    And I switch the plugin "kolu" on
+    And I close the plugins panel
+    Then this conversation's "kolu" wake is on "lanes.olai"
+    And this conversation's "odu" wake is on "backlog.olai"
+    When I clear this conversation's "kolu" wake
+    And I reload the page
+    And the agent panel is open
+    Then this conversation's "kolu" wake is on nothing
+    And this conversation's "odu" wake is on "backlog.olai"
     And there should be no page errors

@@ -455,6 +455,7 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
   const released: Array<string> = []
   const chat = await run(make({
     fork,
+    scoping: await run(scopesIn(ephemeralLocalState())),
     roster: () => [installed("alpha"), installed("beta")],
     engines: () => ["alpha", "beta"],
     cwd,
@@ -499,6 +500,14 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
       expect(refused.failure.message).toContain("1 node agents are already live")
     }
 
+    // Clearing a sleeping conversation must also remove deliveries held by
+    // the scheduler's capacity queue, without taking another plugin's body.
+    await run(chat.scope({ agent: "alpha", session: oneSession }, "kolu", "Work.olai"))
+    await run(chat.doorFor("kolu").deliver(
+      { agent: "alpha", session: oneSession }, () => "cleared capacity delivery",
+    ))
+    await run(chat.scope({ agent: "alpha", session: oneSession }, "kolu", null))
+
     // This edge fires once. The same full-cap refusal must retain its thunk,
     // and opening the node after the busy slot settles must flush it.
     await run(chat.doorFor("odu").deliver(
@@ -510,6 +519,7 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
     await until("the held wake to enter the conversation", () =>
       JSON.stringify([...chat.entries().values()]).includes("one-shot first-red"))
     expect(released).toEqual(["one", "two"])
+    expect(JSON.stringify([...chat.entries().values()])).not.toContain("cleared capacity delivery")
   } finally {
     await run(chat.stop)
   }

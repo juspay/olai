@@ -122,6 +122,12 @@ Then(
   },
 );
 
+Then("this conversation offers no {string} wake control", async function (this: OlaiWorld, plugin: string) {
+  await this.page.locator(`${CHAT_WAKE_PICKER}${attr("data-plugin", plugin)}`).waitFor({
+    state: "detached", timeout: POLL_TIMEOUT,
+  });
+});
+
 When("I clear this conversation's {string} wake", async function (this: OlaiWorld, plugin: string) {
   const row = (await thePicker(this, plugin)).locator("..");
   await this.press(row.getByRole("button", { name: "clear", exact: true }));
