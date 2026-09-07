@@ -9,3 +9,7 @@ An outliner that lives in files you own. Git records it. A browser edits it. An 
 **[olai.kolu.dev](https://olai.kolu.dev)** — what it is, how to run it, and why.
 
 Docs: [docs/index.md](docs/index.md) · Running: [docs/running.md](docs/running.md)
+
+## Status
+
+Olai is being actively developed and iterating rapidly. THERE WILL BE COMPATIBILITY-BREAKING CHANGES.
