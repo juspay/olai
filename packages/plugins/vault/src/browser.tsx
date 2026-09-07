@@ -12,7 +12,7 @@ import {holdServed} from "./browser/served.tsx"
 import {holdDirectory,directory} from "./browser/state.ts"
 import {Status} from "./browser/Status.tsx"
 import {fileAccess} from "./contract.ts"
-import { client } from "olai-plugin-vault/client"
+import { client } from "./client.ts"
 export default definePlugin({name:"vault",needs:[Wired, Offers],apply:Effect.gen(function*(){
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))

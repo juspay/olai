@@ -17,8 +17,7 @@
     "./testids": "./src/testids.ts",
     "./icons": "./src/contracts/icons.tsx",
     "./kinds": "./src/contracts/kinds.ts",
-    "./completing": "./src/contracts/completing.ts",
-    "./client": "./src/client.ts"
+    "./completing": "./src/contracts/completing.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -51,8 +50,7 @@
       "./icons",
       "./kinds",
       "./surface",
-      "./completing",
-      "./client"
+      "./completing"
     ]
   }
 }

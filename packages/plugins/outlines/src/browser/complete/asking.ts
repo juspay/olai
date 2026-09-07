@@ -11,7 +11,7 @@ import { debounce } from "@solid-primitives/scheduled"
 import type { TagCompletion, TagsAnswer, TagsRequest } from "@olai/format"
 
 import { SETTLE_MS, type Taking } from "@olai/web/client/settled.ts"
-import { client } from "olai-plugin-outlines/client"
+import { client } from "../../client.ts"
 
 /** How many rows the widget offers. A row's popup is a shortlist — and the
  *  number travels ON THE REQUEST rather than living in the answer's shape,

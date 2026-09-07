@@ -30,7 +30,7 @@ import { documentReferences, propertyRoutes } from "olai-plugin-outlines/contrac
 import { atFile } from "olai-plugin-navigation/routes"
 import { DocRef } from "./browser/document/DocRef.tsx"
 import { name, browserState, documentBodies, properties, holdDocumentActions } from "./index.ts"
-import { client } from "olai-plugin-markdown/client"
+import { client } from "./client.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 
 export default definePlugin({ name, needs: [Wired, Offers], apply: Effect.gen(function*() {

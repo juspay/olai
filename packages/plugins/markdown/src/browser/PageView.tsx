@@ -15,7 +15,7 @@ import type { Navigation } from "olai-plugin-navigation/contract"
 import { useRouter, useHere, useFollow } from "olai-plugin-navigation/routing"
 import { hrefOf } from "olai-plugin-navigation/routes"
 import { panesOf } from "olai-plugin-navigation/workspace"
-import { client } from "olai-plugin-markdown/client"
+import { client } from "../client.ts"
 
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { only } from "@olai/web/client/narrow.ts"

@@ -11,8 +11,7 @@
     "./*": "./src/*",
     "./surface": "./src/surface.ts",
     "./tools": "./src/tools.ts",
-    "./testids": "./src/testids.ts",
-    "./client": "./src/client.ts"
+    "./testids": "./src/testids.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -39,8 +38,7 @@
   "olai": {
     "contracts": [
       "./testids",
-      "./surface",
-      "./client"
+      "./surface"
     ]
   }
 }

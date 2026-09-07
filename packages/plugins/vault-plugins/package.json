@@ -10,7 +10,6 @@
     "./policy": "./src/policy.ts",
     "./surface": "./src/surface.ts",
     "./tools": "./src/tools.ts",
-    "./client": "./src/client.ts",
     "./browser": "./src/browser.ts"
   },
   "scripts": {
@@ -27,8 +26,7 @@
   },
   "olai": {
     "contracts": [
-      "./surface",
-      "./client"
+      "./surface"
     ]
   }
 }

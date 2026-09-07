@@ -48,7 +48,7 @@ import { atElement, type Route } from "olai-plugin-navigation/routes"
 import { runAsync } from "@olai/web/client/run.ts"
 import { useRouter } from "olai-plugin-navigation/routing"
 
-import { client } from "olai-plugin-outlines/client"
+import { client } from "../client.ts"
 
 const [focused, setFocused] = createSignal<string | null>(null)
 

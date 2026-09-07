@@ -15,7 +15,7 @@ import { type Accessor, createEffect, createMemo, createSignal, onCleanup } from
 import type { NodeHit, Refusal, SearchAnswer, SearchHit } from "@olai/format"
 
 import { SETTLE_MS, type Taking } from "@olai/web/client/settled.ts"
-import { client } from "olai-plugin-search/client"
+import { client } from "../../client.ts"
 
 /** Below this the answer is noise: two characters match half an outline by
  *  substring. The shell items still filter locally, so the palette is never

@@ -104,7 +104,7 @@ import type { OpFailure } from "@olai/format"
 import { reachable } from "@olai/web/client/connection/reaching.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { connectionReadout } from "@olai/web/client/wire.ts"
-import { client } from "olai-plugin-outlines/client"
+import { client } from "../client.ts"
 
 /**
  * How long ids are gathered before the question goes.

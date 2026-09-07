@@ -102,7 +102,7 @@ import { sameNarrowingRequest } from "@olai/format"
 import type { MatchedNode } from "@olai/format"
 
 import { SETTLE_MS } from "@olai/web/client/settled.ts"
-import { client } from "olai-plugin-outlines/client"
+import { client } from "../../client.ts"
 import type { Matches } from "./matches.ts"
 
 // The settle is imported rather than restated (`../settled.ts` argues it: one

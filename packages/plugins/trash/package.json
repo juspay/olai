@@ -12,8 +12,7 @@
     "./surface": "./src/surface.ts",
     "./tools": "./src/tools.ts",
     "./questions": "./src/browser/question.ts",
-    "./testids": "./src/testids.ts",
-    "./client": "./src/client.ts"
+    "./testids": "./src/testids.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -42,8 +41,7 @@
     "contracts": [
       "./questions",
       "./testids",
-      "./surface",
-      "./client"
+      "./surface"
     ]
   }
 }

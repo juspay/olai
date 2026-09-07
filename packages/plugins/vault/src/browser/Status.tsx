@@ -1,6 +1,6 @@
 import { Show } from "solid-js"
 import { NOTHING_WRONG } from "@olai/format"
-import { client } from "olai-plugin-vault/client"
+import { client } from "../client.ts"
 import { Page } from "./errors/Page.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { troubleIn } from "./errors/banner.ts"
