@@ -307,11 +307,18 @@ test("a shutdown that lands mid-boot leaves no scope, no ticket and no process",
  * then lands in a map nobody reads again, with a credential and a process in
  * it.
  *
- * `startAgentSession` is the shortest of those paths and takes no boot at all,
- * which is why it is the one asked here: this case would pass on the boot fix
- * alone if it went through `chat.start`.
+ * TWO OF THEM, and neither is the boot's: a session started at a node, and the
+ * RELOCATION the audit names by name.
+ *
+ * The FIRST is the discriminating one — it fails against the arrangement this
+ * replaced, with a spawned agent that was told it was ready and never told to
+ * go. The second covers the other path and passes either way on this machine:
+ * its acquisition happens to finish before the stop reads the node map. Said
+ * here rather than left for a reader to discover, because a case that cannot
+ * fail is coverage and not evidence, and the two are not the same thing.
  */
-test("a shutdown that lands mid-acquisition away from the boot leaves nothing behind", async () => {
+for (const path of ["a session started at a node", "a relocation"] as const) {
+test(`a shutdown that lands mid-acquisition during ${path} leaves nothing behind`, async () => {
   const { run, fork, said } = logging()
   const node: NodeAgent = {
     id: "one",
@@ -347,9 +354,24 @@ test("a shutdown that lands mid-acquisition away from the boot leaves nothing be
     onTranscript: () => {},
   }))
 
-  // NO `chat.start`: the boot is not the path under test, and running it would
-  // let this case pass on the boot's own fix.
-  const seating = run(Effect.catch(chat.startAgentSession(node.id, "alpha"), () => Effect.void))
+  // A RELOCATION MOVES A CONVERSATION THAT EXISTS, so that path opens one at
+  // the root first and waits for the boot to be done with it — which is what
+  // makes the acquisition under test unambiguously not the boot's. The other
+  // path takes no boot at all.
+  if (path === "a relocation") {
+    await run(chat.start)
+    await until("the root conversation to open", () =>
+      chat.state().session !== null && chat.state().status === "idle")
+  }
+  const seating = run(Effect.catch(
+    path === "a session started at a node"
+      ? chat.startAgentSession(node.id, "alpha")
+      : chat.assignedTo(node.id, {
+        agent: "alpha",
+        session: chat.state().session?.id ?? "",
+      }),
+    () => Effect.void,
+  ))
   await minting.promise
   await run(chat.stop)
   await seating
@@ -363,6 +385,7 @@ test("a shutdown that lands mid-acquisition away from the boot leaves nothing be
   const exited = said.filter((line) => line.message.includes("chat agent exited"))
   expect(exited).toHaveLength(ready.length)
 }, 30_000)
+}
 
 test("boot moves a newly identified node session into its scope", async () => {
   const { run, fork, said } = logging()
