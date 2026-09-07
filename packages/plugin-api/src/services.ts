@@ -83,7 +83,6 @@ import {
   contained,
   type Host,
   openHost,
-  offered as readOffered,
   hostChanges,
   closeHost,
   offer,
@@ -147,12 +146,29 @@ export interface Env {
 }
 export const Env = serviceTag<Env>("env")
 
-/** Optional live service access for adapters whose providers may be absent. */
-export interface HostServices {
-  readonly current: <A>(key: ServiceKey<A>) => A | undefined
-  readonly changes: Stream.Stream<void>
-}
-export const HostServices = serviceTag<HostServices>("host.services")
+/**
+ * ## `HostServices` IS GONE, and the absence is the phase
+ *
+ * There was a capability here whose whole shape was *give me whatever stands
+ * behind this key* — `current: <A>(key: ServiceKey<A>) => A | undefined`, over
+ * the host, for any key. Two rows named it: the MCP row spent it on `Directory`,
+ * `Ops` and `Ledger`, and the vault row's settings on `Ledger` and `Search`.
+ * None of those five dependencies was DECLARED anywhere, so the graph a person
+ * reads — a row's `needs`, `plugins.inspect`, the panel's sentence about what
+ * would go `waiting` if this row were turned off — said one thing while the
+ * code did another (the Cordis audit's §5).
+ *
+ * The five are components of their own rows now, each naming ONE key: MCP's
+ * `vault-tools` and `ledger`, the vault's `ledger-view` and `search-view`. That
+ * keeps every optional behaviour the lookup was reached for — **MCP works
+ * without a vault, and the vault works without git** — and none of it
+ * introduces the cycle a mandatory `needs` would: a component waits on its own
+ * while its row runs, which is exactly what `waiting` is for.
+ *
+ * A key nobody could name is a key nobody can be waiting on, so the capability
+ * is not replaced by a narrower lookup. What replaced it is declaration.
+ *
+ */
 
 /** Inert module declarations from the selected bundle, including disabled rows. */
 export interface BundleModules {
@@ -1348,7 +1364,6 @@ export const openPlugins = (
 ): Effect.Effect<Plugins, never, Scope.Scope> =>
   Effect.gen(function*() {
     const host = yield* openHost
-    yield* provide(host, HostServices, (plugin) => ({ current: (key) => readOffered(host, key, plugin), changes: hostChanges(host) }))
 
     yield* provide(host, Env, (plugin) => ({
       vars: config.vars,
@@ -1610,7 +1625,6 @@ export type { Registering } from "@olai/acp/engine"
  * naming that key would be reaching past a door it already has.
  */
 export const SERVICES = [
-  HostServices,
   BundleModules,
   VaultSettings,
   Env,

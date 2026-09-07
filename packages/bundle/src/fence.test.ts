@@ -1795,6 +1795,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/pins/src/browser/palette.ts",
       "plugins/vault/src/server.ts",
       "plugins/vault/src/setup.ts",
+      "plugins/vault/src/views.ts",
       "server/src/main.ts",
       "surface/src/media.ts",
       "web/src/client/keys.ts",

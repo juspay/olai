@@ -30,6 +30,15 @@ const rootWithNote = () => {
   return root
 }
 
+/**
+ * ...AND ITS TWO OPTIONAL VIEWS, which are the same shape one door over. The
+ * ledger a write is recorded in and the matcher a query is answered by are
+ * other rows', and each is a component of this one that names its key — so a
+ * headless serve with neither says which two it is short of, exactly as it
+ * already said `transport-surface` for the HTTP component. They cannot be
+ * `needs` on the row: git needs the vault, and that would be a cycle
+ * (`olai-plugin-vault`'s `views.ts`).
+ */
 test("headless vault reports its missing HTTP component while file access leaves and returns", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const root = rootWithNote()
   const { plugins, store, ops } = yield* opening(root)
@@ -38,7 +47,10 @@ test("headless vault reports its missing HTTP component while file access leaves
   expect(first).toBeDefined()
   expect(configsOf(plugins.host).get("vault")).toEqual({ format: "olai" })
   const report = yield* reportBundle(plugins.host, ["vault", "ws", "mcp", "web-app"])
-  expect(report.get("vault")).toEqual({ state: "waiting", missing: ["transport-surface"] })
+  expect(report.get("vault")).toEqual({
+    state: "waiting",
+    missing: ["transport-surface", "ledger", "search"],
+  })
   for (const name of ["ws", "mcp", "web-app"]) expect(report.get(name)?.state).toBe("off")
   let revisions = 0
   let releases = 0
