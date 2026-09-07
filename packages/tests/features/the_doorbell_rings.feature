@@ -129,7 +129,8 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     When I clear this conversation's "kolu" wake
     Then this conversation's "kolu" wake is on nothing
     And this conversation's "odu" wake is on "backlog.olai"
-    When the server stops
+    When I leave the app
+    And the server stops
     And the server starts again on the same port
     And I open the app
     And the agent panel is open
