@@ -7,7 +7,7 @@
  * do not participate in that ordering and remain in plugin.ts.
  */
 import type { Context as CordisContext, Fiber as CordisFiber } from "cordis"
-import { Context, Effect, Exit, Fiber, Scope } from "effect"
+import { Context, Duration, Effect, Exit, Fiber, Scope } from "effect"
 import type { Provision, ServiceKey } from "./service.ts"
 
 /** A duplicate is a distinct defect so the API can supply its own sentence
@@ -18,6 +18,32 @@ export class OfferConflict extends Error {
   }
 }
 
+/**
+ * A REGISTRATION THAT MUST STOP ACCEPTING CALLS BEFORE THIS ACTIVATION UNWINDS
+ * — the plugin buses' half of the lifetime, and the reason it is here rather
+ * than on the scope.
+ *
+ * A scope orders finalizers by registration, LIFO, and `Listen` puts no
+ * constraint on when a plugin registers a handler relative to the resources
+ * that handler reads. So a resource acquired after a `listen` was released
+ * BEFORE the handler was stopped — reproduced, and the tree really is written
+ * that way. What a running handler needs is not a place in that order; it is a
+ * stage BEFORE it, which only the activation can offer.
+ *
+ * TWO STEPS, and they are separate because ALL of the first must happen before
+ * ANY of the second: a sequential shut-and-cut loop would leave a later
+ * registration admitting calls while an earlier one was still being cut.
+ */
+export interface Quieting {
+  /** Stop accepting calls. Synchronous, and run for every registration on the
+   *  activation before any of them is cut. */
+  readonly shut: () => void
+  /** Cut what is still inside, and answer only when it has finished unwinding.
+   *  Signalling a cancellation is not joining one; a resource may not close
+   *  until this has answered. */
+  readonly cut: () => Promise<void>
+}
+
 /** The plugin adapter can bind initialization and close its lifetime, but cannot
  * rearrange revocation or mark cleanup complete without actually doing it. */
 export interface Activation {
@@ -26,6 +52,7 @@ export interface Activation {
   readonly interrupt: () => void
   readonly close: (exit: Exit.Exit<void>) => Promise<void>
   readonly offer: <Shape>(key: ServiceKey<Shape>, provision: Provision<Shape>) => void
+  readonly quiet: (quieting: Quieting) => void
 }
 
 interface Live {
@@ -59,6 +86,7 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
   const drained = Promise.withResolvers<void>()
   let closing: Promise<void> | undefined
   const revokes: Array<() => Promise<void>> = []
+  const quiets: Array<Quieting> = []
   let running: Fiber.Fiber<void> | undefined
   let interrupted = false
   const interrupt = (): void => {
@@ -81,10 +109,28 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
     },
     close: (exit) => closing ??= Promise.resolve().then(async () => {
       try {
+        // STOP ACCEPTING FIRST, and all of them before any of the rest — the
+        // paper's L-Leave, and the one ordering a scope cannot express. A
+        // handler that has not started is now never started, whatever this
+        // plugin registered when.
+        for (const quiet of quiets) quiet.shut()
         for (const revoke of revokes.reverse()) await revoke()
         await Promise.all([...live.values()]
           .filter((other) => other.dependencies.has(ctx.fiber))
           .map((other) => other.drained))
+        // ...AND THEN CUT WHAT IS STILL INSIDE, together, and JOIN it — before
+        // a single resource finalizer runs. `cut` answers when the calls it
+        // interrupted have finished unwinding, so what follows this line is
+        // running under nothing.
+        //
+        // THERE IS NO GIVING UP HERE. One shared interval for the whole
+        // activation says so if a cut is slow, and then goes on waiting: the
+        // version that released resources under a still-running handler after
+        // five seconds is exactly the defect this stage exists to close, and a
+        // timer that abandoned the wait would be it again. An invocation that
+        // has made itself uninterruptible is waited for; that is what Effect's
+        // interruption means everywhere else in this tree.
+        await joinCuts(quiets, ctx.fiber.name ?? "a plugin", services)
       } finally {
         try {
           await Effect.runPromiseWith(services)(Scope.close(scope, exit))
@@ -94,6 +140,16 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
         }
       }
     }),
+    quiet: (quieting) => {
+      // A registration made while this activation is already closing has missed
+      // the shut above, so it is shut here instead of being enrolled in a
+      // stage that has gone past.
+      if (closing !== undefined) {
+        quieting.shut()
+        return
+      }
+      quiets.push(quieting)
+    },
     offer: (key, provision) => {
       if (closing !== undefined) throw new Error("effect-cordis: offer requires an open plugin activation")
       let revoke: () => void
@@ -122,6 +178,50 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
     },
   }
 }
+
+/**
+ * HOW LONG A SLOW CUT GOES UNMENTIONED — a reporting interval and NOT a bound.
+ *
+ * Nothing is abandoned when it elapses. What it buys is that an unload which is
+ * genuinely stuck inside somebody's handler says so, once, naming the plugin,
+ * instead of looking like a hang with no author.
+ */
+const SLOW_CUT = Duration.seconds(5)
+
+/** Cut every registration together, and say so if it takes a while — see the
+ *  paragraph in `close`. One timer for the activation rather than one per
+ *  registration: the stage is one stage. */
+const joinCuts = async (
+  quiets: ReadonlyArray<Quieting>,
+  plugin: string,
+  services: Context.Context<never>,
+): Promise<void> => {
+  if (quiets.length === 0) return
+  const cutting = Promise.all(quiets.map((quiet) => quiet.cut()))
+  let slow: ReturnType<typeof setTimeout> | undefined = setTimeout(() => {
+    slow = undefined
+    void Effect.runPromiseWith(services)(Effect.logWarning(
+      `plugins: "${plugin}" is still stopping — a handler of its own has not come out of its `
+        + `invocation after ${Duration.format(SLOW_CUT)}, and its resources stay open until it does`,
+    ))
+  }, Duration.toMillis(SLOW_CUT))
+  try {
+    await cutting
+  } finally {
+    if (slow !== undefined) clearTimeout(slow)
+  }
+}
+
+/** Register a bus registration's stop with the CALLING plugin's activation, and
+ *  say whether there was one. `false` is a gate opened on a bare scope — a
+ *  bench, a `standing()` runtime — which falls back to a scope finalizer and
+ *  the LIFO ordering that comes with it. */
+export const quieting = (quieting: Quieting): Effect.Effect<boolean> =>
+  Effect.map(Offering, (activation) => {
+    if (activation === undefined) return false
+    activation.quiet(quieting)
+    return true
+  })
 
 /** The offering context is ambient, so authors receive a capability, never the
  * Cordis fiber or a caller-supplied identity. Readiness remains Cordis's: a

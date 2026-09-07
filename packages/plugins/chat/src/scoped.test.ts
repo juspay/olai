@@ -296,6 +296,74 @@ test("a shutdown that lands mid-boot leaves no scope, no ticket and no process",
   expect(exited).toHaveLength(ready.length)
 }, 30_000)
 
+/**
+ * ...AND THE SAME SHUTDOWN LANDING ON A PATH THAT IS NOT THE BOOT.
+ *
+ * Owning the boot fiber closes the boot's window and only the boot's. Every
+ * acquisition takes several yields to spawn a panel, and three others reach it
+ * — `reread`'s relocation, `assignedTo`, and a session started at a node — so
+ * any of them can be past the shutting-down check, inside the uninterruptible
+ * panel acquisition, when a stop sets its flag and reads the node map. The slot
+ * then lands in a map nobody reads again, with a credential and a process in
+ * it.
+ *
+ * `startAgentSession` is the shortest of those paths and takes no boot at all,
+ * which is why it is the one asked here: this case would pass on the boot fix
+ * alone if it went through `chat.start`.
+ */
+test("a shutdown that lands mid-acquisition away from the boot leaves nothing behind", async () => {
+  const { run, fork, said } = logging()
+  const node: NodeAgent = {
+    id: "one",
+    file: "Work.olai",
+    title: "one",
+    engine: "alpha",
+    session: null,
+    memory: 2,
+  }
+  const minted: Array<string> = []
+  const released: Array<string> = []
+  // The same latch the boot case uses, and for the same reason: the credential
+  // is minted immediately after the shutting-down check and immediately before
+  // anything is spawned, so a stop that waits for it lands in the window.
+  const minting = Promise.withResolvers<void>()
+  const chat = await run(make({
+    fork,
+    roster: () => [installed("alpha")],
+    engines: () => ["alpha"],
+    cwd,
+    tools: () => null,
+    nodeAt: (id) => id === node.id ? node : null,
+    seatableAt: (id) => id === node.id,
+    nodes: () => [node],
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: () => null,
+    ticket: (held) => {
+      minted.push(held)
+      minting.resolve()
+      return { bearer: `ticket-${held}`, release: () => released.push(held) }
+    },
+    onState: () => {},
+    onTranscript: () => {},
+  }))
+
+  // NO `chat.start`: the boot is not the path under test, and running it would
+  // let this case pass on the boot's own fix.
+  const seating = run(Effect.catch(chat.startAgentSession(node.id, "alpha"), () => Effect.void))
+  await minting.promise
+  await run(chat.stop)
+  await seating
+  // Long enough for an acquisition that outlived the stop to have finished
+  // spawning and registered its slot.
+  await run(Effect.sleep("1500 millis"))
+
+  expect(chat.live().size).toBe(0)
+  expect([...released].sort()).toEqual([...minted].sort())
+  const ready = said.filter((line) => line.message.includes("chat agent ready"))
+  const exited = said.filter((line) => line.message.includes("chat agent exited"))
+  expect(exited).toHaveLength(ready.length)
+}, 30_000)
+
 test("boot moves a newly identified node session into its scope", async () => {
   const { run, fork, said } = logging()
   const node: NodeAgent = {

@@ -23,163 +23,190 @@
  * or a directory the plugin no longer owns, and it may finish what it meant to
  * do before anything notices. The failure is being called at all.
  *
- * ## The two halves of "stopped", and they need different answers
+ * ## The two halves of "stopped", and the second one is why this forks
  *
  * A call that HAS NOT STARTED is the easy half and the reproduced one: the gate
- * shuts before the plugin's other finalizers run (it is registered first, so
- * LIFO releases it last of the registration's own pair and before anything the
- * `apply` acquired ahead of it), and every later arrival takes the `instead`
- * arm rather than the handler.
+ * is shut before the plugin unwinds anything, and every later arrival takes the
+ * caller's other arm rather than the handler.
  *
- * A call ALREADY RUNNING is somebody else's fiber standing in the middle of this
- * plugin's resources, and it may not simply be cut: the fiber it is running on
- * is the PUBLISHER's — the vault's composition root rings a revision from inside
- * its own connector — so interrupting the work would interrupt the caller, and
- * one leaving plugin would take the publisher and every handler after it down.
- * So the gate WAITS, which is the same discipline {@link ./lifecycle.ts}'s
- * `close` already keeps one level up: revoke first, join what is still inside,
- * release the resources last.
+ * A call ALREADY RUNNING has to be CUT, and it cannot be cut where it used to
+ * run. It ran on the PUBLISHER's fiber — the vault's composition root rings a
+ * revision from inside its own connector — so interrupting it there would
+ * interrupt the publisher, and one leaving plugin would take the publisher and
+ * every handler after it down with it.
  *
- * ## ...AND THE WAIT IS BOUNDED, twice, because one bound is not enough
+ * So a gated call gets a fiber of its OWN, started with the publisher's
+ * services (it sees exactly what it saw before) and joined by the publisher (a
+ * dispatch still answers when the last handler has). Cutting it is then
+ * `Fiber.interrupt` on that fiber alone: the handler unwinds its own
+ * finalizers, the publisher sees a completed join and walks on to the next
+ * handler, and nothing else in the tree notices.
  *
- * **{@link PATIENCE} is the bound that always holds.** After it the release says
- * so — with the plugin's word and the occasion on the line — and goes on to
- * close the resources, which is exactly what happens today except that today it
- * happens instantly and in silence. A finalizer that could block forever on a
- * plugin's own misbehaviour would be a worse failure than the one this module
- * exists to fix.
+ * ## THIS REPLACED A TIMER, and the timer was the wrong answer
  *
- * **The closing fiber's own calls are not waited for at all.** A `Scope.close`
- * made from INSIDE a call — the same fiber, synchronously — would otherwise be
- * a fiber waiting for itself, and no timer makes that anything but five wasted
- * seconds. Excluding it by fiber identity costs nothing and is exact.
+ * The first version of this module WAITED for a running call and, after five
+ * seconds, logged a line and released the resources underneath it. Both
+ * reviewers reproduced the obvious consequence with an ordinary slow handler —
+ * `resource released` / `dispose completed` / `handler resumed; resource alive
+ * = false` — and they are right that announcing the violation is not answering
+ * it. There is no patience here now, and no constant to tune: the call is cut,
+ * and `Fiber.interrupt` does not answer until the fiber it cut has finished
+ * unwinding.
  *
- * WHAT THAT ESCAPE DOES NOT REACH, measured rather than assumed: a handler that
- * stops its own PLUGIN. `definePlugin`'s disposer runs the scope close through
- * `Effect.runPromiseWith` on a fresh fiber, so the closer's identity can never
- * be the handler's however the stop was asked for. Such a handler is served by
- * the first bound instead — the release waits five seconds, says so, and the
- * handler then finishes — so it is bounded and loud rather than excluded, and
- * the line it produces names that reading beside the other one. Threading the
- * asking fiber across the disposer boundary is what would close it; that is
- * `./lifecycle.ts`'s shape to change, not this module's.
+ * WHAT THAT DOES NOT PROMISE, said plainly: a handler that has put itself in an
+ * uninterruptible region is waited for, because that is what Effect's
+ * interruption means everywhere else in this tree. This module can promise that
+ * a call is cut and joined before its plugin's resources close; it cannot
+ * promise a bound on code that has declined to be interrupted. The one thing it
+ * will not do again is proceed anyway.
+ *
+ * ## ...AND WHERE THE CUT IS RUN FROM IS THE OTHER HALF OF THE REPAIR
+ *
+ * The first version registered the cut as an ordinary scope finalizer, which
+ * made it hostage to registration order: a resource acquired AFTER the `listen`
+ * is released BEFORE the gate, so LIFO teardown handed a running handler a
+ * released resource without ever reaching the timer. Reproduced, and the tree
+ * really is written that way — `xyne-spaces` subscribes `onSeen` and registers
+ * its mirrors' stop after it, deliberately; `git` registers a revision handler
+ * and forks four scoped loops after that.
+ *
+ * `Listen` puts no constraint on registration order and should not have to. So
+ * a gate under a plugin is not the SCOPE's at all: it registers with the
+ * ACTIVATION, the way an offer does, and {@link ./lifecycle.ts}'s `close` shuts
+ * every one of them before it unwinds anything and cuts every one of them
+ * before it closes the resource scope. Shut-all-then-cut-all, in that order,
+ * because a sequential loop would leave a later registration accepting calls
+ * while an earlier one was still being cut.
+ *
+ * A gate opened on a BARE scope — a bench, a `standing()` runtime, anything
+ * that is not a plugin activation — falls back to a scope finalizer, and there
+ * LIFO is the only ordering there is. That is the honest limit of what a scope
+ * can offer, and it is why the plugin path does not use one.
  */
 
-import { Deferred, Duration, Effect, Scope } from "effect"
+import { Cause, Effect, Exit, Fiber, Scope } from "effect"
+
+import { quieting } from "./lifecycle.ts"
 
 /**
- * ONE REGISTRATION'S GATE — one verb, and the second argument is what makes it
- * usable by both dispatch modes.
+ * ONE REGISTRATION'S GATE — one verb, and what comes back is a FIBER rather
+ * than an answer.
  *
- * A broadcast has nothing to hand back and passes `Effect.void`; a waterfall
- * must not swallow the rest of its chain and passes the step that carries on
- * with the value as it stands — the same recovery its dying-link arm already
- * takes. Neither mode is asked to learn what a shut gate MEANS; each says what
- * it wants done instead.
+ * The caller waits for it (see {@link holding}), which is what keeps a
+ * dispatch's promise to answer when the last handler has. What the caller gets
+ * for holding the handle instead of the value is the two things a gate is for:
+ * `undefined` says the call was never started, and the exit says whether the
+ * one that was started finished or was cut.
  */
 export interface Gate {
-  readonly through: <A>(work: Effect.Effect<A>, instead: Effect.Effect<A>) => Effect.Effect<A>
+  readonly start: <A>(work: Effect.Effect<A>) => Effect.Effect<Fiber.Fiber<A> | undefined>
 }
 
 /**
- * HOW LONG A LEAVING PLUGIN WAITS for a call still inside one of its
- * registrations before it stops waiting and says so.
+ * HOLD A STARTED CALL for as long as `work` runs — and take it with you if you
+ * are interrupted first.
  *
- * Five seconds is long enough that no honest handler on this tree's buses ever
- * reaches it — a revision walk is milliseconds — and short enough that a plugin
- * a person switched off in the panel goes off rather than appearing to hang.
+ * The fiber a gate starts is a ROOT fiber and not a child of the publisher's:
+ * that is what makes the check-and-start one synchronous block, with no step in
+ * the middle for a cut to land in. The price of a root is that nothing carries
+ * the publisher's own interruption down to it, so every caller pays it back
+ * here, once, in the one place both dispatch modes can share.
  */
-export const PATIENCE: Duration.Duration = Duration.seconds(5)
+export const holding = <A, B>(
+  started: Fiber.Fiber<A>,
+  work: Effect.Effect<B>,
+): Effect.Effect<B> => Effect.onInterrupt(work, () => Fiber.interrupt(started))
 
 /**
- * Open one, held by the registering plugin's scope.
+ * Open one, held by the registering plugin's activation — or, failing that, by
+ * the enclosing scope.
  *
- * `plugin` and `what` are the same pair {@link ./broadcast.ts}'s `failed` takes
- * and are here for the same reason: the one line this module can ever write is
- * about a named plugin on a named occasion, and no caller may sign another
- * plugin's name to it.
+ * `plugin` and `what` are the same pair {@link ./broadcast.ts}'s `failed` takes.
+ * They carry no behaviour here and are not spent on a log line; they are what a
+ * reader of a stack or a heap sees when they ask whose gate this is.
  */
-export const gate = (
-  plugin: string,
-  what: string,
-  patience: Duration.Input = PATIENCE,
-): Effect.Effect<Gate, never, Scope.Scope> =>
-  Effect.acquireRelease(
-    Effect.sync(() => open(plugin, what)),
-    (held) => held.shut(patience),
-  ).pipe(Effect.map((held) => held.gate))
+export const gate = (plugin: string, what: string): Effect.Effect<Gate, never, Scope.Scope> =>
+  Effect.gen(function*() {
+    const held = open(plugin, what)
+    // THE ACTIVATION FIRST, because only it can promise to run this before the
+    // plugin's resources rather than somewhere in their LIFO order.
+    if (yield* quieting(held.quiet)) return held.gate
+    yield* Effect.addFinalizer(() =>
+      Effect.promise(async () => {
+        held.quiet.shut()
+        await held.quiet.cut()
+      })
+    )
+    return held.gate
+  })
 
-/** WHAT THE SCOPE HOLDS — the gate a dispatch calls through and the release
- *  only this module may run. */
+/** WHAT THE OWNER HOLDS — the gate a dispatch calls through, and the two-step
+ *  stop only {@link ./lifecycle.ts} and the fallback finalizer may run. */
 interface Held {
   readonly gate: Gate
-  readonly shut: (patience: Duration.Input) => Effect.Effect<void>
+  readonly quiet: { readonly shut: () => void; readonly cut: () => Promise<void> }
 }
 
-const open = (plugin: string, what: string): Held => {
+const open = (_plugin: string, _what: string): Held => {
   let shut = false
-  /** CALLS INSIDE, BY FIBER — a count rather than a flag, because a fiber may be
-   *  inside twice (a waterfall link whose `next` reaches the same plugin's later
-   *  link), and by fiber rather than in one total because the release has to be
-   *  able to tell its own re-entrant caller apart from everybody else. */
-  const inside = new Map<number, number>()
-  let waiting: { readonly closer: number; readonly idle: Deferred.Deferred<void> } | undefined
-  /** Everybody the release is genuinely waiting for — which is everybody except
-   *  the fiber doing the releasing. See the header's second bound, including
-   *  what it does not reach. */
-  const outstanding = (closer: number): number => {
-    let calls = 0
-    for (const [fiber, depth] of inside) if (fiber !== closer) calls += depth
-    return calls
-  }
-  const leave = (fiber: number): void => {
-    const depth = (inside.get(fiber) ?? 1) - 1
-    if (depth <= 0) inside.delete(fiber)
-    else inside.set(fiber, depth)
-    if (waiting !== undefined && outstanding(waiting.closer) === 0) {
-      Deferred.doneUnsafe(waiting.idle, Effect.void)
-    }
-  }
+  /** THE CALLS INSIDE, as fibers — which is the whole of what a cut needs, and
+   *  is why there is no counting, no deferred and no timer left in this file. */
+  const inside = new Set<Fiber.Fiber<unknown>>()
   return {
     gate: {
-      through: (work, instead) =>
-        // THE FIBER FIRST, then one synchronous block: the read of `shut` and
-        // the entry that follows it must not be separated by a step, or a
-        // release landing between them would leave a call inside a gate that
-        // has already stopped waiting for anybody.
-        Effect.flatMap(Effect.fiberId, (fiber) =>
+      start: <A>(work: Effect.Effect<A>) =>
+        // THE PUBLISHER'S OWN SERVICES, captured here and handed to the fiber
+        // below, so a handler sees exactly the logger, the level and the
+        // annotations it saw when it ran on the publisher's fiber directly.
+        // The fork is the only thing that changed; what it runs under is not.
+        Effect.flatMap(Effect.context<never>(), (services) =>
           Effect.suspend(() => {
-            if (shut) return instead
-            inside.set(fiber, (inside.get(fiber) ?? 0) + 1)
-            // ENSURING rather than a `flatMap` after the work: a handler that
-            // dies, and a handler whose own fiber is interrupted out from under
-            // it, both have to leave — otherwise one failure parks a release
-            // for the whole of its patience.
-            return Effect.ensuring(work, Effect.sync(() => leave(fiber)))
+            // ONE SYNCHRONOUS BLOCK, from the read of `shut` to the entry in
+            // `inside`. There is no Effect step in the middle, so a cut landing
+            // "between" them is not an arrangement that exists: either it sees
+            // this fiber in the set, or this call was never started.
+            if (shut) return Effect.succeed(undefined)
+            let held: Fiber.Fiber<A> | undefined
+            let ended = false
+            const started = Effect.runForkWith(services)(Effect.ensuring(
+              work,
+              Effect.sync(() => {
+                ended = true
+                if (held !== undefined) inside.delete(held)
+              }),
+            ))
+            held = started
+            // A call that finished inside the fork itself was never in the set
+            // and must not be put there afterwards.
+            if (!ended) inside.add(started)
+            return Effect.succeed(started)
           })),
     },
-    shut: (patience) =>
-      Effect.flatMap(Effect.fiberId, (closer) =>
-        Effect.suspend(() => {
-          // SHUT BEFORE THE WAIT, always: what the wait is for is the calls
-          // already inside, and a gate that took new ones while it waited would
-          // never be done.
-          shut = true
-          if (outstanding(closer) === 0) return Effect.void
-          const idle = Deferred.makeUnsafe<void>()
-          waiting = { closer, idle }
-          return Effect.timeoutOrElse(Deferred.await(idle), {
-            duration: patience,
-            orElse: () =>
-              // BOTH READINGS, because the release cannot tell them apart and a
-              // line that named only the first would be wrong half the time.
-              Effect.logWarning(
-                `plugins: stopped waiting for "${plugin}" to come out of ${what} after `
-                  + `${Duration.format(Duration.fromInputUnsafe(patience))} — its resources `
-                  + "close under a handler that is still running, which is either stuck "
-                  + "or waiting on this plugin's own stop",
-              ),
-          })
-        })),
+    quiet: {
+      shut: () => { shut = true },
+      cut: async () => {
+        const cutting = [...inside]
+        inside.clear()
+        if (cutting.length === 0) return
+        // INTERRUPT AND JOIN, which is one verb in Effect: `Fiber.interrupt`
+        // answers when the fiber it cut has run its finalizers. That is the
+        // difference between this and the timer it replaced — the resources
+        // below are not closed on a promise that the call will stop, but after
+        // it has.
+        await Effect.runPromise(
+          Effect.forEach(cutting, (one) => Fiber.interrupt(one), {
+            concurrency: "unbounded",
+            discard: true,
+          }),
+        )
+      },
+    },
   }
 }
+
+/** ...and the one reading of a cut call both dispatch modes make: it was
+ *  interrupted, by us, because its plugin left — not a failure anybody should
+ *  be told about. A handler that FAILED is a different sentence and belongs to
+ *  the caller. */
+export const wasCut = <A>(exit: Exit.Exit<A>): boolean =>
+  Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)

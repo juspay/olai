@@ -57,6 +57,13 @@ import { onCleanup, onMount } from "solid-js"
  * NOTHING RUNS AFTER THE OWNER IS GONE. `made` is not called if the owner was
  * disposed while `load` was in flight, `failed` is not called either, and what
  * `made` returned is released exactly once when the owner goes.
+ *
+ * A `made` THAT THROWS reaches `failed` like a load that would not fetch, so a
+ * reader is told rather than left in front of an empty box with an unhandled
+ * rejection behind it. What that does NOT do is release what a half-finished
+ * `made` had already built: this function never saw those, and the only code
+ * that can put them back is the code that made them. `made` owns its own
+ * partial allocations — `../LivePane.tsx`'s does, and says so.
  */
 export const mountLater = <A>(
   load: () => Promise<A>,
@@ -75,7 +82,17 @@ export const mountLater = <A>(
       releasing?.()
     })
     void load().then(
-      (loaded) => { if (!closed) release = made(loaded) },
+      (loaded) => {
+        if (closed) return
+        // THE THROW HAS SOMEWHERE TO GO. It used to have nowhere: `made` runs
+        // inside a `.then`, so anything it threw became an unhandled rejection
+        // and the reader was told nothing at all.
+        try {
+          release = made(loaded)
+        } catch (reason) {
+          failed(reason)
+        }
+      },
       (reason) => { if (!closed) failed(reason) },
     )
   })

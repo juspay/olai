@@ -894,10 +894,11 @@ const keptIndex = (placed: Placement): Index => {
  * index. Nothing else here is uninterruptible — the `rev-parse` afterwards is
  * plain, because an abandoned one costs a sha and not an index.
  *
- * WHAT THAT COSTS is that a shutdown waits out a wedged git: two steps at
- * {@link BUDGET}, plus up to three seconds of `@olai/child`'s stopping grace
- * each — so about twenty-six seconds in the worst case, against a service
- * manager that allows ninety. Reading the
+ * WHAT THAT COSTS is that a shutdown waits out a wedged git. THREE steps at
+ * {@link BUDGET} and not two, because the `hung` arm below asks the index one
+ * more question from inside the same uninterruptible region — plus up to three
+ * seconds of `@olai/child`'s stopping grace each, so about thirty-nine seconds
+ * in the pathological case, against a service manager that allows ninety. Reading the
  * ref back in the finalizer instead was tried and is worse: at the moment of an
  * interrupt HEAD may already have moved while olai's own git is still alive
  * inside a `post-commit` hook, so the read races olai's own child and answers
@@ -981,6 +982,13 @@ const commit = (
           // The one reading it can get wrong is a commit that never ran and
           // staged nothing — and there the backup and the live index are the
           // same bytes, so keeping either is keeping the same thing.
+          //
+          // ...AND ONE RESIDUE, named rather than papered over: git's own
+          // window between moving the ref and writing the index back is
+          // microseconds wide, and the budget's kill lands in a HOOK, which is
+          // after both. A commit killed inside that window would read as not
+          // landed. Nothing in this file can narrow it further; what can is
+          // git growing a way to ask.
           const staged = yield* git(root, ["diff", "--cached", "--name-only", "--", ...what.paths])
           if (staged.ok && staged.out.trim() === "") index.keep()
           return said

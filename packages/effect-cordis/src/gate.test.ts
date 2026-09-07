@@ -1,110 +1,115 @@
 /**
- * THE GATE, WITH NO BUS UNDER IT — the four properties both dispatch modes rest
- * on, each asked of the primitive alone.
+ * THE GATE, WITH NO BUS UNDER IT — the properties both dispatch modes rest on,
+ * asked of the primitive alone.
  *
- * `./broadcast.test.ts` asks the first two again through a real bus and
- * `./lifecycle.test.ts` asks them through two real plugins, which is where the
- * failure was reproduced. These are here because a gate that lost its
- * same-fiber escape or its patience would stall a plugin's unload for five
- * seconds apiece — and a stall is diagnosed in whichever file has the fewest
- * moving parts.
+ * `./broadcast.test.ts` asks them again through a real bus,
+ * `./waterfall.test.ts` through a real chain, and `./lifecycle.test.ts` through
+ * two real plugins with real resources — which is where the failures were
+ * reproduced and where the ORDERING claim can be made at all, since the
+ * ordering is the activation's and a bare scope has none.
+ *
+ * These are here because a gate that stopped cutting, or started cutting
+ * without joining, would fail there in four places and be diagnosed in none of
+ * them.
  */
 
 import { expect, test } from "bun:test"
-import { Cause, Deferred, type Duration, Effect, Exit, Logger, Scope } from "effect"
+import { Deferred, Effect, Exit, Fiber, Scope } from "effect"
 
-import { gate, type Gate } from "./gate.ts"
+import { gate, type Gate, holding, wasCut } from "./gate.ts"
 
-/** One gate, and the scope that holds it — kept apart because every case here
- *  is about what happens when that scope closes. */
-const opened = async (
-  patience?: Duration.Input,
-): Promise<{ readonly gate: Gate; readonly close: () => Effect.Effect<void> }> => {
+/** One gate on a BARE scope, which is the fallback path — a bench, or a
+ *  `standing()` runtime. The activation path is `./lifecycle.test.ts`'s. */
+const opened = async (): Promise<{
+  readonly gate: Gate
+  readonly close: () => Effect.Effect<void>
+}> => {
   const scope = Scope.makeUnsafe()
   const held = await Effect.runPromise(
-    Effect.provideService(gate("one", "a toy occasion", patience), Scope.Scope, scope),
+    Effect.provideService(gate("one", "a toy occasion"), Scope.Scope, scope),
   )
   return { gate: held, close: () => Scope.close(scope, Exit.void) }
 }
 
 const beat = (): Promise<void> => new Promise((resume) => { setTimeout(resume, 20) })
 
-test("a call that arrives after the scope closed takes the other arm", async () => {
+test("a call that arrives after the gate shut is never started", async () => {
   const { gate: shut, close } = await opened()
   let called = 0
-  const call = shut.through(
-    Effect.sync(() => { called += 1; return "called" as const }),
-    Effect.succeed("skipped" as const),
+  const call = Effect.flatMap(
+    shut.start(Effect.sync(() => { called += 1 })),
+    (started) => Effect.succeed(started === undefined ? "skipped" : "started"),
   )
-  expect(await Effect.runPromise(call)).toBe("called")
+  expect(await Effect.runPromise(call)).toBe("started")
   expect(called).toBe(1)
   await Effect.runPromise(close())
   expect(await Effect.runPromise(call)).toBe("skipped")
   expect(called).toBe(1)
 })
 
-test("closing waits for a call that is already inside", async () => {
+test("a call already inside is CUT, and the stop does not answer until it has unwound", async () => {
+  // THE WHOLE OF WHAT REPLACED THE TIMER. The old release waited five seconds
+  // and then let the resources close under a handler that was still running;
+  // this one interrupts the call and does not come back until that call has
+  // finished its own cleanup.
   const { gate: shut, close } = await opened()
   const said: Array<string> = []
   const entered = Deferred.makeUnsafe<void>()
-  const resume = Deferred.makeUnsafe<void>()
-  const call = Effect.runPromise(shut.through(
-    Effect.gen(function*() {
-      yield* Deferred.succeed(entered, undefined)
-      yield* Deferred.await(resume)
-      said.push("the call came out")
-    }),
-    Effect.void,
-  ))
+  const started = await Effect.runPromise(shut.start(Effect.gen(function*() {
+    yield* Effect.addFinalizer(() => Effect.gen(function*() {
+      yield* Effect.sleep("30 millis")
+      said.push("the call finished unwinding")
+    }))
+    yield* Deferred.succeed(entered, undefined)
+    yield* Effect.never
+  }).pipe(Effect.scoped)))
   await Effect.runPromise(Deferred.await(entered))
-  const closing = Effect.runPromise(close()).then(() => void said.push("the scope closed"))
-  // THE WHOLE CLAIM: the release is still standing there a beat later, with
-  // nothing but the running call holding it.
-  await beat()
-  expect(said).toEqual([])
-  await Effect.runPromise(Deferred.succeed(resume, undefined))
-  await Promise.all([call, closing])
-  expect(said).toEqual(["the call came out", "the scope closed"])
+  await Effect.runPromise(close())
+  said.push("the gate stopped")
+  // THE ORDER IS THE CLAIM: unwound first, stopped second. A cut that only
+  // SIGNALLED would put these the other way round.
+  expect(said).toEqual(["the call finished unwinding", "the gate stopped"])
+  expect(wasCut(await Effect.runPromise(Fiber.await(started!)))).toBe(true)
 })
 
-test("a call that closes the gate from inside is not waited for", async () => {
-  // A FIBER WAITING FOR ITSELF, which no timer makes anything but five wasted
-  // seconds: the close is made from inside the call, on the same fiber. Without
-  // the identity escape this case takes the whole patience rather than
-  // answering at once.
-  //
-  // It is the SAME-FIBER close and only that. A handler that stops its own
-  // PLUGIN goes through `definePlugin`'s disposer, which closes the scope on a
-  // fresh fiber — the header says what happens there instead.
+test("cutting a call does not disturb the fiber that started it", async () => {
+  // The publisher's own fiber is what a handler used to run on, which is why
+  // the first version could not cut anything. It holds the call now instead:
+  // the cut lands on the call's own fiber and the caller walks on.
   const { gate: shut, close } = await opened()
-  await Effect.runPromise(shut.through(close(), Effect.void))
-  let called = 0
-  await Effect.runPromise(shut.through(Effect.sync(() => { called += 1 }), Effect.void))
-  expect(called).toBe(0)
+  const entered = Deferred.makeUnsafe<void>()
+  const said: Array<string> = []
+  const calling = Effect.runPromise(Effect.gen(function*() {
+    const started = yield* shut.start(
+      Effect.andThen(Deferred.succeed(entered, undefined), Effect.never),
+    )
+    const exit = yield* holding(started!, Fiber.await(started!))
+    said.push(wasCut(exit) ? "the call was cut" : "the call answered")
+    said.push("the caller carried on")
+  }))
+  await Effect.runPromise(Deferred.await(entered))
+  await Effect.runPromise(close())
+  await calling
+  expect(said).toEqual(["the call was cut", "the caller carried on"])
 })
 
-test("a call that never comes out is given the patience and no more, and it is said", async () => {
-  const { gate: shut, close } = await opened("20 millis")
+test("a caller interrupted first takes its call with it", async () => {
+  // The started fiber is a ROOT and not a child, which is what makes the
+  // shut-check and the start one synchronous block. `holding` is where that
+  // price is paid back.
+  const { gate: shut } = await opened()
   const entered = Deferred.makeUnsafe<void>()
-  const release = Deferred.makeUnsafe<void>()
-  const call = Effect.runPromise(shut.through(
-    Effect.andThen(Deferred.succeed(entered, undefined), Deferred.await(release)),
-    Effect.void,
-  ))
+  let released = false
+  const caller = Effect.runFork(Effect.gen(function*() {
+    const started = yield* shut.start(Effect.gen(function*() {
+      yield* Effect.addFinalizer(() => Effect.sync(() => { released = true }))
+      yield* Deferred.succeed(entered, undefined)
+      yield* Effect.never
+    }).pipe(Effect.scoped))
+    yield* holding(started!, Fiber.await(started!))
+  }))
   await Effect.runPromise(Deferred.await(entered))
-  const lines: Array<string> = []
-  const logger = Logger.make<unknown, void>(({ cause, message }) => {
-    const words = (Array.isArray(message) ? message : [message]).map(String)
-    if (cause.reasons.length > 0) words.push(String(Cause.squash(cause)))
-    lines.push(words.join(" "))
-  })
-  await Effect.runPromise(close().pipe(Effect.provide(Logger.layer([logger]))))
-  // ...and it is not silent about having given up: the plugin's word and the
-  // occasion are both on the line, which is the whole of what a person reading
-  // it has to go on.
-  expect(lines).toHaveLength(1)
-  expect(lines[0]).toContain("one")
-  expect(lines[0]).toContain("a toy occasion")
-  await Effect.runPromise(Deferred.succeed(release, undefined))
-  await call
+  await Effect.runPromise(Fiber.interrupt(caller))
+  await beat()
+  expect(released).toBe(true)
 })

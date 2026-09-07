@@ -737,7 +737,11 @@ pinned sources and proved by
   roster change, and `pending` does not degrade the readout — which means *no
   member of this page has gone silent* cannot by itself prove frames are
   arriving again. Only a test that watches a VALUE change after the toggle
-  proves it, which is what `filter_live_recovery` does.
+  proves it, which is what `filter_live_recovery` does. THIS GAP IS PART OF THE
+  CONTRACT, not an accident of it: any broker that replaces or wraps `Wired`
+  owes a consumer the same statement, and owes a decision about whether a
+  consumer should be told the gap is open rather than left to infer it from a
+  value that has not moved.
 * **A call on a departed plugin is refused, loudly, three ways.** Before the
   tab redials, the server raises `SurfaceSiblingDropped`; a call in flight on
   the superseded wire is interrupted; a client a component still holds after
@@ -1263,9 +1267,9 @@ names the file.
 | `packages/server/src/runtime.test.ts` | a `wake` sentence reaches the roster only for a plugin this serve MOUNTED, so no picker is offered for a doorbell nothing would ring — and a plugin the flag left on that nothing mounted draws as off, which is the row the old derivation could not express |
 | `packages/plugins/chat/src/deliveries.test.ts` | a body delivered mid-turn is HELD and the conversation keeps its interruption — the one claim a machine speaking into a person's lane could quietly cost them |
 | `scripts/check-hydrated-deps.sh` | the appliance dependency walls, per pin — kolu, odu, and cordis |
-| `packages/effect-cordis/src/lifecycle.test.ts` | the bridge's ORDERING against the pin: a dependent's asynchronous cleanup calls through a provider that is still live — on removal, on replacement and on host close; a loading initializer is cancelled by a stop, by a withdrawal and by host close; a loader flip cancels without rewriting its file; a duplicate offer is an `OfferConflict` naming the first provider, with the pin's wording asserted verbatim; and `offer` takes its Cordis disposer out of the concurrently-unloaded set |
+| `packages/effect-cordis/src/lifecycle.test.ts` | the bridge's ORDERING against the pin: a dependent's asynchronous cleanup calls through a provider that is still live — on removal, on replacement and on host close; a running bus handler is cut and joined before a resource released either side of its `listen`; a handler that stops its own plugin is cut rather than waited for; a loading initializer is cancelled by a stop, by a withdrawal and by host close; a loader flip cancels without rewriting its file; a duplicate offer is an `OfferConflict` naming the first provider, with the pin's wording asserted verbatim; and `offer` takes its Cordis disposer out of the concurrently-unloaded set |
 | `packages/effect-cordis/src/upstream.test.ts` | the PIN'S OWN behaviour, asked directly and with no bridge in the way — a fiber's disposers are unloaded concurrently, which is the reproduction `nix/cordis.nix`'s fourth ask is about and the reason `lifecycle.ts` takes the ordering itself |
-| `packages/effect-cordis/src/gate.test.ts` | that a handler removed while a dispatch is parked is not called, that stopping waits out a call already inside one, that a handler which stops its own plugin is not waited for, and that a hung one is given a bounded patience and said about |
+| `packages/effect-cordis/src/gate.test.ts` | that a call arriving after a registration stopped is never started, that one already inside is CUT and the stop does not answer until it has unwound, that cutting it leaves the publisher untouched, and that a publisher interrupted first takes its call with it |
 | `packages/effect-cordis/src/plugin.test.ts` | the bridge itself, on TOY services and with no olai noun in the file: a plugin sits `waiting` until the service it names is provided, its finalizers run in reverse when it unloads, a REPLACED provider re-runs it, a plugin whose Effect dies lands `failed` having installed nothing with its siblings untouched, and the stamp a keyed service is minted with is the word the registry bound it under |
 
 ---

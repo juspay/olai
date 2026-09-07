@@ -152,7 +152,19 @@ export function LivePane(props: {
     // in its own chunk, fetched the first time somebody presses a row.
     () => Promise.all([import("@xterm/xterm"), import("@xterm/addon-fit")]),
     ([{ Terminal }, { FitAddon }]) => {
-      const created = new Terminal({
+      // TWO SLOTS AND ONE UNDO, because there are two ways out of this block
+      // and both of them put the same things back — the `return` at the bottom
+      // and the `catch` beside it.
+      let created: Terminal | undefined
+      let observer: ResizeObserver | undefined
+      const undo = (): void => {
+        observer?.disconnect()
+        created?.dispose()
+        term = undefined
+        fit = undefined
+      }
+      try {
+        created = new Terminal({
         // READ-ONLY, which is the whole of what this pane is — confirmed as
         // design by the human on the live look: monitoring lives in olai and
         // typing stays in kolu until the actions phase. `disableStdin` is the
@@ -187,24 +199,24 @@ export function LivePane(props: {
         // is memory spent to look identical while scrolled to a place it does not
         // go.
         scrollback: 1_000,
-      })
-      const fitted = new FitAddon()
-      created.loadAddon(fitted)
-      created.open(host)
-      fitted.fit()
-      term = created
-      fit = fitted
-      // A RESIZE IS A RE-ATTACH. The pane asks padi for the grid it can show, and
-      // padi resizes the terminal to it — last-attach-wins on a shared pty, which
-      // is what attaching MEANS: every client is looking at the same size.
-      //
-      // This lane spent a round going observe-only instead, on the theory that a
-      // monitor must not perturb what it monitors. The human overruled it, and
-      // the overruling is the simpler design as well as the ruled one: a pane
-      // that renders 1:1 at the grid it asked for has no scaling, no adoption,
-      // and none of the three ways the scaled version came apart on a real busy
-      // terminal.
-      const observer = new ResizeObserver(() => {
+        })
+        const fitted = new FitAddon()
+        created.loadAddon(fitted)
+        created.open(host)
+        fitted.fit()
+        term = created
+        fit = fitted
+        // A RESIZE IS A RE-ATTACH. The pane asks padi for the grid it can show, and
+        // padi resizes the terminal to it — last-attach-wins on a shared pty, which
+        // is what attaching MEANS: every client is looking at the same size.
+        //
+        // This lane spent a round going observe-only instead, on the theory that a
+        // monitor must not perturb what it monitors. The human overruled it, and
+        // the overruling is the simpler design as well as the ruled one: a pane
+        // that renders 1:1 at the grid it asked for has no scaling, no adoption,
+        // and none of the three ways the scaled version came apart on a real busy
+        // terminal.
+        observer = new ResizeObserver(() => {
         // ONLY WHEN THE GRID ACTUALLY MOVED. `fit()` resizes the terminal, which
         // resizes the DOM, which fires this observer again — so an unguarded
         // re-attach here is a loop that never settles: every attach is torn down
@@ -217,17 +229,22 @@ export function LivePane(props: {
         const now = term === undefined ? undefined : { cols: term.cols, rows: term.rows }
         if (was === undefined || now === undefined) return
         if (!gridsEqual(was, now)) setGeneration((g) => g + 1)
-      })
-      observer.observe(host)
-      // The terminal exists now, so the first attach can ask at a real grid.
-      setGeneration((g) => g + 1)
-      // ...and the way back out, handed to the mount rather than registered here:
-      // what made the terminal is what says how to take it away.
-      return () => {
-        observer.disconnect()
-        created.dispose()
-        term = undefined
-        fit = undefined
+        })
+        observer.observe(host)
+        // The terminal exists now, so the first attach can ask at a real grid.
+        setGeneration((g) => g + 1)
+        // ...and the way back out, handed to the mount rather than registered here:
+        // what made the terminal is what says how to take it away. The same
+        // `undo` the failure path above spends, because there is one way to put
+        // this block's work back and it should not be written twice.
+        return undo
+      } catch (reason) {
+        // A HALF-BUILT TERMINAL IS THIS BLOCK'S TO PUT BACK. `mountLater` is
+        // handed the way out only once there IS one, so a throw on the way
+        // there would otherwise leave an emulator with its stylesheet in the
+        // page and its timers armed, holding nothing.
+        undo()
+        throw reason
       }
     },
     // A CHUNK THAT WILL NOT FETCH is an ordinary thing on a flaky connection,

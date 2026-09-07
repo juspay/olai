@@ -232,47 +232,110 @@ test("a plugin that stops mid-dispatch is not called over its released resources
   expect(order).toEqual(["second released", "second stopped"])
 })))
 
-test("a plugin that stops while its own handler is running waits for it to come out", () => run(Effect.gen(function*() {
-  // THE OTHER HALF: a call that had already STARTED may not be abandoned
-  // either, so the resources it is standing in stay open until it is out. Same
-  // discipline as `close` itself keeps — revoke, join, then release.
+/**
+ * THE OTHER HALF, and the two reviewers' probe: a call that had already STARTED.
+ *
+ * The first version of this waited five seconds for such a call and then
+ * released the resources underneath it, which is the reproduced defect with a
+ * delay and a log line in front of it. It is CUT now — interrupted on the fiber
+ * the gate started it on, joined before anything of the plugin's is released —
+ * and these two cases are the whole of that claim: the handler's own cleanup
+ * runs FIRST, and it never sees a released resource.
+ *
+ * BOTH REGISTRATION ORDERS, because the ordering was the second blocker. A
+ * resource acquired AFTER the `listen` used to be released BEFORE the gate
+ * stopped anything, and the tree really is written that way — `xyne-spaces`
+ * registers its mirrors' stop after subscribing `onSeen`, deliberately, and
+ * `git` forks four scoped loops after registering a revision handler. The stop
+ * is the ACTIVATION's now, so where the `listen` sits among the resources does
+ * not enter into it.
+ */
+for (const when of ["before the listen", "after the listen"] as const) {
+  test(`a running handler is cut and joined before a resource registered ${when} is released`, () => run(Effect.gen(function*() {
+    const host = yield* openHost
+    const bus = events()
+    yield* bus.open(host)
+    const entered = Deferred.makeUnsafe<void>()
+    const order: string[] = []
+    let alive = true
+    const resource = Effect.addFinalizer(() =>
+      Effect.sync(() => { alive = false; order.push("resource released") })
+    )
+    const only = yield* mountPlugin(host, definePlugin({ name: "only", needs: [bus.key], apply: Effect.gen(function*() {
+      if (when === "before the listen") yield* resource
+      yield* (yield* bus.key).listen(() =>
+        Effect.gen(function*() {
+          yield* Effect.addFinalizer(() =>
+            Effect.sync(() => { order.push(`handler unwound; resource alive = ${alive}`) })
+          )
+          yield* Deferred.succeed(entered, undefined)
+          yield* Effect.never
+        }).pipe(Effect.scoped)
+      )
+      if (when === "after the listen") yield* resource
+    }) }))
+    const telling = yield* Effect.forkScoped(bus.tell(undefined))
+    yield* Deferred.await(entered)
+    yield* only.dispose
+    order.push("dispose completed")
+    yield* Fiber.join(telling)
+    expect(order).toEqual([
+      "handler unwound; resource alive = true",
+      "resource released",
+      "dispose completed",
+    ])
+  })))
+}
+
+test("a handler that stops its own plugin is cut rather than waited for", () => run(Effect.gen(function*() {
+  // A REAL DISPOSER FIBER, which is the route a plugin actually takes: the
+  // handler yields `dispose`, and `definePlugin`'s disposer closes the
+  // activation on a fresh fiber. The first version had an identity escape that
+  // could not reach this route, so it fell through to the five-second wait; a
+  // cut has no such hole — the handler's await of its own stop is interrupted,
+  // the stop completes, and neither has to know about the other.
   const host = yield* openHost
   const bus = events()
   yield* bus.open(host)
-  const entered = Deferred.makeUnsafe<void>()
-  const resume = Deferred.makeUnsafe<void>()
   const order: string[] = []
+  let stopping!: Effect.Effect<void>
   const only = yield* mountPlugin(host, definePlugin({ name: "only", needs: [bus.key], apply: Effect.gen(function*() {
-    yield* Effect.addFinalizer(() => Effect.sync(() => { order.push("released") }))
-    yield* (yield* bus.key).listen(() => Effect.gen(function*() {
-      yield* Deferred.succeed(entered, undefined)
-      yield* Deferred.await(resume)
-      order.push("handler out")
-    }))
+    yield* Effect.addFinalizer(() => Effect.sync(() => { order.push("resource released") }))
+    yield* (yield* bus.key).listen(() =>
+      Effect.gen(function*() {
+        yield* Effect.addFinalizer(() => Effect.sync(() => { order.push("handler unwound") }))
+        order.push("handler asked for its own removal")
+        yield* stopping
+        order.push("the handler came back from its own removal")
+      }).pipe(Effect.scoped)
+    )
   }) }))
-  const telling = yield* Effect.forkScoped(bus.tell(undefined))
-  yield* Deferred.await(entered)
-  const stopping = yield* Effect.forkScoped(only.dispose)
-  yield* Effect.sleep("20 millis")
-  expect(order).toEqual([])
-  yield* Deferred.succeed(resume, undefined)
-  yield* Fiber.join(telling)
-  yield* Fiber.join(stopping)
-  expect(order).toEqual(["handler out", "released"])
+  stopping = only.dispose
+  const started = Date.now()
+  yield* bus.tell(undefined)
+  order.push("the dispatch answered")
+  // NOT FIVE SECONDS, which is what the arrangement this replaced cost: the
+  // handler is cut where it stands rather than waited out, so the dispatch is
+  // free the moment its last handler has unwound.
+  expect(Date.now() - started).toBeLessThan(2_000)
+  expect(order).toEqual([
+    "handler asked for its own removal",
+    "handler unwound",
+    "the dispatch answered",
+  ])
+  // ...AND THE STOP THE HANDLER ASKED FOR STILL HAPPENS. It is the same
+  // disposal — `dispose` is one promise however many times it is asked — and
+  // its resource release lands after the handler had already left, which is the
+  // whole invariant.
+  yield* only.dispose
+  expect(order).toEqual([
+    "handler asked for its own removal",
+    "handler unwound",
+    "the dispatch answered",
+    "resource released",
+  ])
 })))
 
-/**
- * THE PIN'S OWN SENTENCE, PINNED — and it is pinned HERE because this is the
- * file that reads it.
- *
- * Cordis refuses a second provider by throwing a plain `Error` whose PROSE
- * carries the first provider's name, so `offer` matches that sentence and
- * slices the owner out of it. `@olai/plugin-api`'s bench asserts the COMPOSED
- * sentence a person reads, which is the right claim to make there and would
- * also survive a Cordis reword by quietly dropping the owner from it. This asks
- * the two questions that reword would actually break: is it an `OfferConflict`,
- * and does it name the first provider.
- */
 test("a second offer of one key is an OfferConflict naming the first provider", () => run(Effect.gen(function*() {
   const host = yield* openHost
   const refused: Array<unknown> = []

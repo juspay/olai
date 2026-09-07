@@ -2562,7 +2562,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
               // prefix ({@link saidHere}). Forked for `flushing`'s reason and
               // silent for a conversation no node claims, which is nearly all
               // of them.
-              yield* Effect.forkDetach(saidHere())
+              yield* aside(saidHere())
               // ... AND THE TURN BOUNDARY IS WHERE A DOORBELL'S WORDS GET IN.
               // `turns.leave` answered TRUE, which is exactly "the set emptied"
               // ({@link ./turns.ts}), so this is the first moment since the body
@@ -2574,7 +2574,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
               // FORKED, so nothing about this turn's ending waits on a permit a
               // send may be holding. DETACHED, because the fiber that reaches
               // this line is itself detached and about to finish.
-              yield* Effect.forkDetach(flushing)
+              yield* aside(flushing)
             }
             // WHOEVER THE AGENT IS ON NOW HAS STOPPED WAITING. This turn is
             // over, so the message behind it is the one being worked on — and
@@ -2964,7 +2964,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // no.
       stopSaid = false
       const quietSince = heard
-      yield* Effect.forkDetach(Effect.gen(function*() {
+      yield* aside(Effect.gen(function*() {
         yield* Effect.sleep(CANCEL_GRACE)
         // A turn that has LEFT the set is one that ended, which is the cancel
         // having worked. Asking about the tickets this press was about, rather
@@ -3197,9 +3197,32 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // block the fiber already holding it and the open would never
           // complete. This is the same moment one beat later, outside the
           // permit, and it is the only safe one.
-          yield* Effect.forkDetach(flushing)
+          yield* aside(flushing)
         }),
       )
+
+    /**
+     * WORK THIS PANEL STARTED BESIDE ITS OWN FIBER, and the handle on it.
+     *
+     * Five things here fork: a turn-boundary write, a doorbell flush at three
+     * moments, and the watcher that says a cancel has gone quiet. None of them
+     * is anybody's to WAIT for — a send may be holding a permit one of them
+     * wants — and every one of them was `Effect.forkDetach`, which attaches to
+     * the GLOBAL scope: the panel's stop could not reach them, so they went on
+     * over a conversation that had ended.
+     *
+     * They are the panel's now. The fork still detaches — the point of forking
+     * is that nothing about this turn waits on them — and what changed is that
+     * `stopWithReason` knows where they are.
+     */
+    const beside = new Set<Fiber.Fiber<void, unknown>>()
+    const aside = <E>(work: Effect.Effect<void, E>): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        const running: Fiber.Fiber<void, E> = yield* Effect.forkDetach(
+          Effect.ensuring(work, Effect.sync(() => { beside.delete(running) })),
+        )
+        beside.add(running)
+      })
 
     const setSetting = (agent: string, session: string, config: string, value: string | boolean): Effect.Effect<void, OpFailure> => opening.withPermit(sending.withPermit(Effect.gen(function*() {
         if (state.status !== "idle" || talking?.row.id !== agent || state.session?.id !== session) {
@@ -3213,6 +3236,16 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // EVERY turn, not the newest ({@link ./turns.ts}).
       const running = turns.drain().flatMap((ticket) => ticket.fiber ?? [])
       for (const fiber of running) yield* Fiber.interrupt(fiber)
+      // ...AND EVERY OTHER FIBER THIS PANEL STARTED, which is what
+      // {@link aside} exists to make possible. They used to be
+      // `Effect.forkDetach` — the GLOBAL scope, so a stopped panel's
+      // turn-boundary write, doorbell flush or cancel watcher went on running
+      // with nothing left that could stop it. Interrupted rather than joined:
+      // each of them is work ABOUT a conversation that is ending, and a
+      // doorbell flush for a panel nobody can read again is not worth the wait.
+      const alongside = [...beside]
+      beside.clear()
+      for (const fiber of alongside) yield* Fiber.interrupt(fiber)
       const at = talking
       talking = null
       if (at !== null) yield* at.agent.stopWithReason(reason)
@@ -3537,7 +3570,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // inside the event ({@link changeSession}). A BOOT is how a doorbell
           // reaches the conversation this directory was last in without
           // anybody pressing anything.
-          yield* Effect.forkDetach(flushing)
+          yield* aside(flushing)
         })
       }),
       stop: stopWithReason("shutdown"),

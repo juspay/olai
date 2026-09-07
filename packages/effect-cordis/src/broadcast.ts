@@ -33,8 +33,13 @@
  * the handler list once and walks the copy, so a plugin that unloads while an
  * earlier handler is parked is out of the table and still in the walk — and gets
  * called, over resources its own finalizers have already closed. Containment
- * says what a late call THREW; the gate is what keeps it from being made, and
- * makes the leaving plugin wait out the calls that were already inside.
+ * says what a late call THREW; the gate is what keeps it from being made.
+ *
+ * A gated handler runs on a fiber of its OWN — started with this publisher's
+ * services, so it sees what it always saw, and joined below, so a `tell` still
+ * answers when the last of them has. What the fork buys is that a leaving
+ * plugin can CUT its own handler without touching the publisher or anybody
+ * else's.
  *
  * ## ...and the caller AWAITS, which is what a `Stream` could not do
  *
@@ -46,9 +51,9 @@
  * fiber of its own, so a publisher could only offer and walk on.
  */
 
-import { type Cause, Effect, Scope } from "effect"
+import { type Cause, Effect, Fiber, Scope } from "effect"
 
-import { gate } from "./gate.ts"
+import { gate, holding } from "./gate.ts"
 import { roster } from "./registry.ts"
 
 /** WHAT A PLUGIN'S HALF OF A BUS IS — one verb, and it is a registration rather
@@ -93,16 +98,31 @@ export const broadcast = <A>(what: string): Bus<A> => {
     // which is not the same claim as *this handler is safe to call now*: a
     // dispatch walks a COPY, so a plugin that unloads while an earlier handler
     // is parked is off the table and still in the walk. {@link ./gate.ts} is
-    // that second half — nothing entered after the plugin stopped, and its
-    // stopping waits out what was already inside. It is acquired BEFORE the
-    // hold so the pair unwinds in the order the argument needs: out of the
-    // table first, then the wait, then whatever the `apply` acquired earlier.
+    // that second half — nothing entered after the plugin stopped, and what was
+    // already inside is cut and joined before the plugin's resources close.
+    //
+    // WHERE THAT STOP IS RUN FROM IS THE GATE'S BUSINESS AND NOT THIS FILE'S,
+    // which is the point: under a plugin it belongs to the ACTIVATION rather
+    // than to a position in the scope's LIFO order, so a handler registered
+    // before the resources it reads is protected exactly as one registered
+    // after them is.
     listen: (plugin) => (handler) =>
       Effect.flatMap(gate(plugin, what), (shut) =>
         handlers.hold((value) =>
-          shut.through(
-            contained(plugin, what, Effect.suspend(() => handler(value))),
-            Effect.void,
+          Effect.flatMap(
+            shut.start(contained(plugin, what, Effect.suspend(() => handler(value)))),
+            // NOTHING STARTED, because the plugin had already stopped — which
+            // is the whole of what a broadcast has to do about it: a bus has
+            // no value to hand back and no chain to carry on.
+            (started) =>
+              started === undefined
+                // ...AND ONE THAT DID START IS WAITED FOR, which is what keeps
+                // `tell`'s promise to answer when the last handler has. What
+                // comes back is discarded: a handler that FAILED was already
+                // said by `contained`, and one that was CUT is a plugin that
+                // left, which is nobody's news.
+                ? Effect.void
+                : Effect.asVoid(holding(started, Fiber.await(started))),
           ))),
     // SUSPENDED, because the list is read at the moment the bus is rung rather
     // than at the moment it was opened: every subscriber arrives afterwards.

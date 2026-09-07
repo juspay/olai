@@ -108,7 +108,7 @@ import { emitter, reasonOf } from "@olai/log"
 import type { ChatServer } from "olai-plugin-chat/wire"
 import type { Reported } from "@olai/acp/engine"
 import type { AskAnswer } from "@olai/acp/wire"
-import { Clock, Data, type Duration, Effect, References, Semaphore } from "effect"
+import { Clock, Data, type Duration, Effect, Fiber, References, Semaphore } from "effect"
 
 import type { Leg, Meta, ModelReading } from "@olai/acp/engine"
 import { acceptsSetting, settingsIn } from "./agents/settings.ts"
@@ -2101,7 +2101,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // fiber's dump.
           if (cancelPending) {
             cancelPending = false
-            yield* Effect.forkDetach(
+            // OWNED BY THIS AGENT, not by the global scope. It was
+            // `Effect.forkDetach`, so a session stopped inside the ten
+            // milliseconds below sent its cancel to a connection that had
+            // already closed — small, and the same class as the panel's own
+            // forks one file over ({@link ./chat.ts}'s `aside`).
+            yield* aside(
               Effect.onError(
                 Effect.andThen(
                   Effect.sleep("10 millis"),
@@ -2222,8 +2227,23 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       )
     })
 
+    /** WORK THIS AGENT STARTED BESIDE ITS OWN FIBER — one site, the deferred
+     *  cancel, and the same shape `./chat.ts`'s panel keeps: forked so nothing
+     *  waits on it, tracked so stopping can reach it. */
+    const beside = new Set<Fiber.Fiber<void, unknown>>()
+    const aside = <E>(work: Effect.Effect<void, E>): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        const running: Fiber.Fiber<void, E> = yield* Effect.forkDetach(
+          Effect.ensuring(work, Effect.sync(() => { beside.delete(running) })),
+        )
+        beside.add(running)
+      })
+
     const stopWithReason = (reason: StopReason) => Effect.promise(async () => {
       stopped = true
+      const alongside = [...beside]
+      beside.clear()
+      await Promise.all(alongside.map((fiber) => Effect.runPromise(Fiber.interrupt(fiber))))
       const at = live
       if (at !== null) requestedStops.set(at.child, { reason, session: activeSession })
       live = null

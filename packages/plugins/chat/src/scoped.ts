@@ -19,7 +19,7 @@
 
 import { BusyFailure, type NodeAgent, type NodeAgents, UsageFailure } from "@olai/format"
 import type { OpFailure } from "@olai/format"
-import { Duration, Effect, Exit, Fiber, Scope, Semaphore } from "effect"
+import { Deferred, Duration, Effect, Exit, Fiber, Scope, Semaphore } from "effect"
 
 import type { StopReason } from "./agent.ts"
 import type { Panel, PanelOptions, WakeScope } from "./chat.ts"
@@ -156,6 +156,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const pending = new Map<string, Array<PendingDelivery>>()
     let stopped = false
     let relocating = false
+    /** How many node operations are in flight, and the wait a stop takes on
+     *  them — see {@link working}. */
+    let inFlight = 0
+    let quiet: Deferred.Deferred<void> | undefined
     let active: { readonly kind: "root"; readonly panel: Panel } | {
       readonly kind: "node"
       readonly slot: NodeSlot
@@ -404,6 +408,52 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         }), (exit) => Exit.isSuccess(exit) ? Effect.void : Scope.close(scope, Exit.void))
       }))
 
+    /**
+     * ONE NODE OPERATION — from the acquisition to the last thing done with
+     * what it acquired, and the unit a shutdown waits for.
+     *
+     * `acquire` is not called anywhere else, and that is the point rather than
+     * a convention. Owning the boot fiber closed the boot's window and only the
+     * boot's; three other paths reach an acquisition — a `reread` relocation, a
+     * session started at a node, a session loaded into one — and every one of
+     * them does its real work AFTER the acquisition answers. A shutdown landing
+     * in that gap set its flag, read a node map that already held the slot,
+     * closed it — and the caller then went on to open a conversation on the
+     * panel it was still holding, spawning an ACP process into a scope that had
+     * already closed. Measured, on this bench: one `chat agent ready` with no
+     * `chat agent exited` after it.
+     *
+     * Guarding the map with a second reading of `stopped` cannot close that:
+     * the slot is registered and the shutdown is entitled to close it; what is
+     * wrong is that the operation carried on. So the operation is the thing
+     * that is counted, and `settled` below is what a stop waits for — after
+     * `stopped` is set, so nothing new starts, and before the map is read, so
+     * nothing lands behind it.
+     */
+    const working = <A, E>(
+      node: string,
+      history: Conversing | undefined,
+      use: (held: { readonly slot: NodeSlot; readonly fresh: boolean }) => Effect.Effect<A, E>,
+    ): Effect.Effect<A, E | OpFailure> =>
+      Effect.acquireUseRelease(
+        Effect.sync(() => { inFlight += 1 }),
+        () => Effect.flatMap(acquire(node, history), use),
+        () =>
+          Effect.sync(() => {
+            inFlight -= 1
+            if (inFlight === 0 && quiet !== undefined) Deferred.doneUnsafe(quiet, Effect.void)
+          }),
+      )
+
+    /** ...and the wait itself. Nothing is cancelled: a node operation that has
+     *  spawned a process is finished, so that the close which follows has
+     *  something to close. */
+    const settled = Effect.suspend(() => {
+      if (inFlight === 0) return Effect.void
+      quiet ??= Deferred.makeUnsafe<void>()
+      return Deferred.await(quiet)
+    })
+
     const nodeFor = (
       agent: string,
       session: string,
@@ -460,13 +510,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       open: (panel: Panel) => Effect.Effect<void, OpFailure>,
       foreground: boolean,
     ): Effect.Effect<NodeSlot, OpFailure> =>
-      Effect.gen(function*() {
-        const { slot, fresh } = yield* acquire(node)
-        if (foreground) activate(slot)
-        if (fresh) yield* open(slot.panel)
-        yield* flush(slot)
-        return slot
-      })
+      working(node, undefined, ({ slot, fresh }) =>
+        Effect.gen(function*() {
+          if (foreground) activate(slot)
+          if (fresh) yield* open(slot.panel)
+          yield* flush(slot)
+          return slot
+        }))
 
     const foreground = <A>(use: (panel: Panel) => Effect.Effect<A, OpFailure>) =>
       Effect.suspend(() => use(panelOf()))
@@ -504,7 +554,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         return Effect.gen(function*() {
           const place = immediate === null ? yield* locate(to) : { node: immediate, history: false }
           if (place === null) return
-          const { slot, fresh } = yield* acquire(place.node.id, place.history ? to : undefined)
+          yield* working(place.node.id, place.history ? to : undefined, ({ slot, fresh }) =>
+            Effect.gen(function*() {
           // Acquisition can wait behind a concurrent node operation. Do not
           // move a panel somebody switched in the meantime.
           if (active.kind !== "root" || active.panel !== old) {
@@ -522,6 +573,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             yield* slot.panel.loadSession(to.agent, to.session)
           }
           if (!place.history) yield* flush(slot)
+            }))
         }).pipe(Effect.ensuring(Effect.sync(() => {
           relocating = false
         })))
@@ -551,11 +603,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         return
       }
       if (place.history) {
-        yield* Effect.catch(Effect.gen(function*() {
-          const { slot } = yield* acquire(place.node.id, held)
-          activate(slot)
-          yield* slot.panel.loadSession(held.agent, held.session)
-        }), (failure) => relocationFailed("the remembered node history", failure))
+        yield* Effect.catch(
+          working(place.node.id, held, ({ slot }) =>
+            Effect.gen(function*() {
+              activate(slot)
+              yield* slot.panel.loadSession(held.agent, held.session)
+            })),
+          (failure) => relocationFailed("the remembered node history", failure),
+        )
         return
       }
       yield* Effect.catch(
@@ -644,6 +699,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       const boot = booting
       booting = null
       if (boot !== null) yield* Fiber.interrupt(boot)
+      // ...AND EVERY OTHER NODE OPERATION, joined rather than raced. `stopped`
+      // is already set, so nothing new starts; what is still in flight finishes
+      // its acquisition and its use, and is therefore in the map the last line
+      // reads. See {@link working}.
+      yield* settled
       yield* root.stopWithReason(reason)
       yield* Effect.forEach([...nodes.values()], (slot) => close(slot, reason), { discard: true })
     })
@@ -736,14 +796,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           ? Effect.fail(new UsageFailure({
             reason: `node ${node} is no longer available for an agent session`,
           }))
-          : Effect.flatMap(
-            acquire(node),
-            ({ slot }) => Effect.gen(function*() {
+          : working(node, undefined, ({ slot }) =>
+            Effect.gen(function*() {
               activate(slot)
               yield* slot.panel.newSession(agent)
               yield* flush(slot)
-            }),
-          ),
+            })),
       chooseAgent: (agent) => {
         activateRoot()
         return root.chooseAgent(agent)
@@ -755,8 +813,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           activateRoot()
           return yield* root.loadSession(agent, session)
         }
-        return yield* Effect.flatMap(
-          acquire(place.node.id, place.history ? to : undefined),
+        return yield* working(
+          place.node.id,
+          place.history ? to : undefined,
           ({ slot }) => Effect.gen(function*() {
             activate(slot)
             const state = slot.panel.state()
