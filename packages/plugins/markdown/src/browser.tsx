@@ -21,6 +21,7 @@ import { createUndo } from "@olai/edit-history/undoing.ts"
 import { createDocuments, holdDocuments } from "./browser/document/documents.tsx"
 import { clearDocumentDrafts } from "./browser/document/drafts.ts"
 import { holdHistory, useHistory } from "./browser/history.ts"
+import { holdLocations } from "./browser/locations.ts"
 import { EmbeddedDocument } from "./browser/EmbeddedDocument.tsx"
 import { openCreated, clearMinted } from "./browser/document/minted.ts"
 import { MarkdownPageView } from "./browser/PageView.tsx"
@@ -66,6 +67,9 @@ export const components = {
   }) }),
   content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks, fileLinks], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots
+    // The walks a document's property run makes over other rows' locations,
+    // from the renderer this component already names (`./browser/locations.ts`).
+    yield* Effect.acquireRelease(Effect.sync(() => holdLocations(slots.read)), stop => Effect.sync(stop))
     yield* slots.contribute(content, { matches: route => documentFile(route) !== undefined, Page: MarkdownPageView }, {children:[documentBodies, properties]})
     yield* slots.contribute(documentBodies, EmbeddedDocument)
   }) }),

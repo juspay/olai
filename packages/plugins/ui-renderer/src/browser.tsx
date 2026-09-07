@@ -14,7 +14,6 @@ import { BrowserMount } from "@olai/plugin-api/mount"
 import { Effect } from "effect"
 import { createRoot, createSignal, ErrorBoundary, For, untrack } from "solid-js"
 import { render } from "solid-js/web"
-import { holdLocationReader } from "./contracts/read.ts"
 import { name, root } from "./index.ts"
 
 export default definePlugin({
@@ -27,7 +26,6 @@ export default definePlugin({
       changed: () => { changed?.(); setRevision((value) => value + 1) },
       reading: () => { revision() },
     })
-    yield* Effect.acquireRelease(Effect.sync(() => holdLocationReader(slots.read)), stop => Effect.sync(stop))
     const compatibility = slotFacade({ ...slots, read: (slot) => {
       // Legacy consumers track the host's batched signal. The registry's own
       // signal is for renderer roots and native location readers.

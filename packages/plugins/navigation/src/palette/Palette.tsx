@@ -1,7 +1,7 @@
 import { TESTID } from "olai-plugin-navigation/testids"
 import type { AppCommand } from "olai-plugin-navigation/slots"
 import { type Navigation,paletteAdapters } from "../index.ts"
-import {readLocation} from "olai-plugin-ui-renderer/contract"
+import { readLocation } from "../locations.ts"
 /**
  * ⌘K command palette — the shell, jump-to-node search, and what it can WRITE.
  *

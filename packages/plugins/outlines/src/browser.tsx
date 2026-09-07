@@ -11,6 +11,7 @@ import {Clocks} from "@olai/plugin-api"
  * and independently of any layout. Content and settings are separate consumers. */
 import { definePlugin, Faces, Offers } from "@olai/plugin-api"
 import { holdFaces } from "./browser/faces.ts"
+import { holdLocations } from "./browser/locations.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./browser/search.ts"
 import { Effect } from "effect"
@@ -111,6 +112,9 @@ export const components = {
     // (`./browser/faces.ts`).
     yield* holdFaces(yield* Faces)
     const slots = yield* rendererSlots
+    // ...and the walks over the locations this page draws, from the same
+    // renderer (`./browser/locations.ts`).
+    yield* Effect.acquireRelease(Effect.sync(() => holdLocations(slots.read)), stop => Effect.sync(stop))
     yield* slots.contribute(content, {
       matches: route => route.kind === "plugin" || (route.kind === "at" && (route.address === null || route.address.kind === "node" || fileKind(route.address.path) === "outline")),
       Page: () => <OutlinePageView />,

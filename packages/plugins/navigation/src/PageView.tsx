@@ -3,7 +3,7 @@
 import { content } from "olai-plugin-navigation/contract"
 import { useHere,useRouter } from "olai-plugin-navigation/routing"
 import { panesOf } from "olai-plugin-navigation/workspace"
-import {readLocation} from "olai-plugin-ui-renderer/contract"
+import { readLocation } from "./locations.ts"
 import { createMemo,Show } from "solid-js"
 export function PageView() {
   const router = useRouter(), here = useHere()

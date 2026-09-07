@@ -5,6 +5,7 @@ import { dispatch } from "./surface.ts"
 import { writeEdit } from "@olai/edit-history/writing.ts"
 import { createUndo } from "@olai/edit-history/undoing.ts"
 import { definePlugin,Offers } from "@olai/plugin-api"
+import { holdLocations } from "./browser/locations.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { client } from "./client.ts"
 import { Effect } from "effect"
@@ -29,7 +30,11 @@ export default definePlugin({name:"trash", needs:[Wired, Offers], apply:Effect.g
  yield* (yield* Offers).own("state",()=>({}))
 })})
 export const components={content:definePlugin({name:"content",needs:[navigation,rendererSlots,browserState,trashState],apply:Effect.gen(function*(){
- yield* (yield* rendererSlots).contribute(content,{matches:route=>route.kind==="trash",Page:TrashPageView})
+ const slots=yield* rendererSlots
+ // The page view and the titles this page draws are other rows' contributions
+ // (`./browser/locations.ts`).
+ yield* Effect.acquireRelease(Effect.sync(()=>holdLocations(slots.read)),stop=>Effect.sync(stop))
+ yield* slots.contribute(content,{matches:route=>route.kind==="trash",Page:TrashPageView})
 })}),sidebar:definePlugin({name:"sidebar", needs:[rendererSlots,navigation,trashState], apply:Effect.gen(function*(){
  yield* (yield* rendererSlots).contribute(vaultEntries, Trash)
 })})}

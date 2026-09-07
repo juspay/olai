@@ -3,6 +3,7 @@ import type {} from "olai-plugin-sidebar/slots"
 import {Clocks} from "@olai/plugin-api"
 import {fileAccess} from "olai-plugin-vault/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
+import { holdLocations } from "./browser/locations.ts"
 import { propertyRoutes } from "olai-plugin-outlines/contract"
 import { routeIn } from "olai-plugin-navigation/routes"
 import { definePlugin, Slots, Wired } from "@olai/plugin-api"
@@ -49,9 +50,14 @@ function AgendaFace(props: {
 
 export default definePlugin({
   name,
-  needs: [Slots, Wired, fileAccess, Clocks],
+  needs: [Slots, Wired, fileAccess, Clocks, rendererSlots],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
+    // A day row and a day's note are other rows' contributions; this row walks
+    // their locations through the renderer it already names
+    // (`./browser/locations.ts`).
+    const locations = yield* rendererSlots
+    yield* Effect.acquireRelease(Effect.sync(() => holdLocations(locations.read)), stop => Effect.sync(stop))
     const wired = yield* Wired
     yield* holdJournalWire(() => wired.client() as JournalClient)
 

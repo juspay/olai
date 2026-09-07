@@ -13,6 +13,7 @@ import { definePlugin,Faces,Offers } from "@olai/plugin-api"
 import { holdFaces, hung } from "./faces.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./palette/reading.ts"
+import { holdLocations } from "./locations.ts"
 import { Effect } from "effect"
 import { overlays } from "olai-plugin-layout/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -52,16 +53,17 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
   yield* offers.own("links", () => ({ File }))
 }) })
 /**
- * WHICH URLS THE MOUNTED PLUGINS CLAIM — a COMPONENT, because the row is not
+ * WHAT THIS ROW READS OF THE RENDERER — a COMPONENT, because the row is not
  * allowed to want it.
  *
  * The row's own header is the argument: history and focus activate without a
- * renderer, so naming {@link Faces} on the row would hold navigation itself
- * `waiting` on a tab that draws nothing. What genuinely depends on the renderer
- * is this one reading, and it is the reading that waits — the audit's rule that
- * only the integration using a departed service stops. With no renderer there
- * are no contributed routes to read, which is the same empty answer this
- * settled before.
+ * renderer, so naming {@link Faces} or the renderer's own service on the ROW
+ * would hold navigation itself `waiting` on a tab that draws nothing. What
+ * genuinely depends on the renderer is two readings — which URLs the mounted
+ * plugins claim, and what is contributed at a location — and it is those
+ * readings that wait, which is the audit's rule that only the integration using
+ * a departed service stops. With no renderer there are no contributed routes
+ * and no contributed pages, which is the same empty answer both settled before.
  */
 export const components = {
  /** The matcher, DECLARED — a component of its own so the palette keeps opening
@@ -71,8 +73,10 @@ export const components = {
   const reading=yield* readings
   yield* Effect.acquireRelease(Effect.sync(()=>holdReading(reading)),stop=>Effect.sync(stop))
  })}),
- routes:definePlugin({name:"routes",needs:[Faces],apply:Effect.gen(function*(){
+ renderer:definePlugin({name:"renderer",needs:[Faces,rendererSlots],apply:Effect.gen(function*(){
  yield* holdFaces(yield* Faces)
+ const slots=yield* rendererSlots
+ yield* Effect.acquireRelease(Effect.sync(()=>holdLocations(slots.read)),stop=>Effect.sync(stop))
  yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{
    const stop=holdRoutePages(createMemo(()=>settleRoutePages(hung("app.route"))))
    return ()=>{dispose();stop()}
