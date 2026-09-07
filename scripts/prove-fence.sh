@@ -412,17 +412,24 @@ run() {
 # One per claim the two lints make, each written as the defect it is about —
 # the shape that was actually in this tree before the extraction, or the shape
 # the door split exists to prevent.
+#
+# THE EXPECTATIONS ARE THE CLAIMS' CURRENT NAMES, and five of them were not:
+# claims 1, 2, 4, 12 and 18 named sentences the fence stopped saying several
+# phases ago, so each went red and was scored `RED, BUT NOT BY THE CLAIM IT
+# NAMES`. That is the scorer working — a mutation is caught because the claim it
+# is about refused it — and it had been unreadable because this script could not
+# start at all (the guard block above, and `Mark.tsx`).
 
 # A SUBPATH rather than the bare name, deliberately: a claim that matched only
 # `olai-plugin-<name>` would be green under the door a consumer would actually
 # reach for. `./server` rather than `./wire`, because every plugin has one and
 # an ENGINE has no `./wire` at all — `plugin_a` is alphabetically an engine now.
 run 1 "a general package IMPORTS a plugin" \
-  'outside the registry imports a plugin' \
+  'general production packages name no plugins' \
   append "$general_src" "import \"$name_a/server\""
 
 run 2 "a general package DECLARES a plugin in its manifest" \
-  'declares a plugin in its manifest' \
+  'plugin dependencies correspond to static contracts' \
   declare_dep "$general" "$name_a"
 
 # THE DIRECTION MUTATION goes in the BROWSER half rather than in `./wire`, and
@@ -442,11 +449,11 @@ run 3 "a plugin imports the REGISTRY back (the cycle)" \
 
 # A service key is the dependency arm; a package import bypasses its lifecycle.
 run 4 "a plugin imports ANOTHER plugin" \
-  'plugins consume services and never import another plugin' \
+  'plugins consume other plugins only through static contract doors' \
   append "$plugin_a/src/browser.tsx" "import \"$name_b/server\""
 
 run 18 "a plugin DECLARES another plugin in its manifest" \
-  'no package outside the registry declares a plugin in its manifest' \
+  'plugin dependencies correspond to static contracts' \
   declare_dep "$plugin_a" "$name_b"
 
 # MUTATIONS 5 AND 6 WERE ONE DOOR AND ARE NOW TWO, and the split is the whole
@@ -515,7 +522,7 @@ run 11 "a general package SPELLS a plugin's name in code" \
   append "$general_src" 'export const koluHalf = () => null'
 
 run 12 "a general package reaches a plugin's SHEET (the CSS grammar)" \
-  'outside the registry imports a plugin' \
+  'general production packages name no plugins' \
   append "$sheet" "@import \"$name_a/all.css\";"
 
 # ONE DIRECTION of an equality, and the other is not mutated here: moving a
