@@ -733,8 +733,27 @@ dev-bin:
 [metadata("odu:shard=6")]
 e2e: install nix
     #!/usr/bin/env bash
-    set -euo pipefail
+    # NOT `-e`: a failing suite is this recipe's whole subject, and the evidence
+    # below has to be printed BEFORE the status is handed on.
+    set -uo pipefail
     bin="$(sh scripts/nix-out.sh .#olai)/bin/olai"
+    #
+    # WHERE A FAILURE'S EVIDENCE GOES, and why the recipe chooses the name.
+    #
+    # Odu runs this leg in a COPY of the worktree and exports exactly one thing
+    # from it: this recipe's stdout, to `.ci/<sha>/<platform>/<leg>.log`. There
+    # is no artifact interface (`odu logs <node>` is the whole of it), and the
+    # path is keyed by SHA alone — so a second attempt on one commit overwrites
+    # the first. A CI failure on this branch was lost exactly that way.
+    #
+    # So the suite writes its evidence OUTSIDE the sandbox, under a directory
+    # this recipe names with the commit AND a token no second attempt repeats,
+    # and the recipe prints the notes afterwards so the pointer rides out on the
+    # one stream that is exported. Printing from inside Cucumber does not work:
+    # it replaces the streams for the length of a test case to file their output
+    # as attachments, and this suite's formatter prints none.
+    export OLAI_E2E_ATTEMPT="${OLAI_E2E_ATTEMPT:-$(git rev-parse --short HEAD 2>/dev/null || echo nosha)-$(date -u +%Y%m%dT%H%M%SZ)-$$${ODU_SHARD_INDEX:+-shard$ODU_SHARD_INDEX}}"
+    export OLAI_E2E_EVIDENCE="${OLAI_E2E_EVIDENCE:-${XDG_STATE_HOME:-$HOME/.local/state}/olai/e2e-evidence}"
     cd packages/tests
     # `cd` rather than `bun --cwd`: with --cwd, bun swallows the script name and
     # prints its own help with status 0, which reads as a passing leg that ran
@@ -743,6 +762,16 @@ e2e: install nix
       export CUCUMBER_SHARD="$((ODU_SHARD_INDEX + 1))/$ODU_SHARD_TOTAL"
     fi
     OLAI_BIN="$bin" {{ nix_shell_e2e }} bun run test
+    status=$?
+    kept="$OLAI_E2E_EVIDENCE/$OLAI_E2E_ATTEMPT"
+    if [[ -d "$kept" ]]; then
+      echo "olai-e2e-evidence: kept in $kept"
+      # `|| true` on every line of this block: evidence that cannot be printed
+      # must not turn a red leg green or a green one red.
+      for note in "$kept"/*.txt; do [[ -e "$note" ]] && cat "$note" || true; done
+      ls -1 "$kept" | sed 's/^/olai-e2e-evidence: file /' || true
+    fi
+    exit $status
 
 # The browser-only spelling of the same Odu pipeline. This is a thin convenience
 # target, not another scheduler: it builds this tree's pinned Odu and selects

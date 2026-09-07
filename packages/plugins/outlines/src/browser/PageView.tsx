@@ -238,6 +238,25 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
       data-pane={String(here())}
       data-pane-focused={here() === router.workspace().focus ? "true" : undefined}
       data-href={hrefOf(route())}
+      /**
+       * WHICH PAGE THIS PANE IS DRAWING — which is not the same fact as
+       * {@link data-href}, and the difference is the whole reason this exists.
+       *
+       * `data-href` is what the pane has been ASKED for: it moves the frame a
+       * link is clicked. What is on screen until the answer lands is the page
+       * that was already there (the `<Show when={page()}>` below, and the
+       * paragraph above it on why a later navigation swaps rather than tears
+       * down). So a reader — or a suite — asking "has the destination arrived"
+       * off the href is asking a question the href answers too early.
+       *
+       * This says what {@link page} IS, by the file it stands in. A suite waits
+       * on it rather than on a row's `data-file`: rows carry the file of the
+       * RECORD they draw, and a mirror pulls another outline's records into
+       * this one, so a row of `garden.olai` is on screen while `house.olai` is
+       * the page (`@olai/tests`' `outline_list_steps.ts`, and the review that
+       * found the wait it made vacuous).
+       */
+      data-drawn-file={pageFileOf(page())}
       data-narrowable={narrowable(route()) ? "true" : undefined}
       onPointerDown={() => router.focus(here())}
       onClick={(event) => {
