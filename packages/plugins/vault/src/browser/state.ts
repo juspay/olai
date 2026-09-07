@@ -37,10 +37,14 @@ export interface HeldFiles {
  *
  * A FACTORY, so nothing here is state: five packages read `vault.files`, and
  * each held it in a private module of its own whose body was — byte for byte —
- * this one. What is per-package is WHICH activation holds it, and a factory is
+ * this one, under a header that restated this one. What is per-package is WHICH activation holds it, and a factory is
  * what keeps that while removing the four copies. Calling it twice gives two
  * holders, which is the same rule `@olai/ui-primitives`' `heldService` and
  * `@olai/plugin-api`'s `heldFaces` keep.
+ *
+ * They used to arrive as `useServed`/`useHead`: a module variable in this row's
+ * own `./served.tsx`, installed by this row's activation and read by five other
+ * packages with no dependency declared anywhere (the audit's §12).
  *
  * THE EMPTY ANSWERS ARE THE CONTRACT, not a fallback: every reader draws under
  * an activation that NAMES `vault.files`, so the absence is unreachable from a
