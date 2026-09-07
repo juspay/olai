@@ -21,8 +21,9 @@ import {fileAccess} from "olai-plugin-vault/contract"
 import { fileTypes, fileState } from "olai-plugin-files/contract"
 import { NewOutline } from "./browser/outline/NewOutline.tsx"
 import { sections } from "olai-plugin-preferences/contract"
-import { name, browserState, datedRows, documentReferences, pageView, titles, propertyRoutes } from "./index.ts"
-import { holdReferences } from "./contracts/references.ts"
+import { name, browserState, datedRows, documentReferences, pageView, titles, propertyRoutes, type OutlinesBrowser } from "./index.ts"
+import type { References } from "./contracts/references.ts"
+import { openOverlaySocket, overlayRoot } from "./browser/overlay.ts"
 import { createDeclared, declaringFailure, clearDeclared } from "./browser/declared.ts"
 import { useShowNode, clearFocus } from "./browser/focus.ts"
 import { createUndo, holdUndo } from "./browser/edit/undoing.ts"
@@ -46,6 +47,32 @@ import { connectionReadout } from "@olai/web/client/wire.ts"
 import { client } from "olai-plugin-outlines/client"
 import { reachable } from "@olai/web/client/connection/reaching.ts"
 
+/**
+ * WHAT THIS ROW OWNS IN A TAB, built once and OFFERED — not announced.
+ *
+ * `browser-state` used to be `Offers.own("browser-state", () => ({}))`: a
+ * service carrying nothing at all, while every value it is named after went
+ * into a module variable beside it. Cordis saw the announcement and none of the
+ * consumers, which is the audit's §2 in one line.
+ *
+ * The values are on the service now — the sibling client, the undo stack, the
+ * page readings, the two drag registers, this row's own naming of a node and
+ * the overlay socket — so a consumer that named `outlines.browser-state` is
+ * handed the state rather than a permission to go and find it.
+ *
+ * THE PRIVATE HOLDERS STAY, and they are the same activation's. A face three
+ * levels inside a row cannot be handed an `apply`'s value, and each of those
+ * holders installs exactly what is offered here and clears it by identity when
+ * this scope closes — which is what makes them helpers rather than a second
+ * ownership. What they are NOT is a door: none of them is exported through this
+ * package's contracts, so no other package can reach one, and
+ * `@olai/bundle`'s fence holds that.
+ *
+ * `outlines.references` is offered BESIDE it rather than folded into it,
+ * because its consumer is a different package with a different lifetime: the
+ * chat panel wants the naming of a node and must not be taken away when this
+ * row stops (`./contracts/references.ts`).
+ */
 export default definePlugin({ name, needs: [Wired, Offers], apply: Effect.gen(function*() {
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
@@ -54,14 +81,24 @@ export default definePlugin({ name, needs: [Wired, Offers], apply: Effect.gen(fu
   for (const start of [followDensity, followDonePrefs, followFolds]) {
     yield* Effect.acquireRelease(Effect.sync(start), stop => Effect.sync(stop))
   }
-  yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
-    const stops = [holdReferences({declare: createDeclared, showNode: useShowNode, failure: declaringFailure}), holdUndo(createUndo(edit => runAsync(writeEdit(edit)))),
-      holdReadings(createReadings()), holdFields(createFields()), holdAir(createAir())]
+  const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+    const references: References = { declare: createDeclared, showNode: useShowNode, failure: declaringFailure }
+    const undo = createUndo(edit => runAsync(writeEdit(edit)))
+    const readings = createReadings()
+    const fields = createFields()
+    const air = createAir()
+    const stops = [holdUndo(undo), holdReadings(readings), holdFields(fields), holdAir(air),
+      openOverlaySocket()]
     createRefiling({ ask: request => runAsync(client().procedures.nodes.homes(request)),
       reachable: () => reachable(connectionReadout()) })
-    return () => { dispose(); for (const stop of stops) stop(); clearEditorMemory(); clearRowForms(); clearBacklinks(); clearFocus(); clearDeclared() }
-  })), stop => Effect.sync(stop))
-  yield* (yield* Offers).own("browser-state", () => ({}))
+    return {
+      value: { client, undo, readings, fields, air, references, overlay: overlayRoot } satisfies OutlinesBrowser,
+      dispose: () => { dispose(); for (const stop of stops) stop(); clearEditorMemory(); clearRowForms(); clearBacklinks(); clearFocus(); clearDeclared() },
+    }
+  })), state => Effect.sync(state.dispose))
+  const offers = yield* Offers
+  yield* offers.own("browser-state", () => state.value)
+  yield* offers.own("references", () => state.value.references)
 }) })
 
 import { documentProperties } from "./browser/document-properties.tsx"

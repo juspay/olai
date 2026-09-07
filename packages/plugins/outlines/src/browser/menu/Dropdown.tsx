@@ -109,7 +109,7 @@ import { DOTS } from "./Dots.tsx"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
 import { swallowGhost } from "@olai/web/client/ghost.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
-import { overlayRoot } from "@olai/web/client/overlay.ts"
+import { overlayRoot } from "../overlay.ts"
 import { Panel } from "./Panel.tsx"
 
 

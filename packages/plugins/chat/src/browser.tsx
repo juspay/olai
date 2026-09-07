@@ -77,6 +77,8 @@ import { Panel, Toggle } from "./browser/chat/Panel.tsx"
 import { holdFaces } from "./browser/faces.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./browser/search.ts"
+import { references as outlineReferences } from "olai-plugin-outlines/references"
+import { holdReferences } from "./browser/references.ts"
 import { type ChatClient, holdChatWire } from "./browser/wire.ts"
 
 /** THE WIRE IDENTITY, on this door too — and `surface` is the load-bearing
@@ -162,6 +164,13 @@ export const components = {
   search: definePlugin({ name: "search", needs: [readings], apply: Effect.gen(function*() {
     const reading = yield* readings
     yield* Effect.acquireRelease(Effect.sync(() => holdReading(reading)), stop => Effect.sync(stop))
+  }) }),
+  /** The outline's naming of a node, DECLARED — a component of its own so the
+   *  transcript keeps its chips (as ids) when the outline row leaves
+   *  (`./browser/references.ts`). */
+  references: definePlugin({ name: "references", needs: [outlineReferences], apply: Effect.gen(function*() {
+    const value = yield* outlineReferences
+    yield* Effect.acquireRelease(Effect.sync(() => holdReferences(value)), stop => Effect.sync(stop))
   }) }),
   "tab-attention": definePlugin({ name: "tab-attention", needs: [appearance, alertSettings], apply: Effect.gen(function*() {
     const view = yield* appearance

@@ -30,7 +30,7 @@ import { Portal } from "solid-js/web"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
-import { overlayRoot } from "@olai/web/client/overlay.ts"
+import { overlayRoot } from "../overlay.ts"
 
 
 /** Where the line hangs, in viewport pixels — the gutter's left edge and

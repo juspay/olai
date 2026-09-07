@@ -69,7 +69,7 @@ import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { TESTID } from "../../testids.ts"
 
 import { AskForm } from "./AskForm.tsx"
-import { createDeclared } from "olai-plugin-outlines/references"
+import { createDeclared } from "../references.ts"
 import { markNodeRefs } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import type { Chat } from "./state.ts"

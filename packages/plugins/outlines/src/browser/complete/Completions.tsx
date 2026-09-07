@@ -45,7 +45,7 @@ import { Portal } from "solid-js/web"
 
 import { ALARM_BAND, SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
-import { overlayRoot } from "@olai/web/client/overlay.ts"
+import { overlayRoot } from "../overlay.ts"
 import { Result, type RowTestids } from "olai-plugin-search/ui/Result.tsx"
 
 /** What this door calls its rows (`../search/Result.tsx`'s `RowTestids`). */
