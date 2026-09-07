@@ -317,9 +317,16 @@ const open = (_plugin: string, _what: string): Held => {
               // fiber, so nothing carries the caller's interruption down to it;
               // this frame is what does, and it is installed before anything
               // interruptible runs.
-              return Effect.onInterrupt(
-                restore(use(started)),
-                () => Fiber.interrupt(started),
+              //
+              // ON ANY EXIT THAT IS NOT A SUCCESS, and not on interruption
+              // alone: a caller that DIED holding a call has no more business
+              // leaving it running than one that was cut. `suspend` is the
+              // other half of that — a `use` that throws while it is still
+              // being BUILT would otherwise get out of this frame before the
+              // frame existed.
+              return Effect.onExit(
+                restore(Effect.suspend(() => use(started))),
+                (exit) => Exit.isSuccess(exit) ? Effect.void : Fiber.interrupt(started),
               )
             }))),
     },

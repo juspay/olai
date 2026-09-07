@@ -459,45 +459,54 @@ test("a plugin's stop waits for a handler's own child fibers, not just its body"
 test("a registration whose scope ends stops being one of the activation's", () => run(Effect.gen(function*() {
   // A PLUGIN THAT SUBSCRIBES AND UNSUBSCRIBES IN A LOOP kept one closed record
   // per cycle for the rest of its life, because enrolling with the activation
-  // only ever appended. The activation drops each record when the registration
-  // says its own lifetime is over — which it does by settling a promise the
-  // activation watches, rather than by anything a caller has to pass back.
+  // only ever appended.
+  //
+  // ASKED BY COUNTING SHUTS RATHER THAN BY WATCHING A COLLECTOR. A weak
+  // reference answers the same question and answers it flakily — a handful of
+  // records stay alive on whichever frame the collector happened to see last,
+  // which is five out of a hundred on a loaded machine and none on a quiet one.
+  // What the activation DOES with a record it still holds is exact: it shuts it
+  // at pre-close. A registration the activation has let go is never shut by it;
+  // one it still holds is shut once.
   const host = yield* openHost
   const bus = events()
   yield* bus.open(host)
-  const held: Array<WeakRef<object>> = []
+  const shuts: Array<{ readonly closed: boolean; shut: number }> = []
   const owner = yield* mountPlugin(host, definePlugin({ name: "owner", needs: [bus.key], apply: Effect.gen(function*() {
     const activation = yield* Offering
     const enrol = activation!.quiet
     // WRAPPED WITHOUT CHANGING ANYTHING, which is the point: a wrapper that
-    // forwards the call and nothing else must not be able to break the
-    // pruning, and the first shape of this — a withdrawal handed back — could
-    // be dropped by exactly this much instrumentation.
+    // forwards the call and nothing else must not be able to break the pruning,
+    // and the first shape of this fix — a withdrawal handed back — could be
+    // dropped by exactly this much instrumentation.
+    let closing = true
     Object.defineProperty(activation, "quiet", {
-      value: (quieting: object) => {
-        held.push(new WeakRef(quieting))
-        enrol(quieting as never)
+      value: (quieting: { readonly shut: () => void; readonly done: Promise<void> }) => {
+        const counted = { closed: closing, shut: 0 }
+        shuts.push(counted)
+        enrol({
+          ...quieting,
+          shut: () => { counted.shut += 1; quieting.shut() },
+        } as never)
       },
     })
     const door = yield* bus.key
-    // A HUNDRED, which is what the probe used and is not arbitrary: a handful
-    // can be held alive by whichever frame the collector happens to see last,
-    // and the claim here is about ACCUMULATION rather than about any one
-    // record.
-    for (let round = 0; round < 100; round += 1) {
+    for (let round = 0; round < 5; round += 1) {
       const child = Scope.makeUnsafe()
       yield* door.listen(() => Effect.void).pipe(Effect.provideService(Scope.Scope, child))
       yield* Scope.close(child, Exit.void)
     }
+    // ...AND ONE THAT STAYS, so the case cannot pass by the activation having
+    // stopped shutting anything at all.
+    closing = false
+    yield* door.listen(() => Effect.void)
   }) }))
   // The prunes ride a promise, so they land a beat after the closes do.
   yield* Effect.sleep("20 millis")
-  Bun.gc(true)
-  yield* Effect.sleep("20 millis")
-  Bun.gc(true)
-  expect(held.filter((one) => one.deref() !== undefined)).toHaveLength(0)
-  expect(yield* owner.report).toEqual({ state: "running" })
-})), 20_000)
+  yield* owner.dispose
+  expect(shuts.filter((one) => one.closed).map((one) => one.shut)).toEqual([0, 0, 0, 0, 0])
+  expect(shuts.filter((one) => !one.closed).map((one) => one.shut)).toEqual([1])
+})))
 
 test("a dependent's cleanup waiting on a provider's handler does not block the cut", () => run(Effect.gen(function*() {
   const host = yield* openHost

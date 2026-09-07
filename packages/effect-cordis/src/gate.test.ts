@@ -149,6 +149,27 @@ test("cutting a call does not disturb the fiber that started it", async () => {
   expect(said).toEqual(["the call was cut", "the caller carried on"])
 })
 
+test("a caller that DIES holding a call takes it with it too", async () => {
+  // Not interruption alone: a caller that failed has no more business leaving a
+  // call running than one that was cut, and a `use` that throws while it is
+  // still being BUILT must not get out in front of the frame that would cut it.
+  const { gate: shut } = await opened()
+  const entered = Deferred.makeUnsafe<void>()
+  let released = false
+  const dying = Effect.runPromiseExit(shut.through(
+    Effect.gen(function*() {
+      yield* Effect.addFinalizer(() => Effect.sync(() => { released = true }))
+      yield* Deferred.succeed(entered, undefined)
+      yield* Effect.never
+    }).pipe(Effect.scoped),
+    () => { throw new Error("the caller came apart") },
+  ))
+  await Effect.runPromise(Deferred.await(entered))
+  expect(Exit.isFailure(await dying)).toBe(true)
+  await beat()
+  expect(released).toBe(true)
+})
+
 test("a caller interrupted first takes its call with it", async () => {
   // The started fiber is a ROOT and not a child, which is what makes the
   // shut-check and the start one synchronous block. The hold `through`
