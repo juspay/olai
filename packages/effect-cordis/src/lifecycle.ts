@@ -30,6 +30,11 @@ export class OfferConflict extends Error {
  * that way. What a running handler needs is not a place in that order; it is a
  * stage BEFORE it, which only the activation can offer.
  *
+ * THIS DOES NOT REPLACE THE SCOPE'S OWN LIFETIME. A registration made inside a
+ * child scope is stopped when that child closes as well, and both owners reach
+ * the same `cut`; the second waits for the first rather than finding an empty
+ * set. See {@link ../gate.ts}.
+ *
  * TWO STEPS, and they are separate because ALL of the first must happen before
  * ANY of the second: a sequential shut-and-cut loop would leave a later
  * registration admitting calls while an earlier one was still being cut.
@@ -114,23 +119,39 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
         // handler that has not started is now never started, whatever this
         // plugin registered when.
         for (const quiet of quiets) quiet.shut()
+        // ...AND THE CUT STARTS HERE, BEFORE THE FIRST AWAIT, because the two
+        // lines under it both wait for DEPENDENTS and a dependent can be
+        // waiting for one of these calls.
+        //
+        // That is not hypothetical and it is not only about the explicit drain
+        // below: the pin's own provision disposer ends with
+        // `Promise.allSettled(fibers.map(fiber => fiber.await()))`, so
+        // `await revoke()` waits for dependent fibers too. A consumer whose
+        // finalizer joins an in-flight provider handler would therefore hold
+        // the revoke, which would hold the cut, which is the only thing that
+        // could finish the handler — a cycle with no timer in it and no
+        // uninterruptible code anywhere. Reproduced.
+        //
+        // So: START the cut, then withdraw, then join, then AWAIT the cut. The
+        // distinction between beginning a withdrawal and waiting for one is the
+        // whole of the repair.
+        const cutting = joinCuts(quiets, ctx.fiber.name ?? "a plugin", services)
         for (const revoke of revokes.reverse()) await revoke()
         await Promise.all([...live.values()]
           .filter((other) => other.dependencies.has(ctx.fiber))
           .map((other) => other.drained))
-        // ...AND THEN CUT WHAT IS STILL INSIDE, together, and JOIN it — before
-        // a single resource finalizer runs. `cut` answers when the calls it
-        // interrupted have finished unwinding, so what follows this line is
-        // running under nothing.
+        // ...AND IT IS AWAITED HERE, before a single resource finalizer runs.
+        // `cut` answers when the calls it interrupted have finished unwinding,
+        // so what follows this line is running under nothing.
         //
-        // THERE IS NO GIVING UP HERE. One shared interval for the whole
-        // activation says so if a cut is slow, and then goes on waiting: the
-        // version that released resources under a still-running handler after
-        // five seconds is exactly the defect this stage exists to close, and a
-        // timer that abandoned the wait would be it again. An invocation that
-        // has made itself uninterruptible is waited for; that is what Effect's
+        // THERE IS NO GIVING UP. One shared interval for the whole activation
+        // says so if a cut is slow, and then goes on waiting: the version that
+        // released resources under a still-running handler after five seconds
+        // is exactly the defect this stage exists to close, and a timer that
+        // abandoned the wait would be it again. An invocation that has made
+        // itself uninterruptible is waited for; that is what Effect's
         // interruption means everywhere else in this tree.
-        await joinCuts(quiets, ctx.fiber.name ?? "a plugin", services)
+        await cutting
       } finally {
         try {
           await Effect.runPromiseWith(services)(Scope.close(scope, exit))
@@ -190,7 +211,11 @@ const SLOW_CUT = Duration.seconds(5)
 
 /** Cut every registration together, and say so if it takes a while — see the
  *  paragraph in `close`. One timer for the activation rather than one per
- *  registration: the stage is one stage. */
+ *  registration: the stage is one stage.
+ *
+ *  CALLED FOR ITS START rather than awaited where it is called: `close` needs
+ *  the interruptions in flight before it waits for anything, and the promise
+ *  back for later. */
 const joinCuts = async (
   quiets: ReadonlyArray<Quieting>,
   plugin: string,

@@ -287,6 +287,177 @@ for (const when of ["before the listen", "after the listen"] as const) {
   })))
 }
 
+/**
+ * A LISTENER'S OWN SCOPE IS A LIFETIME OF ITS OWN, and giving the activation
+ * the ordering may not take it away.
+ *
+ * `listen` and `use` are typed with `Scope`, and a plugin may register inside a
+ * CHILD scope and close that child while staying mounted. The roster drops the
+ * entry then — and for one round the gate stayed open, because registering with
+ * the activation returned before a scope finalizer was added:
+ *
+ * ```text
+ * child resource released
+ * child scope closed; owner plugin still mounted
+ * child handler called; alive=false
+ * ```
+ *
+ * BOTH HALVES, because a withdrawal has two: one that has not been called yet
+ * and one that is running.
+ */
+for (const inflight of [false, true] as const) {
+  test(`a child scope's withdrawal stops a handler that is ${inflight ? "running" : "pending"}, with its plugin still mounted`, () => run(Effect.gen(function*() {
+    const host = yield* openHost
+    const bus = events()
+    yield* bus.open(host)
+    const entered = Deferred.makeUnsafe<void>()
+    const parked = Deferred.makeUnsafe<void>()
+    const order: string[] = []
+    let alive = true
+    const child = Scope.makeUnsafe()
+    // THE BLOCKER holds the dispatch open at the first handler, so the second
+    // one is still ahead of the walk when its child scope closes.
+    if (!inflight) {
+      yield* mountPlugin(host, definePlugin({ name: "blocker", needs: [bus.key], apply: Effect.gen(function*() {
+        yield* (yield* bus.key).listen(() =>
+          Effect.andThen(Deferred.succeed(entered, undefined), Deferred.await(parked))
+        )
+      }) }))
+    }
+    const owner = yield* mountPlugin(host, definePlugin({ name: "owner", needs: [bus.key], apply: Effect.gen(function*() {
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => { alive = false; order.push("child resource released") })
+      ).pipe(Effect.provideService(Scope.Scope, child))
+      yield* (yield* bus.key).listen(() =>
+        Effect.gen(function*() {
+          order.push(`handler entered; resource alive = ${alive}`)
+          if (inflight) {
+            yield* Deferred.succeed(entered, undefined)
+            yield* Effect.never
+          }
+        })
+      ).pipe(Effect.provideService(Scope.Scope, child))
+    }) }))
+    const telling = yield* Effect.forkScoped(bus.tell(undefined))
+    yield* Deferred.await(entered)
+    yield* Scope.close(child, Exit.void)
+    order.push("child scope closed")
+    if (!inflight) yield* Deferred.succeed(parked, undefined)
+    yield* Fiber.join(telling)
+    expect(order).toEqual(inflight
+      // RUNNING: cut where it stands, and the child's resource does not go
+      // until it has.
+      ? ["handler entered; resource alive = true", "child resource released", "child scope closed"]
+      // PENDING: never called at all, though the walk still names it.
+      : ["child resource released", "child scope closed"])
+    // ...AND THE PLUGIN IS STILL MOUNTED THROUGHOUT, which is what makes this a
+    // scope's withdrawal rather than an activation's.
+    expect(yield* owner.report).toEqual({ state: "running" })
+  })))
+}
+
+test("a gate's two owners join one cut rather than the second finding an empty set", () => run(Effect.gen(function*() {
+  // A CHILD SCOPE AND THE ACTIVATION both reach the same stop. Whichever
+  // arrives second must WAIT for the first: clearing the set and answering at
+  // once would let a resource close beside a call that is still unwinding.
+  const host = yield* openHost
+  const bus = events()
+  yield* bus.open(host)
+  const entered = Deferred.makeUnsafe<void>()
+  const order: string[] = []
+  const child = Scope.makeUnsafe()
+  const owner = yield* mountPlugin(host, definePlugin({ name: "owner", needs: [bus.key], apply: Effect.gen(function*() {
+    yield* Effect.addFinalizer(() => Effect.sync(() => { order.push("plugin resource released") }))
+    yield* (yield* bus.key).listen(() =>
+      Effect.gen(function*() {
+        yield* Effect.addFinalizer(() =>
+          Effect.gen(function*() {
+            yield* Effect.sleep("50 millis")
+            order.push("handler unwound")
+          })
+        )
+        yield* Deferred.succeed(entered, undefined)
+        yield* Effect.never
+      }).pipe(Effect.scoped)
+    ).pipe(Effect.provideService(Scope.Scope, child))
+  }) }))
+  const telling = yield* Effect.forkScoped(bus.tell(undefined))
+  yield* Deferred.await(entered)
+  const closing = yield* Effect.forkScoped(
+    Effect.andThen(Scope.close(child, Exit.void), Effect.sync(() => order.push("child closed")))
+  )
+  const stopping = yield* Effect.forkScoped(
+    Effect.andThen(owner.dispose, Effect.sync(() => order.push("plugin stopped")))
+  )
+  yield* Fiber.join(telling)
+  yield* Fiber.join(closing)
+  yield* Fiber.join(stopping)
+  // ONE unwind, and both owners behind it.
+  expect(order.filter((one) => one === "handler unwound")).toHaveLength(1)
+  expect(order.indexOf("handler unwound")).toBe(0)
+  expect(order).toContain("child closed")
+  expect(order).toContain("plugin stopped")
+  expect(order.indexOf("handler unwound")).toBeLessThan(order.indexOf("plugin resource released"))
+})))
+
+/**
+ * A DEPENDENT WAITING FOR A HANDLER MAY NOT BLOCK THE CUT THAT FINISHES IT.
+ *
+ * The stop's stages read as an order and one of them was in the wrong place: a
+ * consumer whose finalizer joins an in-flight provider handler holds the
+ * provider's revocation — the pinned `ctx.provide` disposer ends with
+ * `Promise.allSettled(fibers.map(fiber => fiber.await()))`, so a revoke waits
+ * for dependents too — and the revocation held the cut, which was the only
+ * thing that could finish the handler. A cycle with no timer in it, and no
+ * uninterruptible code anywhere.
+ *
+ * NOTHING RELEASES THE HANDLER IN THIS CASE. It parks on a `Deferred` this test
+ * never completes, so the disposal either finishes because the cut reached it
+ * or does not finish at all; the runner's own timeout is the only backstop and
+ * the case is bounded so a failure cannot strand it.
+ */
+test("a dependent's cleanup waiting on a provider's handler does not block the cut", () => run(Effect.gen(function*() {
+  const host = yield* openHost
+  const bus = events()
+  yield* bus.open(host)
+  const entered = Deferred.makeUnsafe<void>()
+  const unwound = Deferred.makeUnsafe<void>()
+  const held = Deferred.makeUnsafe<void>()
+  const order: string[] = []
+  const provider = yield* mountPlugin(host, definePlugin({ name: "provider", needs: [bus.key], apply: Effect.gen(function*() {
+    yield* offer(Resource, () => ({ use: () => {} }))
+    yield* (yield* bus.key).listen(() =>
+      Effect.ensuring(
+        Effect.andThen(Deferred.succeed(entered, undefined), Deferred.await(held)),
+        Effect.andThen(
+          Effect.sync(() => order.push("handler unwound")),
+          Deferred.succeed(unwound, undefined),
+        ),
+      )
+    )
+  }) }))
+  yield* mountPlugin(host, definePlugin({ name: "consumer", needs: [Resource], apply: Effect.gen(function*() {
+    yield* Effect.addFinalizer(() =>
+      Effect.gen(function*() {
+        order.push("consumer awaits the handler")
+        yield* Deferred.await(unwound)
+        order.push("consumer released")
+      })
+    )
+  }) }))
+  const telling = yield* Effect.forkScoped(bus.tell(undefined))
+  yield* Deferred.await(entered)
+  yield* provider.dispose
+  order.push("provider stopped")
+  yield* Fiber.join(telling)
+  expect(order).toEqual([
+    "handler unwound",
+    "consumer awaits the handler",
+    "consumer released",
+    "provider stopped",
+  ])
+})), 20_000)
+
 test("a handler that stops its own plugin is cut rather than waited for", () => run(Effect.gen(function*() {
   // A REAL DISPOSER FIBER, which is the route a plugin actually takes: the
   // handler yields `dispose`, and `definePlugin`'s disposer closes the

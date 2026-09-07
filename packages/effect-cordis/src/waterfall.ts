@@ -43,7 +43,7 @@
 import { Deferred, Effect, Exit, Fiber, Scope } from "effect"
 
 import { failed } from "./broadcast.ts"
-import { type Gate, gate, holding, wasCut } from "./gate.ts"
+import { type Gate, gate, wasCut } from "./gate.ts"
 import { type Host, provide } from "./host.ts"
 import { roster } from "./registry.ts"
 import { serviceTag, type ServiceKey } from "./service.ts"
@@ -162,70 +162,72 @@ export const waterfall = <A>(cordis: string): Waterfall<A> => {
                   Deferred.doneUnsafe(asking, Effect.succeed({ passed }))
                   return Deferred.await(answered)
                 })
-              const running = yield* link.gate.start(Effect.ensuring(
-                // SUSPENDED, which is not decoration: `link.middleware(value,
-                // next)` is an ordinary call, so writing it as the argument
-                // would RUN the plugin's middleware and hand the gate only the
-                // Effect it came back with. A middleware is typed
-                // `(value, next) => Effect<A>` and is under no obligation to be
-                // lazy — this file's own bench happens to write every fixture
-                // with an `Effect.suspend` inside, which is exactly why the
-                // hole survived the first pass. {@link ./broadcast.ts}'s
-                // handler is wrapped the same way for the same reason.
-                Effect.suspend(() => link.middleware(value, next)),
-                // A LINK THAT ENDS WITHOUT ASKING — returned, died, or was cut
-                // — has to say so, or the dispatcher would sit waiting for a
-                // request that is never coming. `doneUnsafe` on an already-made
-                // request is a no-op, so this is only ever the other arm.
-                Effect.sync(() => { Deferred.doneUnsafe(asking, Effect.succeed(SILENT)) }),
-              ))
-              // A LINK WHOSE PLUGIN HAD ALREADY STOPPED IS SKIPPED, and the
-              // skip is the chain carrying on at the next link with the value
-              // as it stands — the same recovery the died-without-calling-
-              // through arm takes, for the same reason: a link that was never
-              // entered has consulted nobody, and the ones after it are not its
-              // to take with it.
-              if (running === undefined) return yield* step(at + 1, value)
-              return yield* holding(running, Effect.gen(function*() {
-                const request = yield* Deferred.await(asking)
-                if (request !== SILENT) {
-                  const carried = yield* step(at + 1, request.passed)
-                  asked = "answered"
-                  yield* Deferred.succeed(answered, carried)
-                }
-                const exit = yield* Fiber.await(running)
-                if (Exit.isSuccess(exit)) return exit.value
-                /**
-                 * THE THREE STATES A STOPPED LINK CAN BE IN, and they want
-                 * three different answers.
-                 *
-                 * NEVER ASKED — it consulted nobody, so the chain resumes at the
-                 * next link with the value this one was handed.
-                 *
-                 * ASKED AND ANSWERED — the rest of the chain has already run,
-                 * on the dispatcher's own fiber, and asking it again is the
-                 * double-ask this waterfall exists to make impossible. The
-                 * value comes back as this link was handed it, because a link
-                 * that stopped mid-transform may have done half of what it
-                 * meant to and a half-transformed value is not something to
-                 * pass on.
-                 *
-                 * ASKED AND STILL RUNNING — the same answer, and it is safe for
-                 * a structural reason rather than a careful one: the rest of the
-                 * chain is not in this fiber, so cutting this link did not touch
-                 * it. It settles under the dispatcher above, which is what the
-                 * `yield*` two lines up already waited for.
-                 *
-                 * A CUT is not a FAILURE and is not said: the plugin left, which
-                 * is nobody's news. A link that DIED is the other arm, and it
-                 * keeps the sentence every bus in this tree shares.
-                 */
-                const onward = asked === "no"
-                  ? step(at + 1, value)
-                  : Effect.succeed(value)
-                if (wasCut(exit)) return yield* onward
-                return yield* Effect.flatMap(failed(link.plugin, occasion, exit.cause), () => onward)
-              }))
+              return yield* link.gate.through(
+                Effect.ensuring(
+                  // SUSPENDED, which is not decoration: `link.middleware(value,
+                  // next)` is an ordinary call, so writing it as the argument
+                  // would RUN the plugin's middleware and hand the gate only the
+                  // Effect it came back with. A middleware is typed
+                  // `(value, next) => Effect<A>` and is under no obligation to be
+                  // lazy — this file's own bench happens to write every fixture
+                  // with an `Effect.suspend` inside, which is exactly why the
+                  // hole survived the first pass. {@link ./broadcast.ts}'s
+                  // handler is wrapped the same way for the same reason.
+                  Effect.suspend(() => link.middleware(value, next)),
+                  // A LINK THAT ENDS WITHOUT ASKING — returned, died, or was cut
+                  // — has to say so, or the dispatcher would sit waiting for a
+                  // request that is never coming. `doneUnsafe` on an already-made
+                  // request is a no-op, so this is only ever the other arm.
+                  Effect.sync(() => { Deferred.doneUnsafe(asking, Effect.succeed(SILENT)) }),
+                ),
+                // A LINK WHOSE PLUGIN HAD ALREADY STOPPED IS SKIPPED, and the
+                // skip is the chain carrying on at the next link with the value
+                // as it stands — the same recovery the died-without-calling-
+                // through arm takes, for the same reason: a link that was never
+                // entered has consulted nobody, and the ones after it are not
+                // its to take with it.
+                (running) =>
+                  running === undefined ? step(at + 1, value) : Effect.gen(function*() {
+                    const request = yield* Deferred.await(asking)
+                    if (request !== SILENT) {
+                      const carried = yield* step(at + 1, request.passed)
+                      asked = "answered"
+                      yield* Deferred.succeed(answered, carried)
+                    }
+                    const exit = yield* Fiber.await(running)
+                    if (Exit.isSuccess(exit)) return exit.value
+                    /**
+                     * THE THREE STATES A STOPPED LINK CAN BE IN, and they want
+                     * three different answers.
+                     *
+                     * NEVER ASKED — it consulted nobody, so the chain resumes at the
+                     * next link with the value this one was handed.
+                     *
+                     * ASKED AND ANSWERED — the rest of the chain has already run,
+                     * on the dispatcher's own fiber, and asking it again is the
+                     * double-ask this waterfall exists to make impossible. The
+                     * value comes back as this link was handed it, because a link
+                     * that stopped mid-transform may have done half of what it
+                     * meant to and a half-transformed value is not something to
+                     * pass on.
+                     *
+                     * ASKED AND STILL RUNNING — the same answer, and it is safe for
+                     * a structural reason rather than a careful one: the rest of the
+                     * chain is not in this fiber, so cutting this link did not touch
+                     * it. It settles under the dispatcher above, which is what the
+                     * `yield*` two lines up already waited for.
+                     *
+                     * A CUT is not a FAILURE and is not said: the plugin left, which
+                     * is nobody's news. A link that DIED is the other arm, and it
+                     * keeps the sentence every bus in this tree shares.
+                     */
+                    const onward = asked === "no"
+                      ? step(at + 1, value)
+                      : Effect.succeed(value)
+                    if (wasCut(exit)) return yield* onward
+                    return yield* Effect.flatMap(failed(link.plugin, occasion, exit.cause), () => onward)
+                  }),
+              )
             })
           return step(0, initial)
         }

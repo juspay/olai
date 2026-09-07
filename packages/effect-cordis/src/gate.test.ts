@@ -4,22 +4,28 @@
  *
  * `./broadcast.test.ts` asks them again through a real bus,
  * `./waterfall.test.ts` through a real chain, and `./lifecycle.test.ts` through
- * two real plugins with real resources — which is where the failures were
+ * real plugins with real resources — which is where the failures were
  * reproduced and where the ORDERING claim can be made at all, since the
  * ordering is the activation's and a bare scope has none.
  *
  * These are here because a gate that stopped cutting, or started cutting
- * without joining, would fail there in four places and be diagnosed in none of
- * them.
+ * without joining, would fail there in several places and be diagnosed in none
+ * of them.
+ *
+ * ONE PROPERTY IS NOT HERE AND CANNOT BE: that a gate's two owners — a child
+ * scope closing and the activation's pre-close stage — join the SAME cut rather
+ * than the second finding an empty set. A bare scope has one owner, and closing
+ * it twice tests `Scope.close`'s own idempotence and not this module's. It is
+ * asked in `./lifecycle.test.ts`, where both owners exist.
  */
 
 import { expect, test } from "bun:test"
 import { Deferred, Effect, Exit, Fiber, Scope } from "effect"
 
-import { gate, type Gate, holding, wasCut } from "./gate.ts"
+import { gate, type Gate, wasCut } from "./gate.ts"
 
-/** One gate on a BARE scope, which is the fallback path — a bench, or a
- *  `standing()` runtime. The activation path is `./lifecycle.test.ts`'s. */
+/** One gate on a BARE scope, which is also the shape a child scope takes. The
+ *  activation path is `./lifecycle.test.ts`'s. */
 const opened = async (): Promise<{
   readonly gate: Gate
   readonly close: () => Effect.Effect<void>
@@ -36,9 +42,12 @@ const beat = (): Promise<void> => new Promise((resume) => { setTimeout(resume, 2
 test("a call that arrives after the gate shut is never started", async () => {
   const { gate: shut, close } = await opened()
   let called = 0
-  const call = Effect.flatMap(
-    shut.start(Effect.sync(() => { called += 1 })),
-    (started) => Effect.succeed(started === undefined ? "skipped" : "started"),
+  const call = shut.through(
+    Effect.sync(() => { called += 1 }),
+    (started) =>
+      started === undefined
+        ? Effect.succeed("skipped" as const)
+        : Effect.as(Fiber.await(started), "started" as const),
   )
   expect(await Effect.runPromise(call)).toBe("started")
   expect(called).toBe(1)
@@ -55,21 +64,30 @@ test("a call already inside is CUT, and the stop does not answer until it has un
   const { gate: shut, close } = await opened()
   const said: Array<string> = []
   const entered = Deferred.makeUnsafe<void>()
-  const started = await Effect.runPromise(shut.start(Effect.gen(function*() {
-    yield* Effect.addFinalizer(() => Effect.gen(function*() {
-      yield* Effect.sleep("30 millis")
-      said.push("the call finished unwinding")
-    }))
-    yield* Deferred.succeed(entered, undefined)
-    yield* Effect.never
-  }).pipe(Effect.scoped)))
+  const held = Deferred.makeUnsafe<Fiber.Fiber<void>>()
+  const calling = Effect.runPromise(shut.through(
+    Effect.gen(function*() {
+      yield* Effect.addFinalizer(() =>
+        Effect.gen(function*() {
+          yield* Effect.sleep("30 millis")
+          said.push("the call finished unwinding")
+        })
+      )
+      yield* Deferred.succeed(entered, undefined)
+      yield* Effect.never
+    }).pipe(Effect.scoped),
+    (started) =>
+      Effect.andThen(Deferred.succeed(held, started!), Effect.asVoid(Fiber.await(started!))),
+  ))
   await Effect.runPromise(Deferred.await(entered))
   await Effect.runPromise(close())
   said.push("the gate stopped")
+  await calling
   // THE ORDER IS THE CLAIM: unwound first, stopped second. A cut that only
   // SIGNALLED would put these the other way round.
   expect(said).toEqual(["the call finished unwinding", "the gate stopped"])
-  expect(wasCut(await Effect.runPromise(Fiber.await(started!)))).toBe(true)
+  expect(wasCut(await Effect.runPromise(Fiber.await(await Effect.runPromise(Deferred.await(held))))))
+    .toBe(true)
 })
 
 test("cutting a call does not disturb the fiber that started it", async () => {
@@ -79,14 +97,15 @@ test("cutting a call does not disturb the fiber that started it", async () => {
   const { gate: shut, close } = await opened()
   const entered = Deferred.makeUnsafe<void>()
   const said: Array<string> = []
-  const calling = Effect.runPromise(Effect.gen(function*() {
-    const started = yield* shut.start(
-      Effect.andThen(Deferred.succeed(entered, undefined), Effect.never),
-    )
-    const exit = yield* holding(started!, Fiber.await(started!))
-    said.push(wasCut(exit) ? "the call was cut" : "the call answered")
-    said.push("the caller carried on")
-  }))
+  const calling = Effect.runPromise(shut.through(
+    Effect.andThen(Deferred.succeed(entered, undefined), Effect.never),
+    (started) =>
+      Effect.gen(function*() {
+        const exit = yield* Fiber.await(started!)
+        said.push(wasCut(exit) ? "the call was cut" : "the call answered")
+        said.push("the caller carried on")
+      }),
+  ))
   await Effect.runPromise(Deferred.await(entered))
   await Effect.runPromise(close())
   await calling
@@ -95,19 +114,20 @@ test("cutting a call does not disturb the fiber that started it", async () => {
 
 test("a caller interrupted first takes its call with it", async () => {
   // The started fiber is a ROOT and not a child, which is what makes the
-  // shut-check and the start one synchronous block. `holding` is where that
-  // price is paid back.
+  // shut-check and the start one synchronous block. The hold `through`
+  // installs — inside the same uninterruptible step as the start — is where
+  // that price is paid back.
   const { gate: shut } = await opened()
   const entered = Deferred.makeUnsafe<void>()
   let released = false
-  const caller = Effect.runFork(Effect.gen(function*() {
-    const started = yield* shut.start(Effect.gen(function*() {
+  const caller = Effect.runFork(shut.through(
+    Effect.gen(function*() {
       yield* Effect.addFinalizer(() => Effect.sync(() => { released = true }))
       yield* Deferred.succeed(entered, undefined)
       yield* Effect.never
-    }).pipe(Effect.scoped))
-    yield* holding(started!, Fiber.await(started!))
-  }))
+    }).pipe(Effect.scoped),
+    (started) => Effect.asVoid(Fiber.await(started!)),
+  ))
   await Effect.runPromise(Deferred.await(entered))
   await Effect.runPromise(Fiber.interrupt(caller))
   await beat()

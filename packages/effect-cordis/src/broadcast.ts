@@ -53,7 +53,7 @@
 
 import { type Cause, Effect, Fiber, Scope } from "effect"
 
-import { gate, holding } from "./gate.ts"
+import { gate } from "./gate.ts"
 import { roster } from "./registry.ts"
 
 /** WHAT A PLUGIN'S HALF OF A BUS IS — one verb, and it is a registration rather
@@ -109,20 +109,19 @@ export const broadcast = <A>(what: string): Bus<A> => {
     listen: (plugin) => (handler) =>
       Effect.flatMap(gate(plugin, what), (shut) =>
         handlers.hold((value) =>
-          Effect.flatMap(
-            shut.start(contained(plugin, what, Effect.suspend(() => handler(value)))),
+          shut.through(
+            contained(plugin, what, Effect.suspend(() => handler(value))),
             // NOTHING STARTED, because the plugin had already stopped — which
             // is the whole of what a broadcast has to do about it: a bus has
             // no value to hand back and no chain to carry on.
+            //
+            // ...AND ONE THAT DID START IS WAITED FOR, which is what keeps
+            // `tell`'s promise to answer when the last handler has. What comes
+            // back is discarded: a handler that FAILED was already said by
+            // `contained`, and one that was CUT is a plugin that left, which is
+            // nobody's news.
             (started) =>
-              started === undefined
-                // ...AND ONE THAT DID START IS WAITED FOR, which is what keeps
-                // `tell`'s promise to answer when the last handler has. What
-                // comes back is discarded: a handler that FAILED was already
-                // said by `contained`, and one that was CUT is a plugin that
-                // left, which is nobody's news.
-                ? Effect.void
-                : Effect.asVoid(holding(started, Fiber.await(started))),
+              started === undefined ? Effect.void : Effect.asVoid(Fiber.await(started)),
           ))),
     // SUSPENDED, because the list is read at the moment the bus is rung rather
     // than at the moment it was opened: every subscriber arrives afterwards.

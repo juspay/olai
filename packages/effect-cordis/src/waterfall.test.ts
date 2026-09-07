@@ -26,7 +26,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { Deferred, Effect, Fiber } from "effect"
+import { Deferred, Effect, Exit, Fiber, Scope } from "effect"
 
 import { mountPlugin, openHost } from "./host.ts"
 import { definePlugin, PluginName } from "./plugin.ts"
@@ -222,6 +222,76 @@ for (const cutAt of ["before it asked", "after its answer came back", "while its
         // what it meant to with the answer, and a half-transformed value is not
         // something to pass on.
         : [])
+    })))
+  })
+}
+
+/**
+ * A LINK'S OWN SCOPE, and its withdrawal while the plugin stays mounted.
+ *
+ * `use` is typed with `Scope` exactly as `listen` is, so the same two halves
+ * apply one dispatch mode over: a link registered in a child scope must stop
+ * being called when that child closes, whether the walk has reached it yet or
+ * is inside it.
+ */
+for (const inflight of [false, true] as const) {
+  test(`a child scope's withdrawal stops a link that is ${inflight ? "running" : "pending"}`, async () => {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+      const host = yield* openHost
+      const dispatch = yield* Opening.open(host)
+      const parked = Deferred.makeUnsafe<void>()
+      const resume = Deferred.makeUnsafe<void>()
+      const child = Scope.makeUnsafe()
+      let asked = 0
+      // THE BLOCKER holds the walk ahead of the leaver, so the leaver is still
+      // pending when its child closes. In the running case the leaver parks
+      // itself instead and there is nothing to hold.
+      if (!inflight) {
+        yield* mountPlugin(host, definePlugin({
+          name: "blocker",
+          needs: [Opening.key],
+          apply: Effect.gen(function*() {
+            const chain = yield* Opening.key
+            yield* chain.use((value, next) =>
+              Effect.gen(function*() {
+                yield* Deferred.succeed(parked, undefined)
+                yield* Deferred.await(resume)
+                return yield* next(value)
+              })
+            )
+          }),
+        }))
+      }
+      const owner = yield* mountPlugin(host, definePlugin({
+        name: "leaver",
+        needs: [Opening.key],
+        apply: Effect.gen(function*() {
+          const chain = yield* Opening.key
+          yield* chain.use((value, next) =>
+            Effect.gen(function*() {
+              asked += 1
+              if (inflight) {
+                yield* Deferred.succeed(parked, undefined)
+                yield* Effect.never
+              }
+              return yield* next({ said: [...value.said, "leaver"] })
+            })
+          ).pipe(Effect.provideService(Scope.Scope, child))
+        }),
+      }))
+      yield* mountPlugin(host, speaker("other"))
+      const opening = yield* Effect.forkScoped(dispatch({ said: [] }))
+      yield* Deferred.await(parked)
+      yield* Scope.close(child, Exit.void)
+      if (!inflight) yield* Deferred.succeed(resume, undefined)
+      const opened = yield* Fiber.join(opening)
+      // NEVER ASKED IN EITHER CASE, or asked once and cut before it passed
+      // anything on — and the chain carries on to the link after it either way.
+      expect(asked).toBe(inflight ? 1 : 0)
+      expect(opened.said).toEqual(["other"])
+      // ...and the plugin that registered it is still mounted, which is what
+      // makes this the SCOPE's withdrawal and not the activation's.
+      expect(yield* owner.report).toEqual({ state: "running" })
     })))
   })
 }
