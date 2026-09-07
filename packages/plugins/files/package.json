@@ -11,8 +11,6 @@
     "./*": "./src/*",
     "./surface": "./src/surface.ts",
     "./tools": "./src/tools.ts",
-    "./served": "./src/served.tsx",
-    "./opens": "./src/opens.tsx",
     "./making": "./src/file/making.ts",
     "./testids": "./src/testids.ts",
     "./icons": "./src/contracts/icons.tsx",
@@ -43,8 +41,6 @@
   },
   "olai": {
     "contracts": [
-      "./served",
-      "./opens",
       "./making",
       "./testids",
       "./icons",

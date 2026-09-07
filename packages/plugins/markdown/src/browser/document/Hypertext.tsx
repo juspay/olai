@@ -120,7 +120,7 @@ import { useOpens } from "olai-plugin-navigation/opens"
 import { useGo, useLanding } from "olai-plugin-navigation/routing"
 import { fileNamed } from "olai-plugin-navigation/routes"
 
-import { useHead } from "olai-plugin-vault/files"
+import { useHead } from "../vault.ts"
 import { BodyRefused } from "./BodyRefused.tsx"
 import { echo } from "./echo.ts"
 

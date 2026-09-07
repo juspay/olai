@@ -79,6 +79,7 @@ import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./browser/search.ts"
 import { references as outlineReferences } from "olai-plugin-outlines/references"
 import { holdReferences } from "./browser/references.ts"
+import { holdVault } from "./browser/vault.ts"
 import { type ChatClient, holdChatWire } from "./browser/wire.ts"
 
 /** THE WIRE IDENTITY, on this door too — and `surface` is the load-bearing
@@ -104,6 +105,10 @@ export default definePlugin({
     const slots = yield* Slots
     const faces = yield* Faces
     const wired = yield* Wired
+    // The served directory the composer completes a path out of, held for this
+    // activation (`./browser/vault.ts`).
+    const files = yield* fileAccess
+    yield* Effect.acquireRelease(Effect.sync(() => holdVault(files)), stop => Effect.sync(stop))
 
     // THIS PLUGIN'S OWN MEMBERS, held for the thirty modules that read them at
     // module scope — see `./browser/wire.ts`.

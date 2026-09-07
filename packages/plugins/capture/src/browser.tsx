@@ -11,17 +11,20 @@ import { fileNamed } from "olai-plugin-navigation/routes"
 import { regions,type SidebarRegionProps } from "olai-plugin-sidebar/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { fileAccess } from "olai-plugin-vault/contract"
-import { directory } from "olai-plugin-vault/file-state"
-import { useServed } from "olai-plugin-vault/files"
+import { holdVault, servedDirectory, useServed } from "./vault.ts"
 import { createMemo,Show } from "solid-js"
 import { Inbox } from "./Inbox.tsx"
 import { capturePalette } from "./Palette.tsx"
 function Entry(props: SidebarRegionProps & {active:()=>string|undefined}) {
  const count=createInboxHeld(); const served = useServed(); const inbox = createMemo(() => inboxIn(served()))
- return <Show when={inbox()}>{file => <Inbox file={file()} isActive={file => props.active() === file} broken={directory()?.broken().has(file()) === true} count={count().count}/>}</Show>
+ return <Show when={inbox()}>{file => <Inbox file={file()} isActive={file => props.active() === file} broken={servedDirectory()?.broken().has(file()) === true} count={count().count}/>}</Show>
 }
 export const components={palette:capturePalette}
 export default definePlugin({name:"capture", needs:[Wired, rendererSlots, navigation, fileAccess], apply:Effect.gen(function*(){
+  // The served directory, held for this activation — `./vault.ts` on why the
+  // inbox entry reads it here rather than out of the vault's own module.
+  const files = yield* fileAccess
+  yield* Effect.acquireRelease(Effect.sync(() => holdVault(files)), stop => Effect.sync(stop))
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
   yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))

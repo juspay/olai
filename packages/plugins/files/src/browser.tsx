@@ -3,6 +3,7 @@ import { holdClient, type Client } from "./client.ts"
 import { registerWriter } from "@olai/edit-history/writing.ts"
 import { dispatch } from "./surface.ts"
 import { fileAccess } from "olai-plugin-vault/contract"
+import { holdVault } from "./vault.ts"
 import { DeleteFile } from "./file/DeleteFile.tsx"
 import { clearNewFileMemory,NewFile } from "./file/NewFile.tsx"
 /** Directory membership and folder preferences belong to files, independently
@@ -18,6 +19,10 @@ import { FileRail } from "./Rail.tsx"
 import { fileState,fileTypes,holdFileControls } from "./contract.ts"
 import { followFolders } from "./fold/folders.ts"
 export default definePlugin({name:"files", needs:[Wired, Offers, fileAccess], apply:Effect.gen(function*(){
+ // The served directory the tree is drawn from, held for this activation
+ // (`./vault.ts`).
+ const served = yield* fileAccess
+ yield* Effect.acquireRelease(Effect.sync(()=>holdVault(served)),stop=>Effect.sync(stop))
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
   yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))

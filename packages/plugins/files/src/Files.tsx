@@ -10,7 +10,7 @@ Match,
 Show,
 Switch,
 } from "solid-js"
-import { directory } from "./state.ts"
+import { servedDirectory } from "./vault.ts"
 
 
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
@@ -22,7 +22,7 @@ import { openFolders,toggleFolder } from "olai-plugin-files/fold/folders.ts"
 import { ENTRY_SHAPE,REGION,ROW_GAP } from "olai-plugin-layout/entry"
 import { atFile,type Route } from "olai-plugin-navigation/routes"
 import { Link } from "olai-plugin-navigation/routing"
-import { useServed } from "olai-plugin-vault/files"
+import { useServed } from "./vault.ts"
 
 
 import type { SidebarRegionProps } from "olai-plugin-sidebar/contract"
@@ -128,7 +128,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   const view: TreeView = {
     isActive,
     get broken() {
-      return directory()!.broken()
+      return servedDirectory()!.broken()
     },
     expanded: openFolders,
     openAncestry,
@@ -196,7 +196,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
                       <VaultFile
                         file={file()}
                         isActive={isActive}
-                        broken={directory()!.broken()}
+                        broken={servedDirectory()!.broken()}
                       />
                     )}
                   </Key>

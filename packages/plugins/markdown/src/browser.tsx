@@ -22,6 +22,7 @@ import { createDocuments, holdDocuments } from "./browser/document/documents.tsx
 import { clearDocumentDrafts } from "./browser/document/drafts.ts"
 import { holdHistory, useHistory } from "./browser/history.ts"
 import { holdLocations } from "./browser/locations.ts"
+import { holdVault } from "./browser/vault.ts"
 import { EmbeddedDocument } from "./browser/EmbeddedDocument.tsx"
 import { openCreated, clearMinted } from "./browser/document/minted.ts"
 import { MarkdownPageView } from "./browser/PageView.tsx"
@@ -80,6 +81,10 @@ export const components = {
     // The walks a document's property run makes over other rows' locations,
     // from the renderer this component already names (`./browser/locations.ts`).
     yield* Effect.acquireRelease(Effect.sync(() => holdLocations(slots.read)), stop => Effect.sync(stop))
+    // ...and which revision a served file is at, which is what a hypertext
+    // preview watches (`./browser/vault.ts`).
+    const served = yield* fileAccess
+    yield* Effect.acquireRelease(Effect.sync(() => holdVault(served)), stop => Effect.sync(stop))
     yield* slots.contribute(content, { matches: route => documentFile(route) !== undefined, Page: MarkdownPageView }, {children:[documentBodies, properties]})
     yield* slots.contribute(documentBodies, EmbeddedDocument)
   }) }),

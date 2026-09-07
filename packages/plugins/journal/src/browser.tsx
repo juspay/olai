@@ -6,6 +6,7 @@ import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { holdLocations } from "./browser/locations.ts"
 import { documentEditing } from "olai-plugin-markdown/contract"
 import { holdDocumentActions } from "./browser/editing.ts"
+import { holdVault } from "./browser/vault.ts"
 import { propertyRoutes } from "olai-plugin-outlines/contract"
 import { routeIn } from "olai-plugin-navigation/routes"
 import { definePlugin, Slots, Wired } from "@olai/plugin-api"
@@ -60,6 +61,9 @@ export default definePlugin({
     // (`./browser/locations.ts`).
     const locations = yield* rendererSlots
     yield* Effect.acquireRelease(Effect.sync(() => holdLocations(locations.read)), stop => Effect.sync(stop))
+    // The served directory, held for this activation (`./browser/vault.ts`).
+    const files = yield* fileAccess
+    yield* Effect.acquireRelease(Effect.sync(() => holdVault(files)), stop => Effect.sync(stop))
     const wired = yield* Wired
     yield* holdJournalWire(() => wired.client() as JournalClient)
 
