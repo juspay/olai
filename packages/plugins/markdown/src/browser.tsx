@@ -17,6 +17,7 @@ import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { navigation, content, fileLinks } from "olai-plugin-navigation/contract"
 import {fileAccess} from "olai-plugin-vault/contract"
 import { fileTypes, fileState } from "olai-plugin-files/contract"
+import { holdFileControls } from "./browser/files.tsx"
 import { createUndo } from "@olai/edit-history/undoing.ts"
 import { createDocuments, holdDocuments } from "./browser/document/documents.tsx"
 import { clearDocumentDrafts } from "./browser/document/drafts.ts"
@@ -61,6 +62,12 @@ export default definePlugin({ name, needs: [Wired, Offers], apply: Effect.gen(fu
   yield* offers.own("editing", () => state.value.editing)
 }) })
 export const components = {
+  /** The file controls this row draws, DECLARED — a component of its own so a
+   *  page with no files row mounted is a whole page (`./browser/files.tsx`). */
+  "file-controls": definePlugin({ name: "file-controls", needs: [fileState], apply: Effect.gen(function*() {
+    const controls = yield* fileState
+    yield* Effect.acquireRelease(Effect.sync(() => holdFileControls(controls)), stop => Effect.sync(stop))
+  }) }),
   /** The shell's geometry, DECLARED — a component of its own because content
    *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
    *  that waited for this one could not (`./browser/shell.ts`). */

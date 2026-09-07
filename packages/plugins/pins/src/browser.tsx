@@ -14,7 +14,7 @@ import { regions } from "olai-plugin-sidebar/contract"
 import { navigation } from "olai-plugin-navigation/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { createRoot } from "solid-js"
-import { holdPins } from "./browser/answered.tsx"
+import { holdPins, usePins } from "./browser/answered.tsx"
 import { holdPinUndo, usePinUndo } from "./browser/history.ts"
 import { paletteIntegration } from "./browser/Palette.tsx"
 import { scopePinSaid } from "./browser/pinning.ts"
@@ -30,7 +30,9 @@ export default definePlugin({name:"pins", needs:[Wired, Offers], apply:Effect.ge
   const stopHistory=holdPinUndo(createUndo(edit=>runAsync(writeEdit(edit))))
   return ()=>{dispose();stop();stopHistory()}
  })),stop=>Effect.sync(stop))
- yield* (yield* Offers).own("state",()=>({}))
+ // THE SHELF, on the service that names it — rather than a signal in a
+ // declared door the outline read across the wall (`./contract.ts`).
+ yield* (yield* Offers).own("state",()=>({ shelf: usePins() }))
 })})
 export const components={palette:paletteIntegration,sidebar:definePlugin({name:"sidebar", needs:[rendererSlots,pinsState,navigation], apply:Effect.gen(function*(){
  const nav = yield* navigation

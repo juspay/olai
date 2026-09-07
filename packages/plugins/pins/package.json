@@ -10,7 +10,6 @@
     "./server": "./src/server.ts",
     "./*": "./src/*",
     "./surface": "./src/surface.ts",
-    "./shelf": "./src/browser/answered.tsx",
     "./values": "./src/browser/pins.ts",
     "./testids": "./src/testids.ts"
   },
@@ -37,7 +36,6 @@
   },
   "olai": {
     "contracts": [
-      "./shelf",
       "./values",
       "./testids",
       "./surface"

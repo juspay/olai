@@ -15,6 +15,8 @@ import { holdLocations } from "./browser/locations.ts"
 import { holdRouting } from "./browser/routing.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./browser/search.ts"
+import { pinsState } from "olai-plugin-pins/contract"
+import { holdPins } from "./browser/pins.ts"
 import { shell as layoutShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./browser/shell.ts"
 import { Effect } from "effect"
@@ -23,6 +25,7 @@ import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { navigation, content } from "olai-plugin-navigation/contract"
 import {fileAccess} from "olai-plugin-vault/contract"
 import { fileTypes, fileState } from "olai-plugin-files/contract"
+import { holdFileControls } from "./browser/files.tsx"
 import { NewOutline } from "./browser/outline/NewOutline.tsx"
 import { sections } from "olai-plugin-preferences/contract"
 import { name, browserState, datedRows, documentReferences, pageView, titles, propertyRoutes, type OutlinesBrowser } from "./index.ts"
@@ -137,6 +140,19 @@ export const components = {
     yield* slots.contribute(pageView, OutlinePageView)
     yield* slots.contribute(titles, NodeTitle)
     yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && fileKind(meaning.file) === "outline" ? atFile(meaning.file) : undefined)
+  }) }),
+  /** The file controls this row draws, DECLARED — a component of its own so a
+   *  page with no files row mounted is a whole page (`./browser/files.tsx`). */
+  "file-controls": definePlugin({ name: "file-controls", needs: [fileState], apply: Effect.gen(function*() {
+    const controls = yield* fileState
+    yield* Effect.acquireRelease(Effect.sync(() => holdFileControls(controls)), stop => Effect.sync(stop))
+  }) }),
+  /** The pinned shelf, DECLARED — a component of its own so an outline with no
+   *  pins row mounted is a whole outline, with no glyph on a row
+   *  (`./browser/pins.ts`). */
+  pins: definePlugin({ name: "pins", needs: [pinsState], apply: Effect.gen(function*() {
+    const shelf = yield* pinsState
+    yield* Effect.acquireRelease(Effect.sync(() => holdPins(shelf)), stop => Effect.sync(stop))
   }) }),
   /** The matcher, DECLARED — a component of its own so the outline keeps
    *  editing and navigating when the row leaves, and its completions and

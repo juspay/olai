@@ -18,7 +18,7 @@ import { railEntries,regions } from "olai-plugin-sidebar/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { Files } from "./Files.tsx"
 import { FileRail } from "./Rail.tsx"
-import { fileState,fileTypes,holdFileControls } from "./contract.ts"
+import { fileState,fileTypes } from "./contract.ts"
 import { followFolders } from "./fold/folders.ts"
 export default definePlugin({name:"files", needs:[Wired, Offers, fileAccess], apply:Effect.gen(function*(){
  // The served directory the tree is drawn from, held for this activation
@@ -29,7 +29,9 @@ export default definePlugin({name:"files", needs:[Wired, Offers, fileAccess], ap
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
   yield* Effect.acquireRelease(Effect.sync(() => registerWriter(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))), stop => Effect.sync(stop))
 
- yield* Effect.acquireRelease(Effect.sync(()=>holdFileControls({Delete:DeleteFile,New:NewFile})),stop=>Effect.sync(()=>{stop();clearNewFileMemory()}))
+ // The minting box keeps a draft per activation; the CONTROLS themselves
+ // travel on `files.state` below rather than in a signal on a declared door.
+ yield* Effect.acquireRelease(Effect.void,()=>Effect.sync(clearNewFileMemory))
  yield* Effect.acquireRelease(Effect.sync(followFolders), stop => Effect.sync(stop))
  yield* (yield* Offers).own("state",()=>({Delete:DeleteFile,New:NewFile}))
 })})

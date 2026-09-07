@@ -29,7 +29,7 @@ import { Result } from "effect"
 
 import { useUndo } from "../edit/undoing.ts"
 import { MAKING_OUTLINE } from "olai-plugin-files/making"
-import { NewFile } from "olai-plugin-files/contract"
+import { NewFile } from "../files.tsx"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { applied } from "@olai/web/client/writes.ts"
 import { atFile } from "olai-plugin-navigation/routes"
