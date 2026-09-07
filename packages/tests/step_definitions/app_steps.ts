@@ -110,3 +110,10 @@ Then("the page has not reloaded", async function (this: OlaiWorld) {
       "something navigated when it should have re-rendered in place",
   );
 });
+
+
+/** Close the app's live connections before a persistence-only server restart.
+ * Reconnect workflows keep their tab open and exercise the connection overlay. */
+When("I leave the app", async function (this: OlaiWorld) {
+  await this.page.goto("about:blank");
+});

@@ -58,7 +58,13 @@ export interface ServiceKey<Shape> extends Context.Service<Shape, Shape> {
  * no method that takes it as a parameter — which is what makes "a plugin cannot
  * sign another plugin's name to a registration" a shape rather than a rule.
  */
-export type Provision<Shape> = (plugin: string) => Shape
+/** The calling activation, supplied by the facade. Direct host reads have none. */
+export interface ConsumerLifetime {
+  /** False once this Cordis activation starts leaving; a replacement has its own lifetime. */
+  readonly current: () => boolean
+}
+
+export type Provision<Shape> = (plugin: string, lifetime?: ConsumerLifetime) => Shape
 
 /**
  * Mint a key.

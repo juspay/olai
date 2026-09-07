@@ -29,7 +29,7 @@ import { ephemeralLocalState } from "./local.ts"
 import type { Conversing } from "./sessions.ts"
 import type { Change } from "./transcript.ts"
 import { pastOf } from "./lineage.ts"
-import type { Listed } from "olai-plugin-chat/wire"
+import { agentIn, type Listed } from "olai-plugin-chat/wire"
 
 /** Long enough not to churn an ordinary working set, finite so sleeping agents
  * do not become a process pool. Tests inject a shorter duration. */
@@ -67,6 +67,9 @@ export interface Chat extends Panel {
  * a node pool; there is no optional field that changes which lifecycle `make`
  * constructs. */
 export interface Options extends PanelOptions {
+  /** Current user-controlled wake activation, read through its Cordis service.
+   * Absent for delivery-only plugins, which use node-derived recipients. */
+  readonly wake: (plugin: string) => object | undefined
   readonly nodeAt: (node: string) => NodeAgent | null
   /** Whether a node is a record an agent could be SEATED at — which is not the
    * same question as whether it is one already, and is the one the gesture
@@ -140,6 +143,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       capacity = DEFAULT_CAPACITY,
       idle = DEFAULT_IDLE,
       nearestAt,
+      wake,
       nodeAt,
       nodes: nodesAt,
       onLive,
@@ -631,16 +635,38 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  panel acquired — and that was never the part that was missing. */
     const start = Effect.sync(() => { booting = fork(boot) })
 
+    const discardPending = (left: ReadonlyArray<{
+      readonly agent: string; readonly session: string; readonly plugin: string
+    }>): void => {
+      for (const [key, held] of pending) {
+        const keep = held.filter((one) => !left.some((row) => row.plugin === one.plugin
+          && row.agent === one.to.agent && row.session === one.to.session))
+        if (keep.length === 0) pending.delete(key)
+        else pending.set(key, keep)
+      }
+    }
+
+    const refreshWakes: Panel["refreshWakes"] = (left) => {
+      discardPending(left)
+      root.refreshWakes(left)
+      for (const slot of nodes.values()) slot.panel.refreshWakes(left)
+    }
+
     const scopedDoor = (plugin: string) => {
       const scopes = (): ReadonlyArray<WakeScope> => {
         const manual = root.doorFor(plugin).scopes()
-          .filter((scope) => nodeFor(scope.agent, scope.session) === null)
+        const activation = wake(plugin)
+        if (activation !== undefined) return manual.map((row) => ({
+          ...row, current: () => wake(plugin) === activation && row.current(),
+        }))
         const derived = nodesAt().flatMap((node) =>
           node.session === null
             ? []
-            : [{ agent: node.engine, session: node.session, file: node.file, under: node.id }]
+            : [{ agent: node.engine, session: node.session, file: node.file, under: node.id,
+              current: () => nodeFor(node.engine, node.session!)?.id === node.id }]
         )
-        return [...manual, ...derived]
+        return [...manual.filter((scope) => nodeFor(scope.agent, scope.session) === null), ...derived]
+          .map((row) => ({ ...row, current: () => wake(plugin) === undefined && row.current() }))
       }
       return {
         scopes,
@@ -651,28 +677,33 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           return rows.filter((scope) => scope.under === undefined || scope.under === nearest)
         },
         deliver: (
-          to: { readonly agent: string; readonly session: string },
+          to: { readonly agent: string; readonly session: string; readonly current?: () => boolean },
           say: () => string | null,
           how?: { readonly coalesce?: string },
         ): Effect.Effect<void> => {
+          // Capture before startup, queuing or another Effect yield. The body
+          // carries this one authority through every owner and checks it at
+          // Panel.offer's final transcript-write boundary, not at queue cleanup.
+          const allowed = to.current ?? (() => wake(plugin) === undefined)
+          const authorized = () => allowed() ? say() : null
           const node = nodeFor(to.agent, to.session)
-          if (node === null) return root.doorFor(plugin).deliver(to, say, how)
+          if (node === null) return root.doorFor(plugin).deliver(to, authorized, how)
           return Effect.catch(Effect.gen(function*() {
+            if (!allowed()) return
             const slot = yield* ensureNode(
               node.id,
               (panel) => panel.loadSession(to.agent, to.session),
               false,
             )
-            yield* slot.panel.doorFor(plugin).deliver(to, say, how)
+            yield* slot.panel.doorFor(plugin).deliver(to, authorized, how)
           }),
-            (failure) =>
-              Effect.sync(() => hold(node.id, { plugin, to, say, options: how })).pipe(
-                Effect.andThen(
-                  Effect.logWarning(
-                    `node agent ${node.id} could not wake: ${failure.message}; its delivery is held`,
-                  ),
-                ),
-              ),
+            (failure) => Effect.suspend(() => {
+              if (!allowed()) return Effect.void
+              hold(node.id, { plugin, to, say: authorized, options: how })
+              return Effect.logWarning(
+                `node agent ${node.id} could not wake: ${failure.message}; its delivery is held`,
+              )
+            }),
           )
         },
       }
@@ -830,15 +861,29 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       sessions: listSessions,
       answer: (id, answers) => foreground((panel) => panel.answer(id, answers)),
       doorFor: scopedDoor,
-      scope: (to, plugin, file) => {
-        if (nodeFor(to.agent, to.session) !== null) {
-          return Effect.fail(new UsageFailure({
-            reason: "a node agent wakes from its subtree; its scope is not picked by hand",
-          }))
-        }
-        return root.scope(to, plugin, file)
-      },
-      faults: (served, sayable) => root.faults(served, sayable),
+      scope: (to, plugin, file) => Effect.gen(function*() {
+        // A sleeping session's preference can be written without acquiring an
+        // ACP process. A live one owns its inbox, so the write goes through it.
+        const panel = [...nodes.values()].find((slot) =>
+          slot.state.session?.id === to.session && agentIn(slot.state)?.id === to.agent
+        )?.panel ?? root
+        discardPending([{ ...to, plugin }])
+        const left = yield* panel.scope(to, plugin, file)
+        refreshWakes(left)
+        return left
+      }),
+      refreshWakes,
+      faults: (served, sayable) => Effect.gen(function*() {
+        const activations = new Map((panelOptions.scoping?.rows() ?? [])
+          .map((row) => [row.plugin, wake(row.plugin)] as const))
+        const fell = yield* root.faults(served, sayable)
+        refreshWakes([])
+        return fell.map((row) => ({
+          ...row,
+          current: () => activations.get(row.plugin) !== undefined
+            && wake(row.plugin) === activations.get(row.plugin) && row.current(),
+        }))
+      }),
       recordRefusal: (tool, failure) => panelOf().recordRefusal(tool, failure),
       start,
       stop: stopWithReason("shutdown"),

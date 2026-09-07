@@ -611,7 +611,7 @@ export default definePlugin({
             coalesce: `${name}:${meaning}`,
           })
           yield* deliveries.deliver(
-            { agent: scope.agent, session: scope.session },
+            scope,
             // ... AND ASKED AGAIN AT THE MOMENT IT GOES IN, which is what this
             // closure is for. A body can wait through a running turn or until
             // somebody opens the conversation, and the fleet moves while it

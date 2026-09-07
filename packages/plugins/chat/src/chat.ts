@@ -109,7 +109,7 @@ import * as Memory from "./memory.ts"
 import { ephemeralLocalState } from "./local.ts"
 import { annotated } from "./prompt.ts"
 import type { Probe } from "./probes.ts"
-import type { Fault, Faulted, Scopes } from "./scopes.ts"
+import type { Fault, Faulted, Scoped, Scopes } from "./scopes.ts"
 import { succeeded } from "./succession.ts"
 import { teachingFor } from "./teaching.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
@@ -120,6 +120,7 @@ export type { ToolServer } from "./agent.ts"
 
 /** One conversation a plugin may wake, optionally narrowed to a node scope. */
 export interface WakeScope {
+  readonly current: () => boolean
   readonly agent: string
   readonly session: string
   readonly file: string
@@ -523,7 +524,7 @@ export interface Panel {
      * Which arm it took is not reported back.
      */
     readonly deliver: (
-      to: { readonly agent: string; readonly session: string },
+      to: { readonly agent: string; readonly session: string; readonly current?: () => boolean },
       say: () => string | null,
       options?: {
         /** Bodies sharing a key, WHILE STILL HELD, replace each other in place —
@@ -541,7 +542,10 @@ export interface Panel {
     to: { readonly agent: string; readonly session: string },
     plugin: string,
     file: string | null,
-  ) => Effect.Effect<void, OpFailure>
+  ) => Effect.Effect<ReadonlyArray<Scoped>, OpFailure>
+  /** Refresh this panel after the shared picks changed, dropping deliveries
+   * for every replaced, cleared or evicted pick. */
+  readonly refreshWakes: (left: ReadonlyArray<Scoped>) => void
   /**
    * WHICH SCOPED FILES A DOORBELL CAN STILL WATCH — asked of every published
    * revision, and answered with the conversations whose doorbell JUST BROKE.
@@ -617,7 +621,7 @@ export interface Panel {
      *  told about is left unmarked, so the one signal is not spent by a serve
      *  that has no doorbell to lose. */
     sayable: (plugin: string) => boolean,
-  ) => Effect.Effect<ReadonlyArray<Faulted>>
+  ) => Effect.Effect<ReadonlyArray<Faulted & { readonly current: () => boolean }>>
   /** Told by the MCP layer about a write it refused, so the panel can draw the
    *  refusal rather than the agent's account of it. */
   readonly recordRefusal: (
@@ -3259,6 +3263,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
 
     return {
       entries: () => transcript.entries(),
+      refreshWakes: (left) => {
+        for (const row of left) held.dropped(row, row.plugin)
+        const wake = wakeOf()
+        if (!sameWake(wake, state.wake)) move({ wake })
+      },
       state: () => state,
       enginesMoved,
       overheard: () => options.overheard?.rows() ?? [],
@@ -3389,7 +3398,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // The `plugin` column goes on the way out: a door is already
             // ABOUT one plugin, so carrying its name back to it would be the
             // caller's own question answered a second time.
-            .map(({ agent, file, session }) => ({ agent, file, session }))
+            .map((row) => options.scoping!.recipient(row))
         return {
           scopes,
           ringing: (file) => scopes().filter((scope) => scope.file === file),
@@ -3438,13 +3447,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // will not re-derive it, because the terminals it named need not be
           // claimed in the new file at all.
           //
-          // FIRST, BEFORE THE WRITE, because the write is filesystem I/O and a
-          // turn ending in that window would flush a body the person has
-          // already disowned. Dropping early is safe in the one direction it
-          // can be wrong: a held body is a fresh derivation of what is standing
-          // ({@link ./deliveries.ts}), so a drop under a write that then fails
-          // costs a re-derivation on the plugin's next tick, where a drop that
-          // came too late costs a sentence nobody can account for.
+          // Drop existing work eagerly. The choice changes when persistence
+          // succeeds; deliveries admitted during that write still belong to the
+          // old choice. The successful write revokes their recipients, and the
+          // second drop below removes any bodies queued during the write.
+          // A failed write preserves the choice and costs only a re-derivation.
           held.dropped(to, plugin)
           const left = yield* Effect.mapError(
             scoping.set(to, plugin, file),
@@ -3458,6 +3465,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // and arrive from a doorbell its strip now draws as off.
           for (const row of left) held.dropped(row, row.plugin)
           move({ wake: wakeOf() })
+          return left
         }),
       /**
        * A revision, judged against the picks. See {@link Panel.faults} for what
@@ -3503,7 +3511,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // value. `watched()` above keeps the same discipline for the same
           // reason.
           if (!sameWake(wakeOf(), state.wake)) move({ wake: wakeOf() })
-          return fell.success
+          return fell.success.map((row) => ({ ...row, ...scoping.recipient(row) }))
         }),
       recordRefusal: (tool: string, failure: OpFailure) =>
         Effect.sync(() => {

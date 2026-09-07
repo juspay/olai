@@ -14,6 +14,8 @@ import { forLocalState as sessionsIn } from "./sessions.ts"
 import { make } from "./scoped.ts"
 import { assignSession } from "./server/binding.ts"
 
+const ACTIVATION = {}
+
 const run = <A,E>(effect: Effect.Effect<A,E>) => Effect.runPromise(effect)
 const fixture = join(import.meta.dirname,"fixtures","teaching-agent.ts")
 
@@ -39,6 +41,7 @@ for (const waitForReply of [false,true]) test(`assignment ${waitForReply ? "repl
     overheard:await run(sessionsIn(local.forDirectory(cwd))),
     nodeAt:id=>nodes.find(node=>node.id===id)??null,
     seatableAt:()=>true,nodes:()=>nodes,
+    wake: () => ACTIVATION,
     nearestAt:(id,candidates)=>candidates.has(id)?id:null,
     agentAt:to=>nodes.find(node=>node.engine===to.agent&&node.session===to.session)??null,
     ticket:()=>({bearer:"",release:()=>{}}),

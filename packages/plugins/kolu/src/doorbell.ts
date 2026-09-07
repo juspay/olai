@@ -1347,6 +1347,7 @@ export interface Conversation {
  *  control, or a file the watcher can no longer read — is simply absent from
  *  that list, which is the whole of how this module learns to stop. */
 export interface Scoped extends Conversation {
+  readonly current: () => boolean
   readonly file: string
   readonly under?: string
 }
@@ -1571,7 +1572,7 @@ export const makeHeartbeat = (deps: {
   readonly scopes: () => ReadonlyArray<Scoped>
   /** Core's delivery door, write-only, taking the words as a THUNK. */
   readonly deliver: (
-    to: Conversation,
+    to: Scoped,
     say: () => string | null,
     options?: { readonly coalesce?: string },
   ) => void
@@ -1670,7 +1671,7 @@ export const makeHeartbeat = (deps: {
           trace("beat-passed", { file: scope.file, agent: scope.agent, why: "no-revision" })
           continue
         }
-        const to = { agent: scope.agent, session: scope.session }
+        const to = scope
         trace("beating", { file: scope.file, agent: scope.agent, session: scope.session })
         deps.deliver(
           to,

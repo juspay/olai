@@ -220,22 +220,27 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
     // Runtime string lookup is the one point where the key's shape is erased.
     // Resolve it here; lifetime ownership has no opinion about service shapes.
     let services = Context.merge(opened, Context.make(PluginName, who)) as Context.Context<never>
-    for (const key of spec.needs) {
-      const provision = (ctx as unknown as Record<string, unknown>)[key.cordis]
-      if (typeof provision !== "function") {
-        throw new Error(
-          `effect-cordis: "${who}" named the service "${key.cordis}", which is `
-            + "provided as something other than a provision — a host provides "
-            + "`(plugin) => service` and nothing else.",
-        )
-      }
-      services = Context.add(
-        services,
-        key as unknown as Context.Service<unknown, unknown>,
-        (provision as (plugin: string) => unknown)(who),
-      ) as Context.Context<never>
-    }
     const activation = activate(ctx, opened)
+    try {
+      for (const key of spec.needs) {
+        const provision = (ctx as unknown as Record<string, unknown>)[key.cordis]
+        if (typeof provision !== "function") {
+          throw new Error(
+            `effect-cordis: "${who}" named the service "${key.cordis}", which is `
+              + "provided as something other than a provision — a host provides "
+              + "`(plugin) => service` and nothing else.",
+          )
+        }
+        services = Context.add(
+          services,
+          key as unknown as Context.Service<unknown, unknown>,
+          (provision as (plugin: string, lifetime: { current: () => boolean }) => unknown)(who, { current: activation.current }),
+        ) as Context.Context<never>
+      }
+    } catch (error) {
+      await activation.close(Exit.void)
+      throw error
+    }
     services = Context.add(Context.add(services, Offering, activation), Scope.Scope, activation.scope) as Context.Context<never>
     const work = Effect.suspend(() => {
       // The schema has no external services (the same restriction as the old

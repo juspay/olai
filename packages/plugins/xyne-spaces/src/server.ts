@@ -188,7 +188,7 @@ export default definePlugin({
     ): Effect.Effect<void> => {
       const to = lastBound
       if (to === undefined) return Effect.logWarning(`spaces: ${body.split("\n")[0] ?? body}`)
-      return deliveries.deliver(to, () => body, { coalesce })
+      return deliveries.notify(to, () => body, { coalesce })
     }
 
     const connected = (): SpacesLink => ({

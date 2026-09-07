@@ -42,6 +42,8 @@ import {
   CHAT_INPUT,
   CHAT_WAKE,
   CHAT_WAKE_FILE,
+  CHAT_WAKE_FAULT,
+  CHAT_WAKE_WAITING,
   CHAT_WAKE_PICKER,
   CHAT_WAKE_QUERY,
   NODE_REF_ANY,
@@ -66,12 +68,6 @@ const thePicker = async (world: OlaiWorld, plugin: string): Promise<Locator> => 
   await picker.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   return picker;
 };
-
-/** Node-bound sessions derive every wake from their subtree, so the whole
- * manual strip is absent rather than drawn with a control that must refuse. */
-Then("the panel offers no manual wake scope", async function (this: OlaiWorld) {
-  assert.strictEqual(await this.page.locator(CHAT_WAKE).count(), 0);
-});
 
 /** What that control is pointed at, as data: a path, or the word `off`. The
  *  words around it are the plugin's own sentence, and a scenario asserting
@@ -127,6 +123,17 @@ Then(
     await pointedAt(this, plugin, file);
   },
 );
+
+Then("this conversation offers no {string} wake control", async function (this: OlaiWorld, plugin: string) {
+  await this.page.locator(`${CHAT_WAKE_PICKER}${attr("data-plugin", plugin)}`).waitFor({
+    state: "detached", timeout: POLL_TIMEOUT,
+  });
+});
+
+When("I clear this conversation's {string} wake", async function (this: OlaiWorld, plugin: string) {
+  const row = (await thePicker(this, plugin)).locator("..");
+  await this.press(row.getByRole("button", { name: "clear", exact: true }));
+});
 
 // ── the far end ────────────────────────────────────────────────────────
 
@@ -368,3 +375,15 @@ Then(
     }
   },
 );
+
+Then("this conversation's {string} missing-file warning is queued", async function (this: OlaiWorld, plugin: string) {
+  const row = (await thePicker(this, plugin)).locator("..");
+  await this.waitUntil(async () =>
+    await row.locator(CHAT_WAKE_FAULT).getAttribute("data-fault") === "gone"
+      && await row.locator(CHAT_WAKE_WAITING).getAttribute("data-waiting") === "1",
+  `${plugin}'s missing-file warning to be queued`);
+});
+
+Then("the conversation has received no plugin messages", async function (this: OlaiWorld) {
+  assert.strictEqual(await rungRow(this).count(), 0);
+});

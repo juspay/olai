@@ -1103,6 +1103,8 @@ export const CHAT_ARMED_STILL = selector(PLUGIN_TESTID.chatArmedStill);
 /** THE STRIP UNDER THOSE: what this conversation WAKES ON. One line per
  *  running plugin that declares a doorbell, and the file a person pointed it
  *  at. Absent where there is no conversation to be scoped. */
+export const CHAT_WAKE_FAULT = selector(PLUGIN_TESTID.chatWakeFault);
+export const CHAT_WAKE_WAITING = selector(PLUGIN_TESTID.chatWakeWaiting);
 export const CHAT_WAKE = selector(PLUGIN_TESTID.chatWake);
 /** One plugin's control on it. `data-plugin` is whose doorbell and `data-file`
  *  is the path or the word `off` — the STATE AS DATA, because the words around

@@ -12,6 +12,7 @@
 
 import {
   type Host,
+  type Provision,
   type ServiceKey,
   hostChanges,
   openHost,
@@ -642,8 +643,8 @@ export interface AppConfig {
 export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope.Scope> =>
   Effect.gen(function*() {
     const host = yield* openHost
-    const forOwner = <Shape>(provision: (owner: string) => Shape) => (fiber: string): Shape =>
-      provision(config.ownerFor?.(fiber) ?? fiber)
+    const forOwner = <Shape>(provision: Provision<Shape>): Provision<Shape> => (fiber, lifetime) =>
+      provision(config.ownerFor?.(fiber) ?? fiber, lifetime)
     yield* provide(host, Offers, forOwner((plugin) => ({
       own: ownService(plugin, (key, door) => offer(key, forOwner(door)).pipe(
         Effect.catchDefect((defect) => Effect.die(

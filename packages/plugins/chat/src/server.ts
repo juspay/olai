@@ -67,6 +67,7 @@
  * as a fiber.
  */
 
+import { deliveryProvision } from "./server/deliveries.ts"
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
 import {
@@ -288,11 +289,7 @@ export default definePlugin({
      * yet, and holding the ring would deliver yesterday's news into today's
      * first turn.
      */
-    yield* offers.offer(Deliveries, (who) => ({
-      scopes: () => chat?.doorFor(who).scopes() ?? [],
-      ringing: (file, node) => chat?.doorFor(who).ringing(file, node) ?? [],
-      deliver: (...args) => Effect.suspend(() => chat?.doorFor(who).deliver(...args) ?? Effect.void),
-    }))
+    yield* offers.offer(Deliveries, deliveryProvision(() => chat, wakes.current))
 
     /** WHAT A PLUGIN THAT MIRRORS A CONVERSATION IS TOLD — a bus this row owns,
      *  contained per handler with the subscribing plugin's word on the line. */
@@ -803,6 +800,7 @@ export default definePlugin({
           ),
         memory: memoryIn(localState, mounted()[0]?.id ?? ""),
         scoping: yield* scopesIn(localState),
+        wake: (plugin) => wakes.current().get(plugin),
         overheard: yield* sessionsIn(localState),
         agentAt: (to) => nodeAgents.agentAt(to),
         nodeAt: (node) => nodeAgents.nodeAt(node),

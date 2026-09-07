@@ -110,6 +110,7 @@ export {
   type Mounted,
   mountPlugin,
   type Plugin,
+  type Provision,
   registry,
   type Registry,
   roster,
