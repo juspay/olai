@@ -225,7 +225,7 @@ test("Cordis disposal revokes queued work, retained recipients and fresh calls t
     await run(it.chat.loadSession(TO.agent, TO.session))
     await run(it.chat.scope(TO, "kolu", "Work.olai"))
     await run(Effect.scoped(Effect.gen(function*() {
-      const { host } = yield* openPlugins({})
+      const { host } = yield* openPlugins({ vars: {}, now: () => "2026-09-07T00:00:00.000Z" })
       yield* mountPlugin(host, definePlugin({ name: "chat", needs: [Offers], apply: Effect.gen(function*() {
         yield* (yield* Offers).offer(Deliveries, deliveryProvision(() => it.chat, () => new Map([["kolu", WAKE]])))
       }) }))
@@ -281,7 +281,7 @@ test("delivery-only addressed notices work and expire with their consumer", asyn
   try {
     await run(it.chat.loadSession(TO.agent, TO.session))
     await run(Effect.scoped(Effect.gen(function*() {
-      const { host } = yield* openPlugins({})
+      const { host } = yield* openPlugins({ vars: {}, now: () => "2026-09-07T00:00:00.000Z" })
       yield* mountPlugin(host, definePlugin({ name: "chat", needs: [Offers], apply: Effect.gen(function*() {
         yield* (yield* Offers).offer(Deliveries, deliveryProvision(() => it.chat, () => new Map()))
       }) }))
