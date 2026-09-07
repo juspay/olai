@@ -83,6 +83,7 @@ import {
   contained,
   type Host,
   openHost,
+  offered as readOffered,
   hostChanges,
   closeHost,
   offer,
@@ -890,6 +891,81 @@ export interface Search {
 export const Search = serviceTag<Search>("search")
 
 /**
+ * WHERE AN OPTIONAL VIEW OF THE SET REGISTERS — the door a row that PROVIDES
+ * one tells the store about it through, and the vault's half of the audit's §5.
+ *
+ * ## Why the arrow points this way
+ *
+ * The store is built over two readings that may have nobody behind them: where
+ * a write is RECORDED ({@link Ledger}) and what a query is ANSWERED BY
+ * ({@link Search}). Neither can be a `needs` on the vault row — git needs the
+ * vault, so requiring its ledger would be an activation cycle, and `--plugins`
+ * composes serves with neither.
+ *
+ * It was a LOOKUP: `HostServices.current(Ledger)`, over the whole host, for a
+ * key the vault never declared. What replaced it cannot be a component of the
+ * vault either, and the reason is worth writing down because it is not obvious:
+ * a row's report folds its components, and a row that reads `waiting` is a row
+ * the roster reports as not running — so a vault with an optional integration
+ * short of its provider would stop being loaded by the tab at all.
+ *
+ * So the PROVIDER registers, which is the shape every other table on this page
+ * already has ({@link Kinds.register}, {@link Surfaces.register},
+ * {@link Wakes.register}): git and search already name `Vault`, so they are
+ * already waiting for this row, and registering costs them no new wait. The
+ * registration is a finalizer on the CALLING plugin's scope, so a provider that
+ * unloads takes its view with it and the store falls back to refusing in the
+ * vault's own words.
+ *
+ * ONE VIEW EACH, and a second registration of either is refused: two rows
+ * answering "where is this write recorded" would resolve silently in favour of
+ * whichever mounted last.
+ */
+export interface VaultViews {
+  /** Record writes through this ledger, for as long as the calling plugin is
+   *  loaded. */
+  readonly ledger: (door: Ledger) => Effect.Effect<void, never, Scope.Scope>
+  /** ...and answer queries with this matcher, the same way. */
+  readonly search: (door: Search) => Effect.Effect<void, never, Scope.Scope>
+}
+export const VaultViews = serviceTag<VaultViews>("vault-views")
+
+/**
+ * THE SERVED DIRECTORY, AS A ROW THAT MAY BE WITHOUT ONE READS IT — the narrow
+ * broker §5 permits, and MCP's half of the same finding.
+ *
+ * ## Why a broker here and a registration one door up
+ *
+ * The vault's two views could invert, because their providers already wait for
+ * the vault. MCP's cannot: the protocol server, its carrier, its route and its
+ * ticket mint stand up on a serve with **no vault at all**, and a vault that
+ * registered its gate with the transport would be the directory knowing what an
+ * MCP endpoint is.
+ *
+ * A COMPONENT cannot do it either, for {@link VaultViews}' reason: a row that
+ * reads `waiting` is reported as not running, and `/mcp` must keep answering
+ * through a failed vault, a `--plugins` set that omits it, and the panel switch.
+ *
+ * So this is the audit's other permitted answer — *a service whose documented
+ * job includes handling the arrival and departure of its backing providers*. Its
+ * job is exactly that and nothing else: TWO readings about ONE provider, named
+ * in the type, where `HostServices` was `current<A>(key: ServiceKey<A>)` and a
+ * row could reach anything at all with nothing in its `needs` to say so.
+ *
+ * BOTH ARE READ PER CALL, because the roster moves under a standing connection:
+ * a vault switched off mid-session must refuse the NEXT tool call rather than
+ * the one after the next reconnect.
+ */
+export interface Served {
+  /** The directory this serve opened, or nothing. Opaque here for
+   *  {@link Directory}'s reason — the vocabulary belongs to the floor. */
+  readonly directory: () => unknown | undefined
+  /** ...and its write gate, as {@link Ops.gate} carries it. */
+  readonly gate: () => unknown | undefined
+}
+export const Served = serviceTag<Served>("host.served")
+
+/**
  * IDENTITY — who is this request, from the headers it arrived with.
  *
  * Core defines the door and does not stand behind it. The identity row offers
@@ -1007,6 +1083,7 @@ export interface Offers extends OwnServices {
     (key: typeof Watching, door: Provision<Watching>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Ledger, door: Provision<Ledger>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Search, door: Provision<Search>): Effect.Effect<void, never, Scope.Scope>
+    (key: typeof VaultViews, door: Provision<VaultViews>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Identity, door: Provision<Identity>): Effect.Effect<void, never, Scope.Scope>
   }
 }
@@ -1158,6 +1235,7 @@ export const Ops = serviceTag<Ops>("ops")
 
 export const OFFERABLE = [
   VaultSettings,
+  VaultViews,
   Ops,
   Vault,
   Directory,
@@ -1522,6 +1600,16 @@ export const openPlugins = (
 
     yield* provide(host, Bundle, () => ({ rank: config.rank ?? (() => 0) }))
 
+    // TWO READINGS ABOUT ONE PROVIDER, and the only lookup left in this file.
+    // {@link Served} carries the whole of why it is allowed to be one: MCP is a
+    // row that must stand up with no vault and cannot invert the arrow, and a
+    // component would take the row out of the roster. Per call, because the
+    // roster moves under a standing connection.
+    yield* provide(host, Served, (plugin) => ({
+      directory: () => readOffered(host, Directory, plugin),
+      gate: () => readOffered(host, Ops, plugin)?.gate,
+    }))
+
     // ...AND ONE LOCAL-STATE DOOR PER PLUGIN NAME, not per activation. The write chain
     // that orders a plugin's saves lives on the door, and this provision runs
     // once per ACTIVATION — so a plugin that unloads and comes back used to get a
@@ -1626,6 +1714,8 @@ export type { Registering } from "@olai/acp/engine"
  */
 export const SERVICES = [
   BundleModules,
+  Served,
+  VaultViews,
   VaultSettings,
   Env,
   Clock,

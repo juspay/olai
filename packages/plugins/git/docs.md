@@ -25,6 +25,17 @@ The plugins panel — `⧉` in the header — turns it off and on **while the se
 
 See [running.md](../running.md#the-git-policy).
 
+## The door, and where it is told about
+
+This row stands behind `Ledger`, and it TELLS THE VAULT about the same door
+through `vault-views`. The vault's settings carry a ledger — where a write is
+recorded — and the vault cannot name this key: this row waits for `Vault`, so
+the reverse edge would be a cycle. It used to be a lookup at the far end, over
+the whole host, for a key the vault never declared; the arrow points this way
+now, which costs this row no wait it did not already have. The registration
+unwinds with this activation, so a vault outliving the ledger falls back to
+refusing in its own words.
+
 ## In the browser
 
 The desktop pill uses `app.header`. The phone notice uses `app.banner`, which the shell draws in normal flow directly below the header, before the page content. It disappears when no work or warning remains. This keeps its commit entry reachable above the minimized chat strip.

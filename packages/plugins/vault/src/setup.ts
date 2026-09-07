@@ -1,7 +1,7 @@
 /**
  * Vault configuration follows the vault row, including optional provider views.
  *
- * ## THE TWO OPTIONAL VIEWS ARE DECLARED NOW, and by two components
+ * ## THE TWO OPTIONAL VIEWS ARE DECLARED NOW, by the rows that provide them
  *
  * The settings this row hands the store carry a LEDGER (where a write is
  * recorded) and a MATCHER (what a query answers), and neither can be a `needs`
@@ -14,19 +14,19 @@
  * wanted a boot, a bundle and a vocabulary; the code reached for two other
  * rows' doors on every write and every query (the audit's §5).
  *
- * Each is a COMPONENT of this row now (`./views.ts`). The cycle is not
- * reintroduced, because a component waits on its own: `vault/ledger-view` sits
- * `waiting` until git is up and git waits for this row's `Vault` in the usual
- * way. The reads stay PER CALL for the reason they always did — either row can
- * come and go under a standing store — and the absent answer is unchanged:
- * `NO_LEDGER` and `NO_SEARCH`, which refuse in the vault's own words.
+ * So this component stands behind {@link VaultViews} and the providers register
+ * into it — git and search already name `Vault`, so neither gains a wait.
+ * `./views.ts` carries the whole of why the arrow points that way rather than
+ * at two components of this row. The reads stay PER CALL for the reason they
+ * always did, and the absent answer is unchanged: `NO_LEDGER` and `NO_SEARCH`,
+ * which refuse in the vault's own words.
  */
 import { definePlugin, kindWordOf, type PropKind } from "@olai/plugin-api"
-import { BundleModules, Directory, Kinds, Offers, VaultSettings } from "@olai/plugin-api/services"
+import { BundleModules, Directory, Kinds, Offers, VaultSettings, VaultViews } from "@olai/plugin-api/services"
 import { type Directory as OpenDirectory, type VaultSettings as Settings } from "@olai/ops"
 import { Effect, Stream } from "effect"
 import { VaultBoot } from "./boot.ts"
-import { ledgerView, searchView } from "./views.ts"
+import { ledgerView, searchView, vaultViews } from "./views.ts"
 
 export const setup = definePlugin({
   name: "vault-setup", needs: [VaultBoot, BundleModules, Kinds, Offers],
@@ -58,6 +58,7 @@ export const setup = definePlugin({
       search: { nodes: ask => search().nodes(ask) },
     }
     yield* offers.offer(VaultSettings, () => settings)
+    yield* offers.offer(VaultViews, () => vaultViews)
   }),
 })
 

@@ -27,6 +27,7 @@ import {
   Offers,
   Surfaces,
   Vault,
+  VaultViews,
 } from "@olai/plugin-api/services"
 import { Duration, Effect, Schema, Stream, SubscriptionRef } from "effect"
 
@@ -59,7 +60,7 @@ interface VaultRevision {
 
 export default definePlugin({
   name,
-  needs: [Offers, Surfaces, Vault],
+  needs: [Offers, Surfaces, Vault, VaultViews],
   config: Config,
   apply: (config: Config) =>
     Effect.gen(function*() {
@@ -92,13 +93,26 @@ export default definePlugin({
         mine?.cells.pending.set(status.pending)
       })
 
-    yield* offers.offer(Ledger, () => ({
+    const ledger: Ledger = {
       wrote: (writer) => commits.wrote(writer as Writer),
       whyWaiting: (writer) => commits.whyWaiting(writer as Writer),
       record: (request, writer) => commits.commit(request, writer as Writer),
       push: commits.push,
       resume: commits.resume,
-    }))
+    }
+    yield* offers.offer(Ledger, () => ledger)
+    /**
+     * ...AND THE SAME DOOR, TOLD TO THE STORE THAT WRITES THROUGH IT.
+     *
+     * The vault's settings carry a ledger, and the vault cannot name this key:
+     * this row waits for `Vault`, so the reverse edge would be a cycle. It used
+     * to be a lookup at the far end (`HostServices.current(Ledger)`, over the
+     * whole host, for a key the vault never declared — the audit's §5), so the
+     * arrow points this way instead: the PROVIDER registers, which costs this
+     * row no wait it did not already have, and the registration unwinds with
+     * this activation so a vault outliving git falls back to refusing.
+     */
+    yield* (yield* VaultViews).ledger(ledger)
 
     yield* surfaces.register({
       surface,

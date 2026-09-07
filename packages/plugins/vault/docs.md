@@ -17,14 +17,17 @@ A lock conflict, invalid format or non-directory path fails this row while the
 transports remain available for diagnosis and retry.
 
 Where a write is RECORDED and what a query is ANSWERED BY are two optional
-views of this row, each a component that names one key: `vault/ledger-view` for
-git's `Ledger` and `vault/search-view` for search's `Search`. Neither can be on
-the row — git needs the vault, so requiring its ledger here would be an
-activation cycle — and with neither mounted the answers are `NO_LEDGER` and
-`NO_SEARCH`, which refuse in this row's own words. A headless serve therefore
-reports the vault waiting on `ledger` and `search` beside the HTTP component's
-`transport-surface`: three integrations short of their providers, with the
-store, the gate and the publisher running.
+views of this row, and the rows that provide them REGISTER them: `vault-views`
+is a door this row stands behind, git tells it about its `Ledger` and search
+about its `Search`. Neither can be a `needs` here — git needs the vault, so
+requiring its ledger would be an activation cycle — and neither can be a
+component of this row either, because a component waiting for a provider that
+will never arrive makes the whole row read `waiting`, and a row that reads
+`waiting` is one the roster reports as not running. Both providers already wait
+for `Vault`, so registering costs them nothing, and a provider that unloads
+takes its view with it. With neither mounted the answers are `NO_LEDGER` and
+`NO_SEARCH`, which refuse in this row's own words, and a headless serve reports
+the vault waiting on `transport-surface` alone.
 
 Only the `olai` format is supported. A future Org codec belongs in this plugin’s
 format catalogue and schema; a different storage implementation can stand behind
@@ -42,8 +45,8 @@ address resolver over the vault's membership, independently of that UI.
 The server module has independently injected `setup`, `main`, `file-access`,
 `revalidation`, and `http` components. They share the vault row's authority and
 lifetime. Setup receives only the operator's root and machine-local path policy
-through `VaultBoot`; it builds the complete declared vocabulary and live optional
-ledger/search views, then offers the settings that let the directory open.
+through `VaultBoot`; it builds the complete declared vocabulary over the registered
+ledger and search views, then offers the settings that let the directory open.
 Changing property-kind contributions revalidates the current store. Unrelated
 plugin changes and snapshot publication do not create extra revisions.
 

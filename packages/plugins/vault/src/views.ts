@@ -1,26 +1,39 @@
 /**
  * THE TWO OPTIONAL VIEWS THE STORE IS BUILT OVER — a ledger to record a write
- * in, and a matcher to answer a query with — held by two components of this
- * row's own.
+ * in, and a matcher to answer a query with — REGISTERED BY THE ROWS THAT
+ * PROVIDE THEM, through {@link VaultViews}.
  *
- * ## They cannot be `needs` on the row, and that is not a hedge
+ * ## Why the arrow points that way
  *
- * The git row needs `Vault`. A vault row that named `Ledger` would be an
- * activation cycle, and `--plugins` composes serves with neither provider at
- * all. So each is a COMPONENT: it sits `waiting` until its provider is up, says
- * which key on the panel, and unwinds when the provider leaves — which is what
- * the `HostServices` lookup it replaces could never do.
+ * They cannot be `needs` on this row: git needs the vault, so requiring its
+ * ledger would be an activation cycle, and `--plugins` composes serves with
+ * neither provider at all.
+ *
+ * They cannot be COMPONENTS of this row either, and that one is worth writing
+ * down because it is not obvious and it cost a CI run to learn: a row's report
+ * folds its components, so a component sitting `waiting` for a provider that
+ * will never arrive makes the whole row read `waiting` — and
+ * `packages/server/src/runtime.ts` reports a row as `running` only when it does
+ * not. A vault short of git would have stopped being loaded by the tab at all.
+ *
+ * So the PROVIDER registers, which is the shape every other optional table in
+ * the host already has (`Kinds.register`, `Surfaces.register`, `Wakes.register`).
+ * Git and search already name `Vault`, so they are already waiting for this row
+ * and registering costs them no new wait. What this replaced was
+ * `HostServices.current(Ledger)` and `.current(Search)` — a capability whose
+ * whole shape is *give me whatever stands behind this key*, spent on two keys
+ * this row never declared (the audit's §5).
  *
  * ## The reads stay PER CALL, and the absence is the ops layer's own word
  *
- * Either row can come and go under a standing store, so a write resolves its
- * ledger at the moment it lands rather than at the moment the settings were
- * built. With nobody mounted the answer is `NO_LEDGER` / `NO_SEARCH`, which
- * refuse in the vault's own words — the same sentences a serve without those
- * rows already gave.
+ * Either provider can come and go under a standing store, so a write resolves
+ * its ledger at the moment it lands rather than at the moment the settings were
+ * built. The registration is a finalizer on the REGISTERING plugin's scope, so
+ * a provider that unloads takes its view with it and the answer falls back to
+ * `NO_LEDGER` / `NO_SEARCH` — the same sentences a serve without those rows
+ * already gave.
  */
-import { definePlugin } from "@olai/plugin-api"
-import { Ledger, Search } from "@olai/plugin-api/services"
+import type { VaultViews } from "@olai/plugin-api/services"
 import { NO_LEDGER, NO_SEARCH, type Ledger as OpsLedger, type Search as OpsSearch } from "@olai/ops"
 import { Effect } from "effect"
 
@@ -33,29 +46,20 @@ export const ledgerView = (): OpsLedger => ledger ?? NO_LEDGER
 /** ...and what a query is answered by. */
 export const searchView = (): OpsSearch => matcher ?? NO_SEARCH
 
-/** The git row's ledger, DECLARED — on a component, so the vault itself never
- *  waits for the row that waits for it. */
-export const ledgerIntegration = definePlugin({
-  name: "ledger-view",
-  needs: [Ledger],
-  apply: Effect.gen(function*() {
-    const door = (yield* Ledger) as OpsLedger
-    yield* Effect.acquireRelease(
-      Effect.sync(() => { ledger = door }),
-      () => Effect.sync(() => { if (ledger === door) ledger = undefined }),
-    )
-  }),
-})
+/** BY IDENTITY, both of them: a registration whose finalizer runs after a
+ *  replacement installed its own must not take the replacement's view out from
+ *  under a write in flight. */
+const held = <Door>(read: () => Door | undefined, write: (door: Door | undefined) => void) =>
+(door: Door) =>
+  Effect.acquireRelease(
+    Effect.sync(() => { write(door) }),
+    () => Effect.sync(() => { if (read() === door) write(undefined) }),
+  ).pipe(Effect.asVoid)
 
-/** ...and the search row's matcher, the same way. */
-export const searchIntegration = definePlugin({
-  name: "search-view",
-  needs: [Search],
-  apply: Effect.gen(function*() {
-    const door = (yield* Search) as OpsSearch
-    yield* Effect.acquireRelease(
-      Effect.sync(() => { matcher = door }),
-      () => Effect.sync(() => { if (matcher === door) matcher = undefined }),
-    )
-  }),
-})
+/** What `./setup.ts` stands behind. ONE VIEW EACH is not enforced here: Cordis
+ *  refuses a second row behind `Ledger` or `Search` at the door those come
+ *  from, so a second registration cannot be reached without a second provider. */
+export const vaultViews: VaultViews = {
+  ledger: held(() => ledger, (door) => { ledger = door as OpsLedger | undefined }) as VaultViews["ledger"],
+  search: held(() => matcher, (door) => { matcher = door as OpsSearch | undefined }) as VaultViews["search"],
+}

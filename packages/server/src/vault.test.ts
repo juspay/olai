@@ -7,7 +7,7 @@ import { Deferred, Effect, Fiber, Result, Stream } from "effect"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Ledger as LedgerDoor } from "@olai/plugin-api/services"
+import { VaultViews } from "@olai/plugin-api/services"
 import { VaultBoot } from "olai-plugin-vault/boot"
 
 const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
@@ -16,8 +16,21 @@ const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
 const opening = (root: string, options: { readonly format?: string; readonly ledger?: Ledger } = {}) => Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "" })
   yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
-  if (options.ledger) yield* provide(plugins.host, LedgerDoor, () => options.ledger as unknown as LedgerDoor)
   yield* mountBundle(plugins.host, { kind: "exact", names: ["vault"] }, options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }], "test-minimal")
+  /**
+   * A LEDGER ARRIVES THE WAY GIT'S DOES — registered through `VaultViews` by a
+   * row that named it — rather than provided over the host's head. The vault
+   * used to LOOK ITS LEDGER UP (`HostServices.current(Ledger)`), so standing a
+   * door behind the key was enough to be found; the arrow points the other way
+   * now, and a fixture that only offered the door would be testing a serve with
+   * no ledger at all.
+   */
+  if (options.ledger) {
+    yield* mountPlugin(plugins.host, definePlugin({
+      name: "ledger-row", needs: [VaultViews],
+      apply: Effect.flatMap(VaultViews, (views) => views.ledger(options.ledger as never)),
+    }))
+  }
   const store = () => (offered(plugins.host, Directory)?.store as Store | undefined)
   const ops = liveOps(() => offered(plugins.host, OpsDoor)?.gate as Ops | undefined)
   yield* settled(plugins.host, ["vault"])
@@ -30,15 +43,6 @@ const rootWithNote = () => {
   return root
 }
 
-/**
- * ...AND ITS TWO OPTIONAL VIEWS, which are the same shape one door over. The
- * ledger a write is recorded in and the matcher a query is answered by are
- * other rows', and each is a component of this one that names its key — so a
- * headless serve with neither says which two it is short of, exactly as it
- * already said `transport-surface` for the HTTP component. They cannot be
- * `needs` on the row: git needs the vault, and that would be a cycle
- * (`olai-plugin-vault`'s `views.ts`).
- */
 test("headless vault reports its missing HTTP component while file access leaves and returns", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const root = rootWithNote()
   const { plugins, store, ops } = yield* opening(root)
@@ -47,10 +51,7 @@ test("headless vault reports its missing HTTP component while file access leaves
   expect(first).toBeDefined()
   expect(configsOf(plugins.host).get("vault")).toEqual({ format: "olai" })
   const report = yield* reportBundle(plugins.host, ["vault", "ws", "mcp", "web-app"])
-  expect(report.get("vault")).toEqual({
-    state: "waiting",
-    missing: ["transport-surface", "ledger", "search"],
-  })
+  expect(report.get("vault")).toEqual({ state: "waiting", missing: ["transport-surface"] })
   for (const name of ["ws", "mcp", "web-app"]) expect(report.get(name)?.state).toBe("off")
   let revisions = 0
   let releases = 0

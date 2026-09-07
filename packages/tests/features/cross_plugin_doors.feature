@@ -56,7 +56,12 @@ Feature: Plugins depend on doors
     Then the last commit is "olai: record the transport write" by "mcp"
     And there should be no page errors
 
-  @plugins:vault,chat,claude,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  # `search` is in this selection because the case asserts chat has NO browser
+  # warning once identity arrives, and chat's `matcher` component names
+  # `search.readings` the same way `speaker` names `identity.viewer`. A serve
+  # short of the matcher would leave a second, unrelated warning standing and
+  # this case would be asserting the wrong absence.
+  @plugins:vault,chat,claude,search,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: The speaker waits visibly while the conversation remains usable
     Given I am the Tailscale user "ada@example.com"
     And I open the app

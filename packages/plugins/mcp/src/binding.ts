@@ -24,7 +24,6 @@ export const bindAgent = (options: {
   readonly ticket: () => string | null
   readonly directory: () => Directory | undefined
   readonly ops: () => Ops | undefined
-  readonly ledger?: () => boolean
 }): AgentBinding & { readonly tickets: Tickets } => {
   const { shared } = options
   const ops = liveOps(options.ops)

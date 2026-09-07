@@ -1446,15 +1446,35 @@ published a live value with no reader outside their own package stopped being
 doors at all — eight rows' `./client` and the renderer's `readLocation` — and
 one generic capability went with them: `HostServices`, whose whole shape was
 *give me whatever stands behind this key*, was named by two rows and spent on
-five keys neither had declared.
+five keys neither had declared. One of the five turned out to be dead: MCP asked
+whether a ledger was mounted and never read the answer.
 
-**Optional access is a COMPONENT, not a lookup.** MCP works without a vault and
-the vault works without git, and both did so through that lookup. Each is now a
-component naming one key — MCP's `served-doors` and `ledger`, the vault's
-`ledger-view` and `search-view` — so the wait is a state the runtime holds and
-reports rather than an `undefined` nobody can see. No cycle is introduced: git
-needs the vault, and a vault COMPONENT that waits for git leaves the vault row
-running.
+**Optional access is DECLARED, and a component is the wrong way to declare it.**
+MCP works without a vault and the vault works without git, and both did so
+through that lookup. The obvious repair — put each optional reach on a component
+naming its key, so the wait is a state the runtime holds and reports — is
+WRONG, and the reason is worth knowing before you reach for it: a row's report
+folds its components, so a component sitting `waiting` for a provider that will
+never arrive makes the whole ROW read `waiting`, and `@olai/server`'s runtime
+reports a row as `running` only when it does not. A vault short of git would
+have stopped being loaded by the tab at all. A component is for a half that is
+*optional to have*, never for a provider that is *optional to exist*.
+
+The two shapes that are right, one each:
+
+- **The provider registers** — the vault's `VaultViews`, where git and search
+  tell the store about their ledger and matcher. Both already name `Vault`, so
+  neither gains a wait, the edge is in the graph at the end that can carry it,
+  and the registration is a finalizer on the provider's scope. This is the shape
+  `Kinds.register`, `Surfaces.register` and `Wakes.register` already have, and
+  it is the default answer.
+- **A narrow broker** — MCP's `host.served`, two readings about one provider,
+  for the case where the arrow cannot invert: a vault that registered its gate
+  with the transport would be the directory knowing what an MCP endpoint is. It
+  is a service, so `needs` says the row wants it, and its documented job is the
+  arrival and departure of the vault. What makes it legitimate where
+  `HostServices` was not is that it is CLOSED — two readings, named in the type,
+  about one provider — rather than `current<A>(key: ServiceKey<A>)`.
 
 **A private holder is still how a value reaches a face**, and its rules are in
 [the authoring contract](../dynamic-plugins.md#where-a-live-value-may-live):
