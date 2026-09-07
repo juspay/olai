@@ -281,7 +281,7 @@ export default definePlugin({
             || !deliveries.ringing(scope.file, claim.node).some((row) => sameScope(row, scope))
           ) continue
           yield* deliveries.deliver(
-            { agent: scope.agent, session: scope.session },
+            scope,
             // ASKED AGAIN AT THE MOMENT IT GOES IN — see {@link said}.
             () => said(scope, notice),
             { coalesce: coalesceOf(notice) },

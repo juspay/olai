@@ -518,3 +518,24 @@ test("a plugin with Config is handed the decoded value, and invalid config fails
     expect(seen).toEqual({ commit: "auto" })
   })))
 })
+
+
+for (const failure of ["provision", "initialization"]) {
+  test(`a consumer lifetime is revoked after failed ${failure}`, async () => {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+      const host = yield* openHost
+      let current = () => false
+      yield* provide(host, Ledger, (_plugin, lifetime) => {
+        current = lifetime!.current
+        expect(current()).toBe(true)
+        if (failure === "provision") throw new Error("no ledger")
+        return { write: () => Effect.void }
+      })
+      const mounted = yield* mountPlugin(host, definePlugin({
+        name: "scribe", needs: [Ledger], apply: Effect.die(new Error("no scribe")),
+      }))
+      expect((yield* mounted.report).state).toBe("failed")
+      expect(current()).toBe(false)
+    })))
+  })
+}

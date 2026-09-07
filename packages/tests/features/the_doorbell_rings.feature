@@ -199,3 +199,70 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     And this conversation's "kolu" wake is on "yard.olai"
     And this conversation's "odu" wake is on nothing
     And there should be no page errors
+
+
+  @scratch:lanes
+  Scenario Outline: Clearing a node wake discards its queued missing-file warning
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I point this conversation's "<plugin>" wake at "backlog.olai"
+    And I ask the agent "hold"
+    Then the agent is working
+    When I remove the served file "backlog.olai"
+    Then this conversation's "<plugin>" missing-file warning is queued
+    When I clear this conversation's "<plugin>" wake
+    And the agent is released
+    Then the agent is idle
+    And the conversation has received no plugin messages
+    And there should be no page errors
+
+    Examples:
+      | plugin |
+      | kolu   |
+      | odu    |
+
+
+  @scratch:lanes
+  Scenario Outline: Repointing a node wake discards its queued missing-file warning
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I point this conversation's "<plugin>" wake at "backlog.olai"
+    And I ask the agent "hold"
+    Then the agent is working
+    When I remove the served file "backlog.olai"
+    Then this conversation's "<plugin>" missing-file warning is queued
+    When I point this conversation's "<plugin>" wake at "lanes.olai"
+    And the agent is released
+    Then the agent is idle
+    And the conversation has received no plugin messages
+    And there should be no page errors
+
+    Examples:
+      | plugin |
+      | kolu   |
+      | odu    |
+
+
+  @scratch:lanes
+  Scenario Outline: A plugin reload preserves the pick and revokes its queued warning
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I point this conversation's "<plugin>" wake at "backlog.olai"
+    And I ask the agent "hold"
+    Then the agent is working
+    When I remove the served file "backlog.olai"
+    Then this conversation's "<plugin>" missing-file warning is queued
+    When I open the plugins panel
+    And I switch the plugin "<plugin>" off
+    And I switch the plugin "<plugin>" on
+    And I close the plugins panel
+    Then this conversation's "<plugin>" wake is on "backlog.olai"
+    When the agent is released
+    Then the agent is idle
+    And the conversation has received no plugin messages
+    And there should be no page errors
+
+    Examples:
+      | plugin |
+      | kolu   |
+      | odu    |

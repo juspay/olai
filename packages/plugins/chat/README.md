@@ -319,3 +319,18 @@ and scoped registration as `Wakes.declared`. No plugin names or second registry
 are embedded in the scheduler. Delivery-only plugins retain node-derived
 recipients. Cordis still owns service availability and plugin cleanup; the
 scheduler still owns concurrent node processes and their Effect scopes.
+
+`Scopes.recipient` carries the lifetime of one saved choice. Successful writes
+replace that lifetime; fault marking and healing preserve it. The scheduler
+composes it with the live wake declaration and carries the predicate through
+startup, pending work, ownership transfer and retry. `Panel.offer` evaluates
+the guarded body under its sending permit immediately before the transcript
+write. Queue removal releases discarded work and updates the strip; it is not
+the authority check.
+
+`server/deliveries.ts` binds the public door to the consumer lifetime supplied by
+Cordis through the existing Effect activation. Unloading a plugin revokes old
+service calls and recipients, including queued direct notices. Reloading keeps
+saved choices while issuing new recipients. Wake registrations likewise have
+fresh identity per activation, so core-generated fault warnings cannot survive
+a plugin leaving and returning.

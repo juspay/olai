@@ -361,10 +361,27 @@ export type ConversationSeen =
  * A capability that could do both would be the appliance reading the human's
  * mail, and no amount of care at the call site takes that back afterwards.
  */
+/** A delivery address and the lifetime that still authorizes its use. Retain
+ * this capability when passing a recipient between readers and async work. */
+export interface DeliveryRecipient {
+  readonly agent: string
+  readonly session: string
+  readonly current: () => boolean
+}
+
 export interface Deliveries {
+  /** Addressed notices from delivery-only plugins, such as transport failures.
+   * A plugin declaring a selectable wake must use its issued recipient instead. */
+  readonly notify: (
+    to: { readonly agent: string; readonly session: string },
+    say: () => string | null,
+    options?: { readonly coalesce?: string },
+  ) => Effect.Effect<void>
   /**
    * THE CONVERSATIONS THAT OPTED INTO THIS PLUGIN'S WAKES, each with the file a
-   * person picked to filter by.
+   * person picked to filter by. Pass the issued scope, including its `current` capability, to
+   * `deliver`: it carries the authority of that exact pick through startup
+   * and queued work. Bare routing coordinates are not a delivery recipient.
    *
    * SYNCHRONOUS, and that shapes what is behind it: the composition root builds
    * this blob inside a plain `.map`, and the caller is a watcher sink with no
@@ -378,12 +395,10 @@ export interface Deliveries {
    * where that reads as physics rather than as a promise. A fresh conversation's
    * doorbell is off, and the only thing that turns it on is a person.
    */
-  readonly scopes: () => ReadonlyArray<{
-    readonly agent: string
-    readonly session: string
+  readonly scopes: () => ReadonlyArray<DeliveryRecipient & {
     readonly file: string
     /** A derived node-agent scope. Absent means a person picked the whole file
-     * for an unassigned conversation. */
+     * for a conversation. */
     readonly under?: string
   }>
   /** The scopes that hear a claim made by `node` in `file`. Manual whole-file
@@ -433,7 +448,7 @@ export interface Deliveries {
    * a reader gets for free, and it is better spent saying what happened.
    */
   readonly deliver: (
-    to: { readonly agent: string; readonly session: string },
+    to: DeliveryRecipient,
     /**
      * THE WORDS, COMPOSED AT THE MOMENT THEY ENTER THE CONVERSATION — not when
      * this was called.

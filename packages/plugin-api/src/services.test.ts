@@ -458,9 +458,10 @@ test("the doorbell's door is keyed by the plugin, with no way to spell another's
           yield* (yield* Offers).offer(Deliveries, (plugin) => {
             asked.push(plugin)
             return {
-              scopes: () => [{ agent: "a", session: "s", file: `${plugin}.olai` }],
-              ringing: (file) => [{ agent: "a", session: "s", file }],
+              scopes: () => [{ agent: "a", session: "s", file: `${plugin}.olai`, current: () => true }],
+              ringing: (file) => [{ agent: "a", session: "s", file, current: () => true }],
               deliver: () => Effect.void,
+              notify: () => Effect.void,
             }
           })
         }),
@@ -608,9 +609,17 @@ test("what a plugin reads off wakes is what is declared right now, not what was"
     )
     expect([...(yield* asking).keys()]).toEqual(["kolu"])
     expect([...current().keys()]).toEqual(["kolu"])
+    const first = current().get("kolu")
     yield* ringing.dispose
     expect([...(yield* asking).keys()]).toEqual([])
     expect([...current().keys()]).toEqual([])
+    yield* mountPlugin(plugins.host, definePlugin({
+      name: "kolu", needs: [Wakes], apply: Effect.gen(function*() {
+        yield* (yield* Wakes).register(WAKING)
+      }),
+    }))
+    expect(current().get("kolu")).not.toBe(first)
+    expect(current().get("kolu")).toBe((yield* asking).get("kolu"))
   })))
 })
 
@@ -801,9 +810,10 @@ test("the door a plugin stands behind is the door its dependents are handed", as
             // STAMPED BY THE OFFERING ROW'S PROVISION with the word the registry
             // bound the CONSUMER under — the keying survives the hand-over,
             // which is the property that would be worth nothing if it did not.
-            scopes: () => [{ agent: "a", session: "s", file: `${who}.olai` }],
+            scopes: () => [{ agent: "a", session: "s", file: `${who}.olai`, current: () => true }],
             ringing: () => [],
             deliver: () => Effect.void,
+              notify: () => Effect.void,
           }))
         }),
       }),

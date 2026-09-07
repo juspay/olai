@@ -42,6 +42,8 @@ import {
   CHAT_INPUT,
   CHAT_WAKE,
   CHAT_WAKE_FILE,
+  CHAT_WAKE_FAULT,
+  CHAT_WAKE_WAITING,
   CHAT_WAKE_PICKER,
   CHAT_WAKE_QUERY,
   NODE_REF_ANY,
@@ -373,3 +375,15 @@ Then(
     }
   },
 );
+
+Then("this conversation's {string} missing-file warning is queued", async function (this: OlaiWorld, plugin: string) {
+  const row = (await thePicker(this, plugin)).locator("..");
+  await this.waitUntil(async () =>
+    await row.locator(CHAT_WAKE_FAULT).getAttribute("data-fault") === "gone"
+      && await row.locator(CHAT_WAKE_WAITING).getAttribute("data-waiting") === "1",
+  `${plugin}'s missing-file warning to be queued`);
+});
+
+Then("the conversation has received no plugin messages", async function (this: OlaiWorld) {
+  assert.strictEqual(await rungRow(this).count(), 0);
+});

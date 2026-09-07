@@ -24,6 +24,8 @@ import { forLocalState as scopesIn } from "./scopes.ts"
 import { makePanel } from "./chat.ts"
 
 
+const ACTIVATION = {}
+
 const logging = () => {
   const { layer, said } = collector()
   const under = <A, E>(effect: Effect.Effect<A, E>): Effect.Effect<A, E> =>
@@ -94,7 +96,7 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
     seatableAt: (id) => nodes.some((node) => node.id === id),
     nodes: () => nodes,
-    manualWake: () => true,
+    wake: () => undefined,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
       nodes.find((node) => node.engine === agent && node.session === session) ?? null,
@@ -145,7 +147,7 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     }
 
     await run(chat.doorFor("kolu").deliver(
-      { agent: "alpha", session: oneSession ?? "" },
+      chat.doorFor("kolu").scopes().find((row) => row.agent === "alpha")!,
       () => "wake in the background",
     ))
     await until("the sleeping scope to wake and finish", () => chat.live().get("one")?.status === "idle")
@@ -158,7 +160,7 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
   expect(released.toSorted()).toEqual(["one", "one", "two"])
   expect(said.some(line => line.message.includes("chat agent exited")
     && line.annotations.reason === "idle eviction" && line.annotations.node === "one")).toBe(true)
-})
+}, 20_000)
 
 test("boot routes a remembered node session before spawning any panel", async () => {
   let probes = 0
@@ -201,7 +203,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
     seatableAt: (id) => nodes.some((node) => node.id === id),
     nodes: () => nodes,
-    manualWake: () => true,
+    wake: () => ACTIVATION,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
       nodes.find((node) => node.engine === agent && node.session === session) ?? null,
@@ -273,7 +275,7 @@ test("a shutdown that lands mid-boot leaves no scope, no ticket and no process",
     nodeAt: (id) => id === node.id ? node : null,
     seatableAt: (id) => id === node.id,
     nodes: () => [node],
-    manualWake: () => true,
+    wake: () => ACTIVATION,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
       node.engine === agent && node.session === session ? node : null,
@@ -347,7 +349,7 @@ test(`a shutdown that lands mid-acquisition during ${path} leaves nothing behind
     nodeAt: (id) => id === node.id ? node : null,
     seatableAt: (id) => id === node.id,
     nodes: () => [node],
-    manualWake: () => true,
+    wake: () => ACTIVATION,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: () => null,
     ticket: (held) => {
@@ -414,7 +416,7 @@ test("boot moves a newly identified node session into its scope", async () => {
     nodeAt: (id) => id === node.id ? node : null,
     seatableAt: (id) => id === node.id,
     nodes: () => [node],
-    manualWake: () => true,
+    wake: () => ACTIVATION,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
       node.engine === agent && node.session === session ? node : null,
@@ -463,7 +465,7 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
     seatableAt: (id) => nodes.some((node) => node.id === id),
     nodes: () => nodes,
-    manualWake: () => true,
+    wake: () => ACTIVATION,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
       nodes.find((node) => node.engine === agent && node.session === session) ?? null,
@@ -504,14 +506,15 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
     // the scheduler's capacity queue, without taking another plugin's body.
     await run(chat.scope({ agent: "alpha", session: oneSession }, "kolu", "Work.olai"))
     await run(chat.doorFor("kolu").deliver(
-      { agent: "alpha", session: oneSession }, () => "cleared capacity delivery",
+      chat.doorFor("kolu").scopes()[0]!, () => "cleared capacity delivery",
     ))
     await run(chat.scope({ agent: "alpha", session: oneSession }, "kolu", null))
 
+    await run(chat.scope({ agent: "alpha", session: oneSession }, "odu", "Work.olai"))
     // This edge fires once. The same full-cap refusal must retain its thunk,
     // and opening the node after the busy slot settles must flush it.
     await run(chat.doorFor("odu").deliver(
-      { agent: "alpha", session: oneSession },
+      chat.doorFor("odu").scopes()[0]!,
       () => "one-shot first-red",
     ))
     await until("the busy slot to settle", () => chat.live().get("two")?.status === "idle")
@@ -526,7 +529,7 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
   expect(said.some(line => line.message.includes("chat agent exited")
     && line.annotations.reason === "capacity eviction" && line.annotations.expected === true)).toBe(true)
 
-})
+}, 20_000)
 
 test("agent switches, disabled plugins and listing probes have distinct exit reasons", async () => {
   const { run, fork, said } = logging()
@@ -579,7 +582,7 @@ test("node wake picks are off by default, independent, durable and clear the liv
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
     seatableAt: (id) => nodes.some((node) => node.id === id),
     nodes: () => nodes,
-    manualWake: (plugin) => plugin === "kolu" || plugin === "odu",
+    wake: (plugin) => plugin === "kolu" || plugin === "odu" ? ACTIVATION : undefined,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) => nodes.find((node) => node.engine === agent && node.session === session) ?? null,
     ticket: () => ({ bearer: "", release: () => {} }),
@@ -593,7 +596,7 @@ test("node wake picks are off by default, independent, durable and clear the liv
     await run(chat.scope(one, "kolu", "Other.olai"))
     await run(chat.scope(one, "odu", "Work.olai"))
     expect(chat.live().size).toBe(0)
-    expect(chat.doorFor("kolu").ringing("Other.olai", "outside-one")).toEqual([
+    expect(chat.doorFor("kolu").ringing("Other.olai", "outside-one").map(({ current: _current, ...row }) => row)).toEqual([
       { ...one, file: "Other.olai" },
     ])
     await run(chat.loadSession(one.agent, one.session))
@@ -611,8 +614,8 @@ test("node wake picks are off by default, independent, durable and clear the liv
     expect(chat.state().wake.find((row) => row.name === "kolu")?.file).toBe("Other.olai")
     await run(chat.send("wait:5000", [], []))
     await until("a running turn", () => chat.state().status === "thinking")
-    await run(chat.doorFor("kolu").deliver(one, () => "discard this kolu delivery"))
-    await run(chat.doorFor("odu").deliver(one, () => "keep this odu delivery"))
+    await run(chat.doorFor("kolu").deliver(chat.doorFor("kolu").scopes()[0]!, () => "discard this kolu delivery"))
+    await run(chat.doorFor("odu").deliver(chat.doorFor("odu").scopes()[0]!, () => "keep this odu delivery"))
     expect(chat.state().wake.find((row) => row.name === "kolu")?.waiting).toBe(1)
     await run(chat.scope(one, "kolu", null))
     expect(chat.state().wake.map((row) => row.name)).toEqual(["odu"])

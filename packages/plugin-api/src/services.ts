@@ -1436,7 +1436,9 @@ export const openPlugins = (
       register: (wake) =>
         wakes.claim(
           plugin,
-          wake,
+          // A registration is one activation, even when the module reuses its
+          // constant declaration after unload. Readers can retain its lifetime.
+          { ...wake },
           () =>
             `plugins: "${plugin}" declared a second wake — a plugin rings under one `
               + "declaration, and the second would silently replace the first.",

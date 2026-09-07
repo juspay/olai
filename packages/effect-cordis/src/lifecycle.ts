@@ -65,6 +65,7 @@ export interface Quieting {
 /** The plugin adapter can bind initialization and close its lifetime, but cannot
  * rearrange revocation or mark cleanup complete without actually doing it. */
 export interface Activation {
+  readonly current: () => boolean
   readonly scope: Scope.Closeable
   readonly bind: (fiber: Fiber.Fiber<void>) => void
   readonly interrupt: () => void
@@ -125,6 +126,7 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
   }
   live.set(ctx.fiber, activation)
   return {
+    current: () => closing === undefined && !interrupted && ctx.fiber.uid !== null,
     scope,
     interrupt,
     // runForkWith may run plugin code before returning its fiber. Remember an

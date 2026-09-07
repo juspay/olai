@@ -108,7 +108,7 @@ const chatKeeping = (kept: ReadonlyArray<Scoped>): {
         // not said, which is the arm the fault's own thunk takes when the file
         // has come back in the meantime.
         const body = say()
-        return body === null ? Effect.void : Queue.offer(rang, { to, body, from: plugin })
+        return body === null ? Effect.void : Queue.offer(rang, { to: { agent: to.agent, session: to.session }, body, from: plugin })
       }),
   })
   const chat = {

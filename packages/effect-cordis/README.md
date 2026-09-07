@@ -264,3 +264,11 @@ with the row. Names use lowercase words separated by hyphens; `main` is reserved
 Reports and settling include every child, so a missing or failed component cannot
 be concealed by a running container. Asynchronous cleanup is joined on row
 withdrawal, including interrupted initializers.
+
+A `Provision` also receives an optional consumer lifetime. The facade supplies
+`current()` from the existing `Activation`; it becomes false when interruption,
+closing or Cordis disposal begins. Services that retain a consumer's work can
+compose that lifetime into their admission and completion checks without a
+second registry. Direct host lookups have no consumer lifetime. A replacement
+activation receives a new one; a failed provision or initialization closes its
+activation before reporting failure.
