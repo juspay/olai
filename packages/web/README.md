@@ -57,8 +57,11 @@ and touch behaviours a face composes from (`press.ts`, `longPress.ts`,
 (`Pill.tsx`, `Tip.tsx`, `ProgressBadge.tsx`, `Empty.tsx`), and the clock, the
 notifier and the settle helpers beside them. They must not reach upward into a
 plugin. A utility that needs application behavior accepts that behavior from its
-caller; a module that owns a feature belongs with the feature, which is why no
-directory here is named after one. Dedicated static libraries own shared UI
+caller — `writes.ts` is the worked example: it turns a write's two answers into
+one sentence over a writer HANDED IN, because where a verb's write goes belongs
+to the app's own `Edits` table and not to this package. A module that owns a
+feature belongs with the feature, which is why no directory here is named after
+one. Dedicated static libraries own shared UI
 primitives, Markdown rendering, and edit-history presentation.
 
 Test IDs follow the component that renders them. This package exports only its

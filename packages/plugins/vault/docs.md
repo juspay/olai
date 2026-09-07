@@ -25,9 +25,17 @@ component of this row either, because a component waiting for a provider that
 will never arrive makes the whole row read `waiting`, and a row that reads
 `waiting` is one the roster reports as not running. Both providers already wait
 for `Vault`, so registering costs them nothing, and a provider that unloads
-takes its view with it. With neither mounted the answers are `NO_LEDGER` and
-`NO_SEARCH`, which refuse in this row's own words, and a headless serve reports
-the vault waiting on `transport-surface` alone.
+takes its view with it. A second row registering either view is a defect rather
+than a silent replacement: a store reads one ledger, and the second would leave
+every write landing in whichever mounted last. With neither mounted the answers
+are `NO_LEDGER` and `NO_SEARCH`, which refuse in this row's own words, and a
+headless serve reports the vault waiting on `transport-surface` alone.
+
+The table a provider registers INTO belongs to the vault activation that stood
+behind the key — `vault-setup` mints one inside its own `apply`. It was a pair
+of module variables, which is private to this package and owned by nobody: one
+process opening two hosts had one pair between them, so the second serve's git
+row answered the first serve's writes.
 
 Only the `olai` format is supported. A future Org codec belongs in this plugin’s
 format catalogue and schema; a different storage implementation can stand behind
