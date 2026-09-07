@@ -189,34 +189,3 @@ Then("the node {string} is focused", async function (this: OlaiWorld, id: string
     `"${id}" to be on the screen, not merely lit up`,
   );
 });
-
-/**
- * WHAT A CHIP READS, which is not the same claim as which id it carries.
- *
- * A chip is minted from an ID and draws the outline's TITLE for it
- * (`chat/browser/chat/chips.ts`). The title arrives on `outlines.references`,
- * declared by chat's `references` component — so an outline row that leaves
- * takes the naming with it and the chip falls back to the id it is holding.
- * That fallback is the contract's absent arm rather than a degraded state, and
- * this step is what tells the two readings apart on the page: `data-node` says
- * the arming survived, and the words say whether anybody is naming it.
- *
- * Read off the REFERENCE inside the chip rather than the chip itself, because
- * the chip is three things — a `◦` that says "node", the words, and the × that
- * disarms it — and a step that took `innerText` of the whole `<li>` would be
- * asserting about the glyph and the cross as well.
- */
-Then(
-  "the composer's chip for {string} reads {string}",
-  async function (this: OlaiWorld, id: string, words: string) {
-    const chip = armed(this, id).first().locator(chatNodeRef(id));
-    await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const read = async () => (await chip.innerText()).replace(/\s+/g, " ").trim();
-    await this.waitUntil(
-      async () => (await read()) === words,
-      `the chip for "${id}" to read ${JSON.stringify(words)}, and it reads ${
-        JSON.stringify(await read())
-      }`,
-    );
-  },
-);
