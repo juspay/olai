@@ -87,16 +87,15 @@
  * holding a constant that spelled a plugin's word would be the name-matching the
  * kind arrangement exists to end, wearing a `const`.
  *
- * WHAT AN OLDER VAULT OWES IS ONE ROW —
- * `{"title":"agent-session","custom":{"type":"chat-agent-session"}}` — and olai
- * writes it for nobody, because a tool that edited somebody's declarations file
- * to keep its own feature working would be that vault's judgement overruled by a
- * release. What olai does instead is SAY SO, and it is the PLUGIN that says it:
- * the kind is chat's, the retired spelling is chat's and the word to paste is
- * chat's composed claim, so the sentence is drawn in chat's own column
- * (`olai-plugin-chat`'s `server/agents.ts`). This package spells none of it, and
- * the validator files no finding for it — one used to, and darkened the
- * declarations page it was asking a person to edit.
+ * WHICH COLUMN A VAULT KEEPS ITS BINDINGS IN IS THE VAULT'S, and it says so the
+ * way it says everything else: one row —
+ * `{"title":"agent-session","custom":{"type":"chat-agent-session"}}` — puts the
+ * kind on whatever key a board likes. olai writes that row for nobody, because a
+ * tool that edited somebody's declarations file to keep its own feature working
+ * would be that vault's judgement overruled by a release; and an undeclared
+ * column is read as no binding at all, which is the same rule from the other
+ * side. The validator files nothing about any of it — one used to, and darkened
+ * the declarations page it was asking a person to edit.
  */
 import { Schema } from "effect"
 

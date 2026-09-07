@@ -72,14 +72,13 @@ import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { TESTID } from "../../testids.ts"
 import { useAgents } from "./answered.tsx"
 import { createFocus } from "./focus.ts"
-import { Migrating } from "./Migration.tsx"
 import { LOOK, type Row } from "./roster.ts"
 import { showUnassigned } from "./showing.ts"
 
 export function Agents() {
   // THE ROSTER SUBSCRIPTION IS THE PROVIDER'S, once for the whole app
   // (`./answered.tsx`), so this column and every door read one answer.
-  const { rows, unassigned, unreachable, askChats, migration } = useAgents()
+  const { rows, unassigned, unreachable, askChats } = useAgents()
   /** Whether the last row has anything to say — chats waiting for a node, or
    *  an agent nobody could ask what it has. The second is why it is not simply
    *  a count: *we did not get to look* is news too, and a row that drew only on
@@ -91,17 +90,9 @@ export function Agents() {
   const focus = createFocus()
 
   return (
-    // ...AND THE MIGRATION NOTICE COUNTS AS A REASON TO DRAW. It is the one
-    // thing this section says when it has nothing to list — and it is the case
-    // where it has nothing to list BECAUSE of what it is saying, since the
-    // roster is the query over the key the notice is about (`./Migration.tsx`).
-    <Show when={rows().length > 0 || spare() || migration() !== null}>
+    <Show when={rows().length > 0 || spare()}>
       <section class={REGION} data-testid={TESTID.agentRoster}>
-        {/* THE NOTICE BRINGS ITS OWN HEADING, because on the board that needs
-            it there is nothing under the ordinary one. */}
-        <Show when={migration()} fallback={<h2 class={REGION_LABEL}>Agents</h2>}>
-          {(owed) => <Migrating owed={owed()} />}
-        </Show>
+        <h2 class={REGION_LABEL}>Agents</h2>
         <ul class="m-0 list-none p-0">
           {/* `<Key>` BY THE NODE'S ID for the shelf's reason: the cell mints a
               fresh row per frame — an agent's last line landing, a session

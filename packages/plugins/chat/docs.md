@@ -47,21 +47,15 @@ chat-agent-session: claude:0f3c8d21-…          ...and one that is bound
 
 The subtree under that node is that agent's memory — its home, its history, its doorbells. Writes reach the vault.
 
-### An existing vault needs one row
+### Keeping it on a column of your own name
 
-Before this became a plugin, the key was `agent-session` — a bare word core owned. It is a plugin's kind now, composed the way every plugin's kind is (`<plugin>-<kind>`), so a vault written by an older olai carries a key nothing claims.
-
-**One row in `_olai/Properties.olai` keeps it working:**
+A kind claims the key equal to its own composed word, so `chat-agent-session` needs no declaration at all. To keep bindings under some other column — `agent-session`, say, which is the bare word core owned before chat became a plugin — **declare that key as this kind, with one row in `_olai/Properties.olai`:**
 
 ```json
 {"title":"agent-session","custom":{"type":"chat-agent-session"}}
 ```
 
-olai never writes that row for you. A tool that edited your declarations file to keep its own feature working would be your vault's judgement overruled by a release — so what olai does instead is say so, in its own column: while your board holds bindings under the bare key and nothing declares it, the **Agents** section draws the row to paste. That is exactly when the section has nothing else to draw, because the roster is the query over the declared key — so an agent that has stopped appearing explains itself in the place you went looking for it.
-
-It is not a validator finding, and that is deliberate: a finding breaks the file it is filed on, the only honest file for this one is your declarations page, and a notice that darkened the page it was asking you to edit — refusing every other write to it until you pasted the row — cost more than the thing it was about. Declaring the key `text` instead says the column is prose, and stops it being said.
-
-You can also simply rename the key to `chat-agent-session`, which needs no declaration at all — a kind claims the key equal to its own composed word.
+olai never writes that row for you, and it never reads an undeclared column as a binding either. A plugin may only ever declare a key carrying its own name, which is what makes enabling a plugin unable to take over a column you have been using for something of your own — a bare `agent-session` is a word any vault might mean something else by. Your board says which column it means; a release does not decide for you. Renaming the key to `chat-agent-session` works just as well and needs no row.
 
 ## Where it hangs in the tab
 
