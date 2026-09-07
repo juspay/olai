@@ -289,7 +289,30 @@ When(
  * what only an e2e can say is that both halves reach a reader.
  */
 When("the served directory is taken away", function (this: OlaiWorld) {
-  fs.rmSync(this.scratch(), { recursive: true, force: true });
+  // A RENAME, and not a recursive remove, because the scenario's subject is a
+  // root that is GONE — a mount that vanished, an EACCES — and a recursive
+  // remove is not that. `rmSync(recursive)` unlinks the entries and only then
+  // the root, so for as long as it runs the directory is READABLE AND
+  // EMPTYING: the watcher can publish a valid depleted revision, that becomes
+  // the last good one, and the banner then stands over an empty page rather
+  // than over the tree the scenario is named for.
+  //
+  // That is not a hypothesis. Splitting this step in two and putting a
+  // controlled gap between the contents and the root flips the outcome at
+  // about 100ms on an unloaded box: below it the page holds all eleven rows,
+  // above it the page is empty. The same flip happens on this branch's base
+  // (58f4f3172), so the race is the fault injection's and pre-existing — and
+  // a CI shard running at twice its siblings' wall clock is exactly where the
+  // window would open on its own.
+  //
+  // A rename on the same filesystem is one atomic step: the root is there, and
+  // then it is not, with nothing in between for a watcher to see. The renamed
+  // tree is removed afterwards — by then it is at a path nothing is watching,
+  // so how long THAT takes cannot be observed.
+  const root = this.scratch();
+  const gone = `${root}.taken-away`;
+  fs.renameSync(root, gone);
+  fs.rmSync(gone, { recursive: true, force: true });
 });
 
 // ── what is actually drawn ─────────────────────────────────────────────
