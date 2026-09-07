@@ -302,3 +302,35 @@ After `tools.server` settles, `server.ts` seeds the node roster from `Ops.readin
 `terminals.ts` owns client-created command handles and bounded UTF-8 output snapshots. Tool references bind those snapshots to transcript rows; release invalidates the agent handle while retaining its output. Codex and pi opt into metadata decoding through their legs and feed the same snapshots without transferring process ownership. Standard terminal requests validate the active session, and cancellation/session teardown stop client-owned process groups. See [chat documentation](../../../docs/chat.md#session-controls-and-progress) for user-visible behavior and limits.
 
 Codex native activity is decoded and negotiated by `@olai/acp`, with only typed facts entering the conversation-owned `Activity` registry. `Calls` qualifies remembered facts by native session while preserving raw IDs for adapter interpretation. `Terminals` retains output, ownership and live handles in one record, so released client handles remain distinguishable from adapter-owned terminal IDs.
+
+
+## Per-conversation wake choices
+
+Every plugin that registers a `Wakes` declaration is opt-in for every chat,
+including node-bound sessions. The existing wake table stores a file per
+conversation and plugin; clearing removes the row. The scheduler routes writes
+to the live panel that owns the inbox, or writes a sleeping session's choice
+without acquiring its process. Changes refresh all live panels and discard
+queued deliveries for replaced, cleared and evicted picks. File faults refresh
+node panels as well as the root panel.
+
+The declaration is read live through `Wakes.current`, using the same registry
+and scoped registration as `Wakes.declared`. No plugin names or second registry
+are embedded in the scheduler. Delivery-only plugins retain node-derived
+recipients. Cordis still owns service availability and plugin cleanup; the
+scheduler still owns concurrent node processes and their Effect scopes.
+
+`Scopes.recipient` carries the lifetime of one saved choice. Successful writes
+replace that lifetime; fault marking and healing preserve it. The scheduler
+composes it with the live wake declaration and carries the predicate through
+startup, pending work, ownership transfer and retry. `Panel.offer` evaluates
+the guarded body under its sending permit immediately before the transcript
+write. Queue removal releases discarded work and updates the strip; it is not
+the authority check.
+
+`server/deliveries.ts` binds the public door to the consumer lifetime supplied by
+Cordis through the existing Effect activation. Unloading a plugin revokes old
+service calls and recipients, including queued direct notices. Reloading keeps
+saved choices while issuing new recipients. Wake registrations likewise have
+fresh identity per activation, so core-generated fault warnings cannot survive
+a plugin leaving and returning.

@@ -112,6 +112,7 @@ const until = async (what: string, ready: () => boolean, ms = 8_000): Promise<vo
 /** A scope table that is only ever read — what the strip's count is projected
  *  over. Writing one is `scopes.test.ts`'s subject. */
 const scoping = (rows: ReadonlyArray<Scoped>): Scopes => ({
+  recipient: ({ agent, session, file }) => ({ agent, session, file, current: () => true }),
   rows: () => rows,
   set: () => Effect.succeed([]),
   /** Nothing ever breaks in a read-only table: the fault member's own cases
@@ -467,7 +468,8 @@ const movable = (): Scopes => {
     file: "Fleet.olai",
   }]
   return {
-    rows: () => rows,
+    recipient: ({ agent, session, file }) => ({ agent, session, file, current: () => true }),
+  rows: () => rows,
     set: (to, plugin, file) =>
       Effect.sync(() => {
         const without = rows.filter((row) =>
@@ -558,7 +560,8 @@ describe("a doorbell somebody turned off", () => {
     // never said was on.
     let rows: ReadonlyArray<Scoped> = []
     const refusing: Scopes = {
-      rows: () => rows,
+      recipient: ({ agent, session, file }) => ({ agent, session, file, current: () => true }),
+  rows: () => rows,
       set: () => Effect.fail(new MemoryFailure({ why: "the state home is read-only" })),
       faults: () => Effect.fail(new MemoryFailure({ why: "the state home is read-only" })),
     }
@@ -681,7 +684,7 @@ describe("a doorbell that is not watching what it names", () => {
   test("a faulted scope is not on its plugin's door", async () => {
     const chat = await panel({ scoping: movable() })
     await closing(chat, async () => {
-      expect(chat.doorFor(KOLU).scopes()).toEqual([
+      expect(chat.doorFor(KOLU).scopes().map(({ current: _current, ...row }) => row)).toEqual([
         { agent: "opencode", session: "sess-1", file: "Fleet.olai" },
       ])
       await run(chat.faults(RENAMED, TELLABLE))
@@ -690,7 +693,7 @@ describe("a doorbell that is not watching what it names", () => {
       // does per scope stops with it, a heartbeat saying "alive and quiet"
       // most of all: that sentence about a doorbell watching nothing is the
       // confusion this whole feature exists to prevent.
-      expect(chat.doorFor(KOLU).scopes()).toEqual([])
+      expect(chat.doorFor(KOLU).scopes().map(({ current: _current, ...row }) => row)).toEqual([])
     })
   }, 20_000)
 
@@ -698,14 +701,14 @@ describe("a doorbell that is not watching what it names", () => {
     const chat = await panel({ scoping: movable() })
     await closing(chat, async () => {
       await run(chat.faults(RENAMED, TELLABLE))
-      expect(chat.doorFor(KOLU).scopes()).toEqual([])
+      expect(chat.doorFor(KOLU).scopes().map(({ current: _current, ...row }) => row)).toEqual([])
 
       // ONE SIGNAL PER FAULT. The scope heals, the door lists it again and the
       // strip stops drawing it broken — and nothing comes back for a caller to
       // put into the conversation, because "it is fine again" is a thing the
       // control shows rather than a thing worth interrupting somebody for.
       expect(await run(chat.faults(ALL_WELL, TELLABLE))).toEqual([])
-      expect(chat.doorFor(KOLU).scopes()).toEqual([
+      expect(chat.doorFor(KOLU).scopes().map(({ current: _current, ...row }) => row)).toEqual([
         { agent: "opencode", session: "sess-1", file: "Fleet.olai" },
       ])
       expect(chat.state().wake).toEqual([
@@ -729,7 +732,8 @@ describe("a doorbell that is not watching what it names", () => {
       file: "Fleet.olai",
     }]
     const refusing: Scopes = {
-      rows: () => rows,
+      recipient: ({ agent, session, file }) => ({ agent, session, file, current: () => true }),
+  rows: () => rows,
       set: () => Effect.fail(new MemoryFailure({ why: "the state home is read-only" })),
       faults: () => Effect.fail(new MemoryFailure({ why: "the state home is read-only" })),
     }
@@ -758,7 +762,7 @@ describe("a doorbell that is not watching what it names", () => {
       ])
       // ... and the door is empty, which is what keeps a heartbeat from
       // reporting a live watch over a conversation watching nothing.
-      expect(chat.doorFor(KOLU).scopes()).toEqual([])
+      expect(chat.doorFor(KOLU).scopes().map(({ current: _current, ...row }) => row)).toEqual([])
       expect(await run(chat.faults(WRONG_KIND, TELLABLE))).toEqual([])
     })
   }, 20_000)

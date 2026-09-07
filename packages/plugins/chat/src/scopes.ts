@@ -240,6 +240,11 @@ export interface Faulted extends Scoped {
 export interface Scopes {
   /** Every pick, in the order they are held. */
   readonly rows: () => ReadonlyArray<Scoped>
+  /** Retain this exact choice across fault marking and healing. Successful
+   * repicks (even to the same file), clearing and eviction revoke it. */
+  readonly recipient: (row: Scoped) => Pick<Scoped, "agent" | "session" | "file"> & {
+    readonly current: () => boolean
+  }
   /**
    * Set or CLEAR one — `file: null` clears, which is how a doorbell is turned
    * off — and answer with the rows that LEFT the table.
@@ -429,8 +434,21 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Scopes> =>
     let rows: ReadonlyArray<Scoped> = []
     if (read !== null) rows = picks(read)
 
+    // Fault marks change independently of a person's choice. Keep the choice's
+    // identity through those immutable row replacements, but never through set.
+    // Weak keys let old fault readings be collected.
+    const choices = new WeakMap<Scoped, Scoped>()
+    const choice = (row: Scoped): Scoped => choices.get(row) ?? row
+
     return {
       rows: () => rows,
+      recipient: (row) => {
+        const picked = choice(row)
+        return {
+          agent: row.agent, session: row.session, file: row.file,
+          current: () => rows.some((now) => choice(now) === picked),
+        }
+      },
       set: (to, plugin, file) =>
         writing.withPermit(Effect.gen(function*() {
           // The table as it stands, held so the answer below can be computed
@@ -546,6 +564,9 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Scopes> =>
           // so the sentence would go out now AND again after the next restart.
           // Failing whole leaves the same edge for the next revision to find.
           yield* local.save(WAKE, { scopes: next })
+          for (let index = 0; index < next.length; index++) {
+            choices.set(next[index]!, choice(before[index]!))
+          }
           rows = next
           return fell
         })),

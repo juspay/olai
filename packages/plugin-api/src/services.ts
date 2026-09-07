@@ -544,6 +544,8 @@ export const Surfaces = serviceTag<Surfaces>("surfaces")
  */
 export interface Wakes {
   readonly register: (wake: Wake) => Effect.Effect<void, never, Scope.Scope>
+  /** The same live declarations for synchronous delivery-scope readers. */
+  readonly current: () => ReadonlyMap<string, Wake>
   /** What every ringing plugin declared right now, keyed by its name. A name
    *  with no entry is a plugin that wakes nobody, which is a whole plugin. */
   readonly declared: Effect.Effect<ReadonlyMap<string, Wake>>
@@ -1434,7 +1436,9 @@ export const openPlugins = (
       register: (wake) =>
         wakes.claim(
           plugin,
-          wake,
+          // A registration is one activation, even when the module reuses its
+          // constant declaration after unload. Readers can retain its lifetime.
+          { ...wake },
           () =>
             `plugins: "${plugin}" declared a second wake — a plugin rings under one `
               + "declaration, and the second would silently replace the first.",
@@ -1443,6 +1447,7 @@ export const openPlugins = (
       // one truth and both ends of the wall are looking at it. A copy is handed
       // over, so a reader that wrote into it would be writing into its own.
       declared: Effect.sync(wakes.read),
+      current: wakes.read,
     }))
 
 

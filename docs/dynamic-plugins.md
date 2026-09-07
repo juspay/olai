@@ -206,7 +206,7 @@ export default definePlugin({
       const body = words(answer)
       if (body === null) return
       for (const scope of scopes) {
-        yield* deliveries.deliver({ agent: scope.agent, session: scope.session }, () => body)
+        yield* deliveries.deliver(scope, () => body)
       }
       said = day
     })

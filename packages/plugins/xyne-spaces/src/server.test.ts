@@ -72,7 +72,7 @@ interface Doubles {
   readonly env: Record<string, string | undefined>
   readonly served: string
   readonly now: () => string
-  readonly deliver?: Deliveries["deliver"]
+  readonly notify?: Deliveries["notify"]
   readonly dial?: unknown
   readonly localState?: LocalState
 }
@@ -125,7 +125,8 @@ const mounted = async (doubles: Doubles) => {
         yield* offers.offer(DeliveriesDoor, () => ({
           scopes: () => [],
           ringing: () => [],
-          deliver: doubles.deliver ?? (() => Effect.void),
+          deliver: () => Effect.void,
+          notify: doubles.notify ?? (() => Effect.void),
         }))
         yield* offers.offer(Watching, () => ({
           subscribe: (handler) =>
@@ -195,7 +196,7 @@ test("a doorbell in the bound conversation posts; a heartbeat and this plugin's 
       env: { OLAI_SPACES_URL: spaces.url, OLAI_SPACES_TOKEN: "tok" },
       served: served(),
       now: () => "2026-09-01T12:00:00Z",
-      deliver: (_to, say) =>
+      notify: (_to, say) =>
         Effect.sync(() => {
           const body = say()
           if (body !== null) faults.push(body)
@@ -298,7 +299,7 @@ test("a bind without env is a fault, named, and said once into the conversation"
       env: {},
       served: served(),
       now: () => "2026-09-01T12:00:00Z",
-      deliver: (_to, say) =>
+      notify: (_to, say) =>
         Effect.sync(() => {
           const body = say()
           if (body !== null) faults.push(body)
