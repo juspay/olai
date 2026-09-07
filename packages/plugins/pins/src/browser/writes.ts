@@ -8,27 +8,14 @@
  * scope: five plugin activations wrote into it and four packages read it, with
  * nothing declared anywhere — the audit's §12, and the reason this file exists.
  *
- * `../browser.tsx` names the key and holds the table here; the faces below it
- * import these three rather than `@olai/web/client/writes.ts`'s, which are the
- * same algorithm over a writer HANDED IN.
- *
- * PER CALL, so a row that stopped and came back writes through the table it is
- * holding now — and a face drawn with nothing held refuses in the words a verb
- * whose provider left already got, rather than throwing inside a click.
+ * `../browser.tsx` names the key and holds the table HERE, in this row's own
+ * holder — which is the whole of what this file is. The algorithm over it is
+ * one factory's (`@olai/web/client/writes.ts`'s `heldWrites`), because six rows
+ * wanted the same ten lines and only differed in which activation holds the
+ * table; the faces of this row import these from here rather than from that
+ * door, so what they spend is this row's hold and no other's.
  */
-import { NO_EDITS, type EditWriters } from "@olai/plugin-api"
-import { heldService } from "@olai/ui-primitives/held.ts"
-import { type EditWriter, writingWith } from "@olai/web/client/writes.ts"
+import { heldWrites } from "@olai/web/client/writes.ts"
 
-const table = heldService<EditWriters>()
-
-/** Told by `../browser.tsx`, for that activation. */
-export const holdEdits = table.hold
-
-/** THE SEND, over whichever table this row is holding. `Edits` is spelled
- *  structurally in `@olai/plugin-api` (that package may not import
- *  `@olai/surface`), so the one cast is here — the reading end — and everything
- *  built on it below is typed. */
-export const writeEdit = ((edit) => (table.read() ?? NO_EDITS).write(edit)) as EditWriter
-
-export const { applying, applyingAll, applied } = writingWith(writeEdit)
+/** Told by `../browser.tsx`, for that activation — and spent by its faces. */
+export const { holdEdits, writeEdit, applying, applyingAll, applied } = heldWrites()

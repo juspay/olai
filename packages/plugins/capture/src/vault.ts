@@ -15,24 +15,7 @@
  * declared dependency simply leaves the component `waiting` with its row
  * running, which is the state the runtime is for.
  */
-import type { Accessor } from "solid-js"
+import { heldFiles } from "olai-plugin-vault/file-state"
 
-import { heldService } from "@olai/ui-primitives/held.ts"
-import type { Directory } from "olai-plugin-vault/file-state"
-
-const provider = heldService<Directory>()
-
-/** Told by `./browser.tsx`'s row, for that activation. */
-export const holdServed = provider.hold
-
-/** The served directory itself, or nothing. */
-export const servedDirectory = provider.read
-
-/** Every served path, in directory order. */
-export const useServed = (): Accessor<ReadonlyArray<string>> =>
-  () => provider.read()?.paths() ?? []
-
-/** ...and which revision one served file is at — the question a reader asks
- *  when what it needs to know is that the file MOVED. */
-export const useHead = (file: Accessor<string>): Accessor<number | undefined> =>
-  () => provider.read()?.head(file)()
+/** Told by this row, for its activation — and read by its faces. */
+export const { holdServed, servedDirectory, useServed, useHead } = heldFiles()

@@ -35,6 +35,9 @@ import type { Applied, Edit } from "@olai/surface"
 import type { OpFailure } from "@olai/format"
 import { type Effect, Result } from "effect"
 
+import { NO_EDITS, type EditWriters } from "@olai/plugin-api"
+import { heldService } from "@olai/ui-primitives/held.ts"
+
 import { runAsync } from "./run.ts"
 import type { Undo } from "@olai/edit-history/undoing.ts"
 
@@ -153,4 +156,45 @@ const applied = async (
 }
 
   return { applying, applyingAll, applied }
+}
+
+/**
+ * ONE ROW'S BINDING OF THE APP'S EDIT TABLE — the hold its activation makes,
+ * the send over whatever it is holding, and the three sentences above.
+ *
+ * ## A factory, because six packages had the same ten lines
+ *
+ * Every row that spends an edit held `Edits` in a private module of its own,
+ * and those modules were byte-identical: mint a holder, bind a send over it,
+ * spread {@link writingWith}. What is per-package is WHICH activation holds
+ * the table — and a factory keeps exactly that while removing the copies.
+ * Calling it twice gives two holders, which is the rule
+ * `@olai/ui-primitives`' `heldService` and `@olai/plugin-api`'s `heldFaces`
+ * already keep.
+ *
+ * It also puts the two things that move on one schedule in one place: the
+ * shape of {@link writingWith} and the answer for a row that is not holding
+ * are this file's, and they used to be restated in six.
+ *
+ * ## The send resolves PER CALL
+ *
+ * A row that stopped and came back writes through the table it is holding
+ * NOW, and a face drawn with nothing held is refused in the words a verb whose
+ * provider left already got — rather than throwing inside a click handler.
+ * The cast is the one this file's header describes: `Edits` is spelled
+ * structurally in `@olai/plugin-api`, which may not name `@olai/surface`.
+ */
+export interface HeldWrites extends Writing {
+  /** Told by the row's `apply`, for that activation. */
+  readonly holdEdits: (table: EditWriters) => () => void
+  /** The raw send, for the one caller that needs the promise before it is
+   *  awaited: the row editor reserves its place on the undo stack while the
+   *  write is still in flight. */
+  readonly writeEdit: EditWriter
+}
+
+export const heldWrites = (): HeldWrites => {
+  const table = heldService<EditWriters>()
+  const writeEdit = ((edit) => (table.read() ?? NO_EDITS).write(edit)) as EditWriter
+  return { holdEdits: table.hold, writeEdit, ...writingWith(writeEdit) }
 }
