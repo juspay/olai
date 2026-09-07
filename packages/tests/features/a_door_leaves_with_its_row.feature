@@ -76,9 +76,10 @@ Feature: A reading leaves with the row that offered it, and comes back
     And the page has not reloaded
     And there should be no page errors
 
-  # §12: `pins.state`, read by the outline's `•••` to decide which of two words
-  # its shelf verb wears. One entry with two labels, so the label IS the
-  # reading.
+  # §12 twice over: `pins.state`, read by the outline's `•••` to decide which of
+  # two words its shelf verb wears (one entry with two labels, so the label IS
+  # the reading) — and `Edits`, the app's table of which row writes which verb,
+  # which the same menu spends when the entry is pressed.
   @scratch:good
   Scenario: The outline's shelf verb follows the pins row off and back on
     Given I open the outline "house.olai"
@@ -97,8 +98,14 @@ Feature: A reading leaves with the row that offered it, and comes back
     Then the pinned shelf is not drawn
     When I open the node menu of "order"
     Then the node menu offers "Pin to sidebar"
-    When I click away from the node menu
-    And I open the plugins panel
+    # ...AND PRESSING IT IS REFUSED IN WORDS. `pin` is the pins row's verb on
+    # the app's edit table (`@olai/plugin-api`'s `Edits`), and a verb whose
+    # claimant has left is refused the way it always was — the outline does not
+    # send it into a table that no longer routes it, and the reader is told.
+    When I choose "Pin to sidebar" from the node menu
+    Then the node menu of "order" says "the capability for pin is not active"
+    And the pinned shelf is not drawn
+    When I open the plugins panel
     And I switch the plugin "pins" on
     And I close the plugins panel
     Then the pinned shelf holds "/#order"

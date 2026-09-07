@@ -100,6 +100,18 @@ test("the journal's URL is still the journal's after the palette withdraws", () 
     moved((at) => at + 1)
     expect(routing.routeIn("/d/2026-09-07")?.kind).toBe("plugin")
 
+    // ...AND THE PALETTE COMES BACK, which is the other half of the reviewers'
+    // ask and the half a holder gets wrong in the other direction: a second
+    // hold into a shared slot displaces what is there, so restoring the palette
+    // must not be what takes the routes away.
+    const again = yield* Scope.make()
+    yield* Scope.provide(holdPaletteFaces(rendererTable), again)
+    moved((at) => at + 1)
+    expect(routing.routeIn("/d/2026-09-07")?.kind).toBe("plugin")
+    yield* Scope.close(again, Exit.void)
+    moved((at) => at + 1)
+    expect(routing.routeIn("/d/2026-09-07")?.kind).toBe("plugin")
+
     // ...and when the renderer does stop, the claim goes with it, which is the
     // empty reading this row has always had before its renderer settled.
     yield* Scope.close(renderer, Exit.void)
