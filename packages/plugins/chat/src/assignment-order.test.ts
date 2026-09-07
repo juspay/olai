@@ -39,6 +39,7 @@ for (const waitForReply of [false,true]) test(`assignment ${waitForReply ? "repl
     overheard:await run(sessionsIn(local.forDirectory(cwd))),
     nodeAt:id=>nodes.find(node=>node.id===id)??null,
     seatableAt:()=>true,nodes:()=>nodes,
+    manualWake: () => true,
     nearestAt:(id,candidates)=>candidates.has(id)?id:null,
     agentAt:to=>nodes.find(node=>node.engine===to.agent&&node.session===to.session)??null,
     ticket:()=>({bearer:"",release:()=>{}}),

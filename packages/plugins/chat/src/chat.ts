@@ -109,7 +109,7 @@ import * as Memory from "./memory.ts"
 import { ephemeralLocalState } from "./local.ts"
 import { annotated } from "./prompt.ts"
 import type { Probe } from "./probes.ts"
-import type { Fault, Faulted, Scopes } from "./scopes.ts"
+import type { Fault, Faulted, Scoped, Scopes } from "./scopes.ts"
 import { succeeded } from "./succession.ts"
 import { teachingFor } from "./teaching.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
@@ -541,7 +541,10 @@ export interface Panel {
     to: { readonly agent: string; readonly session: string },
     plugin: string,
     file: string | null,
-  ) => Effect.Effect<void, OpFailure>
+  ) => Effect.Effect<ReadonlyArray<Scoped>, OpFailure>
+  /** Refresh this panel after the shared picks changed, dropping deliveries
+   * for every replaced, cleared or evicted pick. */
+  readonly refreshWakes: (left: ReadonlyArray<Scoped>) => void
   /**
    * WHICH SCOPED FILES A DOORBELL CAN STILL WATCH — asked of every published
    * revision, and answered with the conversations whose doorbell JUST BROKE.
@@ -3259,6 +3262,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
 
     return {
       entries: () => transcript.entries(),
+      refreshWakes: (left) => {
+        for (const row of left) held.dropped(row, row.plugin)
+        const wake = wakeOf()
+        if (!sameWake(wake, state.wake)) move({ wake })
+      },
       state: () => state,
       enginesMoved,
       overheard: () => options.overheard?.rows() ?? [],
@@ -3458,6 +3466,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // and arrive from a doorbell its strip now draws as off.
           for (const row of left) held.dropped(row, row.plugin)
           move({ wake: wakeOf() })
+          return left
         }),
       /**
        * A revision, judged against the picks. See {@link Panel.faults} for what

@@ -29,7 +29,7 @@ import { ephemeralLocalState } from "./local.ts"
 import type { Conversing } from "./sessions.ts"
 import type { Change } from "./transcript.ts"
 import { pastOf } from "./lineage.ts"
-import type { Listed } from "olai-plugin-chat/wire"
+import { agentIn, type Listed } from "olai-plugin-chat/wire"
 
 /** Long enough not to churn an ordinary working set, finite so sleeping agents
  * do not become a process pool. Tests inject a shorter duration. */
@@ -67,6 +67,9 @@ export interface Chat extends Panel {
  * a node pool; there is no optional field that changes which lifecycle `make`
  * constructs. */
 export interface Options extends PanelOptions {
+  /** Whether a plugin declares a user-controlled wake. Read live through its
+   * service; delivery-only plugins retain their node-derived recipients. */
+  readonly manualWake: (plugin: string) => boolean
   readonly nodeAt: (node: string) => NodeAgent | null
   /** Whether a node is a record an agent could be SEATED at — which is not the
    * same question as whether it is one already, and is the one the gesture
@@ -140,6 +143,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       capacity = DEFAULT_CAPACITY,
       idle = DEFAULT_IDLE,
       nearestAt,
+      manualWake,
       nodeAt,
       nodes: nodesAt,
       onLive,
@@ -634,13 +638,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const scopedDoor = (plugin: string) => {
       const scopes = (): ReadonlyArray<WakeScope> => {
         const manual = root.doorFor(plugin).scopes()
-          .filter((scope) => nodeFor(scope.agent, scope.session) === null)
+        if (manualWake(plugin)) return manual
         const derived = nodesAt().flatMap((node) =>
           node.session === null
             ? []
             : [{ agent: node.engine, session: node.session, file: node.file, under: node.id }]
         )
-        return [...manual, ...derived]
+        return [...manual.filter((scope) => nodeFor(scope.agent, scope.session) === null), ...derived]
       }
       return {
         scopes,
@@ -830,15 +834,38 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       sessions: listSessions,
       answer: (id, answers) => foreground((panel) => panel.answer(id, answers)),
       doorFor: scopedDoor,
-      scope: (to, plugin, file) => {
-        if (nodeFor(to.agent, to.session) !== null) {
-          return Effect.fail(new UsageFailure({
-            reason: "a node agent wakes from its subtree; its scope is not picked by hand",
-          }))
+      scope: (to, plugin, file) => Effect.gen(function*() {
+        // A sleeping session's preference can be written without acquiring an
+        // ACP process. A live one owns its inbox, so the write goes through it.
+        const panel = [...nodes.values()].find((slot) =>
+          slot.state.session?.id === to.session && agentIn(slot.state)?.id === to.agent
+        )?.panel ?? root
+        for (const [key, held] of pending) {
+          const keep = held.filter((one) => !(one.plugin === plugin
+            && one.to.agent === to.agent && one.to.session === to.session))
+          if (keep.length === 0) pending.delete(key)
+          else pending.set(key, keep)
         }
-        return root.scope(to, plugin, file)
+        const left = yield* panel.scope(to, plugin, file)
+        root.refreshWakes(left)
+        for (const slot of nodes.values()) slot.panel.refreshWakes(left)
+        for (const [key, held] of pending) {
+          const keep = held.filter((one) => !left.some((row) => row.plugin === one.plugin
+            && row.agent === one.to.agent && row.session === one.to.session))
+          if (keep.length === 0) pending.delete(key)
+          else pending.set(key, keep)
+        }
+        return left
+      }),
+      refreshWakes: (left) => {
+        root.refreshWakes(left)
+        for (const slot of nodes.values()) slot.panel.refreshWakes(left)
       },
-      faults: (served, sayable) => root.faults(served, sayable),
+      faults: (served, sayable) => Effect.gen(function*() {
+        const fell = yield* root.faults(served, sayable)
+        for (const slot of nodes.values()) slot.panel.refreshWakes([])
+        return fell
+      }),
       recordRefusal: (tool, failure) => panelOf().recordRefusal(tool, failure),
       start,
       stop: stopWithReason("shutdown"),

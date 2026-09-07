@@ -593,19 +593,24 @@ test("what a plugin reads off wakes is what is declared right now, not what was"
     // THE READER IS A PLUGIN TOO, holding the Effect rather than its answer —
     // which is the only way to ask the question twice.
     let asking: Effect.Effect<ReadonlyMap<string, unknown>> = Effect.succeed(new Map())
+    let current: () => ReadonlyMap<string, unknown> = () => new Map()
     yield* mountPlugin(
       plugins.host,
       definePlugin({
         name: "chat",
         needs: [Wakes],
         apply: Effect.gen(function*() {
-          asking = (yield* Wakes).declared
+          const wakes = yield* Wakes
+          asking = wakes.declared
+          current = wakes.current
         }),
       }),
     )
     expect([...(yield* asking).keys()]).toEqual(["kolu"])
+    expect([...current().keys()]).toEqual(["kolu"])
     yield* ringing.dispose
     expect([...(yield* asking).keys()]).toEqual([])
+    expect([...current().keys()]).toEqual([])
   })))
 })
 

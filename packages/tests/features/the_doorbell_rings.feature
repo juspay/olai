@@ -6,12 +6,9 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   that is the lane a prompt goes out on and the one every word about its fate is
   already written for.
 
-  WHICH unassigned conversation hears it is one person's answer, given in one
-  place. The wake strip under the panel's other two is that place: a file per
-  conversation, picked by hand. A node agent instead inherits its own subtree
-  and has no picker. No serve scopes an unassigned conversation, and one nobody
-  has scoped hears nothing — which is why the strip's ordinary state is `off`
-  and is still drawn.
+  Each conversation chooses its own file for each plugin, including chats
+  bound to nodes. New conversations are off. Clearing the file turns that
+  plugin's notifications off without changing any other conversation or plugin.
 
   ONE SCENARIO, and the whole of the rest is unit-tested. What a filter file
   CLAIMS, what a wake MEANS and what the sentence says are pure functions over a
@@ -104,3 +101,34 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     # THE CHAT ROW ITSELF is a different absence and gets a different sentence:
     # nobody asked for it, so there is nothing to fix and nothing amber.
     And the plugins panel says "chat" is "was not asked for"
+
+
+  @scratch:lanes
+  Scenario: Node conversations control each doorbell and remember off across restart
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    Then the agent "door-live" stands "idle"
+    And this conversation's "kolu" wake is on nothing
+    And this conversation's "odu" wake is on nothing
+    When I point this conversation's "kolu" wake at "lanes.olai"
+    And I point this conversation's "odu" wake at "backlog.olai"
+    Then this conversation's "kolu" wake is on "lanes.olai"
+    And this conversation's "odu" wake is on "backlog.olai"
+    When I point this conversation's "kolu" wake at "backlog.olai"
+    Then this conversation's "kolu" wake is on "backlog.olai"
+    And this conversation's "odu" wake is on "backlog.olai"
+    When I clear this conversation's "kolu" wake
+    Then this conversation's "kolu" wake is on nothing
+    And this conversation's "odu" wake is on "backlog.olai"
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then this conversation's "kolu" wake is on nothing
+    And this conversation's "odu" wake is on "backlog.olai"
+    When I clear this conversation's "odu" wake
+    Then this conversation's "odu" wake is on nothing
+    When I point this conversation's "kolu" wake at "lanes.olai"
+    Then this conversation's "kolu" wake is on "lanes.olai"
+    And this conversation's "odu" wake is on nothing
+    And there should be no page errors

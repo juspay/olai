@@ -803,6 +803,7 @@ export default definePlugin({
           ),
         memory: memoryIn(localState, mounted()[0]?.id ?? ""),
         scoping: yield* scopesIn(localState),
+        manualWake: (plugin) => wakes.current().has(plugin),
         overheard: yield* sessionsIn(localState),
         agentAt: (to) => nodeAgents.agentAt(to),
         nodeAt: (node) => nodeAgents.nodeAt(node),

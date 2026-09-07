@@ -67,12 +67,6 @@ const thePicker = async (world: OlaiWorld, plugin: string): Promise<Locator> => 
   return picker;
 };
 
-/** Node-bound sessions derive every wake from their subtree, so the whole
- * manual strip is absent rather than drawn with a control that must refuse. */
-Then("the panel offers no manual wake scope", async function (this: OlaiWorld) {
-  assert.strictEqual(await this.page.locator(CHAT_WAKE).count(), 0);
-});
-
 /** What that control is pointed at, as data: a path, or the word `off`. The
  *  words around it are the plugin's own sentence, and a scenario asserting
  *  those would be asserting somebody else's vocabulary. */
@@ -127,6 +121,11 @@ Then(
     await pointedAt(this, plugin, file);
   },
 );
+
+When("I clear this conversation's {string} wake", async function (this: OlaiWorld, plugin: string) {
+  const row = (await thePicker(this, plugin)).locator("..");
+  await this.press(row.getByRole("button", { name: "clear", exact: true }));
+});
 
 // ── the far end ────────────────────────────────────────────────────────
 

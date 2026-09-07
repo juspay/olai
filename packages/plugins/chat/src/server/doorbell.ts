@@ -154,7 +154,7 @@ export const scopeThrough = (
   },
 ): Effect.Effect<void, { readonly reason: string }> =>
   declared.has(input.plugin)
-    ? chat.scope({ agent: input.agent, session: input.session }, input.plugin, input.file)
+    ? Effect.asVoid(chat.scope({ agent: input.agent, session: input.session }, input.plugin, input.file))
     : Effect.fail({
       reason: `no plugin called \`${input.plugin}\` rings a conversation here`,
     })

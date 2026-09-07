@@ -188,7 +188,8 @@ Feature: A node with an `agent-session` property IS an agent
     # The binding took: the roster says this agent is the conversation the
     # panel is in, which is the half `bound` answers.
     Then the agent "door-live" stands "idle"
-    And the panel offers no manual wake scope
+    And this conversation's "kolu" wake is on nothing
+    And this conversation's "odu" wake is on nothing
     When I ask the agent "what is blocking the connector?"
     Then the agent was told its contract 1 time
     And the contract names "watch the connector" and its subtree
@@ -202,7 +203,7 @@ Feature: A node with an `agent-session` property IS an agent
     # says back what it was given, so the last thing olai heard is the question.
     And the door on "door-live" last said "and now?"
 
-  # ── the subtree is wake scope; writes reach the vault ────────────────
+  # ── wake choices belong to the conversation; writes reach the vault ────────────────
 
   @scratch:lanes
   Scenario: A node agent can write a sibling outside its subtree
