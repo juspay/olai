@@ -302,3 +302,18 @@ test("delivery-only addressed notices work and expire with their consumer", asyn
     expect(it.text()).not.toContain("obsolete")
   } finally { await run(it.chat.stop) }
 }, 20_000)
+
+
+test("registering a selectable wake revokes recipients issued before its declaration", async () => {
+  let activation: Wake | undefined
+  const it = await bench({ wake: () => activation })
+  try {
+    const recipient = it.recipient()
+    expect(recipient.current()).toBe(true)
+    activation = WAKE
+    expect(recipient.current()).toBe(false)
+    expect(it.chat.doorFor("kolu").scopes()).toEqual([])
+    await run(it.chat.doorFor("kolu").deliver(recipient, () => "before the picker existed"))
+    expect(it.chat.live().size).toBe(0)
+  } finally { await run(it.chat.stop) }
+})

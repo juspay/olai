@@ -666,6 +666,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               current: () => nodeFor(node.engine, node.session!)?.id === node.id }]
         )
         return [...manual.filter((scope) => nodeFor(scope.agent, scope.session) === null), ...derived]
+          .map((row) => ({ ...row, current: () => wake(plugin) === undefined && row.current() }))
       }
       return {
         scopes,
