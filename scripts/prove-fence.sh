@@ -241,6 +241,8 @@ restore() {
   # `git clean` below would not remove.
   [ -n "$touched" ] && git checkout -- $touched
   touched=""
+  [ -n "$created" ] && rm -f $created
+  created=""
   # ...and anything a mutation CREATED. `-fd` and never `-x`: an ignored path
   # (every `node_modules`, the generated mark) is left alone, and the clean-tree
   # precondition at the top is what makes "untracked in here" mean "this script
@@ -286,6 +288,21 @@ append() {
   printf '\n%s\n' "$2" >> "$1"
 }
 
+# ...AND THE ONE THAT WRITES A NEW MODULE BEHIND A DOOR, for the claim that the
+# fence reads the implementation rather than the door file. `restore` puts
+# tracked files back with `git checkout` and sweeps untracked ones out of the
+# plugin container only, so a file written into a general package records
+# itself here and is removed by name.
+created=""
+behind_door() {
+  created="$created $2"
+  printf '%s\n' 'let heldByProveFence: unknown
+export const holdByProveFence = (value: unknown): void => { heldByProveFence = value }
+export const provenCurrent = (): unknown => heldByProveFence' > "$2"
+  hold "$1"
+  printf '\nexport { holdByProveFence, provenCurrent } from "./%s"\n' "$(basename "$2")" >> "$1"
+}
+
 # ...and the three that are not an appended line.
 declare_dep() {
   hold "$1/package.json"
@@ -326,7 +343,7 @@ unnamed=0
 # this script's own indictment of the lints reproduced on its one argument.
 #
 # Plugin package edges are forbidden again: services carry the dependency.
-DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20"
+DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22"
 for want in $only; do
   case " $DECLARED " in
     *" $want "*) ;;
@@ -581,6 +598,20 @@ run 20 "the SHELL DOOR every browser half opens holds one" \
   'nothing opened across a boundary holds live state' \
   append "$shell_door" 'let heldByProveFence: unknown
 export const provenCurrent = () => heldByProveFence'
+
+# THE TWO SHAPES A REVIEW FOUND THE §12 CLAIM BLIND TO. The first is this
+# phase's own primitive published through a door — live state with a `const` and
+# no cell in sight, under an ALIAS so a table of bare words would miss it. The
+# second is a `let` one import behind a door, which the claim could not see at
+# all while it read the door file and stopped.
+run 21 "a CONTRACT DOOR exports one of this tree's own holders, under an alias" \
+  'opened across a boundary holds live state' \
+  append "$contract_door" 'import { heldService as provenSlot } from "@olai/ui-primitives/held.ts"
+export const provenHeld = provenSlot<unknown>()'
+
+run 22 "a SHELL DOOR re-exports a holder from a module BEHIND it" \
+  'nothing opened across a boundary holds live state' \
+  behind_door "$shell_door" packages/web/src/client/proven-fence-leak.ts
 
 run 17 "a general package SPELLS AN ENGINE'S name in code" \
   "outside the registry and the plugin's own tenant spells it" \
