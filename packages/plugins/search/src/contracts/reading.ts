@@ -1,9 +1,26 @@
-/** Search queries are owned by the active provider. Consumers keep their own
+/**
+ * Search queries are owned by the active provider. Consumers keep their own
  * input and cursor; withdrawal disposes its reading and reports absence. A
- * returned provider starts a fresh query, never reviving the old response. */
+ * returned provider starts a fresh query, never reviving the old response.
+ *
+ * ## THE PROVIDER TRAVELS IN, and it used to be looked up
+ *
+ * This door held a `createSearch` that resolved the provider itself, through
+ * `@olai/web`'s `readService` — one generic *give me whatever stands behind
+ * this key* over the browser host, reachable by any module that could spell the
+ * path. Four packages drew a shortlist through it and not one of them declared
+ * a dependency on the matcher: the runtime saw no consumer, the plugins panel
+ * had nothing to report, and the lookup itself was a live value on a general
+ * package's door (the audit's §5 and §12).
+ *
+ * What is left here is {@link followReading}, which is PURE over the provider
+ * it is handed. Each consuming package declares {@link readings} on a component
+ * of its own and holds it for that activation; absence stays exactly what it
+ * was — the shortlist says *no matcher* rather than disappearing — because the
+ * accessor answers `undefined` and this function has always had that arm.
+ */
 import { serviceTag } from "@olai/plugin-api/contracts"
 import { createKeyedRoot } from "@kolu/surface/solid"
-import { readService } from "@olai/web/client/services.ts"
 import type { Accessor } from "solid-js"
 import type { NodeHit, Refusal, SearchHit } from "@olai/format"
 import type { Taking } from "@olai/web/client/settled.ts"
@@ -69,10 +86,14 @@ export interface Search<H extends SearchHit = SearchHit> {
 
 export type SearchProvider = (text: Accessor<string | null>, kind?: "node" | "document") => Search
 export const readings = serviceTag<SearchProvider>("search.readings")
-export function createSearch(text: Accessor<string | null>, kind: "node"): Search<NodeHit>
-export function createSearch(text: Accessor<string | null>): Search
-export function createSearch(text: Accessor<string | null>, kind?: "node" | "document"): Search {
-  return followReading(() => readService(readings), text, kind)
+
+/** WHAT A CONSUMING PACKAGE BINDS ONCE — its own reading over the provider its
+ *  own component declared and holds. Named here because four packages spell the
+ *  same two overloads, and a shortlist that answered `Search` where its caller
+ *  wanted `Search<NodeHit>` would be four casts. */
+export interface NodeSearch {
+  (text: Accessor<string | null>, kind: "node"): Search<NodeHit>
+  (text: Accessor<string | null>): Search
 }
 
 /** The consumer scope owns each acquired query, so provider replacement cannot

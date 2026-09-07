@@ -44,7 +44,7 @@
  * take.
  */
 
-import { dressed } from "@olai/web/client/plugins/runtime.ts"
+import { dressed } from "../faces.ts"
 
 import type { Dressing, Dressings } from "./seam.ts"
 

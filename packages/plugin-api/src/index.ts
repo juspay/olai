@@ -97,6 +97,7 @@ export type {
  *  interpretation of owner declarations that can disagree with the first. */
 export type {
   App,
+  HeldFaces,
   Hung,
   KindSlot,
   ListSlot,
@@ -107,7 +108,7 @@ export type {
   SlotKey,
   SlotName,
 } from "./browser.ts"
-export { Bar, Clocks, Faces, Links, Offers, openApp, Slots, Wired, slotLocation, slotFacade } from "./browser.ts"
+export { Bar, Clocks, Faces, heldFaces, Links, Offers, openApp, Slots, Wired, slotLocation, slotFacade } from "./browser.ts"
 /** ...and the bridge's own half of it, which is {@link ./runtime.ts}'s one list
  *  rather than this door's copy of it — see that module on why both doors read
  *  from one place. */

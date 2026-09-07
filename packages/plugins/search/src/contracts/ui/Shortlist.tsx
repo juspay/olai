@@ -60,7 +60,7 @@ import { Refused } from "@olai/web/client/Refused.tsx"
 import type { AnyTestId } from "@olai/ui-primitives/testids.ts"
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { createCursor } from "@olai/ui-primitives/cursor.ts"
-import { createSearch } from "olai-plugin-search/reading"
+import type { NodeSearch } from "olai-plugin-search/reading"
 import { Result, type RowTestids } from "olai-plugin-search/ui/Result.tsx"
 import { type HitRow, hitRow } from "olai-plugin-search/ui/row.ts"
 
@@ -88,6 +88,20 @@ export interface ShortlistTestids {
 }
 
 export function Shortlist(props: {
+  /**
+   * THE READING, HANDED IN — this door's one acquisition, made the caller's.
+   *
+   * It was `createSearch` called in the body, which resolved the matcher out of
+   * a generic host lookup: a shared contract closure acquiring a provider
+   * resource, which is the thing a contract may not do
+   * (`docs/internal/plugin-system.md`'s §18) and which declared no dependency
+   * anywhere. The three doors that draw this list each hold the matcher through
+   * a component of their own now, and hand their own binding down.
+   *
+   * Absence is unchanged and is still the reading's: with no matcher mounted
+   * the list draws the *no matcher* refusal rather than vanishing.
+   */
+  readonly nodes: NodeSearch
   /** What the box is FOR, as one sentence — its placeholder and its
    *  `aria-label`, which are the same words for the same reason a label and a
    *  hint would not be: there is nothing above the box to read. */
@@ -142,7 +156,7 @@ export function Shortlist(props: {
   // RECORDS ALONE, asked for on the REQUEST and answered in the type
   // (`./nodes.ts`): every door that draws this list is picking a node to point
   // at, and none of them could take a document.
-  const found = createSearch(() => query(), "node")
+  const found = props.nodes(() => query(), "node")
   const hits = found.hits
   const cursor = createCursor(() => hits().length)
 

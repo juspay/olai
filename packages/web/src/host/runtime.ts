@@ -1,5 +1,3 @@
-import { holdServices } from "../services.ts"
-import { offered } from "@olai/effect-cordis"
 /** The browser's generic plugin host. The bundle supplies module loaders and
  * ordering; the live roster decides which scoped activations exist. Renderer,
  * layout, navigation and content services are ordinary offers from those rows.
@@ -25,17 +23,10 @@ import { offered } from "@olai/effect-cordis"
 import type { BrowserHalf } from "@olai/bundle"
 import {
   type App,
-  Links,
-  type Hung,
-  type KindSlot,
-  type ListSlot,
   type Mounted,
   type RowReport,
   mountPlugin,
   openApp,
-  type PluginSlot,
-  type SingleSlot,
-  type SlotFaces,
   standing,
 } from "@olai/plugin-api"
 import { Effect, Stream } from "effect"
@@ -215,16 +206,24 @@ const refreshReports = async (): Promise<void> => {
   ]))
 }
 
-// Optional capability consumers observe the same host that owns activation.
-// This signal stores no provider: every read resolves the current scoped offer.
-const [serviceRevision, setServiceRevision] = createSignal(0)
-await run(Effect.acquireRelease(Effect.sync(() => holdServices(key => {
-  serviceRevision()
-  return offered(app.host, key)
-})), stop => Effect.sync(stop)))
-
+/**
+ * THE GENERIC SERVICE LOOKUP IS GONE, and its absence is the phase.
+ *
+ * A signal stood here and a `holdServices` beside it, so that
+ * `@olai/web/client/services.ts` could answer `readService(key)` for ANY key,
+ * to any module that could spell the path. One consumer ever walked through it
+ * — `olai-plugin-search`'s `createSearch` — and four packages drew a shortlist
+ * through that consumer without declaring a dependency on the matcher: the
+ * runtime saw no consumer of `search.readings`, the plugins panel had nothing
+ * to report, and the value crossed two package boundaries as a module variable
+ * (the audit's §5 and §12).
+ *
+ * Each of those packages declares the matcher on a component of its own now and
+ * holds it for that activation, so what is left here is the report refresh —
+ * which is this module's own reading of the host and not a door onto it.
+ */
 await run(Effect.forkScoped(Stream.runForEach(app.changes, () =>
-  Effect.promise(async () => { setServiceRevision(value => value + 1); if (composing === 0) await refreshReports() }),
+  Effect.promise(async () => { if (composing === 0) await refreshReports() }),
 )))
 
 /**
@@ -385,92 +384,36 @@ const recompose = async (halves: ReadonlyArray<BrowserHalf>): Promise<void> => {
 }
 
 /**
- * WHAT IS HUNG IN A PLUGIN-KEYED OR LIST SLOT, IN THE BUNDLE'S ORDER — tracked,
- * so a caller reading it inside a memo or a component re-reads when a plugin
- * arrives or leaves.
+ * THE THREE SLOT READS ARE GONE FROM THIS MODULE, and their absence is the
+ * phase.
  *
- * ## A LIST SLOT IS READ HERE TOO, and that is not a widening for its own sake
+ * `hung`, `dressed` and `only` lived here, and nine call sites in five plugins
+ * imported them — which meant a plugin reached the module that ASSEMBLES the
+ * browser application to find out what other plugins had hung, past the service
+ * (`Faces`) that exists to answer exactly that. Everything else on this page
+ * travelled with them: the mount table, the failure reports, the redial's
+ * client holder, the compose counter. A plugin naming one export of this module
+ * had all of them in scope.
  *
- * A list hands back the same {@link Hung} rows a plugin-keyed slot does, for the
- * reason the sort below is the same sort: the bundle's order is imposed on the
- * plugin's WORD, and a list entry carries it because a list has no key to carry
- * it in. Two readers over one shape would be two places for the sort argument
- * below to be re-made and, one day, made differently.
+ * What a plugin reads now is {@link @olai/plugin-api}'s `Faces`, named in its
+ * own `needs` and held for its own activation — the arrangement
+ * `olai-plugin-chat` already used for the two slots its panel draws. The ORDER
+ * those reads come back in was this module's one addition to them, and it moved
+ * with them: `BrowserMount.rank` is supplied at {@link attachRenderer} and the
+ * renderer's facade sorts, so the tab and a plugin get one answer rather than
+ * two.
  *
- * THE SORT IS STABLE (`Array.prototype.sort`), which is the whole of what a
- * list slot needs from it: one plugin's three chords stay in the order that
- * plugin registered them, and two plugins' sections come out in the order
- * `olai.yml` names the rows.
- *
- * ## The order is IMPOSED here, and it was only claimed
- *
- * The slot table hands its entries back in REGISTRATION order, and the header
- * over it said that was the bundle's "because that is the order the rows are
- * mounted in". The first clause is true and the second does not follow:
- * {@link composeTo} skips survivors, so a plugin that arrives on a LATER roster
- * frame is appended after every plugin already up, whatever the file says. Two
- * rosters — `[odu]`, then `[odu, kolu]` — and `app.mount` folds kolu inside odu
- * where the file asks for the reverse.
- *
- * This is the same defect `@olai/server`'s `probes.ts` diagnosed for the
- * session's servers and answered the same way: collect whatever arrives, then
- * read it against the build's own list. The table cannot see the bundle and must
- * not claim to; this can, so the claim lives here.
- *
- * THE SORT IS `@olai/bundle`'S, beside the list it reads — `inBundleOrder`,
- * which is also what `@olai/server` puts the session's servers and this build's
- * engines in order with. It was written out at every end, in two processes, each
- * under its own paragraph re-arguing one thing; the stranger rule, the stability
- * argument and the comparator all live with the list now.
+ * This module is no longer on the `./client/*` door at all — it lives under
+ * `src/host/`, which nothing outside this package can spell.
  */
-export const hung = <S extends PluginSlot | ListSlot>(
-  slot: S,
-): ReadonlyArray<Hung<SlotFaces[S]>> => {
-  moved()
-  return [...app.hung(slot)].sort((one, other) => rank(one.plugin) - rank(other.plugin))
-}
-
-/**
- * WHERE A PLUGIN SITS IN THE BUILD'S LIST OF ROWS — told rather than imported,
- * for {@link ../wire.ts}'s `useBrowserRows` reason exactly.
- *
- * The comparator was `@olai/bundle`'s `inBundleOrder`, read beside the list it
- * sorts by. It is a RANK now, handed in by the app's entry: `@olai/bundle` names
- * every plugin, and a package a plugin imports may not import it back.
- *
- * ONE RANK FOR EVERYBODY until the entry has said, which is stable — so a bench
- * that mounts two halves and never sets one gets arrival order back rather than
- * a shuffle, and that is the honest answer for a process with no bundle behind
- * it.
- */
-let rank: (plugin: string) => number = () => 0
-
-export const useBundleOrder = (order: (plugin: string) => number): void => {
-  rank = order
-}
-
-/** ...and what dresses each composed KIND WORD, the same way. */
-export const dressed = <S extends KindSlot>(slot: S): ReadonlyMap<string, SlotFaces[S]> => {
-  moved()
-  return app.dressed(slot)
-}
-
-/**
- * ...AND THE ONE FACE IN A SINGLE SLOT, or `null` where nobody has taken the
- * seat — the same way, and with no sort, because there is nothing to order.
- *
- * NO READER YET, and it is exported anyway: `app.panel` is declared by this lane
- * and filled by the next one, so this is the other half of that declaration
- * rather than a face registered into silence. The table's own header is where
- * that bargain is argued and where it is dated.
- */
-export const only = <S extends SingleSlot>(slot: S): Hung<SlotFaces[S]> | null => {
-  moved()
-  return app.only(slot)
-}
-
-/** Transitional navigation publication; other furniture belongs to plugins. */
 
 export { browserReports }
 
-export const attachRenderer = (element: Element): Promise<void> => run(app.attach(element))
+/** Mount the renderer, in the build's own row order. ONE call rather than a
+ *  `useBundleOrder` beside it: the rank is a fact about the composition, and a
+ *  second export somebody has to remember to call first is the invariant
+ *  {@link composeTo}'s own header argues against one seam over. */
+export const attachRenderer = (
+  element: Element,
+  rank?: (plugin: string) => number,
+): Promise<void> => run(app.attach(element, rank))

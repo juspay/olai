@@ -5,11 +5,11 @@
  * publishes plugin registrations after the new siblings are available.
  */
 
-import { supplyManagement } from "./plugins/management.ts"
+import { supplyManagement } from "../host/management.ts"
 import { connectSocket } from "./connection/socket.ts"
-import { bootstrapSelected } from "./plugins/bootstrap.ts"
-import { loadRows, retryableModule } from "./plugins/loading.ts"
-import type { bootStatus } from "./plugins/boot-status.ts"
+import { bootstrapSelected } from "../host/bootstrap.ts"
+import { loadRows, retryableModule } from "../host/loading.ts"
+import type { bootStatus } from "../host/boot-status.ts"
 import { BROWSER_BOOT_PATH, BROWSER_MODULES_ID } from "@olai/plugin-api/mount"
 import { connectSurfaces } from "@kolu/surface-app/solid"
 import type { Surface, SurfaceSpec } from "@kolu/surface/define"
@@ -17,7 +17,7 @@ import type { BrowserHalf, BrowserRow } from "@olai/bundle"
 import { surface } from "@olai/surface"
 import { createEffect, createRoot, createSignal } from "solid-js"
 
-import { browserReports, browserRequiresReload, composeTo } from "./plugins/runtime.ts"
+import { browserReports, browserRequiresReload, composeTo } from "../host/runtime.ts"
 
 /**
  * The word a degraded readout calls olai's own floor.

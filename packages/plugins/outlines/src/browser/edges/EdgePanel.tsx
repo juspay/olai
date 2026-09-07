@@ -74,6 +74,7 @@ import { createMemo, Show } from "solid-js"
 
 import { useNames } from "../reading.tsx"
 import { Shortlist, type ShortlistTestids } from "olai-plugin-search/ui/Shortlist.tsx"
+import { createSearch } from "../search.ts"
 
 import { PANEL_OUT } from "@olai/web/client/pill.ts"
 import { NodeTitle } from "../NodeTitle.tsx"
@@ -196,6 +197,7 @@ export function EdgePanel(props: {
       </Show>
 
       <Shortlist
+        nodes={createSearch}
         query={props.query}
         label={words().placeholder}
         testids={EDGE_LIST}

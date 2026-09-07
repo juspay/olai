@@ -10,7 +10,8 @@ import { PanelHandle } from "./layout/Handle.tsx"
  * The frame consumes navigation and content contributions. Each content
  * provider owns its own models and editor state.
  */
-import { definePlugin,Offers } from "@olai/plugin-api"
+import { definePlugin,Faces,Offers } from "@olai/plugin-api"
+import { holdFaces } from "./faces.ts"
 import { Fault } from "./Fault.tsx"
 import { publishLayoutCss } from "olai-plugin-layout/layout/css.ts"
 import { trackVisibleViewport } from "olai-plugin-layout/viewport.ts"
@@ -25,8 +26,11 @@ import { followLayout } from "./layout/prefs-owner.ts"
 
 export default definePlugin({
   name,
-  needs: [rendererSlots, Offers, navigation],
+  needs: [rendererSlots, Offers, navigation, Faces],
   apply: Effect.gen(function*() {
+    // WHAT OTHER PLUGINS HUNG, held for this activation — `./faces.ts` on why
+    // the shell holds it rather than threading it through every seat.
+    yield* holdFaces(yield* Faces)
     yield* Effect.acquireRelease(Effect.sync(()=>holdPanelHandle(PanelHandle)),stop=>Effect.sync(stop))
     const slots = yield* rendererSlots
     const router = yield* navigation

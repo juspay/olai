@@ -9,7 +9,10 @@ import {Clocks} from "@olai/plugin-api"
 /** Outlines owns editor history, selection/drag registers, page readings and
  * browser preferences. These resources live in the provider activation, before
  * and independently of any layout. Content and settings are separate consumers. */
-import { definePlugin, Offers } from "@olai/plugin-api"
+import { definePlugin, Faces, Offers } from "@olai/plugin-api"
+import { holdFaces } from "./browser/faces.ts"
+import { readings } from "olai-plugin-search/reading"
+import { holdReading } from "./browser/search.ts"
 import { Effect } from "effect"
 import { createRoot } from "solid-js"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -65,7 +68,11 @@ import { documentProperties } from "./browser/document-properties.tsx"
 import { palette, messages } from "./browser/palette/adapter.tsx"
 export const components = {
   palette, messages, "document-properties": documentProperties,
-  content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks], apply: Effect.gen(function*() {
+  content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks, Faces], apply: Effect.gen(function*() {
+    // The row doors, row verbs and kind dressings other plugins hang — held for
+    // this activation, which is the one that draws every page they appear on
+    // (`./browser/faces.ts`).
+    yield* holdFaces(yield* Faces)
     const slots = yield* rendererSlots
     yield* slots.contribute(content, {
       matches: route => route.kind === "plugin" || (route.kind === "at" && (route.address === null || route.address.kind === "node" || fileKind(route.address.path) === "outline")),
@@ -75,6 +82,14 @@ export const components = {
     yield* slots.contribute(pageView, OutlinePageView)
     yield* slots.contribute(titles, NodeTitle)
     yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && fileKind(meaning.file) === "outline" ? atFile(meaning.file) : undefined)
+  }) }),
+  /** The matcher, DECLARED — a component of its own so the outline keeps
+   *  editing and navigating when the row leaves, and its completions and
+   *  shortlists say *no matcher* rather than disappearing
+   *  (`./browser/search.ts`). */
+  search: definePlugin({ name: "search", needs: [readings], apply: Effect.gen(function*() {
+    const reading = yield* readings
+    yield* Effect.acquireRelease(Effect.sync(() => holdReading(reading)), stop => Effect.sync(stop))
   }) }),
   files: definePlugin({ name: "files", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {
     yield* (yield* rendererSlots).contribute(fileTypes, { Create: NewOutline })

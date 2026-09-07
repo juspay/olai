@@ -1,6 +1,6 @@
 import type {} from "../slots.ts"
 import { createMemo, For } from "solid-js"
-import { hung } from "@olai/web/client/plugins/runtime.ts"
+import { hung } from "./faces.ts"
 /** Outlines draws each scoped row-door contribution under its property run. */
 export function PluginDoors(props: { readonly node: string }) {
   const doors = createMemo(() => hung("outline.row.door"))

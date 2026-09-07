@@ -413,6 +413,64 @@ export interface Faces {
 export const Faces = serviceTag<Faces>("ui-renderer.faces")
 
 /**
+ * ONE ROW'S OWN HOLD ON THE TABLE IT READS — the shape a plugin whose FACES
+ * read a slot is written with, and the reason no plugin imports the tab's
+ * runtime any more.
+ *
+ * ## The problem it is the answer to
+ *
+ * A read of {@link Faces} happens where the drawing does: three levels inside a
+ * component, in a memo, in a `<For>`. The service arrives where the DEPENDENCY
+ * is declared, which is an `apply`. Threading it between those two places makes
+ * every component's signature a function of what one descendant needs — so five
+ * plugins reached for `@olai/web`'s `client/plugins/runtime.ts` instead, which
+ * is the module that assembles the whole browser application and carries the
+ * mount table, the redial's client holder and every failure report beside the
+ * three reads they wanted.
+ *
+ * ## What this is, and the two rules that make it safe
+ *
+ * A FACTORY, not a place. Calling it mints one holder; a package calls it once
+ * in a module of its own, and that module is private to the package — this
+ * function is what makes the algorithm shared without the STATE being shared.
+ * Nothing here is module scope: two callers get two holders, and a package that
+ * re-exported its holder through a door would be publishing live state across a
+ * package boundary, which `@olai/bundle`'s fence refuses by name.
+ *
+ * {@link Held.hold} is an acquisition on the CALLING activation's scope and
+ * clears BY IDENTITY, so a stopped activation cannot clear the value a
+ * replacement installed — the rule every holder in this tree keeps and the four
+ * that did not were the audit's §4.
+ *
+ * ## An empty answer rather than a throw, where nobody is holding
+ *
+ * A read before the hold is a face drawing without its own row's renderer
+ * dependency satisfied, and the honest reading of the table then is that
+ * nothing is hung — which is exactly what the tab itself answered before any
+ * renderer was offered. A throw would take down a page for a state that has a
+ * true empty answer. What it costs is that such a read is UNTRACKED: the
+ * tracking is `Faces`' own (`AppConfig.reading`), so there is nothing to
+ * subscribe to while the service is absent. That is not reachable for a face
+ * drawn by the row that holds — the hold precedes every contribution it makes —
+ * and it is why this is a holder rather than a signal.
+ */
+export interface HeldFaces extends Faces {
+  readonly hold: (faces: Faces) => Effect.Effect<void, never, Scope.Scope>
+}
+export const heldFaces = (): HeldFaces => {
+  let held: Faces | undefined
+  return {
+    hold: (faces) => Effect.acquireRelease(
+      Effect.sync(() => { held = faces }),
+      () => Effect.sync(() => { if (held === faces) held = undefined }),
+    ),
+    hung: (slot) => held?.hung(slot) ?? [],
+    dressed: (slot) => held?.dressed(slot) ?? new Map(),
+    only: (slot) => held?.only(slot) ?? null,
+  }
+}
+
+/**
  * THE APP'S CLOCK, and the register it ticks in.
  *
  * Every field is the app's own arithmetic ({@link AppClocks}), handed over
@@ -525,7 +583,13 @@ export interface App extends Faces {
   readonly settled: Effect.Effect<void>
   readonly integrations: Locations["inspect"]
   readonly retryIntegrations: Effect.Effect<void>
-  readonly attach: (element: Element) => Effect.Effect<void, never, Scope.Scope>
+  /** Mount the renderer, in the build's own row order — see
+   *  {@link BrowserMount.rank}, which is the one place that order is supplied
+   *  and the reason no reader of a slot imposes one of its own. */
+  readonly attach: (
+    element: Element,
+    rank?: (plugin: string) => number,
+  ) => Effect.Effect<void, never, Scope.Scope>
   /** State changes even when a waiting component registered no faces. */
   readonly changes: Stream.Stream<void>
   /** Where the plugins hang — handed to `mountPlugin` and opaque to everybody. */
@@ -607,8 +671,8 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
       settled: Effect.suspend(() => offered(host, SlotManagement)?.settled ?? Effect.void),
       integrations: () => offered(host, SlotManagement)?.inspect() ?? [],
       retryIntegrations: Effect.suspend(() => offered(host, SlotManagement)?.retry ?? Effect.void),
-      attach: (element) => provide(host, BrowserMount, () => ({
-        element, changed: config.changed, reading: config.reading,
+      attach: (element, rank) => provide(host, BrowserMount, () => ({
+        element, changed: config.changed, reading: config.reading, rank,
       })),
       supply: (key, value) => provide(host, key, () => value),
       host,
@@ -625,7 +689,11 @@ export const slotLocation = <S extends SlotName>(slot: S) => slotReference<SlotF
 /** Adapter only: key rules and face types are notebook API policy. Reservation,
  * activation, cleanup, identity, and diagnostics all belong to Locations. */
 const SlotManagement = serviceTag<Pick<Locations, "inspect" | "settled" | "retry">>("ui-renderer.integrations")
-export const slotFacade = (store: Locations, reading?: () => void): {
+export const slotFacade = (
+  store: Locations,
+  reading?: () => void,
+  rank: (plugin: string) => number = () => 0,
+): {
   readonly forOwner: (owner: string) => Slots
   readonly faces: Faces
   readonly management: Pick<Locations, "inspect" | "settled" | "retry">
@@ -641,7 +709,14 @@ export const slotFacade = (store: Locations, reading?: () => void): {
     }) as Slots["register"],
   }),
   faces: {
-    hung: (slot) => { reading?.(); return store.read(slotLocation(slot)).map((entry) => entry.value) },
+    // IN THE BUILD'S ORDER, imposed here and nowhere else — see
+    // {@link BrowserMount.rank}. `sort` is stable, so one plugin's four verbs
+    // stay in the order that plugin registered them.
+    hung: (slot) => {
+      reading?.()
+      return store.read(slotLocation(slot)).map((entry) => entry.value)
+        .sort((one, other) => rank(one.plugin) - rank(other.plugin))
+    },
     dressed: (slot) => {
       reading?.()
       return new Map(store.read(slotLocation(slot)).map((entry) => [entry.key!, entry.value.face]))

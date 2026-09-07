@@ -8,7 +8,8 @@ import { slotContracts } from "./slots.ts"
  * subscriptions made while rendering; the renderer owns the integration scope.
  * The content pane is a sibling and keeps its identity when this row leaves.
  * Notebook readings inside Sidebar remain an explicit Phase 18 extraction. */
-import { definePlugin } from "@olai/plugin-api"
+import { definePlugin, Faces } from "@olai/plugin-api"
+import { holdFaces } from "./faces.ts"
 import { Effect } from "effect"
 import { sidebar } from "olai-plugin-layout/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -18,7 +19,9 @@ import { railEntries,regions,vaultEntries } from "./contract.ts"
 import { name } from "./index.ts"
 
 export default definePlugin({
-  name, needs: [rendererSlots], apply: Effect.gen(function*() {
+  name, needs: [rendererSlots, Faces], apply: Effect.gen(function*() {
+    // The sections and entries other rows hang here, held for this activation.
+    yield* holdFaces(yield* Faces)
     const slots = yield* rendererSlots
     yield* slots.contribute(sidebar, { Sidebar: (props) => <Sidebar {...props} slots={slots} />, Rail: (props) => <Rail {...props} slots={slots} /> }, {
       children: [regions, vaultEntries, railEntries, slotContracts["sidebar.entry"], slotContracts["sidebar.section"]],

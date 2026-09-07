@@ -75,6 +75,8 @@ import { createChatState } from "./browser/chat/state.ts"
 import { trackCamera } from "./browser/chat/camera.ts"
 import { Panel, Toggle } from "./browser/chat/Panel.tsx"
 import { holdFaces } from "./browser/faces.ts"
+import { readings } from "olai-plugin-search/reading"
+import { holdReading } from "./browser/search.ts"
 import { type ChatClient, holdChatWire } from "./browser/wire.ts"
 
 /** THE WIRE IDENTITY, on this door too — and `surface` is the load-bearing
@@ -103,10 +105,10 @@ export default definePlugin({
 
     // THIS PLUGIN'S OWN MEMBERS, held for the thirty modules that read them at
     // module scope — see `./browser/wire.ts`.
-    holdChatWire(() => wired.client() as ChatClient)
+    yield* holdChatWire(() => wired.client() as ChatClient)
     // ...AND WHAT OTHER PLUGINS HUNG, for the two slots this panel is the
-    // reader of.
-    holdFaces(faces)
+    // reader of — for THIS activation, cleared by identity when it stops.
+    yield* holdFaces(faces)
     const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const conversation = createChatState()
       return {dispose, conversation, agents: createAgents(conversation)}
@@ -154,6 +156,13 @@ import { sections } from "olai-plugin-preferences/contract"
 import { appearance } from "olai-plugin-theme/contract"
 import { createEffect, createRoot } from "solid-js"
 export const components = {
+  /** The matcher, DECLARED — a component of its own so the panel, the
+   *  transcript and the roster keep working with no matcher mounted
+   *  (`./browser/search.ts`). */
+  search: definePlugin({ name: "search", needs: [readings], apply: Effect.gen(function*() {
+    const reading = yield* readings
+    yield* Effect.acquireRelease(Effect.sync(() => holdReading(reading)), stop => Effect.sync(stop))
+  }) }),
   "tab-attention": definePlugin({ name: "tab-attention", needs: [appearance, alertSettings], apply: Effect.gen(function*() {
     const view = yield* appearance
     const alerts = yield* alertSettings

@@ -86,6 +86,7 @@ import { run } from "@olai/web/client/run.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { Shortlist, type ShortlistTestids } from "olai-plugin-search/ui/Shortlist.tsx"
+import { createSearch } from "../search.ts"
 import { TESTID } from "../../testids.ts"
 import { chatKey, successorIn } from "../../lineage.ts"
 import type { Chat } from "../chat/state.ts"
@@ -411,6 +412,7 @@ function Chat(props: {
           }}
         >
           <Shortlist
+            nodes={createSearch}
             label="which node? — its subtree becomes this conversation's memory"
             testids={ASSIGN_LIST}
             onTake={(hit) => props.onTake(hit)}

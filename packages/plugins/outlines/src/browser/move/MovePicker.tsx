@@ -62,6 +62,7 @@ import type { Moved } from "@olai/format"
 import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { Shortlist, type ShortlistTestids } from "olai-plugin-search/ui/Shortlist.tsx"
+import { createSearch } from "../search.ts"
 
 import { PANEL_OUT } from "@olai/web/client/pill.ts"
 
@@ -155,6 +156,7 @@ export function MovePicker(props: {
       </p>
 
       <Shortlist
+        nodes={createSearch}
         query={props.query}
         label="search every outline for a new parent"
         testids={MOVE_LIST}

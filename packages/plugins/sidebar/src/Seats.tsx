@@ -1,6 +1,6 @@
 import type {} from "./slots.ts"
 import { createMemo, For } from "solid-js"
-import { hung } from "@olai/web/client/plugins/runtime.ts"
+import { hung } from "./faces.ts"
 /**
  * THE SIDEBAR'S PLUGIN SECTIONS, under the app's own.
  *

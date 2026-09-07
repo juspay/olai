@@ -24,7 +24,7 @@ export default definePlugin({
   apply: Effect.gen(function*() {
     const slots = yield* Slots
     const wired = yield* Wired
-    holdGitWire(() => wired.client() as GitClient)
+    yield* holdGitWire(() => wired.client() as GitClient)
 
     yield* slots.register("app.header", { place: "cluster", body: () => <Commit /> })
     // The phone's news belongs below the header, before the page content.

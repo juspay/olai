@@ -73,7 +73,7 @@ import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { useToday } from "@olai/web/client/today.tsx"
 import { SearchCount } from "olai-plugin-search/ui/Count.tsx"
 import { createCursor } from "@olai/ui-primitives/cursor.ts"
-import { createSearch } from "olai-plugin-search/reading"
+import { createSearch } from "./reading.ts"
 import { Result, type RowTestids } from "olai-plugin-search/ui/Result.tsx"
 import { spend } from "@olai/web/client/settled.ts"
 

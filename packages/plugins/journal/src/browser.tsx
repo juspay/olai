@@ -53,7 +53,7 @@ export default definePlugin({
   apply: Effect.gen(function*() {
     const slots = yield* Slots
     const wired = yield* Wired
-    holdJournalWire(() => wired.client() as JournalClient)
+    yield* holdJournalWire(() => wired.client() as JournalClient)
 
     yield* slots.register("app.route", defineAppPage(dayKind, DayFace))
     yield* slots.register("app.route", defineAppPage(agendaKind, AgendaFace))

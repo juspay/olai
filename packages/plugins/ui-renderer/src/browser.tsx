@@ -21,7 +21,7 @@ export default definePlugin({
   name,
   needs: [BrowserMount, Offers],
   apply: Effect.gen(function*() {
-    const { element, changed, reading } = yield* BrowserMount
+    const { element, changed, reading, rank } = yield* BrowserMount
     const [revision, setRevision] = createSignal(0)
     const slots = yield* locations({
       changed: () => { changed?.(); setRevision((value) => value + 1) },
@@ -32,7 +32,7 @@ export default definePlugin({
       // Legacy consumers track the host's batched signal. The registry's own
       // signal is for renderer roots and native location readers.
       return untrack(() => slots.read(slot))
-    } }, reading)
+    } }, reading, rank)
     yield* (yield* Offers).own("legacy-slots", compatibility.forOwner)
     yield* (yield* Offers).own("faces", () => compatibility.faces)
     yield* (yield* Offers).own("integrations", () => compatibility.management)
