@@ -254,13 +254,25 @@ const open = (_plugin: string, _what: string): Held => {
                 left: () => settled.resolve(),
               }
               inside.add(call)
-              const started = Effect.runForkWith(services)(Effect.ensuring(
-                work,
-                Effect.sync(() => {
-                  inside.delete(call)
-                  call.left()
-                }),
-              ))
+              let started: Fiber.Fiber<A>
+              try {
+                started = Effect.runForkWith(services)(Effect.ensuring(
+                  work,
+                  Effect.sync(() => {
+                    inside.delete(call)
+                    call.left()
+                  }),
+                ))
+              } catch (thrown) {
+                // A FORK THAT DID NOT TAKE would otherwise leave a record in
+                // the set that nothing will ever settle, and a later cut would
+                // wait on it forever. Nothing is expected to throw here; what
+                // matters is that if something does, it is a defect in the
+                // caller rather than a stop that never comes back.
+                inside.delete(call)
+                call.left()
+                throw thrown
+              }
               call.fiber = started
               // A CUT THAT ARRIVED WHILE THE FORK'S OWN PREFIX WAS RUNNING has
               // marked this record and could not reach the fiber, because there

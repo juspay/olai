@@ -113,47 +113,53 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
       if (interrupted || ctx.fiber.uid === null || Object.keys(ctx.fiber.inject).some((key) => ctx.reflect.get(key) === undefined)) interrupt()
     },
     close: (exit) => closing ??= Promise.resolve().then(async () => {
+      // STOP ACCEPTING, AND START CUTTING, before the first `await` in this
+      // function — see the two paragraphs below. Both are outside the `try`
+      // because the `finally` has to be able to wait for the cut whatever the
+      // withdrawal did, and a resource may not close before it has.
+      for (const quiet of quiets) quiet.shut()
+      const cutting = joinCuts(quiets, ctx.fiber.name ?? "a plugin", services)
       try {
-        // STOP ACCEPTING FIRST, and all of them before any of the rest — the
-        // paper's L-Leave, and the one ordering a scope cannot express. A
-        // handler that has not started is now never started, whatever this
-        // plugin registered when.
-        for (const quiet of quiets) quiet.shut()
-        // ...AND THE CUT STARTS HERE, BEFORE THE FIRST AWAIT, because the two
-        // lines under it both wait for DEPENDENTS and a dependent can be
-        // waiting for one of these calls.
+        // WHY THE SHUT IS FIRST: it is the paper's L-Leave, and the one
+        // ordering a scope cannot express. A handler that has not started is
+        // now never started, whatever this plugin registered when — and ALL of
+        // them are shut before ANY is cut, because a sequential loop would
+        // leave a later registration admitting calls while an earlier one was
+        // being cut.
         //
-        // That is not hypothetical and it is not only about the explicit drain
-        // below: the pin's own provision disposer ends with
-        // `Promise.allSettled(fibers.map(fiber => fiber.await()))`, so
-        // `await revoke()` waits for dependent fibers too. A consumer whose
-        // finalizer joins an in-flight provider handler would therefore hold
-        // the revoke, which would hold the cut, which is the only thing that
-        // could finish the handler — a cycle with no timer in it and no
-        // uninterruptible code anywhere. Reproduced.
+        // WHY THE CUT STARTS BEFORE THIS LINE: everything from here on waits
+        // for DEPENDENTS, and a dependent can be waiting for one of these
+        // calls. That is not only about the explicit drain below — the pin's
+        // own provision disposer ends with
+        // `Promise.allSettled(fibers.map(fiber => fiber.await()))`, so `await
+        // revoke()` waits for dependent fibers too. A consumer whose finalizer
+        // joins an in-flight provider handler would therefore hold the revoke,
+        // which would hold the cut, which is the only thing that could finish
+        // the handler — a cycle with no timer in it and no uninterruptible code
+        // anywhere. Reproduced.
         //
-        // So: START the cut, then withdraw, then join, then AWAIT the cut. The
-        // distinction between beginning a withdrawal and waiting for one is the
-        // whole of the repair.
-        const cutting = joinCuts(quiets, ctx.fiber.name ?? "a plugin", services)
+        // So: START the cut, then withdraw, then join, then AWAIT the cut.
+        // Beginning a withdrawal and waiting for one are different things, and
+        // the distinction is the whole of the repair.
         for (const revoke of revokes.reverse()) await revoke()
         await Promise.all([...live.values()]
           .filter((other) => other.dependencies.has(ctx.fiber))
           .map((other) => other.drained))
-        // ...AND IT IS AWAITED HERE, before a single resource finalizer runs.
-        // `cut` answers when the calls it interrupted have finished unwinding,
-        // so what follows this line is running under nothing.
-        //
-        // THERE IS NO GIVING UP. One shared interval for the whole activation
-        // says so if a cut is slow, and then goes on waiting: the version that
-        // released resources under a still-running handler after five seconds
-        // is exactly the defect this stage exists to close, and a timer that
-        // abandoned the wait would be it again. An invocation that has made
-        // itself uninterruptible is waited for; that is what Effect's
-        // interruption means everywhere else in this tree.
-        await cutting
       } finally {
         try {
+          // ...AND THE CUT IS AWAITED HERE, before a single resource finalizer
+          // runs, on every path out of the block above. `cut` answers when the
+          // calls it interrupted have finished unwinding, so what follows this
+          // line is running under nothing.
+          //
+          // THERE IS NO GIVING UP. One shared interval for the whole activation
+          // says so if a cut is slow, and then goes on waiting: the version
+          // that released resources under a still-running handler after five
+          // seconds is exactly the defect this stage exists to close, and a
+          // timer that abandoned the wait would be it again. An invocation that
+          // has made itself uninterruptible is waited for; that is what
+          // Effect's interruption means everywhere else in this tree.
+          await cutting
           await Effect.runPromiseWith(services)(Scope.close(scope, exit))
         } finally {
           live.delete(ctx.fiber)
