@@ -23,23 +23,43 @@
  * code that rots unexercised.
  */
 
-import { spawn } from "node:child_process"
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { spawn, type ChildProcess } from "node:child_process"
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { afterEach, describe, expect, test } from "bun:test"
+import { Effect, Fiber } from "effect"
 
-import { askOver, ODU_COMMAND, probe, type Verdict } from "./probe.ts"
+import { askOver, ODU_COMMAND, type Probed, probing, type Verdict } from "./probe.ts"
+
+/** ONE WHOLE PROBE, over its own scope — which is what the child belongs to
+ *  now, so a probe that answers has already killed the `odu mcp` it asked.
+ *  The cases below read like the promise-shaped `probe` they were written
+ *  against; what changed is who owns the subprocess. */
+const probe = (env: Record<string, string | undefined>): Promise<Probed> =>
+  Effect.runPromise(Effect.scoped(probing(env)))
 
 /** Every directory this test made, removed after each case. */
 const made: Array<string> = []
+
+/** ...and every child this test spawned ITSELF — the two cases that ask
+ *  `askOver` directly start a wedged fixture with no probe around it, so
+ *  nothing else is going to kill them. They used to be one orphaned `odu`
+ *  apiece, per run of this file. */
+const started: Array<ChildProcess> = []
+const wedged = (): ChildProcess => {
+  const child = spawn(join(where, ODU_COMMAND), ["mcp"], { stdio: ["pipe", "pipe", "ignore"] })
+  started.push(child)
+  return child
+}
 
 /** WHERE THIS CASE'S `odu` IS — the PATH the probe is handed, never this
  *  process's own. */
 let where = ""
 
 afterEach(() => {
+  for (const child of started.splice(0)) child.kill()
   for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true })
   where = ""
 })
@@ -223,7 +243,7 @@ describe("odu's mcp, asked for fresh", () => {
       // The fixture reads forever and says nothing: the deadline is the only
       // thing that answers, and which answer it is carries the whole case.
       oduOnPath(`setInterval(() => {}, 1000)`)
-      const verdict = await askOver(spawn(join(where, ODU_COMMAND), ["mcp"], { stdio: ["pipe", "pipe", "ignore"] }), 100)
+      const verdict = await askOver(wedged(), 100)
       expect(verdict).toEqual({ _tag: "timedOut", deadlineMs: 100 })
     })
 
@@ -236,9 +256,57 @@ describe("odu's mcp, asked for fresh", () => {
 
     test("one that says something that is not JSON-RPC is `failed`, with the sentence", async () => {
       oduOnPath(`process.stdout.write("the bridge is up\\n"); setInterval(() => {}, 1000)`)
-      const verdict: Verdict = await askOver(spawn(join(where, ODU_COMMAND), ["mcp"], { stdio: ["pipe", "pipe", "ignore"] }), 1000)
+      const verdict: Verdict = await askOver(wedged(), 1000)
       expect(verdict._tag).toBe("failed")
       if (verdict._tag === "failed") expect(verdict.cause).toContain("not JSON-RPC")
     })
   })
+
+  test("a probe that is called off kills the `odu mcp` it started, without waiting out the deadline", async () => {
+    // THE CHILD IS THE ASKING'S, and this is what that buys. A conversation
+    // whose open is abandoned — the session goes away, the plugin stops —
+    // used to leave a wedged `odu mcp` running until the five-second deadline
+    // let the old `probe` reach its kill. Interrupting the ask closes its
+    // scope, and the scope is what holds the child.
+    const dir = mkdtempSync(join(tmpdir(), "olai-odu-"))
+    made.push(dir)
+    const pidFile = join(dir, "pid")
+    process.env["OLAI_ODU_PROBE_PID"] = pidFile
+    oduOnPath(`
+      require("node:fs").writeFileSync(process.env.OLAI_ODU_PROBE_PID, String(process.pid))
+      setInterval(() => {}, 1000)
+    `)
+    await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+      const asking = yield* Effect.forkChild(Effect.scoped(probing({ PATH: where })))
+      yield* Effect.promise(() => until(() => existsSync(pidFile)))
+      // IT RETURNS, which is half the claim: an ask parked in an
+      // uninterruptible wait would stand here for the whole deadline and this
+      // case would die on the runner's own timeout rather than on an
+      // expectation.
+      yield* Fiber.interrupt(asking)
+    })))
+    const pid = Number(readFileSync(pidFile, "utf8"))
+    expect(Number.isFinite(pid)).toBe(true)
+    await until(() => !alive(pid))
+    expect(alive(pid)).toBe(false)
+  })
 })
+
+/** Poll a fact into being, or give up — a budget well under the probe's own
+ *  five-second deadline, so a child that is only killed by the deadline fails
+ *  this rather than passing it slowly. */
+const until = async (fact: () => boolean): Promise<void> => {
+  for (let waited = 0; waited < 1_500 && !fact(); waited += 10) {
+    await new Promise((resume) => { setTimeout(resume, 10) })
+  }
+}
+
+/** Is that process still there? `signal 0` is the ask that sends nothing. */
+const alive = (pid: number): boolean => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}

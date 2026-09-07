@@ -37,6 +37,48 @@ Feature: Outline and Markdown capabilities have independent lifetimes
     Then "house.olai" holds a node titled "outline without Markdown"
     And there should be no page errors
 
+  # THE RECONNECTION CONTRACT, as a person can see it.
+  #
+  # A roster change replaces the tab's wire and keeps its connection. Every open
+  # subscription is failed by the supersession fence and re-opens itself about a
+  # second later — so the page must go on hearing about a file that changes
+  # underneath it, and must go on being able to WRITE. The contract is written
+  # down in `docs/internal/plugin-system.md` §6.
+  #
+  # `no member of this page has gone silent` cannot prove this on its own: a
+  # re-subscribing member reads `pending`, and pending does not degrade the
+  # readout. Only a VALUE arriving after the toggle proves frames are flowing,
+  # which is why this scenario rewrites the file from outside rather than
+  # asserting the readout and stopping there.
+  Scenario: A live document keeps hearing and keeps saving across an unrelated roster change
+    Given I open the document "finishes.md"
+    And I mark the page
+    When I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "journal" off
+    And I use the original browser tab
+    Then no member of this page has gone silent
+    # THE SUBSCRIPTION CAME BACK: this file changed on disk after the redial.
+    When I rewrite "finishes.md" as:
+      """
+      # Finishes
+
+      Handles: **arrived after the roster moved**.
+      """
+    Then the document renders bold text "arrived after the roster moved"
+    # ...and so did the CALL half, on the same client.
+    When I start editing the document
+    And I retype the document as:
+      """
+      # Finishes
+
+      Handles: **written after the roster moved**.
+      """
+    And I save the document
+    Then the document renders bold text "written after the roster moved"
+    And the page has not reloaded
+    And there should be no page errors
+
   Scenario: Restoring Markdown starts a fresh editor activation
     Given I open the document "finishes.md"
     When I start editing the document

@@ -135,7 +135,11 @@ typecheck: install
 # is TWO DOCUMENTS and a bit that decays, which has no single-document shape at
 # all and whose decay is a signal a timer flips, and
 # `chat/declared.ts` is an ASKING that is an effect, over a failure slot every
-# message on screen shares (PR 5). `commit/auto.ts` was here too — a TIMER armed
+# message on screen shares (PR 5). `kolu/appliance/props/mounting.ts` is the
+# newest and the plainest: its whole subject is whether a CLEANUP was registered
+# at all, and on the server build the mount it hangs off never runs — so the
+# case would report a released terminal having mounted none, which is the exact
+# failure it exists to watch. `commit/auto.ts` was here too — a TIMER armed
 # and disarmed by an effect, which a server-resolved run would report as minting
 # one commit having minted none — and it is gone with the loop: the quiet window
 # is the server's now (`@olai/ops`' `loop.ts`), so what used to need a browser

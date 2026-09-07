@@ -25,10 +25,17 @@ import { makePanel } from "./chat.ts"
 
 const logging = () => {
   const { layer, said } = collector()
-  const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(
-    effect.pipe(Effect.provideService(References.MinimumLogLevel, "Info"), Effect.provide(layer)),
-  )
-  return { run, said }
+  const under = <A, E>(effect: Effect.Effect<A, E>): Effect.Effect<A, E> =>
+    effect.pipe(Effect.provideService(References.MinimumLogLevel, "Info"), Effect.provide(layer))
+  const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(under(effect))
+  /** THE BENCH'S OWN FORK, and it carries the bench's logger for the reason the
+   *  scheduler asks for one at all: work started through `Options.fork` runs on
+   *  whatever runtime the caller supplied, so a fork that dropped this layer
+   *  would be a case asserting on lines the collector never saw. Under a serve
+   *  that runtime is the plugin's, which carries the operator's settings; here
+   *  it is this. */
+  const fork = (work: Effect.Effect<void>) => Effect.runFork(under(work))
+  return { run, fork, said }
 }
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "doorbell-agent.ts")
@@ -67,13 +74,18 @@ afterEach(() => {
 })
 
 test("two node scopes work together, then an idle one is reaped and woken in place", async () => {
-  const { run, said } = logging()
+  const { run, fork, said } = logging()
   let nodes: ReadonlyArray<NodeAgent> = [
     { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
     { id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
   ]
   const released: Array<string> = []
   const chat = await run(make({
+    // THE BENCH'S OWN RUNTIME, said out loud. `Options.fork` has no default —
+    // one would have to be `Effect.runFork`, which is the unowned default
+    // runtime this scheduler stopped reaching for. A bench chooses it here,
+    // where the choice is visible, and `logging()`'s carries the collector.
+    fork,
     roster: () => [installed("alpha"), installed("beta")],
     engines: () => ["alpha", "beta"],
     cwd,
@@ -164,13 +176,14 @@ test("boot routes a remembered node session before spawning any panel", async ()
   await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
 
   const { layer, said } = collector()
-  const logged = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(
+  const under = <A, E>(effect: Effect.Effect<A, E>): Effect.Effect<A, E> =>
     effect.pipe(
       Effect.provideService(References.MinimumLogLevel, "Info"),
       Effect.provide(layer),
-    ),
-  )
+    )
+  const logged = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(under(effect))
   const chat = await logged(make({
+    fork: (work) => Effect.runFork(under(work)),
     roster: () => [installed("alpha")],
     engines: () => ["alpha"],
     cwd,
@@ -207,8 +220,175 @@ test("boot routes a remembered node session before spawning any panel", async ()
   }
 })
 
+/**
+ * SHUTDOWN LANDING IN THE MIDDLE OF A BOOT — the one way a node scope's
+ * resources could appear AFTER the thing that owns them said it had stopped.
+ *
+ * The boot is forked and detached on purpose: recalling a session, locating a
+ * node and acquiring a panel must not hold up whoever called `start`. It was
+ * also unowned, so a shutdown ran its whole sequence — root panel stopped,
+ * every slot in `nodes` closed — while the boot was still walking towards a
+ * `nodes.set` the snapshot had already been taken past. What survived was a
+ * minted MCP credential and a spawned ACP subprocess with nothing left that
+ * could release either.
+ *
+ * THREE ASSERTIONS, one per thing that could be left behind: a slot the live
+ * roster still names, a ticket minted and never released, and a subprocess
+ * that was told it was ready and never told to go.
+ */
+test("a shutdown that lands mid-boot leaves no scope, no ticket and no process", async () => {
+  const { run, fork, said } = logging()
+  const node: NodeAgent = {
+    id: "one",
+    file: "Work.olai",
+    title: "one",
+    engine: "alpha",
+    session: "remembered",
+    memory: 2,
+  }
+  // REMEMBERED, so the boot goes straight for the node scope rather than
+  // through a root session first — the longest walk, and the one with a
+  // credential and a subprocess in the middle of it.
+  const memory = forLocalState(ephemeralLocalState(), "alpha")
+  await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
+  const minted: Array<string> = []
+  const released: Array<string> = []
+  // THE MOMENT THE BOOT IS PAST THE POINT OF NO RETURN. The credential is
+  // minted immediately after `acquire` checks whether the scheduler has
+  // stopped and immediately before it spawns anything, so a stop that waits
+  // for this lands in the window and nowhere else. Without it the case is
+  // vacuous: `start` answers before the boot has recalled anything, and a stop
+  // that quick is refused at the check rather than racing past it.
+  const minting = Promise.withResolvers<void>()
+  const chat = await run(make({
+    fork,
+    roster: () => [installed("alpha")],
+    engines: () => ["alpha"],
+    cwd,
+    memory,
+    tools: () => null,
+    nodeAt: (id) => id === node.id ? node : null,
+    seatableAt: (id) => id === node.id,
+    nodes: () => [node],
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: ({ agent, session }) =>
+      node.engine === agent && node.session === session ? node : null,
+    ticket: (held) => {
+      minted.push(held)
+      minting.resolve()
+      return { bearer: `ticket-${held}`, release: () => released.push(held) }
+    },
+    onState: () => {},
+    onTranscript: () => {},
+  }))
+
+  await run(chat.start)
+  await minting.promise
+  await run(chat.stop)
+  // Long enough for a boot that outlived the stop to have reached its
+  // `session/load` and registered a slot.
+  await run(Effect.sleep("1500 millis"))
+
+  expect(chat.live().size).toBe(0)
+  expect([...released].sort()).toEqual([...minted].sort())
+  const ready = said.filter((line) => line.message.includes("chat agent ready"))
+  const exited = said.filter((line) => line.message.includes("chat agent exited"))
+  expect(exited).toHaveLength(ready.length)
+}, 30_000)
+
+/**
+ * ...AND THE SAME SHUTDOWN LANDING ON A PATH THAT IS NOT THE BOOT.
+ *
+ * Owning the boot fiber closes the boot's window and only the boot's. Every
+ * acquisition takes several yields to spawn a panel, and three others reach it
+ * — `reread`'s relocation, `assignedTo`, and a session started at a node — so
+ * any of them can be past the shutting-down check, inside the uninterruptible
+ * panel acquisition, when a stop sets its flag and reads the node map. The slot
+ * then lands in a map nobody reads again, with a credential and a process in
+ * it.
+ *
+ * TWO OF THEM, and neither is the boot's: a session started at a node, and the
+ * RELOCATION the audit names by name.
+ *
+ * The FIRST is the discriminating one — it fails against the arrangement this
+ * replaced, with a spawned agent that was told it was ready and never told to
+ * go. The second covers the other path and passes either way on this machine:
+ * its acquisition happens to finish before the stop reads the node map. Said
+ * here rather than left for a reader to discover, because a case that cannot
+ * fail is coverage and not evidence, and the two are not the same thing.
+ */
+for (const path of ["a session started at a node", "a relocation"] as const) {
+test(`a shutdown that lands mid-acquisition during ${path} leaves nothing behind`, async () => {
+  const { run, fork, said } = logging()
+  const node: NodeAgent = {
+    id: "one",
+    file: "Work.olai",
+    title: "one",
+    engine: "alpha",
+    session: null,
+    memory: 2,
+  }
+  const minted: Array<string> = []
+  const released: Array<string> = []
+  // The same latch the boot case uses, and for the same reason: the credential
+  // is minted immediately after the shutting-down check and immediately before
+  // anything is spawned, so a stop that waits for it lands in the window.
+  const minting = Promise.withResolvers<void>()
+  const chat = await run(make({
+    fork,
+    roster: () => [installed("alpha")],
+    engines: () => ["alpha"],
+    cwd,
+    tools: () => null,
+    nodeAt: (id) => id === node.id ? node : null,
+    seatableAt: (id) => id === node.id,
+    nodes: () => [node],
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: () => null,
+    ticket: (held) => {
+      minted.push(held)
+      minting.resolve()
+      return { bearer: `ticket-${held}`, release: () => released.push(held) }
+    },
+    onState: () => {},
+    onTranscript: () => {},
+  }))
+
+  // A RELOCATION MOVES A CONVERSATION THAT EXISTS, so that path opens one at
+  // the root first and waits for the boot to be done with it — which is what
+  // makes the acquisition under test unambiguously not the boot's. The other
+  // path takes no boot at all.
+  if (path === "a relocation") {
+    await run(chat.start)
+    await until("the root conversation to open", () =>
+      chat.state().session !== null && chat.state().status === "idle")
+  }
+  const seating = run(Effect.catch(
+    path === "a session started at a node"
+      ? chat.startAgentSession(node.id, "alpha")
+      : chat.assignedTo(node.id, {
+        agent: "alpha",
+        session: chat.state().session?.id ?? "",
+      }),
+    () => Effect.void,
+  ))
+  await minting.promise
+  await run(chat.stop)
+  await seating
+  // Long enough for an acquisition that outlived the stop to have finished
+  // spawning and registered its slot.
+  await run(Effect.sleep("1500 millis"))
+
+  expect(chat.live().size).toBe(0)
+  expect([...released].sort()).toEqual([...minted].sort())
+  const ready = said.filter((line) => line.message.includes("chat agent ready"))
+  const exited = said.filter((line) => line.message.includes("chat agent exited"))
+  expect(exited).toHaveLength(ready.length)
+}, 30_000)
+}
+
 test("boot moves a newly identified node session into its scope", async () => {
-  const { run, said } = logging()
+  const { run, fork, said } = logging()
   const node: NodeAgent = {
     id: "one",
     file: "Work.olai",
@@ -221,6 +401,7 @@ test("boot moves a newly identified node session into its scope", async () => {
   }
   const released: Array<string> = []
   const chat = await run(make({
+    fork,
     roster: () => [installed("alpha")],
     engines: () => ["alpha"],
     cwd,
@@ -260,13 +441,14 @@ test("boot moves a newly identified node session into its scope", async () => {
 })
 
 test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wake", async () => {
-  const { run, said } = logging()
+  const { run, fork, said } = logging()
   let nodes: ReadonlyArray<NodeAgent> = [
     { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
     { id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
   ]
   const released: Array<string> = []
   const chat = await run(make({
+    fork,
     roster: () => [installed("alpha"), installed("beta")],
     engines: () => ["alpha", "beta"],
     cwd,
@@ -330,7 +512,7 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
 })
 
 test("agent switches, disabled plugins and listing probes have distinct exit reasons", async () => {
-  const { run, said } = logging()
+  const { run, fork, said } = logging()
   let roster = [installed("alpha"), installed("beta")]
   const panel = await run(makePanel({
     roster: () => roster,

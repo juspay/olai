@@ -1335,12 +1335,13 @@ When(
       await pressOnRow(this, plugin, PLUGIN_SWITCH);
       await confirmIfAsked(this, plugin, pick);
     }
-    // THE PANEL SURVIVES THE REBUILD THE PRESS CAUSED, which is what makes this
-    // wait a wait for the flip rather than a wait for a control that has gone:
-    // a roster change is a redial and a redial rebuilds the tab's whole tree,
-    // so the row this is waiting on is a NEW element drawn by a panel that
-    // reopened itself (`@olai/web`'s `client/plugins/`). Re-open the group on
-    // every try: the first shownRow can land on the outgoing tree.
+    // THE ROW THIS WAITS ON MAY BE A NEW ELEMENT, which is what makes this a
+    // wait for the flip rather than a wait for a control that has gone. It used
+    // to say a redial rebuilds the tab's whole tree; it does not, and has not
+    // since the pinned kolu's #2228 — the connection is one object and the tree
+    // is rendered once. What DOES re-draw is the panel itself, for its own
+    // reasons (the roster it lists moved), so the loop stands. Re-open the
+    // group on every try: the first shownRow can land on the outgoing draw.
     const wanted = `${PLUGIN_SWITCH}${attr("aria-checked", pick === "on" ? "true" : "false")}`;
     const deadline = Date.now() + POLL_TIMEOUT;
     let last: unknown;

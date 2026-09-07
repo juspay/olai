@@ -256,12 +256,27 @@ export interface FaceOptions {
  * Scoped rather than returning a teardown: everything else in the
  * composition root is, and a caller holding a `close()` it might forget is
  * exactly the arrangement `serve.ts` took the listener's lifetime away from.
+ *
+ * ...AND THE ACQUISITION IS BRACKETED, which is a different claim from being
+ * scoped and was the one this did not keep. It awaited the adapter and THEN
+ * said how to close it, and the gap between those two statements is a place a
+ * fiber can be interrupted: a half stopped there — the panel's switch,
+ * `plugins.stop`, a Ctrl+C — left an adapter nobody had registered a release
+ * for. One `acquireRelease` makes the release part of the acquisition, so a
+ * stop lands either before the adapter exists or after it is the scope's.
+ *
+ * WHAT THAT COSTS is that the acquire is uninterruptible: a stop arriving
+ * inside it waits for the adapter and then closes it. That wait is bounded by
+ * what is actually awaited — `server.connect(transport)`, whose `start()` is a
+ * no-op on olai's own route transport — and it is the right trade either way,
+ * because the alternative is a timeout that abandons the value, which is this
+ * bug wearing a different hat.
  */
 export const serveFace = (
   options: FaceOptions,
 ): Effect.Effect<ServedSurfaceMcp, never, Scope.Scope> =>
-  Effect.gen(function*() {
-    const served = yield* Effect.promise(() =>
+  Effect.acquireRelease(
+    Effect.promise(() =>
       serveSurfaceAsMcp({
         core: AGENT_CORE,
         surfaces: options.siblings,
@@ -270,12 +285,10 @@ export const serveFace = (
         instructions: INSTRUCTIONS,
         ...(options.transport === undefined ? {} : { transport: options.transport }),
       })
-    )
-    // Registered on the scope for the same reason the listener's teardown is:
+    ),
+    // Released on the scope for the same reason the listener's teardown is:
     // closing olai is closing a scope, and no caller carries a shutdown
     // function. `close()` stops the resource pusher, disposes the connection
     // and disconnects the transport.
-    yield* Effect.addFinalizer(() => Effect.promise(() => served.close()))
-
-    return served
-  })
+    (served) => Effect.promise(() => served.close()),
+  )

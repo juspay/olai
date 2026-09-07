@@ -141,6 +141,15 @@ package sees.** That is the ruling this layer is shaped by, and it is checkable:
 all, and `packages/bundle/src/fence.test.ts` holds that as an equality
 (`scripts/prove-fence.sh`'s mutation 16 is what proves the claim is not asleep).
 
+Being the only package that names it means being the only package that ASSUMES
+things about it, and the assumptions are worth a list of their own — the ones
+with no type on them can drift green. That list is
+[`packages/effect-cordis/README.md`](../../packages/effect-cordis/README.md)'s
+*Where the pin's instability lives*: what the bridge assumes, where it assumes
+it, what the pin does today, and how each one would show if a bump moved it.
+`nix/cordis.nix` carries the upstream asks that list implies. Neither is
+duplicated here — a second copy is a copy that goes stale.
+
 Three ideas do all the work, and each replaced something olai used to hand-write.
 
 **A registration is a revertible effect.** `kinds.register(kind)` is an
@@ -202,6 +211,17 @@ Effect, the plugin uses `detached`: one helper, in the facade, forking under the
 plugin's own services (so a line carries the level the operator asked for) and
 onto the plugin's own scope (so work in flight when it unloads goes with it). It
 is the boundary made visible rather than an escape hatch copied per plugin.
+
+It has TWO SHAPES and they are one seam. `ring(work)` forgets the fiber, which
+is right for a doorbell walk or a heartbeat. `ring.held(work)` hands it back,
+for background work its owner interrupts or joins by name — an idle timer a
+scheduler arms and cancels, a boot a shutdown has to join before it reads the
+table the boot writes into. Everything else is identical: same runtime, same
+scope, same contained failure with the plugin's own word on it. The second
+shape exists because without it a caller that needs the handle reaches for a
+bare `Effect.runFork`, which is a fiber on the default runtime with no owner
+and none of the operator's settings — a second, unnamed seam, which is the one
+thing having a named seam is for.
 
 `--plugins`, the bundle's rows and the browser slots are **phase 2** of a longer
 plan (the Cordis proposal's §6); the Effect API above is **phase 4**; node agents
@@ -692,13 +712,45 @@ so a fiber is never started over a wire that does not carry its sibling. A
 second roster frame arriving mid-redial is queued behind the first rather than
 starting a second redial on one connection.
 
-Olai pins the merge of [Kolu PR #2228](https://github.com/juspay/kolu/pull/2228)
-through npins on `master` at
-`4b1758afad90b15624030e0fd00e1116586b4054`, unfrozen for future updates.
-Its `redial` returns the same
-connection, retaining the root and unchanged sibling clients and reopening their
-subscriptions over the replacement wire. Removed or replaced sibling clients
-refuse further calls. Olai keeps one constant connection and renders the app once;
+Olai pins kolu through npins on `master`, unfrozen; `npins/sources.json` is the
+one place the revision is written down. What the reconnection contract rests on
+is the merge of [Kolu PR #2228](https://github.com/juspay/kolu/pull/2228), and
+`nix/kolu.nix` names it as a property of the pin rather than as a revision that
+goes stale between bumps.
+
+**WHAT A BROWSER CLIENT PROMISES ACROSS A REDIAL**, established by reading the
+pinned sources and proved by
+`packages/tests/features/filter_live_recovery.feature` and
+`content_capabilities.feature`:
+
+* **Identity holds.** `redial` returns the same connection object, and
+  `live.clients` is one object mutated in place for the life of the tab. A
+  sibling on both rosters whose loaded module is unchanged keeps its *exact*
+  client. The core client and the connection readout never move at all. So a
+  module-scope constant over the CONNECTION is safe; one over a plugin's client
+  is not, because a departing key is deleted from that object — which is what
+  the holder pattern in each plugin's `browser/wire.ts` is for.
+* **Subscriptions come back, and they are not preserved.** The supersession
+  fence fails every open subscription with a transport error, and each one
+  re-subscribes itself about a second later and takes a fresh snapshot. So a
+  surviving subscription reads `pending` for roughly that second on every
+  roster change, and `pending` does not degrade the readout — which means *no
+  member of this page has gone silent* cannot by itself prove frames are
+  arriving again. Only a test that watches a VALUE change after the toggle
+  proves it, which is what `filter_live_recovery` does. THIS GAP IS PART OF THE
+  CONTRACT, not an accident of it: any broker that replaces or wraps `Wired`
+  owes a consumer the same statement, and owes a decision about whether a
+  consumer should be told the gap is open rather than left to infer it from a
+  value that has not moved.
+* **A call on a departed plugin is refused, loudly, three ways.** Before the
+  tab redials, the server raises `SurfaceSiblingDropped`; a call in flight on
+  the superseded wire is interrupted; a client a component still holds after
+  the redial fails with kolu's own worded error. All three land in
+  `packages/web/src/client/run.ts` and reach a person as a `BusyFailure`. A
+  fresh `wired.client()` for a departed plugin answers `null`. None of them
+  hangs, and none of them silently succeeds.
+
+Olai keeps one constant connection and renders the app once;
 roster changes no longer recreate its tree or roster subscription. The core
 client and connection readout are exported directly, without a proxy or a
 synthetic reconnecting state. Identity alone uses Kolu’s `connectionEpoch`
@@ -717,8 +769,7 @@ needs a module-level store to survive roster changes.
 
 Plugin provider changes still update the provider tree: removing chat must remove
 its context and faces together. Pane and conversation draft stores remain needed
-for those changes and for navigation between panes and sessions. After the
-upstream merge, return the pin to master and unfreeze it explicitly.
+for those changes and for navigation between panes and sessions.
 
 
 ---
@@ -1098,13 +1149,30 @@ that matters.
    you are adding is an ACP ENGINE (step 6). Say your lines with
    `Effect.logDebug` and `Effect.logWarning`, which arrive with the level the
    operator asked for. If your appliance calls you back from a timer or a socket,
-   take `detached` once and start your Effects through it. Everything you
+   take `detached` once and start your Effects through it — `ring(work)` where
+   nobody needs the fiber, `ring.held(work)` where something of yours has to
+   interrupt or wait for it by name. Everything you
    register comes back out when your plugin unloads, and you write no teardown
    for any of it — unless you hold something the runtime cannot see, which is an
-   `Effect.addFinalizer` and is what `xyne-spaces` does for its mirrors.
+   `Effect.addFinalizer` and is what `xyne-spaces` does for its mirrors. An
+   `addFinalizer` is only honest when NOTHING WAS AWAITED to get the thing it
+   releases: a fiber parked in an `Effect.promise` is interruptible and unwinds
+   where it stands, so a plugin stopped between `const it = yield*
+   Effect.promise(open)` and the `addFinalizer` on the next line has opened a
+   thing with no release registered for it. Anything you had to wait for is an
+   `Effect.acquireRelease`, which registers the release as part of the
+   acquisition and cannot be interrupted between the two.
 3. **`packages/plugins/<name>/src/browser.tsx`**, if the plugin draws UI — the browser half, the same
    shape: a `name` and a `surface` re-exported off `./wire.ts`, and a `default`
-   `definePlugin` whose Effect registers your faces into `Slots`. Browser graph,
+   `definePlugin` whose Effect registers your faces into `Slots`. THE SOLID
+   TWIN OF THE RULE IN STEP 2 APPLIES HERE: an `onCleanup` registered after an
+   `await` inside `onMount` runs with a null owner, where Solid's production
+   build makes it an empty statement — not a race, since `await` always yields,
+   so the cleanup is ALWAYS dropped. Anything you have to LOAD before you can
+   build (a `import()`ed chunk) registers its cleanup before the load, over an
+   empty slot, and guards the continuation against an owner that has already
+   gone; `packages/plugins/kolu/src/appliance/props/mounting.ts` is that shape,
+   written out, with the reason a `runWithOwner` rescue does not cover it. Browser graph,
    and its own chunk. An ENGINE re-exports only its `name` and registers TWO
    faces: its mark and its install sentence (step 6). A server-only plugin
    omits `./browser` and `./all.css` from its package exports; no empty modules
@@ -1199,6 +1267,10 @@ names the file.
 | `packages/server/src/runtime.test.ts` | a `wake` sentence reaches the roster only for a plugin this serve MOUNTED, so no picker is offered for a doorbell nothing would ring — and a plugin the flag left on that nothing mounted draws as off, which is the row the old derivation could not express |
 | `packages/plugins/chat/src/deliveries.test.ts` | a body delivered mid-turn is HELD and the conversation keeps its interruption — the one claim a machine speaking into a person's lane could quietly cost them |
 | `scripts/check-hydrated-deps.sh` | the appliance dependency walls, per pin — kolu, odu, and cordis |
+| `packages/effect-cordis/src/lifecycle.test.ts` | the bridge's ORDERING against the pin: a dependent's asynchronous cleanup calls through a provider that is still live — on removal, on replacement and on host close; a running bus handler is cut and joined before a resource released either side of its `listen`; a handler that stops its own plugin is cut rather than waited for; a loading initializer is cancelled by a stop, by a withdrawal and by host close; a loader flip cancels without rewriting its file; a duplicate offer is an `OfferConflict` naming the first provider, with the pin's wording asserted verbatim; and `offer` takes its Cordis disposer out of the concurrently-unloaded set |
+| `packages/effect-cordis/src/upstream.test.ts` | the PIN'S OWN behaviour, asked directly and with no bridge in the way — a fiber's disposers are unloaded concurrently, which is the reproduction `nix/cordis.nix`'s fourth ask is about and the reason `lifecycle.ts` takes the ordering itself |
+| `packages/effect-cordis/src/gate.test.ts` | that a call arriving after a registration stopped is never started, that one already inside is CUT and the stop does not answer until it has unwound, that cutting it leaves the publisher untouched, and that a publisher interrupted first takes its call with it |
+| ...and `lifecycle.test.ts` beside it | the claims a bare scope cannot make: that a registration made in a CHILD scope stops with that child while its plugin stays mounted, pending and running alike; that a gate's two owners join one cut rather than the second finding an empty set; that a stop waits for a handler's own child fibers and not merely its body; and that a registration whose scope ends stops being one of the activation's records |
 | `packages/effect-cordis/src/plugin.test.ts` | the bridge itself, on TOY services and with no olai noun in the file: a plugin sits `waiting` until the service it names is provided, its finalizers run in reverse when it unloads, a REPLACED provider re-runs it, a plugin whose Effect dies lands `failed` having installed nothing with its siblings untouched, and the stamp a keyed service is minted with is the word the registry bound it under |
 
 ---

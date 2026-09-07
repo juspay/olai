@@ -48,6 +48,8 @@ import { spawn, type ChildProcess } from "node:child_process"
 import { accessSync, constants } from "node:fs"
 import { delimiter, join } from "node:path"
 
+import { Effect, type Scope } from "effect"
+
 /**
  * AN MCP SERVER TO HAND A SESSION, and what a person is owed about one they
  * did not get — this package's own spelling of the two shapes core carries.
@@ -67,7 +69,7 @@ export interface StdioServer {
 }
 
 /** ...and the other half. `where` is `null` in exactly one arm: a PATH with
- *  no `odu` on it at all ({@link probe}), where nothing was resolved so there
+ *  no `odu` on it at all ({@link probing}), where nothing was resolved so there
  *  is nothing to name. Every OTHER way an odu can fail begins by having been
  *  resolved and started, and a `where` is the first thing that path takes.
  *  `why` is a WHOLE SENTENCE and it is this package's — core displays it and
@@ -270,7 +272,7 @@ const resolveOn = (path: string | undefined): string | null => {
 
 /** The one sentence for the resolve that found NOTHING — the command named,
  *  said not to be on the server's PATH, with the build's promise beside it
- *  so the row is also the directions out ({@link probe}'s header argues it).
+ *  so the row is also the directions out ({@link probing}'s header argues it).
  *  kolu's `EXPECTED` is the same sentence one appliance over, pinned there
  *  to `PADI_SOCKET`; here the bake itself is what expects. The second clause
  *  states the promise and STOPS — any diagnosis (a serve started outside
@@ -317,55 +319,74 @@ const NOT_FOUND = `no \`${ODU_COMMAND}\` is on the PATH this server was started 
  * it can find are two different fixes: an odu so old the verbs were never
  * there, and one new enough to run a run but too old to AIM one.
  */
-export const probe = async (env: Record<string, string | undefined>): Promise<Probed> => {
-  const found = resolveOn(env["PATH"])
-  if (found === null) return { server: null, missing: { name: ODU_COMMAND, where: null, why: NOT_FOUND } }
+export const probing = (
+  env: Record<string, string | undefined>,
+): Effect.Effect<Probed, never, Scope.Scope> =>
+  Effect.gen(function*() {
+    const found = resolveOn(env["PATH"])
+    if (found === null) return { server: null, missing: { name: ODU_COMMAND, where: null, why: NOT_FOUND } }
 
-  const child = spawn(found, [...ARGS], { stdio: ["pipe", "pipe", "ignore"] })
-  const verdict = await askOver(child, DEADLINE_MS)
-  // The child outlives an answered probe by exactly the kill: the probe's
-  // whole point is that the SESSION re-spawns the file it was handed, rather
-  // than inheriting a second-hand server.
-  child.kill()
+    // THE CHILD IS THE SCOPE'S, and the kill that used to sit on the happy path
+    // below is its release. It ran on every return `probe` had, so an abandoned
+    // probe never orphaned a server for longer than the deadline — but "for
+    // longer than the deadline" is a lifetime nobody wrote down, and an asking
+    // that is called off has no business holding an `odu mcp` open for another
+    // five seconds. Acquired and released together, so the spawn cannot land
+    // without its kill.
+    //
+    // The comment the kill carried is still the reason there IS one: the child
+    // outlives an answered probe by exactly this, because the probe's whole
+    // point is that the SESSION re-spawns the file it was handed rather than
+    // inheriting a second-hand server.
+    const child = yield* Effect.acquireRelease(
+      Effect.sync(() => spawn(found, [...ARGS], { stdio: ["pipe", "pipe", "ignore"] })),
+      (child) => Effect.sync(() => { child.kill() }),
+    )
+    // AND THE ASK IS INTERRUPTIBLE, which is the other half: a stopped fiber
+    // leaves this wait where it stands, so the release above runs at once
+    // rather than after the deadline. The promise underneath carries on with
+    // nobody listening and settles on the child's own `exit` — which the kill
+    // is what causes — so its timer is cleared on the way out.
+    const verdict = yield* Effect.promise(() => askOver(child, DEADLINE_MS))
 
-  if (verdict._tag !== "answered") {
-    return { server: null, missing: { name: ODU_COMMAND, where: found, why: whyOf(verdict) } }
-  }
-  const names = new Set(verdict.tools.map((tool) => tool.name))
-  const absent = VERBS.filter((verb) => !names.has(verb))
-  if (absent.length > 0) {
-    return {
-      server: null,
-      missing: {
-        name: ODU_COMMAND,
-        where: found,
-        why: `it answers, but its tool surface is missing ${absent.map((one) => `\`${one}\``).join(", ")}`
-          + ` — this olai hands a conversation ${VERBS.map((one) => `\`${one}\``).join(", ")},`
-          + " and one of the two needs an upgrade",
-      },
+    if (verdict._tag !== "answered") {
+      return { server: null, missing: { name: ODU_COMMAND, where: found, why: whyOf(verdict) } }
     }
-  }
-  const aimless = VERBS.find((verb) => {
-    const tool = verdict.tools.find((one) => one.name === verb)
-    return tool !== undefined && !tool.checkout
+    const names = new Set(verdict.tools.map((tool) => tool.name))
+    const absent = VERBS.filter((verb) => !names.has(verb))
+    if (absent.length > 0) {
+      return {
+        server: null,
+        missing: {
+          name: ODU_COMMAND,
+          where: found,
+          why: `it answers, but its tool surface is missing ${absent.map((one) => `\`${one}\``).join(", ")}`
+            + ` — this olai hands a conversation ${VERBS.map((one) => `\`${one}\``).join(", ")},`
+            + " and one of the two needs an upgrade",
+        },
+      }
+    }
+    const aimless = VERBS.find((verb) => {
+      const tool = verdict.tools.find((one) => one.name === verb)
+      return tool !== undefined && !tool.checkout
+    })
+    if (aimless !== undefined) {
+      return {
+        server: null,
+        missing: {
+          name: ODU_COMMAND,
+          where: found,
+          why: `it answers, but \`${aimless}\` takes no per-call \`checkout\``
+            + " — a conversation spans many lanes, and this build could only ever aim at olai's own served directory;"
+            + " one of the two needs an upgrade",
+        },
+      }
+    }
+    return {
+      server: { name: ODU_COMMAND, command: found, args: [...ARGS], env: {} },
+      missing: null,
+    }
   })
-  if (aimless !== undefined) {
-    return {
-      server: null,
-      missing: {
-        name: ODU_COMMAND,
-        where: found,
-        why: `it answers, but \`${aimless}\` takes no per-call \`checkout\``
-          + " — a conversation spans many lanes, and this build could only ever aim at olai's own served directory;"
-          + " one of the two needs an upgrade",
-      },
-    }
-  }
-  return {
-    server: { name: ODU_COMMAND, command: found, args: [...ARGS], env: {} },
-    missing: null,
-  }
-}
 
 /** The sentence per WAY a found `odu` failed — whole sentences, because core
  *  displays them and composes none (`olai-plugin-kolu`'s `whyOf` argues the

@@ -6,11 +6,20 @@
  * and routing by durable node id for wakes. Closing a node scope releases the
  * panel, which stops its ACP process, turns, probes, attachments and delivery
  * inbox in one finalizer.
+ *
+ * ...AND STOPPING THE SCHEDULER STOPS THE BOOT TOO, which is the half that was
+ * missing. The boot is forked and detached on purpose — nobody calling `start`
+ * should wait for a session to be recalled and a panel to be acquired — but
+ * detached is not the same word as unowned, and it was both: a shutdown could
+ * close every slot it could see while the boot was still walking towards one it
+ * had not registered yet, leaving a minted credential and a live ACP process
+ * with nothing left that could release either. `stopWithReason` holds the
+ * handle and joins it, in that order.
  */
 
 import { BusyFailure, type NodeAgent, type NodeAgents, UsageFailure } from "@olai/format"
 import type { OpFailure } from "@olai/format"
-import { Duration, Effect, Exit, Fiber, Scope, Semaphore } from "effect"
+import { Deferred, Duration, Effect, Exit, Fiber, Scope, Semaphore } from "effect"
 
 import type { StopReason } from "./agent.ts"
 import type { Panel, PanelOptions, WakeScope } from "./chat.ts"
@@ -77,6 +86,27 @@ export interface Options extends PanelOptions {
   readonly capacity?: number
   /** A background node session changed standing. */
   readonly onLive?: () => void
+  /**
+   * HOW THIS SCHEDULER STARTS WORK IT IS NOT ALREADY INSIDE.
+   *
+   * The bridge's `detached` is the tree's one named seam for that, and its
+   * `held` shape is what the server hands over here — so a line this work logs
+   * carries the level the operator asked for, and a fiber still in flight when
+   * the row unloads is interrupted with it. Three sites reinvented the seam
+   * with a bare `Effect.runFork`, which is a fiber on the default runtime with
+   * no owner and no logging settings; one of them logs the only sentence a
+   * person gets when a re-bound session cannot enter its node scope, and it was
+   * going nowhere.
+   *
+   * REQUIRED, and no default. A default would have to be `Effect.runFork`,
+   * which is the exact thing this field exists to stop: a caller that simply
+   * omitted it would get unowned fibers on the default runtime with nothing red
+   * anywhere — the defect this field closed, silently re-admitted at the one
+   * place it could be. The focused tests that stand this scheduler up without a
+   * host pass `Effect.runFork` themselves, which puts the test-only runtime
+   * where it is chosen rather than in the production type.
+   */
+  readonly fork: (work: Effect.Effect<void>) => Fiber.Fiber<void>
 }
 
 interface NodeSlot {
@@ -115,6 +145,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       onLive,
       seatableAt,
       ticket: mintTicket,
+      fork,
       ...givenPanelOptions
     } = options
     const memory = givenPanelOptions.memory
@@ -125,6 +156,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const pending = new Map<string, Array<PendingDelivery>>()
     let stopped = false
     let relocating = false
+    /** How many node operations are in flight, and the wait a stop takes on
+     *  them — see {@link working}. */
+    let inFlight = 0
+    let quiet: Deferred.Deferred<void> | undefined
     let active: { readonly kind: "root"; readonly panel: Panel } | {
       readonly kind: "node"
       readonly slot: NodeSlot
@@ -192,10 +227,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       })
 
     const armIdle = (slot: NodeSlot): void => {
+      // NOTHING NEW ONCE EITHER IS DONE. `close` interrupts the timer it can
+      // see and then closes the scope, so a timer armed after that would be
+      // one nothing is holding — the invariant `close` already assumes, said
+      // where a re-arm could otherwise break it.
+      if (slot.closing || stopped) return
       const generation = ++slot.generation
       const former = slot.timer
       slot.timer = null
-      if (former !== null) Effect.runFork(Fiber.interrupt(former))
+      if (former !== null) fork(Fiber.interrupt(former))
       let fiber!: Fiber.Fiber<void, never>
       const timer = Effect.gen(function*() {
         yield* Effect.sleep(idle)
@@ -218,7 +258,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }).pipe(Effect.ensuring(Effect.sync(() => {
         if (slot.timer === fiber) slot.timer = null
       })))
-      fiber = Effect.runFork(timer)
+      fiber = fork(timer)
       slot.timer = fiber
     }
 
@@ -281,81 +321,138 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           return yield* new BusyFailure({ reason: "the server is shutting down" })
         }
         yield* room()
+        // THE SCOPE EXISTS BEFORE ANYTHING IS IN IT, and until the last line
+        // of this block the only reference to it is here — `close` reaches a
+        // slot's scope through `nodes`, and this one is not in `nodes` yet.
+        // The panel below is acquired uninterruptibly, so a shutdown that
+        // interrupts the boot mid-acquisition is delivered the moment that
+        // acquisition ENDS: which side of the `nodes.set` two lines later the
+        // fiber stops on is Effect's to decide, and both answers have to be
+        // safe. If the slot is registered, the shutdown's own snapshot closes
+        // it; if it is not, this does.
         const scope = Scope.makeUnsafe()
-        const ticket = mintTicket(node)
-        yield* Effect.addFinalizer(() => Effect.sync(ticket.release)).pipe(
-          Effect.provideService(Scope.Scope, scope),
-        )
-        let slot!: NodeSlot
-        const panel = yield* Effect.acquireRelease(
-          makePanel({
-            ...panelOptions,
-            agentAt: (to) => {
-              const bound = panelOptions.agentAt?.(to) ?? null
-              if (bound !== null || history === undefined) return bound
-              const owner = nodeAt(node)
-              return to.agent === history.agent && to.session === history.session
-                  && owner?.engine === history.agent ? owner : null
-            },
-            // THE MCP FACE, NARROWED BY THIS SEAT'S OWN CREDENTIAL — and NO
-            // FACE AT ALL where there is no credential to narrow it with.
-            //
-            // An empty bearer is what `@olai/plugin-api`'s `NO_TICKET` is: the
-            // bench and headless arm, a serve with no MCP face to mint against.
-            // Handed on, it reached the tool door as a session carrying no
-            // bearer — which is a session the door cannot place, so the
-            // remaining write rule is simply off for it. That is the one thing
-            // a seat must not be able to be: seated, and with no credential.
-            //
-            // `null` rather than a refusal to acquire, because the scope is not
-            // the thing at fault and a node agent with no tools is a state this
-            // panel already draws. A serve WITH an MCP face always mints
-            // (`@olai/server`'s `serve.ts` hands `ticketFor` in the same breath
-            // it hands the server), so this arm is the composition it says it
-            // is and never a real one.
-            tools: () => {
-              const server = panelOptions.tools()
-              if (server === null || ticket.bearer === "") return null
-              return { ...server, token: ticket.bearer }
-            },
-            onState: (state) => {
-              slot.state = state
-              slot.touched = Date.now()
-              if (
-                (state.status === "idle" || state.status === "gone")
-                && state.asking === 0
-                && state.watching.length === 0
-              ) {
-                armIdle(slot)
-              } else {
-                slot.generation++
-              }
-              if (active.kind === "node" && active.slot === slot) panelOptions.onState(state)
-              onLive?.()
-            },
-            onTranscript: (change) => {
-              if (active.kind === "node" && active.slot === slot) panelOptions.onTranscript(change)
-            },
-          }),
-          (made) => made.stopWithReason(slot?.closeReason ?? "scope released"),
-        ).pipe(Effect.provideService(Scope.Scope, scope), Effect.annotateLogs({ node }))
-        slot = {
-          key,
-          history: history !== undefined,
-          node,
-          scope,
-          panel,
-          state: panel.state(),
-          touched: Date.now(),
-          generation: 0,
-          closing: false,
-          closeReason: "scope released",
-          timer: null,
-        }
-        nodes.set(key, slot)
-        onLive?.()
-        return { slot, fresh: true }
+        return yield* Effect.onExit(Effect.gen(function*() {
+          const ticket = mintTicket(node)
+          yield* Effect.addFinalizer(() => Effect.sync(ticket.release)).pipe(
+            Effect.provideService(Scope.Scope, scope),
+          )
+          let slot!: NodeSlot
+          const panel = yield* Effect.acquireRelease(
+            makePanel({
+              ...panelOptions,
+              agentAt: (to) => {
+                const bound = panelOptions.agentAt?.(to) ?? null
+                if (bound !== null || history === undefined) return bound
+                const owner = nodeAt(node)
+                return to.agent === history.agent && to.session === history.session
+                    && owner?.engine === history.agent ? owner : null
+              },
+              // THE MCP FACE, NARROWED BY THIS SEAT'S OWN CREDENTIAL — and NO
+              // FACE AT ALL where there is no credential to narrow it with.
+              //
+              // An empty bearer is what `@olai/plugin-api`'s `NO_TICKET` is: the
+              // bench and headless arm, a serve with no MCP face to mint against.
+              // Handed on, it reached the tool door as a session carrying no
+              // bearer — which is a session the door cannot place, so the
+              // remaining write rule is simply off for it. That is the one thing
+              // a seat must not be able to be: seated, and with no credential.
+              //
+              // `null` rather than a refusal to acquire, because the scope is not
+              // the thing at fault and a node agent with no tools is a state this
+              // panel already draws. A serve WITH an MCP face always mints
+              // (`@olai/server`'s `serve.ts` hands `ticketFor` in the same breath
+              // it hands the server), so this arm is the composition it says it
+              // is and never a real one.
+              tools: () => {
+                const server = panelOptions.tools()
+                if (server === null || ticket.bearer === "") return null
+                return { ...server, token: ticket.bearer }
+              },
+              onState: (state) => {
+                slot.state = state
+                slot.touched = Date.now()
+                if (
+                  (state.status === "idle" || state.status === "gone")
+                  && state.asking === 0
+                  && state.watching.length === 0
+                ) {
+                  armIdle(slot)
+                } else {
+                  slot.generation++
+                }
+                if (active.kind === "node" && active.slot === slot) panelOptions.onState(state)
+                onLive?.()
+              },
+              onTranscript: (change) => {
+                if (active.kind === "node" && active.slot === slot) panelOptions.onTranscript(change)
+              },
+            }),
+            (made) => made.stopWithReason(slot?.closeReason ?? "scope released"),
+          ).pipe(Effect.provideService(Scope.Scope, scope), Effect.annotateLogs({ node }))
+          slot = {
+            key,
+            history: history !== undefined,
+            node,
+            scope,
+            panel,
+            state: panel.state(),
+            touched: Date.now(),
+            generation: 0,
+            closing: false,
+            closeReason: "scope released",
+            timer: null,
+          }
+          nodes.set(key, slot)
+          onLive?.()
+          return { slot, fresh: true }
+        }), (exit) => Exit.isSuccess(exit) ? Effect.void : Scope.close(scope, Exit.void))
       }))
+
+    /**
+     * ONE NODE OPERATION — from the acquisition to the last thing done with
+     * what it acquired, and the unit a shutdown waits for.
+     *
+     * `acquire` is not called anywhere else, and that is the point rather than
+     * a convention. Owning the boot fiber closed the boot's window and only the
+     * boot's; three other paths reach an acquisition — a `reread` relocation, a
+     * session started at a node, a session loaded into one — and every one of
+     * them does its real work AFTER the acquisition answers. A shutdown landing
+     * in that gap set its flag, read a node map that already held the slot,
+     * closed it — and the caller then went on to open a conversation on the
+     * panel it was still holding, spawning an ACP process into a scope that had
+     * already closed. Measured, on this bench: one `chat agent ready` with no
+     * `chat agent exited` after it.
+     *
+     * Guarding the map with a second reading of `stopped` cannot close that:
+     * the slot is registered and the shutdown is entitled to close it; what is
+     * wrong is that the operation carried on. So the operation is the thing
+     * that is counted, and `settled` below is what a stop waits for — after
+     * `stopped` is set, so nothing new starts, and before the map is read, so
+     * nothing lands behind it.
+     */
+    const working = <A, E>(
+      node: string,
+      history: Conversing | undefined,
+      use: (held: { readonly slot: NodeSlot; readonly fresh: boolean }) => Effect.Effect<A, E>,
+    ): Effect.Effect<A, E | OpFailure> =>
+      Effect.acquireUseRelease(
+        Effect.sync(() => { inFlight += 1 }),
+        () => Effect.flatMap(acquire(node, history), use),
+        () =>
+          Effect.sync(() => {
+            inFlight -= 1
+            if (inFlight === 0 && quiet !== undefined) Deferred.doneUnsafe(quiet, Effect.void)
+          }),
+      )
+
+    /** ...and the wait itself. Nothing is cancelled: a node operation that has
+     *  spawned a process is finished, so that the close which follows has
+     *  something to close. */
+    const settled = Effect.suspend(() => {
+      if (inFlight === 0) return Effect.void
+      quiet ??= Deferred.makeUnsafe<void>()
+      return Deferred.await(quiet)
+    })
 
     const nodeFor = (
       agent: string,
@@ -413,13 +510,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       open: (panel: Panel) => Effect.Effect<void, OpFailure>,
       foreground: boolean,
     ): Effect.Effect<NodeSlot, OpFailure> =>
-      Effect.gen(function*() {
-        const { slot, fresh } = yield* acquire(node)
-        if (foreground) activate(slot)
-        if (fresh) yield* open(slot.panel)
-        yield* flush(slot)
-        return slot
-      })
+      working(node, undefined, ({ slot, fresh }) =>
+        Effect.gen(function*() {
+          if (foreground) activate(slot)
+          if (fresh) yield* open(slot.panel)
+          yield* flush(slot)
+          return slot
+        }))
 
     const foreground = <A>(use: (panel: Panel) => Effect.Effect<A, OpFailure>) =>
       Effect.suspend(() => use(panelOf()))
@@ -457,7 +554,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         return Effect.gen(function*() {
           const place = immediate === null ? yield* locate(to) : { node: immediate, history: false }
           if (place === null) return
-          const { slot, fresh } = yield* acquire(place.node.id, place.history ? to : undefined)
+          yield* working(place.node.id, place.history ? to : undefined, ({ slot, fresh }) =>
+            Effect.gen(function*() {
           // Acquisition can wait behind a concurrent node operation. Do not
           // move a panel somebody switched in the meantime.
           if (active.kind !== "root" || active.panel !== old) {
@@ -475,6 +573,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             yield* slot.panel.loadSession(to.agent, to.session)
           }
           if (!place.history) yield* flush(slot)
+            }))
         }).pipe(Effect.ensuring(Effect.sync(() => {
           relocating = false
         })))
@@ -483,7 +582,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const relocationFailed = (where: string, failure: OpFailure): Effect.Effect<void> =>
       Effect.logWarning(`${where} could not enter its node scope: ${failure.message}`)
 
-    const start = Effect.asVoid(Effect.forkDetach(Effect.gen(function*() {
+    /** THE BOOT, AS A HANDLE. Detached is not the same word as unowned, and it
+     *  was both. `stopWithReason` interrupts this, and interrupting AWAITS, so
+     *  whatever the boot did manage to register is in `nodes` before the
+     *  shutdown reads that map. */
+    let booting: Fiber.Fiber<void> | null = null
+
+    const boot = Effect.gen(function*() {
       const recalled = yield* Effect.result(memory.recall)
       if (recalled._tag === "Failure" || recalled.success === null) {
         yield* root.start
@@ -498,11 +603,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         return
       }
       if (place.history) {
-        yield* Effect.catch(Effect.gen(function*() {
-          const { slot } = yield* acquire(place.node.id, held)
-          activate(slot)
-          yield* slot.panel.loadSession(held.agent, held.session)
-        }), (failure) => relocationFailed("the remembered node history", failure))
+        yield* Effect.catch(
+          working(place.node.id, held, ({ slot }) =>
+            Effect.gen(function*() {
+              activate(slot)
+              yield* slot.panel.loadSession(held.agent, held.session)
+            })),
+          (failure) => relocationFailed("the remembered node history", failure),
+        )
         return
       }
       yield* Effect.catch(
@@ -513,7 +621,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         )),
         (failure) => relocationFailed("the remembered node agent", failure),
       )
-    })))
+    })
+
+    /** THROUGH THE SAME SEAM as everything else this scheduler starts, which is
+     *  what `Detach.held` is for and what the boot was hand-rolling beside it:
+     *  the plugin's runtime, the plugin's scope, and the handle
+     *  {@link stopWithReason} joins. It stays a fork rather than an await —
+     *  nobody calling `start` should wait for a session to be recalled and a
+     *  panel acquired — and that was never the part that was missing. */
+    const start = Effect.sync(() => { booting = fork(boot) })
 
     const scopedDoor = (plugin: string) => {
       const scopes = (): ReadonlyArray<WakeScope> => {
@@ -562,9 +678,32 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }
     }
 
+    /**
+     * THE ORDER HERE IS THE WHOLE OF WHAT IT PROMISES.
+     *
+     * `stopped` first, so a boot still queued behind the acquisition gate is
+     * refused rather than let through. THEN the boot fiber, joined rather than
+     * merely signalled — `Fiber.interrupt` awaits, which is what puts anything
+     * the boot did register into `nodes` before the line that reads it. Only
+     * then the panels.
+     *
+     * The window that opened was not theoretical: a boot past its `stopped`
+     * check registered a node slot after the shutdown had already taken its
+     * snapshot of `nodes`, leaving a minted MCP credential and a spawned ACP
+     * subprocess that nothing would ever release — resources appearing AFTER
+     * shutdown reported itself finished.
+     */
     const stopWithReason = (reason: StopReason) => Effect.gen(function*() {
       stopped = true
       pending.clear()
+      const boot = booting
+      booting = null
+      if (boot !== null) yield* Fiber.interrupt(boot)
+      // ...AND EVERY OTHER NODE OPERATION, joined rather than raced. `stopped`
+      // is already set, so nothing new starts; what is still in flight finishes
+      // its acquisition and its use, and is therefore in the map the last line
+      // reads. See {@link working}.
+      yield* settled
       yield* root.stopWithReason(reason)
       yield* Effect.forEach([...nodes.values()], (slot) => close(slot, reason), { discard: true })
     })
@@ -611,7 +750,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       reread: () => {
         root.reread()
         for (const slot of nodes.values()) slot.panel.reread()
-        Effect.runFork(Effect.catch(
+        fork(Effect.catch(
           relocateRoot(),
           (failure) => relocationFailed("the newly bound session", failure),
         ))
@@ -657,14 +796,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           ? Effect.fail(new UsageFailure({
             reason: `node ${node} is no longer available for an agent session`,
           }))
-          : Effect.flatMap(
-            acquire(node),
-            ({ slot }) => Effect.gen(function*() {
+          : working(node, undefined, ({ slot }) =>
+            Effect.gen(function*() {
               activate(slot)
               yield* slot.panel.newSession(agent)
               yield* flush(slot)
-            }),
-          ),
+            })),
       chooseAgent: (agent) => {
         activateRoot()
         return root.chooseAgent(agent)
@@ -676,8 +813,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           activateRoot()
           return yield* root.loadSession(agent, session)
         }
-        return yield* Effect.flatMap(
-          acquire(place.node.id, place.history ? to : undefined),
+        return yield* working(
+          place.node.id,
+          place.history ? to : undefined,
           ({ slot }) => Effect.gen(function*() {
             activate(slot)
             const state = slot.panel.state()
