@@ -111,7 +111,7 @@ import { PluginViewer } from "./Seats.tsx"
 
 import { Uptime } from "./Uptime.tsx"
 import { connectionReadout } from "@olai/web/client/wire.ts"
-import { desktop } from "olai-plugin-layout/media"
+import { desktop } from "./layout/live.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { Tools } from "./Tools.tsx"
 

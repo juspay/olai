@@ -14,6 +14,8 @@ import { holdFaces } from "./browser/faces.ts"
 import { holdLocations } from "./browser/locations.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./browser/search.ts"
+import { shell as layoutShell } from "olai-plugin-layout/contract"
+import { holdShell } from "./browser/shell.ts"
 import { Effect } from "effect"
 import { createRoot } from "solid-js"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -106,6 +108,13 @@ import { documentProperties } from "./browser/document-properties.tsx"
 import { palette, messages } from "./browser/palette/adapter.tsx"
 export const components = {
   palette, messages, "document-properties": documentProperties,
+  /** The shell's geometry, DECLARED — a component of its own because content
+   *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
+   *  that waited for this one could not (`./browser/shell.ts`). */
+  shell: definePlugin({ name: "shell", needs: [layoutShell], apply: Effect.gen(function*() {
+    const geometry = yield* layoutShell
+    yield* Effect.acquireRelease(Effect.sync(() => holdShell(geometry)), stop => Effect.sync(stop))
+  }) }),
   content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks, Faces], apply: Effect.gen(function*() {
     // The row doors, row verbs and kind dressings other plugins hang — held for
     // this activation, which is the one that draws every page they appear on

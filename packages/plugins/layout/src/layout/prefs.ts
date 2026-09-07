@@ -8,10 +8,24 @@
  *
  * Stored widths can outlive the screen they were chosen on, so every *read*
  * clamps them against the current viewport so the outline cannot vanish under
- * the dock (e.g. 480 + 720 on a 1024px laptop).
+ * the dock (e.g. 480 + 720 on a 1024px laptop) — {@link fitWidths}, which is
+ * pure and is where that arithmetic is.
+ *
+ * ## NOTHING LIVE IS HERE ANY MORE
+ *
+ * This door used to carry the readings as well: two module signals (the
+ * viewport width, and the preference circuits this browser's layout activation
+ * installs) with fifteen accessors and setters over them, spelled by six other
+ * packages. The value crossed every one of those walls as a module variable,
+ * so no consumer declared a dependency on the shell and none of them stopped
+ * asking when it left (the audit's §2 and §12).
+ *
+ * The readings are on `layout.shell` now (`../index.ts`'s {@link Shell}),
+ * offered by this row's activation and declared by each consuming row on a
+ * component of its own. What is left here is the KEYS, the BOUNDS and the
+ * arithmetic — which is what a contract door is for, and is also what the e2e
+ * suite reads of it.
  */
-
-import { type Accessor,createSignal } from "solid-js"
 
 import type { SetOptions } from "@olai/web/client/preference.ts"
 
@@ -142,93 +156,10 @@ export const fitWidths = (
   return { side, chat }
 }
 
-const [viewportWidth, setViewportWidth] = createSignal(
-  10_000,
-)
-
-// ── the five circuits, one factory ────────────────────────────────────────
-//
-// Each preference is its codec and nothing else; the read→signal→write→watch
-// wiring is `createPreference`'s (../preference.ts). The setters below stay,
-// because they are where a VALUE is decided — a width is clamped before it is
-// a width — and the accessors stay because a width is fitted to the viewport
-// on the way out, which is a fact about layout and not about storage.
-
+/** The five preference circuits a layout activation installs — the shape
+ *  `./prefs-owner.ts` builds and `./live.ts` holds. */
 interface Preference<T> {readonly value:()=>T;readonly set:(value:T,opts?:SetOptions)=>void}
 export interface LayoutPreferences {
  readonly sidebarOpenPref:Preference<boolean>;readonly sidebarWidthPref:Preference<number>
  readonly panelOpenPref:Preference<boolean>;readonly panelWidthPref:Preference<number>;readonly panelSnapPref:Preference<ChatSnap>
 }
-const [active,setActive]=createSignal<LayoutPreferences>()
-export const holdLayoutPreferences=(value:LayoutPreferences):(()=>void)=>{setActive(value);return()=>{if(active()===value)setActive(undefined)}}
-export const publishViewportWidth=(value:number):void=>{setViewportWidth(value)}
-// ── sidebar open (desktop: full column vs icon rail) ──────────────────────
-
-export const sidebarOpen: Accessor<boolean> = () => active()?.sidebarOpenPref.value() ?? true
-
-export const setSidebarOpen = (open: boolean): void => active()?.sidebarOpenPref.set(open)
-
-export const toggleSidebar = (): void => setSidebarOpen(!sidebarOpen())
-
-// ── sidebar width ─────────────────────────────────────────────────────────
-
-/** Live width, clamped to the current viewport. */
-export const sidebarWidth: Accessor<number> = () =>
-  fitWidths(
-    (active()?.sidebarWidthPref.value() ?? SIDEBAR_DEFAULT_PX),
-    (active()?.panelWidthPref.value() ?? CHAT_DEFAULT_PX),
-    sidebarOpen(),
-    panelOpen(),
-    viewportWidth(),
-  ).side
-
-/**
- * Set the sidebar width. During a drag pass `{ persist: false }` so every
- * pointermove does not write localStorage (and fire cross-tab storage events);
- * the handle's `onEnd` persists once.
- */
-export const setSidebarWidth = (px: number, opts?: SetOptions): void =>
-  active()?.sidebarWidthPref.set(clamp(Math.round(px), SIDEBAR_MIN_PX, SIDEBAR_MAX_PX), opts)
-
-// ── chat open (open dock/sheet vs minimized pill/strip) ───────────────────
-
-/** Is the agent panel open right now? Minimized is the other of the two states. */
-export const panelOpen: Accessor<boolean> = () => active()?.panelOpenPref.value() ?? false
-
-export const setPanelOpen = (open: boolean): void => active()?.panelOpenPref.set(open)
-
-export const togglePanel = (): void => setPanelOpen(!panelOpen())
-
-// ── chat width ────────────────────────────────────────────────────────────
-
-/** Live width, clamped to the current viewport. */
-export const panelWidth: Accessor<number> = () =>
-  fitWidths(
-    (active()?.sidebarWidthPref.value() ?? SIDEBAR_DEFAULT_PX),
-    (active()?.panelWidthPref.value() ?? CHAT_DEFAULT_PX),
-    sidebarOpen(),
-    panelOpen(),
-    viewportWidth(),
-  ).chat
-
-export const setPanelWidth = (px: number, opts?: SetOptions): void =>
-  active()?.panelWidthPref.set(clamp(Math.round(px), PANEL_MIN_PX, PANEL_MAX_PX), opts)
-
-/** Reset both panels to their defaults (palette command for keyboard users). */
-export const resetPanelWidths = (): void => {
-  setSidebarWidth(SIDEBAR_DEFAULT_PX)
-  setPanelWidth(CHAT_DEFAULT_PX)
-}
-
-// ── mobile chat snap ──────────────────────────────────────────────────────
-
-export const panelSnap: Accessor<ChatSnap> = () => active()?.panelSnapPref.value() ?? "half"
-
-export const setPanelSnap = (snap: ChatSnap): void => active()?.panelSnapPref.set(snap)
-
-// ── cross-tab follow ──────────────────────────────────────────────────────
-
-/**
- * Follow preferences and viewport width for this layout activation. A fresh
- * activation rereads both; disposal detaches every subscription.
- */

@@ -42,7 +42,7 @@ import type { RowAction } from "olai-plugin-outlines/slots"
  */
 
 
-import { setPanelOpen } from "olai-plugin-layout/preferences"
+import { setPanelOpen } from "./shell.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { Result } from "effect"
 

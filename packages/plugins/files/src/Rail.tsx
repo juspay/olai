@@ -2,7 +2,7 @@ import { TESTID } from "olai-plugin-files/testids"
 import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
 import { Glyph } from "olai-plugin-files/icons"
 
-import { setSidebarOpen } from "olai-plugin-layout/preferences"
+import { setSidebarOpen } from "./shell.ts"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
 const ICON = "size-4"

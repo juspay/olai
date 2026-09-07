@@ -19,7 +19,7 @@ import { TESTID } from "olai-plugin-sidebar/testids"
 import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
 import { PluginRailEntries } from "./Seats.tsx"
 
-import { setSidebarOpen } from "olai-plugin-layout/preferences"
+import { setSidebarOpen } from "./shell.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { For } from "solid-js"
 import { railEntries } from "./contract.ts"

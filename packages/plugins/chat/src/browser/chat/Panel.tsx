@@ -56,16 +56,16 @@ import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from 
 import type { AgentChoice } from "olai-plugin-chat/wire"
 import { hideUnassigned, showingUnassigned } from "../agents/showing.ts"
 import { Unassigned } from "../agents/Unassigned.tsx"
-import { PanelHandle } from "olai-plugin-layout/contract"
-import { desktop } from "olai-plugin-layout/media"
+import type { ChatSnap } from "olai-plugin-layout/preferences"
 import {
+  desktop,
+  PanelHandle,
   panelOpen,
   panelSnap,
   panelWidth,
   setPanelOpen,
   setPanelSnap,
-  type ChatSnap,
-} from "olai-plugin-layout/preferences"
+} from "../shell.ts"
 import { LAYER, WITHIN } from "@olai/web/client/layer.ts"
 import { TESTID } from "../../testids.ts"
 import { ICON_BUTTON } from "@olai/web/client/readout.ts"

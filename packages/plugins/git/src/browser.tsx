@@ -8,7 +8,8 @@ import type {} from "olai-plugin-layout/slots"
  */
 
 import { definePlugin, Slots, Wired } from "@olai/plugin-api"
-import { desktop } from "olai-plugin-layout/media"
+import { desktop, holdShell } from "./browser/shell.ts"
+import { shell as layoutShell } from "olai-plugin-layout/contract"
 import { Effect } from "effect"
 import { Show } from "solid-js"
 
@@ -35,3 +36,12 @@ export default definePlugin({
     ))
   }),
 })
+
+/** The shell's breakpoint, DECLARED — a component of its own, so the pill and
+ *  the panel keep working under another layout (`./browser/shell.ts`). */
+export const components = {
+  shell: definePlugin({ name: "shell", needs: [layoutShell], apply: Effect.gen(function*() {
+    const geometry = yield* layoutShell
+    yield* Effect.acquireRelease(Effect.sync(() => holdShell(geometry)), stop => Effect.sync(stop))
+  }) }),
+}

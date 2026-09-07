@@ -4,6 +4,8 @@ import { registerWriter } from "@olai/edit-history/writing.ts"
 import { dispatch } from "./surface.ts"
 import { fileAccess } from "olai-plugin-vault/contract"
 import { holdVault } from "./vault.ts"
+import { shell as layoutShell } from "olai-plugin-layout/contract"
+import { holdShell } from "./shell.ts"
 import { DeleteFile } from "./file/DeleteFile.tsx"
 import { clearNewFileMemory,NewFile } from "./file/NewFile.tsx"
 /** Directory membership and folder preferences belong to files, independently
@@ -31,7 +33,14 @@ export default definePlugin({name:"files", needs:[Wired, Offers, fileAccess], ap
  yield* Effect.acquireRelease(Effect.sync(followFolders), stop => Effect.sync(stop))
  yield* (yield* Offers).own("state",()=>({Delete:DeleteFile,New:NewFile}))
 })})
-export const components = { sidebar: definePlugin({name:"sidebar", needs:[fileState,fileAccess, rendererSlots, navigation], apply:Effect.gen(function*(){
+export const components = {
+ /** The shell's geometry, DECLARED — a component of its own because content
+  *  runs under another layout entirely (`./shell.ts`). */
+ shell: definePlugin({name:"shell", needs:[layoutShell], apply:Effect.gen(function*(){
+  const geometry=yield* layoutShell
+  yield* Effect.acquireRelease(Effect.sync(()=>holdShell(geometry)),stop=>Effect.sync(stop))
+ })}),
+ sidebar: definePlugin({name:"sidebar", needs:[fileState,fileAccess, rendererSlots, navigation], apply:Effect.gen(function*(){
  const nav=yield* navigation, slots=yield* rendererSlots
  yield* slots.contribute(railEntries,FileRail)
  yield* slots.contribute(regions,{at:"files" as const,Body:props=><Files {...props} active={fileNamed(nav.route())??nav.focused()?.file} />},{children:[fileTypes]})

@@ -13,6 +13,8 @@ import { holdFaces, hung } from "./faces.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./palette/reading.ts"
 import { holdLocations } from "./locations.ts"
+import { shell as layoutShell } from "olai-plugin-layout/contract"
+import { holdShell } from "./palette/shell.ts"
 import { Effect } from "effect"
 import { overlays } from "olai-plugin-layout/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -92,8 +94,12 @@ export const components = {
  const files=yield* fileAccess
  const opens=(path:string,at?:string)=>files.paths().includes(path)?atElement(path,at??null):undefined
  yield* (yield* Offers).own("file-links",()=>opens)
-})}), palette:definePlugin({name:"palette",needs:[navigation,rendererSlots,Clocks,Faces],apply:Effect.gen(function*(){
+})}), palette:definePlugin({name:"palette",needs:[navigation,rendererSlots,Clocks,Faces,layoutShell],apply:Effect.gen(function*(){
  yield* holdFaces(yield* Faces)
+ // The two panel verbs and the breakpoint the palette spends
+ // (`./palette/shell.ts`).
+ const geometry=yield* layoutShell
+ yield* Effect.acquireRelease(Effect.sync(()=>holdShell(geometry)),stop=>Effect.sync(stop))
  const nav=yield* navigation
  yield* (yield* rendererSlots).contribute(overlays,props=><RouterProvider router={nav}><Palette go={nav.go} toggleDirectory={props.toggleDirectory}/></RouterProvider>)
 })}),}

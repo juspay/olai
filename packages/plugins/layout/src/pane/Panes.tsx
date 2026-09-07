@@ -28,7 +28,7 @@ isLone,
 panesOf,
 type Pane,
 } from "olai-plugin-navigation/workspace"
-import { desktop } from "../layout/media.ts"
+import { desktop } from "../layout/live.ts"
 import { SHELL_LONE,SHELL_SPLIT } from "../layout/sheet.ts"
 import { PANE_RAIL_PX,snap } from "./geometry.ts"
 import { labelOf } from "./label.ts"

@@ -5,7 +5,7 @@ import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
 import { PluginEntries,PluginSections } from "./Seats.tsx"
 
-import { setSidebarOpen } from "olai-plugin-layout/preferences"
+import { setSidebarOpen } from "./shell.ts"
 import { For,Show } from "solid-js"
 import { regions,type SidebarRegionProps } from "./contract.ts"
 function Regions(props: { at: string; props: SidebarRegionProps }) {

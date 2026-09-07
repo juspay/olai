@@ -80,6 +80,8 @@ import { holdReading } from "./browser/search.ts"
 import { references as outlineReferences } from "olai-plugin-outlines/references"
 import { holdReferences } from "./browser/references.ts"
 import { holdVault } from "./browser/vault.ts"
+import { shell as layoutShell } from "olai-plugin-layout/contract"
+import { holdShell } from "./browser/shell.ts"
 import { type ChatClient, holdChatWire } from "./browser/wire.ts"
 
 /** THE WIRE IDENTITY, on this door too — and `surface` is the load-bearing
@@ -163,6 +165,13 @@ import { sections } from "olai-plugin-preferences/contract"
 import { appearance } from "olai-plugin-theme/contract"
 import { createEffect, createRoot } from "solid-js"
 export const components = {
+  /** The shell's geometry, DECLARED — a component of its own because content
+   *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
+   *  that waited for this one could not (`./browser/shell.ts`). */
+  shell: definePlugin({ name: "shell", needs: [layoutShell], apply: Effect.gen(function*() {
+    const geometry = yield* layoutShell
+    yield* Effect.acquireRelease(Effect.sync(() => holdShell(geometry)), stop => Effect.sync(stop))
+  }) }),
   /** The matcher, DECLARED — a component of its own so the panel, the
    *  transcript and the roster keep working with no matcher mounted
    *  (`./browser/search.ts`). */

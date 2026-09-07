@@ -10,7 +10,8 @@
 
 import { createEffect,onCleanup } from "solid-js"
 
-import { panelWidth,RAIL_WIDTH_PX,sidebarOpen,sidebarWidth } from "./prefs.ts"
+import { RAIL_WIDTH_PX } from "./prefs.ts"
+import { panelWidth,sidebarOpen,sidebarWidth } from "./live.ts"
 
 /** Keep `--width-sidebar` / `--width-panel` in step with the preferences. */
 export const publishLayoutCss = (): void => {

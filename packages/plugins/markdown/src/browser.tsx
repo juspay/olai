@@ -24,6 +24,8 @@ import { holdHistory, useHistory } from "./browser/history.ts"
 import { holdLocations } from "./browser/locations.ts"
 import { holdVault } from "./browser/vault.ts"
 import { holdOpens } from "./browser/links.ts"
+import { shell as layoutShell } from "olai-plugin-layout/contract"
+import { holdShell } from "./browser/shell.ts"
 import { EmbeddedDocument } from "./browser/EmbeddedDocument.tsx"
 import { openCreated, clearMinted } from "./browser/document/minted.ts"
 import { MarkdownPageView } from "./browser/PageView.tsx"
@@ -58,6 +60,13 @@ export default definePlugin({ name, needs: [Wired, Offers], apply: Effect.gen(fu
   yield* offers.own("editing", () => state.value.editing)
 }) })
 export const components = {
+  /** The shell's geometry, DECLARED — a component of its own because content
+   *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
+   *  that waited for this one could not (`./browser/shell.ts`). */
+  shell: definePlugin({ name: "shell", needs: [layoutShell], apply: Effect.gen(function*() {
+    const geometry = yield* layoutShell
+    yield* Effect.acquireRelease(Effect.sync(() => holdShell(geometry)), stop => Effect.sync(stop))
+  }) }),
   messages: definePlugin({name:"messages",needs:[browserState,navigation,Slots],apply:Effect.gen(function*(){
     const nav = yield* navigation
     const history = useHistory()

@@ -10,6 +10,8 @@ import { slotContracts } from "./slots.ts"
  * Notebook readings inside Sidebar remain an explicit Phase 18 extraction. */
 import { definePlugin, Faces } from "@olai/plugin-api"
 import { holdFaces } from "./faces.ts"
+import { shell as layoutShell } from "olai-plugin-layout/contract"
+import { holdShell } from "./shell.ts"
 import { Effect } from "effect"
 import { sidebar } from "olai-plugin-layout/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -28,3 +30,12 @@ export default definePlugin({
     })
   }),
 })
+
+/** The shell's geometry, DECLARED — a component of its own because content
+ *  runs under another layout entirely (`./shell.ts`). */
+export const components = {
+  shell: definePlugin({ name: "shell", needs: [layoutShell], apply: Effect.gen(function*() {
+    const geometry = yield* layoutShell
+    yield* Effect.acquireRelease(Effect.sync(() => holdShell(geometry)), stop => Effect.sync(stop))
+  }) }),
+}

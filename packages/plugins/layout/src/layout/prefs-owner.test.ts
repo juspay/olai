@@ -1,6 +1,7 @@
 import {expect,test} from "bun:test"
 import {followLayout} from "./prefs-owner.ts"
-import {PANEL_OPEN_KEY,panelOpen,setPanelOpen,setSidebarWidth,SIDEBAR_WIDTH_KEY,sidebarWidth} from "./prefs.ts"
+import {PANEL_OPEN_KEY,SIDEBAR_WIDTH_KEY} from "./prefs.ts"
+import {panelOpen,setPanelOpen,setSidebarWidth,sidebarWidth} from "./live.ts"
 
 test("layout owns fresh preferences, listeners and stopped setters",()=>{
  const oldWindow=Object.getOwnPropertyDescriptor(globalThis,"window")
