@@ -155,6 +155,13 @@ general=packages/server
 general_src=$general/src/main.ts
 sheet=packages/web/src/client/styles.css
 other_dial=packages/plugins/odu/src/appliance/index.ts
+# ...and the SHELL DOOR every browser half opens, which is where three of the
+# Cordis audit's §12 findings were: a general package's wildcard `./client/*`,
+# holding one row's live value for every other row to read. Typed for the sheet's
+# reason — a derived "first module a plugin opens from `@olai/web`" would pick
+# alphabetically and mean nothing — and `run.ts` is chosen because it is opened
+# by three tenants and holds nothing today, so the mutation is the whole defect.
+shell_door=packages/web/src/client/run.ts
 
 [ -n "$plugin_b" ] || { echo "prove-fence: fewer than two plugins found" >&2; exit 1; }
 case "$plugins" in *"$registry"*) echo "prove-fence: the registry came back as a plugin" >&2; exit 1 ;; esac
@@ -166,7 +173,7 @@ case "$plugins" in *"$registry"*) echo "prove-fence: the registry came back as a
 for path in "$registry" "$plugin_a" "$plugin_b" "$general_src" "$sheet" "$other_dial" \
   "$container" "$plugin_a/src/browser.tsx" "$plugin_b/src/browser.tsx" \
   "$tenant_a/src/wire.ts" "$plugin_a/src/server.ts" "$plugin_b/src/server.ts" \
-  "$plugin_b/src/browser/Mark.tsx"; do
+  "$shell_door" "$plugin_b/src/browser/Mark.tsx"; do
   [ -e "$path" ] || { echo "prove-fence: derived path $path does not exist" >&2; exit 1; }
 done
 
@@ -286,7 +293,7 @@ unnamed=0
 # this script's own indictment of the lints reproduced on its one argument.
 #
 # Plugin package edges are forbidden again: services carry the dependency.
-DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18"
+DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20"
 for want in $only; do
   case " $DECLARED " in
     *" $want "*) ;;
@@ -518,6 +525,23 @@ run 16 "a plugin imports the ENGINE directly" \
 #
 # `packages/server` is where this defect historically WAS in its other form: the
 # composition root held the roster and the composition root named the agents.
+# ── the audit's §12: a door that HOLDS rather than reaches ───────────────────
+#
+# The eighteen above are all about what a module REACHES FOR. Neither of these
+# two reaches for anything: they are the shape the Cordis audit names — a live
+# value at module scope behind a door another package opens — and before this
+# branch the fence was green on both.
+
+run 19 "a plugin's CONTRACT DOOR holds another activation's value" \
+  'cross-plugin static contracts resolve without private implementation' \
+  append "$tenant_a/src/wire.ts" 'let heldByProveFence: unknown
+export const provenCurrent = () => heldByProveFence'
+
+run 20 "the SHELL DOOR every browser half opens holds one" \
+  'nothing opened across a boundary holds live state' \
+  append "$shell_door" 'let heldByProveFence: unknown
+export const provenCurrent = () => heldByProveFence'
+
 run 17 "a general package SPELLS AN ENGINE'S name in code" \
   "outside the registry and the plugin's own tenant spells it" \
   append "$general_src" 'export const claudeSeat = () => null'

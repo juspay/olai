@@ -44,6 +44,8 @@
 
 import { existsSync, readFileSync } from "node:fs"
 
+import ts from "typescript"
+
 import type { PluginWire } from "@olai/plugin-api"
 
 import { ROWS } from "./rows.ts"
@@ -602,3 +604,199 @@ export const composing = (
     }
     return [{ ...half, surface: half.surface, faces: half.faces }]
   })
+
+// ── shared activation state ────────────────────────────────────────────
+//
+// The fourth reading this file offers, and the newest: what a module KEEPS
+// between calls. The three above are about what a file reaches for; this one is
+// about what it holds, and `fence.test.ts`'s claim over it is the Cordis
+// audit's §12 — *shared activation state crossing package boundaries outside
+// declared services*.
+
+/**
+ * WHAT A MODULE HOLDS AT ITS OWN SCOPE — one line per binding that can carry a
+ * value from one call to the next, or the empty list for an inert module.
+ *
+ * ## Why a real parser, and not the pattern every other reading here is
+ *
+ * The shapes this hunts are three, and two of them are indistinguishable from
+ * their legitimate twins by text alone:
+ *
+ *   - `let held` at module scope is state; `let n` inside a function is a
+ *     local, and both spell `let`.
+ *   - `const [x, setX] = createSignal()` at module scope is state; the same
+ *     line inside `createThing = () => …` is a FACTORY, which is the shape half
+ *     this tree's browser furniture takes and the one `@olai/ui-primitives`'
+ *     `held.ts` exists to be.
+ *
+ * A fence may only ever be wrong in the direction that fails LOUDLY, and a
+ * regex over transpiled text is wrong in the other one: it would have to either
+ * pass every factory (and miss the defect) or fail every one (and be worked
+ * around within a week). So the reading is `typescript`'s own parser, over the
+ * SOURCE — which also means a comment quoting a prohibited shape, as this
+ * paragraph does, cannot trip it.
+ *
+ * ## The three rules, and what each is about
+ *
+ * 1. **`let` / `var` at module scope.** A binding that can be REBOUND is the
+ *    audit's own example: `let held: Client | undefined` with an
+ *    `export const current = () => held` beside it.
+ * 2. **A reactive cell evaluated at module scope** — `createSignal`,
+ *    `createStore`, `createMutable`, `createResource`. Solid's `const [x, setX]`
+ *    is a `const` and is state all the same; what makes it state is that the
+ *    CELL is minted when the module is evaluated rather than when a caller asks.
+ * 3. **A `const` the module MUTATES** — `.set`, `.add`, `.push`, a property or
+ *    element assignment. This is the audit's "cover mutable objects declared
+ *    with `const`", and it is deliberately narrower than "a top-level `Map`":
+ *    an inert lookup table built once and never written is a valid contract,
+ *    and a `ReadonlyMap` annotation proves nothing about it, so what is read is
+ *    whether the module writes.
+ *
+ * Everything else passes: a primitive, a function, a class, a frozen table, a
+ * `new Map([...])` nobody writes to, a type. A source check supports the
+ * ownership rule; it cannot prove arbitrary program behaviour, and this one is
+ * not asked to.
+ *
+ * The answer is a LINE per finding rather than a boolean, because a failure
+ * has to name the binding somebody then has to move.
+ */
+export const liveStateIn = (
+  file: string,
+  /** The source, for a FIXTURE. Absent is the ordinary reading — open the file
+   *  under `packages/`. A fixture hands its own text so the claims about this
+   *  reading can be made over the shapes themselves rather than over whichever
+   *  module in the tree happens to have one this week. */
+  supplied?: string,
+): ReadonlyArray<string> => {
+  const absolute = path.join(PACKAGES, file)
+  let text: string
+  try {
+    text = supplied ?? readFileSync(absolute, "utf8")
+  } catch {
+    // A file this reading cannot open is reported rather than skipped: a claim
+    // that passed over an unreadable module would be the fence passing by not
+    // running, which is what `graphFrom`'s `unresolved` exists to refuse one
+    // reading over.
+    return [`${file}: could not be read`]
+  }
+  const source = ts.createSourceFile(
+    absolute,
+    text,
+    ts.ScriptTarget.ESNext,
+    /* setParentNodes */ true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  )
+  const found: Array<string> = []
+  /** The module-scope `const` bindings, by name — the candidates rule 3 asks
+   *  about after the whole file has been read for writes. */
+  const bound = new Set<string>()
+
+  for (const statement of source.statements) {
+    if (!ts.isVariableStatement(statement)) continue
+    const rebindable = (statement.declarationList.flags & ts.NodeFlags.Const) === 0
+    for (const declaration of statement.declarationList.declarations) {
+      const spelled = declaration.name.getText(source)
+      if (rebindable) {
+        found.push(`${file}: \`${spelled}\` is a module-scope let/var`)
+        continue
+      }
+      if (ts.isIdentifier(declaration.name)) bound.add(declaration.name.text)
+      const cell = declaration.initializer === undefined
+        ? undefined
+        : reactiveAt(declaration.initializer)
+      if (cell !== undefined) {
+        found.push(`${file}: \`${spelled}\` is a module-scope ${cell}()`)
+      }
+    }
+  }
+
+  const written = mutatedIn(source)
+  for (const name of bound) {
+    if (written.has(name)) found.push(`${file}: \`${name}\` is a const this module writes to`)
+  }
+  return found
+}
+
+/** Solid's cells, by the names that mint one. A call to any of these is state
+ *  where it is EVALUATED, which is what {@link atModuleScope} decides. */
+const REACTIVE: ReadonlySet<string> = new Set([
+  "createSignal",
+  "createStore",
+  "createMutable",
+  "createResource",
+])
+
+/** Which cell an initializer mints when the module is evaluated, or nothing —
+ *  a call inside a function body is that function's, however deep. */
+const reactiveAt = (initializer: ts.Expression): string | undefined => {
+  let found: string | undefined
+  const walk = (node: ts.Node): void => {
+    if (found !== undefined) return
+    if (
+      ts.isCallExpression(node) && ts.isIdentifier(node.expression)
+      && REACTIVE.has(node.expression.text) && atModuleScope(node, initializer)
+    ) {
+      found = node.expression.text
+      return
+    }
+    ts.forEachChild(node, walk)
+  }
+  walk(initializer)
+  return found
+}
+
+/** Is this node evaluated when the module is — outside every function and class
+ *  body between it and the declaration it sits in, the declaration's own
+ *  initializer included (`const make = () => createSignal()` is a factory). */
+const atModuleScope = (node: ts.Node, root: ts.Node): boolean => {
+  if (ts.isFunctionLike(root) || ts.isClassLike(root)) return false
+  for (let at: ts.Node | undefined = node.parent; at !== undefined && at !== root; at = at.parent) {
+    if (ts.isFunctionLike(at) || ts.isClassLike(at)) return false
+  }
+  return true
+}
+
+/** The methods that write to a collection. Reading one (`.get`, `.has`, `.map`)
+ *  is what an inert lookup table is FOR and says nothing. */
+const MUTATORS: ReadonlySet<string> = new Set([
+  "set",
+  "add",
+  "delete",
+  "clear",
+  "push",
+  "pop",
+  "shift",
+  "unshift",
+  "splice",
+  "sort",
+  "reverse",
+  "fill",
+])
+
+/** Every identifier this module writes THROUGH — `x.set(…)`, `x.y = …`,
+ *  `x[k] = …`. Read over the whole file rather than at module scope, because a
+ *  module-scope `const` written from inside an exported function is exactly the
+ *  shape this is about. */
+const mutatedIn = (source: ts.SourceFile): ReadonlySet<string> => {
+  const written = new Set<string>()
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+      && ts.isIdentifier(node.expression.expression) && MUTATORS.has(node.expression.name.text)
+    ) {
+      written.add(node.expression.expression.text)
+    }
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+      const target = node.left
+      if (
+        (ts.isPropertyAccessExpression(target) || ts.isElementAccessExpression(target))
+        && ts.isIdentifier(target.expression)
+      ) {
+        written.add(target.expression.text)
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  return written
+}

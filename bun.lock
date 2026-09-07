@@ -55,6 +55,7 @@
         "@olai/effect-cordis": "workspace:*",
         "@olai/format": "workspace:*",
         "@olai/markdown-ui": "workspace:*",
+        "@olai/ops": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/store": "workspace:*",
         "@olai/surface": "workspace:*",
@@ -93,6 +94,9 @@
         "olai-plugin-web-app": "workspace:*",
         "olai-plugin-ws": "workspace:*",
         "olai-plugin-xyne-spaces": "workspace:*",
+      },
+      "devDependencies": {
+        "typescript": "^5.8.0",
       },
     },
     "packages/child": {
@@ -489,12 +493,6 @@
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "effect": "4.0.0-rc.112",
-        "olai-plugin-files": "workspace:*",
-        "olai-plugin-markdown": "workspace:*",
-        "olai-plugin-outlines": "workspace:*",
-        "olai-plugin-search": "workspace:*",
-        "olai-plugin-vault": "workspace:*",
-        "olai-plugin-vault-plugins": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^22.0.0",
