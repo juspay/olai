@@ -2571,6 +2571,37 @@ describe("a module another package can open holds no live value", () => {
     // ...including one that assigns the field rather than filling a collection.
     expect(said(`class Box { at = null\n put(v) { this.at = v } }\nexport const box = new Box()`))
       .toEqual(["fixture.ts: `box` is a module-scope new Box()"])
+
+    // AN UNRELATED LOCAL FURTHER DOWN DOES NOT HIDE THE WRITE, which a second
+    // review reproduced as clean: the reading asked whether ANY descendant of
+    // an enclosing scope declared the name, so a `const` in a nested block
+    // three lines later shadowed a use that came before it and outside it.
+    expect(said(`const writers = new Map()
+export const register = (k, v) => {
+  writers.set(k, v)
+  { const writers = []; writers.push("local") }
+}`)).toEqual(["fixture.ts: `writers` is a const this module writes to"])
+    // ...the same one loop-scoped rather than block-scoped.
+    expect(said(`const seats = new Map()
+export const fill = (rows) => {
+  seats.set(1, 1)
+  for (const seats of rows) void seats
+}`)).toEqual(["fixture.ts: `seats` is a const this module writes to"])
+    // ...and one hidden inside a nested FUNCTION, which has its own scope and
+    // never lent a binding to its parent.
+    expect(said(`const held = new Map()
+export const put = (k) => {
+  held.set(k, 1)
+  return () => { const held = []; held.push(k) }
+}`)).toEqual(["fixture.ts: `held` is a const this module writes to"])
+    // ...and a `var`, which IS the function's however deep it is written, so a
+    // write beside it is that local's and not the module's — the one case
+    // where "somewhere inside" was the right answer.
+    expect(said(`const counted = new Map()
+export const count = (k) => {
+  { var counted = new Map() }
+  counted.set(k, 1)
+}`)).toEqual([])
   })
 
   test("...and passes every legitimate contract", () => {
@@ -2629,6 +2660,16 @@ describe("a module another package can open holds no live value", () => {
     // writes to a `const` it never touches.
     expect(said(`export const homes = (rows) => { const homes = []\n for (const r of rows) homes.push(r)\n return homes }`))
       .toEqual([])
+    // ...and the same shadowing one block down, where the write IS the local's.
+    expect(said(`const rows = new Map()
+export const count = (all) => { const rows = []\n for (const one of all) rows.push(one)\n return rows.length }`))
+      .toEqual([])
+    // ...a parameter, which shadows for the whole body.
+    expect(said(`const held = new Map()
+export const put = (held) => { held.set(1, 1) }`)).toEqual([])
+    // ...and a loop binding, over the loop.
+    expect(said(`const at = new Map()
+export const walk = (rows) => { for (const at of rows) at.set(1, 1) }`)).toEqual([])
   })
 })
 

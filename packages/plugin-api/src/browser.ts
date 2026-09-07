@@ -551,18 +551,41 @@ export const NO_EDITS: EditWriters = {
 const editWriters = (): EditWriters => {
   const writers = new Map<string, (edit: never) => Effect.Effect<unknown, unknown>>()
   return {
+    /**
+     * THE CHECK AND EVERY INSERTION ARE ONE STEP.
+     *
+     * This was `Effect.suspend(() => taken.length ? die : acquire)` — look at
+     * the table in one Effect, fill it in the next — and Effect can yield
+     * between two Effects. A review reproduced two claimants both finding
+     * their verbs free and both installing, with the dispatch then answering
+     * through the second. The synchronous `registerWriter` this replaced had
+     * no such gap, which is the sort of thing a migration loses quietly.
+     *
+     * So the acquisition is ONE `Effect.sync`: it decides and writes inside a
+     * single synchronous body, and a partial claim installs NOTHING — the
+     * overlap is computed before the first `set`, so a claim on two verbs one
+     * of which is taken leaves the other free. Uninterruptible would not have
+     * done it; uninterruptible is about interruption, not about yielding.
+     */
     register: (verbs, write) =>
-      Effect.suspend(() => {
-        const taken = verbs.filter((verb) => writers.has(verb))
-        return taken.length > 0
-          ? Effect.die(new Error(`edit writer already registered: ${taken.join(", ")}`))
-          : Effect.acquireRelease(
-            Effect.sync(() => { for (const verb of verbs) writers.set(verb, write) }),
-            () => Effect.sync(() => {
-              for (const verb of verbs) if (writers.get(verb) === write) writers.delete(verb)
-            }),
-          ).pipe(Effect.asVoid)
-      }),
+      Effect.acquireRelease(
+        Effect.sync((): ReadonlyArray<string> => {
+          const taken = verbs.filter((verb) => writers.has(verb))
+          if (taken.length === 0) for (const verb of verbs) writers.set(verb, write)
+          return taken
+        }),
+        // A LOSER RELEASES NOTHING: its scope closes like any other — the die
+        // below is raised after this finalizer is on it — and a release that
+        // did not ask would take the WINNER's writer out of the table.
+        (taken) => Effect.sync(() => {
+          if (taken.length > 0) return
+          for (const verb of verbs) if (writers.get(verb) === write) writers.delete(verb)
+        }),
+      ).pipe(Effect.flatMap((taken) =>
+        taken.length === 0
+          ? Effect.void
+          : Effect.die(new Error(`edit writer already registered: ${taken.join(", ")}`)),
+      )),
     write: (edit) =>
       Effect.suspend(() => {
         const write = writers.get(edit.verb)

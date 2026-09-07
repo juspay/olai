@@ -3,8 +3,8 @@
  * that declared it.
  *
  * A write follows the capability that owns its verb, and the table that says
- * which is the APP's (`@olai/edit-history`'s `Edits`, minted by the browser
- * host). It used to be a `const writers = new Map()` at that package's module
+ * which is the APP's (`@olai/plugin-api`'s `Edits`, supplied by `openApp`). It
+ * used to be a `const writers = new Map()` at `@olai/edit-history`'s module
  * scope: five plugin activations wrote into it and four packages read it, with
  * nothing declared anywhere — the audit's §12, and the reason this file exists.
  *

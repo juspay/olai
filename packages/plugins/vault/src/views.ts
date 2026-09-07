@@ -72,11 +72,21 @@ export interface Views {
  * write recorded* would resolve in favour of whichever mounted last, which is
  * the failure {@link VaultViews} says out loud it does not have.
  *
- * It adds no failure mode a provider could reach by restarting. A provider
- * registers from the same activation that stands behind `Ledger` or `Search`,
- * and Cordis already refuses a second row behind either of those — so an
- * overlap that could reach this refusal is an overlap that would have died one
- * door earlier.
+ * ## THE CHECK AND THE WRITE ARE ONE STEP, and that is the whole of this
+ *
+ * The refusal was written as `Effect.suspend(() => held ? die : acquire)` —
+ * read the slot in one Effect, fill it in the next. Effect can yield between
+ * two Effects, and a review reproduced exactly that: two claimants both read an
+ * empty slot, both installed, and the second silently answered for the first.
+ * A refusal with a gap in it is a refusal for the sequential case only, which
+ * is the case that was never the risk.
+ *
+ * So the acquisition below is ONE `Effect.sync`: it decides and writes inside a
+ * single synchronous body, and there is no point inside it for the runtime to
+ * hand the fiber over. What comes back says whether this caller WON, and the
+ * die is spent afterwards on the answer rather than on a second look at the
+ * slot. Making the two steps uninterruptible would not have done it —
+ * uninterruptible is about interruption, not about yielding.
  *
  * A DEFECT and not a failure, for the reason every other double-claim on this
  * path is one: there is no arm a caller could write for "somebody else got
@@ -88,21 +98,28 @@ const holding = <Door>(what: string) => {
   return {
     read: () => held,
     hold: (door: Door) =>
-      Effect.suspend(() =>
-        held !== undefined
-          ? Effect.die(new Error(
-            `olai-plugin-vault: a second row registered the ${what} this vault records `
-              + "through — a store reads one, and the second would leave every write "
-              + "landing in whichever was mounted last.",
-          ))
-          : Effect.acquireRelease(
-            Effect.sync(() => { held = door }),
-            // BY IDENTITY still, though the refusal above makes a replacement
-            // unreachable: a release that did not check is one line away from
-            // being wrong the day the refusal is relaxed.
-            () => Effect.sync(() => { if (held === door) held = undefined }),
-          ).pipe(Effect.asVoid),
-      ),
+      Effect.acquireRelease(
+        Effect.sync(() => {
+          if (held !== undefined) return false
+          held = door
+          return true
+        }),
+        // THE LOSER RELEASES NOTHING. Its scope closes like any other — the
+        // die below is raised after this finalizer is on it — and a release
+        // that did not ask whether this caller won would take the WINNER's
+        // door out from under a store that is writing through it.
+        //
+        // ...and the winner clears BY IDENTITY, which the refusal makes
+        // unreachable today and which is one line away from being needed the
+        // day it is relaxed.
+        (won) => Effect.sync(() => { if (won && held === door) held = undefined }),
+      ).pipe(Effect.flatMap((won) =>
+        won ? Effect.void : Effect.die(new Error(
+          `olai-plugin-vault: a second row registered the ${what} this vault records `
+            + "through — a store reads one, and the second would leave every write "
+            + "landing in whichever was mounted last.",
+        )),
+      )),
   }
 }
 

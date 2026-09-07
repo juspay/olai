@@ -937,33 +937,95 @@ const mutatedIn = (source: ts.SourceFile): ReadonlySet<string> => {
   return written
 }
 
-/** Does a scope between this use and the module declare the same word — a
- *  local, a parameter, or a `for (const x of …)`? Then the write is that
- *  binding's and says nothing about the module's. */
+/**
+ * Does a scope between this use and the module declare the same word — a local,
+ * a parameter, or a `for (const x of …)`? Then the write is that binding's and
+ * says nothing about the module's.
+ *
+ * ## BY ACTUAL LEXICAL SCOPE, and it was by "somewhere inside"
+ *
+ * This walked every descendant of each enclosing scope, so a binding in a
+ * NESTED block counted as shadowing a use that came before it and outside it:
+ *
+ * ```ts
+ * const writers = new Map()
+ * export const register = (key, value) => {
+ *   writers.set(key, value)          // the module's `writers`
+ *   { const writers = []; writers.push("local") }   // and not this one
+ * }
+ * ```
+ *
+ * A review reproduced that reading as clean, which is the mutable-map rule
+ * losing its whole subject to an unrelated local three lines down. So each
+ * scope is asked only about the bindings it DECLARES: a block's own statements,
+ * a `for`'s own initializer, a function's parameters — plus, for a function,
+ * every `var` inside it, because `var` is the one binding that ignores blocks.
+ *
+ * A `const` declared LATER in the same block still counts, and should: reading
+ * it before its declaration is a temporal-dead-zone throw rather than a read of
+ * the module's, so the name is that block's for the whole of it.
+ */
 const shadowed = (used: ts.Identifier): boolean => {
+  const spells = (name: ts.BindingName): boolean => {
+    if (ts.isIdentifier(name)) return name.text === used.text
+    return name.elements.some((element) =>
+      !ts.isOmittedExpression(element) && spells(element.name))
+  }
+  /** The names a `const`/`let`/`var` statement or a `for` initializer binds. */
+  const bindsIn = (list: ts.VariableDeclarationList): boolean =>
+    list.declarations.some((one) => spells(one.name))
+  /** ...and the `var`s anywhere inside a function, which blocks do not contain. */
+  const varsIn = (node: ts.Node): boolean => {
+    let found = false
+    const walk = (at: ts.Node): void => {
+      if (found) return
+      if (ts.isFunctionLike(at) && at !== node) return
+      if (
+        ts.isVariableStatement(at)
+        && (at.declarationList.flags & (ts.NodeFlags.Const | ts.NodeFlags.Let)) === 0
+        && bindsIn(at.declarationList)
+      ) { found = true; return }
+      ts.forEachChild(at, walk)
+    }
+    ts.forEachChild(node, walk)
+    return found
+  }
+  /** The statements a scope owns — a block's own list, and nothing a nested one
+   *  declares. */
+  const ownStatements = (node: ts.Node): ReadonlyArray<ts.Statement> => {
+    if (ts.isBlock(node) || ts.isCaseClause(node) || ts.isDefaultClause(node)) {
+      return [...node.statements]
+    }
+    if (ts.isCaseBlock(node)) return node.clauses.flatMap((one) => [...one.statements])
+    if (ts.isFunctionLike(node)) {
+      const body = (node as { readonly body?: ts.Node }).body
+      return body !== undefined && ts.isBlock(body) ? [...body.statements] : []
+    }
+    return []
+  }
   const declares = (node: ts.Node): boolean => {
-    let names = false
-    const spelt = (name: ts.BindingName): void => {
-      if (ts.isIdentifier(name)) { names ||= name.text === used.text; return }
-      for (const element of name.elements) {
-        if (!ts.isOmittedExpression(element)) spelt(element.name)
-      }
+    if (ts.isFunctionLike(node)) {
+      if (node.parameters.some((one) => spells(one.name))) return true
+      if (varsIn(node)) return true
     }
-    const scan = (at: ts.Node): void => {
-      if (ts.isVariableDeclaration(at) || ts.isParameter(at)) spelt(at.name)
-      // Nested functions have their own bindings; those are found on their own
-      // way up rather than through this one.
-      if (at !== node && (ts.isFunctionLike(at) || ts.isClassLike(at))) return
-      ts.forEachChild(at, scan)
-    }
-    if (ts.isFunctionLike(node)) for (const parameter of node.parameters) spelt(parameter.name)
-    ts.forEachChild(node, scan)
-    return names
+    if (
+      (ts.isForStatement(node) || ts.isForOfStatement(node) || ts.isForInStatement(node))
+      && node.initializer !== undefined && ts.isVariableDeclarationList(node.initializer)
+      && bindsIn(node.initializer)
+    ) return true
+    return ownStatements(node).some((one) =>
+      ts.isVariableStatement(one) && bindsIn(one.declarationList))
   }
   for (let at: ts.Node | undefined = used.parent; at !== undefined; at = at.parent) {
     if (ts.isSourceFile(at)) return false
-    if ((ts.isFunctionLike(at) || ts.isBlock(at) || ts.isForOfStatement(at) || ts.isForInStatement(at)
-      || ts.isForStatement(at) || ts.isCaseBlock(at)) && declares(at)) return true
+    // A function's own block is asked about the function (parameters, `var`s
+    // and its statements together); asking twice would answer the same.
+    if (ts.isBlock(at) && at.parent !== undefined && ts.isFunctionLike(at.parent)) continue
+    if (
+      (ts.isFunctionLike(at) || ts.isBlock(at) || ts.isForOfStatement(at) || ts.isForInStatement(at)
+        || ts.isForStatement(at) || ts.isCaseBlock(at) || ts.isCaseClause(at) || ts.isDefaultClause(at))
+      && declares(at)
+    ) return true
   }
   return false
 }
