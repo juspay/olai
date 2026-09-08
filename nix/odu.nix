@@ -10,12 +10,32 @@
 # already hydrated one file over. One directory, copied; no expansion to ask
 # for, and nothing for a seed list to compute.
 #
-# THE PIN TRACKS MASTER at the exact revision this tree compiled against.
-# `just update-pins` walks it forward; `npins/sources.json` records the tested
-# revision in this diff. The pinned master includes juspay/odu#103, under which
-# a remote lane that loses its ssh link is re-claimed onto a fresh venue and
-# only its unfinished nodes rerun (bounded by `ODU_MAX_LANE_RESURRECTIONS`,
-# default 2).
+# THE PIN NORMALLY TRACKS MASTER at the exact revision this tree compiled
+# against. `just update-pins` walks it forward; `npins/sources.json` records the
+# tested revision in this diff.
+#
+# RIGHT NOW IT DOES NOT. The recorded revision is the HEAD OF AN UNMERGED
+# BRANCH — juspay/odu#105 ("One authority: every public command is a service
+# client"), 42 commits ahead of the master this tree last compiled against.
+# `sources.json` still names `master` as the branch, deliberately: the intended
+# end state is #105 landing and `just update-pins` walking the pin back onto
+# master at or past it. Until then, any `npins update` REVERTS this pin, and
+# that is the reminder rather than a trap.
+#
+# WHAT #105 COSTS THE CONSUMER, since a pin bump is where it lands. odu's MCP
+# face was renamed wholesale: the verbs `run`, `node_rerun`, `node_cancel`,
+# `wait_for_settle`, `lease`, `release` became `run_start`, `run_retry`,
+# `run_cancel`, `run_wait`, `venue_hold`, `venue_release` (plus `run_read`,
+# `log_read`, `pipeline_read`, `venue_probe`, `catalog_import`,
+# `catalog_prune`, `protect_apply`). `packages/plugins/odu/src/probe.ts` checks
+# its `VERBS` list against what `odu mcp` answers, and at this revision NONE of
+# the six are present — so the probe's verdict is `missing` in every
+# conversation until that plugin is moved onto the new names. This pin is not
+# shippable on its own; it is the half that lets that work be written.
+#
+# The pinned tree still carries juspay/odu#103, under which a remote lane that
+# loses its ssh link is re-claimed onto a fresh venue and only its unfinished
+# nodes rerun (bounded by `ODU_MAX_LANE_RESURRECTIONS`, default 2).
 #
 # WHY THE SCRIPT IS KOLU'S. The copier is generic — `<src> <dest>` pairs, `cp
 # -rL` so a hydrated source's own imports resolve up into the root
