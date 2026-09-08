@@ -22,16 +22,18 @@
 # master at or past it. Until then, any `npins update` REVERTS this pin, and
 # that is the reminder rather than a trap.
 #
-# WHAT #105 COSTS THE CONSUMER, since a pin bump is where it lands. odu's MCP
+# WHAT #105 COST THE CONSUMER, since a pin bump is where it landed. odu's MCP
 # face was renamed wholesale: the verbs `run`, `node_rerun`, `node_cancel`,
 # `wait_for_settle`, `lease`, `release` became `run_start`, `run_retry`,
 # `run_cancel`, `run_wait`, `venue_hold`, `venue_release` (plus `run_read`,
 # `log_read`, `pipeline_read`, `venue_probe`, `catalog_import`,
-# `catalog_prune`, `protect_apply`). `packages/plugins/odu/src/probe.ts` checks
-# its `VERBS` list against what `odu mcp` answers, and at this revision NONE of
-# the six are present — so the probe's verdict is `missing` in every
-# conversation until that plugin is moved onto the new names. This pin is not
-# shippable on its own; it is the half that lets that work be written.
+# `catalog_prune`, `protect_apply`), and a run is now addressed globally by
+# `runId` rather than by the checkout it was started in. On the first bump NONE
+# of the six names the probe asked for were present, so a conversation drew
+# "its tool surface is missing `run`" instead of holding CI tools —
+# `packages/plugins/odu/src/probe.ts` now names the new six and checks the key
+# that AIMS each of them, and `just odu-surface` asks the built binary that
+# same question so the next move of this pin cannot be quiet about it.
 #
 # The pinned tree still carries juspay/odu#103, under which a remote lane that
 # loses its ssh link is re-claimed onto a fresh venue and only its unfinished
