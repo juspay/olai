@@ -819,7 +819,7 @@ e2e: install nix
 e2e-fast-remote: (_fast-remote "e2e" (env("ODU_E2E_REMOTE_TIMEOUT", "10m")))
 
 # Select the unit-test leaf through the same Odu path as e2e-fast-remote.
-# Odu owns sharding, prerequisite copies, status posting and lease cleanup.
+# Odu owns sharding, prerequisite copies and lease cleanup.
 [group("fast-remote")]
 [doc("Run unit tests on the remote Linux fleet")]
 test-fast-remote: (_fast-remote "test" (env("ODU_TEST_REMOTE_TIMEOUT", "10m")))
@@ -829,6 +829,8 @@ test-fast-remote: (_fast-remote "test" (env("ODU_TEST_REMOTE_TIMEOUT", "10m")))
 [doc("Type-check workspace packages on the remote Linux fleet")]
 typecheck-fast-remote: (_fast-remote "typecheck" (env("ODU_TYPECHECK_REMOTE_TIMEOUT", "10m")))
 
+# Fast checks snapshot the working tree and never post GitHub statuses.
+# `just ci` retains strict committed-HEAD status posting.
 # One invocation policy for the three individual checks. Export the timeout
 # parameter so its value is passed as data, rather than inserted into shell code.
 [private]
@@ -837,7 +839,7 @@ _fast-remote leaf $watch_timeout:
     set -euo pipefail
     exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
       "$watch_timeout" \
-      nix run .#odu --accept-flake-config -- run {{ leaf }} --platform x86_64-linux
+      nix run .#odu --accept-flake-config -- run {{ leaf }} --platform x86_64-linux --no-strict
 
 # Full CI on the Linux fleet, through this tree's pinned Odu. This deliberately
 # keeps Odu's strict defaults: it snapshots clean, pushed HEAD and posts the

@@ -10,11 +10,11 @@
 # already hydrated one file over. One directory, copied; no expansion to ask
 # for, and nothing for a seed list to compute.
 #
-# THE PIN TRACKS MASTER at the exact revision this tree compiled against.
-# `just update-pins` walks it forward; `npins/sources.json` records the tested
-# revision in this diff. The pinned master is juspay/odu#105 ("One authority:
-# every public command is a service client") as it landed — odu squash-merges,
-# so master's head IS that commit.
+# The draft integration pin is juspay/odu#108 at the exact revision recorded
+# in npins/sources.json. Re-pin to merged master before merging Olai.
+# Coordinator and runner are built together from this source, including the
+# working-tree snapshot transport used by the fast-remote recipes.
+# `just update-pins` resumes tracking master after that integration lands.
 #
 # WHAT #105 COST THE CONSUMER, since a pin bump is where it landed. odu's MCP
 # face was renamed wholesale: the verbs `run`, `node_rerun`, `node_cancel`,
