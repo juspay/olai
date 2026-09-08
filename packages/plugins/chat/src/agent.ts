@@ -1630,8 +1630,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // about THIS visit. Load un-closes before the replay too, because the
         // frames land before this runs.
         closed.delete(id)
-        emit({ _tag: "session", id, title })
-        yield* lifecycle(Effect.logInfo("conversation opened"), { how, duration: yield* elapsedSince(started) })
         yield* note(
           // The model is a fact ABOUT a conversation, so it travels with one:
           // coming back into the conversation we remember keeps what it was
@@ -1641,6 +1639,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           { agent: options.id, session: id, model: modelFor(id) },
           (why) => `this conversation will not be restored after a restart: ${why}`,
         )
+        // The session event makes the panel idle. Publish it after the local
+        // write settles, so restarting an apparently ready conversation cannot
+        // interrupt its memory and restore the previous selection. A failed
+        // write still opens the conversation with note's existing notice.
+        emit({ _tag: "session", id, title })
+        yield* lifecycle(Effect.logInfo("conversation opened"), { how, duration: yield* elapsedSince(started) })
       })
 
     /**

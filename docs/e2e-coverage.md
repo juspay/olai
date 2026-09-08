@@ -124,6 +124,15 @@ and replay uses their actual recorded messages across harness/server restarts.
 This avoids the canned harness's constant session ID and shared replay hiding
 node ownership, history, and restoration defects.
 
+The history-restart scenario also requires the selected session to be remembered
+before the panel reports it ready. `agent.memory-order.test.ts` holds that write
+open for new and loaded sessions and checks that the session event waits for it;
+the browser scenario still restarts immediately after observing the idle selection.
+Inspector lifecycle requests use the same bounded row re-resolution as normal
+plugin switches, so a management report replacing the row during scrolling does
+not abort the self-removal workflow. Reachability checks and workflow assertions
+remain in place.
+
 On 2026-09-05, a disposable vault was exercised with the real Claude/Sonnet
 harness and the production 15-minute idle lifetime. The background node
 `reap-background` became idle at 09:17:20 UTC; the server recorded its expected
