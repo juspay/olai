@@ -67,7 +67,7 @@ export default definePlugin({
         kinds: settings.kinds,
         ledger: settings.ledger,
         search: settings.search,
-        onRefusal: (request, failure) => refusals.tell({ op: request.op, failure }),
+        onRefusal: (request, failure, writer) => refusals.tell({ op: request.op, failure, writer }),
       })),
       (gate) => gate.close,
     )
