@@ -43,7 +43,7 @@ default:
 [parallel]
 [metadata("ci")]
 [doc("Run all checks in the CI pipeline")]
-check: typecheck test e2e kolu-deps odu-deps cordis-deps fmt-check nix bun-nix-fresh hm-module
+check: typecheck test e2e kolu-deps odu-deps odu-surface cordis-deps fmt-check nix bun-nix-fresh hm-module
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
 # The `npm ci` in the acp/ pin is the adapter tree's half: the MCP bridge's
@@ -200,6 +200,30 @@ kolu-deps:
 [doc("Check dependency versions against the odu pin")]
 odu-deps:
     {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh @odu/run-client "$OLAI_ODU_MANIFEST"'
+
+# The OTHER half of the same pin, asked of the BINARY rather than the manifest:
+# does the pinned `odu` still answer the tool surface a conversation is handed?
+#
+# `odu-deps` one recipe up reads what the pin DECLARES; this one starts what the
+# pin BUILDS and speaks MCP to it, through `probe.ts` itself. The two are not
+# the same question, and the gap between them is a real incident: the bump to
+# juspay/odu#105 renamed every verb `probe.ts` asks for, and `odu-deps`,
+# `typecheck`, `test` and `nix` were all green — the hydrated package's manifest
+# had not moved, and every `odu` under `bun test` is a fixture this repo wrote
+# spelling the OLD names. What went red was `e2e`, four scenarios deep, on a
+# strict-mode locator that found one missing-server row too many.
+#
+# So: its own leg, named for what it checks, failing with the probe's own
+# sentence. It is a `nix build` and a five-second handshake, and it is the
+# cheapest thing in `check` that can see a pin move.
+#
+# NO [metadata("ci")] OF ITS OWN, like every other leaf: `check` carries the
+# tag and odu expands its dependency list, so being named up there is the
+# whole of what puts this on the lane graph. A second tag would be a second
+# root for the same node.
+[doc("Verify the pinned Odu tool surface")]
+odu-surface:
+    {{ nix_shell }} sh -c 'bun scripts/check-odu-surface.ts "$(sh scripts/nix-out.sh .#odu-bin)/bin"'
 
 # ...and the same three questions about the four hydrated Cordis packages, over
 # the UNION of what they declare (nix/cordis.nix builds it): `cosmokit`,

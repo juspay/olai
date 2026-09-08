@@ -1254,8 +1254,8 @@ export interface Ops {
    *
    *  ON THE WRITE GATE and not on the MCP server, because it is WRITES this is
    *  a property of: a second writer would report nothing. What a plugin makes of
-   *  it is its own — the chat draws a row in the transcript, so what the agent
-   *  then says about the refusal is prose and the unfinished children are data.
+   *  it is its own — the writer attribution lets chat leave web refusals at
+   *  their requesting surface while drawing agent refusals in the transcript.
    *
    *  Contained here, like every other bus on this page: a handler that dies
    *  costs its plugin a line rather than the write its answer was about. */

@@ -693,10 +693,12 @@ export default definePlugin({
         })))
     }
 
-    /** WHAT THIS SERVE REFUSED A WRITER — a row in the transcript, so what the
-     *  agent then says about it is prose and the unfinished children are data. */
+    /** Agent refusals belong in the transcript. Web gestures receive the
+     *  same failure at their own surface and must not add a chat row. */
     yield* ops.refused((refusal) =>
-      chat === null ? Effect.void : chat.recordRefusal(refusal.op, asFailure(refusal.failure))
+      chat === null || refusal.writer === "web"
+        ? Effect.void
+        : chat.recordRefusal(refusal.op, asFailure(refusal.failure))
     )
 
     // ── the build, once the serve is up ──────────────────────────────────

@@ -19,11 +19,21 @@
  * reason. Kolu asks a server for a cell only a live padi can answer, because
  * the daemon is what could be absent. odu's `mcp` BEARS no daemon — what
  * could be absent is the SHAPE this olai was written against: a conversation
- * spans many lanes, so the verbs must take a per-call `checkout` (the
- * checkout-targeting shape, juspay/odu's agent lane — an `mcp` older than it
- * binds olai's own directory and every call a lane asked for lands on olai's
- * served root instead, which is worse than no tools at all). So the round
- * trip is `initialize` + `tools/list`, and the check reads the answer.
+ * spans many lanes, so no verb may aim at the server's own cwd (an `mcp` that
+ * does binds olai's served root, and every call a lane asked for lands there
+ * instead, which is worse than no tools at all). So the round trip is
+ * `initialize` + `tools/list`, and the check reads the answer.
+ *
+ * WHAT "AIMED" MEANS MOVED ONCE, and the move is why {@link VERBS} is a table
+ * rather than a list. juspay/odu#97 settled the first answer — every verb
+ * takes a per-call `checkout` — and juspay/odu#105 replaced it with a sharper
+ * one: a run is now addressed GLOBALLY by `runId`, so only the verbs that name
+ * a DIRECTORY still carry `checkout`, and the ones that name a RUN carry an id
+ * that was never anybody's cwd. Both are aimed; they are aimed by different
+ * keys. So the table pairs each verb with the key that aims it, and the check
+ * is per verb — which is strictly more than the old "every verb takes
+ * `checkout`" could say, because it also catches a `run_wait` that grew a
+ * `checkout` back.
  *
  * ## Where the MCP chatter lives, and why it is this file
  *
@@ -33,8 +43,8 @@
  * therefore HERE, as small as the protocol allows: newline-delimited JSON-RPC
  * on the child's pipes, two requests, one notification, done. It is written
  * collocated with the judgement rather than in `@olai/odu-client` because the
- * one thing that makes this probe odu's — WHICH tools must exist and that
- * they take `checkout` — is this plugin's expectation of the shape, and the
+ * one thing that makes this probe odu's — WHICH tools must exist and what
+ * aims each of them — is this plugin's expectation of the shape, and the
  * two halves that exist on kolu's side answer two questions on this one.
  *
  * ## Why it is on the `./server` door and not on the manifest
@@ -103,14 +113,42 @@ export const ODU_COMMAND = "odu"
 const ARGS = ["mcp"] as const
 
 /**
- * THE VERBS A CONVERSATION IS PROMISED — the dispatch's own list: with these,
- * an agent can start a run, retry one node, stop one, wait, and hold a venue
- * across runs. An answer without them is not an answer to the question this
- * probe asks: presence is checked against THIS list and nothing wider, so a
- * NEWER odu shipping more is a fine answer and this list never has to move
- * for it.
+ * THE VERBS A CONVERSATION IS PROMISED, EACH WITH THE INPUT KEY THAT AIMS IT
+ * — the dispatch's own list: with these, an agent can start a run, retry one
+ * node, stop one, wait, and hold a venue across runs. An answer without them
+ * is not an answer to the question this probe asks: presence is checked
+ * against THIS table and nothing wider, so a NEWER odu shipping more is a fine
+ * answer and this table never has to move for it.
+ *
+ * THE SIX CAPABILITIES ARE THE SAME SIX they have always been; only the
+ * spellings moved, at juspay/odu#105 — `run`→`run_start`,
+ * `node_rerun`→`run_retry`, `node_cancel`→`run_cancel`,
+ * `wait_for_settle`→`run_wait`, `lease`→`venue_hold`,
+ * `release`→`venue_release`. The list is deliberately not widened while
+ * renaming it: `log_read`, `run_read`, `pipeline_read`, `venue_probe` and the
+ * catalog verbs are real and useful, but a conversation was never promised
+ * them, and a promise is the thing this table states.
+ *
+ * THE VALUE IS THE AIM. A verb that names a DIRECTORY takes `checkout` — an
+ * absolute path, so the server stays parked while the agent aims per call. A
+ * verb that names a RUN takes `runId`, which odu's catalog makes global: it
+ * resolves to the same run from any directory, so there is no cwd for it to
+ * fall back to. Either key is a verb that cannot quietly mean "here"; a verb
+ * with NEITHER is the failure this probe exists to catch.
  */
-const VERBS = ["run", "node_rerun", "node_cancel", "wait_for_settle", "lease", "release"] as const
+const VERBS = {
+  run_start: "checkout",
+  run_retry: "runId",
+  run_cancel: "runId",
+  run_wait: "runId",
+  venue_hold: "checkout",
+  venue_release: "checkout",
+} as const
+
+/** The table's keys, in its own order — the sentences below name them in the
+ *  order they are written above, which is the order the capabilities were
+ *  argued in. */
+const VERB_NAMES = Object.keys(VERBS) as ReadonlyArray<keyof typeof VERBS>
 
 /** odu's own `initialize` payload wants one — the newest one olai's tree
  *  carries (`@modelcontextprotocol/sdk`'s, one pin up). What the responder
@@ -134,10 +172,12 @@ const DEADLINE_MS = 5_000
  */
 export type Verdict =
   | {
-    /** It spoke MCP well enough to answer both questions. `checkout` is
-     *  per-call `checkout` on that tool's `inputSchema`, read at probe time. */
+    /** It spoke MCP well enough to answer both questions. `inputs` is that
+     *  tool's `inputSchema` property NAMES, read at probe time — the names
+     *  rather than a boolean, because which key aims a verb is
+     *  {@link VERBS}'s to say and not this reader's. */
     readonly _tag: "answered"
-    readonly tools: ReadonlyArray<{ readonly name: string; readonly checkout: boolean }>
+    readonly tools: ReadonlyArray<{ readonly name: string; readonly inputs: ReadonlyArray<string> }>
   }
   /** The OS would not start it — the spawn call raised. */
   | { readonly _tag: "couldNotStart"; readonly cause: string }
@@ -171,7 +211,7 @@ export const askOver = async (child: ChildProcess, deadlineMs: number): Promise<
   return await new Promise<Verdict>((resolve) => {
     let buffer = ""
     let done = false
-    const tools: Array<{ name: string; checkout: boolean }> = []
+    const tools: Array<{ name: string; inputs: ReadonlyArray<string> }> = []
     const finish = (verdict: Verdict): void => {
       if (done) return
       done = true
@@ -221,7 +261,7 @@ export const askOver = async (child: ChildProcess, deadlineMs: number): Promise<
             const schema = tool["inputSchema"] as { properties?: Record<string, unknown> } | undefined
             tools.push({
               name: String(tool["name"]),
-              checkout: schema?.properties !== undefined && "checkout" in schema.properties,
+              inputs: Object.keys(schema?.properties ?? {}),
             })
           }
           const again = result?.nextCursor
@@ -353,7 +393,7 @@ export const probing = (
       return { server: null, missing: { name: ODU_COMMAND, where: found, why: whyOf(verdict) } }
     }
     const names = new Set(verdict.tools.map((tool) => tool.name))
-    const absent = VERBS.filter((verb) => !names.has(verb))
+    const absent = VERB_NAMES.filter((verb) => !names.has(verb))
     if (absent.length > 0) {
       return {
         server: null,
@@ -361,14 +401,14 @@ export const probing = (
           name: ODU_COMMAND,
           where: found,
           why: `it answers, but its tool surface is missing ${absent.map((one) => `\`${one}\``).join(", ")}`
-            + ` — this olai hands a conversation ${VERBS.map((one) => `\`${one}\``).join(", ")},`
+            + ` — this olai hands a conversation ${VERB_NAMES.map((one) => `\`${one}\``).join(", ")},`
             + " and one of the two needs an upgrade",
         },
       }
     }
-    const aimless = VERBS.find((verb) => {
+    const aimless = VERB_NAMES.find((verb) => {
       const tool = verdict.tools.find((one) => one.name === verb)
-      return tool !== undefined && !tool.checkout
+      return tool !== undefined && !tool.inputs.includes(VERBS[verb])
     })
     if (aimless !== undefined) {
       return {
@@ -376,7 +416,7 @@ export const probing = (
         missing: {
           name: ODU_COMMAND,
           where: found,
-          why: `it answers, but \`${aimless}\` takes no per-call \`checkout\``
+          why: `it answers, but \`${aimless}\` takes no \`${VERBS[aimless]}\``
             + " — a conversation spans many lanes, and this build could only ever aim at olai's own served directory;"
             + " one of the two needs an upgrade",
         },

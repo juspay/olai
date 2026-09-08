@@ -94,6 +94,7 @@ const withOps = <A>(
   use: (fixture: Fixture) => Effect.Effect<A, unknown>,
   options: {
     readonly realClock?: boolean
+    readonly onRefusal?: Ops.Options["onRefusal"]
   } = {},
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ops-")))
@@ -114,10 +115,10 @@ const withOps = <A>(
       // hands the layer back its OWN: the one test that is about what that
       // context mints cannot be handed a fixture of it.
       ...(options.realClock === true ? {} : { context: steady() }),
-      onRefusal: (request, failure) =>
-        Effect.sync(() => {
+      onRefusal: (request, failure, writer) =>
+        Effect.andThen(Effect.sync(() => {
           refusals.push(`${request.op}: ${failure._tag}`)
-        }),
+        }), options.onRefusal?.(request, failure, writer) ?? Effect.void),
     })
     return yield* use({
       ops,
@@ -552,6 +553,23 @@ test("a refusal writes nothing and comes back with its structured detail", () =>
       // not a second place to remember to report from.
       expect(fixture.refusals).toEqual(["done: UsageFailure"])
     })))
+
+test("refusal observers receive each request's writer without swallowing the failure", async () => {
+  const heard: Array<{ readonly writer: string; readonly failure: OpFailure }> = []
+  await withOps({ "house.olai": HOUSE }, (fixture) => Effect.gen(function*() {
+    for (const writer of ["web", "chat-agent", "mcp"] as const) {
+      const failure = yield* Effect.flip(fixture.ops.run({ op: "done", id: "nowhere" }, writer))
+      expect(heard.at(-1)?.writer).toBe(writer)
+      expect(heard.at(-1)?.failure).toBe(failure)
+    }
+    expect(heard).toHaveLength(3)
+    expect(fixture.read("house.olai")).toBe(HOUSE)
+  }), {
+    onRefusal: (_request, failure, writer) => Effect.sync(() => {
+      heard.push({ writer, failure })
+    }),
+  })
+})
 
 // ── self-heal on refusal: the stale-set repair ──────────────────────────
 //

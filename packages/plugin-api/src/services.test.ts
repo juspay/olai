@@ -659,7 +659,7 @@ const rowOf = (mounted: Mounted) =>
  * that left stops being told" true without anybody remembering to say so.
  */
 test("a refused write reaches every plugin watching writes, and stops when one leaves", async () => {
-  const heard: Array<{ readonly who: string; readonly op: string; readonly tag: string }> = []
+  const heard: Array<{ readonly who: string; readonly op: string; readonly tag: string; readonly writer: string }> = []
   await Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
       const plugins = yield* runtime()
@@ -670,7 +670,7 @@ test("a refused write reaches every plugin watching writes, and stops when one l
           apply: Effect.gen(function*() {
             yield* (yield* Ops).refused((refusal) =>
               Effect.sync(() => {
-                heard.push({ who: name, op: refusal.op, tag: refusal.failure._tag })
+                heard.push({ who: name, op: refusal.op, tag: refusal.failure._tag, writer: refusal.writer })
               })
             )
           }),
@@ -678,20 +678,20 @@ test("a refused write reaches every plugin watching writes, and stops when one l
       const mirror = yield* mountPlugin(plugins.host, watching("mirror"))
       yield* mountPlugin(plugins.host, watching("panel"))
 
-      yield* plugins.refused({ op: "prop", failure: { _tag: "UsageFailure" } })
+      yield* plugins.refused({ op: "prop", failure: { _tag: "UsageFailure" }, writer: "web" })
       // BOTH, in subscription order, each with the verb and the failure's own
       // tag — the payload is carried and not composed around.
       expect(heard).toEqual([
-        { who: "mirror", op: "prop", tag: "UsageFailure" },
-        { who: "panel", op: "prop", tag: "UsageFailure" },
+        { who: "mirror", op: "prop", tag: "UsageFailure", writer: "web" },
+        { who: "panel", op: "prop", tag: "UsageFailure", writer: "web" },
       ])
 
       // ...and a plugin that leaves stops being told, which is the half a
       // hand-rolled bus gets wrong.
       heard.length = 0
       yield* mirror.dispose
-      yield* plugins.refused({ op: "trash", failure: { _tag: "ValidationFailure" } })
-      expect(heard).toEqual([{ who: "panel", op: "trash", tag: "ValidationFailure" }])
+      yield* plugins.refused({ op: "trash", failure: { _tag: "ValidationFailure" }, writer: "chat-agent" })
+      expect(heard).toEqual([{ who: "panel", op: "trash", tag: "ValidationFailure", writer: "chat-agent" }])
     })),
   )
 })

@@ -204,10 +204,10 @@ export interface Options {
    * silently ignored" is a property of WRITES, not of whichever transport
    * asked for one: an observer on the MCP server would leave a second writer —
    * the web UI's own ops procedures, when they arrive — reporting nothing.
-   * The agent gets the same detail in its tool result; this is what puts it in
-   * front of the person watching.
+   * The writer travels with the refusal so observers can keep it on the
+   * surface that asked. The caller also receives the original failure.
    */
-  readonly onRefusal?: (request: Request, failure: OpFailure) => Effect.Effect<void>
+  readonly onRefusal?: (request: Request, failure: OpFailure, writer: Writer) => Effect.Effect<void>
 }
 
 /**
@@ -854,7 +854,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
       ? run(request, writer, rule)
       : Effect.tapError(
         run(request, writer, rule),
-        (failure) => options.onRefusal!(request, failure),
+        (failure) => options.onRefusal!(request, failure, writer),
       )
 
   // Counted from the start of `run`, not from the store gate: planning a
