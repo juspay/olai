@@ -1665,7 +1665,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // its own sake. A LOAD clears too, in the replay that follows. Only a
           // DEAD agent leaves the rows where they are — nobody asked for that,
           // and the `gone` notice explains them.
-          if (event.why === "new") publish(transcript.clear())
+          if (event.why === "new" || event.why === "refused") publish(transcript.clear())
           // The servers go with the session they were handed TO. The next one
           // is probed fresh and says so before it opens; leaving the last
           // one's roster up in between would be the panel answering "which

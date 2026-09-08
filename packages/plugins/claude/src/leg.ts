@@ -55,9 +55,9 @@ import { MODELS } from "./models.ts"
 /** The permission mode a session is asked for, in the adapter's own
  *  vocabulary: ACP leaves mode ids to the agent, and this is what the Claude
  *  Code adapter calls the one that stops it asking about tools it has been told
- *  are allowed. An agent with no such mode refuses the request, which costs a
- *  round trip per tool call and nothing else — {@link allowedWithoutAsking} is
- *  the backstop either way, and is why a refusal is not a boot failure. */
+ *  are allowed. The pinned adapter omits this mode under root unless IS_SANDBOX
+ *  is set. Selection is optional: a refusal is reported, then opening continues
+ *  with {@link allowedWithoutAsking} as the existing permission backstop. */
 export const BYPASS_MODE = "bypassPermissions"
 
 /**
@@ -773,6 +773,7 @@ export const CLAUDE: Leg = {
   // session id and `configOptions` and never announces a chunk in advance.
   prologueIn: () => null,
   bypassMode: BYPASS_MODE,
+  bypassModeRequired: false,
   steering: {
     method: STEER_METHOD,
     meta: STEER_WHEN_IDLE,
