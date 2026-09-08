@@ -239,7 +239,6 @@
   name: olai-plugin-graph/server
   section: Pages
   quiet: true
-  profiles: [surface]
 
 # Maintained acceptance fixtures, never selected by normal profiles.
 # They share the product catalogue so tests exercise the real resolver, profile

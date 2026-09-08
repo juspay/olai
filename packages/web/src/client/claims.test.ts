@@ -407,7 +407,12 @@ test("only saying.ts counts SAID_MS down", () => {
 // back to `routeOf` — so the grip is the grammar's own entry point, where a
 // recognizer must start.
 test("address recognition has one door: parseAddress( is called only in routes.ts", () => {
+  // One per route OWNER: the format's grammar holds all the doors, and each
+  // page family owns its own table's face of it ("one service table rather
+  // than one file": a tenant handing off its parser walks the route codec's
+  // same length).
   expect(filesSpelling(/parseAddress\s*\(/)).toEqual([
+    "plugins/graph/src/browser/routes.ts",
     "plugins/navigation/src/routes.ts"
   ])
 })

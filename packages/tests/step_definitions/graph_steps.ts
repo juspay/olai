@@ -197,7 +197,7 @@ When("I press centre here", async function (this: OlaiWorld) {
 // ── horizon and camera ────────────────────────────────────────────────
 
 When("I set the horizon to {int} hops", async function (this: OlaiWorld, hops: number) {
-  await this.press(this.page.locator(`${GRAPH_HORIZON} [data-value="${hops}"]`));
+  await this.press(this.page.locator(`${GRAPH_HORIZON} ${attr("data-value", String(hops))}`));
 });
 
 Then("the graph is at {int} hops", async function (this: OlaiWorld, hops: number) {
@@ -403,7 +403,8 @@ Then(
   async function (this: OlaiWorld, key: string, title: string) {
     await this.waitUntil(
       async () =>
-        (await this.page.locator(`${dot(key)} a[aria-label*="${title}"]`).count()) > 0,
+        ((await this.page.locator(`${dot(key)} a`).first().getAttribute("aria-label")) ?? "")
+          .includes(title),
       `the dot ${key} to carry the title ${JSON.stringify(title)}`,
     );
   },
