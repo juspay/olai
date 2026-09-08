@@ -294,6 +294,9 @@ export interface Refusal {
 export interface Refused {
   readonly op: string
   readonly failure: Refusal
+  /** The write gate's attribution, carried as a word like `op` so this
+   * contract does not duplicate the format's writer vocabulary. */
+  readonly writer: string
 }
 
 /**
