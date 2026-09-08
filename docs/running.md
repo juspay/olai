@@ -20,6 +20,8 @@ nix run github:juspay/olai -- web path/to/outlines
 
 or, in a clone:
 
+Run `just` to list developer recipes with a short description of each command.
+
 ```sh
 just run            # the one brain: this repo's docs, on an OS-assigned port
 just serve docs     # the same, plus a client-bundler watch for the edit loop
