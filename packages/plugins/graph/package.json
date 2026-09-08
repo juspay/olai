@@ -1,0 +1,32 @@
+{
+  "name": "olai-plugin-graph",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./wire": "./src/wire.ts",
+    "./server": "./src/server.ts",
+    "./browser": "./src/browser.tsx",
+    "./testids": "./src/testids.ts",
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/format": "workspace:*",
+    "@olai/plugin-api": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "olai-plugin-navigation": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  },
+  "olai": {
+    "contracts": [
+      "./testids"
+    ]
+  }
+}

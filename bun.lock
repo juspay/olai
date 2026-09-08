@@ -68,6 +68,7 @@
         "olai-plugin-codex": "workspace:*",
         "olai-plugin-files": "workspace:*",
         "olai-plugin-git": "workspace:*",
+        "olai-plugin-graph": "workspace:*",
         "olai-plugin-identity": "workspace:*",
         "olai-plugin-journal": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
@@ -111,7 +112,6 @@
       "version": "0.1.0",
       "dependencies": {
         "@olai/format": "workspace:*",
-        "@olai/plugin-api": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "@olai/web": "workspace:*",
@@ -369,6 +369,20 @@
         "@effect/platform-node": "4.0.0-rc.112",
         "@olai/ops": "workspace:*",
         "@olai/surface": "workspace:*",
+        "@types/node": "^22.0.0",
+      },
+    },
+    "packages/plugins/graph": {
+      "name": "olai-plugin-graph",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/format": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "@olai/ui-primitives": "workspace:*",
+        "effect": "4.0.0-rc.112",
+        "olai-plugin-navigation": "workspace:*",
+      },
+      "devDependencies": {
         "@types/node": "^22.0.0",
       },
     },
@@ -1779,6 +1793,8 @@
     "olai-plugin-files": ["olai-plugin-files@workspace:packages/plugins/files"],
 
     "olai-plugin-git": ["olai-plugin-git@workspace:packages/plugins/git"],
+
+    "olai-plugin-graph": ["olai-plugin-graph@workspace:packages/plugins/graph"],
 
     "olai-plugin-identity": ["olai-plugin-identity@workspace:packages/plugins/identity"],
 

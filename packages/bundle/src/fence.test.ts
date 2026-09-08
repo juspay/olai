@@ -1772,6 +1772,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/files/src/Files.tsx",
       "plugins/files/src/testids.ts",
       "plugins/git/src/server.ts",
+      "plugins/graph/src/server.ts",
       "plugins/journal/src/agenda.ts",
       "plugins/journal/src/server.ts",
       "plugins/kolu/src/server.ts",
@@ -2211,6 +2212,22 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/vault-plugins/src/tools.ts",
       "server/src/main.ts",
       "surface/src/edit.ts"
+    ],
+    // THE DIRECTORY'S REFERRAL STRUCTURE is the format's own vocabulary —
+    // `graphOf`, the `graph` page arm and the drawn arm lived there and in
+    // outlines' filters before the plugin existed, and the plugin is named
+    // after the thing those files describe rather than the other way round.
+    "graph": [
+      "format/src/graph.ts",
+      "format/src/index.ts",
+      "format/src/narrowing.ts",
+      "format/src/page.ts",
+      "format/src/searching.ts",
+      "plugins/outlines/src/browser/filter/drawn.ts",
+      "plugins/outlines/src/browser/page.ts",
+      "plugins/outlines/src/browser/settings/done.ts",
+      "plugins/outlines/src/tools.ts",
+      "plugins/search/src/tools.ts"
     ],
     "test-layout": [],
     "test-counter": [],
