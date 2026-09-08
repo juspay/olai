@@ -151,8 +151,9 @@ typecheck: install
 # resolution is an ordinary unit test one package down.
 #
 # Odu may split this leaf across SIX Linux slots. Bun has no native shard flag,
-# so the script partitions the tracked test files deterministically; without
-# Odu's shard variables it retains the ordinary discovery-based `just test`
+# so the script balances tracked files using committed duration estimates.
+# Every worker computes the same partition; without Odu's shard variables it
+# retains the ordinary discovery-based `just test`
 # behaviour (including untracked tests during development).
 [metadata("odu:shard=6")]
 [doc("Run unit tests, including browser reactivity tests")]

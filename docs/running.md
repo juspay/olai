@@ -46,6 +46,16 @@ package still runs its complete check, including imported types. Ordinary local
 `just typecheck` and `just test` remain unsharded. For local test logs, use
 `just test > .test.log 2>&1` and inspect the saved output.
 
+Unit-test shards balance estimated duration, using the same committed
+`scripts/test-timings.json` on every worker. The initial estimates sum per-case
+Bun timings from the six passing unit-test logs of merge commit `0342dac6c`
+(Odu run `0mtsuqkm3-yt5bgeos`). They exclude module loading and process startup.
+New tracked tests receive a one-second estimate; deleted files are ignored.
+Refresh the estimates from saved Bun logs with
+`nix develop -c bun scripts/test-shards.mjs --record <log>... > scripts/test-timings.json`
+and commit the result. If multiple logs cover a file, the largest sample is
+used. Timing data controls placement only, never which files get tested.
+
 A worktree launch builds the pinned adapters and odu on demand (`nix build .#acp-agent`, `.#codex-agent`, `.#odu-bin`) and `just install` runs `npm ci` in `acp/`. Each of those prints the command on stderr before it starts; `npm ci` then logs every fetch (`--loglevel=http`) because `nix develop -c` is not a TTY and npm would otherwise sit silent until it finished.
 
 `olai web <dir> [--port] [--host]` reads the directory recursively, picking up every `.olai` outline and every `.md` document, and serves them to a browser. It does not descend into dot-directories or `node_modules` — a directory of outlines is usually a git repository, and nothing anyone wrote is inside `.git`. Defaults: port `0` (the OS picks one), host `127.0.0.1`. A fixed `--port` is a deploy's word — the home-manager module passes `7714` ("olai" on a phone keypad). `--port 0` asks the OS every boot: a `just run` / `just serve` restart may land on a new port.
