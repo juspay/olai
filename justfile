@@ -32,6 +32,7 @@ dist := justfile_directory() + "/packages/web/dist"
 nix_shell_e2e := if env('PLAYWRIGHT_BROWSERS_PATH', '') != '' { '' } else { 'nix develop ' + justfile_directory() + '#e2e --accept-flake-config -c' }
 
 # List available recipes
+[doc("List available recipes")]
 default:
     @just --list
 
@@ -41,6 +42,7 @@ default:
 [macos]
 [parallel]
 [metadata("ci")]
+[doc("Run all checks in the CI pipeline")]
 check: typecheck test e2e kolu-deps odu-deps odu-surface cordis-deps fmt-check nix bun-nix-fresh hm-module
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
@@ -77,6 +79,7 @@ check: typecheck test e2e kolu-deps odu-deps odu-surface cordis-deps fmt-check n
 # than `cp`: the source is a 0444 store path, and `install` unlinks and
 # recreates, so the next run can overwrite its own output without a second
 # `chmod`.
+[doc("Install dependencies and generate pinned sources and assets")]
 install:
     {{ nix_shell }} sh -c 'bun install --frozen-lockfile \
       && echo >&2 "cd acp && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund" \
@@ -88,10 +91,33 @@ install:
       && install -m 644 "$OLAI_KOLU_MARK_DIR/mark.generated.ts" packages/plugins/kolu/src/browser/mark.generated.ts \
       && install -m 644 "$OLAI_ODU_MARK_DIR/mark.generated.ts" packages/plugins/odu/src/browser/mark.generated.ts'
 
-# TypeScript type checking — every workspace member, from the glob bun
-# installs from
+# Typecheck locally as one workspace run; Odu splits packages across up to
+# six available slots. Each slice retains its own install prerequisite.
+[metadata("odu:shard=6")]
+[doc("Type-check all workspace packages")]
 typecheck: install
-    {{ nix_shell }} bun run typecheck
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -z "${ODU_SHARD_INDEX+x}" && -z "${ODU_SHARD_TOTAL+x}" ]]; then
+      exec {{ nix_shell }} bun run typecheck
+    fi
+    if [[ ! "${ODU_SHARD_INDEX:-}" =~ ^(0|[1-9][0-9]*)$ || ! "${ODU_SHARD_TOTAL:-}" =~ ^[1-9][0-9]*$ ]] \
+      || ((ODU_SHARD_INDEX >= ODU_SHARD_TOTAL)); then
+      echo "invalid ODU_SHARD_INDEX / ODU_SHARD_TOTAL" >&2
+      exit 2
+    fi
+    members=$({{ nix_shell }} sh scripts/workspace-members.sh .)
+    filters=()
+    position=0
+    while IFS= read -r member; do
+      if ((position % ODU_SHARD_TOTAL == ODU_SHARD_INDEX)); then
+        filters+=(--filter "./$member")
+      fi
+      ((position += 1))
+    done <<< "$(printf '%s\n' "$members" | LC_ALL=C sort -u)"
+    if ((${#filters[@]})); then
+      exec {{ nix_shell }} bun run "${filters[@]}" typecheck
+    fi
 
 # Unit tests. TWO commands, one leg — and the second is not a second suite.
 #
@@ -146,41 +172,14 @@ typecheck: install
 # resolution is an ordinary unit test one package down.
 #
 # Odu may split this leaf across SIX Linux slots. Bun has no native shard flag,
-# so the script partitions the tracked test files deterministically; without
-# Odu's shard variables it retains the ordinary discovery-based `just test`
+# so the script balances tracked files using estimates for the slowest files.
+# Every worker computes the same partition; without Odu's shard variables it
+# retains the ordinary discovery-based `just test`
 # behaviour (including untracked tests during development).
 [metadata("odu:shard=6")]
+[doc("Run unit tests, including browser reactivity tests")]
 test: install
     {{ nix_shell }} bash scripts/test-shard.sh
-
-# The same suite, TO A LOG — for an agent, or for anyone who wants to read the
-# failures more than once.
-#
-# NEVER PIPE A LONG RUN THROUGH `tail` OR `head`. A truncated run throws away
-# the very lines you needed, so the next thing you do is run it AGAIN to see
-# them — which on this suite is two minutes bought for nothing. Redirect ONCE
-# and interrogate the file as many times as you like:
-#
-#     just test-log
-#     grep -E '^\(fail\)' .test.log          # which cases failed
-#     grep -B 20 '^(fail)' .test.log         # ...and why
-#     grep -E '^ +[0-9]+ (pass|fail)' .test.log
-#
-# Same rule for `just typecheck` and `just e2e`: `> some.log 2>&1`, then grep.
-#
-# The log is gitignored and overwritten per run. It is deliberately NOT `| tee`:
-# a tee still floods the terminal (and an agent's context) with the passing
-# lines, and the passing lines are never what anybody came for.
-
-# The unit suite to .test.log, printing only the failures — never pipe a long run through tail/head
-test-log:
-    #!/usr/bin/env bash
-    set -uo pipefail
-    {{ nix_shell }} bun test > .test.log 2>&1
-    status=$?
-    grep -E '^\(fail\)|^ +[0-9]+ (pass|fail)' .test.log || true
-    echo "full output: .test.log"
-    exit $status
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json, every workspace manifest and the root `overrides` block
@@ -210,6 +209,7 @@ test-log:
 # the fence now waits on `install` where these legs do not; what it buys is a
 # fence that cannot silently not-run, and a confinement table DERIVED from the
 # plugin registry instead of hand-copied per script.
+[doc("Check dependency versions against the kolu pin")]
 kolu-deps:
     {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh kolu "$OLAI_KOLU_EXTERNALS"'
 
@@ -219,6 +219,7 @@ kolu-deps:
 # `@odu/run-client` declares `effect` at this tree's pinned version, and an
 # override is how bun SILENTLY REWRITES one, so an unchecked one there makes
 # every manifest's honesty cosmetic in exactly the way it already did for kolu.
+[doc("Check dependency versions against the odu pin")]
 odu-deps:
     {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh @odu/run-client "$OLAI_ODU_MANIFEST"'
 
@@ -242,6 +243,7 @@ odu-deps:
 # tag and odu expands its dependency list, so being named up there is the
 # whole of what puts this on the lane graph. A second tag would be a second
 # root for the same node.
+[doc("Verify the pinned Odu tool surface")]
 odu-surface:
     {{ nix_shell }} sh -c 'bun scripts/check-odu-surface.ts "$(sh scripts/nix-out.sh .#odu-bin)/bin"'
 
@@ -251,12 +253,14 @@ odu-surface:
 # into the one root node_modules exactly as the @kolu/* members do, so a
 # version that drifted here is two `cosmokit`s — the same failure the other two
 # legs watch for, read off a third pin.
+[doc("Check dependency versions against the Cordis pin")]
 cordis-deps:
     {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh cordis "$OLAI_CORDIS_MANIFEST"'
 
 # Build the browser bundle into packages/web/dist. The nix build runs this
 # same script in its own sandbox (default.nix), so there is one bundler and not
 # two that could drift.
+[doc("Build the browser bundle into packages/web/dist")]
 build-client: install
     {{ nix_shell }} bun packages/web/src/build.ts {{ dist }}
 
@@ -278,6 +282,7 @@ build-client: install
 # (that vault, a checkout of your own) is the argument to pass. `just nix` is
 # the other path: the packaged binary, built from tracked files only. Use this
 # one while working; that one is what CI proves.
+[doc("Serve a directory with client and server file watching")]
 serve dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
@@ -318,6 +323,7 @@ serve dir="docs" *args: build-client
 # A fixed `--port` is a deploy's word, not this recipe's. `--port 0` (the
 # default) asks the OS every boot — a `bun --watch` restart may land on a
 # new port.
+[doc("Serve a directory with server file watching")]
 run dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
@@ -338,6 +344,7 @@ run dir="docs" *args: build-client
 # packages the build's does not. The run re-uses the build's output (it
 # re-evaluates the flake, which is cheap and warm). No nix_shell prefix: this
 # recipe IS the outside-the-shell check.
+[doc("Build and verify the Nix-packaged binary")]
 nix:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -429,6 +436,7 @@ nix:
 # The home-manager module evaluates under a sample config (systemd argv on
 # Linux, launchd argv on Darwin). Cheap, no home-manager pin, no activation —
 # just the option shape and the service knobs. See nix/home/check.nix.
+[doc("Check the Home Manager module")]
 hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
@@ -696,6 +704,7 @@ hm-module:
 # own paragraph gives; the referrers have four sizes of their own, named in
 # their row.
 
+[doc("Run performance benchmarks")]
 bench: install
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
@@ -726,6 +735,7 @@ bench: install
 # on every run; this file is WRITTEN once per worktree, so it composes
 # the default at write time the way the nix wrapper does at build time —
 # one knob, every face is only true when this face answers too.
+[doc("Create a worktree-local binary wrapper for e2e tests")]
 dev-bin:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -754,6 +764,7 @@ dev-bin:
 # slots are free. Odu numbers slices from zero; Cucumber numbers them from one.
 # The conditional keeps `just e2e` the ordinary unsharded local command.
 [metadata("odu:shard=6")]
+[doc("Run browser tests against the Nix-packaged binary")]
 e2e: install nix
     #!/usr/bin/env bash
     # NOT `-e`: a failing suite is this recipe's whole subject, and the evidence
@@ -799,39 +810,54 @@ e2e: install nix
 # The browser-only spelling of the same Odu pipeline. This is a thin convenience
 # target, not another scheduler: it builds this tree's pinned Odu and selects
 # the `e2e` leaf on Linux. A bare `odu run` remains the full CI UX, including
-# the same shared E2E leaf and GitHub posting. Ten minutes is a wall-clock
-# backstop, not a scheduler policy; SIGINT lets Odu finalize statuses and free
-# every lease before coreutils escalates. Override only for a deliberate cold
-# provisioning experiment (`ODU_E2E_REMOTE_TIMEOUT=20m`).
-e2e-fast-remote:
+# the same shared E2E leaf and GitHub posting. The shared Odu service owns the
+# run: the ten-minute timeout stops watching, not the remote work. Cancel a run
+# explicitly with `nix run .#odu -- cancel --run <id>`. Override the watch limit
+# with ODU_E2E_REMOTE_TIMEOUT.
+[group("fast-remote")]
+[doc("Run browser tests on the remote Linux fleet")]
+e2e-fast-remote: (_fast-remote "e2e" (env("ODU_E2E_REMOTE_TIMEOUT", "10m")))
+
+# Select the unit-test leaf through the same Odu path as e2e-fast-remote.
+# Odu owns sharding, prerequisite copies, status posting and lease cleanup.
+[group("fast-remote")]
+[doc("Run unit tests on the remote Linux fleet")]
+test-fast-remote: (_fast-remote "test" (env("ODU_TEST_REMOTE_TIMEOUT", "10m")))
+
+# Select the sharded typecheck leaf with the same worker lifecycle and timeout.
+[group("fast-remote")]
+[doc("Type-check workspace packages on the remote Linux fleet")]
+typecheck-fast-remote: (_fast-remote "typecheck" (env("ODU_TYPECHECK_REMOTE_TIMEOUT", "10m")))
+
+# One invocation policy for the three individual checks. Export the timeout
+# parameter so its value is passed as data, rather than inserted into shell code.
+[private]
+_fast-remote leaf $watch_timeout:
     #!/usr/bin/env bash
     set -euo pipefail
-    {{ nix_shell }} bash -c '
-      odu="$(nix build .#odu-bin --no-link --print-out-paths --accept-flake-config)/bin/odu"
-      exec timeout --foreground --signal=INT --kill-after=30s \
-        "${ODU_E2E_REMOTE_TIMEOUT:-10m}" \
-        "$odu" run e2e --platform x86_64-linux
-    '
+    exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
+      "$watch_timeout" \
+      nix run .#odu --accept-flake-config -- run {{ leaf }} --platform x86_64-linux
 
 # Full CI on the Linux fleet, through this tree's pinned Odu. This deliberately
 # keeps Odu's strict defaults: it snapshots clean, pushed HEAD and posts the
 # stable logical recipe contexts to GitHub. Shard workers and their duplicated
 # prerequisites remain visible in Odu without becoming GitHub contexts.
+[doc("Run full CI on the remote Linux fleet")]
 ci:
     #!/usr/bin/env bash
     set -euo pipefail
-    {{ nix_shell }} bash -c '
-      odu="$(nix build .#odu-bin --no-link --print-out-paths --accept-flake-config)/bin/odu"
-      exec timeout --foreground --signal=INT --kill-after=30s \
-        "${ODU_CI_TIMEOUT:-15m}" \
-        "$odu" run --platform x86_64-linux
-    '
+    exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
+      "${ODU_CI_TIMEOUT:-15m}" \
+      nix run .#odu --accept-flake-config -- run --platform x86_64-linux
 
 # Format the *.nix files
+[doc("Format repository Nix files")]
 fmt:
     {{ nix_shell }} nixpkgs-fmt {{ nix_files }}
 
 # Check formatting without modifying
+[doc("Check Nix formatting without modifying files")]
 fmt-check:
     {{ nix_shell }} nixpkgs-fmt --check {{ nix_files }}
 
@@ -842,6 +868,7 @@ _gen-bun-nix out:
     {{ nix_shell }} sh -c 'nix run .#bun2nix --accept-flake-config -- -l bun.lock -o "{{ out }}" && nixpkgs-fmt "{{ out }}"'
 
 # Regenerate bun.nix from bun.lock. Run after any `bun install` / `bun add`.
+[doc("Regenerate bun.nix from bun.lock")]
 regenerate-bun-nix: (_gen-bun-nix "bun.nix")
 
 # bun.nix drives the nix build's dependency fetch and is generated from
@@ -849,6 +876,7 @@ regenerate-bun-nix: (_gen-bun-nix "bun.nix")
 # different tree than `bun install` does — silently. It generates into a
 # tmpdir rather than in place because `check` runs its legs in parallel, and a
 # leg that rewrote a tracked file would race the ones reading it.
+[doc("Check that bun.nix matches bun.lock")]
 bun-nix-fresh:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -868,5 +896,6 @@ bun-nix-fresh:
 # anything the new kolu revision expects that this repo has not moved with
 # it. bun 1.4.1 is overlaid from `nix/bun.nix`, not a pin; drop that overlay
 # when NixOS/nixpkgs#556047 reaches nixpkgs-unstable — bun-nixpkgs-catchup.
+[doc("Update npins dependencies and format the generated Nix file")]
 update-pins:
     {{ nix_shell }} sh -c 'npins update && nixpkgs-fmt npins/default.nix'
