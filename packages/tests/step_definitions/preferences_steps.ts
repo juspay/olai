@@ -1156,13 +1156,10 @@ const switchOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
 /**
  * PRESS A CONTROL ON A ROW THAT IS ALLOWED TO BE REDRAWN UNDER THE FINGER.
  *
- * A flip is a roster change, a roster change is a redial, and a redial rebuilds
- * the tab's whole tree — so the plugins panel replaces its rows while a press
- * against one is being aimed. Playwright retries an action whose element
- * detaches, but it retries against the SAME resolved row, and a row drawn by
- * the outgoing tree never comes back: the retries run out and the step dies on
- * `scrollIntoViewIfNeeded: Element is not attached to the DOM`, naming the DOM
- * rather than the rebuild that emptied it.
+ * Roster and management reports can rebuild the panel's groups while a press
+ * is being aimed. `scrollIntoViewIfNeeded` can reject a detached element before
+ * the click is dispatched. Resolve the replacement row and reopen its group
+ * before trying the ordinary reachability and click checks again.
  *
  * So the re-resolution happens HERE, one level up, where `shownRow` can reopen
  * the group and hand back the row the NEW tree drew. The post-flip wait below
@@ -1226,8 +1223,7 @@ const FLIP_STEP_TIMEOUT = 90_000;
 When(
   "I request that the plugin {string} be {word}",
   async function (this: OlaiWorld, plugin: string, pick: string) {
-    const row = await shownRow(this, plugin);
-    await this.press(row.locator(PLUGIN_SWITCH));
+    await pressOnRow(this, plugin, PLUGIN_SWITCH);
   },
 );
 
