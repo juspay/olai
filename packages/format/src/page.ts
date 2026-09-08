@@ -359,6 +359,19 @@ export const FiledPageReading = PageReading.check(
   ),
 ) as typeof PageReading & { readonly Type: FiledPageReading }
 
+/** A GRAPH page's address and nothing else — what the graph plugin narrows
+ *  `PageRequest` down to for its own member, for the same reason as
+ *  {@link FiledPageRequest} above: `at`/`trash`/`day`/`agenda` are pages their
+ *  rows own, and a member admitting them would promise an answer this one
+ *  cannot compute. */
+export type GraphPageRequest = Extract<PageRequest, { readonly kind: "graph" }>
+export const GraphPageRequest = PageRequest.check(
+  Schema.makeFilter(
+    (request: PageRequest) => request.kind === "graph",
+    { expected: "a graph page request" },
+  ),
+) as typeof PageRequest & { readonly Type: GraphPageRequest }
+
 /** A BODIED file's address and nothing else — what `markdown` narrows
  *  {@link FiledPageRequest} down to for its own member, because a metadata
  *  reading of a `.olai` is a question about a file that has no body to read.

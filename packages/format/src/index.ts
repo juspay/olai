@@ -1176,6 +1176,9 @@ export {
    *  narrows the request once more and answers in the same reading. */
   FiledPageReading,
   FiledPageRequest,
+  /** THE GRAPH plugin's narrowing of the whole union — the only kind the
+   *  `graph` stream can be asked about. */
+  GraphPageRequest,
   Named,
   PageReading,
   PageRequest,
