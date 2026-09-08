@@ -403,10 +403,9 @@ export interface Leg {
    */
   readonly prologueIn: (opened: unknown) => string | null
 
-  /** The permission mode to ask a fresh session for, or `null` for an agent
-   *  that has none. A refusal is not a boot failure either way:
-   *  {@link Leg.allowedWithoutAsking} is the backstop, and what a refusal costs
-   *  is one round trip per tool call. */
+  /** The permission mode required for every new or loaded session, or `null`
+   *  to leave the adapter default unchanged (not configuration inheritance).
+   *  A refused selection fails the open before the session becomes active. */
   readonly bypassMode: string | null
 
   /** How a message reaches the turn ALREADY RUNNING, on purpose — or `null`

@@ -1,0 +1,78 @@
+/** Runs inside the pinned codex-acp source tree (see default.nix).
+ * The .in suffix keeps Bun from discovering this Vitest-only build input.
+ * Only authentication/session metadata and the Codex transport are mocked.
+ * The adapter's mode selection, prompt mapping and turn runner are real.
+ */
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createCodexMockTestFixture, createTestModel } from "../acp-test-utils";
+import { AgentMode } from "../../AgentMode";
+
+const policies = [
+    { id: "agent-full-access", approvalPolicy: "never", approvalsReviewer: "user", sandboxType: "dangerFullAccess", sandboxMode: "danger-full-access" },
+    { id: "read-only", approvalPolicy: "on-request", approvalsReviewer: "user", sandboxType: "workspaceWrite", sandboxMode: "workspace-write" },
+    { id: "agent", approvalPolicy: "on-request", approvalsReviewer: "auto_review", sandboxType: "workspaceWrite", sandboxMode: "workspace-write" },
+] as const;
+
+afterEach(() => vi.unstubAllEnvs());
+
+describe("Olai permission preset contract", () => {
+    for (const opening of ["new", "load"] as const) {
+        for (const policy of policies) {
+            it(`${opening}: ${policy.id} reaches the next turn/start`, async () => {
+                vi.stubEnv("INITIAL_AGENT_MODE", "agent");
+                const fixture = createCodexMockTestFixture();
+                const agent = fixture.getCodexAcpAgent();
+                const client = fixture.getCodexAcpClient();
+                const appServer = fixture.getCodexAppServerClient();
+                const model = createTestModel();
+                vi.spyOn(client, "authRequired").mockResolvedValue(false);
+                vi.spyOn(client, "getAccount").mockResolvedValue({ account: null, requiresOpenaiAuth: false });
+                vi.spyOn(client, "listSkills").mockResolvedValue({ data: [] });
+                vi.spyOn(appServer, "threadGoalGet").mockResolvedValue({ goal: null });
+                const metadata = {
+                    sessionId: "session-id", currentModelId: `${model.id}[medium]`, models: [model],
+                    collaborationMode: "default" as const, additionalDirectories: [],
+                };
+                vi.spyOn(client, "newSession").mockResolvedValue(metadata);
+                vi.spyOn(client, "loadSession").mockResolvedValue({
+                    ...metadata,
+                    // No history or file reads are needed for this mode contract.
+                    thread: { id: "session-id", turns: [], path: null, name: null } as any,
+                });
+                if (opening === "new") {
+                    await agent.newSession({ cwd: "/test/cwd", mcpServers: [] });
+                } else {
+                    await agent.loadSession({ sessionId: "session-id", cwd: "/test/cwd", mcpServers: [] });
+                }
+                expect(agent.getSessionState("session-id").agentMode.id).toBe("agent");
+                await agent.setSessionMode({ sessionId: "session-id", modeId: policy.id });
+                const state = agent.getSessionState("session-id");
+                expect(state.agentMode.sandboxMode).toBe(policy.sandboxMode);
+                // Avoid unrelated automatic title generation after the test turn.
+                state.titleGen = undefined;
+                const turn = { id: "turn-id", items: [], status: "completed" as const, error: null };
+                const start = vi.spyOn(appServer, "turnStart").mockImplementation(async () => {
+                    fixture.sendServerNotification({ method: "turn/completed", params: { threadId: "session-id", turn } });
+                    return { turn } as any;
+                });
+                await agent.prompt({ sessionId: "session-id", prompt: [{ type: "text", text: "hello" }] });
+                expect(start).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+                    threadId: "session-id",
+                    approvalPolicy: policy.approvalPolicy,
+                    approvalsReviewer: policy.approvalsReviewer,
+                    sandboxPolicy: expect.objectContaining({ type: policy.sandboxType }),
+                }));
+                if (policy.id !== "agent-full-access") {
+                    expect(start.mock.calls[0]?.[0].sandboxPolicy).toMatchObject({ networkAccess: false });
+                }
+            });
+        }
+    }
+    it("keeps all three advertised choices distinct", () => {
+        expect(AgentMode.all().map(mode => ({ id: mode.id, kind: mode.kind }))).toEqual([
+            { id: "read-only", kind: "standard" },
+            { id: "agent", kind: "auto_review" },
+            { id: "agent-full-access", kind: "full_access" },
+        ]);
+    });
+});

@@ -62,9 +62,9 @@ export const CODEX: Leg = {
   taskNotification: () => null,
   listedIn: () => null,
   prologueIn: () => null,
-  // `agent-full-access` disables approvals and grants unrestricted host access;
-  // olai does not silently select it. Codex keeps its adapter default instead.
-  bypassMode: null,
+  // The orchestrator intentionally runs like `codex --yolo`: no approval
+  // prompts and unrestricted filesystem/network access, on new and loaded sessions.
+  bypassMode: "agent-full-access",
   steering: {
     method: "_session/steering",
     meta: { steering: { idleBehavior: "promptRequired" } },

@@ -1728,9 +1728,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // that reorders ships the banner to the transcript instead, which is
         // the safe direction.
         prologue = options.leg.prologueIn(made)
-        yield* entered(made.sessionId, null, "new", started)
         readModel(made.configOptions)
-        yield* askForBypass(at, made.sessionId)
+        yield* askForBypass(at, made.sessionId, made.configOptions)
+        yield* entered(made.sessionId, null, "new", started)
       })
 
     const load = (
@@ -1798,9 +1798,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // they are rows, and `replayStarted` has already emptied the transcript
         // for them — so what the panel is short of in between is the title,
         // which it gets a moment later along with everything else.
-        yield* entered(id, title, "loaded", started)
         yield* restore(at, id, loaded?.configOptions, wanted)
-        yield* askForBypass(at, id)
+        yield* askForBypass(at, id, loaded?.configOptions)
+        yield* entered(id, title, "loaded", started)
       })
 
     /**
@@ -1916,31 +1916,32 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         },
       )
 
-    /**
-     * Ask for the permission mode that makes the backstop above unnecessary.
-     *
-     * A refusal is normal — running as root, an agent that has no such mode —
-     * and is not a boot failure. Ignored rather than reported, and that is a
-     * trade with its own reason rather than a swallow: NOTHING IS LOST when
-     * this is refused. The backstop it was trying to make unnecessary is still
-     * there and still answers every permission request, so what a refusal
-     * costs is one round trip per tool call, which is not a fact about a
-     * person's outlines and has no honest place on their screen.
-     */
-    const askForBypass = (at: Live, id: string): Effect.Effect<void> => {
-      // An agent with NO such mode is not asked at all, which is one step
-      // better than a refusal ignored: opencode's modes are `build` and
-      // `plan` and it answers `-32602` to anything else, so the request was
-      // a round trip and a line of somebody else's stderr per conversation,
-      // bought with nothing.
+    /** Apply the engine's explicit permission policy before publishing or
+     *  remembering the session. A refusal must fail the open: the adapter's
+     *  default can review or reject work without ever asking this client. */
+    const askForBypass = (
+      at: Live, id: string, config: ReadonlyArray<SessionConfigOption> | null | undefined,
+    ): Effect.Effect<void, AgentGone> => {
       const mode = options.leg.bypassMode
       if (mode === null) return Effect.void
-      return Effect.ignore(
+      return Effect.map(Effect.mapError(
         ask(at.connection, methods.agent.session.setMode, {
           sessionId: id,
           modeId: mode,
         }),
-      )
+        (failure) => new AgentGone({
+          gone: failure.gone,
+          why: `could not select permission mode ${mode} for session ${id}: ${failure.why}`,
+        }),
+      ), () => {
+        // set_mode may acknowledge without publishing config_option_update.
+        // Reflect its confirmed value only in an advertised mode control that
+        // actually offers that value; unrelated settings retain their last update.
+        const ids = new Set((config ?? []).filter((option) => option.category === "mode").map((option) => option.id))
+        settings = settings.map((option) => ids.has(option.id) && option.type === "select" && acceptsSetting(option, mode)
+          ? { ...option, currentValue: mode } : option)
+        emit({ _tag: "settings", settings: settings.filter((option) => option.id !== models?.config) })
+      })
     }
 
     /** The subprocess, and nothing about a conversation. Its own step because

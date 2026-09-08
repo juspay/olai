@@ -62,7 +62,7 @@ Anything an agent does not offer simply is not drawn — except where you would 
 
 ## Session controls and progress
 
-Press the model name in the header to see the agent's advertised settings. Alongside models, adapters may offer reasoning effort, operating mode, or a boolean option such as fast mode. Controls use the adapter's names and allowed values; changing a model can change the other options. Settings are available while the conversation is idle. Refused changes leave the confirmed value visible. Model choices retain Olai's restart memory; the adapter owns persistence of other settings, including permission modes.
+Press the model name in the header to see the agent's advertised settings. Alongside models, adapters may offer reasoning effort, operating mode, or a boolean option such as fast mode. Controls use the adapter's names and allowed values; changing a model can change the other options. Settings are available while the conversation is idle. Refused changes leave the confirmed value visible. Model choices retain Olai's restart memory; the adapter owns persistence of other settings. On every new or resumed session Olai reapplies the engine's declared permission mode; [Codex selects full access](plugins/codex.md), and a rejected mode selection fails opening before the conversation becomes active.
 
 An agent that sends an execution plan gets a compact plan below the header, with pending, active, and completed steps. Each update replaces the whole plan. An empty update removes it, and starting another conversation clears the old plan.
 
