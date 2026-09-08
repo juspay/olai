@@ -30,9 +30,18 @@
  * day and agenda arms) — a walk written here would be free to disagree with
  * the very pruning it is counting, which is the drift `datedIn` was moved down
  * to `@olai/format` to prevent one layer lower.
+ *
+ * THE SIXTH PAGE DRAWS NO ROWS AT ALL — the graph's places are dots and the
+ * links are the lines between them, so its prune is over the VERTICES: the
+ * centre stays (the page is about it whether or not it matched), a matched
+ * vertex stays, a line stays exactly when both its ends stay. Documents are
+ * matched off the same query and arrive on the same wire, but they are not
+ * `Selected`'s: `Selected` means "this NODE id matched", so the documents
+ * side reads its own map (`@olai/format`'s `MatchedDocument`), and the two
+ * halves pass beside one another.
  */
 
-import type { Selected, TrashGroup } from "@olai/format"
+import type { MatchedDocument, Selected, TrashGroup } from "@olai/format"
 import {
   datedIn,
   keeping,
@@ -55,7 +64,11 @@ import type { Drawn } from "../page.ts"
  * — a heading over no rows would say that archive holds something the query
  * did not find.
  */
-export const narrowed = (drawn: Drawn, matched: Selected): Drawn => {
+export const narrowed = (
+  drawn: Drawn,
+  matched: Selected,
+  documents: ReadonlyMap<string, MatchedDocument>,
+): Drawn => {
   switch (drawn.kind) {
     case "tree":
       return { kind: "tree", rows: keeping(drawn.rows, matched) }
@@ -71,6 +84,26 @@ export const narrowed = (drawn: Drawn, matched: Selected): Drawn => {
       return { kind: "agenda", agenda: keepingOwed(drawn.agenda, matched) }
     case "trash":
       return { ...drawn, groups: keepingArchives(drawn.groups, matched) }
+    case "graph": {
+      // The CENTRE stays, matched or not — it is what the page is about; a
+      // query that takes it away has not narrowed the page, it has emptied
+      // the sentence it answers.
+      const centre = drawn.around?.kind === "vertex" ? drawn.around.vertex.key : undefined
+      const keep = new Set(
+        drawn.vertices.flatMap((vertex) => {
+          if (vertex.key === centre) return [vertex.key]
+          return (
+              vertex.address.kind === "node" ? matched.has(vertex.address.id)
+            : documents.has(vertex.address.path)
+          ) ? [vertex.key] : []
+        }),
+      )
+      return {
+        ...drawn,
+        vertices: drawn.vertices.filter((vertex) => keep.has(vertex.key)),
+        edges: drawn.edges.filter((edge) => keep.has(edge.from) && keep.has(edge.to)),
+      }
+    }
     case "none":
       return drawn
   }
@@ -97,6 +130,8 @@ export const placesIn = (drawn: Drawn): number => {
       return owedIn(drawn.agenda)
     case "trash":
       return drawn.groups.reduce((total, group) => total + rowsIn(group.rows), 0)
+    case "graph":
+      return drawn.vertices.length
     case "none":
       return 0
   }
@@ -111,7 +146,11 @@ export const placesIn = (drawn: Drawn): number => {
  * for a third reason — a kept ancestor is drawn and is not a match — which is
  * the distinction the whole feature is made of.
  */
-export const matchesIn = (drawn: Drawn, matched: Selected): number => {
+export const matchesIn = (
+  drawn: Drawn,
+  matched: Selected,
+  documents: ReadonlyMap<string, MatchedDocument>,
+): number => {
   switch (drawn.kind) {
     case "tree":
       return matchedIn(drawn.rows, matched)
@@ -126,6 +165,20 @@ export const matchesIn = (drawn: Drawn, matched: Selected): number => {
     case "trash":
       return drawn.groups.reduce(
         (total, group) => total + matchedIn(group.rows, matched),
+        0,
+      )
+    case "graph":
+      // Every vertex either matched or did not — the centre is not special
+      // here: `narrowed` keeps it regardless, and this counts what the query
+      // selected, so a kept-but-unselected centre is exactly as silent as it
+      // should be.
+      return drawn.vertices.reduce(
+        (total, vertex) =>
+          total +
+          ((
+              vertex.address.kind === "node" ? matched.has(vertex.address.id)
+            : documents.has(vertex.address.path)
+          ) ? 1 : 0),
         0,
       )
     case "none":

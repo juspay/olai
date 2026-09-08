@@ -20,7 +20,7 @@
  */
 
 import { derive, litBy, parseFilter, rowsOf, type Shown } from "@olai/format"
-import { nodesOfFiles } from "@olai/format/testlib"
+import { nodesOfFiles, readingOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
@@ -41,14 +41,16 @@ import { createNarrowing } from "./narrowing.ts"
 const NOTE =
   "Two ways to go: walnut, six weeks — or birch, in stock. Measure the alcove before ordering."
 
-const derived = derive(nodesOfFiles({
+const FILES = {
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":true}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","desc":"${NOTE}"}`,
     `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets"}`,
     `{"id":"hinges","parent":"install","ord":"a0","title":"a hinge is filed under #home","todo":true}`,
   ].join("\n"),
-}))
+}
+const derived = derive(nodesOfFiles(FILES))
+const READING = readingOf(setOf(FILES))
 
 const TODAY = "2026-08-18"
 
@@ -69,7 +71,8 @@ const page = (text: string): Narrowed =>
       text: () => text,
       all: () => tree,
       visible: () => tree,
-      matched: () => answered(derived, house, text, TODAY),
+      matched: () => answered(READING, house, text, TODAY).matched,
+      matchedDocuments: () => answered(READING, house, text, TODAY).documents,
       answering: () => text.trim(),
     })
   )

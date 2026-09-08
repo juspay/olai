@@ -128,14 +128,14 @@ export const fileOf = (shows: Shown): string | undefined => {
  * looking at. So the filter never re-asks the page's question: it is handed the
  * answer and prunes it (`filter/narrowing.ts`).
  *
- * FOUR SHAPES rather than one, because there are four and pretending otherwise
+ * FIVE SHAPES rather than one, because there are five and pretending otherwise
  * would cost more than it saved: a tree nests and keeps ancestors, a day and
- * the agenda are flat rows already carrying their own ancestry, and the trash
- * is a tree per archive. `none` is a page a filter has nothing to narrow — a
- * document (prose, which this grammar says nothing about), a file that would
- * not parse, an address that named nothing — and it is what the filter bar is
- * drawn on the absence of, so the box appears exactly where it can do
- * something.
+ * the agenda are flat rows already carrying their own ancestry, the trash
+ * is a tree per archive, and the graph is dots and lines between them. `none`
+ * is a page a filter has nothing to narrow — a document (prose, which this
+ * grammar says nothing about), a file that would not parse, an address that
+ * named nothing — and it is what the filter bar is drawn on the absence of,
+ * so the box appears exactly where it can do something.
  */
 export type { Drawn } from "../contracts/page.ts"
 import type { Drawn } from "../contracts/page.ts"
@@ -172,6 +172,15 @@ export const drawnBy = (shows: Shown | undefined): Drawn => {
   if (shows.kind === "agenda") return { kind: "agenda", agenda: shows.agenda }
   if (shows.kind === "trash") {
     return { kind: "trash", files: shows.files, groups: shows.groups }
+  }
+  if (shows.kind === "graph") {
+    return {
+      kind: "graph",
+      around: shows.around,
+      vertices: shows.vertices,
+      edges: shows.edges,
+      held: shows.held,
+    }
   }
   return NOTHING_DRAWN
 }

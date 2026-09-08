@@ -1,8 +1,19 @@
-import type { Agenda, DayGroup, Row, TrashGroup } from "@olai/format"
+import type { Agenda, Centre, DayGroup, Edge, Row, TrashGroup, Vertex } from "@olai/format"
 export type Drawn =
   /** An outline's roots, or a zoomed node's children — one shape, because a
    *  file is the widest zoom there is. */
   | { readonly kind: "tree"; readonly rows: ReadonlyArray<Row> }
+  /** The referral structure's drawing, in the same prune-a-page words: the
+   *  vertices on screen, the lines among them, and what the crop is centred
+   *  on — the centre is why `visibleIn` keeps a done dot and `narrowed`
+   *  keeps an unmatched one. */
+  | {
+    readonly kind: "graph"
+    readonly around: Centre | null
+    readonly vertices: ReadonlyArray<Vertex>
+    readonly edges: ReadonlyArray<Edge>
+    readonly held: number
+  }
   /** A day's dated nodes AND the note somebody wrote on it, because both are
    *  on the screen and a filter takes one of them away (`filter/narrowing.ts`
    *  says why prose can never be a match). */

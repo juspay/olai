@@ -35,8 +35,10 @@ import {
   type DayGroup,
   datedOn,
   derive,
+  type MatchedDocument,
   nodesOf,
   parseFilter,
+  type Reading,
   type Row,
   rowsIn,
   rowsOf,
@@ -44,7 +46,7 @@ import {
   withoutDone,
   zoom,
 } from "@olai/format"
-import { nodesOfFiles } from "@olai/format/testlib"
+import { nodesOfFiles, readingOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
@@ -54,7 +56,10 @@ import { answered } from "./answered.testlib.ts"
 import type { Matches } from "./matches.ts"
 import { createNarrowing, type Narrowing } from "./narrowing.ts"
 
-const derived = derive(nodesOfFiles({
+/** THE SAME FIXTURE HELD TWO WAYS — as the `Derived` the tree walks read and
+ *  as the `Reading` the reading-plus-wire answers come from. They are built
+ *  the one breath so a query said about one is answered out of the other. */
+const FILES = {
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":true}`,
     `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters #home","done":"2026-08-03"}`,
@@ -74,16 +79,19 @@ const derived = derive(nodesOfFiles({
     `{"id":"grout","parent":"old-kitchen","ord":"a1","title":"pick the grout"}`,
     `{"id":"shims","parent":"old-kitchen","ord":"a2","title":"return the shims","todo":true,"date":"2026-08-14"}`,
   ].join("\n"),
-}))
+}
+const derived = derive(nodesOfFiles(FILES))
+const READING = readingOf(setOf(FILES))
 
 /** The day these pages are read on. Fixed, because the grammar's relative
  *  words count from the tab's clock and a test that read the real one would
  *  pass today and fail on Monday. */
 const TODAY = "2026-08-17"
 
-/** What the server would say about this query on this page
- *  (`./answered.testlib.ts`, shared with `./why.test.ts`). */
-const said = (shows: Shown, text: string, over = derived): Matches =>
+/** What the server would say about this query on this page — the WHOLE of it,
+ *  both halves of the one packet (`./answered.testlib.ts`, shared with
+ *  `./why.test.ts`). */
+const said = (shows: Shown, text: string, over: Reading = READING) =>
   answered(over, shows, text, TODAY)
 
 /** The page, at one query and one preference — the same inputs the pane hands
@@ -93,6 +101,7 @@ const said = (shows: Shown, text: string, over = derived): Matches =>
  *  reaches in the app. */
 const narrowing = (shows: Shown, text: string, hideDone = false): Narrowing => {
   const drawn = drawnBy(shows)
+  const answer = said(shows, text)
   return createRoot(() =>
     createNarrowing({
       query: () => parseFilter(text, TODAY),
@@ -102,7 +111,8 @@ const narrowing = (shows: Shown, text: string, hideDone = false): Narrowing => {
         hideDone && drawn.kind === "tree"
           ? { kind: "tree", rows: withoutDone(drawn.rows) }
           : drawn,
-      matched: () => said(shows, text),
+      matched: () => answer.matched,
+      matchedDocuments: () => answer.documents,
       answering: () => text.trim(),
     })
   )
@@ -433,7 +443,11 @@ const flat = (rows: ReadonlyArray<Row>): ReadonlyArray<string> =>
 const waiting = (
   shows: Shown,
   text: string,
-  said: { matched?: Matches; answering: string | null },
+  said: {
+    matched?: Matches
+    matchedDocuments?: ReadonlyMap<string, MatchedDocument>
+    answering: string | null
+  },
 ): Narrowing =>
   createRoot(() => {
     const drawn = drawnBy(shows)
@@ -443,6 +457,9 @@ const waiting = (
       all: () => drawn,
       visible: () => drawn,
       matched: () => said.matched,
+      // Both halves of the ONE packet, held together the way the wire holds
+      // them — neither can be answered after the other.
+      matchedDocuments: () => said.matchedDocuments,
       answering: () => said.answering,
     })
   })
@@ -465,8 +482,10 @@ test("a filter nothing has answered yet draws the whole page, and says so", () =
 // are somebody's reading, and re-drawing the whole page between two keystrokes
 // is worse than being a question behind.
 test("an answer to the query before still narrows, and the page says it is behind", () => {
+  const answer = said(house, "hinges")
   const reading = waiting(house, "hinges more", {
-    matched: said(house, "hinges"),
+    matched: answer.matched,
+    matchedDocuments: answer.documents,
     answering: null,
   })
   expect(flat(treeRows(reading))).toEqual(["kitchen", "install", "hinges"])
@@ -494,8 +513,10 @@ test("a refused query answers itself rather than travelling", () => {
 // for as long as the space stands and every scenario that waits for the page to
 // answer waits forever.
 test("a trailing space is the box's, not the question's", () => {
+  const answer = said(house, "hinges")
   const reading = waiting(house, "hinges ", {
-    matched: said(house, "hinges"),
+    matched: answer.matched,
+    matchedDocuments: answer.documents,
     answering: "hinges",
   })
   expect(reading.answering()).toBe("hinges")
@@ -528,7 +549,7 @@ test("an empty box is answered by the parse, not by the wire", () => {
  * crosses the wire. The hole this pins was a browser describing its own page to
  * the matcher; nothing describes it any more.
  */
-const FINISHED = derive(nodesOfFiles({
+const FINISHED = readingOf(setOf({
   "_olai/Trash.olai": [
     `{"id":"old-bath","ord":"a0","title":"bathroom #home","done":"2026-08-01"}`,
     `{"id":"taps","parent":"old-bath","ord":"a0","title":"the taps #home","done":"2026-08-02"}`,
@@ -536,11 +557,12 @@ const FINISHED = derive(nodesOfFiles({
 }))
 
 test("hiding finished work does not take the archive out of a zoom's scope", () => {
-  const rows = rowsOf(FINISHED, "_olai/Trash.olai")
+  const rows = rowsOf(FINISHED.derived, "_olai/Trash.olai")
   // A PLAIN WORD, which is the half of the grammar this is about: `is:trashed`
   // opens the archive by NAMING it, whatever a caller's scope says, so the
   // operator could never have shown this hole.
   const whole: Shown = { kind: "outline", file: "_olai/Trash.olai", rows }
+  const holding = answered(FINISHED, whole, "#home", TODAY)
   const reading = createRoot(() =>
     createNarrowing({
       query: () => parseFilter("#home", TODAY),
@@ -552,7 +574,8 @@ test("hiding finished work does not take the archive out of a zoom's scope", () 
       // ASKED OF THE PAGE THE SERVER COMPUTED, which is the whole reason this
       // can no longer go wrong: a preference of this browser is not on the
       // wire, so nothing a reader hides can reach the scope decision.
-      matched: () => said(whole, "#home", FINISHED),
+      matched: () => holding.matched,
+      matchedDocuments: () => holding.documents,
       answering: () => "#home",
     })
   )

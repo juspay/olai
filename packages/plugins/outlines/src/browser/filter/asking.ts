@@ -97,7 +97,7 @@
 import { debounce } from "@solid-primitives/scheduled"
 import { type Accessor, createEffect, createMemo, createSignal } from "solid-js"
 
-import type { Filter, NarrowingAnswer, NarrowingRequest, PageRequest } from "@olai/format"
+import type { Filter, MatchedDocument, NarrowingAnswer, NarrowingRequest, PageRequest } from "@olai/format"
 import { sameNarrowingRequest } from "@olai/format"
 import type { MatchedNode } from "@olai/format"
 
@@ -166,6 +166,10 @@ export interface Asked {
    * has not been answered yet must not (`./narrowing.ts` draws the difference).
    */
   readonly matched: Accessor<Matches | undefined>
+  /** The same answer's DOCUMENT half — read off the one packet, so it is
+   *  always the same beat's reason; on every page but the graph the answer's
+   *  `documents` is empty and this map is too. */
+  readonly matchedDocuments: Accessor<ReadonlyMap<string, MatchedDocument> | undefined>
   /** WHICH query {@link matched} answers — `null` when nothing has answered
    *  the words that are typed, so a caller can say whether the rows on screen
    *  are about them. Read off the answer itself, never stored beside it. */
@@ -446,8 +450,21 @@ export const createAsked = (source: {
     return matches
   })
 
+  /** Same answer, its document half — held at the same paces. See the
+   *  NARROWING's caller for why: only the graph page has documents to
+   *  select, and a map over `showing()` is the reading-shape as **`Matches`**
+   *  is the rows'. */
+  const matchedDocuments = createMemo<ReadonlyMap<string, MatchedDocument> | undefined>(() => {
+    const answered = showing()
+    if (answered === undefined) return undefined
+    const documents = new Map<string, MatchedDocument>()
+    for (const one of answered.answer.documents) documents.set(one.path, one)
+    return documents
+  })
+
   return {
     matched,
+    matchedDocuments,
     /**
      * WHICH QUERY THE ROWS ANSWER — read off the answer's own text, and off
      * nothing else.

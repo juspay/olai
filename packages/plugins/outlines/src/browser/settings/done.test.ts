@@ -18,6 +18,7 @@ import { derive, rowsOf, zoom } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
+import type { Drawn } from "../page.ts"
 import { remembering } from "@olai/web/client/preference.testlib.ts"
 
 import {
@@ -298,7 +299,7 @@ test("the file's next landing replaces the reveal; the release asks for THE VERY
   })
 })
 
-test("the pick reaches a tree and nothing else", () => {
+test("the pick reaches a tree, a graph — and nothing else", () => {
   remembering(() => {
     quiet()
     const day = { kind: "day" as const, groups: [], notes: [] }
@@ -314,5 +315,71 @@ test("the pick reaches a tree and nothing else", () => {
       kind: "tree",
       rows: house.rows,
     })
+  })
+})
+
+// The centre is the page's own answer to "what is this about": even marked
+// done, it stands where it landed.
+test("a centre marked done stays", () => {
+  remembering(() => {
+    quiet()
+    const kitchen = {
+      key: "#kitchen",
+      address: { kind: "node" as const, id: "kitchen" as never },
+      kind: "node" as const,
+      title: "the kitchen",
+      file: "house.olai",
+      crumbs: [],
+      status: "done" as const,
+      hops: 0,
+    }
+    const page: Extract<Drawn, { kind: "graph" }> = {
+      kind: "graph",
+      around: { kind: "vertex", vertex: kitchen },
+      vertices: [kitchen],
+      edges: [],
+      held: 1,
+    }
+    expect(visibleIn(page, undefined, 0)).toBe(page)
+  })
+})
+
+// A graph is no file's page: its vertices come from everywhere, and the pick
+// is the panel's DEFAULT alone — there is no per-file out-vote here, and the
+// lines a hidden vertex held up fall with it.
+test("the panel's default reaches a graph", () => {
+  remembering(() => {
+    quiet()
+    const vertex = (id: string, done = false) => ({
+      key: `#${id}`,
+      address: { kind: "node" as const, id: id as never },
+      kind: "node" as const,
+      title: id,
+      file: "house.olai",
+      crumbs: [],
+      ...(done ? { status: "done" as const } : {}),
+      hops: 0,
+    })
+    const page: Extract<Drawn, { kind: "graph" }> = {
+      kind: "graph",
+      around: { kind: "vertex", vertex: vertex("kitchen") },
+      vertices: [vertex("kitchen"), vertex("order"), vertex("drawer", true), vertex("hinges")],
+      edges: [
+        { from: "#kitchen", to: "#order", ways: ["see"] },
+        { from: "#order", to: "#drawer", ways: ["see"] },
+        { from: "#drawer", to: "#hinges", ways: ["mention"] },
+      ],
+      held: 4,
+    }
+    const readout = visibleIn(page, undefined, 0)
+    if (readout.kind !== "graph") throw new Error("shape changed")
+    // `drawer` is done — it goes, and the lines it held up go with it.
+    expect(readout.vertices.map((one) => one.key)).toEqual(["#kitchen", "#order", "#hinges"])
+    expect(readout.edges).toEqual([{ from: "#kitchen", to: "#order", ways: ["see"] }])
+
+    setDoneHidden(false)
+    // Default-visible hands the SAME value back — the numerator's identity
+    // covenant (`../filter/narrowing.ts`) reads its zero on this.
+    expect(visibleIn(page, undefined, 0)).toBe(page)
   })
 })
