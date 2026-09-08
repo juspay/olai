@@ -29,15 +29,18 @@ just serve docs     # the same, plus a client-bundler watch for the edit loop
 
 The flake lists [cache.nixos.asia/oss](https://cache.nixos.asia/oss) as a substituter, and a GitHub Actions job on every push builds every flake output on linux and darwin and pushes the closures there. `nix run github:juspay/olai` and a clone's `nix build` / `nix develop` should download rather than compile; if they compile, that commit has not been warmed yet.
 
-In a clean, pushed development checkout, `just ci` builds the checkout's pinned Odu and runs the complete `check` graph on the Linux host pool. Odu owns the fan-out, E2E sharding, live progress, and GitHub status posting; `ODU_CI_TIMEOUT` overrides the 15-minute wall-clock backstop.
+In a clean, pushed development checkout, `just ci` builds the checkout's pinned Odu and runs the complete `check` graph on the Linux host pool. Odu owns the fan-out, E2E sharding, live progress, and GitHub status posting; `ODU_CI_TIMEOUT` overrides the 15-minute watch timeout.
 
 Use `just typecheck-fast-remote` for typechecking, `just test-fast-remote` for
 unit tests, or `just e2e-fast-remote` for browser tests through the same Odu
 pipeline via `nix run .#odu`. These commands appear together in the `fast-remote`
 help group. Each selects its existing CI leaf, including
-its prerequisites, with up to six available slots. Their ten-minute backstops
+its prerequisites, with up to six available slots. Their ten-minute watch timeouts
 can be overridden with `ODU_TYPECHECK_REMOTE_TIMEOUT`, `ODU_TEST_REMOTE_TIMEOUT`
-and `ODU_E2E_REMOTE_TIMEOUT`.
+and `ODU_E2E_REMOTE_TIMEOUT`. The shared Odu service owns the run: Ctrl-C or
+a timeout stops watching while remote work continues. Use
+`nix run .#odu -- cancel --run <id>` to cancel the run explicitly, or
+`nix run .#odu -- wait --run <id>` to resume watching.
 CI also shards `typecheck` across up to six slots by workspace package; each
 package still runs its complete check, including imported types. Ordinary local
 `just typecheck` and `just test` remain unsharded. For local test logs, use

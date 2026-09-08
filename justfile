@@ -788,10 +788,10 @@ e2e: install nix
 # The browser-only spelling of the same Odu pipeline. This is a thin convenience
 # target, not another scheduler: it builds this tree's pinned Odu and selects
 # the `e2e` leaf on Linux. A bare `odu run` remains the full CI UX, including
-# the same shared E2E leaf and GitHub posting. Ten minutes is a wall-clock
-# backstop, not a scheduler policy; SIGINT lets Odu finalize statuses and free
-# every lease before coreutils escalates. Override only for a deliberate cold
-# provisioning experiment (`ODU_E2E_REMOTE_TIMEOUT=20m`).
+# the same shared E2E leaf and GitHub posting. The shared Odu service owns the
+# run: the ten-minute timeout stops watching, not the remote work. Cancel a run
+# explicitly with `nix run .#odu -- cancel --run <id>`. Override the watch limit
+# with ODU_E2E_REMOTE_TIMEOUT.
 [group("fast-remote")]
 [doc("Run browser tests on the remote Linux fleet")]
 e2e-fast-remote:
