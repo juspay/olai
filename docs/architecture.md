@@ -5,6 +5,8 @@ Open image and PDF viewers key their media URLs to the file revision. When a fil
 
 It reads that directory and keeps reading it: edit a file or `git pull`, and the open page follows without a reload. It also writes it, through one gate, from one layer: an agent asks for a node to be marked, or a person presses `Ctrl+Enter` on the row, and the tree in front of you follows — because both writes went to disk and came back through the same probe every other change does. Three clients now, one ops layer, one writer, and none of them can name a byte — the third is a verb typed in a terminal, which reaches the same gate by the same words.
 
+For plugin dependencies, ownership and safe removal, see [Cordis in Olai](architecture/cordis.md).
+
 ## Shape
 
 Olai is a bundle of scoped capabilities. The permanent host needs neither an
