@@ -178,6 +178,18 @@ const narrowedPage = (shows: Shown, selected: Selected): unknown => {
         rows: shows.groups.map((group) => [group.file, idsOfRows(keeping(group.rows, selected))]),
         places: shows.groups.reduce((total, group) => total + rowsIn(group.rows), 0),
       }
+    case "graph":
+      // The same two questions, said against dots: which of the page's own
+      // vertex records stay, and how many places the page held before the
+      // prune — the reading's `held` is the withholding count's twin.
+      return {
+        rows: shows.vertices.flatMap((vertex) =>
+          vertex.address.kind === "node" && selected.has(vertex.address.id)
+            ? [vertex.address.id]
+            : [],
+        ),
+        places: shows.vertices.length,
+      }
     case "document":
     case "broken":
     case "nothing":
@@ -202,6 +214,12 @@ const matchesOn = (shows: Shown, selected: Selected): number => {
         (total, group) => total + matchedIn(group.rows, selected),
         0,
       )
+    case "graph":
+      return shows.vertices.flatMap((vertex) =>
+        vertex.address.kind === "node" && selected.has(vertex.address.id)
+          ? [vertex.address.id]
+          : [],
+      ).length
     case "document":
     case "broken":
     case "nothing":
@@ -332,6 +350,9 @@ const answerOf = (
     id: id as NarrowingAnswer["matches"][number]["id"],
     ...(field === undefined ? {} : { matched: field }),
   })),
+  // Answered per page: fixtures here spell node pages, whose document half
+  // of any query is empty by construction.
+  documents: [],
 })
 
 /**

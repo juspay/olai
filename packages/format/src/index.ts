@@ -1188,6 +1188,38 @@ export {
 } from "./page.ts"
 
 /**
+ * THE REFERRAL STRUCTURE AS ONE READING (./graph.ts) — vertices, the edges
+ * among them, and every crop of the fold.
+ *
+ * Public because the graph is a PAGE: the fold and its rules (a mirror at no
+ * end, everything put away out) are the format's spelling of one question
+ * every asker must answer the same — the server's `page` stream, a sidebar
+ * folding a filter into the draw, and the test that checks the answer back
+ * against `./backlinks.ts`. It rides `PageRequest` and `Shown` as arms
+ * rather than as a second door, so the page's own standing agreements
+ * (value equality, revision pulse) come with it.
+ */
+export {
+  /** One line between two vertices, and the ways it merges. */
+  Edge,
+  /** THE READING ITSELF — a page's worth of vertices and the edges among them. */
+  Graph,
+  /** Past this many vertices the reading withholds the draw — see
+   *  ./graph.ts's header. */
+  GRAPH_DRAWN_AT_MOST,
+  /** What an `around` resolved to. */
+  Centre,
+  graphOf,
+  HOPS,
+  HOPS_DEFAULT,
+  Hops,
+  Vertex,
+  WAYS_DRAWN,
+  WayDrawn,
+} from "./graph.ts"
+export type { GraphRequest, VertexKind } from "./graph.ts"
+
+/**
  * WHICH OF THAT PAGE'S NODES A QUERY SELECTS (./narrowing.ts) — the reading
  * beside the one above, and what a filter box is answered with.
  *
@@ -1198,6 +1230,12 @@ export {
  * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md).
  */
 export {
+  /** One document vertex a query selected, and why — the graph page's
+   *  other half of an answer. */
+  MatchedDocument,
+  /** The page's DOCUMENT half of one query — empty on every arm but the
+   *  graph's, so the walk's other callers keep what they had. */
+  matchedDocumentsIn,
   /** The reading over a page ALREADY COMPUTED — for a caller holding a
    *  {@link Shown} rather than a request, which is what the browser's own
    *  filter suites hold when they ask what a true answer does to a page. The
