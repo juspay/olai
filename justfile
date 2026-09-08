@@ -96,7 +96,28 @@ install:
 [metadata("odu:shard=6")]
 [doc("Type-check all workspace packages")]
 typecheck: install
-    {{ nix_shell }} bash scripts/typecheck-shard.sh
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -z "${ODU_SHARD_INDEX+x}" && -z "${ODU_SHARD_TOTAL+x}" ]]; then
+      exec {{ nix_shell }} bun run typecheck
+    fi
+    if [[ ! "${ODU_SHARD_INDEX:-}" =~ ^(0|[1-9][0-9]*)$ || ! "${ODU_SHARD_TOTAL:-}" =~ ^[1-9][0-9]*$ ]] \
+      || ((ODU_SHARD_INDEX >= ODU_SHARD_TOTAL)); then
+      echo "invalid ODU_SHARD_INDEX / ODU_SHARD_TOTAL" >&2
+      exit 2
+    fi
+    members=$({{ nix_shell }} sh scripts/workspace-members.sh .)
+    filters=()
+    position=0
+    while IFS= read -r member; do
+      if ((position % ODU_SHARD_TOTAL == ODU_SHARD_INDEX)); then
+        filters+=(--filter "./$member")
+      fi
+      ((position += 1))
+    done <<< "$(printf '%s\n' "$members" | LC_ALL=C sort -u)"
+    if ((${#filters[@]})); then
+      exec {{ nix_shell }} bun run "${filters[@]}" typecheck
+    fi
 
 # Unit tests. TWO commands, one leg — and the second is not a second suite.
 #
@@ -151,7 +172,7 @@ typecheck: install
 # resolution is an ordinary unit test one package down.
 #
 # Odu may split this leaf across SIX Linux slots. Bun has no native shard flag,
-# so the script balances tracked files using committed duration estimates.
+# so the script balances tracked files using estimates for the slowest files.
 # Every worker computes the same partition; without Odu's shard variables it
 # retains the ordinary discovery-based `just test`
 # behaviour (including untracked tests during development).
@@ -795,33 +816,28 @@ e2e: install nix
 # with ODU_E2E_REMOTE_TIMEOUT.
 [group("fast-remote")]
 [doc("Run browser tests on the remote Linux fleet")]
-e2e-fast-remote:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
-      "${ODU_E2E_REMOTE_TIMEOUT:-10m}" \
-      nix run .#odu --accept-flake-config -- run e2e --platform x86_64-linux
+e2e-fast-remote: (_fast-remote "e2e" (env("ODU_E2E_REMOTE_TIMEOUT", "10m")))
 
 # Select the unit-test leaf through the same Odu path as e2e-fast-remote.
 # Odu owns sharding, prerequisite copies, status posting and lease cleanup.
 [group("fast-remote")]
 [doc("Run unit tests on the remote Linux fleet")]
-test-fast-remote:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
-      "${ODU_TEST_REMOTE_TIMEOUT:-10m}" \
-      nix run .#odu --accept-flake-config -- run test --platform x86_64-linux
+test-fast-remote: (_fast-remote "test" (env("ODU_TEST_REMOTE_TIMEOUT", "10m")))
 
 # Select the sharded typecheck leaf with the same worker lifecycle and timeout.
 [group("fast-remote")]
 [doc("Type-check workspace packages on the remote Linux fleet")]
-typecheck-fast-remote:
+typecheck-fast-remote: (_fast-remote "typecheck" (env("ODU_TYPECHECK_REMOTE_TIMEOUT", "10m")))
+
+# One invocation policy for the three individual checks. Export the timeout
+# parameter so its value is passed as data, rather than inserted into shell code.
+[private]
+_fast-remote leaf $watch_timeout:
     #!/usr/bin/env bash
     set -euo pipefail
     exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
-      "${ODU_TYPECHECK_REMOTE_TIMEOUT:-10m}" \
-      nix run .#odu --accept-flake-config -- run typecheck --platform x86_64-linux
+      "$watch_timeout" \
+      nix run .#odu --accept-flake-config -- run {{ leaf }} --platform x86_64-linux
 
 # Full CI on the Linux fleet, through this tree's pinned Odu. This deliberately
 # keeps Odu's strict defaults: it snapshots clean, pushed HEAD and posts the
