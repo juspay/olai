@@ -31,6 +31,15 @@ The flake lists [cache.nixos.asia/oss](https://cache.nixos.asia/oss) as a substi
 
 In a clean, pushed development checkout, `just ci` builds the checkout's pinned Odu and runs the complete `check` graph on the Linux host pool. Odu owns the fan-out, E2E sharding, live progress, and GitHub status posting; `ODU_CI_TIMEOUT` overrides the 15-minute wall-clock backstop.
 
+Use `just test-fast-remote` for unit tests or `just e2e-fast-remote` for browser
+tests through the same Odu pipeline. Each selects its existing CI leaf, including
+its prerequisites, with up to six available slots. Their ten-minute backstops
+can be overridden with `ODU_TEST_REMOTE_TIMEOUT` and `ODU_E2E_REMOTE_TIMEOUT`.
+CI also shards `typecheck` across up to six slots by workspace package; each
+package still runs its complete check, including imported types. Ordinary local
+`just typecheck` and `just test` remain unsharded. For local test logs, use
+`just test > .test.log 2>&1` and inspect the saved output.
+
 A worktree launch builds the pinned adapters and odu on demand (`nix build .#acp-agent`, `.#codex-agent`, `.#odu-bin`) and `just install` runs `npm ci` in `acp/`. Each of those prints the command on stderr before it starts; `npm ci` then logs every fetch (`--loglevel=http`) because `nix develop -c` is not a TTY and npm would otherwise sit silent until it finished.
 
 `olai web <dir> [--port] [--host]` reads the directory recursively, picking up every `.olai` outline and every `.md` document, and serves them to a browser. It does not descend into dot-directories or `node_modules` — a directory of outlines is usually a git repository, and nothing anyone wrote is inside `.git`. Defaults: port `0` (the OS picks one), host `127.0.0.1`. A fixed `--port` is a deploy's word — the home-manager module passes `7714` ("olai" on a phone keypad). `--port 0` asks the OS every boot: a `just run` / `just serve` restart may land on a new port.
