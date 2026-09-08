@@ -65,6 +65,7 @@ export const CODEX: Leg = {
   // The orchestrator intentionally runs like `codex --yolo`: no approval
   // prompts and unrestricted filesystem/network access, on new and loaded sessions.
   bypassMode: "agent-full-access",
+  bypassModeRequired: true,
   steering: {
     method: "_session/steering",
     meta: { steering: { idleBehavior: "promptRequired" } },

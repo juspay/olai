@@ -845,6 +845,7 @@ describe("the leg", () => {
 
   test("has a bypass mode to ask for, and a way to steer a running turn", () => {
     expect(CLAUDE.bypassMode).toBe("bypassPermissions")
+    expect(CLAUDE.bypassModeRequired).toBe(false)
     expect(CLAUDE.steering?.method).toBe(STEER_METHOD)
     expect(CLAUDE.steering?.taken({ outcome: "injected" })).toBe(true)
   })

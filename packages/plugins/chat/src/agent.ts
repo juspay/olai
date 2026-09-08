@@ -1916,33 +1916,45 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         },
       )
 
-    /** Apply the engine's explicit permission policy before publishing or
-     *  remembering the session. A refusal must fail the open: the adapter's
-     *  default can review or reject work without ever asking this client. */
+    /** Apply the engine's permission policy before activating the session.
+     *  Some engines require it; others retain their permission backstop when
+     *  the adapter refuses. Neither refusal is silent. */
     const askForBypass = (
       at: Live, id: string, config: ReadonlyArray<SessionConfigOption> | null | undefined,
-    ): Effect.Effect<void, AgentGone> => {
+    ): Effect.Effect<void, AgentGone> => Effect.gen(function*() {
       const mode = options.leg.bypassMode
-      if (mode === null) return Effect.void
-      return Effect.map(Effect.mapError(
-        ask(at.connection, methods.agent.session.setMode, {
-          sessionId: id,
-          modeId: mode,
-        }),
-        (failure) => new AgentGone({
-          gone: failure.gone,
-          why: `could not select permission mode ${mode} for session ${id}: ${failure.why}`,
-        }),
-      ), () => {
-        // set_mode may acknowledge without publishing config_option_update.
-        // Reflect its confirmed value only in an advertised mode control that
-        // actually offers that value; unrelated settings retain their last update.
-        const ids = new Set((config ?? []).filter((option) => option.category === "mode").map((option) => option.id))
-        settings = settings.map((option) => ids.has(option.id) && option.type === "select" && acceptsSetting(option, mode)
-          ? { ...option, currentValue: mode } : option)
-        emit({ _tag: "settings", settings: settings.filter((option) => option.id !== models?.config) })
+      if (mode === null) return
+      const result = yield* Effect.result(ask(at.connection, methods.agent.session.setMode, {
+        sessionId: id,
+        modeId: mode,
+      }))
+      if (result._tag === "Failure") {
+        const why = `could not select permission mode ${mode} for session ${id}: ${result.failure.why}`
+        if (options.leg.bypassModeRequired === true) {
+          // Replay and settings can arrive before selection. Withdraw that
+          // provisional visit and fence its late notifications just like a
+          // session we left; no active session or memory claim was made.
+          closed.add(id)
+          leaving()
+          show(null)
+          emit({ _tag: "sessionOver", why: "refused" })
+          return yield* new AgentGone({ gone: result.failure.gone, why })
+        }
+        trouble(`${why}; continuing with the adapter's existing permission mode`)
+        return
+      }
+      // set_mode may acknowledge without publishing config_option_update.
+      // Reflect its confirmed value only in an advertised mode control that
+      // actually offers that value; unrelated settings retain their last update.
+      const ids = new Set((config ?? []).filter((option) => option.category === "mode").map((option) => option.id))
+      let changed = false
+      settings = settings.map((option) => {
+        if (!ids.has(option.id) || option.type !== "select" || !acceptsSetting(option, mode) || option.currentValue === mode) return option
+        changed = true
+        return { ...option, currentValue: mode }
       })
-    }
+      if (changed) emit({ _tag: "settings", settings: settings.filter((option) => option.id !== models?.config) })
+    })
 
     /** The subprocess, and nothing about a conversation. Its own step because
      *  the two things a caller can want are genuinely different: {@link boot}

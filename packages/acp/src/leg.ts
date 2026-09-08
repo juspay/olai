@@ -403,10 +403,15 @@ export interface Leg {
    */
   readonly prologueIn: (opened: unknown) => string | null
 
-  /** The permission mode required for every new or loaded session, or `null`
+  /** The permission mode requested for every new or loaded session, or `null`
    *  to leave the adapter default unchanged (not configuration inheritance).
-   *  A refused selection fails the open before the session becomes active. */
+   *  Refusal behavior is declared separately by `bypassModeRequired`. */
   readonly bypassMode: string | null
+
+  /** Require successful mode selection before activating a session. Otherwise
+   *  report a refusal and keep the adapter default and permission backstop.
+   *  Omission preserves the nonfatal behavior of existing integrations. */
+  readonly bypassModeRequired?: boolean
 
   /** How a message reaches the turn ALREADY RUNNING, on purpose — or `null`
    *  for an agent with no such gesture. Never how an ordinary send is

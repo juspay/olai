@@ -48,6 +48,7 @@ describe("Codex's conservative wire readings", () => {
     expect(CODEX.spawned({ codex: { subagent: { threadId: "two" } } }, {})).toBeNull()
     expect(CODEX.queues(HANDSHAKE)).toBe(false)
     expect(CODEX.bypassMode).toBe("agent-full-access")
+    expect(CODEX.bypassModeRequired).toBe(true)
   })
 
   test("reads the model picker by exact model id", () => {
