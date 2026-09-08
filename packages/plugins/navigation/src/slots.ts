@@ -17,7 +17,24 @@ export type AppRouteClaim =
 
 export interface AppRoute {
   readonly claims: ReadonlyArray<AppRouteClaim>
-  readonly parse: (pathname: string) => unknown | null
+  /**
+   * The tenant's own parsing of the URL — the pathname, plus the fragment
+   * and the query (`q` already taken out, since it is the app's own key),
+   * for a claim that holds both halves of an address.
+   *
+   * `rest` lands beside `pathname` rather than replacing it, because most
+   * grammars still want only the path; those read the first argument and
+   * never touch the second. The address half (the fragment, and the query
+   * a page like the graph's horizon rides in) belongs to the TENANT — the
+   * app carries it through, unread, exactly as `rest` spells it.
+   */
+  readonly parse: (
+    pathname: string,
+    // `?` because most grammars hold only the path: the tenant that only
+    // reads the first argument never touches the second, which is exactly
+    // the backwards-compatible widening `journal`'s routes get.
+    rest?: { readonly fragment: string | undefined; readonly query: URLSearchParams },
+  ) => unknown | null
   readonly href: (page: unknown) => string
   readonly breadcrumb: (page: unknown) => string
   readonly narrowable: boolean

@@ -157,7 +157,10 @@ const APP_PAGE = Symbol("olai app page")
 export interface NodePageRoute {
   readonly [APP_ROUTE]: true
   readonly claims: ReadonlyArray<AppRouteClaim>
-  readonly parse: (pathname: string) => unknown | null
+  readonly parse: (
+    pathname: string,
+    rest?: { readonly fragment: string | undefined; readonly query: URLSearchParams },
+  ) => unknown | null
   readonly href: (page: unknown) => string
   readonly breadcrumb: (page: unknown) => string
   readonly narrowable: boolean
@@ -233,7 +236,10 @@ export interface DefinedAppRoute<Value, Request extends PageRequest> {
   readonly to: (value: Value) => Route
   readonly value: (route: Route) => Value | null
   /** Kept for the route grammar's own focused tests. */
-  readonly parse: (pathname: string) => Value | null
+  readonly parse: (
+    pathname: string,
+    rest?: { readonly fragment: string | undefined; readonly query: URLSearchParams },
+  ) => Value | null
   readonly href: (value: Value) => `/${string}`
   readonly breadcrumb: (value: Value) => string
   readonly request: (value: Value, today: string) => Request
@@ -243,7 +249,10 @@ export interface DefinedAppRoute<Value, Request extends PageRequest> {
  * a tenant's value/request types and the heterogeneous route slot. */
 export const defineAppRoute = <Value, Request extends PageRequest>(spec: {
   readonly claims: ReadonlyArray<AppRouteClaim>
-  readonly parse: (pathname: string) => Value | null
+  readonly parse: (
+    pathname: string,
+    rest?: { readonly fragment: string | undefined; readonly query: URLSearchParams },
+  ) => Value | null
   readonly href: (value: Value) => `/${string}`
   readonly breadcrumb: (value: Value) => string
   readonly narrowable: boolean
@@ -255,7 +264,7 @@ export const defineAppRoute = <Value, Request extends PageRequest>(spec: {
   const source: NodePageRoute = {
     [APP_ROUTE]: true,
     claims: spec.claims,
-    parse: spec.parse as (pathname: string) => unknown | null,
+    parse: spec.parse,
     href: (value) => spec.href(value as Value),
     breadcrumb: (value) => spec.breadcrumb(value as Value),
     narrowable: spec.narrowable,
@@ -536,7 +545,10 @@ export const hrefOfPlain = (route: PlainRoute): string => {
  */
 export const hrefOfIn = (pages: MountedPages, route: Route): string => {
   if (route.kind !== "plugin") return hrefOfPlain(route)
-  return (routeFaceIn(pages, route)?.route.href(route.value) ?? HOME) + narrowing(filterOfIn(pages, route))
+  return spelt(
+    routeFaceIn(pages, route)?.route.href(route.value) ?? HOME,
+    filterOfIn(pages, route),
+  )
 }
 
 /** The `?q=…` a filtered page wears — and nothing at all for an unfiltered
@@ -547,6 +559,30 @@ const narrowing = (filter: string | undefined): string =>
   filter === undefined || filter.trim() === ""
     ? ""
     : `?${new URLSearchParams({ [FILTER_KEY]: filter }).toString()}`
+
+/**
+ * THE TENANT'S OWN SPELLING, with the app's query merged in — the same rule
+ * `hrefOfPlain` reads as *path, then narrowing, then the fragment*, said for
+ * a page whose `href` may already carry either half: a plugin like the
+ * graph's page holds an ADDRESS as its value, so its spelling holds the
+ * fragment the value came with, and the filter is the app's business the
+ * same way the fragment is the tenant's — up against `narrowing`'s rule.
+ *
+ * Every combination is read ONCE: a spelling with no query of its own gets
+ * `?q` straight where a URL keeps one; one with its own (the horizon) gains
+ * `q` in the same pocket rather than stacking a question mark. A `href`
+ * with no fragment never grows one, and one with no query never grows the
+ * punctuation it doesn't need. {@link splitAddress} is the cut — the same
+ * slicing the address grammar reads with.
+ */
+export const spelt = (href: string, filter: string | undefined): string => {
+  if (filter === undefined || filter.trim() === "") return href
+  const parts = splitAddress(href)
+  const query = new URLSearchParams(parts.search)
+  query.set(FILTER_KEY, filter)
+  const written = `?${query.toString()}`
+  return parts.pathname + written + (parts.fragment === undefined ? "" : `#${parts.fragment}`)
+}
 
 /**
  * What a query NARROWS a route by, as the fields to spread onto one — `{}` for
@@ -667,7 +703,19 @@ const routeNamedIn = (pages: MountedPages, parts: Split): Route | null => {
 
   const tenant = pages.find((one) => claims(one.page.route, pathname))?.page
   if (tenant !== undefined) {
-    const value = tenant.route.parse(pathname)
+    // The query the tenant SEES has the app's own key taken out — `q` is
+    // the narrowing the route carries as a VALUE, and hands a plugin a
+    // query that still holds it would be the app asking a tenant to edit
+    // meanings it does not know. What it keeps is the fragment and the
+    // tenant's own pocket (the horizon, say).
+    const value = tenant.route.parse(pathname, {
+      fragment,
+      query: (() => {
+        const held = new URLSearchParams(search)
+        held.delete(FILTER_KEY)
+        return held
+      })(),
+    })
     if (value === null) return null
     return {
       kind: "plugin",

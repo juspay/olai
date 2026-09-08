@@ -11,7 +11,7 @@
 
 import { expect, test } from "bun:test"
 
-import { atElement, atFile, atNode, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
+import { atElement, atFile, atNode, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages, spelt } from "./routes.ts"
 import { ROUTES, routingIn } from "./routes.testlib.ts"
 
 /** No plugin claims a URL — the roster these cases are about, named rather
@@ -153,6 +153,21 @@ test("what a page is narrowed by is read off the route", () => {
   expect(filterOf(atFile("finishes.md"))).toBe("")
 })
 
+// The tenant's own spelling is the row the same rule reads off a PLUGIN
+// route: the query belongs between the two halves — `narrowing`'s rule —
+// whether or not the tenant's own spelling already holds one. Four
+// combinations, four answers, one sentence.
+test("a route's own query and fragment are kept in their places", () => {
+  expect(spelt("/grammar", "is:done")).toBe("/grammar?q=is%3Adone")
+  expect(spelt("/grammar#frag", "is:done")).toBe("/grammar?q=is%3Adone#frag")
+  expect(spelt("/grammar?hops=2", "is:done")).toBe("/grammar?hops=2&q=is%3Adone")
+  expect(spelt("/grammar?hops=2#frag", "is:done")).toBe("/grammar?hops=2&q=is%3Adone#frag")
+  // Unnarrowed: the tenant's own spelling, gained by `hrefOfIn` when the
+  // page is unfiltered — never minted meaning.
+  expect(spelt("/grammar?hops=2#frag", undefined)).toBe("/grammar?hops=2#frag")
+  expect(spelt("/grammar", undefined)).toBe("/grammar")
+})
+
 // `/trash` spells no file for the agenda's reason: which archives exist is the
 // set's answer, and an address that named one would mean something different
 // the day a subdirectory gets its own. An archive's own outline address still
@@ -215,6 +230,60 @@ test("an unrecognised path is the default outline", () => {
   expect(routeOf("/")).toEqual(HOME_ROUTE)
   expect(routeOf("/somewhere/else")).toEqual(HOME_ROUTE)
   expect(routeOf("/notes.txt")).toEqual(HOME_ROUTE)
+})
+
+// The widening the `graph`-page round asks for: the URL holds the tenant's
+// own halves — an ADDRESS (path AND fragment) and a QUERY — and the app
+// still reads what rode in the narrowing, neither replacing the other.
+test("a plugin page holds both halves of an address and is narrowed", () => {
+  const route = defineAppRoute({
+    claims: [{ kind: "prefix", path: "/grammar" }],
+    parse: (pathname, rest) => {
+      if (pathname === "/grammar") return { value: "whole" }
+      return pathname === "/grammar/" ?
+        (
+          rest?.fragment === undefined ?
+            { value: "whole" }
+          : { value: `fragment:${rest.fragment}` }
+        )
+        :
+        { value: pathname.replace(/^\/grammar\//, "") }
+    },
+    href: (value) =>
+      value.value === "whole" ? "/grammar" :
+      value.value.startsWith("fragment:") ? `/grammar/#${value.value.slice(9)}` :
+      `/grammar/${value.value}` as `/${string}`,
+    breadcrumb: () => "grammar",
+    narrowable: true,
+    request: () => ({ kind: "trash" } as const),
+    stream: { use: () => () => undefined },
+  })
+  const pages = settleRoutePages([{ plugin: "grammar", face: defineAppPage(route, () => null) }])
+  const mounted = routingIn(pages)
+  // The address holds the tenant's halves...
+  expect(mounted.href(route.to({ value: "fragment:kitchen" }))).toBe("/grammar/#kitchen")
+  expect(mounted.routeOf("/grammar/#kitchen")).toEqual(route.to({ value: "fragment:kitchen" }))
+  // ...and the query rides next to the fragment, both halves held.
+  // Narrowing a plugin route pushes the query in beside the fragment: the
+  // tenant's halves hold, the app's own `q` rides where `narrowing` (the
+  // route's own address grammar) puts it.
+  const narrowed = mounted.narrowedTo(route.to({ value: "fragment:kitchen" }), "is:done")
+  expect(mounted.href(narrowed)).toBe("/grammar/?q=is%3Adone#kitchen")
+  expect(mounted.routeOf("/grammar/?q=is%3Adone#kitchen")).toEqual(narrowed)
+  // ...and reading it back restores the route exactly — both halves held,
+  // the query back and forth.
+  const written = mounted.href(narrowed)
+  expect(written).toBe("/grammar/?q=is%3Adone#kitchen")
+  expect(mounted.routeOf(written)).toEqual(narrowed)
+  // The tenant's OWN query is read through `rest` the same way — the app's
+  // `q` is read off the filter, and the plugin's `hops` is its own letter.
+  const tenant = pages[0]!.page
+  expect(tenant.route.parse("/grammar/", { fragment: "kitchen", query: new URLSearchParams("hops=2") })).toEqual({
+    value: "fragment:kitchen",
+  })
+  expect(tenant.route.parse("/grammar", { fragment: undefined, query: new URLSearchParams("hops=2") })).toEqual({
+    value: "whole",
+  })
 })
 
 // A link inside rendered markdown gets the STRICT reading, and the difference
