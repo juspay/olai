@@ -20,7 +20,7 @@ process.stdin.on("data", (chunk: string) => {
   for (const line of lines) {
     if (!line.trim()) continue
     const message = JSON.parse(line)
-    appendFileSync("requests.jsonl", `${line}\n`)
+    appendFileSync("requests.log", `${line}\n`)
     const respond = (result: unknown) => write({ jsonrpc: "2.0", id: message.id, result })
     switch (message.method) {
       case "initialize":

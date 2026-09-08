@@ -33,7 +33,7 @@ const withAgent = async (
   }))
   try {
     await body({ agent, events, remembered, cwd,
-      requests: () => readFileSync(join(cwd, "requests.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line)),
+      requests: () => readFileSync(join(cwd, "requests.log"), "utf8").trim().split("\n").map((line) => JSON.parse(line)),
     })
   } finally {
     await run(agent.stop)
