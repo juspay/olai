@@ -6,4 +6,6 @@
 - Keep docs/*.md up to date in the same PR as the code. website/ is the pitch for people, not a spec dump — touch it only if the reason to try olai changed, or a picture of something a person sees is now wrong. 
 - Require full e2e coverage of user workflows and edge cases across the app; audit for missing coverage, fix discovered bugs, and do not treat a green existing suite as proof of completeness.
 - Prefer frequent-commits followed by CI (`just ci`), which is much faster than running local tests/checks.
-   - Fastest way to run e2e outside of CI: `just e2e-fast-remote`
+   - Run individual checks remotely with `just typecheck-fast-remote`, `just test-fast-remote`, or `just e2e-fast-remote` from a clean, pushed checkout. These use up to six available Odu slots and appear together in the `fast-remote` help group.
+   - The fast targets and `just ci` use the current flake's pinned Odu via `nix run .#odu`. Fast targets default to a 10-minute watch timeout; override with `ODU_TYPECHECK_REMOTE_TIMEOUT`, `ODU_TEST_REMOTE_TIMEOUT`, or `ODU_E2E_REMOTE_TIMEOUT`.
+   - Odu runs belong to its shared service: Ctrl-C or a watch timeout leaves the run active. Use `nix run .#odu -- wait --run <id>` to follow it or `nix run .#odu -- cancel --run <id>` to cancel it.
