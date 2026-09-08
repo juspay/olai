@@ -34,7 +34,12 @@ In a clean, pushed development checkout, `just ci` builds the checkout's pinned 
 Use `just typecheck-fast-remote` for typechecking, `just test-fast-remote` for
 unit tests, or `just e2e-fast-remote` for browser tests through the same Odu
 pipeline via `nix run .#odu`. These commands appear together in the `fast-remote`
-help group. Each selects its existing CI leaf, including
+help group. They snapshot the working tree, including uncommitted edits, new
+non-ignored files and deletions; ignored files and `.ci/` are excluded. Each
+worker receives the same content commit, recorded as `contentSha` alongside
+the base `sha`. Fast checks never post GitHub statuses, even for clean trees;
+use `just ci` for committed-HEAD CI attribution. An unchanged rerun has the
+same `contentSha` and can reuse worker object caches. Each selects its existing CI leaf, including
 its prerequisites, with up to six available slots. Their ten-minute watch timeouts
 can be overridden with `ODU_TYPECHECK_REMOTE_TIMEOUT`, `ODU_TEST_REMOTE_TIMEOUT`
 and `ODU_E2E_REMOTE_TIMEOUT`. The shared Odu service owns the run: Ctrl-C or
