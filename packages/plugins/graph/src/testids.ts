@@ -37,8 +37,6 @@ export const TESTID = {
   graphPalette: "graph-palette",
   /** The quiet door under a zoomed node's properties. */
   nodeGraphDoor: "node-graph-door",
-  /** The same door on a document page. */
-  documentGraphDoor: "document-graph-door",
   /** The announced label count: `data-named`, `data-drawn`. */
   graphNamed: "graph-named",
 } as const
