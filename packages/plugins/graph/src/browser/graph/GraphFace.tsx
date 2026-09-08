@@ -40,7 +40,7 @@ import type { Drawn } from "olai-plugin-outlines/page"
 
 import { TESTID } from "../../testids.ts"
 import { navigationHeld } from "../held.ts"
-import { graph } from "../routes.ts"
+import { graph, graphAround } from "../routes.ts"
 import { Canvas, saidOf } from "./Canvas.tsx"
 import { Controls } from "./Controls.tsx"
 import { EDGE_LOOKS } from "./look.ts"
@@ -81,15 +81,10 @@ export function GraphFace(props: {
     }))
   }
 
-  /** The vertex's CONTENT page: a node opens its row, a file its own page —
- *  opening the thing is navigation's business, not this page's. */
-const contentRoute = (vertex: Vertex): Route =>
-  vertex.address.kind === "node" ? atNode(vertex.address.id) : atFile(vertex.address.path)
-
-/** THE CENTRE VERTEX'S KEY, or none — the accent on a dot and the dot the
- *  caption falls back to. The page's own derivation: the pruned graph
- *  keeps an unmatched centre, so the same question must not have two
- *  answers. */
+  /** THE CENTRE VERTEX'S KEY, or none — the accent on a dot and the dot the
+   *  caption falls back to. The page's own derivation: the pruned graph
+   *  keeps an unmatched centre, so the same question must not have two
+   *  answers. */
   const centre = (): Vertex | undefined =>
     props.page.around?.kind === "vertex" ? props.page.around.vertex : undefined
 
@@ -151,6 +146,7 @@ const contentRoute = (vertex: Vertex): Route =>
           pointed={pointed}
           setPointed={setPointed}
           centre={centre}
+          hoveredVertex={hovered}
         />
       </Show>
       <Legend />
@@ -165,6 +161,7 @@ function Shape(props: {
   readonly pointed: () => string | undefined
   readonly setPointed: (key: string | undefined) => void
   readonly centre: () => Vertex | undefined
+  readonly hoveredVertex: () => Vertex | undefined
 }) {
   const looking = createLooking()
 
@@ -240,13 +237,18 @@ function Shape(props: {
           centre={props.centre()?.key}
           looking={looking}
         />
-        <p
-          class="mt-2 min-h-5 shrink-0 truncate text-sm text-muted"
+        <div
+          class="mt-2 flex min-h-5 shrink-0 items-baseline gap-2 text-sm text-muted"
           data-testid={TESTID.graphCaption}
           aria-live="polite"
         >
-          {props.said()}
-        </p>
+          <p class="min-w-0 truncate">{props.said()}</p>
+          <CentreHere
+            vertex={props.hoveredVertex}
+            centre={props.centre}
+            hops={props.page.hops}
+          />
+        </div>
         <Named page={props.page} drawn={drawn()} />
       </Show>
     </>
@@ -273,6 +275,32 @@ function Named(props: {
     >
       {props.drawn?.vertices.length ?? 0} of {props.page.vertices.length} named
     </p>
+  )
+}
+
+/** The caption's own move: the pointed dot becomes the graph's centre — one
+ *  hop of navigation INSIDE the page, rather than leaving it for the other
+ *  record and back. Drawn only while something other than the centre is
+ *  pointed at. */
+function CentreHere(props: {
+  readonly vertex: () => Vertex | undefined
+  readonly centre: () => Vertex | undefined
+  readonly hops: Hops
+}) {
+  const other = (): Vertex | undefined => {
+    const one = props.vertex()
+    return one !== undefined && one.key !== props.centre()?.key ? one : undefined
+  }
+  return (
+    <Show when={other() !== undefined}>
+      <Link
+        route={graphAround(other()!.address, props.hops)}
+        class="shrink-0 text-xs underline"
+        testid={TESTID.graphCentreHere}
+      >
+        Centre here
+      </Link>
+    </Show>
   )
 }
 
