@@ -59,7 +59,9 @@ const thePage = (): Extract<Drawn, { kind: "graph" }> => ({
 test("an unfiltered page holds every vertex, and the page is about the centre", () => {
   const page = thePage()
   expect(placesIn(page)).toBe(4)
-  expect(narrowed(page, new Set<string>(), new Map()).vertices).toHaveLength(1)
+  const held = narrowed(page, new Set<string>(), new Map())
+  if (held.kind !== "graph") throw new Error("shape")
+  expect(held.vertices).toHaveLength(1)
   expect(matchesIn(page, new Set<string>(["worktop"]), new Map())).toBe(1)
 })
 
@@ -93,7 +95,10 @@ test("a match keeps its vertex and the road to the centre; an unmatched falls, i
 test("a document dot is kept in step its words select", () => {
   const page = thePage()
   const documents = new Map<string, MatchedDocument>([
-    ["notes/brief.md", { path: "notes/brief.md", matched: "body" }],
+    [
+      "notes/brief.md",
+      { path: "notes/brief.md" as MatchedDocument["path"], matched: "body" },
+    ],
   ])
   const held = narrowed(page, new Set(), documents)
   if (held.kind !== "graph") throw new Error("shape")
