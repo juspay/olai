@@ -10,17 +10,11 @@
 # already hydrated one file over. One directory, copied; no expansion to ask
 # for, and nothing for a seed list to compute.
 #
-# THE PIN NORMALLY TRACKS MASTER at the exact revision this tree compiled
-# against. `just update-pins` walks it forward; `npins/sources.json` records the
-# tested revision in this diff.
-#
-# RIGHT NOW IT DOES NOT. The recorded revision is the HEAD OF AN UNMERGED
-# BRANCH — juspay/odu#105 ("One authority: every public command is a service
-# client"), 42 commits ahead of the master this tree last compiled against.
-# `sources.json` still names `master` as the branch, deliberately: the intended
-# end state is #105 landing and `just update-pins` walking the pin back onto
-# master at or past it. Until then, any `npins update` REVERTS this pin, and
-# that is the reminder rather than a trap.
+# THE PIN TRACKS MASTER at the exact revision this tree compiled against.
+# `just update-pins` walks it forward; `npins/sources.json` records the tested
+# revision in this diff. The pinned master is juspay/odu#105 ("One authority:
+# every public command is a service client") as it landed — odu squash-merges,
+# so master's head IS that commit.
 #
 # WHAT #105 COST THE CONSUMER, since a pin bump is where it landed. odu's MCP
 # face was renamed wholesale: the verbs `run`, `node_rerun`, `node_cancel`,
