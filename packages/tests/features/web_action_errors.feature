@@ -28,7 +28,7 @@ Feature: Web action errors stay with the web action
     # render before the absence check, instead of racing the refusal frame.
     When I ask the agent "after trash"
     Then the agent's answer mentions "you said: after trash"
-    And the web action added no refusal to chat
+    And the chat shows no refusal
 
   Scenario: A refused status change reports locally without leaking to chat
     When I open the node menu of "demo"
@@ -37,7 +37,7 @@ Feature: Web action errors stay with the web action
     And the node "demo" has status "done"
     When I ask the agent "after status"
     Then the agent's answer mentions "you said: after status"
-    And the web action added no refusal to chat
+    And the chat shows no refusal
 
   Scenario: An agent tool refusal still appears in chat
     When I ask the agent "done nowhere"

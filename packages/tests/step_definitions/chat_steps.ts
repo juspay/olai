@@ -977,13 +977,13 @@ Then("the chat shows a refusal", async function (this: OlaiWorld) {
 });
 
 Then("the chat shows no refusal", async function (this: OlaiWorld) {
-  // The turn has already been asserted to have LANDED by whatever step comes
-  // before this one, so there is nothing left to wait for: a refusal, if there
-  // were one, would be on screen by now.
-  assert.strictEqual(
-    await this.page.locator(CHAT_REFUSAL).count(),
-    0,
-    "the panel drew a refusal for a write that was supposed to land",
+  // The scenario establishes completion before checking the transcript.
+  // That receipt need not be a successful write: web refusals stay local too.
+  const refusals = await this.page.locator(CHAT_REFUSAL).allInnerTexts();
+  assert.deepStrictEqual(
+    refusals,
+    [],
+    `expected no chat refusals; found: ${JSON.stringify(refusals)}`,
   );
 });
 
