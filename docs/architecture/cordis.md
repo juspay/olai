@@ -3,7 +3,8 @@
 Olai should let a plugin stop or be replaced without leaving its work running,
 using a departed service, or disturbing unrelated plugins. Cordis provides the
 composition model; Olai's Effect bridge, services and plugin implementations
-must make that promise real.
+must make that promise real. This guide expands the Cordis adherence rule in
+[CLAUDE.md](../../CLAUDE.md), also exposed through the `AGENTS.md` symlink.
 
 This guide explains the architecture established through [PR #554](https://github.com/juspay/olai/pull/554)
 and [PR #557](https://github.com/juspay/olai/pull/557), including the mistakes
@@ -91,8 +92,10 @@ shared mutable table into a utility package does not give it an owner.
 
 Likewise, consumers read contributions through declared `Faces` or renderer
 services. They do not import private browser composition machinery to discover
-what other plugins mounted. Package exports restrict access, while declared
-services establish the lifetime relationship.
+what other plugins mounted. `Faces` reads contributions in bundle order, with
+the rank supplied once by the host, so consumers agree on that order. Package
+exports restrict access, while declared services establish the lifetime
+relationship.
 
 ## Choose the owner before the helper
 
@@ -116,8 +119,9 @@ and [heldFiles](../../packages/plugins/vault/src/browser/state.ts) factories
 replace duplicated algorithms; their private consumers still create separate
 holders. Neither factory locates a service on the caller's behalf.
 
-A holder is a convenience for reaching a value already acquired by an
-activation, not an alternative to declaring that dependency. Its release must
+The consumer keeps its own hold on the service it acquired; it does not reach
+into a provider-owned holder. A holder is a convenience for reaching that
+value, not an alternative to declaring the dependency. Its release must
 remove **its own installation**, without clearing a later installation. Olai's
 [heldService](../../packages/ui-primitives/src/held.ts) uses a fresh token per
 hold: comparing service values alone is insufficient when two activations can
@@ -139,6 +143,11 @@ cover different relationships:
 | An integration cannot run without a service | Declare it on that component. Keep independent work outside that component. |
 | Optional providers can register into their consumer | Give the consumer an owned registration service, as with `VaultViews`. |
 | The consumer must stay available while backing providers change | Use a narrow, declared broker with explicit absence and replacement behavior, as with `Served` or `Wired`. |
+
+When a row must remain useful without an integration, a separate component
+can express that integration. When the row itself must keep operating with
+optional backing providers, use registration or a broker rather than making
+those providers mandatory.
 
 An unrestricted service locator hides the real graph, even if the locator
 itself is declared. A broker earns its boundary by exposing a specific
@@ -179,9 +188,12 @@ and [dispatch gate](../../packages/effect-cordis/src/gate.ts) coordinate stoppin
 4. Await invocation completion before closing the resource scope, including on
    the exceptional path out of revocation.
 
-Starting the cut before awaiting revocation matters: a dependent's finalizer
-may itself be waiting for that handler. Waiting for the dependent first would
-prevent the action that lets it finish.
+Two behaviors of the pinned engine explain why the bridge owns this sequence:
+it unloads its disposer set concurrently, and its provision disposer awaits
+dependent cleanup. An ordinary resource finalizer beside that disposer would
+therefore not be ordered after dependents. Starting the cut before awaiting
+revocation matters too: a dependent's finalizer may be waiting for that handler.
+Waiting for the dependent first would prevent the action that lets it finish.
 
 Several details are necessary to make this ordering true:
 
@@ -206,8 +218,10 @@ Several details are necessary to make this ordering true:
 A timeout that logs and releases resources under a still-running handler is
 not safe shutdown. Olai waits for uninterruptible invocations to unwind and
 reports a slow cut. This gives no finite shutdown bound for code that refuses
-to finish. Self-removal also needs to work through the real plugin disposer,
-not just through an isolated gate.
+to finish. A handler may request disposal of its own plugin: that path must
+cut and unwind the invocation before releasing the plugin's resources, without
+deadlocking. This is a property of the complete disposer path, not of a gate
+considered alone.
 
 The activation stage provides the ordering above; an ordinary child or bare
 scope still has its own finalizer ordering. Registering a gate in a scope does
@@ -220,7 +234,9 @@ creating an adapter after its waiting fiber has been interrupted, the value can
 otherwise be abandoned before a disposer is installed. Use an acquisition
 protocol that either prevents that handoff gap or explicitly releases a late
 result. Stopping an Effect waiting on a promise does not itself cancel the
-underlying operation or close its result.
+underlying operation or close its result. MCP's [adapter acquisition](../../packages/plugins/mcp/src/endpoint.ts)
+brackets acquisition and release with `Effect.acquireRelease`; cancellation
+during acquisition waits for the adapter and then closes it.
 
 The same issue appears in UI code. Register disposal synchronously, before
 awaiting a dynamic import. After loading, check whether the owner still exists
@@ -234,8 +250,8 @@ layout the owner of every overlay.
 Background work needs an owner too. The bridge's `detached` helper enters
 Effect from an external callback under the plugin's services and scope. Work
 belonging to a shorter-lived session needs that session's cancellation/join
-policy. A manually retained and cleaned-up timer is not a leak merely because
-it uses a fork API.
+policy. A manually retained timer is not a leak merely because it uses a fork
+API, provided its owner tracks it and cancels or joins it on stop.
 
 Shutdown must join or refuse **every operation capable of acquiring more
 resources**, including ones started after boot. Waiting for startup alone, then
@@ -254,6 +270,13 @@ applies to subprocesses and remote writes.
 
 ## Browser state and reconnection
 
+In Olai's renderer, only the `root` location is permanent within the renderer
+lifetime. A contribution belongs to its caller; its `activate` function acquires
+location-dependent resources in a separate scope, and its child locations exist
+only while that entry is active. Withdrawal drains dependents before releasing
+the owner's resources. The root location's permanence does not make its
+contributed layout permanent. See [location ownership](../internal/plugin-system.md#locations-and-compatibility).
+
 Service absence is a state the UI must handle. A released holder must stop
 returning the old service; rendering must also respect when that service can
 be used. Git's banner exposed the difference: clearing a component's reading
@@ -262,11 +285,19 @@ draw behind the activation's availability gate. Correct cleanup alone does not
 make every reactive mount order safe.
 
 A stable service may legitimately manage a changing connection. Olai's
-[`Wired` broker](../../packages/web/src/client/wire.ts) lets surviving consumers
-retain a client while the transport redials. Its contract includes new calls
-and subscriptions following the connection, and unavailable capabilities being
-refused. This does not promise delivery of every event during a disconnected
-gap. Reconnection does not inherently require restarting every browser plugin.
+[`Wired` service](../../packages/plugin-api/src/browser.ts), backed by the
+[redial loop](../../packages/web/src/client/wire.ts), lets surviving consumers
+retain their client when their loaded module is unchanged. The connection and
+client table retain identity; departing client keys are removed and calls to
+departed capabilities are refused.
+
+Subscriptions **return rather than remaining uninterrupted**: superseding the
+connection fails open subscriptions with a transport error. They resubscribe
+and take a fresh snapshot, with a roughly one-second `pending` gap under the
+current retry policy. A healthy connection readout alone does not establish
+that a value has resumed updating. This is not a guarantee of delivery of every
+event during the gap, nor a reason to restart every browser plugin. See the
+[reconnection contract](../internal/plugin-system.md) for the precise behavior.
 
 When evaluating such a broker, follow the actual subscription and call path.
 An extra cache or blanket restart is not a repair until the existing contract
@@ -303,16 +334,10 @@ module-level value would reject legitimate contracts without proving safety.
 
 Evidence should establish the promised outcome: a stopped handler cannot act,
 a departed consumer cannot clear its replacement, two hosts remain isolated,
-and unrelated work survives provider replacement. Source inspection, focused
-reproductions and checks that distinguish a broken mechanism provide different
-parts of that evidence. A passing suite alone is not a proof; an alarming
-screenshot alone does not establish a product defect or its cause. Distinguish
-reproduced failures, source-supported risks and hypotheses, and retain failing
-evidence before rerunning a check.
-
-Do not turn one preferred technique into the architectural requirement. A
-source-count check, a particular holder helper or a forced refactor is not the
-outcome. Nor does explaining an unmet outcome make it complete.
+and unrelated work survives provider replacement. A passing suite is not proof
+of those properties; source inspection and reproductions must address the
+ownership claim itself. A preferred helper, source-count check or forced
+refactor is a technique, not the architectural requirement.
 
 Finally, Olai's initialization cancellation and teardown coordination are
 Effect-backed adaptations, not guarantees borrowed wholesale from the paper.
