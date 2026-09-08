@@ -768,29 +768,35 @@ e2e: install nix
 # backstop, not a scheduler policy; SIGINT lets Odu finalize statuses and free
 # every lease before coreutils escalates. Override only for a deliberate cold
 # provisioning experiment (`ODU_E2E_REMOTE_TIMEOUT=20m`).
+[group("fast-remote")]
 [doc("Run browser tests on the remote Linux fleet")]
 e2e-fast-remote:
     #!/usr/bin/env bash
     set -euo pipefail
-    {{ nix_shell }} bash -c '
-      odu="$(nix build .#odu-bin --no-link --print-out-paths --accept-flake-config)/bin/odu"
-      exec timeout --foreground --signal=INT --kill-after=30s \
-        "${ODU_E2E_REMOTE_TIMEOUT:-10m}" \
-        "$odu" run e2e --platform x86_64-linux
-    '
+    exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
+      "${ODU_E2E_REMOTE_TIMEOUT:-10m}" \
+      nix run .#odu --accept-flake-config -- run e2e --platform x86_64-linux
 
 # Select the unit-test leaf through the same Odu path as e2e-fast-remote.
 # Odu owns sharding, prerequisite copies, status posting and lease cleanup.
+[group("fast-remote")]
 [doc("Run unit tests on the remote Linux fleet")]
 test-fast-remote:
     #!/usr/bin/env bash
     set -euo pipefail
-    {{ nix_shell }} bash -c '
-      odu="$(nix build .#odu-bin --no-link --print-out-paths --accept-flake-config)/bin/odu"
-      exec timeout --foreground --signal=INT --kill-after=30s \
-        "${ODU_TEST_REMOTE_TIMEOUT:-10m}" \
-        "$odu" run test --platform x86_64-linux
-    '
+    exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
+      "${ODU_TEST_REMOTE_TIMEOUT:-10m}" \
+      nix run .#odu --accept-flake-config -- run test --platform x86_64-linux
+
+# Select the sharded typecheck leaf with the same worker lifecycle and timeout.
+[group("fast-remote")]
+[doc("Type-check workspace packages on the remote Linux fleet")]
+typecheck-fast-remote:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
+      "${ODU_TYPECHECK_REMOTE_TIMEOUT:-10m}" \
+      nix run .#odu --accept-flake-config -- run typecheck --platform x86_64-linux
 
 # Full CI on the Linux fleet, through this tree's pinned Odu. This deliberately
 # keeps Odu's strict defaults: it snapshots clean, pushed HEAD and posts the
@@ -800,12 +806,9 @@ test-fast-remote:
 ci:
     #!/usr/bin/env bash
     set -euo pipefail
-    {{ nix_shell }} bash -c '
-      odu="$(nix build .#odu-bin --no-link --print-out-paths --accept-flake-config)/bin/odu"
-      exec timeout --foreground --signal=INT --kill-after=30s \
-        "${ODU_CI_TIMEOUT:-15m}" \
-        "$odu" run --platform x86_64-linux
-    '
+    exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
+      "${ODU_CI_TIMEOUT:-15m}" \
+      nix run .#odu --accept-flake-config -- run --platform x86_64-linux
 
 # Format the *.nix files
 [doc("Format repository Nix files")]
