@@ -20,6 +20,11 @@
  * sentence, which is the whole reason the pieces exist.
  */
 
+import { mountBundle, provide, settled } from "@olai/bundle/bundle"
+import { openPlugins } from "@olai/plugin-api/services"
+import { VaultBoot } from "olai-plugin-vault/boot"
+import { followConfiguration } from "./configuration.ts"
+import { runtimePaths } from "./runtime-paths.ts"
 import { BUILD_ASSETS } from "@olai/bundle/assets"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test as bunTest } from "bun:test"
@@ -519,4 +524,43 @@ test("the unticketed agent face refuses enablement both ways and accepts behavio
     expect((await prop("on", "yes")).isError).toBe(true)
     expect((await prop("commit", "manual")).isError).not.toBe(true)
   })
+})
+
+
+test("a kolu watch edit preserves its activation, while on still unloads and remounts it", async () => {
+  const root = served()
+  fs.mkdirSync(path.join(root, "_olai"))
+  const file = path.join(root, "_olai/Settings.olai")
+  const write = (held: string, on = "yes") => fs.writeFileSync(file, [
+    { id: "appliance", ord: "a0", title: "kolu", custom: { on } },
+    { id: "watch", ord: "a0", parent: "appliance", title: "watch", custom: { "held-for": held } },
+  ].map(one => JSON.stringify(one)).join("\n") + "\n")
+  write("30s")
+  await Effect.gen(function*() {
+    const plugins = yield* openPlugins({ vars: { OLAI_ACP_AGENT: "" }, now: () => new Date().toISOString() })
+    yield* mountBundle(plugins.host, { kind: "omitted" })
+    yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
+    yield* settled(plugins.host, ["vault", "settings", "kolu"])
+    let publications = 0
+    const policy = yield* followConfiguration(plugins.host, () => { publications++ })
+    yield* Effect.addFinalizer(() => policy.close)
+    yield* policy.ready
+    const registration = () => plugins.composed().find(one => one.name === "kolu")
+    const first = registration()
+    expect(first).toBeDefined()
+    yield* Effect.promise(async () => {
+      const before = publications
+      write("45s")
+      await eventually(async () => publications > before && policy.current()?.rows.get("kolu")?.values
+        .some(one => one.key === "watch.held-for" && one.value === "45s") === true)
+      // This sibling is registered in the actual row's scope. A config restart
+      // withdraws it and registers a new object even if the final state is on.
+      expect(registration()).toBe(first)
+      write("45s", "no")
+      await eventually(async () => registration() === undefined)
+      write("45s", "yes")
+      await eventually(async () => registration() !== undefined)
+      expect(registration()).not.toBe(first)
+    })
+  }).pipe(Effect.scoped, Effect.provide(SERVER_LAYERS), Effect.runPromise)
 })

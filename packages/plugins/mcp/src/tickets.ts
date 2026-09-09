@@ -93,7 +93,18 @@ export const ticketing = (options: {
   const composed = (rule: SessionRule, writer: Writer): RootedSurfaceClients =>
     clientsFor(options.rows(), reading, { writer, rule })
 
-  const reserved = () => composed({ _tag: "open", forbidden: new Map(options.reservations.filter((one) => one.file !== undefined).map((one) => [one.key, { says: one.says, file: one.file! }])) }, "mcp")
+  // A lifetime may gain content after boot. Cache per composed generation,
+  // not per request or forever: newly arriving siblings need their clients.
+  let reservedGroup: ReturnType<Reading>["group"] | undefined
+  let reservedClients: RootedSurfaceClients | undefined
+  const reserved = (): RootedSurfaceClients => {
+    const group = reading().group
+    if (reservedClients === undefined || reservedGroup !== group) {
+      reservedClients = composed({ _tag: "open", forbidden: new Map(options.reservations.filter((one) => one.file !== undefined).map((one) => [one.key, { says: one.says, file: one.file! }])) }, "mcp")
+      reservedGroup = group
+    }
+    return reservedClients
+  }
   const closed = composed({ _tag: "closed" }, "mcp")
 
   return {

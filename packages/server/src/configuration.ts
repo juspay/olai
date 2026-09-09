@@ -13,6 +13,8 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
   yield* Effect.addFinalizer(() => Queue.shutdown(work))
   const ready = yield* Deferred.make<void>()
   const modules = yield* offered(host, BundleModules)!.read
+  const live = new Set(modules.filter(one =>
+    (one.exports as { default: Plugin }).default.configUpdates === "live").map(one => one.name))
   const defaults = new Map<string, PolicyRow>(modules.map(one => {
     const schema = (one.exports as { default: Plugin }).default.config
     return [one.name, schema === undefined ? { config: {}, values: [] } : decodePolicy(schema, [], undefined, () => {})]
@@ -44,7 +46,7 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
         const enabled = row?.on ?? (bootReport.get(id)?.state !== "off")
         yield* Effect.uninterruptible(patchBundleRow(host, id, {
           ...(returning || lastOn.get(id) !== row?.on ? { disabled: !enabled } : {}),
-          ...(config === undefined ? {} : { config }),
+          ...(config === undefined || live.has(id) ? {} : { config }),
         }))
         lastOn.set(id, row?.on)
       }

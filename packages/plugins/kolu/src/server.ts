@@ -222,6 +222,8 @@ export default definePlugin({
   name,
   needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
   config: Config,
+  // Our declared Vault subscription follows policy without dropping the fleet.
+  configUpdates: "live",
   apply: (_settings) => Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against each

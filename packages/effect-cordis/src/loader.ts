@@ -248,6 +248,8 @@ export const patchRow = (host: Host, id: string, patch: { readonly disabled?: bo
   Effect.promise(async () => {
     const entry = entriesOf(host).find((one) => one.options.id === id)
     if (entry === undefined) return false
+    // Decoded structs arrive in schema key order, so serialization compares
+    // canonical policy values here rather than authored property order.
     const changed = (patch.disabled !== undefined && patch.disabled !== (entry.options.disabled ?? false))
       || (patch.config !== undefined && JSON.stringify(patch.config) !== JSON.stringify(entry.options.config))
     if (!changed && !force) return true

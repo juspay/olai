@@ -500,11 +500,13 @@ test("a plugin with Config is handed the decoded value, and invalid config fails
     name: "scribe",
     needs: [],
     config: configSchema,
+    configUpdates: "live",
     apply: (config) => Effect.sync(() => {
       seen = config
     }),
   })
   expect(plugin.config).toBe(configSchema)
+  expect(plugin.configUpdates).toBe("live")
   expect(seen).toBeUndefined()
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const host = yield* openHost
