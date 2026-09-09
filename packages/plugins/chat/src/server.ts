@@ -67,7 +67,8 @@
  * as a fiber.
  */
 
-import { compactionTrace, type CompactionObservation } from "./compaction.ts"
+import { CurrentBrowserConnection } from "@olai/plugin-api/transport"
+import { compactionTrace } from "./compaction.ts"
 import { deliveryProvision } from "./server/deliveries.ts"
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
@@ -101,7 +102,7 @@ import {
 } from "@olai/plugin-api/services"
 import type { Engine, Registering } from "@olai/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
-import { Deferred, Duration, Effect } from "effect"
+import { Deferred, Duration, Effect, Option } from "effect"
 
 import { type Cadence, cadence } from "./cadence.ts"
 import type { Change } from "./transcript.ts"
@@ -362,6 +363,31 @@ export default definePlugin({
     const nodeAgents = agentsRoster()
 
     /**
+     * THE ONE SEAM ACROSS THE BOUNDARY — see `@olai/effect-cordis`'s `detached`.
+     *
+     * Three things drive this plugin from outside an Effect: the panel's own
+     * `onState` and `onTranscript` callbacks, and the vault's revision handler,
+     * which is synchronous. Everything below that starts work from one of those
+     * goes through here, which forks it under THIS plugin's services — so a line
+     * carries the level the operator asked for — and onto THIS plugin's scope, so
+     * work still in flight when the row unloads is interrupted with it.
+     *
+     * AND FORGET IS NOT SILENT: a defect is caught by the seam and said with this
+     * plugin's own word on it, where a bare `Effect.runPromise` would have
+     * dropped it with nothing anywhere saying so.
+     */
+    const ring = yield* detached
+    // Row publications are synchronous; delayed cadence frames contain only
+    // pieces. Capture the receipt's session before handing it to either stage.
+    let publicationSession: string | null = null
+    const trace = (stage: string) => compactionTrace((event) => {
+      ring(Effect.logInfo("chat compaction delivery").pipe(Effect.annotateLogs({
+        stage, ...event, session: publicationSession,
+      })))
+    })
+    const received = trace("received")
+    const published = trace("published")
+    /**
      * WHAT A GROWING ROW COSTS THE WIRE — the transcript's changes, turned into
      * frames on a clock ({@link ./cadence.ts}, which argues the whole thing).
      *
@@ -370,13 +396,6 @@ export default definePlugin({
      * member a fact lands on, in what order, and what a new subscriber is seeded
      * with — and the panel knows only that it published a change.
      */
-    const trace = (stage: string) => compactionTrace((event) => {
-      ring(Effect.logInfo("chat compaction delivery").pipe(Effect.annotateLogs({
-        stage, ...event, session: chat?.state().session?.id ?? null,
-      })))
-    })
-    const received = trace("received")
-    const published = trace("published")
     const saying: Cadence = cadence({
       onFrame: (frame) => {
         applyFrame(mine?.collections.transcript, frame.rows)
@@ -424,22 +443,6 @@ export default definePlugin({
     const deliveredIds = new Set<string>()
     let deliveredFor: string | undefined
 
-    /**
-     * THE ONE SEAM ACROSS THE BOUNDARY — see `@olai/effect-cordis`'s `detached`.
-     *
-     * Three things drive this plugin from outside an Effect: the panel's own
-     * `onState` and `onTranscript` callbacks, and the vault's revision handler,
-     * which is synchronous. Everything below that starts work from one of those
-     * goes through here, which forks it under THIS plugin's services — so a line
-     * carries the level the operator asked for — and onto THIS plugin's scope, so
-     * work still in flight when the row unloads is interrupted with it.
-     *
-     * AND FORGET IS NOT SILENT: a defect is caught by the seam and said with this
-     * plugin's own word on it, where a bare `Effect.runPromise` would have
-     * dropped it with nothing anywhere saying so.
-     */
-    const ring = yield* detached
-
     let traceSession: string | null = null
     const publishState = (state: ChatState): void => {
       if (traceSession !== state.session?.id) {
@@ -486,6 +489,7 @@ export default definePlugin({
       // Through the CADENCE, never straight onto the collection: a row that
       // grows reaches the wire as pieces on a clock rather than as itself once
       // per token.
+      publicationSession = chat?.state().session?.id ?? null
       for (const [, row] of change.upserts) received.row(row)
       saying.publish(change)
       const who = chat === null ? null : whoOf(chat.state())
@@ -550,12 +554,11 @@ export default definePlugin({
     const rings = wakes.declared
 
     const conversation = {
-      observed: ({ input }: { input: CompactionObservation & {
-        view: string; session: string | null; stage: "applied" | "rendered"; visibility: string
-        source: "snapshot" | "delta" | "dom"
-      } }) => Effect.sync(() => ring(
-        Effect.logInfo("chat compaction delivery").pipe(Effect.annotateLogs({ ...input })),
-      )),
+      observed: ({ input }: { input: typeof surface.spec.procedures.conversation.observed.input.Type }) =>
+        Effect.gen(function*() {
+          const connection = Option.getOrNull(yield* Effect.serviceOption(CurrentBrowserConnection))
+          ring(Effect.logInfo("chat compaction delivery").pipe(Effect.annotateLogs({ ...input, connection })))
+        }),
       // The ids the composer was armed with become NODES here, over the same
       // reading a keystroke's write is resolved against — so what the agent is
       // told is the set's answer rather than the tab's, and an id nothing

@@ -117,8 +117,12 @@ export function Transcript(props: { readonly chat: Chat }) {
   const follow = useFollow()
   const rendered = compactionTrace((event) => {
     // One DOM lookup per diagnostic transition, never per streamed token.
-    if (pane?.querySelector(`[data-entry-id="${CSS.escape(event.row)}"]`)) {
-      props.chat.rendered?.(event)
+    const element = pane?.querySelector(`[data-entry-id="${CSS.escape(event.row)}"]`)
+    if (pane !== undefined && element !== null && element !== undefined) {
+      const row = element.getBoundingClientRect()
+      const viewport = pane.getBoundingClientRect()
+      props.chat.rendered({ ...event, following, atBottom: atBottom(),
+        inViewport: row.bottom > viewport.top && row.top < viewport.bottom })
     }
   })
   let pane: HTMLDivElement | undefined

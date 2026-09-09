@@ -45,6 +45,8 @@
  */
 
 import { compactionTrace, type CompactionObservation } from "../../compaction.ts"
+import { diagnostic, observedFold } from "./diagnostics.ts"
+import type { surface } from "../../wire.ts"
 import { Result } from "effect"
 import { type Attached, CHAT_OFF, type ChatEntry, type ChatState } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
@@ -76,8 +78,8 @@ export type Uploaded =
   | { readonly _tag: "gone" }
 
 export interface Chat {
-  /** Optional diagnostic sink for a mounted transcript; no delivery authority. */
-  readonly rendered?: (event: CompactionObservation) => void
+  /** Diagnostic sink for a mounted transcript; no delivery authority. */
+  readonly rendered: (event: CompactionObservation & { following: boolean; atBottom: boolean; inViewport: boolean }) => void
   /** Where the conversation stands: session, model, commands, whether a turn
    *  is running. */
   readonly state: Accessor<ChatState>
@@ -248,12 +250,42 @@ const [refused, setRefused] = createSignal<OpFailure | null>(null)
 
 export const createChat = (): Chat => {
   const served = createChatState()
-  const transcript = chatWire().collections.transcript.use()
+  // Correlation only, not an authority token. Also available on plain HTTP,
+  // where crypto.randomUUID is absent in browsers.
+  const view = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  let source: "snapshot" | "delta" = "snapshot"
+  type Observation = typeof surface.spec.procedures.conversation.observed.input.Type
+  const sendObservation = diagnostic((input: Observation) => untrack(() => {
+    console.info("chat compaction delivery", input)
+    // Best effort, through this plugin's declared client. Failure is visible in
+    // the browser log, and never changes the transcript or retries a prompt.
+    void runAsync(chatWire().procedures.conversation.observed(input)).then(diagnostic((outcome) => {
+      if (Result.isFailure(outcome)) console.warn("chat compaction receipt refused", input)
+    })).catch(diagnostic((cause) => {
+      console.warn("chat compaction receipt failed", { view, stage: input.stage, phase: input.phase, cause: String(cause) })
+    }))
+  }))
+  const report = (stage: "applied" | "rendered") => diagnostic((event: CompactionObservation & {
+    following?: boolean; atBottom?: boolean; inViewport?: boolean
+  }) => untrack(() => sendObservation({
+    ...event, stage, view,
+    source: stage === "rendered" ? "dom" : source,
+    session: served().session?.id ?? null, visibility: document.visibilityState,
+  })))
+  const failed = (stage: "transcript" | "saying" | "order" | "tail", phase: "fold_failed" | "stream_failed"): (() => void) =>
+    diagnostic<void>(() => untrack(() => sendObservation({
+      view, stage, phase, source: "stream", compaction: null, row: null,
+      session: served().session?.id ?? null, visibility: document.visibilityState,
+    })))
+  const transcript = chatWire().collections.transcript.use({ onError: failed("transcript", "stream_failed") })
   // THE ROW STILL BEING SAID, in pieces. A second subscription rather than a
   // second delivery of the first, and the reason a streaming answer costs the
   // socket the answer rather than three hundred copies of its prefixes
   // ({@link ./growing.ts}).
-  const said = createTail(chatWire().collections.saying.use().fold)
+  const saying = chatWire().collections.saying.use({ onError: failed("saying", "stream_failed") })
+  const said = createTail((options) => saying.fold(observedFold(
+    options, () => {}, failed("tail", "fold_failed"),
+  )))
 
   /**
    * THE ROW STILL BEING SAID, joined — computed ONCE per frame however many
@@ -303,41 +335,13 @@ export const createChat = (): Chat => {
   // instead of the whole transcript being re-read and re-sorted per frame.
   // {@link ./order.ts} is where that shape is argued and where the reader's
   // half of it lives with it.
-  // Correlation only, not an authority token. Also available on plain HTTP,
-  // where crypto.randomUUID is absent in browsers.
-  const view = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
-  let source: "snapshot" | "delta" = "snapshot"
-  const report = (stage: "applied" | "rendered") => (event: CompactionObservation) => untrack(() => {
-    const input = {
-      ...event, stage, view,
-      source: stage === "rendered" ? "dom" as const : source,
-      session: served().session?.id ?? null,
-      visibility: document.visibilityState,
-    }
-    console.info("chat compaction delivery", input)
-    // Best effort, through this plugin's declared client. Failure is visible in
-    // the browser log, and never changes the transcript or retries a prompt.
-    void runAsync(chatWire().procedures.conversation.observed(input)).then((outcome) => {
-      if (Result.isFailure(outcome)) console.warn("chat compaction receipt refused", input)
-    }).catch((cause) => {
-      console.warn("chat compaction receipt failed", { view, stage, ...event, cause: String(cause) })
-    })
-  })
   const applied = compactionTrace(report("applied"))
-  const rows = createRows((options) => transcript.fold({
-    init: (entries) => {
-      source = "snapshot"
-      applied.reset()
-      for (const [, row] of [...entries].sort((a, b) => a[1].seq - b[1].seq)) applied.row(row)
-      return options.init(entries)
-    },
-    step: (held, frame) => {
-      source = "delta"
-      const next = options.step(held, frame)
-      for (const [, row] of frame.upserts) applied.row(row)
-      return next
-    },
-  }))
+  const rows = createRows((options) => transcript.fold(observedFold(options, (entries, snapshot) => {
+    source = snapshot ? "snapshot" : "delta"
+    if (snapshot) applied.reset()
+    const rows = snapshot ? [...entries].sort((a, b) => a[1].seq - b[1].seq) : entries
+    for (const [, row] of rows) applied.row(row)
+  }, failed("order", "fold_failed"))))
 
   /**
    * A VERB THAT OPENS A CONVERSATION IS IN FLIGHT — this tab's own reading,

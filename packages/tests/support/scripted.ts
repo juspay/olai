@@ -148,9 +148,10 @@ const sleep = (millis: number) => new Promise<void>((done) => setTimeout(done, m
 export const released = async (
   cwd: string,
   onTick?: () => void | Promise<void>,
+  limit = HOLD_LIMIT_MS,
 ): Promise<boolean> => {
   const marker = `${cwd}/${RELEASE}`;
-  for (let waited = 0; waited < HOLD_LIMIT_MS; waited += 100) {
+  for (let waited = 0; waited < limit; waited += 100) {
     await onTick?.();
     if (existsSync(marker)) {
       rmSync(marker, { force: true });

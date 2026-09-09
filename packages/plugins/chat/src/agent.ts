@@ -2219,7 +2219,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             steering.timeout,
           ),
           (answered): Steered => steering.taken(answered) ? "taken" : "no-turn",
-        )
+        ).pipe(Effect.tapError((failure) => Effect.sync(() => say(
+          Effect.logInfo("steering request failed").pipe(Effect.annotateLogs({
+            session: id, method: steering.method, gone: failure.gone,
+            deadline: String(steering.timeout),
+          })),
+        ))))
       )
     }
 

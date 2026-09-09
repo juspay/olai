@@ -3950,9 +3950,24 @@ Then("compaction continuation is diagnosed across the chat wire", async function
     const lines = (this.serverLog?.text ?? "").split("\n").slice(0, -1);
     const observed = lines.map((line) => findLogfmt(`${line}\n`, "chat compaction delivery"));
     return observed.some((first) => first?.stage === "received" && first.phase === "continued"
-      && ["published", "applied", "rendered"].every((stage) => observed.some((event) =>
-        event?.stage === stage && event.phase === "continued"
-        && event.session === first.session && event.compaction === first.compaction
-        && event.row === first.row)));
+      && ["published", "applied", "rendered"].every((stage) => observed.some((event) => {
+        if (event?.stage !== stage || event.phase !== "continued"
+          || event.session !== first.session || event.compaction !== first.compaction
+          || event.row !== first.row) return false;
+        if (stage === "published") return true;
+        const connected = lines.some(line =>
+          findLogfmt(`${line}\n`, "browser connected")?.connection === event.connection);
+        if (!connected || !event.view || !event.connection || event.connection === "null") return false;
+        return stage !== "rendered" || [event.following, event.atBottom, event.inViewport]
+          .every(value => value === "true" || value === "false");
+      })));
+
   }, "matching server and browser compaction continuation receipts in the serve log");
+});
+
+Then("the server records the unanswered steering deadline", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => {
+    const event = findLogfmt(this.serverLog?.text ?? "", "steering request failed");
+    return event?.method === "_session/steering" && event.gone === "unanswered" && event.deadline === "30 seconds";
+  }, "a content-free steering timeout in the serve log");
 });

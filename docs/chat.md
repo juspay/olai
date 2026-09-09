@@ -784,3 +784,24 @@ title. They contain no message text, tool arguments or output, log only a bounde
 number of transitions per compaction, and never acknowledge delivery, retry a
 prompt or change its lifetime. Cursors belong to the server activation and the
 mounted browser panel; the existing surface owns subscriptions and reconnection.
+
+Diagnostic callbacks are contained before they enter a fold or render effect:
+a withdrawn chat wire or a failing logger cannot invalidate the transcript.
+A genuine `order`/`tail` projection exception is reported as `fold_failed` before
+the surface invalidates that accumulator. A terminal `transcript`/`saying` stream
+error is reported as `stream_failed` through the subscription's independent error
+callback. These observations do not depend on a new transcript frame or on the
+failed fold recovering. A broken return wire can still prevent a server receipt;
+the browser logs that failure, and diagnostics never retry a chat prompt.
+
+Rendered receipts also contain `following`, `atBottom`, and `inViewport` (vertical
+intersection with the transcript pane at observation time). These describe scroll
+geometry, not human attention. Applied snapshots may repeat old observations;
+rendered observations reset when the mounted transcript changes sessions, not on
+every reconnect snapshot. The server adds `connection` from an explicitly provided
+per-socket service, so a receipt's panel `view` can be matched to socket lifecycle
+logs without trusting a client-supplied connection ID.
+
+`steering request failed` logs the session, method, deadline and failure category,
+without prompt text. A timed-out steer is uncertain delivery: the adapter can
+still inject it later. The message remains `unanswered` and has no automatic retry.

@@ -194,3 +194,13 @@ from an offline tab while the backend finishes. It also requires server receipt,
 publication, browser application and DOM-rendering diagnostics in the serve log.
 The pinned adapter's Nix build separately feeds actual app-server compaction and
 continuation notifications through the adapter, with and without steering.
+
+The compaction fixture also holds the item *in progress*: sends can wait across
+compaction, exceed the real 30-second steering deadline, or receive `promptRequired`
+while the original prompt is still pending. The latter pins the host's concurrent
+prompt attempt and the fixture's explicit busy refusal without losing the original
+turn. The adapter test separately verifies two outstanding prompt completions are
+resolved independently on `promptRequired`. Browser-condition unit tests exercise
+the real surface fold invalidation and terminal non-transport stream failure, and
+ensure throwing diagnostics cannot create either state. Browser receipts are
+checked against socket IDs and include follow/viewport state.
