@@ -421,7 +421,7 @@ const NO_AGENT_TAG = "@no-agent";
 const GIT_TAG = /^@git:(repo|none|broken)$/;
 
 /**
- * `@pin:commit=<mode>` / `@pin:push=<mode>`: this scenario's server was started
+ * `@policy:git.commit=<mode>` / `@policy:git.push=<mode>`: this scenario's server was started
  * with a git POLICY, so the plugins panel draws that config under the git
  * row, read-only, with the flag named.
  *
@@ -439,15 +439,15 @@ const GIT_TAG = /^@git:(repo|none|broken)$/;
  * each key. That is what lets one feature pin a policy for every scenario in it
  * and one scenario in it ask for a different one.
  */
-const PIN_TAG = /^@pin:(commit|push)=([a-z]+)$/;
+const POLICY_TAG = /^@policy:git\.(commit|push)=([a-z]+)$/;
 
 /**
- * `@plugins:<name>[,<name>]` / `@plugins:none`: this scenario's server was
+ * `@rows:<name>[,<name>]` / `@rows:none`: this scenario's server was
  * started with an exact `--plugins` set. Each feature explicitly includes its
  * transport, shell and content capabilities; the harness adds no hidden rows.
  * `none` is left empty, so it starts no listener and is not a browser scenario.
  *
- * A TAG rather than a step for `@pin:`'s reason exactly — it decides how the
+ * A TAG rather than a step for `@policy:git.`'s reason exactly — it decides how the
  * server is STARTED, and the whole point of the flag is that a page knows
  * before anybody presses anything. `none` is the empty value (`--plugins=`),
  * which is a real serve and NOT the same as omitting the tag: omitted runs
@@ -459,9 +459,9 @@ const PIN_TAG = /^@pin:(commit|push)=([a-z]+)$/;
  * fence holds the claim it actually makes — that no general package IMPORTS a
  * plugin or spells one in production code — and this suite is neither.
  */
-const PLUGINS_TAG = /^@plugins:([a-z0-9,-]+)$/;
-const EXTRA_PLUGINS_TAG = /^@extra-plugins:([a-z0-9,-]+)$/;
-const WITHOUT_PLUGINS_TAG = /^@without-plugins:([a-z0-9,-]+)$/;
+const ROWS_TAG = /^@rows:([a-z0-9,-]+)$/;
+const ROWS_ON_TAG = /^@rows-on:([a-z0-9,-]+)$/;
+const ROWS_OFF_TAG = /^@rows-off:([a-z0-9,-]+)$/;
 
 
 /**
@@ -471,7 +471,7 @@ const WITHOUT_PLUGINS_TAG = /^@without-plugins:([a-z0-9,-]+)$/;
  * than an address — GitHub serves every user's avatar at
  * `https://github.com/<login>.png`, with no API and no token.
  *
- * A TAG rather than a step for the reason `@pin:` is one: it decides how the
+ * A TAG rather than a step for the reason `@policy:git.` is one: it decides how the
  * server is STARTED. The template itself is fixed here rather than spelled in
  * the tag, because a tag is a name and a URL with a `/` in it is not: what a
  * scenario is choosing is "this server has a template", and {@link
@@ -737,18 +737,18 @@ interface Spawn {
    *  wants. Present drops the opt-out and says which of the three git
    *  situations this server is being started into. */
   readonly git?: GitMode;
-  /** The git POLICY, when the scenario pinned one — see {@link PIN_TAG}. Each
+  /** The git POLICY, when the scenario pinned one — see {@link POLICY_TAG}. Each
    *  half is absent when that flag was not asked for, because "nobody gave the
    *  flag" is the built-in default. The row is read-only either way. */
   readonly pin?: { readonly commit?: string; readonly push?: string };
   /** WHICH INTEGRATIONS this server composed (`--plugins`), when the scenario
-   *  asked — see {@link PLUGINS_TAG}. The empty string is the flag given with
+   *  asked — see {@link ROWS_TAG}. The empty string is the flag given with
    *  nothing after it, which is NONE; `undefined` is the flag not given, which
    *  is every one this build has and is every other scenario. */
   readonly plugins?: string;
-  /** `--extra-plugins`, when the scenario asked — see {@link EXTRA_PLUGINS_TAG}. */
+  /** `--extra-plugins`, when the scenario asked — see {@link ROWS_ON_TAG}. */
   readonly extraPlugins?: string;
-  /** `--without-plugins`, when the scenario asked — see {@link WITHOUT_PLUGINS_TAG}. */
+  /** `--without-plugins`, when the scenario asked — see {@link ROWS_OFF_TAG}. */
   readonly withoutPlugins?: string;
 
   /** The avatar URL template this server pictures people with, when the
@@ -808,7 +808,6 @@ const startServerChild = async (
         // turning chat off would set — so the no-agent scenario reaches that
         // state the same way rather than through a hole in the harness.
         OLAI_ACP_AGENT: spawnOptions.agent === false ? "" : FAKE_AGENT,
-        OLAI_CHAT_IDLE_MS: spawnOptions.fastNodeIdle === true ? String(FAST_NODE_IDLE_MS) : "",
         // The packaged binary now carries Codex too. Every scenario here is
         // deterministic against the scripted engine(s) it explicitly asks
         // for, so its real baked adapter must not silently add a picker row.
@@ -851,9 +850,7 @@ const startServerChild = async (
         // The avatar template, when the scenario asked for one (`AVATAR_TAG`).
         // Passed only where it was asked for: the variable being SET at all is
         // what puts the second rung of the picture ladder in play.
-        ...(spawnOptions.avatar === undefined
-          ? {}
-          : { OLAI_IDENTITY_AVATAR_TEMPLATE: spawnOptions.avatar }),
+
         // The harness parses logfmt (`findLogfmt` for the serving line). A
         // developer's `OLAI_LOG=pretty` would make every boot hang on readiness.
         OLAI_LOG: "logfmt",
@@ -1030,14 +1027,14 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       // ... and the same git POLICY, for the same reason: a restart that came
       // back unpinned would hand the open page its preferences back, which is a
       // different server rather than the same one restarted.
-      ...(Object.keys(world.gitPin).length === 0 ? {} : { pin: world.gitPin }),
+      ...(Object.keys(world.gitPolicy).length === 0 ? {} : { pin: world.gitPolicy }),
       // ... and the same plugin set, on the same sentence: a restart that came
       // back composing more than it did is a different server.
-      ...(world.pluginPin === undefined ? {} : { plugins: world.pluginPin }),
-      ...(world.extraPluginPin === undefined ? {} : { extraPlugins: world.extraPluginPin }),
-      ...(world.withoutPluginPin === undefined
+      ...(world.selectedRows === undefined ? {} : { plugins: world.selectedRows }),
+      ...(world.rowsOn === undefined ? {} : { extraPlugins: world.rowsOn }),
+      ...(world.rowsOff === undefined
         ? {}
-        : { withoutPlugins: world.withoutPluginPin }),
+        : { withoutPlugins: world.rowsOff }),
       // ... and the same avatar template, on the same sentence: a restart that
       // came back without it would draw the open page's person off a lower rung.
       ...(world.avatarTemplate === undefined
@@ -1101,12 +1098,13 @@ const serverFor = (corpus: string): Promise<RunningServer> => {
   if (cached) return cached;
 
   const active = modeOf();
+  const root = workerCopyOf(corpus);
   const started =
     active.kind === "reuse"
       ? reusedServer(active.baseUrl, corpus)
       : startServerChild(
           active.bin,
-          workerCopyOf(corpus),
+          root,
           `corpus "${corpus}"`,
           { stateRoot: corpusHome(corpus) },
         );
@@ -1141,7 +1139,7 @@ const scratchServerFor = async (
   try {
     fs.cpSync(fixtureDir(corpus), root, { recursive: true });
     writeFixturePolicy(root, {
-      commit: spawnOptions.pin?.commit ?? (spawnOptions.git === undefined ? "off" : undefined),
+      commit: spawnOptions.pin?.commit,
       push: spawnOptions.pin?.push, only: spawnOptions.plugins, extra: spawnOptions.extraPlugins,
       without: spawnOptions.withoutPlugins, avatar: spawnOptions.avatar,
       idle: spawnOptions.fastNodeIdle ? FAST_NODE_IDLE_MS : undefined,
@@ -1404,34 +1402,34 @@ Before(
       const asked = GIT_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1] as GitMode];
     })[0];
-    this.gitPin = Object.fromEntries(
+    this.gitPolicy = Object.fromEntries(
       scenario.pickle.tags.flatMap((tag) => {
-        const asked = PIN_TAG.exec(tag.name);
+        const asked = POLICY_TAG.exec(tag.name);
         return asked === null ? [] : [[asked[1]!, asked[2]!] as const];
       }),
     );
     // `none` is the EMPTY value rather than a name, because a cucumber tag is a
     // word and `--plugins=` has none — the one place the two grammars differ.
-    this.pluginPin = scenario.pickle.tags.flatMap((tag) => {
-      const asked = PLUGINS_TAG.exec(tag.name);
+    this.selectedRows = scenario.pickle.tags.flatMap((tag) => {
+      const asked = ROWS_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1] === "none" ? "" : asked[1]!];
     })[0];
-    this.extraPluginPin = scenario.pickle.tags.flatMap((tag) => {
-      const asked = EXTRA_PLUGINS_TAG.exec(tag.name);
+    this.rowsOn = scenario.pickle.tags.flatMap((tag) => {
+      const asked = ROWS_ON_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1]!];
     })[0];
-    this.withoutPluginPin = scenario.pickle.tags.flatMap((tag) => {
-      const asked = WITHOUT_PLUGINS_TAG.exec(tag.name);
+    this.rowsOff = scenario.pickle.tags.flatMap((tag) => {
+      const asked = ROWS_OFF_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1]!];
     })[0];
-    const pinned = Object.keys(this.gitPin).length > 0;
+    const pinned = Object.keys(this.gitPolicy).length > 0;
     // A pinned server without a `@git:` tag is started `--no-commit`, which is
     // `--commit=off` under another name and would quietly beat whatever the pin
     // asked for. Said here rather than left to an assertion, which would fail
     // about a preference row instead of about the tag.
     if (pinned && this.gitMode === undefined) {
       throw new Error(
-        "@pin: states this server's git policy, so the scenario must say which " +
+        "@policy:git. states this server's git policy, so the scenario must say which " +
           "git situation it is in too: add @git:repo (or none/broken).",
       );
     }
@@ -1448,15 +1446,15 @@ Before(
     // choose — and the pin was simply DROPPED when it was (`writes` gates the
     // spawn options), which is the worst of both, a scenario that reads as a
     // claim about an absent row and is green against a server running it.
-    if (this.pluginPin !== undefined && !writes) {
+    if (this.selectedRows !== undefined && !writes) {
       throw new Error(
-        `@plugins: decides which rows its server composes, so the scenario must own ` +
+        `@rows: decides which rows its server composes, so the scenario must own ` +
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
-    if ((this.extraPluginPin !== undefined || this.withoutPluginPin !== undefined) && !writes) {
+    if ((this.rowsOn !== undefined || this.rowsOff !== undefined) && !writes) {
       throw new Error(
-        `@extra-plugins: / @without-plugins: decide which rows its server composes, so the ` +
+        `@rows-on: / @rows-off: decide which rows its server composes, so the ` +
           `scenario must own that server: tag it @scratch:${asked.corpus} rather than ` +
           `@corpus:${asked.corpus}.`,
       );
@@ -1531,14 +1529,14 @@ Before(
           ? {}
           : { avatar: this.avatarTemplate }),
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
-        ...(pinned ? { pin: this.gitPin } : {}),
-        ...(this.pluginPin === undefined ? {} : { plugins: this.pluginPin }),
-        ...(this.extraPluginPin === undefined
+        ...(pinned ? { pin: this.gitPolicy } : {}),
+        ...(this.selectedRows === undefined ? {} : { plugins: this.selectedRows }),
+        ...(this.rowsOn === undefined
           ? {}
-          : { extraPlugins: this.extraPluginPin }),
-        ...(this.withoutPluginPin === undefined
+          : { extraPlugins: this.rowsOn }),
+        ...(this.rowsOff === undefined
           ? {}
-          : { withoutPlugins: this.withoutPluginPin }),
+          : { withoutPlugins: this.rowsOff }),
       };
       const ownCopy = async (): Promise<void> => {
         const own = await scratchServerFor(asked.corpus, spawnOptions);

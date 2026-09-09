@@ -559,7 +559,7 @@ test("vault-defined plugins are Defined here; pending ones are Needs you", () =>
   expect(groups[2]!.collapsed).toBe(false)
 })
 
-test("a quiet healthy group starts collapsed, and an all-optIn group is hidden", () => {
+test("a quiet healthy group starts collapsed, and opt-in rows remain reachable", () => {
   const sent: PluginRoster = {
     built: [
       { name: "alpha", running: true, state: "running" },
@@ -573,7 +573,7 @@ test("a quiet healthy group starts collapsed, and an all-optIn group is hidden",
       ? { section: "Shell", quiet: true }
       : { section: "Fixtures", quiet: true, optIn: true }
   const groups = pluginGroups(sent, look)
-  expect(groups.map((group) => group.label)).toEqual(["Shell"])
+  expect(groups.map((group) => group.label)).toEqual(["Shell", "Fixtures"])
   expect(groups[0]!.collapsed).toBe(true)
   expect(groupCount(groups[0]!.rows)).toBe("1 on")
 })

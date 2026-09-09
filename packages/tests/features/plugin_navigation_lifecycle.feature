@@ -23,7 +23,7 @@ Feature: Plugin changes preserve working navigation and editing
     And the page has not reloaded
     And there should be no page errors
 
-  @scratch:agenda @plugins:vault,chat,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  @scratch:agenda @rows:vault,chat,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A journal enabled for the first time serves its agenda
     Given I open the app
     And I mark the page
@@ -77,7 +77,7 @@ Feature: Plugin changes preserve working navigation and editing
     And I switch the plugin "git" on
     And I close the plugins panel
     Then the header shows one git indicator
-    And the commit pill says 1 uncommitted
+    And the commit pill says 2 uncommitted
     When I open the commit panel
     And I commit with the message "edits survived the ledger flip"
     Then the commit pill says "committed"

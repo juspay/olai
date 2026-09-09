@@ -82,7 +82,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
       | chat       |
       | unassigned |
 
-  @scratch:lanes @plugins:vault,kolu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  @scratch:lanes @rows:vault,kolu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that composed no chat row says which door kolu is waiting behind
     # THE RULING'S ACCEPTED COST, and the sentence that makes it payable.
     #
@@ -109,7 +109,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     And the plugins panel says "kolu" is "no plugin in this build offers them"
     # THE CHAT ROW ITSELF is a different absence and gets a different sentence:
     # nobody asked for it, so there is nothing to fix and nothing amber.
-    And the plugins panel says "chat" is "was not asked for"
+    And the plugins panel says "chat" is "Off"
 
 
   @scratch:lanes

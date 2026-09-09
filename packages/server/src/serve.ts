@@ -11,7 +11,6 @@
 import { report as reportTransport } from "./report.ts";
 import { CurrentWho, whoRoute } from "./who.ts";
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers";
-import { type GitPin, type PluginPin } from "@olai/format";
 import { BUNDLE_NAMES, ROWS, configsOf, mountBundle, provide, settled, offered, reportBundle, rowsNaming, setRow, } from "@olai/bundle/bundle";
 import { bundleRank } from "@olai/bundle";
 import { emitter } from "@olai/log";
@@ -31,7 +30,6 @@ import { provideInputs, ticketsFor } from "@olai/bundle/inputs";
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy";
 import { runtimePaths } from "./runtime-paths.ts"
 import { TransportSurface } from "@olai/plugin-api/transport";
-import { gitConfigPatch } from "./gitPolicy.ts";
 import { bind } from "./runtime.ts";
 import { followConfiguration } from "./configuration.ts";
 export interface ServeOptions {
@@ -42,8 +40,6 @@ export interface ServeOptions {
     readonly clientDist: string | Effect.Effect<string>;
     readonly allowedOrigins: ReadonlyArray<string>;
     readonly vars?: Record<string, string | undefined>;
-    readonly pin: GitPin;
-    readonly pluginPin: PluginPin;
 }
 export const serve = (options: ServeOptions) => Effect.gen(function* () {
     // THE STATE HOME IS SWEPT ONCE PER BOOT, and this is the first statement
@@ -157,9 +153,9 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
         changed: () => onChange.run(),
     });
     issueTicket = ticketsFor(plugins.host);
-    const pluginPin = options.pluginPin;
+    const pluginPin = { kind: "omitted" } as const;
     yield* provideInputs(plugins.host, { root: served, runtime: runtimePaths });
-    yield* mountBundle(plugins.host, pluginPin, gitConfigPatch(options.pin), profile);
+    yield* mountBundle(plugins.host, pluginPin, [], profile);
     const loading = yield* openLoading(plugins.host, built, () => onChange.run(), { services: plugins.serviceKeys, browserServices: plugins.browserKeys });
     const policy = yield* followConfiguration(plugins.host, () => onChange.run(), () => [plugins.offers().get(ContentRevision.cordis), plugins.offers().get(ConfigurationSource.cordis)]);
     yield* policy.ready;
@@ -204,6 +200,7 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
             plugins,
             onChange,
             built,
+            offByDefault: ROWS.filter((row) => row.disabled).map((row) => row.id),
             browserOnly: ROWS.filter((row) => row.browserOnly).map((row) => row.id),
             pin: pluginPin,
             report: () => report,

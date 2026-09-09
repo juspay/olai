@@ -42,10 +42,10 @@ const GITHUB = "https://github.com/{login}.png"
 /** An Authelia-shaped serve, stated the way an operator states one: the
  *  environment the identity row reads, with no picture header of its own. */
 const AUTHELIA = {
-  OLAI_IDENTITY_LOGIN_HEADER: "Remote-User",
-  OLAI_IDENTITY_EMAIL_HEADER: "Remote-Email",
-  OLAI_IDENTITY_NAME_HEADER: "Remote-Name",
-  OLAI_IDENTITY_PICTURE_HEADER: "",
+  "login-header": "Remote-User",
+  "email-header": "Remote-Email",
+  "name-header": "Remote-Name",
+  "picture-header": "",
 }
 
 /** ...and the default one, spelled out rather than inherited: this process's
@@ -80,7 +80,7 @@ const get = (
   })
 
 test("a mocked Tailscale-User-Login is this request's who", async () => {
-  await withServing({ root: served(), vars: TAILSCALE }, async (url) => {
+  await withServing({ root: served(), policy: { identity: TAILSCALE } }, async (url) => {
     const answer = await get(url, WHO_PATH, { "Tailscale-User-Login": ADA })
     expect(answer.status).toBe(200)
     expect(JSON.parse(answer.body)).toEqual({
@@ -92,7 +92,7 @@ test("a mocked Tailscale-User-Login is this request's who", async () => {
 })
 
 test("tailscale's profile picture and name are what the chip is handed", async () => {
-  await withServing({ root: served(), vars: TAILSCALE }, async (url) => {
+  await withServing({ root: served(), policy: { identity: TAILSCALE } }, async (url) => {
     const answer = await get(url, WHO_PATH, {
       "Tailscale-User-Login": "srid@github",
       "Tailscale-User-Name": "Sridhar Ratnakumar",
@@ -108,7 +108,7 @@ test("tailscale's profile picture and name are what the chip is handed", async (
 })
 
 test("a login that is not an address draws no picture, and still someone", async () => {
-  await withServing({ root: served(), vars: TAILSCALE }, async (url) => {
+  await withServing({ root: served(), policy: { identity: TAILSCALE } }, async (url) => {
     const answer = await get(url, WHO_PATH, {
       "Tailscale-User-Login": "srid@github",
       "Tailscale-User-Name": "Sridhar Ratnakumar",
@@ -124,7 +124,7 @@ test("a login that is not an address draws no picture, and still someone", async
 
 test("an avatar template pictures that same login, with no API and no token", async () => {
   await withServing(
-    { root: served(), vars: { OLAI_IDENTITY_AVATAR_TEMPLATE: GITHUB } },
+    { root: served(), policy: { identity: { "avatar-template": GITHUB } } },
     async (url) => {
       const answer = await get(url, WHO_PATH, {
         "Tailscale-User-Login": "srid",
@@ -140,7 +140,7 @@ test("an avatar template pictures that same login, with no API and no token", as
 })
 
 test("Authelia headers on a serve configured for them are this request's who", async () => {
-  await withServing({ root: served(), vars: AUTHELIA }, async (url) => {
+  await withServing({ root: served(), policy: { identity: AUTHELIA } }, async (url) => {
     const answer = await get(url, WHO_PATH, {
       "Remote-User": "ada",
       "Remote-Email": ADA,
@@ -156,7 +156,7 @@ test("Authelia headers on a serve configured for them are this request's who", a
 })
 
 test("a login with no email claim is still someone, with no picture", async () => {
-  await withServing({ root: served(), vars: AUTHELIA }, async (url) => {
+  await withServing({ root: served(), policy: { identity: AUTHELIA } }, async (url) => {
     const answer = await get(url, WHO_PATH, { "Remote-User": "ada" })
     expect(answer.status).toBe(200)
     expect(JSON.parse(answer.body)).toEqual({
@@ -168,7 +168,7 @@ test("a login with no email claim is still someone, with no picture", async () =
 })
 
 test("a request with no login is nobody", async () => {
-  await withServing({ root: served(), vars: TAILSCALE }, async (url) => {
+  await withServing({ root: served(), policy: { identity: TAILSCALE } }, async (url) => {
     const answer = await get(url, WHO_PATH)
     expect(answer.status).toBe(204)
     expect(answer.body).toBe("")
@@ -227,13 +227,13 @@ const flip = (url: string, name: string, enabled: boolean): Promise<void> =>
   })
 
 test("a tab with no login is nobody, and did not have to GET /olai/who", async () => {
-  await withServing({ root: served(), vars: TAILSCALE }, async (url) => {
+  await withServing({ root: served(), policy: { identity: TAILSCALE } }, async (url) => {
     expect(await whoOn(url)).toBeNull()
   })
 })
 
 test("a mocked Tailscale-User-Login on the upgrade is this connection's who", async () => {
-  await withServing({ root: served(), vars: TAILSCALE }, async (url) => {
+  await withServing({ root: served(), policy: { identity: TAILSCALE } }, async (url) => {
     expect(await whoOn(url, { "Tailscale-User-Login": ADA })).toEqual({
       login: ADA,
       name: null,
@@ -243,7 +243,7 @@ test("a mocked Tailscale-User-Login on the upgrade is this connection's who", as
 })
 
 test("the upgrade's identity is per connection, not a process cell", async () => {
-  await withServing({ root: served(), vars: TAILSCALE }, async (url) => {
+  await withServing({ root: served(), policy: { identity: TAILSCALE } }, async (url) => {
     expect(await whoOn(url, { "Tailscale-User-Login": ADA })).toEqual({
       login: ADA,
       name: null,
@@ -270,7 +270,7 @@ test("the upgrade's identity is per connection, not a process cell", async () =>
  * is not a staleness to fix but the value's own definition.
  */
 test("a row switched off is nobody at once, and switched back on is Ada again", async () => {
-  await withServing({ root: served(), vars: TAILSCALE }, async (url) => {
+  await withServing({ root: served(), policy: { identity: TAILSCALE } }, async (url) => {
     const ada = { "Tailscale-User-Login": ADA }
     const someone = { login: ADA, name: null, picture: gravatarOf(ADA) }
 
@@ -293,7 +293,7 @@ test("a serve that did not name the identity row is nobody, whoever asks", async
   // a refusal and not an error — a 204, which is the same answer this door
   // gives a request that arrived behind no proxy at all.
   await withServing(
-    { root: served(), vars: TAILSCALE, plugins: ["vault", "chat", "git", "ws", "web-app", "mcp"] },
+    { root: served(), policy: { identity: TAILSCALE }, plugins: ["vault", "chat", "git", "ws", "web-app", "mcp"] },
     async (url) => {
       const answer = await get(url, WHO_PATH, { "Tailscale-User-Login": ADA })
       expect(answer.status).toBe(204)
@@ -306,7 +306,7 @@ test("...and a tab on that serve is nobody on its own upgrade", async () => {
   // The other door: nobody is standing behind the door to name a header, so
   // the upgrade keeps none and the socket is carrying nothing to read.
   await withServing(
-    { root: served(), vars: TAILSCALE, plugins: ["vault", "chat", "git", "ws", "web-app", "mcp"] },
+    { root: served(), policy: { identity: TAILSCALE }, plugins: ["vault", "chat", "git", "ws", "web-app", "mcp"] },
     async (url) => {
       expect(await whoOn(url, { "Tailscale-User-Login": ADA })).toBeNull()
     },
@@ -338,7 +338,7 @@ test("...and a tab on that serve is nobody on its own upgrade", async () => {
  */
 test("a row switched on after the bind names its headers on the next upgrade", async () => {
   await withServing(
-    { root: served(), vars: TAILSCALE, plugins: ["vault", "chat", "git", "ws", "web-app", "mcp"] },
+    { root: served(), policy: { identity: TAILSCALE }, plugins: ["vault", "chat", "git", "ws", "web-app", "mcp"] },
     async (url) => {
       const ada = { "Tailscale-User-Login": ADA }
       const someone = { login: ADA, name: null, picture: gravatarOf(ADA) }
@@ -374,7 +374,7 @@ test("a header name no request can carry refuses the serve, in the framework's w
   const refusal = await withServing(
     {
       root: served(),
-      vars: { ...TAILSCALE, OLAI_IDENTITY_LOGIN_HEADER: "Remote User" },
+      policy: { identity: { ...TAILSCALE, "login-header": "Remote User" } },
       // THE ROW UNDER TEST AND NOTHING ELSE, which is the one place in this
       // file a narrow composition is about the harness rather than about a
       // claim: a refused boot unwinds rows that are already running, and the
@@ -394,7 +394,7 @@ test("a sealed page keeps its own policy, with no picture hole", async () => {
   const root = served()
   fs.writeFileSync(path.join(root, "page.html"), "<!doctype html><p>hi</p>")
   try {
-    await withServing({ root, vars: TAILSCALE }, async (url) => {
+    await withServing({ root, policy: { identity: TAILSCALE } }, async (url) => {
       const page = await get(url, "/media/page.html")
       expect(page.status).toBe(200)
       const policy = String(page.headers["content-security-policy"] ?? "")

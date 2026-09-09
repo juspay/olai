@@ -73,7 +73,7 @@ test("a headless serve commits a quiet directory and pushes it, with no tab open
 
   const web = startWeb({
     root,
-    extra: ["--commit=auto", "--push=auto"],
+    policy: {"commit": "auto", "push": "auto"}, extra: [],
     // Chat memory lives under the state home, and a test must not write
     // into the developer's own (`@olai/state`).
     env: { XDG_STATE_HOME: state },
@@ -166,7 +166,7 @@ test("a boot under --push=auto re-earns git's words about a branch it cannot sen
   diverged(dirs)
   const web = startWeb({
     root: dirs.root,
-    extra: ["--commit=manual", "--push=auto"],
+    policy: {"commit": "manual", "push": "auto"}, extra: [],
     env: { XDG_STATE_HOME: dirs.state },
   })
   try {
@@ -196,7 +196,7 @@ test("a boot under --push=off attempts nothing, however far behind the branch is
   diverged(dirs)
   const web = startWeb({
     root: dirs.root,
-    extra: ["--commit=manual", "--push=off"],
+    policy: {"commit": "manual", "push": "off"}, extra: [],
     env: { XDG_STATE_HOME: dirs.state },
   })
   try {

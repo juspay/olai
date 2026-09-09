@@ -12,15 +12,10 @@
 
 import { expect, test } from "bun:test"
 
-import {
-  AVATAR_ENV,
-  DEFAULT_IDENTITY_CONFIG,
-  EMAIL_ENV,
-  identityConfig,
-  LOGIN_ENV,
-  NAME_ENV,
-  PICTURE_ENV,
-} from "./config.ts"
+import { Schema } from "effect"
+import { Config, configuredIdentity } from "../settings.ts"
+import { DEFAULT_IDENTITY_CONFIG } from "./config.ts"
+const identityConfig = (props: Record<string, string>) => configuredIdentity(Schema.decodeUnknownSync(Config)(props))
 import {
   DEFAULT_IDENTITY_HEADERS,
   DEFAULT_LOGIN_HEADER,
@@ -43,7 +38,7 @@ test("unset is tailscale serve: its four headers, and no template", () => {
 })
 
 test("OLAI_IDENTITY_LOGIN_HEADER is the name, and the email follows it", () => {
-  expect(identityConfig({ [LOGIN_ENV]: "Remote-User" }).headers).toEqual({
+  expect(identityConfig({ "login-header": "Remote-User" }).headers).toEqual({
     login: "Remote-User",
     email: "Remote-User",
     name: DEFAULT_NAME_HEADER,
@@ -51,32 +46,32 @@ test("OLAI_IDENTITY_LOGIN_HEADER is the name, and the email follows it", () => {
   })
 })
 
-test("an email header is a second name; empty is no email claim", () => {
-  const login = { [LOGIN_ENV]: "Remote-User" }
+test("an email header is a second name; empty follows login", () => {
+  const login = { "login-header": "Remote-User" }
   expect(
-    identityConfig({ ...login, [EMAIL_ENV]: "Remote-Email" }).headers.email,
+    identityConfig({ ...login, "email-header": "Remote-Email" }).headers.email,
   ).toBe("Remote-Email")
-  expect(identityConfig({ ...login, [EMAIL_ENV]: "" }).headers.email).toBeNull()
-  expect(identityConfig({ ...login, [EMAIL_ENV]: "  " }).headers.email).toBeNull()
+  expect(identityConfig({ ...login, "email-header": "" }).headers.email).toBe("Remote-User")
+  expect(identityConfig({ ...login, "email-header": "  " }).headers.email).toBe("Remote-User")
 })
 
 test("the name and picture headers are configurable the same way", () => {
   const named = identityConfig({
-    [NAME_ENV]: "X-Auth-Request-Preferred-Username",
-    [PICTURE_ENV]: "X-Pomerium-Claim-Picture",
+    "name-header": "X-Auth-Request-Preferred-Username",
+    "picture-header": "X-Pomerium-Claim-Picture",
   })
   expect(named.headers.name).toBe("X-Auth-Request-Preferred-Username")
   expect(named.headers.picture).toBe("X-Pomerium-Claim-Picture")
-  const off = identityConfig({ [NAME_ENV]: "", [PICTURE_ENV]: "  " })
+  const off = identityConfig({ "name-header": "", "picture-header": "  " })
   expect(off.headers.name).toBeNull()
   expect(off.headers.picture).toBeNull()
 })
 
 test("OLAI_IDENTITY_AVATAR_TEMPLATE is the ladder's second rung", () => {
   expect(identityConfig({}).avatarTemplate).toBeNull()
-  expect(identityConfig({ [AVATAR_ENV]: "  " }).avatarTemplate).toBeNull()
+  expect(identityConfig({ "avatar-template": "  " }).avatarTemplate).toBeNull()
   expect(
-    identityConfig({ [AVATAR_ENV]: " https://github.com/{login}.png " })
+    identityConfig({ "avatar-template": " https://github.com/{login}.png " })
       .avatarTemplate,
   ).toBe("https://github.com/{login}.png")
 })
@@ -84,9 +79,9 @@ test("OLAI_IDENTITY_AVATAR_TEMPLATE is the ladder's second rung", () => {
 test("a whole proxy's wiring, in one value", () => {
   expect(
     identityConfig({
-      [LOGIN_ENV]: "X-Token-User-Nick",
-      [EMAIL_ENV]: "X-Token-User-Email",
-      [AVATAR_ENV]: "https://example.test/{login}.png",
+      "login-header": "X-Token-User-Nick",
+      "email-header": "X-Token-User-Email",
+      "avatar-template": "https://example.test/{login}.png",
     }),
   ).toEqual({
     headers: {

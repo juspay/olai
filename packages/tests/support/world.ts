@@ -1838,25 +1838,25 @@ export class OlaiWorld extends World {
    *  to reproduce the first boot, and this one decides both the argv and what
    *  the served directory IS. */
   gitMode?: GitMode;
-  /** The git POLICY this scenario's server was started with (`@pin:commit=…`,
-   *  `@pin:push=…`) — an empty object for the ordinary server, which pins
+  /** The git POLICY this scenario's server was started with (`@policy:git.commit=…`,
+   *  `@policy:git.push=…`) — an empty object for the ordinary server, which pins
    *  nothing and leaves both preference rows to the browser. Carried for the
    *  same reason as `gitMode`: a restart has to reproduce the first boot, and
    *  this decides what every browser's preferences panel is allowed to do. */
-  gitPin: { commit?: string; push?: string } = {};
+  gitPolicy: { commit?: string; push?: string } = {};
   /** WHICH INTEGRATIONS this scenario's server composed — the `--plugins` value
-   *  a `@plugins:` tag asked for, `""` for none, and `undefined` for the flag
-   *  nobody gave (every integration this build has). Held for `gitPin`'s reason:
+   *  a `@rows:` tag asked for, `""` for none, and `undefined` for the flag
+   *  nobody gave (every integration this build has). Held for `gitPolicy`'s reason:
    *  a restart has to reproduce the first boot, and a server that came back
    *  running a different set is a different server. */
-  pluginPin: string | undefined = undefined;
-  extraPluginPin: string | undefined = undefined;
-  withoutPluginPin: string | undefined = undefined;
+  selectedRows: string | undefined = undefined;
+  rowsOn: string | undefined = undefined;
+  rowsOff: string | undefined = undefined;
 
   /** The avatar URL template this scenario's server was started with
    *  (`@avatar-template`), or `undefined` for the ordinary server, which has
    *  none and pictures people from the rungs below it. Carried for the same
-   *  reason as `gitPin`: a restart has to reproduce the first boot, and a
+   *  reason as `gitPolicy`: a restart has to reproduce the first boot, and a
    *  server that came back without its template would picture the open page's
    *  person differently — a different server rather than the same one
    *  restarted. */

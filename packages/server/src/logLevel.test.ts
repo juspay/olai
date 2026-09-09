@@ -23,7 +23,7 @@ test("--log-level error with OLAI_LOG_LEVEL unset drops the serving INFO line", 
   const root = vault()
   const child = startWeb({
     root,
-    extra: ["--no-commit", "--log-level", "error"],
+    policy: {"commit": "off"}, extra: ["--log-level", "error"],
     env: { OLAI_LOG_LEVEL: "" },
   })
   try {
@@ -42,7 +42,7 @@ test("OLAI_LOG_LEVEL=info wins over --log-level error", async () => {
   const root = vault()
   const child = startWeb({
     root,
-    extra: ["--no-commit", "--log-level", "error"],
+    policy: {"commit": "off"}, extra: ["--log-level", "error"],
     env: { OLAI_LOG_LEVEL: "info" },
   })
   try {

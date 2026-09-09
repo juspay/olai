@@ -212,7 +212,7 @@ test("an exact MCP selection can override the profile's transports", async () =>
 
 test("an exact MCP CLI selection does not require a browser build in web profile", async () => {
   for (let cycle = 0; cycle < 3; cycle += 1) {
-  const child = startWeb({ root: served(), extra: ["--plugins=vault,mcp"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
+  const child = startWeb({ root: served(), policy: {"only": "vault,mcp"}, extra: [], env: { OLAI_DIST_DIR: "/no-browser-build" } })
   try {
     const url = await child.address()
     expect((await request(url)).status).toBe(200)
@@ -243,7 +243,7 @@ test("an exact asset-only selection serves its build without websocket admission
 })
 
 test("CLI content removal applies over the headless profile without requiring a browser build", async () => {
-  const child = startWeb({ root: served(), extra: ["--profile", "surface", "--without-plugins=outlines"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
+  const child = startWeb({ root: served(), policy: {"without": "outlines"}, extra: ["--profile", "surface"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
   try {
     const url = await child.address()
     const listed = await request(url)
@@ -254,8 +254,8 @@ test("CLI content removal applies over the headless profile without requiring a 
   } finally { expect(await child.stop()).toBe(130) }
 }, 15000)
 
-test("CLI extra and removal flags compose a non-notebook MCP host without a vault", async () => {
-  const child = startWeb({ root: served(), extra: ["--profile", "test-minimal", "--extra-plugins=mcp,test-counter", "--without-plugins=vault"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
+test("file policy composes a non-notebook MCP host without a vault", async () => {
+  const child = startWeb({ root: served(), policy: {"only": "mcp,test-counter"}, extra: ["--profile", "surface"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
   try {
     const url = await child.address()
     const listed = await request(url)

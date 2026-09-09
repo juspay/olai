@@ -93,9 +93,9 @@ const withServer = (
       host: "127.0.0.1",
       clientDist: dist,
       allowedOrigins: [],
-      pin: { commit: "off", push: null },
+
       // The built-in default, which is what omitting `--plugins` means.
-      pluginPin: { kind: "omitted" },
+
     })
     const url = findSaid(said, "serving")?.annotations.url
     expect(typeof url).toBe("string")

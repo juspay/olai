@@ -268,13 +268,13 @@ Feature: Choosing an agent
     And the panel explains how to configure one, naming "OLAI_ACP_AGENT"
     # ...and it says WHICH of the three ways it got here rather than hedging
     # across them. This one is the off switch, and the sentence is about that.
-    And the panel says the agent is switched off
+    And the panel says no engine is installed
     And there is nothing to type into
     # And the outlines are unaffected: serving a directory never depended on an
     # agent being installed.
     And the outline list is shown
 
-  @plugins:vault,chat,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins @scratch:chat
+  @rows:vault,chat,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins @scratch:chat
   Scenario: A serve that enabled no engine says THAT, rather than guessing
     # THE CASE THE FACE USED TO MISS ENTIRELY, and the commonest real one now
     # that every engine is a plugin: all four engine rows are ENABLED BY

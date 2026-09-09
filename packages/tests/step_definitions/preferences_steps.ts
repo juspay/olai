@@ -1424,3 +1424,7 @@ Then("the plugin {string} keeps defaults open when {string} becomes {string}", a
   await this.waitUntil(async () => (await (await shownRow(this, plugin)).locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`).textContent())?.includes(value) === true, "the new default reading");
   assert.notEqual(await (await shownRow(this, plugin)).locator('[data-testid="plugin-defaults"]').getAttribute("open"), null);
 });
+
+Then("the plugin {string} has authored enablement {string}", async function (this: OlaiWorld, plugin: string, value: string) {
+  await (await shownRow(this, plugin)).locator(`[data-config="on"]:has-text("on ${value}")`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});

@@ -199,10 +199,6 @@ export const rosterOf = (
     }
   },
 ): Roster => {
-  // The explicit off switch, and it is the WHOLE panel rather than one row —
-  // see the header. Read before anything is probed, so a machine with an agent
-  // installed still gets the "off" a person asked for.
-  if (where.env[AGENT_ENV] === "") return { kind: "none", because: { kind: "switched-off" } }
   const found: Array<Installed> = []
   for (const engine of engines) {
     const one = detected(engine)

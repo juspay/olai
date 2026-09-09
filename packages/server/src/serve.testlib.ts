@@ -1,4 +1,4 @@
-import { writeFixturePolicy } from "@olai/bundle/testlib"
+import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
 /**
  * What it takes to stand a real server up in a test, spelled once.
  *
@@ -35,6 +35,9 @@ import { serve } from "./serve.ts"
 // per serve() — the load that blows a listen wait. Empty is the documented
 // off switch, so nothing else is probed either.
 process.env.OLAI_ACP_AGENT = ""
+process.env.OLAI_ACP_CODEX = ""
+process.env.OLAI_ACP_PI = ""
+process.env.OLAI_AGENT_PATH = ""
 
 /** The platform a real server needs: the CLI's own services (stdio, terminal,
  *  file system) and the static layer's (the file-response platform and ETags)
@@ -94,6 +97,7 @@ export const withServe = async <A>(
      *  template: a test that is not about identity should not have to name
      *  one. */
     readonly vars?: Record<string, string | undefined>
+    readonly policy?: FixturePolicy
     /** WHICH rows this serve composes — `--plugins` as a person types it.
      *  Unset is nobody having said, which is the built-in default and what
      *  every harness here wants: these stand up the whole product. A test
@@ -102,7 +106,7 @@ export const withServe = async <A>(
   },
   body: (said: ReadonlyArray<Logged>) => Promise<A>,
 ): Promise<A> => {
-  writeFixturePolicy(options.root, { commit: options.commits, only: options.plugins, vars: options.vars })
+  writeFixturePolicy(options.root, { commit: options.commits, only: options.plugins, ...options.policy })
   const { layer, said } = collector()
   return Effect.gen(function*() {
     yield* serve({
@@ -115,13 +119,13 @@ export const withServe = async <A>(
       clientDist: options.clientDist ?? served(),
       allowedOrigins: [],
       ...(options.vars === undefined ? {} : { vars: options.vars }),
-      pin: { commit: null, push: null },
+
       // The built-in default, which is what omitting `--plugins` means and what a
       // real serve does — these harnesses stand up the whole product, and a
       // composition narrower than the one a person gets would be a suite proving
       // something nobody runs. A test that is about what a MISSING row leaves
       // behind says so, and gets the list it named.
-      pluginPin: { kind: "omitted" },
+
     })
     return yield* Effect.promise(() => body(said))
   }).pipe(
@@ -155,6 +159,7 @@ export const withServing = <A>(
     readonly commits?: "off" | "manual" | "auto"
     readonly clientDist?: string
     readonly vars?: Record<string, string | undefined>
+    readonly policy?: FixturePolicy
     readonly plugins?: ReadonlyArray<string>
   },
   body: (url: string, said: ReadonlyArray<Logged>) => Promise<A>,

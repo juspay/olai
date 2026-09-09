@@ -5,7 +5,7 @@ Feature: The matcher is a plugin
   Existing queries follow the scoped provider and resume through a fresh
   client after it returns; basic outline editing remains independent.
 
-  @plugins:vault,chat,claude,git,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  @rows:vault,chat,claude,git,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that did not name search has no box, and its palette says why
     When I open the app
     Then the header has no search box

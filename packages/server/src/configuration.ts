@@ -50,8 +50,7 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
       current = publication.value
       for (const id of BUNDLE_NAMES) {
         const row = current.rows.get(id)
-        // Legacy flags remain boot inputs until step 4. With those retired,
-        // these are precisely the schema and profile/build defaults.
+        // Missing namespaces restore the schema and profile/build defaults.
         const config = row?.node === undefined ? bootConfig.get(id) : row.config
         const enabled = row?.on ?? (bootReport.get(id)?.state !== "off")
         yield* Effect.uninterruptible(patchBundleRow(host, id, {

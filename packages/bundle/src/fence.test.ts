@@ -1835,9 +1835,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/preferences/src/Preferences.tsx",
       "plugins/trash/src/browser/question.ts",
       "plugins/trash/src/tools.ts",
-      "server/src/gitPolicy.ts",
-      "server/src/main.ts",
-      "server/src/serve.ts"
+      "server/src/main.ts"
     ],
     "search": [
       "format/src/address.ts",

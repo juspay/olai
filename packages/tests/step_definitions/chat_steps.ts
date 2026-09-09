@@ -2710,8 +2710,8 @@ const saysNoAgentBecause = async (world: OlaiWorld, phrase: string, why: string)
   );
 };
 
-Then("the panel says the agent is switched off", async function (this: OlaiWorld) {
-  await saysNoAgentBecause(this, "switched off", "that chat was switched off");
+Then("the panel says no engine is installed", async function (this: OlaiWorld) {
+  await saysNoAgentBecause(this, "installed", "that no offered engine is installed");
 });
 
 Then("the panel says this serve enabled no agent engine", async function (this: OlaiWorld) {

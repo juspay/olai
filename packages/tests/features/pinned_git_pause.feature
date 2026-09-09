@@ -1,4 +1,4 @@
-@scratch:good @git:repo @pin:commit=auto @pin:push=auto
+@scratch:good @git:repo @policy:git.commit=auto @policy:git.push=auto
 Feature: A pinned loop that git stopped can still be started again
   A commit or a push git REFUSED pauses the quiet window and nothing clears that
   on olai's own initiative: a loop that un-paused itself is a blind retry

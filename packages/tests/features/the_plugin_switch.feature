@@ -124,7 +124,7 @@ Feature: A plugin is turned on and off while the serve runs
     And no member of this page has gone silent
     And there should be no page errors
 
-  @scratch:lanes @plugins:vault,kolu,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  @scratch:lanes @rows:vault,kolu,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A row the flag left out is switched on, and is served
     # THE DIRECTION NOBODY WOULD GUESS IS AVAILABLE, and the one the transport
     # could not have done at all before sub-phase 8a — not by an oversight but
@@ -142,7 +142,7 @@ Feature: A plugin is turned on and off while the serve runs
     Then the plugins panel says "kolu" is "Waiting for deliveries, session-start"
     # ...and the panel says the row is off because a flag left it out, which is
     # a different morning from a press and from the build's own default.
-    And the plugins panel says "chat" is "was not asked for"
+    And the plugins panel says "chat" is "Off"
 
     When I switch the plugin "chat" on
     # A ROW THAT WAS NEVER MOUNTED IN THIS PROCESS, arriving on a listener that

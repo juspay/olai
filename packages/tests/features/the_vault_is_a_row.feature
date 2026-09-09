@@ -8,7 +8,7 @@ Feature: The vault is a row
     Then the node "mint" is shown
     When I open the plugins panel
     Then the plugins panel shows "vault" configured "format" as "olai"
-    And the plugins panel says nothing more about "vault"
+    And the plugins panel says "vault" is "Switch is session-only"
     When I switch the plugin "vault" off
     Then the node "mint" is not shown
     And the MCP vault refuses a write because no directory is served
@@ -23,11 +23,11 @@ Feature: The vault is a row
     Then the MCP vault can read an outline
     And there should be no page errors
 
-  @plugins:ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  @rows:ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A transport-only selection can enable the vault from the control panel
     Given I open the app
     When I open the plugins panel
-    Then the plugins panel says "vault" is "was not asked for"
+    Then the plugins panel says "vault" is "Off"
     And the MCP vault never offered the write, because no vault was asked for
     When I switch the plugin "vault" on
     Then the plugins panel says nothing more about "vault"

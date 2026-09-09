@@ -11,7 +11,7 @@ export interface FixturePolicy {
   readonly only?: string | ReadonlyArray<string>
   readonly extra?: string
   readonly without?: string
-  readonly vars?: Readonly<Record<string, string | undefined>>
+  readonly identity?: Readonly<Record<string, string | undefined>>
   readonly idle?: number
   readonly avatar?: string
 }
@@ -19,9 +19,9 @@ export const writeFixturePolicy = (root: string, policy: FixturePolicy): void =>
   const file = path.join(root, "_olai/Settings.olai")
   type Node = { id: string; ord: string; title: string; parent?: string; custom?: Record<string, string> }
   let nodes: Node[] = []
-  if (fs.existsSync(file)) {
-    try { nodes = fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(line => JSON.parse(line)) }
-    catch { return } // A broken-file fixture must stay broken.
+  try { nodes = fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(line => JSON.parse(line)) }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") return // Keep broken-file fixtures broken.
   }
   let changed = false
   const put = (name: string, key: string, value: string | undefined) => {
@@ -42,13 +42,9 @@ export const writeFixturePolicy = (root: string, policy: FixturePolicy): void =>
   }
   for (const name of policy.extra?.split(",").filter(Boolean) ?? []) put(name, "on", "yes")
   for (const name of policy.without?.split(",").filter(Boolean) ?? []) put(name, "on", "no")
-  for (const [variable, key] of [
-    ["OLAI_IDENTITY_LOGIN_HEADER", "login-header"], ["OLAI_IDENTITY_EMAIL_HEADER", "email-header"],
-    ["OLAI_IDENTITY_NAME_HEADER", "name-header"], ["OLAI_IDENTITY_PICTURE_HEADER", "picture-header"],
-    ["OLAI_IDENTITY_AVATAR_TEMPLATE", "avatar-template"],
-  ] as const) put("identity", key, policy.vars?.[variable])
+  for (const [key, value] of Object.entries(policy.identity ?? {})) put("identity", key, value)
   put("identity", "avatar-template", policy.avatar)
-  put("chat", "idle-ms", policy.idle === undefined ? policy.vars?.OLAI_CHAT_IDLE_MS : String(policy.idle))
+  put("chat", "idle-ms", policy.idle === undefined ? undefined : String(policy.idle))
   if (changed) {
     fs.mkdirSync(path.dirname(file), { recursive: true })
     fs.writeFileSync(file, nodes.map(node => JSON.stringify(node)).join("\n") + "\n")

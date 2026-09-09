@@ -104,12 +104,12 @@ const run = (
       allowedOrigins: [],
       // These start and stop a real server against a temp directory; committing
       // to whatever repository happens to contain it is not theirs to do.
-      pin: { commit: "off", push: null },
+
       // The built-in default, which is what omitting `--plugins` means and what a
       // real serve does — these harnesses stand up the whole product, and a
       // composition narrower than the one a person gets would be a suite proving
       // something nobody runs.
-      pluginPin: { kind: "omitted" },
+
     })
   }).pipe(
     Effect.scoped,

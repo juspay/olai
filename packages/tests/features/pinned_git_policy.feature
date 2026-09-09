@@ -33,7 +33,7 @@ Feature: Git policy is the instance's, not this browser's
     And the plugins panel shows "git" configured "push" as "off"
     And there should be no page errors
 
-  @pin:commit=auto
+  @policy:git.commit=auto
   Scenario: --commit=auto is the git row's config on the plugins panel
     When I open the plugins panel
     Then the plugins panel shows "git" configured "commit" as "auto"
@@ -41,7 +41,7 @@ Feature: Git policy is the instance's, not this browser's
     And the plugins panel shows "git" configured "push" as "off"
     And there should be no page errors
 
-  @pin:commit=auto @pin:push=off
+  @policy:git.commit=auto @policy:git.push=off
   Scenario: The flag is what the loop actually does, not only what it draws
     # THE FENCE FOR A FLAG HONOURED IN THE DRAWING AND NOT IN THE DOING. Nobody
     # has turned anything on in this browser and there is no control here that

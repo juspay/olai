@@ -115,7 +115,6 @@ import { seatingIn } from "./seating.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
 import { assignSession, type Binding, startAgentSession } from "./server/binding.ts"
-import { idleMillis } from "./idle.ts"
 import { Config } from "./settings.ts"
 export { Config } from "./settings.ts"
 import { faultedIn, scopeThrough } from "./server/doorbell.ts"
@@ -202,7 +201,7 @@ export default definePlugin({
     // each other by looking at one screen.
     const bundle = yield* Bundle
     const env = yield* Env
-    const nodeIdle = idleMillis(env.vars["OLAI_CHAT_IDLE_MS"]) ?? settings["idle-ms"]
+    const nodeIdle = settings["idle-ms"]
     const kindsDoor = yield* Kinds
     const localState = yield* openLocalState(yield* LocalState)
     const offers = yield* Offers

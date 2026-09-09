@@ -427,7 +427,6 @@ export const pluginGroups = (
   }
   for (const label of order) {
     const members = buckets.get(label)!
-    if (members.every((plugin) => pluginState(plugin) === "optIn")) continue
     const quiet = members.every((plugin) => look(plugin.name).quiet === true)
     const healthy = members.every((plugin) =>
       pluginState(plugin) === "running" && rowCopy(plugin, roster, look(plugin.name), reports) === null

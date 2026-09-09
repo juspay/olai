@@ -6,4 +6,5 @@ export const moveMemory = () => ({
   standing: createSignal<Standing | null>(null),
   query: createSignal(""),
   sending: createSignal(false),
+  judging: createSignal<ReadonlyArray<string> | null>(null),
 })

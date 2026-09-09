@@ -36,7 +36,7 @@
 /** THE OPERATOR'S WIRING, and the reading over it — the two the row's own
  *  `../server.ts` needs to stand behind the `Identity` door, plus the
  *  allowlist the upgrade takes. */
-export { identityConfig, type IdentityConfig } from "./config.ts"
+export { type IdentityConfig } from "./config.ts"
 export { headerNamesOf } from "./identity.ts"
 export { whoOf } from "./reading.ts"
 /** ...and the two a SUITE pins rather than re-types: the header a Given

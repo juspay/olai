@@ -25,6 +25,7 @@ export interface PluginRuntime {
   readonly onChange: { run: () => void }
   readonly built: ReadonlyArray<string>
   readonly browserOnly?: ReadonlyArray<string>
+  readonly offByDefault?: ReadonlyArray<string>
   readonly pin: PluginPin
   readonly report: () => ReadonlyMap<string, RowReport>
   readonly names: () => ReadonlyMap<string, ReadonlyArray<string>>
@@ -112,6 +113,7 @@ const whoTurnedItOff = (
 ): PluginState => {
   if (offered.configuration?.()?.rows.get(name)?.on === false) return "off"
   if (offered.switched().has(name)) return "switched"
+  if (offered.offByDefault !== undefined) return offered.offByDefault.includes(name) ? "optIn" : "off"
   return offered.pin.kind === "exact" ? "off" : "optIn"
 }
 const stateOf = (

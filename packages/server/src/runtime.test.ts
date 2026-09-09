@@ -795,6 +795,13 @@ test("a plugin the flag left on but nothing mounted draws as off", () => {
  * two indistinguishable in the browser, where the only thing that tells them
  * apart is the line under the row.
  */
+test("a file-disabled build default stays off when the policy reader is unavailable", () => {
+  const defaults = [PLUGIN_NAMES[0]!]
+  const roster = rosterOf({ ...offering(), offByDefault: defaults, configuration: () => undefined })
+  expect(roster.built.find(row => row.name === defaults[0])?.state).toBe("optIn")
+  expect(roster.built.find(row => row.name === PLUGIN_NAMES[1])?.state).toBe("off")
+})
+
 test("a row's config travels on the roster as data, and a row without one sends none", () => {
   const withConfig = rosterOf({
     ...offering(),

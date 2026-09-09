@@ -111,7 +111,7 @@ describe("who is offered", () => {
       .toEqual({ kind: "none", because: { kind: "no-engine" } })
   })
 
-  test("the EMPTY variable is the whole off switch, not one missing row", () => {
+  test("an empty adapter path does not disable other engines", () => {
     // The documented way to turn chat off. A machine with an engine installed
     // must not get that engine instead of the "off" somebody asked for — and
     // nothing is probed at all, whichever engines the build has.
@@ -123,8 +123,8 @@ describe("who is offered", () => {
         return { command: "/bin/one", args: [] }
       })],
     )
-    expect(found).toEqual({ kind: "none", because: { kind: "switched-off" } })
-    expect(probed).toBe(false)
+    expect(found.kind).toBe("here")
+    expect(probed).toBe(true)
   })
 
   test("the order is the CALLER's, so the picker draws the same list every time", () => {
@@ -272,15 +272,10 @@ describe("a table that moves", () => {
     expect(asked).toBe(1)
   })
 
-  test("the off switch is read every time, because it is a person's and not the disk's", () => {
-    // `OLAI_ACP_AGENT=` is the whole panel rather than one row, and it is one map
-    // lookup — so it is not cached, and a detector built against an environment
-    // that has it set says so on every ask rather than only the first.
+  test("an empty adapter path still allows independently offered engines", () => {
     const detect = detecting({ [AGENT_ENV]: "" }, CWD)
-    expect(detect([here("one")])).toEqual({ kind: "none", because: { kind: "switched-off" } })
-    expect(detect([here("one"), here("two")])).toEqual({
-      kind: "none",
-      because: { kind: "switched-off" },
-    })
+    expect(detect([here("one")]).kind).toBe("here")
+    const both = detect([here("one"), here("two")])
+    expect(both.kind === "here" && both.installed.map(one => one.id)).toEqual(["one", "two"])
   })
 })

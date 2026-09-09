@@ -107,8 +107,7 @@ const web = Command.make("web", {
       profile,
       port,
       host,
-      pin: { commit: null, push: null },
-      pluginPin: { kind: "omitted" },
+
       clientDist: clientDist.pipe(Effect.provide(NodeServices.layer), Effect.orDie),
       allowedOrigins: allowedOrigins(),
     })

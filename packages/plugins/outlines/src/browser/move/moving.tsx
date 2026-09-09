@@ -220,6 +220,7 @@ export const createMoving = (
    *  receptacle for that (`../saying.ts`) rather than a fourth timer here. */
   const saying = createSaying()
   const [sending, setSending] = memory.sending
+  const [judging, setJudging] = memory.judging
 
   /**
    * The row the panel is under, found again when it has moved.
@@ -304,7 +305,7 @@ export const createMoving = (
   const request = createMemo<MovingRequest | null, undefined>(
     () => {
       const held = standing()
-      return held === null ? null : { record: held.record, to: aimed() }
+      return held === null ? null : { record: held.record, to: judging() ?? aimed() }
     },
     undefined,
     // The FORMAT's own equivalence over the request, beside the one the server
@@ -357,6 +358,10 @@ export const createMoving = (
 
   const write = (edit: Edit): void => {
     if (sending()) return
+    // A write spends the shortlist. Keep the question it answered while the
+    // write and its sentence are alive; unmounting that list must not open a
+    // new subscription with its now-empty destinations.
+    setJudging(aimed())
     setSending(true)
     // WHERE IT IS GOING, remembered before the answer: the verb carries the
     // destination, and after the write lands it is the only thing that can
@@ -374,7 +379,7 @@ export const createMoving = (
         // answering a question about where it used to be. The gesture becomes
         // its other arm — the sentence, standing under the row, wherever
         // `refound` above finds it.
-        if (said?.tone === "alarm" || under === undefined) return
+        if (said?.tone === "alarm" || under === undefined) { setJudging(null); return }
         setStanding((held) =>
           held === null
             ? null
@@ -397,6 +402,7 @@ export const createMoving = (
   const close = (): void => {
     const held = standing()
     setStanding(null)
+    setJudging(null)
     if (held === null) return
     const row = flatten(page.rows(), page.collapsed()).find((one) => one.key === held.place)
     if (row !== undefined) back(row)
@@ -420,6 +426,7 @@ export const createMoving = (
       batch(() => {
         // `() => NONE` and not `NONE`: a function handed to a setter is an
         // updater, so an accessor is set through one that answers with it.
+        setJudging(null)
         setHitIds(() => NONE)
         memory.query[1]("")
         setStanding({ kind: "picking", ...at })
