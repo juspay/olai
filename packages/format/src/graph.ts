@@ -83,8 +83,15 @@ export type Hops = typeof Hops.Type
 export const HOPS_DEFAULT: Hops = 1
 
 /** See the module header: past this many vertices the reading withholds the
- *  draw and reports `held`, because no crop of a hairball is an answer. */
-export const GRAPH_DRAWN_AT_MOST = 2000
+ *  draw and reports `held`, because no crop of a hairball is an answer. THE
+ *  NUMBER IS MEASURED, not picked: `olai-plugin-graph`'s layout ticks the
+ *  whole vertex set synchronously, and 420 `d3-force` ticks cross ~250 ms
+ *  — the budget main-thread arithmetic owes one interactive moment — at
+ *  roughly 150 vertices on the bench machine (178 ms at 125, 409 ms at
+ *  250), which is below `GRAPH_DRAWN_AT_MOST`'s legibility number well
+ *  before it reaches it. A vault that outgrows this needs the layout in a
+ *  worker, not a larger constant. */
+export const GRAPH_DRAWN_AT_MOST = 150
 
 /** What a vertex IS — a record, or one of the directory's files standing as
  *  itself. The file's own kind comes along so the face draws an outline dot

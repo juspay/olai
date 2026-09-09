@@ -370,7 +370,7 @@ test("one hop asks the same ceiling no bigger answer", () => {
   const reading = readingOf(setOf({ "wide.olai": CHAIN }))
   // The same corpus, centred on one END of the chain: the crop reaches its
   // own `hops`, not the ceiling.
-  const crop = graphOf(reading, { around: addressOf("", "n2000")!, hops: 1 })
+  const crop = graphOf(reading, { around: addressOf("", `n${GRAPH_DRAWN_AT_MOST}`)!, hops: 1 })
   expect(crop.held).toBeGreaterThan(0)
   expect(crop.vertices.length).toBe(crop.held)
   expect(crop.vertices.length).toBe(2)

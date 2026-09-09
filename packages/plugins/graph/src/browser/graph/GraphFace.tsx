@@ -99,8 +99,9 @@ export function GraphFace(props: {
   }
 
   /** HELD BACK: the whole reading over the ceiling draws no picture at all —
-   *  a 2000-dot picture is unreadable before it is slow (§7), and a page
-   *  showing the first 2000 of something is a page saying something false. */
+   *  at the ceiling's own size no reader reads the hair and the synchronous
+   *  layout outgrows its budget (§7), and a page showing the first of
+   *  something is a page saying something false. */
   const held = () => props.page.held
 
   /**
