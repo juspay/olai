@@ -37,13 +37,20 @@ import type { MatchedNode } from "@olai/format"
  * The three parts of the page's reading (`./narrowing.ts`) that a ROW asks for:
  * whether a filter is on, what it selected — or `null`, for a page with nothing
  * to narrow by — and the words to light up in a row it selected.
+ * The DOCUMENTS' half of the same packet is read by the page and by nothing
+ * else (`./narrowing.ts`'s `drawn`), so it rides the page's own record rather
+ * than this context.
  *
  * A VIEW of that one value rather than a second declaration of the same fields
  * — the page has exactly one narrowing, and a parallel interface saying the
  * same thing is a second place for the two to drift. What it adds is a DEFAULT
  * (below), which is the whole reason a row asks a context instead of the page.
  */
-export interface Narrowed { readonly active: Accessor<boolean>; readonly selected: Accessor<ReadonlyMap<string,MatchedNode> | null>; readonly needles: Accessor<ReadonlyArray<string>> }
+export interface Narrowed {
+  readonly active: Accessor<boolean>
+  readonly selected: Accessor<ReadonlyMap<string, MatchedNode> | null>
+  readonly needles: Accessor<ReadonlyArray<string>>
+}
 
 const NOTHING: Narrowed = {
   active: () => false,

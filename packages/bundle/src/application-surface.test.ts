@@ -315,6 +315,12 @@ test("the page stream is keyed by the field a Row carries, on every arm", () => 
   // here would notice. So the claim is the whole partition rather than the
   // interesting half of it.
   expect(found.get("names")).toBe("positional")
+  // The graph arm: vertices carry `key` (`@olai/format`'s `Vertex`) and so are
+  // keyed; its edges and the grain of the centre are positional — each named
+  // like the rest, because a field CALLED `key` arriving on an Edge would
+  // silently turn positional array merging into identity merging.
+  expect(found.get("shows.vertices")).toBe("keyed")
+  expect(found.get("shows.edges")).toBe("positional")
   // ...and the doors table beside it, which is the one that had to be NAMED to
   // stay that way: a `Door` says which property key it is about, and a field
   // called `key` on it would have made this array keyed by the property — one
@@ -333,6 +339,7 @@ test("the page stream is keyed by the field a Row carries, on every arm", () => 
       "shows.groups[].rows",
       "shows.rows",
       "shows.rows[].children",
+      "shows.vertices",
       "shows.zoomed.children",
     ])
 })

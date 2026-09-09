@@ -1772,6 +1772,8 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/files/src/Files.tsx",
       "plugins/files/src/testids.ts",
       "plugins/git/src/server.ts",
+      "plugins/graph/src/browser.tsx",
+      "plugins/graph/src/server.ts",
       "plugins/journal/src/agenda.ts",
       "plugins/journal/src/server.ts",
       "plugins/kolu/src/server.ts",
@@ -1833,6 +1835,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/chat/src/agents/roster.ts",
       "plugins/chat/src/browser/chat/completion.ts",
       "plugins/chat/src/testids.ts",
+      "plugins/graph/src/browser.tsx",
       "plugins/journal/src/browser.tsx",
       "plugins/mcp/src/endpoint.ts",
       "plugins/mcp/src/tools.ts",
@@ -1889,7 +1892,8 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "codex": [],
     "opencode": [],
     "pi": [
-      "appearance/src/tagInk.ts"
+      "appearance/src/tagInk.ts",
+      "plugins/graph/src/browser/graph/layout.ts"
     ],
     "kolu": [],
     "odu": [],
@@ -1931,6 +1935,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/files/src/fold/folders.ts",
       "plugins/files/src/testids.ts",
       "plugins/files/src/tools.ts",
+      "plugins/graph/src/browser.tsx",
       "plugins/journal/src/browser.tsx",
       "plugins/layout/src/Frame.tsx",
       "plugins/layout/src/Header.tsx",
@@ -1975,6 +1980,9 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/capture/src/Palette.tsx",
       "plugins/capture/src/browser.tsx",
       "plugins/files/src/browser.tsx",
+      "plugins/graph/src/browser.tsx",
+      "plugins/graph/src/browser/graph/GraphFace.tsx",
+      "plugins/graph/src/browser/held.ts",
       "plugins/layout/src/browser.tsx",
       "plugins/markdown/src/browser.tsx",
       "plugins/outlines/src/browser.tsx",
@@ -2112,6 +2120,8 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/git/src/git/git.ts",
       "plugins/git/src/ledger/pending.bench.ts",
       "plugins/git/src/ledger/pending.ts",
+      "plugins/graph/src/browser/graph/Canvas.tsx",
+      "plugins/graph/src/browser/graph/layout.ts",
       "plugins/kolu/src/server.ts",
       "plugins/layout/src/Fault.tsx",
       "plugins/markdown/src/browser.tsx",
@@ -2191,6 +2201,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "format/src/writing.ts",
       "ops/src/plan.ts",
       "plugins/files/src/tools.ts",
+      "plugins/graph/src/browser/graph/absent.tsx",
       "plugins/layout/src/pane/label.ts",
       "plugins/mcp/src/endpoint.ts",
       "plugins/navigation/src/address/address.ts",
@@ -2211,6 +2222,22 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/vault-plugins/src/tools.ts",
       "server/src/main.ts",
       "surface/src/edit.ts"
+    ],
+    // THE DIRECTORY'S REFERRAL STRUCTURE is the format's own vocabulary —
+    // `graphOf`, the `graph` page arm and the drawn arm lived there and in
+    // outlines' filters before the plugin existed, and the plugin is named
+    // after the thing those files describe rather than the other way round.
+    "graph": [
+      "format/src/graph.ts",
+      "format/src/index.ts",
+      "format/src/narrowing.ts",
+      "format/src/page.ts",
+      "format/src/searching.ts",
+      "plugins/outlines/src/browser/filter/drawn.ts",
+      "plugins/outlines/src/browser/page.ts",
+      "plugins/outlines/src/browser/settings/done.ts",
+      "plugins/outlines/src/tools.ts",
+      "plugins/search/src/tools.ts"
     ],
     "test-layout": [],
     "test-counter": [],
@@ -2387,6 +2414,7 @@ describe("a module another package can open holds no live value", () => {
     // goes with the object it was about; there is no moment at which one holds
     // a value somebody else installed.
     "format/src/filter.ts": "two WeakMap memos of a record's folded text, keyed by the record",
+    "format/src/graph.ts": "a WeakMap memo of a revision's fold, keyed by the pair of lists it walks, and one slot a suite installs a listener in",
     "format/src/set.ts": "a WeakMap memo of a set's derived reading, keyed by the set",
     "format/src/suggest.ts": "a WeakMap memo of a known table's index, keyed by the table",
     "format/src/tape.ts": "two WeakMap memos over a derived pair, keyed by the pair",

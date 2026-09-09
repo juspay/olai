@@ -288,6 +288,28 @@ export const visibleIn = (
   file: string | undefined,
   pane: number,
 ): Drawn => {
+  if (drawn.kind === "graph") {
+    // THE PANEL'S DEFAULT ALONE ANSWERS HERE — a graph is no file's page
+    // (its vertices are from everywhere), so there is no out-vote to read
+    // beside it. Only the DONE -scattered vertices and the lines one of them
+    // held up drop; the centre is the page itself and whatever it says
+    // stays. The shape RE-SETTLES the way a filter-prune does: the layout
+    // is placed from what is VISIBLE, so hiding done is a change of what is
+    // drawn rather than a dress-over.
+    if (!doneHidden()) return drawn
+    const centre = drawn.around?.kind === "vertex" ? drawn.around.vertex.key : undefined
+    const kept = new Set(
+      drawn.vertices.flatMap((vertex) =>
+        vertex.status === "done" && vertex.key !== centre ? [] : [vertex.key],
+      ),
+    )
+    if (kept.size === drawn.vertices.length) return drawn
+    return {
+      ...drawn,
+      vertices: drawn.vertices.filter((vertex) => kept.has(vertex.key)),
+      edges: drawn.edges.filter((edge) => kept.has(edge.from) && kept.has(edge.to)),
+    }
+  }
   if (file === undefined || drawn.kind !== "tree") return drawn
   if (doneHiddenOn(file))
     return { ...drawn, rows: withoutDone(drawn.rows, landingReveal(file, pane)) }

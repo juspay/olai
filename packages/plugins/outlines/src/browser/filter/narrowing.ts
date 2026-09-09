@@ -54,7 +54,7 @@
  * depending on what else was typed.
  */
 
-import type { Filter, Refusal } from "@olai/format"
+import type { Filter, MatchedDocument, Refusal } from "@olai/format"
 import { needlesOf } from "@olai/format"
 import { type Accessor, createMemo } from "solid-js"
 
@@ -70,6 +70,10 @@ import { matchesIn, narrowed, placesIn } from "./drawn.ts"
  *  `null` rather than this — {@link Narrowing.selected} argues the difference,
  *  and it is the whole of what a round trip added to this reading.) */
 export const NOTHING_MATCHED: Matches = new Map()
+
+/** The same refusal, on its document side. `NOTHING_MATCHED`'s comment carries
+ *  the argument; this is its `Matches`-half. */
+export const NOTHING_SELECTED_DOCUMENTS: ReadonlyMap<string, MatchedDocument> = new Map()
 
 /** What a filtered page knows about itself. */
 export interface Narrowing {
@@ -175,6 +179,9 @@ export const createNarrowing = (source: {
   /** What the server said the query selects — `undefined` until it has said
    *  anything at all about this filter (`./asking.ts`'s {@link Asked}). */
   readonly matched: Accessor<Matches | undefined>
+  /** Its document half — read off the same value, so it is `undefined` on
+   *  the same beats `matched` is. */
+  readonly matchedDocuments: Accessor<ReadonlyMap<string, MatchedDocument> | undefined>
   /** Which query that answer answers, `null` while one is in flight. */
   readonly answering: Accessor<string | null>
 }): Narrowing => {
@@ -197,6 +204,17 @@ export const createNarrowing = (source: {
     return source.matched() ?? null
   })
 
+  /** The document half of the SAME answer — the three states move together,
+   *  and either is only read off a page that asks about it: on other pages
+   *  nothing is matching-and-reading, so the read here does not know its
+   *  map is empty, and on the graph's the read answers `null` until the
+   *  held answer carries it. */
+  const selectedDocuments = createMemo<ReadonlyMap<string, MatchedDocument> | null>(() => {
+    if (!active()) return null
+    if (!asking()) return NOTHING_SELECTED_DOCUMENTS
+    return source.matchedDocuments() ?? null
+  })
+
   /**
    * ONE GUARD, over the one value that has all three states in it: with nothing
    * to narrow BY the page is drawn whole, and with a map — even an empty one —
@@ -211,7 +229,9 @@ export const createNarrowing = (source: {
    */
   const drawn = createMemo(() => {
     const found = selected()
-    return found === null ? source.visible() : narrowed(source.visible(), found)
+    return found === null
+      ? source.visible()
+      : narrowed(source.visible(), found, selectedDocuments() ?? NOTHING_SELECTED_DOCUMENTS)
   })
 
   /**
@@ -287,13 +307,14 @@ export const createNarrowing = (source: {
     counts: createMemo(() => {
       if (!active()) return NOTHING_COUNTED
       const found = selected() ?? NOTHING_MATCHED
-      const shown = matchesIn(drawn(), found)
+      const documents = selectedDocuments() ?? NOTHING_SELECTED_DOCUMENTS
+      const shown = matchesIn(drawn(), found, documents)
       return {
         shown,
         held: held(),
         hiddenAsDone: source.all() === source.visible()
           ? 0
-          : matchesIn(source.all(), found) - shown,
+          : matchesIn(source.all(), found, documents) - shown,
       }
     }, NOTHING_COUNTED, {
       equals: (was, is) =>

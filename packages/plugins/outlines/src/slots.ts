@@ -75,7 +75,7 @@ declare module "@olai/plugin-api/slots" {
     "outline.row.chip": SlotDefinition<PropChip, "kind">
     "outline.row.pane": SlotDefinition<PropPane, "kind">
     "outline.row.block": SlotDefinition<PropBlock, "kind">
-    "outline.row.door": SlotDefinition<(props: {readonly node: string}) => JSX.Element, "nothing">
+    "outline.row.door": SlotDefinition<(props: {readonly node: string; readonly where: "row" | "page"}) => JSX.Element, "nothing">
     "outline.row.action": SlotDefinition<RowActions, "nothing">
   }
 }
@@ -84,6 +84,6 @@ export const slotContracts = {
   "outline.row.chip": slotContract<PropChip>("outline.row.chip","kind"),
   "outline.row.pane": slotContract<PropPane>("outline.row.pane","kind"),
   "outline.row.block": slotContract<PropBlock>("outline.row.block","kind"),
-  "outline.row.door": slotContract<(props: {readonly node: string}) => JSX.Element>("outline.row.door","nothing"),
+  "outline.row.door": slotContract<(props: {readonly node: string; readonly where: "row" | "page"}) => JSX.Element>("outline.row.door","nothing"),
   "outline.row.action": slotContract<RowActions>("outline.row.action","nothing"),
 } as const

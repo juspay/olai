@@ -18,7 +18,8 @@ same `--plugins` word:
 - **TENANTS** — olai's judgement about an appliance: `kolu`, `odu`,
   `xyne-spaces`. Each composes a sibling surface and draws faces on rows.
 - **CORE ROWS** — a part of olai that used to be the composition root's and is a
-  row now: `chat`, `git`, `journal`, `search`. Each is a plugin over olai's OWN
+  row now: `chat`, `git`, `journal`, `search`, `graph` (the reference
+  drawing, over the format's indexes). Each is a plugin over olai's OWN
   floor rather than over somebody else's vendored client, which is why none of
   them has a tenant tier to confine. Three of them stand behind a door core
   DEFINES and does not fill (`chat` behind four, `git` behind the `Ledger`,

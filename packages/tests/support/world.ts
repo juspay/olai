@@ -727,6 +727,38 @@ export const AGENDA_QUIET = selector(PLUGIN_TESTID.agendaQuiet);
 export const AGENDA_EMPTY = selector(PLUGIN_TESTID.agendaEmpty);
 /** The way to it from the directory column, above the month. */
 export const AGENDA_LINK = selector(PLUGIN_TESTID.agendaLink);
+/** The reference graph — the drawing the directory's referral structure
+ *  settles into. A dot's `data-key` is the address the fragment would
+ *  spell (`#herbs`, `notes/brief.md`), an arrow's `data-ways` the strongest
+ *  first. */
+export const GRAPH_PAGE = selector(PLUGIN_TESTID.graphPage);
+/** The measured surface the dots sit on; `data-scale` is the camera. */
+export const GRAPH_CANVAS = selector(PLUGIN_TESTID.graphCanvas);
+/** One dot: `data-key`, `data-kind`, `data-centre`, `data-hops`,
+ *  `data-labelled`. */
+export const GRAPH_VERTEX = selector(PLUGIN_TESTID.graphVertex);
+/** One arrow: `data-from`, `data-to`, `data-ways`. */
+export const GRAPH_EDGE = selector(PLUGIN_TESTID.graphEdge);
+/** The label a file's cluster gets: `data-file`. */
+export const GRAPH_FILE = selector(PLUGIN_TESTID.graphFile);
+/** What the pointed dot says, in words. */
+export const GRAPH_CAPTION = selector(PLUGIN_TESTID.graphCaption);
+/** The caption's own move: the pointed dot becomes the centre. */
+export const GRAPH_CENTRE_HERE = selector(PLUGIN_TESTID.graphCentreHere);
+/** The hop horizon's segments, `data-hops`. */
+export const GRAPH_HORIZON = selector(PLUGIN_TESTID.graphHorizon);
+/** The sentence an absent centre, a put-away one, or a withheld drawing is
+ *  replaced with: `data-reason`. */
+export const GRAPH_EMPTY = selector(PLUGIN_TESTID.graphEmpty);
+/** The camera's two steps and its home. */
+export const GRAPH_CLOSER = selector(PLUGIN_TESTID.graphCloser);
+export const GRAPH_FIT = selector(PLUGIN_TESTID.graphFit);
+/** The legend of ways and grains, drawn once. */
+export const GRAPH_LEGEND = selector(PLUGIN_TESTID.graphLegend);
+/** The door into it at the foot of the file list, beside Trash. */
+export const GRAPH_LINK = selector(PLUGIN_TESTID.graphLink);
+/** The quiet door under a zoomed node's properties. */
+export const NODE_GRAPH_DOOR = selector(PLUGIN_TESTID.nodeGraphDoor);
 /** The padi chrome readout — desktop, between connection and the Commit pill. */
 export const PADI_PILL = selector(PLUGIN_TESTID.padi);
 /** The spaces chrome readout — desktop, beside padi, same cluster. */
@@ -2000,6 +2032,14 @@ export class OlaiWorld extends World {
   /** One document's own page COLD, the way a link someone sent would arrive. */
   async openDocument(file: string): Promise<void> {
     await this.open(`/${file.split("/").map(encodeURIComponent).join("/")}`);
+  }
+
+  /** The reference graph COLD: one address for the whole reading, and one per
+   *  vertex — the fragment is an address, so `#herbs` and
+   *  `notes/brief.md` are spelled the same way the link under a row spells
+   *  them. */
+  async openGraph(address?: string): Promise<void> {
+    await this.open(address === undefined ? "/graph" : `/graph/${address}`);
   }
 
   /**

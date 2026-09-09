@@ -43,6 +43,7 @@ Four of the pages below are **engines** — [claude](plugins/claude.md), [codex]
 - [plugins/identity.md](plugins/identity.md) — who is looking as a row: what `--plugins` without it leaves (every request nobody, no chip, no `captured-by`), why the operator's `OLAI_IDENTITY_*` family is the environment rather than the row's config, why the row composes nothing on the wire, and the one thing a mid-serve switch-on cannot give an open tab.
 - [plugins/navigation.md](plugins/navigation.md) — addresses, history, pane focus and the command palette, independent of the layout.
 - [plugins/outlines.md](plugins/outlines.md) — outline pages, node editing, contextual commands and scoped property renderers.
+- [plugins/graph.md](plugins/graph.md) — the reference map drawn: the four ways one writer reaches another vertex, one diagram pulled around a record or spanning the whole directory, and what the drawing keeps when the row is off.
 - [plugins/markdown.md](plugins/markdown.md) — document editing, frontmatter, headings and metadata without the outline renderer.
 - [plugins/files.md](plugins/files.md) — file browsing and creation controls, independent of vault file access.
 - [plugins/pins.md](plugins/pins.md) — the pinned shelf, ordering and contextual pin commands with independent activation.

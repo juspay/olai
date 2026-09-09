@@ -26,7 +26,14 @@ import {
   vaultFor,
 } from "./standing.testlib.ts"
 import { standing } from "./standing.ts"
-import { addressOf, NO_KINDS, type PageRequest, type Reading } from "@olai/format"
+import {
+  addressOf,
+  type DocumentPath,
+  foldWatching,
+  NO_KINDS,
+  type PageRequest,
+  type Reading,
+} from "@olai/format"
 
 /** A directory, its publisher, and the handful of things every case below
  *  addresses: the first outline, a record in it, and a day something is on. */
@@ -205,6 +212,44 @@ test("a record that went away is noticed by the move picker", () => {
   )
   expect(after).not.toBe(before)
   expect(after).not.toEqual(before)
+})
+
+test("the referral fold is built once per revision, however many pages ask", () => {
+  // THE FOLD'S PRICE, read the other way around: the standing.js half hands
+  // every ask its own freshly minted reading, so the memo has to pass the
+  // cache key THROUGH the minted view — a revision keyed by the Reading
+  // object would re-walk the corpus once per `/graph`, once per
+  // neighbourhood, and once per tab that asked for any of them. The ear it
+  // is heard by is `foldWatching`: install it, ask TWICE at one revision,
+  // publish, ask again.
+  const { vault, first, path, record, publish } = directory()
+  const views = standing(() => FIXED, NO_KINDS)
+  let built = 0
+  foldWatching(() => {
+    built += 1
+  })
+  try {
+    const whole: PageRequest = { kind: "graph", around: null, hops: 1 }
+    const neighbourhood: PageRequest = {
+      kind: "graph",
+      around: { kind: "document", path: path as DocumentPath },
+      hops: 1,
+    }
+    views.page(first, whole)
+    expect(built).toBe(1)
+    // A second ASK at the same revision — the minted-view case the memo
+    // exists for: nothing to build again, however the page differs.
+    views.page(first, neighbourhood)
+    expect(built).toBe(1)
+    // ...and the revision after moves what the fold walks: one more build.
+    record.title = "written just now"
+    const next = publish("the edit", [path])
+    expect(next).not.toBe(first)
+    views.page(next, whole)
+    expect(built).toBe(2)
+  } finally {
+    foldWatching(null)
+  }
 })
 
 test("a question nobody asks any more is not kept", () => {

@@ -396,18 +396,26 @@ test("only saying.ts counts SAID_MS down", () => {
 
 // routes.ts's monopoly, and finding 4's (a) from the debate on some of these
 // sweeps (https://github.com/juspay/oss.olai/blob/main/projects/olai/lowy-electricity/debate-2026-08-19.md): ONE door decides "is
-// this string one of our addresses". `routeNamed` is the only reading of the
-// format's grammar in this client, and a `parseAddress(` anywhere else is a
-// second answer free to disagree with the first — a pin and a written link
-// that open two pages for one address, which is the exact shape
-// `address/address.ts` exists to refuse (it delegates: its `routeIn` call is
-// the door's, and `address.test.ts` holds the two to one answer). A codec
-// may SPLIT a URL without recognising anything — `workspace.ts` reads the
-// format's `splitAddress` for its `/s/` rows and hands every page segment
-// back to `routeOf` — so the grip is the grammar's own entry point, where a
-// recognizer must start.
-test("address recognition has one door: parseAddress( is called only in routes.ts", () => {
+// this string one of our addresses" — per page family. `routeNamed` reads
+// the core's grammar once, and the same holds for a tenant with its own
+// codec: a `parseAddress(` outside a route codec is a second answer free to
+// disagree with the first — a pin and a written link that open two pages
+// for one address, which is the exact shape `address/address.ts` exists to
+// refuse (it delegates: its `routeIn` call is the door's, and
+// `address.test.ts` holds the two to one answer). A codec may SPLIT a URL
+// without recognising anything — `workspace.ts` reads the format's
+// `splitAddress` for its `/s/` rows and hands every page segment back to
+// `routeOf` — so the grip is the grammar's own entry point, held by each
+// route owner once.
+test("address recognition has one door PER ROUTE OWNER: parseAddress( is called only in a route codec", () => {
+  // One per route OWNER, not one per file: the format's grammar holds all
+  // the doors, and each page family owns its own table's face of it ("one
+  // service table rather than one file": a tenant handing off its parser
+  // walks the route codec's own grammar, not the core's). The rule changed
+  // from one-file to one-per-owner when `olai-plugin-graph` shipped with its
+  // own page and its own codec; the GRAMMAR did not.
   expect(filesSpelling(/parseAddress\s*\(/)).toEqual([
+    "plugins/graph/src/browser/routes.ts",
     "plugins/navigation/src/routes.ts"
   ])
 })

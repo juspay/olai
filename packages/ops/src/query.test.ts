@@ -1347,9 +1347,13 @@ describe("which nodes of a page a query selects", () => {
     // No `refusals` on this answer, deliberately: the door that asks it reads
     // the same grammar itself, so it has already drawn the sentence by the time
     // a frame could carry one (`@olai/format`'s `NarrowingAnswer`).
-    expect(asked(AT_HOUSE, "is:open")).toEqual({ text: "is:open", matches: [] })
+    expect(asked(AT_HOUSE, "is:open")).toEqual({
+      text: "is:open",
+      matches: [],
+      documents: [],
+    })
     // Nothing typed is not a question either.
-    expect(asked(AT_HOUSE, "  ")).toEqual({ text: "  ", matches: [] })
+    expect(asked(AT_HOUSE, "  ")).toEqual({ text: "  ", matches: [], documents: [] })
   })
 
   // A DOCUMENT IS NEVER ONE, and it is structural rather than a case: a

@@ -219,6 +219,10 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
     all: allDrawn,
     visible: shownDrawn,
     matched: () => (together() ? asked.matched() : undefined),
+    // Both halves of the ONE packet, read at the same gate: an answer about a
+    // page the reading has not yet arrived at is a page's shape other than
+    // this one, so both are undefined-or-together.
+    matchedDocuments: () => (together() ? asked.matchedDocuments() : undefined),
     answering: () => (together() ? asked.answering() : null),
   })
 
@@ -322,7 +326,14 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
               <Match when={props.source}>
                 {(source) => {
                   const Face = source().face
-                  return <Face page={open()} drawn={narrowing.drawn()} today={today()} />
+                  return (
+                    <Face
+                      page={open()}
+                      drawn={narrowing.drawn()}
+                      visible={shownDrawn()}
+                      today={today()}
+                    />
+                  )
                 }}
               </Match>
               <Match when={only(open(), "broken")}>

@@ -21,17 +21,31 @@
  * said so out loud while spelling them again.
  */
 
-import { type Derived, narrowedIn, parseFilter, type Shown } from "@olai/format"
+import { type MatchedDocument, matchedDocumentsIn, narrowedIn, parseFilter, type Reading, type Shown } from "@olai/format"
 
 import type { Matches } from "./matches.ts"
 
+/** Both halves of the ONE answer the wire would send — the read is taken
+ *  off the same query in the same breath, or a bench reading the two would
+ *  walk a drift the wire's `NarrowingAnswer` never holds. */
+export interface Answered {
+  readonly matched: Matches
+  readonly documents: ReadonlyMap<string, MatchedDocument>
+}
+
 export const answered = (
-  derived: Derived,
+  at: Reading,
   shows: Shown,
   text: string,
   today: string,
-): Matches =>
-  new Map(
-    narrowedIn(derived, shows, parseFilter(text, today))
-      .map((one) => [one.id as string, one]),
-  )
+): Answered => {
+  const filter = parseFilter(text, today)
+  return {
+    matched: new Map(
+      narrowedIn(at.derived, shows, filter).map((one) => [one.id as string, one]),
+    ),
+    documents: new Map(
+      matchedDocumentsIn(at, shows, filter).map((one) => [one.path, one]),
+    ),
+  }
+}

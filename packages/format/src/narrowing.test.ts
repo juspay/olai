@@ -57,8 +57,11 @@ import type { Reading } from "./validate.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
-  `{"id":"order","parent":"kitchen","ord":"a0","title":"order the doors","desc":"walnut, or birch","date":"2026-08-10","todo":true}`,
-  `{"id":"hinges","parent":"kitchen","ord":"a1","title":"pick the door hinges","done":"2026-08-02"}`,
+  `{"id":"order","parent":"kitchen","ord":"a0","title":"order the doors","desc":"walnut, or birch","date":"2026-08-10","todo":true,"see":["herbs"]}`,
+  // A DONE record that STILL WRITES: done is a verdict, not the end of a
+  // reference — `hinges` stands at the end of its own `see`, and that is
+  // what the graph page rules on.
+  `{"id":"hinges","parent":"kitchen","ord":"a1","title":"pick the door hinges","done":"2026-08-02","see":["order"]}`,
   // A MIRROR of a node that lives in another outline, which is the case that
   // makes a `file:`-scoped matcher wrong and this walk right: the row is drawn
   // here and the record is over there.
@@ -119,6 +122,8 @@ const PAGES: ReadonlyArray<readonly [string, PageRequest]> = [
   ["a day", { kind: "day", date: "2026-08-10" }],
   ["the agenda", { kind: "agenda", today: TODAY }],
   ["the trash", { kind: "trash" }],
+  ["the whole reading", { kind: "graph", around: null, hops: 1 }],
+  ["a neighbourhood", { kind: "graph", around: { kind: "node", id: "herbs" as never }, hops: 1 }],
 ]
 
 /** The queries, chosen so each reaches a different part of the grammar: words
@@ -178,6 +183,18 @@ const narrowedPage = (shows: Shown, selected: Selected): unknown => {
         rows: shows.groups.map((group) => [group.file, idsOfRows(keeping(group.rows, selected))]),
         places: shows.groups.reduce((total, group) => total + rowsIn(group.rows), 0),
       }
+    case "graph":
+      // The same two questions, said against dots: which of the page's own
+      // vertex records stay, and how many places the page held before the
+      // prune — the reading's `held` is the withholding count's twin.
+      return {
+        rows: shows.vertices.flatMap((vertex) =>
+          vertex.address.kind === "node" && selected.has(vertex.address.id)
+            ? [vertex.address.id]
+            : [],
+        ),
+        places: shows.vertices.length,
+      }
     case "document":
     case "broken":
     case "nothing":
@@ -202,6 +219,12 @@ const matchesOn = (shows: Shown, selected: Selected): number => {
         (total, group) => total + matchedIn(group.rows, selected),
         0,
       )
+    case "graph":
+      return shows.vertices.flatMap((vertex) =>
+        vertex.address.kind === "node" && selected.has(vertex.address.id)
+          ? [vertex.address.id]
+          : [],
+      ).length
     case "document":
     case "broken":
     case "nothing":
@@ -242,8 +265,57 @@ test("a node this page does not draw is not in the answer, however well it match
   // `shed` holds the word and lives in the other outline. That is the whole
   // change: the walk never reaches it, where the door this replaced walked the
   // vault to hand it over for the page to drop again.
-  expect(idsAt(at("house.olai"), "door")).not.toContain("shed")
-  expect(idsAt(at("garden.olai"), "door")).toContain("shed")
+  expect(idsAt(node("kitchen"), "#home")).toEqual([])
+  // ...and on the outline that DRAWS `kitchen` as a row, it is selected.
+  expect(idsAt(at("house.olai"), "#home")).toEqual(["kitchen"])
+})
+
+// ── the graph page's own rulings ───────────────────────────────────────
+
+/** The neighbourhood's own page, exactly as the routes mint it — its centre
+ *  resolves through the fold, the way the address would. */
+const herbbed = (): PageRequest => ({
+  kind: "graph",
+  around: { kind: "node", id: "herbs" as never },
+  hops: 1,
+})
+
+const dokind = { kind: "graph", around: null, hops: 1 } as const
+
+test("a graph centre is in the answer only when it matched", () => {
+  // `herbs` is the centre and the page says so persistently — but the
+  // answer rates it like any other vertex: `herb bed` selects it, and
+  // nothing else does.
+  const shows = shownAt(herbbed())
+  expect(shows.kind).toBe("graph")
+  if (shows.kind !== "graph") return
+  expect(shows.vertices.some((vertex) => vertex.address.kind === "node" && vertex.address.id === "herbs")).toBe(true)
+  const hits = narrowedIn(SET, shows, parseFilter("herb bed", TODAY))
+  expect(hits.some((one) => one.id === "herbs")).toBe(true)
+  const misses = narrowedIn(SET, shows, parseFilter("zzz", TODAY))
+  expect(misses.some((one) => one.id === "herbs")).toBe(false)
+})
+
+test("`is:done` on a graph is a verdict, not a walk — drawn with that vertex's own status", () => {
+  // `hinges` does `#home`-free work marked done; `herbs` is alive. The
+  // original ruling runs here unchanged: what the answer says about a dot
+  // without a poll of its file is read off what the fold already carried.
+  const shows = shownAt({ kind: "graph", around: null, hops: 1 })
+  expect(shows.kind).toBe("graph")
+  if (shows.kind !== "graph") return
+  const selected = narrowedIn(SET, shows, parseFilter("is:done", TODAY))
+  expect(selected.map((one) => one.id as string)).toEqual(["hinges"])
+  const todo = narrowedIn(SET, shows, parseFilter("is:todo", TODAY))
+  expect(todo.map((one) => one.id as string)).toEqual(["herbs", "order"])
+})
+
+test("an unparseable query selects nothing, and a graph page is not the exception", () => {
+  const shows = shownAt(herbbed())
+  const selected = narrowedIn(SET, shows, parseFilter("is:open", TODAY))
+  expect(selected).toEqual([])
+  // Same claim on the whole reading — the exception that a page ABOUT a
+  // record would have been is the one the design declines to buy.
+  expect(narrowedIn(SET, shownAt(dokind), parseFilter("is:open", TODAY))).toEqual([])
 })
 
 test("a MIRROR is answered by the node it shows, in the file that node lives in", () => {
@@ -332,6 +404,9 @@ const answerOf = (
     id: id as NarrowingAnswer["matches"][number]["id"],
     ...(field === undefined ? {} : { matched: field }),
   })),
+  // Answered per page: fixtures here spell node pages, whose document half
+  // of any query is empty by construction.
+  documents: [],
 })
 
 /**

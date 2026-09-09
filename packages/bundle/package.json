@@ -62,6 +62,7 @@
     "olai-plugin-pins": "workspace:*",
     "olai-plugin-capture": "workspace:*",
     "olai-plugin-trash": "workspace:*",
+    "olai-plugin-graph": "workspace:*",
     "olai-plugin-test-layout": "workspace:*",
     "olai-plugin-test-counter": "workspace:*",
     "olai-plugin-vault-plugins": "workspace:*",

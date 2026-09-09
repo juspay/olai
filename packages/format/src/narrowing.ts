@@ -49,8 +49,17 @@
 
 import { Schema } from "effect"
 
+import { DocumentPath } from "./address.ts"
 import type { Derived, Row } from "./derive.ts"
-import { type Filter, parseFilter, selecting, shownRecord } from "./filter.ts"
+import { isBodied } from "./document.ts"
+import {
+  DOCUMENT_FIELDS,
+  type Filter,
+  matchingDocuments,
+  parseFilter,
+  selecting,
+  shownRecord,
+} from "./filter.ts"
 import { declarationsOf, type KindVocabulary } from "./typing.ts"
 import { isTrashed, type LocatedRegular } from "./node.ts"
 import { narrowableIn, PageRequest, type Shown, shownOf } from "./page.ts"
@@ -94,9 +103,45 @@ export type NarrowingRequest = typeof NarrowingRequest.Type
  * typed or a query they have moved on from, read off the value that holds them
  * rather than off a signal beside it that is free to be a frame ahead.
  */
+/**
+ * One document vertex the query selects, as this answer's other half spells
+ * it — the path, and where the words landed when they landed anywhere
+ * (`null`-less, exactly {@link MatchedNode}'s own rule).
+ *
+ * THE DOCUMENT HALF of a page's selection exists for the graph alone: a row
+ * page's documents are WHAT THE PAGE IS, so narrowing them would be
+ * narrowing the spine the rows hang from. A graph page's documents are
+ * DOTS, and a filter that kept every record but dropped none of the
+ * pictures would be saying "documents do not count as matches" — read
+ * differently from the way `documents` in `./graph.ts` count as vertices.
+ * The walk is `./filter.ts`'s own `matchingDocuments`, never a second
+ * spelling of what matches (that module's header is where the argument
+ * lives).
+ *
+ * THE OUTLINE'S OWN FILE, standing there as a document vertex, is never in
+ * this answer — `matchedDocumentsIn` walks BODIED documents only:
+ * `./graph.ts` mints a vertex for any served path a pointer lands on, so
+ * `house.olai` stands on the picture, but a filter matches records, and the
+ * vertex in whose file its records sit is their container, not a thing the
+ * words could have landed on. Narrowing a graph page therefore cannot
+ * select an outline vertex through the file itself — only through the
+ * dots whose `file` is that file (`over/`/`file:` in a query reach them).
+ * The ruling is stated where search grammars are read, in `docs/search.md`.
+ */
+export const MatchedDocument = Schema.Struct({
+  path: DocumentPath,
+  matched: Schema.optionalKey(Schema.Literals(DOCUMENT_FIELDS)),
+})
+export type MatchedDocument = typeof MatchedDocument.Type
+
 export const NarrowingAnswer = Schema.Struct({
   text: Schema.String,
   matches: Schema.Array(MatchedNode),
+  // The page's DOCUMENT vertices the same words select — `[]` on every arm
+  // but the graph's, for the reason {@link MatchedDocument}'s own comment
+  // gives: no row page's spine is a dot. Used to be absent — same rule
+  // `./searching.ts`'s hop carries: the answer grew one half.
+  documents: Schema.Array(MatchedDocument),
 })
 export type NarrowingAnswer = typeof NarrowingAnswer.Type
 
@@ -154,18 +199,23 @@ export const narrowingOf = (
    *  `withClaims`), and a grammar that read only one of them would answer
    *  `prop:` differently from the gate about the same key. */
   kinds: KindVocabulary,
-): NarrowingAnswer => ({
-  text: request.text,
-  matches: narrowedIn(
-    at.derived,
-    shownOf(at, request.page),
-    // THE VAULT'S VOCABULARY, exactly as `search_nodes` is answered with it
-    // (`@olai/ops`' `query.ts`): the box that narrows a page and the box that
-    // lists hits read one grammar, so a typed span means the same thing in both
-    // or the app disagrees with itself in front of the reader.
-    parseFilter(request.text, now, declarationsOf(at.derived, kinds)),
-  ),
-})
+): NarrowingAnswer => {
+  const shows = shownOf(at, request.page)
+  // THE VAULT'S VOCABULARY, exactly as `search_nodes` is answered with it
+  // (`@olai/ops`' `query.ts`): the box that narrows a page and the box that
+  // lists hits read one grammar, so a typed span means the same thing in both
+  // or the app disagrees with itself in front of the reader.
+  const filter = parseFilter(
+    request.text,
+    now,
+    declarationsOf(at.derived, kinds),
+  )
+  return {
+    text: request.text,
+    matches: narrowedIn(at.derived, shows, filter),
+    documents: matchedDocumentsIn(at, shows, filter),
+  }
+}
 
 /**
  * The same reading over a page ALREADY COMPUTED — the half that is about the
@@ -186,7 +236,7 @@ export const narrowedIn = (
   // selection materialised and then mapped is two lists of the answer's size
   // where the second is what anybody reads.
   const out: Array<MatchedNode> = []
-  for (const { at, match } of selecting(derived, filter, prunable(shows), putAway)) {
+  for (const { at, match } of selecting(derived, filter, prunable(derived, shows), putAway)) {
     out.push({
       // CAST rather than `NodeId.make`, and it is the same call `./address.ts`
       // argues for at its own hot spot: the brand is nominal, so `make` runs a
@@ -249,6 +299,11 @@ export const showsPutAway = (shows: Shown): boolean => {
     case "day":
     case "agenda":
     case "broken":
+    case "graph":
+      // NO — the graph's own fold left everything put away out
+      // (`./graph.ts`), so "is the page drawing anything that was put away"
+      // is answered by the walk upstream of this ask.
+      return false
     case "nothing":
       return false
   }
@@ -274,11 +329,49 @@ const anyPutAway = (rows: ReadonlyArray<Row>): boolean =>
  * `matching` needs no such guard — `derived.nodes` names each record once —
  * which is why it is here rather than in the matcher or in the walk.
  */
-function* prunable(shows: Shown): Generator<LocatedRegular> {
+function* prunable(derived: Derived, shows: Shown): Generator<LocatedRegular> {
   const seen = new Set<string>()
-  for (const at of narrowableIn(shows)) {
+  for (const at of narrowableIn(derived, shows)) {
     if (seen.has(at.node.id)) continue
     seen.add(at.node.id)
     yield at
   }
+}
+
+/**
+ * The page's DOCUMENT half of the same query — empty on every arm but the
+ * graph's.
+ *
+ * TWO CANDIDATE SETS AND WHY: the walk is {@link matchingDocuments} for the
+ * reason {@link MatchedDocument}'s comment gives ("one grammar, one
+ * matcher"), and it is handed THIS PAGE's documents rather than the set's
+ * — the yin of `prunable`'s own rule, one door over and no wider. The
+ * candidates are exactly the bodied document vertices the page draws
+ * (outlines' faces are vertices too, but a filter matches their RECORDS —
+ * the graph's node vertices walk that half).
+ */
+export const matchedDocumentsIn = (
+  at: Reading,
+  shows: Shown,
+  filter: Filter,
+): ReadonlyArray<MatchedDocument> => {
+  if (filter.kind !== "asking" || shows.kind !== "graph") return []
+  const wanted = new Set(
+    shows.vertices.flatMap((vertex) =>
+      vertex.address.kind === "document" ? [vertex.address.path] : [],
+    ),
+  )
+  if (wanted.size === 0) return []
+  return matchingDocuments(
+    at.set.documents.filter(isBodied),
+    filter,
+    {},
+    wanted,
+  ).map(({ at: document, match }) => ({
+    path: document.path,
+    // The same null-less rule as `MatchedNode` beside it: naming a field the
+    // words did not land on would be inventing the why of a dot left on the
+    // screen.
+    ...(match.field === null ? {} : { matched: match.field }),
+  }))
 }

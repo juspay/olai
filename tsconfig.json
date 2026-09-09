@@ -1,0 +1,6 @@
+{
+  // Bun discovers this file from the current working directory, so the root
+  // needs one the way every tslint-run bench does: browsertests loaded through
+  // a package tsx must see the shared `jsx` + `jsxImportSource`.
+  "extends": "./tsconfig.base.json"
+}

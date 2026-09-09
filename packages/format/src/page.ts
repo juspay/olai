@@ -98,9 +98,10 @@ import { Custom, customOf } from "./custom.ts"
 import { dailyNotesOn, DayGroup, datedOn } from "./dates.ts"
 import { type Derived, type InTheWay, nodeNamed, nodesOf, Row, rowsOf } from "./derive.ts"
 import type { Face } from "./document.ts"
+import { Graph, graphOf, Hops } from "./graph.ts"
 import { bodyKind, FileKind, fileKind } from "./kinds.ts"
 import { consult, Door, Licence, type Vault } from "./meaning.ts"
-import { ID_SHAPE, isPutAway, isTrashed, type LocatedRegular, propertiesIn } from "./node.ts"
+import { ID_SHAPE, isPutAway, isRegular, isTrashed, type LocatedRegular, propertiesIn } from "./node.ts"
 import { markdownPaths } from "./rules.ts"
 import { BrokenFile } from "./set.ts"
 import { pinTargetIn } from "./shelf.ts"
@@ -137,6 +138,16 @@ export const PageRequest = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("agenda"), today: Schema.String }),
   /** Everything that was put away. */
   Schema.Struct({ kind: Schema.Literal("trash") }),
+  /** The referral structure — the whole directory when `around` is `null`,
+   *  otherwise the neighbourhood of one address out to `hops`. Asked as a
+   *  page (not as a second question over the browser's own walk of `edges`)
+   *  for the same reason every other page is: the rules about what is an end
+   *  of an edge are the format's, spelled once, in `./graph.ts`. */
+  Schema.Struct({
+    kind: Schema.Literal("graph"),
+    around: Schema.NullOr(Address),
+    hops: Hops,
+  }),
 ])
 export type PageRequest = typeof PageRequest.Type
 
@@ -274,6 +285,10 @@ export const Shown = Schema.Union([
     sought: FileKind,
     requested: Schema.NullOr(Schema.String),
   }),
+  /** The referral structure, folded over the set — vertices, the edges among
+   *  them, and what the centre resolved to. `./graph.ts`'s one walk is where
+   *  the rules about ends live; this page carries its answer. */
+  Graph,
 ])
 export type Shown = typeof Shown.Type
 
@@ -343,6 +358,19 @@ export const FiledPageReading = PageReading.check(
     { expected: "a file, node, or trash page reading" },
   ),
 ) as typeof PageReading & { readonly Type: FiledPageReading }
+
+/** A GRAPH page's address and nothing else — what the graph plugin narrows
+ *  `PageRequest` down to for its own member, for the same reason as
+ *  {@link FiledPageRequest} above: `at`/`trash`/`day`/`agenda` are pages their
+ *  rows own, and a member admitting them would promise an answer this one
+ *  cannot compute. */
+export type GraphPageRequest = Extract<PageRequest, { readonly kind: "graph" }>
+export const GraphPageRequest = PageRequest.check(
+  Schema.makeFilter(
+    (request: PageRequest) => request.kind === "graph",
+    { expected: "a graph page request" },
+  ),
+) as typeof PageRequest & { readonly Type: GraphPageRequest }
 
 /** A BODIED file's address and nothing else — what `markdown` narrows
  *  {@link FiledPageRequest} down to for its own member, because a metadata
@@ -536,7 +564,7 @@ const answersFor = (
       }
     }
   }
-  for (const node of drawnIn(shows)) ask(node.file, customOf(node.node))
+  for (const node of drawnIn(at.derived, shows)) ask(node.file, customOf(node.node))
   if (shows.kind === "document") ask(shows.file, shows.props)
   return { doors, licences }
 }
@@ -562,6 +590,7 @@ export const shownOf = (at: Reading, request: PageRequest): Shown => {
     return { kind: "agenda", date: request.today, agenda: agendaOf(derived, request.today) }
   }
   if (request.kind === "trash") return trashOf(derived, faces)
+  if (request.kind === "graph") return graphOf(at, request)
   if (request.kind === "day") {
     return {
       kind: "day",
@@ -705,6 +734,15 @@ const namesFor = (
 ): ReadonlyArray<Named> => {
   const wanted = new Set<string>()
   if (address?.kind === "node") wanted.add(address.id)
+  // A GRAPH page's rows are its vertices: each one's id is a pointer the
+  // page's labels spend, resolved by the same rule as every other id — and
+  // a withheld reading (the ceiling in `./graph.ts`) selects nothing, which
+  // is the empty walk's own honesty.
+  if (shows.kind === "graph") {
+    for (const vertex of shows.vertices) {
+      if (vertex.address.kind === "node") wanted.add(vertex.address.id)
+    }
+  }
   // EVERY DOOR ONTO A NODE, whatever the value looked like. The `ID_SHAPE`
   // filter below is a cheap test over prose nobody declared, and it is the
   // right test there; a value the consult RESOLVED is a node this page points
@@ -712,7 +750,7 @@ const namesFor = (
   // to a shape rule that was never about it. A ref chip drawing its target's
   // title is exactly this join ({@link ./meaning.ts}'s `titled`).
   for (const door of doors) if (door.opens.kind === "node") wanted.add(door.opens.id)
-  for (const node of drawnIn(shows)) {
+  for (const node of drawnIn(derived, shows)) {
     for (const id of node.node.see ?? []) wanted.add(id)
     for (const id of node.node.after ?? []) wanted.add(id)
     const written = pinTargetIn(node.node.title)
@@ -752,12 +790,18 @@ const namesFor = (
  * told twice. {@link drawnIn} is this walk PLUS the references, which is the
  * other half of the same table.
  *
+  * `derived` rides along for the graph page alone: its vertices are wire
+ *  values, so a walk that needs the RECORD each one names asks the set for
+ *  it. Every other arm's records are already in hand, and handing the index
+ *  in once keeps "what is a row of this page" one walk rather than the
+ *  reading re-asked per vertex.
+ *
  * `shows` and not the row's own record: a row that shows nothing — a mirror
  * whose chain died, one that closed a loop — draws a PLACEMENT, and there is
  * nothing in a placement for a query to select. `keeping` keeps such a row when
  * something under it matched, which is the same answer this absence gives.
  */
-export function* narrowableIn(shows: Shown): Generator<LocatedRegular> {
+export function* narrowableIn(derived: Derived, shows: Shown): Generator<LocatedRegular> {
   switch (shows.kind) {
     case "outline":
       yield* inRows(shows.rows)
@@ -779,6 +823,16 @@ export function* narrowableIn(shows: Shown): Generator<LocatedRegular> {
     case "trash":
       for (const group of shows.groups) yield* inRows(group.rows)
       return
+    case "graph":
+      // The vertex's id is CANONICAL — `./graph.ts` resolved it when the
+      // fold was built — so the index answers directly and a withheld page
+      // (see the ceiling there) simply selects nothing.
+      for (const vertex of shows.vertices) {
+        if (vertex.address.kind !== "node") continue
+        const found = derived.byId.get(vertex.address.id)
+        if (found !== undefined && isRegular(found)) yield found
+      }
+      return
     case "document":
     case "broken":
     case "nothing":
@@ -790,8 +844,8 @@ export function* narrowableIn(shows: Shown): Generator<LocatedRegular> {
  *  plus everything the page POINTS AT, which is what the names table spends.
  *  One walk over the arms, so a page that grows a place to draw a node grows a
  *  place to resolve what that node points at, in one edit rather than two. */
-function* drawnIn(shows: Shown): Generator<LocatedRegular> {
-  yield* narrowableIn(shows)
+function* drawnIn(derived: Derived, shows: Shown): Generator<LocatedRegular> {
+  yield* narrowableIn(derived, shows)
   yield* referencedIn(shows)
 }
 
@@ -832,6 +886,11 @@ function* referencedIn(shows: Shown): Generator<LocatedRegular> {
       return
     case "trash":
       for (const group of shows.groups) yield* waitedOnIn(group.rows)
+      return
+    case "graph":
+      // A dot is a row's whole work on this page: the references its record
+      // names are already named through `narrowableIn`, and nothing on the
+      // page draws a SECOND record (no crumbs rows, no backlink list).
       return
     case "broken":
     case "nothing":
