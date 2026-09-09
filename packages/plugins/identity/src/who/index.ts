@@ -15,8 +15,8 @@
  * drawn, and it must read those from the code rather than re-typing them
  * (`packages/tests/step_definitions/identity_steps.ts`); a door onto the
  * row's `apply` would drag the plugin runtime into a cucumber process for
- * two constants. Nothing in here is an Effect, imports the plugin API's
- * runtime or touches `process.env`.
+ * two constants. This door decodes configuration synchronously; it neither imports the
+ * plugin API's runtime nor touches `process.env`.
  *
  * WHAT CROSSES THE DOOR, and no more — five names, each with a caller.
  * The environment variable names, the placeholder a template spells the

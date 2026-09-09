@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { DEFAULT_POLICY, NO_PIN, type GitState } from "@olai/format"
+import { DEFAULT_POLICY, type GitState } from "@olai/format"
 import { keyings } from "@olai/surface/testlib"
 
 import { surface } from "./wire.ts"
@@ -8,7 +8,7 @@ import { surface } from "./wire.ts"
 const GIT_OFF_REPO: GitState = {
   status: "repo",
   said: null,
-  pinned: NO_PIN,
+  pinned: DEFAULT_POLICY,
   policy: DEFAULT_POLICY,
   pushSaid: null,
   paused: null,
@@ -28,7 +28,7 @@ test("what git is doing knows when it has not changed", () => {
   ).toBe(false)
   for (
     const moved of [
-      { pinned: { commit: "auto", push: null } },
+      { pinned: { commit: "auto", push: "off" } },
       { policy: { commit: "auto", push: "off" } },
       { pushSaid: "! [rejected] main -> main" },
       { paused: "! [rejected] main -> main" },

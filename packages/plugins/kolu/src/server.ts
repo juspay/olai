@@ -90,6 +90,8 @@ import type { KoluEvent } from "olai-plugin-kolu/appliance/wire"
 
 import { claimantsIn } from "./claimants.ts"
 import { koluFileIn, watchConfigIn } from "./config.ts"
+import { Config, configuredWatch } from "./settings.ts"
+export { Config } from "./settings.ts"
 import {
   bodyFor,
   classify,
@@ -218,7 +220,9 @@ type Ctx = SurfaceCtx<typeof surface.spec>
 export default definePlugin({
   name,
   needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
-  apply: Effect.gen(function*() {
+  config: Config,
+  apply: (settings) => Effect.gen(function*() {
+    const watchDefaults = configuredWatch(settings)
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against each
     // other by looking at one screen.
@@ -272,7 +276,7 @@ export default definePlugin({
       // the convention below — the same `let`, set on the same revision, and read
       // synchronously inside the very call that set it.
       claimants: (nodes) => claimantsIn(declaring, nodes),
-      config: watchConfigIn,
+      config: (nodes, file) => watchConfigIn(nodes, file, watchDefaults),
       // THE DOORBELL'S TAP, and the THIRD instance of the same boundary: what
       // crosses into this package is the wire's own frozen `KoluEvent`, and what
       // this side does with it — join it against the un-done nodes of a file

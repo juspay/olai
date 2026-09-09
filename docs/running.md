@@ -125,7 +125,7 @@ OLAI_IDENTITY_PICTURE_HEADER=            # Authelia sends none — empty is off,
                                          # could send (see Trust, below)
 ```
 
-Each variable unset is the Tailscale name in the table's first row (`OLAI_IDENTITY_EMAIL_HEADER` unset is the *login* header, since that is what a Tailscale login often is); each one **empty** turns that claim off. The login is the only one that makes somebody present — the rest are claims about them, and any of them may be missing. That reading is the chip's. A capture's `captured-by` is the login these same headers name, on whichever request took it — and nobody at all on a direct loopback call, where there is no proxy to name anybody (below).
+Each variable unset is the Tailscale name in the table's first row (`OLAI_IDENTITY_EMAIL_HEADER` unset is the *login* header, since that is what a Tailscale login often is); an **empty** email, name or picture variable turns that claim off. An empty login variable restores the default login header. The login is the only one that makes somebody present — the rest are claims about them, and any of them may be missing. That reading is the chip's. A capture's `captured-by` is the login these same headers name, on whichever request took it — and nobody at all on a direct loopback call, where there is no proxy to name anybody (below).
 
 #### The picture, and where it comes from
 
@@ -274,9 +274,9 @@ services.olai = {
 };
 ```
 
-**Giving a flag sets the instance's policy; omitting it uses the built-in default.** Either way the config is the same in every browser. The git row's `config:` in `olai.yml` is that default, and the plugins panel always draws it. A flag overlays the file. Never hidden — a policy a reader cannot see is one they cannot ask anybody about.
+**Giving a flag sets the instance's policy; omitting it uses the built-in default.** Either way the config is the same in every browser. The git row's `Config` schema declares that default, and the plugins panel draws it. A flag overlays the schema defaults in entry options; `olai.yml` carries no `config:`. Never hidden — a policy a reader cannot see is one they cannot ask anybody about.
 
-The two are independent, so setting committing does not silently set pushing. `--commit=manual` typed out loud is not the same as saying nothing, even though this server behaves identically either way: the first is a patch onto the git row's config, the second is the built-in default.
+The two are independent, so setting committing does not silently set pushing. `GitState.pinned` retains its historical wire name but now reports the policy in force, equal to `policy`. Both an omitted flag and an explicit `--commit=manual` report `manual`; this field no longer reports flag provenance.
 
 `--commit` is the same flag [git.md](git.md#modes) describes, with the same three modes; `--no-commit` is `--commit=off` and names the flag in the same way. `--commit=auto` is the quiet window: everything waiting records itself once writes stop arriving for fifteen seconds, with or without a browser in front of it. It is no longer one commit per write — that mode is retired, and the per-write commit with it.
 
@@ -343,6 +343,14 @@ you set by hand on the command line is a policy you set once and forget:
 Include `vault` in an explicit list to serve files. `--plugins=` opens no listener. Use `--plugins=ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector` for a control plane without a directory or write gate; its panel can enable the vault later.
 
 **Omitting `--plugins` is not the same as writing an empty one.** No flag means the built-in default (every production row but `xyne-spaces`, which is opt-in; the maintained `test-layout` and `test-counter` fixtures are also disabled until explicitly named — `--extra-plugins=xyne-spaces` adds Spaces without listing everything else); `--plugins=` with nothing after it means none, with no panel or listener. The nix options keep the same answers apart: omitted is `null`, none is `[ ]`. A name the build does not have is refused at startup, naming the words it does have — a typo is never a silently disabled integration.
+
+### Settings declarations
+
+The chat node-process idle timeout (`OLAI_CHAT_IDLE_MS` in the current environment adapter) is a behaviour setting too, declared as `idle-ms` in chat's schema.
+
+Each configurable built-in plugin exposes one `Config` schema with defaults and description annotations. `olai.yml` selects rows and build enablement; it carries no `config:`. The schema foundation is the first step of #545. The shared `_olai/Settings.olai` reader and durable panel switches are not available yet; the CLI, identity environment adapter and `_olai/Kolu.olai` still supply their existing inputs.
+
+Spaces uses `OLAI_SPACES_URL` for the origin to reach and `OLAI_SPACES_TOKEN` for the installed app JWT. The URL names a resource; the token is a secret. Both are supplied through the plugin's environment service, never entry options. Provider API keys used by agents stay in their environment too.
 
 ### The switch, and how long it lasts
 
@@ -469,6 +477,8 @@ A write prints one line — where it landed, and a link to the row — and `--js
 
 `watch` and `--follow` are not offered. The door this speaks to answers one request with one answer and pushes nothing, so there is no subscription to have; a page in a browser is what watches this vault change.
 
+`OLAI_TOKEN` is a credential supplied to the `olai surface` client. It does not configure the server's bearer: the server mints that bearer per process.
+
 ### It is `/mcp`, and the auth is `/mcp`'s
 
 `olai surface` is not a second face. It speaks MCP over HTTP to the same `/mcp` an agent uses, on the same listener, admitted by the same rule — so who may call what is one decision with one place to read it, and nothing was widened for a terminal to exist.
@@ -529,16 +539,14 @@ The plugins panel includes a **vault** switch. Turning it off clears the served 
 
 If another olai holds the directory, this process still serves its panel and MCP endpoint: the vault row is **failed**, with the lock holder's sentence, and vault-backed tools and resources leave the MCP catalog; direct calls to absent capabilities are refused. After the other owner stops, turn the failed vault row off and on to retry. A root that is not a directory likewise fails only the vault row.
 
-The file format is the vault row’s config. The bundle contains this loader entry, selected by every default profile:
+The vault row’s `Config` schema declares `format` with default `olai`. The bundle selects the row without a config block:
 
 ```yaml
 - id: vault
   name: olai-plugin-vault/server
-  config:
-    format: olai
 ```
 
-The plugins panel shows `format: olai`. The row’s `Config` schema validates the choice before acquiring the directory; unsupported values fail that row. Only `olai` is supported now. This makes the codec selection the place for a future Org implementation, without adding Org or migrating any files today. A different storage backend would instead be another provider behind `Directory`. The write gate is created and released with the vault row; without that row, there is no gate.
+The plugins panel derives its `format olai` chip from that schema. The row’s `Config` schema validates the choice before acquiring the directory; unsupported values fail that row. Only `olai` is supported now. This makes the codec selection the place for a future Org implementation, without adding Org or migrating any files today. A different storage backend would instead be another provider behind `Directory`. The write gate is created and released with the vault row; without that row, there is no gate.
 
 ### Browser shell selection
 

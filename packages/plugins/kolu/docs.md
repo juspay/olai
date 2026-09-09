@@ -89,7 +89,7 @@ The file is normal outline records. **Which file decides is a question about the
 
 **The nag is the knob that learned to stop.** Spell it `10m` and it repeats every ten minutes while the hold stands; spell it `10m/4` — the count after the slash, and the ONLY place a count can be spelled — and it says its piece four times past the first report, then goes quiet about that terminal until its state moves. The stopping is in the daemon's keeping, not olai's: the count re-arms only on the state actually changing, so a restart of the server does not restart a cap — and the pill (above) is how you notice a whole afternoon of quiet. A knob edit is padi's own *re-ask*: change `held-for` and the standing set is re-reported at once as a fresh leading frame, and the cap counts anew — the doorbell says the wake again as a fresh first report, and the reminder line returns, numbered from 1, on the nag after. Edits land live either way: the watch reads its knobs on every vault revision, so the file a person is *editing* is the file a person is **already being watched by**.
 
-The file is yours, not installed: without it the watch runs its defaults (sixty seconds, ten minutes, half an hour).
+The file is yours, not installed: without it the watch runs its defaults (one minute, ten minutes, half an hour).
 
 **There is no mute list any more, and the feed has no silence control at all now.** The file used to carry a `mutes` node whose children named terminals the watch was to keep quiet about, and the drawer's foot named them back. Both went with the second doorbell, and what went with them was the only way there ever was to quiet THIS surface: the watch says everything it sees — every held terminal in the fleet, for every reader of the page — and `_olai/Kolu.olai` decides the pacing and nothing else.
 
@@ -207,3 +207,5 @@ olai ✓  kolu ✓  · plus the agent's own
 ```
 
 The two halves share a host and a daemon and nothing else: one is a standing subscription to a fleet, the other a spawn-time probe for a tool server. [chat.md](../chat.md#kolu) has that one in full.
+
+The plugin's `Config` schema declares the `watch` section and each field's default, validation and description. The existing `_olai/Kolu.olai` reader uses that validation; moving the section into the shared settings file is the next settings-doors step.

@@ -144,11 +144,8 @@ export type { GitState }
  * THE FOUR THAT ARE NOT THE PROBE'S, and every one of them is here rather than
  * assembled by a caller so that "what git is doing" has exactly one derivation:
  *
- *   - `pinned` — what the operator typed, on every arm including the settled
- *     ones: a `--commit=off` serve is exactly a pinned policy, and a browser
- *     told "off" without being told who said so cannot draw the row.
- *   - `policy` — what this server DOES, which is the value the two preference
- *     rows now draw (they used to draw a preference stored in the browser).
+ *   - `pinned` and `policy` — the resolved policy in force. The historical
+ *     pinned wire name no longer distinguishes omitted flags from defaults.
  *   - `refused` — the last commit git said no to. #108's: a repository whose
  *     identity nobody set answers every probe happily and refuses every commit,
  *     so this OVERRIDES the probe's own status and reaches a reader as `error`.
@@ -162,9 +159,10 @@ const gitOf = (
   policy: Policy,
   settled: Settled,
 ): GitState => {
+  const current = policy.now()
   const rest = {
-    pinned: policy.pin,
-    policy: policy.now(),
+    pinned: current,
+    policy: current,
     pushSaid: settled.pushSaid,
     paused: settled.paused,
   }
@@ -396,31 +394,18 @@ export interface Options {
  * WHAT THIS SERVER DOES ABOUT GIT, and who decided — the whole of
  * `git-policy-server-side` as this layer sees it.
  *
- * Two members rather than one, because they answer different questions and both
- * travel: `now()` is what the loop and the two verbs obey, `pin` is what a
- * browser is told so it can name a given flag (or the built-in default). The
- * policy is immutable after boot — flags plus defaults — so `now()` is a
- * function because that is the shape the loop already asks, not because it
- * moves.
- *
- * WHERE IT IS KEPT is deliberately not here. This layer is handed the answer;
- * the composition root builds it with {@link fixedPolicy}.
+ * The ledger reads only the resolved policy. Legacy flag inputs are normalized
+ * here; they are not a provenance field on the wire.
  */
 export interface Policy {
-  /** What the operator pinned — the flags as given, `null` for each one nobody
-   *  gave (`@olai/format`'s {@link GitPin}). */
-  readonly pin: GitPin
-  /** What the server does, with the pin and the built-in defaults already
-   *  folded in (`@olai/format`'s `policyOf`). */
   readonly now: () => GitPolicy
 }
 
-/** A policy that cannot move: the flags and the defaults. What every
- *  composition hands in — the server itself, and every test here. */
-export const fixedPolicy = (pin: GitPin): Policy => ({
-  pin,
-  now: () => policyOf(pin),
-})
+/** Resolve legacy flag inputs once for this activation. */
+export const fixedPolicy = (pin: GitPin): Policy => {
+  const policy = policyOf(pin)
+  return { now: () => policy }
+}
 
 /**
  * Everything git is asked to do, in one place — which is what makes the MODE

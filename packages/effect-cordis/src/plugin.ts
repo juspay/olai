@@ -179,6 +179,8 @@ export const detached: Effect.Effect<Detach, never, Scope.Scope> = Effect.gen(fu
  */
 export interface Plugin {
   readonly name: string
+  /** Static declaration; decoded inside activation, never a live service. */
+  readonly config?: Schema.ConstraintDecoder<unknown, never>
   readonly inject: ReadonlyArray<string>
   readonly apply: (ctx: CordisContext, config?: unknown) => Promise<() => Promise<void>>
 }
@@ -202,13 +204,14 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
   spec: {
     readonly name: string
     readonly needs: Keys
-    readonly config?: Schema.Schema<Config>
+    readonly config?: Schema.Schema<Config> & { readonly DecodingServices: never }
     readonly apply:
       | Effect.Effect<void, never, NeedsOf<Keys>>
       | ((config: Config) => Effect.Effect<void, never, NeedsOf<Keys>>)
   },
 ): Plugin => ({
   name: spec.name,
+  ...(spec.config === undefined ? {} : { config: spec.config }),
   inject: spec.needs.map((key) => key.cordis),
   apply: async (ctx: CordisContext, config?: unknown) => {
     const opened = held(ctx)
@@ -246,8 +249,7 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
       // The schema has no external services (the same restriction as the old
       // Standard Schema adapter). A decode failure is a defect inside this
       // activation, so the row fails before its apply acquires any resources.
-      const decode = Schema.decodeUnknownSync as (schema: Schema.Schema<Config>) => (input: unknown) => Config
-      const value = spec.config === undefined ? (config ?? {}) as Config : decode(spec.config)(config ?? {})
+      const value = spec.config === undefined ? (config ?? {}) as Config : Schema.decodeUnknownSync(spec.config)(config ?? {})
       return Effect.isEffect(spec.apply) ? spec.apply : spec.apply(value)
     })
     const running = Effect.runForkWith(services)(work as Effect.Effect<void>)

@@ -602,6 +602,11 @@ test("a row's config is pairs of the keys it carries, and nothing without one", 
   ])
 })
 
+test("a structured policy is readable instead of an object placeholder", () => {
+  expect(pluginConfig({ name: "alpha", running: true, config: { section: { interval: "1m" } } }))
+    .toEqual([["section", '{"interval":"1m"}']])
+})
+
 /**
  * A PLUGIN THE VAULT DEFINES IS NOT A YAML SECTION. It has no `section` in
  * `olai.yml` because it is not in `olai.yml`. Presence of `source` is the

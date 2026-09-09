@@ -8,7 +8,7 @@
 
 Two facts, and they live in different places because one is a secret:
 
-- **`$OLAI_SPACES_URL`** and **`$OLAI_SPACES_TOKEN`** in the environment — the Spaces origin and the installed app's JWT. The human reuses the existing "kolu" Spaces app, so the bot's name in-channel is kolu. That is accepted. These are secrets; they are never written to the vault.
+- **`$OLAI_SPACES_URL`** and **`$OLAI_SPACES_TOKEN`** in the environment — the Spaces origin and the installed app's JWT. The human reuses the existing "kolu" Spaces app, so the bot's name in-channel is kolu. That is accepted. The token is a secret; the URL names the resource to reach. Neither is a plugin config field or written to the vault.
 - **`xyne-channel` on a node agent** — the conversation→channel bind. The node is the identity (`agent-session`); the session is cattle. There is no `_olai/XyneSpaces.olai`.
 
 **Off by default.** Omitting `--plugins` runs the default bundle; this plugin stays off until a flag names it. `--extra-plugins=xyne-spaces` is the flag that does that without listing everything else; `--plugins=vault,chat,claude,xyne-spaces,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector` is the exact set, and turns off every row it does not name. A Spaces app JWT is a secret this machine may not have, and a pill in every bar for an integration nobody pointed at is the wrong default.
@@ -67,3 +67,5 @@ A refused post, and a bind whose process has no Spaces app, are said **once** in
 - **No picker.** The prototypes showed a channel picker on the chat strip; this slice ships the `xyne-channel` property on the node agent.
 
 The seating service supplies node, file, title, engine and session; roster-only details such as memory counts are outside the mirror’s contract. Channel policy tests supply those answers directly, while chat’s own tests cover how vault declarations become seats.
+
+The `Config` schema declares `reply-limit`, the maximum reply characters mirrored to a channel, with its default and description. Channel bindings remain properties on agent nodes.

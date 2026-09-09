@@ -173,7 +173,7 @@ export const pluginConfig = (
 ): ReadonlyArray<readonly [string, string]> => {
   const config = plugin.config
   if (config === undefined) return []
-  return Object.entries(config).map(([key, value]) => [key, String(value)] as const)
+  return Object.entries(config).map(([key, value]) => [key, typeof value === "object" && value !== null ? JSON.stringify(value) : String(value)] as const)
 }
 
 /**

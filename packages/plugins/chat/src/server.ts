@@ -116,6 +116,8 @@ import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
 import { assignSession, type Binding, startAgentSession } from "./server/binding.ts"
 import { idleMillis } from "./idle.ts"
+import { Config } from "./settings.ts"
+export { Config } from "./settings.ts"
 import { faultedIn, scopeThrough } from "./server/doorbell.ts"
 import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
@@ -190,13 +192,14 @@ const SEATS =
 export default definePlugin({
   name,
   needs: [Bundle, Env, Kinds, LocalState, Offers, Ops, Surfaces, Tools, Vault, Wakes],
-  apply: Effect.gen(function*() {
+  config: Config,
+  apply: (settings) => Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against
     // each other by looking at one screen.
     const bundle = yield* Bundle
     const env = yield* Env
-    const nodeIdle = idleMillis(env.vars["OLAI_CHAT_IDLE_MS"])
+    const nodeIdle = idleMillis(env.vars["OLAI_CHAT_IDLE_MS"]) ?? settings["idle-ms"]
     const kindsDoor = yield* Kinds
     const localState = yield* openLocalState(yield* LocalState)
     const offers = yield* Offers

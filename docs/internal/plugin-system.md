@@ -1356,7 +1356,7 @@ and runtime path configuration is passed to the vault capability. The provider
 owns lock-file sweeping and resource release. These boundaries separate wire
 vocabulary and renderer state from the lifetime of the directory.
 
-The vault row carries `config: { format: "olai" }`, validated by its `Config` schema. The codec table is the place to add another supported format; Org is not implemented by this PR. The Effect bridge decodes row config before user `apply`, inside the same contained activation as every other initializer. This avoids the pinned Cordis constructor-validation path that could leave an invalid row pending and reject an unobserved loader promise.
+The vault row’s `Config` schema declares `format` with default `olai`; `olai.yml` selects the row without a `config:` block. The codec table is the place to add another supported format; Org is not implemented by this PR. The Effect bridge decodes row config before user `apply`, inside the same contained activation as every other initializer. This avoids the pinned Cordis constructor-validation path that could leave an invalid row pending and reject an unobserved loader promise.
 
 The vault switch remains available and explains its cost. Disabling it clears served collections and removes vault-defined plugins, while the transports remain available. A lock conflict or non-directory root lands as a failed row, including its own failure sentence, so the panel can retry it after the cause is resolved. `runtime.test.ts` now opens the test-minimal profile and reads its store through `Directory`.
 

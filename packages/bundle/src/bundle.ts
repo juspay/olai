@@ -72,7 +72,7 @@ import { namedBy, offered, provide, settled } from "@olai/effect-cordis"
 
 export { offered, provide, settled } from "@olai/effect-cordis"
 import { flipRow, mountRows, rowConfigs } from "@olai/effect-cordis/loader"
-import { Effect, type Scope } from "effect"
+import { Effect, Schema, type Scope } from "effect"
 
 import { BUNDLE_NAMES, ROWS } from "./rows.ts"
 
@@ -347,11 +347,18 @@ export const mountBundle = (
   yield* provide(host, BundleModules, () => ({
     read: Effect.promise(() => Promise.all(ROWS.map(async (row) => ({ name: row.id, exports: await importByName(row.name) })))),
   }))
+  // The schema supplies policy defaults to the current roster too. This is a
+  // static declaration read at composition, not a second source of settings.
+  const defaults = yield* Effect.promise(async () => Promise.all(ROWS.map(async (row) => {
+    const module = await importByName(row.name) as { default: { config?: Schema.ConstraintDecoder<unknown, never> } }
+    const schema = module.default.config
+    return schema === undefined ? [] : [{ id: row.id, config: Schema.decodeUnknownSync(schema)({}) }]
+  })))
   yield* Effect.flatMap(
     mountRows(host, {
       baseUrl: BASE_URL,
       path: BUNDLE,
-      patches: [...profilePatch(profile), ...pluginsPatch(pin), ...configs],
+      patches: [...profilePatch(profile), ...pluginsPatch(pin), ...defaults.flat(), ...configs],
       resolve: importByName,
     }),
     // EVERY ROW THIS BUILD HAS, and not only the ones the flag left on: a row
