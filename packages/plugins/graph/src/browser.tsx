@@ -60,13 +60,14 @@ function GraphEntry() {
  * price the tree's own geometry pays — the row below sits lower for it.
  *
  * The SITE reading is an upward walk from the door itself: zoom is a page
- * about one node carried as `data-kind="node"`, and that is the contract
- * the door reads rather than a flag threading the slot seam.
+ * about one node marked `data-zoom` (both the tree row and the page subject
+ * wear `data-kind="node"`, so that one names nothing), and that is the
+ * contract the door reads rather than a flag threading the slot seam.
  */
 function GraphDoor(props: { readonly node: string; readonly members: Accessor<ReadonlySet<string>> }) {
   const [onTheNodesOwnPage, setOnTheNodesOwnPage] = createSignal(false)
   onMount(() => {
-    setOnTheNodesOwnPage(self?.closest('[data-kind="node"]') !== null)
+    setOnTheNodesOwnPage(self?.closest('[data-zoom]') !== null)
   })
   let self: HTMLSpanElement | undefined
   return (
