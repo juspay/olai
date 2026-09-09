@@ -1,6 +1,7 @@
 import { definePlugin, Offers, Slots, Wired } from "@olai/plugin-api"
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { Effect } from "effect"
+import { type Accessor, createRoot, Show } from "solid-js"
 
 import { ENTRY_SHAPE, ROW_GAP } from "olai-plugin-layout/entry"
 import { navigation } from "olai-plugin-navigation/contract"
@@ -11,6 +12,7 @@ import { vaultEntries } from "olai-plugin-sidebar/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 
 import { REFERENCE_GRAPH } from "./browser/door.ts"
+import { createGraphed } from "./browser/graphed.ts"
 import { navigationHeld } from "./browser/held.ts"
 import { GraphFace } from "./browser/graph/GraphFace.tsx"
 import { graph, wholeGraph } from "./browser/routes.ts"
@@ -47,18 +49,23 @@ function GraphEntry() {
   )
 }
 
-/** The quiet door under a zoomed node's property run — a LINK rather than a
- * verb: nothing is armed, and a link middle-clicks the way any other does. */
-function GraphDoor(props: { readonly node: string }) {
+/** The quiet door under a row's property run — a LINK rather than a verb:
+ * nothing is armed, and a link middle-clicks the way any other does. It
+ * ANSWERS NOTHING where the map has nothing to say to this row (chat's door
+ * drawing on every row and mattering on nearly none): a door that every row
+ * got is every row carrying a line for the map it is not on. */
+function GraphDoor(props: { readonly node: string; readonly members: Accessor<ReadonlySet<string>> }) {
   return (
-    <Link
-      route={graphAroundNode(props.node)}
-      class="text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
-      testid={TESTID.nodeGraphDoor}
-      label={REFERENCE_GRAPH}
-    >
-      {REFERENCE_GRAPH}
-    </Link>
+    <Show when={props.members().has(props.node)}>
+      <Link
+        route={graphAroundNode(props.node)}
+        class="text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+        testid={TESTID.nodeGraphDoor}
+        label={REFERENCE_GRAPH}
+      >
+        {REFERENCE_GRAPH}
+      </Link>
+    </Show>
   )
 }
 
@@ -99,12 +106,25 @@ export const components = {
       yield* (yield* rendererSlots).contribute(vaultEntries, GraphEntry)
     }),
   }),
-  /** Under a zoomed node's properties. */
+  /** Under a row's property run, where the map has anything to say to it.
+   * The roster the faces read is ONE root and ONE subscription for the tab
+   * (`./browser/graphed.ts`), disposed with the row; the wires this row
+   * already holds are what the subscribe closes over. */
   "node-door": definePlugin({
     name: "graph.node-door",
-    needs: [Slots],
+    needs: [Slots, Wired],
     apply: Effect.gen(function*() {
-      yield* (yield* Slots).register("outline.row.door", GraphDoor)
+      const slots = yield* Slots
+      // The need, declared: what the subscribe closes over is the wire this
+      // row holds, and the row must not promise the door without it.
+      yield* Wired
+      const held = yield* Effect.acquireRelease(
+        Effect.sync(() => createRoot((dispose) => ({ members: createGraphed(), dispose }))),
+        ({ dispose }) => Effect.sync(dispose),
+      )
+      yield* slots.register("outline.row.door", (props) => (
+        <GraphDoor node={props.node} members={held.members} />
+      ))
     }),
   }),
   /** A row's `•••`. With no router held its press does nothing — a drawer
