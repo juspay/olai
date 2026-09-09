@@ -11,7 +11,9 @@ export const configurationFileIn = (paths: Iterable<string>): string | undefined
 export interface PolicyValue {
   readonly key: string
   readonly value: unknown
-  /** flag is transitional until the legacy boot inputs are removed. */
+  /** `flag` is inferred from a startup value differing from the schema default,
+   * not recorded provenance: an explicitly supplied default still reads default.
+   * This member, the root startup map and configurationStartup leave in step 4. */
   readonly setBy: "vault" | "default" | "flag"
   readonly says: string
 }

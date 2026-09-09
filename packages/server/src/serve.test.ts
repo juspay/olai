@@ -550,7 +550,7 @@ test("a kolu watch edit preserves its activation, while on still unloads and rem
     yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
     yield* settled(plugins.host, ["vault", "settings", "kolu"])
     let publications = 0
-    const policy = yield* followConfiguration(plugins.host, () => { publications++ }, () => undefined)
+    const policy = yield* followConfiguration(plugins.host, () => { publications++ }, () => [])
     yield* Effect.addFinalizer(() => policy.close)
     yield* policy.ready
     const registration = () => plugins.composed().find(one => one.name === "kolu")
@@ -611,6 +611,12 @@ test("the content provider switch is session-only and a broken file is never ove
     await flip("journal", false)
     expect(fs.existsSync(file)).toBe(false)
     await flip("vault", true)
+    expect((await configurationRoster(url)).built.find(row => row.name === "settings")?.switchPersistence).toBe("session")
+    await flip("settings", false)
+    expect(fs.existsSync(file)).toBe(false)
+    await flip("settings", true)
+    expect(fs.existsSync(file)).toBe(false)
+    expect((await configurationRoster(url)).built.find(row => row.name === "journal")?.switchPersistence).toBe("file")
     fs.mkdirSync(path.dirname(file), { recursive: true })
     fs.writeFileSync(file, "{broken\n")
     await eventually(async () => (await configurationRoster(url)).built.some(row => row.configurationError !== undefined))
@@ -644,5 +650,14 @@ test("startup overrides are labelled and a namespace supersedes them", async () 
     fs.unlinkSync(file)
     await eventually(async () => (await value())?.value === "auto" && (await value())?.setBy === "flag")
     expect((await row()).config?.commit).toBe("auto")
+  })
+})
+
+
+test("an explicitly supplied schema default is not claimed as a recorded flag", async () => {
+  await withServing({ root: served(), commits: "manual" }, async url => {
+    const row = (await configurationRoster(url)).built.find(one => one.name === "git")!
+    expect(row.configurationValues?.find(one => one.key === "commit"))
+      .toMatchObject({ value: "manual", setBy: "default" })
   })
 })

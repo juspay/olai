@@ -1,4 +1,3 @@
-import { Vault as ContentRevision } from "@olai/plugin-api/services";
 /** Start a selected bundle without granting its rows permanent host status.
  *
  * Boot has two settling barriers. Providers first acquire their independent
@@ -16,7 +15,7 @@ import { type GitPin, type PluginPin } from "@olai/format";
 import { BUNDLE_NAMES, ROWS, configsOf, mountBundle, provide, settled, offered, reportBundle, rowsNaming, setRow, } from "@olai/bundle/bundle";
 import { bundleRank } from "@olai/bundle";
 import { emitter } from "@olai/log";
-import { Identity, openPlugins, type ToolServer, } from "@olai/plugin-api/services";
+import { ConfigurationSource, Vault as ContentRevision, Identity, openPlugins, type ToolServer, } from "@olai/plugin-api/services";
 import { Deferred, Effect, Layer } from "effect";
 import { randomBytes } from "node:crypto";
 import { resolve } from "node:path";
@@ -162,7 +161,7 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     yield* provideInputs(plugins.host, { root: served, runtime: runtimePaths });
     yield* mountBundle(plugins.host, pluginPin, gitConfigPatch(options.pin), profile);
     const loading = yield* openLoading(plugins.host, built, () => onChange.run(), { services: plugins.serviceKeys, browserServices: plugins.browserKeys });
-    const policy = yield* followConfiguration(plugins.host, () => onChange.run(), () => plugins.offers().get(ContentRevision.cordis));
+    const policy = yield* followConfiguration(plugins.host, () => onChange.run(), () => [plugins.offers().get(ContentRevision.cordis), plugins.offers().get(ConfigurationSource.cordis)]);
     yield* policy.ready;
     let report = yield* reportBundle(plugins.host, loading.names());
     const switched = new Set<string>();

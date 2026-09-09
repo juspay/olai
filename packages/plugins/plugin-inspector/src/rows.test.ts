@@ -670,3 +670,15 @@ test("a file-authored off state names the file that decided it", () => {
   expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false, configurationFile: "_olai/Settings.olai" }))
     .toBe("Off — _olai/Settings.olai says on: no.")
 })
+
+
+test("an absent configuration reader is one panel fact, not a caveat repeated on every row", () => {
+  const absent: PluginRoster = { pinned: null, built: ["alpha", "beta"].map(name => ({
+    name, running: true, switchPersistence: "session", configurationAvailable: false,
+  })) }
+  expect(pluginsStarted(absent)).toContain("Switches are session-only while the configuration reader is absent")
+  for (const row of absent.built) expect(rowCopy(row, absent)).toBeNull()
+  const present: PluginRoster = { ...absent, built: absent.built.map(row => ({ ...row, configurationAvailable: true })) }
+  expect(pluginsStarted(present)).not.toContain("Switches are session-only")
+  expect(rowCopy(present.built[0]!, present)).toContain("Switch is session-only")
+})

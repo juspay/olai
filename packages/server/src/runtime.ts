@@ -31,6 +31,7 @@ export interface PluginRuntime {
   readonly configuration?: () => Configuration | undefined
   readonly environment?: ReadonlyMap<string, ReadonlyArray<EnvironmentReading>>
   readonly configurationDefaults?: ReadonlyMap<string, PolicyRow>
+  /** Inferred boot overrides; removed with the flag author and startup map in step 4. */
   readonly configurationStartup?: ReadonlyMap<string, PolicyRow>
   readonly configs: () => ReadonlyMap<string, Readonly<Record<string, unknown>>>
   readonly persistent?: (id: string) => boolean

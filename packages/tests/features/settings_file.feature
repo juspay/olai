@@ -96,3 +96,15 @@ Feature: The vault settings file applies policy to running rows
     And I follow the policy link for "git"
     Then the policy link targets node "policy-return"
     And there should be no page errors
+
+  Scenario: The reader switch cannot lock durable controls off
+    Given I open the app
+    When I open the plugins panel
+    Then the plugins panel says "settings" is "Switch is session-only"
+    When I switch the plugin "settings" off
+    Then the plugins panel was started "Switches are session-only while the configuration reader is absent"
+    When I switch the plugin "settings" on
+    Then the plugins panel says "settings" is "Switch is session-only"
+    When I switch the plugin "journal" off
+    Then the plugins panel says "journal" is "_olai/Settings.olai says on: no"
+    And there should be no page errors

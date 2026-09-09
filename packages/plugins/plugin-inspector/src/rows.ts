@@ -321,10 +321,18 @@ const namedBy = (
   id: string,
 ): boolean => names !== null && names.includes(id)
 
-/** Shared policy location and memory notice. Boot flags remain visible until
- * their removal in the next series step; switch exceptions are per-row. */
+const withoutConfiguration = (roster: PluginRoster): boolean =>
+  roster.built.some(row => row.configurationAvailable === false)
+  && !roster.built.some(row => row.configurationAvailable === true)
+
+/** What applies to every row is said once, at the foot: policy location,
+ * private memory, startup selection, and loss of the configuration reader.
+ * Repeating the same caveat under each row made the panel a scroll of identical
+ * paragraphs (#543). A row keeps only what differs, including its own
+ * session-only exception while the shared reader is available.
+ * Boot flags remain visible until their removal in step 4. */
 export const pluginsStarted = (roster: PluginRoster): string =>
-  `Policy lives in ${roster.built.find(row => row.configurationFile)?.configurationFile ?? CONFIGURATION_FILE} and travels with this directory. ${startedWith(roster)} Memory: LocalState, $XDG_STATE_HOME/olai/<plugin>/<hash>.json; private to the serve.`
+  `Policy lives in ${roster.built.find(row => row.configurationFile)?.configurationFile ?? CONFIGURATION_FILE} and travels with this directory. ${startedWith(roster)}${withoutConfiguration(roster) ? " Switches are session-only while the configuration reader is absent; they last until this serve stops." : ""} Memory: LocalState, $XDG_STATE_HOME/olai/<plugin>/<hash>.json; private to the serve.`
 
 /** WHAT THE SERVE WAS STARTED WITH — the flag as an operator would type it, or
  *  the built-in defaults, with the flag still NAMED where nobody gave one: the
@@ -404,7 +412,7 @@ export const rowCopy = (
 ): string | null => {
   const hint = pluginHint(plugin, roster, look)
   const browser = plugin.running ? browserHint(plugin.name, reports, plugin.browserOnly) : null
-  const duration = plugin.switchPersistence === "session" ? "Switch is session-only; it lasts until this serve stops." : null
+  const duration = plugin.switchPersistence === "session" && !withoutConfiguration(roster) ? "Switch is session-only; it lasts until this serve stops." : null
   return [hint, browser, duration].filter(Boolean).join(" ") || null
 }
 

@@ -9,7 +9,7 @@ import type { Ops } from "@olai/ops"
 import type { Plugin } from "@olai/plugin-api"
 import { Deferred, Effect, Fiber, Queue, Semaphore, Stream, SubscriptionRef } from "effect"
 
-export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], changed: () => void, sessionOwner: () => string | undefined) => Effect.gen(function*() {
+export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], changed: () => void, sessionOwners: () => ReadonlyArray<string | undefined>) => Effect.gen(function*() {
   type Publication = { source: ConfigurationSource; value: Configuration } | { source: undefined }
   const work = yield* Queue.unbounded<Publication>()
   yield* Effect.addFinalizer(() => Queue.shutdown(work))
@@ -18,7 +18,7 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
   const progress = yield* SubscriptionRef.make(0)
   const processed = new WeakMap<ConfigurationSource, number>()
   let observed: ConfigurationSource | undefined
-  const persistent = (id: string) => offered(host, ConfigurationSource) !== undefined && sessionOwner() !== id
+  const persistent = (id: string) => offered(host, ConfigurationSource) !== undefined && !sessionOwners().includes(id)
   const modules = yield* offered(host, BundleModules)!.read
   const live = new Set(modules.filter(one =>
     (one.exports as { default: Plugin }).default.configUpdates === "live").map(one => one.name))
@@ -30,6 +30,9 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
     (one.exports as { default: Plugin }).default.environment ?? [], offered(host, Env, one.name)?.vars ?? {},
   )]))
   const bootConfig = configsOf(host)
+  // Step 4 removes this map, the flag author and configurationStartup together.
+  // The author is inferred from differing from the schema default, not recorded
+  // provenance: an explicitly supplied default still reads default.
   // Until flag removal, absent namespaces use these same startup options in
   // the patch worker. Publish their resolved values rather than schema defaults
   // that disagree with what the activation actually received.

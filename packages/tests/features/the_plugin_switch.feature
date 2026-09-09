@@ -1,7 +1,7 @@
 Feature: A plugin is turned on and off while the serve runs
   A press writes on to the settings file and follows the reconciled roster.
-  The vault provider is the session-only exception. Other rows use a session
-  switch while the configuration reader is unavailable.
+  The vault provider and configuration reader are session-only exceptions.
+  Other rows use a session switch while the reader is unavailable.
 
   THE REACTIVE HALF IS WHAT MAKES IT ONE VERB rather than a restart, and these
   two scenarios are where that is benched rather than argued. A plugin is a
@@ -149,7 +149,8 @@ Feature: A plugin is turned on and off while the serve runs
     # bound before it existed. The tenants come out of `waiting` because the
     # doors they named have arrived; the conversation's own chrome is drawn
     # because its members are on the wire and the tab's redial reached them.
-    Then the plugins panel says "kolu" is "session-only"
+    Then the plugins panel says nothing more about "kolu"
+    And the plugins panel was started "Switches are session-only while the configuration reader is absent"
     And the conversation is in the header
     # THE ASSERTION THAT WOULD HAVE BEEN RED WHATEVER ELSE PASSED. The rest of
     # this scenario can be satisfied by chrome that mounted off a roster frame;

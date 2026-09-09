@@ -2,9 +2,114 @@ import type { PolicyValue } from "@olai/plugin-api/configuration"
 import { approveDefinition } from "./approval.ts"
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
-/** Instance policy and live state. Authored leaves stay beside the row;
- * defaults disclose below it. Links follow their declared service lifetime,
- * while inspector state survives navigation withdrawal. */
+/**
+ * WHAT THIS INSTANCE IS RUNNING — one row per plugin the build has, and the
+ * panel is its own now rather than a section at the foot of preferences.
+ *
+ * ## Why it left the preferences panel
+ *
+ * Because the two panels answer two different questions, and one of them is not
+ * a preference at all. Preferences is HOW THIS BROWSER READS — the theme, the
+ * type, how much of a row is drawn, whether finished work shows — and every row
+ * on it is this browser's to change, kept in this browser, different in the next
+ * one. A plugin's enablement is the INSTANCE's: the answer is the same in every
+ * browser pointed at this server, and a flip made here moves all of them.
+ *
+ * That argument SURVIVED the rows becoming live, and it is worth saying which
+ * half of it was doing the work. It was never *these rows cannot be changed*; it
+ * was *these rows are not about the reader*. A live switch on this panel changes
+ * what the SERVE is running, for everybody looking at it — which is a different
+ * kind of thing from a theme, and still wants a door of its own.
+ *
+ * Policy chips draw the authored leaves; defaults disclose beneath the row.
+ * The arrow opens its namespace in the directory's configuration file. A switch
+ * writes `on` through the ordinary write door, then waits for the revision and
+ * root-owned reconcile before releasing the press. The infrastructure rows
+ * needed to read and write that file retain a session-only switch.
+ *
+ * ## ...WHICH IS WHY THIS PANEL HAS A PANEL-WIDE LINE, having argued it needed
+ * none
+ *
+ * The old argument, in full: *nothing here is the reader's. Every row is the
+ * instance's, and every row already says so on its own line — `./rows.ts`'s
+ * `pluginSetBy` ends each one with the same clause. A panel-wide sentence would
+ * be that clause a fourth time, under three rows that had each just said it,
+ * which is how a caveat stops being read at all.*
+ *
+ * Every clause of that is true and the conclusion is backwards. If the same
+ * sentence is on every row, the panel is ALREADY drawing the caveat N times;
+ * the per-row placement is what makes it N rather than one. A serve started
+ * with `--plugins=claude,codex,chat,kolu,odu` drew that flag, quoted in full and
+ * wrapped over three lines, eight times — under a hint that was itself the same
+ * sentence on six of the eight. The human, 2026-09-04, with the screenshot:
+ * *portrait spammy*.
+ *
+ * So the rule did not change; which sentence is per-row and which is per-panel
+ * did. What is the same for every row — where policy lives, private memory, how
+ * this serve was started, and whether the configuration reader is absent — is
+ * one line at the foot ({@link pluginsStarted}).
+ * What actually differs stays on the row, and the opt-in row is exactly the
+ * case the old paragraph was reaching for: under no flag, one row's built-in
+ * default is ON and its neighbour's is OFF, and only the row can say which.
+ *
+ * ## What is on it, and what is NOT
+ *
+ * A WALK, not a list: what the `plugins` cell carries is a row per plugin the
+ * BUILD has, each saying whether this serve runs it, which of six states it is
+ * in, and — on a row that stands behind doors — which rows stop with it. So a
+ * third plugin reaches this panel with no line here moving, and nothing in
+ * `@olai/web` is the place a plugin's name is hardcoded. The fence one package
+ * over holds that as an equality; this file is written so there is nothing for
+ * it to catch.
+ *
+ * A ROW IS A NAME AND A SWITCH, and a sentence only where there is one. The
+ * ordinary running row has nothing to add — the switch reads On — so
+ * `pluginHint` answers `null` and this panel draws no paragraph at
+ * all. Eight rows read as a short list rather than a scroll, and the four rows
+ * that DO carry a sentence (a failure, a wait, an absence, a row that carries
+ * others) are the four a reader's eye lands on, because they are the only ones
+ * with text under them.
+ *
+ * THE LABEL IS THE NAME, VERBATIM — not prettified into `Kolu`. It is the
+ * settings namespace, the namespace its members are composed under and the docs
+ * slug, and a label that title-cased it would be the one spelling of a plugin's
+ * name coming apart on the one screen that tells you what to type.
+ *
+ * A row still has the same parts: its label, control, what the choice means,
+ * and where it came from. What this file owns is the walk and its rendering;
+ * the pure decisions live in `./rows.ts`.
+ *
+ * ## THE ONE SIGNAL, and why it is not a constructor
+ *
+ * `flipping` is the name of the row whose press is still in the air. It is not a
+ * fact about the serve — it is about the button under this reader's finger,
+ * which must not be pressed twice — which is exactly the line `olai-plugin-git`’s commit state
+ * draws for Commit and Push, and the reason those keep a signal each while
+ * everything else about git rides on a cell.
+ *
+ * It stays HERE rather than moving into a constructor beside them because there
+ * is still no second reader: one panel presses, one panel draws the answer, and
+ * a factory would be an indirection whose only caller is the file that would
+ * have held the signal anyway. What DID move out is the part a test can ask —
+ * `./rows.ts`'s `pluginSwitch`, which is the whole decision the signal feeds.
+ *
+ * The pending flag is cleared when the write, revision and reconcile settle.
+ * Controls also stay frozen while the browser reconciles the roster: a state frame may land
+ * before its socket replacement finishes, and a second press on that old socket
+ * would be interrupted. Server-only rows retain this component, so remounting
+ * it cannot be relied on to supply that barrier.
+ *
+ * ## Where the panel goes is not this file's decision
+ *
+ * The bar is `sticky` with a z-index, which makes it a stacking context and a
+ * 3rem-tall box, so the panel is portalled out of it and positioned against the
+ * VIEWPORT (`@olai/web/client/anchor.ts`) — exactly as the preferences panel
+ * beside it and the Commit panel two chips along are.
+ *
+ * Optional Links follow their declared service lifetime. Disclosure and group
+ * state belong to the inspector, so navigation withdrawal drops the links
+ * without forgetting what this reader opened.
+ */
 
 import { createSignal, For, Show } from "solid-js"
 
@@ -419,9 +524,9 @@ function Config(props: {
               data-testid={TESTID.pluginConfig}
               data-config={one.key}
               data-set-by={one.setBy}
-              title={one.says}
+              title={one.setBy === "flag" ? `${one.says}. Inferred from a startup value differing from the schema default; an explicitly supplied default still reads default.` : one.says}
             >
-              {one.key} {typeof one.value === "object" && one.value !== null ? JSON.stringify(one.value) : String(one.value)} <span>·{one.setBy}</span>
+              {one.key} {typeof one.value === "object" && one.value !== null ? JSON.stringify(one.value) : String(one.value)} <span>·{one.setBy}{one.setBy === "flag" ? " (inferred)" : ""}</span>
             </span>
           )}
         </For>

@@ -44,6 +44,11 @@ machine paths and only set/unset for secrets. The foot names the policy file and
 private LocalState memory without opening that memory.
 
 A switch writes `on` through the directory’s ordinary write door and waits for
-reconciliation. The vault provider stays session-only. Other rows explicitly
-say session-only while the configuration reader is absent. Broken configuration
+reconciliation. The vault provider and configuration reader stay session-only,
+said on their rows, so either can be restored from the panel. When the reader
+is absent, that shared limitation is said once at the foot. Broken configuration
 is named and must be repaired before another durable press can write.
+
+Until step 4 removes legacy boot flags, `·flag (inferred)` means the startup
+value differs from the schema default. It is not recorded provenance: explicitly
+supplying the default still reads `default`.

@@ -16,7 +16,9 @@ generic names keep the implementation independent of the row that offers it.
 
 The panel switch writes `on` through the ordinary write door, then waits for this
 reader and the root’s patches to settle. It creates the file and namespace when
-needed, preserving other properties. The vault switch remains session-only;
-without this reader, switches say session-only too. A broken file is named and
-must be repaired before a durable press can write. If this row disables itself,
-edit its `on` in the file to restore durable switching.
+needed, preserving other properties. The vault and reader switches remain
+session-only so either can be restored from the panel; their owners are derived
+from the offers table. Without this reader, the foot says once that switches
+are session-only. A broken file is named and must be repaired before a durable
+press can write. If the file itself says `on: no` for this row, edit that property
+to restore durable switching.
