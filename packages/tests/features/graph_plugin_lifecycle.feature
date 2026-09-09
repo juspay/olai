@@ -15,7 +15,8 @@ Feature: The graph is one optional row
     # No content provider claims /graph, so no route settles it either: the
     # pane falls back to the outliner's own home rather than a dead chair.
     Then the graph page is not shown
-    When I zoom into the node "install"
+    When I open the outline "house.olai"
+    And I zoom into the node "install"
     Then the node page names no reference graph door
     When I go back
     And I open the outline "garden.olai"
