@@ -303,7 +303,9 @@ export const createChat = (): Chat => {
   // instead of the whole transcript being re-read and re-sorted per frame.
   // {@link ./order.ts} is where that shape is argued and where the reader's
   // half of it lives with it.
-  const view = crypto.randomUUID()
+  // Correlation only, not an authority token. Also available on plain HTTP,
+  // where crypto.randomUUID is absent in browsers.
+  const view = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
   let source: "snapshot" | "delta" = "snapshot"
   const report = (stage: "applied" | "rendered") => (event: CompactionObservation) => untrack(() => {
     const input = {
