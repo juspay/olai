@@ -1,7 +1,7 @@
 import { definePlugin, Offers, Slots, Wired } from "@olai/plugin-api"
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { Effect } from "effect"
-import { type Accessor, createRoot, Show } from "solid-js"
+import { type Accessor, createRoot, createSignal, onMount, Show } from "solid-js"
 
 import { ENTRY_SHAPE, ROW_GAP } from "olai-plugin-layout/entry"
 import { navigation } from "olai-plugin-navigation/contract"
@@ -49,23 +49,39 @@ function GraphEntry() {
   )
 }
 
-/** The quiet door under a row's property run — a LINK rather than a verb:
- * nothing is armed, and a link middle-clicks the way any other does. It
- * ANSWERS NOTHING where the map has nothing to say to this row (chat's door
- * drawing on every row and mattering on nearly none): a door that every row
- * got is every row carrying a line for the map it is not on. */
+/** The quiet door under a ZOOMED node's property run — a LINK rather than a
+ * verb: nothing is armed, and a link middle-clicks the way any other does.
+ *
+ * Two guards, because two of them are the design's own words. The map must
+ * SAY SOMETHING to this node (chat's door drawing on every row and
+ * answering nearly none: a door every row got is every row carrying a line
+ * for the map it is not on). And the page must BE this node's own: in the
+ * tree the ••• row verb is the way in, and a LINE under a tree row is a
+ * price the tree's own geometry pays — the row below sits lower for it.
+ *
+ * The SITE reading is an upward walk from the door itself: zoom is a page
+ * about one node carried as `data-kind="node"`, and that is the contract
+ * the door reads rather than a flag threading the slot seam.
+ */
 function GraphDoor(props: { readonly node: string; readonly members: Accessor<ReadonlySet<string>> }) {
+  const [onTheNodesOwnPage, setOnTheNodesOwnPage] = createSignal(false)
+  onMount(() => {
+    setOnTheNodesOwnPage(self?.closest('[data-kind="node"]') !== null)
+  })
+  let self: HTMLSpanElement | undefined
   return (
-    <Show when={props.members().has(props.node)}>
-      <Link
-        route={graphAroundNode(props.node)}
-        class="text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
-        testid={TESTID.nodeGraphDoor}
-        label={REFERENCE_GRAPH}
-      >
-        {REFERENCE_GRAPH}
-      </Link>
-    </Show>
+    <span ref={(one) => { self = one }}>
+      <Show when={onTheNodesOwnPage() && props.members().has(props.node)}>
+        <Link
+          route={graphAroundNode(props.node)}
+          class="text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+          testid={TESTID.nodeGraphDoor}
+          label={REFERENCE_GRAPH}
+        >
+          {REFERENCE_GRAPH}
+        </Link>
+      </Show>
+    </span>
   )
 }
 
