@@ -204,3 +204,9 @@ resolved independently on `promptRequired`. Browser-condition unit tests exercis
 the real surface fold invalidation and terminal non-transport stream failure, and
 ensure throwing diagnostics cannot create either state. Browser receipts are
 checked against socket IDs and include follow/viewport state.
+
+The compaction fixture keeps deferred steering replies separate from the tool
+frames and filesystem hold. A 90-second hold expiry emits a fixture warning;
+it retains the existing fallback continuation. The deadline scenario deliberately
+uses the production 30-second deadline: shortening it requires a separate clock
+or leg-configuration seam and is outside this behavior-preserving refactor.

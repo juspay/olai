@@ -805,3 +805,11 @@ logs without trusting a client-supplied connection ID.
 `steering request failed` logs the session, method, deadline and failure category,
 without prompt text. A timed-out steer is uncertain delivery: the adapter can
 still inject it later. The message remains `unanswered` and has no automatic retry.
+
+Receipt shape is a transport-independent contract (`observation.ts`). The mounted
+panel's delivery observer owns classification and receipt context; `createChat`
+composes it with the transcript folds and executes sends through the held plugin
+client. Throw containment remains a separate fold adapter, so observation policy
+cannot invalidate the projection. These boundaries add no owner or subscription.
+Tracing remains bounded to the first following agent/tool row per compaction; it
+does not diagnose a later drop elsewhere in the same turn.

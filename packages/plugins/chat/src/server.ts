@@ -1,3 +1,4 @@
+import type { ChatObservation } from "./observation.ts"
 /**
  * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
  * end, and the fourteen verbs, as a row.
@@ -554,7 +555,7 @@ export default definePlugin({
     const rings = wakes.declared
 
     const conversation = {
-      observed: ({ input }: { input: typeof surface.spec.procedures.conversation.observed.input.Type }) =>
+      observed: ({ input }: { input: ChatObservation }) =>
         Effect.gen(function*() {
           const connection = Option.getOrNull(yield* Effect.serviceOption(CurrentBrowserConnection))
           ring(Effect.logInfo("chat compaction delivery").pipe(Effect.annotateLogs({ ...input, connection })))
