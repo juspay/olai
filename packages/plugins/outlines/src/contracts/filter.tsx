@@ -31,16 +31,15 @@ import { createContext, type JSX, useContext } from "solid-js"
 
 const NO_NEEDLES: ReadonlyArray<string> = []
 import type { Accessor } from "solid-js"
-import type { MatchedDocument, MatchedNode } from "@olai/format"
+import type { MatchedNode } from "@olai/format"
 
 /**
  * The three parts of the page's reading (`./narrowing.ts`) that a ROW asks for:
  * whether a filter is on, what it selected — or `null`, for a page with nothing
  * to narrow by — and the words to light up in a row it selected.
- *
- * Plus the DOCUMENTS' half beside the SELECTED's — a dot on the graph asks
- * this the way a row asks `selected`, and there is exactly one answer about
- * this page to name both (`./narrowing.ts` reads them off one packet).
+ * The DOCUMENTS' half of the same packet is read by the page and by nothing
+ * else (`./narrowing.ts`'s `drawn`), so it rides the page's own record rather
+ * than this context.
  *
  * A VIEW of that one value rather than a second declaration of the same fields
  * — the page has exactly one narrowing, and a parallel interface saying the
@@ -50,7 +49,6 @@ import type { MatchedDocument, MatchedNode } from "@olai/format"
 export interface Narrowed {
   readonly active: Accessor<boolean>
   readonly selected: Accessor<ReadonlyMap<string, MatchedNode> | null>
-  readonly selectedDocuments: Accessor<ReadonlyMap<string, MatchedDocument> | null>
   readonly needles: Accessor<ReadonlyArray<string>>
 }
 
@@ -60,7 +58,6 @@ const NOTHING: Narrowed = {
   // no query, so no match facts — the same `null` a filter waiting on its first
   // answer hands out, and for the same reason (`./narrowing.ts`).
   selected: () => null,
-  selectedDocuments: () => null,
   needles: () => NO_NEEDLES,
 }
 

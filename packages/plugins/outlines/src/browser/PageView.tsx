@@ -326,7 +326,14 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
               <Match when={props.source}>
                 {(source) => {
                   const Face = source().face
-                  return <Face page={open()} drawn={narrowing.drawn()} today={today()} />
+                  return (
+                    <Face
+                      page={open()}
+                      drawn={narrowing.drawn()}
+                      visible={shownDrawn()}
+                      today={today()}
+                    />
+                  )
                 }}
               </Match>
               <Match when={only(open(), "broken")}>

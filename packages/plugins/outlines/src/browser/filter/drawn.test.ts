@@ -19,20 +19,20 @@ import type { Drawn } from "../page.ts"
 
 const vertex = (id: string): Vertex => ({
   key: `#${id}`,
-  address: { kind: "node", id: id as Vertex["address"] extends { kind: "node" } ? never : never },
+  address: { kind: "node", id: id as never },
   kind: "node",
   title: id,
-  file: "garden.olai",
+  file: "garden.olai" as never,
   crumbs: [],
   hops: 0,
 })
 
 const document = (path: string): Vertex => ({
   key: path,
-  address: { kind: "document", path: path as Vertex["address"] extends { kind: "document" } ? never : never },
+  address: { kind: "document", path: path as never },
   kind: "document",
   title: path,
-  file: path,
+  file: path as never,
   crumbs: [],
   hops: 0,
 })
@@ -56,12 +56,15 @@ const thePage = (): Extract<Drawn, { kind: "graph" }> => ({
   held: 4,
 })
 
-test("an unfiltered page holds every vertex, and the page is about the centre", () => {
+test("a filter that selects NOTHING prunes everything but the centre", () => {
+  // Nothing matched: the page holds four vertices, and the prune keeps the
+  // centre alone — a page about #herbs stays that page, matching or not.
   const page = thePage()
   expect(placesIn(page)).toBe(4)
   const held = narrowed(page, new Set<string>(), new Map())
   if (held.kind !== "graph") throw new Error("shape")
   expect(held.vertices).toHaveLength(1)
+  expect(held.vertices[0]!.key).toBe("#herbs")
   expect(matchesIn(page, new Set<string>(["worktop"]), new Map())).toBe(1)
 })
 
@@ -76,10 +79,12 @@ test("the centre is kept either way, matched or not — the page is its answer",
   expect(held.edges).toEqual([])
 })
 
-test("a match keeps its vertex and the road to the centre; an unmatched falls, its lines with it", () => {
+test("a match keeps its vertex only — no road is kept by metonymy", () => {
   const page = thePage()
-  // `worktop` is the answer: its line through `order` stays because `order`
-  // leads to the centre, and `order` has no other kept line.
+  // `worktop` is the answer, and ITS line through `order` did NOT stay:
+  // narrow keeps the center plus the matched (the page's own story), never
+  // the in-plot traverse — a reduced picture with no wayfinding is a graph
+  // page's own honest answer.
   const held = narrowed(page, new Set(["worktop"]), new Map())
   if (held.kind !== "graph") throw new Error("shape")
   expect(held.vertices.map((one) => one.key)).toEqual(["#herbs", "#worktop"])

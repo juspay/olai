@@ -299,7 +299,7 @@ test("the file's next landing replaces the reveal; the release asks for THE VERY
   })
 })
 
-test("the pick reaches a tree, a graph — and nothing else", () => {
+test("the pick reaches a tree and nothing else", () => {
   remembering(() => {
     quiet()
     const day = { kind: "day" as const, groups: [], notes: [] }
@@ -328,7 +328,7 @@ test("a centre marked done stays", () => {
       address: { kind: "node" as const, id: "kitchen" as never },
       kind: "node" as const,
       title: "the kitchen",
-      file: "house.olai",
+      file: "house.olai" as never,
       crumbs: [],
       status: "done" as const,
       hops: 0,
@@ -355,7 +355,7 @@ test("the panel's default reaches a graph", () => {
       address: { kind: "node" as const, id: id as never },
       kind: "node" as const,
       title: id,
-      file: "house.olai",
+      file: "house.olai" as never,
       crumbs: [],
       ...(done ? { status: "done" as const } : {}),
       hops: 0,

@@ -56,7 +56,7 @@
  */
 import { Schema } from "effect"
 
-import { Address, addressOf, AtDocument, AtNode, type NodeId, printAddress } from "./address.ts"
+import { Address, addressOf, AtDocument, AtNode, DocumentPath, type NodeId, printAddress } from "./address.ts"
 import { type Derived, ancestorsOf, follow, nodeNamed, writtenTags } from "./derive.ts"
 import { type Document } from "./document.ts"
 import { docOf, linksIn, pathedOf, writtenLinks } from "./documents.ts"
@@ -110,7 +110,7 @@ export const Vertex = Schema.Struct({
   address: Schema.Union([AtNode, AtDocument]),
   kind: VertexKind,
   title: Schema.String,
-  file: Schema.String,
+  file: DocumentPath,
   crumbs: Schema.Array(Schema.String),
   status: Schema.optionalKey(Status),
   hops: Schema.Int,
@@ -211,13 +211,26 @@ interface WholeGraph {
 }
 
 /**
- * THE ONE FOLD, beside the value it folds — a `WeakMap` for the same reason
- * ./vocabulary.ts's tag counts are one: it is a function of an immutable
- * value, so it lives beside that value and leaves with it, and value-equality
- * (`Schema.toEquivalence`) is then the same equality the whole page answers
- * each reopen with.
+ * THE ONE FOLD, beside the lists it folds.
+ *
+ * A `WeakMap` for the reason ./vocabulary.ts's tag counts are one: it is a
+ * function of immutable values, so it lives beside those values and leaves
+ * with them. The KEY is the pair of LISTS the fold walks rather than the
+ * Reading itself, because the standing page cache hands every ask its own
+ * freshly minted reading over the same `set` and `derived` (`./tape.ts`:
+ * a new `reading` object per stale answer, and its getters hand the
+ * REVISION'S arrays out by identity) — keyed by the view, the fold minted
+ * once per page per ask: one `/graph`, one `/graph/#id`, one lifecycle row
+ * and four tabs is five walks of one corpus at one revision. The lists are
+ * the trace of the revision's assembly (`./overlay.ts`: carried tables, and
+ * nothing reads through them), so a pair of identical lists IS the revision
+ * from the fold's point of view — the by-id maps and crumbs it also reads
+ * are tables of the same derivation, minted in the same breath.
  */
-const WHOLE = new WeakMap<Reading, WholeGraph>()
+const WHOLE = new WeakMap<
+  Derived["nodes"],
+  WeakMap<ReadonlyArray<Document>, WholeGraph>
+>()
 
 /** A record's id IS the id the address carries — the same nominal-brand
  *  cast `./narrowing.ts` argues at `narrowedIn`: re-parsing would run a
@@ -264,6 +277,10 @@ const buildWhole = (at: Reading): WholeGraph => {
     ways: Map<string, Set<WayDrawn>>,
   ): void => {
     if (path === self.path) return
+    // Out entirely: a link onto the Trash's own file names a place what is
+    // put away has, not a vertex this drawing holds — the centre asks the
+    // same question of `centreOf` and is refused the same way.
+    if (isPutAway(path)) return
     const document = documents.get(path)
     if (document === undefined) return
     const key = printAddress({ kind: "document", path: document.path })
@@ -311,6 +328,12 @@ const buildWhole = (at: Reading): WholeGraph => {
     pushEdges(edges, from, ways)
   }
 
+  // The fast path through the bodies: until a body names an outline, the
+  // kept table the face holds IS the walk — one parse per revision, which is
+  // the point of `Face.links` — so the suffix scan below is gated on the
+  // directory serving an outline suffix at all.
+  const servesAnOutline = at.set.documents.some((one) => one.kind === "outline")
+
   // ...then the bodies. An outline is REFERRED to as a document (a dot of
   // its own), but it writes its references as RECORDS, which the walk above
   // already said — this half is the bodied kinds'.
@@ -318,11 +341,12 @@ const buildWhole = (at: Reading): WholeGraph => {
     if (document.kind === "outline" || isPutAway(document.path)) continue
     const self = { node: undefined, path: document.path }
     const ways = new Map<string, Set<WayDrawn>>()
-    // A bodied document's references: the fold's own table-armed walk, so a
-    // link to an OUTLINE lands (see `referredIn`). The shown kinds keep what
-    // the face stored: a picture refers to nothing; this loop reads it.
+    // A bodied document's references: the kept table the face holds, plus
+    // the kept-out case `referredIn` stands for (a link to an OUTLINE lands
+    // as its dot). The shown kinds keep what the face stored: a picture
+    // refers to nothing; this loop reads it.
     const links = document.kind === "document"
-      ? referredIn(document.path, document.body, documents)
+      ? referredIn(document.path, document.body, documents, servesAnOutline)
       : document.links
     for (const link of links) land(link, "link", self, ways)
     for (const tag of document.tags) {
@@ -351,13 +375,21 @@ const buildWhole = (at: Reading): WholeGraph => {
  * outline is no body to render, but this fold's reader is the reading's own
  * `documents` table, which holds every served file — a dot this page cannot
  * draw would be a reference made invisible by a suffix rule.
+ *
+ * Expensive only as often as it can say anything new: the follow-up scan is
+ * the same `"](` guard `linksIn` runs, tightened once more by the directory
+ * serving an outline at all — which `buildWhole` computes once and passes
+ * in, so a whole revision of phrase-only title and body text never meets a
+ * regex.
  */
 const referredIn = (
   from: string,
   text: string,
   documents: ReadonlyMap<string, Document>,
+  servesAnOutline = true,
 ): ReadonlyArray<Address> => {
   const kept = linksIn(from, text)
+  if (!servesAnOutline || !text.includes("](")) return kept
   let found: Array<Address> | undefined
   for (const href of writtenLinks(text)) {
     const resolved = pathedOf(from, href)
@@ -403,12 +435,25 @@ const orderDrafts = (a: Draft, b: Draft): number =>
       : byPath(a.vertex.file, b.vertex.file) || a.line - b.line
 
 const wholeGraphOf = (at: Reading): WholeGraph => {
-  const held = WHOLE.get(at)
+  const inner = WHOLE.get(at.derived.nodes)
+  const held = inner?.get(at.set.documents)
   if (held !== undefined) return held
   const built = buildWhole(at)
-  WHOLE.set(at, built)
+  wholeFoldWatching?.()
+  if (inner === undefined) WHOLE.set(at.derived.nodes, new WeakMap([[at.set.documents, built]]))
+  else inner.set(at.set.documents, built)
   return built
 }
+
+/** THE SUITE'S OWN EAR on the fold — for the length of one test's case and
+ *  then `null` again, the shape `./validate.ts`'s `watching` names: a breadth
+ *  count of builds is not a public reading of the reading. Off is the
+ *  default; product code is answered off the memo, never told about it. */
+export const foldWatching = (installed: (() => void) | null): void => {
+  wholeFoldWatching = installed
+}
+
+let wholeFoldWatching: (() => void) | null = null
 
 /** The reading, or the withheld stand-in when the ceiling ruled — see the
  *  module header for why an over-large crop answers EMPTY and says how much
@@ -464,7 +509,7 @@ const nodeDraftFor = (derived: Derived, found: LocatedRegular): Draft => {
       address: { kind: "node", id: nodeVertexId(found.node.id) },
       kind: "node",
       title: found.node.title,
-      file: found.file,
+      file: found.file as DocumentPath,
       crumbs: ancestorsOf(derived, found.node.id).map((one) => one.node.title),
       ...(marker === undefined ? {} : { status: marker }),
       hops: 0,

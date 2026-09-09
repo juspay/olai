@@ -2414,7 +2414,7 @@ describe("a module another package can open holds no live value", () => {
     // goes with the object it was about; there is no moment at which one holds
     // a value somebody else installed.
     "format/src/filter.ts": "two WeakMap memos of a record's folded text, keyed by the record",
-    "format/src/graph.ts": "a WeakMap memo of a revision's fold, keyed by the pair it folds",
+    "format/src/graph.ts": "a WeakMap memo of a revision's fold, keyed by the pair of lists it walks, and one slot a suite installs a listener in",
     "format/src/set.ts": "a WeakMap memo of a set's derived reading, keyed by the set",
     "format/src/suggest.ts": "a WeakMap memo of a known table's index, keyed by the table",
     "format/src/tape.ts": "two WeakMap memos over a derived pair, keyed by the pair",

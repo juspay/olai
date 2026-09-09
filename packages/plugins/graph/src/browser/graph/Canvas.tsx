@@ -38,7 +38,7 @@ import { atFile, atNode } from "olai-plugin-navigation/routes"
 import { Link } from "olai-plugin-navigation/routing"
 
 import { TESTID } from "../../testids.ts"
-import { inFrame, legible, rankedBy, seenAt } from "./camera.ts"
+import { inFrame, seenAt } from "./camera.ts"
 import type { Looking } from "./looking.ts"
 import { EDGE_LOOKS, lookOf } from "./look.ts"
 import type { Placed, Placement, Shaped } from "./layout.ts"
@@ -57,6 +57,12 @@ export function Canvas(props: {
    *  (`./GraphFace.tsx`). */
   readonly graph: Shaped
   readonly placement: Placement
+  /** Which dots are owed their words this frame: `./camera.ts`'s answer,
+   *  computed where the caption can announce it too. Its inputs — the edges'
+   *  order and the lit neighbourhood — ride as the accessorised facts they
+   *  are, so one hover walks the edge table once. */
+  readonly labelled: ReadonlySet<string>
+  readonly lit: () => ReadonlySet<string> | undefined
   /** The vertex under the pointer (or the keyboard), and the two halves of
    *  reporting it: the caption above this component draws the sentence, and
    *  everything not touching it goes quiet here. */
@@ -82,37 +88,7 @@ export function Canvas(props: {
     return seen !== undefined && inFrame(seen, frame()) ? seen : undefined
   }
 
-  /**
-   * The order labels are spent in — the vertices the most arrows touch
-   * first — as a memo, because it is a fact about the GRAPH and the camera
-   * moves far more often than the graph does.
-   */
-  const ranked = createMemo(() =>
-    rankedBy(props.graph.vertices.map((vertex) => vertex.key), props.graph.edges)
-  )
-
-  /**
-   * What stays bright while a reader is pointing at a dot: that dot and
-   * everything an arrow joins it to.
-   *
-   * The NEIGHBOURS and not the dot alone, because what a reader is asking
-   * when they point at one is "what is this talking to" — dimming the far
-   * end of the arrow they are following would take the answer away with the
-   * noise. A memo, so pointing at a dot walks the edges once rather than
-   * once per dot.
-   */
-  const lit = createMemo(() => {
-    const asked = props.hovered
-    if (asked === undefined) return undefined
-    const found = new Set([asked])
-    for (const edge of props.graph.edges) {
-      if (edge.from === asked) found.add(edge.to)
-      if (edge.to === asked) found.add(edge.from)
-    }
-    return found
-  })
-
-  const litVertex = (key: string): boolean => lit()?.has(key) !== false
+  const litVertex = (key: string): boolean => props.lit()?.has(key) !== false
 
   /** An ARROW stays bright only while it TOUCHES the dot being pointed at:
    *  asking it the way a dot is asked would light every arrow landing on a
@@ -120,23 +96,6 @@ export function Canvas(props: {
    *  exists to remove. */
   const litEdge = (from: string, to: string): boolean =>
     props.hovered === undefined || props.hovered === from || props.hovered === to
-
-  /**
-   * The labels a reader is owed whatever the scale: the vertex the page is
-   * about, and whatever they are pointing at along with everything it is
-   * talking to. The other half of decluttering — what a far view hides must
-   * be one gesture away.
-   */
-  const owed = createMemo(() => {
-    const asked = new Set<string>()
-    if (props.centre !== undefined) asked.add(props.centre)
-    for (const key of lit() ?? []) asked.add(key)
-    return asked
-  })
-
-  const labelled = createMemo(() =>
-    legible(props.placement, camera(), frame(), ranked(), owed())
-  )
 
   return (
     <div
@@ -196,7 +155,7 @@ export function Canvas(props: {
                     y1={line().y1}
                     x2={line().x2}
                     y2={line().y2}
-                    class={`${look().stroke} transition-opacity`}
+                    class={`${look().stroke} motion-safe:transition-opacity`}
                     stroke-width="2"
                     stroke-dasharray={look().dashes}
                     marker-end={`url(#${look().arrow})`}
@@ -241,7 +200,7 @@ export function Canvas(props: {
                 at={at()}
                 centre={props.centre === vertex().key}
                 quiet={!litVertex(vertex().key)}
-                labelled={labelled().has(vertex().key)}
+                labelled={props.labelled.has(vertex().key)}
                 onHover={props.onHover}
               />
             )}
@@ -265,7 +224,7 @@ function Dot(props: {
 
   return (
     <div
-      class="absolute -translate-x-1/2 -translate-y-1/2 transition-opacity"
+      class="absolute -translate-x-1/2 -translate-y-1/2 motion-safe:transition-opacity"
       style={{ left: at(props.at.x), top: at(props.at.y) }}
       classList={{ "opacity-30": props.quiet, "opacity-60": cancelled() }}
       data-testid={TESTID.graphVertex}
@@ -276,11 +235,13 @@ function Dot(props: {
       data-labelled={props.labelled ? "true" : "false"}
       onPointerEnter={() => props.onHover(props.vertex.key)}
       // Focus is the keyboard's hover, caught here rather than on the link:
-      // `focusin` / `focusout` bubble, so tabbing through the dots names each
-      // of them in the caption without `<Link>` growing two props for one
-      // page's benefit.
+      // `focusin` bubbles, so tabbing through the dots names each of them in
+      // the caption without `<Link>` growing a prop for one page's benefit.
+      // There is deliberately NO per-dot `focusout` clear: the caption's
+      // own control ("Centre here") is focusable off the same fact, and a
+      // clear on the dot's blur would unmount the thing focus is landing
+      // on — the region up in `./GraphFace.tsx` clears on the way OUT.
       onFocusIn={() => props.onHover(props.vertex.key)}
-      onFocusOut={() => props.onHover(undefined)}
     >
       <Link
         // The vertex's content route — opening the thing is navigation's
@@ -344,13 +305,19 @@ function Dot(props: {
  * (`./GraphFace.tsx`) — and the two are meant to be the same words.
  */
 export const saidOf = (vertex: Vertex): string => {
+  // What the mark says, WORDED: done and cancelled are carried by the dot's
+  // colour alone elsewhere, and a tip a screen reader or a smudged screen
+  // draws from the sentence must be able to miss the colour.
+  const marked = vertex.status === "done" ? " (done)"
+    : vertex.status === "cancelled" ? " (cancelled)"
+    : ""
   const where = [...vertex.crumbs].reverse()
   if (vertex.kind === "node") {
     return where.length === 0
-      ? `${vertex.title} — ${vertex.file}`
-      : `${vertex.title} — ${where.join(" — ")} — ${vertex.file}`
+      ? `${vertex.title}${marked} — ${vertex.file}`
+      : `${vertex.title}${marked} — ${where.join(" — ")} — ${vertex.file}`
   }
-  return `${vertex.title} — ${vertex.file}`
+  return `${vertex.title}${marked} — ${vertex.file}`
 }
 
 /** The two ends of an arrow, or nothing when either is off the page. */

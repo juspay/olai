@@ -180,6 +180,10 @@ export interface MountedAppPage {
   readonly face: (props: {
     readonly page: Shown
     readonly drawn: Drawn
+    /** The done-preference-pruned drawing of the page beside the drawn:
+     *  offered for a face that places its own picture (`defineAppPage`'s
+     *  notes say who reads it). */
+    readonly visible?: Drawn
     readonly today: string
   }) => JSX.Element
 }
@@ -291,6 +295,11 @@ export const defineAppPage = <Value, Request extends PageRequest>(
   face: (props: {
     readonly page: Extract<Shown, { readonly kind: Request["kind"] }>
     readonly drawn: Drawn
+    /** The visibleIn(pruned-before-filter) drawing of the same page: the
+     *  page the wider world holds (`drawn` answers the filter over it). A
+     *  face that places its own drawing uses this — the day's own face
+     *  ignores it. */
+    readonly visible?: Drawn
     readonly today: string
   }) => JSX.Element,
 ): AppPage => {

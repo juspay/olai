@@ -117,6 +117,16 @@ export type NarrowingRequest = typeof NarrowingRequest.Type
  * The walk is `./filter.ts`'s own `matchingDocuments`, never a second
  * spelling of what matches (that module's header is where the argument
  * lives).
+ *
+ * THE OUTLINE'S OWN FILE, standing there as a document vertex, is never in
+ * this answer — `matchedDocumentsIn` walks BODIED documents only:
+ * `./graph.ts` mints a vertex for any served path a pointer lands on, so
+ * `house.olai` stands on the picture, but a filter matches records, and the
+ * vertex in whose file its records sit is their container, not a thing the
+ * words could have landed on. Narrowing a graph page therefore cannot
+ * select an outline vertex through the file itself — only through the
+ * dots whose `file` is that file (`over/`/`file:` in a query reach them).
+ * The ruling is stated where search grammars are read, in `docs/search.md`.
  */
 export const MatchedDocument = Schema.Struct({
   path: DocumentPath,

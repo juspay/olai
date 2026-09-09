@@ -15,10 +15,11 @@
 import * as assert from "node:assert";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Given, Then, When } from "@cucumber/cucumber";
+import { Before, Given, Then, When } from "@cucumber/cucumber";
 
 import {
   attr,
+  expectAbsent,
   GRAPH_CANVAS,
   GRAPH_CAPTION,
   GRAPH_CENTRE_HERE,
@@ -30,8 +31,10 @@ import {
   GRAPH_HORIZON,
   GRAPH_LEGEND,
   GRAPH_LINK,
+  GRAPH_PAGE,
   GRAPH_VERTEX,
   NODE_GRAPH_DOOR,
+  PANE,
   POLL_TIMEOUT,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -65,16 +68,29 @@ Then("the graph shows the dot {string}", async function (this: OlaiWorld, key: s
   );
 });
 
+/** THE PAGE'S OWN SETTLED-STATE ANCHOR for every absence assertion below:
+ *  the graph root carrying which arm it drew (`data-arm`) — until that is
+ *  on screen the absence of a dot is the absence of everything, which is
+ *  what `packages/tests/README.md`'s WAIT-THEN-ASSERT rule names. */
+const settled = (world: OlaiWorld) => `${GRAPH_PAGE}[data-arm]`;
+
 Then("the graph shows no dot {string}", async function (this: OlaiWorld, key: string) {
-  await this.waitUntil(
-    async () => (await this.page.locator(dot(key)).count()) === 0,
+  await expectAbsent(
+    this,
+    settled(this),
+    dot(key),
     `the graph to hold no dot for ${key}`,
   );
 });
 
 Then("the graph draws exactly {int} dots", async function (this: OlaiWorld, expected: number) {
-  await this.waitUntil(
-    async () => (await this.page.locator(GRAPH_VERTEX).count()) === expected,
+  await this.page
+    .locator(settled(this))
+    .first()
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.strictEqual(
+    await this.page.locator(GRAPH_VERTEX).count(),
+    expected,
     `the graph to draw exactly ${expected} dots`,
   );
 });
@@ -105,11 +121,10 @@ Then(
 Then(
   "no arrow runs from {string} to {string}",
   async function (this: OlaiWorld, from: string, to: string) {
-    await this.waitUntil(
-      async () =>
-        (await this.page
-          .locator(`${GRAPH_EDGE}${attr("data-from", from)}${attr("data-to", to)}`)
-          .count()) === 0,
+    await expectAbsent(
+      this,
+      settled(this),
+      `${GRAPH_EDGE}${attr("data-from", from)}${attr("data-to", to)}`,
       `no arrow to run from ${from} to ${to}`,
     );
   },
@@ -124,9 +139,10 @@ Then("the graph names the file {string}", async function (this: OlaiWorld, file:
 });
 
 Then("the graph names no file {string}", async function (this: OlaiWorld, file: string) {
-  await this.waitUntil(
-    async () =>
-      (await this.page.locator(`${GRAPH_FILE}${attr("data-file", file)}`).count()) === 0,
+  await expectAbsent(
+    this,
+    settled(this),
+    `${GRAPH_FILE}${attr("data-file", file)}`,
     `${file} to stay unlabelled`,
   );
 });
@@ -171,20 +187,18 @@ Then("the graph's caption reads {string}", async function (this: OlaiWorld, said
 });
 
 When("I follow the graph dot {string}", async function (this: OlaiWorld, key: string) {
-  const one = this.page.locator(dot(key));
-  await one.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await one.getByRole("link").click();
-  await this.waitForFrame();
+  const link = this.page.locator(dot(key)).locator("a").first();
+  await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.press(link);
 });
 
 When("I press centre here", async function (this: OlaiWorld) {
-  // A force click: the link's re-mount cadence is the layout's to control —
-  // under Playwright's actionability gate one mount flash reads as a
-  // moving target. The press still lands on the REAL element.
+  // The link is now always in the DOM while a dot is pointed — the per-dot
+  // focus-out clear went with the keyboard-reach row (B4(b)) — so the once
+  // justified force-click is exactly the press a reader makes.
   const link = this.page.locator(GRAPH_CENTRE_HERE);
   await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await link.click({ force: true });
-  await this.waitForFrame();
+  await this.press(link);
 });
 
 // ── horizon and camera ────────────────────────────────────────────────
@@ -258,6 +272,35 @@ Then("the graph door is drawn below the files", async function (this: OlaiWorld)
   await this.waitUntil(
     async () => (await this.page.locator(GRAPH_LINK).count()) === 1,
     "the graph door to be drawn once, below the files",
+  );
+});
+
+Then("the graph door is not drawn below the files", async function (this: OlaiWorld) {
+  await expectAbsent(
+    this,
+    `${PANE}[data-pane-focused="true"][data-drawn-file]`,
+    GRAPH_LINK,
+    "the graph door to be withdrawn from below the files",
+  );
+});
+
+/** The pane's settled-state anchor for the graph page itself: the focused
+ *  pane drawing SOMETHING (verified) with no graph face in it. */
+Then("the graph page is not shown", async function (this: OlaiWorld) {
+  await expectAbsent(
+    this,
+    `${PANE}[data-pane-focused="true"][data-drawn-file]`,
+    GRAPH_PAGE,
+    "the graph page to be withdrawn",
+  );
+});
+
+Then("the node page names no reference graph door", async function (this: OlaiWorld) {
+  await expectAbsent(
+    this,
+    `${PANE}[data-pane-focused="true"][data-drawn-file]`,
+    NODE_GRAPH_DOOR,
+    "the zoomed node page to name no reference graph door",
   );
 });
 
@@ -370,6 +413,12 @@ When(
 // ── placements are not references, and time does not move a dot ───────
 
 const HELD = new Map<string, readonly [number, number]>();
+
+// A scenario's recording is its own: what one scenario measured may not mask
+// a later scenario's same-named dot.
+Before(() => {
+  HELD.clear();
+});
 
 When(
   "I record the position of the graph dot {string}",

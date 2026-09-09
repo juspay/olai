@@ -21,8 +21,7 @@
  * said so out loud while spelling them again.
  */
 
-import { type Derived, type Document, type MatchedDocument, narrowedIn, parseFilter, type Reading, type Shown } from "@olai/format"
-import { matchedDocumentsIn } from "@olai/format"
+import { type MatchedDocument, matchedDocumentsIn, narrowedIn, parseFilter, type Reading, type Shown } from "@olai/format"
 
 import type { Matches } from "./matches.ts"
 

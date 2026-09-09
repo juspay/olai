@@ -47,6 +47,10 @@ export interface AppPage {
   readonly face: (props: {
     readonly page: unknown
     readonly drawn: unknown
+    /** The done-preference-pruned drawing of the same page, offered for the
+     *  faces that place their own picture (`defineAppPage`'s notes say who
+     *  reads it). */
+    readonly visible?: unknown
     readonly today: string
   }) => JSX.Element
 }

@@ -5,10 +5,10 @@
  * a suite asserts against the same spelling the URL holds; the edge's
  * `data-ways` are the strongest-first list look-up declined to compress. */
 export const TESTID = {
-  /** The page, its live camera geometry (`data-scale`, `data-centre-key`,
-   *  `data-held`). */
+  /** The page: `data-centre-key`, `data-held`. */
   graphPage: "graph-page",
-  /** The measured drawing surface the dots sit over. */
+  /** The measured drawing surface the dots sit over; the live camera scale
+   *  rides here (`data-scale`), to two places. */
   graphCanvas: "graph-canvas",
   /** One dot: `data-key`, `data-kind`, `data-centre`, `data-hops`,
    *  `data-labelled`. */
@@ -33,8 +33,6 @@ export const TESTID = {
   graphFit: "graph-fit",
   /** The sidebar's door. */
   graphLink: "graph-link",
-  /** The palette's item. */
-  graphPalette: "graph-palette",
   /** The quiet door under a zoomed node's properties. */
   nodeGraphDoor: "node-graph-door",
   /** The announced label count: `data-named`, `data-drawn`. */

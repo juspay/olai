@@ -234,7 +234,9 @@
 
 # The whole directory's referral structure as a page: `/graph` and one
 # vertex's neighbourhood. Holds nothing of its own — the reading is core's
-# standing page cache, and this row is the door that answers to it.
+# standing page cache, and this row is the door that answers to it. No
+# `profiles: [surface]` — it spends no agent surface, so no agent profile
+# names it (the quiet rows' own rule above).
 - id: graph
   name: olai-plugin-graph/server
   section: Pages

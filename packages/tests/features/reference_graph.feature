@@ -29,6 +29,29 @@ Feature: The reference graph — every way a page finds where a record is talked
 
   # ── what the neighbourhood draws ─────────────────────────────────────
 
+  Scenario: Four doors, one page — and the fifth way an arrow runs
+    # Every way in is pressed ONCE here: the sidebar's Graph, the palette's
+    # "Go to the graph", a row's ••• verb, and under a node's own run. The
+    # arrow drawn out of the last centre carries the doc-attachment way.
+    Given I open the outline "house.olai"
+    When I open the graph from the sidebar
+    Then the graph shows the dot "#herbs"
+    When I open the outline "house.olai"
+    And I press the palette shortcut
+    And I pick the palette item "Go to the graph"
+    Then the graph shows the dot "#herbs"
+    When I open the outline "house.olai"
+    And I open the node menu of "install"
+    And I choose "Reference graph" from the node menu
+    Then the dot "#install" is the graph's centre
+    And the arrow runs from "#install" to "finishes.md" the "doc" way
+    When I open the outline "house.olai"
+    And I zoom into the node "install"
+    And I open the graph door under the node
+    Then the dot "#install" is the graph's centre
+    And the arrow runs from "#install" to "finishes.md" the "doc" way
+    And there should be no page errors
+
   Scenario: A node's neighbourhood draws every way, both grains
     # `herbs` is seen by `order` (a plain `see`), by `worktop` (both a `see`
     # and the `@id` in its own title), and is linked by the note — a picture
@@ -113,12 +136,15 @@ Feature: The reference graph — every way a page finds where a record is talked
   Scenario: A retitle moves nothing
     # The picture is the reading's shape, not its words: a record keeping its
     # id keeps its placement through a renaming — otherwise every live title
-    # would be a page that rearranges itself under a hovering hand.
+    # would be a page that rearranges itself under a hovering hand. This is
+    # claimed with a page that never reloaded, the same page, not by a rerun.
     Given I open the reference graph around "#herbs"
+    And I mark the page
     And I record the position of the graph dot "#worktop"
     When another writer retitles "worktop" to "seal the worktop with mineral oil like @herbs"
     Then the graph dot "#worktop" has not moved
     And the dot "#worktop" labels its new title "seal the worktop with mineral oil like @herbs"
+    And the page has not reloaded
     And there should be no page errors
 
   # ── the rulings, as the page holds them ──────────────────────────────
@@ -151,7 +177,7 @@ Feature: The reference graph — every way a page finds where a record is talked
     Then the graph shows no dot "#handles"
     And the graph shows no dot "#order"
     And no arrow runs from "#hinges" to "#handles"
-    And the graph says "Nothing refers to this one, and it refers to nothing — no `see` written out and none pointed back."
+    And the graph says "Nothing refers to pick the hinges, and it refers to nothing — no see written out and none pointed back."
     And there should be no page errors
 
   # ── the two arms that have no picture ────────────────────────────────
@@ -160,7 +186,7 @@ Feature: The reference graph — every way a page finds where a record is talked
     # The centre stays: the page is ABOUT `frames`, matched or not — so its
     # own sentence names the fact rather than offering to forget the visit.
     Given I open the reference graph around "#frames"
-    And the graph says "Nothing refers to this one, and it refers to nothing — no `see` written out and none pointed back."
+    And the graph says "Nothing refers to the cold frames, and it refers to nothing — no see written out and none pointed back."
     And there should be no page errors
 
   Scenario: An address that names nothing is a page that says so

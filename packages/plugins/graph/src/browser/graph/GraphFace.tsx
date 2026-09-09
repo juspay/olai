@@ -41,6 +41,7 @@ import type { Drawn } from "olai-plugin-outlines/page"
 import { TESTID } from "../../testids.ts"
 import { navigationHeld } from "../held.ts"
 import { graph, graphAround } from "../routes.ts"
+import { legible, rankedBy } from "./camera.ts"
 import { Canvas, saidOf } from "./Canvas.tsx"
 import { Controls } from "./Controls.tsx"
 import { EDGE_LOOKS } from "./look.ts"
@@ -60,6 +61,7 @@ const contentRoute = (vertex: Vertex): Route =>
 export function GraphFace(props: {
   readonly page: Extract<Shown, { readonly kind: "graph" }>
   readonly drawn: Drawn
+  readonly visible?: Drawn
   readonly today: string
 }) {
   const nav = navigationHeld.read
@@ -111,20 +113,31 @@ export function GraphFace(props: {
   const picture = () => drawn()
 
   /** The sentence under the drawing, for the pointer's dot or the page's own
-   *  centre: the SAME words the dot's `aria-label` holds. */
+   *  centre: the SAME words the dot's `aria-label` holds. The whole
+   *  picture's sentence is the directory's own — it is about every reference,
+   *  and says so how many there are (§6.3). */
   const [pointed, setPointed] = createSignal<string | undefined>()
   const hovered = createMemo(() =>
     picture()?.vertices.find((vertex) => vertex.key === pointed())
   )
   const said = createMemo((): string => {
     const one = hovered() ?? centre()
-    return one === undefined ? "" : saidOf(one)
+    if (one !== undefined) return saidOf(one)
+    if (props.page.around !== null) return ""
+    return `every reference in the directory — ${props.page.held} vertices, ${props.page.edges.length} arrows`
   })
+
+  /** Which arm the face drew — the absence assertions in the e2e suite must
+   *  never be satisfied by the page that has not yet LANDED: they anchor on
+   *  this attribute being present before counting what is not there. */
+  const arm = () =>
+    refused() === undefined && held() <= GRAPH_DRAWN_AT_MOST ? "picture" : "sentence"
 
   return (
     <div
       class="flex min-h-0 flex-1 flex-col"
       data-testid={TESTID.graphPage}
+      data-arm={arm()}
       data-centre-key={centre()?.key}
       data-hops={props.page.around === null ? undefined : String(props.page.hops)}
       data-held={held() > 0 ? String(held()) : undefined}
@@ -134,13 +147,13 @@ export function GraphFace(props: {
         fallback={
           <Empty
             held={held()}
-            around={props.page.around}
             reason={refused()}
           />
         }
       >
         <Shape
           page={props.page}
+          visible={props.visible}
           drawn={picture}
           said={said}
           pointed={pointed}
@@ -149,13 +162,13 @@ export function GraphFace(props: {
           hoveredVertex={hovered}
         />
       </Show>
-      <Legend />
     </div>
   )
 }
 
 function Shape(props: {
   readonly page: Extract<Shown, { readonly kind: "graph" }>
+  readonly visible: Drawn | undefined
   readonly drawn: () => Pick<Extract<Drawn, { readonly kind: "graph" }>, "vertices" | "edges"> | undefined
   readonly said: () => string
   readonly pointed: () => string | undefined
@@ -168,8 +181,17 @@ function Shape(props: {
   /** PLACEMENT HELD BY SHAPE — the reading is minted fresh on every revision
    *  the store publishes, and the layout is three hundred ticks over a
    *  quadtree. `sameShape` costs one walk, and answers the only question that
-   *  matters: would this graph settle to the same picture (`./layout.ts`). */
-  const held = createMemo((): Extract<Shown, { readonly kind: "graph" }> => props.page, undefined, {
+   *  matters: would this graph settle to the same picture (`./layout.ts`).
+   *
+   *  What is PLACED is the visible picture — the page with the Done pick
+   *  already read into it, the FILTER not: hiding finished work re-settles
+   *  (§4.2: what a neighbour saw it stands by it) while the query box moves
+   *  nothing, because three hundred ticks per keystroke on the input's own
+   *  path is the whole pricing argument. */
+  const toPlace = createMemo((): Pick<Extract<Drawn, { readonly kind: "graph" }>, "vertices" | "edges"> => {
+    const visible = props.visible
+    return visible !== undefined && visible.kind === "graph" ? visible : props.page
+  }, undefined, {
     equals: sameShape,
   })
 
@@ -184,14 +206,63 @@ function Shape(props: {
     equals: (was, is) => was.width === is.width && was.height === is.height,
   })
 
-  const placement = createMemo(() => placed(held(), room()))
+  const placement = createMemo(() => placed(toPlace(), room()))
 
   // A NEW PICTURE IS SEEN FROM THE FRONT — but a RESIZE is not a new picture,
-  // so this watches the graph rather than the placement.
-  createEffect(on(held, looking.fit, { defer: true }))
+  // so this watches the shape rather than the placement.
+  createEffect(on(toPlace, looking.fit, { defer: true }))
 
   /** The drawn dots, as ONE list keyed the way the canvas keys them. */
   const drawn = createMemo(() => props.drawn())
+
+  /**
+   * What stays bright while a reader is pointing at a dot: that dot and
+   * everything an arrow joins it to. The NEIGHBOURS and not it alone,
+   * because what a reader is asking when they point at one is "what is this
+   * talking to" — dimming the far end of the arrow they are following would
+   * take the answer away with the noise.
+   */
+  const lit = createMemo(() => {
+    const asked = props.pointed()
+    if (asked === undefined) return undefined
+    const found = new Set([asked])
+    for (const edge of drawn()?.edges ?? []) {
+      if (edge.from === asked) found.add(edge.to)
+      if (edge.to === asked) found.add(edge.from)
+    }
+    return found
+  })
+
+  /** The labels owed NO MATTER THE SCALE: the vertex the page is about, and
+   *  whatever the reader is pointing at with everything it is talking to —
+   *  the other half of decluttering: what a far view hides must be one
+   *  gesture away. */
+  const owed = createMemo(() => {
+    const asked = new Set<string>()
+    const centre = props.centre()
+    if (centre !== undefined) asked.add(centre.key)
+    for (const key of lit() ?? []) asked.add(key)
+    return asked
+  })
+
+  /** The order labels are spent in — the vertices the most arrows touch
+   *  first — as a memo, because it is a fact about the GRAPH and the camera
+   *  moves far more often than the graph does. */
+  const ranked = createMemo(() =>
+    rankedBy(
+      (drawn()?.vertices ?? []).map((vertex) => vertex.key),
+      drawn()?.edges ?? [],
+    )
+  )
+
+  /**
+   * WHICH LABELS FIT: `./camera.ts`'s decluttering answer — computed HERE,
+   * at the seam that can SAY it as well as draw it (`Named` below is how a
+   * screen reader hears the same count an eye reads as the far view).
+   */
+  const labelled = createMemo(() =>
+    legible(placement(), looking.camera(), looking.frame(), ranked(), owed())
+  )
 
   return (
     <>
@@ -236,27 +307,46 @@ function Shape(props: {
         }
         fallback={<Edges0 page={props.page} drawn={drawn()} />}
       >
-        <Canvas
-          graph={drawn()!}
-          placement={placement()}
-          hovered={props.pointed()}
-          onHover={props.setPointed}
-          centre={props.centre()?.key}
-          looking={looking}
-        />
+        {/*
+        THE PICTURE AND THE SENTENCE UNDER IT, in one focus region: the
+        caption's own control hangs off the same reading of the dots the dots
+        state themselves, so the clearing sternly belongs to the REGION, not
+        to the dot — a focus crossing out of here sets the picture's pointed
+        dot free; a focus crossing INTO the caption holds it.
+        */}
         <div
-          class="mt-2 flex min-h-5 shrink-0 items-baseline gap-2 text-sm text-muted"
-          data-testid={TESTID.graphCaption}
-          aria-live="polite"
+          class="flex min-h-0 flex-1 flex-col"
+          onFocusOut={(event: FocusEvent & { readonly currentTarget: HTMLDivElement }) => {
+            const next = event.relatedTarget as Node | null
+            if (next === null || !event.currentTarget.contains(next)) {
+              props.setPointed(undefined)
+            }
+          }}
         >
-          <p class="min-w-0 truncate">{props.said()}</p>
-          <CentreHere
-            vertex={props.hoveredVertex}
-            centre={props.centre}
-            hops={props.page.hops}
+          <Canvas
+            graph={drawn()!}
+            placement={placement()}
+            labelled={labelled()}
+            lit={lit}
+            hovered={props.pointed()}
+            onHover={props.setPointed}
+            centre={props.centre()?.key}
+            looking={looking}
           />
+          <div
+            class="mt-2 flex min-h-5 shrink-0 items-baseline gap-2 text-sm text-muted"
+            data-testid={TESTID.graphCaption}
+          >
+            <p class="min-w-0 truncate">{props.said()}</p>
+            <CentreHere
+              vertex={props.hoveredVertex}
+              centre={props.centre}
+              hops={props.page.hops}
+            />
+          </div>
+          <Named drawn={drawn()} labelled={labelled()} />
+          <Legend />
         </div>
-        <Named page={props.page} drawn={drawn()} />
       </Show>
     </>
   )
@@ -269,18 +359,19 @@ function Shape(props: {
  * for a sighted reader, one hover at a time.
  */
 function Named(props: {
-  readonly page: Extract<Shown, { readonly kind: "graph" }>
   readonly drawn: Pick<Extract<Drawn, { readonly kind: "graph" }>, "vertices">
   | undefined
+  readonly labelled: ReadonlySet<string>
 }) {
+  const dots = () => props.drawn?.vertices.length ?? 0
   return (
     <p
       class="sr-only"
       data-testid={TESTID.graphNamed}
-      data-named={props.drawn?.vertices.length}
-      data-drawn={props.page.vertices.length}
+      data-named={props.labelled.size}
+      data-drawn={dots()}
     >
-      {props.drawn?.vertices.length ?? 0} of {props.page.vertices.length} named
+      {props.labelled.size} of {dots()} named
     </p>
   )
 }
@@ -321,7 +412,6 @@ function CentreHere(props: {
  */
 function Empty(props: {
   readonly held: number
-  readonly around: Centre | null
   readonly reason: Centre | undefined
 }) {
   return (
@@ -333,9 +423,10 @@ function Empty(props: {
             The whole reference map of this directory is over the ceiling this
             page draws under — {props.held} vertices, against {" "}{GRAPH_DRAWN_AT_MOST} — so
             nothing is drawn: a partial picture of a directory is a sentence
-            with a silent word missing. Open a NEIGHBOURHOOD instead — a row's
-            `•••` has "Reference graph", and the palette has the same page by
-            name.
+            with a silent word missing. Narrowing THIS page cannot help —
+            it has nothing on it — but a tighter circle does: open a
+            NEIGHBOURHOOD — a row's ••• has "Reference graph", and the
+            palette has the same page by name.
           </p>
         }
       >
@@ -396,21 +487,41 @@ function NameOf(props: { readonly address: Address }) {
   return <code class="font-mono text-[0.8125rem]">{printAddress(props.address)}</code>
 }
 
-/** Nothing refers to the centre, and it refers to nothing — a real answer,
- *  in words rather than a picture of one dot. */
+/** The sentences drawn where a picture would be — one per way "no edges"
+ *  happens, each in the words of the arm the reader is in:
+ *  - nothing ever referred anywhere (the open map, unfiltered);
+ *  - the FILTER took everything — a sentence about the filter, never a
+ *    claim about the directory (a head-counted picture stays a picture);
+ *  - nothing refers to the centre, and it refers to nothing — the CENTRE
+ *    NAMED, because a sentence reading "this one" is a sentence from the
+ *    perspective nobody holds.
+ */
 function Edges0(props: {
   readonly page: Extract<Shown, { readonly kind: "graph" }>
-  readonly drawn: Pick<Extract<Drawn, { readonly kind: "graph" }>, "vertices"> | undefined
+  readonly drawn: Pick<Extract<Drawn, { readonly kind: "graph" }>, "vertices">
+  | undefined
 }) {
   return (
     <p class="max-w-lg text-ink" data-testid={TESTID.graphEmpty} data-reason="no-edges">
       {props.page.around === null
-        ? "Nothing in this directory refers to anything yet — no node points at another with `see`, no outline is another record's `doc`, and no note names a vertex at all."
+        ? (props.drawn?.vertices.length ?? 0) === 0 && props.page.vertices.length > 0
+          ? <>The filter took every dot on this map — say less, or clear it, to see the picture.</>
+          : <>Nothing in this directory refers to anything yet — no node points at another with <code class="font-mono text-[0.8125rem]">see</code>, no outline is another record's <code class="font-mono text-[0.8125rem]">doc</code>, and no note names a vertex at all.</>
         : props.page.hops === 1
-        ? "Nothing refers to this one, and it refers to nothing — no `see` written out and none pointed back."
-        : "Nothing refers to this one, and it refers to nothing — not even two hops out."}
+        ? <>Nothing refers to <NameTitle page={props.page} />, and it refers to nothing — no <code class="font-mono text-[0.8125rem]">see</code> written out and none pointed back.</>
+        : <>Nothing refers to <NameTitle page={props.page} />, and it refers to nothing — not even two hops out.</>}
     </p>
   )
+}
+
+/** The centre's own name in a sentence — read off the most reliable name the
+ *  page holds: the resolved centre's vertex first, the bare address print
+ *  when there was none. */
+function NameTitle(props: { readonly page: Extract<Shown, { readonly kind: "graph" }> }) {
+  const around = () => props.page.around
+  return around()?.kind === "vertex"
+    ? <>{(around() as { kind: "vertex"; vertex: Vertex }).vertex.title}</>
+    : null
 }
 
 /**

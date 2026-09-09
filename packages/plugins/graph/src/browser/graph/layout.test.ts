@@ -125,7 +125,7 @@ test("a retitled vertex is the same shape; a re-filed or re-kinded one is not", 
 
   const moved: Shaped = {
     ...HOUSE,
-    vertices: HOUSE.vertices.map((one, index) => index === 0 ? { ...one, file: "z.olai" } : one),
+    vertices: HOUSE.vertices.map((one, index) => index === 0 ? { ...one, file: "z.olai" as DocumentPath } : one),
   }
   expect(sameShape(HOUSE, moved)).toBe(false)
 

@@ -182,6 +182,22 @@ test("self-reference and the unserved drop out of the fold", () => {
   }
 })
 
+test("a link onto the archive's own file draws no vertex", () => {
+  // Ruling 3 reads one sentence both ways on a path too: what is put away
+  // is at NEITHER end, and naming `_olai/Trash.olai` by link is naming a
+  // deleted pile — `centreOf` already refuses the place; the fold must not
+  // mint it as a dot on the way past.
+  const reading = readingOf(setOf(
+    { "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"gone"}` },
+    [["notes/main.md", "It went the way of [yesterday](../_olai/Trash.olai).\n"]],
+  ))
+  const graph = graphOf(reading, { around: null, hops: HOPS_DEFAULT })
+  // ...so the writer's only pointer is the dropped one, and the writer is
+  // at an end of nothing: the page is empty rather than holding one dot.
+  expect(keysOf(graph)).toEqual([])
+  expect(graph.edges).toEqual([])
+})
+
 test("the whole page reads deterministic and value-equal", () => {
   expect(whole()).toEqual(whole())
 })

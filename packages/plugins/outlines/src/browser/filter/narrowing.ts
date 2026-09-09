@@ -118,18 +118,6 @@ export interface Narrowing {
    * map that drew it. Whether it answers what is TYPED is {@link answering}.
    */
   readonly selected: Accessor<Matches | null>
-  /**
-   * THE SAME ANSWER'S DOCUMENT HALF — the query's reading over the page's
-   * documents, beside {@link selected} because both are the one packet the
-   * server sent and a row would not want to wait for either in turn.
-   *
-   * SAME shape (not map, only path → the reason it was selected) and the
-   * same three states as {@link selected}: `null` until an answer has
-   * arrived, an EMPTY map when the parse has answered itself with nothing.
-   * Every page answers "nothing" except the graph's, which is the only page
-   * the documents ride on.
-   */
-  readonly selectedDocuments: Accessor<ReadonlyMap<string, MatchedDocument> | null>
   /** The words the query looks for, folded — what a matched row lights up in
    *  its title (`@olai/format`'s `needlesOf`, and `./lit.ts` for the split).
    *  Empty for a query that named none (`is:done`) and for no query at all. */
@@ -271,7 +259,6 @@ export const createNarrowing = (source: {
     text: source.text,
     active,
     selected,
-    selectedDocuments,
     // A fact about the QUERY and so a memo of its own: it is read by every
     // matched row on the page, and re-deriving it per row per frame would be
     // the tree walking its own groups once for each of them.

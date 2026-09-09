@@ -197,7 +197,7 @@ export function NodeBody(props: {
               kind (`@olai/plugin-api`'s slot table argues it where the slot is
               declared). Each answers NOTHING on nearly every row, and what that
               costs is a map read in a table the plugin subscribes to once. */}
-          <PluginDoors node={props.shows.node.id} />
+          <PluginDoors node={props.shows.node.id} where="row" />
 
           {/* CLOSED: one clamped dim line under the title, which is either the
               top of the note (`Cozy`) or the window a filter found this row
@@ -296,7 +296,7 @@ export function NodeBody(props: {
       />
       {/* ... and on the node's OWN page too, under the same facts: a page about
           one node is the page its agent's door most belongs on. */}
-      <PluginDoors node={props.shows.node.id} />
+      <PluginDoors node={props.shows.node.id} where="page" />
       <Show when={props.shows.node.desc}>
         {(desc) => (
           <Note

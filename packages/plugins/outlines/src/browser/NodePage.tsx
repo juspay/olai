@@ -115,11 +115,6 @@ function Zoom(props: {
           data-status={props.zoomed.status}
           data-blocked={blockedIds(props.zoomed.blocked)}
           data-kind="node"
-          // Row doors (plugins' `outline.row.door`) read this marker up the
-          // DOM to tell the node's own page from the tree's rows: the tree
-          // already draws the subject's doors inside its rows for other
-          // reasons, and the page is where the full set belongs.
-          data-zoom=""
         >
           <div class="flex items-baseline gap-3">
             <h1

@@ -1212,6 +1212,9 @@ export {
   GRAPH_DRAWN_AT_MOST,
   /** What an `around` resolved to. */
   Centre,
+  /** A suite's own ear on the fold — told whenever the memo missed and a
+   *  whole picture was built, and silent by default. */
+  foldWatching,
   graphOf,
   HOPS,
   HOPS_DEFAULT,

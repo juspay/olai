@@ -1,7 +1,7 @@
-import { definePlugin, Offers, Slots, Wired } from "@olai/plugin-api"
+import { definePlugin, Slots, Wired } from "@olai/plugin-api"
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { Effect } from "effect"
-import { type Accessor, createRoot, createSignal, onMount, Show } from "solid-js"
+import { Show } from "solid-js"
 
 import { ENTRY_SHAPE, ROW_GAP } from "olai-plugin-layout/entry"
 import { navigation } from "olai-plugin-navigation/contract"
@@ -11,26 +11,29 @@ import type { RowActions } from "olai-plugin-outlines/slots"
 import { vaultEntries } from "olai-plugin-sidebar/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 
-import { REFERENCE_GRAPH } from "./browser/door.ts"
-import { createGraphed } from "./browser/graphed.ts"
+import { graphAroundNode, REFERENCE_GRAPH } from "./browser/door.ts"
 import { navigationHeld } from "./browser/held.ts"
 import { GraphFace } from "./browser/graph/GraphFace.tsx"
 import { graph, wholeGraph } from "./browser/routes.ts"
-import { graphWire, holdGraphWire, type GraphClient } from "./browser/wire.ts"
+import { holdGraphWire, type GraphClient } from "./browser/wire.ts"
+import { TESTID } from "./testids.ts"
 import { name, surface } from "./wire.ts"
 
 export { name, surface } from "./wire.ts"
 
 /**
  * THE DIRECTORY'S DOOR, drawn beside Trash at the foot of the file list —
- *  current when the pane's own page is this one. A graph belongs to no file,
- *  so nothing in the tree spells it and the column's one free seat holds it.
+ *  current only when the pane's page IS the whole reading (a neighbourhood
+ *  is a page of its own, not the map's home). A graph belongs to no file, so
+ *  nothing in the tree spells it and the column's one free seat holds it.
  */
 function GraphEntry() {
   const router = useRouter()
   const current = () => {
     const route = router.route()
-    return route === undefined ? false : graph.value(route) !== null
+    if (route === undefined) return false
+    const page = graph.value(route)
+    return page !== null && page.around === null
   }
   return (
     <li class="mb-0.5">
@@ -49,61 +52,44 @@ function GraphEntry() {
   )
 }
 
-/** The quiet door under a ZOOMED node's property run — a LINK rather than a
- * verb: nothing is armed, and a link middle-clicks the way any other does.
+/** The quiet door under a node's property run — a LINK rather than a verb:
+ *  nothing is armed, and a link middle-clicks the way any other does.
  *
- * Two guards, because two of them are the design's own words. The map must
- * SAY SOMETHING to this node (chat's door drawing on every row and
- * answering nearly none: a door every row got is every row carrying a line
- * for the map it is not on). And the page must BE this node's own: in the
- * tree the ••• row verb is the way in, and a LINE under a tree row is a
- * price the tree's own geometry pays — the row below sits lower for it.
- *
- * The SITE reading is an upward walk from the door itself: zoom is a page
- * about one node marked `data-zoom` (both the tree row and the page subject
- * wear `data-kind="node"`, so that one names nothing), and that is the
- * contract the door reads rather than a flag threading the slot seam.
+ * The slot says which surface it drew on (`{ node, where }`): the door
+ * answers on the node's OWN page only — in the tree the ••• row verb is the
+ * way to the same place, and a LINE under a tree row is a price the tree's
+ * own geometry pays (the row below sits lower for it, which the suite's
+ * sweeps name a failure). The page asks nothing of the map to draw this:
+ * a node nothing refers to is its own sentence, and the door onto that is
+ * the honest way there.
  */
-function GraphDoor(props: { readonly node: string; readonly members: Accessor<ReadonlySet<string>> }) {
-  const [onTheNodesOwnPage, setOnTheNodesOwnPage] = createSignal(false)
-  onMount(() => {
-    setOnTheNodesOwnPage(self?.closest('[data-zoom]') !== null)
-  })
-  let self: HTMLSpanElement | undefined
+function GraphDoor(props: { readonly node: string; readonly where: "row" | "page" }) {
   return (
-    <span ref={(one) => { self = one }}>
-      <Show when={onTheNodesOwnPage() && props.members().has(props.node)}>
-        <Link
-          route={graphAroundNode(props.node)}
-          class="text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
-          testid={TESTID.nodeGraphDoor}
-          label={REFERENCE_GRAPH}
-        >
-          {REFERENCE_GRAPH}
-        </Link>
-      </Show>
-    </span>
+    <Show when={props.where === "page"}>
+      <Link
+        route={graphAroundNode(props.node)}
+        class="text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+        testid={TESTID.nodeGraphDoor}
+        label={REFERENCE_GRAPH}
+      >
+        {REFERENCE_GRAPH}
+      </Link>
+    </Show>
   )
 }
 
-import { graphAroundNode } from "./browser/door.ts"
-import { TESTID } from "./testids.ts"
-
 /**
- * THE BROWSER ROW. `Wired` for the tab's client factory, `Offers` so the row
- * publishes its readiness as a service (`graph.state`); the components name
+ * THE BROWSER ROW. `Wired` for the tab's client factory; the components name
  * only what they spend, so an absent provider takes one integration away and
  * never the row.
  */
 export default definePlugin({
   name,
-  needs: [Slots, Wired, Offers],
+  needs: [Slots, Wired],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
     const wired = yield* Wired
     yield* holdGraphWire(() => wired.client() as GraphClient)
-    yield* (yield* Offers).own("state", () => ({ wire: () => graphWire() }))
-    yield* slots.register("app.route", defineAppPage(graph, GraphFace))
     yield* slots.register("app.palette", {
       id: "nav-graph",
       label: "Go to the graph",
@@ -115,33 +101,35 @@ export default definePlugin({
 })
 
 export const components = {
-  /** The footer row of the directory column. */
+  /** The footer row of the directory column: it draws a router Link, so it
+   *  names the provider it spends from. */
   sidebar: definePlugin({
     name: "graph.sidebar",
-    needs: [rendererSlots],
+    needs: [rendererSlots, navigation],
     apply: Effect.gen(function*() {
+      yield* navigation
       yield* (yield* rendererSlots).contribute(vaultEntries, GraphEntry)
     }),
   }),
-  /** Under a row's property run, where the map has anything to say to it.
-   * The roster the faces read is ONE root and ONE subscription for the tab
-   * (`./browser/graphed.ts`), disposed with the row; the wires this row
-   * already holds are what the subscribe closes over. */
+  /** The page itself, its own component: while the router stands the route
+   *  does, and when the router goes nothing here carries on stating which
+   *  address it believes in. */
+  page: definePlugin({
+    name: "graph.page",
+    needs: [Slots, navigation],
+    apply: Effect.gen(function*() {
+      yield* navigation
+      yield* (yield* Slots).register("app.route", defineAppPage(graph, GraphFace))
+    }),
+  }),
+  /** Under the node's run on its own page: the door draws a router Link, so
+   *  it names the provider of the thing it draws. */
   "node-door": definePlugin({
     name: "graph.node-door",
-    needs: [Slots, Wired],
+    needs: [Slots, navigation],
     apply: Effect.gen(function*() {
-      const slots = yield* Slots
-      // The need, declared: what the subscribe closes over is the wire this
-      // row holds, and the row must not promise the door without it.
-      yield* Wired
-      const held = yield* Effect.acquireRelease(
-        Effect.sync(() => createRoot((dispose) => ({ members: createGraphed(), dispose }))),
-        ({ dispose }) => Effect.sync(dispose),
-      )
-      yield* slots.register("outline.row.door", (props) => (
-        <GraphDoor node={props.node} members={held.members} />
-      ))
+      yield* navigation
+      yield* (yield* Slots).register("outline.row.door", GraphDoor)
     }),
   }),
   /** A row's `•••`. With no router held its press does nothing — a drawer

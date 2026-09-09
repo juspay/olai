@@ -251,7 +251,7 @@ const anchorsFor = (
  * ## Two phases, because separation does not survive a fit
  *
  * The forces above settle at whatever scale their constants imply, and the fit
- * is one uniform scale onto the frame — so a graph that spreads wide is shrunk,
+ * maps them onto the frame PER AXIS — so a graph that spreads wide is shrunk,
  * and the gaps the collision force worked to open shrink with it. On a
  * corpus-wide reading of a real directory that is the whole picture: dots in
  * pairs a few units apart, arrows shorter than the room their own heads need
@@ -269,7 +269,7 @@ const anchorsFor = (
  * conversions agreeing.
  *
  * A shape with no extent in a direction (one node, or a row of them) divides by
- * one instead of by zero, and the uniform scale then centres it.
+ * one instead of by zero, and the stretch then centres it.
  */
 const fitted = (
   bodies: ReadonlyArray<Body>,

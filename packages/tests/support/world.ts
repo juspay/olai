@@ -752,10 +752,7 @@ export const GRAPH_HORIZON = selector(PLUGIN_TESTID.graphHorizon);
 export const GRAPH_EMPTY = selector(PLUGIN_TESTID.graphEmpty);
 /** The camera's two steps and its home. */
 export const GRAPH_CLOSER = selector(PLUGIN_TESTID.graphCloser);
-export const GRAPH_FURTHER = selector(PLUGIN_TESTID.graphFurther);
 export const GRAPH_FIT = selector(PLUGIN_TESTID.graphFit);
-/** The announced narrowed count: `data-named` survivors of `data-drawn`. */
-export const GRAPH_NAMED = selector(PLUGIN_TESTID.graphNamed);
 /** The legend of ways and grains, drawn once. */
 export const GRAPH_LEGEND = selector(PLUGIN_TESTID.graphLegend);
 /** The door into it at the foot of the file list, beside Trash. */
