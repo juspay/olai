@@ -1,0 +1,100 @@
+import {expect, it, vi} from "vitest";
+import {createCodexMockTestFixture, createTestModel} from "../acp-test-utils";
+
+async function opened() {
+    const fixture = createCodexMockTestFixture();
+    const agent = fixture.getCodexAcpAgent();
+    const client = fixture.getCodexAcpClient();
+    const appServer = fixture.getCodexAppServerClient();
+    const model = createTestModel();
+    vi.spyOn(client, "authRequired").mockResolvedValue(false);
+    vi.spyOn(client, "getAccount").mockResolvedValue({account: null, requiresOpenaiAuth: false});
+    vi.spyOn(client, "listSkills").mockResolvedValue({data: []});
+    vi.spyOn(appServer, "threadGoalGet").mockResolvedValue({goal: null});
+    vi.spyOn(client, "newSession").mockResolvedValue({
+        sessionId: "session-id", currentModelId: `${model.id}[medium]`, models: [model],
+        collaborationMode: "default", additionalDirectories: [],
+    });
+    await agent.newSession({cwd: "/test/cwd", mcpServers: []});
+    agent.getSessionState("session-id").titleGen = undefined;
+    return {fixture, agent, client, appServer};
+}
+
+it.each([false, true])("keeps the prompt live through compaction (steering=%s)", async (steering) => {
+    const {fixture, agent, client, appServer} = await opened();
+    const turn = {id: "turn-id", items: [], status: "inProgress" as const, error: null, itemsView: "notLoaded" as const, startedAt: null, completedAt: null, durationMs: null};
+    const start = vi.spyOn(appServer, "turnStart").mockResolvedValue({turn});
+    let settled = false;
+    const prompt = agent.prompt({sessionId: "session-id", prompt: [{type: "text", text: "finish the task"}]}).then(result => {
+        settled = true;
+        return result;
+    });
+    await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
+    fixture.sendServerNotification({method: "turn/started", params: {threadId: "session-id", turn}});
+    const routing = {threadId: "session-id", turnId: "turn-id"};
+    const item = {type: "contextCompaction" as const, id: "compact-id"};
+    fixture.sendServerNotification({method: "item/started", params: {...routing, item, startedAtMs: 0}});
+    await client.waitForSessionNotifications("session-id");
+    expect(settled).toBe(false);
+    fixture.sendServerNotification({method: "item/completed", params: {...routing, item, completedAtMs: 100_000}});
+    await client.waitForSessionNotifications("session-id");
+    expect(fixture.getAcpConnectionDump([])).toContain("Compact conversation");
+    expect(settled).toBe(false);
+    if (steering) {
+        const steer = vi.spyOn(appServer, "turnSteer").mockResolvedValue({turnId: turn.id});
+        await expect(agent.extMethod("_session/steering", {
+            sessionId: "session-id", prompt: [{type: "text", text: "also keep going"}],
+            _meta: {steering: {idleBehavior: "promptRequired"}},
+        })).resolves.toEqual({outcome: "injected"});
+        expect(steer).toHaveBeenCalledWith(expect.objectContaining({expectedTurnId: turn.id}));
+        expect(settled).toBe(false);
+    }
+    fixture.sendServerNotification({method: "item/agentMessage/delta", params: {...routing, itemId: "after", delta: "Continuing after compaction"}});
+    await client.waitForSessionNotifications("session-id");
+    expect(fixture.getAcpConnectionDump([])).toContain("Continuing after compaction");
+    expect(settled).toBe(false);
+    fixture.sendServerNotification({method: "turn/completed", params: {threadId: "session-id", turn: {...turn, status: "completed"}}});
+    expect(await prompt).toMatchObject({stopReason: "end_turn"});
+    expect(start).toHaveBeenCalledOnce();
+});
+
+it("promptRequired allows a host-owned prompt while the original completion is still pending", async () => {
+    const {fixture, agent, client, appServer} = await opened();
+    const turn = (id: string) => ({id, items: [], status: "inProgress" as const, error: null,
+        itemsView: "notLoaded" as const, startedAt: null, completedAt: null, durationMs: null});
+    const first = turn("first");
+    const second = turn("second");
+    const start = vi.spyOn(appServer, "turnStart")
+        .mockResolvedValueOnce({turn: first}).mockResolvedValueOnce({turn: second});
+    let firstDone = false;
+    let secondDone = false;
+    const original = agent.prompt({sessionId: "session-id", prompt: [{type: "text", text: "compact"}]})
+        .then(result => { firstDone = true; return result; });
+    await vi.waitFor(() => expect(start).toHaveBeenCalledTimes(1));
+    fixture.sendServerNotification({method: "turn/started", params: {threadId: "session-id", turn: first}});
+    const item = {type: "contextCompaction" as const, id: "compact-id"};
+    fixture.sendServerNotification({method: "item/started", params: {threadId: "session-id", turnId: first.id, item, startedAtMs: 0}});
+    const steer = vi.spyOn(appServer, "turnSteer").mockRejectedValue(Object.assign(new Error("Internal error"), {
+        data: {details: "no active turn to steer"},
+    }));
+    await expect(agent.extMethod("_session/steering", {
+        sessionId: "session-id", prompt: [{type: "text", text: "follow up"}],
+        _meta: {steering: {idleBehavior: "promptRequired"}},
+    })).resolves.toEqual({outcome: "promptRequired", reason: "noRunningTurn"});
+    expect(steer).toHaveBeenCalledOnce();
+    expect(firstDone).toBe(false);
+    const followup = agent.prompt({sessionId: "session-id", prompt: [{type: "text", text: "follow up"}]})
+        .then(result => { secondDone = true; return result; });
+    await vi.waitFor(() => expect(start).toHaveBeenCalledTimes(2));
+    fixture.sendServerNotification({method: "turn/started", params: {threadId: "session-id", turn: second}});
+    fixture.sendServerNotification({method: "turn/completed", params: {threadId: "session-id", turn: {...first, status: "completed"}}});
+    await original;
+    expect(secondDone).toBe(false);
+    fixture.sendServerNotification({method: "item/agentMessage/delta", params: {
+        threadId: "session-id", turnId: second.id, itemId: "after", delta: "Host-owned continuation",
+    }});
+    await client.waitForSessionNotifications("session-id");
+    expect(fixture.getAcpConnectionDump([])).toContain("Host-owned continuation");
+    fixture.sendServerNotification({method: "turn/completed", params: {threadId: "session-id", turn: {...second, status: "completed"}}});
+    expect(await followup).toMatchObject({stopReason: "end_turn"});
+});

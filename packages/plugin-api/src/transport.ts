@@ -1,5 +1,6 @@
 /** Server-only listener contributions and the core policy they are served over.
  * A registration carries behavior, never a transport name or an enable flag. */
+import { Context } from "effect"
 import { serviceTag } from "./index.ts"
 import type { Effect, FileSystem, Layer, Path, Scope } from "effect"
 import type { HttpPlatform, HttpRouter, HttpServerRequest } from "effect/unstable/http"
@@ -85,3 +86,9 @@ export interface TransportSurface {
   readonly writeReservations: readonly { readonly key: string; readonly says: string }[]
 }
 export const TransportSurface = serviceTag<TransportSurface>("transport-surface")
+
+/** The accepted socket's identity, provided per connection, never global.
+ * Absent for non-browser callers. Diagnostic correlation carries no authority. */
+export class CurrentBrowserConnection extends Context.Service<CurrentBrowserConnection, number>()(
+  "olai/CurrentBrowserConnection",
+) {}

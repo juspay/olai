@@ -44,10 +44,15 @@
  * click is a DOM event, and the boundary between them belongs somewhere named.
  */
 
+import type { CompactionObservation } from "../../compaction.ts"
+import type { ViewportObservation } from "../../observation.ts"
+import { deliveryDiagnostics } from "./delivery.ts"
+import { observedFold } from "./diagnostics.ts"
+import { Result } from "effect"
 import { type Attached, CHAT_OFF, type ChatEntry, type ChatState } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
-import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
+import { type Accessor, createEffect, createMemo, createSignal, on, untrack } from "solid-js"
 import { chatWire } from "../wire.ts"
 
 import { type Call, run, runAsync } from "@olai/web/client/run.ts"
@@ -74,6 +79,8 @@ export type Uploaded =
   | { readonly _tag: "gone" }
 
 export interface Chat {
+  /** Diagnostic sink for a mounted transcript; no delivery authority. */
+  readonly rendered: (event: CompactionObservation & ViewportObservation) => void
   /** Where the conversation stands: session, model, commands, whether a turn
    *  is running. */
   readonly state: Accessor<ChatState>
@@ -244,12 +251,19 @@ const [refused, setRefused] = createSignal<OpFailure | null>(null)
 
 export const createChat = (): Chat => {
   const served = createChatState()
-  const transcript = chatWire().collections.transcript.use()
+  const delivery = deliveryDiagnostics(
+    () => ({ session: served().session?.id ?? null, visibility: document.visibilityState }),
+    input => runAsync(chatWire().procedures.conversation.observed(input)).then(Result.isSuccess),
+  )
+  const transcript = chatWire().collections.transcript.use({ onError: delivery.failed("transcript", "stream_failed") })
   // THE ROW STILL BEING SAID, in pieces. A second subscription rather than a
   // second delivery of the first, and the reason a streaming answer costs the
   // socket the answer rather than three hundred copies of its prefixes
   // ({@link ./growing.ts}).
-  const said = createTail(chatWire().collections.saying.use().fold)
+  const saying = chatWire().collections.saying.use({ onError: delivery.failed("saying", "stream_failed") })
+  const said = createTail((options) => saying.fold(observedFold(
+    options, () => {}, delivery.failed("tail", "fold_failed"),
+  )))
 
   /**
    * THE ROW STILL BEING SAID, joined — computed ONCE per frame however many
@@ -299,7 +313,9 @@ export const createChat = (): Chat => {
   // instead of the whole transcript being re-read and re-sorted per frame.
   // {@link ./order.ts} is where that shape is argued and where the reader's
   // half of it lives with it.
-  const rows = createRows(transcript.fold)
+  const rows = createRows((options) => transcript.fold(observedFold(
+    options, delivery.applied, delivery.failed("order", "fold_failed"),
+  )))
 
   /**
    * A VERB THAT OPENS A CONVERSATION IS IN FLIGHT — this tab's own reading,
@@ -404,6 +420,7 @@ export const createChat = (): Chat => {
     rows: rows.keys,
     lanes: rows.lanes,
     entry,
+    rendered: delivery.rendered,
     refused,
     pendingSends,
     refuse: (reasons) =>

@@ -187,3 +187,26 @@ Codex native activity (`codex_activity.feature`) covers child-session tool isola
 ## Orchestrator permission mode (#563)
 
 `packages/plugins/chat/src/agent.mode.test.ts` exercises the real chat session owner over a mocked ACP subprocess: fresh and restored boot, explicit new/load, mode-before-prompt ordering, null/default behavior, distinguishable explicit choices, both required and optional selection policies on new/load paths, visible nonfatal refusals, no activation/persistence/prompt after a required-mode rejection, late-notification fencing, and successful retry. Real panel integration cases check that a required-mode refusal clears provisional model/settings and replayed history, while an optional refusal preserves the usable conversation and its notice. `packages/plugins/codex/src/leg.test.ts` pins the orchestrator's selected mode. The pinned adapter build runs `packages/plugins/codex/acp/permission-mode.test.ts.in` inside codex-acp's own test harness, asserting the next `turn/start` approval policy, reviewer and sandbox for new/loaded sessions in all three presets. These tests use no live model, executable tool command, or user permission configuration. They verify requests and session integration, not a live Codex-written turn-context file; browser coverage and full CI remain separate checks.
+
+`codex_compaction.feature` holds the original Codex prompt open after a completed
+compaction item, then checks continuation, steering into that prompt, and recovery
+from an offline tab while the backend finishes. It also requires server receipt,
+publication, browser application and DOM-rendering diagnostics in the serve log.
+The pinned adapter's Nix build separately feeds actual app-server compaction and
+continuation notifications through the adapter, with and without steering.
+
+The compaction fixture also holds the item *in progress*: sends can wait across
+compaction, exceed the real 30-second steering deadline, or receive `promptRequired`
+while the original prompt is still pending. The latter pins the host's concurrent
+prompt attempt, both an explicit busy refusal and an accepted follow-up completing
+while the original request remains open, without losing the original turn. The adapter test separately verifies two outstanding prompt completions are
+resolved independently on `promptRequired`. Browser-condition unit tests exercise
+the real surface fold invalidation and terminal non-transport stream failure, and
+ensure throwing diagnostics cannot create either state. Browser receipts are
+checked against socket IDs and include follow/viewport state.
+
+The compaction fixture keeps deferred steering replies separate from the tool
+frames and filesystem hold. A 90-second hold expiry emits a fixture warning;
+it retains the existing fallback continuation. The deadline scenario deliberately
+uses the production 30-second deadline: shortening it requires a separate clock
+or leg-configuration seam and is outside this behavior-preserving refactor.

@@ -19,8 +19,8 @@
  * member is BOUND would have put olai's log vocabulary in a file whose whole
  * subject is the order things are wired in.
  *
- * The POLICY is the primitive's own — loud on every fault, silent on the
- * ordinary — and what differs is only the sink: these are `Effect.log*` lines,
+ * Faults are logged, along with socket lifetimes for delivery diagnostics.
+ * These are `Effect.log*` lines,
  * so they carry the level `OLAI_LOG_LEVEL` filters on, the `root` annotation the
  * composition root set, and the `serve` span, and they leave by whichever
  * stream that subcommand chose. A `console.warn` would still reach a terminal;
@@ -37,11 +37,17 @@ import { Effect } from "effect"
  *  ../../log/src/emit.ts}). */
 export const report = (event: SurfaceAppEvent, say: Emit): void => {
   switch (event._tag) {
-    // A connection opening or closing is the ordinary case and has no line: a
-    // reader with a tab open is not news, and one line per socket per reload is
-    // how a log stops being read.
+    // Lifecycle only, never frames: an otherwise silent disconnect made the
+    // historical post-compaction delivery gap in #559 impossible to locate.
     case "Connected":
+      say(Effect.logInfo("browser connected").pipe(Effect.annotateLogs({
+        connection: event.connection.id,
+      })))
+      return
     case "Disconnected":
+      say(Effect.logInfo("browser disconnected").pipe(Effect.annotateLogs({
+        connection: event.connection.id, code: event.code,
+      })))
       return
     // A tab that presents a DIFFERENT process id is bound to a process that is
     // gone, so it is closed and its wire retires rather than reconnecting into

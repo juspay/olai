@@ -749,3 +749,67 @@ re-enables the controls and remains visible in the list.
 Chat owns the Alerts and Alert sound preferences and their storage observers.
 Their controls retract when chat is disabled and return with the stored choices.
 The preference provider remains active when the shell or preferences UI leaves.
+
+### Codex compaction delivery diagnostics
+
+Codex's `Compact conversation` tool item does not end the active prompt. Later
+text and tools, including replies to steering, belong to that prompt until its
+`end_turn`. The adapter build tests this against its real event handler and
+prompt waiter; `codex_compaction.feature` covers continuation, steering and a tab
+reconnecting while the server continues.
+
+At the default Info level, `chat compaction delivery` records `started`,
+`completed`, and the first `continued` row at these stages:
+
+- `received`: a transcript change reached the server publisher.
+- `published`: the row was handed to the surface collections after batching.
+- `applied`: a tab folded the transcript update or reconnect snapshot.
+- `rendered`: the row's reactive effect found its DOM element in the transcript.
+
+Browser observations also appear in its console and are sent to the serve log
+through chat's browser-only `conversation.observed` procedure. Correlate `session`,
+`compaction` and `row`; `view` identifies a mounted panel, and `visibility` records
+whether the document was visible. `source` distinguishes a snapshot, delta or DOM
+observation; a completed item in a snapshot produces both `started` and `completed`
+observations at receipt time, not at the historical execution time. A receipt establishes DOM presence, not that a
+person saw the row or that it was inside the scroll viewport. A reconnect can
+report the same history again. `browser connected` and `browser disconnected`
+record socket lifetimes by connection ID and close code, without URLs or headers.
+Existing `turn ended` logs establish backend completion.
+Missing browser receipts can mean a closed panel or disconnected tab; compare
+with the browser console if the return path itself failed.
+
+These observations are diagnostic only, recognized by the pinned adapter's tool
+title. They contain no message text, tool arguments or output, log only a bounded
+number of transitions per compaction, and never acknowledge delivery, retry a
+prompt or change its lifetime. Cursors belong to the server activation and the
+mounted browser panel; the existing surface owns subscriptions and reconnection.
+
+Diagnostic callbacks are contained before they enter a fold or render effect:
+a withdrawn chat wire or a failing logger cannot invalidate the transcript.
+A genuine `order`/`tail` projection exception is reported as `fold_failed` before
+the surface invalidates that accumulator. A terminal `transcript`/`saying` stream
+error is reported as `stream_failed` through the subscription's independent error
+callback. These observations do not depend on a new transcript frame or on the
+failed fold recovering. A broken return wire can still prevent a server receipt;
+the browser logs that failure, and diagnostics never retry a chat prompt.
+
+Rendered receipts also contain `following`, `atBottom`, and `inViewport` (vertical
+intersection with the transcript pane at observation time). These describe scroll
+geometry, not human attention. Applied snapshots may repeat old observations;
+rendered observations reset when the mounted transcript changes sessions, not on
+every reconnect snapshot. The server adds `connection` from an explicitly provided
+per-socket service, so a receipt's panel `view` can be matched to socket lifecycle
+logs without trusting a client-supplied connection ID.
+
+`steering request failed` logs the session, method, deadline and failure category,
+without prompt text. A timed-out steer is uncertain delivery: the adapter can
+still inject it later. The message remains `unanswered` and has no automatic retry.
+
+Receipt shape is a transport-independent contract (`observation.ts`). The mounted
+panel's delivery observer owns classification and receipt context; `createChat`
+composes it with the transcript folds and executes sends through the held plugin
+client. Throw containment remains a separate fold adapter, so observation policy
+cannot invalidate the projection. These boundaries add no owner or subscription.
+Tracing remains bounded to the first following agent/tool row per compaction; it
+does not diagnose a later drop elsewhere in the same turn.

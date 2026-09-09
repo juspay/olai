@@ -43,7 +43,8 @@ buildNpmPackage {
   checkPhase = ''
     runHook preCheck
     cp ${./permission-mode.test.ts.in} src/__tests__/CodexACPAgent/olai-permission-mode.test.ts
-    ./node_modules/.bin/vitest run src/__tests__/CodexACPAgent/steer-events.test.ts src/__tests__/CodexACPAgent/olai-permission-mode.test.ts
+    cp ${./compaction.test.ts.in} src/__tests__/CodexACPAgent/olai-compaction.test.ts
+    ./node_modules/.bin/vitest run src/__tests__/CodexACPAgent/steer-events.test.ts src/__tests__/CodexACPAgent/olai-permission-mode.test.ts src/__tests__/CodexACPAgent/olai-compaction.test.ts
     runHook postCheck
   '';
 

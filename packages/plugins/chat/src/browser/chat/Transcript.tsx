@@ -84,6 +84,7 @@
  * lands somewhere else is the reader.
  */
 
+import { compactionTrace } from "../../compaction.ts"
 import { agentIn } from "olai-plugin-chat/wire"
 import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "solid-js"
 
@@ -114,6 +115,16 @@ const WAITING_ASK = `${selector(TESTID.chatAsk)}[data-asking="true"]`
 export function Transcript(props: { readonly chat: Chat }) {
   const show = useShowNode()
   const follow = useFollow()
+  const rendered = compactionTrace((event) => {
+    // One DOM lookup per diagnostic transition, never per streamed token.
+    const element = pane?.querySelector(`[data-entry-id="${CSS.escape(event.row)}"]`)
+    if (pane !== undefined && element !== null && element !== undefined) {
+      const row = element.getBoundingClientRect()
+      const viewport = pane.getBoundingClientRect()
+      props.chat.rendered({ ...event, following, atBottom: atBottom(),
+        inViewport: row.bottom > viewport.top && row.top < viewport.bottom })
+    }
+  })
   let pane: HTMLDivElement | undefined
   let content: HTMLDivElement | undefined
   /** Should new text pull the view down with it? True until the reader scrolls
@@ -167,6 +178,7 @@ export function Transcript(props: { readonly chat: Chat }) {
     on(
       () => props.chat.state().session?.id,
       () => {
+        rendered.reset()
         following = true
         jump()
       },
@@ -396,6 +408,12 @@ export function Transcript(props: { readonly chat: Chat }) {
         <For each={props.chat.rows()}>
           {(key) => {
             const entry = props.chat.entry(key)
+            // Effects run after the row's DOM update. This receipt says the
+            // element exists, not that it is inside the visible viewport.
+            createEffect(() => {
+              const row = entry()
+              if (row !== undefined) rendered.row(row)
+            })
             /** The row drawn directly ABOVE this one, and the only thing a
              *  lane needs that a row cannot see for itself — which is the
              *  whole reason the lane is decided out here rather than inside

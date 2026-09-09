@@ -1,3 +1,4 @@
+import { CurrentBrowserConnection } from "@olai/plugin-api/transport";
 /** Start a selected bundle without granting its rows permanent host status.
  *
  * Boot has two settling barriers. Providers first acquire their independent
@@ -274,7 +275,10 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     yield* provide(plugins.host, TransportSurface, () => ({
         register: transports.register,
         live: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.browser }),
-        services: (connection) => Layer.succeed(CurrentWho)(who(connection.headers)),
+        services: (connection) => Layer.merge(
+          Layer.succeed(CurrentWho)(who(connection.headers)),
+          Layer.succeed(CurrentBrowserConnection)(connection.id),
+        ),
         routes: whoRoute(who),
         upgradeHeaders: () => currentIdentity().headers,
         allowedOrigins: options.allowedOrigins,

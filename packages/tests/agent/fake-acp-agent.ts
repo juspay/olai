@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { heldSteering } from "./held-steering.ts"
 import { nativeActivity } from "./native-activity.ts"
 /**
  * A scripted ACP agent, for driving the chat loop without a language model.
@@ -364,6 +365,9 @@ let steerSwallowed = false
  * so.
  */
 let steerDelayMs = 0
+const compactionSteering = heldSteering()
+let compactFallback = false
+let compactAccept = false
 const SLOW_STEER_MS = 2_000
 /** Whether `session/list` refuses from here on (`lose the conversations`). A
  *  prompt rather than an environment variable, because boot ASKS — a server
@@ -1713,6 +1717,36 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  if (verb === "compact") {
+    say("Before compaction.")
+    const toolCallId = `compact-${++nextMcpId}`
+    const compacting = argument === "during" || argument.startsWith("fallback")
+    if (compacting) compactionSteering.hold()
+    compactFallback = argument.startsWith("fallback")
+    compactAccept = argument === "fallback accept"
+    for (const sessionUpdate of ["tool_call", "tool_call_update"]) {
+      if (sessionUpdate === "tool_call_update" && compacting) {
+        // Outlast the real 30-second steer deadline; no automatic compaction
+        // completion may make that browser assertion vacuous.
+        if (!await releasedIn(cwd, undefined, 90_000))
+          noise("fake agent: compaction hold expired without a release after 90 seconds")
+      }
+      notify("session/update", { sessionId, update: {
+        sessionUpdate, toolCallId,
+        ...(sessionUpdate === "tool_call" ? {title: "Compact conversation", kind: "think"} : {}),
+        status: sessionUpdate === "tool_call" ? "in_progress" : "completed",
+        _meta: {contextCompaction: {version: 1}},
+      } })
+    }
+    compactionSteering.release()
+    // Compaction is complete, but the ORIGINAL prompt remains open. Tests
+    // can steer or disconnect here, then release without a second prompt.
+    await released()
+    say("Continued after compaction.")
+    reply(id, {stopReason: "end_turn"})
+    return
+  }
+
   if (verb === "hold") {
     const toolCallId = `call-${++nextMcpId}`
     notify("session/update", {
@@ -2804,6 +2838,14 @@ const promptTextOf = (params: Record<string, unknown>): string =>
  *     one case where "did the message land" has no answer on this end.
  */
 const steerTurn = (id: unknown, params: Record<string, unknown>): void => {
+  // Like the pinned adapter: cancellation does not retract an app-server
+  // turn/steer already sent. Release can inject it after the host timed out.
+  if (compactionSteering.defer(() => steerTurn(id, params))) return
+  if (compactFallback) {
+    compactFallback = false
+    reply(id, { outcome: "promptRequired", reason: "noRunningTurn" })
+    return
+  }
   // WHETHER A TURN IS RUNNING IS READ WHEN THE ANSWER IS SENT, not when the
   // request arrives, and with `slow steering` armed those are different
   // moments. That is the whole of what the delay buys: a cancel can overtake a
@@ -3132,6 +3174,15 @@ readMessages(
       // whole shape of an agent with no queue: the refusal comes back at once
       // rather than when the running turn ends, and nothing about the turn in
       // flight changes.
+      if (CODEX && running && compactAccept) {
+        compactAccept = false
+        // A second accepted prompt completes while the older request remains
+        // held. Do not toggle the older prompt's running bit or consume its
+        // release marker: the browser must keep tracking that outstanding turn.
+        say("host-owned fallback completed")
+        reply(message["id"], { stopReason: "end_turn" })
+        return
+      }
       if ((busyRefused || CODEX) && running) {
         // Output belongs to the still-running earlier turn. Put it before the
         // refusal deterministically: a conversation-wide output counter must
