@@ -1658,3 +1658,11 @@ test("the Push button still hands over git's refusal about a missing upstream", 
       expect(sent._tag).toBe("Failed")
       if (sent._tag === "Failed") expect(sent.said).not.toBe("")
     }), { commits: "manual", pushes: "off" }))
+
+
+test("pinned is the resolved policy, including omitted push defaults", () =>
+  withRepo({ "house.olai": HOUSE }, fixture => Effect.gen(function*() {
+    const { git } = yield* fixture.ops.status
+    expect(git.pinned).toEqual({ commit: "manual", push: "off" })
+    expect(git.pinned).toEqual(git.policy)
+  })))

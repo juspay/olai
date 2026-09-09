@@ -107,8 +107,7 @@ export type RepoState = typeof RepoState.Type
  * It lives on this floor rather than in `@olai/ops` because it TRAVELS now. The
  * mode used to be a fact the server kept to itself: `off` reached a browser as
  * {@link GitState}'s `off` status and the other two were indistinguishable from
- * out here. `vault-level-settings` made the flag a POLICY the client has to
- * draw — pinned, read-only, with the flag named — so the vocabulary is declared
+ * out here. The policy now travels on GitState, so the vocabulary is declared
  * once, on the floor the wire spec and the ops layer both already stand on,
  * which is the argument `RepoState` is re-exported above by.
  *
@@ -150,12 +149,8 @@ export const PUSH_DEFAULT: PushMode = "off"
 /**
  * WHAT THE OPERATOR PINNED, and `null` for each half nobody pinned.
  *
- * The instance's policy is always read-only in every browser. A flag given on
- * the command line (or through the home-manager module, which passes the same
- * flags) is named under the row; an omitted flag is the built-in default.
- *
- * `null` is nobody having typed that flag, which is the built-in default
- * ({@link COMMIT_DEFAULT} / {@link PUSH_DEFAULT}) — not a live row.
+ * This is the legacy CLI input shape, not a wire provenance reading. Null
+ * leaves the schema default in force. GitState publishes the resolved policy.
  */
 export const GitPin = Schema.Struct({
   /** The mode `--commit` was GIVEN, or `null` when it was not given at all. */
@@ -165,9 +160,7 @@ export const GitPin = Schema.Struct({
 })
 export type GitPin = typeof GitPin.Type
 
-/** Nothing pinned: what a server started with neither flag publishes, and what
- *  a page holds before it has heard anything. Both halves unsaid, which is
- *  what lets {@link policyOf} fill the built-in defaults. */
+/** Omitted legacy flag inputs; policyOf resolves their defaults. */
 export const NO_PIN: GitPin = { commit: null, push: null }
 
 /**
@@ -210,8 +203,8 @@ export const DEFAULT_POLICY: GitPolicy = {
  * header (`git-invisible`, #108) and for the agent that reads the same cell
  * over MCP.
  *
- * FLAT — a status, the words that go with it, what the operator pinned, what
- * the server is DOING, and what the loop last came to — because this value
+ * FLAT — a status, the words that go with it, the resolved policy, and what
+ * the loop last came to — because this value
  * TRAVELS:
  * the ops layer derives it from its own survey's `RepoState` (`gitOf`, which
  * owns the one-survey coherence argument), the surface declares it as the
@@ -228,33 +221,11 @@ export const GitState = Schema.Struct({
    *  reader gets rather than "something went wrong". `null` otherwise: a
    *  healthy repository is not quoting anything. */
   said: Schema.NullOr(Schema.String),
-  /**
-   * What the OPERATOR pinned — see {@link GitPin}.
-   *
-   * It rides HERE rather than on a cell of its own, and that is one channel
-   * rather than thrift: this cell is already "what git is for this directory",
-   * a `--no-commit` serve already reaches a browser through it as `off`, and
-   * the preferences panel that draws the pin is drawing the same server's
-   * answer about the same directory. A second cell would be a second thing to
-   * seed, a second thing to keep in step, and a second moment for a page to be
-   * holding one of them and not the other.
-   *
-   * It MOVES NEVER: the flags are read once, at boot. Riding a value that is
-   * recomputed on a timer costs nothing for the reason the status does not —
-   * {@link sameGit} is what keeps a republish that says nothing new quiet.
-   */
-  pinned: GitPin,
-  /**
-   * WHAT THIS SERVER DOES about the two verbs, with the flags and the
-   * built-in defaults already folded in ({@link policyOf}).
-   *
-   * The directory's own answer, so every tab draws the same one and a reload
-   * changes nothing. There is no runtime door.
-   *
-   * Beside {@link GitState.pinned} rather than instead of it, because the two
-   * are different questions: this says what happens, the pin says whether a
-   * flag named it or the built-in default did.
-   */
+  /** Policy in force, retained under the historical wire name. It no longer
+   * distinguishes a typed flag from a schema default; provenance belongs on
+   * the plugin roster. Equal to policy on every publication. */
+  pinned: GitPolicy,
+  /** What this activation does about commit and push, including defaults. */
   policy: GitPolicy,
   /**
    * What git said when it last refused a PUSH, or `null` when the last one
@@ -297,7 +268,7 @@ export type GitState = typeof GitState.Type
 export const GIT_OFF: GitState = {
   status: "off",
   said: null,
-  pinned: NO_PIN,
+  pinned: DEFAULT_POLICY,
   policy: DEFAULT_POLICY,
   pushSaid: null,
   paused: null,

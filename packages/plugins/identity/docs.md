@@ -25,9 +25,7 @@ The plugins panel — `⧉` in the header — turns it off and on **while the se
 
 ## The config
 
-The header names and the avatar template are the **operator's environment**, not this row's `config:` — `OLAI_IDENTITY_LOGIN_HEADER` and the four beside it, documented in [running.md](../running.md#who-is-looking). They say how the reverse proxy in front is wired, which is set where that proxy is: in the unit that starts olai, beside `OLAI_LOG`. A row's `config:` is what a *command line* said (`--commit` on the git row), and asking an operator to spell their proxy's headers a second time in `olai.yml` would be one deployment fact with two authors.
-
-They are read once, when the row's `apply` runs — so what a process was started with is what it serves.
+The plugin's `Config` schema declares the header names, avatar template, defaults and descriptions. The schema’s `email-header` is a string: blank follows the configured login header. The current environment adapter (`OLAI_IDENTITY_LOGIN_HEADER` and the four beside it) decodes through that declaration, preserving empty email env as a disabled claim until the adapter is retired. It remains available until the shared vault settings reader replaces it in the next settings-doors step. Values are read once when the row activates. See [running.md](../running.md#who-is-looking) for the current deployment spelling.
 
 ## On the wire
 

@@ -22,14 +22,9 @@
  * who is asking never appears, and a new writer forces a decision about whether
  * it has a `--help`.
  *
- * **What these flags produce is a PIN, not a mode.** Whether a flag was GIVEN is
- * a fact every browser has to be told, because a given flag is named under the
- * row (`--commit=auto`) while an omitted one is the built-in default. Both are
- * the instance's policy, read-only, the same in every browser. So {@link gitPin}
- * answers with `null` for a flag nobody typed. A single `CommitMode` here could
- * not tell the two apart: `--commit=manual` typed out loud is a team's policy
- * named as a flag, while the same mode arrived at by saying nothing is the
- * default. What the git plugin then DOES with the pin is its own `fixedPolicy`.
+ * Legacy flag parsing preserves omitted inputs as null so the composition
+ * patch can leave schema defaults in force. GitState.pinned publishes the
+ * resolved policy, not whether a flag was typed. Provenance moves to the roster.
  */
 
 import {
@@ -177,11 +172,9 @@ export const gitPin = (
  * `--commit` / `--push` AS A PATCH onto the git row's config — the same
  * overlay `--plugins` is onto `disabled`.
  *
- * A flag overlays the row's own `config:` in olai.yml. Cordis copies a patch
- * onto the matching field, so a `{ commit: "auto" }` overlay would wipe
- * `push:` off the row. When anybody typed a flag, the patch is therefore the
- * WHOLE policy — omitted halves filled from the same defaults the YAML
- * spells — and an empty patch is nobody having said, so the file stands.
+ * A flag overlays schema defaults in the row's entry options. Cordis replaces
+ * the config field, so a patch includes both resolved halves. An empty patch
+ * leaves the schema defaults in force; olai.yml carries no config block.
  */
 export const gitConfigPatch = (
   pin: GitPin,

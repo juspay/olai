@@ -45,16 +45,22 @@ import { Effect } from "effect"
 import { name, browserServices } from "./index.ts"
 import { headerNamesOf, identityConfig, whoOf } from "./who/index.ts"
 
+import { Config, configuredIdentity } from "./settings.ts"
+export { Config } from "./settings.ts"
+
 export { name } from "./index.ts"
 
 export default definePlugin({
   name,
   needs: [Env, Offers],
-  apply: Effect.gen(function*() {
+  config: Config,
+  apply: (settings) => Effect.gen(function*() {
     const env = yield* Env
     const offers = yield* Offers
     yield* offers.browser(browserServices)
-    const config = identityConfig(env.vars)
+    const config = Object.keys(env.vars).some((key) => key.startsWith("OLAI_IDENTITY_") && env.vars[key] !== undefined)
+      ? identityConfig(env.vars)
+      : configuredIdentity(settings)
     // MINTED ONCE, off the environment this row read at apply — and asked for
     // at every accept from here on, because core reads the names through this
     // door the way it reads the reading (juspay/kolu#2229). What checks them
