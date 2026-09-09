@@ -85,6 +85,9 @@ Then("the graph shows no dot {string}", async function (this: OlaiWorld, key: st
 });
 
 Then("the graph draws exactly {int} dots", async function (this: OlaiWorld, expected: number) {
+  // Asserted once after the settle anchor rather than held: the dots and
+  // the page's arm render in ONE commit, so between the anchor and this
+  // count there is no intermediate frame that a hold would guard.
   await this.page
     .locator(settled(this))
     .first()
@@ -438,6 +441,19 @@ Then("the graph dot {string} has not moved", async function (this: OlaiWorld, ke
   assert.ok(
     Math.abs(box.x - x) <= 1 && Math.abs(box.y - y) <= 1,
     `the dot ${key} to have stood still (${x},${y} → ${box.x},${box.y})`,
+  );
+});
+
+Then("the graph dot {string} has moved", async function (this: OlaiWorld, key: string) {
+  // The re-settle's marker: a preference flip re-lays the picture out, so a
+  // dot that stays EXACTLY put is the absence that says it did not.
+  const [x, y] = HELD.get(key) ?? [NaN, NaN];
+  assert.ok(!Number.isNaN(x), `no recorded position for ${key}`);
+  const box = await this.page.locator(dot(key)).boundingBox();
+  assert.ok(box !== null, `the dot ${key} to still have a box`);
+  assert.ok(
+    Math.abs(box.x - x) > 1 || Math.abs(box.y - y) > 1,
+    `the dot ${key} to have moved (${x},${y} → ${box.x},${box.y})`,
   );
 });
 

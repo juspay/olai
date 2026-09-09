@@ -28,7 +28,7 @@
  *     `outline.row.action` and `outline.row.door`, and ONE entry in the
  *     sidebar's vault;
  *   - arresting the router drains the four tables whose components name
- *     `navigation.state` while the palette — his only needs are `Slots`
+ *     `navigation.state` while the palette — its needs are `Slots`
  *     and `Wired` — stands;
  *   - a fresh supply revives each face WITH THE NEW VALUE: the hold the
  *     row's faces read (`./browser/held.ts`) is this activation's router,

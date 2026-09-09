@@ -307,7 +307,6 @@ test("`is:done` on a graph is a verdict, not a walk — drawn with that vertex's
   expect(selected.map((one) => one.id as string)).toEqual(["hinges"])
   const todo = narrowedIn(SET, shows, parseFilter("is:todo", TODAY))
   expect(todo.map((one) => one.id as string)).toEqual(["herbs", "order"])
-  void dokind
 })
 
 test("an unparseable query selects nothing, and a graph page is not the exception", () => {

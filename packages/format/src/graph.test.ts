@@ -310,6 +310,23 @@ test("a document's link to an OUTLINE lands as the set's own dot, kind aside", (
   expect(edgesOf(graph)).toEqual(["notes/porch.md→garden.olai:link"])
 })
 
+test("a link-shaped VALUE in the frontmatter is no edge, the way it is no referrer", () => {
+  // One body the page table reads as PROSE and the fold reads as SETS: both
+  // answers come out of the document's own decode, and neither knows
+  // `matter.[...]` to be a link at all. Without the take-out of the kept
+  // list's provenance (`document.links` and the prose the same call spent),
+  // the map would draw a line the document page cannot report.
+  const reading = readingOf(setOf(
+    { "garden.olai": "" },
+    [["notes/porch.md", "---\nmatter: \"[the garden](../garden.olai)\"\n---\nThe prose itself points at nothing.\n"]],
+  ))
+  const graph = graphOf(reading, { around: null, hops: HOPS_DEFAULT })
+  // No file equals no vertex at all — not a lonely dot with a count of its
+  // reading attached: both halves rule together on what's absent.
+  expect(graph.vertices).toEqual([])
+  expect(graph.edges).toEqual([])
+})
+
 test("FOR EVERY NODE, the writers arriving by see/mention ARE backlinksOf", () => {
   const graph = whole()
   const wanted = graph.vertices

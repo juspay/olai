@@ -258,9 +258,14 @@ Feature: The reference graph — every way a page finds where a record is talked
     And I set Done to "visible"
     And I press Escape on the preferences
     And the graph shows the dot "#order"
+    # A preference flip re-settles the layout from the smaller drawing: a
+    # dot that stays EXACTLY put is a dot that was not re-placed. Record one
+    # placed dot before, and the flip answers with it moved.
+    And I record the position of the graph dot "#worktop"
     When I set Done to "hidden"
     And I press Escape on the preferences
     Then the graph shows no dot "#order"
+    And the graph dot "#worktop" has moved
     And no arrow runs from "#order" to "#herbs"
     And no arrow runs from "notes/brief.md" to "#order"
     And the dot "#herbs" is the graph's centre
@@ -282,6 +287,11 @@ Feature: The reference graph — every way a page finds where a record is talked
     When I press the graph's fit control
     Then the graph's camera reads "1.00"
     And the graph's canvas fills the pane and the page does not scroll
+    # The one elementFromPoint claim the arithmetic leaves open: a dot must
+    # still open once the camera has MOVED, from where the press lands.
+    When I press the graph's closer control
+    And I follow the graph dot "#herbs"
+    Then the address is "/#herbs"
     And there should be no page errors
 
   Scenario: The graph door is COLD, from the address bar

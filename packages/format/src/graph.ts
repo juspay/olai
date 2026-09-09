@@ -60,6 +60,7 @@ import { Address, addressOf, AtDocument, AtNode, DocumentPath, type NodeId, prin
 import { type Derived, ancestorsOf, follow, nodeNamed, writtenTags } from "./derive.ts"
 import { type Document } from "./document.ts"
 import { docOf, linksIn, pathedOf, writtenLinks } from "./documents.ts"
+import { proseIn } from "./frontmatter.ts"
 import { FileKind, fileKind } from "./kinds.ts"
 import { type LocatedRegular, Status, isPutAway, isRegular, storedMarker } from "./node.ts"
 import { byPath } from "./paths.ts"
@@ -304,6 +305,13 @@ const buildWhole = (at: Reading): WholeGraph => {
       ? landNode(target.id, way, self, ways)
       : landDocument(target.path, way, self, ways)
 
+  // The fast path through the bodies AND the one record-scan that is a body
+  // look-alike: until a text names an outline, the kept table the face holds
+  // IS the walk — one parse per revision, which is the point of `Face.links`
+  // — so the suffix scan below is gated on the directory serving an outline
+  // suffix at all.
+  const servesAnOutline = at.set.documents.some((one) => one.kind === "outline")
+
   // RECORDS FIRST — a writer that is a mirror writes nothing of its own: its
   // `doc` is its record's (`docOf` already rules it out), its note is
   // nobody's, and that is `referrersTo`'s `isRegular` guard read once more.
@@ -318,9 +326,9 @@ const buildWhole = (at: Reading): WholeGraph => {
       const to = addressOf(doc, null)
       if (to !== null) land(to, "doc", self, ways)
     }
-    for (const link of referredIn(located.file, located.node.title, documents)) land(link, "link", self, ways)
+    for (const link of referredIn(located.file, located.node.title, documents, servesAnOutline)) land(link, "link", self, ways)
     if (located.node.desc !== undefined) {
-      for (const link of referredIn(located.file, located.node.desc, documents)) land(link, "link", self, ways)
+      for (const link of referredIn(located.file, located.node.desc, documents, servesAnOutline)) land(link, "link", self, ways)
     }
     // An `@x` whose `x` is no record lands nowhere — `landNode` already
     // drops it; a `#x` is never asked, because a tag is not a reference to
@@ -335,12 +343,6 @@ const buildWhole = (at: Reading): WholeGraph => {
     pushEdges(edges, from, ways)
   }
 
-  // The fast path through the bodies: until a body names an outline, the
-  // kept table the face holds IS the walk — one parse per revision, which is
-  // the point of `Face.links` — so the suffix scan below is gated on the
-  // directory serving an outline suffix at all.
-  const servesAnOutline = at.set.documents.some((one) => one.kind === "outline")
-
   // ...then the bodies. An outline is REFERRED to as a document (a dot of
   // its own), but it writes its references as RECORDS, which the walk above
   // already said — this half is the bodied kinds'.
@@ -348,12 +350,19 @@ const buildWhole = (at: Reading): WholeGraph => {
     if (document.kind === "outline" || isPutAway(document.path)) continue
     const self = { node: undefined, path: document.path }
     const ways = new Map<string, Set<WayDrawn>>()
-    // A bodied document's references: the kept table the face holds, plus
-    // the kept-out case `referredIn` stands for (a link to an OUTLINE lands
-    // as its dot). The shown kinds keep what the face stored: a picture
-    // refers to nothing; this loop reads it.
+    // A bodied document's kept references are its face's OWN kept table:
+    // the face answers the frontmatter question once, at decode, for itself
+    // — and querying the raw body again here was a second answer, including
+    // in the frontmatter that a true query knows better than to scan (the
+    // document page's referrers rule on `proseIn`; so does this). An OUTLINE
+    // asked for by a link is the folded-out case that the grammar keeps out
+    // — the kept list has no outline IDs, the reading's `documents` table
+    // has them — and the suffix scan for one is permuted on the same prose
+    // the face read.
+    // `proseIn` is the same call the document page's own table spent at
+    // decode, cached in the face: this call is one walk per revised file.
     const links = document.kind === "document"
-      ? referredIn(document.path, document.body, documents, servesAnOutline)
+      ? documentLinks(document.path, document.links, proseIn(document.body), documents, servesAnOutline)
       : document.links
     for (const link of links) land(link, "link", self, ways)
     for (const tag of document.tags) {
@@ -375,32 +384,36 @@ const buildWhole = (at: Reading): WholeGraph => {
 }
 
 /**
- * Every reference one text WRITES, from the page's own table: the body
- * grammar's kept addresses — see {@link linksIn} — PLUS the written paths the
- * grammar REFUSES that the served set still names. A link to an outline is a
- * reference: the grammar keeps it out of a RENDERED document because an
- * outline is no body to render, but this fold's reader is the reading's own
- * `documents` table, which holds every served file — a dot this page cannot
- * draw would be a reference made invisible by a suffix rule.
+ * The written paths a LINK GRAMMAR refuses while the served set still names
+ * them, pulled out of one text: a link to an OUTLINE is a reference — the
+ * grammar keeps it out of a RENDERED document because an outline is no body
+ * to render, but this fold's reader is the reading's own `documents` table,
+ * which holds every served file; a dot this page cannot draw would be a
+ * reference made invisible by a suffix rule.
  *
- * Expensive only as often as it can say anything new: the follow-up scan is
- * the same `"](` guard `linksIn` runs, tightened once more by the directory
- * serving an outline at all — which `buildWhole` computes once and passes
- * in, so a whole revision of phrase-only title and body text never meets a
- * regex.
+ * `kept` turns the call idempotent by construction: what a caller already
+ * drew is what the scan skips. Expensive only as often as it can say
+ * anything new: the scan is the same `"](` guard `linksIn` runs, tightened
+ * once more by the directory serving an outline at all — which `buildWhole`
+ * computes once and passes in — so a whole revision of phrase-only title
+ * and body text never meets a regex. The text the BODY caller hands in IS
+ * the face's own prose: {@link proseIn} was applied at the same decode that
+ * set the kept list, so the kept set and the scan agree by construction —
+ * a frontmatter fact never lands as an edge because it never lands as an
+ * answer on the document page's own referrers table either.
  */
-const referredIn = (
-  from: string,
+const documentLinks = (
+  path: string,
+  kept: ReadonlyArray<Address>,
   text: string,
   documents: ReadonlyMap<string, Document>,
-  servesAnOutline = true,
+  servesAnOutline: boolean,
 ): ReadonlyArray<Address> => {
-  const kept = linksIn(from, text)
   if (!servesAnOutline || !text.includes("](")) return kept
   let found: Array<Address> | undefined
   for (const href of writtenLinks(text)) {
-    const resolved = pathedOf(from, href)
-    if (resolved === null || resolved === from) continue
+    const resolved = pathedOf(path, href)
+    if (resolved === null || resolved === path) continue
     const document = documents.get(resolved)
     if (document === undefined) continue
     if (kept.some((one) => one.kind !== "node" && one.path === resolved)) continue
@@ -409,6 +422,16 @@ const referredIn = (
   }
   return found === undefined ? kept : [...kept, ...found]
 }
+
+/** A RECORD writes its own links and it knows no frontmatter — the kept
+ *  half is the one-walk grammar answer for that text. */
+const referredIn = (
+  from: string,
+  text: string,
+  documents: ReadonlyMap<string, Document>,
+  servesAnOutline: boolean,
+): ReadonlyArray<Address> =>
+  documentLinks(from, linksIn(from, text), text, documents, servesAnOutline)
 
 /** One writer's ways, as one edge per target — merged in {@link WAYS_DRAWN}
  *  order. `ways` is nonempty at this point (the writer loop's own skip), and
