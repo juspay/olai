@@ -2,7 +2,17 @@
  * shared vault settings reader lands; no secret belongs in this schema. */
 import { Effect, Schema } from "effect"
 import { DEFAULT_LOGIN_HEADER, DEFAULT_NAME_HEADER, DEFAULT_PICTURE_HEADER } from "./who/identity.ts"
-import type { IdentityConfig } from "./who/config.ts"
+import type { IdentityHeaders } from "./who/identity.ts"
+
+/** Normalized policy shared by input adapters and request readings. Its shape
+ * does not depend on the temporary environment spelling. */
+export interface IdentityConfig {
+  /** Which headers this server trusts for who is looking. */
+  readonly headers: IdentityHeaders
+  /** The avatar URL template, or `null` — the ladder's second rung.
+   *  A TEMPLATE, not a URL: `{login}` is where the login goes. */
+  readonly avatarTemplate: string | null
+}
 
 export const Config = Schema.Struct({
   "login-header": Schema.String.pipe(

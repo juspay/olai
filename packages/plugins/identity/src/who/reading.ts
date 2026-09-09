@@ -24,7 +24,7 @@
 
 import type { Person, RequestHeaders } from "@olai/plugin-api/services"
 
-import type { IdentityConfig } from "./config.ts"
+import type { IdentityConfig } from "../settings.ts"
 import { type Identity, identityOf } from "./identity.ts"
 import { pictureOf } from "./picture.ts"
 

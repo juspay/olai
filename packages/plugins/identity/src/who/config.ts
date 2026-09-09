@@ -1,8 +1,8 @@
 /** Temporary environment adapter while the shared settings reader is staged.
  * Defaults and interpretation belong to the Config declaration. */
 import { Schema } from "effect"
-import { Config, configuredIdentity } from "../settings.ts"
-import type { IdentityHeaders } from "./identity.ts"
+import { Config, configuredIdentity, type IdentityConfig } from "../settings.ts"
+export type { IdentityConfig } from "../settings.ts"
 
 /** The login header's name. Unset is {@link DEFAULT_LOGIN_HEADER}. */
 export const LOGIN_ENV = "OLAI_IDENTITY_LOGIN_HEADER"
@@ -19,15 +19,6 @@ export const PICTURE_ENV = "OLAI_IDENTITY_PICTURE_HEADER"
 /** The avatar URL template — one URL with `{login}` in it
  *  ({@link LOGIN_PLACEHOLDER}). Unset or blank is no template. */
 export const AVATAR_ENV = "OLAI_IDENTITY_AVATAR_TEMPLATE"
-
-export interface IdentityConfig {
-  /** Which headers this server trusts for who is looking. */
-  readonly headers: IdentityHeaders
-  /** The avatar URL template, or `null` — the ladder's second rung.
-   *  A TEMPLATE, not a URL: `{login}` is where the login goes. */
-  readonly avatarTemplate: string | null
-}
-
 
 export const DEFAULT_IDENTITY_CONFIG: IdentityConfig = configuredIdentity(Schema.decodeUnknownSync(Config)({}))
 
