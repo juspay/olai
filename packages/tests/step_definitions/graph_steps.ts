@@ -42,20 +42,6 @@ Given("I open the reference graph", async function (this: OlaiWorld) {
   await this.openGraph();
 });
 
-Then(
-  "the page says it has no handler for that address",
-  async function (this: OlaiWorld) {
-    // The pane's own fallback when no face answers a route — exactly it, so a
-    // refusal spelling quoted by something else can never read like this one.
-    const select = "p.p-8.text-muted";
-    await this.waitUntil(
-      async () =>
-        (await this.page
-          .locator(`${select}:visible`)
-          .innerText()
-          .catch(() => "")) === "No enabled content provider handles this address.",
-      "the pane to say it has no handler for that address",
-    );
   },
 );
 
@@ -177,8 +163,12 @@ When("I hover the graph dot {string}", async function (this: OlaiWorld, key: str
 });
 
 Then("the graph's caption reads {string}", async function (this: OlaiWorld, said: string) {
+  // The SENTENCE, not the affordance beside it: the caption div also holds
+  // "Centre here", which is its own step's subject rather than what the
+  // caption SAYS.
   await this.waitUntil(
-    async () => (await this.page.locator(GRAPH_CAPTION).innerText()).trim() === said,
+    async () =>
+      (await this.page.locator(`${GRAPH_CAPTION} p`).first().innerText()).trim() === said,
     `the caption to read ${JSON.stringify(said)}`,
   );
 });
@@ -191,7 +181,13 @@ When("I follow the graph dot {string}", async function (this: OlaiWorld, key: st
 });
 
 When("I press centre here", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(GRAPH_CENTRE_HERE));
+  // A force click: the link's re-mount cadence is the layout's to control —
+  // under Playwright's actionability gate one mount flash reads as a
+  // moving target. The press still lands on the REAL element.
+  const link = this.page.locator(GRAPH_CENTRE_HERE);
+  await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await link.click({ force: true });
+  await this.waitForFrame();
 });
 
 // ── horizon and camera ────────────────────────────────────────────────
@@ -310,7 +306,7 @@ Given(
         "# The tan brief",
         "",
         "Seal [the bed](#herbs) in mineral oil before the cold weather,",
-        "and phone [the house](house.olai) about the worktop. Loosely of",
+        "and phone [the house](../house.olai) about the worktop. Loosely of",
         "@order's own note: the one that holds the rest in place.",
         "",
       ].join("\n"),
@@ -409,3 +405,27 @@ Then(
     );
   },
 );
+
+
+/** A crowd on one mast: the number it takes for the declutter to be the
+ *  ONLY honest answer — one outline's rows, all pointing at the same bed,
+ *  all on the fitted page at once. */
+Given(
+  "the outline {string} holds {int} more rows whose see point at the herb bed",
+  function (this: OlaiWorld, file: string, count: number) {
+    const at = path.join(this.scratch(), file);
+    for (let i = 0; i < count; i++) {
+      fs.appendFileSync(
+        at,
+        JSON.stringify({
+          id: `ref-crowd-${i}`,
+          parent: "kitchen",
+          ord: `b${String(i).padStart(3, "0")}`,
+          title: `watch the bed ${i}`,
+          see: ["herbs"],
+        }) + "\n",
+      );
+    }
+  },
+);
+

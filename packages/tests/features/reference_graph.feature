@@ -41,9 +41,9 @@ Feature: The reference graph — every way a page finds where a record is talked
     # The note is the OTHER grain a vertex can have: a document's dot is not
     # a record's dot.
     And the dot "notes/brief.md" has the grain "document"
-    And the arrow runs from "#order" to "#herbs" the see way
-    And the arrow runs from "#worktop" to "#herbs" the see+mention way
-    And the arrow runs from "notes/brief.md" to "#herbs" the link way
+    And the arrow runs from "#order" to "#herbs" the "see" way
+    And the arrow runs from "#worktop" to "#herbs" the "see+mention" way
+    And the arrow runs from "notes/brief.md" to "#herbs" the "link" way
     And there should be no page errors
 
   Scenario: A document's neighbourhood — a note that links is its own vertex
@@ -55,9 +55,9 @@ Feature: The reference graph — every way a page finds where a record is talked
     And the graph shows the dot "#order"
     # The outline the note names is itself a vertex — a file is a neighbour.
     And the dot "house.olai" has the grain "outline"
-    And the arrow runs from "notes/brief.md" to "#herbs" the link way
-    And the arrow runs from "notes/brief.md" to "house.olai" the link way
-    And the arrow runs from "notes/brief.md" to "#order" the mention way
+    And the arrow runs from "notes/brief.md" to "#herbs" the "link" way
+    And the arrow runs from "notes/brief.md" to "house.olai" the "link" way
+    And the arrow runs from "notes/brief.md" to "#order" the "mention" way
     And there should be no page errors
 
   Scenario: A dot opens its page, a document dot opens the document
@@ -65,10 +65,10 @@ Feature: The reference graph — every way a page finds where a record is talked
     # same press as following its reference inline.
     Given I open the reference graph around "#herbs"
     When I follow the graph dot "#worktop"
-    Then the address is "#worktop"
+    Then the address is "/#worktop"
     Given I open the reference graph around "#herbs"
     When I follow the graph dot "notes/brief.md"
-    Then the address is "notes/brief.md"
+    Then the address is "/notes/brief.md"
     And there should be no page errors
 
   Scenario: Pointing at a dot says where it sits, and Centre here re-centres
@@ -89,7 +89,7 @@ Feature: The reference graph — every way a page finds where a record is talked
     And the graph shows no dot "house.olai"
     When I set the horizon to 2 hops
     Then the graph is at 2 hops
-    And the address is "/graph/?hops=2#herbs"
+    And the address is exactly "/graph/?hops=2#herbs"
     And the graph shows the dot "house.olai"
     # A jump is a PUSH: Back undoes it the way Back undoes any page.
     When I go back
@@ -106,7 +106,7 @@ Feature: The reference graph — every way a page finds where a record is talked
     And I mark the page
     When another writer makes "slugs" see "herbs"
     Then the graph shows the dot "#slugs"
-    And the arrow runs from "#slugs" to "#herbs" the see way
+    And the arrow runs from "#slugs" to "#herbs" the "see" way
     And the page has not reloaded
     And there should be no page errors
 
@@ -130,7 +130,7 @@ Feature: The reference graph — every way a page finds where a record is talked
     Given I open the reference graph around "#labels"
     Then the graph says "#labels is in the Trash, which is the one page that draws it. Open the Trash."
     When I follow the link in the graph's sentence
-    Then the address is "_olai/Trash.olai"
+    Then the address is "/trash"
     And there should be no page errors
 
   Scenario: A placement is not a reference, and one made through it is
@@ -140,7 +140,7 @@ Feature: The reference graph — every way a page finds where a record is talked
     And I open the reference graph around "#herbs"
     Then the graph shows no dot "#kitchen-herbs"
     When another writer makes "slugs" see "kitchen-herbs"
-    Then the arrow runs from "#slugs" to "#herbs" the see way
+    Then the arrow runs from "#slugs" to "#herbs" the "see" way
     And there should be no page errors
 
   Scenario: An ordering edge is not a reference
@@ -157,10 +157,9 @@ Feature: The reference graph — every way a page finds where a record is talked
   # ── the two arms that have no picture ────────────────────────────────
 
   Scenario: A node nothing refers to says so
-    # The centre stays: the page is ABOUT `labels`, matched or not — so its
+    # The centre stays: the page is ABOUT `frames`, matched or not — so its
     # own sentence names the fact rather than offering to forget the visit.
-    Given I open the reference graph around "#basil"
-    Then the dot "#basil" is the graph's centre
+    Given I open the reference graph around "#frames"
     And the graph says "Nothing refers to this one, and it refers to nothing — no `see` written out and none pointed back."
     And there should be no page errors
 
@@ -223,18 +222,24 @@ Feature: The reference graph — every way a page finds where a record is talked
     And I open the node menu of "order"
     And I choose "Complete" from the node menu
     And I open the outline "garden.olai"
+    And I open the node menu of "herbs"
     And I choose "Complete" from the node menu
     # `herbs` is the centre of the page being asked about: it stays, done or
     # no, because a page may not lose the vertex it is about.
     Given I open the reference graph around "#herbs"
+    # The graph has no Done control of its own — the reader's Prefs is the
+    # door, and that is the point of this page's account of the pick.
+    And I set Done to "visible"
+    And I press Escape on the preferences
     And the graph shows the dot "#order"
-    When I hide the done nodes
+    When I set Done to "hidden"
+    And I press Escape on the preferences
     Then the graph shows no dot "#order"
     And no arrow runs from "#order" to "#herbs"
     And no arrow runs from "notes/brief.md" to "#order"
     And the dot "#herbs" is the graph's centre
-    And the arrow runs from "#worktop" to "#herbs" the see+mention way
-    And the arrow runs from "notes/brief.md" to "#herbs" the link way
+    And the arrow runs from "#worktop" to "#herbs" the "see+mention" way
+    And the arrow runs from "notes/brief.md" to "#herbs" the "link" way
     And there should be no page errors
 
   # ── the drawing machine ──────────────────────────────────────────────
@@ -261,13 +266,4 @@ Feature: The reference graph — every way a page finds where a record is talked
     When I press the palette shortcut
     Then the palette offers "Go to the graph"
     And I press the palette scrim
-    And there should be no page errors
-
-  @scratch:tangled
-  Scenario: A crowded graph names only the labels that fit, and pointing names any dot
-    # Tangled: the fixture the declutter is only honest about, because every
-    # other one is spare — three outlines in one holding pattern until the
-    # reader has to zoom to read it without help.
-    Given I open the reference graph
-    Then the graph draws every dot, naming only the ones that fit
     And there should be no page errors

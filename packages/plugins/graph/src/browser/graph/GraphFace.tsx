@@ -130,7 +130,7 @@ export function GraphFace(props: {
       data-held={held() > 0 ? String(held()) : undefined}
     >
       <Show
-        when={refused() === undefined && held() === 0}
+        when={refused() === undefined && held() <= GRAPH_DRAWN_AT_MOST}
         fallback={
           <Empty
             held={held()}
@@ -226,7 +226,14 @@ function Shape(props: {
       </header>
 
       <Show
-        when={(drawn()?.edges.length ?? 0) > 0}
+        when={
+          // The "nothing refers" sentence is the OPEN map's answer: a lone
+          // dot survives a PICK, which is its own ruling (the centre stays,
+          // matched or not) rather than an Edges0 — it must not hand the
+          // picture back for a prune.
+          (drawn()?.edges.length ?? 0) > 0 ||
+          (props.page.edges.length > 0 && (drawn()?.vertices.length ?? 0) > 0)
+        }
         fallback={<Edges0 page={props.page} drawn={drawn()} />}
       >
         <Canvas
@@ -291,8 +298,12 @@ function CentreHere(props: {
     const one = props.vertex()
     return one !== undefined && one.key !== props.centre()?.key ? one : undefined
   }
+  // The <Show> shows by IDENTITY; the reading mints a vertex fresh on every
+  // revision, so key the visible STILLNESS on the printed key instead — a
+  // link re-mounted under the pointer is a press the reader never made.
+  const still = (): string | undefined => other()?.key
   return (
-    <Show when={other() !== undefined}>
+    <Show when={still()}>
       <Link
         route={graphAround(other()!.address, props.hops)}
         class="shrink-0 text-xs underline"
@@ -316,7 +327,7 @@ function Empty(props: {
   return (
     <div data-testid={TESTID.graphEmpty} data-reason={props.reason?.kind ?? "held"} class="py-6">
       <Show
-        when={props.held === 0}
+        when={props.reason !== undefined}
         fallback={
           <p class="max-w-lg text-ink">
             The whole reference map of this directory is over the ceiling this

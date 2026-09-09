@@ -280,6 +280,20 @@ test("two nested neighbourhoods hold the same hop numbers on the overlap", () =>
 
 // ── agreement with the server readings ──────────────────────────────
 
+test("a document's link to an OUTLINE lands as the set's own dot, kind aside", () => {
+  // The body grammar REFUSES an outline for a renderer — it is a tree, not a
+  // body — but a note that names `garden.olai` is a reference the map
+  // cannot keep quiet: a suffix rule is no reason for a dot to vanish.
+  const reading = readingOf(setOf(
+    { "garden.olai": "" },
+    [["notes/porch.md", "Put the crate down in [the garden](../garden.olai).\n"]],
+  ))
+  const graph = graphOf(reading, { around: null, hops: HOPS_DEFAULT })
+  expect(keysOf(graph).sort()).toEqual(["garden.olai", "notes/porch.md"])
+  expect(graph.vertices.find((vertex) => vertex.key === "garden.olai")?.kind).toBe("outline")
+  expect(edgesOf(graph)).toEqual(["notes/porch.md→garden.olai:link"])
+})
+
 test("FOR EVERY NODE, the writers arriving by see/mention ARE backlinksOf", () => {
   const graph = whole()
   const wanted = graph.vertices

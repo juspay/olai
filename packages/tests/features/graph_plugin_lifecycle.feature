@@ -11,7 +11,9 @@ Feature: The graph is one optional row
     Given I open the outline "house.olai"
     # The whole door table at once — and both faces of it.
     When I open the reference graph
-    Then the page says it has no handler for that address
+    # No content provider claims /graph, so no route settles it either: the
+    # pane falls back to the outliner's own home rather than a dead chair.
+    Then the outline list is shown
     When I open the outline "garden.olai"
     And I open the node menu of "herbs"
     Then the node menu does not offer "Reference graph"
@@ -21,13 +23,15 @@ Feature: The graph is one optional row
 
   @share-scratch
   @scratch:good
-  Scenario: Flipping the row exchanges the page for the sentence, without a reload
+  Scenario: Flipping the row exchanges the picture for the outliner, without a reload
     Given I open the reference graph around "#herbs"
     And I mark the page
     And the graph shows the dot "#order"
     When I open the plugins panel
     And I switch the plugin "graph" off
-    Then the page says it has no handler for that address
+    # With the row withdrawn the address has no claimant: the pane comes
+    # home to the outliner, the page itself never reloaded.
+    Then the outline list is shown
     And the page has not reloaded
     When I switch the plugin "graph" on
     And I close the plugins panel

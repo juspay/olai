@@ -59,7 +59,7 @@ import { Schema } from "effect"
 import { Address, addressOf, AtDocument, AtNode, type NodeId, printAddress } from "./address.ts"
 import { type Derived, ancestorsOf, follow, nodeNamed, writtenTags } from "./derive.ts"
 import { type Document } from "./document.ts"
-import { docOf, linksIn } from "./documents.ts"
+import { docOf, linksIn, pathedOf, writtenLinks } from "./documents.ts"
 import { FileKind, fileKind } from "./kinds.ts"
 import { type LocatedRegular, Status, isPutAway, isRegular, storedMarker } from "./node.ts"
 import { byPath } from "./paths.ts"
@@ -294,9 +294,9 @@ const buildWhole = (at: Reading): WholeGraph => {
       const to = addressOf(doc, null)
       if (to !== null) land(to, "doc", self, ways)
     }
-    for (const link of linksIn(located.file, located.node.title)) land(link, "link", self, ways)
+    for (const link of referredIn(located.file, located.node.title, documents)) land(link, "link", self, ways)
     if (located.node.desc !== undefined) {
-      for (const link of linksIn(located.file, located.node.desc)) land(link, "link", self, ways)
+      for (const link of referredIn(located.file, located.node.desc, documents)) land(link, "link", self, ways)
     }
     // An `@x` whose `x` is no record lands nowhere — `landNode` already
     // drops it; a `#x` is never asked, because a tag is not a reference to
@@ -318,7 +318,13 @@ const buildWhole = (at: Reading): WholeGraph => {
     if (document.kind === "outline" || isPutAway(document.path)) continue
     const self = { node: undefined, path: document.path }
     const ways = new Map<string, Set<WayDrawn>>()
-    for (const link of document.links) land(link, "link", self, ways)
+    // A bodied document's references: the fold's own table-armed walk, so a
+    // link to an OUTLINE lands (see `referredIn`). The shown kinds keep what
+    // the face stored: a picture refers to nothing; this loop reads it.
+    const links = document.kind === "document"
+      ? referredIn(document.path, document.body, documents)
+      : document.links
+    for (const link of links) land(link, "link", self, ways)
     for (const tag of document.tags) {
       if (tag.startsWith("@")) landNode(tag.slice(1), "mention", self, ways)
     }
@@ -335,6 +341,34 @@ const buildWhole = (at: Reading): WholeGraph => {
     getOrPut(adjacent, edge.to).push(edge.from)
   }
   return { drafts, documents, vertices, edges, adjacent }
+}
+
+/**
+ * Every reference one text WRITES, from the page's own table: the body
+ * grammar's kept addresses — see {@link linksIn} — PLUS the written paths the
+ * grammar REFUSES that the served set still names. A link to an outline is a
+ * reference: the grammar keeps it out of a RENDERED document because an
+ * outline is no body to render, but this fold's reader is the reading's own
+ * `documents` table, which holds every served file — a dot this page cannot
+ * draw would be a reference made invisible by a suffix rule.
+ */
+const referredIn = (
+  from: string,
+  text: string,
+  documents: ReadonlyMap<string, Document>,
+): ReadonlyArray<Address> => {
+  const kept = linksIn(from, text)
+  let found: Array<Address> | undefined
+  for (const href of writtenLinks(text)) {
+    const resolved = pathedOf(from, href)
+    if (resolved === null || resolved === from) continue
+    const document = documents.get(resolved)
+    if (document === undefined) continue
+    if (kept.some((one) => one.kind !== "node" && one.path === resolved)) continue
+    if ((found ?? []).some((one) => one.kind !== "node" && one.path === resolved)) continue
+    ;(found ??= []).push({ kind: "document", path: document.path })
+  }
+  return found === undefined ? kept : [...kept, ...found]
 }
 
 /** One writer's ways, as one edge per target — merged in {@link WAYS_DRAWN}

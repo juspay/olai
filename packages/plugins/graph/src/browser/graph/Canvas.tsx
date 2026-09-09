@@ -150,9 +150,9 @@ export function Canvas(props: {
       // point.
       data-scale={camera().k.toFixed(2)}
       ref={props.looking.watch}
-      // A pointer leaving the whole box clears the caption: a dot the reader
-      // moved off the edge of the page would otherwise stay named.
-      onPointerLeave={() => props.onHover(undefined)}
+      // NO plane-clearing on leave: the caption DOES clear on leaving a dot
+      // for ANOTHER DOT, but clearing when the pointer heads for the
+      // caption's "Centre here" would make that press unreachable.
     >
       <svg
         viewBox={`0 0 ${frame().width} ${frame().height}`}
