@@ -42,9 +42,6 @@ Given("I open the reference graph", async function (this: OlaiWorld) {
   await this.openGraph();
 });
 
-  },
-);
-
 Then("the dot {string} is {int} hops out", async function (this: OlaiWorld, key: string, hops: number) {
   await this.expectAttribute(dot(key), "data-hops", String(hops), `the dot ${key}`);
 });
