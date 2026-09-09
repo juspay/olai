@@ -190,6 +190,9 @@ const SEATS =
   "it is what seats a conversation on a node, and that is a person's gesture in the panel"
 
 export default definePlugin({
+  environment: [
+    {"key": "OLAI_AGENT_PATH", "secret": false, "says": "the directories containing agent executables"},
+  ],
   name,
   needs: [Bundle, Env, Kinds, LocalState, Offers, Ops, Surfaces, Tools, Vault, Wakes],
   config: Config,

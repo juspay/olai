@@ -79,6 +79,12 @@ import { Schema } from "effect"
  * out of `--plugins` has no surface, no face and no probe, and an absent row
  * would be indistinguishable from a build that never had it.
  */
+/** Secret readings have no value field on their wire arm. */
+export const EnvironmentReading = Schema.Union([
+  Schema.Struct({ key: Schema.String, kind: Schema.Literal("secret"), set: Schema.Boolean, says: Schema.String }),
+  Schema.Struct({ key: Schema.String, kind: Schema.Literal("resource"), set: Schema.Boolean, says: Schema.String, value: Schema.optionalKey(Schema.String) }),
+])
+
 export const BuiltPlugin = Schema.Struct({
   /** The plugin's `name` — the namespace, the docs slug, the word `--plugins`
    *  takes and the label the row wears. One spelling, and this is it travelling
@@ -259,13 +265,15 @@ export const BuiltPlugin = Schema.Struct({
    */
   config: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
   configurationValues: Schema.optionalKey(Schema.Array(Schema.Struct({
-    key: Schema.String, value: Schema.Unknown, setBy: Schema.Literals(["vault", "default"]), says: Schema.String,
+    key: Schema.String, value: Schema.Unknown, setBy: Schema.Literals(["vault", "default", "flag"]), says: Schema.String,
   }))),
   configurationNode: Schema.optionalKey(Schema.Struct({ file: Schema.String, id: Schema.String })),
   desiredOn: Schema.optionalKey(Schema.Boolean),
   configurationFile: Schema.optionalKey(Schema.String),
   configurationError: Schema.optionalKey(Schema.String),
   configurationAvailable: Schema.optionalKey(Schema.Boolean),
+  environment: Schema.optionalKey(Schema.Array(EnvironmentReading)),
+  switchPersistence: Schema.optionalKey(Schema.Literals(["file", "session"])),
   /**
    * WHERE THIS ROW CAME FROM, when it came from the VAULT rather than the build
    * — the whole of what a dynamic plugin adds to this member.

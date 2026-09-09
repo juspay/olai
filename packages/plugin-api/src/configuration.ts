@@ -11,7 +11,8 @@ export const configurationFileIn = (paths: Iterable<string>): string | undefined
 export interface PolicyValue {
   readonly key: string
   readonly value: unknown
-  readonly setBy: "vault" | "default"
+  /** flag is transitional until the legacy boot inputs are removed. */
+  readonly setBy: "vault" | "default" | "flag"
   readonly says: string
 }
 export interface PolicyRow {
@@ -86,3 +87,19 @@ export const decodePolicy = (
   }
   return { config, values }
 }
+
+
+export type EnvironmentReading =
+  | { readonly key: string; readonly kind: "secret"; readonly set: boolean; readonly says: string }
+  | { readonly key: string; readonly kind: "resource"; readonly set: boolean; readonly says: string; readonly value?: string }
+
+/** Redact before publishing any reading. Secret arms never acquire a value key. */
+export const environmentReadings = (
+  declarations: ReadonlyArray<{ readonly key: string; readonly secret: boolean; readonly says: string }>,
+  vars: Readonly<Record<string, string | undefined>>,
+): ReadonlyArray<EnvironmentReading> => declarations.map(({ key, secret, says }) => {
+  const value = vars[key]?.trim()
+  const set = value !== undefined && value !== ""
+  return secret ? { key, kind: "secret", set, says }
+    : { key, kind: "resource", set, says, ...(set ? { value } : {}) }
+})

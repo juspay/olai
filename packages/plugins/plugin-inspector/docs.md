@@ -34,3 +34,16 @@ browser provider is absent, approval reports a refusal and releases the pending
 control; the inspector remains usable. A returning provider supplies a fresh
 client for the next request. No host approval binding or hard dependency keeps
 the definition provider alive.
+
+Authored policy chips name their source. Every remaining schema leaf is under
+“at their defaults”; that disclosure survives roster updates. An optional Links
+integration supplies the arrow to the row’s policy node and withdraws it when
+navigation stops. The inspector state survives; the layout also waits for
+navigation, so its rendered panel returns when navigation does. Environment chips show
+machine paths and only set/unset for secrets. The foot names the policy file and
+private LocalState memory without opening that memory.
+
+A switch writes `on` through the directory’s ordinary write door and waits for
+reconciliation. The vault provider stays session-only. Other rows explicitly
+say session-only while the configuration reader is absent. Broken configuration
+is named and must be repaired before another durable press can write.

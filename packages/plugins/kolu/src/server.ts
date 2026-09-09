@@ -219,6 +219,9 @@ type Ctx = SurfaceCtx<typeof surface.spec>
  * that is absent rather than a member that is present and empty.
  */
 export default definePlugin({
+  environment: [
+    {"key": "PADI_SOCKET", "secret": false, "says": "the padi daemon socket"},
+  ],
   name,
   needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
   config: Config,

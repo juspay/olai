@@ -135,6 +135,10 @@ const linkFromEnv = (
 export { Config } from "./config.ts"
 
 export default definePlugin({
+  environment: [
+    {"key": "OLAI_SPACES_URL", "secret": false, "says": "the Spaces server to reach"},
+    {"key": "OLAI_SPACES_TOKEN", "secret": true, "says": "the credential for Spaces"},
+  ],
   name,
   needs: [Seating, Clock, Deliveries, Env, LocalState, Surfaces, Vault, Watching],
   config: Config,

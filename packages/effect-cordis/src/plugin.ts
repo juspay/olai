@@ -177,8 +177,15 @@ export const detached: Effect.Effect<Detach, never, Scope.Scope> = Effect.gen(fu
  * promise. Running the schema here gives invalid config the same failed-row
  * reporting and cleanup as every other initialization failure.
  */
+export interface EnvironmentDeclaration {
+  readonly key: string
+  readonly secret: boolean
+  readonly says: string
+}
+
 export interface Plugin {
   readonly name: string
+  readonly environment?: ReadonlyArray<EnvironmentDeclaration>
   /** Static declaration; decoded inside activation, never a live service. */
   readonly config?: Schema.ConstraintDecoder<unknown, never>
   /** Reapply by default. Live followers own a declared revision subscription;
@@ -207,6 +214,7 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
   spec: {
     readonly name: string
     readonly needs: Keys
+    readonly environment?: ReadonlyArray<EnvironmentDeclaration>
     readonly config?: Schema.Schema<Config> & { readonly DecodingServices: never }
     readonly configUpdates?: "reapply" | "live"
     readonly apply:
@@ -215,6 +223,7 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
   },
 ): Plugin => ({
   name: spec.name,
+  ...(spec.environment === undefined ? {} : { environment: spec.environment }),
   ...(spec.config === undefined ? {} : { config: spec.config }),
   ...(spec.configUpdates === undefined ? {} : { configUpdates: spec.configUpdates }),
   inject: spec.needs.map((key) => key.cordis),

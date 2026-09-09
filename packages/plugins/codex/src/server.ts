@@ -28,6 +28,10 @@ export const ENGINE: Registering = {
 }
 
 export default definePlugin({
+  environment: [
+    {"key": "OLAI_ACP_CODEX", "secret": false, "says": "the Codex ACP adapter"},
+    {"key": "OPENAI_API_KEY", "secret": true, "says": "the provider credential read by Codex"},
+  ],
   name,
   needs: [Agents],
   apply: Effect.gen(function*() {

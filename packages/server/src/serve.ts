@@ -1,3 +1,4 @@
+import { Vault as ContentRevision } from "@olai/plugin-api/services";
 /** Start a selected bundle without granting its rows permanent host status.
  *
  * Boot has two settling barriers. Providers first acquire their independent
@@ -161,7 +162,7 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     yield* provideInputs(plugins.host, { root: served, runtime: runtimePaths });
     yield* mountBundle(plugins.host, pluginPin, gitConfigPatch(options.pin), profile);
     const loading = yield* openLoading(plugins.host, built, () => onChange.run(), { services: plugins.serviceKeys, browserServices: plugins.browserKeys });
-    const policy = yield* followConfiguration(plugins.host, () => onChange.run());
+    const policy = yield* followConfiguration(plugins.host, () => onChange.run(), () => plugins.offers().get(ContentRevision.cordis));
     yield* policy.ready;
     let report = yield* reportBundle(plugins.host, loading.names());
     const switched = new Set<string>();
@@ -211,7 +212,10 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
             configs: () => configsOf(plugins.host),
             configuration: policy.current,
             configurationDefaults: policy.defaults,
-            set: flipped,
+            configurationStartup: policy.startup,
+            environment: policy.environment,
+            persistent: policy.persistent,
+            set: (id, enabled) => policy.set(id, enabled, () => flipped(id, enabled)),
             reread: Effect.gen(function* () {
                 report = yield* reportBundle(plugins.host, loading.names());
             }),
