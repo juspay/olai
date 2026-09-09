@@ -1,3 +1,4 @@
+import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
 /**
  * WHICH PLUGINS THIS SERVE RUNS, read as the plugins panel reads it.
  *
@@ -11,20 +12,9 @@
  * overturned (the human, 2026-09-04): the panel gets a SWITCH, and
  * `plugins.set` is the verb behind it.
  *
- * What did NOT move is the first half. There is still no settings file, still
- * no CLI verb against a running serve, and `--plugins` and the nix module are
- * still the only way a serve STARTS with a plugin on or off. A flip here is the
- * INSTANCE's, for as long as this process runs, and a restart comes back to how
- * the server was started. So the row still owes a reader the boot default —
- * which is what {@link pluginsStarted} says now, having stopped saying the half
- * that is no longer true.
- *
- * Git policy is not on this panel. It travels with the git plugin's commit
- * panel, so these rows no longer share a sentence with a frozen instance row
- * (`../settings/instance.ts` still means *it cannot be changed from a
- * browser*, and that is still right for anything that stays the server's
- * alone). A plugin row that borrowed that sentence and then drew a live switch
- * under it would be the panel contradicting itself.
+ * Policy and enablement now live in the directory's configuration file.
+ * The panel names that file and private memory once; a session-only exception
+ * belongs on its row. Legacy boot flags remain until the next series step.
  *
  * ## A ROW WITH NOTHING TO SAY SAYS NOTHING, and that took a screenshot
  *
@@ -41,8 +31,7 @@
  * byte-identical on every row; it is a panel fact drawn N times. So:
  *
  *   - What is the SAME for every row is said ONCE, at the foot
- *     ({@link pluginsStarted}): how this serve was started, and how long a flip
- *     lasts.
+ *     ({@link pluginsStarted}): where policy lives and how this serve was started.
  *   - What DIFFERS is per row, and only then. Both readings answer `null` for a
  *     row with nothing to add, and the ordinary running row is exactly that —
  *     the switch already reads On, and a sentence under it saying so is the
@@ -332,46 +321,18 @@ const namedBy = (
   id: string,
 ): boolean => names !== null && names.includes(id)
 
-/**
- * HOW THIS SERVE STARTED, AND HOW LONG A FLIP LASTS — ONE line, for the whole
- * panel.
- *
- * ## It was per row, and being per row was the defect
- *
- * `pluginSetBy` answered a string per plugin, and under a given flag every one
- * of those strings was BYTE-IDENTICAL: *Set by the server:
- * `--plugins=claude,codex,chat,kolu,odu`. It cannot be changed from a browser.*
- * — wrapped over three lines, under eight rows. The panel's own header called
- * that an argument for having no panel-wide line, on the grounds that every row
- * already said it. That is a repetition noticed and then defended.
- *
- * A fact is per row when the rows DIFFER. This one does not: `pin` is one
- * value for the serve, so the sentence about it is one sentence for the serve.
- * What genuinely differs — the opt-in row's own built-in default, and the flag
- * value that changes it — stayed per row, in {@link pluginHint}, which is the
- * case the old argument was actually built for.
- *
- * ## The two sentences, and why they are one string
- *
- * WHERE IT CAME FROM and HOW LONG A CHANGE LASTS are two facts and they are
- * read together: *this is what the serve was started with; what you do here
- * does not outlive it.* Split into two paragraphs they would be the panel's
- * foot growing back into the thing this replaced.
- *
- * `--plugins=` — an empty value — is somebody saying NONE out loud, and it is
- * spelled as itself rather than described. It is a different answer from saying
- * nothing, and every row is Off in both cases: this line is the only place the
- * two are told apart.
- *
- * ## Why a reading and not a constant
- *
- * For the reason every other sentence on this panel is a reading: it is read
- * off the same `pin` the rows are, so the flag it quotes and the rows it
- * sits under cannot come from two different frames — the pairing the old
- * per-row line kept, moved rather than dropped.
- */
+const withoutConfiguration = (roster: PluginRoster): boolean =>
+  roster.built.some(row => row.configurationAvailable === false)
+  && !roster.built.some(row => row.configurationAvailable === true)
+
+/** What applies to every row is said once, at the foot: policy location,
+ * private memory, startup selection, and loss of the configuration reader.
+ * Repeating the same caveat under each row made the panel a scroll of identical
+ * paragraphs (#543). A row keeps only what differs, including its own
+ * session-only exception while the shared reader is available.
+ * Boot flags remain visible until their removal in step 4. */
 export const pluginsStarted = (roster: PluginRoster): string =>
-  `${startedWith(roster)} ${PLUGINS_SESSION_ONLY}`
+  `Policy lives in ${roster.built.find(row => row.configurationFile)?.configurationFile ?? CONFIGURATION_FILE} and travels with this directory. ${startedWith(roster)}${withoutConfiguration(roster) ? " Switches are session-only while the configuration reader is absent; they last until this serve stops." : ""} Memory: LocalState, $XDG_STATE_HOME/olai/<plugin>/<hash>.json; private to the serve.`
 
 /** WHAT THE SERVE WAS STARTED WITH — the flag as an operator would type it, or
  *  the built-in defaults, with the flag still NAMED where nobody gave one: the
@@ -410,17 +371,6 @@ const startedWith = (roster: PluginRoster): string => {
       return `Started with the built-in defaults: no --plugins given.`
   }
 }
-
-/**
- * ...AND HOW LONG A FLIP LASTS — the half of {@link pluginsStarted} that does
- * not depend on the roster.
- *
- * Exported so a case can hold it on its own: it is the whole of the
- * session-only ruling (the human, 2026-09-04), and the one thing a person needs
- * before they close the tab believing they have configured something.
- */
-export const PLUGINS_SESSION_ONLY =
-  `On or off here lasts as long as this server runs; a restart comes back to this.`
 
 /** A running server row can have a waiting browser component. Keep the
  * server's switch semantics and name that component and its missing keys. */
@@ -462,7 +412,8 @@ export const rowCopy = (
 ): string | null => {
   const hint = pluginHint(plugin, roster, look)
   const browser = plugin.running ? browserHint(plugin.name, reports, plugin.browserOnly) : null
-  return [hint, browser].filter(Boolean).join(" ") || null
+  const duration = plugin.switchPersistence === "session" && !withoutConfiguration(roster) ? "Switch is session-only; it lasts until this serve stops." : null
+  return [hint, browser, duration].filter(Boolean).join(" ") || null
 }
 
 /**

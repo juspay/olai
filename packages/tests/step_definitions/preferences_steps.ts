@@ -913,7 +913,11 @@ Then(
  *  reason. */
 When("I open the plugins panel", async function (this: OlaiWorld) {
   if ((await this.pluginsPanel().count()) > 0) return;
-  await this.press(this.page.locator(PLUGINS_TRIGGER).locator("visible=true"));
+  const trigger = this.page.locator(PLUGINS_TRIGGER).locator("visible=true");
+  await trigger.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  // A returning layout may restore the already-open inspector with its trigger.
+  if ((await this.pluginsPanel().count()) > 0) return;
+  await this.press(trigger);
   await this.pluginsPanel().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
@@ -1002,23 +1006,13 @@ Then(
 Then(
   "the plugins panel shows {string} configured {string} as {string}",
   async function (this: OlaiWorld, plugin: string, key: string, value: string) {
-    const row = await shownRow(this, plugin);
-    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const pair = row.locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`);
-    try {
-      await pair.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-      await this.waitUntil(async () => {
-        const live = (await shownRow(this, plugin)).locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`);
-        return (await live.innerText()).replaceAll("\n", " ").includes(value);
-      }, `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${JSON.stringify(value)}`);
-    } catch (error) {
-      if (error instanceof assert.AssertionError) throw error
-      assert.fail(
-        `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${
-          JSON.stringify(value)
-        }, and it has no config for that key`,
-      );
-    }
+    await this.waitUntil(async () => {
+      const row = await shownRow(this, plugin);
+      const pair = row.locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`);
+      const disclosure = row.locator('[data-testid="plugin-defaults"]');
+      if (await disclosure.count() && await disclosure.getAttribute("open") === null) await disclosure.locator("summary").click();
+      return await pair.count() === 1 && await pair.isVisible() && (await pair.innerText()).replaceAll("\n", " ").includes(value);
+    }, `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${JSON.stringify(value)}`);
   },
 );
 
@@ -1407,4 +1401,26 @@ Then("the plugin {string} has no browser warning", async function (this: OlaiWor
 
 Then("the plugins panel shows no refusal", async function (this: OlaiWorld) {
   await this.page.locator(`${PLUGINS_PANEL} ${PLUGINS_REFUSED}`).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+Then("the plugin {string} keeps defaults folded", async function (this: OlaiWorld, plugin: string) {
+  const row = await shownRow(this, plugin);
+  assert.equal(await row.locator('[data-testid="plugin-defaults"]').getAttribute("open"), null);
+});
+Then("the plugin {string} marks {string} as authored by {string}", async function (this: OlaiWorld, plugin: string, key: string, author: string) {
+  const row = await shownRow(this, plugin);
+  await this.waitUntil(async () => await row.locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`).getAttribute("data-set-by") === author, "the author mark");
+});
+When("I follow the policy link for {string}", async function (this: OlaiWorld, plugin: string) {
+  await (await shownRow(this, plugin)).locator('[data-testid="plugin-config-link"]').click();
+});
+Then("the policy link targets node {string}", async function (this: OlaiWorld, node: string) {
+  await this.waitUntil(async () => this.page.url().includes(node), "the policy node in the address");
+});
+Then("the plugin {string} has no policy link", async function (this: OlaiWorld, plugin: string) {
+  await (await shownRow(this, plugin)).locator('[data-testid="plugin-config-link"]').waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+});
+Then("the plugin {string} keeps defaults open when {string} becomes {string}", async function (this: OlaiWorld, plugin: string, key: string, value: string) {
+  await this.waitUntil(async () => (await (await shownRow(this, plugin)).locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`).textContent())?.includes(value) === true, "the new default reading");
+  assert.notEqual(await (await shownRow(this, plugin)).locator('[data-testid="plugin-defaults"]').getAttribute("open"), null);
 });

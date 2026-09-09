@@ -1,3 +1,4 @@
+import type { PolicyValue } from "@olai/plugin-api/configuration"
 import { approveDefinition } from "./approval.ts"
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
@@ -20,24 +21,11 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * what the SERVE is running, for everybody looking at it — which is a different
  * kind of thing from a theme, and still wants a door of its own.
  *
- * A row's config is drawn under it, read-only, as data: core knows none of
- * the plugin's words. `--commit=auto` is `commit: auto` on the git row.
- * User-editable settings are a later phase.
- *
- * ## THE ROWS ARE A SWITCH NOW
- *
- * This file argued the opposite at length, and the paragraph is gone rather than
- * softened: *frozen in both directions, always: `--plugins` is CLI/nix only, so
- * there is no verb a press could call — the strip is a READOUT wearing a
- * control's shape.* The premise was true when it was written and the verb now
- * exists (`plugins.set`, the human's ruling of 2026-09-04). A readout wearing a
- * control's shape was always the least honest thing on this panel; it is a
- * control.
- *
- * What did NOT change is where a serve STARTS from. There is no settings file,
- * no CLI verb against a running serve, and `--plugins` and the nix module are
- * still the only things a restart reads. A flip is the running process's, and
- * this panel says so — once, at the foot ({@link PLUGINS_SESSION_ONLY}).
+ * Policy chips draw the authored leaves; defaults disclose beneath the row.
+ * The arrow opens its namespace in the directory's configuration file. A switch
+ * writes `on` through the ordinary write door, then waits for the revision and
+ * root-owned reconcile before releasing the press. The infrastructure rows
+ * needed to read and write that file retain a session-only switch.
  *
  * ## ...WHICH IS WHY THIS PANEL HAS A PANEL-WIDE LINE, having argued it needed
  * none
@@ -57,8 +45,9 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * *portrait spammy*.
  *
  * So the rule did not change; which sentence is per-row and which is per-panel
- * did. What is the same for every row — how this serve was started, and that a
- * flip does not outlive it — is one line at the foot ({@link pluginsStarted}).
+ * did. What is the same for every row — where policy lives, private memory, how
+ * this serve was started, and whether the configuration reader is absent — is
+ * one line at the foot ({@link pluginsStarted}).
  * What actually differs stays on the row, and the opt-in row is exactly the
  * case the old paragraph was reaching for: under no flag, one row's built-in
  * default is ON and its neighbour's is OFF, and only the row can say which.
@@ -75,28 +64,26 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  *
  * A ROW IS A NAME AND A SWITCH, and a sentence only where there is one. The
  * ordinary running row has nothing to add — the switch reads On — so
- * `pluginHint` answers `null` and `../settings/Row.tsx` draws no paragraph at
+ * `pluginHint` answers `null` and this panel draws no paragraph at
  * all. Eight rows read as a short list rather than a scroll, and the four rows
  * that DO carry a sentence (a failure, a wait, an absence, a row that carries
  * others) are the four a reader's eye lands on, because they are the only ones
  * with text under them.
  *
- * THE LABEL IS THE NAME, VERBATIM — not prettified into `Kolu`. It is the word
- * `--plugins` takes, the namespace its members are composed under and the docs
+ * THE LABEL IS THE NAME, VERBATIM — not prettified into `Kolu`. It is the
+ * settings namespace, the namespace its members are composed under and the docs
  * slug, and a label that title-cased it would be the one spelling of a plugin's
  * name coming apart on the one screen that tells you what to type.
  *
- * The ROW is the settings panel's own component and stays there: a row is a
- * label, a control, what the choice in force MEANS, and where it came from —
- * four parts that are the same four here, and a second one of them would be a
- * second thing to keep in step. What this file owns is which rows there are and
- * what they say ({@link ./rows.ts}).
+ * A row still has the same parts: its label, control, what the choice means,
+ * and where it came from. What this file owns is the walk and its rendering;
+ * the pure decisions live in `./rows.ts`.
  *
  * ## THE ONE SIGNAL, and why it is not a constructor
  *
  * `flipping` is the name of the row whose press is still in the air. It is not a
  * fact about the serve — it is about the button under this reader's finger,
- * which must not be pressed twice — which is exactly the line `../commit/state.ts`
+ * which must not be pressed twice — which is exactly the line `olai-plugin-git`’s commit state
  * draws for Commit and Push, and the reason those keep a signal each while
  * everything else about git rides on a cell.
  *
@@ -106,8 +93,8 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * have held the signal anyway. What DID move out is the part a test can ask —
  * `./rows.ts`'s `pluginSwitch`, which is the whole decision the signal feeds.
  *
- * The pending flag is cleared when the switch request settles. Controls also
- * stay frozen while the browser reconciles the roster: a state frame may land
+ * The pending flag is cleared when the write, revision and reconcile settle.
+ * Controls also stay frozen while the browser reconciles the roster: a state frame may land
  * before its socket replacement finishes, and a second press on that old socket
  * would be interrupted. Server-only rows retain this component, so remounting
  * it cannot be relied on to supply that barrier.
@@ -116,8 +103,12 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  *
  * The bar is `sticky` with a z-index, which makes it a stacking context and a
  * 3rem-tall box, so the panel is portalled out of it and positioned against the
- * VIEWPORT (`../anchor.ts`) — exactly as the preferences panel beside it and
- * the Commit panel two chips along are.
+ * VIEWPORT (`@olai/web/client/anchor.ts`) — exactly as the preferences panel
+ * beside it and the Commit panel two chips along are.
+ *
+ * Optional Links follow their declared service lifetime. Disclosure and group
+ * state belong to the inspector, so navigation withdrawal drops the links
+ * without forgetting what this reader opened.
  */
 
 import { createSignal, For, Show } from "solid-js"
@@ -363,6 +354,9 @@ export function Panel(props: {
           Drawn only where there are rows, because the empty-build sentence
           above is a different fact and a serve with no plugins has nothing to
           say about how it started them. */}
+      <Show when={rows().find(row => row.configurationError)?.configurationError}>
+        {(error) => <p class="text-xs text-alarm" data-testid={TESTID.pluginConfigError}>{error()}. Repair the file to restore its policy.</p>}
+      </Show>
       <Show when={rows().length > 0}>
         <p class="text-xs leading-relaxed text-muted" data-testid={TESTID.pluginsStarted}>
           {pluginsStarted(plugins())}
@@ -387,6 +381,8 @@ function PluginRow(props: {
   readonly approving: () => string | null
 }) {
   const plugin = (): BuiltPlugin => props.plugin
+  const values = (): ReadonlyArray<PolicyValue> => plugin().configurationValues ?? pluginConfig(plugin()).map(([key, value]) => ({ key, value, setBy: "default", says: "" }))
+  const defaults = () => values().filter(one => one.setBy === "default")
   const look = () => props.panel.management.look(plugin().name)
   const strip = () => pluginSwitch(plugin(), props.flipping() === plugin().name || props.panel.management.changing())
   const copy = () => rowCopy(plugin(), props.plugins(), look(), props.panel.management.reports())
@@ -416,7 +412,21 @@ function PluginRow(props: {
             )}
           </Show>
           <span class="shrink-0">{plugin().name}</span>
-          <Config values={pluginConfig(plugin())} />
+          <Config values={values().filter(one => one.setBy !== "default")} />
+          <For each={plugin().environment ?? []}>{one => (
+            <span class="rounded-full bg-pill/55 px-1.5 py-0.5 text-[0.68rem] text-muted"
+              data-testid={TESTID.pluginConfig} data-config={one.key} data-set-by="env" title={one.says}>
+              {one.key} {one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")} ·env
+            </span>
+          )}</For>
+          <Show when={plugin().desiredOn !== undefined}>
+            <span class="text-xs text-muted" data-config="on">on {plugin().desiredOn ? "yes" : "no"} ·vault</span>
+          </Show>
+          <Show when={plugin().configurationNode && props.panel.state.file()}>
+            {(File) => { const Link = File() as NonNullable<ReturnType<InspectorState["file"]>>; return <span onClick={() => props.panel.state.door.setOpen(false)}><Link
+              file={plugin().configurationNode!.file} at={plugin().configurationNode!.id}
+              label={`Open policy for ${plugin().name}`} title="Open this row's policy" testid={TESTID.pluginConfigLink}>↗</Link></span> }}
+          </Show>
         </span>
         <Switch
           on={strip().value === "on"}
@@ -424,6 +434,16 @@ function PluginRow(props: {
           onPick={(value) => props.set(plugin().name, value)}
         />
       </div>
+      <Show when={defaults().length > 0}>
+        <details class="pb-1 text-xs text-muted" data-testid={TESTID.pluginDefaults}
+          open={props.panel.state.disclosed()[plugin().name] ?? false}>
+          <summary onClick={event => {
+            event.preventDefault()
+            props.panel.state.disclose(plugin().name, !(props.panel.state.disclosed()[plugin().name] ?? false))
+          }}>{defaults().length} at their defaults</summary>
+          <Config values={defaults()} />
+        </details>
+      </Show>
       <Show when={copy()}>
         {(said) => (
           <p
@@ -492,19 +512,21 @@ function PluginRow(props: {
  *  two chips on git (`commit auto`, `push auto`) were shrinking to nothing
  *  inside the squeezed label row, while vault's one chip still fit. */
 function Config(props: {
-  readonly values: ReadonlyArray<readonly [string, string]>
+  readonly values: ReadonlyArray<PolicyValue>
 }) {
   return (
     <Show when={props.values.length > 0}>
       <span class="flex flex-wrap gap-1">
         <For each={props.values}>
-          {([key, value]) => (
+          {one => (
             <span
               class="shrink-0 rounded-full bg-pill/55 px-1.5 py-0.5 text-[0.68rem] leading-tight text-muted"
               data-testid={TESTID.pluginConfig}
-              data-config={key}
+              data-config={one.key}
+              data-set-by={one.setBy}
+              title={one.setBy === "flag" ? `${one.says}. Inferred from a startup value differing from the schema default; an explicitly supplied default still reads default.` : one.says}
             >
-              {key} {value}
+              {one.key} {typeof one.value === "object" && one.value !== null ? JSON.stringify(one.value) : String(one.value)} <span>·{one.setBy}{one.setBy === "flag" ? " (inferred)" : ""}</span>
             </span>
           )}
         </For>

@@ -1801,6 +1801,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/outlines/src/server.ts",
       "plugins/outlines/src/tools.ts",
       "plugins/pins/src/server.ts",
+      "plugins/plugin-inspector/src/Panel.tsx", // the required author label, not a row lookup
       "plugins/plugin-inspector/src/approval.ts",
       "plugins/search/src/server.ts",
       "plugins/search/src/table.bench.ts",
@@ -1818,6 +1819,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/vault-plugins/src/tools.ts",
       "plugins/xyne-spaces/src/server.ts",
       "server/src/main.ts",
+      "server/src/serve.ts", // declared content service, used to identify its owner
       "surface/src/plugins.ts",
       "surface/src/seal.ts"
     ],

@@ -7,7 +7,7 @@
  * Host management remains available without either component. Its capability
  * supplies operations and scoped readings, never the notebook client or bundle.
  * Recovery presentation follows the host's retry/reload diagnosis. */
-import { definePlugin, Offers, serviceTag } from "@olai/plugin-api"
+import { definePlugin, Offers, serviceTag, Links } from "@olai/plugin-api"
 import { browserManagement } from "@olai/surface/management"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { tools } from "olai-plugin-layout/contract"
@@ -24,6 +24,11 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
   yield* (yield* Offers).own("state", () => state)
 }) })
 export const components = {
+  links: definePlugin({ name: "links", needs: [inspectorState, Links], apply: Effect.gen(function*() {
+    const state = yield* inspectorState
+    const links = yield* Links
+    yield* Effect.acquireRelease(Effect.sync(() => state.link(links.File)), release => Effect.sync(release))
+  }) }),
   /** Saying yes to code, DECLARED — a component of its own so the panel keeps
    *  showing what a serve is running when there is no approval provider
    *  (`./approvals.ts`). */

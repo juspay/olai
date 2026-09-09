@@ -534,6 +534,7 @@ test("secrets and machine paths arrive through a keyed provision, never config o
   let received: unknown
   const plugin = definePlugin({
     name: "reader",
+    environment: [{ key: "TOKEN", secret: true, says: "credential" }, { key: "EXECUTABLE", secret: false, says: "machine path" }],
     needs: [Resource],
     config: Schema.Struct({
       mode: Schema.String.pipe(
@@ -561,6 +562,8 @@ test("secrets and machine paths arrive through a keyed provision, never config o
   })))
   expect(consumer).toBe("reader")
   expect(options).toEqual([{ mode: "verbose" }])
+  expect(JSON.stringify(plugin.environment)).not.toContain("fixture-secret")
+  expect(JSON.stringify(plugin.environment)).not.toContain("/fixture/bin/tool")
   expect(received).toEqual({ config: { mode: "verbose" }, resource: { token: "fixture-secret", executable: "/fixture/bin/tool" } })
   expect(Schema.decodeUnknownSync(plugin.config!)({})).toEqual({ mode: "quiet" })
 })

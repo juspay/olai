@@ -348,9 +348,20 @@ Include `vault` in an explicit list to serve files. `--plugins=` opens no listen
 
 The chat node-process idle timeout (`OLAI_CHAT_IDLE_MS` in the current environment adapter) is a behaviour setting too, declared as `idle-ms` in chat's schema.
 
-Each configurable built-in plugin exposes one `Config` schema with defaults and description annotations. `olai.yml` selects rows and build enablement; it carries no `config:`. The schema foundation is the first step of #545. The shared `_olai/Settings.olai` reader now applies per-row policy and enablement on each vault revision. Kolu reads its `watch` child there and no longer reads `Kolu.olai`. Durable panel switches and removal of the legacy CLI and environment policy adapters follow in the next settings-doors steps. While those adapters remain, legacy boot inputs supply rows with no namespace in the file.
+Each configurable built-in plugin exposes one `Config` schema with defaults and description annotations. `olai.yml` selects rows and build enablement; it carries no `config:`. The schema foundation is the first step of #545. The shared `_olai/Settings.olai` reader now applies per-row policy and enablement on each vault revision. Kolu reads its `watch` child there and no longer reads `Kolu.olai`. Panel switches are durable. Removal of the legacy CLI and environment policy adapters follows in the next settings-doors steps. While those adapters remain, legacy boot inputs supply rows with no namespace in the file. The panel marks startup values that differ from schema defaults as `·flag`; this temporary author goes away with flag removal.
 
 Spaces uses `OLAI_SPACES_URL` for the origin to reach and `OLAI_SPACES_TOKEN` for the installed app JWT. The URL names a resource; the token is a secret. Both are supplied through the plugin's environment service, never entry options. Provider API keys used by agents stay in their environment too.
+
+
+The plugins panel shows authored policy with its author, and schema defaults
+under each row’s disclosure. Its arrow opens that row’s node. Declared environment
+readings show machine paths, but secrets show only set/unset. `ANTHROPIC_API_KEY`
+and `OPENAI_API_KEY` are provider secrets inherited by their agents, alongside
+provider-specific keys configured by the agent. Memory (`LocalState`,
+`$XDG_STATE_HOME/olai/<plugin>/<hash>.json`) is named but never opened by the panel.
+
+`PADI_SOCKET` names the local appliance socket used by Kolu. It is a machine
+path supplied through the environment service and shown as an env reading.
 
 ### The switch, and how long it lasts
 
@@ -401,7 +412,7 @@ The browser e2e lifecycle scenarios exercise the work after the switch: journal 
 
 **The panel's row says which of seven states a plugin is in**, not just on or off. Running is the ordinary one, and it draws no sentence at all — the switch has already said it. The other six are all total absence and they differ in *why*: it was not asked for; this build ships it off until you name it (which is what `xyne-spaces` is, and the row names the flag value that turns it on); **you switched it off here**, which is the one that undoes itself and the only one a restart alone would clear; it was asked for and its **start failed** — in which case the row quotes what the plugin said, verbatim; it was asked for and is still waiting on something it needs; or — for a plugin the VAULT defines — it is waiting on YOU, which is the one absence whose answer is on this very panel (the source is drawn under the rows and the verb is beside it). Only the failure is a fault, and it is the one nothing else on screen would tell you about: an integration whose start failed draws nothing at all, exactly like one you turned off on purpose. The switch stays drawn on a row that failed, so a plugin whose start died on something you have since fixed can be told to try again.
 
-**The vault can select rows.** A top-level node titled with the row id in `_olai/Settings.olai` can set `on: yes` or `on: no`. The reader publishes that choice and the serve reconciles it through Cordis. Agent writes cannot change `on`, including removing its effect by moving or trashing the node. Behaviour knobs remain writable through the ordinary agent door. The panel switch remains session-only at this stage; durable switches follow in the next settings-doors step.
+**The vault can select rows.** A top-level node titled with the row id in `_olai/Settings.olai` can set `on: yes` or `on: no`. The reader publishes that choice and the serve reconciles it through Cordis. Agent writes cannot change `on`, including removing its effect by moving or trashing the node. Behaviour knobs remain writable through the ordinary agent door. The panel switch writes `on` through the ordinary write door and waits for the revision and row reconciliation. Restart reads that choice from the file. The vault and settings-reader switches stay session-only, so the panel cannot lock its own reader off durably. When either provider is unavailable, the foot says once that switches are session-only. A broken file must be repaired before a durable switch can write.
 
 
 ### Plugins the vault itself defines

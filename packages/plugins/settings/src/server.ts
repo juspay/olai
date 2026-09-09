@@ -20,8 +20,8 @@ export default definePlugin({
     const readings = yield* SubscriptionRef.make(current)
     const warnings: string[] = []
     const warn = warningsOnce((line) => warnings.push(line))
-    yield* vault.revision((revision: { value: Reading }) => Effect.gen(function*() {
-      current = readConfiguration(revision.value, declarations, current.revision + 1, warn)
+    yield* vault.revision((revision: { value: Reading; rev: number }) => Effect.gen(function*() {
+      current = readConfiguration(revision.value, declarations, revision.rev, warn)
       for (const line of warnings.splice(0)) yield* Effect.logWarning(line)
       yield* SubscriptionRef.set(readings, current)
     }))

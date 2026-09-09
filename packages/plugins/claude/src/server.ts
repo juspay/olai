@@ -86,6 +86,10 @@ export const ENGINE: Registering = {
  * it, which is exactly what `--plugins=opencode,pi` asks for on purpose.
  */
 export default definePlugin({
+  environment: [
+    {"key": "OLAI_ACP_AGENT", "secret": false, "says": "the Claude ACP adapter"},
+    {"key": "ANTHROPIC_API_KEY", "secret": true, "says": "the provider credential read by Claude"},
+  ],
   name,
   needs: [Agents],
   apply: Effect.gen(function*() {

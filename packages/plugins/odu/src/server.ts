@@ -162,6 +162,9 @@ export interface VaultRevision {
  * page that loads mid-sweep reads the rows the watcher already has.
  */
 export default definePlugin({
+  environment: [
+    {"key": "OLAI_ODU_BIN", "secret": false, "says": "the directory placed first on PATH for Odu"},
+  ],
   name,
   needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
   apply: Effect.gen(function*() {

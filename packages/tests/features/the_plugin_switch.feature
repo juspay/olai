@@ -1,15 +1,7 @@
 Feature: A plugin is turned on and off while the serve runs
-  Until this phase, which plugins a serve ran was decided once, before anything
-  started: `--plugins` at the command line, the same flag from the nix module,
-  or the row's own default in `olai.yml`. The panel drew the answer and could
-  not move it — every row frozen, and a sentence under each one saying where the
-  decision actually lived.
-
-  The rulings that ended that (the human, 2026-09-04): the panel gets a SWITCH;
-  a flip is SESSION-ONLY and writes nothing; there is no CLI verb against a
-  running serve; `--dump-config` is dropped. So a restart still comes back to
-  the flag, the nix option and the rows, and what a person can do between two
-  restarts is turn one off and see everything that leaned on it follow.
+  A press writes on to the settings file and follows the reconciled roster.
+  The vault provider and configuration reader are session-only exceptions.
+  Other rows use a session switch while the reader is unavailable.
 
   THE REACTIVE HALF IS WHAT MAKES IT ONE VERB rather than a restart, and these
   two scenarios are where that is benched rather than argued. A plugin is a
@@ -57,7 +49,7 @@ Feature: A plugin is turned on and off while the serve runs
     # eight times.
     Then the plugins panel says nothing more about "kolu"
     # ...and where this serve was STARTED is the panel's line, said once.
-    And the plugins panel was started "lasts as long as this server runs"
+    And the plugins panel was started "travel"
 
     When I switch the plugin "kolu" off
     # NOT A RELOAD. The sibling left the wire, the roster moved, the tab
@@ -158,6 +150,7 @@ Feature: A plugin is turned on and off while the serve runs
     # doors they named have arrived; the conversation's own chrome is drawn
     # because its members are on the wire and the tab's redial reached them.
     Then the plugins panel says nothing more about "kolu"
+    And the plugins panel was started "Switches are session-only while the configuration reader is absent"
     And the conversation is in the header
     # THE ASSERTION THAT WOULD HAVE BEEN RED WHATEVER ELSE PASSED. The rest of
     # this scenario can be satisfied by chrome that mounted off a roster frame;

@@ -39,9 +39,9 @@ import {
   pluginConfirm,
   pluginGroups,
   pluginHint,
-  PLUGINS_SESSION_ONLY,
   pluginRows,
   pluginsStarted,
+  rowCopy,
   pluginSwitch,
   THIS_VAULT,
 } from "./rows.ts"
@@ -545,18 +545,15 @@ test("the panel foot quotes extra and without the way they were typed", () => {
   expect(both).toContain("--without-plugins=beta")
 })
 
-/**
- * ...AND IT SAYS HOW LONG A FLIP LASTS, which is the other half of the one
- * thing this panel owes a person before they close the tab.
- *
- * A change here is the running process's. A restart comes back to the flag or
- * the built-in defaults — which is the sentence beside it, in the same
- * paragraph, which is why they are one string.
- */
-test("the panel says once that a flip does not survive a restart", () => {
-  expect(PLUGINS_SESSION_ONLY).toContain("restart")
-  expect(PLUGINS_SESSION_ONLY).toContain("as long as this server runs")
-  expect(pluginsStarted(roster(["alpha"], ["alpha"]))).toContain(PLUGINS_SESSION_ONLY)
+test("the foot names durable policy and private memory; session exceptions belong on rows", () => {
+  const value = roster(["alpha"], ["alpha"])
+  const said = pluginsStarted(value)
+  expect(said).toContain("_olai/Settings.olai")
+  expect(said).toContain("travels with this directory")
+  expect(said).toContain("LocalState")
+  expect(said).not.toContain("session-only")
+  expect(rowCopy({ name: "alpha", running: true, switchPersistence: "session" }, value)).toContain("session-only")
+  expect(rowCopy({ name: "alpha", running: true, switchPersistence: "file" }, value)).toBe(null)
 })
 
 /**
@@ -672,4 +669,16 @@ test("a quiet healthy group starts collapsed, and an all-optIn group is hidden",
 test("a file-authored off state names the file that decided it", () => {
   expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false, configurationFile: "_olai/Settings.olai" }))
     .toBe("Off — _olai/Settings.olai says on: no.")
+})
+
+
+test("an absent configuration reader is one panel fact, not a caveat repeated on every row", () => {
+  const absent: PluginRoster = { pinned: null, built: ["alpha", "beta"].map(name => ({
+    name, running: true, switchPersistence: "session", configurationAvailable: false,
+  })) }
+  expect(pluginsStarted(absent)).toContain("Switches are session-only while the configuration reader is absent")
+  for (const row of absent.built) expect(rowCopy(row, absent)).toBeNull()
+  const present: PluginRoster = { ...absent, built: absent.built.map(row => ({ ...row, configurationAvailable: true })) }
+  expect(pluginsStarted(present)).not.toContain("Switches are session-only")
+  expect(rowCopy(present.built[0]!, present)).toContain("Switch is session-only")
 })

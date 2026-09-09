@@ -473,6 +473,14 @@ test("the settings offer withdraws with its row, applied patches stand, and retu
     await flip("settings", false)
     await eventually(async () => (await row()).configurationAvailable === false)
     write("auto")
+    // The stopped reader cannot acknowledge an external edit. Wait for the
+    // ordinary content reading before restarting it, so its first revision
+    // no longer contains its own previous on:no.
+    await eventually(async () => {
+      const answer = await fetch(`${url}/mcp`, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "outlines_read", arguments: { id: "git-policy" } } }) })
+      return JSON.stringify(await answer.json()).includes("auto")
+    })
     expect((await row()).config?.commit).toBe("manual")
     await flip("settings", true)
     await eventually(async () => (await row()).config?.commit === "auto")
@@ -542,7 +550,7 @@ test("a kolu watch edit preserves its activation, while on still unloads and rem
     yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
     yield* settled(plugins.host, ["vault", "settings", "kolu"])
     let publications = 0
-    const policy = yield* followConfiguration(plugins.host, () => { publications++ })
+    const policy = yield* followConfiguration(plugins.host, () => { publications++ }, () => [])
     yield* Effect.addFinalizer(() => policy.close)
     yield* policy.ready
     const registration = () => plugins.composed().find(one => one.name === "kolu")
@@ -563,4 +571,93 @@ test("a kolu watch edit preserves its activation, while on still unloads and rem
       expect(registration()).not.toBe(first)
     })
   }).pipe(Effect.scoped, Effect.provide(SERVER_LAYERS), Effect.runPromise)
+})
+
+test("panel presses create namespaces, preserve siblings, serialize and survive restart", async () => {
+  const root = served()
+  const file = path.join(root, "_olai/Settings.olai")
+  await withServing({ root }, async url => {
+    const flip = (name: string, enabled: boolean) => configurationCall(url, "surface/plugins/set", { name, enabled })
+    await Promise.all([flip("journal", false), flip("git", false)])
+    const read = () => fs.readFileSync(file, "utf8").trim().split("\n").map(line => JSON.parse(line))
+    expect(read().filter(node => node.title === "journal")).toHaveLength(1)
+    expect(read().find(node => node.title === "journal").custom.on).toBe("no")
+    expect(read().find(node => node.title === "git").custom.on).toBe("no")
+    const before = fs.readFileSync(file, "utf8")
+    await flip("journal", false)
+    expect(fs.readFileSync(file, "utf8")).toBe(before)
+    const nodes = read()
+    nodes.find(node => node.title === "git").custom.commit = "manual"
+    fs.writeFileSync(file, nodes.map(node => JSON.stringify(node)).join("\n") + "\n")
+    await eventually(async () => (await configurationRoster(url)).built.find(row => row.name === "git")?.configurationValues?.some(one => one.key === "commit" && one.setBy === "vault") === true)
+    await flip("git", true)
+    expect(read().find(node => node.title === "git").custom).toMatchObject({ on: "yes", commit: "manual" })
+    expect((await configurationRoster(url)).built.find(row => row.name === "git")?.running).toBe(true)
+  })
+  await withServing({ root }, async url => {
+    expect((await configurationRoster(url)).built.find(row => row.name === "journal")?.desiredOn).toBe(false)
+  })
+})
+
+test("the content provider switch is session-only and a broken file is never overwritten", async () => {
+  const root = served()
+  const file = path.join(root, "_olai/Settings.olai")
+  await withServing({ root }, async url => {
+    const flip = (name: string, enabled: boolean) => configurationCall(url, "surface/plugins/set", { name, enabled })
+    expect((await configurationRoster(url)).built.find(row => row.name === "vault")?.switchPersistence).toBe("session")
+    await flip("vault", false)
+    expect(fs.existsSync(file)).toBe(false)
+    expect((await configurationRoster(url)).built.every(row => row.switchPersistence === "session")).toBe(true)
+    await flip("journal", false)
+    expect(fs.existsSync(file)).toBe(false)
+    await flip("vault", true)
+    expect((await configurationRoster(url)).built.find(row => row.name === "settings")?.switchPersistence).toBe("session")
+    await flip("settings", false)
+    expect(fs.existsSync(file)).toBe(false)
+    await flip("settings", true)
+    expect(fs.existsSync(file)).toBe(false)
+    expect((await configurationRoster(url)).built.find(row => row.name === "journal")?.switchPersistence).toBe("file")
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, "{broken\n")
+    await eventually(async () => (await configurationRoster(url)).built.some(row => row.configurationError !== undefined))
+    await expect(flip("journal", true)).rejects.toThrow("Repair")
+    expect(fs.readFileSync(file, "utf8")).toBe("{broken\n")
+  })
+})
+
+test("the roster publishes declared env readings without secrets, including disabled rows", async () => {
+  await withServing({ root: served(), vars: { OLAI_SPACES_TOKEN: "private-fixture-token", OLAI_SPACES_URL: "https://example.invalid" } }, async url => {
+    const roster = await configurationRoster(url)
+    expect(JSON.stringify(roster)).not.toContain("private-fixture-token")
+    const row = roster.built.find(row => row.name === "xyne-spaces")!
+    expect(row.environment).toContainEqual({ key: "OLAI_SPACES_TOKEN", kind: "secret", set: true, says: "the credential for Spaces" })
+    expect(row.environment?.find(one => one.key === "OLAI_SPACES_URL")).toMatchObject({ value: "https://example.invalid", kind: "resource" })
+  })
+})
+
+test("startup overrides are labelled and a namespace supersedes them", async () => {
+  const root = served()
+  await withServing({ root, commits: "auto" }, async url => {
+    const row = async () => (await configurationRoster(url)).built.find(one => one.name === "git")!
+    const value = async () => (await row()).configurationValues?.find(one => one.key === "commit")
+    expect(await value()).toMatchObject({ value: "auto", setBy: "flag" })
+    const file = path.join(root, "_olai/Settings.olai")
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, '{"id":"startup-policy","ord":"a0","title":"git","custom":{"commit":"off"}}\n')
+    await eventually(async () => (await value())?.value === "off" && (await value())?.setBy === "vault")
+    fs.writeFileSync(file, '{"id":"startup-policy","ord":"a0","title":"git"}\n')
+    await eventually(async () => (await value())?.value === "manual" && (await value())?.setBy === "default")
+    fs.unlinkSync(file)
+    await eventually(async () => (await value())?.value === "auto" && (await value())?.setBy === "flag")
+    expect((await row()).config?.commit).toBe("auto")
+  })
+})
+
+
+test("an explicitly supplied schema default is not claimed as a recorded flag", async () => {
+  await withServing({ root: served(), commits: "manual" }, async url => {
+    const row = (await configurationRoster(url)).built.find(one => one.name === "git")!
+    expect(row.configurationValues?.find(one => one.key === "commit"))
+      .toMatchObject({ value: "manual", setBy: "default" })
+  })
 })

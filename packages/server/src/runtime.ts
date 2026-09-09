@@ -5,7 +5,7 @@
  */
 
 
-import { NotFoundFailure, type PluginPin } from "@olai/format"
+import { NotFoundFailure, type PluginPin, type OpFailure } from "@olai/format"
 import { type BuiltPlugin, NO_ROSTER, type PluginRoster, type PluginState, type Who } from "@olai/surface/host"
 import type { SurfaceSpec } from "@kolu/surface/define"
 import { emptyHandlers, type ImplementSurfaceDeps, inMemoryStore, type MountedSurface, type SurfaceHandlers, type SurfaceRuntime } from "@kolu/surface/server"
@@ -18,7 +18,7 @@ import { composeCapabilities } from "./composition.ts"
 import { authorityAt } from "@olai/plugin-api/authority"
 import { CurrentWho } from "./who.ts"
 export type Bound = Omit<SurfaceRuntime<typeof hostSurface.spec>, "ctx"> & { readonly writes: ReadonlyArray<string>; readonly rows: ReadonlyArray<Registered>; readonly rosterMoved: (run: () => void) => () => void }
-import type { Configuration, PolicyRow } from "@olai/plugin-api/configuration"
+import type { Configuration, PolicyRow, EnvironmentReading } from "@olai/plugin-api/configuration"
 
 export interface PluginRuntime {
   readonly plugins: Plugins
@@ -29,9 +29,13 @@ export interface PluginRuntime {
   readonly report: () => ReadonlyMap<string, RowReport>
   readonly names: () => ReadonlyMap<string, ReadonlyArray<string>>
   readonly configuration?: () => Configuration | undefined
+  readonly environment?: ReadonlyMap<string, ReadonlyArray<EnvironmentReading>>
   readonly configurationDefaults?: ReadonlyMap<string, PolicyRow>
+  /** Inferred boot overrides; removed with the flag author and startup map in step 4. */
+  readonly configurationStartup?: ReadonlyMap<string, PolicyRow>
   readonly configs: () => ReadonlyMap<string, Readonly<Record<string, unknown>>>
-  readonly set: (id: string, enabled: boolean) => Effect.Effect<boolean>
+  readonly persistent?: (id: string) => boolean
+  readonly set: (id: string, enabled: boolean) => Effect.Effect<boolean, OpFailure>
   readonly reread: Effect.Effect<void>
   readonly switched: () => ReadonlySet<string>
   readonly catalogs?: () => ReadonlyArray<import("@olai/plugin-api/services").Catalog>
@@ -58,9 +62,14 @@ export const rosterOf = (
       const carrying = live ? carriedBy(name, offered.built, names, offers) : []
       const config = offered.configs().get(name)
       const configuration = offered.configuration?.()
-      const policy = configuration?.rows.get(name) ?? offered.configurationDefaults?.get(name)
+      const reading = configuration?.rows.get(name)
+      const policy = configuration !== undefined && reading?.node === undefined
+        ? offered.configurationStartup?.get(name) ?? reading ?? offered.configurationDefaults?.get(name)
+        : reading ?? offered.configurationDefaults?.get(name)
       return {
         name,
+        ...(offered.environment?.get(name)?.length ? { environment: offered.environment.get(name)! } : {}),
+        switchPersistence: offered.persistent?.(name) === true ? "file" as const : "session" as const,
         running: live,
         ...(offered?.browserOnly?.includes(name) ? { browserOnly: true } : {}),
         state: said.state,
@@ -175,7 +184,7 @@ export const bind = (wiring: Wiring) => Effect.gen(function*() {
      * this function returns — so the pass-through is a type obligation rather
      * than a behaviour, and it is written as one line for that reason.
      */
-    let settling: (run: Effect.Effect<boolean>) => Effect.Effect<boolean> = (run) => run
+    let settling: (run: Effect.Effect<boolean, OpFailure>) => Effect.Effect<boolean, OpFailure> = (run) => run
     // Management owns only roster state and switches. A switch outlives the
     // connection that requested it: disabling a transport may close that very
     // connection, but must not interrupt its accepted lifecycle transition.

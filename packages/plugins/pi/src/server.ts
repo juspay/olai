@@ -78,6 +78,9 @@ export const ENGINE: Registering = {
 }
 
 export default definePlugin({
+  environment: [
+    {"key": "OLAI_ACP_PI", "secret": false, "says": "the Pi ACP adapter"},
+  ],
   name,
   needs: [Agents],
   apply: Effect.gen(function*() {
