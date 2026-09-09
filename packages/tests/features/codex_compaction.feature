@@ -92,3 +92,17 @@ Feature: Codex continues the same turn after compaction
     Then the agent's answer mentions "Continued after compaction."
     And the agent is idle
     And there should be no page errors
+
+  Scenario: An accepted fallback prompt completes without ending the older prompt
+    When I ask the agent "compact fallback accept"
+    Then the chat shows a running tool call
+    When I ask the agent "accepted fallback"
+    And the agent is released
+    Then the agent's answer mentions "host-owned fallback completed"
+    And the agent is working
+    And the header says the agent is working
+    When the agent is released
+    Then the agent's answer mentions "Continued after compaction."
+    And the agent is idle
+    And the header has stopped saying the agent is working
+    And there should be no page errors

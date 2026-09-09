@@ -366,6 +366,7 @@ let steerSwallowed = false
 let steerDelayMs = 0
 let compacting = false
 let compactFallback = false
+let compactAccept = false
 const compactionSteers: Array<{ id: unknown; params: Record<string, unknown> }> = []
 const SLOW_STEER_MS = 2_000
 /** Whether `session/list` refuses from here on (`lose the conversations`). A
@@ -1719,8 +1720,9 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "compact") {
     say("Before compaction.")
     const toolCallId = `compact-${++nextMcpId}`
-    compacting = argument === "during" || argument === "fallback"
-    compactFallback = argument === "fallback"
+    compacting = argument === "during" || argument.startsWith("fallback")
+    compactFallback = argument.startsWith("fallback")
+    compactAccept = argument === "fallback accept"
     for (const sessionUpdate of ["tool_call", "tool_call_update"]) {
       if (sessionUpdate === "tool_call_update" && compacting) {
         // Outlast the real 30-second steer deadline; no automatic compaction
@@ -3171,6 +3173,15 @@ readMessages(
       // whole shape of an agent with no queue: the refusal comes back at once
       // rather than when the running turn ends, and nothing about the turn in
       // flight changes.
+      if (CODEX && running && compactAccept) {
+        compactAccept = false
+        // A second accepted prompt completes while the older request remains
+        // held. Do not toggle the older prompt's running bit or consume its
+        // release marker: the browser must keep tracking that outstanding turn.
+        say("host-owned fallback completed")
+        reply(message["id"], { stopReason: "end_turn" })
+        return
+      }
       if ((busyRefused || CODEX) && running) {
         // Output belongs to the still-running earlier turn. Put it before the
         // refusal deterministically: a conversation-wide output counter must

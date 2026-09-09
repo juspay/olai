@@ -3967,7 +3967,10 @@ Then("compaction continuation is diagnosed across the chat wire", async function
 
 Then("the server records the unanswered steering deadline", async function (this: OlaiWorld) {
   await this.waitUntil(async () => {
-    const event = findLogfmt(this.serverLog?.text ?? "", "steering request failed");
-    return event?.method === "_session/steering" && event.gone === "unanswered" && event.deadline === "30 seconds";
+    // ACP's emitter can use the pretty sink while surface receipts use logfmt.
+    // The browser assertion above already pins the real deadline and row fate.
+    const log = this.serverLog?.text ?? "";
+    return log.includes("steering request failed") && log.includes("unanswered")
+      && log.includes("30 seconds");
   }, "a content-free steering timeout in the serve log");
 });
