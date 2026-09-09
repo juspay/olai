@@ -1713,6 +1713,25 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  if (verb === "compact") {
+    say("Before compaction.")
+    const toolCallId = `compact-${++nextMcpId}`
+    for (const sessionUpdate of ["tool_call", "tool_call_update"]) {
+      notify("session/update", { sessionId, update: {
+        sessionUpdate, toolCallId,
+        ...(sessionUpdate === "tool_call" ? {title: "Compact conversation", kind: "think"} : {}),
+        status: sessionUpdate === "tool_call" ? "in_progress" : "completed",
+        _meta: {contextCompaction: {version: 1}},
+      } })
+    }
+    // Compaction is complete, but the ORIGINAL prompt remains open. Tests
+    // can steer or disconnect here, then release without a second prompt.
+    await released()
+    say("Continued after compaction.")
+    reply(id, {stopReason: "end_turn"})
+    return
+  }
+
   if (verb === "hold") {
     const toolCallId = `call-${++nextMcpId}`
     notify("session/update", {

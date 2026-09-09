@@ -1,3 +1,4 @@
+import { findLogfmt } from "@olai/log/testlib";
 /**
  * The agent panel, driven through the browser.
  *
@@ -3942,4 +3943,16 @@ When("I open {string} from the open agent's work", async function (this: OlaiWor
 
 When("I return to the parent agent {string}", async function (this: OlaiWorld, name: string) {
   await this.page.getByRole("button", { name: `Back to ${name}`, exact: true }).click();
+});
+
+Then("compaction continuation is diagnosed across the chat wire", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => {
+    const lines = (this.serverLog?.text ?? "").split("\n").slice(0, -1);
+    const observed = lines.map((line) => findLogfmt(`${line}\n`, "chat compaction delivery"));
+    return observed.some((first) => first?.stage === "received" && first.phase === "continued"
+      && ["published", "applied", "rendered"].every((stage) => observed.some((event) =>
+        event?.stage === stage && event.phase === "continued"
+        && event.session === first.session && event.compaction === first.compaction
+        && event.row === first.row)));
+  }, "matching server and browser compaction continuation receipts in the serve log");
 });

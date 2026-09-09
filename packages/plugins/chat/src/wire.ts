@@ -147,6 +147,19 @@ export const surface = defineSurface({
   },
   procedures: {
     conversation: {
+      /** Content-free browser receipt; diagnostic only, never a delivery ack. */
+      observed: {
+        input: Schema.Struct({
+          view: Schema.String,
+          session: Schema.NullOr(Schema.String),
+          stage: Schema.Literals(["applied", "rendered"]),
+          source: Schema.Literals(["snapshot", "delta", "dom"]),
+          phase: Schema.Literals(["started", "completed", "continued"]),
+          compaction: Schema.String,
+          row: Schema.String,
+          visibility: Schema.String,
+        }),
+      },
       /** Prompt the agent. Answers as soon as the turn is ACCEPTED, not when
        *  it ends: what the panel draws comes back on the transcript, so every
        *  open tab stays in step and a slow turn does not hold a call open. */
@@ -508,6 +521,7 @@ export const faces = {
     agents: "resource",
     transcript: "resource",
     saying: "resource",
+    "conversation.observed": "tool",
     "conversation.send": "tool",
     "conversation.resend": "tool",
     "conversation.attach": "tool",

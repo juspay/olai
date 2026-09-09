@@ -44,10 +44,12 @@
  * click is a DOM event, and the boundary between them belongs somewhere named.
  */
 
+import { compactionTrace, type CompactionObservation } from "../../compaction.ts"
+import { Result } from "effect"
 import { type Attached, CHAT_OFF, type ChatEntry, type ChatState } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
-import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
+import { type Accessor, createEffect, createMemo, createSignal, on, untrack } from "solid-js"
 import { chatWire } from "../wire.ts"
 
 import { type Call, run, runAsync } from "@olai/web/client/run.ts"
@@ -74,6 +76,8 @@ export type Uploaded =
   | { readonly _tag: "gone" }
 
 export interface Chat {
+  /** Optional diagnostic sink for a mounted transcript; no delivery authority. */
+  readonly rendered?: (event: CompactionObservation) => void
   /** Where the conversation stands: session, model, commands, whether a turn
    *  is running. */
   readonly state: Accessor<ChatState>
@@ -299,7 +303,39 @@ export const createChat = (): Chat => {
   // instead of the whole transcript being re-read and re-sorted per frame.
   // {@link ./order.ts} is where that shape is argued and where the reader's
   // half of it lives with it.
-  const rows = createRows(transcript.fold)
+  const view = crypto.randomUUID()
+  let source: "snapshot" | "delta" = "snapshot"
+  const report = (stage: "applied" | "rendered") => (event: CompactionObservation) => untrack(() => {
+    const input = {
+      ...event, stage, view,
+      source: stage === "rendered" ? "dom" as const : source,
+      session: served().session?.id ?? null,
+      visibility: document.visibilityState,
+    }
+    console.info("chat compaction delivery", input)
+    // Best effort, through this plugin's declared client. Failure is visible in
+    // the browser log, and never changes the transcript or retries a prompt.
+    void runAsync(chatWire().procedures.conversation.observed(input)).then((outcome) => {
+      if (Result.isFailure(outcome)) console.warn("chat compaction receipt refused", input)
+    }).catch((cause) => {
+      console.warn("chat compaction receipt failed", { view, stage, ...event, cause: String(cause) })
+    })
+  })
+  const applied = compactionTrace(report("applied"))
+  const rows = createRows((options) => transcript.fold({
+    init: (entries) => {
+      source = "snapshot"
+      applied.reset()
+      for (const [, row] of [...entries].sort((a, b) => a[1].seq - b[1].seq)) applied.row(row)
+      return options.init(entries)
+    },
+    step: (held, frame) => {
+      source = "delta"
+      const next = options.step(held, frame)
+      for (const [, row] of frame.upserts) applied.row(row)
+      return next
+    },
+  }))
 
   /**
    * A VERB THAT OPENS A CONVERSATION IS IN FLIGHT — this tab's own reading,
@@ -404,6 +440,7 @@ export const createChat = (): Chat => {
     rows: rows.keys,
     lanes: rows.lanes,
     entry,
+    rendered: report("rendered"),
     refused,
     pendingSends,
     refuse: (reasons) =>

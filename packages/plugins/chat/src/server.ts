@@ -67,6 +67,7 @@
  * as a fiber.
  */
 
+import { compactionTrace, type CompactionObservation } from "./compaction.ts"
 import { deliveryProvision } from "./server/deliveries.ts"
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
@@ -369,10 +370,18 @@ export default definePlugin({
      * member a fact lands on, in what order, and what a new subscriber is seeded
      * with — and the panel knows only that it published a change.
      */
+    const trace = (stage: string) => compactionTrace((event) => {
+      ring(Effect.logInfo("chat compaction delivery").pipe(Effect.annotateLogs({
+        stage, ...event, session: chat?.state().session?.id ?? null,
+      })))
+    })
+    const received = trace("received")
+    const published = trace("published")
     const saying: Cadence = cadence({
       onFrame: (frame) => {
         applyFrame(mine?.collections.transcript, frame.rows)
         applyFrame(mine?.collections.saying, frame.pieces)
+        for (const [, row] of frame.rows.upserts) published.row(row)
       },
     })
     // A window still open when this row unloads is a piece nothing will ever be
@@ -431,7 +440,13 @@ export default definePlugin({
      */
     const ring = yield* detached
 
+    let traceSession: string | null = null
     const publishState = (state: ChatState): void => {
+      if (traceSession !== state.session?.id) {
+        traceSession = state.session?.id ?? null
+        received.reset()
+        published.reset()
+      }
       mine?.cells.state.set(state)
       // ... AND THE ROSTER WITH IT, because this is the one door every chat
       // frame comes through and the bindings move behind exactly these frames:
@@ -471,6 +486,7 @@ export default definePlugin({
       // Through the CADENCE, never straight onto the collection: a row that
       // grows reaches the wire as pieces on a clock rather than as itself once
       // per token.
+      for (const [, row] of change.upserts) received.row(row)
       saying.publish(change)
       const who = chat === null ? null : whoOf(chat.state())
       if (who === null) return
@@ -534,6 +550,12 @@ export default definePlugin({
     const rings = wakes.declared
 
     const conversation = {
+      observed: ({ input }: { input: CompactionObservation & {
+        view: string; session: string | null; stage: "applied" | "rendered"; visibility: string
+        source: "snapshot" | "delta" | "dom"
+      } }) => Effect.sync(() => ring(
+        Effect.logInfo("chat compaction delivery").pipe(Effect.annotateLogs({ ...input })),
+      )),
       // The ids the composer was armed with become NODES here, over the same
       // reading a keystroke's write is resolved against — so what the agent is
       // told is the set's answer rather than the tab's, and an id nothing

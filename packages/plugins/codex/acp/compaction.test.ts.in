@@ -1,0 +1,54 @@
+import {expect, it, vi} from "vitest";
+import {createCodexMockTestFixture, createTestModel} from "../acp-test-utils";
+
+it.each([false, true])("keeps the prompt live through compaction (steering=%s)", async (steering) => {
+    const fixture = createCodexMockTestFixture();
+    const agent = fixture.getCodexAcpAgent();
+    const client = fixture.getCodexAcpClient();
+    const appServer = fixture.getCodexAppServerClient();
+    const model = createTestModel();
+    vi.spyOn(client, "authRequired").mockResolvedValue(false);
+    vi.spyOn(client, "getAccount").mockResolvedValue({account: null, requiresOpenaiAuth: false});
+    vi.spyOn(client, "listSkills").mockResolvedValue({data: []});
+    vi.spyOn(appServer, "threadGoalGet").mockResolvedValue({goal: null});
+    vi.spyOn(client, "newSession").mockResolvedValue({
+        sessionId: "session-id", currentModelId: `${model.id}[medium]`, models: [model],
+        collaborationMode: "default", additionalDirectories: [],
+    });
+    await agent.newSession({cwd: "/test/cwd", mcpServers: []});
+    agent.getSessionState("session-id").titleGen = undefined;
+    const turn = {id: "turn-id", items: [], status: "inProgress" as const, error: null, itemsView: "notLoaded" as const, startedAt: null, completedAt: null, durationMs: null};
+    const start = vi.spyOn(appServer, "turnStart").mockResolvedValue({turn});
+    let settled = false;
+    const prompt = agent.prompt({sessionId: "session-id", prompt: [{type: "text", text: "finish the task"}]}).then(result => {
+        settled = true;
+        return result;
+    });
+    await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
+    fixture.sendServerNotification({method: "turn/started", params: {threadId: "session-id", turn}});
+    const routing = {threadId: "session-id", turnId: "turn-id"};
+    const item = {type: "contextCompaction" as const, id: "compact-id"};
+    fixture.sendServerNotification({method: "item/started", params: {...routing, item, startedAtMs: 0}});
+    await client.waitForSessionNotifications("session-id");
+    expect(settled).toBe(false);
+    fixture.sendServerNotification({method: "item/completed", params: {...routing, item, completedAtMs: 100_000}});
+    await client.waitForSessionNotifications("session-id");
+    expect(fixture.getAcpConnectionDump([])).toContain("Compact conversation");
+    expect(settled).toBe(false);
+    if (steering) {
+        const steer = vi.spyOn(appServer, "turnSteer").mockResolvedValue({turnId: turn.id});
+        await expect(agent.extMethod("_session/steering", {
+            sessionId: "session-id", prompt: [{type: "text", text: "also keep going"}],
+            _meta: {steering: {idleBehavior: "promptRequired"}},
+        })).resolves.toEqual({outcome: "injected"});
+        expect(steer).toHaveBeenCalledWith(expect.objectContaining({expectedTurnId: turn.id}));
+        expect(settled).toBe(false);
+    }
+    fixture.sendServerNotification({method: "item/agentMessage/delta", params: {...routing, itemId: "after", delta: "Continuing after compaction"}});
+    await client.waitForSessionNotifications("session-id");
+    expect(fixture.getAcpConnectionDump([])).toContain("Continuing after compaction");
+    expect(settled).toBe(false);
+    fixture.sendServerNotification({method: "turn/completed", params: {threadId: "session-id", turn: {...turn, status: "completed"}}});
+    expect(await prompt).toMatchObject({stopReason: "end_turn"});
+    expect(start).toHaveBeenCalledOnce();
+});

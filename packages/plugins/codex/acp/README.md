@@ -27,3 +27,10 @@ arrives after completion leaves its input with Olai, which starts and tracks
 the next prompt. Legacy clients keep upstream's default. The upstream steering
 tests included in the patch run in the Nix build. Recheck the backport when
 bumping the adapter; remove it once the release includes the fix.
+
+`compaction.test.ts.in` is installed into the adapter's own test tree during the
+Nix check phase. It drives the real notification handler and turn-completion
+waiter: completing a context-compaction item must leave the prompt pending, later
+text must be forwarded, and steering must still target the original turn. Only
+`turn/completed` resolves that prompt. These tests pin behavior already observed
+in the adapter; they do not claim to reproduce the tab failure reported in #559.

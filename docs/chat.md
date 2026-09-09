@@ -749,3 +749,38 @@ re-enables the controls and remains visible in the list.
 Chat owns the Alerts and Alert sound preferences and their storage observers.
 Their controls retract when chat is disabled and return with the stored choices.
 The preference provider remains active when the shell or preferences UI leaves.
+
+### Codex compaction delivery diagnostics
+
+Codex's `Compact conversation` tool item does not end the active prompt. Later
+text and tools, including replies to steering, belong to that prompt until its
+`end_turn`. The adapter build tests this against its real event handler and
+prompt waiter; `codex_compaction.feature` covers continuation, steering and a tab
+reconnecting while the server continues.
+
+At the default Info level, `chat compaction delivery` records `started`,
+`completed`, and the first `continued` row at these stages:
+
+- `received`: a transcript change reached the server publisher.
+- `published`: the row was handed to the surface collections after batching.
+- `applied`: a tab folded the transcript update or reconnect snapshot.
+- `rendered`: the row's reactive effect found its DOM element in the transcript.
+
+Browser observations also appear in its console and are sent to the serve log
+through chat's browser-only `conversation.observed` procedure. Correlate `session`,
+`compaction` and `row`; `view` identifies a mounted panel, and `visibility` records
+whether the document was visible. `source` distinguishes a snapshot, delta or DOM
+observation; a completed item in a snapshot produces both `started` and `completed`
+observations at receipt time, not at the historical execution time. A receipt establishes DOM presence, not that a
+person saw the row or that it was inside the scroll viewport. A reconnect can
+report the same history again. `browser connected` and `browser disconnected`
+record socket lifetimes by connection ID and close code, without URLs or headers.
+Existing `turn ended` logs establish backend completion.
+Missing browser receipts can mean a closed panel or disconnected tab; compare
+with the browser console if the return path itself failed.
+
+These observations are diagnostic only, recognized by the pinned adapter's tool
+title. They contain no message text, tool arguments or output, log only a bounded
+number of transitions per compaction, and never acknowledge delivery, retry a
+prompt or change its lifetime. Cursors belong to the server activation and the
+mounted browser panel; the existing surface owns subscriptions and reconnection.

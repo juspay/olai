@@ -187,3 +187,10 @@ Codex native activity (`codex_activity.feature`) covers child-session tool isola
 ## Orchestrator permission mode (#563)
 
 `packages/plugins/chat/src/agent.mode.test.ts` exercises the real chat session owner over a mocked ACP subprocess: fresh and restored boot, explicit new/load, mode-before-prompt ordering, null/default behavior, distinguishable explicit choices, both required and optional selection policies on new/load paths, visible nonfatal refusals, no activation/persistence/prompt after a required-mode rejection, late-notification fencing, and successful retry. Real panel integration cases check that a required-mode refusal clears provisional model/settings and replayed history, while an optional refusal preserves the usable conversation and its notice. `packages/plugins/codex/src/leg.test.ts` pins the orchestrator's selected mode. The pinned adapter build runs `packages/plugins/codex/acp/permission-mode.test.ts.in` inside codex-acp's own test harness, asserting the next `turn/start` approval policy, reviewer and sandbox for new/loaded sessions in all three presets. These tests use no live model, executable tool command, or user permission configuration. They verify requests and session integration, not a live Codex-written turn-context file; browser coverage and full CI remain separate checks.
+
+`codex_compaction.feature` holds the original Codex prompt open after a completed
+compaction item, then checks continuation, steering into that prompt, and recovery
+from an offline tab while the backend finishes. It also requires server receipt,
+publication, browser application and DOM-rendering diagnostics in the serve log.
+The pinned adapter's Nix build separately feeds actual app-server compaction and
+continuation notifications through the adapter, with and without steering.
