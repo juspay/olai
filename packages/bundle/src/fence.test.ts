@@ -2201,7 +2201,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "format/src/writing.ts",
       "ops/src/plan.ts",
       "plugins/files/src/tools.ts",
-      "plugins/graph/src/browser/graph/GraphFace.tsx",
+      "plugins/graph/src/browser/graph/absent.tsx",
       "plugins/layout/src/pane/label.ts",
       "plugins/mcp/src/endpoint.ts",
       "plugins/navigation/src/address/address.ts",
