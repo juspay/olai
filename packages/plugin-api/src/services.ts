@@ -95,6 +95,8 @@ import {
   serviceTag,
   type ServiceKey,
 } from "@olai/effect-cordis"
+import { ConfigurationSource } from "./configuration.ts"
+export { ConfigurationSource } from "./configuration.ts"
 import { Deferred, Effect, Exit, Scope, Semaphore, Queue, Stream } from "effect"
 
 import { ownedKey, ownService, type OwnServices } from "./owned.ts"
@@ -1099,6 +1101,7 @@ export interface Offers extends OwnServices {
   readonly browser: (words: ReadonlyArray<string>) => Effect.Effect<void, never, Scope.Scope>
   /** Stand behind one door, for as long as the calling plugin is loaded. */
   readonly offer: {
+    (key: typeof ConfigurationSource, door: Provision<ConfigurationSource>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof VaultSettings, door: Provision<VaultSettings>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Ops, door: Provision<Ops>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Vault, door: Provision<Vault>): Effect.Effect<void, never, Scope.Scope>
@@ -1266,6 +1269,7 @@ export interface Ops {
 export const Ops = serviceTag<Ops>("ops")
 
 export const OFFERABLE = [
+  ConfigurationSource,
   VaultSettings,
   VaultViews,
   Ops,

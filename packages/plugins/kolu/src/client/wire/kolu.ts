@@ -56,7 +56,7 @@
  * judgement ABOUT kolu, and it has a package of its own now:
  * `olai-plugin-kolu`. It walks the vault for who OWNS a terminal
  * (`claimants.ts` — outline records, injected into the dial rather than known
- * by it) and for what `_olai/Kolu.olai` says (`config.ts`); it decides what an
+ * by it) and for what `_olai/Settings.olai` says (`config.ts`); it decides what an
  * absent kolu MEANS, in five English sentences, over the probe it reaches
  * through `@olai/kolu-client/detect` (`probe.ts`, which was `olai-plugin-chat`'s
  * until the plugin wall went up); and it owns the padi pill and the feed its
@@ -182,7 +182,7 @@ export const KOLU_UNPULSED: WatchPulse | null = null
  * The drawer's last line is not an event: it is the door onto the outline
  * the watcher reads its knobs from. `file` is which served outline the
  * convention named — read off the served OUTLINE PATHS rather than the
- * nodes (`olai-plugin-kolu`'s `koluFileIn` — shallowest, ties by path),
+ * nodes (`olai-plugin-kolu`'s `configurationFileIn` — shallowest, ties by path),
  * so a config that parses to nothing keeps the door that opens it, and
  * the drawer's navigation is a plain open of a page that exists rather
  * than a second spelling of the convention in a browser that holds only
@@ -190,7 +190,7 @@ export const KOLU_UNPULSED: WatchPulse | null = null
  * so there is no config page to open and the drawer draws no foot at all.
  *
  * IT USED TO CARRY A MUTE LIST TOO — `{file, names}`, the titles of the
- * terminals `_olai/Kolu.olai`'s `mutes` node silenced, narrowed to the
+ * terminals `_olai/Settings.olai`'s `mutes` node silenced, narrowed to the
  * ones the watcher's fold could actually say. The mutes went with the
  * second doorbell (2026-08-31), and the cell was RENAMED rather than
  * dropped: the wake FILTER FILE a person picks per conversation is the
@@ -207,6 +207,7 @@ export const KOLU_UNPULSED: WatchPulse | null = null
  * a decode a stale tab survives and one it does not.
  */
 export const KoluKnobs = Schema.Struct({
+  node: Schema.optionalKey(Schema.String),
   /** Which file decided the config — see above. */
   file: Schema.NullOr(Schema.String),
 })
@@ -220,7 +221,7 @@ export const NO_KNOBS: KoluKnobs = { file: null }
 /** Two readings that say the same thing about the config — the cell's
  *  `equals`: the vault walk re-derives on every keystroke, and a revision
  *  that did not move the deciding file must publish nothing. */
-export const sameKnobs = (a: KoluKnobs, b: KoluKnobs): boolean => a.file === b.file
+export const sameKnobs = (a: KoluKnobs, b: KoluKnobs): boolean => a.file === b.file && a.node === b.node
 
 /** Two readings that say the same thing about the link — the member's `equals`,
  *  so a re-dial that found exactly what it found last time publishes nothing

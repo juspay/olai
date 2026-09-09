@@ -259,7 +259,7 @@ On Linux the unit is `Restart=always` / `RestartSec=1s` / `SuccessExitStatus=130
 
 Whether what is waiting records itself, and whether a commit is pushed, are facts about the DIRECTORY ([git.md](git.md)) — a CLI patch onto the git row's config ([plugins/git.md](plugins/git.md)), the same in every browser, always read-only. There is no runtime door. Turning the **row** off (`--plugins` without `git`) is a different fact: no provider is mounted, so there is no pill and `ops.commit` refuses in words.
 
-The policy comes from exactly two sources: the CLI flags (`--commit` / `--push`, surfaced through the nix home-manager module) and the built-in defaults (`manual` / `off`). Stale files under `$XDG_STATE_HOME/olai/git/` from an older olai are inert.
+A `git` namespace in `_olai/Settings.olai` supplies `commit` and `push` policy; edits reapply the row. Until the flag-removal step, an absent namespace retains the CLI boot inputs (`--commit` / `--push`, also passed by the nix home-manager module), otherwise the built-in defaults are `manual` / `off`. Stale files under `$XDG_STATE_HOME/olai/git/` from an older olai are inert.
 
 ```
 olai web ~/outlines --commit=auto --push=off
@@ -348,7 +348,7 @@ Include `vault` in an explicit list to serve files. `--plugins=` opens no listen
 
 The chat node-process idle timeout (`OLAI_CHAT_IDLE_MS` in the current environment adapter) is a behaviour setting too, declared as `idle-ms` in chat's schema.
 
-Each configurable built-in plugin exposes one `Config` schema with defaults and description annotations. `olai.yml` selects rows and build enablement; it carries no `config:`. The schema foundation is the first step of #545. The shared `_olai/Settings.olai` reader and durable panel switches are not available yet; the CLI, identity environment adapter and `_olai/Kolu.olai` still supply their existing inputs.
+Each configurable built-in plugin exposes one `Config` schema with defaults and description annotations. `olai.yml` selects rows and build enablement; it carries no `config:`. The schema foundation is the first step of #545. The shared `_olai/Settings.olai` reader now applies per-row policy and enablement on each vault revision. Kolu reads its `watch` child there and no longer reads `Kolu.olai`. Durable panel switches and removal of the legacy CLI and environment policy adapters follow in the next settings-doors steps. While those adapters remain, legacy boot inputs supply rows with no namespace in the file.
 
 Spaces uses `OLAI_SPACES_URL` for the origin to reach and `OLAI_SPACES_TOKEN` for the installed app JWT. The URL names a resource; the token is a secret. Both are supplied through the plugin's environment service, never entry options. Provider API keys used by agents stay in their environment too.
 
@@ -401,7 +401,7 @@ The browser e2e lifecycle scenarios exercise the work after the switch: journal 
 
 **The panel's row says which of seven states a plugin is in**, not just on or off. Running is the ordinary one, and it draws no sentence at all — the switch has already said it. The other six are all total absence and they differ in *why*: it was not asked for; this build ships it off until you name it (which is what `xyne-spaces` is, and the row names the flag value that turns it on); **you switched it off here**, which is the one that undoes itself and the only one a restart alone would clear; it was asked for and its **start failed** — in which case the row quotes what the plugin said, verbatim; it was asked for and is still waiting on something it needs; or — for a plugin the VAULT defines — it is waiting on YOU, which is the one absence whose answer is on this very panel (the source is drawn under the rows and the verb is beside it). Only the failure is a fault, and it is the one nothing else on screen would tell you about: an integration whose start failed draws nothing at all, exactly like one you turned off on purpose. The switch stays drawn on a row that failed, so a plugin whose start died on something you have since fixed can be told to try again.
 
-**A vault cannot switch one off**, deliberately. A served directory says how an integration should BEHAVE — `_olai/Kolu.olai` is the vault's file and travels with it — but a directory that could decide which tools the machine serving it runs would be the vault deciding something about the host. The switch is a PERSON's, in front of the panel, and it is why that distinction survives having one at all: what moved is who may ask, not what may be written down.
+**The vault can select rows.** A top-level node titled with the row id in `_olai/Settings.olai` can set `on: yes` or `on: no`. The reader publishes that choice and the serve reconciles it through Cordis. Agent writes cannot change `on`, including removing its effect by moving or trashing the node. Behaviour knobs remain writable through the ordinary agent door. The panel switch remains session-only at this stage; durable switches follow in the next settings-doors step.
 
 
 ### Plugins the vault itself defines

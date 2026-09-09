@@ -1007,13 +1007,10 @@ Then(
     const pair = row.locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`);
     try {
       await pair.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-      const said = (await pair.innerText()).replaceAll("\n", " ");
-      assert.ok(
-        said.includes(value),
-        `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${
-          JSON.stringify(value)
-        }, and it says ${JSON.stringify(said)}`,
-      );
+      await this.waitUntil(async () => {
+        const live = (await shownRow(this, plugin)).locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`);
+        return (await live.innerText()).replaceAll("\n", " ").includes(value);
+      }, `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${JSON.stringify(value)}`);
     } catch (error) {
       if (error instanceof assert.AssertionError) throw error
       assert.fail(

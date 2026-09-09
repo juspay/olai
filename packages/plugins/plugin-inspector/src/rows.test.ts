@@ -668,3 +668,8 @@ test("a quiet healthy group starts collapsed, and an all-optIn group is hidden",
   expect(groups[0]!.collapsed).toBe(true)
   expect(groupCount(groups[0]!.rows)).toBe("1 on")
 })
+
+test("a file-authored off state names the file that decided it", () => {
+  expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false, configurationFile: "_olai/Settings.olai" }))
+    .toBe("Off — _olai/Settings.olai says on: no.")
+})

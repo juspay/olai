@@ -68,7 +68,7 @@ export interface Tickets {
 }
 
 export const ticketing = (options: {
-  readonly reservations: ReadonlyArray<{ readonly key: string; readonly says: string }>
+  readonly reservations: ReadonlyArray<{ readonly key: string; readonly says: string; readonly file?: string }>
   readonly bound: Pick<Bound, "group" | "handlers" | "writes"> | (() => Pick<Bound, "group" | "handlers" | "writes">)
   readonly face: FaceExposure | (() => FaceExposure)
   readonly ops: Ops
@@ -93,6 +93,7 @@ export const ticketing = (options: {
   const composed = (rule: SessionRule, writer: Writer): RootedSurfaceClients =>
     clientsFor(options.rows(), reading, { writer, rule })
 
+  const reserved = () => composed({ _tag: "open", forbidden: new Map(options.reservations.filter((one) => one.file !== undefined).map((one) => [one.key, { says: one.says, file: one.file! }])) }, "mcp")
   const closed = composed({ _tag: "closed" }, "mcp")
 
   return {
@@ -104,8 +105,8 @@ export const ticketing = (options: {
           return released ? "closed" : "open"
         },
         get forbidden() {
-          return new Map<string, string>(
-            [...forbidden(), ...options.reservations].map((one) => [one.key, one.says]),
+          return new Map(
+            [...forbidden(), ...options.reservations].map((one) => [one.key, "file" in one && one.file !== undefined ? { says: one.says, file: one.file } : one.says] as const),
           )
         },
       } as SessionRule
@@ -121,14 +122,14 @@ export const ticketing = (options: {
     },
     doorAt: (held) => {
       const bearer = options.currentTicket()
-      if (bearer === null || bearer === options.token) return held
+      if (bearer === null || bearer === options.token) return options.reservations.some((one) => one.file !== undefined) ? reserved() : held
       const at = tickets.get(bearer)
       // Preserve the route's existing loopback affordance for arbitrary tokens.
       if (at !== undefined) return at
       // A released (or forged) node-shaped credential stays closed without a
       // tombstone per historical token. Other arbitrary loopback tokens keep
       // the route's longstanding loopback behaviour.
-      return bearer.startsWith(prefix) ? closed : held
+      return bearer.startsWith(prefix) ? closed : options.reservations.some((one) => one.file !== undefined) ? reserved() : held
     },
   }
 }

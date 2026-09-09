@@ -11,7 +11,7 @@
  * the day padi's watch member changed shape this module would not move.
  *
  * What the mirror can never give it back is the daemon's own memory of an
- * episode. The nag is FINITE now (`nag: 30m/3` in `_olai/Kolu.olai` — three
+ * episode. The nag is FINITE now (`nag: 30m/3` in `_olai/Settings.olai` — three
  * reminders past the first report, then quiet about that terminal), and
  * which reminder a terminal is on is an answer only the daemon holds: it
  * survives an olai restart, it survives a reconnect, and only a state
@@ -74,7 +74,7 @@
  *
  * ## What is deliberately not done here
  *
- * THE KNOB READING. `_olai/Kolu.olai` is outline records, and this package
+ * THE KNOB READING. `_olai/Settings.olai` is outline records, and this package
  * has no business knowing what one is: the server walks the vault
  * (`../../config.ts`, beside `claimants.ts`) and hands over the derived
  * config — malformed values already defaulted and named.
@@ -125,7 +125,7 @@ export interface WatchConfig {
   readonly heartbeatMs: number
 }
 
-/** The knobs when `_olai/Kolu.olai` is absent, torn or quiet — the brief's
+/** The knobs when `_olai/Settings.olai` is absent, torn or quiet — the brief's
  *  own numbers, one constant, not three defaults remembered in two places.
  *  A bare interval: the nag repeats forever until a vault spells the cap. */
 export const DEFAULT_WATCH: WatchConfig = {
@@ -269,7 +269,7 @@ export const makeWatch = (
   },
 ): Watch => {
   /** The knob set in force. Defaults until the vault's walk reconfigures —
-   *  which is also what an absent `_olai/Kolu.olai` reconfigures TO. */
+   *  which is also what an absent `_olai/Settings.olai` reconfigures TO. */
   let config: WatchConfig = DEFAULT_WATCH
   /** The live padi face, or `null` while the dial is down. */
   let client: PadiSurfaceClient | null = null

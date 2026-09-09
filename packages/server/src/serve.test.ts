@@ -23,7 +23,12 @@
 import { BUILD_ASSETS } from "@olai/bundle/assets"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test as bunTest } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Stream, Option } from "effect"
+import { createSurfaceSocket } from "@kolu/surface-app/connect"
+import { SURFACE_WS_PATH } from "@kolu/surface-app"
+import { surface } from "@olai/surface"
+import type { PluginRoster } from "@olai/surface/host"
+import { WebSocket as WsClient } from "ws"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -426,5 +431,92 @@ test("a vault file under assets/ opens as a page — the hashed prefix moved", a
     expect(answer.headers.get("content-type") ?? "").toMatch(/^text\/html/)
     expect(await answer.text()).toBe(await shell.text())
     expect(answer.headers.get("cache-control")).toBe("no-store")
+  })
+})
+
+
+/** Drive the real root, reader and loader through the same wire as the panel.
+ * A fresh socket per request also proves the reconciled identity offer is what
+ * a later connection reads; no test-only loader or provider is substituted. */
+const configurationCall = async <A>(url: string, verb: string, input: unknown): Promise<A> => {
+  const socket = await createSurfaceSocket({ group: surface.group,
+    url: `${url.replace("http://", "ws://")}${SURFACE_WS_PATH}`, retired: () => {},
+    connect: target => new WsClient(target) as unknown as WebSocket })
+  try { return await Effect.runPromise(verb.endsWith("/get")
+    ? Effect.map(Stream.runHead(socket.link.dispatch.stream(verb, input) as Stream.Stream<A>), Option.getOrThrow)
+    : socket.link.dispatch.unary(verb, input) as Effect.Effect<A>) }
+  finally { await socket.dispose() }
+}
+const configurationRoster = (url: string) => configurationCall<PluginRoster>(url, "surface/plugins/get", {})
+const eventually = async (check: () => Promise<boolean>) => {
+  const deadline = Date.now() + 5000
+  do { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 20)) } while (Date.now() < deadline)
+  throw new Error("the configuration did not settle")
+}
+
+test("the settings offer withdraws with its row, applied patches stand, and returning vault re-patches", async () => {
+  const root = served()
+  fs.mkdirSync(path.join(root, "_olai"))
+  const file = path.join(root, "_olai/Settings.olai")
+  const write = (mode: string) => fs.writeFileSync(file, JSON.stringify({ id: "git-policy", ord: "a0", title: "git", custom: { commit: mode } }) + "\n")
+  write("manual")
+  await withServing({ root }, async url => {
+    const row = async () => (await configurationRoster(url)).built.find(one => one.name === "git")!
+    await eventually(async () => (await row()).config?.commit === "manual")
+    expect((await row()).configurationValues?.find(one => one.key === "commit")).toMatchObject({ value: "manual", setBy: "vault" })
+    const flip = (name: string, enabled: boolean) => configurationCall(url, "surface/plugins/set", { name, enabled })
+    await flip("settings", false)
+    await eventually(async () => (await row()).configurationAvailable === false)
+    write("auto")
+    expect((await row()).config?.commit).toBe("manual")
+    await flip("settings", true)
+    await eventually(async () => (await row()).config?.commit === "auto")
+    await flip("vault", false)
+    await eventually(async () => (await row()).configurationAvailable === false)
+    expect((await row()).config?.commit).toBe("auto")
+    write("manual")
+    await flip("vault", true)
+    await eventually(async () => (await row()).configurationAvailable === true && (await row()).config?.commit === "manual")
+  })
+})
+
+test("a settings edit reconciles a live row and malformed leaves default once", async () => {
+  const root = served()
+  fs.mkdirSync(path.join(root, "_olai"))
+  const file = path.join(root, "_olai/Settings.olai")
+  const write = (header: string) => fs.writeFileSync(file, JSON.stringify({ id: "person-policy", ord: "a0", title: "identity", custom: { "login-header": header } }) + "\n")
+  write("Remote-User")
+  await withServing({ root, vars: { OLAI_ACP_AGENT: "" } }, async url => {
+    const who = () => fetch(`${url}/olai/who`, { headers: { "Remote-User": "first", "Another-User": "second" } }).then(one => one.json())
+    expect(await who()).toMatchObject({ login: "first" })
+    write("Another-User")
+    await eventually(async () => (await who()).login === "second")
+    fs.writeFileSync(file, '{torn line\n')
+    await eventually(async () => (await configurationRoster(url)).built.some(one => one.configurationError?.includes("Settings.olai")))
+    const row = (await configurationRoster(url)).built.find(one => one.name === "identity")!
+    expect(row.configurationValues?.find(one => one.key === "login-header")?.setBy).toBe("default")
+  })
+})
+
+test("the unticketed agent face refuses enablement both ways and accepts behaviour knobs", async () => {
+  const root = served()
+  fs.mkdirSync(path.join(root, "_olai"))
+  const file = path.join(root, "_olai/Settings.olai")
+  fs.writeFileSync(file, '{"id":"policy","ord":"a0","title":"git","custom":{"on":"yes","commit":"off"}}\n')
+  await withServing({ root }, async url => {
+    const prop = async (key: string, value: string | null) => {
+      const answer = await fetch(`${url}/mcp`, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "outlines_prop", arguments: { id: "policy", key, value } } }) })
+      return (await answer.json()).result
+    }
+    for (const value of ["no", null]) {
+      const answer = await prop("on", value)
+      expect(answer.isError).toBe(true)
+      expect(JSON.stringify(answer)).toContain("person's decision")
+    }
+    fs.writeFileSync(file, '{"id":"policy","ord":"a0","title":"git","custom":{"on":"no","commit":"off"}}\n')
+    await eventually(async () => (await configurationRoster(url)).built.find(one => one.name === "git")?.desiredOn === false)
+    expect((await prop("on", "yes")).isError).toBe(true)
+    expect((await prop("commit", "manual")).isError).not.toBe(true)
   })
 })

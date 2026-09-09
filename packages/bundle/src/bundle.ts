@@ -70,8 +70,8 @@ import { definePlugin, kindWordOf, rowReport } from "@olai/plugin-api"
 import { BundleModules } from "@olai/plugin-api/services"
 import { namedBy, offered, provide, settled } from "@olai/effect-cordis"
 
-export { offered, provide, settled } from "@olai/effect-cordis"
-import { flipRow, mountRows, rowConfigs } from "@olai/effect-cordis/loader"
+export { offered, provide, settled, serviceChanges } from "@olai/effect-cordis"
+import { flipRow, patchRow, mountRows, rowConfigs } from "@olai/effect-cordis/loader"
 import { Effect, Schema, type Scope } from "effect"
 
 import { BUNDLE_NAMES, ROWS } from "./rows.ts"
@@ -375,3 +375,11 @@ export const profilePatch = (profile: string) => profile === "web" ? [] : ROWS.m
   id: row.id,
   disabled: row.disabled === true || !row.profiles?.includes(profile),
 }))
+
+/** Only composition can reconcile declared row options. */
+export const patchBundleRow = (host: Host, id: string, patch: { readonly disabled?: boolean; readonly config?: unknown }) =>
+  Effect.gen(function*() {
+    const found = yield* patchRow(host, id, patch)
+    yield* settled(host, BUNDLE_NAMES)
+    return found
+  })

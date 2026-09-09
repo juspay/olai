@@ -258,6 +258,14 @@ export const BuiltPlugin = Schema.Struct({
    * empty record would be a row claiming to have been configured as nothing.
    */
   config: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
+  configurationValues: Schema.optionalKey(Schema.Array(Schema.Struct({
+    key: Schema.String, value: Schema.Unknown, setBy: Schema.Literals(["vault", "default"]), says: Schema.String,
+  }))),
+  configurationNode: Schema.optionalKey(Schema.Struct({ file: Schema.String, id: Schema.String })),
+  desiredOn: Schema.optionalKey(Schema.Boolean),
+  configurationFile: Schema.optionalKey(Schema.String),
+  configurationError: Schema.optionalKey(Schema.String),
+  configurationAvailable: Schema.optionalKey(Schema.Boolean),
   /**
    * WHERE THIS ROW CAME FROM, when it came from the VAULT rather than the build
    * — the whole of what a dynamic plugin adds to this member.

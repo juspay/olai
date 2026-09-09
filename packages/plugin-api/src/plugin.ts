@@ -242,6 +242,7 @@ export interface AppPopover {
  *  stay entirely the app's. */
 export type FileLink = (props: {
   /** The served path, as the vault spells it. */
+  readonly at?: string
   readonly file: string
   readonly class?: string
   readonly testid?: string

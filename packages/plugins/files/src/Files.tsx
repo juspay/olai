@@ -271,7 +271,7 @@ function FileAnatomy(props: {
  * (`FileAnatomy`): tests assert the rows' agreement by asking one
  * component of both.
  *
- * It is a FILE PAGE, not a page of its own the way Trash is: `Kolu.olai`
+ * It is a FILE PAGE, not a page of its own the way Trash is: `Settings.olai`
  * opens like any outline, so the seat lights the current-page wash off the
  * open page's file exactly as a tree row does, and wears the same ⚠ when
  * the file will not read — an unreadable `_olai/Pins.olai` used to be the

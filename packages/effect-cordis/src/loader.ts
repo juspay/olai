@@ -244,20 +244,21 @@ const entriesOf = (host: Host): ReadonlyArray<Entry> =>
  * `./host.ts`'s `settled`, and `@olai/bundle` is where the two are one call —
  * exactly as they are for the mount.
  */
-export const flipRow = (host: Host, id: string, disabled: boolean): Effect.Effect<boolean> =>
+export const patchRow = (host: Host, id: string, patch: { readonly disabled?: boolean; readonly config?: unknown }, force = false): Effect.Effect<boolean> =>
   Effect.promise(async () => {
     const entry = entriesOf(host).find((one) => one.options.id === id)
     if (entry === undefined) return false
-    // CAUGHT BEFORE THE UPDATE, because the update is what disposes it and a
-    // disposed row is one nothing else can hand back.
-    const going = disabled ? entry.fiber : undefined
+    const changed = (patch.disabled !== undefined && patch.disabled !== (entry.options.disabled ?? false))
+      || (patch.config !== undefined && JSON.stringify(patch.config) !== JSON.stringify(entry.options.config))
+    if (!changed && !force) return true
+    const going = patch.disabled === true || patch.config !== undefined ? entry.fiber : undefined
     if (going !== undefined) interrupt(going)
-    await entry.update({ disabled })
-    for (let pass = 0; pass < PASSES && going?.inertia !== undefined; pass += 1) {
-      await going.inertia
-    }
+    await entry.update(patch)
+    for (let pass = 0; pass < PASSES && going?.inertia !== undefined; pass += 1) await going.inertia
     return true
   })
+
+export const flipRow = (host: Host, id: string, disabled: boolean): Effect.Effect<boolean> => patchRow(host, id, { disabled }, true)
 
 /** How many transitions this waits out before it stops waiting — `./host.ts`'s
  *  `PASSES` for the same reason, spelled here because the two are bounding

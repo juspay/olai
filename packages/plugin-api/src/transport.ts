@@ -82,6 +82,6 @@ export interface TransportSurface {
    */
   readonly agentRosterMoved: (run: () => void) => () => void
   /** Static owner declarations remain reserved while an owner is disabled. */
-  readonly writeReservations: readonly { readonly key: string; readonly says: string }[]
+  readonly writeReservations: readonly { readonly key: string; readonly says: string; readonly file?: string }[]
 }
 export const TransportSurface = serviceTag<TransportSurface>("transport-surface")

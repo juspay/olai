@@ -42,7 +42,7 @@
  *
  * The two vault walks are the sharpest instance of it and they came with the
  * call: {@link ./claimants.ts} reads who OWNS a terminal and {@link ./config.ts}
- * reads what `_olai/Kolu.olai` says, both over outline records, which is a thing
+ * reads what `_olai/Settings.olai` says, both over outline records, which is a thing
  * the package that dials padi must not learn (its interfaces are PARAMETRIC in
  * the node type so a compiler can hold it to that). They were in `@olai/server`
  * under kolu-shaped filenames. They are behind the plugin wall now, and what
@@ -89,8 +89,9 @@ import { type Dial, koluHalf } from "olai-plugin-kolu/appliance"
 import type { KoluEvent } from "olai-plugin-kolu/appliance/wire"
 
 import { claimantsIn } from "./claimants.ts"
-import { koluFileIn, watchConfigIn } from "./config.ts"
-import { Config, configuredWatch } from "./settings.ts"
+import { watchConfigIn } from "./config.ts"
+import { configurationFileIn } from "@olai/plugin-api/configuration"
+import { Config } from "./settings.ts"
 export { Config } from "./settings.ts"
 import {
   bodyFor,
@@ -156,7 +157,7 @@ export { wake } from "./wake.ts"
  * NODES are what the claims and the watch knobs are read off. The SET is what
  * the owned file is found among — served paths, not recorded ones, because a
  * config that parses to nothing contributes no records and the drawer's wrench
- * onto it must not fall away with them ({@link ./config.ts}'s `koluFileIn`).
+ * onto it must not fall away with them ({@link ./config.ts}'s `configurationFileIn`).
  * And `changed`/`removed` are what makes that finding cheap: `conventionServed`
  * hands back the SAME object while nothing it describes has moved, so the walk
  * over every served path runs on the revisions that could have changed its
@@ -221,8 +222,7 @@ export default definePlugin({
   name,
   needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
   config: Config,
-  apply: (settings) => Effect.gen(function*() {
-    const watchDefaults = configuredWatch(settings)
+  apply: (_settings) => Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against each
     // other by looking at one screen.
@@ -276,7 +276,7 @@ export default definePlugin({
       // the convention below — the same `let`, set on the same revision, and read
       // synchronously inside the very call that set it.
       claimants: (nodes) => claimantsIn(declaring, nodes),
-      config: (nodes, file) => watchConfigIn(nodes, file, watchDefaults),
+      config: watchConfigIn,
       // THE DOORBELL'S TAP, and the THIRD instance of the same boundary: what
       // crosses into this package is the wire's own frozen `KoluEvent`, and what
       // this side does with it — join it against the un-done nodes of a file
@@ -305,14 +305,14 @@ export default definePlugin({
       // lines stand alone. A pair that has to be read in order is one Effect
       // saying both, not two calls.
       say: (line) => run(Effect.logDebug(line)),
-      // What the OWNER must read: a malformed `_olai/Kolu.olai` value — the
+      // What the OWNER must read: a malformed `_olai/Settings.olai` value — the
       // sentences whose promise lives in this package's `docs.md`. Rare by latch
       // (one line per new shape), and the default console level is `info`, so the
       // channel is `warning`, not `debug`.
       warn: (line) => run(Effect.logWarning(line)),
     })
 
-    /** WHICH SERVED OUTLINE IS `_olai/Kolu.olai`, carried across revisions.
+    /** WHICH SERVED OUTLINE IS `_olai/Settings.olai`, carried across revisions.
      *  `conventionServed` hands the same object back while nothing it describes
      *  has moved, so this is a walk over the served paths on the revisions that
      *  could have changed the answer and a pointer comparison on the rest. It is
@@ -798,7 +798,7 @@ export default definePlugin({
      */
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
-        file = conventionServed(koluFileIn, revision.value.set, revision, file)
+        file = conventionServed(configurationFileIn, revision.value.set, revision, file)
         declaring = declarationsOf(revision.value.derived, ownKinds)
         // ...AND THE READING ITSELF, held for the doorbell. It is the same pointer
         // the two walks above are about, kept because the doorbell's walk runs on

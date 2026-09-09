@@ -18,6 +18,8 @@ import { composeCapabilities } from "./composition.ts"
 import { authorityAt } from "@olai/plugin-api/authority"
 import { CurrentWho } from "./who.ts"
 export type Bound = Omit<SurfaceRuntime<typeof hostSurface.spec>, "ctx"> & { readonly writes: ReadonlyArray<string>; readonly rows: ReadonlyArray<Registered>; readonly rosterMoved: (run: () => void) => () => void }
+import type { Configuration, PolicyRow } from "@olai/plugin-api/configuration"
+
 export interface PluginRuntime {
   readonly plugins: Plugins
   readonly onChange: { run: () => void }
@@ -26,6 +28,8 @@ export interface PluginRuntime {
   readonly pin: PluginPin
   readonly report: () => ReadonlyMap<string, RowReport>
   readonly names: () => ReadonlyMap<string, ReadonlyArray<string>>
+  readonly configuration?: () => Configuration | undefined
+  readonly configurationDefaults?: ReadonlyMap<string, PolicyRow>
   readonly configs: () => ReadonlyMap<string, Readonly<Record<string, unknown>>>
   readonly set: (id: string, enabled: boolean) => Effect.Effect<boolean>
   readonly reread: Effect.Effect<void>
@@ -53,6 +57,8 @@ export const rosterOf = (
       const wake = live ? wakes.get(name) : undefined
       const carrying = live ? carriedBy(name, offered.built, names, offers) : []
       const config = offered.configs().get(name)
+      const configuration = offered.configuration?.()
+      const policy = configuration?.rows.get(name) ?? offered.configurationDefaults?.get(name)
       return {
         name,
         running: live,
@@ -70,6 +76,12 @@ export const rosterOf = (
           },
         }),
         ...(config === undefined ? {} : { config }),
+        ...(policy === undefined ? {} : { configurationValues: policy.values }),
+        ...(policy?.node === undefined ? {} : { configurationNode: policy.node }),
+        ...(policy?.on === undefined ? {} : { desiredOn: policy.on }),
+        ...(configuration?.file === undefined ? {} : { configurationFile: configuration.file }),
+        ...(configuration?.broken === undefined ? {} : { configurationError: configuration.broken }),
+        configurationAvailable: configuration !== undefined,
       }
     }), ...defined],
     pin: offered.pin,
@@ -93,6 +105,7 @@ const whoTurnedItOff = (
   offered: NonNullable<Wiring["plugins"]>,
   name: string,
 ): PluginState => {
+  if (offered.configuration?.()?.rows.get(name)?.on === false) return "off"
   if (offered.switched().has(name)) return "switched"
   return offered.pin.kind === "exact" ? "off" : "optIn"
 }

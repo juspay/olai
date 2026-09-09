@@ -1735,6 +1735,24 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * claim can fail in are not symmetric.
    */
   const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = {
+    // Generic configuration fields and service contracts share this word.
+    "settings": [
+      "plugin-api/src/configuration.ts",
+      "plugin-api/src/services.ts",
+      "plugins/chat/src/agent.ts",
+      "plugins/chat/src/agents/settings.ts",
+      "plugins/chat/src/browser/alerts.ts",
+      "plugins/chat/src/browser/chat/Header.tsx",
+      "plugins/chat/src/browser/chat/Model.tsx",
+      "plugins/chat/src/chat.ts",
+      "plugins/chat/src/server.ts",
+      "plugins/chat/src/wire/members.ts",
+      "plugins/identity/src/server.ts",
+      "plugins/kolu/src/doorbell.ts",
+      "plugins/vault/src/server.ts",
+      "plugins/vault/src/setup.ts",
+      "plugins/xyne-spaces/src/server.ts"
+    ],
     "chat": [
       "format/src/committing.ts",
       "plugins/git/src/browser/commit/said.ts",
@@ -1763,6 +1781,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "ops/src/plan.ts",
       "ops/src/standing.bench.ts",
       "ops/src/walks.bench.ts",
+      "plugin-api/src/configuration.ts",
       "plugin-api/src/services.ts",
       "plugin-build/src/bind.ts",
       "plugin-build/src/imports.ts",
@@ -1786,6 +1805,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/search/src/server.ts",
       "plugins/search/src/table.bench.ts",
       "plugins/search/src/tools.ts",
+      "plugins/settings/src/server.ts",
       "plugins/sidebar/src/browser.tsx",
       "plugins/sidebar/src/contract.ts",
       "plugins/trash/src/browser.tsx",
@@ -1798,6 +1818,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/vault-plugins/src/tools.ts",
       "plugins/xyne-spaces/src/server.ts",
       "server/src/main.ts",
+      "surface/src/plugins.ts",
       "surface/src/seal.ts"
     ],
     "git": [

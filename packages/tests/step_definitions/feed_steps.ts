@@ -59,12 +59,12 @@ When("I press the drawer's wrench", async function(this: OlaiWorld) {
   await visible(this, OUTLINE_TREE)
 })
 
-Then("the drawer's foot offers the wrench", async function(this: OlaiWorld) {
+Then("the drawer's wrench links to {string}", async function(this: OlaiWorld, href: string) {
   const wrench = this.page.locator(PADI_FEED_WRENCH).first()
   await visible(this, PADI_FEED_WRENCH)
   assert.equal(
     await wrench.getAttribute("href"),
-    "/_olai/Kolu.olai",
+    href,
     "the wrench's door was not the config",
   )
 })

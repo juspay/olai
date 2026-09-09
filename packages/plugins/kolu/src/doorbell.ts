@@ -18,7 +18,7 @@
  * the live lanes — and it makes silence the default: a fresh conversation has
  * no file, so it has no doorbell, and nobody is opted in by a serve.
  *
- * The mute list that used to live in `_olai/Kolu.olai` went in the same
+ * The mute list that used to live in `_olai/Settings.olai` went in the same
  * landing (2026-08-31), and it is worth being exact about what that was and
  * was not: a mute silenced the events FEED, for everybody, whatever anybody
  * was doing — and the feed has no silence control now, because it says
@@ -1065,7 +1065,7 @@ const reminderOf = (event: KoluEvent | undefined): string | null => {
   if (account === null || event?.row === null || event === undefined) return null
   const id = event.row.terminal
   if (account.total === null) {
-    return `This is reminder ${account.index} of an uncapped nag for \`${id}\` — it repeats on this interval while the state holds (a cap is spelled \`nag: 30m/3\` in _olai/Kolu.olai).`
+    return `This is reminder ${account.index} of an uncapped nag for \`${id}\` — it repeats on this interval while the state holds (a cap is spelled \`nag: 30m/3\` in _olai/Settings.olai).`
   }
   if (account.last) {
     return `This is reminder ${account.index} of ${account.index} for \`${id}\`, the last — this doorbell goes quiet about that terminal until its state changes.`

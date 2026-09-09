@@ -84,7 +84,7 @@
  * judgement ABOUT kolu, and it has a package of its own now:
  * `olai-plugin-kolu`. It walks the vault for who OWNS a terminal
  * (`claimants.ts` — outline records, injected into the dial rather than known
- * by it) and for what `_olai/Kolu.olai` says (`config.ts`); it decides what an
+ * by it) and for what `_olai/Settings.olai` says (`config.ts`); it decides what an
  * absent kolu MEANS, in five English sentences, over the probe it reaches
  * through `@olai/kolu-client/detect` (`probe.ts`, which was `olai-plugin-chat`'s
  * until the plugin wall went up); and it owns the padi pill and the feed its
@@ -151,17 +151,18 @@ export interface KoluDeps<N> {
    *  The ruling's words: "the server passes the vault-walk in". */
   readonly claimants: (nodes: ReadonlyArray<N>) => Iterable<Claimant>
   /** THE SECOND VAULT WALK, injected, and the same boundary again. What
-   *  `_olai/Kolu.olai`'s watch knobs say is read off the same nodes by
+   *  `_olai/Settings.olai`'s watch knobs say is read off the same nodes by
    *  `olai-plugin-kolu`'s `config.ts`; what crosses is the derived
    *  intervals plus the malformed lines this package then says. The FILE is
    *  a QUESTION THE CALLER ANSWERED (the served-paths convention,
-   *  `koluFileIn`), passed in so the walk reads inside it — a file that
+   *  `configurationFileIn`), passed in so the walk reads inside it — a file that
    *  parses to nothing offers no nodes, and the foot's wrench onto it
    *  must still draw, which is why the `knobs` cell is published off THIS
    *  argument rather than off anything the walk hands back. See
    *  `config.ts` for what a malformed value means. */
   readonly config: (nodes: ReadonlyArray<N>, file: string | null) => {
     readonly config: WatchConfig
+    readonly node?: string
     readonly malformed: ReadonlyArray<string>
   }
   /**
@@ -464,13 +465,14 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
    *  silence, so the walk is never answered twice.
    *
    *  It is the caller's own `file` ARGUMENT and not anything the config
-   *  walk hands back: a `_olai/Kolu.olai` the codec tore apart contributes
+   *  walk hands back: a `_olai/Settings.olai` the codec tore apart contributes
    *  no records, and the wrench onto it is exactly the door by which a
    *  person would go and repair it. */
   let deciding: string | null = null
   /** One shaper for the revision AND the settle, so the two can never
    *  drift. */
-  const currentKnobs = (): KoluKnobs => ({ file: deciding })
+  let decidingNode: string | undefined
+  const currentKnobs = (): KoluKnobs => ({ file: deciding, ...(decidingNode === undefined ? {} : { node: decidingNode }) })
   /** One publisher, so a file arriving, moving or going re-publishes from
    *  here and the equals gate keeps no-op moves silent. */
   const publishKnobs = (): void => {
@@ -531,6 +533,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
     // promised order, so `deciding` keeps the answer and the cell's
     // `connect` settles it as its first act.
     deciding = file
+    decidingNode = next.node
     watch.reconfigure(next.config)
     publishKnobs()
     const lines = next.malformed.join("\n")
@@ -541,6 +544,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
   }
   const unloaded = (): void => {
     deciding = null
+    decidingNode = undefined
     publishKnobs()
   }
   if (deps.options === null) {

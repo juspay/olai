@@ -1,6 +1,6 @@
 Feature: The events drawer's foot — the door onto the watch's config
 
-  The drawer's last line is not an event: `_olai/Kolu.olai` is the one file
+  The drawer's last line is not an event: `_olai/Settings.olai` is the one file
   that paces the watch, and the foot is the proof of it without leaving the
   drawer — a wrench that opens the WHOLE config as the ordinary outline it
   is.
@@ -24,12 +24,13 @@ Feature: The events drawer's foot — the door onto the watch's config
     Given I open the outline "house.olai"
     # The wrench's state alone, which is now its only state: thresholds a
     # reader may want, and a door onto them.
-    When I rewrite "_olai/Kolu.olai" as:
+    When I rewrite "_olai/Settings.olai" as:
       """
-      {"id":"watch","ord":"a0","title":"watch","custom":{"held-for":"30s"}}
+      {"id":"kolu","ord":"a0","title":"kolu"}
+      {"id":"watch","parent":"kolu","ord":"a0","title":"watch","custom":{"held-for":"30s"}}
       """
     And I press the padi pill
-    Then the drawer's foot offers the wrench
+    Then the drawer's wrench links to "/_olai/Settings.olai#kolu"
     And there should be no page errors
 
   @scratch:good
@@ -47,17 +48,18 @@ Feature: The events drawer's foot — the door onto the watch's config
     # The door the whole design exists for: the foot IS the file, openable
     # like any page — no special case, because the `_olai/` outlines have a
     # sidebar home now rather than a hiding switch.
-    When I rewrite "_olai/Kolu.olai" as:
+    When I rewrite "_olai/Settings.olai" as:
       """
-      {"id":"watch","ord":"a0","title":"watch","custom":{"held-for":"30s"}}
+      {"id":"kolu","ord":"a0","title":"kolu"}
+      {"id":"watch","parent":"kolu","ord":"a0","title":"watch","custom":{"held-for":"30s"}}
       {"id":"nag","ord":"a1","title":"a note beside it"}
       """
     And I press the padi pill
     And I press the drawer's wrench
-    Then the address is "/_olai/Kolu.olai"
+    Then the address is "/_olai/Settings.olai#kolu"
     And the drawer is closed
-    And the outline has 2 rows
-    And the vault group links to "_olai/Kolu.olai"
+    And the outline has 3 rows
+    And the vault group links to "_olai/Settings.olai"
     And there should be no page errors
 
   @scratch:good
@@ -66,10 +68,10 @@ Feature: The events drawer's foot — the door onto the watch's config
     # The wrench is the DOOR BY WHICH A PERSON WOULD FIX the config, so it
     # may not fall away with the nodes the parse withheld: the file is found
     # by NAME off the served outlines, and the foot has nothing else to say.
-    When I rewrite "_olai/Kolu.olai" as:
+    When I rewrite "_olai/Settings.olai" as:
       """
       {"id":"watch","ord":"a0","title":"watch"
       """
     And I press the padi pill
-    Then the drawer's foot offers the wrench
+    Then the drawer's wrench links to "/_olai/Settings.olai"
     And there should be no page errors

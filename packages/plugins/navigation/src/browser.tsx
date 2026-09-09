@@ -33,7 +33,7 @@ import { holdRoutePages,routing } from "./pages.ts"
 import { Link,RouterProvider } from "./routing.tsx"
 import { createNavigation } from "./state.ts"
 
-const File: FileLink = (props) => <Link route={atFile(props.file)} class={props.class}
+const File: FileLink = (props) => <Link route={props.at === undefined ? atFile(props.file) : atElement(props.file, props.at)} class={props.class}
   testid={props.testid} label={props.label} title={props.title}>{props.children}</Link>
 export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*() {
   yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {

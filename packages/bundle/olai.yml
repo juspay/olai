@@ -63,6 +63,10 @@
   section: Vault
   profiles: [surface, test-minimal]
   switchHint: Turning it off clears the served files and stops plugins that need the vault. Turn it on to reopen the directory.
+- id: settings
+  name: olai-plugin-settings/server
+  section: Vault
+  profiles: [surface, test-minimal]
 # THE LEDGER — policy defaults belong to the plugin's Config schema.
 - id: git
   name: olai-plugin-git/server

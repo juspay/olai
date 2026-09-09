@@ -18,7 +18,7 @@
  *
  * The drawer's last line is not an event: it is the door onto the file that
  * decides how the watch is paced. One fact off the wire's `knobs` cell — the
- * `_olai/Kolu.olai` the convention read — so the wrench's navigation is the
+ * `_olai/Settings.olai` the convention read — so the wrench's navigation is the
  * opening of a page that exists and never a special case. The register is the
  * log's own: the seat is the foot's, the ink is the muted ink the rows already
  * speak — a door drawn loud is an affordance reading as an alarm, and a config
@@ -31,7 +31,7 @@
  * aimed at one fleet was one too many — so the line went and the wrench stayed.
  * The foot is one door and no words.
  *
- * DRAWN ONLY WHEN THERE IS A CONFIG: a vault no `Kolu.olai` decides anything
+ * DRAWN ONLY WHEN THERE IS A CONFIG: a vault no `Settings.olai` decides anything
  * for runs the watcher's defaults, and defaults have no page to open — the
  * drawer is then the log alone (the events stay on top; the config door sits at
  * the bottom).
@@ -49,7 +49,7 @@ import type { KoluApp } from "./app.ts"
  * already read from (`../appliance/`'s `fleet` holds the cell's value): the
  * convention answers on the same frame the timers get their knobs from, so the
  * door here and the file the watch is actually paced by can never be two files
- * — move `Kolu.olai` and the wrench moves with the revision, exactly as a
+ * — move `Settings.olai` and the wrench moves with the revision, exactly as a
  * threshold edit moves the watch.
  */
 function FeedFoot(props: {
@@ -87,6 +87,7 @@ function FeedFoot(props: {
                 and this face holds none of them (`./app.ts`). */}
             <props.app.FileLink
               file={file()}
+              at={fleet.knobs()?.node}
               class="ml-auto flex shrink-0 items-center rounded p-0.5 text-muted hover:bg-paper/10 hover:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               testid={TESTID.padiFeedWrench}
               label={`open the watch's config in ${file()}`}
