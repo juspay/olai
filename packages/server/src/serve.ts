@@ -33,6 +33,7 @@ import { runtimePaths } from "./runtime-paths.ts"
 import { TransportSurface } from "@olai/plugin-api/transport";
 import { gitConfigPatch } from "./gitPolicy.ts";
 import { bind } from "./runtime.ts";
+import { followConfiguration } from "./configuration.ts";
 export interface ServeOptions {
     readonly profile?: Profile;
     readonly root: string;
@@ -160,6 +161,8 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     yield* provideInputs(plugins.host, { root: served, runtime: runtimePaths });
     yield* mountBundle(plugins.host, pluginPin, gitConfigPatch(options.pin), profile);
     const loading = yield* openLoading(plugins.host, built, () => onChange.run(), { services: plugins.serviceKeys, browserServices: plugins.browserKeys });
+    const policy = yield* followConfiguration(plugins.host, () => onChange.run());
+    yield* policy.ready;
     let report = yield* reportBundle(plugins.host, loading.names());
     const switched = new Set<string>();
     const flipped = (id: string, enabled: boolean) => Effect.gen(function* () {
@@ -206,6 +209,8 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
             report: () => report,
             names: () => rowsNaming(plugins.host),
             configs: () => configsOf(plugins.host),
+            configuration: policy.current,
+            configurationDefaults: policy.defaults,
             set: flipped,
             reread: Effect.gen(function* () {
                 report = yield* reportBundle(plugins.host, loading.names());
@@ -252,6 +257,9 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     const runtime = yield* watchFault(wired.bound);
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()));
     yield* Effect.addFinalizer(() => plugins.close);
+    // Stop the root's patch worker before row withdrawal starts. The reader's
+    // offer then disappears without scheduling reconcile work during teardown.
+    yield* Effect.addFinalizer(() => policy.close);
     const transports = yield* listener({ host: options.host, port: options.port });
     // Handlers and exposure are read at each connection, not captured at boot:
     // a capability switch must revoke old authority and affect the next dial.

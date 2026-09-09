@@ -83,6 +83,7 @@
         "olai-plugin-plugin-inspector": "workspace:*",
         "olai-plugin-preferences": "workspace:*",
         "olai-plugin-search": "workspace:*",
+        "olai-plugin-settings": "workspace:*",
         "olai-plugin-sidebar": "workspace:*",
         "olai-plugin-test-counter": "workspace:*",
         "olai-plugin-test-layout": "workspace:*",
@@ -111,7 +112,6 @@
       "version": "0.1.0",
       "dependencies": {
         "@olai/format": "workspace:*",
-        "@olai/plugin-api": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "@olai/web": "workspace:*",
@@ -672,6 +672,15 @@
         "@olai/store": "workspace:*",
         "@types/node": "^22.0.0",
         "olai-plugin-layout": "workspace:*",
+      },
+    },
+    "packages/plugins/settings": {
+      "name": "olai-plugin-settings",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/format": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0-rc.112",
       },
     },
     "packages/plugins/sidebar": {
@@ -1809,6 +1818,8 @@
     "olai-plugin-preferences": ["olai-plugin-preferences@workspace:packages/plugins/preferences"],
 
     "olai-plugin-search": ["olai-plugin-search@workspace:packages/plugins/search"],
+
+    "olai-plugin-settings": ["olai-plugin-settings@workspace:packages/plugins/settings"],
 
     "olai-plugin-sidebar": ["olai-plugin-sidebar@workspace:packages/plugins/sidebar"],
 

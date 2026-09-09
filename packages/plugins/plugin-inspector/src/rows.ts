@@ -243,6 +243,9 @@ export const pluginHint = (
   roster: PluginRoster = { built: [], pinned: null },
   look: PluginLook = {},
 ): string | null => {
+  if (pluginState(plugin) === "off" && plugin.desiredOn === false && plugin.configurationFile !== undefined) {
+    return `Off — ${plugin.configurationFile} says on: no.`
+  }
   const pin = pluginPinOf(roster)
   switch (pluginState(plugin)) {
     case "running": {

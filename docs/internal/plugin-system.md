@@ -1562,3 +1562,5 @@ inspector and renderer-free startup diagnostics explain recovery; neither
 silently discards the document. The live roster remains authoritative over a
 late bootstrap response or failure.
 
+
+A row normally re-applies when its decoded policy changes. A row declaring `configUpdates: "live"` instead owns its revision subscription through declared services; the composition root leaves its activation config alone and still applies enablement. This static choice grants no loader capability.

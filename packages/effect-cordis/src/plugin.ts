@@ -181,6 +181,9 @@ export interface Plugin {
   readonly name: string
   /** Static declaration; decoded inside activation, never a live service. */
   readonly config?: Schema.ConstraintDecoder<unknown, never>
+  /** Reapply by default. Live followers own a declared revision subscription;
+   * the root still patches enablement, but leaves activation config alone. */
+  readonly configUpdates?: "reapply" | "live"
   readonly inject: ReadonlyArray<string>
   readonly apply: (ctx: CordisContext, config?: unknown) => Promise<() => Promise<void>>
 }
@@ -205,6 +208,7 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
     readonly name: string
     readonly needs: Keys
     readonly config?: Schema.Schema<Config> & { readonly DecodingServices: never }
+    readonly configUpdates?: "reapply" | "live"
     readonly apply:
       | Effect.Effect<void, never, NeedsOf<Keys>>
       | ((config: Config) => Effect.Effect<void, never, NeedsOf<Keys>>)
@@ -212,6 +216,7 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
 ): Plugin => ({
   name: spec.name,
   ...(spec.config === undefined ? {} : { config: spec.config }),
+  ...(spec.configUpdates === undefined ? {} : { configUpdates: spec.configUpdates }),
   inject: spec.needs.map((key) => key.cordis),
   apply: async (ctx: CordisContext, config?: unknown) => {
     const opened = held(ctx)

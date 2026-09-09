@@ -153,6 +153,7 @@ const HARNESSES: ReadonlyArray<string> = [
   "createSurfaceSocket @ server/src/faces.test.ts",
   "createSurfaceSocket @ server/src/who.test.ts",
   "createSurfaceSocket @ server/src/profiles.test.ts",
+  "createSurfaceSocket @ server/src/serve.test.ts",
 ]
 
 // A LIST, not a boolean, and one test rather than six: what a reader of a

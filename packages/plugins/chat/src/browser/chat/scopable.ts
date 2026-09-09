@@ -67,7 +67,7 @@ import { watchable } from "@olai/surface"
  *     readings of the live set that ask it.
  *   - **`inOlaiDir` — the file is OLAI'S, not the reader's corpus.**
  *     `_olai/Pins.olai` is a shelf of mirrors, `_olai/Properties.olai` declares
- *     property kinds, `_olai/Kolu.olai` holds a watcher's knobs,
+ *     property kinds, `_olai/Settings.olai` holds a watcher's knobs,
  *     `_olai/Inbox.olai` is where a capture lands. Outlines every one, and none
  *     of them is a board anybody keeps.
  *

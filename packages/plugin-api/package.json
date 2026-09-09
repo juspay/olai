@@ -16,7 +16,8 @@
     "./mount": "./src/mount.ts",
     "./contracts": "./src/contracts.ts",
     "./authority": "./src/authority.ts",
-    "./slots": "./src/slots.ts"
+    "./slots": "./src/slots.ts",
+    "./configuration": "./src/configuration.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

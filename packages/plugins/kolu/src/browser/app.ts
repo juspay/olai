@@ -27,7 +27,7 @@
  *     be placed by the app's own anchor arithmetic (a computed `top`/`bottom`
  *     key compiles away silently in Solid and leaves a panel below the fold —
  *     it cost the Commit panel its placement once);
- *   - the DOOR ONTO A FILE, because the feed's wrench opens `_olai/Kolu.olai`
+ *   - the DOOR ONTO A FILE, because the feed's wrench opens `_olai/Settings.olai`
  *     as an ordinary outline page, and how olai spells an address, what a
  *     modifier press means and where a split pane opens are all the router's.
  *
@@ -78,6 +78,7 @@ export interface AppPopover {
 /** A door onto a served file — the router and the address grammar as the one
  *  thing this plugin wants out of them. */
 export type FileLink = (props: {
+  readonly at?: string
   readonly file: string
   readonly class?: string
   readonly testid?: string

@@ -140,7 +140,7 @@ When("I clear this conversation's {string} wake", async function (this: OlaiWorl
 /**
  * MAKE THE WATCHER SPEAK NOW.
  *
- * `_olai/Kolu.olai` is the file that paces the watch, and `held-for` is how long
+ * `_olai/Settings.olai` is the file that paces the watch, and `held-for` is how long
  * a terminal must sit in a state before it is worth saying anything about. The
  * fixture's fleet already holds one — `review: grok`'s terminal, which padi says
  * is blocked on a person — so lowering the debounce re-arms that standing hold
@@ -155,8 +155,8 @@ When("I clear this conversation's {string} wake", async function (this: OlaiWorl
  */
 When("the watch is told to report a held terminal at once", function (this: OlaiWorld) {
   this.writeServed(
-    "_olai/Kolu.olai",
-    `{"id":"watch","ord":"a0","title":"watch","custom":{"held-for":"0s"}}`,
+    "_olai/Settings.olai",
+    `{"id":"kolu","ord":"a0","title":"kolu"}\n{"id":"watch","parent":"kolu","ord":"a0","title":"watch","custom":{"held-for":"0s"}}`,
   );
 });
 
