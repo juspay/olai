@@ -577,3 +577,5 @@ retry changes the server's configured selection.
 `plugin-inspector` owns the plugins panel; excluding it removes that UI without
 stopping host management. Its state survives shell replacement, while disabling
 the inspector itself clears its panel and source-reading history.
+
+Policy and enablement are authored in `_olai/Settings.olai`. The web command accepts only the directory, `--host`, `--port`, and `--profile` as application boot options; Effect’s standard help and logging flags remain. Git and plugin-selection flags and their home-manager options have been removed. The remaining fixture migration and older examples are updated in the next steps of #545.

@@ -319,7 +319,7 @@ const webLeg = (): { readonly argv: ReadonlyArray<string>; readonly env: NodeJS.
   const dist = fs.mkdtempSync(path.join(os.tmpdir(), "olai-tie-dist-"))
   fs.writeFileSync(path.join(dist, "index.html"), "<!doctype html>\n")
   return {
-    argv: [path.join(import.meta.dirname, "main.ts"), "web", served(), "--no-commit"],
+    argv: [path.join(import.meta.dirname, "main.ts"), "web", served()],
     env: {
       OLAI_DIST_DIR: dist,
       OLAI_ACP_AGENT: "",

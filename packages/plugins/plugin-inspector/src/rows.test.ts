@@ -190,7 +190,7 @@ test("each absence says its own why, and they are five different whys", () => {
   const switched = row("switched")
 
   expect(pluginHint(only(optIn))).toContain("by default")
-  expect(pluginHint(only(off))).toContain("was not asked for")
+  expect(pluginHint(only(off))).toContain("switch on here")
   expect(pluginHint(only(waiting))).toContain("waiting for something it needs")
   expect(pluginHint(only(failed))).toContain("Failed to start")
   expect(pluginHint(only(switched))).toContain("Switched off here")
@@ -252,11 +252,11 @@ test("a failed row quotes what the plugin said, or says it said nothing", () => 
  */
 test("an absent row names its own word and what to type at boot", () => {
   const optIn = pluginHint(only(row("optIn")))
-  expect(optIn).toContain("--plugins=alpha")
+  expect(optIn).toContain("on: yes")
 
   const off = pluginHint(only(row("off")))
   expect(off).toContain("alpha")
-  expect(off).toContain("--plugins")
+  expect(off).toContain("on: yes")
   // ...and it does not quote a VALUE, which under a given flag would be a
   // sentence telling somebody to turn every other plugin off.
   expect(off).not.toContain("--plugins=")
@@ -273,12 +273,12 @@ test("an absent row names its own word and what to type at boot", () => {
  * narrowing happens; this case is the panel's half of it.
  */
 test("a state this tab has never heard of falls back to the boolean", () => {
-  expect(pluginHint(only(row("hibernating")))).toContain("was not asked for")
+  expect(pluginHint(only(row("hibernating")))).toContain("switch on here")
   // ...and a serve too old to send one at all is the same fallback, which is
   // exactly how this panel drew every row before the word existed.
   const old = roster(["alpha"])
   expect(pluginHint(old.built[0]!)).toBe(null)
-  expect(pluginHint(old.built[1]!)).toContain("was not asked for")
+  expect(pluginHint(old.built[1]!)).toContain("switch on here")
 })
 
 /**
@@ -450,99 +450,11 @@ test("a press freezes only that row's strip, and does not move it", () => {
  * the rows are, so the flag it quotes and the rows it sits under cannot come
  * from two different frames.
  */
-test("a given flag is quoted once, and an omitted one is the built-in default", () => {
-  const nobody = pluginsStarted(roster(["alpha", "beta"]))
-  expect(nobody).toContain("built-in default")
-  expect(nobody).not.toContain("--plugins=")
-  // ...and the flag is still NAMED where nobody gave it, because the reader who
-  // wants this changed needs the door even when there is no value to quote.
-  expect(nobody).toContain("--plugins")
-
-  const said = pluginsStarted(roster(["alpha"], ["alpha"]))
-  expect(said).toContain("--plugins=alpha")
-  expect(said).not.toContain("built-in default")
-})
-
-/** A list is spelled the way it is typed — comma-separated, no spaces — so the
- *  line is something a reader can hand to whoever runs the instance verbatim. */
-test("a multi-name flag is quoted as one word", () => {
-  expect(pluginsStarted(roster(["alpha", "beta"], ["alpha", "beta"])))
-    .toContain("--plugins=alpha,beta")
-})
-
-/**
- * `--plugins=` IS NOT THE SAME ANSWER AS SAYING NOTHING, and the rows cannot
- * tell them apart on their own: every strip reads Off either way. This line is
- * where the two are told apart, and it quotes the empty value as itself rather
- * than describing it — "no plugins" would name no flag a reader could hand to
- * whoever runs the instance.
- */
-test("an empty flag is somebody saying none, and says so as itself", () => {
-  const none = pluginsStarted(roster([], []))
-  expect(none).toContain("--plugins=")
-  expect(none).toContain("none")
-  expect(none).not.toContain("built-in default")
-})
-
-test("an extra-plugins row names the flag that turned it on, and still names who it carries", () => {
-  const extra = {
-    built: [{ name: "alpha", running: true, state: "running" }],
-    pinned: null,
-    pin: { kind: "delta" as const, extra: ["alpha"], without: null },
+test("the foot names the file instead of retired startup flags", () => {
+  for (const value of [roster(["alpha"]), roster(["alpha"], ["alpha"]), roster([], [])]) {
+    expect(pluginsStarted(value)).toContain("_olai/Settings.olai")
+    expect(pluginsStarted(value)).not.toContain("--plugins")
   }
-  expect(pluginHint(extra.built[0]!, extra)).toBe(null)
-  const said = pluginHint(extra.built[0]!, extra, { optIn: true })
-  expect(said).toContain("--extra-plugins")
-  expect(said).not.toContain("--plugins=")
-  expect(pluginSwitch(extra.built[0]!, false).value).toBe("on")
-
-  const carrier = {
-    built: [{ name: "alpha", running: true, state: "running", carrying: ["kolu"] }],
-    pinned: null,
-    pin: { kind: "delta" as const, extra: ["alpha"], without: null },
-  }
-  expect(pluginHint(carrier.built[0]!, carrier, { optIn: true })).not.toContain("Turning it off")
-  expect(pluginConfirm(carrier.built[0]!)).toContain("Turning it off")
-})
-
-test("a without-plugins row names the flag that turned it off", () => {
-  const without = {
-    built: [{ name: "alpha", running: false, state: "optIn" }],
-    pinned: null,
-    pin: { kind: "delta" as const, extra: null, without: ["alpha"] },
-  }
-  const said = pluginHint(without.built[0]!, without)
-  expect(said).toContain("--without-plugins")
-  expect(said).not.toContain("by default")
-  expect(pluginSwitch(without.built[0]!, false).value).toBe("off")
-})
-
-test("the panel foot quotes extra and without the way they were typed", () => {
-  const extra = pluginsStarted({
-    built: [{ name: "alpha", running: true, state: "running" }],
-    pinned: null,
-    pin: { kind: "delta", extra: ["alpha"], without: null },
-  })
-  expect(extra).toContain("--extra-plugins=alpha")
-  expect(extra).not.toContain("built-in default")
-
-  const without = pluginsStarted({
-    built: [{ name: "alpha", running: false, state: "optIn" }],
-    pinned: null,
-    pin: { kind: "delta", extra: null, without: ["alpha"] },
-  })
-  expect(without).toContain("--without-plugins=alpha")
-
-  const both = pluginsStarted({
-    built: [
-      { name: "alpha", running: true, state: "running" },
-      { name: "beta", running: false, state: "optIn" },
-    ],
-    pinned: null,
-    pin: { kind: "delta", extra: ["alpha"], without: ["beta"] },
-  })
-  expect(both).toContain("--extra-plugins=alpha")
-  expect(both).toContain("--without-plugins=beta")
 })
 
 test("the foot names durable policy and private memory; session exceptions belong on rows", () => {

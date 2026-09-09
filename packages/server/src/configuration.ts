@@ -30,20 +30,6 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
     (one.exports as { default: Plugin }).default.environment ?? [], offered(host, Env, one.name)?.vars ?? {},
   )]))
   const bootConfig = configsOf(host)
-  // Step 4 removes this map, the flag author and configurationStartup together.
-  // The author is inferred from differing from the schema default, not recorded
-  // provenance: an explicitly supplied default still reads default.
-  // Until flag removal, absent namespaces use these same startup options in
-  // the patch worker. Publish their resolved values rather than schema defaults
-  // that disagree with what the activation actually received.
-  const startup = new Map<string, PolicyRow>([...defaults].map(([id, row]) => {
-    const config = bootConfig.get(id) ?? row.config
-    return [id, { config, values: row.values.map(one => {
-      const value = one.key.split(".").reduce<unknown>((at, key) =>
-        typeof at === "object" && at !== null ? (at as Record<string, unknown>)[key] : undefined, config)
-      return value === undefined || Object.is(value, one.value) ? one : { ...one, value, setBy: "flag" as const }
-    }) }]
-  }))
   const bootReport = yield* reportBundle(host)
   let current: Configuration | undefined
   let active: ConfigurationSource | undefined
@@ -105,5 +91,5 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
     yield* awaitRevision(source, written.rev)
     return true
   }))
-  return { defaults, startup, environment, persistent, set, close: Effect.andThen(Fiber.interrupt(subscriptions), Fiber.interrupt(patches)), ready: Deferred.await(ready), current: () => active === offered(host, ConfigurationSource) ? current : undefined }
+  return { defaults, environment, persistent, set, close: Effect.andThen(Fiber.interrupt(subscriptions), Fiber.interrupt(patches)), ready: Deferred.await(ready), current: () => active === offered(host, ConfigurationSource) ? current : undefined }
 })

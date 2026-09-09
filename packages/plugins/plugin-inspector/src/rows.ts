@@ -92,7 +92,6 @@ import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
  */
 
 import type { RowReport } from "@olai/plugin-api"
-import { pluginPinOf } from "@olai/format"
 import type { BuiltPlugin, PluginRoster } from "@olai/surface"
 import { pluginState } from "@olai/surface"
 import type { PluginLook } from "@olai/surface/management"
@@ -235,26 +234,11 @@ export const pluginHint = (
   if (pluginState(plugin) === "off" && plugin.desiredOn === false && plugin.configurationFile !== undefined) {
     return `Off — ${plugin.configurationFile} says on: no.`
   }
-  const pin = pluginPinOf(roster)
   switch (pluginState(plugin)) {
-    case "running": {
-      // NOTHING, on the ordinary row: the switch reads On and there is no
-      // second thing to know. What carrying costs is a confirm on Off, not a
-      // caption on On. `--extra-plugins` naming a default-on row is the
-      // foot's; the per-row line is only for an opt-in the flag turned on.
-      return pin.kind === "delta" && look.optIn === true && namedBy(pin.extra, plugin.name)
-        ? `On — --extra-plugins named it.`
-        : null
-    }
+    case "running":
+      return null
     case "optIn":
-      // THE BUILD'S OWN DEFAULT, and the flag value that changes it. This is
-      // the row the per-row line was always for: under no flag its neighbour's
-      // built-in default is ON and this one's is OFF, so a panel-wide sentence
-      // could only ever name one of them. `--without-plugins` is the pin
-      // naming this row, not a new morning.
-      return pin.kind === "delta" && namedBy(pin.without, plugin.name)
-        ? `Off — --without-plugins named it.`
-        : `Off by default — --plugins=${plugin.name} starts it at boot.`
+      return `Off by default — switch on here or set on: yes in the ${plugin.name} policy node.`
     case "pending":
       // A PERSON HAS NOT DECIDED, and this is the one absence whose answer is
       // on this very panel: the source is drawn under the rows and the verb is
@@ -287,7 +271,7 @@ export const pluginHint = (
       // under a flag that was given (`@olai/server`'s `stateOf` answers `optIn`
       // where none was), and the panel's foot quotes that flag in full — so the
       // useful thing here is the row's own word and where to put it.
-      return `Off — it was not asked for. Add ${plugin.name} to --plugins at boot.`
+      return `Off — switch on here or set on: yes in the ${plugin.name} policy node.`
   }
 }
 
@@ -316,11 +300,6 @@ const carries = (plugin: BuiltPlugin): string | undefined =>
     ? undefined
     : plugin.carrying.join(", ")
 
-const namedBy = (
-  names: ReadonlyArray<string> | null,
-  id: string,
-): boolean => names !== null && names.includes(id)
-
 const withoutConfiguration = (roster: PluginRoster): boolean =>
   roster.built.some(row => row.configurationAvailable === false)
   && !roster.built.some(row => row.configurationAvailable === true)
@@ -332,45 +311,7 @@ const withoutConfiguration = (roster: PluginRoster): boolean =>
  * session-only exception while the shared reader is available.
  * Boot flags remain visible until their removal in step 4. */
 export const pluginsStarted = (roster: PluginRoster): string =>
-  `Policy lives in ${roster.built.find(row => row.configurationFile)?.configurationFile ?? CONFIGURATION_FILE} and travels with this directory. ${startedWith(roster)}${withoutConfiguration(roster) ? " Switches are session-only while the configuration reader is absent; they last until this serve stops." : ""} Memory: LocalState, $XDG_STATE_HOME/olai/<plugin>/<hash>.json; private to the serve.`
-
-/** WHAT THE SERVE WAS STARTED WITH — the flag as an operator would type it, or
- *  the built-in defaults, with the flag still NAMED where nobody gave one: the
- *  door is worth naming even when there is no value to quote, and it cannot be
- *  read as a claim that somebody gave it, because the sentence says nobody did.
- *  (`../settings/instance.ts` made that argument first, for the rows that still
- *  borrow it.) */
-const startedWith = (roster: PluginRoster): string => {
-  const pin = pluginPinOf(roster)
-  switch (pin.kind) {
-    case "exact":
-      return pin.names.length === 0
-        ? `Started with --plugins= (none).`
-        : `Started with --plugins=${pin.names.join(",")}.`
-    case "delta": {
-      const flags: string[] = []
-      if (pin.extra !== null) {
-        flags.push(
-          pin.extra.length === 0
-            ? `--extra-plugins=`
-            : `--extra-plugins=${pin.extra.join(",")}`,
-        )
-      }
-      if (pin.without !== null) {
-        flags.push(
-          pin.without.length === 0
-            ? `--without-plugins=`
-            : `--without-plugins=${pin.without.join(",")}`,
-        )
-      }
-      return flags.length === 0
-        ? `Started with the built-in defaults: no --plugins given.`
-        : `Started with ${flags.join(" ")}.`
-    }
-    case "omitted":
-      return `Started with the built-in defaults: no --plugins given.`
-  }
-}
+  `Policy lives in ${roster.built.find(row => row.configurationFile)?.configurationFile ?? CONFIGURATION_FILE} and travels with this directory. ${withoutConfiguration(roster) ? " Switches are session-only while the configuration reader is absent; they last until this serve stops." : ""} Memory: LocalState, $XDG_STATE_HOME/olai/<plugin>/<hash>.json; private to the serve.`
 
 /** A running server row can have a waiting browser component. Keep the
  * server's switch semantics and name that component and its missing keys. */

@@ -1,3 +1,4 @@
+import { writeFixturePolicy } from "@olai/bundle/testlib"
 /**
  * What it takes to stand a real server up in a test, spelled once.
  *
@@ -101,6 +102,7 @@ export const withServe = async <A>(
   },
   body: (said: ReadonlyArray<Logged>) => Promise<A>,
 ): Promise<A> => {
+  writeFixturePolicy(options.root, { commit: options.commits, only: options.plugins, vars: options.vars })
   const { layer, said } = collector()
   return Effect.gen(function*() {
     yield* serve({
@@ -113,15 +115,13 @@ export const withServe = async <A>(
       clientDist: options.clientDist ?? served(),
       allowedOrigins: [],
       ...(options.vars === undefined ? {} : { vars: options.vars }),
-      pin: { commit: options.commits ?? "off", push: null },
+      pin: { commit: null, push: null },
       // The built-in default, which is what omitting `--plugins` means and what a
       // real serve does — these harnesses stand up the whole product, and a
       // composition narrower than the one a person gets would be a suite proving
       // something nobody runs. A test that is about what a MISSING row leaves
       // behind says so, and gets the list it named.
-      pluginPin: options.plugins === undefined
-        ? { kind: "omitted" }
-        : { kind: "exact", names: options.plugins },
+      pluginPin: { kind: "omitted" },
     })
     return yield* Effect.promise(() => body(said))
   }).pipe(

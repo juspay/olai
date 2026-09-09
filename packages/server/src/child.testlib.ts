@@ -1,3 +1,4 @@
+import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
 /**
  * A real olai as a CHILD PROCESS: how to start one, how to read its address,
  * and how to ask whether it stopped.
@@ -98,7 +99,21 @@ export const startWeb = (options: {
   /** Argv after `web <root>`. Unset includes `--no-commit`. */
   readonly extra?: ReadonlyArray<string>
 }): WebChild => {
-  const extra = options.extra ?? ["--no-commit"]
+  // Temporary argv-to-fixture adapter while step 5 migrates individual callers.
+  // The product CLI receives only the retained process flags.
+  const extra: string[] = []
+  const policy: { -readonly [K in keyof FixturePolicy]: FixturePolicy[K] } = { commit: options.extra === undefined ? "off" : undefined, vars: options.env }
+  const inputs = options.extra ?? []
+  const keys = { "--commit": "commit", "--push": "push", "--plugins": "only", "--extra-plugins": "extra", "--without-plugins": "without" } as const
+  for (let i = 0; i < inputs.length; i++) {
+    const arg = inputs[i]!
+    if (arg === "--no-commit") { policy.commit = "off"; continue }
+    const [flag, inline] = arg.split("=", 2)
+    const key = keys[flag as keyof typeof keys]
+    if (key !== undefined) policy[key] = inline ?? inputs[++i]!
+    else extra.push(arg)
+  }
+  writeFixturePolicy(options.root, policy)
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     OLAI_DIST_DIR: clientDist(),

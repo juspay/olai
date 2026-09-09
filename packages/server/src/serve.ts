@@ -211,7 +211,6 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
             configs: () => configsOf(plugins.host),
             configuration: policy.current,
             configurationDefaults: policy.defaults,
-            configurationStartup: policy.startup,
             environment: policy.environment,
             persistent: policy.persistent,
             set: (id, enabled) => policy.set(id, enabled, () => flipped(id, enabled)),

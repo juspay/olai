@@ -635,12 +635,12 @@ test("the roster publishes declared env readings without secrets, including disa
   })
 })
 
-test("startup overrides are labelled and a namespace supersedes them", async () => {
+test("file policy readings agree with activation across edits and deletion", async () => {
   const root = served()
   await withServing({ root, commits: "auto" }, async url => {
     const row = async () => (await configurationRoster(url)).built.find(one => one.name === "git")!
     const value = async () => (await row()).configurationValues?.find(one => one.key === "commit")
-    expect(await value()).toMatchObject({ value: "auto", setBy: "flag" })
+    expect(await value()).toMatchObject({ value: "auto", setBy: "vault" })
     const file = path.join(root, "_olai/Settings.olai")
     fs.mkdirSync(path.dirname(file), { recursive: true })
     fs.writeFileSync(file, '{"id":"startup-policy","ord":"a0","title":"git","custom":{"commit":"off"}}\n')
@@ -648,16 +648,16 @@ test("startup overrides are labelled and a namespace supersedes them", async () 
     fs.writeFileSync(file, '{"id":"startup-policy","ord":"a0","title":"git"}\n')
     await eventually(async () => (await value())?.value === "manual" && (await value())?.setBy === "default")
     fs.unlinkSync(file)
-    await eventually(async () => (await value())?.value === "auto" && (await value())?.setBy === "flag")
-    expect((await row()).config?.commit).toBe("auto")
+    await eventually(async () => (await value())?.value === "manual" && (await value())?.setBy === "default")
+    expect((await row()).config?.commit).toBe("manual")
   })
 })
 
 
-test("an explicitly supplied schema default is not claimed as a recorded flag", async () => {
+test("an explicitly authored schema default remains file-authored", async () => {
   await withServing({ root: served(), commits: "manual" }, async url => {
     const row = (await configurationRoster(url)).built.find(one => one.name === "git")!
     expect(row.configurationValues?.find(one => one.key === "commit"))
-      .toMatchObject({ value: "manual", setBy: "default" })
+      .toMatchObject({ value: "manual", setBy: "vault" })
   })
 })

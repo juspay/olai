@@ -524,9 +524,9 @@ function Config(props: {
               data-testid={TESTID.pluginConfig}
               data-config={one.key}
               data-set-by={one.setBy}
-              title={one.setBy === "flag" ? `${one.says}. Inferred from a startup value differing from the schema default; an explicitly supplied default still reads default.` : one.says}
+              title={one.says}
             >
-              {one.key} {typeof one.value === "object" && one.value !== null ? JSON.stringify(one.value) : String(one.value)} <span>·{one.setBy}{one.setBy === "flag" ? " (inferred)" : ""}</span>
+              {one.key} {typeof one.value === "object" && one.value !== null ? JSON.stringify(one.value) : String(one.value)} <span>·{one.setBy}</span>
             </span>
           )}
         </For>

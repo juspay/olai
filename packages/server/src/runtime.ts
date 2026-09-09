@@ -31,8 +31,6 @@ export interface PluginRuntime {
   readonly configuration?: () => Configuration | undefined
   readonly environment?: ReadonlyMap<string, ReadonlyArray<EnvironmentReading>>
   readonly configurationDefaults?: ReadonlyMap<string, PolicyRow>
-  /** Inferred boot overrides; removed with the flag author and startup map in step 4. */
-  readonly configurationStartup?: ReadonlyMap<string, PolicyRow>
   readonly configs: () => ReadonlyMap<string, Readonly<Record<string, unknown>>>
   readonly persistent?: (id: string) => boolean
   readonly set: (id: string, enabled: boolean) => Effect.Effect<boolean, OpFailure>
@@ -63,9 +61,7 @@ export const rosterOf = (
       const config = offered.configs().get(name)
       const configuration = offered.configuration?.()
       const reading = configuration?.rows.get(name)
-      const policy = configuration !== undefined && reading?.node === undefined
-        ? offered.configurationStartup?.get(name) ?? reading ?? offered.configurationDefaults?.get(name)
-        : reading ?? offered.configurationDefaults?.get(name)
+      const policy = reading ?? offered.configurationDefaults?.get(name)
       return {
         name,
         ...(offered.environment?.get(name)?.length ? { environment: offered.environment.get(name)! } : {}),

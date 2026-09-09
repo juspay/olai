@@ -1,3 +1,4 @@
+import { writeFixturePolicy } from "@olai/bundle/testlib"
 /**
  * Lifecycle: one browser for the whole run, one server per fixture corpus, one
  * fresh context and page per scenario.
@@ -783,30 +784,7 @@ const startServerChild = async (
       "--host",
       "127.0.0.1",
       ...(fixedPort === undefined ? [] : ["--port", String(fixedPort)]),
-      ...(spawnOptions.git === undefined ? ["--no-commit"] : []),
-      // The git POLICY, when the scenario asked for one — see `PIN_TAG`. Each
-      // flag is passed only where a value was given, because giving it at all
-      // is what names that flag under the row.
-      ...(spawnOptions.pin?.commit === undefined
-        ? []
-        : ["--commit", spawnOptions.pin.commit]),
-      ...(spawnOptions.pin?.push === undefined
-        ? []
-        : ["--push", spawnOptions.pin.push]),
-      // ...and `--plugins`, on the same terms: given only where the scenario
-      // asked, because giving it at all is what names the flag under the row.
-      // The value may be EMPTY and that is the point — `--plugins=` is somebody
-      // saying none out loud, which the preferences panel tells apart from
-      // nobody having said.
-      ...(spawnOptions.plugins === undefined
-        ? []
-        : ["--plugins", spawnOptions.plugins]),
-      ...(spawnOptions.extraPlugins === undefined
-        ? []
-        : ["--extra-plugins", spawnOptions.extraPlugins]),
-      ...(spawnOptions.withoutPlugins === undefined
-        ? []
-        : ["--without-plugins", spawnOptions.withoutPlugins]),
+
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -1162,6 +1140,12 @@ const scratchServerFor = async (
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `olai-scratch-${corpus}-`));
   try {
     fs.cpSync(fixtureDir(corpus), root, { recursive: true });
+    writeFixturePolicy(root, {
+      commit: spawnOptions.pin?.commit ?? (spawnOptions.git === undefined ? "off" : undefined),
+      push: spawnOptions.pin?.push, only: spawnOptions.plugins, extra: spawnOptions.extraPlugins,
+      without: spawnOptions.withoutPlugins, avatar: spawnOptions.avatar,
+      idle: spawnOptions.fastNodeIdle ? FAST_NODE_IDLE_MS : undefined,
+    });
     if (spawnOptions.git === "repo") makeRepository(root);
     const server = await startServerChild(
       active.bin,

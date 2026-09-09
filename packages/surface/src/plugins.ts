@@ -265,7 +265,7 @@ export const BuiltPlugin = Schema.Struct({
    */
   config: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
   configurationValues: Schema.optionalKey(Schema.Array(Schema.Struct({
-    key: Schema.String, value: Schema.Unknown, setBy: Schema.Literals(["vault", "default", "flag"]), says: Schema.String,
+    key: Schema.String, value: Schema.Unknown, setBy: Schema.Literals(["vault", "default"]), says: Schema.String,
   }))),
   configurationNode: Schema.optionalKey(Schema.Struct({ file: Schema.String, id: Schema.String })),
   desiredOn: Schema.optionalKey(Schema.Boolean),

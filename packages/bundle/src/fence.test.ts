@@ -1929,7 +1929,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/git/src/ledger/pending.ts",
       "plugins/odu/src/probe.ts",
       "server/src/dial.ts",
-      "server/src/gitPolicy.ts",
       "server/src/main.ts",
       "server/src/mcpClient.ts",
       "server/src/serve.ts"
