@@ -100,7 +100,7 @@ export const components = {
     }),
   }),
   /** Under a zoomed node's properties. */
-  nodeDoor: definePlugin({
+  "node-door": definePlugin({
     name: "graph.node-door",
     needs: [Slots],
     apply: Effect.gen(function*() {
@@ -109,7 +109,7 @@ export const components = {
   }),
   /** A row's `•••`. With no router held its press does nothing — a drawer
    * with no router is a drawer on a page that cannot move anyway. */
-  rowVerb: definePlugin({
+  "row-verb": definePlugin({
     name: "graph.row-verb",
     needs: [Slots, navigation],
     apply: Effect.gen(function*() {
