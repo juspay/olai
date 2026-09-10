@@ -359,9 +359,10 @@ export function Panel(props: {
         {(error) => <p class="text-xs text-alarm" data-testid={TESTID.pluginConfigError}>{error()}. Repair the file to restore its policy.</p>}
       </Show>
       <Show when={plugins().instance}>{instance => (
-        <details class="py-2 text-xs text-muted" data-testid="this-serve">
+        <details class="py-2 text-xs text-muted" data-testid={TESTID.thisServe}>
           <summary class="cursor-pointer font-bold">This serve</summary>
           <div class="flex flex-wrap gap-2 py-2">
+            <span>hostname {instance().hostname} ·env</span>
             <span>host {instance().host} ·{instance().hostAuthor}</span>
             <span>port {instance().port} ·{instance().portAuthor}</span>
             <Config values={instance().policy} />

@@ -52,3 +52,7 @@ export const writeFixturePolicy = (root: string, policy: FixturePolicy): void =>
     fs.writeFileSync(file, nodes.map(node => JSON.stringify(node)).join("\n") + "\n")
   }
 }
+
+/** Exact row selection for isolated composition tests, never a product policy door. */
+export const selectFixtureRows = (names: ReadonlyArray<string>) =>
+  ROWS.map(row => ({ id: row.id, disabled: !names.includes(row.id) }))

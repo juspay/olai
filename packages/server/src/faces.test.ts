@@ -1,3 +1,4 @@
+import { selectFixtureRows } from "@olai/bundle/testlib"
 /**
  * EACH ROW'S FACE, AS THAT ROW'S EXACT SET — and, over a real socket, the
  * property the whole arrangement exists for.
@@ -139,7 +140,7 @@ const withRows = <A>(use: (composed: Composed) => Promise<A>): Promise<A> => {
       services: plugins.serviceKeys,
       browserServices: plugins.browserKeys,
     })
-    yield* mountBundle(plugins.host, { kind: "exact", names: [...ROWS] })
+    yield* mountBundle(plugins.host, selectFixtureRows([...ROWS]))
     yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
     yield* settled(plugins.host, [...ROWS])
     const wired = yield* bind({

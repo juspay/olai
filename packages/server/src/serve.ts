@@ -162,9 +162,8 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
         changed: () => onChange.run(),
     });
     issueTicket = ticketsFor(plugins.host);
-    const pluginPin = { kind: "omitted" } as const;
     yield* provideInputs(plugins.host, { root: served, runtime: runtimePaths });
-    yield* mountBundle(plugins.host, pluginPin, [], profile);
+    yield* mountBundle(plugins.host, [], profile, true);
     const loading = yield* openLoading(plugins.host, built, () => onChange.run(), { services: plugins.serviceKeys, browserServices: plugins.browserKeys });
     const policy = yield* followConfiguration(plugins.host, () => onChange.run(), () => [plugins.offers().get(ContentRevision.cordis), plugins.offers().get(ConfigurationSource.cordis)], publication => {
       ownPolicy = processPolicy(publication, line => {
@@ -172,7 +171,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
       });
       logging.set(ownPolicy.config["log-level"]);
       logging.setFormat(ownPolicy.config["log-format"]);
-    });
+    }, profile);
     yield* policy.ready;
     let report = yield* reportBundle(plugins.host, loading.names());
     const switched = new Set<string>();
@@ -217,10 +216,9 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
             built,
             instance: () => ({ host: options.host, port: addressPort,
               hostAuthor: options.addressAuthors?.host ?? "process", portAuthor: options.addressAuthors?.port ?? "process", policy: ownPolicy.values,
-              origins: options.allowedOrigins, bearer: { set: true } }),
+              hostname: theMachine, origins: options.allowedOrigins, bearer: { set: token.length > 0 } }),
             offByDefault: ROWS.filter((row) => row.disabled).map((row) => row.id),
             browserOnly: ROWS.filter((row) => row.browserOnly).map((row) => row.id),
-            pin: pluginPin,
             report: () => report,
             names: () => rowsNaming(plugins.host),
             configs: () => configsOf(plugins.host),

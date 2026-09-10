@@ -8,7 +8,6 @@ import { surface } from "./wire.ts"
 const GIT_OFF_REPO: GitState = {
   status: "repo",
   said: null,
-  pinned: DEFAULT_POLICY,
   policy: DEFAULT_POLICY,
   pushSaid: null,
   paused: null,
@@ -28,7 +27,6 @@ test("what git is doing knows when it has not changed", () => {
   ).toBe(false)
   for (
     const moved of [
-      { pinned: { commit: "auto", push: "off" } },
       { policy: { commit: "auto", push: "off" } },
       { pushSaid: "! [rejected] main -> main" },
       { paused: "! [rejected] main -> main" },

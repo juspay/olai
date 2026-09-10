@@ -276,7 +276,7 @@ const optionsKey = (one: Defined): string => JSON.stringify(one.configuration?.n
 
 const wordsOf = (defined: ReadonlyArray<Defined>): string =>
   defined
-    .map((one) => [one.name, one.node, one.file, one.version, one.approved, one.fault, optionsKey(one)].join(" "))
+    .map((one) => [one.name, one.node, one.file, one.version, one.approved, one.fault, optionsKey(one)].join("\0"))
     .join("\n")
 
 /**
@@ -293,10 +293,14 @@ const wordsOf = (defined: ReadonlyArray<Defined>): string =>
  * what a row draws for it is the REPORT rather than anything this function knows.
  * Every arm below is a way the definition never became a fiber at all.
  */
-const policyFor = (schema: Plugin["config"], one: Defined, warn: (line: string) => void): ReturnType<typeof decodePolicy> =>
-  schema === undefined ? { config: {}, values: [] } : decodePolicy(schema,
-    one.configuration?.nodes ?? [], one.configuration?.node,
+const policyFor = (schema: Plugin["config"], one: Defined, warn: (line: string) => void): ReturnType<typeof decodePolicy> => {
+  if (schema === undefined) return { config: {}, values: [] }
+  if (schema.ast._tag === "Objects") for (const field of schema.ast.propertySignatures) {
+    if (field.name === "plugin" || field.name === "approved") throw new Error(`${String(field.name)} is reserved for the definition's name and approval`)
+  }
+  return decodePolicy(schema, one.configuration?.nodes ?? [], one.configuration?.node,
     (key, value, reason) => warn(`${one.file}#${one.node}: ${key}: ${JSON.stringify(value)} uses its default — ${reason}`))
+}
 
 const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): Effect.Effect<Started> =>
   Effect.gen(function*() {

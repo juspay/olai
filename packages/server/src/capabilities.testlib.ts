@@ -1,3 +1,4 @@
+import { selectFixtureRows } from "@olai/bundle/testlib"
 /** Real capability rows over an explicitly supplied test vault. Store fault
  * injection stays below the rows; their handlers and subscriptions are real. */
 import { mountBundle, provide, settled } from "@olai/bundle/bundle"
@@ -13,7 +14,7 @@ export const runtimeFor = (plugins: Plugins, built: ReadonlyArray<string>, onCha
   const reports = yield* rowReport(plugins.host,built)
   return {
     plugins: {...plugins, changes: Stream.empty}, onChange, built,
-    pin: {kind:"exact",names:built}, report: () => reports,
+    report: () => reports,
     names: () => new Map(), configs: () => new Map(), set: () => Effect.succeed(false),
     reread: Effect.void, switched: () => new Set(),
   } satisfies PluginRuntime
@@ -52,7 +53,7 @@ export const capabilitiesOver = (store: Store, gate: Gate, root: string, options
   yield* provide(plugins.host, VaultViews, () => ({ ledger: () => Effect.void, search: () => Effect.void }))
   yield* provide(plugins.host, Vault, events.door)
   yield* mountPlugin(plugins.host,fileAccess)
-  yield* mountBundle(plugins.host,{kind:"exact",names:rows},[],"surface")
+  yield* mountBundle(plugins.host,selectFixtureRows(rows),"surface")
   yield* settled(plugins.host,rows)
   return yield* runtimeFor(plugins,rows,onChange)
 })

@@ -89,7 +89,7 @@ import { type Dial, koluHalf } from "olai-plugin-kolu/appliance"
 import type { KoluEvent } from "olai-plugin-kolu/appliance/wire"
 
 import { claimantsIn } from "./claimants.ts"
-import { watchConfigIn } from "./config.ts"
+import { watchConfigIn, watchReadingIn } from "./config.ts"
 import { configurationFileIn } from "@olai/plugin-api/configuration"
 import { Config } from "./settings.ts"
 export { Config } from "./settings.ts"
@@ -281,7 +281,7 @@ export default definePlugin({
       // the convention below — the same `let`, set on the same revision, and read
       // synchronously inside the very call that set it.
       claimants: (nodes) => claimantsIn(declaring, nodes),
-      config: watchConfigIn,
+      config: () => currentWatch,
       // THE DOORBELL'S TAP, and the THIRD instance of the same boundary: what
       // crosses into this package is the wire's own frozen `KoluEvent`, and what
       // this side does with it — join it against the un-done nodes of a file
@@ -330,6 +330,7 @@ export default definePlugin({
      *  pointer read on every revision the declarations file did not move on.
      *  `NO_TYPING` before the first revision is the truth about it: nothing has
      *  been read, so nothing is declared, so nothing claims a terminal. */
+    let currentWatch = watchConfigIn([], null)
     let declaring: PropDeclarations = NO_TYPING
 
     /** ...AND THE REVISION ITSELF, for the doorbell's walk.
@@ -811,6 +812,7 @@ export default definePlugin({
         // between revisions, and the vault it is joined against has to be the last
         // one that landed.
         derived = revision.value.derived
+        currentWatch = watchReadingIn(revision.value)
         half.revision(revision.value.derived.nodes, file.file ?? null)
       })
     )

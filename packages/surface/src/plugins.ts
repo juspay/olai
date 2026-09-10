@@ -66,7 +66,7 @@
  * this or of the panel moving.
  */
 
-import { fileKind, PluginPin } from "@olai/format"
+import { fileKind } from "@olai/format"
 import { Schema } from "effect"
 
 /**
@@ -460,7 +460,7 @@ export const PluginRoster = Schema.Struct({
   configurationAvailable: Schema.optionalKey(Schema.Boolean),
 
   instance: Schema.optionalKey(Schema.Struct({
-    host: Schema.String, port: Schema.Number,
+    hostname: Schema.String, host: Schema.String, port: Schema.Number,
     hostAuthor: Schema.Literals(["flag", "default", "process"]), portAuthor: Schema.Literals(["flag", "default", "process"]),
     policy: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.Unknown,
       setBy: Schema.Literals(["vault", "default"]), says: Schema.String })),
@@ -471,33 +471,7 @@ export const PluginRoster = Schema.Struct({
    *  plugins at all — `olai surface`, the headless faces, every server test —
    *  which composes no sibling surface and so has no roster to be about. */
   built: Schema.Array(BuiltPlugin),
-  /**
-   * The names `--plugins` was GIVEN, or `null` when the flag was not given.
-   *
-   * `null` IS NOT THE EMPTY LIST, and keeping them apart is the whole reason
-   * this field is here rather than derived from `built`. `null` is nobody
-   * having said, which means the built-in default; `[]` is `--plugins=`,
-   * somebody saying NONE out loud. Both leave the same rows on screen when a
-   * build has one plugin, and the line under them says two different things:
-   * one names the flag that did it, the other names the built-in default. The
-   * git pin keeps exactly this distinction one setting over (`@olai/format`'s
-   * `GitPin`), and for the same reason — a value that had already expanded
-   * `null` into the full list could not tell a reader which of the two they
-   * were looking at.
-   *
-   * Exact-arm projection of {@link pin}, kept so a tab too old to read the
-   * sum still sees `--plugins` / omitted. A delta serve publishes `null` here.
-   */
-  pinned: Schema.NullOr(Schema.Array(Schema.String)),
-  /**
-   * WHAT THE OPERATOR PINNED — one value, the git pin's sibling.
-   *
-   * OPTIONAL so a serve too old to send it still decodes; the exact-arm
-   * projection {@link pinned} is what that serve wrote, and
-   * `@olai/format`'s `pluginPinOf` reconstructs the sum from it. A new serve
-   * writes this field and keeps `pinned` as the exact-arm half.
-   */
-  pin: Schema.optionalKey(PluginPin),
+
 })
 export type PluginRoster = typeof PluginRoster.Type
 
@@ -547,7 +521,7 @@ export const watchable = (kinds: ReadonlyArray<string>, file: string): boolean =
  * running kolu on its way to the truth. That is the same argument `GIT_OFF`
  * makes for seeding the git cell with the setting face rather than the fault.
  */
-export const NO_ROSTER: PluginRoster = { built: [], pinned: null }
+export const NO_ROSTER: PluginRoster = { built: [] }
 
 /**
  * TWO ROSTERS THAT SAY THE SAME THING ARE ONE — and this cell needs an `equals`

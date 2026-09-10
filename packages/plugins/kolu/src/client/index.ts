@@ -163,7 +163,6 @@ export interface KoluDeps<N> {
   readonly config: (nodes: ReadonlyArray<N>, file: string | null) => {
     readonly config: WatchConfig
     readonly node?: string
-    readonly malformed: ReadonlyArray<string>
   }
   /**
    * THE DOORBELL'S TAP, injected, and the boundary once more — every event
@@ -513,10 +512,6 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
     },
     { now: () => Date.now(), say: deps.say, warn: deps.warn },
   )
-  /** The malformed-set last said, joined for a one-line compare: the vault
-   *  re-derives on every keystroke, and saying the same malformed value on
-   *  each one is the noise this exists against. */
-  let saidMalformed = ""
   /** A VAULT REVISION, as both walks. `mirror` may not exist (a linkless
    *  face), which is why the claims walk sits behind the optional call and
    *  the vault walk's `ReadonlyArray<N>` is satisfied by the surface-driven
@@ -536,11 +531,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
     decidingNode = next.node
     watch.reconfigure(next.config)
     publishKnobs()
-    const lines = next.malformed.join("\n")
-    if (lines !== saidMalformed) {
-      saidMalformed = lines
-      for (const line of next.malformed) deps.warn(line)
-    }
+
   }
   const unloaded = (): void => {
     deciding = null

@@ -33,7 +33,7 @@ import {
 } from "@olai/plugin-api/services"
 import { Duration, Effect, Schema, Stream, SubscriptionRef } from "effect"
 
-import { type Committing, fixedPolicy, make } from "./ledger/pending.ts"
+import { type Committing, make } from "./ledger/pending.ts"
 import { faces, name, surface } from "./wire.ts"
 /** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
  *  faces. They were entries in `@olai/ops`' one closed table until #546, which
@@ -78,15 +78,11 @@ export default definePlugin({
 
     let at: Reading | null = null
     let mine: Ctx | undefined
-    const policy = fixedPolicy({
-      commit: config.commit ?? null,
-      push: config.push ?? null,
-    })
     const settled = yield* SubscriptionRef.make(0)
     const commits: Committing = make({
       root: vault.served,
       at: Effect.sync(() => at),
-      policy,
+      policy: config,
       onSettled: () => {
         detach(SubscriptionRef.update(settled, (count) => count + 1).pipe(Effect.asVoid))
       },

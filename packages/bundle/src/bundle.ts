@@ -46,8 +46,6 @@
  * door in this package keeps, in a third grammar.
  */
 
-import type { PluginPin } from "@olai/format"
-export type { PluginPin } from "@olai/format"
 import type { Host, PropKind, RowReport } from "@olai/plugin-api"
 import { definePlugin, kindWordOf, rowReport } from "@olai/plugin-api"
 // THE TWO REACHES PAST `@olai/plugin-api`, and the only ones in the tree, for
@@ -108,49 +106,6 @@ export { BUNDLE_NAMES, type BundleRow, DEFAULT_BUNDLE_NAMES, ROWS } from "./rows
  *  ({@link pluginsPatch}), so the only thing that can tell them apart is whether
  *  a flag was given at all, which is the composition root's to hold. */
 export type { RowReport, RowState } from "@olai/plugin-api"
-
-/**
- * `--plugins`, AS A PATCH — the overlay an operator's flag writes over the rows.
- *
- * `omitted` is nobody having said, and it writes NO patch at all: the rows' own
- * `disabled` stands, which is the built-in default. That is also what keeps the
- * distinction between an omitted flag and one typed out loud — the preferences
- * row is drawn from it, and a patch that had already expanded `omitted` could not
- * tell a reader which of the two they were looking at.
- *
- * A flag that WAS given writes a `disabled` onto every row, set from whether the
- * flag named it. Both directions, deliberately: a name the flag gives turns a
- * row ON even where the file left it off, which is the whole of how an opt-in
- * plugin is opted into, and a name the flag omits turns a row off even where the
- * file left it on. `--plugins=` — somebody saying NONE out loud — is that with an
- * empty list, and disables every row.
- *
- * `--extra-plugins` and `--without-plugins` are the other encoding of the same
- * pin: each names only the rows it moves, so the file's answer stands for
- * everything else. They live on `delta`. Exact set is a different arm. The
- * type is the refusal; this function is not passed both.
- *
- * That is exactly the shape the include's own patch algorithm takes: `{ id,
- * …overrides }` copied onto the matching row. The flag refuses an unknown name
- * where a person types one, so a patch for a row that does not exist is not this
- * function's failure to report — the loader logs it and carries on, which is the
- * right arm for an overlay that outlived a build.
- */
-export const pluginsPatch = (
-  pin: PluginPin,
-): ReadonlyArray<{ readonly id: string; readonly disabled?: boolean }> => {
-  switch (pin.kind) {
-    case "omitted":
-      return []
-    case "exact":
-      return ROWS.map((row) => ({ id: row.id, disabled: !pin.names.includes(row.id) }))
-    case "delta":
-      return [
-        ...(pin.extra ?? []).map((id) => ({ id, disabled: false as const })),
-        ...(pin.without ?? []).map((id) => ({ id, disabled: true as const })),
-      ]
-  }
-}
 
 /**
  * WHAT EVERY BUILT PLUGIN TEACHES THE VAULT, running or not — the declarations a
@@ -339,9 +294,9 @@ export const setRow = (
  */
 export const mountBundle = (
   host: Host,
-  pin: PluginPin,
-  configs: ReadonlyArray<{ readonly id: string; readonly config: unknown }> = [],
+  patches: ReadonlyArray<{ readonly id: string; readonly disabled?: boolean; readonly config?: unknown }> = [],
   profile: string = "web",
+  prepare = false,
 ): Effect.Effect<void, never, Scope.Scope> => Effect.gen(function*() {
   yield* provide(host, BundleModules, () => ({
     read: Effect.promise(() => Promise.all(ROWS.map(async (row) => ({ name: row.id, exports: await importByName(row.name) })))),
@@ -351,13 +306,14 @@ export const mountBundle = (
   const defaults = yield* Effect.promise(async () => Promise.all(ROWS.map(async (row) => {
     const module = await importByName(row.name) as { default: { config?: Schema.ConstraintDecoder<unknown, never> } }
     const schema = module.default.config
-    return schema === undefined ? [] : [{ id: row.id, config: Schema.decodeUnknownSync(schema)({}) }]
+    try { return schema === undefined ? [] : [{ id: row.id, config: Schema.decodeUnknownSync(schema)({}) }] }
+    catch { return [] } // Activation reports an invalid declaration as this row’s fault.
   })))
   yield* Effect.flatMap(
     mountRows(host, {
       baseUrl: BASE_URL,
       path: BUNDLE,
-      patches: [...profilePatch(profile), ...pluginsPatch(pin), ...defaults.flat(), ...configs],
+      patches: [...profilePatch(profile), ...defaults.flat(), ...patches, ...(prepare ? profilePatch("test-minimal") : [])],
       resolve: importByName,
     }),
     // EVERY ROW THIS BUILD HAS, and not only the ones the flag left on: a row
@@ -375,10 +331,15 @@ export const profilePatch = (profile: string) => profile === "web" ? [] : ROWS.m
   disabled: row.disabled === true || !row.profiles?.includes(profile),
 }))
 
-/** Only composition can reconcile declared row options. */
-export const patchBundleRow = (host: Host, id: string, patch: { readonly disabled?: boolean; readonly config?: unknown }) =>
+/** Apply one publication as a batch, then settle the resulting dependency graph. */
+export const patchBundleRows = (host: Host, patches: ReadonlyArray<{ readonly id: string; readonly disabled?: boolean; readonly config?: unknown }>) =>
   Effect.gen(function*() {
-    const found = yield* patchRow(host, id, patch)
+    const found: boolean[] = []
+    for (const { id, ...patch } of patches) found.push(yield* patchRow(host, id, patch))
     yield* settled(host, BUNDLE_NAMES)
     return found
   })
+
+/** A single-row composition operation shares the same settlement boundary. */
+export const patchBundleRow = (host: Host, id: string, patch: { readonly disabled?: boolean; readonly config?: unknown }) =>
+  Effect.map(patchBundleRows(host, [{ id, ...patch }]), found => found[0] ?? false)

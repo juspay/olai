@@ -21,19 +21,8 @@ import { expect, test } from "bun:test"
 
 import { readFileSync } from "node:fs"
 
-import { type PluginPin, pluginsPatch, profilePatch } from "./bundle.ts"
+import { profilePatch } from "./bundle.ts"
 import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, inBundleOrder, ROWS } from "./rows.ts"
-
-const exact = (names: ReadonlyArray<string> | null): PluginPin =>
-  names === null ? { kind: "omitted" } : { kind: "exact", names }
-
-/** What a patch says about one row, as a reader would ask it. `undefined` is a
- *  row the patch does not mention, which is what "nobody said" writes. */
-const patched = (
-  names: ReadonlyArray<string> | null,
-  id: string,
-): boolean | undefined =>
-  (pluginsPatch(exact(names)).find((one) => one.id === id) as { disabled?: boolean } | undefined)?.disabled
 
 test("the built-in default is the rows that did not opt out", () => {
   expect(DEFAULT_BUNDLE_NAMES.length).toBeGreaterThan(0)
@@ -83,55 +72,6 @@ test("the chat row is on by default, and reads first", () => {
   expect(ROWS[0]?.id).toBe("chat")
   // ...and an omitted flag leaves it that way, which is the other half: the
   // default is what a person gets by typing nothing.
-  expect(patched(null, "chat")).toBeUndefined()
-})
-
-test("nobody having said writes no patch at all, so the rows' own default stands", () => {
-  // The distinction the whole flag is shaped around, as a fact about the patch:
-  // an omitted flag leaves the file's answer alone, so a browser drawing the row
-  // can say `the built-in default` rather than repeating a list back.
-  expect(pluginsPatch({ kind: "omitted" })).toEqual([])
-})
-
-test("a named pin writes BOTH directions, which is how an opt-in row is opted into", () => {
-  const optedOut = ROWS.filter((row) => row.disabled === true).map((row) => row.id)
-  const optedIn = ROWS.filter((row) => row.disabled !== true).map((row) => row.id)
-  expect(optedOut.length).toBeGreaterThan(0)
-  expect(optedIn.length).toBeGreaterThan(0)
-  const off = optedOut[0] as string
-  const on = optedIn[0] as string
-
-  // Naming the opt-in row turns it ON — `disabled: false` over a row the file
-  // set `true`, which is the case a patch that only ever wrote `true` could not
-  // express at all.
-  expect(patched([off], off)).toBe(false)
-  // ...and every row the flag did not name goes off, including one the file left
-  // on. Both directions from one expression.
-  expect(patched([off], on)).toBe(true)
-
-  // `--plugins=` — somebody saying NONE out loud — disables every row.
-  for (const row of ROWS) expect(patched([], row.id)).toBe(true)
-  // ...and naming everything turns everything on, opt-in rows included.
-  for (const row of ROWS) expect(patched([...BUNDLE_NAMES], row.id)).toBe(false)
-})
-
-test("extra and without patch only the rows they name", () => {
-  const optedOut = ROWS.filter((row) => row.disabled === true).map((row) => row.id)
-  const optedIn = ROWS.filter((row) => row.disabled !== true).map((row) => row.id)
-  const off = optedOut[0] as string
-  const on = optedIn[0] as string
-
-  const extra = pluginsPatch({ kind: "delta", extra: [off], without: null })
-  expect(extra).toEqual([{ id: off, disabled: false }])
-  const without = pluginsPatch({ kind: "delta", extra: null, without: [on] })
-  expect(without).toEqual([{ id: on, disabled: true }])
-  const both = pluginsPatch({ kind: "delta", extra: [off], without: [on] })
-  expect(both).toEqual([
-    { id: off, disabled: false },
-    { id: on, disabled: true },
-  ])
-  expect(pluginsPatch({ kind: "omitted" })).toEqual([])
-  expect(pluginsPatch({ kind: "exact", names: [on] }).every((one) => "disabled" in one)).toBe(true)
 })
 
 /**
@@ -178,24 +118,18 @@ test("the input is not reordered under its owner", () => {
   expect(arrived.map((one) => one.id)).toEqual(["zeta-x", BUNDLE_NAMES[0] ?? "claude"])
 })
 
-test("profiles only patch catalogue rows and an exact flag overrides every row", () => {
+test("profiles select only catalogue rows and preserve build defaults", () => {
   for (const profile of ["web", "surface", "test-minimal"]) {
-    for (const names of [null, [], ["vault"], ["chat", "mcp", "ws", "web-app"]]) {
-      const patches = [...profilePatch(profile), ...pluginsPatch(exact(names))]
-      expect(patches.every((patch) => BUNDLE_NAMES.includes(patch.id))).toBe(true)
-      const on = ROWS.filter((row) => {
-        const last = patches.filter((patch) => patch.id === row.id).at(-1)
-        return !(last?.disabled ?? row.disabled)
-      }).map((row) => row.id)
-      if (names !== null) expect([...on].sort()).toEqual([...names].sort())
-      else expect<ReadonlyArray<string>>(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "settings", "mcp", "outlines", "markdown", "files", "pins", "capture", "trash", "vault-plugins"] : ["vault", "settings"])
-    }
+    const patches = profilePatch(profile)
+    expect(patches.every(patch => BUNDLE_NAMES.includes(patch.id))).toBe(true)
+    const on = ROWS.filter(row => !(patches.find(patch => patch.id === row.id)?.disabled ?? row.disabled)).map(row => row.id)
+    expect<ReadonlyArray<string>>(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "settings", "mcp", "outlines", "markdown", "files", "pins", "capture", "trash", "vault-plugins"] : ["vault", "settings"])
   }
 })
 
 test("transport modifiers apply over each profile's defaults", () => {
   for (const profile of ["web", "surface", "test-minimal"]) {
-    const patches = [...profilePatch(profile), ...pluginsPatch({ kind: "delta", extra: ["ws"], without: ["mcp"] })]
+    const patches = [...profilePatch(profile), { id: "ws", disabled: false }, { id: "mcp", disabled: true }]
     const enabled = (id: string) => !(patches.filter((row) => row.id === id).at(-1)?.disabled ?? ROWS.find((row) => row.id === id)?.disabled)
     expect(enabled("ws")).toBe(true)
     expect(enabled("mcp")).toBe(false)
@@ -207,7 +141,7 @@ test("transport modifiers apply over each profile's defaults", () => {
 test("maintained fixtures require an explicit selection and never select each other", () => {
   for (const profile of ["web", "surface", "test-minimal"]) {
     for (const chosen of [undefined, "test-layout", "test-counter"] as const) {
-      const patches = [...profilePatch(profile), ...pluginsPatch(chosen === undefined ? { kind: "omitted" } : { kind: "delta", extra: [chosen], without: null })]
+      const patches = [...profilePatch(profile), ...(chosen === undefined ? [] : [{ id: chosen, disabled: false }])]
       const enabled = (id: string) => !(patches.filter(patch => patch.id === id).at(-1)?.disabled ?? ROWS.find(row => row.id === id)?.disabled)
       expect(enabled("test-layout")).toBe(chosen === "test-layout")
       expect(enabled("test-counter")).toBe(chosen === "test-counter")

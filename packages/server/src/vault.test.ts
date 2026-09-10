@@ -1,3 +1,4 @@
+import { selectFixtureRows } from "@olai/bundle/testlib"
 import { runtimePaths } from "./runtime-paths.ts"
 import { expect, test } from "bun:test"
 import { configsOf, mountBundle, offered, provide, reportBundle, setRow, settled } from "@olai/bundle/bundle"
@@ -16,7 +17,7 @@ const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
 const opening = (root: string, options: { readonly format?: string; readonly ledger?: Ledger } = {}) => Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "" })
   yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
-  yield* mountBundle(plugins.host, { kind: "exact", names: ["vault"] }, options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }], "test-minimal")
+  yield* mountBundle(plugins.host, [...selectFixtureRows(["vault"]), ...(options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }])], "test-minimal")
   /**
    * A LEDGER ARRIVES THE WAY GIT'S DOES — registered through `VaultViews` by a
    * row that named it — rather than provided over the host's head. The vault

@@ -5,7 +5,7 @@
  */
 
 
-import { NotFoundFailure, type PluginPin, type OpFailure } from "@olai/format"
+import { NotFoundFailure, type OpFailure } from "@olai/format"
 import { type BuiltPlugin, NO_ROSTER, type PluginRoster, type PluginState, type Who } from "@olai/surface/host"
 import type { SurfaceSpec } from "@kolu/surface/define"
 import { emptyHandlers, type ImplementSurfaceDeps, inMemoryStore, type MountedSurface, type SurfaceHandlers, type SurfaceRuntime } from "@kolu/surface/server"
@@ -27,7 +27,6 @@ export interface PluginRuntime {
   readonly instance?: () => NonNullable<PluginRoster["instance"]>
   readonly browserOnly?: ReadonlyArray<string>
   readonly offByDefault?: ReadonlyArray<string>
-  readonly pin: PluginPin
   readonly report: () => ReadonlyMap<string, RowReport>
   readonly names: () => ReadonlyMap<string, ReadonlyArray<string>>
   readonly configuration?: () => Configuration | undefined
@@ -93,8 +92,6 @@ export const rosterOf = (
     ...(configuration?.broken === undefined ? {} : { configurationError: configuration.broken }),
     configurationAvailable: configuration !== undefined,
     ...(offered.instance === undefined ? {} : { instance: offered.instance() }),
-    pin: offered.pin,
-    pinned: offered.pin.kind === "exact" ? offered.pin.names : null,
   }))(offered.names(), offered.configuration?.())
 const carriedBy = (
   name: string,
@@ -116,8 +113,7 @@ const whoTurnedItOff = (
 ): PluginState => {
   if (offered.configuration?.()?.rows.get(name)?.on === false) return "off"
   if (offered.switched().has(name)) return "switched"
-  if (offered.offByDefault !== undefined) return offered.offByDefault.includes(name) ? "optIn" : "off"
-  return offered.pin.kind === "exact" ? "off" : "optIn"
+  return offered.offByDefault?.includes(name) ? "optIn" : "off"
 }
 const stateOf = (
   offered: NonNullable<Wiring["plugins"]>,

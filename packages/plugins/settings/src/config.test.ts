@@ -38,7 +38,9 @@ test("malformed leaves default independently and each shape is warned once", () 
   expect(lines.join("\n")).toContain("example.mode")
 })
 test("a broken line defaults all namespaces and still names the file", () => {
-  const at = readConfiguration(readingOf(setOf({}, [], { "_olai/Settings.olai": "torn line" })), declarations, 1, () => {})
+  const lines: string[] = []
+  const at = readConfiguration(readingOf(setOf({}, [], { "_olai/Settings.olai": "torn line" })), declarations, 1, line => lines.push(line))
+  expect(lines).toEqual(["_olai/Settings.olai: malformed settings file; every row uses its defaults"])
   expect(at.broken).toContain("_olai/Settings.olai")
   expect(at.rows.get("example")?.config.mode).toBe("quiet")
   expect(at.rows.get("another")?.config.mode).toBe("quiet")

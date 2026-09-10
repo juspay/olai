@@ -2,6 +2,7 @@
  * The descriptor imports are inert schemas; loading this contract acquires no
  * runtime state. Stable root tags preserve clients without moving ownership
  * back into the host. */
+import { BuiltPlugin } from "@olai/surface"
 import { OpFailure } from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
@@ -80,6 +81,7 @@ plugins: { /**
           approved: Schema.Boolean,
           /** Why it is not running, in a whole sentence, where there is one. */
           fault: Schema.optionalKey(Schema.String),
+          configurationValues: BuiltPlugin.fields.configurationValues,
         }),
         error: OpFailure,
       },
@@ -141,6 +143,7 @@ plugins: { /**
             approved: Schema.String,
             server: Schema.String,
             browser: Schema.String,
+            config: Schema.Struct({ schema: Schema.String, properties: Schema.String, reserved: Schema.Array(Schema.String) }),
           }),
           /** Every word this serve already has — built rows and vault
            *  definitions alike, because a definition may take neither. */

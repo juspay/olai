@@ -451,6 +451,7 @@ test("a node ticket can list and call the three plugin verbs", async () => {
       approved: "approved",
       server: "server.ts",
       browser: "browser.tsx",
+      config: { schema: "Config", properties: "properties on the definition node; child nodes hold schema sections", reserved: ["plugin", "approved"] },
     })
 
     // ...and the feedback loop, on a word this vault does not define: a refusal

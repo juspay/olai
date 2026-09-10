@@ -104,6 +104,7 @@ run: ({ input }) =>
                 version: one.version,
                 state: row?.state ?? "off",
                 approved: isApproved(one),
+                configurationValues: row?.configurationValues ?? [],
                 ...(row?.fault === undefined ? {} : { fault: row.fault }),
               }
             }),
@@ -141,6 +142,7 @@ inspect: () =>
                 approved: APPROVED_KEY,
                 server: SERVER_NODE,
                 browser: BROWSER_NODE,
+                config: { schema: "Config", properties: "properties on the definition node; child nodes hold schema sections", reserved: [PLUGIN_KEY, APPROVED_KEY] },
               },
               taken: [...loading.reserved, ...dynamic.names()],
             }))

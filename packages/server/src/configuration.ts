@@ -1,7 +1,8 @@
 /** Serve-owned serialization of live policy publications and loader updates.
  * The provider only publishes. Losing it cancels the subscription, never a
  * patch already accepted by this worker, and never rolls row options back. */
-import { BUNDLE_NAMES, configsOf, offered, patchBundleRow, reportBundle, serviceChanges } from "@olai/bundle/bundle"
+import { ROWS } from "@olai/bundle"
+import { BUNDLE_NAMES, configsOf, offered, patchBundleRow, patchBundleRows, profilePatch, serviceChanges } from "@olai/bundle/bundle"
 import { BundleModules, ConfigurationSource, Env, Ops as WriteDoor } from "@olai/plugin-api/services"
 import { CONFIGURATION_FILE, decodePolicy, environmentReadings, type Configuration, type PolicyRow } from "@olai/plugin-api/configuration"
 import { UsageFailure, type OpFailure, type WriteRequest } from "@olai/format"
@@ -9,7 +10,7 @@ import type { Ops } from "@olai/ops"
 import type { Plugin } from "@olai/plugin-api"
 import { Deferred, Effect, Fiber, Queue, Semaphore, Stream, SubscriptionRef } from "effect"
 
-export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], changed: () => void, sessionOwners: () => ReadonlyArray<string | undefined>, processChanged: (value: Configuration) => void = () => {}) => Effect.gen(function*() {
+export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], changed: () => void, sessionOwners: () => ReadonlyArray<string | undefined>, processChanged: (value: Configuration) => void = () => {}, profile = "web") => Effect.gen(function*() {
   type Publication = { source: ConfigurationSource; value: Configuration } | { source: undefined }
   const work = yield* Queue.unbounded<Publication>()
   yield* Effect.addFinalizer(() => Queue.shutdown(work))
@@ -24,13 +25,16 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
     (one.exports as { default: Plugin }).default.configUpdates === "live").map(one => one.name))
   const defaults = new Map<string, PolicyRow>(modules.map(one => {
     const schema = (one.exports as { default: Plugin }).default.config
-    return [one.name, schema === undefined ? { config: {}, values: [] } : decodePolicy(schema, [], undefined, () => {})]
+    try { return [one.name, schema === undefined ? { config: {}, values: [] } : decodePolicy(schema, [], undefined, () => {})] }
+    catch { return [one.name, { config: {}, values: [] }] }
   }))
   const environment = new Map(modules.map(one => [one.name, environmentReadings(
     (one.exports as { default: Plugin }).default.environment ?? [], offered(host, Env, one.name)?.vars ?? {},
   )]))
   const bootConfig = configsOf(host)
-  const bootReport = yield* reportBundle(host)
+  const disabled = new Map(ROWS.map(row => [row.id, row.disabled ?? false]))
+  for (const row of profilePatch(profile)) disabled.set(row.id, row.disabled)
+  let initialized = false
   let current: Configuration | undefined
   let active: ConfigurationSource | undefined
   const lastOn = new Map<string, boolean | undefined>()
@@ -44,22 +48,21 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
     if (publication.source !== offered(host, ConfigurationSource)) return
     const returning = active !== publication.source
     active = publication.source
-    if (publication.source === undefined) {
-      current = undefined
-    } else {
-      current = publication.value
-      processChanged(current)
-      for (const id of BUNDLE_NAMES) {
-        const row = current.rows.get(id)
-        // Missing namespaces restore the schema and profile/build defaults.
+    current = publication.source === undefined ? undefined : publication.value
+    if (current !== undefined) processChanged(current)
+    if (current !== undefined || !initialized) {
+      const changes = BUNDLE_NAMES.map(id => {
+        const row = current?.rows.get(id)
         const config = row?.node === undefined ? bootConfig.get(id) : row.config
-        const enabled = row?.on ?? (bootReport.get(id)?.state !== "off")
-        yield* Effect.uninterruptible(patchBundleRow(host, id, {
-          ...(returning || lastOn.get(id) !== row?.on ? { disabled: !enabled } : {}),
+        const enabled = row?.on ?? !disabled.get(id)
+        return { id,
+          ...(returning || !initialized || lastOn.get(id) !== row?.on ? { disabled: !enabled } : {}),
           ...(config === undefined || live.has(id) ? {} : { config }),
-        }))
-        lastOn.set(id, row?.on)
-      }
+        }
+      })
+      yield* Effect.uninterruptible(patchBundleRows(host, changes))
+      for (const id of BUNDLE_NAMES) lastOn.set(id, current?.rows.get(id)?.on)
+      initialized = true
     }
     if (publication.source !== undefined) processed.set(publication.source, publication.value.revision)
     observed = publication.source

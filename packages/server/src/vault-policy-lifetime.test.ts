@@ -1,3 +1,4 @@
+import { selectFixtureRows } from "@olai/bundle/testlib"
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
 import { readingOfVault } from "@olai/format/testlib/scope"
@@ -27,7 +28,7 @@ test("withdrawing vault source policy removes its children, catalog, chunks and 
   yield* events.published({rev:1,value:read,changed:["plugin.olai"],removed:[]})
   yield* provide(plugins.host,Vault,events.door)
   yield* provide(plugins.host,Ops,()=>({gate:{read:Effect.succeed(read)}} as never))
-  yield* mountBundle(plugins.host,{kind:"exact",names:["vault-plugins"]},[])
+  yield* mountBundle(plugins.host,selectFixtureRows(["vault-plugins"]))
   yield* settled(plugins.host,["swatch"])
   expect(offered(plugins.host,value)).toEqual({value:1})
   expect(loading.names()).toEqual(["swatch"])

@@ -51,14 +51,11 @@ import {
  *  `pin` defaults to omitted, which is the ordinary serve. */
 const roster = (
   running: ReadonlyArray<string>,
-  names: ReadonlyArray<string> | null = null,
 ): PluginRoster => ({
   built: [
     { name: "alpha", running: running.includes("alpha") },
     { name: "beta", running: running.includes("beta") },
   ],
-  pinned: names,
-  pin: names === null ? { kind: "omitted" } : { kind: "exact", names },
 })
 
 /**
@@ -85,8 +82,6 @@ const row = (
     ...(missing === undefined ? {} : { missing }),
     ...(carrying === undefined ? {} : { carrying }),
   }],
-  pinned: null,
-  pin: { kind: "omitted" },
 })
 
 /** That row, for the readings that take one. */
@@ -110,7 +105,6 @@ test("every plugin the build has gets a row, running or not", () => {
 test("the rows come in the order the server sent them", () => {
   const sent: PluginRoster = {
     built: [{ name: "zulu", running: true }, { name: "alpha", running: true }],
-    pinned: null,
   }
   expect(pluginRows(sent).map((one) => one.name)).toEqual(["zulu", "alpha"])
 })
@@ -451,14 +445,14 @@ test("a press freezes only that row's strip, and does not move it", () => {
  * from two different frames.
  */
 test("the foot names the file instead of retired startup flags", () => {
-  for (const value of [roster(["alpha"]), roster(["alpha"], ["alpha"]), roster([], [])]) {
+  for (const value of [roster(["alpha"]), roster(["alpha"]), roster([])]) {
     expect(pluginsStarted(value)).toContain("_olai/Settings.olai")
     expect(pluginsStarted(value)).not.toContain("--plugins")
   }
 })
 
 test("the foot names durable policy and private memory; session exceptions belong on rows", () => {
-  const value = roster(["alpha"], ["alpha"])
+  const value = roster(["alpha"])
   const said = pluginsStarted(value)
   expect(said).toContain("_olai/Settings.olai")
   expect(said).toContain("travels with this directory")
@@ -546,8 +540,6 @@ test("vault-defined plugins are Defined here; pending ones are Needs you", () =>
       defined("delta", "pending"),
       { name: "beta", running: false, state: "failed", fault: "no" },
     ],
-    pinned: null,
-    pin: { kind: "omitted" },
   }
   const look = (name: string) =>
     name === "alpha" || name === "beta" ? { section: "Conversation" } : {}
@@ -565,8 +557,6 @@ test("a quiet healthy group starts collapsed, and opt-in rows remain reachable",
       { name: "alpha", running: true, state: "running" },
       { name: "beta", running: false, state: "optIn" },
     ],
-    pinned: null,
-    pin: { kind: "omitted" },
   }
   const look = (name: string) =>
     name === "alpha"
@@ -579,13 +569,13 @@ test("a quiet healthy group starts collapsed, and opt-in rows remain reachable",
 })
 
 test("a file-authored off state names the file that decided it", () => {
-  expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false }, { built: [], pinned: null, configurationFile: "_olai/Settings.olai" }))
+  expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false }, { built: [], configurationFile: "_olai/Settings.olai" }))
     .toBe("Off — _olai/Settings.olai says on: no.")
 })
 
 
 test("an absent configuration reader is one panel fact, not a caveat repeated on every row", () => {
-  const absent: PluginRoster = { pinned: null, configurationAvailable: false, built: ["alpha", "beta"].map(name => ({
+  const absent: PluginRoster = { configurationAvailable: false, built: ["alpha", "beta"].map(name => ({
     name, running: true, switchPersistence: "session",
   })) }
   expect(pluginsStarted(absent)).toContain("Switches are session-only while the configuration reader is absent")

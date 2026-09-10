@@ -1,8 +1,8 @@
 import { DEFAULT_WATCH } from "olai-plugin-kolu/appliance"
-import { nodesOfFiles } from "@olai/format/testlib"
+import { readingOf, setOf as vaultSet, nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { configurationFileIn } from "@olai/plugin-api/configuration"
-import { watchConfigIn } from "./config.ts"
+import { watchConfigIn, watchReadingIn } from "./config.ts"
 
 /**
  * The configurations. One node per record, properties under `custom`
@@ -200,4 +200,13 @@ test("the convention is by NAME, the way the shelf's is: a silent front-runner d
 test("the retired file and a watch node outside the namespace are inert", () => {
   expect(setOf({ "_olai/Kolu.olai": rec("watch", { nag: "1m" }) }).config).toEqual(DEFAULT_WATCH)
   expect(setOf({ "_olai/Settings.olai": '{"id":"watch","ord":"a0","title":"watch","custom":{"nag":"1m"}}' }).config).toEqual(DEFAULT_WATCH)
+})
+
+
+test("a broken settings file defaults even when the revision retains usable nodes", () => {
+  const files = { "_olai/Settings.olai": rec("watch", { "held-for": "91s" }) }
+  const healthy = readingOf(vaultSet(files))
+  expect(watchReadingIn(healthy).config).not.toEqual(DEFAULT_WATCH)
+  const broken = readingOf(vaultSet({}, [], { "_olai/Settings.olai": "torn" }))
+  expect(watchReadingIn({ set: broken.set, derived: healthy.derived }).config).toEqual(DEFAULT_WATCH)
 })

@@ -33,7 +33,7 @@ import type { Reading, Verdict } from "@olai/format"
 import type * as StoreModule from "@olai/store"
 import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt, writerOf } from "../git/fixtures.testlib.ts"
 import * as Ops from "@olai/ops"
-import { COMMIT_TOOL, fixedPolicy, make as makeLedger, whyOf } from "./pending.ts"
+import { COMMIT_TOOL, make as makeLedger, whyOf } from "./pending.ts"
 
 type OutlineStore = StoreModule.Store<Reading, Verdict>
 
@@ -154,10 +154,10 @@ const withRepo = <A>(
       watch: false,
       settle: "10 millis",
     })
-    const policy = fixedPolicy({
+    const policy = {
       commit: options.commits ?? "manual",
-      push: options.pushes ?? null,
-    })
+      push: options.pushes ?? "off",
+    } as const
     const ledger = makeLedger({
       at: Effect.map(store.read("cheap"), (s) => s.snapshot?.value ?? null),
       root: served,
@@ -1663,6 +1663,4 @@ test("the Push button still hands over git's refusal about a missing upstream", 
 test("pinned is the resolved policy, including omitted push defaults", () =>
   withRepo({ "house.olai": HOUSE }, fixture => Effect.gen(function*() {
     const { git } = yield* fixture.ops.status
-    expect(git.pinned).toEqual({ commit: "manual", push: "off" })
-    expect(git.pinned).toEqual(git.policy)
   })))

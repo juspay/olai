@@ -225,7 +225,7 @@ export const pluginConfig = (
 
 export const pluginHint = (
   plugin: BuiltPlugin,
-  roster: PluginRoster = { built: [], pinned: null },
+  roster: PluginRoster = { built: [] },
   look: PluginLook = {},
 ): string | null => {
   if (pluginState(plugin) === "off" && plugin.desiredOn === false && roster.configurationFile !== undefined) {
@@ -304,7 +304,7 @@ const withoutConfiguration = (roster: PluginRoster): boolean =>
  * session-only exception while the shared reader is available.
  */
 export const pluginsStarted = (roster: PluginRoster): string =>
-  `Policy lives in ${roster.configurationFile ?? CONFIGURATION_FILE} and travels with this directory. ${withoutConfiguration(roster) ? " Switches are session-only while the configuration reader is absent; they last until this serve stops." : ""} Memory: LocalState, $XDG_STATE_HOME/olai/<plugin>/<hash>.json; private to the serve.`
+  `Policy lives in ${roster.configurationFile ?? CONFIGURATION_FILE} and travels with this directory.${withoutConfiguration(roster) ? " Switches are session-only while the configuration reader is absent; they last until this serve stops." : ""} Memory: LocalState, $XDG_STATE_HOME/olai/<plugin>/<hash>.json; private to the serve.`
 
 /** A running server row can have a waiting browser component. Keep the
  * server's switch semantics and name that component and its missing keys. */
@@ -340,7 +340,7 @@ export const pluginConfirm = (
 /** The sentence the panel draws under a row — hint plus a waiting/failed browser. */
 export const rowCopy = (
   plugin: BuiltPlugin,
-  roster: PluginRoster = { built: [], pinned: null },
+  roster: PluginRoster = { built: [] },
   look: PluginLook = {},
   reports: ReadonlyMap<string, RowReport> = new Map(),
 ): string | null => {

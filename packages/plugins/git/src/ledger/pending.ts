@@ -78,7 +78,6 @@ import {
   composed,
   type Derived,
   fileKind,
-  type GitPin,
   type GitPolicy,
   type GitState,
   type How,
@@ -91,7 +90,6 @@ import {
   type OutlineError,
   outlineNames,
   type Pending,
-  policyOf,
   QUIET_MS,
   type PushResult,
   type Reading,
@@ -156,13 +154,11 @@ export type { GitState }
  */
 const gitOf = (
   repo: RepoState,
-  policy: Policy,
+  policy: GitPolicy,
   settled: Settled,
 ): GitState => {
-  const current = policy.now()
   const rest = {
-    pinned: current,
-    policy: current,
+    policy,
     pushSaid: settled.pushSaid,
     paused: settled.paused,
   }
@@ -353,8 +349,8 @@ export interface Options {
    * store that has never loaded already answered with.
    */
   readonly at: Effect.Effect<Reading | null>
-  /** WHAT THIS SERVER DOES about git, live — see {@link Policy}. */
-  readonly policy: Policy
+  /** Resolved configuration, owned by this activation. */
+  readonly policy: GitPolicy
   /**
    * Told whenever anything about git SETTLED — a commit by whichever door, a
    * push, a refusal of either, and the loop stopping or being started again.
@@ -388,23 +384,6 @@ export interface Options {
    * is not in the tree is a cache nobody can check.
    */
   readonly committed?: Committed
-}
-
-/**
- * WHAT THIS SERVER DOES ABOUT GIT, and who decided — the whole of
- * `git-policy-server-side` as this layer sees it.
- *
- * The ledger reads only the resolved policy. Legacy flag inputs are normalized
- * here; they are not a provenance field on the wire.
- */
-export interface Policy {
-  readonly now: () => GitPolicy
-}
-
-/** Resolve legacy flag inputs once for this activation. */
-export const fixedPolicy = (pin: GitPin): Policy => {
-  const policy = policyOf(pin)
-  return { now: () => policy }
 }
 
 /**
@@ -618,7 +597,7 @@ export const make = (options: Options): Committing => {
   /** What this server DOES about commits, asked of the policy rather than
    *  derived once into a closed-over mode: the same accessor the loop already
    *  uses, so a third reader cannot come to a different answer. */
-  const mode = (): CommitMode => options.policy.now().commit
+  const mode = (): CommitMode => options.policy.commit
 
   /** Ops per writer since the last commit. A counter rather than the list of
    *  edits the design first drew: the panel says "chat-agent 3 · you 1", and
@@ -1008,7 +987,7 @@ export const make = (options: Options): Committing => {
       // The push's own refusal is remembered and stops the loop ({@link sent}),
       // and the commit STANDS either way: nothing here is rolled back, and
       // nothing is retried.
-      if (options.policy.now().push === "auto") yield* push
+      if (options.policy.push === "auto") yield* push
 
       return {
         _tag: "Committed",
@@ -1212,7 +1191,7 @@ export const make = (options: Options): Committing => {
   )
 
   const catchUp: Effect.Effect<void> = Effect.gen(function*() {
-    if (options.policy.now().push !== "auto") return
+    if (options.policy.push !== "auto") return
     const looked = yield* survey
     if (looked.unpushed === null || looked.unpushed.commits === 0) return
     yield* push

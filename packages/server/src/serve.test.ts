@@ -546,7 +546,7 @@ test("a kolu watch edit preserves its activation, while on still unloads and rem
   write("30s")
   await Effect.gen(function*() {
     const plugins = yield* openPlugins({ vars: { OLAI_ACP_AGENT: "" }, now: () => new Date().toISOString() })
-    yield* mountBundle(plugins.host, { kind: "omitted" })
+    yield* mountBundle(plugins.host)
     yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
     yield* settled(plugins.host, ["vault", "settings", "kolu"])
     let publications = 0
@@ -661,4 +661,27 @@ test("an explicitly authored schema default remains file-authored", async () => 
     expect(row.configurationValues?.find(one => one.key === "commit"))
       .toMatchObject({ value: "manual", setBy: "vault" })
   })
+})
+
+
+test("a row disabled in the first file reading never registers before policy is ready", async () => {
+  const root = served()
+  fs.mkdirSync(path.join(root, "_olai"))
+  fs.writeFileSync(path.join(root, "_olai/Settings.olai"), '{"id":"appliance","ord":"a0","title":"kolu","custom":{"on":"no"}}\n')
+  await Effect.gen(function*() {
+    let registered = false
+    let rows: () => ReadonlyArray<{ name: string }> = () => []
+    const plugins = yield* openPlugins({ vars: {}, now: () => new Date().toISOString(),
+      changed: () => { registered ||= rows().some(one => one.name === "kolu") } })
+    rows = plugins.composed
+    yield* mountBundle(plugins.host, [], "web", true)
+    yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
+    yield* settled(plugins.host, ["vault", "settings"])
+    const policy = yield* followConfiguration(plugins.host, () => {}, () => [])
+    yield* Effect.addFinalizer(() => policy.close)
+    yield* policy.ready
+    expect(policy.current()?.rows.get("kolu")?.on).toBe(false)
+    expect(rows().some(one => one.name === "kolu")).toBe(false)
+    expect(registered).toBe(false)
+  }).pipe(Effect.scoped, Effect.provide(SERVER_LAYERS), Effect.runPromise)
 })

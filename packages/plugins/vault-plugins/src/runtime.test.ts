@@ -498,3 +498,19 @@ test("a definition receives its own schema knobs and edits preserve source appro
   yield* dynamic.follow(vault({ server, approved, props: { tone: "blue" } }))
   expect((yield* now())[0]).toMatchObject({ state: "running", configurationValues: [{ key: "tone", value: "blue", setBy: "vault" }] })
 })))
+
+
+for (const key of ["plugin", "approved"]) {
+  test(`a definition cannot declare the reserved ${key} property as configuration`, () => bench((dynamic, now) => Effect.gen(function*() {
+    const server = `import { definePlugin } from "@olai/plugin-api";
+      import { Effect, Schema } from "effect";
+      export default definePlugin({ name: "swatch", needs: [],
+        config: Schema.Struct({ ${key}: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed(""))) }),
+        apply: () => Effect.void });`
+    yield* dynamic.follow(vault({ server, approved: ALWAYS }))
+    const row = (yield* now())[0]
+    expect(row?.state).toBe("failed")
+    expect(row?.fault).toContain(key)
+    expect(row?.fault).toContain("reserved")
+  })))
+}

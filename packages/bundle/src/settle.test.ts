@@ -1,3 +1,4 @@
+import { selectFixtureRows } from "./fixture.testlib.ts"
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * MOUNTING A BUNDLE RETURNS WHEN THE ROWS HAVE APPLIED — the fence for the whole
@@ -236,7 +237,7 @@ test("mountBundle returns with a row's sibling-woken apply already finished", as
 
   // ...AND `--plugins=` MOUNTS NONE OF THIS BUILD'S ROWS, so what is left for
   // this call to do is the settle, over the two rows already on the registry.
-  await run(mountBundle(opened.host, { kind: "exact", names: [] }))
+  await run(mountBundle(opened.host, selectFixtureRows([])))
   expect(said).toEqual(["the door was opened"])
   const report = await run(rowReport(opened.host, [first, second]))
   expect(report.get(second)).toEqual({ state: "running" })

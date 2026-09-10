@@ -101,5 +101,17 @@ export const environmentReadings = (
   const value = vars[key]?.trim()
   const set = value !== undefined && value !== ""
   return secret ? { key, kind: "secret", set, says }
-    : { key, kind: "resource", set, says, ...(set ? { value } : {}), ...(vars.OLAI_WRAPPER_DEFAULTS?.split(",").includes(key) ? { source: "wrapper" as const } : {}) }
+    : { key, kind: "resource", set, says, ...(set ? { value: publicResource(value) } : {}), ...(vars.OLAI_WRAPPER_DEFAULTS?.split(",").includes(key) ? { source: "wrapper" as const } : {}) }
 })
+
+/** URL userinfo is credential material even on an otherwise public resource. */
+const publicResource = (value: string): string => {
+  try {
+    const url = new URL(value)
+    if (url.username === "" && url.password === "") return value
+    url.username = ""
+    url.password = ""
+    return url.toString()
+  }
+  catch { return value }
+}

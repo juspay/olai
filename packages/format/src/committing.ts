@@ -146,45 +146,7 @@ export type PushMode = (typeof PUSH_MODES)[number]
  *  said off" must not be able to come to disagree about what the server does. */
 export const PUSH_DEFAULT: PushMode = "off"
 
-/**
- * WHAT THE OPERATOR PINNED, and `null` for each half nobody pinned.
- *
- * This is the legacy CLI input shape, not a wire provenance reading. Null
- * leaves the schema default in force. GitState publishes the resolved policy.
- */
-export const GitPin = Schema.Struct({
-  /** The mode `--commit` was GIVEN, or `null` when it was not given at all. */
-  commit: Schema.NullOr(Schema.Literals(COMMIT_MODES)),
-  /** The mode `--push` was GIVEN, or `null` when it was not given at all. */
-  push: Schema.NullOr(Schema.Literals(PUSH_MODES)),
-})
-export type GitPin = typeof GitPin.Type
-
-/** Omitted legacy flag inputs; policyOf resolves their defaults. */
-export const NO_PIN: GitPin = { commit: null, push: null }
-
-/**
- * WHAT THIS SERVER ACTUALLY DOES about the two verbs — both halves, together,
- * because they are one policy about one directory.
- *
- * Two sources: the FLAG, because an operator who typed it stated a policy for
- * everybody; then the defaults, which are spelled in exactly one place each
- * ({@link COMMIT_DEFAULT}, {@link PUSH_DEFAULT}). There is no third source.
- */
-export const policyOf = (pin: GitPin): GitPolicy => ({
-  commit: pin.commit ?? COMMIT_DEFAULT,
-  push: pin.push ?? PUSH_DEFAULT,
-})
-
-/**
- * The policy in force, with no `null` left in it — what the server does, and
- * what the plugins panel draws under the git row.
- *
- * Its own shape beside {@link GitPin} rather than the same one narrowed,
- * because the two answer different questions and a reader holding one must not
- * be able to mistake it for the other: the pin says WHO DECIDED (and leaves a
- * half unsaid where nobody did), this says WHAT HAPPENS (and cannot).
- */
+/** Resolved policy for this activation, including schema defaults. */
 export const GitPolicy = Schema.Struct({
   commit: Schema.Literals(COMMIT_MODES),
   push: Schema.Literals(PUSH_MODES),
@@ -221,10 +183,6 @@ export const GitState = Schema.Struct({
    *  reader gets rather than "something went wrong". `null` otherwise: a
    *  healthy repository is not quoting anything. */
   said: Schema.NullOr(Schema.String),
-  /** Policy in force, retained under the historical wire name. It no longer
-   * distinguishes a typed flag from a schema default; provenance belongs on
-   * the plugin roster. Equal to policy on every publication. */
-  pinned: GitPolicy,
   /** What this activation does about commit and push, including defaults. */
   policy: GitPolicy,
   /**
@@ -268,7 +226,6 @@ export type GitState = typeof GitState.Type
 export const GIT_OFF: GitState = {
   status: "off",
   said: null,
-  pinned: DEFAULT_POLICY,
   policy: DEFAULT_POLICY,
   pushSaid: null,
   paused: null,

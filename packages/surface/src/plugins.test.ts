@@ -29,3 +29,10 @@ test("wrapper provenance is explicit, never inferred from a store path", () => {
   expect(operator).not.toHaveProperty("source")
   expect(Schema.decodeUnknownSync(EnvironmentReading)(wrapper)).toMatchObject({ source: "wrapper", value })
 })
+
+test("resource URLs redact userinfo before a roster can carry them", () => {
+  const declaration = [{ key: "RESOURCE_URL", secret: false, says: "the remote resource" }]
+  const reading = environmentReadings(declaration, { RESOURCE_URL: "https://operator:secret@example.test/api?q=1" })
+  expect(reading).toEqual([{ key: "RESOURCE_URL", kind: "resource", set: true, says: "the remote resource", value: "https://example.test/api?q=1" }])
+  expect(environmentReadings(declaration, { RESOURCE_URL: "https://example.test" })[0]).toMatchObject({ value: "https://example.test" })
+})

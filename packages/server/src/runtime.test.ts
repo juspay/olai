@@ -1,3 +1,4 @@
+import { selectFixtureRows } from "@olai/bundle/testlib"
 import { VaultBoot } from "olai-plugin-vault/boot"
 import { CONTENT_ROWS } from "./capabilities.testlib.ts"
 import { TestClock } from "effect/testing"
@@ -117,7 +118,7 @@ const withRuntime = <A>(
   return Effect.gen(function*() {
     const onChange = { run: (): void => {} }
     const mounted = yield* openHostPlugins({ vars: {}, now: () => STARTED, changed: () => onChange.run() })
-    yield* mountBundle(mounted.host, { kind: "exact", names: ["vault", ...CONTENT_ROWS] }, [], "surface")
+    yield* mountBundle(mounted.host, selectFixtureRows(["vault", ...CONTENT_ROWS]), "surface")
     yield* provide(mounted.host, VaultBoot, () => ({root, runtime: runtimePaths}))
     yield* settled(mounted.host, ["vault", ...CONTENT_ROWS])
     const directory = door(mounted.host, Directory) as { readonly store: OutlineStore } | undefined
@@ -153,7 +154,6 @@ const withRuntime = <A>(
         plugins: { ...mounted, changes: Stream.empty },
         onChange,
         built: extra.plugins === undefined ? ["vault", ...CONTENT_ROWS] : extra.plugins.map((one) => one.name),
-        pin: { kind: "omitted" },
         // THE DOUBLES' OWN FIBERS, asked the way a serve asks the bundle's.
         // These runtimes mount doubles directly rather than through the loader,
         // so `reportBundle` (which walks `BUNDLE_NAMES`) has nothing to say
@@ -698,19 +698,13 @@ const mounted = (names: ReadonlyArray<string>): ReadonlyMap<string, RowReport> =
   new Map(names.map((name) => [name, { state: "running" as const }]))
 
 const offering = (
-  pinned: ReadonlyArray<string> | null = null,
+  offByDefault: ReadonlyArray<string> = PLUGIN_NAMES,
   report: ReadonlyMap<string, RowReport> = new Map(),
-  extra: ReadonlyArray<string> | null = null,
-  without: ReadonlyArray<string> | null = null,
 ): PluginRuntime => ({
   plugins: EMPTY_PLUGINS,
   onChange: { run: () => {} },
   built: PLUGIN_NAMES,
-  pin: pinned !== null
-    ? { kind: "exact", names: pinned }
-    : extra !== null || without !== null
-    ? { kind: "delta", extra, without }
-    : { kind: "omitted" },
+  offByDefault,
   report: () => report,
   // NOTHING NAMES ANYTHING in these cases, so no row carries another — which is
   // the state every row of a real bundle but the chat row is in. The `carrying`
@@ -741,7 +735,7 @@ test("every plugin the build has is on the roster, running or not", () => {
   // every plugin this binary was built with, since a row may carry its own
   // `disabled` and be opt-in. The roster carries a row for every one of them
   // either way, which is the whole reason the two lists are separate arguments.
-  const all = rosterOf(offering(null, mounted(DEFAULT_BUNDLE_NAMES)))
+  const all = rosterOf(offering(PLUGIN_NAMES, mounted(DEFAULT_BUNDLE_NAMES)))
   expect(all.built.map((one) => one.name)).toEqual([...PLUGIN_NAMES])
   expect(all.built.filter((one) => one.running).map((one) => one.name))
     .toEqual([...DEFAULT_BUNDLE_NAMES])
@@ -750,8 +744,6 @@ test("every plugin the build has is on the roster, running or not", () => {
   expect(all.built.length).toBeGreaterThanOrEqual(DEFAULT_BUNDLE_NAMES.length)
   // `pin` stays `omitted` rather than expanding into that list, because the row
   // under it has to say whether a person typed this policy or got the default.
-  expect(all.pin).toEqual({ kind: "omitted" })
-  expect(all.pinned).toBeNull()
 
   // ...and one name out of the list leaves every other row present and off,
   // which is the row that could not exist if this were a filter. `running` is
@@ -760,11 +752,9 @@ test("every plugin the build has is on the roster, running or not", () => {
   // reports the runtime rather than re-reading the reason.
   const first = PLUGIN_NAMES[0]
   if (first === undefined) throw new Error("this build has no plugins to pin")
-  const one = rosterOf(offering([first], mounted([first])))
+  const one = rosterOf(offering([], mounted([first])))
   expect(one.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(one.built.filter((row) => row.running).map((row) => row.name)).toEqual([first])
-  expect(one.pin).toEqual({ kind: "exact", names: [first] })
-  expect(one.pinned).toEqual([first])
 })
 
 /**
@@ -785,8 +775,6 @@ test("a plugin the flag left on but nothing mounted draws as off", () => {
   expect(roster.built.some((row) => row.running)).toBe(false)
   // ...and the flag is still reported as nobody having said, because nobody
   // did: the two facts are independent and the panel draws both.
-  expect(roster.pin).toEqual({ kind: "omitted" })
-  expect(roster.pinned).toBeNull()
 })
 
 /**
@@ -814,8 +802,6 @@ test("a row's config travels on the roster as data, and a row without one sends 
 
 test("an empty flag crosses as an empty list, not as nobody having said", () => {
   const none = rosterOf(offering([]))
-  expect(none.pin).toEqual({ kind: "exact", names: [] })
-  expect(none.pinned).toEqual([])
   expect(none.built.some((row) => row.running)).toBe(false)
   expect(none.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
 })
@@ -854,19 +840,19 @@ test("a row that is not running says which of the four absences it is", () => {
 
   // NOBODY SAID, and the loader declined to load it: that can only be the row's
   // own `disabled`, which is this build leaving it off until somebody asks.
-  const optIn = rosterOf(offering(null, new Map([[first, { state: "off" }]])))
+  const optIn = rosterOf(offering(PLUGIN_NAMES, new Map([[first, { state: "off" }]])))
   expect(optIn.built.find((row) => row.name === first)?.state).toBe("optIn")
   expect(optIn.built.find((row) => row.name === first)?.running).toBe(false)
 
   // ...and the SAME snapshot under a flag is `off`, because somebody asked and
   // did not ask for this. One field, two layers, and `pin` is the only thing
   // that can say which of them wrote it.
-  const off = rosterOf(offering([second], new Map([[first, { state: "off" }], [second, { state: "running" }]])))
+  const off = rosterOf(offering([], new Map([[first, { state: "off" }], [second, { state: "running" }]])))
   expect(off.built.find((row) => row.name === first)?.state).toBe("off")
 
   // A START THAT THREW carries the plugin's own words, verbatim.
   const failed = rosterOf(
-    offering(null, new Map([[first, { state: "failed", fault: "no socket at /run/x" }]])),
+    offering(PLUGIN_NAMES, new Map([[first, { state: "failed", fault: "no socket at /run/x" }]])),
   )
   const row = failed.built.find((one) => one.name === first)
   expect(row?.state).toBe("failed")
@@ -875,13 +861,13 @@ test("a row that is not running says which of the four absences it is", () => {
 
   // ...and a throw with no message says a start threw and quotes nobody, rather
   // than putting core's paraphrase on screen as if the plugin had said it.
-  const silent = rosterOf(offering(null, new Map([[first, { state: "failed" }]])))
+  const silent = rosterOf(offering(PLUGIN_NAMES, new Map([[first, { state: "failed" }]])))
   expect(silent.built.find((one) => one.name === first)?.state).toBe("failed")
   expect(silent.built.find((one) => one.name === first)?.fault).toBeUndefined()
 
   // STILL WAITING is not the same as off: it was asked for, it did load, and it
   // is short of something it injects.
-  const waiting = rosterOf(offering(null, new Map([[first, { state: "waiting" }]])))
+  const waiting = rosterOf(offering(PLUGIN_NAMES, new Map([[first, { state: "waiting" }]])))
   expect(waiting.built.find((one) => one.name === first)?.state).toBe("waiting")
 })
 
@@ -909,7 +895,7 @@ test("a plugin's row is its fiber's state, not what it happened to register", ()
 
   // A fiber that is UP is running, whether or not it put anything in a table
   // this file could have looked in.
-  const up = rosterOf(offering(null, mounted([first])))
+  const up = rosterOf(offering(PLUGIN_NAMES, mounted([first])))
   const row = up.built.find((one) => one.name === first)
   expect(row?.running).toBe(true)
   expect(row?.state).toBe("running")
@@ -918,7 +904,7 @@ test("a plugin's row is its fiber's state, not what it happened to register", ()
   // ...and a fiber that FAILED is not running, whatever it managed to register
   // before it threw — the case the old two-clock reading could get backwards.
   const threw = rosterOf(
-    offering(null, new Map([[first, { state: "failed", fault: "it threw once" }]])),
+    offering(PLUGIN_NAMES, new Map([[first, { state: "failed", fault: "it threw once" }]])),
   )
   const bad = threw.built.find((one) => one.name === first)
   expect(bad?.running).toBe(false)
@@ -975,7 +961,7 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
   }
   const wakes = new Map([[first, wake]])
 
-  const all = rosterOf(offering(null, mounted(PLUGIN_NAMES)), wakes)
+  const all = rosterOf(offering(PLUGIN_NAMES, mounted(PLUGIN_NAMES)), wakes)
   // WHAT THE PICKER IS MADE OF, and not the sentences. A roster that carried a
   // delivered sentence would be putting a message on the wire for a reader that
   // never sends one — and the wire's own schema has no key for either.
@@ -986,7 +972,7 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
 
   // ... and the row is still THERE when the flag leaves it out, saying it does
   // not run — with no picker on it.
-  const pinned = rosterOf(offering([second], mounted([second])), wakes)
+  const pinned = rosterOf(offering([], mounted([second])), wakes)
   expect(pinned.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(pinned.built.find((row) => row.name === first)?.running).toBe(false)
   expect(pinned.built.find((row) => row.name === first)?.wake).toBeUndefined()
@@ -996,7 +982,7 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
  *  by naming no wakes. The four cases above are that caller, and this is the
  *  claim they make read out loud. */
 test("no wake declarations is no sentence, and every row is still there", () => {
-  const all = rosterOf(offering(null, mounted(PLUGIN_NAMES)))
+  const all = rosterOf(offering(PLUGIN_NAMES, mounted(PLUGIN_NAMES)))
   expect(all.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(all.built.every((row) => row.wake === undefined)).toBe(true)
 })
@@ -1023,7 +1009,7 @@ test("a running row that offers a door names the rows that would stop with it", 
   }
   const carrying = (offers: ReadonlyMap<string, string>, names: ReadonlyMap<string, ReadonlyArray<string>>) =>
     rosterOf(
-      { ...offering(null, mounted(PLUGIN_NAMES)), names: () => names },
+      { ...offering(PLUGIN_NAMES, mounted(PLUGIN_NAMES)), names: () => names },
       new Map(),
       offers,
     )
@@ -1084,11 +1070,11 @@ test("a row a person switched off is not the build's default", () => {
 
   // NOBODY PRESSED ANYTHING and no flag was given: the build's own default,
   // which is the reading this case is distinguishing itself from.
-  expect(rosterOf(offering(null, absent)).built.find((row) => row.name === first)?.state)
+  expect(rosterOf(offering(PLUGIN_NAMES, absent)).built.find((row) => row.name === first)?.state)
     .toBe("optIn")
 
   // ...and the same row, same flag, after a press.
-  const pressed = rosterOf({ ...offering(null, absent), switched: () => new Set([first]) })
+  const pressed = rosterOf({ ...offering(PLUGIN_NAMES, absent), switched: () => new Set([first]) })
   expect(pressed.built.find((row) => row.name === first)?.state).toBe("switched")
   expect(pressed.built.find((row) => row.name === first)?.running).toBe(false)
 
@@ -1096,7 +1082,7 @@ test("a row a person switched off is not the build's default", () => {
   // `--plugins=<this row>` and then switched off is not a row the operator
   // declined to ask for.
   const underAFlag = rosterOf({
-    ...offering([first], absent),
+    ...offering([], absent),
     switched: () => new Set([first]),
   })
   expect(underAFlag.built.find((row) => row.name === first)?.state).toBe("switched")
@@ -1106,7 +1092,7 @@ test("a row a person switched off is not the build's default", () => {
   // than kept as a log of presses — but a set that had not been cleared must not
   // be able to say `switched` about a fiber that is up.
   const back = rosterOf({
-    ...offering(null, mounted([first])),
+    ...offering(PLUGIN_NAMES, mounted([first])),
     switched: () => new Set([first]),
   })
   expect(back.built.find((row) => row.name === first)?.state).toBe("running")
@@ -1118,21 +1104,18 @@ test("the pin travels onto the roster, and does not mint extra fiber words", () 
     throw new Error("this claim needs a build with two rows")
   }
 
-  const extra = rosterOf(offering(null, mounted([first]), [first], null))
+  const extra = rosterOf(offering(PLUGIN_NAMES, mounted([first])))
   expect(extra.built.find((row) => row.name === first)?.state).toBe("running")
   expect(extra.built.find((row) => row.name === first)?.running).toBe(true)
-  expect(extra.pin).toEqual({ kind: "delta", extra: [first], without: null })
-  expect(extra.pinned).toBeNull()
 
   const without = rosterOf(
-    offering(null, new Map([[second, { state: "off" as const }]]), null, [second]),
+    offering(PLUGIN_NAMES, new Map([[second, { state: "off" as const }]])),
   )
   expect(without.built.find((row) => row.name === second)?.state).toBe("optIn")
   expect(without.built.find((row) => row.name === second)?.running).toBe(false)
-  expect(without.pin).toEqual({ kind: "delta", extra: null, without: [second] })
 
   const pressed = rosterOf({
-    ...offering(null, new Map([[second, { state: "off" as const }]]), null, [second]),
+    ...offering(PLUGIN_NAMES, new Map([[second, { state: "off" as const }]])),
     switched: () => new Set([second]),
   })
   expect(pressed.built.find((row) => row.name === second)?.state).toBe("switched")
@@ -1153,7 +1136,7 @@ test("a row that is not running carries nobody", () => {
   }
   const roster = rosterOf(
     {
-      ...offering([second], new Map([[first, { state: "off" }], [second, { state: "running" }]])),
+      ...offering([], new Map([[first, { state: "off" }], [second, { state: "running" }]])),
       names: () => new Map([[second, ["aDoor"]]]),
     },
     new Map(),
