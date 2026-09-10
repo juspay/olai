@@ -488,7 +488,23 @@ const atAddress = (address: Address | null): PlainRoute => ({ kind: "at", addres
 /** The page a served FILE opens — an outline drawn as a tree, a body drawn
  *  whole, and which of those is nobody's decision here (`./page.ts` asks the
  *  registry when it picks the page). */
-export const atFile = (file: string): PlainRoute => atAddress(addressOf(file, null))
+export const atFile = (file: string, fragment?: string, query?: string): PlainRoute => ({
+  ...atAddress(addressOf(file, fragment ?? null)),
+  ...(fragment !== undefined && lineAt(fragment) !== undefined && query?.trim() ? { filter: query } : {}),
+})
+
+/** The source-line fragment grammar, shared by result routes and document pages. */
+export const lineFragment = (line: number): string => `L${line}`
+export const lineAt = (fragment: string | undefined): number | undefined => {
+  if (fragment === undefined || !/^L[1-9][0-9]*$/.test(fragment)) return undefined
+  const line = Number(fragment.slice(1))
+  return Number.isSafeInteger(line) ? line : undefined
+}
+
+const sourceLanding = (route: PlainRoute): boolean => {
+  const address = addressNamed(route)
+  return address !== null && address.kind === "heading" && lineAt(address.slug) !== undefined
+}
 
 /** One node's page, by the id that is the whole of its address: bare, global,
  *  and right about where the node lives after every move short of a delete. */
@@ -510,7 +526,7 @@ export const atElement = (file: string, element: string | null): PlainRoute =>
  * whole and cut back open here.
  */
 export const hrefOfPlain = (route: PlainRoute): string => {
-  const narrowed = narrowing(filterOfPlain(route))
+  const narrowed = narrowing(sourceLanding(route) ? route.filter : filterOfPlain(route))
   if (isNamed(route.kind)) return NAMED[route.kind] + narrowed
   const address = addressNamed(route)
   if (address === null) return HOME + narrowed
@@ -694,7 +710,7 @@ const routeNamedIn = (pages: MountedPages, parts: Split): Route | null => {
   // collapse — an address and a sidebar click cannot open two different pages
   // for one file, because neither of them says which page.
   const route = atAddress(named)
-  return narrowablePlain(route) ? { ...route, ...narrowed } : route
+  return narrowablePlain(route) || sourceLanding(route) ? { ...route, ...narrowed } : route
 }
 
 /**

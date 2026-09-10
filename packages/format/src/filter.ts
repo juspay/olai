@@ -55,7 +55,7 @@ import {
 } from "./derive.ts"
 import type { Markdown, Unkept } from "./document.ts"
 import { type Custom, customOf } from "./custom.ts"
-import { proseIn } from "./frontmatter.ts"
+import { proseIn, proseLineOffset } from "./frontmatter.ts"
 import { shiftDay, shiftMinutes, shiftMonth, weekdayOf } from "./calendar.ts"
 import type { DayGroup } from "./dates.ts"
 import { datesOf, dayOf, monthOf } from "./occasion.ts"
@@ -3357,3 +3357,19 @@ const documentMatchOf = (
  */
 const documentHolds = (props: Custom, clause: Clause): boolean =>
   clause.kind === "prop" && propKeyOf(props, clause) !== null
+
+/** A landing for a selected body hit, using the matcher's fold and scoring.
+ * Called after capping; newline counts also survive length-changing case folds. */
+export const documentLineOf = (document: Bodied, filter: Filter, field: DocumentField | null): number | undefined => {
+  if (field !== "body" || document.kind !== "document") return undefined
+  const hay = documentHay(document).body[0] ?? ""
+  let strongest = -1
+  let offset: number | undefined
+  for (const word of needlesOf(filter)) {
+    const score = positionBonus(hay, word)
+    if (score <= strongest) continue
+    strongest = score
+    offset = hay.indexOf(word)
+  }
+  return offset === undefined ? undefined : proseLineOffset(document.body) + hay.slice(0, offset).split("\n").length
+}

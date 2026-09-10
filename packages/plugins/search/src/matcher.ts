@@ -23,6 +23,7 @@ import {
   type KindVocabulary,
   matching,
   matchingDocuments,
+  documentLineOf,
   NodeId,
   nothing,
   parseFilter,
@@ -183,10 +184,12 @@ export const search = (
         // which is exactly the drift the row's own ordering rule refuses
         // (`@olai/web`'s `search/props.ts`, which stayed core furniture).
         const props = heldCustom(selected.at.props)
+        const line = documentLineOf(selected.at, filter, selected.match.field)
         return {
           // WHERE TO GO, which is what a hit is for: the document's own
           // address, minted by the grammar rather than assembled here.
           at: { kind: "document", path: selected.at.path },
+          ...(line === undefined ? {} : { line }),
           title: selected.at.title,
           ...(selected.match.field === null ? {} : { matched: selected.match.field }),
           // The two halves of "why is this here" a document can carry, each

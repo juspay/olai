@@ -553,3 +553,12 @@ describe("a query is words and operators", () => {
     expect(answer.total).toBe(2)
   })
 })
+
+test("document landings count file lines including frontmatter and use the strongest body word", () => {
+  const vault = readingOf(setOf({}, [["landing.md", "---\nproject: garden\n---\n# Journal\n\nprefixedweak\n\nSTRONG word\n"]]))
+  const answer = search(vault, { text: "weak strong" }, TODAY, NO_KINDS)
+  expect(answer.hits[0]).toMatchObject({ matched: "body", line: 8 })
+  for (const text of ["journal", "landing.md", "prop:project=garden", "-is:done"]) {
+    expect(search(vault, { text }, TODAY, NO_KINDS).hits[0]).not.toHaveProperty("line")
+  }
+})

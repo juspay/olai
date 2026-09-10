@@ -3,7 +3,7 @@ import { isNodeHit, printAddress, type SearchHit } from "@olai/format"
 import type { NodeProp } from "olai-plugin-search/ui/props.ts"
 import { documentProps, nodeProps } from "olai-plugin-search/ui/props.ts"
 import { nodePlace, type Place } from "olai-plugin-search/ui/place.ts"
-import { atFile, atNode, type Route } from "olai-plugin-navigation/routes"
+import { atFile, atNode, lineFragment, type Route } from "olai-plugin-navigation/routes"
 
 export interface HitRow {
   /** What identifies the row: its ADDRESS, written. A node's is `#a1b2c3` and
@@ -32,7 +32,7 @@ export interface HitRow {
   readonly from?: string
 }
 
-export const hitRow = (hit: SearchHit): HitRow => {
+export const hitRow = (hit: SearchHit, query?: string): HitRow => {
   if (isNodeHit(hit)) {
     return {
       id: printAddress(hit.at),
@@ -57,6 +57,6 @@ export const hitRow = (hit: SearchHit): HitRow => {
     // the query's words light in it where they sit.
     from: path,
     props: documentProps(hit),
-    route: atFile(path),
+    route: atFile(path, hit.line === undefined ? undefined : lineFragment(hit.line), query),
   }
 }

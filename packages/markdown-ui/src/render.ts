@@ -1,3 +1,5 @@
+import { styleTags } from "./tags.ts"
+import type { Element } from "hast"
 /**
  * Markdown, rendered.
  *
@@ -238,4 +240,38 @@ const idsFor = (key: string): string => {
     hash = Math.imul(hash, 0x01000193)
   }
   return `md-${(hash >>> 0).toString(36)}`
+}
+
+/** Render a source-line landing through the existing parsed tree and highlight walk.
+ * No shared cache retains a page's query or highlights. */
+export const renderLineLanding = (source: string, from: string, line: number, needles: ReadonlyArray<string>): string => {
+  const tree = renderToTree(source, from, "block")
+  if (line < 1 || line > source.split("\n").length) return hastToHtml(tree)
+  const lines = source.split("\n")
+  const blocks = new Set(["p", "pre", "li", "ul", "ol", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6", "table", "tr", "hr"])
+  const candidates: Array<{ element: Element; start: number; end: number; depth: number }> = []
+  const walk = (parent: Root | Element, depth: number): void => {
+    for (const child of parent.children) {
+      if (child.type !== "element") continue
+      if (blocks.has(child.tagName) && child.position !== undefined) {
+        let start = child.position.start.line
+        let end = child.position.end.line
+        if (child.tagName === "pre" && /^\s*(?:>\s*)*(```|~~~)/.test(lines[start - 1] ?? "")) { start++; end-- }
+        candidates.push({ element: child, start, end, depth })
+      }
+      walk(child, depth + 1)
+    }
+  }
+  walk(tree, 0)
+  const unmapped = (lines[line - 1]?.trim() ?? "") === "" || /^\s*(?:>\s*)*(```|~~~)/.test(lines[line - 1] ?? "")
+  const containing = unmapped ? [] : candidates.filter(block => block.start <= line && block.end >= line)
+  containing.sort((a, b) => b.depth - a.depth)
+  const before = candidates.filter(block => block.end < line)
+  before.sort((a, b) => b.end - a.end || b.depth - a.depth)
+  const selected = (containing[0] ?? before[0])?.element
+  if (selected !== undefined) {
+    selected.properties.dataSearchLanding = "true"
+    styleTags(selected, needles)
+  }
+  return hastToHtml(tree)
 }
