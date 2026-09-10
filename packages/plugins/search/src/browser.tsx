@@ -5,7 +5,8 @@ import { holdFaces } from "./browser/faces.ts"
 import { KindSelector, cycleKind } from "./browser/KindSelector.tsx"
 import { Wired } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
-import type {} from "olai-plugin-layout/slots"
+import type { BarSeat } from "olai-plugin-layout/slots"
+import type { Hung } from "@olai/plugin-api"
 /** The search provider owns live query subscriptions as well as its header.
  * Other features consume its scoped reading location; they retain their own
  * editing and navigation when the provider is absent. */
@@ -41,7 +42,7 @@ export default definePlugin({
     // value reaches a component that draws with it.
     yield* Effect.acquireRelease(Effect.sync(() => holdReading(reading)), stop => Effect.sync(stop))
     yield* (yield* Offers).own("readings", () => reading)
-    yield* slots.contribute(slotLocation("app.header"), { plugin: name, face: { place: "lead" as const, body: HeaderSearch } }, { children: [boxBelow] })
+    yield* slots.contribute<Hung<BarSeat>>(slotLocation("app.header"), { plugin: name, face: { place: "lead" as const, body: HeaderSearch } }, { children: [boxBelow] })
   }),
 })
 
