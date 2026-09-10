@@ -12,7 +12,8 @@ Feature: An outline is findable by its file name
     And I type "Home" into the palette
     Then the "palette-item" result "Home" has place "Home.olai"
     And the outline hit "Home.olai" ranks before node "home-note"
-    When I press "Enter"
+    When I point the palette at outline "Home.olai"
+    And I press "Enter"
     Then the sidebar marks the outline "Home.olai" as the one open
     And there should be no page errors
 
