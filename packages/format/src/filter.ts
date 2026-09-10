@@ -1,3 +1,4 @@
+import type { Outline } from "./document.ts"
 /**
  * What a query MEANS — the one matcher, and the two SHAPES its callers want.
  *
@@ -3126,6 +3127,7 @@ export type Bodied = Markdown | Unkept
 export type Ranked =
   | { readonly kind: "node"; readonly at: LocatedRegular; readonly match: Match }
   | { readonly kind: "document"; readonly at: Bodied; readonly match: DocumentMatch }
+  | { readonly kind: "outline"; readonly at: Outline; readonly match: OutlineMatch }
 
 /**
  * BOTH KINDS, in one order — what a search answers with.
@@ -3152,6 +3154,7 @@ export const rankedTogether = (
   derived: Pick<Derived, "status">,
   nodes: ReadonlyArray<Matched>,
   documents: ReadonlyArray<MatchedDocument>,
+  outlines: ReadonlyArray<MatchedOutline> = [],
 ): ReadonlyArray<Ranked> => {
   const scored: Array<{ readonly entry: Ranked; readonly score: number }> = [
     // Read ONCE PER NODE rather than once per comparison, for {@link ranked}'s
@@ -3164,6 +3167,10 @@ export const rankedTogether = (
     })),
     ...documents.map((one) => ({
       entry: { kind: "document", at: one.at, match: one.match } as const,
+      score: one.match.score,
+    })),
+    ...outlines.map(one => ({
+      entry: { kind: "outline", at: one.at, match: one.match } as const,
       score: one.match.score,
     })),
   ]
@@ -3372,4 +3379,29 @@ export const documentLineOf = (document: Bodied, filter: Filter, field: Document
     offset = hay.indexOf(word)
   }
   return offset === undefined ? undefined : proseLineOffset(document.body) + hay.slice(0, offset).split("\n").length
+}
+
+export interface OutlineMatch {
+  readonly field: "title" | "path" | null
+  readonly score: number
+}
+export interface MatchedOutline {
+  readonly at: Outline
+  readonly match: OutlineMatch
+}
+
+/** Outlines answer only name and path terms. Operators select none; the shared
+ * conjunction/negation machinery still handles every group in the query. */
+export const matchingOutlines = (outlines: ReadonlyArray<Outline>, filter: Filter, scope: Scope = {}): ReadonlyArray<MatchedOutline> => {
+  if (filter.kind !== "asking" || scope.file !== undefined || scope.under !== undefined) return []
+  const found: Array<MatchedOutline> = []
+  for (const outline of outlines) {
+    if (outline.path.startsWith("_olai/")) continue
+    const match = matchedBy(filter.groups, () => false, () => ({
+      title: [outline.title.toLowerCase()],
+      path: [outline.path.toLowerCase(), basenameOf(outline.path).toLowerCase()],
+    }), ["title", "path"], { title: FIELD_WEIGHT.title, path: FIELD_WEIGHT.id })
+    if (match !== null) found.push({ at: outline, match })
+  }
+  return found
 }

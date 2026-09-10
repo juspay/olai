@@ -241,6 +241,7 @@ export type { Split } from "./address.ts"
 export {
   Address,
   AtDocument,
+  AtOutline,
   AtHeading,
   AtNode,
   AtRow,
@@ -604,6 +605,7 @@ export {
    *  order. A body is text the way a note is, and a query that could only ask
    *  about records is the shape this arc replaced. */
   matchingDocuments,
+  matchingOutlines,
   documentLineOf,
   /** WHICH OF A QUERY'S WORDS AN INDEX MAY NARROW BY, with the query's own
    *  and/or shape kept — the grammar's answer to a question only the thing
@@ -922,6 +924,8 @@ export {
 export {
   DEFAULT_SEARCH_LIMIT,
   DocumentHit,
+  OutlineHit,
+  isOutlineHit,
   isNodeHit,
   MatchedNode,
   NodeHit,

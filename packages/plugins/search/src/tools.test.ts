@@ -101,7 +101,7 @@ test("the fixture reaches every optional field of a hit, so the check is not vac
   // And the note, when the query asked for it — the one field of a record a hit
   // does not carry by default, reached here so the decode above is not vacuous
   // about it.
-  expect(searches[5]?.["hits"]).toMatchObject([{ id: "house", desc: "the note" }])
+  expect(searches[5]?.["hits"]).toMatchObject([{ id: "house", desc: "the note" }, { at: { kind: "document", path: "house.olai" }, title: "house" }])
 })
 
 /**
