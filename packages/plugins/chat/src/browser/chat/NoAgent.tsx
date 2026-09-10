@@ -77,12 +77,12 @@ export function NoAgent(props: { readonly off: OffBecause | null }) {
       data-testid={TESTID.chatNoAgent}
     >
       {/* THE OPENING SENTENCE IS THE ARM, and there is exactly one of it. What
-          the three have in common — the outlines are served either way — is
+          the two have in common — the outlines are served either way — is
           said once, below. */}
       <Switch
         fallback={
           /* THE SERVER HAS NOT SAID YET: the value a page holds before the
-             first frame lands (`CHAT_OFF`). Not one of the three, so this
+             first frame lands (`CHAT_OFF`). Not one of the two, so this
              claims none of them. */
           <p class="m-0 mb-3 text-ink">This panel has no agent.</p>
         }

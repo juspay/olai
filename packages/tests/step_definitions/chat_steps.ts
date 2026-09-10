@@ -2689,14 +2689,14 @@ Then(
 );
 
 /**
- * WHICH OF THE THREE, and the reason these are two steps rather than one with a
+ * WHICH OF THE TWO, and the reason these are two steps rather than one with a
  * parameter: what a person is owed differs per cause, so what a scenario should
  * be able to say is that THIS cause produced THIS sentence — and a step taking
  * the sentence as an argument would let a scenario assert whichever words
  * happened to be there.
  *
  * The claim is deliberately about a PHRASE rather than the whole copy: the words
- * are core's to reword (all three causes are facts about the SERVE, not about an
+ * are core's to reword (both causes are facts about the SERVE, not about an
  * engine), and what must not change is that the face commits to one of them.
  * Before this, it hedged across two guesses, one of them unreachable.
  */
@@ -2705,7 +2705,7 @@ const saysNoAgentBecause = async (world: OlaiWorld, phrase: string, why: string)
   assert.ok(
     said.toLowerCase().includes(phrase.toLowerCase()),
     `the no-agent face does not say ${why}. A face that will not name which of ` +
-      `the three ways of having no agent this is leaves a person guessing at the ` +
+      `the two ways of having no agent this is leaves a person guessing at the ` +
       `one thing they could do about it. It reads: ${said}`,
   );
 };

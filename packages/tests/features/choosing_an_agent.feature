@@ -286,7 +286,7 @@ Feature: Choosing an agent
     # guess, a start that skipped the wrapper, cannot happen at all: every
     # documented way of starting olai bakes the pinned adapter in.
     #
-    # The server is the only end that can tell this apart from the other two —
+    # The server is the only end that can tell this apart from the other reason —
     # it holds the engine registry — so it sends which, and the panel says it.
     Then the panel says there is no agent
     And the panel says this serve enabled no agent engine
