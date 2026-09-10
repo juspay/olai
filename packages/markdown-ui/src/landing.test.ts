@@ -21,3 +21,9 @@ test("blank lines and opening fence markers land on the previous rendered block"
   expect(renderLineLanding(source, "a.md", 999, ["first"])).not.toContain("data-search-landing")
   expect(renderLineLanding(source, "a.md", 0, ["first"])).not.toContain("data-search-landing")
 })
+
+test("a line inside a long list lands on its item rather than the whole list", () => {
+  const html = renderLineLanding("- First\n- Second\n- Target word\n- Last", "a.md", 3, ["target"])
+  expect(html).toContain('<li data-search-landing="true">')
+  expect(html).not.toContain('<ul data-search-landing="true">')
+})
