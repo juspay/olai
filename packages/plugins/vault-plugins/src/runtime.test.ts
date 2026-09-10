@@ -531,7 +531,7 @@ test("configure edits the definition node and refuses its reserved keys before w
   const written: WriteRequest[] = []
   const dynamic = openDynamic({ mount: (plugin, config) => mountPlugin(host, plugin, { wait: false, config }) }, [], request => Effect.sync(() => { written.push(request) }))
   const server = `import { definePlugin } from "@olai/plugin-api"; import { Effect, Schema } from "effect";
-    export default definePlugin({ name: "swatch", needs: [], config: Schema.Struct({ tone: Schema.Literals(["blue", "red"]).pipe(Schema.withDecodingDefaultKey(Effect.succeed("blue")), Schema.annotate({ description: "the tone" })) }), apply: () => Effect.void });`
+    export default definePlugin({ name: "swatch", needs: [], config: Schema.Struct({ on: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed("yes"))), tone: Schema.Literals(["blue", "red"]).pipe(Schema.withDecodingDefaultKey(Effect.succeed("blue")), Schema.annotate({ description: "the tone" })) }), apply: () => Effect.void });`
   yield* dynamic.follow(vault({ server, approved: ALWAYS }))
   expect(yield* Effect.orDie(dynamic.configure("swatch", "tone", "red"))).toBe(true)
   expect(written).toEqual([{ op: "prop", id: "p", key: "tone", value: "red" }])
@@ -543,4 +543,7 @@ test("configure edits the definition node and refuses its reserved keys before w
   expect(written).toHaveLength(1)
   yield* Effect.orDie(dynamic.configure("swatch", "tone", null))
   expect(written[1]).toEqual({ op: "prop", id: "p", key: "tone", value: null })
+  // The enablement reservation belongs to the settings file, not definitions.
+  yield* Effect.orDie(dynamic.configure("swatch", "on", "no"))
+  expect(written[2]).toEqual({ op: "prop", id: "p", key: "on", value: "no" })
 })))

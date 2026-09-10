@@ -12,7 +12,7 @@ import { browserManagement } from "@olai/surface/management"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { tools } from "olai-plugin-layout/contract"
 import { Effect } from "effect"
-import { name } from "./index.ts"
+import { name, type ConfigurationPanel } from "./index.ts"
 import { createInspectorState, type InspectorState } from "./state.ts"
 import { Plugins } from "./Plugins.tsx"
 import { approvals as sourceApprovals } from "olai-plugin-vault-plugins/contract"
@@ -22,6 +22,7 @@ const inspectorState = serviceTag<InspectorState>("plugin-inspector.state")
 export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*() {
   const state = yield* Effect.acquireRelease(Effect.sync(createInspectorState), (state) => Effect.sync(state.close))
   yield* (yield* Offers).own("state", () => state)
+  yield* (yield* Offers).own("configuration", (): ConfigurationPanel => ({ open: state.reveal }))
 }) })
 export const components = {
   links: definePlugin({ name: "links", needs: [inspectorState, Links], apply: Effect.gen(function*() {

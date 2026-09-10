@@ -21,3 +21,22 @@ Feature: This serve reads its policy from the vault
     Then This serve reads "log-level" as "info" from "default"
     And the page has not reloaded
     And there should be no page errors
+
+  Scenario: The log controls author the olai node without restarting the serve
+    Given I open the app
+    And I mark the page
+    When I open the plugins panel
+    And I open This serve
+    And I remember the settings file "_olai/Settings.olai"
+    And I pick "warn" for "olai" setting "log-level"
+    Then This serve reads "log-level" as "warn" from "vault"
+    And file "_olai/Settings.olai" has namespace "olai" setting "log-level" as "warn"
+    When I pick "logfmt" for "olai" setting "log-format"
+    Then This serve reads "log-format" as "logfmt" from "vault"
+    And file "_olai/Settings.olai" has namespace "olai" setting "log-format" as "logfmt"
+    And the same serve process is running
+    And the page has not reloaded
+    When I use the default for "olai" setting "log-level"
+    Then This serve reads "log-level" as "info" from "default"
+    And file "_olai/Settings.olai" has namespace "olai" setting "log-level" as "<absent>"
+    And there should be no page errors

@@ -111,7 +111,7 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * without forgetting what this reader opened.
  */
 
-import { createMemo, createSignal, For, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js"
 
 import {
   type BuiltPlugin,
@@ -172,6 +172,23 @@ export function Panel(props: {
   // Many controls read the same roster. Derive its groups once per publication,
   // not once per field getter while the browser is trying to settle a press.
   const groups = createMemo(() => pluginGroups(plugins(), (name) => props.management.look(name), props.management.reports()))
+  let element: HTMLElement | undefined
+  let active = true
+  onCleanup(() => { active = false })
+  createEffect(() => {
+    const name = props.state.requested()
+    if (name === undefined) return
+    const group = groups().find(group => group.rows.some(row => row.name === name))
+    if (group === undefined) return
+    props.state.setGroupOpen(group.label, true)
+    queueMicrotask(() => {
+      if (!active || props.state.requested() !== name) return
+      const row = element?.querySelector<HTMLElement>(`[data-pref="${CSS.escape(pluginPref(name))}"]`)
+      row?.scrollIntoView({ block: "nearest" })
+      row?.querySelector<HTMLElement>("input, select, details > summary")?.focus({ preventScroll: true })
+      props.state.revealed(name)
+    })
+  })
 
   /** WHICH GROUPS THIS READER HAS OPENED OR SHUT — on inspector state, not
    *  this component: a switch rebuilds the shell, and a walk that lived here
@@ -267,7 +284,7 @@ export function Panel(props: {
 
   return (
     <section
-      ref={props.inside}
+      ref={el => { element = el; props.inside(el) }}
       class={`${PANEL_BOX} gap-1`}
       style={styleOf(props.at)}
       // Focusable, and never in the tab order: opening puts the caret here so a

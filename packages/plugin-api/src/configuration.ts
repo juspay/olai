@@ -181,7 +181,7 @@ export const policyEdit = (
   for (const part of parts) {
     ast = ast?._tag === "Objects" ? ast.propertySignatures.find(field => field.name === part)?.type : undefined
   }
-  if (ast === undefined || ast._tag === "Objects" || key === "on")
+  if (ast === undefined || ast._tag === "Objects")
     throw new UsageFailure({ reason: `No editable setting "${key}" is declared by "${name}".` })
   if (value !== null) {
     try { coerceLeaf(Schema.make(ast) as Schema.ConstraintDecoder<unknown, never>, value) }

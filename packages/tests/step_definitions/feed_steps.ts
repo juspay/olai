@@ -1,28 +1,12 @@
-/**
- * The events drawer's FOOT, and the door onto the vault's own files.
- *
- * The subject is the last line of `padi`'s drawer: the wrench that opens
- * the watch's config as the ordinary outline it is — plus the sidebar's
- * VAULT GROUP the wrench's landing page lives in, since the foot's two
- * states and the group's rows are one design (`_olai/` as first-class, not
- * switchable).
- *
- * IT ASSERTED A MUTES LINE TOO until the second doorbell (2026-08-31) took
- * the mute list out of `_olai/Kolu.olai`. Two steps went with it — `the
- * drawer's foot says {string}` and `the drawer says nothing about mutes` —
- * and the wrench's own steps did not move.
- *
- * Config written here is an EDIT on the served vault: `world.writeServed`
- * lands it outside the browser, which is exactly the lane the watcher and
- * the `knobs` cell read — no harness pushes `watching` events for these
- * scenarios, and none need to: the foot is a reading of the vault.
- */
+/** The watch wrench opens schema controls; the advanced link opens the file.
+ * The sidebar assertions also serve the vault's own-file scenarios. */
 import { Then, When } from "@cucumber/cucumber"
 import { strict as assert } from "assert"
 import { attr } from "../support/selectors.ts"
 import {
   OUTLINE_LIST,
   OUTLINE_TREE,
+  PLUGINS_PANEL,
   PADI_FEED,
   PADI_FEED_FOOT,
   PADI_FEED_WRENCH,
@@ -56,12 +40,12 @@ When("I press the padi pill", async function(this: OlaiWorld) {
 
 When("I press the drawer's wrench", async function(this: OlaiWorld) {
   await this.press(this.page.locator(PADI_FEED_WRENCH).first())
-  await visible(this, OUTLINE_TREE)
+  await visible(this, PLUGINS_PANEL)
 })
 
-Then("the drawer's wrench links to {string}", async function(this: OlaiWorld, href: string) {
+Then("the drawer offers watch settings", async function(this: OlaiWorld) {
   await visible(this, PADI_FEED_WRENCH)
-  await this.expectAttribute(PADI_FEED_WRENCH, "href", href, "the drawer’s config door")
+  assert.equal(await this.page.locator(PADI_FEED_WRENCH).getAttribute("aria-label"), "Edit watch configuration")
 })
 
 Then("the drawer has no foot", async function(this: OlaiWorld) {
@@ -70,7 +54,7 @@ Then("the drawer has no foot", async function(this: OlaiWorld) {
   assert.equal(
     await this.page.locator(PADI_FEED_FOOT).count(),
     0,
-    "the drawer drew a foot for a watch nobody named",
+    "the drawer retained an unavailable configuration provider",
   )
 })
 

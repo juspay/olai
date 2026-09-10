@@ -17,7 +17,6 @@ Feature: The vault settings file applies policy to running rows
       {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"wrong","push":"off"}}
       """
     When I expand settings for the plugin "git"
-    When I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "manual"
     When I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "push" as "off"
@@ -90,7 +89,6 @@ Feature: The vault settings file applies policy to running rows
     Then the plugins panel shows "git" configured "commit" as "off"
     And the plugin "git" marks "commit" as authored by "vault"
     When I expand settings for the plugin "git"
-    When I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "push" as "off"
     And the plugin "git" marks "push" as authored by "default"
     When I follow the policy link for "git"
@@ -154,6 +152,7 @@ Feature: The vault settings file applies policy to running rows
     When I rewrite "_olai/Settings.olai" as:
       """
       {"id":"reserved-choice","ord":"a0","title":"journal","custom":{"on":"<before>"}}
+      {"id":"agent-policy","ord":"a1","title":"git"}
       """
     And I open the plugins panel
     When I expand settings for the plugin "journal"
@@ -163,6 +162,11 @@ Feature: The vault settings file applies policy to running rows
     Then the terminal refusal says "person's decision"
     When I expand settings for the plugin "journal"
     Then the plugin "journal" has authored enablement "<before>"
+
+    When the terminal agent sets property "commit" on "agent-policy" to "off"
+    And I expand settings for the plugin "git"
+    Then the plugins panel shows "git" configured "commit" as "off"
+    And file "_olai/Settings.olai" has namespace "git" setting "commit" as "off"
 
     Examples:
       | before | after |

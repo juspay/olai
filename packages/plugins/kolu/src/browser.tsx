@@ -30,7 +30,9 @@ import type {} from "olai-plugin-outlines/slots"
 // THE APP'S DOOR — the tags this half names and the `definePlugin` that turns
 // an Effect into a plugin (`@olai/plugin-api`'s `browser.ts`). Its server half
 // opens exactly the one door over, and neither of them names `cordis`.
-import { Bar, Clocks, definePlugin, Links, Slots, Wired } from "@olai/plugin-api"
+import { Bar, Clocks, definePlugin, Slots, Wired } from "@olai/plugin-api"
+import { configurationPanel } from "olai-plugin-plugin-inspector/contract"
+import { holdConfigurationPanel } from "./browser/configuration.ts"
 import { Effect } from "effect"
 
 import { KoluUi, createKoluUi, TerminalBlock } from "./appliance/index.ts"
@@ -49,18 +51,15 @@ import { name } from "./wire.ts"
  * `clocks` is the ladder its recency phrase ticks on, and `wired` is its own
  * sibling client.
  *
- * `links` is the fifth and it is spent in one place: the padi feed names the
- * file a lane was scoped to, and a link into the served set is the app's router
- * and its address grammar — two of the app's names to make one link, handed
- * over as one so this package holds neither.
+ * The watch's configuration editor is an optional component below, so its
+ * withdrawal does not stop the feed or the terminal renderer.
  */
 export default definePlugin({
   name,
-  needs: [Slots, Bar, Clocks, Links, Wired],
+  needs: [Slots, Bar, Clocks, Wired],
   apply: Effect.gen(function*() {
     const bar = yield* Bar
     const clocks = yield* Clocks
-    const links = yield* Links
     const slots = yield* Slots
     const wired = yield* Wired
 
@@ -84,7 +83,6 @@ export default definePlugin({
       desktop: bar.desktop,
       pill: bar.pill,
       popover: bar.popover,
-      FileLink: links.File,
     }
     // THE TERMINAL DOOR — a BLOCK, because a terminal owns its row whether or not
     // anything is happening in it, where odu's chip appears only while there is a
@@ -102,3 +100,11 @@ export default definePlugin({
 
   }),
 })
+
+/** The feed survives an absent inspector. Only its configuration door waits. */
+export const components = {
+  configuration: definePlugin({ name: "configuration", needs: [configurationPanel], apply: Effect.gen(function*() {
+    const panel = yield* configurationPanel
+    yield* Effect.acquireRelease(Effect.sync(() => holdConfigurationPanel(panel)), stop => Effect.sync(stop))
+  }) }),
+}

@@ -15,10 +15,18 @@ export const createInspectorState = () => {
   const [opened, setOpened] = createSignal<Readonly<Record<string, boolean>>>({})
   const [disclosed, setDisclosed] = createSignal<Readonly<Record<string, boolean>>>({})
   const [file, setFile] = createSignal<FileLink>()
+  const [requested, setRequested] = createSignal<string>()
   let active = true
   const door: HeldOpen = { open, setOpen }
   return {
-    door, read, opened, file, disclosed,
+    door, read, opened, file, disclosed, requested,
+    reveal: (name: string) => {
+      if (!active) throw new Error("The inspector activation has closed")
+      setDisclosed(was => ({ ...was, [name]: true }))
+      setRequested(name)
+      setOpen(true)
+    },
+    revealed: (name: string) => { if (requested() === name) setRequested(undefined) },
     disclose: (name: string, open: boolean) => {
       if (!active) throw new Error("The inspector activation has closed")
       setDisclosed(was => was[name] === open ? was : { ...was, [name]: open })
@@ -36,7 +44,7 @@ export const createInspectorState = () => {
       if (!active) throw new Error("The inspector activation has closed")
       setOpened((was) => (was[label] === open ? was : { ...was, [label]: open }))
     },
-    close: () => { active = false; setDisclosed({}); setFile(undefined); setOpen(false); setRead(new Map()); setOpened({}) },
+    close: () => { active = false; setRequested(undefined); setDisclosed({}); setFile(undefined); setOpen(false); setRead(new Map()); setOpened({}) },
   }
 }
 export type InspectorState = ReturnType<typeof createInspectorState>

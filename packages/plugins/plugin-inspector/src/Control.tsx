@@ -40,6 +40,8 @@ export function Control(props: {
     })
   }
   const commit = () => { if (dirty) save(draft()) }
+  // Bound natively on the input: Solid's delegated listener runs at document,
+  // where the popover's Escape dismissal would already have spent the key.
   const keyboard = (event: KeyboardEvent) => {
     if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); commit() }
     if (event.key === "Escape") {
