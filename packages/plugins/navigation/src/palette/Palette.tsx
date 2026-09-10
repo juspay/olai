@@ -1005,7 +1005,7 @@ export function Palette(props: {
                       <li>
                         <Result
                           label={item().label}
-                          of={item().of}
+
                           from={item().from}
                           needles={needles()}
                           hint={item().hint}

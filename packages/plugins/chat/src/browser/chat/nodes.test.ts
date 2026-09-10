@@ -61,14 +61,14 @@ test("a row reads the title, and says where it sits", () => {
     id: "hinges",
     label: "pick the hinges",
     from: "house.olai",
-    place: "install the cabinets · kitchen remodel",
+    place: { file: "house.olai", middle: "kitchen remodel", nearest: "install the cabinets" },
     note: false,
   }])
 })
 
 test("a node at the top of a file is placed by the file, which is all it has", () => {
   expect(nodeMatches([hit({ id: "kitchen", title: "kitchen remodel" })])[0]?.place)
-    .toBe("house.olai")
+    .toEqual({ file: "house.olai" })
 })
 
 test("two nodes of one title are told apart by where they are", () => {
@@ -81,7 +81,7 @@ test("two nodes of one title are told apart by where they are", () => {
         path: ["kitchen remodel", "install the cabinets"],
       }),
     ]).map((node) => node.place),
-  ).toEqual(["garden", "install the cabinets · kitchen remodel"])
+  ).toEqual([{ file: "garden.olai", nearest: "garden" }, { file: "house.olai", middle: "kitchen remodel", nearest: "install the cabinets" }])
 })
 
 test("a row says it is here for a note, and only then", () => {
