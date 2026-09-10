@@ -296,3 +296,5 @@ The markdown page owns its landing and highlight. It reads only address data;
 it acquires no search service. Leaving the page cancels its pending animation
 frame and removes its drawing. The hit's line is pure data produced after the
 cap inside the existing search reading.
+
+Document landing highlights read the declared renderer clock for relative-date queries; the content activation releases that clock hold with its faces.

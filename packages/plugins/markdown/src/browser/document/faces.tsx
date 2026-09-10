@@ -36,6 +36,7 @@ import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
  * picture's opens nothing at all, and neither had to be declared here.
  */
 
+import { today } from "../clock.ts"
 import { type BodyKind, proseIn, proseLineOffset, needlesFrom } from "@olai/format"
 import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
 
@@ -230,7 +231,7 @@ function Rendered(props: Reading) {
     if (line === undefined || !isServed(entry)) return undefined
     const route = panesOf(router.workspace())[here()]?.route
     const query = route?.kind === "at" ? route.filter ?? "" : ""
-    return { line: line - proseLineOffset(entry.text), needles: needlesFrom(query, "") }
+    return { line: line - proseLineOffset(entry.text), needles: needlesFrom(query, today()) }
   })
   createEffect(() => {
     const at = landing.owed()
