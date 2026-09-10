@@ -22,9 +22,9 @@
       },
       "branch": "add-olai-tools",
       "submodules": false,
-      "revision": "ee5ee739092ba576c02ba14a44f1347ab5c94f93",
-      "url": "https://github.com/srid/ekapkgs/archive/ee5ee739092ba576c02ba14a44f1347ab5c94f93.tar.gz",
-      "hash": "sha256-c5LTlBI4eseahKE8UlM+NlYHjuwTefbcRNyRKLPdWB0="
+      "revision": "7f5f4d84ed435b08ec2a1c15b63a3580afa68703",
+      "url": "https://github.com/srid/ekapkgs/archive/7f5f4d84ed435b08ec2a1c15b63a3580afa68703.tar.gz",
+      "hash": "sha256-oSGj6qj7JKwugvtUVP+5Mm14Gyl+MlVx2RqzGV76b04="
     },
     "kolu": {
       "type": "Git",
