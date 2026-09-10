@@ -225,7 +225,7 @@ describe("a table that moves", () => {
 
   test("the last engine leaving is `no-engine`, the same word a build with none gives", () => {
     // The invariant the loader surface rests on, at this end: a row somebody
-    // switched off and a row the flag never named are ONE state, so they are one
+    // switched off and a row with `on: no` in `_olai/Settings.olai` are ONE state, so they are one
     // word — and the panel draws one face for both.
     const detect = detecting({}, CWD)
     expect(detect([here("one")]).kind).toBe("here")
