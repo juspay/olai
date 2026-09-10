@@ -175,8 +175,8 @@ test("a failed row quotes what the plugin said, or says it said nothing", () => 
 })
 
 
-test("off, opt-in and switched rows have no prose", () => {
-  for (const state of ["off", "optIn", "switched"]) expect(pluginHint(only(row(state)))).toBeNull()
+test("off, opt-in, switched and pending rows have no prose", () => {
+  for (const state of ["off", "optIn", "switched", "pending"]) expect(pluginHint(only(row(state)))).toBeNull()
 })
 
 /**
@@ -464,14 +464,14 @@ test("a file-authored off state and session exceptions have no row sentence", ()
   }
 })
 
-import { environmentSource } from "./rows.ts"
+import { environmentVisible } from "./rows.ts"
 test("environment readings distinguish wrapper defaults from explicit store paths", () => {
   const resource = { key: "EXECUTABLE", kind: "resource" as const, set: true, value: "/nix/store/operator/bin/tool", says: "the executable" }
-  expect(environmentSource(resource)).toBe("env")
-  expect(environmentSource({ ...resource, source: "wrapper" })).toBe("wrapper")
-  expect(environmentSource({ ...resource, set: false })).toBe("env")
-  expect(environmentSource({ key: "TOKEN", kind: "secret", set: true, says: "credential" })).toBe("env")
-  expect(environmentSource({ key: "TOKEN", kind: "secret", set: false, says: "credential" })).toBe("env")
+  expect(environmentVisible(resource)).toBe(true)
+  expect(environmentVisible({ ...resource, source: "wrapper" })).toBe(false)
+  expect(environmentVisible({ ...resource, set: false })).toBe(true)
+  expect(environmentVisible({ key: "TOKEN", kind: "secret", set: true, says: "credential" })).toBe(true)
+  expect(environmentVisible({ key: "TOKEN", kind: "secret", set: false, says: "credential" })).toBe(true)
 })
 
 

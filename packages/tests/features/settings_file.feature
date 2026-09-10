@@ -122,7 +122,7 @@ Feature: The vault settings file applies policy to running rows
     When I open the plugins panel
     Then the plugin "settings" has a session-only switch ring
     When I switch the plugin "settings" off
-    Then the plugins panel was started "session-only"
+    Then every plugin enable switch has a session-only ring
     When I switch the plugin "settings" on
     Then the plugin "settings" has a session-only switch ring
     When I switch the plugin "journal" off

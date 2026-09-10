@@ -130,7 +130,7 @@ export const decodePolicy = (
         value = coerceLeaf(declaration, raw)
         setBy = "vault"
       } catch (error) {
-        problem = { raw, why: String(error) }
+        problem = { raw, why: (error instanceof Error ? error.message : String(error)) }
         warn(full, raw, problem.why)
       }
     }
@@ -185,7 +185,7 @@ export const policyEdit = (
     throw new UsageFailure({ reason: `No editable setting "${key}" is declared by "${name}".` })
   if (value !== null) {
     try { coerceLeaf(Schema.make(ast) as Schema.ConstraintDecoder<unknown, never>, value) }
-    catch (error) { throw new UsageFailure({ reason: String(error) }) }
+    catch (error) { throw new UsageFailure({ reason: (error instanceof Error ? error.message : String(error)) }) }
   }
   const leaf = parts.pop()!
   type Seed = { title: string; props?: Record<string, string>; children?: ReadonlyArray<Seed> }

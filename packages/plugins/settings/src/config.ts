@@ -14,7 +14,7 @@ export const readConfiguration = (reading: Pick<Reading, "set" | "derived">, dec
     let parsed: ReturnType<typeof decodePolicy>
     try { parsed = schema === undefined ? { config: {}, values: [] } : decodePolicy(schema, nodes, node,
       (key, value, why) => warn(`${file}: ${name}.${key}: ${JSON.stringify(value)} uses its default — ${why}`)) }
-    catch (error) { warn(`${file ?? "built declaration"}: ${name}: invalid Config — ${String(error)}`); parsed = { config: {}, values: [] } }
+    catch (error) { warn(`${file ?? "built declaration"}: ${name}: invalid Config — ${(error instanceof Error ? error.message : String(error))}`); parsed = { config: {}, values: [] } }
     const raw = node === undefined ? undefined : customText(node.node, "on")
     const on = raw === "yes" ? true : raw === "no" ? false : undefined
     if (raw !== undefined && on === undefined) warn(`${file}: ${name}.on: ${JSON.stringify(raw)} uses its default — expected yes or no`)

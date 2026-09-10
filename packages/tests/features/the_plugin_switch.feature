@@ -151,7 +151,7 @@ Feature: A plugin is turned on and off while the serve runs
     # doors they named have arrived; the conversation's own chrome is drawn
     # because its members are on the wire and the tab's redial reached them.
     Then the plugins panel says nothing more about "kolu"
-    And the plugins panel was started "session-only"
+    And every plugin enable switch has a session-only ring
     And the conversation is in the header
     # THE ASSERTION THAT WOULD HAVE BEEN RED WHATEVER ELSE PASSED. The rest of
     # this scenario can be satisfied by chrome that mounted off a roster frame;

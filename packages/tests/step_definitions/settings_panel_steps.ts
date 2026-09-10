@@ -153,7 +153,9 @@ Then("the {string} setting {string} shows refused file text {string} inline with
   const line = control(this, name, key)
   await this.waitUntil(async () => await line.locator('input').inputValue() === raw, "the refused file spelling")
   assert.equal(await line.locator('input').getAttribute('aria-invalid'), "true")
-  assert.ok((await line.locator(selector(TESTID.pluginProblem)).innerText()).includes(`· using ${fallback}`))
+  const problem = await line.locator(selector(TESTID.pluginProblem)).innerText()
+  assert.ok(problem.includes(`· using ${fallback}`))
+  assert.ok(!problem.includes("SchemaError("), problem)
   assert.equal(await line.locator(selector(TESTID.pluginSource)).count(), 0)
   assert.equal(await line.locator(selector(TESTID.pluginReset)).isVisible(), true)
 })
@@ -181,4 +183,51 @@ Then("the plugins panel has one column and fits the phone", async function(this:
   assert.equal(await panel.locator('.plugins-grid-columns').evaluate(el => getComputedStyle(el).columnCount), "1")
   assert.equal(await panel.locator('.plugins-grid-body').evaluate(el => el.scrollWidth <= el.clientWidth), true)
   assert.equal(await panel.evaluate(el => getComputedStyle(el).aspectRatio), "auto")
+})
+
+Then("every plugin enable switch has a session-only ring", async function(this: OlaiWorld) {
+  const switches = this.pluginsPanel().getByRole("switch", { name: /^Enable /, includeHidden: true })
+  await this.waitUntil(async () => {
+    const titles = await switches.evaluateAll(elements => elements.map(el => el.getAttribute("title")))
+    return titles.length > 1 && titles.every(title => title === "session-only")
+  }, "every enable switch becomes session-only while the reader is absent")
+  for (const toggle of await switches.all()) {
+    assert.equal(await toggle.evaluate(el => getComputedStyle(el, "::before").borderTopStyle), "dashed")
+  }
+})
+
+Given("the roster includes wrapper and operator environment readings", async function(this: OlaiWorld) {
+  await this.page.routeWebSocket(url => url.pathname === "/rpc/ws", client => {
+    const server = client.connectToServer()
+    server.onMessage(message => {
+      const replace = (value: unknown): void => {
+        if (value === null || typeof value !== "object") return
+        if (Array.isArray(value)) { value.forEach(replace); return }
+        const object = value as Record<string, unknown>
+        if (object.name === "codex" && Array.isArray(object.environment)) {
+          object.environment = [
+            { key: "WRAPPED_BIN", kind: "resource", set: true, value: "/nix/store/build-default/bin/tool", source: "wrapper", says: "built executable" },
+            { key: "OPERATOR_BIN", kind: "resource", set: true, value: "/nix/store/operator/bin/tool", says: "operator executable" },
+            { key: "EMPTY_PATH", kind: "resource", set: false, says: "optional path" },
+            { key: "PRIVATE_TOKEN", kind: "secret", set: true, says: "credential" },
+          ]
+        }
+        Object.values(object).forEach(replace)
+      }
+      for (const line of String(message).split("\n").filter(Boolean)) {
+        const frame = JSON.parse(line)
+        replace(frame)
+        client.send(JSON.stringify(frame) + "\n")
+      }
+    })
+  })
+})
+Then("the panel hides wrapper defaults and shows operator environment readings", async function(this: OlaiWorld) {
+  const row = await this.showPluginRow("codex")
+  await this.waitUntil(async () => (await row.innerText()).includes("/nix/store/operator/bin/tool"), "the operator reading")
+  assert.equal(await row.locator('[data-config="WRAPPED_BIN"]').count(), 0)
+  assert.ok(!(await row.innerText()).includes("/nix/store/build-default"))
+  assert.equal(await row.locator('[data-config="EMPTY_PATH"]').innerText(), "path env · unset")
+  assert.equal(await row.locator('[data-config="PRIVATE_TOKEN"]').innerText(), "token env · set")
+  assert.equal(await row.locator('[data-config="OPERATOR_BIN"] input').count(), 0)
 })

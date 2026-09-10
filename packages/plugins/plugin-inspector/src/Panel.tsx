@@ -111,7 +111,7 @@ import {
   configurationLinkLabel,
   configurationAuthored,
   enableLabel,
-  environmentSource,
+  environmentVisible,
   groupCount,
   pluginConfig,
   pluginConfirm,
@@ -318,10 +318,10 @@ function NodeLink(props: { readonly node: { readonly file: string; readonly id: 
 }
 
 function Environment(props: { readonly values: ReadonlyArray<EnvironmentReading> }) {
-  return <For each={props.values}>{one => (
+  return <For each={props.values.filter(environmentVisible)}>{one => (
     <span class="plugins-grid-env"
-      data-testid={TESTID.pluginConfig} data-config={one.key} data-value={one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")} data-set-by={environmentSource(one) === "wrapper" ? "default" : "env"} title={`${one.says ?? one.key} · ${one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")}`}>
-      {one.key.toLowerCase().split("_").at(-1)} {environmentSource(one)} · {one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")}
+      data-testid={TESTID.pluginConfig} data-config={one.key} data-value={one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")} data-set-by="env" title={`${one.says ?? one.key} · ${one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")}`}>
+      {one.key.toLowerCase().split("_").at(-1)} env · {one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")}
     </span>
   )}</For>
 }

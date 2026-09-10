@@ -37,7 +37,7 @@ Feature: The vault is a row
     Then the MCP vault can read an outline
     And the plugin "settings" is running
     When I switch the plugin "settings" off
-    Then the plugins panel was started "session-only"
+    Then every plugin enable switch has a session-only ring
     When I switch the plugin "settings" on
     Then the plugin "settings" is running
     And the plugin "vault" is running

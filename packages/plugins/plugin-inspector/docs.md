@@ -35,9 +35,10 @@ client for the next request. No host approval binding or hard dependency keeps
 the definition provider alive.
 
 The desktop panel is a wide square with two columns of collapsible sections;
-phones use one column without a fixed aspect ratio. Section headings count on
-and off rows. The header links to `_olai/Settings.olai`; the foot explains the
-source dot and session ring and names private memory without opening it.
+phones use one column without a fixed aspect ratio. Plugin section headings
+count on and off rows; This serve shows the listening host and port. The header
+links to `_olai/Settings.olai`; the foot explains the source dot and session ring
+and names private memory without opening it.
 
 Every schema leaf is an inline control beside its row name. Short lowercase
 labels derive from leaf keys; the schema description is the knob's tooltip.
@@ -60,8 +61,9 @@ for the revision and follower. **Use default** deletes the property. An invalid
 value is refused before the file changes. No reader or a broken file freezes controls with
 the server’s refusal in their tooltips; a knob never falls back to session state.
 
-Environment readings are read-only, including wrapper provenance and secret
-set/unset. A ↗ beside the row name appears on hover or focus when the node exists. An optional
+Operator environment readings are read-only; secrets show set/unset.
+Wrapper-supplied build defaults are hidden. When the node exists, a ↗ beside
+the row name appears on hover or focus and stays visible on phones. An optional
 Links integration supplies that link and withdraws it when navigation stops.
 Inspector state survives the renderer’s replacement. **This serve** uses the
 same controls for the process’s `olai` node, followed by read-only facts. The

@@ -266,9 +266,9 @@ export const groupCount = (rows: ReadonlyArray<BuiltPlugin>): string => {
   return `${on} on · ${off} off`
 }
 
-/** Wrapper provisions are distinct from explicit machine inputs. */
-export const environmentSource = (one: EnvironmentReading): "wrapper" | "env" =>
-  one.kind === "resource" && one.source === "wrapper" ? "wrapper" : "env"
+/** Build defaults are not machine inputs a person can change here. */
+export const environmentVisible = (one: EnvironmentReading): boolean =>
+  one.kind !== "resource" || one.source !== "wrapper"
 
 export type PolicyReading = NonNullable<BuiltPlugin["configurationValues"]>[number]
 export const labelOf = (key: string): string => {

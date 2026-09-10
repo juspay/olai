@@ -181,3 +181,10 @@ Feature: Edit plugin settings on the panel
     Then the plugins panel has one column and fits the phone
     And the plugin "git" has inline controls
     And there should be no page errors
+
+  Scenario: Build defaults stay hidden while operator environment readings stay read-only
+    Given the roster includes wrapper and operator environment readings
+    And I open the app
+    When I open the plugins panel
+    Then the panel hides wrapper defaults and shows operator environment readings
+    And there should be no page errors

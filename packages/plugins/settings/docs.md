@@ -18,10 +18,9 @@ The panel switch writes `on` through the ordinary write door, then waits for thi
 reader and the root’s patches to settle. It creates the file and namespace when
 needed, preserving other properties. The vault and reader switches remain
 session-only so either can be restored from the panel; their owners are derived
-from the offers table. Without this reader, the foot says once that switches
-are session-only. A broken file is named and must be repaired before a durable
-press can write. If the file itself says `on: no` for this row, edit that property
-to restore durable switching.
+from the offers table. Their switches wear dashed rings. Without this reader,
+every enable switch wears that ring; the foot legend explains it. A broken file
+is named and must be repaired before a durable press can write.
 
 The follower ignores file `on` values on the vault and configuration reader
 owners, warning once per row and file. Their session switches remain usable

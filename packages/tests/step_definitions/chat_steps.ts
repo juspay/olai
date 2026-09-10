@@ -3943,3 +3943,7 @@ When("I open {string} from the open agent's work", async function (this: OlaiWor
 When("I return to the parent agent {string}", async function (this: OlaiWorld, name: string) {
   await this.page.getByRole("button", { name: `Back to ${name}`, exact: true }).click();
 });
+
+Then("the agent panel is already visible", async function(this: OlaiWorld) {
+  await this.page.locator(CHAT_PANEL).waitFor({ state: "visible" })
+})

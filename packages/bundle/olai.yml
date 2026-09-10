@@ -130,8 +130,8 @@
 - id: odu
   name: olai-plugin-odu/server
   section: Appliances
-# OFF BY DEFAULT, and the row is where that is said rather than a `defaultOn`
-# field on a manifest: a Spaces app JWT is a secret this machine may not have,
+# OFF BY DEFAULT, declared here by `disabled: true`: a Spaces app JWT is a
+# secret this machine may not have,
 # and a pill in every bar for an integration nobody pointed at is the wrong
 # default. a policy selecting only xyne-spaces is what turns it on, which is the patch
 # mechanism doing exactly what it is for.
