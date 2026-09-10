@@ -59,3 +59,11 @@ test("one invalid schema declaration cannot prevent other rows being read", () =
   expect(lines.some(line => line.includes("invalid Config"))).toBe(true)
   expect(at.rows.get("invalid")?.values).toEqual([])
 })
+
+
+test("a refused file leaf publishes its raw text and problem beside the effective default", () => {
+  const at = read({ "_olai/Settings.olai": row({ mode: "louder" }) })
+  const value = at.rows.get("example")!.values.find(one => one.key === "mode")!
+  expect(value).toMatchObject({ value: "quiet", setBy: "default", control: { kind: "choice", options: ["quiet", "loud"] }, problem: { raw: "louder" } })
+  expect(value.problem!.why).toContain("quiet")
+})

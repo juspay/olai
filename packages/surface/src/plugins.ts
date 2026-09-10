@@ -84,6 +84,19 @@ export const EnvironmentReading = Schema.Union([
   Schema.Struct({ key: Schema.String, kind: Schema.Literal("resource"), set: Schema.Boolean, says: Schema.String, value: Schema.optionalKey(Schema.String), source: Schema.optionalKey(Schema.Literal("wrapper")) }),
 ])
 
+const PolicyControl = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("choice"), options: Schema.Array(Schema.String) }),
+  Schema.Struct({ kind: Schema.Literal("switch") }),
+  Schema.Struct({ kind: Schema.Literal("number"), integer: Schema.Boolean, min: Schema.optionalKey(Schema.Number), max: Schema.optionalKey(Schema.Number) }),
+  Schema.Struct({ kind: Schema.Literal("text"), expected: Schema.optionalKey(Schema.String) }),
+])
+const PolicyValue = Schema.Struct({
+  key: Schema.String, value: Schema.Unknown, setBy: Schema.Literals(["vault", "default"]), says: Schema.String,
+  // Old serves still decode; their readings remain read-only without metadata.
+  control: Schema.optionalKey(PolicyControl),
+  problem: Schema.optionalKey(Schema.Struct({ raw: Schema.String, why: Schema.String })),
+})
+
 export const BuiltPlugin = Schema.Struct({
   /** The plugin's `name` — the namespace, the docs slug, the settings namespace
    *  takes and the label the row wears. One spelling, and this is it travelling
@@ -263,9 +276,7 @@ export const BuiltPlugin = Schema.Struct({
    * empty record would be a row claiming to have been configured as nothing.
    */
   config: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
-  configurationValues: Schema.optionalKey(Schema.Array(Schema.Struct({
-    key: Schema.String, value: Schema.Unknown, setBy: Schema.Literals(["vault", "default"]), says: Schema.String,
-  }))),
+  configurationValues: Schema.optionalKey(Schema.Array(PolicyValue)),
   configurationNode: Schema.optionalKey(Schema.Struct({ file: Schema.String, id: Schema.String })),
   desiredOn: Schema.optionalKey(Schema.Boolean),
   environment: Schema.optionalKey(Schema.Array(EnvironmentReading)),
@@ -452,8 +463,7 @@ export const PluginRoster = Schema.Struct({
     hostnameAuthor: Schema.optionalKey(Schema.Literals(["env", "process"])),
     host: Schema.String, port: Schema.Number,
     hostAuthor: Schema.Literals(["flag", "default", "process"]), portAuthor: Schema.Literals(["flag", "default", "process"]),
-    policy: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.Unknown,
-      setBy: Schema.Literals(["vault", "default"]), says: Schema.String })),
+    policy: Schema.Array(PolicyValue),
     origins: Schema.Array(Schema.String),
     bearer: Schema.Struct({ set: Schema.Boolean }),
   })),

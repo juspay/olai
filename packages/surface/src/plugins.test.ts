@@ -36,3 +36,18 @@ test("resource URLs redact userinfo before a roster can carry them", () => {
   expect(reading).toEqual([{ key: "RESOURCE_URL", kind: "resource", set: true, says: "the remote resource", value: "https://example.test/api?q=1" }])
   expect(environmentReadings(declaration, { RESOURCE_URL: "https://example.test" })[0]).toMatchObject({ value: "https://example.test" })
 })
+
+
+test("controls and file problems survive the row and process wire readings", async () => {
+  const { PluginRoster } = await import("./plugins.ts")
+  const policy = { key: "mode", value: "quiet", setBy: "default", says: "how much", control: { kind: "choice", options: ["quiet", "loud"] }, problem: { raw: "louder", why: "expected quiet or loud" } } as const
+  const decoded = Schema.decodeUnknownSync(PluginRoster)({ built: [], instance: { hostname: "machine", host: "localhost", port: 1, hostAuthor: "default", portAuthor: "default", policy: [policy], origins: [], bearer: { set: true } } })
+  expect(decoded.instance!.policy[0]).toEqual(policy)
+  const { BuiltPlugin } = await import("./plugins.ts")
+  const row = Schema.decodeUnknownSync(BuiltPlugin)({ name: "example", running: true, configurationValues: [policy] })
+  expect(row.configurationValues![0]).toEqual(policy)
+  for (const reading of environmentReadings([{ key: "TOKEN", secret: true, says: "credential" }], { TOKEN: "private" })) {
+    expect(reading).not.toHaveProperty("control")
+    expect(reading).not.toHaveProperty("value")
+  }
+})

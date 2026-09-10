@@ -8,11 +8,61 @@ export const configurationFileIn = (paths: Iterable<string>): string | undefined
   .filter((path) => path.split("/").pop()?.toLowerCase() === "settings.olai")
   .sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b))[0]
 
+export type Control =
+  | { readonly kind: "choice"; readonly options: ReadonlyArray<string> }
+  | { readonly kind: "switch" }
+  | { readonly kind: "number"; readonly integer: boolean; readonly min?: number; readonly max?: number }
+  | { readonly kind: "text"; readonly expected?: string }
+
+const checksOf = (ast: SchemaAST.AST): ReadonlyArray<SchemaAST.Check<unknown>> => {
+  const flatten = (check: SchemaAST.Check<unknown>): ReadonlyArray<SchemaAST.Check<unknown>> =>
+    check._tag === "FilterGroup" ? [check, ...check.checks.flatMap(flatten)] : [check]
+  return (ast.checks ?? []).flatMap(flatten)
+}
+
+/** Describe the decoded leaf, independent of its string encoding/default. */
+export const policyControl = (ast: SchemaAST.AST): Control => {
+  const arms = ast._tag === "Union" ? ast.types : [ast]
+  if (arms.every(one => one._tag === "Literal" && typeof one.literal === "string"))
+    return { kind: "choice", options: arms.map(one => String((one as SchemaAST.Literal).literal)) }
+  if (arms.every(one => one._tag === "Boolean")) return { kind: "switch" }
+  if (arms.every(one => one._tag === "Number")) {
+    const checks = [...checksOf(ast), ...arms.flatMap(checksOf)]
+    const bounds: { min?: number; max?: number } = {}
+    for (const check of checks) {
+      const representation = check.annotations?.representation
+      if (representation === undefined) continue
+      const payload = representation.payload as { minimum?: number; maximum?: number } | null
+      if (["effect/schema/isBetween", "effect/schema/isGreaterThanOrEqualTo"].includes(representation.id) && typeof payload?.minimum === "number")
+        bounds.min = Math.max(bounds.min ?? -Infinity, payload.minimum)
+      if (["effect/schema/isBetween", "effect/schema/isLessThanOrEqualTo"].includes(representation.id) && typeof payload?.maximum === "number")
+        bounds.max = Math.min(bounds.max ?? Infinity, payload.maximum)
+    }
+    return { kind: "number", integer: arms.every(one => checksOf(one).some(check => check.annotations?.representation?.id === "effect/schema/isInt")) || checksOf(ast).some(check => check.annotations?.representation?.id === "effect/schema/isInt"), ...bounds }
+  }
+  const expected = checksOf(ast).map(check => check.annotations?.expected).filter((one): one is string => typeof one === "string").join("; ")
+  return { kind: "text", ...(expected === "" ? {} : { expected }) }
+}
+
+/** Both file reading and panel writes use the leaf's own decoder. */
+export const coerceLeaf = (schema: Schema.ConstraintDecoder<unknown, never>, raw: string): unknown => {
+  const control = policyControl(schema.ast)
+  const input = control.kind === "number" ? (raw.trim() === "" ? NaN : Number(raw))
+    : control.kind === "switch" ? (raw === "yes" ? true : raw === "no" ? false : raw) : raw
+  const decode = Schema.decodeUnknownSync(schema)
+  if (input === raw) return decode(raw)
+  // Some declarations already own a string-to-value codec. Give that encoding
+  // its ordinary input before adapting a bare number or boolean schema.
+  try { return decode(raw) } catch { return decode(input) }
+}
+
 export interface PolicyValue {
   readonly key: string
   readonly value: unknown
   readonly setBy: "vault" | "default"
   readonly says: string
+  readonly control: Control
+  readonly problem?: { readonly raw: string; readonly why: string }
 }
 export interface PolicyRow {
   readonly config: Readonly<Record<string, unknown>>
@@ -72,18 +122,18 @@ export const decodePolicy = (
     const raw = node !== undefined && isRegular(node) ? customText(node.node, key) : undefined
     let value = defaults[key]
     let setBy: "vault" | "default" = "default"
+    let problem: PolicyValue["problem"]
     if (raw !== undefined) {
       try {
-        const input = typeof value === "number" ? (raw.trim() === "" ? NaN : Number(raw))
-          : typeof value === "boolean" ? (raw === "yes" ? true : raw === "no" ? false : raw) : raw
-        value = Schema.decodeUnknownSync(declaration)(input)
+        value = coerceLeaf(declaration, raw)
         setBy = "vault"
       } catch (error) {
-        warn(full, raw, String(error))
+        problem = { raw, why: String(error) }
+        warn(full, raw, problem.why)
       }
     }
     config[key] = value
-    values.push({ key: full, value, setBy, says: SchemaAST.resolveDescription(field.type) ?? "" })
+    values.push({ key: full, value, setBy, says: SchemaAST.resolveDescription(field.type) ?? "", control: policyControl(field.type), ...(problem === undefined ? {} : { problem }) })
   }
   return { config, values }
 }

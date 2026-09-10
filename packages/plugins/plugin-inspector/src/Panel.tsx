@@ -1,4 +1,4 @@
-import type { PolicyValue, EnvironmentReading } from "@olai/plugin-api/configuration"
+import type { EnvironmentReading } from "@olai/plugin-api/configuration"
 import { approveDefinition } from "./approval.ts"
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
@@ -690,3 +690,5 @@ function Defined(props: {
     </Show>
   )
 }
+
+type PolicyValue = NonNullable<BuiltPlugin["configurationValues"]>[number]

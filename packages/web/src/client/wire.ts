@@ -1,3 +1,4 @@
+import { Effect } from "effect"
 /**
  * One rooted connection follows the server's plugin roster in place.
  * Kolu retains the core, surviving sibling clients and standing subscriptions
@@ -396,6 +397,7 @@ await supplyManagement({
   reports: browserReports,
   changing: rosterChanging,
   set: (name, enabled) => olai.procedures.plugins.set({ name, enabled }),
+  configure: () => Effect.fail(new Error("The connected serve does not offer configuration editing.")),
   retry: retryBrowser,
   requiresReload: browserRequiresReload,
   reload: () => globalThis.location.reload(),
