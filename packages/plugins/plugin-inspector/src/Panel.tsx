@@ -1,4 +1,4 @@
-import type { EnvironmentReading } from "@olai/plugin-api/configuration"
+import { configurationUnavailable, configurationBroken, type EnvironmentReading } from "@olai/plugin-api/configuration"
 import { approveDefinition } from "./approval.ts"
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
@@ -111,7 +111,7 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * without forgetting what this reader opened.
  */
 
-import { createSignal, For, Show } from "solid-js"
+import { createMemo, createSignal, For, Show } from "solid-js"
 
 import {
   type BuiltPlugin,
@@ -130,10 +130,13 @@ import { TESTID as PRIMITIVE } from "@olai/ui-primitives/testids.ts"
 import type { BrowserManagement } from "@olai/surface/management"
 import type { InspectorState } from "./state.ts"
 import { Switch } from "./Switch.tsx"
+import { Control } from "./Control.tsx"
 
 import {
   type PluginPick,
-  environmentAtDefault,
+  pluginSummary,
+  configurationLinkLabel,
+  enableLabel,
   groupCount,
   pluginConfig,
   pluginConfirm,
@@ -164,8 +167,11 @@ export function Panel(props: {
    *  everything is off — which is the same reason that value exists at all. */
   const roster = props.management.roster()
   const plugins = (): PluginRoster => roster() ?? NO_ROSTER
-  const rows = () => pluginRows(plugins())
-  const groups = () => pluginGroups(plugins(), (name) => props.management.look(name), props.management.reports())
+  const rows = createMemo(() => pluginRows(plugins()))
+  const frozen = () => configurationFrozen(plugins(), props.management.changing())
+  // Many controls read the same roster. Derive its groups once per publication,
+  // not once per field getter while the browser is trying to settle a press.
+  const groups = createMemo(() => pluginGroups(plugins(), (name) => props.management.look(name), props.management.reports()))
 
   /** WHICH GROUPS THIS READER HAS OPENED OR SHUT — on inspector state, not
    *  this component: a switch rebuilds the shell, and a walk that lived here
@@ -273,9 +279,11 @@ export function Panel(props: {
       data-testid={TESTID.pluginsPanel}
       aria-label="plugins"
     >
-      <For each={groups()}>
-        {(group) => (
-          <section
+      <For each={groups().map(group => group.label)}>
+        {(label) => {
+          const current = () => groups().find(group => group.label === label)!
+          const group = { label, get rows() { return current().rows }, get needs() { return current().needs }, get collapsed() { return current().collapsed } }
+          return <section
             class="border-b border-rule/55 py-2 last:border-b-0"
             data-testid={TESTID.pluginGroup}
             data-section={group.label}
@@ -290,8 +298,8 @@ export function Panel(props: {
                     <span class="font-bold tracking-wide text-alarm uppercase">{group.label}</span>
                     <span class="text-muted">{group.rows.length}</span>
                   </div>
-                  <For each={group.rows}>
-                    {(plugin) => <PluginRow plugin={plugin} panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}
+                  <For each={group.rows.map(plugin => plugin.name)}>
+                    {(name) => <PluginRow plugin={group.rows.find(plugin => plugin.name === name)!} panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}
                   </For>
                 </>
               }
@@ -300,6 +308,9 @@ export function Panel(props: {
                 open={groupOpen(group)}
                 class="group/section"
                 onToggle={(event) => {
+                  // Native toggle events can arrive after this group leaves
+                  // the roster and its DOM owner has been disposed.
+                  if (!event.currentTarget.isConnected) return
                   const next = event.currentTarget.open
                   if (next === groupOpen(group)) return
                   toggleGroup(group.label, next)
@@ -313,13 +324,13 @@ export function Panel(props: {
                   </span>
                   <span>{groupCount(group.rows)}</span>
                 </summary>
-                <For each={group.rows}>
-                  {(plugin) => <PluginRow plugin={plugin} panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}
+                <For each={group.rows.map(plugin => plugin.name)}>
+                  {(name) => <PluginRow plugin={group.rows.find(plugin => plugin.name === name)!} panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}
                 </For>
               </details>
             </Show>
           </section>
-        )}
+        }}
       </For>
 
       {/* A BUILD WITH NO PLUGINS SAYS SO, where on the preferences panel it
@@ -361,14 +372,15 @@ export function Panel(props: {
       <Show when={plugins().instance}>{instance => (
         <details class="py-2 text-xs text-muted" data-testid={TESTID.thisServe}>
           <summary class="cursor-pointer font-bold">This serve</summary>
+          <Controls name="olai" values={instance().policy} configure={props.management.configure} frozen={frozen()} />
           <div class="flex flex-wrap gap-2 py-2">
             <span>hostname {instance().hostname}{instance().hostnameAuthor === undefined ? "" : ` ·${instance().hostnameAuthor}`}</span>
             <span>host {instance().host} ·{instance().hostAuthor}</span>
             <span>port {instance().port} ·{instance().portAuthor}</span>
-            <Config values={instance().policy} />
             <span>origins {instance().origins.join(", ") || "(none)"} ·env</span>
             <span>bearer {instance().bearer.set ? "set" : "unset"} ·process</span>
           </div>
+          <Show when={instance().configurationNode && props.state.file()}>{File => { const Link = File() as NonNullable<ReturnType<InspectorState["file"]>>; return <div onClick={() => props.state.door.setOpen(false)}><Link file={instance().configurationNode!.file} at={instance().configurationNode!.id} label={configurationLinkLabel} title={configurationLinkLabel} testid={TESTID.pluginConfigLink}>{configurationLinkLabel} ↗</Link></div> }}</Show>
         </details>
       )}</Show>
       <Show when={rows().length > 0}>
@@ -382,8 +394,8 @@ export function Panel(props: {
 
 function Environment(props: { readonly values: ReadonlyArray<EnvironmentReading> }) {
   return <For each={props.values}>{one => (
-    <span class="rounded-full bg-pill/55 px-1.5 py-0.5 text-[0.68rem] text-muted"
-      data-testid={TESTID.pluginConfig} data-config={one.key} data-set-by={one.kind === "resource" && one.source === "wrapper" ? "default" : "env"} title={one.says}>
+    <span class="block py-1 text-xs text-muted"
+      data-testid={TESTID.pluginConfig} data-config={one.key} data-value={one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")} data-set-by={one.kind === "resource" && one.source === "wrapper" ? "default" : "env"} title={one.says}>
       {one.key} {one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")}
       {one.kind === "resource" && one.source === "wrapper" ? " ·wrapper" : " ·env"}
     </span>
@@ -406,9 +418,8 @@ function PluginRow(props: {
 }) {
   const plugin = (): BuiltPlugin => props.plugin
   const values = (): ReadonlyArray<PolicyValue> => plugin().configurationValues ?? pluginConfig(plugin()).map(([key, value]) => ({ key, value, setBy: "default", says: "" }))
-  const defaults = () => values().filter(one => one.setBy === "default")
-  const envDefaults = () => (plugin().environment ?? []).filter(environmentAtDefault)
-  const countDefaults = () => defaults().length + envDefaults().length
+  const summary = () => pluginSummary(values())
+  const disclosed = () => props.panel.state.disclosed()[plugin().name] ?? false
   const look = () => props.panel.management.look(plugin().name)
   const strip = () => pluginSwitch(plugin(), props.flipping() === plugin().name || props.panel.management.changing())
   const copy = () => rowCopy(plugin(), props.plugins(), look(), props.panel.management.reports())
@@ -425,8 +436,9 @@ function PluginRow(props: {
     <div
       data-testid={PRIMITIVE.prefsRow}
       data-pref={pluginPref(plugin().name)}
+      class="relative"
     >
-      <div class="flex min-h-[1.85rem] flex-wrap items-center justify-between gap-x-3 gap-y-1 py-0.5">
+      <div class="flex min-h-[1.85rem] flex-wrap items-center justify-between gap-x-3 gap-y-1 py-0.5 pr-5" data-plugin-line>
         <span class="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm text-ink">
           <Show when={pip()}>
             {(kind) => (
@@ -438,32 +450,29 @@ function PluginRow(props: {
             )}
           </Show>
           <span class="shrink-0">{plugin().name}</span>
-          <Config values={values().filter(one => one.setBy !== "default")} />
-          <Environment values={(plugin().environment ?? []).filter(one => !environmentAtDefault(one))} />
-          <Show when={plugin().desiredOn !== undefined}>
-            <span class="text-xs text-muted" data-config="on">on {plugin().desiredOn ? "yes" : "no"} ·vault</span>
-          </Show>
-          <Show when={plugin().configurationNode && props.panel.state.file()}>
-            {(File) => { const Link = File() as NonNullable<ReturnType<InspectorState["file"]>>; return <span onClick={() => props.panel.state.door.setOpen(false)}><Link
-              file={plugin().configurationNode!.file} at={plugin().configurationNode!.id}
-              label={`Open policy for ${plugin().name}`} title="Open this row's policy" testid={TESTID.pluginConfigLink}>↗</Link></span> }}
-          </Show>
+          <span class="text-xs text-muted" data-testid={TESTID.pluginSummary} title={summary().title}>{summary().text}</span>
         </span>
         <Switch
+          label={enableLabel(plugin().name)}
           on={strip().value === "on"}
           frozen={strip().frozen}
           onPick={(value) => props.set(plugin().name, value)}
         />
       </div>
-      <Show when={countDefaults() > 0}>
-        <details class="pb-1 text-xs text-muted" data-testid={TESTID.pluginDefaults}
-          open={props.panel.state.disclosed()[plugin().name] ?? false}>
-          <summary onClick={event => {
+      <Show when={values().length > 0 || (plugin().environment?.length ?? 0) > 0 || plugin().configurationNode}>
+        <details class="pb-1 text-xs text-muted" data-testid={TESTID.pluginDefaults} open={disclosed()}>
+          <summary class="absolute right-0 top-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden" aria-label={`Edit configuration for ${plugin().name}`} onClick={event => {
             event.preventDefault()
-            props.panel.state.disclose(plugin().name, !(props.panel.state.disclosed()[plugin().name] ?? false))
-          }}>{countDefaults()} at their defaults</summary>
-          <Config values={defaults()} />
-          <Environment values={envDefaults()} />
+            props.panel.state.disclose(plugin().name, !disclosed())
+          }}>{disclosed() ? "▾" : "▸"}</summary>
+          <Controls name={plugin().name} values={values()} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
+          <Environment values={plugin().environment ?? []} />
+          <Show when={plugin().desiredOn !== undefined}><p class="text-xs text-muted" data-config="on">on {plugin().desiredOn ? "yes" : "no"} ·vault</p></Show>
+          <Show when={plugin().configurationNode && props.panel.state.file()}>
+            {(File) => { const Link = File() as NonNullable<ReturnType<InspectorState["file"]>>; return <div class="mt-2" onClick={() => props.panel.state.door.setOpen(false)}><Link
+              file={plugin().configurationNode!.file} at={plugin().configurationNode!.id}
+              label={configurationLinkLabel} title={configurationLinkLabel} testid={TESTID.pluginConfigLink}>{configurationLinkLabel} ↗</Link></div> }}
+          </Show>
         </details>
       </Show>
       <Show when={copy()}>
@@ -530,31 +539,20 @@ function PluginRow(props: {
   )
 }
 
-/** A ROW'S CONFIG, as chips beside the name. `shrink-0` rather than `min-w-0`:
- *  two chips on git (`commit auto`, `push auto`) were shrinking to nothing
- *  inside the squeezed label row, while vault's one chip still fit. */
-function Config(props: {
+const configurationFrozen = (roster: PluginRoster, changing: boolean): string | undefined =>
+  roster.configurationAvailable !== true ? configurationUnavailable
+    : roster.configurationError !== undefined ? configurationBroken(roster.configurationFile)
+    : changing ? "Applying the change…" : undefined
+
+function Controls(props: {
+  readonly name: string
   readonly values: ReadonlyArray<PolicyValue>
+  readonly configure: BrowserManagement["configure"]
+  readonly frozen?: string
 }) {
-  return (
-    <Show when={props.values.length > 0}>
-      <span class="flex flex-wrap gap-1">
-        <For each={props.values}>
-          {one => (
-            <span
-              class="shrink-0 rounded-full bg-pill/55 px-1.5 py-0.5 text-[0.68rem] leading-tight text-muted"
-              data-testid={TESTID.pluginConfig}
-              data-config={one.key}
-              data-set-by={one.setBy}
-              title={one.says}
-            >
-              {one.key} {typeof one.value === "object" && one.value !== null ? JSON.stringify(one.value) : String(one.value)} <span>·{one.setBy}</span>
-            </span>
-          )}
-        </For>
-      </span>
-    </Show>
-  )
+  // Keys preserve drafts across unrelated publications; the reading stays live.
+  return <For each={props.values.map(one => one.key)}>{key => <Control name={props.name}
+    value={props.values.find(one => one.key === key)!} configure={props.configure} frozen={props.frozen} />}</For>
 }
 
 /**

@@ -6,6 +6,7 @@ Feature: File policy chooses the rows that run
   Scenario: File policy turns an opt-in row on
     Given I open the outline "lanes.olai"
     When I open the plugins panel
+    When I expand settings for the plugin "xyne-spaces"
     Then the plugin "xyne-spaces" has authored enablement "yes"
     And the plugin "xyne-spaces" is running
     And the plugins panel says nothing more about "journal"
@@ -20,6 +21,7 @@ Feature: File policy chooses the rows that run
   Scenario: Independent row choices compose
     Given I open the outline "lanes.olai"
     When I open the plugins panel
+    When I expand settings for the plugin "xyne-spaces"
     Then the plugin "xyne-spaces" has authored enablement "yes"
     And the plugin "xyne-spaces" is running
     And the plugins panel says "journal" is "Settings.olai says on: no"

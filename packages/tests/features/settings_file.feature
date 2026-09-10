@@ -10,21 +10,26 @@ Feature: The vault settings file applies policy to running rows
       {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"off","push":"off"}}
       """
     And I open the plugins panel
+    When I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "off"
     When I rewrite "_olai/Settings.olai" as:
       """
       {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"wrong","push":"off"}}
       """
-    When I open defaults for the plugin "git"
+    When I expand settings for the plugin "git"
+    When I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "manual"
-    And the plugins panel shows "git" configured "push" as "off"
+    When I expand settings for the plugin "git"
+    Then the plugins panel shows "git" configured "push" as "off"
     When I rewrite "_olai/Settings.olai" as:
       """
       {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"still-wrong","push":"auto"}}
       """
-    Then the plugin "git" keeps defaults open when "commit" becomes "manual"
-    And the plugins panel shows "git" configured "commit" as "manual"
-    And the plugins panel shows "git" configured "push" as "auto"
+    Then the plugin "git" keeps settings open when "commit" becomes "manual"
+    When I expand settings for the plugin "git"
+    Then the plugins panel shows "git" configured "commit" as "manual"
+    When I expand settings for the plugin "git"
+    Then the plugins panel shows "git" configured "push" as "auto"
     And there should be no page errors
 
   Scenario: The selected namespace follows file precedence and deletion
@@ -34,13 +39,16 @@ Feature: The vault settings file applies policy to running rows
       {"id":"identity-policy","ord":"a0","title":"identity","custom":{"login-header":"Remote-User"}}
       """
     And I open the plugins panel
+    When I expand settings for the plugin "identity"
     Then the plugins panel shows "identity" configured "login-header" as "Remote-User"
     When I rewrite "Settings.olai" as:
       """
       {"id":"near-policy","ord":"a0","title":"identity","custom":{"login-header":"Near-User"}}
       """
+    When I expand settings for the plugin "identity"
     Then the plugins panel shows "identity" configured "login-header" as "Near-User"
     When I remove the served file "Settings.olai"
+    When I expand settings for the plugin "identity"
     Then the plugins panel shows "identity" configured "login-header" as "Remote-User"
     And there should be no page errors
 
@@ -57,7 +65,7 @@ Feature: The vault settings file applies policy to running rows
   Scenario: A switch authors a durable namespace and links to it
     Given I open the app
     When I open the plugins panel
-    Then the plugin "git" keeps defaults folded
+    Then the plugin "git" keeps settings folded
     When I switch the plugin "journal" off
     Then the plugins panel says "journal" is "_olai/Settings.olai says on: no"
     When I close the plugins panel
@@ -71,16 +79,18 @@ Feature: The vault settings file applies policy to running rows
     Then the plugins panel says "journal" is "_olai/Settings.olai says on: no"
     And there should be no page errors
 
-  Scenario: Authored chips name their source and the arrow opens the namespace
+  Scenario: Authored controls name their source and the arrow opens the namespace
     Given I open the app
     When I rewrite "_olai/Settings.olai" as:
       """
       {"id":"policy-target","ord":"a0","title":"git","custom":{"commit":"off"}}
       """
     And I open the plugins panel
+    When I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "off"
     And the plugin "git" marks "commit" as authored by "vault"
-    When I open defaults for the plugin "git"
+    When I expand settings for the plugin "git"
+    When I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "push" as "off"
     And the plugin "git" marks "push" as authored by "default"
     When I follow the policy link for "git"
@@ -94,6 +104,7 @@ Feature: The vault settings file applies policy to running rows
       {"id":"policy-return","ord":"a0","title":"git","custom":{"commit":"off"}}
       """
     And I open the plugins panel
+    When I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "off"
     When I switch the plugin "navigation" off
     Then the plugin "git" has no policy link
@@ -145,11 +156,13 @@ Feature: The vault settings file applies policy to running rows
       {"id":"reserved-choice","ord":"a0","title":"journal","custom":{"on":"<before>"}}
       """
     And I open the plugins panel
+    When I expand settings for the plugin "journal"
     Then the plugin "journal" has authored enablement "<before>"
     Given a terminal agent is connected to the served directory
     When the terminal agent sets property "on" on "reserved-choice" to "<after>"
     Then the terminal refusal says "person's decision"
-    And the plugin "journal" has authored enablement "<before>"
+    When I expand settings for the plugin "journal"
+    Then the plugin "journal" has authored enablement "<before>"
 
     Examples:
       | before | after |

@@ -3,6 +3,7 @@ import { TESTID } from "olai-plugin-plugin-inspector/testids"
 /** A binary on/off control. Segmented Off|On is for named alternatives; this
  *  panel has thirty binaries and the two-pill strip is a wall. */
 export function Switch(props: {
+  readonly label: string
   readonly on: boolean
   readonly frozen?: boolean
   readonly onPick: (value: "on" | "off") => void
@@ -12,6 +13,7 @@ export function Switch(props: {
     <button
       type="button"
       role="switch"
+      aria-label={props.label}
       aria-checked={props.on}
       aria-disabled={frozen() ? true : undefined}
       data-testid={TESTID.pluginSwitch}

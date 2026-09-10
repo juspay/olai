@@ -464,6 +464,7 @@ export const PluginRoster = Schema.Struct({
     host: Schema.String, port: Schema.Number,
     hostAuthor: Schema.Literals(["flag", "default", "process"]), portAuthor: Schema.Literals(["flag", "default", "process"]),
     policy: Schema.Array(PolicyValue),
+    configurationNode: Schema.optionalKey(Schema.Struct({ file: Schema.String, id: Schema.String })),
     origins: Schema.Array(Schema.String),
     bearer: Schema.Struct({ set: Schema.Boolean }),
   })),

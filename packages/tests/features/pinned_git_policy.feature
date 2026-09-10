@@ -26,18 +26,22 @@ Feature: Git policy travels with the vault
 
   Scenario: The git row always names the policy in force
     When I open the plugins panel
-    And I open defaults for the plugin "git"
+    And I expand settings for the plugin "git"
+    When I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "manual"
-    And the plugins panel shows "git" configured "push" as "off"
+    When I expand settings for the plugin "git"
+    Then the plugins panel shows "git" configured "push" as "off"
     And there should be no page errors
 
   @policy:git.commit=auto
   Scenario: commit: auto is the git row's config on the plugins panel
     When I open the plugins panel
-    And I open defaults for the plugin "git"
+    And I expand settings for the plugin "git"
+    When I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "auto"
     And the plugin "git" marks "commit" as authored by "vault"
-    And the plugins panel shows "git" configured "push" as "off"
+    When I expand settings for the plugin "git"
+    Then the plugins panel shows "git" configured "push" as "off"
     And there should be no page errors
 
   @policy:git.commit=auto @policy:git.push=off

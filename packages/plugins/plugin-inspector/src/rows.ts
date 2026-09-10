@@ -428,3 +428,28 @@ export const groupCount = (rows: ReadonlyArray<BuiltPlugin>): string => {
 /** Unset doors and wrapper provisions belong with defaults, not operator inputs. */
 export const environmentAtDefault = (one: EnvironmentReading): boolean =>
   !one.set || (one.kind === "resource" && one.source === "wrapper")
+
+export type PolicyReading = NonNullable<BuiltPlugin["configurationValues"]>[number]
+export const labelOf = (key: string): string => {
+  const words = key.replace(/[.-]/g, " ")
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+export const controlOf = (value: PolicyReading | EnvironmentReading) => "control" in value ? value.control : undefined
+export const valueLabel = (value: PolicyReading): string => {
+  const text = typeof value.value === "boolean" ? (value.value ? "yes" : "no") : String(value.value)
+  return value.control?.kind === "choice" || value.control?.kind === "switch"
+    ? text.charAt(0).toUpperCase() + text.slice(1) : text
+}
+export const pluginSummary = (values: ReadonlyArray<PolicyReading>): { text: string; title: string } => {
+  if (values.length === 0) return { text: "", title: "" }
+  const pieces = values.slice(0, 4).map(one => `${labelOf(one.key)}: ${valueLabel(one)}`)
+  if (values.length > 4) pieces.push(`+${values.length - 4}`)
+  const authored = values.filter(one => one.setBy !== "default")
+  const invalid = values.filter(one => one.problem !== undefined).length
+  return { text: pieces.join(" · ") + (authored.length === 0 ? " — using defaults" : "") + (invalid ? ` · ${invalid} invalid` : ""),
+    title: authored.map(one => `${labelOf(one.key)}: ${configurationAuthored}`).join("\n") }
+}
+export const enableLabel = (name: string): string => `Enable ${name}`
+
+export const configurationAuthored = `set in ${CONFIGURATION_FILE.split("/").pop()}`
+export const configurationLinkLabel = `Open ${CONFIGURATION_FILE.split("/").pop()!.split(".")[0]!.toLowerCase()} node`

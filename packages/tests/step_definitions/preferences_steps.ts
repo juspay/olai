@@ -17,7 +17,7 @@ import { TESTID } from "@olai/bundle/testids"
 
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
-import type { Page } from "playwright";
+import type { Page, Locator } from "playwright";
 
 
 import { fileKind } from "@olai/format";
@@ -915,8 +915,8 @@ Then(
 When("I open the plugins panel", async function (this: OlaiWorld) {
   if ((await this.pluginsPanel().count()) > 0) return;
   const trigger = this.page.locator(PLUGINS_TRIGGER).locator("visible=true");
-  await trigger.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  // A returning layout may restore the already-open inspector with its trigger.
+  await this.waitUntil(async () => (await this.pluginsPanel().count()) > 0 || await trigger.isVisible(), "the restored panel or its trigger");
+  // A returning layout can restore an open inspector before its trigger.
   if ((await this.pluginsPanel().count()) > 0) return;
   await this.press(trigger);
   await this.pluginsPanel().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -1011,7 +1011,7 @@ Then(
     const pair = row.locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`);
     await this.waitUntil(async () => await pair.count() === 1,
       `the ${JSON.stringify(plugin)} row has no config for ${JSON.stringify(key)}`);
-    await this.waitUntil(async () => await pair.isVisible() && (await pair.innerText()).replaceAll("\n", " ").includes(value),
+    await this.waitUntil(async () => await pair.isVisible() && (await configurationValue(pair)) === value,
       `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${JSON.stringify(value)}`);
   },
 );
@@ -1403,7 +1403,7 @@ Then("the plugins panel shows no refusal", async function (this: OlaiWorld) {
   await this.page.locator(`${PLUGINS_PANEL} ${PLUGINS_REFUSED}`).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
-Then("the plugin {string} keeps defaults folded", async function (this: OlaiWorld, plugin: string) {
+Then("the plugin {string} keeps settings folded", async function (this: OlaiWorld, plugin: string) {
   const row = await shownRow(this, plugin);
   assert.equal(await row.locator('[data-testid="plugin-defaults"]').getAttribute("open"), null);
 });
@@ -1420,8 +1420,8 @@ Then("the policy link targets node {string}", async function (this: OlaiWorld, n
 Then("the plugin {string} has no policy link", async function (this: OlaiWorld, plugin: string) {
   await (await shownRow(this, plugin)).locator('[data-testid="plugin-config-link"]').waitFor({ state: "detached", timeout: POLL_TIMEOUT });
 });
-Then("the plugin {string} keeps defaults open when {string} becomes {string}", async function (this: OlaiWorld, plugin: string, key: string, value: string) {
-  await this.waitUntil(async () => (await (await shownRow(this, plugin)).locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`).textContent())?.includes(value) === true, "the new default reading");
+Then("the plugin {string} keeps settings open when {string} becomes {string}", async function (this: OlaiWorld, plugin: string, key: string, value: string) {
+  await this.waitUntil(async () => await configurationValue((await shownRow(this, plugin)).locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`)) === value, "the new default reading");
   assert.notEqual(await (await shownRow(this, plugin)).locator('[data-testid="plugin-defaults"]').getAttribute("open"), null);
 });
 
@@ -1444,12 +1444,12 @@ Then("This serve names its bound address and a set bearer without its value", as
   assert.ok(text.includes("bearer set ·process"))
 })
 Then("This serve reads {string} as {string} from {string}", async function (this: OlaiWorld, key: string, value: string, author: string) {
-  const chip = this.pluginsPanel().locator(`[data-testid="this-serve"] ${attr("data-config", key)}${attr("data-set-by", author)}`)
-  await chip.filter({ hasText: value }).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  const control = this.pluginsPanel().locator(`[data-testid="this-serve"] ${attr("data-config", key)}${attr("data-set-by", author)}`)
+  await this.waitUntil(async () => await control.isVisible() && await configurationValue(control) === value, "the serve control reading")
 })
 
 
-When("I open defaults for the plugin {string}", async function (this: OlaiWorld, plugin: string) {
+When("I expand settings for the plugin {string}", async function (this: OlaiWorld, plugin: string) {
   const disclosure = (await shownRow(this, plugin)).locator('[data-testid="plugin-defaults"]');
   await disclosure.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   if (await disclosure.getAttribute("open") === null) await disclosure.locator("summary").click();
@@ -1462,3 +1462,15 @@ Then("the commit ledger includes the settings switch", async function (this: Ola
   await group.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.ok((await group.innerText()).includes("journal"), "the journal namespace is recorded as an ordinary node change");
 });
+
+
+/** Read the selected control, never the text of its unselected alternatives. */
+const configurationValue = async (line: Locator): Promise<string> => {
+  const input = line.locator("input, select")
+  if (await input.count()) return input.first().inputValue()
+  const picked = line.locator('[aria-pressed="true"]')
+  if (await picked.count()) return (await picked.first().getAttribute("data-value")) ?? ""
+  const toggle = line.locator('[role="switch"]')
+  if (await toggle.count()) return await toggle.first().getAttribute("aria-checked") === "true" ? "yes" : "no"
+  return (await line.getAttribute("data-value")) ?? (await line.innerText()).replaceAll("\n", " ")
+}

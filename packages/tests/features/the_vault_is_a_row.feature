@@ -7,7 +7,8 @@ Feature: The vault is a row
     Given I open the outline "garden.olai"
     Then the node "mint" is shown
     When I open the plugins panel
-    And I open defaults for the plugin "vault"
+    And I expand settings for the plugin "vault"
+    When I expand settings for the plugin "vault"
     Then the plugins panel shows "vault" configured "format" as "olai"
     And the plugins panel says "vault" is "Switch is session-only"
     When I switch the plugin "vault" off

@@ -216,7 +216,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
             onChange,
             built,
             instance: () => ({ host: options.host, port: addressPort,
-              hostAuthor: options.addressAuthors?.host ?? "process", portAuthor: options.addressAuthors?.port ?? "process", policy: ownPolicy.values,
+              hostAuthor: options.addressAuthors?.host ?? "process", portAuthor: options.addressAuthors?.port ?? "process", policy: ownPolicy.values, ...(ownPolicy.node === undefined ? {} : { configurationNode: ownPolicy.node }),
               hostname: theMachine, hostnameAuthor: machine.author, origins: options.allowedOrigins, bearer: { set: token.length > 0 } }),
             offByDefault: ROWS.filter((row) => row.disabled).map((row) => row.id),
             browserOnly: ROWS.filter((row) => row.browserOnly).map((row) => row.id),

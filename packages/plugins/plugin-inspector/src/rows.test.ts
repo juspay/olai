@@ -504,3 +504,35 @@ test("environment disclosure distinguishes wrapper defaults from explicit store 
   expect(environmentAtDefault({ key: "TOKEN", kind: "secret", set: true, says: "credential" })).toBe(false)
   expect(environmentAtDefault({ key: "TOKEN", kind: "secret", set: false, says: "credential" })).toBe(true)
 })
+
+
+test("summaries retain schema order, humanize labels and choices, and disclose defaults once", async () => {
+  const { pluginSummary, labelOf, valueLabel, enableLabel } = await import("./rows.ts")
+  const values = [
+    { key: "commit", value: "manual", setBy: "default" as const, says: "", control: { kind: "choice" as const, options: ["manual", "auto"] } },
+    { key: "push", value: "off", setBy: "default" as const, says: "", control: { kind: "choice" as const, options: ["off", "auto"] } },
+  ]
+  expect(pluginSummary(values)).toEqual({ text: "Commit: Manual · Push: Off — using defaults", title: "" })
+  expect(pluginSummary(values).text).not.toContain("·default")
+  expect(pluginSummary([{ ...values[1]!, setBy: "vault" }, values[0]!])).toEqual({ text: "Push: Off · Commit: Manual", title: "Push: set in Settings.olai" })
+  expect(labelOf("watch.held-for")).toBe("Watch held for")
+  expect(valueLabel({ ...values[0]!, value: "90s", control: { kind: "text" } })).toBe("90s")
+  expect(valueLabel({ ...values[0]!, value: true, control: { kind: "switch" } })).toBe("Yes")
+  expect(valueLabel({ ...values[0]!, value: 42, control: { kind: "number", integer: true } })).toBe("42")
+  expect(enableLabel("example")).toBe("Enable example")
+})
+
+test("summary truncation counts remaining leaves and invalid values without hiding their default", async () => {
+  const { pluginSummary } = await import("./rows.ts")
+  const values = ["one", "two", "three", "four", "five", "six"].map((key, n) => ({ key, value: n, setBy: "default" as const, says: "", control: { kind: "number" as const, integer: true } }))
+  expect(pluginSummary(values).text).toBe("One: 0 · Two: 1 · Three: 2 · Four: 3 · +2 — using defaults")
+  expect(pluginSummary([{ ...values[0]!, problem: { raw: "bad", why: "a number" } }]).text).toBe("One: 0 — using defaults · 1 invalid")
+  expect(pluginSummary([])).toEqual({ text: "", title: "" })
+})
+
+test("environment and old-serve readings have no editable control", async () => {
+  const { controlOf } = await import("./rows.ts")
+  expect(controlOf({ key: "TOKEN", kind: "secret", set: true, says: "credential" })).toBeUndefined()
+  expect(controlOf({ key: "EXECUTABLE", kind: "resource", set: true, value: "/bin/example", says: "executable" })).toBeUndefined()
+  expect(controlOf({ key: "old", value: "quiet", setBy: "default", says: "old serve" })).toBeUndefined()
+})

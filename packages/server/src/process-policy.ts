@@ -10,8 +10,9 @@ export const Config = Schema.Struct({
     Schema.withDecodingDefaultKey(Effect.succeed("info" as const)),
     Schema.annotate({ description: "the minimum severity this serve logs" })),
 })
-export const processPolicy = (publication: Configuration | undefined, warn: (line: string) => void): { config: typeof Config.Type; values: ReadonlyArray<PolicyValue> } => {
+export const processPolicy = (publication: Configuration | undefined, warn: (line: string) => void): { config: typeof Config.Type; values: ReadonlyArray<PolicyValue>; node?: { file: string; id: string } } => {
   const nodes = publication?.nodes ?? []
-  const parsed = decodePolicy(Config, nodes, configurationNode(nodes, "olai"), (key, value, reason) => warn(`${publication?.file}: olai.${key}: ${JSON.stringify(value)} uses its default — ${reason}`))
-  return { config: parsed.config as typeof Config.Type, values: parsed.values }
+  const node = configurationNode(nodes, "olai")
+  const parsed = decodePolicy(Config, nodes, node, (key, value, reason) => warn(`${publication?.file}: olai.${key}: ${JSON.stringify(value)} uses its default — ${reason}`))
+  return { config: parsed.config as typeof Config.Type, values: parsed.values, ...(node === undefined ? {} : { node: { file: node.file, id: node.node.id } }) }
 }
