@@ -312,3 +312,4 @@ At every search door, including `search_nodes`, `kind: node` selects records,
 selects outline files, and `kind: file` selects documents and outlines together.
 All arms are ranked and capped together when kind is absent. File kinds remain
 the static core table; the existing search reading owns the answer.
+Document landing highlights read the declared renderer clock for relative-date queries; the content activation releases that clock hold with its faces.
