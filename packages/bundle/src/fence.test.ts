@@ -1854,6 +1854,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/chat/src/browser/chat/completion.ts",
       "plugins/chat/src/testids.ts",
       "plugins/journal/src/browser.tsx",
+      "plugins/markdown/src/browser/document/faces.tsx",
       "plugins/mcp/src/endpoint.ts",
       "plugins/mcp/src/tools.ts",
       "plugins/navigation/src/palette/Palette.tsx",
