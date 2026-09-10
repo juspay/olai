@@ -21,8 +21,8 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * what the SERVE is running, for everybody looking at it — which is a different
  * kind of thing from a theme, and still wants a door of its own.
  *
- * Policy chips draw the authored leaves; defaults disclose beneath the row.
- * The arrow opens its namespace in the directory's configuration file. A switch
+ * Each row summarises effective policy and discloses schema-derived controls,
+ * descriptions, provenance and file problems. The last link opens its node. An enable switch
  * writes `on` through the ordinary write door, then waits for the revision and
  * root-owned reconcile before releasing the press. The infrastructure rows
  * needed to read and write that file retain a session-only switch.
@@ -62,8 +62,8 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * over holds that as an equality; this file is written so there is nothing for
  * it to catch.
  *
- * A ROW IS A NAME AND A SWITCH, and a sentence only where there is one. The
- * ordinary running row has nothing to add — the switch reads On — so
+ * A ROW HAS A NAME, SUMMARY, ENABLE SWITCH AND DISCLOSURE. Status adds a
+ * sentence only when needed. An ordinary running row adds no status — so
  * `pluginHint` answers `null` and this panel draws no paragraph at
  * all. Eight rows read as a short list rather than a scroll, and the four rows
  * that DO carry a sentence (a failure, a wait, an absence, a row that carries

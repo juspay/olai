@@ -53,14 +53,13 @@ test("a set with no `settings.olai` says the defaults", () => {
   expect(reading.config).toEqual(DEFAULT_WATCH)
 })
 
-// ── The wrench's door stays when the inside is torn ─────────────────────
+// Empty configuration still uses the same watch defaults.
 
-test("a config that parses to nothing reads the defaults — the wrench is the caller's", () => {
+test("a config that parses to nothing reads the defaults", () => {
   // An unparsed `_olai/Settings.olai` contributes no records: this is the
   // walk's empty-inside answer. WHICH file it was is deliberately not this
   // walk's to answer — the caller found it off the served PATHS and keeps
-  // its own answer, which is what lets the drawer's wrench draw over a file
-  // whose nodes the codec withheld.
+  // its own answer even when the codec withheld the file's nodes.
   const reading = setOf({ "_olai/Settings.olai": "" })
   expect(reading.config).toEqual(DEFAULT_WATCH)
 })
@@ -182,8 +181,7 @@ test("the convention is by NAME, the way the shelf's is: a silent front-runner d
   // The one behaviour this PR changed on purpose and the rule every
   // convention file already keeps (`inboxIn`, `pinsIn`): a root
   // `Settings.olai` of notes DECIDES — it is the shallowest file holding the
-  // name — so the knobs say defaults, and the wrench lands on the ROOT
-  // file. The reader's note file is not vetoed by a correctly-shaped
+  // name — so the knobs say defaults from the ROOT file. The reader's note file is not vetoed by a correctly-shaped
   // config sitting deeper: the answer is the name, and a reader keeping
   // one there finds it, not a layout the code knew to skip. Before
   // `configurationFileIn` the walk dodged the silent one, silently.

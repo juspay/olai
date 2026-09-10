@@ -76,7 +76,7 @@ The span is the point rather than a setting. It has to outlast the pauses inside
 
 **Everything waiting counts, whoever wrote it.** The window watches what is PENDING, which is derived from git for the whole repository, so an agent writing over MCP restarts it, a `.md` you edited in vim joins the same commit, and what goes in is the same sweep the button makes. That is the whole of "all my changes end up in git".
 
-**It is the directory’s policy, shared by every browser.** Set `commit` and `push` on the `git` node in `_olai/Settings.olai`; edits re-apply the git row through Cordis. The plugins panel shows each value and whether it came from the file or the schema default ([running.md](running.md#the-git-policy)).
+**It is the directory’s policy, shared by every browser.** Set `commit` and `push` on the `git` node in `_olai/Settings.olai`; edits re-apply the git row through Cordis. Expand git on the plugins panel to choose Commit and Push; the controls write that same node and show whether each value came from the file or the schema default ([running.md](running.md#the-git-policy)).
 
 It used to be this browser's, and everything wrong with that followed from the frame. A directory recorded only while somebody had a tab open; two browsers could each have the toggle on and race one work tree (one browser's tabs contended for a Web Lock, which said nothing about the other's); and `commit: auto` was a *different* feature with the same name — one commit per write, made inside the write gate, never pushed. There is one window now, on the server, and one of it per served directory: one olai holds a directory, so there is nothing to elect.
 
@@ -117,7 +117,7 @@ The agent has this one too, as a `push` tool that takes nothing at all.
   It used to be a second, differently-shaped feature with the same name: one commit per write, made inside the write gate, never pushed. **That is retired.** A train of thought arrived as a dozen commits, which is the thing manual mode was introduced to end, and there is no per-write commit left in olai.
 - `commit: off` is for a directory whose history is somebody else's job. The pill says which of those two it is rather than vanishing, and nothing is ever `git init`ed on your behalf.
 
-The git row’s `Config` schema declares `commit: manual` and `push: off`. `olai.yml` supplies build enablement only. Values in the settings file override the schema defaults and are marked `·vault` on the panel, including explicit values equal to a default.
+The git row’s `Config` schema declares `commit: manual` and `push: off`. `olai.yml` supplies build enablement only. The row summarises them as `Commit: Manual · Push: Off — using defaults`. Expand it to edit either choice. Values from the file say `set in Settings.olai`, including explicit values equal to a default; **Use default** removes that property. The last **Open settings node** link opens the underlying outline node.
 
 ## The audit view
 

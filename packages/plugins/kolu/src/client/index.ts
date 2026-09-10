@@ -156,9 +156,9 @@ export interface KoluDeps<N> {
    *  intervals plus the malformed lines this package then says. The FILE is
    *  a QUESTION THE CALLER ANSWERED (the served-paths convention,
    *  `configurationFileIn`), passed in so the walk reads inside it — a file that
-   *  parses to nothing offers no nodes, and the foot's wrench onto it
-   *  must still draw, which is why the `knobs` cell is published off THIS
-   *  argument rather than off anything the walk hands back. See
+   *  parses to nothing offers no nodes, but still decides the policy. The
+   *  `knobs` cell publishes that location from this argument rather than
+   *  deriving it again from the walk’s result. See
    *  `config.ts` for what a malformed value means. */
   readonly config: (nodes: ReadonlyArray<N>, file: string | null) => {
     readonly config: WatchConfig
@@ -283,14 +283,14 @@ export interface KoluHalf<N> {
    * for the timers — the boundary the header draws, grown one sibling
    * rather than relaxed one jot. The FILE the caller named is the `knobs`
    * cell's whole value, published from this argument rather than echoed
-   * back through the walk: the wrench must draw over a config that parses
-   * to nothing, and a file that offers no nodes cannot name itself.
+   * back through the walk: a file that offers no nodes still decides the
+   * policy, but cannot name itself through those nodes.
    */
   readonly revision: (nodes: ReadonlyArray<N>, file: string | null) => void
 
   /** The store has NEVER published — the directory's read failed outright.
-   *  The wrench's door onto a file the server can no longer see is a page
-   *  the store cannot vouch for: the reading resets to nothing. The watch
+   *  The store cannot vouch for the previous configuration location, so
+   *  that reading resets to nothing. The watch
    *  KNOBS are not touched — the standing subscription asks its last
    *  question while the mirror, equally starved, has nothing new for it. */
   readonly unloaded: () => void
@@ -300,7 +300,7 @@ export interface KoluHalf<N> {
    * ## Why it is not {@link unloaded}, and why the two may never be folded
    *
    * `unloaded` says the DISK went away: no revision to derive off, so the
-   * wrench's door closes and the timers deliberately hold their last
+   * configuration location clears and the timers deliberately hold their last
    * hand-off, because a starved mirror has nothing new for them to gate.
    * This says the HALF went away, and the honest consequence is the
    * opposite one — a watcher nobody owns must not still be beating.
@@ -361,10 +361,9 @@ export interface KoluHandlers {
     readonly pulse: {
       readonly store: CellStore<WatchPulse | null>
     }
-    /** WHICH FILE DECIDES THE WATCH — the drawer's foot, and the door its
-     *  wrench opens. Read-only on the wire: a knob is an EDIT to the config
-     *  outline, never a browser's write. The `connect` is the publish's
-     *  household door — the `link` cell's own reasons one member up. */
+    /** The selected policy location, read-only on this cell. Panel edits use
+     *  the ordinary ops write door. `connect` publishes the current reading
+     *  when the cell binds, as the link cell does above. */
     readonly knobs: {
       readonly store: CellStore<KoluKnobs>
       readonly connect: (cell: { set: (value: KoluKnobs) => void }) => Effect.Effect<void>
@@ -465,8 +464,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
    *
    *  It is the caller's own `file` ARGUMENT and not anything the config
    *  walk hands back: a `_olai/Settings.olai` the codec tore apart contributes
-   *  no records, and the wrench onto it is exactly the door by which a
-   *  person would go and repair it. */
+   *  no records, but its location still decides which policy is read. */
   let deciding: string | null = null
   /** One shaper for the revision AND the settle, so the two can never
    *  drift. */
@@ -520,13 +518,8 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
   const revision = (nodes: ReadonlyArray<N>, file: string | null): void => {
     mirror?.reclaim(deps.claimants(nodes))
     const next = deps.config(nodes, file)
-    // THE DRAWER'S FOOT, off the CALLER'S OWN ARGUMENT: the timers take the
-    // walk's answer and the wrench takes the file the convention named, and
-    // the two are the same breath so a foot can never point at a file whose
-    // knobs are not the ones in force. The publish rides the cell's OWN
-    // handle — the manifest connector and this cell's bind run in no
-    // promised order, so `deciding` keeps the answer and the cell's
-    // `connect` settles it as its first act.
+    // Publish the selected location with the timers' revision. The connector
+    // may bind after this read; it settles from the retained answer on bind.
     deciding = file
     decidingNode = next.node
     watch.reconfigure(next.config)

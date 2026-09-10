@@ -39,7 +39,7 @@ export default definePlugin({
 })
 ```
 
-The panel shows each value's vault/default author and links to the definition. A knob edit re-applies the row; setting an explicit value equal to its default changes authorship without restarting it. Invalid leaves use defaults and warn once; an invalid schema fails only that definition. Source approval hashes the server and browser source, so a knob edit keeps approval while a source edit requires approval of its new version. A plugin declaring live config updates retains its activation and can follow its own node through its declared vault service.
+Expand a definition on the plugins panel to edit its schema-derived controls. They show each field’s description and `set in Settings.olai` or `default` provenance; for a definition, the authored value lives on its own node. **Use default** removes the property. **Open settings node ↗** links to that definition. The browser’s `plugins.configure` validates before writing and refuses `plugin` and `approved` as configuration keys, preserving the definition’s identity and approval. A knob edit re-applies the row; setting an explicit value equal to its default changes authorship without restarting it. Invalid leaves use defaults, warn once, and show the file text and schema message beneath their controls; an invalid schema fails only that definition. Source approval hashes the server and browser source, so a knob edit keeps approval while a source edit requires approval of its new version. A plugin declaring live config updates retains its activation and can follow its own node through its declared vault service.
 
 ## What a half may import
 

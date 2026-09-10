@@ -177,17 +177,10 @@ export type WatchPulse = typeof WatchPulse.Type
 export const KOLU_UNPULSED: WatchPulse | null = null
 
 /**
- * THE DRAWER'S FOOT — WHICH FILE DECIDES THE WATCH, and nothing else.
- *
- * The drawer's last line is not an event: it is the door onto the outline
- * the watcher reads its knobs from. `file` is which served outline the
- * convention named — read off the served OUTLINE PATHS rather than the
- * nodes (`olai-plugin-kolu`'s `configurationFileIn` — shallowest, ties by path),
- * so a config that parses to nothing keeps the door that opens it, and
- * the drawer's navigation is a plain open of a page that exists rather
- * than a second spelling of the convention in a browser that holds only
- * paths. `null` is the watcher on its DEFAULTS: no file decided anything,
- * so there is no config page to open and the drawer draws no foot at all.
+ * The watch's configuration location on the current vault revision.
+ * The convention selects by served path, so an empty or torn file still
+ * names the policy source. `null` means no file decides the watch's defaults.
+ * Editing is provided by the inspector; this cell remains a read-only location.
  *
  * IT USED TO CARRY A MUTE LIST TOO — `{file, names}`, the titles of the
  * terminals `_olai/Settings.olai`'s `mutes` node silenced, narrowed to the

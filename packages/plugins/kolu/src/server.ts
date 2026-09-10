@@ -156,8 +156,7 @@ export { wake } from "./wake.ts"
  * THREE PIECES, and each is here for a reason the other two do not share. The
  * NODES are what the claims and the watch knobs are read off. The SET is what
  * the owned file is found among — served paths, not recorded ones, because a
- * config that parses to nothing contributes no records and the drawer's wrench
- * onto it must not fall away with them ({@link ./config.ts}'s `configurationFileIn`).
+ * config that parses to nothing still decides the policy ({@link ./config.ts}'s `configurationFileIn`).
  * And `changed`/`removed` are what makes that finding cheap: `conventionServed`
  * hands back the SAME object while nothing it describes has moved, so the walk
  * over every served path runs on the revisions that could have changed its
@@ -785,7 +784,7 @@ export default definePlugin({
      *
      * The FILE is asked of the SERVED outlines rather than of the records
      * (`served`, not `recorded`): a file the codec tore apart still names itself,
-     * and the foot's wrench over it must not fall away WITH the nodes.
+     * and its policy location must not fall away with the nodes.
      *
      * THE PAYLOAD IS NARROWED HERE, in this plugin's own signature: core rings
      * the whole published snapshot and {@link VaultRevision} names the parts kolu
@@ -817,9 +816,8 @@ export default definePlugin({
     /**
      * THE STORE HAS NEVER PUBLISHED — and this is NOT teardown.
      *
-     * The vault's kolu verdict goes out with the canvas: yesterday's wrench,
-     * aimed at a file this serve can no longer say it read, is a claim the store
-     * cannot vouch for. The watch knobs are NOT touched — their timers hold their
+     * The vault's kolu verdict goes out with the canvas: the store can no
+     * longer vouch for the previous configuration location. The watch knobs are NOT touched — their timers hold their
      * last hand-off while the mirror, equally starved, has nothing new for them
      * to gate.
      *

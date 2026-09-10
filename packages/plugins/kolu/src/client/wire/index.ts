@@ -113,14 +113,13 @@ export const koluMembers = {
       verbs: ["get"],
     },
     /**
-     * WHICH FILE DECIDES THE WATCH ({ ./kolu.ts}'s `KoluKnobs`): the page
-     * the events drawer's wrench opens, and the whole of what its foot
-     * reads.
+     * WHICH FILE DECIDES THE WATCH ({ ./kolu.ts}'s `KoluKnobs`), as a
+     * read-only location on the current revision.
      *
      * Re-answered on every vault revision, the way the `pins` cell one
      * spec over is and for its reason: the reading is the convention's own
      * walk over the SERVED paths, so a file that arrives, moves or is
-     * renamed moves the wrench on the frame the revision publishes.
+     * renamed updates the location on the frame the revision publishes.
      * `equals` is what keeps that from costing anything: almost every
      * revision has nothing new to say about which file decided.
      *
