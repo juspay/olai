@@ -31,3 +31,9 @@ Then("the long search document is at the top without a highlight", async functio
   }, "the start of the document to be in the viewport")
   assert.equal(await this.page.locator('[data-search-landing="true"] mark').count(), 0)
 })
+
+Given("a long search list with {string} on file line {int}", function(this: OlaiWorld, word: string, line: number) {
+  const lines = Array.from({ length: 200 }, (_, i) => `- Ordinary entry ${i + 1}`)
+  lines[line - 1] = `- The ${word} entry`
+  this.writeServed("landing.md", lines.join("\n"))
+})
