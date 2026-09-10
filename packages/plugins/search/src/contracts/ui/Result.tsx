@@ -116,7 +116,7 @@ export function Result(props: {
   readonly hint?: string
   /** Where the node lives — the second line. See `../palette/items.ts` for
    *  the file and ancestor parts. */
-  readonly place?: Place
+  readonly place?: Place | string
   /** The node's properties — the third line, matched ones first. Empty (or
    *  absent) for a node carrying none, which draws no line at all. See
    *  `./props.ts` for the order. */
@@ -220,7 +220,12 @@ export function Result(props: {
         </Show>
       </span>
       <Show when={props.place}>
-        {place => <PlaceLine place={place()} testid={props.testids.place} />}
+        {place => {
+          const parts = () => { const value = place(); return typeof value === "string" ? undefined : value }
+          return <Show when={parts()} fallback={<span class="w-full min-w-0 truncate font-mono text-[0.6875rem] text-muted" data-testid={props.testids.place}><TitleHtml drawing={renderTitle(String(place()), "", { links: false })} /></span>}>
+            {value => <PlaceLine place={value()} testid={props.testids.place} />}
+          </Show>
+        }}
       </Show>
       <Show when={(props.props ?? []).length > 0}>
         {/* One line, truncated like the two above it, so six properties cost

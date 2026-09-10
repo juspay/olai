@@ -82,7 +82,7 @@ export interface PaletteItem {
    * palette into a sideways scroll. A popover never scrolls sideways, so the
    * place gets a line of its own and both are ellipsized.
    */
-  readonly place?: Place
+  readonly place?: Place | string
   /** The node's properties, on a THIRD line — matched ones first
    *  (`../search/props.ts`). Only a node row has any; a shell command has
    *  nothing to say about itself that its label does not already say. */
