@@ -337,3 +337,4 @@ neither box requires `search.kind` to become ready. Revocation withdraws the
 face before closing its signal. Every acquisition is scoped, and replacing a
 query or kind closes the preceding subscription before opening its replacement.
 A stale answer cannot authorize Enter for a new kind.
+Document landing highlights read the declared renderer clock for relative-date queries; the content activation releases that clock hold with its faces.

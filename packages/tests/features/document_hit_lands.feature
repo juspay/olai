@@ -14,6 +14,14 @@ Feature: A document search result lands at its matching source line
     Then the sidebar marks the outline "house.olai" as the one open
     And there should be no page errors
 
+  Scenario: A relative-date alternative preserves the matching words
+    When I press the palette shortcut
+    And I type "zinnialanding OR date:today" into the palette
+    Then the palette lists the document "landing.md"
+    When I press "Enter"
+    Then the document match "zinnialanding" is lit in the viewport at line 140
+    And there should be no page errors
+
   @phone
   Scenario: A phone opens the same matching block
     When I press the palette shortcut
