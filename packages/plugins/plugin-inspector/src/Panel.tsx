@@ -1,4 +1,4 @@
-import type { PolicyValue } from "@olai/plugin-api/configuration"
+import type { PolicyValue, EnvironmentReading } from "@olai/plugin-api/configuration"
 import { approveDefinition } from "./approval.ts"
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
@@ -133,6 +133,7 @@ import { Switch } from "./Switch.tsx"
 
 import {
   type PluginPick,
+  environmentAtDefault,
   groupCount,
   pluginConfig,
   pluginConfirm,
@@ -354,9 +355,21 @@ export function Panel(props: {
           Drawn only where there are rows, because the empty-build sentence
           above is a different fact and a serve with no plugins has nothing to
           say about how it started them. */}
-      <Show when={rows().find(row => row.configurationError)?.configurationError}>
+      <Show when={plugins().configurationError}>
         {(error) => <p class="text-xs text-alarm" data-testid={TESTID.pluginConfigError}>{error()}. Repair the file to restore its policy.</p>}
       </Show>
+      <Show when={plugins().instance}>{instance => (
+        <details class="py-2 text-xs text-muted" data-testid="this-serve">
+          <summary class="cursor-pointer font-bold">This serve</summary>
+          <div class="flex flex-wrap gap-2 py-2">
+            <span>host {instance().host} ·{instance().hostAuthor}</span>
+            <span>port {instance().port} ·{instance().portAuthor}</span>
+            <Config values={instance().policy} />
+            <span>origins {instance().origins.join(", ") || "(none)"} ·env</span>
+            <span>bearer {instance().bearer.set ? "set" : "unset"} ·process</span>
+          </div>
+        </details>
+      )}</Show>
       <Show when={rows().length > 0}>
         <p class="text-xs leading-relaxed text-muted" data-testid={TESTID.pluginsStarted}>
           {pluginsStarted(plugins())}
@@ -364,6 +377,16 @@ export function Panel(props: {
       </Show>
     </section>
   )
+}
+
+function Environment(props: { readonly values: ReadonlyArray<EnvironmentReading> }) {
+  return <For each={props.values}>{one => (
+    <span class="rounded-full bg-pill/55 px-1.5 py-0.5 text-[0.68rem] text-muted"
+      data-testid={TESTID.pluginConfig} data-config={one.key} data-set-by={one.kind === "resource" && one.source === "wrapper" ? "default" : "env"} title={one.says}>
+      {one.key} {one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")}
+      {one.kind === "resource" && one.source === "wrapper" ? " ·wrapper" : " ·env"}
+    </span>
+  )}</For>
 }
 
 function PluginRow(props: {
@@ -383,6 +406,8 @@ function PluginRow(props: {
   const plugin = (): BuiltPlugin => props.plugin
   const values = (): ReadonlyArray<PolicyValue> => plugin().configurationValues ?? pluginConfig(plugin()).map(([key, value]) => ({ key, value, setBy: "default", says: "" }))
   const defaults = () => values().filter(one => one.setBy === "default")
+  const envDefaults = () => (plugin().environment ?? []).filter(environmentAtDefault)
+  const countDefaults = () => defaults().length + envDefaults().length
   const look = () => props.panel.management.look(plugin().name)
   const strip = () => pluginSwitch(plugin(), props.flipping() === plugin().name || props.panel.management.changing())
   const copy = () => rowCopy(plugin(), props.plugins(), look(), props.panel.management.reports())
@@ -413,12 +438,7 @@ function PluginRow(props: {
           </Show>
           <span class="shrink-0">{plugin().name}</span>
           <Config values={values().filter(one => one.setBy !== "default")} />
-          <For each={plugin().environment ?? []}>{one => (
-            <span class="rounded-full bg-pill/55 px-1.5 py-0.5 text-[0.68rem] text-muted"
-              data-testid={TESTID.pluginConfig} data-config={one.key} data-set-by="env" title={one.says}>
-              {one.key} {one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")} ·env
-            </span>
-          )}</For>
+          <Environment values={(plugin().environment ?? []).filter(one => !environmentAtDefault(one))} />
           <Show when={plugin().desiredOn !== undefined}>
             <span class="text-xs text-muted" data-config="on">on {plugin().desiredOn ? "yes" : "no"} ·vault</span>
           </Show>
@@ -434,14 +454,15 @@ function PluginRow(props: {
           onPick={(value) => props.set(plugin().name, value)}
         />
       </div>
-      <Show when={defaults().length > 0}>
+      <Show when={countDefaults() > 0}>
         <details class="pb-1 text-xs text-muted" data-testid={TESTID.pluginDefaults}
           open={props.panel.state.disclosed()[plugin().name] ?? false}>
           <summary onClick={event => {
             event.preventDefault()
             props.panel.state.disclose(plugin().name, !(props.panel.state.disclosed()[plugin().name] ?? false))
-          }}>{defaults().length} at their defaults</summary>
+          }}>{countDefaults()} at their defaults</summary>
           <Config values={defaults()} />
+          <Environment values={envDefaults()} />
         </details>
       </Show>
       <Show when={copy()}>

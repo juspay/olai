@@ -20,3 +20,12 @@ test("a secret reading has no value; machine paths retain theirs", () => {
     if (reading.kind === "secret") expect(Object.hasOwn(wire, "value")).toBe(false)
   }
 })
+
+test("wrapper provenance is explicit, never inferred from a store path", () => {
+  const declarations = [{ key: "EXECUTABLE", secret: false, says: "machine path" }]
+  const value = "/nix/store/example/bin/tool"
+  const operator = environmentReadings(declarations, { EXECUTABLE: value })[0]!
+  const wrapper = environmentReadings(declarations, { EXECUTABLE: value, OLAI_WRAPPER_DEFAULTS: "EXECUTABLE" })[0]!
+  expect(operator).not.toHaveProperty("source")
+  expect(Schema.decodeUnknownSync(EnvironmentReading)(wrapper)).toMatchObject({ source: "wrapper", value })
+})

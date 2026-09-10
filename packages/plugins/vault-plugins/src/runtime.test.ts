@@ -57,6 +57,7 @@ const vault = (options: {
   readonly server?: string
   readonly browser?: string | null
   readonly approved?: string | null
+  readonly props?: Record<string, string>
   readonly word?: string
   /** Where the records sit — `plugins.olai` unless a case is moving them to
    *  the trash. */
@@ -66,7 +67,7 @@ const vault = (options: {
     ? { plugin: options.word ?? "swatch" }
     : { plugin: options.word ?? "swatch", approved: options.approved }
   const rows = [
-    `{"id":"p","ord":"a0","title":"A swatch","custom":${JSON.stringify(custom)}}`,
+    `{"id":"p","ord":"a0","title":"A swatch","custom":${JSON.stringify({ ...custom, ...options.props })}}`,
     `{"id":"s","ord":"a0","parent":"p","title":"server.ts","desc":${
       JSON.stringify(options.server ?? SERVER)
     }}`,
@@ -108,7 +109,7 @@ const bench = <A>(
       })
       // NO BUILT WORDS: this bench's build has no rows, so nothing is taken and
       // the definition may have any word it likes.
-      const dynamic = openDynamic({ mount: plugin => mountPlugin(plugins.host, plugin, { wait: false }) }, [])
+      const dynamic = openDynamic({ mount: (plugin, config) => mountPlugin(plugins.host, plugin, { wait: false, config }) }, [])
       return yield* use(
         dynamic,
         () => plugins.changes.pipe(
@@ -478,3 +479,22 @@ test("a dynamic initializer that waits forever can be stopped", async () => {
   }))
   expect(state).toBe("switched")
 })
+
+
+test("a definition receives its own schema knobs and edits preserve source approval", () => bench((dynamic, now) => Effect.gen(function*() {
+  const server = `import { definePlugin } from "@olai/plugin-api";
+    import { Effect, Schema } from "effect";
+    const Config = Schema.Struct({ tone: Schema.String.pipe(
+      Schema.withDecodingDefaultKey(Effect.succeed("blue")),
+      Schema.annotate({ description: "the swatch tone" })) });
+    export default definePlugin({ name: "swatch", needs: [], config: Config,
+      apply: (config) => config.tone === "blue" ? Effect.void : Effect.die(new Error("tone=" + config.tone)) });`
+  const approved = versionOf(server, null)
+  yield* dynamic.follow(vault({ server, approved }))
+  expect((yield* now())[0]).toMatchObject({ state: "running", configurationValues: [{ key: "tone", value: "blue", setBy: "default" }] })
+  yield* dynamic.follow(vault({ server, approved, props: { tone: "red" } }))
+  expect((yield* now())[0]).toMatchObject({ state: "failed", source: { approved: true, version: approved } })
+  expect((yield* now())[0]?.fault).toContain("tone=red")
+  yield* dynamic.follow(vault({ server, approved, props: { tone: "blue" } }))
+  expect((yield* now())[0]).toMatchObject({ state: "running", configurationValues: [{ key: "tone", value: "blue", setBy: "vault" }] })
+})))

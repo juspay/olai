@@ -13,7 +13,7 @@ import { CurrentWho, whoRoute } from "./who.ts";
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers";
 import { BUNDLE_NAMES, ROWS, configsOf, mountBundle, provide, settled, offered, reportBundle, rowsNaming, setRow, } from "@olai/bundle/bundle";
 import { bundleRank } from "@olai/bundle";
-import { emitter } from "@olai/log";
+import { emitter, liveLevel } from "@olai/log";
 import { ConfigurationSource, Vault as ContentRevision, Identity, openPlugins, type ToolServer, } from "@olai/plugin-api/services";
 import { Deferred, Effect, Layer } from "effect";
 import { randomBytes } from "node:crypto";
@@ -32,16 +32,22 @@ import { runtimePaths } from "./runtime-paths.ts"
 import { TransportSurface } from "@olai/plugin-api/transport";
 import { bind } from "./runtime.ts";
 import { followConfiguration } from "./configuration.ts";
+import { processPolicy } from "./process-policy.ts";
 export interface ServeOptions {
     readonly profile?: Profile;
     readonly root: string;
     readonly port: number;
     readonly host: string;
+    readonly addressAuthors?: { readonly host: "flag" | "default"; readonly port: "flag" | "default" };
     readonly clientDist: string | Effect.Effect<string>;
     readonly allowedOrigins: ReadonlyArray<string>;
     readonly vars?: Record<string, string | undefined>;
 }
-export const serve = (options: ServeOptions) => Effect.gen(function* () {
+export const serve = (options: ServeOptions) => Effect.gen(function*() {
+    const logging = yield* liveLevel;
+    return yield* serving(options, logging).pipe(Effect.provide(logging.layer));
+});
+const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel>) => Effect.gen(function* () {
     // THE STATE HOME IS SWEPT ONCE PER BOOT, and this is the first statement
     // because it is the only one in this function that nothing else waits on.
     // Every temp directory a test or a script ever served leaves
@@ -82,6 +88,9 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     const built = BUNDLE_NAMES;
     const onChange = { run: (): void => { } };
     const token = randomBytes(24).toString("hex");
+    let addressPort = options.port;
+    let ownPolicy = processPolicy(undefined, () => {});
+    const warned = new Set<string>();
     /**
      * THE CYCLE BROKEN, and this box is the break.
      *
@@ -157,7 +166,13 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     yield* provideInputs(plugins.host, { root: served, runtime: runtimePaths });
     yield* mountBundle(plugins.host, pluginPin, [], profile);
     const loading = yield* openLoading(plugins.host, built, () => onChange.run(), { services: plugins.serviceKeys, browserServices: plugins.browserKeys });
-    const policy = yield* followConfiguration(plugins.host, () => onChange.run(), () => [plugins.offers().get(ContentRevision.cordis), plugins.offers().get(ConfigurationSource.cordis)]);
+    const policy = yield* followConfiguration(plugins.host, () => onChange.run(), () => [plugins.offers().get(ContentRevision.cordis), plugins.offers().get(ConfigurationSource.cordis)], publication => {
+      ownPolicy = processPolicy(publication, line => {
+        if (!warned.has(line)) { warned.add(line); say(Effect.logWarning(line)); }
+      });
+      logging.set(ownPolicy.config["log-level"]);
+      logging.setFormat(ownPolicy.config["log-format"]);
+    });
     yield* policy.ready;
     let report = yield* reportBundle(plugins.host, loading.names());
     const switched = new Set<string>();
@@ -200,6 +215,9 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
             plugins,
             onChange,
             built,
+            instance: () => ({ host: options.host, port: addressPort,
+              hostAuthor: options.addressAuthors?.host ?? "process", portAuthor: options.addressAuthors?.port ?? "process", policy: ownPolicy.values,
+              origins: options.allowedOrigins, bearer: { set: true } }),
             offByDefault: ROWS.filter((row) => row.disabled).map((row) => row.id),
             browserOnly: ROWS.filter((row) => row.browserOnly).map((row) => row.id),
             pin: pluginPin,
@@ -342,6 +360,8 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     // (`./fault.ts`; `./serve.test.ts` holds it against a real socket).
     yield* Effect.onError(Effect.sync(() => checkUpgradeHeaders(currentIdentity().headers)), () => runtime.stopped);
     const url = yield* Effect.onError(transports.start, () => runtime.stopped);
+    if (url) addressPort = Number(new URL(url).port || "80");
+    onChange.run();
     // Shutdown step 1 of the four ordered above — registered last so it runs
     // first, and only once the two statements that need the `onError` clause
     // are behind us.

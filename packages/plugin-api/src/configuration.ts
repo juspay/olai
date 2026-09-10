@@ -21,6 +21,7 @@ export interface PolicyRow {
   readonly node?: { readonly file: string; readonly id: string }
 }
 export interface Configuration {
+  readonly nodes?: ReadonlyArray<Located>
   readonly revision: number
   readonly file?: string
   readonly broken?: string
@@ -90,7 +91,7 @@ export const decodePolicy = (
 
 export type EnvironmentReading =
   | { readonly key: string; readonly kind: "secret"; readonly set: boolean; readonly says: string }
-  | { readonly key: string; readonly kind: "resource"; readonly set: boolean; readonly says: string; readonly value?: string }
+  | { readonly key: string; readonly kind: "resource"; readonly set: boolean; readonly says: string; readonly value?: string; readonly source?: "wrapper" }
 
 /** Redact before publishing any reading. Secret arms never acquire a value key. */
 export const environmentReadings = (
@@ -100,5 +101,5 @@ export const environmentReadings = (
   const value = vars[key]?.trim()
   const set = value !== undefined && value !== ""
   return secret ? { key, kind: "secret", set, says }
-    : { key, kind: "resource", set, says, ...(set ? { value } : {}) }
+    : { key, kind: "resource", set, says, ...(set ? { value } : {}), ...(vars.OLAI_WRAPPER_DEFAULTS?.split(",").includes(key) ? { source: "wrapper" as const } : {}) }
 })

@@ -1428,3 +1428,21 @@ Then("the plugin {string} keeps defaults open when {string} becomes {string}", a
 Then("the plugin {string} has authored enablement {string}", async function (this: OlaiWorld, plugin: string, value: string) {
   await (await shownRow(this, plugin)).locator(`[data-config="on"]:has-text("on ${value}")`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
+
+Then("This serve is collapsed", async function (this: OlaiWorld) {
+  const foot = this.pluginsPanel().locator('[data-testid="this-serve"]')
+  assert.equal(await foot.getAttribute("open"), null)
+})
+When("I open This serve", async function (this: OlaiWorld) {
+  await this.pluginsPanel().locator('[data-testid="this-serve"] > summary').click()
+})
+Then("This serve names its bound address and a set bearer without its value", async function (this: OlaiWorld) {
+  const text = await this.pluginsPanel().locator('[data-testid="this-serve"]').innerText()
+  assert.ok(text.includes("host 127.0.0.1"))
+  assert.ok(text.includes(`port ${new URL(this.baseUrl).port}`))
+  assert.ok(text.includes("bearer set ·process"))
+})
+Then("This serve reads {string} as {string} from {string}", async function (this: OlaiWorld, key: string, value: string, author: string) {
+  const chip = this.pluginsPanel().locator(`[data-testid="this-serve"] ${attr("data-config", key)}${attr("data-set-by", author)}`)
+  await chip.filter({ hasText: value }).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+})

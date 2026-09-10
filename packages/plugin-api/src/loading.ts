@@ -9,7 +9,7 @@ export interface Catalog {
   readonly set: (name: string, enabled: boolean) => Effect.Effect<boolean>
 }
 export interface OwnedLoader {
-  readonly mount: (plugin: Plugin) => Effect.Effect<Mounted>
+  readonly mount: (plugin: Plugin, config?: unknown) => Effect.Effect<Mounted>
 }
 export interface HostLoading {
   readonly changed: () => void
@@ -28,13 +28,13 @@ export const openLoading = (host: Host, reserved: ReadonlyArray<string>, changed
     reports: Effect.suspend(() => rowReport(host, [...reserved, ...[...catalogs.values()].flatMap(one => one.names())])),
     acquire: Effect.gen(function*() {
       const parent = yield* Effect.scope
-      return { mount: (plugin: Plugin) => Effect.gen(function*() {
+      return { mount: (plugin: Plugin, config?: unknown) => Effect.gen(function*() {
         // Scope marks itself closed before it starts awaiting child finalizers.
         // A finalizer-owned flag would revoke admission only after their drain.
         if (parent.state._tag === "Closed") return yield* Effect.die(new Error(`Plugin loader owned by "${owner}" has closed`))
         if (reserved.includes(plugin.name)) return yield* Effect.die(new Error(`Plugin "${plugin.name}" is reserved by the bundle`))
         const scope = yield* Scope.fork(parent)
-        const mounted = yield* Effect.acquireRelease(mountPlugin(host, plugin, { wait: false }), mounted => mounted.dispose).pipe(Scope.provide(scope))
+        const mounted = yield* Effect.acquireRelease(mountPlugin(host, plugin, { wait: false, config }), mounted => mounted.dispose).pipe(Scope.provide(scope))
         return { ...mounted, dispose: Scope.close(scope, Exit.void) }
       }) }
     }),

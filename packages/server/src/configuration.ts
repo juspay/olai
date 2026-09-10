@@ -9,7 +9,7 @@ import type { Ops } from "@olai/ops"
 import type { Plugin } from "@olai/plugin-api"
 import { Deferred, Effect, Fiber, Queue, Semaphore, Stream, SubscriptionRef } from "effect"
 
-export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], changed: () => void, sessionOwners: () => ReadonlyArray<string | undefined>) => Effect.gen(function*() {
+export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], changed: () => void, sessionOwners: () => ReadonlyArray<string | undefined>, processChanged: (value: Configuration) => void = () => {}) => Effect.gen(function*() {
   type Publication = { source: ConfigurationSource; value: Configuration } | { source: undefined }
   const work = yield* Queue.unbounded<Publication>()
   yield* Effect.addFinalizer(() => Queue.shutdown(work))
@@ -48,6 +48,7 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
       current = undefined
     } else {
       current = publication.value
+      processChanged(current)
       for (const id of BUNDLE_NAMES) {
         const row = current.rows.get(id)
         // Missing namespaces restore the schema and profile/build defaults.

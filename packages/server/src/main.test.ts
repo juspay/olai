@@ -13,7 +13,7 @@ test("web help declares exactly directory, host, port and profile", () => {
 })
 
 test("retired policy and row-selection flags are refused before serving", () => {
-  for (const flag of ["--commit=auto", "--push=auto", "--no-commit", "--plugins=", "--extra-plugins=journal", "--without-plugins=chat"]) {
+  for (const flag of ["--commit=auto", "--push=auto", "--no-commit", "--plugins=", "--extra-plugins=journal", "--without-plugins=chat", "--log-level=debug"]) {
     const result = cli(served(), flag)
     expect(result.status).not.toBe(0)
     expect(result.stdout + result.stderr).not.toContain('message="serving"')

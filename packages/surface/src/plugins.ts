@@ -82,7 +82,7 @@ import { Schema } from "effect"
 /** Secret readings have no value field on their wire arm. */
 export const EnvironmentReading = Schema.Union([
   Schema.Struct({ key: Schema.String, kind: Schema.Literal("secret"), set: Schema.Boolean, says: Schema.String }),
-  Schema.Struct({ key: Schema.String, kind: Schema.Literal("resource"), set: Schema.Boolean, says: Schema.String, value: Schema.optionalKey(Schema.String) }),
+  Schema.Struct({ key: Schema.String, kind: Schema.Literal("resource"), set: Schema.Boolean, says: Schema.String, value: Schema.optionalKey(Schema.String), source: Schema.optionalKey(Schema.Literal("wrapper")) }),
 ])
 
 export const BuiltPlugin = Schema.Struct({
@@ -269,9 +269,6 @@ export const BuiltPlugin = Schema.Struct({
   }))),
   configurationNode: Schema.optionalKey(Schema.Struct({ file: Schema.String, id: Schema.String })),
   desiredOn: Schema.optionalKey(Schema.Boolean),
-  configurationFile: Schema.optionalKey(Schema.String),
-  configurationError: Schema.optionalKey(Schema.String),
-  configurationAvailable: Schema.optionalKey(Schema.Boolean),
   environment: Schema.optionalKey(Schema.Array(EnvironmentReading)),
   switchPersistence: Schema.optionalKey(Schema.Literals(["file", "session"])),
   /**
@@ -458,6 +455,18 @@ export const pluginState = (plugin: BuiltPlugin): PluginState => {
  * in an order nothing else in the product uses.
  */
 export const PluginRoster = Schema.Struct({
+  configurationFile: Schema.optionalKey(Schema.String),
+  configurationError: Schema.optionalKey(Schema.String),
+  configurationAvailable: Schema.optionalKey(Schema.Boolean),
+
+  instance: Schema.optionalKey(Schema.Struct({
+    host: Schema.String, port: Schema.Number,
+    hostAuthor: Schema.Literals(["flag", "default", "process"]), portAuthor: Schema.Literals(["flag", "default", "process"]),
+    policy: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.Unknown,
+      setBy: Schema.Literals(["vault", "default"]), says: Schema.String })),
+    origins: Schema.Array(Schema.String),
+    bearer: Schema.Struct({ set: Schema.Boolean }),
+  })),
   /** Every plugin THIS RUNTIME COMPOSES OVER. Empty for a runtime handed no
    *  plugins at all — `olai surface`, the headless faces, every server test —
    *  which composes no sibling surface and so has no roster to be about. */

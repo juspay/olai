@@ -51,7 +51,7 @@
  * revision and is benched as one.
  */
 
-import { customText, type Derived, isPutAway, isRegular, type RegularNode } from "@olai/format"
+import { customText, type Derived, type Located, isPutAway, isRegular, type RegularNode } from "@olai/format"
 import { PLUGIN_BROWSER_NODE as BROWSER_NODE, PLUGIN_SERVER_NODE as SERVER_NODE } from "@olai/surface"
 
 /** THE TWO HALVES, by the titles their child nodes wear — `@olai/surface`'s,
@@ -82,6 +82,8 @@ export const ALWAYS = "always"
  * vocabulary and not the author's.
  */
 export interface Defined {
+  /** This definition node and its sections, from the owner's current revision. */
+  readonly configuration?: { readonly node: Located; readonly nodes: ReadonlyArray<Located> }
   /** The word — the row's `id`. */
   readonly name: string
   /** The node the definition hangs off, and the file it is in: what a panel
@@ -168,8 +170,20 @@ const defined = (
     const said = (customText(node, APPROVED_KEY) ?? "").trim()
     return said === "" ? null : said
   })()
+  const ids = new Set([node.id])
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const item of derived.nodes) {
+      if (isRegular(item) && item.node.parent !== undefined && ids.has(item.node.parent) && !ids.has(item.node.id)) {
+        ids.add(item.node.id); changed = true
+      }
+    }
+  }
+  const nodes = derived.nodes.filter(item => ids.has(item.node.id))
   const one = {
     name,
+    configuration: { node: nodes.find(item => item.node.id === node.id)!, nodes },
     node: node.id,
     file,
     server: server ?? "",

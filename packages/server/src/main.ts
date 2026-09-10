@@ -45,9 +45,10 @@
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
 import { reportingRunEdge, surfaceCommands, surfaceHelp } from "@kolu/surface-cli"
 import { addressOf, printAddress } from "@olai/format"
-import { atLevel, toStdout } from "@olai/log"
-import { Effect, Layer } from "effect"
-import { Argument, Command, Flag } from "effect/unstable/cli"
+import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
+import { toStdout } from "@olai/log"
+import { Effect, Layer, Option } from "effect"
+import { Argument, CliConfig, Command, Flag, GlobalFlag } from "effect/unstable/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
@@ -81,18 +82,18 @@ const web = Command.make("web", {
     Flag.withDescription(
       "TCP port to listen on; 0 (the default) asks the OS for one",
     ),
-    Flag.withDefault(DEFAULT_PORT),
+    Flag.optional,
   ),
   host: Flag.string("host").pipe(
     Flag.withDescription(
       "interface to bind; loopback by default, because the surface is unauthenticated",
     ),
-    Flag.withDefault("127.0.0.1"),
+    Flag.optional,
   ),
 }, ({
   directory,
-  host,
-  port,
+  host: requestedHost,
+  port: requestedPort,
   profile,
 }) =>
   Effect.gen(function*() {
@@ -105,8 +106,10 @@ const web = Command.make("web", {
     const faulted = yield* serve({
       root: directory,
       profile,
-      port,
-      host,
+      port: Option.getOrElse(requestedPort, () => DEFAULT_PORT),
+      host: Option.getOrElse(requestedHost, () => "127.0.0.1"),
+      addressAuthors: { host: Option.isSome(requestedHost) ? "flag" : "default",
+        port: Option.isSome(requestedPort) ? "flag" : "default" },
 
       clientDist: clientDist.pipe(Effect.provide(NodeServices.layer), Effect.orDie),
       allowedOrigins: allowedOrigins(),
@@ -118,15 +121,8 @@ const web = Command.make("web", {
     // by a process that has already stopped answering, and a fault takes the
     // same road out rather than exiting from under those finalizers.
     yield* faulted
-  }).pipe(
-    // Innermost only when the env var is set (empty layer otherwise), so
-    // `olai web --log-level warn` still quiets Info, and a systemd
-    // `OLAI_LOG_LEVEL=debug` still raises it.
-    Effect.provide(atLevel()),
-  )).pipe(
-    Command.withDescription(
-      "serve a directory of outlines in the browser. OLAI_LOG_LEVEL (debug|info|warn|error) sets the minimum log level and wins when set; when unset, --log-level applies (default info)",
-    ),
+  })).pipe(
+    Command.withDescription(`serve a directory of outlines in the browser; policy lives in ${CONFIGURATION_FILE}`),
   )
 
 /**
@@ -424,7 +420,8 @@ NodeRuntime.runMain(
     // layerHttpServices carries the static file layer's (the file-response
     // platform and ETags).
     Effect.provide(
-      Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices, toStdout),
+      Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices, toStdout,
+        CliConfig.layer({ builtIns: GlobalFlag.BuiltIns.filter(flag => flag !== GlobalFlag.LogLevel) })),
     ),
   ),
   // The other HALF of the same recipe, and the host's to pass because it is

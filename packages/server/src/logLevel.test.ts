@@ -1,8 +1,4 @@
-/**
- * `--log-level` still works when `OLAI_LOG_LEVEL` is unset, and the env
- * wins when it is set. The review that caught `atLevel()` supplying Info
- * even when the env was empty.
- */
+/** The serve reads its log policy from the vault before announcing its socket. */
 
 import { findLogfmt } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
@@ -19,18 +15,17 @@ const vault = (): string => mkdtempSync(join(tmpdir(), "olai-loglevel-"))
  *  detector for a negative. */
 const QUIET_MS = 4_000
 
-test("--log-level error with OLAI_LOG_LEVEL unset drops the serving INFO line", async () => {
+test("file log-level error suppresses the serving line", async () => {
   const root = vault()
   const child = startWeb({
     root,
-    policy: {"commit": "off"}, extra: ["--log-level", "error"],
+    policy: { commit: "off", process: { "log-level": "error" } },
     env: { OLAI_LOG_LEVEL: "" },
   })
   try {
     await Bun.sleep(QUIET_MS)
     expect(child.exitCode).toBeNull()
     expect(findLogfmt(child.said(), "serving")).toBeUndefined()
-    expect(child.said()).not.toContain("level=INFO")
   } finally {
     child.kill("SIGTERM")
     await child.wait(5_000, "SIGTERM")
@@ -38,12 +33,12 @@ test("--log-level error with OLAI_LOG_LEVEL unset drops the serving INFO line", 
   }
 }, 15_000)
 
-test("OLAI_LOG_LEVEL=info wins over --log-level error", async () => {
+test("the removed environment policy cannot suppress a default serve", async () => {
   const root = vault()
   const child = startWeb({
     root,
-    policy: {"commit": "off"}, extra: ["--log-level", "error"],
-    env: { OLAI_LOG_LEVEL: "info" },
+    policy: { commit: "off" },
+    env: { OLAI_LOG_LEVEL: "error" },
   })
   try {
     const url = await child.address()

@@ -24,6 +24,7 @@ export interface PluginRuntime {
   readonly plugins: Plugins
   readonly onChange: { run: () => void }
   readonly built: ReadonlyArray<string>
+  readonly instance?: () => NonNullable<PluginRoster["instance"]>
   readonly browserOnly?: ReadonlyArray<string>
   readonly offByDefault?: ReadonlyArray<string>
   readonly pin: PluginPin
@@ -52,6 +53,7 @@ export const rosterOf = (
 ): PluginRoster =>
   offered === null ? NO_ROSTER : ((
     names: ReadonlyMap<string, ReadonlyArray<string>>,
+    configuration: Configuration | undefined,
   ) => ({
     built: [...offered.built.map((name) => {
       const report = offered.report().get(name) ?? { state: "off" as const }
@@ -60,7 +62,6 @@ export const rosterOf = (
       const wake = live ? wakes.get(name) : undefined
       const carrying = live ? carriedBy(name, offered.built, names, offers) : []
       const config = offered.configs().get(name)
-      const configuration = offered.configuration?.()
       const reading = configuration?.rows.get(name)
       const policy = reading ?? offered.configurationDefaults?.get(name)
       return {
@@ -85,14 +86,16 @@ export const rosterOf = (
         ...(policy === undefined ? {} : { configurationValues: policy.values }),
         ...(policy?.node === undefined ? {} : { configurationNode: policy.node }),
         ...(policy?.on === undefined ? {} : { desiredOn: policy.on }),
-        ...(configuration?.file === undefined ? {} : { configurationFile: configuration.file }),
-        ...(configuration?.broken === undefined ? {} : { configurationError: configuration.broken }),
-        configurationAvailable: configuration !== undefined,
+
       }
     }), ...defined],
+    ...(configuration?.file === undefined ? {} : { configurationFile: configuration.file }),
+    ...(configuration?.broken === undefined ? {} : { configurationError: configuration.broken }),
+    configurationAvailable: configuration !== undefined,
+    ...(offered.instance === undefined ? {} : { instance: offered.instance() }),
     pin: offered.pin,
     pinned: offered.pin.kind === "exact" ? offered.pin.names : null,
-  }))(offered.names())
+  }))(offered.names(), offered.configuration?.())
 const carriedBy = (
   name: string,
   built: ReadonlyArray<string>,

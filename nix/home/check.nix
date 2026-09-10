@@ -120,17 +120,7 @@ let
   # --- the git policy, when an operator states one ------------------------
   _removed =
     assert builtins.attrNames linux.options.services.olai ==
-      [ "dataDir" "enable" "environmentFile" "host" "logLevel" "package" "port" ];
-    true;
-
-  # --- log level, when an operator raises it -------------------------------
-  loud = evalFor { isLinux = true; isDarwin = false; } { logLevel = "debug"; };
-  loudDarwin = evalFor { isLinux = false; isDarwin = true; } { logLevel = "debug"; };
-  _loud =
-    assert loud.config.systemd.user.services.olai.Service.Environment
-      == [ "OLAI_LOG_LEVEL=debug" ];
-    assert loudDarwin.config.launchd.agents.olai.config.EnvironmentVariables
-      == { OLAI_LOG_LEVEL = "debug"; };
+      [ "dataDir" "enable" "environmentFile" "host" "package" "port" ];
     true;
 
   # --- the environment agents inherit ------------------------------------
@@ -149,7 +139,6 @@ let
     # Nothing else moved: the file is an addition to the unit, not a rewrite,
     # and neither is the log level beside it.
     assert withEnvFile.config.systemd.user.services.olai.Service.Restart == "always";
-    assert !(loud.config.systemd.user.services.olai.Service ? EnvironmentFile);
     # ... and launchd, which has no such knob, REFUSES rather than dropping it.
     assert failed linux == [ ];
     assert failed darwin == [ ];
@@ -185,11 +174,10 @@ in
 assert _linux;
 assert _darwin;
 assert _removed;
-assert _loud;
 assert _env;
 pkgs.runCommand "olai-hm-module-check" { } ''
   echo "services.olai module evaluates (linux systemd + darwin launchd)"
-  echo "  ... and the log level reaches both supervisors when it is raised"
+  echo "  ... and policy options are absent from both supervisors"
   echo "  ... and environmentFile reaches the unit on Linux, and is refused on Darwin"
   touch $out
 ''

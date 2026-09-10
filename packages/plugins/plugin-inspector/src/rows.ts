@@ -1,4 +1,4 @@
-import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
+import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
 /**
  * WHICH PLUGINS THIS SERVE RUNS, read as the plugins panel reads it.
  *
@@ -231,8 +231,8 @@ export const pluginHint = (
   roster: PluginRoster = { built: [], pinned: null },
   look: PluginLook = {},
 ): string | null => {
-  if (pluginState(plugin) === "off" && plugin.desiredOn === false && plugin.configurationFile !== undefined) {
-    return `Off — ${plugin.configurationFile} says on: no.`
+  if (pluginState(plugin) === "off" && plugin.desiredOn === false && roster.configurationFile !== undefined) {
+    return `Off — ${roster.configurationFile} says on: no.`
   }
   switch (pluginState(plugin)) {
     case "running":
@@ -301,8 +301,7 @@ const carries = (plugin: BuiltPlugin): string | undefined =>
     : plugin.carrying.join(", ")
 
 const withoutConfiguration = (roster: PluginRoster): boolean =>
-  roster.built.some(row => row.configurationAvailable === false)
-  && !roster.built.some(row => row.configurationAvailable === true)
+  roster.configurationAvailable === false
 
 /** What applies to every row is said once, at the foot: policy location,
  * private memory, startup selection, and loss of the configuration reader.
@@ -311,7 +310,7 @@ const withoutConfiguration = (roster: PluginRoster): boolean =>
  * session-only exception while the shared reader is available.
  * Boot flags remain visible until their removal in step 4. */
 export const pluginsStarted = (roster: PluginRoster): string =>
-  `Policy lives in ${roster.built.find(row => row.configurationFile)?.configurationFile ?? CONFIGURATION_FILE} and travels with this directory. ${withoutConfiguration(roster) ? " Switches are session-only while the configuration reader is absent; they last until this serve stops." : ""} Memory: LocalState, $XDG_STATE_HOME/olai/<plugin>/<hash>.json; private to the serve.`
+  `Policy lives in ${roster.configurationFile ?? CONFIGURATION_FILE} and travels with this directory. ${withoutConfiguration(roster) ? " Switches are session-only while the configuration reader is absent; they last until this serve stops." : ""} Memory: LocalState, $XDG_STATE_HOME/olai/<plugin>/<hash>.json; private to the serve.`
 
 /** A running server row can have a waiting browser component. Keep the
  * server's switch semantics and name that component and its missing keys. */
@@ -443,3 +442,7 @@ export const groupCount = (rows: ReadonlyArray<BuiltPlugin>): string => {
   if (on === 0) return `${off} off`
   return `${on} on · ${off} off`
 }
+
+/** Unset doors and wrapper provisions belong with defaults, not operator inputs. */
+export const environmentAtDefault = (one: EnvironmentReading): boolean =>
+  !one.set || (one.kind === "resource" && one.source === "wrapper")

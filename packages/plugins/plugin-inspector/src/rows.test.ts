@@ -579,18 +579,29 @@ test("a quiet healthy group starts collapsed, and opt-in rows remain reachable",
 })
 
 test("a file-authored off state names the file that decided it", () => {
-  expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false, configurationFile: "_olai/Settings.olai" }))
+  expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false }, { built: [], pinned: null, configurationFile: "_olai/Settings.olai" }))
     .toBe("Off — _olai/Settings.olai says on: no.")
 })
 
 
 test("an absent configuration reader is one panel fact, not a caveat repeated on every row", () => {
-  const absent: PluginRoster = { pinned: null, built: ["alpha", "beta"].map(name => ({
-    name, running: true, switchPersistence: "session", configurationAvailable: false,
+  const absent: PluginRoster = { pinned: null, configurationAvailable: false, built: ["alpha", "beta"].map(name => ({
+    name, running: true, switchPersistence: "session",
   })) }
   expect(pluginsStarted(absent)).toContain("Switches are session-only while the configuration reader is absent")
   for (const row of absent.built) expect(rowCopy(row, absent)).toBeNull()
-  const present: PluginRoster = { ...absent, built: absent.built.map(row => ({ ...row, configurationAvailable: true })) }
+  const present: PluginRoster = { ...absent, configurationAvailable: true }
   expect(pluginsStarted(present)).not.toContain("Switches are session-only")
   expect(rowCopy(present.built[0]!, present)).toContain("Switch is session-only")
+})
+
+
+import { environmentAtDefault } from "./rows.ts"
+test("environment disclosure distinguishes wrapper defaults from explicit store paths", () => {
+  const resource = { key: "EXECUTABLE", kind: "resource" as const, set: true, value: "/nix/store/operator/bin/tool", says: "the executable" }
+  expect(environmentAtDefault(resource)).toBe(false)
+  expect(environmentAtDefault({ ...resource, source: "wrapper" })).toBe(true)
+  expect(environmentAtDefault({ ...resource, set: false })).toBe(true)
+  expect(environmentAtDefault({ key: "TOKEN", kind: "secret", set: true, says: "credential" })).toBe(false)
+  expect(environmentAtDefault({ key: "TOKEN", kind: "secret", set: false, says: "credential" })).toBe(true)
 })

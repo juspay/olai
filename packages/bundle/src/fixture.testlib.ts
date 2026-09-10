@@ -6,6 +6,7 @@ import * as path from "node:path"
 import { ROWS } from "./rows.ts"
 
 export interface FixturePolicy {
+  readonly process?: Readonly<Record<string, string>>
   readonly commit?: string
   readonly push?: string
   readonly only?: string | ReadonlyArray<string>
@@ -34,6 +35,7 @@ export const writeFixturePolicy = (root: string, policy: FixturePolicy): void =>
     node.custom ??= {}
     if (!(key in node.custom)) { node.custom[key] = value; changed = true }
   }
+  for (const [key, value] of Object.entries(policy.process ?? {})) put("olai", key, value)
   put("git", "commit", policy.commit)
   put("git", "push", policy.push)
   if (policy.only !== undefined) {

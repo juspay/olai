@@ -2420,8 +2420,6 @@ describe("a module another package can open holds no live value", () => {
     // WARN-ONCE FLAGS, which is `grumble.ts`'s class one package over: what they
     // hold is whether this process has already said a sentence, and forgetting
     // it would only mean saying it twice.
-    "log/src/level.ts": "whether this process has already warned about OLAI_LOG_LEVEL",
-    "log/src/sinks.ts": "whether this process has already warned about OLAI_LOG",
 
     // A REGEX CURSOR, which is a `lastIndex` and not a value: the scan sets it
     // to 0 before it starts and moves it as it goes, so what is kept between

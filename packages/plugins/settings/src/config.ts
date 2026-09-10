@@ -18,7 +18,7 @@ export const readConfiguration = (reading: Pick<Reading, "set" | "derived">, dec
     if (raw !== undefined && on === undefined) warn(`${file}: ${name}.on: ${JSON.stringify(raw)} uses its default — expected yes or no`)
     rows.set(name, { ...parsed, ...(on === undefined ? {} : { on }), ...(node === undefined ? {} : { node: { file: node.file, id: node.node.id } }) })
   }
-  return { revision, rows, ...(file === undefined ? {} : { file }), ...(broken === undefined ? {} : { broken: `${file}: malformed settings file` }) }
+  return { revision, rows, nodes, ...(file === undefined ? {} : { file }), ...(broken === undefined ? {} : { broken: `${file}: malformed settings file` }) }
 }
 
 /** One warning per malformed shape for this reader's activation. */

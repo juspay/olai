@@ -471,7 +471,7 @@ test("the settings offer withdraws with its row, applied patches stand, and retu
     expect((await row()).configurationValues?.find(one => one.key === "commit")).toMatchObject({ value: "manual", setBy: "vault" })
     const flip = (name: string, enabled: boolean) => configurationCall(url, "surface/plugins/set", { name, enabled })
     await flip("settings", false)
-    await eventually(async () => (await row()).configurationAvailable === false)
+    await eventually(async () => (await configurationRoster(url)).configurationAvailable === false)
     write("auto")
     // The stopped reader cannot acknowledge an external edit. Wait for the
     // ordinary content reading before restarting it, so its first revision
@@ -485,11 +485,11 @@ test("the settings offer withdraws with its row, applied patches stand, and retu
     await flip("settings", true)
     await eventually(async () => (await row()).config?.commit === "auto")
     await flip("vault", false)
-    await eventually(async () => (await row()).configurationAvailable === false)
+    await eventually(async () => (await configurationRoster(url)).configurationAvailable === false)
     expect((await row()).config?.commit).toBe("auto")
     write("manual")
     await flip("vault", true)
-    await eventually(async () => (await row()).configurationAvailable === true && (await row()).config?.commit === "manual")
+    await eventually(async () => (await configurationRoster(url)).configurationAvailable === true && (await row()).config?.commit === "manual")
   })
 })
 
@@ -505,7 +505,7 @@ test("a settings edit reconciles a live row and malformed leaves default once", 
     write("Another-User")
     await eventually(async () => (await who()).login === "second")
     fs.writeFileSync(file, '{torn line\n')
-    await eventually(async () => (await configurationRoster(url)).built.some(one => one.configurationError?.includes("Settings.olai")))
+    await eventually(async () => (await configurationRoster(url)).configurationError?.includes("Settings.olai") === true)
     const row = (await configurationRoster(url)).built.find(one => one.name === "identity")!
     expect(row.configurationValues?.find(one => one.key === "login-header")?.setBy).toBe("default")
   })
@@ -619,7 +619,7 @@ test("the content provider switch is session-only and a broken file is never ove
     expect((await configurationRoster(url)).built.find(row => row.name === "journal")?.switchPersistence).toBe("file")
     fs.mkdirSync(path.dirname(file), { recursive: true })
     fs.writeFileSync(file, "{broken\n", { flag: "wx" })
-    await eventually(async () => (await configurationRoster(url)).built.some(row => row.configurationError !== undefined))
+    await eventually(async () => (await configurationRoster(url)).configurationError !== undefined)
     await expect(flip("journal", true)).rejects.toThrow("Repair")
     expect(fs.readFileSync(file, "utf8")).toBe("{broken\n")
   })
@@ -629,6 +629,7 @@ test("the roster publishes declared env readings without secrets, including disa
   await withServing({ root: served(), vars: { OLAI_SPACES_TOKEN: "private-fixture-token", OLAI_SPACES_URL: "https://example.invalid" } }, async url => {
     const roster = await configurationRoster(url)
     expect(JSON.stringify(roster)).not.toContain("private-fixture-token")
+    expect(roster.instance?.bearer).toEqual({ set: true })
     const row = roster.built.find(row => row.name === "xyne-spaces")!
     expect(row.environment).toContainEqual({ key: "OLAI_SPACES_TOKEN", kind: "secret", set: true, says: "the credential for Spaces" })
     expect(row.environment?.find(one => one.key === "OLAI_SPACES_URL")).toMatchObject({ value: "https://example.invalid", kind: "resource" })

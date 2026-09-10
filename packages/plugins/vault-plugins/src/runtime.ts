@@ -52,6 +52,7 @@ import type { BuiltPlugin } from "@olai/surface"
 import { PLUGIN_CHUNK_PREFIX, type PluginState } from "@olai/surface"
 import * as effect from "effect"
 import { Effect } from "effect"
+import { decodePolicy } from "@olai/plugin-api/configuration"
 
 import { type Defined, definedIn, isApproved } from "./source.ts"
 
@@ -154,7 +155,7 @@ interface Live {
  * this version, and not tried again until the version moves.
  */
 type Started =
-  | ({ readonly up: true; readonly version: string } & Live)
+  | ({ readonly up: true; readonly version: string; readonly policy: ReturnType<typeof decodePolicy>; readonly declaration: Plugin["config"]; readonly updates: Plugin["configUpdates"] } & Live)
   | { readonly up: false; readonly version: string; readonly why: string }
 
 /**
@@ -166,6 +167,10 @@ type Started =
 export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>): DynamicRuntime => {
   /** WHAT CAME OF THE LAST ATTEMPT AT EACH WORD — see {@link Started}. */
   const started = new Map<string, Started>()
+  const optionsKeys = new Map<string, string>()
+  const warnings: string[] = []
+  const warned = new Set<string>()
+  const warn = (line: string) => { if (!warned.has(line)) { warned.add(line); warnings.push(line) } }
   /** Definitions as the last revision left them — what {@link rows} draws and
    *  what {@link again} re-follows. */
   let seen: ReadonlyArray<Defined> = []
@@ -198,19 +203,33 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>): Dy
       // version is the source it was made against, so an unchanged broken
       // definition is skipped by the loop below rather than compiled again.
       for (const [name, one] of [...started]) {
-        if (wanted.get(name)?.version === one.version) continue
+        const next = wanted.get(name)
+        if (next?.version === one.version) {
+          if (!one.up && optionsKeys.get(name) === optionsKey(next)) continue
+          if (one.up) {
+            const policy = policyFor(one.declaration, next, warn)
+            if (one.updates === "live" || JSON.stringify(policy.config) === JSON.stringify(one.policy.config)) {
+              started.set(name, { ...one, policy })
+              optionsKeys.set(name, optionsKey(next))
+              continue
+            }
+          }
+        }
         started.delete(name)
+        optionsKeys.delete(name)
         if (!one.up) continue
         yield* one.mounted.dispose
         moved = true
       }
       for (const [name, one] of wanted) {
         if (started.has(name)) continue
-        started.set(name, yield* start(host, one))
+        started.set(name, yield* start(host, one, warn))
+        optionsKeys.set(name, optionsKey(one))
         // EITHER WAY: a word that was not up is now mounted or is now failed
         // with a sentence, and both are rows that say something they did not.
         moved = true
       }
+      for (const line of warnings.splice(0)) yield* Effect.logWarning(line)
       return moved
     })
 
@@ -248,9 +267,16 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>): Dy
  * A comparison rather than a diff, because the answer is one boolean: the caller
  * re-composes or it does not.
  */
+const optionsKey = (one: Defined): string => JSON.stringify(one.configuration?.nodes.map(item => ({
+  id: item.node.id,
+  ...("parent" in item.node ? { parent: item.node.parent } : {}),
+  ...("title" in item.node ? { title: item.node.title } : {}),
+  custom: "custom" in item.node ? Object.fromEntries(Object.entries(item.node.custom ?? {}).filter(([key]) => key !== "approved" && key !== "plugin")) : {},
+})))
+
 const wordsOf = (defined: ReadonlyArray<Defined>): string =>
   defined
-    .map((one) => [one.name, one.node, one.file, one.version, one.approved, one.fault].join(" "))
+    .map((one) => [one.name, one.node, one.file, one.version, one.approved, one.fault, optionsKey(one)].join(" "))
     .join("\n")
 
 /**
@@ -267,7 +293,12 @@ const wordsOf = (defined: ReadonlyArray<Defined>): string =>
  * what a row draws for it is the REPORT rather than anything this function knows.
  * Every arm below is a way the definition never became a fiber at all.
  */
-const start = (host: OwnedLoader, one: Defined): Effect.Effect<Started> =>
+const policyFor = (schema: Plugin["config"], one: Defined, warn: (line: string) => void): ReturnType<typeof decodePolicy> =>
+  schema === undefined ? { config: {}, values: [] } : decodePolicy(schema,
+    one.configuration?.nodes ?? [], one.configuration?.node,
+    (key, value, reason) => warn(`${one.file}#${one.node}: ${key}: ${JSON.stringify(value)} uses its default — ${reason}`))
+
+const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): Effect.Effect<Started> =>
   Effect.gen(function*() {
     const faulted = (why: string): Started => ({ up: false, version: one.version, why })
     const server = yield* Effect.promise(() => buildHalf("server", one.server))
@@ -290,9 +321,15 @@ const start = (host: OwnedLoader, one: Defined): Effect.Effect<Started> =>
           + `says "${one.name}". The node's \`plugin\` property is the name; make the half agree with it.`,
       )
     }
-    const mounted = yield* host.mount(plugin)
+    let policy: ReturnType<typeof decodePolicy>
+    try { policy = policyFor(plugin.config, one, warn) }
+    catch (error) { return faulted(`Invalid Config declaration: ${String(error)}`) }
+    const mounted = yield* host.mount(plugin, policy.config)
     return {
       up: true,
+      policy,
+      declaration: plugin.config,
+      updates: plugin.configUpdates,
       version: one.version,
       mounted,
       chunk: browser === null ? null : browser.text,
@@ -364,6 +401,7 @@ const rowOf = (
     state,
     ...more,
     source,
+    ...(up === null ? {} : { configurationValues: up.policy.values, configurationNode: { file: one.file, id: one.node } }),
   })
   const said = one.fault ?? (started?.up === false ? started.why : undefined)
   if (said !== undefined) return at("failed", { fault: said })

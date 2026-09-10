@@ -17,5 +17,5 @@
 
 export { codeOf, prettyCause, reasonOf } from "./cause.ts"
 export { type Emit, emitter } from "./emit.ts"
-export { atLevel, LEVEL_ENV_VAR, levelFor } from "./level.ts"
+export { liveLevel } from "./level.ts"
 export { toStderr, toStdout } from "./sinks.ts"
