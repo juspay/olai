@@ -19,7 +19,7 @@ test("outline hits share indexed and walked answers without changing the existin
       }
     }
     const all = search(vault, { text: "Home" }, "2026-09-10", NO_KINDS)
-    expect(all.hits.filter(isOutlineHit).map(hit => hit.at.path)).toEqual(["Home.olai"])
+    expect(all.hits.filter(isOutlineHit).map(hit => String(hit.at.path))).toEqual(["Home.olai"])
     expect(search(vault, { text: "Home", kind: "file" }, "2026-09-10", NO_KINDS).total).toBe(2)
     expect(search(vault, { text: "Home", kind: "document" }, "2026-09-10", NO_KINDS).total).toBe(1)
     for (const scope of [{ file: "Home.olai" }, { under: "note" }]) {

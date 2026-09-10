@@ -4,14 +4,14 @@ import type { OlaiWorld } from "../support/world.ts"
 import { oneLine } from "../support/world.ts"
 
 Then("the {string} result {string} has place {string}", async function(this: OlaiWorld, door: string, title: string, expected: string) {
-  const row = this.page.getByTestId(door).filter({ hasText: title })
+  const row = this.page.getByTestId(door).filter({ has: this.page.getByText(title, { exact: true }) })
   const place = row.locator('[data-place="file"]').locator('..')
   await this.waitUntil(async () => oneLine(await place.innerText()) === expected, `place line to read ${expected}`)
   assert.equal(await row.locator('svg').count(), 0, "search rows have no glyph")
 })
 
 Then("the {string} result {string} preserves file {string} and nearest ancestor {string} around an ellipsis", async function(this: OlaiWorld, door: string, title: string, file: string, nearest: string) {
-  const row = this.page.getByTestId(door).filter({ hasText: title })
+  const row = this.page.getByTestId(door).filter({ has: this.page.getByText(title, { exact: true }) })
   await row.waitFor({ state: "visible" })
   const start = row.locator('[data-place="file"]')
   const end = row.locator('[data-place="nearest"]')
