@@ -2006,6 +2006,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     ],
     "outlines": [
       "format/src/committing.ts",
+      "format/src/filter.ts",
       "format/src/index.ts",
       "format/src/message.ts",
       "format/src/node.ts",
@@ -2044,6 +2045,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/markdown/src/tools.ts",
       "plugins/mcp/src/endpoint.ts",
       "plugins/mcp/src/tools.ts",
+      "plugins/search/src/matcher.ts",
       "plugins/search/src/table.bench.ts",
       "plugins/search/src/tools.ts",
       "plugins/trash/src/tools.ts",
@@ -2106,6 +2108,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "format/src/pointing.bench.ts",
       "format/src/reading.ts",
       "format/src/scope.bench.ts",
+      "format/src/searching.ts",
       "format/src/set.ts",
       "format/src/validate.bench.ts",
       "format/src/verdict.ts",
