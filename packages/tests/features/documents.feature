@@ -65,17 +65,15 @@ Feature: Documents
     And the address is "/notes/palette.md"
     And there should be no page errors
 
-  # A folder is a way in, and an outline is not a document: the rows are the
-  # files whose address opens a BODY, which is the registry's answer rather
-  # than a list of suffixes written out here.
+  # File rows include both rendered documents and whole outlines.
   @corpus:good
-  Scenario: The palette's document rows are the bodied files, matched by path
+  Scenario: The palette finds document paths and whole outline names
     Given I open the outline "house.olai"
     When I press the palette shortcut
     And I type "notes/" into the palette
     Then the palette lists the document "notes/palette.md"
     When I type "garden" into the palette
-    Then the palette lists no document "garden.olai"
+    Then the palette lists the document "garden.olai"
 
   @corpus:good
   Scenario: A document is a page of its own, at its own address
