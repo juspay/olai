@@ -37,7 +37,7 @@ The list itself:
 
 With no agent at all the panel still draws, and says which agents olai can talk to and where to get one — because a feature that is silently absent cannot be told apart from one that is broken. That list is the ENABLED ENGINES and each one's own sentence about how it is got, answered by the server: a serve started `on: no` on the unwanted engine nodes in `_olai/Settings.olai` says how to install opencode and does not offer a Claude Code it could not mount.
 
-**And it says which of three things happened**, rather than guessing between them. There are exactly three ways to have no agent, a person has a different thing to do about each, and only the server can tell them apart — so it sends which, and the panel's opening sentence is that one:
+**The panel distinguishes two reasons for having no agent.** No engine rows enabled and no executable found need different remedies. The server knows which occurred and supplies the panel’s opening sentence:
 
 | what the panel says | what happened | what to do |
 | --- | --- | --- |

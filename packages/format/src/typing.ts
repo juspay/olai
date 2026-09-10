@@ -1391,9 +1391,9 @@ const wrongOne = (
  * `undefined` FOR A WORD NOBODY IS ANSWERING FOR, and that is the whole of what
  * a disabled plugin costs a vault: the value is still a name, it is still
  * stored, and nothing here has an opinion about it. Refusing instead would make
- * a directory that serves fine under a policy selecting only kolu, odu come up broken under
- * a policy selecting only odu — a verdict on a file decided by a flag on the machine, which
- * is what {@link KindVocabulary} exists to keep from happening.
+ * the same content valid while its provider runs and invalid when the vault’s
+ * `on` policy disables that provider. {@link KindVocabulary} separates a
+ * declaration’s validity from the set of plugins currently running.
  *
  * THE ENABLED MAP AND NOT THE BUILT ONE, for the same reason from the other
  * end: a kind whose plugin is not running has no `admits` anybody is standing
@@ -1571,9 +1571,8 @@ export const storedValue = (
   if (declared === undefined || declared.type.kind === "text") return Result.succeed(value)
   // A CONTRIBUTED KIND IS TRIMMED WHETHER OR NOT ITS PLUGIN IS RUNNING, which
   // is deliberate: the DECLARATION is what says this value is a name rather
-  // than prose, and that sentence is the vault's. Trimming on one the file’s row selection
-  // and not on another would put a flag on the machine in charge of what gets
-  // written to a file.
+  // than prose, and that sentence is the vault’s. The vault’s `on` choices
+  // must not change how this value is stored when its provider stops or starts.
   const stored = declared.type.kind === "date"
     ? canonicalDate(value, offsetIn(now) ?? null) ?? value.trim()
     : value.trim()
