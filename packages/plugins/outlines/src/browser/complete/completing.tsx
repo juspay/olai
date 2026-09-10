@@ -78,7 +78,7 @@ import {
 import { tagText } from "@olai/format"
 
 import { Completions } from "./Completions.tsx"
-import { nodePlace } from "olai-plugin-search/ui/place.ts"
+import { nodePlace, type Place } from "olai-plugin-search/ui/place.ts"
 import { type NodeProp, nodeProps } from "olai-plugin-search/ui/props.ts"
 import { createCursor } from "@olai/ui-primitives/cursor.ts"
 import { createSearch } from "../search.ts"
@@ -99,7 +99,7 @@ export interface Choice {
    *  carry a tag. */
   readonly hint?: string
   /** Where a node sits — the second line, for the `((` rows only. */
-  readonly place?: string
+  readonly place?: Place
   /** The node's properties — the third line, for the `((` rows only. A tag
    *  completion is not a node and has none. */
   readonly props?: ReadonlyArray<NodeProp>

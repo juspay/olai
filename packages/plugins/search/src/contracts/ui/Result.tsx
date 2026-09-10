@@ -82,8 +82,8 @@ import { createMemo, For, Show } from "solid-js"
 import { renderTitle, sameDrawing } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 
-import type { DirectoryKind } from "olai-plugin-files/icons"
-import { Glyph } from "olai-plugin-files/icons"
+import type { Place } from "./place.ts"
+import { PlaceLine } from "./PlaceLine.tsx"
 import type { NodeProp } from "olai-plugin-search/ui/props.ts"
 
 /**
@@ -112,24 +112,11 @@ export interface RowTestids {
 
 export function Result(props: {
   readonly label: string
-  /**
-   * WHICH KIND OF FILE this row opens, drawn as the directory's own glyph in
-   * front of the label — absent on every row that is not a file, which is most
-   * of them.
-   *
-   * The face is the sidebar's (`../file/icons.tsx`) rather than one this row
-   * invents, for the reason this component is one component: a markdown file
-   * in a list of strangers has to look like the one in the tree, or a reader
-   * is learning the directory twice. It is the row's only inline mark, and it
-   * cannot starve the label — the glyph is a fixed box and the label is what
-   * flexes.
-   */
-  readonly of?: DirectoryKind
   /** A chord or a word, inline at the right of the first line. */
   readonly hint?: string
   /** Where the node lives — the second line. See `../palette/items.ts` for
-   *  why it is written nearest-ancestor-first. */
-  readonly place?: string
+   *  the file and ancestor parts. */
+  readonly place?: Place
   /** The node's properties — the third line, matched ones first. Empty (or
    *  absent) for a node carrying none, which draws no line at all. See
    *  `./props.ts` for the order. */
@@ -165,30 +152,6 @@ export function Result(props: {
         needles: props.needles,
         links: false,
       })
-    },
-    undefined,
-    {
-      equals: (was, now) =>
-        was === undefined || now === undefined
-          ? was === now
-          : sameDrawing(was, now),
-    },
-  )
-  /** The place line, run through the same title pipeline: its `#tags` wear
-   *  the same pills and hues, so a crumb reads like the crumb a search
-   *  landed from — the ancestors carry the reader's vocabulary to the row,
-   *  and an unstyled crumb was the last hole a tag could fall through
-   *  (`../markdown/tags.ts`). Everything the line's surround carries — the
-   *  layout, the muted mono voice, the testid — stays on the wrapper span
-   *  below, the row's own. No `needles`: what the query found is the hit,
-   *  and the hit is in the label. NO LINKS: this is a crumb inside a
-   *  `<button>`, exactly what the label's `links: false` is about. */
-  const placeDrawing = createMemo(
-    () => {
-      const place = props.place
-      return place === undefined || place === ""
-        ? undefined
-        : renderTitle(place, "", { links: false })
     },
     undefined,
     {
@@ -235,7 +198,6 @@ export function Result(props: {
     >
       <span class="flex w-full min-w-0 items-center gap-3">
         <span class="flex min-w-0 flex-1 items-center gap-2">
-          <Show when={props.of}>{(of) => <Glyph of={of()} />}</Show>
           <Show
             when={drawing()}
             fallback={
@@ -257,16 +219,8 @@ export function Result(props: {
           )}
         </Show>
       </span>
-      <Show when={placeDrawing()}>
-        {(drawn) => (
-          <span
-            class="w-full min-w-0 truncate font-mono text-[0.6875rem] text-muted"
-            data-testid={props.testids.place}
-          >
-            {/* Tags styled and hued, like the label. */}
-            <TitleHtml drawing={drawn()} />
-          </span>
-        )}
+      <Show when={props.place}>
+        {place => <PlaceLine place={place()} testid={props.testids.place} />}
       </Show>
       <Show when={(props.props ?? []).length > 0}>
         {/* One line, truncated like the two above it, so six properties cost

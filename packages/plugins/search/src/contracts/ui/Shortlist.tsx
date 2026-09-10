@@ -340,7 +340,7 @@ export function Shortlist(props: {
             >
               <Result
                 label={row(index).label}
-                of={row(index).of}
+
                 place={row(index).place}
                 props={row(index).props}
                 active={index === cursor.at()}

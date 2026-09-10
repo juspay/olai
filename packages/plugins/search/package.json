@@ -62,6 +62,7 @@
       "./ui/Shortlist.tsx",
       "./ui/count.ts",
       "./ui/place.ts",
+      "./ui/PlaceLine.tsx",
       "./ui/props.ts",
       "./ui/row.ts"
     ]
