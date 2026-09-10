@@ -51,3 +51,11 @@ test("the audit refuses numeric and nullable fields without a string spelling", 
     expect(() => audit(Schema.Struct({ value: field.pipe(Schema.annotate({ description: "fixture" })) }), "fixture")).toThrow()
   }
 })
+
+
+test("the agent write reservation set is exactly enablement and definition approval", async () => {
+  const { WRITE_RESERVATIONS } = await import("./policy.ts")
+  expect(WRITE_RESERVATIONS.map(({ key, file }) => ({ key, file })).sort((a, b) => a.key.localeCompare(b.key))).toEqual([
+    { key: "approved", file: undefined }, { key: "on", file: "settings.olai" },
+  ])
+})

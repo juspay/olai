@@ -5,10 +5,9 @@ Feature: The vault settings file applies policy to running rows
 
   Scenario: Editing one leaf preserves valid siblings and updates the panel
     Given I open the app
-    # Leave push at its default so the disclosure exists before it is opened.
     When I rewrite "_olai/Settings.olai" as:
       """
-      {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"off"}}
+      {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"off","push":"off"}}
       """
     And I open the plugins panel
     Then the plugins panel shows "git" configured "commit" as "off"
@@ -16,9 +15,16 @@ Feature: The vault settings file applies policy to running rows
       """
       {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"wrong","push":"off"}}
       """
+    When I open defaults for the plugin "git"
+    Then the plugins panel shows "git" configured "commit" as "manual"
+    And the plugins panel shows "git" configured "push" as "off"
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"still-wrong","push":"auto"}}
+      """
     Then the plugin "git" keeps defaults open when "commit" becomes "manual"
     And the plugins panel shows "git" configured "commit" as "manual"
-    And the plugins panel shows "git" configured "push" as "off"
+    And the plugins panel shows "git" configured "push" as "auto"
     And there should be no page errors
 
   Scenario: The selected namespace follows file precedence and deletion
@@ -54,7 +60,9 @@ Feature: The vault settings file applies policy to running rows
     Then the plugin "git" keeps defaults folded
     When I switch the plugin "journal" off
     Then the plugins panel says "journal" is "_olai/Settings.olai says on: no"
-    And the plugins panel was started "Memory: LocalState"
+    When I close the plugins panel
+    And I open the commit panel
+    Then the commit ledger includes the settings switch
     When I leave the app
     And the server stops
     And the server starts again on the same port
@@ -72,7 +80,8 @@ Feature: The vault settings file applies policy to running rows
     And I open the plugins panel
     Then the plugins panel shows "git" configured "commit" as "off"
     And the plugin "git" marks "commit" as authored by "vault"
-    And the plugins panel shows "git" configured "push" as "off"
+    When I open defaults for the plugin "git"
+    Then the plugins panel shows "git" configured "push" as "off"
     And the plugin "git" marks "push" as authored by "default"
     When I follow the policy link for "git"
     Then the policy link targets node "policy-target"
@@ -109,3 +118,40 @@ Feature: The vault settings file applies policy to running rows
     When I switch the plugin "journal" off
     Then the plugins panel says "journal" is "_olai/Settings.olai says on: no"
     And there should be no page errors
+
+  Scenario: A broken file refuses a durable switch visibly
+    Given I open the app
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {torn line
+      """
+    And I open the plugins panel
+    And I request that the plugin "journal" be off
+    Then the plugins panel refuses with "Repair _olai/Settings.olai before changing which tools run."
+    And there should be no page errors
+
+  Scenario: A reader-withdrawal settlement refusal reaches the panel
+    Given the next switch settlement reports a withdrawn reader
+    And I open the app
+    When I open the plugins panel
+    And I request that the plugin "journal" be off
+    Then the plugins panel refuses with "The configuration reader withdrew before the change settled. The file retains the write."
+    And there should be no page errors
+
+  Scenario Outline: The agent cannot change durable enablement in either direction
+    Given I open the app
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"reserved-choice","ord":"a0","title":"journal","custom":{"on":"<before>"}}
+      """
+    And I open the plugins panel
+    Then the plugin "journal" has authored enablement "<before>"
+    Given a terminal agent is connected to the served directory
+    When the terminal agent sets property "on" on "reserved-choice" to "<after>"
+    Then the terminal refusal says "person's decision"
+    And the plugin "journal" has authored enablement "<before>"
+
+    Examples:
+      | before | after |
+      | yes    | no    |
+      | no     | yes   |

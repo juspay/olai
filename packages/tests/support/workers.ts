@@ -56,10 +56,8 @@ export const spawnFingerprint = (opts: {
   readonly codex?: boolean;
   readonly kolu: boolean;
   readonly git?: string;
-  /** The git POLICY this server was started with — the `git.commit` property / the `git.push` property, and
-   *  `null` for the flag nobody gave. Part of the key because a pinned server
-   *  draws every browser's preference panel differently, so a scenario about a
-   *  live toggle may not reuse one. */
+  /** Authored git policy belongs in the reuse key: scenarios with different
+   *  file properties must never share a server. */
   readonly pin?: { readonly commit?: string; readonly push?: string };
   /** The avatar URL template this server was started with, if any. Part of
    *  the key because a server that pictures people from a template answers

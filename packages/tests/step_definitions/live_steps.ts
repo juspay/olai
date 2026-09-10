@@ -612,3 +612,12 @@ Then("the stale banner enumerates nothing", async function (this: OlaiWorld) {
     "the banner is enumerating error rows over somebody else's page",
   );
 });
+
+/** Repair one property from outside the app without changing neighboring policy. */
+When("another writer sets {string} to {string} on {string} in {string}", function (this: OlaiWorld, key: string, value: string, id: string, file: string) {
+  const records = this.servedNodes(file);
+  assert.ok(records.some(node => node["id"] === id), `${file} holds no node ${id}`);
+  this.writeServed(file, records.map(node => JSON.stringify(node["id"] === id
+    ? { ...node, custom: { ...(node["custom"] as Record<string, string> | undefined), [key]: value } }
+    : node)).join("\n") + "\n");
+});

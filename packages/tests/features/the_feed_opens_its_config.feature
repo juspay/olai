@@ -36,9 +36,9 @@ Feature: The events drawer's foot — the door onto the watch's config
   @scratch:good
   Scenario: No config file, so no foot at all
     Given I open the outline "house.olai"
-    # The defaults' vault: nothing decided anything, and a wrench with no
-    # page to open would be a door onto nothing.
-    When I press the padi pill
+    # Remove the fixture's process policy: without a file there is no door.
+    When I remove the served file "_olai/Settings.olai"
+    And I press the padi pill
     Then the drawer has no foot
     And there should be no page errors
 

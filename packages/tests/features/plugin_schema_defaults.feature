@@ -6,6 +6,12 @@ Feature: Plugin schemas supply the panel's default policy
   Scenario: Defaults remain visible without a config block on a bundle row
     Given I open the app
     When I open the plugins panel
+    And I open defaults for the plugin "vault"
+    And I open defaults for the plugin "git"
+    And I open defaults for the plugin "identity"
+    And I open defaults for the plugin "chat"
+    And I open defaults for the plugin "kolu"
+    And I open defaults for the plugin "xyne-spaces"
     Then the plugins panel shows "vault" configured "format" as "olai"
     And the plugins panel shows "git" configured "commit" as "manual"
     And the plugins panel shows "git" configured "push" as "off"

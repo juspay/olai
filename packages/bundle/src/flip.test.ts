@@ -281,7 +281,7 @@ test("a row this build does not have answers no, and moves nothing", async () =>
  *
  * A row the file’s row selection left out is a row the patch wrote `disabled` onto, and the
  * switch writes the SAME FIELD — the built-in default, the operator's overlay
- * and the press are one mechanism, which is what `pluginsPatch` has said since
+ * and the press are one mechanism, which is what the row patch has said since
  * the bundle became rows. So there is no state the panel can reach that a flag
  * could not have started you in, and none it cannot reach: a serve begun with
  * a file enabling one row can have the rest back without stopping.

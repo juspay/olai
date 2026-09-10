@@ -1,33 +1,6 @@
 import { PLUGIN_PREF } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
-/**
- * WHAT THE SERVER'S PLUGIN POLICY DOES TO THE ROWS THAT READ IT.
- *
- * The rules are small and the reason they are a module at all is the reason the
- * git rows' are: a row's VALUE and the sentence about it are read off the same
- * cell, and asked separately a browser could be drawn a default whose line
- * quotes a flag nobody gave — a policy quietly not applying.
- *
- * There IS a write half now (`plugins.set`, the human's ruling of 2026-09-04),
- * and it did not come in here: what a press does is `./Panel.tsx`'s, and what
- * this module holds is the decision that press is drawn from —
- * {@link pluginSwitch} — which is a function of one row and one boolean and is
- * asked here with both built by hand.
- *
- * **THE SHAPE OF THE PANEL IS A CLAIM, and half these cases are about it.** A
- * serve running six plugins drew the same two paragraphs under all eight rows;
- * what replaced it is a name and a switch per row, a sentence only where the row
- * has one, and one line at the foot. Every one of those is asserted, including
- * the ABSENCES — a running row saying nothing is the whole of the fix, and an
- * absence nothing tests is an absence that comes back.
- *
- * **NO PLUGIN IS NAMED HERE EITHER.** The rosters below are built out of words
- * this file made up — `alpha`, `beta` — which is not a shortcut but the claim:
- * every one of these readings is a walk over what the cell carries, so a test
- * that had to spell a real plugin's name would be evidence that the panel does
- * too. It also means a third plugin, or a build with none, changes nothing
- * here.
- */
+
 
 import { NO_ROSTER, type BuiltPlugin, type PluginRoster } from "@olai/surface"
 import { expect, test } from "bun:test"
@@ -47,8 +20,7 @@ import {
 } from "./rows.ts"
 
 
-/** A build with two plugins, and whichever of them this case is about running.
- *  `pin` defaults to omitted, which is the ordinary serve. */
+
 const roster = (
   running: ReadonlyArray<string>,
 ): PluginRoster => ({
@@ -159,23 +131,7 @@ test("every arm core writes in full is one short line", () => {
   }
 })
 
-/**
- * THE FOUR ABSENCES ARE FOUR SENTENCES, and the boolean could only ever say
- * one of them.
- *
- * `running: false` covers the flag leaving it out, the BUILD leaving it out
- * until somebody asks, A PERSON SWITCHING IT OFF HERE, a start that died, and a
- * plugin still waiting on a service. All five cost exactly the same — total
- * absence — so the account of the cost is the same in each; what differs is the
- * WHY, which is the only thing a person can act on and the only thing the
- * boolean discarded.
- *
- * THE PRESS IS THE NEWEST OF THEM and is why the count moved from four. Absence
- * had two authors a serve could tell apart, the flag and the build; the switch
- * is a third, and until the serve learned to say so this row read `optIn` and
- * told a person who had just pressed the switch that the BUILD ships this off by
- * default, with a flag to go and type.
- */
+
 test("each absence says its own why, and they are five different whys", () => {
   const optIn = row("optIn")
   const failed = row("failed", "no socket at /run/nothing")
@@ -193,17 +149,8 @@ test("each absence says its own why, and they are five different whys", () => {
   expect(new Set(said).size).toBe(5)
 })
 
-/**
- * ...AND THE PRESS IS THE ONE ABSENCE THAT UNDOES ITSELF, which is the whole of
- * what its sentence has to add.
- *
- * The other three all send a reader somewhere else — a flag to type, a build to
- * rebuild, a plugin to compose. This one is answered by the switch beside the
- * sentence, so naming a flag here would be telling somebody to restart the
- * server to undo a press they can undo by pressing again. What it owes instead
- * is the fact a reader might not have: it does not survive the serve.
- */
-test("a switched-off row names no flag, and says the press does not survive a restart", () => {
+
+test("a session-switched row explains its lifetime", () => {
   const said = pluginHint(only(row("switched")))
   expect(said).toContain("restart")
   expect(said).not.toContain("--plugins")
@@ -228,22 +175,7 @@ test("a failed row quotes what the plugin said, or says it said nothing", () => 
   expect(pluginHint(only(row("failed")))).toContain("gave no message")
 })
 
-/**
- * THE TWO ABSENT-AT-BOOT ARMS NAME THIS ROW'S OWN WORD, which is what keeps
- * them from being the repetition this panel just lost.
- *
- * The switch starts a plugin NOW; the flag is how it comes back after a
- * restart, and that is the one thing on this panel that outlives the process.
- * Both arms therefore name what to type — and because both spell the ROW's
- * name, no two of these lines are the same line, which is exactly the test the
- * shared clause failed.
- *
- * THEY ARE TWO ARMS AND NOT ONE. `optIn` is this build shipping the plugin off
- * until somebody asks, and it is only reachable under NO flag — so
- * a policy selecting only alpha is the whole of what to type. `off` is a flag that was
- * given and did not name this row, so what to type is this name ADDED to a list
- * the panel's foot is already quoting.
- */
+
 test("an absent row names its own word and what to type at boot", () => {
   const optIn = pluginHint(only(row("optIn")))
   expect(optIn).toContain("on: yes")
@@ -251,7 +183,6 @@ test("an absent row names its own word and what to type at boot", () => {
   const off = pluginHint(only(row("off")))
   expect(off).toContain("alpha")
   expect(off).toContain("on: yes")
-  // ...and it does not quote a VALUE, which under a given flag would be a
   // sentence telling somebody to turn every other plugin off.
   expect(off).not.toContain("--plugins=")
 })
@@ -429,21 +360,7 @@ test("a press freezes only that row's strip, and does not move it", () => {
   expect(pluginSwitch(live, true).value).toBe("on")
 })
 
-/**
- * HOW THIS SERVE STARTED IS ONE LINE FOR THE PANEL, and used to be one per row.
- *
- * Under a given flag `pluginSetBy` answered the same string for every plugin —
- * the flag quoted in full, wrapped over three lines, eight times. The panel's
- * header called that an argument for having no panel-wide line, on the grounds
- * that every row already said it, which is a repetition noticed and then
- * defended. `pin` is one value for the serve; the sentence about it is one
- * sentence for the serve.
- *
- * WHETHER A ROW NAMES A FLAG and WHAT IT SAYS are still the same reading, which
- * is what the pairing was always for: the line is read off the same `pin`
- * the rows are, so the flag it quotes and the rows it sits under cannot come
- * from two different frames.
- */
+
 test("the foot names the file instead of retired startup flags", () => {
   for (const value of [roster(["alpha"]), roster(["alpha"]), roster([])]) {
     expect(pluginsStarted(value)).toContain("_olai/Settings.olai")
@@ -462,15 +379,7 @@ test("the foot names durable policy and private memory; session exceptions belon
   expect(rowCopy({ name: "alpha", running: true, switchPersistence: "file" }, value)).toBe(null)
 })
 
-/**
- * NO ROW REPEATS THE PANEL'S LINE, which is the whole of what was wrong and
- * the thing that would come back first.
- *
- * Asserted over every state a row can be in, as an absence: the way this
- * regresses is one arm acquiring a clause about the flag or the restart because
- * it read well on that arm alone — which is exactly how eight identical
- * paragraphs happened the first time.
- */
+
 test("no row repeats what the panel says once", () => {
   const every = [
     pluginHint(only(row("running"))),

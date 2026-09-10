@@ -22,7 +22,8 @@ import type { Page } from "playwright";
 
 import { fileKind } from "@olai/format";
 
-import { SIZE_STORAGE_KEY } from "@olai/web/testlib"
+import { BOX_NAME } from "../support/hooks.ts";
+import { SIZE_STORAGE_KEY, selector } from "@olai/web/testlib"
 // A PREFERENCE IS KEPT BY WHOEVER DRAWS THE THING, and the key it is kept
 // under is that row's name for it. These six came through `@olai/web/testlib`,
 // which is how a general package came to declare `olai-plugin-chat` and
@@ -1006,13 +1007,12 @@ Then(
 Then(
   "the plugins panel shows {string} configured {string} as {string}",
   async function (this: OlaiWorld, plugin: string, key: string, value: string) {
-    await this.waitUntil(async () => {
-      const row = await shownRow(this, plugin);
-      const pair = row.locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`);
-      const disclosure = row.locator('[data-testid="plugin-defaults"]');
-      if (await disclosure.count() && await disclosure.getAttribute("open") === null) await disclosure.locator("summary").click();
-      return await pair.count() === 1 && await pair.isVisible() && (await pair.innerText()).replaceAll("\n", " ").includes(value);
-    }, `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${JSON.stringify(value)}`);
+    const row = await shownRow(this, plugin);
+    const pair = row.locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`);
+    await this.waitUntil(async () => await pair.count() === 1,
+      `the ${JSON.stringify(plugin)} row has no config for ${JSON.stringify(key)}`);
+    await this.waitUntil(async () => await pair.isVisible() && (await pair.innerText()).replaceAll("\n", " ").includes(value),
+      `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${JSON.stringify(value)}`);
   },
 );
 
@@ -1439,6 +1439,7 @@ When("I open This serve", async function (this: OlaiWorld) {
 Then("This serve names its bound address and a set bearer without its value", async function (this: OlaiWorld) {
   const text = await this.pluginsPanel().locator('[data-testid="this-serve"]').innerText()
   assert.ok(text.includes("host 127.0.0.1"))
+  assert.ok(text.includes(`hostname ${BOX_NAME} ·env`))
   assert.ok(text.includes(`port ${new URL(this.baseUrl).port}`))
   assert.ok(text.includes("bearer set ·process"))
 })
@@ -1446,3 +1447,18 @@ Then("This serve reads {string} as {string} from {string}", async function (this
   const chip = this.pluginsPanel().locator(`[data-testid="this-serve"] ${attr("data-config", key)}${attr("data-set-by", author)}`)
   await chip.filter({ hasText: value }).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
 })
+
+
+When("I open defaults for the plugin {string}", async function (this: OlaiWorld, plugin: string) {
+  const disclosure = (await shownRow(this, plugin)).locator('[data-testid="plugin-defaults"]');
+  await disclosure.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  if (await disclosure.getAttribute("open") === null) await disclosure.locator("summary").click();
+});
+Then("the plugin {string} is running", async function (this: OlaiWorld, plugin: string) {
+  await (await shownRow(this, plugin)).locator(`${PLUGIN_SWITCH}[aria-checked="true"]`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+Then("the commit ledger includes the settings switch", async function (this: OlaiWorld) {
+  const group = this.page.locator(`${selector(TESTID.commitGroup)}${attr("data-file", "_olai/Settings.olai")}`);
+  await group.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.ok((await group.innerText()).includes("journal"), "the journal namespace is recorded as an ordinary node change");
+});

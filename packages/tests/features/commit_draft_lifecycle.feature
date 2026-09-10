@@ -24,6 +24,7 @@ Feature: A prepared commit survives a neighboring plugin rebuild
     Then the journal chrome is absent
     When I open the commit panel
     Then the commit message still reads "only the outline work"
+    And the commit ledger includes the settings switch
     When I submit the drafted commit
     Then the commit pill says 1 uncommitted
     And the last commit is "olai: only the outline work" by "web"

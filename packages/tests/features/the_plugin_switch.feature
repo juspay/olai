@@ -48,8 +48,7 @@ Feature: A plugin is turned on and off while the serve runs
     # it under every row is how the panel became a column of the same sentence
     # eight times.
     Then the plugins panel says nothing more about "kolu"
-    # ...and where this serve was STARTED is the panel's line, said once.
-    And the plugins panel was started "travel"
+    And the plugin "kolu" is running
 
     When I switch the plugin "kolu" off
     # NOT A RELOAD. The sibling left the wire, the roster moved, the tab
@@ -124,8 +123,8 @@ Feature: A plugin is turned on and off while the serve runs
     And no member of this page has gone silent
     And there should be no page errors
 
-  @scratch:lanes @rows:vault,kolu,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
-  Scenario: A row the flag left out is switched on, and is served
+  @scratch:lanes @rows:vault,kolu,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins @rows-off:settings
+  Scenario: A file-disabled row is switched on while the reader is absent
     # THE DIRECTION NOBODY WOULD GUESS IS AVAILABLE, and the one the transport
     # could not have done at all before sub-phase 8a — not by an oversight but
     # in principle. A row absent at boot has no tags in the group the listener
@@ -140,7 +139,7 @@ Feature: A plugin is turned on and off while the serve runs
     Then the conversation is gone-from the header
     When I open the plugins panel
     Then the plugins panel says "kolu" is "Waiting for deliveries, session-start"
-    # ...and the panel says the row is off because a flag left it out, which is
+    # ...and the panel says the row is off because the file disabled it, which is
     # a different morning from a press and from the build's own default.
     And the plugins panel says "chat" is "Off"
 

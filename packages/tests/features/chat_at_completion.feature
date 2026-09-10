@@ -88,9 +88,9 @@ Feature: Typing @ in the chat completes a file of the directory
     When I type "read @" into the chat
     Then the completion offers "finishes.md"
     When I press "ArrowDown" in the chat
+    And I press "ArrowDown" in the chat
     And I accept the completion
-    # Directory order: `_olai/Trash.olai` sorts first, so one down is the
-    # document beside it.
+    # The two convention files sort first; two arrows reach the document.
     Then the chat input reads "read @finishes.md "
 
   @scratch:chat
@@ -100,7 +100,7 @@ Feature: Typing @ in the chat completes a file of the directory
     # Enter taking a file the arrows never landed on, which is the one failure
     # a completion must not have. What this can only be about is the cursor:
     # walked down, then asked something else, Enter takes the FIRST of the new
-    # list (`_olai/Trash.olai` sorts first among the files `@s` matches).
+    # list (`_olai/Settings.olai` sorts first among the files `@s` matches).
     When I type "read @" into the chat
     Then the completion offers "notes/cabinets.md"
     When I press "ArrowDown" in the chat
@@ -108,7 +108,7 @@ Feature: Typing @ in the chat completes a file of the directory
     And I type "read @s" into the chat
     Then the completion offers "notes/cabinets.md"
     When I accept the completion
-    Then the chat input reads "read @_olai/Trash.olai "
+    Then the chat input reads "read @_olai/Settings.olai "
 
   @scratch:chat
   Scenario: A pointer takes the same row, and hands the caret back

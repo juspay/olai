@@ -10,6 +10,11 @@ Feature: A definition reads its own schema knobs
     And I open the plugins panel
     Then the plugins panel shows "swatch" configured "tone" as "blue"
     And the plugin "swatch" marks "tone" as authored by "vault"
+    Given a terminal agent is connected to the served directory
+    When the terminal agent inspects definition configuration
+    Then the definition layout names its Config properties and reserved keys
+    When the terminal agent runs definition "swatch"
+    Then the definition run reports "tone" as "blue" from "vault"
     When I rewrite "definition.olai" as:
       """
       {"id":"swatch-policy","ord":"a0","title":"A configured definition","custom":{"plugin":"swatch","approved":"always","tone":"red"}}

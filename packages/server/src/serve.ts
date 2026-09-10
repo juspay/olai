@@ -77,7 +77,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
     // (`@olai/effect-cordis`'s `settled`), so a row the patch disabled never
     // entered the registry, holds no inertia, and costs the barrier one `has`;
     // a list narrowed to the enabled rows would be a second reading of the flag
-    // beside `pluginsPatch`'s, and the two would drift. `openLoading` takes it
+    // beside the row patch's, and the two would drift. `openLoading` takes it
     // as the RESERVED names, so a plugin the served directory defines cannot
     // claim a bundle row's word. And `bind` walks it to build the roster, which
     // is why a disabled row is a ROW on the plugins panel with a switch under it

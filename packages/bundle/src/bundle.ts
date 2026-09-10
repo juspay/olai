@@ -7,7 +7,7 @@
  * `SERVERS`: an `as const` array of statically imported server halves, which a
  * composition root filtered with `enabled(SERVERS, pin)` and then iterated,
  * calling `serve(services)` on each and keying the results by name. Six edits
- * per plugin across three arrays that had to agree in order, and a the file’s row selection
+ * per plugin across three arrays that had to agree in order, and a policy selection
  * that was a `.filter` in a general package.
  *
  * What is here instead is `../olai.yml` — one row per plugin, `id` and the
@@ -20,14 +20,13 @@
  *
  * The LOADER is one: it reads the file, applies the patch, and drives the entry
  * tree — which is what makes the file’s row selection an overlay over rows rather than a
- * filter in code, and is the seam `--dump-config` and `olai plugin add` land on
- * later.
+ * filter in generic code.
  *
  * The other reader is `../generate.ts`, at BUILD time, which writes the rows out
  * as data (`./rows.ts`) for the one question that has to be answered before
  * anything is mounted: which modules this BUILD has. The vault's vocabulary
  * needs it — a declaration of `kolu-terminal` stays legal on a serve running
- * only odu, so a file's verdict does not depend on a flag it cannot see — and a
+ * only odu, so a file's verdict does not depend on which rows happen to be running — and a
  * disabled row is never imported by the loader, so its words have to be read
  * some other way. Two readings of one file, never two lists.
  *
@@ -100,11 +99,8 @@ const BUNDLE = "../olai.yml"
  */
 export { BUNDLE_NAMES, type BundleRow, DEFAULT_BUNDLE_NAMES, ROWS } from "./rows.ts"
 
-/** WHAT BECAME OF ONE ROW, as the bridge reads it off the live registry — four
- *  states, and `off` says nothing about WHO turned a row off. The row's own
- *  default and the operator's flag are the same field by design
- *  ({@link pluginsPatch}), so the only thing that can tell them apart is whether
- *  a flag was given at all, which is the composition root's to hold. */
+/** Runtime state is independent of policy provenance. The roster joins this
+ * report to the shared configuration reading and build defaults. */
 export type { RowReport, RowState } from "@olai/plugin-api"
 
 /**
@@ -114,8 +110,7 @@ export type { RowReport, RowState } from "@olai/plugin-api"
  * Every row's module is imported, INCLUDING the ones this serve disabled, and
  * that is the point rather than a leak: a DECLARATION is refused against what the
  * binary was built with, so `{"type":"kolu-terminal"}` is a legal row on a
- * machine running only odu and a file's verdict does not depend on a flag it
- * cannot see. What a disabled plugin does not get is a fiber — no surface, no
+ * machine running only odu and a file's verdict does not depend on which rows happen to be running. What a disabled plugin does not get is a fiber — no surface, no
  * handler, no probe, no `admits` — and reading a word off a module is none of
  * those.
  *
@@ -255,7 +250,7 @@ export const setRow = (
   )
 
 /**
- * MOUNT THE BUNDLE ON `host` — the rows, patched by the flag, as fibers.
+ * MOUNT THE BUNDLE ON `host` — the rows, patched by profile and vault policy, as fibers.
  *
  * Returns once every row that is going to load has loaded AND APPLIED, so a
  * caller can read the kind and surface registries straight afterwards and get
@@ -316,10 +311,8 @@ export const mountBundle = (
       patches: [...profilePatch(profile), ...defaults.flat(), ...patches, ...(prepare ? profilePatch("test-minimal") : [])],
       resolve: importByName,
     }),
-    // EVERY ROW THIS BUILD HAS, and not only the ones the flag left on: a row
-    // the patch disabled never entered the registry, so it holds no inertia and
-    // costs the walk one `has` — while a list narrowed to the enabled ones would
-    // be a second reading of the flag beside {@link pluginsPatch}'s.
+    // Settle the entire catalogue: disabled entries have no inertia, while a
+    // dependency withdrawal can move a row outside the patch itself.
     () => settled(host, BUNDLE_NAMES),
   )
 })

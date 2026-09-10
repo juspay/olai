@@ -100,7 +100,7 @@ export const startWeb = (options: {
   readonly policy?: FixturePolicy
 }): WebChild => {
   const extra = options.extra ?? []
-  writeFixturePolicy(options.root, options.policy ?? { commit: "off" })
+  writeFixturePolicy(options.root, { ...(options.policy ?? { commit: "off" }), process: { ...options.policy?.process, "log-format": "logfmt" } })
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     OLAI_DIST_DIR: clientDist(),

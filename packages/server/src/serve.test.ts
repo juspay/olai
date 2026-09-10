@@ -23,6 +23,7 @@
 import { mountBundle, provide, settled } from "@olai/bundle/bundle"
 import { openPlugins } from "@olai/plugin-api/services"
 import { VaultBoot } from "olai-plugin-vault/boot"
+import { hostname } from "./hostname.ts"
 import { followConfiguration } from "./configuration.ts"
 import { runtimePaths } from "./runtime-paths.ts"
 import { BUILD_ASSETS } from "@olai/bundle/assets"
@@ -622,6 +623,7 @@ test("the roster publishes declared env readings without secrets, including disa
     const roster = await configurationRoster(url)
     expect(JSON.stringify(roster)).not.toContain("private-fixture-token")
     expect(roster.instance?.bearer).toEqual({ set: true })
+    expect(roster.instance?.hostname).toBe(hostname())
     const row = roster.built.find(row => row.name === "xyne-spaces")!
     expect(row.environment).toContainEqual({ key: "OLAI_SPACES_TOKEN", kind: "secret", set: true, says: "the credential for Spaces" })
     expect(row.environment?.find(one => one.key === "OLAI_SPACES_URL")).toMatchObject({ value: "https://example.invalid", kind: "resource" })

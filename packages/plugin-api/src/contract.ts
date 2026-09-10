@@ -701,7 +701,7 @@ export const kindWordOf = (plugin: string, kind: string): string => {
  * that composed a roster read them.
  *
  * Nothing calls either. the file’s row selection is a `disabled` PATCH over rows now
- * (`@olai/bundle`'s `pluginsPatch`, applied by `@cordisjs/plugin-include` on
+ * (`@olai/bundle`'s the row patch, applied by `@cordisjs/plugin-include` on
  * the way in), so a plugin that is off is never loaded rather than filtered out
  * of a list — and the preferences row that needed `isEnabled` reads a state
  * word off the roster cell instead.

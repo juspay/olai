@@ -50,3 +50,12 @@ test("case-folded basename, shallowest path and deterministic ties decide", () =
   expect(at.file).toBe("Settings.OLAI")
   expect(at.rows.get("example")?.config.mode).toBe("loud")
 })
+
+test("one invalid schema declaration cannot prevent other rows being read", () => {
+  const lines: string[] = []
+  const at = readConfiguration(readingOf(setOf({ "_olai/Settings.olai": row({ mode: "loud" }) })),
+    new Map([...declarations, ["invalid", Schema.Struct({ required: Schema.String })]]), 1, line => lines.push(line))
+  expect(at.rows.get("example")?.config.mode).toBe("loud")
+  expect(lines.some(line => line.includes("invalid Config"))).toBe(true)
+  expect(at.rows.get("invalid")?.values).toEqual([])
+})

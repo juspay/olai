@@ -7,6 +7,7 @@ Feature: File policy chooses the rows that run
     Given I open the outline "lanes.olai"
     When I open the plugins panel
     Then the plugin "xyne-spaces" has authored enablement "yes"
+    And the plugin "xyne-spaces" is running
     And the plugins panel says nothing more about "journal"
 
   @scratch:lanes @rows-off:journal
@@ -20,6 +21,7 @@ Feature: File policy chooses the rows that run
     Given I open the outline "lanes.olai"
     When I open the plugins panel
     Then the plugin "xyne-spaces" has authored enablement "yes"
+    And the plugin "xyne-spaces" is running
     And the plugins panel says "journal" is "Settings.olai says on: no"
 
   @scratch:good @rows-off:mcp

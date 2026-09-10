@@ -23,7 +23,7 @@ Nothing about that needs a new write door. An agent writes a definition with `ou
 
 ## Knobs on the definition
 
-A server half may expose a `Config` schema just like a built row. Give every field a decoding default and a description annotation, then pass it as `config` to `definePlugin`; `apply` receives the decoded object. Properties on the definition node supply its leaves, and children may supply schema sections. These values belong on this node, not a second namespace in the shared settings file.
+A server half may expose a `Config` schema just like a built row. Give every field a decoding default and a description annotation, then pass it as `config` to `definePlugin`; `apply` receives the decoded object. Properties on the definition node supply its leaves, and children may supply schema sections. These values belong on this node, not a second namespace in the shared settings file. `plugin` and `approved` are reserved definition keys: declaring either in Config faults the row. `vault-plugins_inspect` describes this layout, and `vault-plugins_run` returns the current configuration values with their authors.
 
 ```ts
 import { definePlugin } from "@olai/plugin-api"

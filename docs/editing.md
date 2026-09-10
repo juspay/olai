@@ -557,3 +557,11 @@ to the old seat until that anchor row is available. The fallback changes only
 where the input is drawn, never where the next write goes. This avoids a period
 with no input in the document, and also handles several creates before their
 frames arrive. Observed rows release their fallback records.
+
+
+The move gesture belongs to the page, separately from its picker view. A page
+revision may arrive before the write reply: the gesture retains the source
+until the reply supplies its destination, so a nudge can stand under a collapsed
+destination. Unmounting the shortlist during that write preserves the judged
+destination list and cannot reopen the subscription with an empty question.
+These two orderings are pinned by `outlines/src/browser/move/moving.browsertest.ts`.

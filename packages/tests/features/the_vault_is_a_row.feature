@@ -7,6 +7,7 @@ Feature: The vault is a row
     Given I open the outline "garden.olai"
     Then the node "mint" is shown
     When I open the plugins panel
+    And I open defaults for the plugin "vault"
     Then the plugins panel shows "vault" configured "format" as "olai"
     And the plugins panel says "vault" is "Switch is session-only"
     When I switch the plugin "vault" off
@@ -23,15 +24,17 @@ Feature: The vault is a row
     Then the MCP vault can read an outline
     And there should be no page errors
 
-  @rows:ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
-  Scenario: A transport-only selection can enable the vault from the control panel
+  @rows:ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins @rows-off:vault
+  Scenario: Repairing a file-disabled vault allows the control panel to reopen it
     Given I open the app
     When I open the plugins panel
     Then the plugins panel says "vault" is "Off"
     And the MCP vault never offered the write, because no vault was asked for
-    When I switch the plugin "vault" on
-    Then the plugins panel says nothing more about "vault"
+    When another writer sets "on" to "yes" on "fixture-policy-vault" in "_olai/Settings.olai"
+    And I switch the plugin "vault" on
+    Then the plugins panel says "vault" is "Switch is session-only"
     And the MCP vault can read an outline
-    When I switch the plugin "vault" off
+    When I open the plugins panel
+    And I switch the plugin "vault" off
     Then the MCP vault refuses a write because no directory is served
     And there should be no page errors

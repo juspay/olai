@@ -60,17 +60,13 @@ When("I press the drawer's wrench", async function(this: OlaiWorld) {
 })
 
 Then("the drawer's wrench links to {string}", async function(this: OlaiWorld, href: string) {
-  const wrench = this.page.locator(PADI_FEED_WRENCH).first()
   await visible(this, PADI_FEED_WRENCH)
-  assert.equal(
-    await wrench.getAttribute("href"),
-    href,
-    "the wrench's door was not the config",
-  )
+  await this.expectAttribute(PADI_FEED_WRENCH, "href", href, "the drawer’s config door")
 })
 
 Then("the drawer has no foot", async function(this: OlaiWorld) {
   await visible(this, '[data-testid="events-feed"], [data-testid="events-empty"]')
+  await this.page.locator(PADI_FEED_FOOT).waitFor({ state: "hidden", timeout: POLL_TIMEOUT })
   assert.equal(
     await this.page.locator(PADI_FEED_FOOT).count(),
     0,

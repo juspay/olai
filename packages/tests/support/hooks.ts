@@ -546,10 +546,13 @@ const corpusHome = (corpus: string): string =>
 /** A copy of the tracked corpus that belongs to THIS worker, made on the first
  *  ask and kept for the run. See the header: two workers over one directory is
  *  two olai over one vault, which the server refuses. */
+const copiedCorpora = new Set<string>();
 const workerCopyOf = (corpus: string): string => {
   const root = path.join(corpusHome(corpus), "served");
-  if (!fs.existsSync(root)) {
+  if (!copiedCorpora.has(corpus)) {
     fs.cpSync(fixtureDir(corpus), root, { recursive: true });
+    writeFixturePolicy(root, { process: { "log-format": "logfmt" } });
+    copiedCorpora.add(corpus);
   }
   return root;
 };
@@ -1082,6 +1085,7 @@ const scratchServerFor = async (
   try {
     fs.cpSync(fixtureDir(corpus), root, { recursive: true });
     writeFixturePolicy(root, {
+      process: { "log-format": "logfmt" },
       commit: spawnOptions.pin?.commit,
       push: spawnOptions.pin?.push, only: spawnOptions.plugins, extra: spawnOptions.rowsOn,
       without: spawnOptions.rowsOff, avatar: spawnOptions.avatar,

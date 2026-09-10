@@ -1,5 +1,5 @@
 /** Test setup only: author the same policy file a person would put in a vault.
- * Existing authored leaves win. Call before the fixture's initial git commit,
+ * Existing authored leaves win, except an explicitly requested process log format. Call before the fixture's initial git commit,
  * never from product boot or when restarting an already prepared directory. */
 import * as fs from "node:fs"
 import * as path from "node:path"
@@ -25,7 +25,7 @@ export const writeFixturePolicy = (root: string, policy: FixturePolicy): void =>
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") return // Keep broken-file fixtures broken.
   }
   let changed = false
-  const put = (name: string, key: string, value: string | undefined) => {
+  const put = (name: string, key: string, value: string | undefined, replace = false) => {
     if (value === undefined) return
     let node = nodes.find(node => node.parent === undefined && node.title === name)
     if (node === undefined) {
@@ -33,17 +33,17 @@ export const writeFixturePolicy = (root: string, policy: FixturePolicy): void =>
       nodes.push(node)
     }
     node.custom ??= {}
-    if (!(key in node.custom)) { node.custom[key] = value; changed = true }
+    if (!(key in node.custom) || (replace && node.custom[key] !== value)) { node.custom[key] = value; changed = true }
   }
-  for (const [key, value] of Object.entries(policy.process ?? {})) put("olai", key, value)
+  for (const [key, value] of Object.entries(policy.process ?? {})) put("olai", key, value, key === "log-format")
   put("git", "commit", policy.commit)
   put("git", "push", policy.push)
   if (policy.only !== undefined) {
     const names = typeof policy.only === "string" ? policy.only.split(",") : policy.only
-    for (const row of ROWS) put(row.id, "on", names.includes(row.id) ? "yes" : "no")
+    for (const row of ROWS) put(row.id, "on", names.includes(row.id) || (row.disabled !== true && row.profiles?.includes("test-minimal")) ? "yes" : "no")
   }
-  for (const name of policy.extra?.split(",").filter(Boolean) ?? []) put(name, "on", "yes")
-  for (const name of policy.without?.split(",").filter(Boolean) ?? []) put(name, "on", "no")
+  for (const name of policy.extra?.split(",").filter(Boolean) ?? []) put(name, "on", "yes", true)
+  for (const name of policy.without?.split(",").filter(Boolean) ?? []) put(name, "on", "no", true)
   for (const [key, value] of Object.entries(policy.identity ?? {})) put("identity", key, value)
   put("identity", "avatar-template", policy.avatar)
   put("chat", "idle-ms", policy.idle === undefined ? undefined : String(policy.idle))

@@ -1,3 +1,4 @@
+import { writeFixturePolicy } from "@olai/bundle/testlib"
 import { writeFileSync, rmSync } from "node:fs"
 import { join } from "node:path"
 import { expect, test } from "bun:test"
@@ -183,10 +184,12 @@ test("vault withdrawal removes content tools and resync, then a new activation r
 })
 
 test("an explicit content selection waits for its vault and acquires tools when it arrives", async () => {
-  await withServing({ root: served(), plugins: ["outlines", "ws", "mcp", "web-app"] }, async (url) => {
+  const root = served()
+  await withServing({ root, plugins: ["outlines", "ws", "mcp", "web-app"], policy: { without: "vault" } }, async (url) => {
     const listed = await request(url)
     expect((await listed.json()).result.tools.map((tool: { name: string }) => tool.name)).not.toContain("outlines_read")
     expect((await fetch(url + "/olai/resync", { method: "POST" })).status).toBe(404)
+    writeFixturePolicy(root, { extra: "vault" })
     await flip(url, "vault", true)
     const read = await request(url, "tools/call", { name: "outlines_read", arguments: { id: "a" } })
     expect((await read.json()).result.isError).not.toBe(true)
@@ -255,7 +258,7 @@ test("CLI content removal applies over the headless profile without requiring a 
 }, 15000)
 
 test("file policy composes a non-notebook MCP host without a vault", async () => {
-  const child = startWeb({ root: served(), policy: {"only": "mcp,test-counter"}, extra: ["--profile", "surface"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
+  const child = startWeb({ root: served(), policy: {"only": "mcp,test-counter", without: "vault"}, extra: ["--profile", "surface"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
   try {
     const url = await child.address()
     const listed = await request(url)

@@ -30,10 +30,8 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { serve } from "./serve.ts"
-// Twin of startWeb's OLAI_ACP_AGENT: "". None of these in-process boots
-// is about the chat panel, and a real `opencode` on PATH would spawn one
-// per serve() — the load that blows a listen wait. Empty is the documented
-// search path, so no external engine executable is discovered.
+// These in-process boots do not exercise external chat engines. Clear explicit
+// executable paths and the discovery search path to keep each serve isolated.
 process.env.OLAI_ACP_AGENT = ""
 process.env.OLAI_ACP_CODEX = ""
 process.env.OLAI_ACP_PI = ""

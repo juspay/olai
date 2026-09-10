@@ -1022,7 +1022,7 @@ describe("the agent's door", () => {
 })
 
 /**
- * `commit: auto` — the QUIET WINDOW, which is what that flag now is.
+ * `commit: auto` — the QUIET WINDOW, which is what that mode does.
  *
  * It used to be one commit per write, made inside the write gate. These are the
  * scenarios that replace it: nothing commits a write on its own any more, and
@@ -1660,7 +1660,7 @@ test("the Push button still hands over git's refusal about a missing upstream", 
     }), { commits: "manual", pushes: "off" }))
 
 
-test("pinned is the resolved policy, including omitted push defaults", () =>
+test("the git reading carries the decoded policy, including push defaults", () =>
   withRepo({ "house.olai": HOUSE }, fixture => Effect.gen(function*() {
     const { git } = yield* fixture.ops.status
   })))
