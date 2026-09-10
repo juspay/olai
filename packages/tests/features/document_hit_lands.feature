@@ -27,3 +27,12 @@ Feature: A document search result lands at its matching source line
     When I open the address "/landing.md?q=zinnialanding#L999"
     Then the long search document is at the top without a highlight
     And there should be no page errors
+
+  Scenario: A match deep in a list lands on its own item
+    Given a long search list with "zinnialanding" on file line 140
+    When I press the palette shortcut
+    And I type "zinnialanding" into the palette
+    Then the palette lists the document "landing.md"
+    When I press "Enter"
+    Then the document match "zinnialanding" is lit in the viewport at line 140
+    And there should be no page errors

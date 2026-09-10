@@ -286,7 +286,7 @@ Open palette and header searches follow vault changes without another keystroke.
 A body match on a markdown document carries an optional 1-based **file line**
 through the search answer, including to `search_nodes`. Opening it from the
 palette or header sets `?q=<query>#L<line>` and scrolls to the rendered block
-containing that source line, highlighting the query's words there. The address
+containing that source line (including the individual item in a long list), highlighting the query's words there. The address
 is shareable; Back returns to the page searched from. Blank lines and opening
 fence markers land on the preceding block. A line past the end opens at the top
 without an error. Title, path, tag and operator matches have no line and open
