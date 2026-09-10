@@ -57,7 +57,12 @@ cells: {
     }
 },
 procedures: {
-plugins: { set: {
+plugins: {
+      configure: {
+        input: Schema.Struct({ name: Schema.String, key: Schema.String, value: Schema.NullOr(Schema.String) }),
+        output: Schema.Struct({}), error: OpFailure,
+      },
+      set: {
         input: Schema.Struct({
           /** The plugin's `name` — the row's own word, walked out of the
            *  `plugins` cell. Never a label, never an index: {@link BuiltPlugin}

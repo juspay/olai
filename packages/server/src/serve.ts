@@ -227,6 +227,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
             configurationDefaults: policy.defaults,
             environment: policy.environment,
             persistent: policy.persistent,
+            configure: policy.configure,
             set: (id, enabled) => policy.set(id, enabled, () => flipped(id, enabled)),
             reread: Effect.gen(function* () {
                 report = yield* reportBundle(plugins.host, loading.names());

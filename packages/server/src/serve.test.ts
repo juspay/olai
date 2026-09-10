@@ -552,6 +552,13 @@ test("a kolu watch edit preserves its activation, while on still unloads and rem
     const registration = () => plugins.composed().find(one => one.name === "kolu")
     const first = registration()
     expect(first).toBeDefined()
+    const firstGit = plugins.composed().find(one => one.name === "git")
+    expect(firstGit).toBeDefined()
+    yield* policy.configure("git", "commit", "auto")
+    expect(plugins.composed().find(one => one.name === "git")).not.toBe(firstGit)
+    yield* policy.configure("kolu", "watch.held-for", "90s")
+    expect(policy.current()?.rows.get("kolu")?.values.find(one => one.key === "watch.held-for")?.value).toBe("90s")
+    expect(registration()).toBe(first)
     yield* Effect.promise(async () => {
       const before = publications
       write("45s")
@@ -730,5 +737,24 @@ test("file enablement cannot lock either reader out; session switches survive pu
       expect(String(warnings[0]?.message)).toContain("_olai/Settings.olai")
     }
     expect(fs.readFileSync(file, "utf8")).toContain('"on":"no"')
+  })
+})
+
+
+test("configure writes the file, refuses invalid values without touching it, and Use default removes the key", async () => {
+  const root = served()
+  await withServing({ root }, async url => {
+    const configure = (name: string, key: string, value: string | null) => configurationCall(url, "surface/plugins/configure", { name, key, value })
+    await configure("git", "commit", "auto")
+    const file = path.join(root, "_olai/Settings.olai")
+    const before = fs.readFileSync(file, "utf8")
+    await expect(configure("git", "commit", "occasionally")).rejects.toThrow("manual")
+    expect(fs.readFileSync(file, "utf8")).toBe(before)
+    await configure("git", "commit", null)
+    const node = fs.readFileSync(file, "utf8").trim().split("\n").map(line => JSON.parse(line)).find(one => one.title === "git")
+    expect(node.custom ?? {}).not.toHaveProperty("commit")
+    expect((await configurationRoster(url)).built.find(one => one.name === "git")?.configurationValues?.find(one => one.key === "commit")).toMatchObject({ value: "manual", setBy: "default" })
+    await configure("olai", "log-level", "warn")
+    expect((await configurationRoster(url)).instance?.policy.find(one => one.key === "log-level")).toMatchObject({ value: "warn", setBy: "vault" })
   })
 })

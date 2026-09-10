@@ -1,12 +1,14 @@
 /** Narrow host loading: callers own the children they load. This mechanism
  * knows plugin modules and reports, not source files, approval or compilation. */
 import { serviceTag, provide, mountPlugin, rowReport, type Plugin, type Mounted, type Host, type RowReport } from "@olai/effect-cordis"
+import type { OpFailure } from "@olai/format"
 import { Effect, Exit, Scope } from "effect"
 
 export interface Catalog {
   readonly names: () => ReadonlyArray<string>
   readonly rows: (reports: ReadonlyMap<string, RowReport>) => ReadonlyArray<unknown>
   readonly set: (name: string, enabled: boolean) => Effect.Effect<boolean>
+  readonly configure: (name: string, key: string, value: string | null) => Effect.Effect<boolean, OpFailure>
 }
 export interface OwnedLoader {
   readonly mount: (plugin: Plugin, config?: unknown) => Effect.Effect<Mounted>

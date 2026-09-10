@@ -29,11 +29,14 @@ export default definePlugin({
     const describedSlots = slotCatalog(moduleCatalog.map(module => module.exports))
     const loading = yield* HostLoading
     const gate = (yield* Ops).gate as Gate
-    const dynamic = openDynamic(yield* loading.acquire, loading.reserved)
+    const dynamic = openDynamic(yield* loading.acquire, loading.reserved, request => Effect.gen(function*() {
+      yield* gate.run(request, "web")
+      yield* followed(yield* gate.read)
+    }))
     const settling = <T>(run: Effect.Effect<T>) => Effect.ensuring(run, Effect.sync(loading.changed))
     const followed = (read: Reading | null) => Effect.asVoid(settling(dynamic.follow(read?.derived ?? null)))
     yield* Effect.addFinalizer(() => Effect.asVoid(dynamic.follow(null)))
-    yield* loading.describe({ names: dynamic.names, rows: dynamic.rows, set: (name, enabled) => settling(dynamic.set(name, enabled)) })
+    yield* loading.describe({ names: dynamic.names, rows: dynamic.rows, set: (name, enabled) => settling(dynamic.set(name, enabled)), configure: dynamic.configure })
     yield* (yield* Vault).revision<Snapshot<Reading>>(snapshot => followed(snapshot.value))
     yield* (yield* Vault).unloaded(followed(null))
     const deps: ImplementSurfaceDeps<typeof surface.spec> = { procedures: { plugins: {

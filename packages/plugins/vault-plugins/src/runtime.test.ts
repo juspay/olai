@@ -11,7 +11,7 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * because that is what the tab is handed.
  */
 
-import { TRASH_FILE } from "@olai/format"
+import { TRASH_FILE, type WriteRequest } from "@olai/format"
 import { readingOfVault } from "@olai/format/testlib/scope"
 import {
   Agents,
@@ -525,3 +525,22 @@ test("definition metadata preserves field boundaries across delimiter-like text"
     expect(wordsOf([before])).toBe(wordsOf([{ ...before }]))
   }
 })
+
+
+test("configure edits the definition node and refuses its reserved keys before writing", () => bench((_dynamic, _now, host) => Effect.gen(function*() {
+  const written: WriteRequest[] = []
+  const dynamic = openDynamic({ mount: (plugin, config) => mountPlugin(host, plugin, { wait: false, config }) }, [], request => Effect.sync(() => { written.push(request) }))
+  const server = `import { definePlugin } from "@olai/plugin-api"; import { Effect, Schema } from "effect";
+    export default definePlugin({ name: "swatch", needs: [], config: Schema.Struct({ tone: Schema.Literals(["blue", "red"]).pipe(Schema.withDecodingDefaultKey(Effect.succeed("blue")), Schema.annotate({ description: "the tone" })) }), apply: () => Effect.void });`
+  yield* dynamic.follow(vault({ server, approved: ALWAYS }))
+  expect(yield* Effect.orDie(dynamic.configure("swatch", "tone", "red"))).toBe(true)
+  expect(written).toEqual([{ op: "prop", id: "p", key: "tone", value: "red" }])
+  for (const key of ["plugin", "approved"]) {
+    const refused = yield* Effect.orDie(Effect.flip(dynamic.configure("swatch", key, "anything")))
+    expect(refused.message).toContain("reserved")
+  }
+  expect((yield* Effect.orDie(Effect.flip(dynamic.configure("swatch", "tone", "green")))).message).toContain("blue")
+  expect(written).toHaveLength(1)
+  yield* Effect.orDie(dynamic.configure("swatch", "tone", null))
+  expect(written[1]).toEqual({ op: "prop", id: "p", key: "tone", value: null })
+})))

@@ -1,10 +1,11 @@
+import { Config as ProcessConfig } from "./process-policy.ts"
 /** Serve-owned serialization of live policy publications and loader updates.
  * The provider only publishes. Losing it cancels the subscription, never a
  * patch already accepted by this worker, and never rolls row options back. */
 import { ROWS } from "@olai/bundle"
 import { BUNDLE_NAMES, configsOf, offered, patchBundleRow, patchBundleRows, profilePatch, serviceChanges } from "@olai/bundle/bundle"
 import { BundleModules, ConfigurationSource, Env, Ops as WriteDoor } from "@olai/plugin-api/services"
-import { CONFIGURATION_FILE, decodePolicy, environmentReadings, type Configuration, type PolicyRow } from "@olai/plugin-api/configuration"
+import { CONFIGURATION_FILE, configurationUnavailable, configurationBroken, configurationNode, policyEdit, decodePolicy, environmentReadings, type Configuration, type PolicyRow } from "@olai/plugin-api/configuration"
 import { UsageFailure, type OpFailure, type WriteRequest } from "@olai/format"
 import type { Ops } from "@olai/ops"
 import type { Plugin } from "@olai/plugin-api"
@@ -21,6 +22,8 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
   let observed: ConfigurationSource | undefined
   const persistent = (id: string) => offered(host, ConfigurationSource) !== undefined && !sessionOwners().includes(id)
   const modules = yield* offered(host, BundleModules)!.read
+  const declarations = new Map(modules.map(one => [one.name, (one.exports as { default: Plugin }).default.config]))
+  declarations.set("olai", ProcessConfig)
   const live = new Set(modules.filter(one =>
     (one.exports as { default: Plugin }).default.configUpdates === "live").map(one => one.name))
   const defaults = new Map<string, PolicyRow>(modules.map(one => {
@@ -109,5 +112,19 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
     yield* awaitRevision(source, written.rev)
     return true
   }))
-  return { defaults, environment, persistent, set, close: Effect.andThen(Fiber.interrupt(subscriptions), Fiber.interrupt(patches)), ready: Deferred.await(ready), current: () => active === offered(host, ConfigurationSource) ? current : undefined }
+  const configure = (id: string, key: string, value: string | null, defined: () => Effect.Effect<boolean, OpFailure> = () => Effect.succeed(false)): Effect.Effect<boolean, OpFailure> => presses.withPermit(Effect.gen(function*() {
+    const source = offered(host, ConfigurationSource)
+    if (source === undefined) return yield* Effect.fail(new UsageFailure({ reason: configurationUnavailable }))
+    const at = source.current()
+    if (at.broken !== undefined) return yield* Effect.fail(new UsageFailure({ reason: configurationBroken(at.file) }))
+    if (!declarations.has(id)) return yield* defined()
+    const request = yield* Effect.try({ try: () => policyEdit(declarations.get(id), at.nodes ?? [], configurationNode(at.nodes ?? [], id), at.file, id, key, value), catch: error => error as UsageFailure })
+    if (request === undefined) { yield* awaitRevision(source, at.revision); return true }
+    const door = offered(host, WriteDoor)
+    if (door === undefined) return yield* Effect.fail(new UsageFailure({ reason: "The directory's write door is unavailable." }))
+    const written = yield* (door.gate as Ops).run(request, "web")
+    yield* awaitRevision(source, written.rev)
+    return true
+  }))
+  return { defaults, environment, persistent, set, configure, close: Effect.andThen(Fiber.interrupt(subscriptions), Fiber.interrupt(patches)), ready: Deferred.await(ready), current: () => active === offered(host, ConfigurationSource) ? current : undefined }
 })

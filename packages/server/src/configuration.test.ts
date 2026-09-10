@@ -1,6 +1,6 @@
 /** The root's publication worker, over real loader rows and scoped service offers. */
 import { expect, test } from "bun:test"
-import { Effect, Deferred, Exit, Fiber, Scope, SubscriptionRef } from "effect"
+import { Effect, Deferred, Exit, Fiber, Scope, SubscriptionRef, Schema } from "effect"
 import { ROWS } from "@olai/bundle"
 import { mountBundle, patchBundleRow, provide } from "@olai/bundle/bundle"
 import { ConfigurationSource, Ops as WriteDoor, openPlugins } from "@olai/plugin-api/services"
@@ -103,3 +103,51 @@ test("on yes activates a row declared disabled by the build", () => bench(({ plu
   const row = plugins.composed().find(row => row.name === "test-counter")
   expect(row).toBeDefined()
 })))
+
+
+test("configure refuses bad values before the write and waits for the accepted revision", () => bench(({ plugins, policy, publish }) => Effect.gen(function*() {
+  const writes: unknown[] = []
+  yield* provide(plugins.host, WriteDoor, () => ({ gate: { run: (request: unknown) => Effect.sync(() => { writes.push(request); return { rev: 2 } }) } } as unknown as WriteDoor))
+  const bad = yield* Effect.flip(policy.configure("git", "commit", "occasionally"))
+  expect(bad.message).toContain("manual")
+  expect(writes).toEqual([])
+  let finished = false
+  const press = yield* Effect.forkChild(Effect.tap(policy.configure("git", "commit", "auto"), () => Effect.sync(() => { finished = true })))
+  yield* until(() => writes.length === 1)
+  expect(finished).toBe(false)
+  expect(writes[0]).toEqual({ op: "add", file: "_olai/Settings.olai", title: "git", props: { commit: "auto" } })
+  yield* publish(publication(2))
+  expect(yield* Fiber.join(press)).toBe(true)
+  expect(finished).toBe(true)
+})))
+
+test("configure has no session fallback and preserves broken files", () => bench(({ plugins, policy, publish, withdraw }) => Effect.gen(function*() {
+  let writes = 0
+  yield* provide(plugins.host, WriteDoor, () => ({ gate: { run: () => Effect.sync(() => { writes++; return { rev: 3 } }) } } as unknown as WriteDoor))
+  yield* publish({ ...publication(2), broken: "torn" })
+  yield* until(() => policy.current()?.revision === 2)
+  expect((yield* Effect.flip(policy.configure("git", "commit", "auto"))).message).toBe("Repair _olai/Settings.olai before changing settings")
+  yield* withdraw
+  expect((yield* Effect.flip(policy.configure("git", "commit", "auto"))).message).toBe("Settings can be edited when the configuration reader is running")
+  expect(writes).toBe(0)
+})))
+
+test("policy edits create missing namespaces and section children atomically, and default deletes the leaf", async () => {
+  const { policyEdit, decodePolicy } = await import("@olai/plugin-api/configuration")
+  const { readingOf, setOf } = await import("@olai/format/testlib")
+  const { isRegular } = await import("@olai/format")
+  const schema = Schema.Struct({ mode: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed("quiet"))),
+    watch: Schema.Struct({ delay: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed("60s"))) }).pipe(Schema.withDecodingDefaultKey(Effect.succeed({ delay: "60s" }))) })
+  expect(policyEdit(schema, [], undefined, undefined, "example", "watch.delay", "90s")).toEqual({ op: "create", file: "_olai/Settings.olai", seed: { title: "example", children: [{ title: "watch", props: { delay: "90s" } }] } })
+  const node = { id: "e", title: "example", ord: "a0", custom: { mode: "loud" } }
+  const child = { id: "w", title: "watch", ord: "a0", parent: "e", custom: { delay: "90s" } }
+  const located = (rows: unknown[]) => readingOf(setOf({ "_olai/Settings.olai": rows.map(one => JSON.stringify(one)).join("\n") })).derived.nodes.filter(isRegular)
+  let nodes = located([node])
+  expect(policyEdit(schema, nodes, nodes[0], "_olai/Settings.olai", "example", "watch.delay", "90s")).toEqual({ op: "add", parent: "e", title: "watch", props: { delay: "90s" } })
+  nodes = located([node, child])
+  expect(policyEdit(schema, nodes, nodes[0], "_olai/Settings.olai", "example", "watch.delay", "2m")).toEqual({ op: "prop", id: "w", key: "delay", value: "2m" })
+  expect(policyEdit(schema, nodes, nodes[0], "_olai/Settings.olai", "example", "mode", null)).toEqual({ op: "prop", id: "e", key: "mode", value: null })
+  nodes = located([{ ...node, custom: {} }, child])
+  expect(decodePolicy(schema, nodes, nodes[0], () => {}).values[0]).toMatchObject({ value: "quiet", setBy: "default" })
+  expect(() => policyEdit(schema, nodes, nodes[0], "_olai/Settings.olai", "example", "on", "yes")).toThrow("No editable setting")
+})

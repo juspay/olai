@@ -44,14 +44,14 @@
  */
 
 import { buildHalf, REGISTRY } from "@olai/plugin-build"
-import type { Derived } from "@olai/format"
+import { UsageFailure, type OpFailure, type WriteRequest, type Derived } from "@olai/format"
 import * as plugins from "@olai/plugin-api/services"
 import { type OwnedLoader, type Mounted, type Plugin, type RowReport } from "@olai/plugin-api/services"
 import type { BuiltPlugin } from "@olai/surface"
 import { PLUGIN_CHUNK_PREFIX, type PluginState } from "@olai/surface"
 import * as effect from "effect"
 import { Effect } from "effect"
-import { decodePolicy } from "@olai/plugin-api/configuration"
+import { decodePolicy, policyEdit } from "@olai/plugin-api/configuration"
 
 import { type Defined, definedIn, isApproved } from "./source.ts"
 
@@ -117,6 +117,7 @@ export interface DynamicRuntime {
    *  panel's switch, and the agent's `plugins.stop`. Answers whether there was
    *  such a row. */
   readonly set: (name: string, enabled: boolean) => Effect.Effect<boolean>
+  readonly configure: (name: string, key: string, value: string | null) => Effect.Effect<boolean, OpFailure>
   /** One definition as the vault holds it, for the two agent-facing verbs.
    *  `null` for a word this vault does not define. */
   readonly defined: (name: string) => Defined | null
@@ -163,7 +164,7 @@ type Started =
  * `built` is every word this build already has, so a definition cannot take one
  * (`./source.ts` argues why that is a fault and not an override).
  */
-export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>): DynamicRuntime => {
+export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, write: (request: WriteRequest) => Effect.Effect<void, OpFailure> = () => Effect.fail(new UsageFailure({ reason: "The directory’s write door is unavailable." }))): DynamicRuntime => {
   /** WHAT CAME OF THE LAST ATTEMPT AT EACH WORD — see {@link Started}. */
   const started = new Map<string, Started>()
   const optionsKeys = new Map<string, string>()
@@ -250,6 +251,16 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>): Dy
         else stopped.add(name)
         return Effect.as(follow(seen), true)
       }),
+    configure: (name, key, value) => Effect.gen(function*() {
+      const one = seen.find(one => one.name === name)
+      if (one === undefined) return false
+      if (key.split(".").some(part => part === "plugin" || part === "approved")) return yield* Effect.fail(new UsageFailure({ reason: `${key} is reserved for the definition's name and approval` }))
+      const mounted = started.get(name)
+      const declaration = mounted?.up === true ? mounted.declaration : undefined
+      const request = yield* Effect.try({ try: () => policyEdit(declaration, one.configuration?.nodes ?? [], one.configuration?.node, one.file, name, key, value), catch: error => error as UsageFailure })
+      if (request !== undefined) yield* write(request)
+      return true
+    }),
     defined: (name) => seen.find((one) => one.name === name) ?? null,
   }
 }

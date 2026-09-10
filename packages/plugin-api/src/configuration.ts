@@ -1,9 +1,11 @@
 /** Static configuration protocol. Live readings are owned by the offering row. */
-import { customText, isRegular, type Located, type Reading } from "@olai/format"
+import { customText, isRegular, UsageFailure, type WriteRequest, type Located, type Reading } from "@olai/format"
 import { Schema, SchemaAST, type Stream } from "effect"
 import { serviceTag } from "@olai/effect-cordis"
 
 export const CONFIGURATION_FILE = "_olai/Settings.olai"
+export const configurationUnavailable = "Settings can be edited when the configuration reader is running"
+export const configurationBroken = (file: string | undefined): string => `Repair ${file ?? CONFIGURATION_FILE} before changing settings`
 export const configurationFileIn = (paths: Iterable<string>): string | undefined => [...paths]
   .filter((path) => path.split("/").pop()?.toLowerCase() === "settings.olai")
   .sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b))[0]
@@ -164,4 +166,42 @@ const publicResource = (value: string): string => {
     return url.toString()
   }
   catch { return value }
+}
+
+
+/** Resolve a declared leaf and build one ordinary write. Missing ancestors are
+ * captured together, so validation cannot leave an empty section behind. */
+export const policyEdit = (
+  schema: Schema.ConstraintDecoder<unknown, never> | undefined,
+  nodes: ReadonlyArray<Located>, node: Located | undefined,
+  file: string | undefined, name: string, key: string, value: string | null,
+): WriteRequest | undefined => {
+  const parts = key.split(".")
+  let ast = schema?.ast
+  for (const part of parts) {
+    ast = ast?._tag === "Objects" ? ast.propertySignatures.find(field => field.name === part)?.type : undefined
+  }
+  if (ast === undefined || ast._tag === "Objects" || key === "on")
+    throw new UsageFailure({ reason: `No editable setting "${key}" is declared by "${name}".` })
+  if (value !== null) {
+    try { coerceLeaf(Schema.make(ast) as Schema.ConstraintDecoder<unknown, never>, value) }
+    catch (error) { throw new UsageFailure({ reason: String(error) }) }
+  }
+  const leaf = parts.pop()!
+  type Seed = { title: string; props?: Record<string, string>; children?: ReadonlyArray<Seed> }
+  const seed = (titles: ReadonlyArray<string>): Seed => ({ title: titles[0]!,
+    ...(titles.length === 1 ? { props: { [leaf]: value! } } : { children: [seed(titles.slice(1))] }),
+  })
+  if (node === undefined) {
+    if (value === null) return undefined
+    const tree = seed([name, ...parts])
+    return file === undefined ? { op: "create", file: CONFIGURATION_FILE, seed: tree } : { op: "add", file, ...tree }
+  }
+  let at = node
+  for (let index = 0; index < parts.length; index++) {
+    const child = nodes.filter(isRegular).find(one => one.node.parent === at.node.id && one.node.title === parts[index])
+    if (child === undefined) return value === null ? undefined : { op: "add", parent: at.node.id, ...seed(parts.slice(index)) }
+    at = child
+  }
+  return { op: "prop", id: at.node.id, key: leaf, value }
 }

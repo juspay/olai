@@ -1,3 +1,4 @@
+import { configurationUnavailable } from "@olai/plugin-api/configuration"
 /** The host composes scoped capability surfaces and publishes management.
  * Domain providers keep their own handlers, sources and compatibility tags.
  * A provider's disappearance revokes retained handlers through Surface's own
@@ -5,7 +6,7 @@
  */
 
 
-import { NotFoundFailure, type OpFailure } from "@olai/format"
+import { NotFoundFailure, UsageFailure, type OpFailure } from "@olai/format"
 import { type BuiltPlugin, NO_ROSTER, type PluginRoster, type PluginState, type Who } from "@olai/surface/host"
 import type { SurfaceSpec } from "@kolu/surface/define"
 import { emptyHandlers, type ImplementSurfaceDeps, inMemoryStore, type MountedSurface, type SurfaceHandlers, type SurfaceRuntime } from "@kolu/surface/server"
@@ -35,6 +36,7 @@ export interface PluginRuntime {
   readonly configs: () => ReadonlyMap<string, Readonly<Record<string, unknown>>>
   readonly persistent?: (id: string) => boolean
   readonly set: (id: string, enabled: boolean) => Effect.Effect<boolean, OpFailure>
+  readonly configure?: (id: string, key: string, value: string | null, defined: () => Effect.Effect<boolean, OpFailure>) => Effect.Effect<boolean, OpFailure>
   readonly reread: Effect.Effect<void>
   readonly switched: () => ReadonlySet<string>
   readonly catalogs?: () => ReadonlyArray<import("@olai/plugin-api/services").Catalog>
@@ -189,6 +191,15 @@ export const bind = (wiring: Wiring) => Effect.gen(function*() {
       cells: { plugins: { store: inMemoryStore<PluginRoster>(roster()), connect: cell => Effect.sync(() => { pluginsCell = cell }) } },
       procedures: {
 plugins: {
+          configure: ({ input }) => Effect.gen(function*() {
+            if (offered?.configure === undefined) return yield* Effect.fail(new UsageFailure({ reason: configurationUnavailable }))
+            const defined = () => Effect.gen(function*() {
+              for (const catalog of offered.catalogs?.() ?? []) if (yield* catalog.configure(input.name, input.key, input.value)) return true
+              return false
+            })
+            if (yield* settling(offered.configure(input.name, input.key, input.value, defined))) return {}
+            return yield* Effect.fail(new NotFoundFailure({ reason: `this build has no plugin named "${input.name}"`, named: input.name }))
+          }).pipe(Effect.forkIn(runtimeScope), Effect.flatMap(Fiber.join)),
           set: ({ input }) =>
             Effect.gen(function*() {
               for (const catalog of offered?.catalogs?.() ?? []) {
