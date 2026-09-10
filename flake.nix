@@ -72,12 +72,11 @@
       # Two shells, and the second is the first plus browsers. Playwright's
       # browser set is ~600ms of cold `nix develop` that every non-e2e leg
       # would pay for nothing, so `just e2e` enters `.#e2e` and everything
-      # else stays in `default`. The default shell is the packaged
-      # olai-base build, `toDevShell`'d (corepkgs#155 / EEP 0001).
-      devShells = eachSystem ({ pkgs, b2n }:
+      # else stays in `default`. The default shell is `pkgs.mkDevShell`
+      # until corepkgs#155 (`toDevShell`) lands on Darwin-capable master.
+      devShells = eachSystem ({ pkgs, ... }:
         let
-          olai = import ./default.nix { inherit pkgs b2n rev; };
-          default = import ./shell.nix { inherit pkgs; olai-base = olai.base; };
+          default = import ./shell.nix { inherit pkgs; };
         in {
           inherit default;
           e2e = default.overrideAttrs (_prev: {

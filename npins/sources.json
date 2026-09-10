@@ -22,9 +22,9 @@
       },
       "branch": "add-olai-hosted-fonts",
       "submodules": false,
-      "revision": "be6d05a313d9f8be57df7b7f8fe89905db9e78ae",
-      "url": "https://github.com/srid/ekapkgs/archive/be6d05a313d9f8be57df7b7f8fe89905db9e78ae.tar.gz",
-      "hash": "sha256-Mm56ob2uJ/O4rBDjhts8QICFQs/ZNxQ3b8Yic6CD09w="
+      "revision": "32ea630161641beaeec70cff7a9c495c76deda04",
+      "url": "https://github.com/srid/ekapkgs/archive/32ea630161641beaeec70cff7a9c495c76deda04.tar.gz",
+      "hash": "sha256-ZUSx9zBeOfKVKZmJuB9+vy6rvMorMj0FztpxalFBX54="
     },
     "kolu": {
       "type": "Git",
@@ -87,9 +87,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "3e03cf051b0e8f20079cbf37715d9d89ba854848",
-      "url": "https://github.com/juspay/oss.olai/archive/3e03cf051b0e8f20079cbf37715d9d89ba854848.tar.gz",
-      "hash": "sha256-DNxapKgFTBBxy61+sySDF8IchtvSgRcxh8ezy25hcQo="
+      "revision": "e58886fbea2e82d29e2ee0dee23896618a7ec4e6",
+      "url": "https://github.com/juspay/oss.olai/archive/e58886fbea2e82d29e2ee0dee23896618a7ec4e6.tar.gz",
+      "hash": "sha256-2y3+wXd/8ASA+hkUtUeppxXZN/edqiX0io7iNyiHA+Q="
     }
   },
   "version": 8
