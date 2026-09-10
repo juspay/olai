@@ -23,7 +23,7 @@ Then("the document match {string} is lit in the viewport at line {int}", async f
 })
 
 Then("the long search document is at the top without a highlight", async function(this: OlaiWorld) {
-  const heading = this.page.getByRole("heading", { name: "Long document", exact: true })
+  const heading = this.page.getByRole("heading", { name: /^Long document/ })
   await heading.waitFor({ state: "visible" })
   await this.waitUntil(async () => {
     const box = await heading.boundingBox()
