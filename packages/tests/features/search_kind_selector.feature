@@ -70,3 +70,23 @@ Feature: Search can narrow to nodes or files for the session
     And search kind "Nodes" is selected
     And the palette lists the node "Keep a note"
     And the palette lists no document "zinnia.md"
+
+  Scenario: The header cycles kinds and keeps refusals visible
+    When I search the header for "is:open"
+    And I press "Tab"
+    Then search kind "Nodes" is selected
+    When I press "Tab"
+    Then search kind "Files" is selected
+    And the search refuses "is:open" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"
+    And the header search found "0 matches"
+
+  Scenario: Picking Files leaves the move picker node-only
+    When I press the palette shortcut
+    And I type "zinnia" into the palette
+    And I pick search kind "Files"
+    And I press "Escape"
+    And I click the title of "knobs"
+    And I press "ControlOrMeta+Shift+m"
+    And I search the move picker for "zinnia"
+    Then the "move-hit" result "Keep a note" has place "zinnia.olai"
+    And no search kind selector is drawn

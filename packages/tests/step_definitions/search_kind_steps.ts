@@ -13,3 +13,7 @@ Then("search kind {string} is selected", async function(this: OlaiWorld, kind: s
 Then("the search segment {string} shows count {int}", async function(this: OlaiWorld, kind: string, count: number) {
   await this.waitUntil(async () => oneLine(await this.page.getByRole("radio", { name: kind, exact: true }).innerText()) === `${kind} ${count}`, `${kind} to report ${count}`)
 })
+
+Then("no search kind selector is drawn", async function(this: OlaiWorld) {
+  assert.strictEqual(await this.page.getByRole("radiogroup", { name: "Search kind" }).count(), 0)
+})
