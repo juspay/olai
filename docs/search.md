@@ -296,3 +296,19 @@ The markdown page owns its landing and highlight. It reads only address data;
 it acquires no search service. Leaving the page cancels its pending animation
 frame and removes its drawing. The hit's line is pure data produced after the
 cap inside the existing search reading.
+
+An outline's **own name and path** now match too: `Home` finds `Home.olai`,
+ranked on the same scale as document names and node titles. Its second line is
+its file path and Enter opens the outline. The whole-file address grammar
+already names outlines, so outline hits retain `{ kind: "document", path }`
+as their address; the `OutlineHit` schema restricts that path to an outline.
+No new route or live registration is introduced.
+
+The outline arm reads only name and path. It reads no body, tags, properties,
+marks or dates. Operators select no outlines and their negations pass through;
+scoped searches select none. Files under `_olai/` never appear as outline hits.
+At every search door, including `search_nodes`, `kind: node` selects records,
+`kind: document` retains its existing non-outline-file meaning, `kind: outline`
+selects outline files, and `kind: file` selects documents and outlines together.
+All arms are ranked and capped together when kind is absent. File kinds remain
+the static core table; the existing search reading owns the answer.
