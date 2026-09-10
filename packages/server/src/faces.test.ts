@@ -609,7 +609,7 @@ test("a browser calling a write verb is refused, and the same socket keeps servi
     // down with it would be indistinguishable from a working gate in a test
     // that stopped at the line above, and catastrophic in a tab.
     const answered = await Effect.runPromise(
-      dispatch.unary("surface/search/search/nodes", { text: "a" }) as Effect.Effect<
+      dispatch.unary("surface/search/search/nodes", { text: "a", kind: "node" }) as Effect.Effect<
         { hits: ReadonlyArray<unknown> }
       >,
     )
