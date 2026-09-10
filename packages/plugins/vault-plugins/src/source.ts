@@ -28,7 +28,7 @@
  * ## What is a plugin here, exactly
  *
  * A node with a `plugin` property. The property's VALUE is the plugin's word —
- * the row's `id`, the sibling key, the word the panel draws and `--plugins`
+ * the row's `id`, the sibling key, the word the panel draws and the file’s row selection
  * would take if this were a built row. It is the property rather than the title
  * because a title is prose somebody renames and a row's identity is not: the
  * `LocalState` records, the slot table and the approval below are all keyed by the

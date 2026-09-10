@@ -469,7 +469,7 @@ const declaredly = (
       // (`@olai/web`'s `live/seam.ts`).
       //
       // A kind NOBODY is answering for reads exactly as an undeclared key
-      // does, which is the sharper half: a `--plugins` that left the plugin out
+      // does, which is the sharper half: a the file’s row selection that left the plugin out
       // must leave the vault in the state it was in before it ever heard of it
       // — the value is still a name, and a URL somebody wrote under a retired
       // kind still opens. Answering `null` here instead would make a door

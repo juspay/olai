@@ -28,7 +28,7 @@
  * The plan says *a row appended to the live bundle (`loader.update` from phase
  * 8), so it is a fiber like any other, with the same states and the same
  * containment.* Both halves of what that buys are `mountPlugin`'s already: it
- * makes a fiber in the same registry, with the same five states, and a plugin
+ * makes a fiber in the same registry, with the same seven states, and a plugin
  * whose `apply` throws lands `FAILED` having installed nothing, siblings
  * untouched. What a loader ENTRY would add on top is a row in `olai.yml` — a
  * file this phase must not write, by the same ruling that made a flip

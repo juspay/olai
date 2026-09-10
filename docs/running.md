@@ -173,7 +173,7 @@ Logging policy is on the top-level `olai` node of `_olai/Settings.olai`:
 
 `log-level` accepts `debug`, `info`, `warn`, or `error`, defaulting to `info`. Debug includes the agent's stderr feed; failed turns already report stderr at warn. `log-format` accepts `auto`, `logfmt`, or `pretty`; auto selects pretty on a TTY and logfmt elsewhere. Both follow revisions live, including existing callback emitters. Before the vault is available, the process uses defaults.
 
-The collapsed **This serve** reading on `⧉` names host and bound port with their actual startup authors, both log knobs with vault/default authors, allowed origins, and bearer set/unset. The bearer value is never published there. `OLAI_LOG_LEVEL`, `OLAI_LOG`, `--log-level` and nix `logLevel` are removed.
+The collapsed **This serve** reading on `⧉` names hostname, host and bound port with their actual startup authors, both log knobs with vault/default authors, allowed origins, and bearer set/unset. The bearer value is never published there. Log policy belongs to the `olai` node.
 
 A SIGINT writes `olai web: received SIGINT` to stderr before the process unwinds. Effect still treats the interrupt as a successful stop and exits 130 — the shipped user unit counts 130 as success so `systemctl stop` is not a failed unit. That one line is what lets a journal tell a signaled death from a deliberate stop.
 
@@ -282,14 +282,15 @@ Use one top-level node per row in `_olai/Settings.olai`. For example:
 | vault | every policy and behaviour knob, including which rows run | `_olai/Settings.olai`, in git |
 | env | credentials and machine resources | process environment, wrapper, or `environmentFile` |
 | browser | how this tab reads | `⚙`, localStorage |
+| memory (not a settings door) | private plugin records, named but never opened by the panel | `$XDG_STATE_HOME/olai/<plugin>/<hash>.json` |
 
 Memory is a separate machine-local record, named below the panel and never opened there.
 
 ### Settings declarations
 
-Each plugin's `Config` schema is the sole declaration of keys, defaults, validation and descriptions. `olai.yml` carries `id`, `name`, `section`, and optional `disabled`; it carries no config block. The settings row reads the vault's revision, publishes a service, and owns no loader verbs. The composition root applies patches and waits for reconciliation. A changed config normally re-applies its row. A plugin may declare that it follows values live; Kolu does this for its `watch` child on the same revision, preserving its activation. It never reads `Kolu.olai`.
+Each plugin's `Config` schema is the sole declaration of keys, defaults, validation and descriptions. `olai.yml` carries `id`, `name`, `section`, and optional `disabled`, `profiles`, `quiet` and `switchHint`; it carries no config block. The settings row reads the vault's revision, publishes a service, and owns no loader verbs. The composition root applies patches and waits for reconciliation. A changed config normally re-applies its row. A plugin may declare that it follows values live; Kolu does this for its `watch` child on the same revision, preserving its activation. It never reads `Kolu.olai`.
 
-The reader selects `Settings.olai` by case-folded basename, shallowest path first, then path order. Missing file, node or leaf uses defaults. An invalid leaf defaults and warns once; a broken line defaults all rows and names the broken file on the panel. Repair restores the reading. Boot opens the vault on build defaults, then reconciles the published policy. There is no second disk reader before the vault lock.
+The reader selects `Settings.olai` by case-folded basename, shallowest path first, then path order. Missing file, node or leaf uses defaults. An invalid leaf defaults and warns once; a broken line defaults all rows and names the broken file on the panel. Repair restores the reading. Boot enables the vault and reader profile first, then folds the first policy reading into the remaining row patches before enabling them. A row the file disables never applies. There is no second disk reader before the vault lock.
 
 Authored chips name their author. Schema defaults and unset env doors disclose under each row. Wrapper-provided executable paths are marked `·wrapper` under defaults, not drawn as operator-authored env. Explicit resource inputs are `·env`, including explicit nix-store paths. Secrets show only set/unset. The arrow opens the namespace in the outliner.
 

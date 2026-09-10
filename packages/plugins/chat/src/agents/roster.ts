@@ -128,7 +128,7 @@ export interface Installed {
  * empty array, hedged across all of them in prose. One of its two guesses ("olai
  * was started by hand, without the wrapper that bakes the pinned adapters in")
  * cannot happen on any documented way of starting olai, so the commonest real
- * cause — a `--plugins` list naming no engine — was the one case the face never
+ * cause — a the file’s row selection list naming no engine — was the one case the face never
  * named.
  *
  * The three are told apart HERE, where the deciding is, and the answer carries

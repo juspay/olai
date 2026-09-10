@@ -110,9 +110,6 @@ export const startWeb = (options: {
     OLAI_ACP_CODEX: "",
     OLAI_ACP_PI: "",
     OLAI_AGENT_PATH: "",
-    // The address is read as logfmt; do not inherit a developer's
-    // OLAI_LOG=pretty.
-    OLAI_LOG: "logfmt",
     // TIED TO THIS TEST PROCESS: a server arms the kernel's parent-death
     // signal only for a spawner that tied it, and this one does — `bun test`
     // killed mid-file is exactly the runner death #355 stopped leaking

@@ -721,7 +721,7 @@ const offering = (
 /**
  * THE ROSTER CARRIES A ROW PER BUILT PLUGIN, and says of each whether it is
  * COMPOSED — which is the difference the preferences panel exists to draw. A
- * plugin left out of `--plugins` is absent from every structure the runtime
+ * plugin left out of the file’s row selection is absent from every structure the runtime
  * holds, so a roster derived only from what is composed could draw no row for
  * it at all.
  *
@@ -778,7 +778,7 @@ test("a plugin the flag left on but nothing mounted draws as off", () => {
 })
 
 /**
- * `--plugins=` IS A POLICY and saying nothing is the default, so the empty list
+ * a policy with all rows off IS A POLICY and saying nothing is the default, so the empty list
  * survives the crossing as itself. Collapsing it to `null` here would make the
  * two indistinguishable in the browser, where the only thing that tells them
  * apart is the line under the row.
@@ -818,7 +818,7 @@ test("no plugin slot is no roster, rather than every plugin off", () => {
 })
 
 /**
- * THE WORD, BESIDE THE BOOLEAN — five states where `running: false` was one,
+ * THE WORD, BESIDE THE BOOLEAN — seven states where `running: false` was one,
  * and each of them is a different sentence under the row.
  *
  * `running` covered four different mornings with one `false`: the flag left it
@@ -1052,7 +1052,7 @@ test("a running row that offers a door names the rows that would stop with it", 
  * ## The failure this is written from
  *
  * Under no flag at all, switching a row off at the panel made its row read
- * *"Off by default — `--plugins=kolu` starts it at boot"*. Every clause of that
+ * *"Off by default — a policy selecting only kolu starts it at boot"*. Every clause of that
  * is false about the row a person is looking at: this build does not ship kolu
  * off, nobody needs a flag to start it, and the reason it is absent is the press
  * they made a second ago. `stateOf` answered `optIn` for any absent row under no
@@ -1079,7 +1079,7 @@ test("a row a person switched off is not the build's default", () => {
   expect(pressed.built.find((row) => row.name === first)?.running).toBe(false)
 
   // IT WINS OVER THE FLAG TOO, which is the other half: a serve started
-  // `--plugins=<this row>` and then switched off is not a row the operator
+  // a file enabling this row and then switched off is not a row the operator
   // declined to ask for.
   const underAFlag = rosterOf({
     ...offering([], absent),

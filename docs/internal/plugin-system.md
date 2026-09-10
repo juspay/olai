@@ -223,7 +223,7 @@ bare `Effect.runFork`, which is a fiber on the default runtime with no owner
 and none of the operator's settings — a second, unnamed seam, which is the one
 thing having a named seam is for.
 
-`--plugins`, the bundle's rows and the browser slots are **phase 2** of a longer
+the file’s row selection, the bundle's rows and the browser slots are **phase 2** of a longer
 plan (the Cordis proposal's §6); the Effect API above is **phase 4**; node agents
 as scopes are **phase 6**, the chat row is **phase 7**, and the panel's switch —
 §7 below — is **phase 8**. What is deliberately NOT here: HMR (no Bun cache bust
@@ -265,7 +265,7 @@ Skim the table; the sections after it give one example each.
 
 ### name
 
-One word, and it does four jobs: the preferences row, the `--plugins` value, the
+One word, and it does four jobs: the preferences row, the the file’s row selection value, the
 docs address (`docs/plugins/<name>.md`), and — the load-bearing one — the **wire
 prefix**. Because the name *is* the prefix, the two cannot drift apart.
 
@@ -403,7 +403,7 @@ Your key, the plugin's kind, your file.
 
 The fold is **one function** (`@olai/format`'s `withClaims`) and precedence
 exists nowhere else. It rides the **enabled** table, so a disabled plugin's
-claims vanish with its kinds — no new rule needed for `--plugins`. And no
+claims vanish with its kinds — no new rule needed for the file’s row selection. And no
 consumer learns there are two sources: the validator, the write gate, the
 licence consult and the dressing table all keep taking *the declarations* as one
 value.
@@ -776,35 +776,23 @@ for those changes and for navigation between panes and sessions.
 
 ## 7. Built vs default vs running
 
-THREE lists, and the distance between them is the whole of what `--plugins` means.
+THREE lists, and the distance between them is the whole of what the file’s row selection means.
 
 ```
   BUILT      what the binary carries      = every row in packages/bundle/olai.yml
-  DEFAULT    what omitting the flag runs  = the rows without their own `disabled`
+  DEFAULT    what absent policy runs  = the rows without their own `disabled`
   RUNNING    what THIS serve mounted      = the fibers that reached ACTIVE
 ```
 
-```
-olai web ~/outlines                    # the built-in default
-olai web ~/outlines --plugins=vault,odu      # odu only — name vault to serve files
-olai web ~/outlines --plugins=         # none — said out loud
-```
+The reader profile mounts first, under the vault lock. Its first publication
+becomes `disabled` and `config` patches before other rows can apply. For example,
+a top-level `kolu` node with `on: no` leaves that row absent from the first
+activation onward. An absent `on` uses the profile/build default; `on: yes`
+can enable a row shipped with `disabled: true`.
 
-...and the same three answers in nix, because a policy set by hand is a policy set
-once and forgotten:
-
-```nix
-  services.olai.plugins = [ "vault" "odu" ];   # odu only — name vault to serve files
-  services.olai.plugins = [ ];         # none
-  # omit it                            — the built-in default
-```
-
-**The flag is a PATCH now, not a filter.** It writes a `disabled` onto every row
-on the way in, through the loader's own include, so what an operator said and
-what the build has stay two readable things rather than one list already
-narrowed. A disabled row never mounts, which is the same absence `--plugins`
-always meant — reached by the loader declining to load rather than by a
-`.filter` in a general package.
+The same file travels between hand-started and Nix-managed serves. Nix provides
+machine resources (`dataDir`, `host`, `port`, `environmentFile`), not another
+policy declaration. Only the composition root patches loader rows.
 
 **And that is also where the built-in DEFAULT lives.** A plugin that needs a
 secret this machine may not have is off until somebody asks for it, and it says
@@ -821,25 +809,15 @@ build a default list — and the row wins because it is the SAME FIELD the patch
 writes. One mechanism, two writers: the file says what the build does by
 default, the patch says what the operator asked for, and there is no second
 spelling for the two to disagree across. It also means turning an opt-in plugin
-ON is not a special path: `--plugins=vault,xyne-spaces` writes `disabled: false` over a
+ON is not a special path: a policy selecting only vault, xyne-spaces writes `disabled: false` over a
 row the file set `true`, which is the same line that turns another row off.
 [`rows.test.ts`](../../packages/bundle/src/rows.test.ts) holds both directions.
 
-**RUNNING is read off the runtime, not off the flag.** It used to be
-`isEnabled(pin, name)`, a second reading of what the operator typed, which was
-exact while the filter ran once and nothing could move. A fiber can sit `PENDING`
-on a service that never arrived, or land in `FAILED` because its `apply` threw,
-and in both the flag still says yes while the wire carries no `surface/<name>/` at
-all. The roster reports what is composed, and the cell is republished whenever
-that changes.
-
-**Omitting is not the same as listing everything.** The plugins panel draws a row
-per built plugin and says either *the flag you gave* or *the built-in default* — a
-value that had already expanded "nobody said" into the full list could not tell a
-reader which of the two they were looking at.
-
-An unknown name is refused **once**, at startup, with the legal words beside it. A
-typo is never a silently disabled integration.
+**RUNNING is read off the runtime.** A requested row may wait on a missing
+service or fail during `apply`; its configuration is not evidence of activation.
+The roster carries actual state beside per-leaf values and `setBy` readings.
+Defaults and authored values remain distinguishable even when they are equal.
+Unknown namespaces have no row to patch and leave existing rows unchanged.
 
 ### The switch
 
@@ -848,9 +826,9 @@ enabled })` on core's surface, drawn as a switch on each row of the plugins pane
 
 **It is the loader's own field, written by a second hand.** The server half flips
 the entry's `disabled` — the same field the row carries in `olai.yml` and the same
-one `--plugins` patches — and re-settles the bundle. So there is no second
+one the file’s row selection patches — and re-settles the bundle. So there is no second
 mechanism for "off" and no state that only a flip can produce: a row somebody
-switched off and a row the flag never named are the same fiber-shaped absence,
+switched off and a row the file disabled are the same fiber-shaped absence,
 which is what makes the confluence argument the runtime rests on still hold.
 
 **Off is the fiber unwinding, which is the whole of the phase.** Every
@@ -919,18 +897,18 @@ into each `RpcServer` at construction. Nothing closes those sockets server-side:
 the drop has already bound their tags to refusing handlers, and the tab's redial,
 driven by the roster cell moving, is the client half of the same revert.
 
-**It writes nothing and it is the browser's alone.** A flip lasts as long as the
-process: no settings file, no edit to `olai.yml`, nothing in the state home, and a
-restart comes back to the flag, the nix option and the rows' own defaults (the
-human, 2026-09-04 — with `--dump-config` dropped in the same ruling, because the
-panel is the table, and no CLI verb against a running serve, because the flag is
-the boot-time way). Core's own `hostFaces` (`packages/surface/src/host.ts`) names the member on the
-browser face and nowhere else, and `faces.test.ts` pins each face as an exact
-set, so an agent cannot turn a plugin off — the same physics that kept
-`chat.scope` off it. That map was `packages/bundle/src/faces.ts`'s `BROWSER`
-until #546 deleted the bundle's face tables; the decision did not change, only
-which package holds it — core's members are core's to grant, and a row's are the
-row's.
+**A panel switch is an ordinary vault write.** It writes `on` to the row's
+namespace in `_olai/Settings.olai`, waits for that revision to be reconciled,
+and appears in the git ledger. The file's choice survives restart. The two
+providers that make this possible keep session switches so the panel cannot
+lock its recovery door; when the reader is absent, the foot says once that
+switches are session-only. A broken file refuses durable writes with a repair
+sentence.
+
+Core grants the switch only to the browser face. The write gate reserves `on`
+on the settings file against agents, including moves, deletion and shadowing
+that would change its effect. Other behaviour properties remain agent-writable.
+`faces.test.ts` and the write-door tests pin both sides of that boundary.
 
 ### Which vocabulary answers which question
 
@@ -938,11 +916,11 @@ This split matters and is easy to get backwards:
 
 | Question | Judged against | Why |
 | --- | --- | --- |
-| Is `{"type":"kolu-terminal"}` a legal declaration? | **BUILT** | a file's verdict may not depend on a flag it cannot see |
+| Is `{"type":"kolu-terminal"}` a legal declaration? | **BUILT** | a file's verdict may not depend on the currently running rows |
 | Does this value fit the kind? | **RUNNING** | `admits` is a promise only a plugin that is *here* can make |
 | May this value's face draw? | **RUNNING** | see §8 |
 
-So `{"type":"kolu-terminal"}` is a clean row on a machine running `--plugins=vault,odu`, and
+So `{"type":"kolu-terminal"}` is a clean row on a machine running a policy selecting only vault, odu, and
 `{"type":"banana"}` is a broken file either way.
 
 The two halves come from two places, and that is the shape rather than an
@@ -1067,7 +1045,7 @@ guess costs:
 rather than only at boot.
 
 ```
-  --plugins=vault,odu   ⇒   kolu's row is patched `disabled` and never mounts
+  kolu.on = no   ⇒   kolu's row is patched `disabled` and never applies
 
                       no sibling surface        no probe run
                       no wire tag               no chrome pill
@@ -1083,7 +1061,7 @@ still editable. **The connection indicator stays green.**
 
 This costs no mechanism, and that is the design's best property. It used to be
 true because every composition door in the framework takes a plain keyed object
-of surfaces, so `--plugins` was a filter over that object and nothing else. It is
+of surfaces, so the file’s row selection was a filter over that object and nothing else. It is
 true for a stronger reason now: **every registration a plugin makes is an effect
 with its own undo**, so a fiber that is disposed drops its sibling, its kinds, its
 wake declaration and its listeners in reverse, and the sentence above is as true
@@ -1182,7 +1160,7 @@ that matters.
    `packages/tests/plugin_docs.test.ts` fails if you skip either.
 5. **ONE ROW in `packages/bundle/olai.yml`** — `id: <name>`, `name:
    olai-plugin-<name>/server`, and a `disabled: true` if your plugin needs a
-   secret this machine may not have and should be off until `--plugins` names
+   secret this machine may not have and should be off until the file’s row selection names
    it. That is the whole of it: the browser's rows, the stylesheet chain and the
    merged testid table are WRITTEN from that row by `generate.ts`, so the four
    hand-edits this step used to list are gone. What you do still write is your
@@ -1209,7 +1187,7 @@ that matters.
    than a drawing: core owns every stroke of that row and you own every word).
    Core keeps the shape of each — the
    sixteen-unit box, the list, the order — and neither drawing crosses the wire,
-   so `--plugins` naming other engines draws a panel with nothing of yours
+   so the file’s row selection naming other engines draws a panel with nothing of yours
    anywhere in it. Spell the install sentence in a `src/install.ts` your browser
    half opens — a `NotHere` (`@olai/plugin-api`), whose `why` is a WHOLE SENTENCE
    core composes no clause of.
@@ -1257,14 +1235,14 @@ names the file.
 | `packages/bundle/src/mechanics.test.ts` | olai names no wire mechanic the framework performs |
 | `packages/bundle/src/tree.testlib.ts` | not a claim — the READING both of the above stand on (workspace members, manifests, sources, the module graph). Split out so the two files above are their claims and nothing else, and so the source walk is written once |
 | `packages/bundle/src/report.test.ts` | what became of each row, off a real runtime: a row nothing mounted reads `off`, one whose `apply` failed reads `failed` and carries the plugin's own message verbatim, one short of a service it names reads `waiting` — the words the preferences row's five are composed from |
-| `packages/bundle/src/kinds.test.ts` | the word a vault declares is composed from the PLUGIN's own name; a word leaves the vocabulary when its plugin unloads; the BUILT half carries every row's words whatever the flag said |
+| `packages/bundle/src/kinds.test.ts` | the word a vault declares is composed from the PLUGIN's own name; a word leaves the vocabulary when its plugin unloads; the BUILT half carries every row's words whatever the vault policy selects |
 | `packages/bundle/src/composition.test.ts` | an empty roster composes, core's tags do not move, and — the two claims that need the modules LOADED — every module answers to the name its row binds it under, and every face a plugin declares is a face it wrote a map for. There is no `rosters.test.ts` any more: it held three hand-written lists equal, and two of the three are generated from the third |
 | `packages/bundle/src/testids.test.ts` | all plugin, boot and shared-renderer ID tables have distinct keys and values; the permanent web table contains only boot overlay IDs |
 | `packages/plugins/kolu/src/testids.ts` | a tenant’s two testid halves share no key and no value — a TYPE-level assertion, so a collision is a `tsc` error naming the offender rather than a test somebody keeps green |
 | `packages/plugins/kolu/src/faces.test.ts` | the tenant’s own two face directories stay apart — `src/browser/` names no part of the appliance’s tier, and `src/appliance/` names none of the vault’s vocabulary, which is the wall `@olai/kolu-ui`’s manifest kept before the fold. In the TENANT, not in the fence: a per-directory rule up there would be the fence inventing a layout convention and enforcing its own invention |
 | `packages/tests/plugin_docs.test.ts` | every plugin's docs page exists, is served, and is linked |
 | `packages/server/src/faces.test.ts` | `chat.scope` is named on the **browser** face and nowhere else — the agent face is pinned as an exact set, so an agent-settable doorbell is a red suite rather than a rule somebody has to remember |
-| `packages/server/src/runtime.test.ts` | a `wake` sentence reaches the roster only for a plugin this serve MOUNTED, so no picker is offered for a doorbell nothing would ring — and a plugin the flag left on that nothing mounted draws as off, which is the row the old derivation could not express |
+| `packages/server/src/runtime.test.ts` | a `wake` sentence reaches the roster only for a plugin this serve MOUNTED, so no picker is offered for a doorbell nothing would ring — and a requested plugin that nothing mounted draws as off, which is the row the old derivation could not express |
 | `packages/plugins/chat/src/deliveries.test.ts` | a body delivered mid-turn is HELD and the conversation keeps its interruption — the one claim a machine speaking into a person's lane could quietly cost them |
 | `scripts/check-hydrated-deps.sh` | the appliance dependency walls, per pin — kolu, odu, and cordis |
 | `packages/effect-cordis/src/lifecycle.test.ts` | the bridge's ORDERING against the pin: a dependent's asynchronous cleanup calls through a provider that is still live — on removal, on replacement and on host close; a running bus handler is cut and joined before a resource released either side of its `listen`; a handler that stops its own plugin is cut rather than waited for; a loading initializer is cancelled by a stop, by a withdrawal and by host close; a loader flip cancels without rewriting its file; a duplicate offer is an `OfferConflict` naming the first provider, with the pin's wording asserted verbatim; and `offer` takes its Cordis disposer out of the concurrently-unloaded set |
@@ -1281,7 +1259,7 @@ names the file.
   subject at implementation depth.
 - [architecture.md](../architecture.md) — how every package fits, plugins included.
 - [live-properties.md](../live-properties.md) — the user-facing half of §8.
-- [running.md](../running.md) — `--plugins` as an operator sees it.
+- [running.md](../running.md) — the file’s row selection as an operator sees it.
 
 Browser row actions (`outline.row.action`) may return a refusal sentence from `run(node)`. The menu displays it beside the originating row; successful actions return nothing. This lets plugin procedures explain expected failures, such as a full node-agent pool, without depending on core’s presentation types.
 
@@ -1339,7 +1317,7 @@ compiled from the page itself by `olai-plugin-vault-plugins`' `worked.test.ts`.
 
 ### Vault provider
 
-The ordinary `olai-plugin-vault/server` row lives in `packages/bundle/olai.yml` and is selected by every default profile. Explicit `--plugins` selections may omit it. It waits on `VaultSettings`, supplied after the bundle’s declared vocabulary is available, and acquires the one-brain lock before the store. The row owns its watcher and revision publisher and offers `Vault`, `Directory` and `Ops`; `Kinds` remains core-provided. Late revision subscribers receive the current snapshot. Tenants naming `Vault` wait while it is absent and reactivate when it returns.
+The ordinary `olai-plugin-vault/server` row lives in `packages/bundle/olai.yml` and is selected by every default profile. Explicit the file’s row selection selections may omit it. It waits on `VaultSettings`, supplied after the bundle’s declared vocabulary is available, and acquires the one-brain lock before the store. The row owns its watcher and revision publisher and offers `Vault`, `Directory` and `Ops`; `Kinds` remains core-provided. Late revision subscribers receive the current snapshot. Tenants naming `Vault` wait while it is absent and reactivate when it returns.
 
 Capability providers acquire `Directory` and `Ops` through their scoped needs.
 `makeOps` runs inside the vault row after the store acquisition. The gate owns
@@ -1367,7 +1345,7 @@ The vault switch remains available and explains its cost. Disabling it clears se
 
 `TransportSurface.register` accepts scoped HTTP route layers and upgrade handlers. Core’s `listener.ts` owns one port and rebuilds HTTP dispatch from those contributions; it has no transport flags or transport-specific branch. Each registration owns only its contribution. The ws plugin owns origin checks, header admission, stale-tab checks, heartbeat enrollment and connection cleanup using the framework’s socket primitives. The web-app plugin owns static routes, the service worker and manifest. The MCP plugin owns its route, carrier, protocol server, tool projection and scoped ticket registry. It applies request attribution to the host’s composed agent generation; domain providers enforce the supplied session rule. Static write reservations come from the bundle’s owner declarations and remain active when their owner is disabled. Route changes preserve existing websocket connections. With only MCP registered, the same listener serves only its HTTP route.
 
-`mountBundle` resolves only the modules in `olai.yml`. Profiles cannot insert rows or supply a special resolver. The default `web` profile preserves the catalogue defaults, while `surface` and `test-minimal` disable rows without their `profiles` membership. An explicit `--plugins` list overrides the profile for every row, including transports: `--plugins=` mounts nothing and opens no listener. The browser test harness explicitly composes its socket, assets and MCP carrier for nonempty test tags. `BUNDLE_NAMES` includes every transport, so dynamic definitions cannot replace those reserved names. The generator reads package exports: only a declared `./browser` gets a browser-table entry and chunk, and only a declared `./all.css` enters the style chain. Server-only packages require neither stub.
+`mountBundle` resolves only the modules in `olai.yml`. Profiles cannot insert rows or supply a special resolver. The default `web` profile preserves the catalogue defaults, while `surface` and `test-minimal` disable rows without their `profiles` membership. An explicit the file’s row selection list overrides the profile for every row, including transports: a policy with all rows off mounts nothing and opens no listener. The browser test harness explicitly composes its socket, assets and MCP carrier for nonempty test tags. `BUNDLE_NAMES` includes every transport, so dynamic definitions cannot replace those reserved names. The generator reads package exports: only a declared `./browser` gets a browser-table entry and chunk, and only a declared `./all.css` enters the style chain. Server-only packages require neither stub.
 
 
 The plugins panel holds its switches while the browser reconciles a roster. A server-only row can change without remounting that panel; its state may arrive before the socket replacement finishes. Waiting for the whole queued reconciliation prevents a second press from being sent on a connection that is about to close. The browser-asset scenario covers two consecutive off/on cycles through that boundary.

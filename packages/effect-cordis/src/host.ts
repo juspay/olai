@@ -324,7 +324,7 @@ const PASSES = 100
  *
  * This waits out MOVEMENT, not readiness. A fiber genuinely `PENDING` on a key
  * nothing in this build offers holds no inertia at all, so it settles at once
- * and stays `waiting` — the `--plugins=kolu`-without-its-provider case, which is
+ * and stays `waiting` — the a policy selecting only kolu-without-its-provider case, which is
  * a legitimate resting state and is what {@link rowReport} is about to name.
  */
 export const settled = (host: Host, ids: ReadonlyArray<string>): Effect.Effect<void> =>

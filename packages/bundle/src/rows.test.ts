@@ -44,7 +44,7 @@ test("the built-in default is the rows that did not opt out", () => {
  * conversation anywhere, and every engine and every tenant sits `waiting`
  * behind the doors it offers. That is a legitimate serve and there is a
  * scenario for it (`features/the_doorbell_rings.feature`) — reached by an
- * operator typing `--plugins`, and by nothing else. A `disabled: true` left on
+ * operator typing the file’s row selection, and by nothing else. A `disabled: true` left on
  * this row by somebody debugging would ship that serve as the DEFAULT, and
  * every claim about it would still pass: the rule above would simply agree that
  * an opted-out row is opted out.

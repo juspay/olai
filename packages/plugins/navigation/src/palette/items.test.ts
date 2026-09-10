@@ -130,7 +130,7 @@ test("a line under a plugin's prefix carries the command that will run it", () =
 })
 
 /** RULE FOUR, as one call: a serve with no plugin in `app.command` — which is
- *  what `--plugins=` produces — offers no such prefix, so the character is
+ *  what a policy with all rows off produces — offers no such prefix, so the character is
  *  ordinary text and the box goes on filtering the rows with it. */
 test("with nothing hung in the slot, a `>` is just text", () => {
   expect(modeOf("> mark kitchen done", [])).toEqual({ kind: "filter" })

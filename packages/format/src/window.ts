@@ -13,7 +13,7 @@
  * inside one page, behind a per-browser Web Lock so two tabs of it would not
  * race one work tree. Everything wrong with that follows from the frame — the
  * directory recorded only while somebody had a tab open, two BROWSERS could
- * both lead and race anyway, and `--commit=auto` was a different feature with
+ * both lead and race anyway, and `commit: auto` was a different feature with
  * the same name (one commit per write, never pushed). Git policy is a fact
  * about the DIRECTORY, so the window is the server's and there is one of it by
  * construction: one olai per directory is a lock the kernel holds
@@ -88,7 +88,7 @@ export const flurryOf = (pending: Pending): string =>
  *
  * That third caller is why this is on the floor. The panel used to re-derive a
  * shorter version of it, and the shorter version had already lost a term: on a
- * clean tree under `--commit=auto` it promised to record an empty list, because
+ * clean tree under `commit: auto` it promised to record an empty list, because
  * "the policy is the window and the repository is ready" is true of a directory
  * with nothing in it.
  *
@@ -119,7 +119,7 @@ export const flurryOf = (pending: Pending): string =>
  */
 export const armedOn = (
   /** What this server does about commits — the policy, with the defaults and
-   *  the pin already folded in ({@link policyOf}). Only `auto` runs a loop;
+   *  schema defaults already decoded. Only `auto` runs a loop;
    *  `manual` waits to be asked and `off` never touches git. */
   commit: CommitMode,
   /** Why the loop stopped, or `null` while it is running. A refused commit or

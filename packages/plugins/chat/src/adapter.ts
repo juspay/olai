@@ -53,7 +53,7 @@ export const AGENT_PATH_ENV = "OLAI_AGENT_PATH"
  *
  * The three read differently on purpose, because a person has a different thing
  * to do about each: an EMPTY variable is somebody saying "not this time", no
- * ENGINE is a `--plugins` list that named none of the rows that would have
+ * ENGINE is a the file’s row selection list that named none of the rows that would have
  * probed, and NONE INSTALLED is the only one where looking somewhere else is the
  * answer — which is why it is the line that names the search path, since "olai
  * cannot see the opencode I installed" is a PATH question and this is the line

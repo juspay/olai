@@ -20,7 +20,6 @@ test("file log-level error suppresses the serving line", async () => {
   const child = startWeb({
     root,
     policy: { commit: "off", process: { "log-level": "error" } },
-    env: { OLAI_LOG_LEVEL: "" },
   })
   try {
     await Bun.sleep(QUIET_MS)

@@ -72,7 +72,7 @@ It was `src/plugin.ts`, a plain `as const` object with **no `: OlaiPlugin` annot
 
 The same physics runs the other way too. `src/appliance/` used to read its wire types from `@olai/surface` back when it was a package; it reads them from `@olai/kolu-client/wire`, which is where they live — because the surface sits ABOVE this package and a dependency back would be a cycle `bun install` cannot describe.
 
-`name` is spelled once, in [`src/wire.ts`](src/wire.ts), and it is the **sibling key** — so the wire prefix, the preferences row, the docs slug and the word `--plugins` takes cannot drift apart.
+`name` is spelled once, in [`src/wire.ts`](src/wire.ts), and it is the **sibling key** — so the wire prefix, the preferences row, the docs slug and the settings namespace cannot drift apart.
 
 ## kolu off is a state kolu has always had
 

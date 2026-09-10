@@ -28,7 +28,7 @@ Effect's, used the way [kolu's own logger](https://github.com/juspay/kolu) docum
 | `logWarning` | degraded but recoverable — bound off loopback, a connection that failed, a boot the next prompt will retry |
 | `logError` | a failure something stops for |
 
-**Quiet by default.** The serve starts at `info`. Its composition root follows `log-level` and `log-format` on the `olai` node in the shared settings file and updates the live logging layer. Existing fibers and callback emitters consult that layer when emitting; changing logging does not restart their resources. The scoped owner supplies both the sinks and the live presentation getter. No policy is read from environment variables or global mutable state.
+**Quiet by default.** The serve starts at `info`. Its composition root follows `log-level` and `log-format` on the `olai` node in the shared settings file and updates the live logging layer. Existing fibers and callback emitters consult that layer when emitting; changing logging does not restart their resources. The scoped owner supplies both the sinks and the live presentation getter. Log level and format are not read from environment variables; `NO_COLOR` remains the terminal colour convention or global mutable state.
 
 ## The format
 

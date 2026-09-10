@@ -235,7 +235,7 @@ test("...so the only reachable collision is one WORD twice, and it names both pl
  * THE BUILT HALF READS EVERY ROW, AND THAT IS WHAT KEEPS A FILE'S VERDICT OFF
  * THE FLAG.
  *
- * The distance between the two halves IS `--plugins`: a vault declaring
+ * The distance between the two halves IS the file’s row selection: a vault declaring
  * `kolu-terminal` on a serve running only odu has written a legal row — refusing
  * it would make one file broken on one machine and clean on the next, off a flag
  * the file cannot see — while its VALUES are plain text, because `admits` is a

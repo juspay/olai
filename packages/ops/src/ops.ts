@@ -193,7 +193,7 @@ export interface Options {
    * the ENABLED one holds a value to a kind somebody is actually answering for
    * ({@link @olai/format}'s `typing.ts`).
    *
-   * Absent is `NO_KINDS`, which is not a fallback but the serve `--plugins=`
+   * Absent is `NO_KINDS`, which is not a fallback but the serve a policy with all rows off
    * composes and the state every test in this package is in.
    */
   readonly kinds?: KindVocabulary

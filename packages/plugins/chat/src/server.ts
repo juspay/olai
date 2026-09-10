@@ -16,7 +16,7 @@
  * are offered here ({@link @olai/plugin-api}'s `Offers`). Every plugin that
  * names one is held `waiting` until this row mounts and unloads when it leaves;
  * that is the paper's rule and the ruling accepts its cost. Under
- * `--plugins=kolu` alone, kolu sits `waiting`, and the plugins panel says on
+ * a policy selecting only kolu alone, kolu sits `waiting`, and the plugins panel says on
  * whose account — the fiber's `PENDING` reading names the missing key. The
  * engines are `waiting` without chat too, which is correct: an engine plugin's
  * whole registration is an offer to seat a conversation, and there is nobody to

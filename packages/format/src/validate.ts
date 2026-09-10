@@ -187,7 +187,7 @@ export interface Previous {
  * running.
  *
  * {@link NO_KINDS} BY DEFAULT, and that is a STATE rather than a fallback: it
- * is what `--plugins=` composes, and it is what every caller that has no
+ * is what a policy with all rows off composes, and it is what every caller that has no
  * plugins to speak of — the browser's own derivation, a bench, a fixture — is
  * actually in. A vault declaring `terminal` under it is a vault whose key is
  * untyped and whose declaration is reported, which is precisely what a build

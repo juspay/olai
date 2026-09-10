@@ -102,7 +102,7 @@ export const RepoState = Schema.Union([
 export type RepoState = typeof RepoState.Type
 
 /**
- * How writes reach git — the values of `--commit`, and the one table of them.
+ * How writes reach git — the values of the `git.commit` property, and the one table of them.
  *
  * It lives on this floor rather than in `@olai/ops` because it TRAVELS now. The
  * mode used to be a fact the server kept to itself: `off` reached a browser as
@@ -114,7 +114,7 @@ export type RepoState = typeof RepoState.Type
  * `manual` is the point of the whole thing: a write lands on disk and WAITS,
  * and something asks for a commit. `auto` is the SERVER's quiet-window loop —
  * what is waiting records itself once writes stop arriving for fifteen seconds,
- * whoever made them (`./window.ts`). `off` is `--no-commit`.
+ * whoever made them (`./window.ts`). `off` is `commit: off`.
  *
  * `auto` used to mean one commit per write, made inside the write gate, and
  * that is retired: a train of thought arrived as a dozen commits, and the
@@ -124,15 +124,13 @@ export type RepoState = typeof RepoState.Type
 export const COMMIT_MODES = ["off", "manual", "auto"] as const
 export type CommitMode = (typeof COMMIT_MODES)[number]
 
-/** What `--commit` means when nobody gave it — the default, spelled once, so
- *  "the flag was not given" and "the flag said manual" cannot come to disagree
- *  about what the server then does. */
+/** The schema default when the vault has no commit choice. */
 export const COMMIT_DEFAULT: CommitMode = "manual"
 
 /**
- * ... and the values of `--push`, which is the newer flag and has TWO.
+ * ... and the values of the `git.push` property, which has TWO modes.
  *
- * Deliberately not three. `--commit`'s `manual` and `off` are different facts
+ * Deliberately not three. the `git.commit` property's `manual` and `off` are different facts
  * about a directory — one waits for somebody to ask, the other says olai never
  * touches git here — and pushing has no such pair: a branch that is not sent on
  * its own is sent by the Push button, and there is no third thing to be. A
@@ -141,7 +139,7 @@ export const COMMIT_DEFAULT: CommitMode = "manual"
 export const PUSH_MODES = ["off", "auto"] as const
 export type PushMode = (typeof PUSH_MODES)[number]
 
-/** What `--push` means when nobody gave it — spelled once beside
+/** What the `git.push` property means when nobody gave it — spelled once beside
  *  {@link COMMIT_DEFAULT} and for the same reason: "nobody said" and "somebody
  *  said off" must not be able to come to disagree about what the server does. */
 export const PUSH_DEFAULT: PushMode = "off"
@@ -215,7 +213,7 @@ export const GitState = Schema.Struct({
 })
 export type GitState = typeof GitState.Type
 
-/** What a page reads before the first frame arrives, and what a `--no-commit`
+/** What a page reads before the first frame arrives, and what a `commit: off`
  *  serve stays in — beside its type for the reason {@link NOTHING_PENDING} is
  *  beside `Pending` below. `off` is the right default twice over: it is the
  *  calmest of the four, so a page cannot flash "git error" at a healthy

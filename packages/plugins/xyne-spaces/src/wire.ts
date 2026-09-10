@@ -19,11 +19,11 @@ import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 
 /** The sibling key, the preferences row, the docs slug, and the word
- *  `--plugins` takes. Spelled once, here. Hyphenated on purpose: the docs
+ *  the file’s row selection takes. Spelled once, here. Hyphenated on purpose: the docs
  *  address is `docs/plugins/xyne-spaces.md`, and the name IS that address. */
 export const name = "xyne-spaces"
 
-/** Off unless `--plugins` names it. A Spaces app JWT is a secret this
+/** Off unless the file’s row selection names it. A Spaces app JWT is a secret this
  *  machine may not have, and a pill in every bar for an integration
  *  nobody pointed at is the wrong default. */
 export const defaultOn = false

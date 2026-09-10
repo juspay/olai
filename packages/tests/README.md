@@ -299,17 +299,28 @@ A COPY, and one per worker, because `--parallel` is one process per worker: four
 
 **`@own-scratch`** on a scenario inside a sharing feature keeps a private copy, for the things restore cannot make true: a server restart, conversation state (chat lives in the process and in XDG), `@git` / `@kolu` / `@agent-stored`. It is refused without `@share-scratch`, because a tag that does nothing is how an author thinks they opted out and did not. Chat features stay private regardless of files.
 
-**`@git`** rides on top of `@scratch:`: the scratch copy is made a git repository with the fixtures already committed, and its server is started with `--commit=manual` rather than the harness's usual `--commit=off`. What is waiting to be committed is DERIVED from git rather than counted, so there is nothing to test without a repository — and the assertions at the end of those scenarios are lines out of its log, read through `world.git`. **`@no-git`** is the other half of the same knob: commits ON, and deliberately no repository, which is the only way to reach the Commit pill's "no git here" face. Every other scenario keeps `--commit=off`: committing into whatever repository happens to contain a temp directory is not this suite's business.
+**`@git:repo`** rides on top of `@scratch:`: the scratch copy becomes a git
+repository with the prepared fixtures already committed. Every harness serve
+uses the schema's `commit: manual` default unless an explicit policy fixture
+says otherwise. Ordinary writes therefore appear in the ledger and never make
+an automatic commit. `@git:none` and `@git:broken` select repository conditions,
+not commit policy. `@policy:git.commit=off` exercises the disabled ledger.
+
+The fixture pins `olai.log-format: logfmt` before boot so readiness has one
+parseable format, even when the copied vault authored `pretty`. Other authored
+fixture leaves keep their values. An exact `@rows:` selection retains the reader
+profile; use `@rows-off:` when a scenario intentionally withdraws it.
 
 A `@scratch:` scenario may also RESTART its server, which nothing else in the suite may do — a `@corpus:` server is running for every other scenario in the run, and a `@share-scratch` server is running for every other scenario in that feature on this worker, and `hooks.ts` refuses both rather than trusting the tag (the restarting scenario wants `@own-scratch`). That is what lets a feature ask the one question no other scenario could: what does an open page do when the process behind it is replaced? The restart comes back on the SAME port, because the page is already pointed at it — `startOwnServer` binds the exact port and fails loudly if the address it got back is a different one, so a port stolen in between reads as itself instead of as a mysteriously dead page.
 
 **The first bind asks the OS.** No `--port` means the process default of 0, so two worktrees cannot pick the same number and cannot squat production. A restart still has to come back on the address the page is pointed at. `holdPort` keeps that socket across the kill; it is released before the replacement listens, so the remaining window is a `listen(0)` elsewhere on the box racing into the same ephemeral port — a hard scenario failure, no retry. The suite used to claim a band below the kernel's ephemeral range so that race was impossible; a worker id is unique inside ONE run and says nothing about the run beside it, so two worktrees both numbered their workers from zero and both scanned from 20000 — which is how one e2e lane dialed another's server, and is why the band went.
 
-## Git, which every other scenario is served without
+## Git and the fixture's repository
 
-Every server this harness spawns runs with `--no-commit`: a scratch corpus is a temp copy, and committing into whatever repository happens to contain the temp directory is not the suite's business. That is also a STATE — the one the header calls `commits off` — so it is asserted rather than assumed.
-
-**`@git:<repo|none|broken>`** starts a scenario's server without the opt-out and says which of the three things git is for its directory: a real repository (the scratch copy is `git init`ed with a local identity and a first commit), a directory that is not one, or a git that is FOUND and fails — `bin/broken-git/git`, put first on that server's PATH, answering every call with git's own `fatal: detected dubious ownership`. The last one is the case the indicator exists for: it is not "there is no repository here", and reporting it as if it were is the bug `features/git_state.feature` holds shut — together with the newer one it is named for, which is that ONE control in the header answers for git. That feature counts them.
+`@git:<repo|none|broken>` selects a real repository, no repository, or a git
+executable that refuses requests with its own words. All use manual commit
+policy unless the scenario authors another value. `features/git_state.feature`
+checks these states and the one Commit indicator that reports them.
 
 Like `@kolu` and `@agent-stored`, it needs `@scratch:<corpus>` — what a server commits to is decided when it is started, and a `@corpus:` server is running for every other scenario in the run. The `Before` hook says so by name.
 

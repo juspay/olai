@@ -42,11 +42,6 @@ in
       description = "Address to listen on. olai has no auth; keep this loopback (or behind Tailscale).";
     };
 
-
-
-
-
-
     environmentFile = lib.mkOption {
       # str, not path: a file of secrets copied into the world-readable nix
       # store is the one mistake this option exists to make easy to avoid.
@@ -80,7 +75,6 @@ in
         this module always passes --port, so a user service does not wander.
       '';
     };
-
 
   };
 

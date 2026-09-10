@@ -4,7 +4,7 @@
  *
  * ## Why anything is generated at all
  *
- * The server mounts its rows by NAME, through the loader, so `--plugins` is a
+ * The server mounts its rows by NAME, through the loader, so the file’s row selection is a
  * patch over data and a plugin's presence is a runtime fact. The browser could
  * not do that: its bundle is built ahead of time and there is no loader in the
  * tab, so it kept COMPILED-IN LISTS — `WIRES` and `PLUGINS`, hand-written, held
@@ -59,7 +59,7 @@ const SRC = join(HERE, "src")
 
 /** One row. `disabled` is the row's own built-in default and rides into the
  *  emitted `ROWS`, because the composition root reads it to decide what an
- *  omitted `--plugins` runs. It reaches NONE of the other three files: what a
+ *  omitted the file’s row selection runs. It reaches NONE of the other three files: what a
  *  build HAS and what a serve RUNS are two questions, and the browser learns
  *  the second off the roster cell at runtime, which is the whole of why a
  *  disabled plugin's chunk is fetched by nobody rather than absent from the
@@ -119,7 +119,7 @@ function readRows(): ReadonlyArray<Row> {
  * (`js/bad-code-sanitization`).
  *
  * The honest answer here is not a better escaper. A row's `id` is a plugin's
- * name — the sibling key, the word `--plugins` takes, the docs slug — and its
+ * name — the sibling key, the settings namespace, the docs slug — and its
  * `name` is a module specifier; neither has ever been anything but letters,
  * digits and a few separators, and a row carrying a line terminator is a
  * malformed row rather than an exotic one. So this REFUSES it, in the file that
@@ -178,7 +178,7 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
   // other job is to name plugins, and `@olai/tests` and the browser both open
   // it. Emitting them keeps the ONE SOURCE — this generator reads the same
   // file, and `@cordisjs/plugin-include` still reads it itself at mount, which
-  // is what makes `--plugins` a patch over rows rather than a filter in code.
+  // is what makes the file’s row selection a patch over rows rather than a filter in code.
   // SPELLED FIELD BY FIELD, through the same check the two doors below use.
   // `JSON.stringify(row)` emitted the whole object and was the last place a
   // row's own words reached this file without passing {@link quoted} — the

@@ -32,7 +32,7 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * modules on a disk — the same seam `./bundle.ts` fills with a real `import()`.
  *
  * The last case is about `mountBundle` ITSELF, which reads this package's own
- * `olai.yml` and can be pointed at nothing else. It runs it with `--plugins=`,
+ * `olai.yml` and can be pointed at nothing else. It runs it with a policy with all rows off,
  * which disables every row — so no plugin of this build is imported, mounted or
  * dialed — and puts the provider/consumer pair on the registry by hand under two
  * row ids beforehand. What that leaves `mountBundle` to do is exactly the settle,
@@ -235,7 +235,7 @@ test("mountBundle returns with a row's sibling-woken apply already finished", as
   // The provider's own mount is awaited and says nothing about the row it woke.
   expect(said).toEqual([])
 
-  // ...AND `--plugins=` MOUNTS NONE OF THIS BUILD'S ROWS, so what is left for
+  // ...AND a policy with all rows off MOUNTS NONE OF THIS BUILD'S ROWS, so what is left for
   // this call to do is the settle, over the two rows already on the registry.
   await run(mountBundle(opened.host, selectFixtureRows([])))
   expect(said).toEqual(["the door was opened"])

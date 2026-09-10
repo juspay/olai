@@ -2,26 +2,16 @@ import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/co
 /**
  * WHICH PLUGINS THIS SERVE RUNS, read as the plugins panel reads it.
  *
- * ## THE ROWS ARE NOT READ-ONLY ANY MORE, and this file's whole shape moved
- * with that
- *
- * It said: *a plugin's enablement is not a preference. It is CLI/nix only —
- * `--plugins`, or the nix module that passes the same flag — with no settings
- * file and no browser toggle, so these rows draw the server's answer and are
- * always read-only.* Every clause of that was true and the conclusion is
- * overturned (the human, 2026-09-04): the panel gets a SWITCH, and
- * `plugins.set` is the verb behind it.
- *
- * Policy and enablement now live in the directory's configuration file.
- * The panel names that file and private memory once; a session-only exception
- * belongs on its row.
+ * Policy and enablement live in the directory's configuration file.
+ * The panel writes through `plugins.set`, names that file and private memory
+ * once, and puts a session-only exception on the row that needs it.
  *
  * ## A ROW WITH NOTHING TO SAY SAYS NOTHING, and that took a screenshot
  *
  * Both readings here used to answer a string, always. On a serve started with
- * `--plugins=claude,codex,chat,kolu,odu` that drew, under every one of eight
+ * a policy selecting only claude, codex, chat, kolu, odu that drew, under every one of eight
  * rows, the same two blocks: *Running — its chips, panels and delivered
- * messages all work*, and the flag, quoted in full, wrapped over three lines,
+ * messages all work*, and the startup selection, quoted in full, wrapped over three lines,
  * eight times. Roughly nine tenths of the panel was one paragraph repeated. The
  * human, 2026-09-04, with the picture: *portrait spammy*.
  *
@@ -39,8 +29,7 @@ import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/co
  *
  * WHAT SURVIVES PER ROW is the list the old argument was actually built for:
  * a `failed` row (the plugin's own words), a `waiting` row (which door, and so
- * which plugin would offer it), an absent row (what to type so it starts at
- * boot — and that names THIS row, so it is not the same line twice), and a
+ * which plugin would offer it), an absent row (which file choice disables it — and that names THIS row, so it is not the same line twice), and a
  * `running` row that carries others (what stops with it). Every one of those is
  * different on the row beside it.
  *
@@ -64,8 +53,8 @@ import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/co
  *
  * A row used to draw one sentence off a boolean and share a second sentence
  * with every other row. That was exact while a plugin's presence was decided
- * once, by one flag, before anything ran. A plugin is a fiber now, and
- * `running: false` covers five different mornings — the flag left it out, the
+ * once, before anything ran. A plugin is a fiber now, and
+ * `running: false` covers five different mornings — the file left it out, the
  * BUILD leaves it out until somebody asks, a PERSON switched it off here, its
  * `apply` died, or it is waiting on a service — of which exactly one is a fault
  * and exactly one is something a person can act on.
@@ -76,7 +65,7 @@ import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/co
  *   - {@link pluginHint} is WHAT THIS ROW ADDS to what the switch beside it
  *     already says — the why of an absence, the plugin's own failure words,
  *     the door a wait is short of, what stops if this one is turned off, and
- *     what to type so it starts at boot. `null` where the switch has said it
+ *     which file choice disables it. `null` where the switch has said it
  *     all.
  *   - HOW THIS SERVE STARTED is {@link pluginsStarted} and is the PANEL's, not
  *     the row’s, because those process facts are shared by every row. It was per row on the argument that an opt-in row and its neighbour

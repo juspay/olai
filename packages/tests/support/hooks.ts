@@ -404,61 +404,21 @@ const STORED_TAG = "@agent-stored";
 /** `@no-agent`: this scenario's server is started with NO agent, which is the
  *  one state a person should never reach by following a documented launch path
  *  — every one of them defaults to the pinned adapter. It is reached here the
- *  same way a person would reach it deliberately: `OLAI_ACP_AGENT` set to the
- *  empty string, which survives the packaged binary's `${VAR-…}` wrapper. */
+ *  without an executable resource: empty command inputs and an empty
+ *  agent search path. This is availability, not an enablement policy. */
 const NO_AGENT_TAG = "@no-agent";
 
-/**
- * `@git:<repo|none|broken>`: this scenario's server COMMITS, and its directory
- * is one of the three things git can make of it — a work tree, no work tree, or
- * a git that fails when it is asked. Everything else runs with `--no-commit`
- * (below), which is a fourth state and the one the header calls `commits off`.
- *
- * A tag rather than a step because it decides how the server is STARTED, and
- * the whole point of the git indicator is that a page knows before anyone
- * writes anything.
- */
+/** The fixture's repository condition: real, absent, or a git executable that
+ * refuses requests. Commit policy defaults to manual independently of this tag. */
 const GIT_TAG = /^@git:(repo|none|broken)$/;
 
-/**
- * `@policy:git.commit=<mode>` / `@policy:git.push=<mode>`: this scenario's server was started
- * with a git POLICY, so the plugins panel draws that config under the git
- * row, read-only, with the flag named.
- *
- * A TAG rather than a step for the reason `@git:` is one: it decides how the
- * server is STARTED, and the whole point of a pin is that a page knows before
- * anybody presses anything. Both may be given; each is independent, which is
- * what lets a scenario pin one row and leave the other live.
- *
- * It requires a `@git:` tag beside it, and the Before hook says so: without one
- * the server is started `--no-commit`, which is `--commit=off` under another
- * name and would quietly win over whatever the tag asked for.
- *
- * A SCENARIO's tag beats its feature's for the same flag, because cucumber
- * hands the feature's tags first and the collection below keeps the last of
- * each key. That is what lets one feature pin a policy for every scenario in it
- * and one scenario in it ask for a different one.
- */
+/** Author git policy in the fixture before its initial commit and boot.
+ * Scenario tags override feature tags for the same property. */
 const POLICY_TAG = /^@policy:git\.(commit|push)=([a-z]+)$/;
 
-/**
- * `@rows:<name>[,<name>]` / `@rows:none`: this scenario's server was
- * started with an exact `--plugins` set. Each feature explicitly includes its
- * transport, shell and content capabilities; the harness adds no hidden rows.
- * `none` is left empty, so it starts no listener and is not a browser scenario.
- *
- * A TAG rather than a step for `@policy:git.`'s reason exactly — it decides how the
- * server is STARTED, and the whole point of the flag is that a page knows
- * before anybody presses anything. `none` is the empty value (`--plugins=`),
- * which is a real serve and NOT the same as omitting the tag: omitted runs
- * every integration this build has, which is what every other scenario wants.
- *
- * WHY IT SPELLS PLUGIN NAMES, when almost nothing else in this repo may: a
- * scenario about `--plugins=odu` is a scenario about a person typing `odu`, and
- * the words a person types are the one place the name belongs. `@olai/plugin-api`'s
- * fence holds the claim it actually makes — that no general package IMPORTS a
- * plugin or spells one in production code — and this suite is neither.
- */
+/** Select fixture rows through the policy file before boot. The reader profile
+ * is preserved unless @rows-off explicitly disables one of its rows. Other
+ * transport, shell and content rows must be named by the scenario. */
 const ROWS_TAG = /^@rows:([a-z0-9,-]+)$/;
 const ROWS_ON_TAG = /^@rows-on:([a-z0-9,-]+)$/;
 const ROWS_OFF_TAG = /^@rows-off:([a-z0-9,-]+)$/;
@@ -466,7 +426,7 @@ const ROWS_OFF_TAG = /^@rows-off:([a-z0-9,-]+)$/;
 
 /**
  * `@avatar-template`: this scenario's server was started with an avatar URL
- * TEMPLATE (`OLAI_IDENTITY_AVATAR_TEMPLATE`), which is the second rung of the
+ * TEMPLATE (`identity.avatar-template`), which is the second rung of the
  * picture ladder and the answer for a proxy that hands over a username rather
  * than an address — GitHub serves every user's avatar at
  * `https://github.com/<login>.png`, with no API and no token.
@@ -733,23 +693,14 @@ interface Spawn {
    *  See {@link FAKE_PI_DIR}. */
   readonly pi?: boolean;
   readonly codex?: boolean;
-  /** Absent is `--no-commit`, which is what every scenario but the git ones
-   *  wants. Present drops the opt-out and says which of the three git
-   *  situations this server is being started into. */
+  /** Repository condition, independent of the default manual commit policy. */
   readonly git?: GitMode;
-  /** The git POLICY, when the scenario pinned one — see {@link POLICY_TAG}. Each
-   *  half is absent when that flag was not asked for, because "nobody gave the
-   *  flag" is the built-in default. The row is read-only either way. */
+  /** Explicit policy leaves; absent leaves use the schema defaults. */
   readonly pin?: { readonly commit?: string; readonly push?: string };
-  /** WHICH INTEGRATIONS this server composed (`--plugins`), when the scenario
-   *  asked — see {@link ROWS_TAG}. The empty string is the flag given with
-   *  nothing after it, which is NONE; `undefined` is the flag not given, which
-   *  is every one this build has and is every other scenario. */
+  /** Fixture row selection; undefined preserves build defaults. */
   readonly plugins?: string;
-  /** `--extra-plugins`, when the scenario asked — see {@link ROWS_ON_TAG}. */
-  readonly extraPlugins?: string;
-  /** `--without-plugins`, when the scenario asked — see {@link ROWS_OFF_TAG}. */
-  readonly withoutPlugins?: string;
+  readonly rowsOn?: string;
+  readonly rowsOff?: string;
 
   /** The avatar URL template this server pictures people with, when the
    *  scenario asked for one — see {@link AVATAR_TAG}. Absent is no template,
@@ -773,11 +724,7 @@ const startServerChild = async (
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (stopped) throw new Error(shuttingDown(label));
-    // `--no-commit` unless the scenario is ABOUT git: a scratch directory is a
-    // temp copy, and committing to whatever repository happens to contain the
-    // temp dir is not the suite's business. A `@git:` scenario is the exception
-    // and owns its own directory, which `scratchServerFor` has already made
-    // into whichever of the three situations it asked for.
+    // Repository state is prepared before this child starts; policy is in its vault.
     const argv = [
       "web",
       dir,
@@ -804,9 +751,8 @@ const startServerChild = async (
         // wrapper exited on purpose", the daemonising case that must NOT
         // self-terminate.
         OLAI_DIE_WITH_PARENT: String(process.pid),
-        // The EMPTY string is the explicit off switch, and it is what a person
-        // turning chat off would set — so the no-agent scenario reaches that
-        // state the same way rather than through a hole in the harness.
+        // Empty executable inputs and an empty search path leave no test agent.
+        // Product row enablement is configured separately in the fixture.
         OLAI_ACP_AGENT: spawnOptions.agent === false ? "" : FAKE_AGENT,
         // The packaged binary now carries Codex too. Every scenario here is
         // deterministic against the scripted engine(s) it explicitly asks
@@ -851,9 +797,6 @@ const startServerChild = async (
         // Passed only where it was asked for: the variable being SET at all is
         // what puts the second rung of the picture ladder in play.
 
-        // The harness parses logfmt (`findLogfmt` for the serving line). A
-        // developer's `OLAI_LOG=pretty` would make every boot hang on readiness.
-        OLAI_LOG: "logfmt",
         // Every harness server runs on the SAME pretend box, so the word the
         // app names itself with is assertable against a constant (`BOX_NAME`)
         // rather than against `os.hostname()` of wherever the run landed.
@@ -1031,10 +974,10 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       // ... and the same plugin set, on the same sentence: a restart that came
       // back composing more than it did is a different server.
       ...(world.selectedRows === undefined ? {} : { plugins: world.selectedRows }),
-      ...(world.rowsOn === undefined ? {} : { extraPlugins: world.rowsOn }),
+      ...(world.rowsOn === undefined ? {} : { rowsOn: world.rowsOn }),
       ...(world.rowsOff === undefined
         ? {}
-        : { withoutPlugins: world.rowsOff }),
+        : { rowsOff: world.rowsOff }),
       // ... and the same avatar template, on the same sentence: a restart that
       // came back without it would draw the open page's person off a lower rung.
       ...(world.avatarTemplate === undefined
@@ -1140,8 +1083,8 @@ const scratchServerFor = async (
     fs.cpSync(fixtureDir(corpus), root, { recursive: true });
     writeFixturePolicy(root, {
       commit: spawnOptions.pin?.commit,
-      push: spawnOptions.pin?.push, only: spawnOptions.plugins, extra: spawnOptions.extraPlugins,
-      without: spawnOptions.withoutPlugins, avatar: spawnOptions.avatar,
+      push: spawnOptions.pin?.push, only: spawnOptions.plugins, extra: spawnOptions.rowsOn,
+      without: spawnOptions.rowsOff, avatar: spawnOptions.avatar,
       idle: spawnOptions.fastNodeIdle ? FAST_NODE_IDLE_MS : undefined,
     });
     if (spawnOptions.git === "repo") makeRepository(root);
@@ -1409,7 +1352,7 @@ Before(
       }),
     );
     // `none` is the EMPTY value rather than a name, because a cucumber tag is a
-    // word and `--plugins=` has none — the one place the two grammars differ.
+    // word and a policy with all rows off has none — the one place the two grammars differ.
     this.selectedRows = scenario.pickle.tags.flatMap((tag) => {
       const asked = ROWS_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1] === "none" ? "" : asked[1]!];
@@ -1423,10 +1366,7 @@ Before(
       return asked === null ? [] : [asked[1]!];
     })[0];
     const pinned = Object.keys(this.gitPolicy).length > 0;
-    // A pinned server without a `@git:` tag is started `--no-commit`, which is
-    // `--commit=off` under another name and would quietly beat whatever the pin
-    // asked for. Said here rather than left to an assertion, which would fail
-    // about a preference row instead of about the tag.
+    // Policy scenarios name their repository condition so a refusal has an explicit cause.
     if (pinned && this.gitMode === undefined) {
       throw new Error(
         "@policy:git. states this server's git policy, so the scenario must say which " +
@@ -1533,10 +1473,10 @@ Before(
         ...(this.selectedRows === undefined ? {} : { plugins: this.selectedRows }),
         ...(this.rowsOn === undefined
           ? {}
-          : { extraPlugins: this.rowsOn }),
+          : { rowsOn: this.rowsOn }),
         ...(this.rowsOff === undefined
           ? {}
-          : { withoutPlugins: this.rowsOff }),
+          : { rowsOff: this.rowsOff }),
       };
       const ownCopy = async (): Promise<void> => {
         const own = await scratchServerFor(asked.corpus, spawnOptions);

@@ -133,7 +133,7 @@ Feature: A plugin is turned on and off while the serve runs
     # live: that is why a façade over the handler record was declined and the
     # whole served set became accessors instead.
     #
-    # `--plugins=kolu,odu` is a serve with no conversation in it at all. The
+    # a policy selecting only kolu, odu is a serve with no conversation in it at all. The
     # tenants name chat's doors, so they come up `waiting` — which is the
     # doorbell feature's own scenario, and the state this one starts from.
     Given I open the outline "lanes.olai"

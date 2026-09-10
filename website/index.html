@@ -638,22 +638,21 @@
         <div class="plugrow"><span class="plugname">vault</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
         <div class="plugrow"><span class="plugname">git</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
         <div class="plugrow"><span class="plugname">journal</span><span class="seg"><span class="pick">Off</span><span>On</span></span></div>
-        <p class="plughint">Switched off here. A restart brings it back.</p>
+        <p class="plughint">_olai/Settings.olai says on: no.</p>
         <div class="plugrow"><span class="plugname">search</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
         <div class="plugrow"><span class="plugname">xyne-spaces</span><span class="seg"><span class="pick">Off</span><span>On</span></span></div>
-        <p class="plughint">Off by default — --plugins=xyne-spaces starts it at boot.</p>
-        <p class="plugfoot">A flip lasts until this process ends.</p>
+        <p class="plughint">Off by default. Switch it on here when this machine has Spaces credentials.</p>
+        <p class="plugfoot">Switches are saved in the vault and survive a restart.</p>
       </div>
       <div>
         <p>An agent can write one into your vault. You read the source on the
         panel and approve it. The worked example is a morning agenda: each
         morning it reads the day and puts it into the conversation.
         <a href="https://github.com/juspay/olai/blob/master/docs/dynamic-plugins.md#a-worked-example-the-morning-agenda">Read the morning agenda</a>.</p>
-        <p>A serve starts with the default set. Add a row with
-        <code>--extra-plugins</code>, drop one with
-        <code>--without-plugins</code>, or name the exact set with
-        <code>--plugins</code>. The Nix module has the same three. The rest is
-        in the
+        <p>The vault carries your settings. A top-level node in
+        <code>_olai/Settings.olai</code> names each tool; its properties choose
+        how it behaves and whether it runs. The panel writes the same file.
+        See the
         <a href="https://github.com/juspay/olai/blob/master/docs/running.md">running docs</a>.</p>
       </div>
     </div>

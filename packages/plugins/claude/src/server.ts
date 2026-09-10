@@ -9,7 +9,7 @@
  * agent id a closed union. Adding an engine was a core PR in two general
  * packages; bumping THIS adapter's pin was an edit in a file the other two
  * shared. Both are gone: this engine is one directory, one row in `olai.yml`,
- * and one `--plugins` word.
+ * and one the file’s row selection word.
  *
  * ## What is on THIS side of the wall, and what is not
  *
@@ -83,7 +83,7 @@ export const ENGINE: Registering = {
  * A FAILURE HERE IS NOT A BOOT FAILURE. The fiber lands in `FAILED` having
  * installed nothing, and every other engine — and every tenant — goes on
  * running. A serve that lost this row is a serve whose picker has no Claude in
- * it, which is exactly what `--plugins=opencode,pi` asks for on purpose.
+ * it, which is exactly what a policy selecting only opencode, pi asks for on purpose.
  */
 export default definePlugin({
   environment: [

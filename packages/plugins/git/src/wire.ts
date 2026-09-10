@@ -31,7 +31,7 @@ import {
 import { Schema } from "effect"
 
 /** The sibling key, the preferences row, the docs slug, and the word
- *  `--plugins` takes. */
+ *  the file’s row selection takes. */
 export const name = "git"
 
 export const surface = defineSurface({

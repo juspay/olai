@@ -15,7 +15,7 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * ## What is deliberately NOT here
  *
  * `optIn`. Telling "the row's own default left it off" from "the flag left it
- * off" needs `--plugins`, which is the composition root's and not this package's
+ * off" needs the file’s row selection, which is the composition root's and not this package's
  * — the two are the SAME FIELD by the time the loader sees them, which is exactly
  * what makes the patch a patch. `@olai/server`'s `runtime.test.ts` holds that
  * split.

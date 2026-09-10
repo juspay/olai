@@ -935,7 +935,7 @@ When("I close the plugins panel", async function (this: OlaiWorld) {
  * WHAT ONE PLUGIN'S ROW SAYS IT IS DOING — the hint, which is the half of the
  * row a person can act on.
  *
- * By the plugin's NAME, which is the word `--plugins` takes and the label the
+ * By the plugin's NAME, which is the settings namespace and the label the
  * row wears, so a scenario names the row the same way the operator who caused
  * this state did.
  */
@@ -1029,7 +1029,7 @@ Then(
   },
 );
 
-/** ONE PLUGIN'S ROW on the plugins panel, by the word `--plugins` takes — which
+/** ONE PLUGIN'S ROW on the plugins panel, by the settings namespace — which
  *  is the label the row wears, so a scenario names it the way the operator who
  *  caused this state did. */
 const rowFor = (world: OlaiWorld, plugin: string) =>

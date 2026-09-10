@@ -53,7 +53,7 @@ The TRANSCRIPT is still not persisted on this side, and that is the part that ha
 
 | file | what it owns |
 |---|---|
-| `adapter.ts` | which executable the `claude` row of the roster is: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty to turn chat off — the whole panel, not one row. Both variable NAMES live here, and the sentence a person reads when nothing was found |
+| `adapter.ts` | which executable the `claude` row of the roster is: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty falls through to command discovery; the vault’s `chat.on` property turns the panel off. Both variable NAMES live here, and the sentence a person reads when nothing was found |
 | `agents/roster.ts` | WHICH agents this machine has, and how to start each: one table, probed once when the server starts. `OLAI_AGENT_PATH` is where the probes look, because olai's PATH is not your shell's |
 | `agents/legs.testlib.ts` | MADE-UP legs, for this package's own benches. The real ones left with their engines (see *The legs* above), and a bench that borrowed one would be a claim about core pinned to one adapter's release clock |
 | `agents/models.ts` | the model picker, which is ACP's own `configOptions` and so belongs to neither: which entry is the model, what the agent calls each value, whether two model strings name one model, and the picker's own word for one |

@@ -9,7 +9,7 @@
 # ONE ROW and there is no second list to keep in step. `src/fence.test.ts` is
 # what refuses a name spelled anywhere else.
 #
-#   id        the sibling key. It IS the plugin's name: the word `--plugins`
+#   id        the sibling key. It IS the plugin's name: the settings namespace
 #             takes, the row preferences draws, the namespace every one of its
 #             members reaches the wire under, and the address of its docs page.
 #             The fiber is bound under it, so it is also the stamp
@@ -20,26 +20,25 @@
 #             (`src/bundle.ts`), which is what makes a plugin's presence a
 #             runtime fact and is the seam an out-of-tree `olai plugin add`
 #             lands on later.
-#   disabled  OFF UNLESS THE FLAG NAMES IT. Absent is the ordinary case and
+#   disabled  OFF UNLESS THE VAULT ENABLES IT. Absent is the ordinary case and
 #             means on; `true` is a plugin that is opt-in.
 #   profiles  Additional default profiles selecting this row (web uses defaults).
 #   section   THE PLUGINS PANEL GROUP this row sits in. The inspector walks
 #             groups rather than a flat list; a new plugin picks a section here
 #             and appears in it with no inspector edit. The word is verbatim on
 #             screen. Required.
+#   switchHint Warning shown before switching a row off.
 #   quiet     THE GROUP MAY START COLLAPSED when every row in it is running and
 #             has nothing to say. Absent is always-open. A group is quiet when
 #             every member is.
 #
-# `--plugins` does NOT edit this file. It is a PATCH applied over these rows on
-# the way in — one `disabled` per row, set from whether the flag named it — so
-# what an operator said and what the build has stay two readable things, and
-# `--dump-config` can later show both. Omitting the flag writes no patch at all,
-# which is how a row's own `disabled` survives being the built-in default.
+# _olai/Settings.olai holds operator policy. Its on property becomes a disabled
+# patch over these build defaults; the composition root owns the loader verbs.
+# Missing choices preserve the selected profile and this file's defaults.
 # THE CHAT, FIRST — because everything else on this list names one of its doors.
 #
 # One row, and it is the row that made this file's grammar honest: chat was
-# CORE until phase 7, so `--plugins=` served an outliner that still carried a
+# CORE until phase 7, so a policy with all rows off served an outliner that still carried a
 # panel, a roster, fourteen procedures and four services nobody could turn off.
 # It is a plugin now, with both halves, and a serve that does not name it has no
 # `surface/chat/` on the wire, no panel in the tab and no conversation anywhere.
@@ -86,10 +85,9 @@
 # nobody — which is what a loopback serve with no proxy in front already is, so
 # the row is on by default and its absence needs no mode.
 #
-# The header names and the avatar template are the OPERATOR's, in the
-# environment (`OLAI_IDENTITY_*`, docs/running.md) rather than in this row's
-# `config:`: they say how the proxy in front is wired, which is set where that
-# proxy is.
+# Header names and the avatar template are behaviour knobs on the identity
+# node in _olai/Settings.olai. Their defaults and descriptions are declared
+# by the identity Config schema, like every other row's policy.
 - id: identity
   name: olai-plugin-identity/server
   section: Vault
@@ -111,7 +109,7 @@
 #
 # Each is a row rather than four rows of one "agents" plugin because they share
 # no release clock: the Claude adapter's pin moved five times in a month and
-# opencode's has never moved. `--plugins=codex,opencode,pi` is a serve with no
+# opencode's has never moved. a policy selecting only codex, opencode, pi is a serve with no
 # Claude row, no probe of one, and no mark for one anywhere.
 - id: claude
   name: olai-plugin-claude/server
@@ -135,13 +133,13 @@
 # OFF BY DEFAULT, and the row is where that is said rather than a `defaultOn`
 # field on a manifest: a Spaces app JWT is a secret this machine may not have,
 # and a pill in every bar for an integration nobody pointed at is the wrong
-# default. `--plugins=xyne-spaces` is what turns it on, which is the patch
+# default. a policy selecting only xyne-spaces is what turns it on, which is the patch
 # mechanism doing exactly what it is for.
 - id: xyne-spaces
   name: olai-plugin-xyne-spaces/server
   section: Appliances
   disabled: true
-# TRANSPORTS — ordinary plugins, selected by profiles or an exact --plugins set.
+# TRANSPORTS — ordinary plugins, selected by profiles and vault policy.
 - id: ws
   name: olai-plugin-ws/server
   section: Transports

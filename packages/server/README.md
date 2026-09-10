@@ -162,14 +162,10 @@ What is still this package's is the ENVIRONMENT those rows are read against, bec
 
 **The shipped defaults are Claude Code and Codex, on every documented launch path.** Each adapter is pinned behind its own executable output — the established Claude/Pi bundle in `nix/acp-agent.nix`, Codex in its row's [`acp/default.nix`](../plugins/codex/acp/default.nix) — and the packaged binary's wrapper bakes both in with `--set-default` (`default.nix`). `just serve` and `just run` resolve the same outputs through their `scripts/acp-*.sh` helpers. Nobody following a documented path has to install either adapter or CLI, and a Codex pin move neither rebuilds nor rewrites the other adapters.
 
-`OLAI_ACP_AGENT` overrides that, and it has two useful shapes:
-
-| value | meaning |
-|---|---|
-| a command | that is the agent — how the e2e suite points at a scripted one |
-| the empty string | deliberately no agent |
-| unset | the pinned default, wherever one was baked in |
-
-The empty case works through the packaged binary because `makeWrapper --set-default` emits `${VAR-default}` — one dash, so it substitutes only when the variable is UNSET. The CI lane asserts that spelling too: `:-` would swallow the off switch.
+`OLAI_ACP_AGENT` supplies an executable command, including the scripted agent
+used by e2e tests. Unset or empty uses the packaged command or a matching
+executable on the search path. An empty command is not a policy switch: put
+`on: no` on the engine's node in `_olai/Settings.olai` to disable it. To remove
+the conversation entirely, switch the `chat` row off.
 
 The MCP server a session is handed is this process's own, on this process's listener. Loopback clients may omit the bearer; the chat still sends the one it was handed. `olai-plugin-mcp`'s `route.ts` says why HTTP: the tools are this process's ops over this process's store, and a second olai would be a second store watching the same directory.

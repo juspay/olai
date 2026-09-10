@@ -3,8 +3,8 @@
  *
  * Codex is SHIPPED rather than found on PATH: every documented launch path
  * sets OLAI_ACP_CODEX to the Nix-built codex-acp wrapper. Keeping its variable
- * separate from OLAI_ACP_AGENT matters because the latter's empty value is the
- * whole chat off switch as well as the Claude row's historical override.
+ * separate from OLAI_ACP_AGENT gives each engine its own executable resource.
+ * Enablement belongs to the engine’s node in the vault configuration file.
  */
 import { adapterFrom } from "@olai/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"

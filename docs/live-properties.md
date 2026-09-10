@@ -78,7 +78,7 @@ The chip's press opens a **pane** beneath the property run — one at a time per
 
 ## When a plugin is off
 
-Live properties come from plugins, and a serve can be run without one — `--plugins` at startup, or the switch on its row in the plugins panel while it runs ([running.md](running.md#the-switch-and-how-long-it-lasts)). A kind whose plugin is not running validates as **plain text**: the value is still a name, the file is still fine, nothing breaks, and it wears no face. That is exactly the state a vault that declared nothing is already in.
+Live properties come from plugins, and a serve can be run without one — the file’s row selection at startup, or the switch on its row in the plugins panel while it runs ([running.md](running.md#the-switch-and-how-long-it-lasts)). A kind whose plugin is not running validates as **plain text**: the value is still a name, the file is still fine, nothing breaks, and it wears no face. That is exactly the state a vault that declared nothing is already in.
 
 **And it happens while you watch.** The vocabulary follows the fibers rather than the boot: switch a plugin off and its words leave the running serve with it, the values under them go back to being plain text on the next reading, and switching it back on brings both the words and the faces back. Nothing on disk moved in either direction — this is a question about which plugins are up, asked afresh, not a rewrite of anything you wrote.
 

@@ -29,10 +29,8 @@ cells: {
      * must not do any of that, and it is not a rare case — a reconnect
      * republishes. {@link sameRoster} argues it in full.
      *
-     * Wire-read-only, and the paragraph that used to stand here said it was
-     * more than the usual: *`--plugins` is CLI/nix ONLY, so there is no verb a
-     * browser could call*. There is one now — {@link plugins.set}, one group
-     * down — and this cell is read-only for the ORDINARY reason instead: the
+     * Read-only because the server owns the reading. The switch is a separate
+     * procedure with an acknowledgement or refusal. The
      * server is the only thing that knows what its fibers are doing, a flip is
      * an act with a refusal rather than an assignment, and what comes back from
      * pressing the switch is this cell moving. `git` is the same pairing one

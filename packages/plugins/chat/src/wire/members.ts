@@ -1258,7 +1258,7 @@ export type Listed = typeof Listed.Type
  * rather than what this wire listed.
  *
  * That is strictly more honest than a member would have been, and the reason is
- * the tab following the roster: a serve started `--plugins=opencode,pi` never
+ * the tab following the roster: a serve started a policy selecting only opencode, pi never
  * fetches the Claude chunk, so no Claude row is drawn — where a list on this
  * cell would have had to be filtered by something, and a compiled-in record
  * would have gone on offering an engine this serve could not mount.

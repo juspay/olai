@@ -147,7 +147,7 @@ const panelOver = async (initial: ReadonlyArray<Installed>) => {
  *
  * BOTH DIRECTIONS, because a switch has two: a row that leaves goes, and a row
  * that arrives — which is somebody turning a plugin ON, or a serve started
- * `--plugins=kolu` getting its engines back — appears. Only asserting the first
+ * a policy selecting only kolu getting its engines back — appears. Only asserting the first
  * would pass against an implementation that emptied the list and never refilled.
  */
 test("an engine switched off leaves the picker, and one switched on enters it", async () => {
@@ -226,7 +226,7 @@ test("the last engine leaving is the off face, and a returning one leaves it", a
  * REGISTRATIONS and compensates EMISSIONS, and a spawned ACP child is a process
  * olai owns exclusively and can stop, so it is inside the boundary. And a row
  * switched off must be the same state as a row the flag never named — under
- * `--plugins=` without claude there is no claude conversation, so a moment after
+ * a policy with all rows off without claude there is no claude conversation, so a moment after
  * switching claude off there must not be one either.
  *
  * ## What is asserted, and why it is these three

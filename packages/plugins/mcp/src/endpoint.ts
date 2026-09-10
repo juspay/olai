@@ -177,7 +177,7 @@ const INSTRUCTIONS =
  * Siblings alone was the honest shape and it had one hole: kolu refuses a
  * bundle with neither half ("a bundle with no core and no siblings is not a
  * bundle"), and the roster REACHES ZERO in two ordinary situations. A serve
- * selected as `--plugins outlines,ws,mcp,web-app` composes no agent row until a
+ * selecting only outlines, ws, mcp and web-app in its policy composes no agent row until a
  * vault arrives, so `serveSurfaceAsMcp` threw at boot and `/mcp` was never
  * registered at all. And a person flipping the vault off through the panel took
  * every content row with it, so `reroster({})` was refused — and the adapter's

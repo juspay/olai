@@ -3,13 +3,13 @@
  * recorded.
  *
  * This is `git-policy-server-side` end to end, at the one seam where the whole
- * claim can be made: a real `olai web --commit=auto --push=auto` as a child
+ * claim can be made: a real `olai web with git commit and push set to auto` as a child
  * process, a real work tree, a real bare remote, and no page open anywhere.
  *
  * It is the scenario the old arrangement could not have: Auto-commit was a
  * fifteen-second window inside a browser tab and Auto-push fired inside that
  * tab's own `git.commit` callback, so a directory nobody had open recorded
- * nothing, and `--commit=auto --push=auto` on a headless serve committed every
+ * nothing, and `commit: auto and push: auto` on a headless serve committed every
  * write on its own and pushed none of them. Both halves are the server's now.
  *
  * IT WAITS OUT THE REAL WINDOW, which is why it is the slowest test in this
@@ -118,7 +118,7 @@ test("a headless serve commits a quiet directory and pushes it, with no tab open
  * reason nowhere and — on a clean tree — never attempt again, since a push
  * follows a settled commit made in THIS process.
  *
- * So the words are re-earned: one push at boot, under `--push=auto` and no
+ * So the words are re-earned: one push at boot, under `push: auto` and no
  * other mode. These two are that ruling as a real serve — a child process over
  * a real repository whose upstream somebody else has moved.
  */
@@ -161,7 +161,7 @@ const served = (): { readonly root: string; readonly bare: string; readonly stat
  *  product decision. */
 const AFTER_BOOT = 15_000
 
-test("a boot under --push=auto re-earns git's words about a branch it cannot send", async () => {
+test("a boot under push: auto re-earns git's words about a branch it cannot send", async () => {
   const dirs = served()
   diverged(dirs)
   const web = startWeb({
@@ -191,7 +191,7 @@ test("a boot under --push=auto re-earns git's words about a branch it cannot sen
   }
 }, AFTER_BOOT + 15_000)
 
-test("a boot under --push=off attempts nothing, however far behind the branch is", async () => {
+test("a boot under push: off attempts nothing, however far behind the branch is", async () => {
   const dirs = served()
   diverged(dirs)
   const web = startWeb({

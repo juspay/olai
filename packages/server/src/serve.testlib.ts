@@ -33,7 +33,7 @@ import { serve } from "./serve.ts"
 // Twin of startWeb's OLAI_ACP_AGENT: "". None of these in-process boots
 // is about the chat panel, and a real `opencode` on PATH would spawn one
 // per serve() — the load that blows a listen wait. Empty is the documented
-// off switch, so nothing else is probed either.
+// search path, so no external engine executable is discovered.
 process.env.OLAI_ACP_AGENT = ""
 process.env.OLAI_ACP_CODEX = ""
 process.env.OLAI_ACP_PI = ""
@@ -81,24 +81,18 @@ export const withServe = async <A>(
   options: {
     readonly profile?: import("./profiles.ts").Profile
     readonly root: string
-    /** How writes reach git. `off` unless a test is ABOUT committing — a temp
-     *  directory is not a repository, and the tests that do not care should not
-     *  spawn git to find that out. */
+    /** How writes reach git. Absent uses the schema’s manual default. */
     readonly commits?: "off" | "manual" | "auto"
     /** The browser bundle to serve. Unset is a stand-in directory that exists,
      *  which is all a boot test asks of a bundle it is never going to fetch a
      *  page out of. Pass a real (or assembled) dist when the test is about
      *  what the static layer actually answers. */
     readonly clientDist?: string
-    /** WHAT THE SERVE CAN SEE — the identity row's `OLAI_IDENTITY_*` family
-     *  is what a test in this package sets through it, since who is looking
-     *  is a row's reading now and core holds none of its vocabulary. Unset is
-     *  `process.env`, which is Tailscale's own header names with no avatar
-     *  template: a test that is not about identity should not have to name
-     *  one. */
+    /** Secrets and machine resources for this test's serve. Behaviour knobs
+     * belong in `policy`, which authors the fixture before boot. */
     readonly vars?: Record<string, string | undefined>
     readonly policy?: FixturePolicy
-    /** WHICH rows this serve composes — `--plugins` as a person types it.
+    /** WHICH rows this serve composes — the file’s row selection as a person types it.
      *  Unset is nobody having said, which is the built-in default and what
      *  every harness here wants: these stand up the whole product. A test
      *  that names a narrower list is a test ABOUT a row's absence. */
@@ -119,12 +113,6 @@ export const withServe = async <A>(
       clientDist: options.clientDist ?? served(),
       allowedOrigins: [],
       ...(options.vars === undefined ? {} : { vars: options.vars }),
-
-      // The built-in default, which is what omitting `--plugins` means and what a
-      // real serve does — these harnesses stand up the whole product, and a
-      // composition narrower than the one a person gets would be a suite proving
-      // something nobody runs. A test that is about what a MISSING row leaves
-      // behind says so, and gets the list it named.
 
     })
     return yield* Effect.promise(() => body(said))

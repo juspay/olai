@@ -258,16 +258,12 @@ Feature: Choosing an agent
 
   @no-agent @scratch:chat
   Scenario: With no agent at all, the panel says how to get one
-    # An empty roster shows install instructions rather than an empty list —
-    # the panel answers the question a person actually has, which is what to do
-    # about it. Reached the way somebody would reach it deliberately:
-    # `OLAI_ACP_AGENT` set to the empty string, which is the whole off switch
-    # rather than one missing row.
+    # No executable resources are available; enabled rows cannot supply an agent.
     Then the panel says there is no agent
     And the panel tells me how to install "opencode"
     And the panel explains how to configure one, naming "OLAI_ACP_AGENT"
     # ...and it says WHICH of the three ways it got here rather than hedging
-    # across them. This one is the off switch, and the sentence is about that.
+    # across them. Here no engine executable is installed.
     And the panel says no engine is installed
     And there is nothing to type into
     # And the outlines are unaffected: serving a directory never depended on an
@@ -278,7 +274,7 @@ Feature: Choosing an agent
   Scenario: A serve that enabled no engine says THAT, rather than guessing
     # THE CASE THE FACE USED TO MISS ENTIRELY, and the commonest real one now
     # that every engine is a plugin: all four engine rows are ENABLED BY
-    # DEFAULT, so the way to end up with no agent is to name a `--plugins` list
+    # DEFAULT, so the way to end up with no agent is to author a row selection
     # without one in it.
     #
     # THE LIST NAMES `chat`, and that is the phase rather than noise: the panel

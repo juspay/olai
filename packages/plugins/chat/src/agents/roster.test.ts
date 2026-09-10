@@ -105,7 +105,7 @@ describe("who is offered", () => {
   })
 
   test("no engines at all is a whole state, and it is the empty roster", () => {
-    // `--plugins=` with nothing named, or a build with every engine row
+    // a policy with all rows off with nothing named, or a build with every engine row
     // disabled. The panel draws the face that says so; nothing here refuses.
     expect(rosterOf({ env: {}, cwd: CWD, found: () => "/bin/anything" }, []))
       .toEqual({ kind: "none", because: { kind: "no-engine" } })

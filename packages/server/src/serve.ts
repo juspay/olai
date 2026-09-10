@@ -72,7 +72,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
     }));
     const profile = options.profile ?? "web";
     // EVERY ROW THIS BUILD HAS, read before the profile patch and before
-    // `--plugins` — which is what makes it the right list for all three of its
+    // the file’s row selection — which is what makes it the right list for all three of its
     // readers. `settled` below waits out MOVEMENT rather than readiness
     // (`@olai/effect-cordis`'s `settled`), so a row the patch disabled never
     // entered the registry, holds no inertia, and costs the barrier one `has`;
@@ -138,7 +138,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
     // would be a turn behind it for no reason a reader could find.
     //
     // `mountBundle` turns the rows into fibers under the profile patch and the
-    // `--plugins` pin, and returns once every one of them has stopped moving.
+    // the file’s row selection pin, and returns once every one of them has stopped moving.
     //
     // `openLoading` provides `HostLoading`, which is how a row publishes a
     // CATALOG of plugins it loads itself — the served directory's own

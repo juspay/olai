@@ -1,7 +1,7 @@
 /**
  * WHICH PLUGINS THIS BUILD HAS, and which this SERVE runs — the two lists as
- * one value, because the distance between them is the whole of what `--plugins`
- * means and a browser that held only one of them could not draw it.
+ * one value, because a file’s requested row selection can differ from what the runtime
+ * can mount and a browser that held only one of them could not draw it.
  *
  * ## Why this is CORE'S member and not a plugin's
  *
@@ -41,8 +41,8 @@
  *
  * ## STILL READ-ONLY, and the panel is no longer frozen
  *
- * Those two used to be one sentence — *read-only on the wire because `--plugins`
- * is CLI/nix ONLY, no settings file, no browser toggle* — and the loader surface
+ * Those two used to be one sentence — *read-only on the wire because the file’s row selection
+ * was a read-only startup selection* — and the loader surface
  * separated them. There IS a browser verb now (`plugins.set`, on the root spec),
  * and this cell still carries no write verb, because the two are about different
  * things: a flip is an ACT with a subject and a refusal, and what comes back
@@ -76,7 +76,7 @@ import { Schema } from "effect"
  * running names — because two lists are two things to keep in step and a name
  * in the second that is not in the first is a state nothing on screen could
  * draw. A row that says `false` is the row the panel exists for: a plugin left
- * out of `--plugins` has no surface, no face and no probe, and an absent row
+ * out of the file’s row selection has no surface, no face and no probe, and an absent row
  * would be indistinguishable from a build that never had it.
  */
 /** Secret readings have no value field on their wire arm. */
@@ -86,7 +86,7 @@ export const EnvironmentReading = Schema.Union([
 ])
 
 export const BuiltPlugin = Schema.Struct({
-  /** The plugin's `name` — the namespace, the docs slug, the word `--plugins`
+  /** The plugin's `name` — the namespace, the docs slug, the settings namespace
    *  takes and the label the row wears. One spelling, and this is it travelling
    *  (`@olai/plugin-api`'s `plugin.ts`). */
   name: Schema.String,
@@ -145,7 +145,7 @@ export const BuiltPlugin = Schema.Struct({
    * service and no row offers it; a panel that says only *waiting for something
    * it needs* is telling a person that something is wrong and nothing about
    * what, on the one screen whose whole job is to say what to do next. Under
-   * `--plugins=kolu` the answer is `deliveries`, and the answer to THAT is
+   * a policy selecting only kolu the answer is `deliveries`, and the answer to THAT is
    * "compose the chat row" — which is a sentence somebody can act on.
    *
    * CORE'S OWN VOCABULARY, unlike {@link fault}, which is why core names these
@@ -356,7 +356,7 @@ export const PLUGIN_BROWSER_NODE = "browser.tsx"
  *
  *   - `running`  composed: members on the wire, faces drawn, probe run, kinds
  *                held. The ordinary state and the only one that is good news.
- *   - `off`      the operator's `--plugins` did not name it. Total absence, asked for.
+ *   - `off`      the vault policy leaves it off. Total absence, asked for.
  *   - `optIn`    this BUILD leaves it off until somebody asks — the row's own
  *                `disabled`, which is the built-in default living in the file
  *                the loader reads. Also total absence, and NOBODY ASKED, which

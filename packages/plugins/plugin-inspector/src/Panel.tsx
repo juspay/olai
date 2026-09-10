@@ -39,7 +39,7 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * Every clause of that is true and the conclusion is backwards. If the same
  * sentence is on every row, the panel is ALREADY drawing the caveat N times;
  * the per-row placement is what makes it N rather than one. A serve started
- * with `--plugins=claude,codex,chat,kolu,odu` drew that flag, quoted in full and
+ * with a policy selecting only claude, codex, chat, kolu, odu drew that flag, quoted in full and
  * wrapped over three lines, eight times — under a hint that was itself the same
  * sentence on six of the eight. The human, 2026-09-04, with the screenshot:
  * *portrait spammy*.

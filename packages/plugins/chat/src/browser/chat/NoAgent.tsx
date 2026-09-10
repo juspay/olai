@@ -40,7 +40,7 @@
  *
  * IT IS STRICTLY MORE HONEST THAN THE TABLE it replaces, and the reason is the
  * tab following the roster: this list is the engines this SERVE composed, not
- * the engines this BUILD has. A serve started `--plugins=opencode,pi` never
+ * the engines this BUILD has. A serve started a policy selecting only opencode, pi never
  * fetches the Claude chunk, so no Claude row is drawn — where a compiled-in
  * record would have gone on offering an engine this serve could not mount, with
  * nothing in core knowing why.
@@ -51,7 +51,7 @@
  * installed usually means one of two things"*, then two bullets. One of them —
  * a start that did not go through the wrapper that bakes the pinned adapters in
  * — cannot happen on any documented way of starting olai, since every one of
- * them bakes it in. And the case that DOES happen most, a `--plugins` list
+ * them bakes it in. And the case that DOES happen most, a the file’s row selection list
  * naming no engine row, was the one the face never mentioned: a person who
  * turned every engine off was told to point `OLAI_ACP_AGENT` at an executable,
  * which would have changed nothing, because with no engine plugin mounted there

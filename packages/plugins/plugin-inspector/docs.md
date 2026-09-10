@@ -48,7 +48,3 @@ reconciliation. The vault provider and configuration reader stay session-only,
 said on their rows, so either can be restored from the panel. When the reader
 is absent, that shared limitation is said once at the foot. Broken configuration
 is named and must be repaired before another durable press can write.
-
-Until step 4 removes legacy boot flags, `·flag (inferred)` means the startup
-value differs from the schema default. It is not recorded provenance: explicitly
-supplying the default still reads `default`.

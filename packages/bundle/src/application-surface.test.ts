@@ -374,8 +374,8 @@ test("a page that has heard nothing has no plugin rows", () => {
  * word, and the collision is core's own now rather than one this package made.
  *
  * This case used to say there was no verb at all: *a plugin's enablement is
- * CLI/nix only — no settings file, no browser toggle — so there is no verb for a
- * tab to call, the way there is none for `--commit`.* The loader surface gave it
+ * a read-only startup selection — so there is no verb for a
+ * tab to call, the way there is none for the `git.commit` property.* The loader surface gave it
  * one, and the shape it gave it is the interesting half. The cell keeps `get`
  * alone, because a `set` on it would mean "make the roster say this", which is a
  * browser telling a serve what its own fibers are doing; the PROCEDURE is an act

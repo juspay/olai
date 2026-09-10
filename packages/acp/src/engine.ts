@@ -145,7 +145,7 @@ export type PromptChannel =
  * ONE ENGINE, AS ITS PLUGIN REGISTERS IT.
  *
  * NO `id`. The id is the FIBER'S WORD — the row's `id` in `olai.yml`, which is
- * the sibling key, the word `--plugins` takes, the address of its docs page and
+ * the sibling key, the settings namespace, the address of its docs page and
  * the stamp every other keyed service reads off the registry binding. A plugin
  * cannot spell another's, because there is no field here to spell one in.
  */

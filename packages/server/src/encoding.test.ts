@@ -94,7 +94,7 @@ const withServer = (
       clientDist: dist,
       allowedOrigins: [],
 
-      // The built-in default, which is what omitting `--plugins` means.
+      // The built-in default, which is what omitting the file’s row selection means.
 
     })
     const url = findSaid(said, "serving")?.annotations.url

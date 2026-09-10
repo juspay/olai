@@ -2,7 +2,7 @@
 
 The settings row needs the vault and offers its current configuration reading.
 It selects `_olai/Settings.olai` by case-folded basename, shallowest path first,
-then path order. Each top-level node names a bundle row; child nodes name
+then path order. Each top-level node names a bundle row or the serve itself (`olai`); child nodes name
 sections of that row's schema. An absent or malformed value uses the schema's
 default. A malformed file defaults every row and remains named in the reading.
 

@@ -1832,23 +1832,11 @@ export class OlaiWorld extends World {
   hasPi = false;
   /** The Codex roster row, using the scripted ACP transport. */
   hasCodex = false;
-  /** Which git situation this scenario's server was started into (`@git:…`),
-   *  or `undefined` for the `--no-commit` every other scenario runs with.
-   *  Carried for the same reason as the three above: a restart mid-scenario has
-   *  to reproduce the first boot, and this one decides both the argv and what
-   *  the served directory IS. */
+  /** Repository condition, reproduced when the scenario restarts its server. */
   gitMode?: GitMode;
-  /** The git POLICY this scenario's server was started with (`@policy:git.commit=…`,
-   *  `@policy:git.push=…`) — an empty object for the ordinary server, which pins
-   *  nothing and leaves both preference rows to the browser. Carried for the
-   *  same reason as `gitMode`: a restart has to reproduce the first boot, and
-   *  this decides what every browser's preferences panel is allowed to do. */
+  /** Policy authored before boot. Absent leaves keep schema defaults. */
   gitPolicy: { commit?: string; push?: string } = {};
-  /** WHICH INTEGRATIONS this scenario's server composed — the `--plugins` value
-   *  a `@rows:` tag asked for, `""` for none, and `undefined` for the flag
-   *  nobody gave (every integration this build has). Held for `gitPolicy`'s reason:
-   *  a restart has to reproduce the first boot, and a server that came back
-   *  running a different set is a different server. */
+  /** Requested fixture selection; undefined preserves build defaults. */
   selectedRows: string | undefined = undefined;
   rowsOn: string | undefined = undefined;
   rowsOff: string | undefined = undefined;

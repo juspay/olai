@@ -1,10 +1,7 @@
 @scratch:good @git:repo
-Feature: Git policy is the instance's, not this browser's
-  Committing and pushing are facts about a DIRECTORY: a flag on the command
-  line (or the nix module) is the git plugin's pin, the same in every
-  browser. There is no runtime door and nothing about git is stored here.
-  Theme, font, size, notes and done are personal view choices, and there is
-  nothing about them for a server to have an opinion on.
+Feature: Git policy travels with the vault
+  The panel reads the git node's properties and names their authors.
+  Editing that node re-applies the row for every browser of this serve.
 
   Background:
     Given I open the outline "garden.olai"

@@ -408,7 +408,7 @@ test("the page ships a LICENCE per claimed value, and the vault it was read from
   // is the behaviour a reader notices, and it is the point.
   expect(page.licences.map((one) => one.prop)).not.toContain("sprocket")
   // A SERVE THAT IS NOT RUNNING THE PLUGIN LICENCES NOTHING — the same table,
-  // empty, which is what a `--plugins=` tab draws every face off.
+  // empty, which is what a policy with all rows off tab draws every face off.
   expect(pageOf(read, at, { built: running.built, enabled: new Map() }).licences).toEqual([])
   // ...and the vocabulary still does not travel: what a reader of this payload
   // learns is that ONE value is claimed by one word. It cannot learn which keys
@@ -472,7 +472,7 @@ test("...and the WORD is the consult's other answer, on the key the vault actual
   expect(consult(asking(true), "a.olai", "pty", "c56b6183"))
     .toEqual({ opens: null, word: "sprocket" })
   // A KIND NOBODY ANSWERS FOR LICENCES NOTHING, which is the same absent state a
-  // machine that never had the plugin is in — and it is the arm a `--plugins=`
+  // machine that never had the plugin is in — and it is the arm a policy with all rows off
   // serve takes for every value of every contributed kind.
   expect(consult(asking(false), "a.olai", "pty", "c56b6183"))
     .toEqual({ opens: null, word: null })

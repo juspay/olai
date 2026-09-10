@@ -94,7 +94,7 @@ Feature: The `terminal` property is a DOOR
   Scenario: A serve that did not compose kolu is the machine that never had it
     # THE DISABLED STATE, and it is not the same picture as the one below. There
     # a padi is missing and the page says so, which is news. Here an operator
-    # ran `--plugins=odu`, and a page that complained about a daemon somebody
+    # ran a policy selecting only odu, and a page that complained about a daemon somebody
     # deliberately turned off would be reporting on a decision rather than on a
     # fact. So: no door, no pill, and nothing amber.
     #

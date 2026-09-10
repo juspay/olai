@@ -90,7 +90,7 @@ const only = (sent: PluginRoster) => sent.built[0]!
 /**
  * A ROW PER PLUGIN THE BUILD HAS, not per plugin that is running — which is the
  * whole feature and the one thing a filter over the enabled ones could not do.
- * A plugin left out of `--plugins` is absent from every structure the server
+ * A plugin left out of the file’s row selection is absent from every structure the server
  * holds, so the row saying so is the only place its absence is visible at all.
  */
 test("every plugin the build has gets a row, running or not", () => {
@@ -240,7 +240,7 @@ test("a failed row quotes what the plugin said, or says it said nothing", () => 
  *
  * THEY ARE TWO ARMS AND NOT ONE. `optIn` is this build shipping the plugin off
  * until somebody asks, and it is only reachable under NO flag — so
- * `--plugins=alpha` is the whole of what to type. `off` is a flag that was
+ * a policy selecting only alpha is the whole of what to type. `off` is a flag that was
  * given and did not name this row, so what to type is this name ADDED to a list
  * the panel's foot is already quoting.
  */
@@ -295,7 +295,7 @@ test("a plugin row is found by prefix, and cannot collide with a fixed row", () 
  * behind (`@olai/effect-cordis`'s `rowReport`) — and every wall between there
  * and here dropped it, so the panel said *waiting for something it needs* about
  * a serve whose whole answer was one word. It matters most in exactly the serve
- * the ruling created: `--plugins=kolu` composes no chat row, so `deliveries` has
+ * the ruling created: a policy selecting only kolu composes no chat row, so `deliveries` has
  * nobody behind it, and what a person needs told is that word and not that
  * something is wrong.
  *

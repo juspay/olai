@@ -7,19 +7,19 @@
  * `SERVERS`: an `as const` array of statically imported server halves, which a
  * composition root filtered with `enabled(SERVERS, pin)` and then iterated,
  * calling `serve(services)` on each and keying the results by name. Six edits
- * per plugin across three arrays that had to agree in order, and a `--plugins`
+ * per plugin across three arrays that had to agree in order, and a the file’s row selection
  * that was a `.filter` in a general package.
  *
  * What is here instead is `../olai.yml` — one row per plugin, `id` and the
  * MODULE the loader mounts — and a `disabled` patch over those rows. A plugin is
- * a fiber; `--plugins` is a patch; and "disabled means absent" holds at every
+ * a fiber; the file’s row selection is a patch; and "disabled means absent" holds at every
  * moment rather than only at boot, because a row that is off never mounts and a
  * plugin that is disposed unwinds every registration it made.
  *
  * ## Two readers of one file, and why that is not two lists
  *
  * The LOADER is one: it reads the file, applies the patch, and drives the entry
- * tree — which is what makes `--plugins` an overlay over rows rather than a
+ * tree — which is what makes the file’s row selection an overlay over rows rather than a
  * filter in code, and is the seam `--dump-config` and `olai plugin add` land on
  * later.
  *
@@ -94,7 +94,7 @@ const BUNDLE = "../olai.yml"
  * door whose other job is to name plugins for a docs sweep and a tab.
  *
  * ONE SOURCE, still. The generator reads `olai.yml`; the loader reads
- * `olai.yml` itself at mount, which is what keeps `--plugins` a PATCH over rows
+ * `olai.yml` itself at mount, which is what keeps the file’s row selection a PATCH over rows
  * rather than a filter in code. What is gone is the second parse, not the second
  * reader.
  */

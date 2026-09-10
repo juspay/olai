@@ -24,7 +24,7 @@ The vocabulary under the cell does not move here either. It stays in `@olai/odu-
 
 ## The name is spelled once
 
-`name = "odu"` sits in [`src/wire.ts`](src/wire.ts) beside the members, and one spelling is meant to serve as the namespace in every member key, the preferences row, the docs slug, and the word `--plugins` takes. Only the first of those is real today; the rest is what the registry is built to hand them, and none of it is wired yet.
+`name = "odu"` sits in [`src/wire.ts`](src/wire.ts) beside the members, and one spelling is meant to serve as the namespace in every member key, the preferences row, the docs slug, and the settings namespace. The bundle and surface compose all of those from that same name.
 
 What is already settled is what "off" composes to, and it is **absence** rather than a parked cell. A plugin left out of the composition is left out of the record `implementSurfaces` is handed, so there is no `surface/odu/` on the wire at all — no tag, no handler, no expose row. That reverses an earlier reading here, which had the member staying declared because `@olai/server` built its expose map at module scope; the map is built per composition now, from the same list the runtime composed from, and `restrictHandlers` refuses at boot if the two ever disagree.
 

@@ -2,7 +2,7 @@
 
 Everything else under `docs/plugins/` is a plugin olai was built with. This page is about the other kind: a plugin somebody writes **into the directory olai is serving**, usually a node agent, which olai compiles and mounts while it is running.
 
-A plugin like that is an ordinary row once it is up. It has the same five states on the plugins panel, the same containment when its `apply` throws, the same switch, and the same reach into the app as `kolu` or `journal` — a property kind, a chip on a row, a pane its press opens, a sibling on the wire. What differs is where it came from and that **a person has to say yes to it first**.
+A plugin like that is an ordinary row once it is up. It has the same seven states on the plugins panel, the same containment when its `apply` throws, the same switch, and the same reach into the app as `kolu` or `journal` — a property kind, a chip on a row, a pane its press opens, a sibling on the wire. What differs is where it came from and that **a person has to say yes to it first**.
 
 ## The shape of a definition
 

@@ -26,7 +26,7 @@
  * The chain has one consequence worth stating out loud: the appliance's sheet
  * arrives with the PLUGIN now, not with the app. A serve with kolu disabled
  * still ships those bytes, because a stylesheet is built once for the bundle and
- * `--plugins` is a decision the SERVE makes. That is the honest cost of
+ * the file’s row selection is a decision the SERVE makes. That is the honest cost of
  * compiled-in plugins and it is the same one the wire already pays — the browser
  * dials every plugin the BUILD has (`@olai/web`'s `client/wire.ts` argues it in
  * full), and what a serve leaves out is a sibling whose members are simply not

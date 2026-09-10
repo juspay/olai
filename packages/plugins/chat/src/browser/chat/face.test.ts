@@ -46,7 +46,7 @@ describe("which body the panel draws", () => {
     // The one field this face was missing, and the defect it left: three causes
     // arrived as one empty roster, so the panel hedged in prose — including a
     // guess (a start that skipped the wrapper) that no documented way of
-    // starting olai can produce, while the commonest real cause, a `--plugins`
+    // starting olai can produce, while the commonest real cause, a the file’s row selection
     // list naming no engine, went unmentioned. Only the server can tell them
     // apart, so it sends which and this carries it through untouched.
     for (const kind of ["no-engine", "none-installed"] as const) {

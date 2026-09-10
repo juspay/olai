@@ -216,7 +216,7 @@ export interface KoluDeps<N> {
   /** The sentences the OWNER must read — the vault's malformed knob values
    *  (`olai-plugin-kolu`'s `config.ts`) — wired to a level the default
    *  console turns on: a broken spell would stay behind
-   *  `OLAI_LOG_LEVEL=debug` otherwise. */
+   *  `log-level: debug` on the `olai` node otherwise. */
   readonly warn: (line: string) => void
 }
 

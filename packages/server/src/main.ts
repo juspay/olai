@@ -397,7 +397,7 @@ dieWithParent()
 
 // The sink is stdout: a person watching a server looks there, and nothing else
 // in this process owns it. The LEVEL is provided on the `web` handler above:
-// OLAI_LOG_LEVEL when set, otherwise Effect's `--log-level` (default info).
+// The root-owned logger follows the olai node’s decoded configuration.
 NodeRuntime.runMain(
   Command.run(olai, { version: "0.1.0" }).pipe(
     // THE RUN EDGE `olai surface` NEEDS, in the one line the package exports it

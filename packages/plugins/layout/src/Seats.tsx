@@ -14,7 +14,7 @@ import { only } from "./faces.ts"
  *
  * Nothing at all where nobody has taken it, which is a state and not a gap: a
  * serve running no chat draws the outliner alone, a serve running no identity
- * row draws no chip. That is what `--plugins=` is for.
+ * row draws no chip. That is what a policy with all rows off is for.
  *
  * A HELPER RATHER THAN TWO COPIES, and the two exports below stay two exports:
  * the NAMES are the app's placement vocabulary — `AppHeader.tsx` puts one of

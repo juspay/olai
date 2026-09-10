@@ -2416,10 +2416,6 @@ describe("a module another package can open holds no live value", () => {
     // what it hears is every narrowed write rather than any activation's value.
     "format/src/validate.ts": "a WeakMap ledger memo, and one slot a suite installs a listener in",
 
-    // WARN-ONCE FLAGS, which is `grumble.ts`'s class one package over: what they
-    // hold is whether this process has already said a sentence, and forgetting
-    // it would only mean saying it twice.
-
     // A REGEX CURSOR, which is a `lastIndex` and not a value: the scan sets it
     // to 0 before it starts and moves it as it goes, so what is kept between
     // two calls is nothing.

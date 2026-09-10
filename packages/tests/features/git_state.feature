@@ -40,7 +40,7 @@ Feature: What git is doing is on screen, in ONE indicator
 
   @scratch:good @git:none @policy:git.commit=off
   Scenario: One pill answers for git, and a serve told not to commit says so
-    # `--no-commit` is an owner's choice about a directory whose history is
+    # `commit: off` is an owner's choice about a directory whose history is
     # somebody else's job. The readout drew NOTHING for it, which was right for
     # a chip whose only subject was git; it is wrong for the pill, whose subject
     # is the audit trail — "there is none here" is the thing to say, and it is

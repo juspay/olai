@@ -20,7 +20,7 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  *
  * ## THE FILE IS THE OTHER SUBJECT
  *
- * A flip is session-only by ruling (the human, 2026-09-04): it writes nothing,
+ * The loader operation is session-local: it writes nothing,
  * and a restart comes back to `olai.yml`, the flag or nix. That is not a
  * property anybody can see by reading `setRow`, because the thing that would
  * break it is upstream's — `EntryTree.update` writes the tree, and the loader
@@ -225,7 +225,8 @@ test("turning it back on re-applies the rows that were waiting on it", async () 
 /**
  * THE RULING, HELD AS BYTES.
  *
- * A flip is session-only and writes nothing. Two things upstream would break
+ * The loader operation never rewrites the build catalogue. The composition root
+ * separately owns durable policy writes. Two things upstream would break
  * that and both are one call away from `flipRow`: `EntryTree.update` — the
  * tree-level verb, which the entry-level one is deliberately used instead of —
  * dumps the entry list back over the file, and the loader writes it again when
@@ -278,12 +279,12 @@ test("a row this build does not have answers no, and moves nothing", async () =>
  * ...AND IT GOES AGAINST THE FLAG, which is the direction nobody would guess is
  * available and is the one a person actually wants.
  *
- * A row `--plugins` left out is a row the patch wrote `disabled` onto, and the
+ * A row the file’s row selection left out is a row the patch wrote `disabled` onto, and the
  * switch writes the SAME FIELD — the built-in default, the operator's overlay
  * and the press are one mechanism, which is what `pluginsPatch` has said since
  * the bundle became rows. So there is no state the panel can reach that a flag
  * could not have started you in, and none it cannot reach: a serve begun with
- * `--plugins=<one thing>` can have the rest back without stopping.
+ * a file enabling one row can have the rest back without stopping.
  *
  * WHAT MAKES IT WORTH A CASE OF ITS OWN is the second assertion. The consumer
  * did not start either — it was `waiting`, naming the door nobody was behind —
@@ -298,7 +299,7 @@ test("a row the flag left out can be switched on, and its dependants start", asy
     const run = standing()
     const opened = await run(openPlugins({ vars: {}, now: () => "", served: "/" }))
     const rows = pair(opened.host, said)
-    // `--plugins=downstairs`: the consumer named, the provider left out. Both
+    // a policy selecting only downstairs: the consumer named, the provider left out. Both
     // directions of the patch, which is what the flag writes.
     await run(mountRows(opened.host, {
       baseUrl: pathToFileURL(join(dir, "/")).href,

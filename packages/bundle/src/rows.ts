@@ -96,7 +96,7 @@ export interface BrowserHalf {
 /**
  * ONE ROW.
  *
- * `id` IS the plugin's name — the sibling key, the word `--plugins` takes, the
+ * `id` IS the plugin's name — the sibling key, the settings namespace, the
  * row preferences draws, and the address of its docs page. It is spelled in
  * `../olai.yml` and nowhere else a person edits.
  *
@@ -122,7 +122,7 @@ export interface BrowserRow {
  *
  * `disabled` is the row's OWN default, and it is the file's rather than a field
  * on a manifest. A plugin that needs a secret this machine may not have is off
- * until `--plugins` names it, and saying so in the row means the built-in
+ * until the file’s row selection names it, and saying so in the row means the built-in
  * default and the operator's override are the SAME MECHANISM — one `disabled`,
  * written by the file or written by the patch.
  */
@@ -147,7 +147,7 @@ export { ROWS } from "./rows.generated.ts"
 import { ROWS } from "./rows.generated.ts"
 
 /**
- * EVERY PLUGIN THIS BUILD HAS, in bundle order — the words `--plugins` takes,
+ * EVERY PLUGIN THIS BUILD HAS, in bundle order — the settings namespaces,
  * the rows preferences draws, the set an unknown name is refused against, and
  * the address of each one's docs page.
  *
@@ -221,7 +221,7 @@ export const inBundleOrder = <A>(
 /**
  * ...AND WHAT OMITTING THE FLAG RUNS, which is not necessarily all of them.
  *
- * A row that carries its own `disabled` is opt-in: off until `--plugins` names
+ * A row that carries its own `disabled` is opt-in: off until the file’s row selection names
  * it. That is the built-in default living in the file the loader reads rather
  * than in a field on a manifest, which is what lets the flag and the default be
  * ONE mechanism — a `disabled` written by the row, or a `disabled` written by

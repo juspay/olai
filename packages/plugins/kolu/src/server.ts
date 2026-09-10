@@ -310,10 +310,7 @@ export default definePlugin({
       // lines stand alone. A pair that has to be read in order is one Effect
       // saying both, not two calls.
       say: (line) => run(Effect.logDebug(line)),
-      // What the OWNER must read: a malformed `_olai/Settings.olai` value — the
-      // sentences whose promise lives in this package's `docs.md`. Rare by latch
-      // (one line per new shape), and the default console level is `info`, so the
-      // channel is `warning`, not `debug`.
+      // Watch failures reach the owner through the shared warning channel.
       warn: (line) => run(Effect.logWarning(line)),
     })
 

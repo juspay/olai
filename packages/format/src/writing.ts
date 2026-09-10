@@ -1460,7 +1460,7 @@ export const WriteResult = Schema.Struct({
    *
    * There is always one, which is why this is not optional and why the
    * `committed` boolean that used to sit beside it is gone. Nothing commits a
-   * write on its own any more: `--commit=auto` was one commit per op, made
+   * write on its own any more: `commit: auto` was one commit per op, made
    * inside the write gate, and it turned a train of thought into a dozen
    * commits — so it is the server's quiet window now, and a write that has
    * landed is a write that is WAITING, under every mode there is

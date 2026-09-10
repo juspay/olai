@@ -257,7 +257,7 @@ Three things in the conversation are ids, and none of them is a syntax anybody h
 
 - the **chips on your own message**, which are the nodes you asked about;
 - **what a write changed** — every edit the agent makes through olai's tools draws a line naming the node, and that name is the node;
-- **an id the agent wrote in backticks**, which is how it spells one anyway, because that is how every one of these tools describes its own arguments. A backticked word becomes pressable exactly when the set declares it: `notes.md` and `--commit=off` stay what they are. An id that names a MIRROR shows you the node it is a placement of — the same place a `see` to that mirror lands, and the only one there is: a mirror is drawn wherever its target is, and it is the target a row stands for.
+- **an id the agent wrote in backticks**, which is how it spells one anyway, because that is how every one of these tools describes its own arguments. A backticked word becomes pressable exactly when the set declares it: `notes.md` and `commit: off` stay what they are. An id that names a MIRROR shows you the node it is a placement of — the same place a `see` to that mirror lands, and the only one there is: a mirror is drawn wherever its target is, and it is the target a row stands for.
 
 **Which of them are ids is asked of the server**, once per message — the browser used to answer it out of its own copy of the whole directory, and that copy is what it is giving up ([brainstorming/vault-in-browser.md](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md)). Two things follow, and both are visible:
 

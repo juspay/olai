@@ -842,7 +842,7 @@ test("the door a plugin stands behind is the door its dependents are handed", as
  * the offering plugin's own scope, so disposing it revokes the standing, and
  * revoking a service unloads every fiber that named it. `waiting` and not
  * `failed` is the whole distinction — nothing went wrong, there is simply nobody
- * behind the door, which is exactly what a serve started with `--plugins=kolu`
+ * behind the door, which is exactly what a serve started with a policy selecting only kolu
  * looks like.
  */
 test("a plugin that unloads takes its door with it, and its dependents go waiting", async () => {

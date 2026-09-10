@@ -50,7 +50,7 @@ const AUTHELIA = {
 
 /** ...and the default one, spelled out rather than inherited: this process's
  *  own environment may carry a developer's avatar template
- *  (`OLAI_IDENTITY_AVATAR_TEMPLATE`), and a serve that picked it up would
+ *  (`identity.avatar-template`), and a serve that picked it up would
  *  picture a login the silhouette tests say wears nothing. The e2e harness
  *  strips the same family for the same reason. */
 const TAILSCALE: Record<string, string | undefined> = {}
@@ -362,7 +362,7 @@ test("a row switched on after the bind names its headers on the next upgrade", a
  * would take down every other tenant of the wire, so upstream serves that
  * connection with nothing named and narrates it. That is the right answer for a
  * row switched on mid-serve and the wrong loudness for the case an operator
- * actually meets — a space in `OLAI_IDENTITY_LOGIN_HEADER`, in a unit file, on
+ * actually meets — a space in `identity.login-header`, in the vault settings file, on
  * a serve that is starting right now — which is why `./serve.ts` spends the
  * framework's own check on the list this serve comes up with.
  *

@@ -21,7 +21,7 @@
  * half because BOTH halves need it and neither may be the other's source:
  * `./server.ts` is mounted by the row and `./browser.tsx` is the chunk the
  * tab fetches, and they share no graph at all. It IS the row's `id` — the
- * word the fiber is bound under, the word `--plugins` takes, the key the
+ * word the fiber is bound under, the settings namespace, the key the
  * tab's slot table stamps this chip with, and the address of this plugin's
  * docs page — and `@olai/bundle`'s `composition.test.ts` holds the two
  * equal by loading the module its row names and reading this.

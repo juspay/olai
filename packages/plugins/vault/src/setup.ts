@@ -6,7 +6,7 @@
  * The settings this row hands the store carry a LEDGER (where a write is
  * recorded) and a MATCHER (what a query answers), and neither can be a `needs`
  * on the row: git needs the vault, so requiring its ledger here would be an
- * activation cycle, and `--plugins` may compose a serve with neither.
+ * activation cycle, and the file’s row selection may compose a serve with neither.
  *
  * They used to be `HostServices.current(Ledger)` and `.current(Search)` — a
  * capability whose shape is *give me whatever stands behind this key*, spent on

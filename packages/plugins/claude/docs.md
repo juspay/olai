@@ -6,11 +6,11 @@ This page is one engine's own account of itself. What a conversation IS — how 
 
 ## How olai finds it
 
-Not on your `PATH`, and deliberately: the adapter is a wrapper inside the nix store, and `OLAI_ACP_AGENT` is the whole of this row's door.
+The packaged adapter is a wrapper inside the nix store. `OLAI_ACP_AGENT` supplies an explicit command; otherwise the row uses its packaged/search-path discovery.
 
 - **unset** → the pinned adapter, wherever one has been baked in. This is the ordinary case.
 - **set to a command** → that is the agent, pinned default ignored. Point it at your own build, or at a different ACP agent entirely: the override has always meant *read this the way you read Claude Code*, and it still does.
-- **set to the EMPTY string** → chat off. Not "no Claude row" — the **whole panel**, nothing probed, no roster at all. It survives the wrapper (an empty value is still a value), which is what makes it the explicit off switch. That reading is core's rather than this engine's, and it is why the variable is spelled where both can see it.
+- **empty or unset without a packaged command** → search for a matching executable on `OLAI_AGENT_PATH` (or `PATH`). No matching executable leaves this engine unavailable. Enablement remains the vault’s decision.
 
 Turn this row off with `on: no` on the `claude` node in `_olai/Settings.olai`, or its durable switch on `⧉`. The row stops probing and its browser contribution is withdrawn.
 
