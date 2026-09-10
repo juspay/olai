@@ -17,19 +17,19 @@ Feature: Every search result names its file before its ancestors
   Scenario: Nested nodes, top-level nodes and documents name their file without a glyph
     When I press the palette shortcut
     And I type "zinnia" into the palette
-    Then the "palette-item" result "zinnia nested" has place "places.olai · Kitchen home · Cabinets"
+    Then the "palette-item" result "zinnia nested" has place "places.olai · Kitchen #home · Cabinets"
     And the "palette-item" result "zinnia top" has place "places.olai"
     And the "palette-item" result "zinnia document" has place "zinnia.md"
     And there should be no page errors
 
   Scenario: The header and move picker use the same place line
     When I search the header for "zinnia"
-    Then the "header-search-item" result "zinnia nested" has place "places.olai · Kitchen home · Cabinets"
+    Then the "header-search-item" result "zinnia nested" has place "places.olai · Kitchen #home · Cabinets"
     When I press "Escape"
     And I click the title of "knobs"
     And I press "ControlOrMeta+Shift+m"
     And I search the move picker for "zinnia"
-    Then the "move-hit" result "zinnia nested" has place "places.olai · Kitchen home · Cabinets"
+    Then the "move-hit" result "zinnia nested" has place "places.olai · Kitchen #home · Cabinets"
 
   @phone
   Scenario: The phone palette preserves both ends of a deep path
