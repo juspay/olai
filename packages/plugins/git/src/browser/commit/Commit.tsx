@@ -29,7 +29,7 @@
  * itself is the healthy state. Two faces of ONE control — not a second
  * `News` that also called `createCommit` and opened this panel.
  *
- * Two of them are SETTINGS rather than faults — `--commit=off`, and a directory
+ * Two of them are SETTINGS rather than faults — `commit: off`, and a directory
  * that is not a work tree — so they are dim and inert, and they get no warning
  * colour. `⚠` is for the two states a person can act on: a repository that is
  * mid-rebase and could take a commit once they finish, and a git that failed.

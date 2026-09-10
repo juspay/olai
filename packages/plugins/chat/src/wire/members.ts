@@ -1727,20 +1727,17 @@ export type Unopened = typeof Unopened.Type
  * ## CORE'S OWN VOCABULARY, and legitimately so
  *
  * Like {@link Wake.fault} one cell over: none of these three is a fact about an
- * ENGINE. They are facts about the SERVE — a variable core owns, a plugin list
- * core was started with, and a set of probes that all answered no. What an
+ * ENGINE. They are facts about the SERVE — its enabled engine rows and a
+ * set of probes that all answered no. What an
  * individual engine has to say for itself is still its own words in its own
- * package, drawn from the `engine.install` slot; this says which of three
+ * package, drawn from the `engine.install` slot; this says which of two
  * sentences to put ABOVE that list, and whether to draw the list at all.
  */
 export const OffBecause = Schema.Union([
-  /** `OLAI_ACP_AGENT` is set to the EMPTY STRING — the documented off switch,
-   *  read before anything is probed. A person asked for this. */
-  Schema.Struct({ kind: Schema.Literal("switched-off") }),
   /** This serve mounted NO ENGINE PLUGIN, so nothing was ever probed and no
    *  install sentence exists to draw. Every engine olai has is a plugin and
-   *  every one of them is enabled by default, so this is a `--plugins` list
-   *  that named none of them — or an engine fiber that failed. */
+   *  every one of them is enabled by default, so this is a file choice
+   *  that enables none of them — or an engine fiber that failed. */
   Schema.Struct({ kind: Schema.Literal("no-engine") }),
   /** Engines were mounted, every one of them was asked, and this machine has
    *  none of them. The one arm where "here is how to get one" is groundable. */

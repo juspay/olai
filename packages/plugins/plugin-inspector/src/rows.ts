@@ -14,7 +14,7 @@ import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/co
  *
  * Policy and enablement now live in the directory's configuration file.
  * The panel names that file and private memory once; a session-only exception
- * belongs on its row. Legacy boot flags remain until the next series step.
+ * belongs on its row.
  *
  * ## A ROW WITH NOTHING TO SAY SAYS NOTHING, and that took a screenshot
  *
@@ -79,11 +79,10 @@ import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/co
  *     what to type so it starts at boot. `null` where the switch has said it
  *     all.
  *   - HOW THIS SERVE STARTED is {@link pluginsStarted} and is the PANEL's, not
- *     the row's, because under a given flag the answer is one string for every
- *     row. It was per row on the argument that an opt-in row and its neighbour
+ *     the row’s, because those process facts are shared by every row. It was per row on the argument that an opt-in row and its neighbour
  *     have different built-in defaults — which is true, and is why THAT
- *     difference is still drawn per row, in the hint, where it names the flag
- *     value a person would type. What moved is only the part that was the same
+ *     difference is still drawn per row, in the hint, where it names the
+ *     node a person can edit. What moved is only the part that was the same
  *     everywhere.
  *
  * The word itself is narrowed by `@olai/surface`'s `pluginState`, which is
@@ -200,10 +199,8 @@ export const pluginConfig = (
  *               sentence that sends a person nowhere; a service is another
  *               ROW's to offer, so naming the door is naming the plugin to
  *               compose, one step removed.
- *   - `optIn` / `off`  WHAT TO TYPE so it starts that way at boot. The switch
- *               starts it NOW; the flag is how it comes back after a restart,
- *               and both name THIS row's word, so no two of these lines are the
- *               same.
+ *   - `optIn` / `off`  The build or file choice. The durable switch writes
+ *               this row’s namespace, and restarting reads that choice again.
  *   - `running` + `carrying`  WHAT ELSE STOPS if this is turned off.
  *
  * ## THE CARRYING ARM IS THE OTHER END OF THE WAIT
@@ -248,7 +245,7 @@ export const pluginHint = (
       return `Waiting for you: read the source below and approve it, or leave it.`
     case "switched":
       // THE PRESS A PERSON JUST MADE, and the one absence that undoes itself.
-      // The other three all send a reader somewhere else — a flag to type, a
+      // The other three all send a reader somewhere else — a node to edit, a
       // build to rebuild, a plugin to compose — and this one is answered by the
       // switch beside the sentence, so what it owes is not an instruction but
       // the fact a reader might not have: it does not survive the serve. Without
@@ -267,10 +264,7 @@ export const pluginHint = (
         : `Waiting for ${plugin.missing.join(", ")} — no plugin in this build offers `
           + `${plugin.missing.length === 1 ? "it" : "them"}.`
     default:
-      // ADDED TO the flag rather than replacing it: this arm is only reachable
-      // under a flag that was given (`@olai/server`'s `stateOf` answers `optIn`
-      // where none was), and the panel's foot quotes that flag in full — so the
-      // useful thing here is the row's own word and where to put it.
+      // The row’s own namespace is the durable enablement door.
       return `Off — switch on here or set on: yes in the ${plugin.name} policy node.`
   }
 }
@@ -308,7 +302,7 @@ const withoutConfiguration = (roster: PluginRoster): boolean =>
  * Repeating the same caveat under each row made the panel a scroll of identical
  * paragraphs (#543). A row keeps only what differs, including its own
  * session-only exception while the shared reader is available.
- * Boot flags remain visible until their removal in step 4. */
+ */
 export const pluginsStarted = (roster: PluginRoster): string =>
   `Policy lives in ${roster.configurationFile ?? CONFIGURATION_FILE} and travels with this directory. ${withoutConfiguration(roster) ? " Switches are session-only while the configuration reader is absent; they last until this serve stops." : ""} Memory: LocalState, $XDG_STATE_HOME/olai/<plugin>/<hash>.json; private to the serve.`
 

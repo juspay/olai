@@ -102,24 +102,13 @@ export function NoAgent(props: { readonly off: OffBecause | null }) {
           <p class="m-0 mb-3 text-ink">This panel has no agent.</p>
         }
       >
-        <Match when={props.off?.kind === "switched-off"}>
-          <p class="m-0 mb-3 text-ink">Chat is switched off.</p>
-          <p class="m-0 mb-4">
-            <code class="font-mono">{AGENT_ENV}</code> is set to the empty
-            string, which is the explicit way to say so. Unset it and reload,
-            and this panel comes back with whatever this machine has.
-          </p>
-        </Match>
-
         <Match when={props.off?.kind === "no-engine"}>
           <p class="m-0 mb-3 text-ink">This serve has no agent engine.</p>
           <p class="m-0 mb-4">
             Every agent olai can talk to is a plugin, and all of them are on by
-            default — so this is a{" "}
-            <code class="font-mono">--plugins</code> list that named none of
-            them, or an engine whose plugin failed to start (the plugins
-            preferences say which). Drop the flag, or add an engine's word to
-            it.
+            default. None is enabled here, or an engine failed to start.
+            The plugins panel names the reason; enable an engine there or
+            change its node in the configuration file.
           </p>
         </Match>
 

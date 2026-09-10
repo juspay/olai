@@ -2,7 +2,7 @@
 
 Serves `/mcp` for external clients and agent sessions. Enabled in the `web` and `surface` profiles. Turning it off closes protocol requests and withdraws session ticket minting. Turning it back on creates a fresh server and ticket table without disconnecting browser control sockets.
 
-The plugins panel switches this row for the current process. Profiles select its boot default; an explicit `--plugins` set must name this row to enable it. The package has no browser half or stylesheet.
+Profiles select its boot default; `on` on the `mcp` node in `_olai/Settings.olai` overrides it. The panel writes that durable choice. The package has no browser half or stylesheet.
 
 MCP owns its resource projection: outlines and documents collections and the vault error cell come from their providers’ surface contracts. Its typed client includes those resources as well as tool procedures, so discovery and reads use the same projection.
 
@@ -25,7 +25,7 @@ reasons are the same fact from two sides: the protocol server, its carrier, its
 route and its ticket mint stand up on a serve with **no vault at all**, and a
 row reported as `waiting` — which is what a row with a permanently-waiting
 component reads as — is a row the roster reports as not running. So `/mcp`
-survives a failed vault, a `--plugins` set that omits it, and the panel switch,
+survives a failed vault, a file choice that disables it, and the panel switch,
 and the domain tools refuse in the vault's own words. Both readings resolve per
 call, so a vault switched off mid-session refuses the next tool call rather than
 the one after the next reconnect.

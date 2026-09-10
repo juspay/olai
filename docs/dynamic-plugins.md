@@ -21,6 +21,26 @@ A swatch for hex colours          plugin: swatch
 
 Nothing about that needs a new write door. An agent writes a definition with `outlines_add`, `outlines_desc` and `outlines_prop`; and the `.olai` file the nodes live in is committed by the ledger like any other change. There is no `.ts` on the disk, because `.ts` is not a kind of file olai serves — the source is vault content, and it travels, versions and diffs like vault content.
 
+## Knobs on the definition
+
+A server half may expose a `Config` schema just like a built row. Give every field a decoding default and a description annotation, then pass it as `config` to `definePlugin`; `apply` receives the decoded object. Properties on the definition node supply its leaves, and children may supply schema sections. These values belong on this node, not a second namespace in the shared settings file.
+
+```ts
+import { definePlugin } from "@olai/plugin-api"
+import { Effect, Schema } from "effect"
+const Config = Schema.Struct({
+  tone: Schema.String.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed("blue")),
+    Schema.annotate({ description: "the colour to draw" })),
+})
+export default definePlugin({
+  name: "swatch", needs: [], config: Config,
+  apply: (config) => Effect.logInfo(`swatch tone: ${config.tone}`),
+})
+```
+
+The panel shows each value's vault/default author and links to the definition. A knob edit re-applies the row; setting an explicit value equal to its default changes authorship without restarting it. Invalid leaves use defaults and warn once; an invalid schema fails only that definition. Source approval hashes the server and browser source, so a knob edit keeps approval while a source edit requires approval of its new version. A plugin declaring live config updates retains its activation and can follow its own node through its declared vault service.
+
 ## What a half may import
 
 Three modules, by their bare names:

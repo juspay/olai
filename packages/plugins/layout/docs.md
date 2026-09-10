@@ -5,7 +5,7 @@
 renderer it waits; disabling layout removes that contribution and disposes
 its Solid subtree. Its selection has no server capability dependencies.
 
-An exact `--plugins` list must include both `ui-renderer` and `layout` to draw
+Both `ui-renderer` and `layout` must be enabled to draw
 the current application; include `sidebar` for its directory column and rail. Headless profiles select neither. If either is
 disabled through the panel, use the authorized non-UI plugin-management
 interface or restart with the desired selection to restore the UI.

@@ -18,7 +18,7 @@ Feature: A pinned loop that git stopped can still be started again
   has taken the toggle away, and the one control a stopped loop needs must not
   go with it.
 
-  This server is started `--commit=auto --push=auto`, and the divergence is the
+  This server is started `commit: auto push: auto`, and the divergence is the
   case that meets it — somebody else has pushed, so the push is a
   non-fast-forward. Nothing here pulls, rebases or forces.
 

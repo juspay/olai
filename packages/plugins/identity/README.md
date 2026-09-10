@@ -13,11 +13,11 @@ It was `@olai/identity`, a general leaf under the composition root. It is a ROW 
 | file | what it owns |
 |---|---|
 | `src/index.ts` | the plugin's word, and the whole of the root door: no surface, and why |
-| `src/server.ts` | the row: read the `OLAI_IDENTITY_*` family once, stand behind `Identity` |
+| `src/server.ts` | the row: decode the identity node’s policy once, stand behind `Identity` |
 | `src/who/identity.ts` | the person: `identityOf`, the one reading — a function of the header names it is HANDED and the headers a request arrived with; `headerNamesOf`, the unique allowlist the upgrade takes |
 | `src/who/picture.ts` | the LADDER: the picture header, an avatar URL template (`{login}`), the gravatar of a claim that really is an address (`looksLikeEmail`), or none |
 | `src/who/gravatar.ts` | one rung of it: MD5 of an email address |
-| `src/who/config.ts` | THE ENVIRONMENT EDGE: the whole `OLAI_IDENTITY_*` family (four header names, one avatar template) read into one value, once, out of what `Env` hands the row. Nothing here touches `process.env`, which is what lets every fold be a function of its arguments — and what lets a test state a deployment instead of arranging one |
+| `src/who/config.ts` | normalized schema defaults for request readings and tests; runtime config comes from `src/settings.ts` and the shared revision |
 | `src/who/reading.ts` | the two folds joined: headers in, a person with the picture ALREADY RESOLVED out. This is what the door hands over |
 | `src/browser.tsx` | the browser half: one face, in the shell's `app.viewer` seat |
 | `src/browser/Who.tsx` | the chip — four faces (asking, anonymous, the person, a failed door), the words in the tooltip |
@@ -27,6 +27,6 @@ It was `@olai/identity`, a general leaf under the composition root. It is a ROW 
 
 **The ladder is walked server-side.** The browser is handed a picture URL or `null` (plus the display name), never a header name or a template: what a page must not know is how this deployment is wired. A `null` is the silhouette the chip draws itself, with no request to anywhere.
 
-**Trust.** These headers are only meaningful when the proxy is the only way in: olai bound to loopback or the tailnet, **and the proxy stripping client-supplied copies of the same names** — every name still in force, including the ones nobody configured, since an unset variable keeps its Tailscale default and the picture one becomes an `<img src>` the browser fetches. Anything that can reach the port can send them. Documented beside the config in [`docs/running.md`](../../../docs/running.md), which also says why the app page's image policy admits `https:` rather than a list of origins nobody can know at build time.
+**Trust.** These headers are only meaningful when the proxy is the only way in: olai bound to loopback or the tailnet, **and the proxy stripping client-supplied copies of the same names** — every name still in force, including the ones nobody configured, since an absent property keeps its Tailscale default and the picture one becomes an `<img src>` the browser fetches. Anything that can reach the port can send them. Documented beside the config in [`docs/running.md`](../../../docs/running.md), which also says why the app page's image policy admits `https:` rather than a list of origins nobody can know at build time.
 
 **No seam left, and the one that was there was the socket's.** The headers a websocket may carry were fixed when the port bound, so a serve that came up without this row and switched it on at the panel answered the two HTTP doors immediately while an open tab stayed anonymous until the process restarted. [juspay/kolu#2229](https://github.com/juspay/kolu/pull/2229) made the allowlist a thunk read at each accept: core asks this row for the names on every upgrade, so a switched-on row is named by the redial the roster change causes. Off was always immediate. `@olai/plugin-api`'s `Identity` argues the shape; `docs.md` says what a bad name costs and where it is refused.

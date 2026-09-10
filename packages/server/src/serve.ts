@@ -340,7 +340,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
     // every other tenant of it (`@olai/plugin-api`'s `Identity`). That is the
     // right answer for a list that went bad mid-serve and the wrong one for a
     // serve that came up with a list nothing can ever serve: an
-    // `OLAI_IDENTITY_LOGIN_HEADER` an operator misspelled would then read as a
+    // a trusted identity header an operator misspelled would then read as a
     // server that starts, accepts, and quietly attributes every request to
     // nobody.
     //

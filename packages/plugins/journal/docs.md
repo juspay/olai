@@ -4,11 +4,7 @@ The day page, calendar and agenda are one plugin. It is enabled by default, so o
 
 The difference is ownership. Those screens and their wire readings now arrive with the `journal` row in the plugin bundle. A serve that does not name that row has no calendar, Agenda entry, owed badge, *Go to today* palette item or journal routes:
 
-```
-olai web ~/outlines                         # journal included
-olai web ~/outlines --without-plugins=journal  # the default, minus the journal
-olai web ~/outlines --plugins=vault,chat,claude,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector  # no journal UI or routes
-```
+Set `on: no` on the `journal` node in `_olai/Settings.olai`, or use its durable switch on `⧉`. The file choice survives restart.
 
 Turning the plugin off does not change the files. `date`, `repeat`, stamped marks and daily-note filenames remain ordinary parts of the [file format](../format.md). Re-enabling journal reads the same values again.
 

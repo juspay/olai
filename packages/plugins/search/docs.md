@@ -8,14 +8,7 @@ What search *does* has its own page: [search.md](../search.md) is the grammar, t
 
 Nothing. It is on by default, like chat, git and the journal. Two things take it away, and they answer two different questions.
 
-`--plugins` decides what a serve **comes up with**:
-
-```
-olai web ~/outlines                                  # the box, as always
-olai web ~/outlines --plugins=vault,chat,journal,git,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector       # every query answers with the reason
-```
-
-The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag. Switched off at the panel, the header's box leaves while you are watching, and the ⌘K palette, the composer's `@` list, the edges panel and the move picker each draw the refusal on the next keystroke.
+Set `on: no` on the `search` node in `_olai/Settings.olai`, or use its switch in `⧉`. The switch writes that same property and the choice survives restart. Turning the row back on restores its services and browser contribution.
 
 **Either way, no query finds anything, and nothing is silent about it.** The refusal is carried on the answer's `refusals`, which is the field every one of those doors already draws for a query the grammar could not read — and which an agent reads in the result of `search_nodes`. There is no empty list with nothing to say.
 

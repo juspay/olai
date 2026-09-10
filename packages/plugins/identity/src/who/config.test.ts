@@ -1,14 +1,4 @@
-/**
- * The environment edge: what an operator's `OLAI_IDENTITY_*` variables
- * make of this row.
- *
- * IT STATES A DEPLOYMENT rather than arranging one, and that is what the
- * move bought. This file used to write `process.env`, restore it in an
- * `afterEach` and describe itself as the one test in the package that had
- * to — because the reading reached for the real environment. It does not:
- * the row is handed what the process can see (`@olai/plugin-api`'s `Env`),
- * so a deployment here is an object literal, like every other fold's.
- */
+/** Schema decoding and normalization of the identity node’s properties. */
 
 import { expect, test } from "bun:test"
 
@@ -37,7 +27,7 @@ test("unset is tailscale serve: its four headers, and no template", () => {
   })
 })
 
-test("OLAI_IDENTITY_LOGIN_HEADER is the name, and the email follows it", () => {
+test("login-header is the name, and the email follows it", () => {
   expect(identityConfig({ "login-header": "Remote-User" }).headers).toEqual({
     login: "Remote-User",
     email: "Remote-User",
@@ -67,7 +57,7 @@ test("the name and picture headers are configurable the same way", () => {
   expect(off.headers.picture).toBeNull()
 })
 
-test("OLAI_IDENTITY_AVATAR_TEMPLATE is the ladder's second rung", () => {
+test("avatar-template is the ladder's second rung", () => {
   expect(identityConfig({}).avatarTemplate).toBeNull()
   expect(identityConfig({ "avatar-template": "  " }).avatarTemplate).toBeNull()
   expect(

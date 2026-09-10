@@ -1976,7 +1976,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "web/src/client/keys.ts"
     ],
     "preferences": [
-      "plugins/chat/src/browser/chat/NoAgent.tsx",
       "plugins/outlines/src/browser.tsx",
       "plugins/theme/src/browser.tsx"
     ],

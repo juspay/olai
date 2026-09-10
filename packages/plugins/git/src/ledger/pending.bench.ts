@@ -5,7 +5,7 @@
  * Every published revision surveys git, and the node-level diff needs the copy
  * HEAD holds of every dirty outline. That used to be a `git show HEAD:<file>`
  * subprocess plus a full parse of what came back, PER DIRTY FILE, PER REVISION:
- * under `--commit=manual` the dirty list only grows through a session, so a
+ * under `commit: manual` the dirty list only grows through a session, so a
  * keystroke in one outline paid for every outline anybody had touched since the
  * last commit. It now reads a commit's copy ONCE — `<sha>:<path>` names an
  * immutable object, so the answer is remembered under the sha it was asked

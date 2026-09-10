@@ -1,8 +1,8 @@
 /**
  * IDENTITY'S SERVER HALF — the reading, as a row.
  *
- * Two lines of work and no state: read the operator's `OLAI_IDENTITY_*`
- * family once, and stand behind the `Identity` door with the names it
+ * Two lines of work and no state: decode the vault’s identity
+ * policy at activation, and stand behind the `Identity` door with the names it
  * trusts and the reading over them. Core does the rest — the listener
  * names those headers on the upgrade and answers `who.get` per connection
  * from them, `GET /olai/who` reads a request's own, and `/mcp` attributes
@@ -30,13 +30,11 @@
  * them. Nothing in this file moved for that, which is the point: what a
  * row offers did not change, only how often core reads it.
  *
- * ## The environment is read at APPLY, once
+ * ## Policy belongs to the activation
  *
- * So what a process was STARTED with is what it serves, and a flip off and
- * back on re-reads it — which is the same answer on any real serve, since
- * nothing edits a live process's environment. Reading it per request would
- * put the parse of five variables on every socket for a value that cannot
- * move.
+ * The shared revision reader supplies decoded options. A config edit replaces
+ * this activation and its Identity offer; each request consults the current
+ * provider. No request reparses configuration or reads environment policy.
  */
 
 import { definePlugin, Identity, Offers } from "@olai/plugin-api/services"
@@ -58,7 +56,7 @@ export default definePlugin({
     const offers = yield* Offers
     yield* offers.browser(browserServices)
     const config = configuredIdentity(settings)
-    // MINTED ONCE, off the environment this row read at apply — and asked for
+    // MINTED ONCE, from the schema options supplied at apply — and asked for
     // at every accept from here on, because core reads the names through this
     // door the way it reads the reading (juspay/kolu#2229). What checks them
     // is core, at the bind (`@olai/server`'s `serve.ts`): the grammar is the

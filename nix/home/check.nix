@@ -95,29 +95,20 @@ let
     assert lib.hasInfix "/home/alice/outlines" execPlain;
     assert lib.hasInfix "--port 7714" execPlain;
     assert lib.hasInfix "--host 127.0.0.1" execPlain;
-    # NO GIT FLAG when neither option is set, and that is the whole default
-    # rather than a saving: giving `--commit` at all names that flag under the
-    # row, so a module that helpfully passed the mode olai would have defaulted
-    # to anyway would claim a flag nobody typed.
+    # Policy is authored in the vault, never in supervisor argv.
     assert !(lib.hasInfix "--commit" execPlain);
     assert !(lib.hasInfix "--push" execPlain);
-    # ...and NO PLUGIN FLAG either, for the identical reason one line up: an
-    # omitted `--plugins` applies the built-in default AND draws "the
-    # built-in default" under the preferences row, where a given one names the
-    # flag. A module that expanded the default into a list would claim one.
     assert !(lib.hasInfix "--plugins" execPlain);
     assert !(lib.hasInfix "--extra-plugins" execPlain);
     assert !(lib.hasInfix "--without-plugins" execPlain);
     assert linux.config.home.packages == [ fakeOlai ];
-    # No log-level env when the option is unset — info is olai's own default,
-    # and a module that helpfully passed it would still be an instance pin
-    # (docs/running.md), just a louder one.
+    # Logging policy also belongs in the vault.
     assert !(linuxService.Service ? Environment);
     # Darwin path must not fire on Linux.
     assert linux.config.launchd.agents == { };
     true;
 
-  # --- the git policy, when an operator states one ------------------------
+  # --- only bootstrap and environment options remain ---------------------
   _removed =
     assert builtins.attrNames linux.options.services.olai ==
       [ "dataDir" "enable" "environmentFile" "host" "package" "port" ];
@@ -137,7 +128,6 @@ let
     assert withEnvFile.config.systemd.user.services.olai.Service.EnvironmentFile
       == "/home/alice/.config/olai/env";
     # Nothing else moved: the file is an addition to the unit, not a rewrite,
-    # and neither is the log level beside it.
     assert withEnvFile.config.systemd.user.services.olai.Service.Restart == "always";
     # ... and launchd, which has no such knob, REFUSES rather than dropping it.
     assert failed linux == [ ];

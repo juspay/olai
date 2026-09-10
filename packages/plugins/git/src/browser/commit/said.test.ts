@@ -529,7 +529,7 @@ test("a refusal that stopped the loop is quoted once, not twice", () => {
  * THE PROMISE IS THE LOOP'S OWN GATE, and the term it must not lose is that
  * something is WAITING.
  *
- * A clean tree under `--commit=auto` is the case that got through: the policy
+ * A clean tree under `commit: auto` is the case that got through: the policy
  * is the window and the repository is ready, both true, so a shorter version of
  * the rule promised "Auto-commit will record all of this as one commit once the
  * edits stop" over an empty list — while the server's own answer was `""`

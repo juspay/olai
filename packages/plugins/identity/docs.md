@@ -6,26 +6,21 @@ What identity *does* has its own page: [running.md](../running.md#who-is-looking
 
 ## What turns it on
 
-Nothing. It is on by default, like chat and git. Two things take it away, and they answer two different questions.
+The `identity` row is on by default. Set `on: no` on its top-level node in `_olai/Settings.olai`, or use its switch on `⧉`. The switch writes the same property and restart reads it again.
 
-`--plugins` decides what a serve **comes up with**:
-
+```jsonl
+{"id":"identity","ord":"a0","title":"identity","custom":{"on":"no"}}
 ```
-olai web ~/outlines                                    # the chip, as always
-olai web ~/outlines --plugins=vault,chat,git,claude,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector          # every request is nobody
-```
-
-The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag. Switched off at the panel, the chip leaves while you are watching, `who.get` starts answering nobody, and a capture taken from that moment on records no `captured-by`.
 
 **Either way, nothing pretends.** There is no chip in the bar — not an anonymous one, an absent one — and no request anywhere is attributed to anybody. That is the same state a loopback `olai web` behind no proxy has always been in, which is why the absence needs no mode of its own: nothing is invented when nobody says who is looking, whether that is because the proxy sent nothing or because there is no reading mounted to read it.
 
 **Nothing needs a restart.** For one release it did, and only in one place: the headers a socket may carry were fixed when the port bound, so a serve that came up *without* this row and then switched it on at the panel answered `GET /olai/who` and attributed `/mcp` writes immediately, while the chip in an open tab stayed anonymous until the process was restarted. That seam is closed ([juspay/kolu#2229](https://github.com/juspay/kolu/pull/2229)): the allowlist is asked of this row at each upgrade, so the tab redials when the row mounts and comes back as whoever the proxy says you are. Off and on are both immediate now, on every door.
 
-**A header name that is not one still stops the boot.** `OLAI_IDENTITY_LOGIN_HEADER="Remote User"` — a name no HTTP request can carry, because of the space — refuses the serve on the way up, saying so in as many words. That is deliberate and it is checked where the serve starts rather than where the socket is accepted: an allowlist read per upgrade cannot refuse a *socket* for a bad name (one row's typo must not take everybody else's connection down), so a serve that came up with one would otherwise have gone on answering, with nobody ever named and the reason only in the log. Switch the row **on** with a name like that and there is no boot left to refuse: those connections are served with nobody named, and each one says why in the log.
+**Header names must be valid HTTP names.** A name containing a space cannot be used by a request. An invalid configured family is refused by the identity reading, with its reason; it cannot grant identity to a connection. The proxy must strip client-supplied copies of every trusted header, including default names that remain configured.
 
 ## The config
 
-The plugin's `Config` schema declares the header names, avatar template, defaults and descriptions. The schema’s `email-header` is a string: blank follows the configured login header. The current environment adapter (`OLAI_IDENTITY_LOGIN_HEADER` and the four beside it) decodes through that declaration, preserving empty email env as a disabled claim until the adapter is retired. It remains available until the shared vault settings reader replaces it in the next settings-doors step. Values are read once when the row activates. See [running.md](../running.md#who-is-looking) for the current deployment spelling.
+The row's `Config` schema declares header names and avatar template with defaults and descriptions. These are properties on the `identity` node in `_olai/Settings.olai`. Blank `login-header` uses the default; blank `email-header` follows that login header. Blank `name-header` or `picture-header` disables the corresponding claim; blank `avatar-template` disables that picture source. A file edit re-applies the row. Header environment adapters are removed. See [running.md](../running.md#who-is-looking) for proxy examples and the trust boundary.
 
 ## On the wire
 

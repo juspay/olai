@@ -150,7 +150,7 @@ The kolu watcher is alive: 30 minutes with nothing to say about the 4 terminals 
 A doorbell's failure mode is a call that does not happen, and that is byte-for-byte identical to its ordinary quiet operation. So the doorbell keeps an account of itself: one line per moment, on the debug channel, off until you ask for it.
 
 ```
-OLAI_LOG_LEVEL=debug
+# Set log-level: debug on the olai node in _olai/Settings.olai
 ```
 
 Every line is `kolu doorbell <moment> key=value …`, so one moment is one `grep`:

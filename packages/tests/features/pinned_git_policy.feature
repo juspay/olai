@@ -34,7 +34,7 @@ Feature: Git policy is the instance's, not this browser's
     And there should be no page errors
 
   @policy:git.commit=auto
-  Scenario: --commit=auto is the git row's config on the plugins panel
+  Scenario: commit: auto is the git row's config on the plugins panel
     When I open the plugins panel
     Then the plugins panel shows "git" configured "commit" as "auto"
     And the plugin "git" marks "commit" as authored by "vault"
@@ -54,5 +54,5 @@ Feature: Git policy is the instance's, not this browser's
       """
     Then the flurry records itself
     And olai has recorded 1 commit here
-    # ... and --push=off is honoured too: the commit is made and stays here.
+    # ... and push: off is honoured too: the commit is made and stays here.
     And there should be no page errors

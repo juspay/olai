@@ -542,3 +542,5 @@ Because each node is one line with a stable id, plain line-based git merges are 
 ## Relation to the Racket reference (PR #54 on `master-racket`)
 
 PR #54 is the working reference implementation of this format — read it, don't extend it. Three of its features are deliberately **not** part of the new format: `include` records (glob or literal), the stored year→month journal scaffolding with day-titled nodes (replaced by the `date` field), and `.scrbl` docs.
+
+The top-level `olai` namespace holds the serve's `log-level` and `log-format`. A vault-defined plugin reads its schema leaves from its own definition node instead; those knobs share the source's versioned outline but do not change its source-approval hash. The default front page prefers ordinary outlines over `_olai/` convention files; all of them remain directly addressable.

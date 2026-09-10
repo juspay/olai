@@ -136,7 +136,7 @@ describe("chat lifecycle lines", () => {
     expect(findSaid(said, "lifecycle-agent: started")).toBeUndefined()
   }, 15_000)
 
-  test("OLAI_LOG_LEVEL=debug (the collector's Debug) shows the agent's stderr", async () => {
+  test("log-level: debug (the collector's Debug) shows the agent's stderr", async () => {
     const said = await withAgent("Debug", async (agent, run) => {
       await run(agent.boot)
       await Effect.runPromise(Effect.sleep("40 millis"))

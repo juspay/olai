@@ -250,9 +250,8 @@ export const rowsNaming = (host: Host, also: ReadonlyArray<string> = []): Readon
  * EACH ROW'S CONFIG, off the live entries — what a roster draws under the
  * row, as data, with core knowing none of the plugin's words.
  *
- * A LIVE READ: `--commit` / `--push` are a patch onto the git row's config
- * the way `--plugins` is a patch onto `disabled`, so what the panel shows
- * is what the loader is holding.
+ * The root patches config and enablement from the published revision. This
+ * reading is what the loader holds, distinct from the file’s desired values.
  */
 export const configsOf = (
   host: Host,
@@ -280,10 +279,10 @@ export const configsOf = (
  *
  * ## WHAT IT DOES NOT DO
  *
- * It writes nothing — not `olai.yml`, not a settings file, not anywhere. A flip
- * is the instance's for as long as the process runs, and the boot-time answer
- * stays the rows, the flag and nix. `@olai/effect-cordis`'s `flipRow` is where
- * that is kept true against a loader whose own instinct is to persist.
+ * This low-level operation writes no file. Durable management first uses
+ * the ordinary write door, then reconciles the resulting revision here.
+ * Infrastructure switches may spend it directly for a session-only change.
+ * `flipRow` prevents the loader from persisting its own second policy copy.
  *
  * And it says nothing about what came of it. A row that will not come back —
  * a module that now throws, an `apply` that dies on a socket that has gone —
@@ -370,7 +369,7 @@ export const mountBundle = (
 })
 
 /** Profiles disable rows from the catalogue; they never insert a second list.
- * An explicit --plugins selection overrides those defaults for every row. */
+ * Published file choices subsequently patch these build defaults. */
 export const profilePatch = (profile: string) => profile === "web" ? [] : ROWS.map((row) => ({
   id: row.id,
   disabled: row.disabled === true || !row.profiles?.includes(profile),

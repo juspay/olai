@@ -5,10 +5,10 @@
  * stderr sink writes to stderr" is a routing property, not a preference, and
  * it is asserted rather than argued.
  *
- * The face is a second contract: non-TTY (and `OLAI_LOG=logfmt`) is logfmt
+ * The face is a second contract: non-TTY (and `log-format: logfmt`) is logfmt
  * **byte-identical** to Effect's `formatLogFmt`, because the testlib decoder
  * and every agent that greps a line depend on that shape. Pretty is only for
- * a human TTY — and `OLAI_LOG=pretty` can force it even when nothing is a TTY,
+ * a human TTY — and `log-format: pretty` can force it even when nothing is a TTY,
  * which is what the override test proves.
  *
  * Through Effect's own `TestConsole` rather than a spy on the global one:
@@ -140,9 +140,9 @@ test("the stderr sink writes the same line on stderr, so stdout stays the protoc
 })
 
 // The contract agents and the testlib decoder hold: when nothing is a TTY (or
-// OLAI_LOG forces logfmt), the bytes are exactly Effect's formatLogFmt — not
+// log-format forces logfmt), the bytes are exactly Effect's formatLogFmt — not
 // "looks like logfmt", the same string on the same event.
-test("non-TTY (OLAI_LOG=logfmt) is byte-identical to formatLogFmt", async () => {
+test("non-TTY (log-format: logfmt) is byte-identical to formatLogFmt", async () => {
   {
     const format = "logfmt" as const
     const stdout = await writtenWithExpected(toStdout, format)
@@ -155,7 +155,7 @@ test("non-TTY (OLAI_LOG=logfmt) is byte-identical to formatLogFmt", async () => 
   }
 })
 
-test("OLAI_LOG=pretty forces pretty even when the stream is not a TTY", async () => {
+test("log-format: pretty forces pretty even when the stream is not a TTY", async () => {
   // process.stdout under bun test is typically not a TTY; if it is, the
   // override is still the thing under test — pretty must win either way.
   expect(formatFor({ isTTY: false })).toBe("logfmt")
@@ -181,7 +181,7 @@ test("OLAI_LOG=pretty forces pretty even when the stream is not a TTY", async ()
 // empty. If LogToStderr were dropped, pretty would land on stdout and
 // corrupt a stream the caller wanted left alone, with every logfmt-only
 // test still green.
-test("OLAI_LOG=pretty on toStderr keeps stdout empty (the protocol stream)", async () => {
+test("log-format: pretty on toStderr keeps stdout empty (the protocol stream)", async () => {
   {
     const format = "pretty" as const
     const { err, out } = await written(toStderr, format)

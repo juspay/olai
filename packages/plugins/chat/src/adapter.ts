@@ -11,12 +11,6 @@
  * was one engine's own door onto one pin, and it is in that engine's directory
  * with that engine's patches (`olai-plugin-pi`'s `server.ts`).
  *
- * `OLAI_ACP_AGENT` is `@olai/acp/engine`'s too, and for a sharper reason than
- * tidiness: it has TWO readers who mean two things by it, and both readings are
- * argued at the constant. The Claude engine reads it as its adapter; this
- * package reads the EMPTY STRING as the whole off switch — the panel, not one
- * row — before anything is probed ({@link ./agents/roster.ts}).
- *
  * ## What is left, and why both halves are core's
  *
  * WHERE THE PROBES LOOK, and WHAT A PERSON IS TOLD when nothing answered.
@@ -38,7 +32,7 @@ import { AGENT_ENV } from "@olai/acp/engine"
 import type { OffBecause } from "olai-plugin-chat/wire"
 /** The variable, spelled once — `@olai/acp/engine`'s, re-exported so this
  *  package's own readers reach it where they already reach for the roster's
- *  vocabulary. Its two meanings are argued there. */
+ *  vocabulary. It names an executable resource. */
 export { AGENT_ENV }
 
 /** ... and the one saying where the OTHER agents are looked for. Its rules are
@@ -74,14 +68,10 @@ export const AGENT_PATH_ENV = "OLAI_AGENT_PATH"
  */
 export const whyNoAgent = (because: OffBecause): string => {
   switch (because.kind) {
-    case "switched-off":
-      return `no agent: ${AGENT_ENV} is set to the empty string, which is the explicit off ` +
-        `switch — the whole panel, so nothing else was looked for either. The outlines are ` +
-        `served as usual and the chat panel says so.`
     case "no-engine":
       return `no agent: this serve mounted no engine plugin, so nothing was probed. Every ` +
         `agent olai can seat is a plugin and every one of them is enabled by default, so this ` +
-        `is a \`--plugins\` list that named none of them (or an engine fiber that failed — the ` +
+        `is a selection that enables none of them (or an engine fiber that failed — the ` +
         `plugins readout says which). The outlines are served as usual.`
     case "none-installed":
       return `no agent: every engine this serve has was asked and this machine has none of ` +

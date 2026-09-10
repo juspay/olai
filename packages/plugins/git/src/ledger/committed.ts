@@ -5,7 +5,7 @@
  * This is `perf-git-per-write`. Every published revision surveys git, and for
  * every dirty outline the node-level diff needs the copy HEAD has: that used to
  * be a `git show HEAD:<file>` subprocess plus a full parse of what came back,
- * PER DIRTY FILE, PER REVISION. Under `--commit=manual` the dirty list only
+ * PER DIRTY FILE, PER REVISION. Under `commit: manual` the dirty list only
  * grows during a session, so a keystroke in one outline paid for every other
  * outline anybody had touched since the last commit — typing got slower the
  * longer a commit was deferred, which is the one shape of cost a person feels

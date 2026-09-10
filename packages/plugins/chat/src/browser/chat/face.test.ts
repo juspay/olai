@@ -49,7 +49,7 @@ describe("which body the panel draws", () => {
     // starting olai can produce, while the commonest real cause, a `--plugins`
     // list naming no engine, went unmentioned. Only the server can tell them
     // apart, so it sends which and this carries it through untouched.
-    for (const kind of ["switched-off", "no-engine", "none-installed"] as const) {
+    for (const kind of ["no-engine", "none-installed"] as const) {
       expect(drawn({ ...CHAT_OFF, off: { kind } })).toEqual({
         kind: "no-agent",
         off: { kind },

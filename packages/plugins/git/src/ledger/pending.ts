@@ -276,23 +276,23 @@ export const whyOf = (
         case "off":
           return COMMITS_OFF
         case "manual":
-          return "waiting to be committed: writes accumulate under --commit=manual (the " +
+          return "waiting to be committed: writes accumulate under commit: manual (the " +
             `default) until ${commitDoor(writer)} asks for one`
         // The window, and it names nobody's door on purpose: under `auto` there
         // is nothing for this caller to press. What it is waiting for is the
         // DIRECTORY going quiet, which every other writer moves too.
         case "auto":
-          return `waiting to be committed: --commit=auto records everything waiting ` +
+          return `waiting to be committed: commit: auto records everything waiting ` +
             `once writes stop arriving for ${Math.round(QUIET_MS / 1000)} seconds`
       }
   }
 }
 
-/** The one sentence `--commit=off` gets, wherever it is reached from — the
+/** The one sentence `commit: off` gets, wherever it is reached from — the
  *  setting is one fact and two spellings of it is one place for them to
  *  drift. */
 const COMMITS_OFF =
-  "this directory is served with --commit=off, so writes are not committed"
+  "this directory is served with commit: off, so writes are not committed"
 
 /** What a busy repository IS, in words that read. Three of the four reasons are
  *  an operation in progress and take "mid-"; a detached HEAD is a place you are
@@ -441,7 +441,7 @@ export interface Committing {
    * there is always one ({@link whyOf}).
    *
    * It is what is left of the per-write commit, and the difference is the whole
-   * of this feature: `--commit=auto` used to commit exactly the files one write
+   * of this feature: `commit: auto` used to commit exactly the files one write
    * produced, inside the write gate, so a train of thought arrived as a dozen
    * commits. Nothing commits a write any more — the loop below sweeps the
    * repository once the directory goes quiet — so what a write reports is what
@@ -589,7 +589,7 @@ interface Survey {
 const NO_FILES: ReadonlySet<string> = new Set()
 const NO_ERRORS: ReadonlyMap<string, ReadonlyArray<OutlineError>> = new Map()
 
-/** The survey for a directory nothing was asked about — `--commit=off`, a
+/** The survey for a directory nothing was asked about — `commit: off`, a
  *  directory that is not a work tree, a git that could not be asked. Spelled
  *  once, because three arms answer with it and a fourth field added to the
  *  survey must not be able to appear in two of them and not the third. */
@@ -993,7 +993,7 @@ export const make = (options: Options): Committing => {
       if (request.paths === undefined) counts.clear()
       options.onSettled?.()
 
-      // ... AND THE PUSH, which is what `--push=auto` now means: a settled
+      // ... AND THE PUSH, which is what `push: auto` now means: a settled
       // commit is shared, whichever door made it — the Commit button, the
       // agent's `commit` tool, or the quiet window. It used to fire in the
       // BROWSER, inside the success callback of one tab's own request, so a
@@ -1001,7 +1001,7 @@ export const make = (options: Options): Committing => {
       // count grew with nothing saying why.
       //
       // ONE ROUND TRIP PER COMMIT, and that is the argument the old
-      // `--commit=auto` could not make: it committed every write, so pushing
+      // `commit: auto` could not make: it committed every write, so pushing
       // would have put a network call inside every keystroke. The window is
       // what makes this affordable.
       //
@@ -1099,7 +1099,7 @@ export const make = (options: Options): Committing => {
   /**
    * Why the write that just landed is not in the history — and nothing else.
    *
-   * What used to be here was the per-write commit: `--commit=auto` staged
+   * What used to be here was the per-write commit: `commit: auto` staged
    * exactly the files one write produced and committed them, inside the write
    * gate, on every op. It is RETIRED. It turned one train of thought into a
    * dozen commits, which is the thing manual mode was introduced to end, and

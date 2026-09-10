@@ -2,7 +2,7 @@
 Feature: The ledger is a plugin
   Git is a row. A serve that does not name it has no pill, no `surface/git/`
   on the wire, and `ops.commit` refuses in words. Writes still land; nobody
-  records them. That is "no provider mounted", not `--commit=off`.
+  records them. That is "no provider mounted", not `commit: off`.
 
   Background:
     Given I open the outline "garden.olai"
