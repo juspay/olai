@@ -51,10 +51,7 @@ import {
   KOLU_UNDIALED,
   KOLU_UNPULSED,
   KoluEvent,
-  KoluKnobs,
   KoluLink,
-  NO_KNOBS,
-  sameKnobs,
   sameKolu,
   Snapshot,
   SnapshotRefused,
@@ -111,30 +108,6 @@ export const koluMembers = {
       schema: Schema.NullOr(WatchPulse),
       default: KOLU_UNPULSED,
       verbs: ["get"],
-    },
-    /**
-     * WHICH FILE DECIDES THE WATCH ({ ./kolu.ts}'s `KoluKnobs`), as a
-     * read-only location on the current revision.
-     *
-     * Re-answered on every vault revision, the way the `pins` cell one
-     * spec over is and for its reason: the reading is the convention's own
-     * walk over the SERVED paths, so a file that arrives, moves or is
-     * renamed updates the location on the frame the revision publishes.
-     * `equals` is what keeps that from costing anything: almost every
-     * revision has nothing new to say about which file decided.
-     *
-     * IT WAS `mutes` UNTIL THE SECOND DOORBELL and carried a mute list
-     * beside the file; see the schema's own block for why that half went
-     * and this half could not.
-     *
-     * Wire-read-only: the knobs are written by EDITING the vault's own
-     * config outline, never through this wire.
-     */
-    knobs: {
-      schema: KoluKnobs,
-      default: NO_KNOBS,
-      verbs: ["get"],
-      equals: sameKnobs,
     },
   },
   collections: {

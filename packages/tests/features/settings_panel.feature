@@ -16,6 +16,26 @@ Feature: Edit plugin settings on the panel
     Then file "_olai/Settings.olai" has namespace "kolu" setting "watch.held-for" as "90s"
     And there should be no page errors
 
+  Scenario: Escape discards an uncommitted draft without dismissing the panel
+    Given I open the app
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"escape-kolu","ord":"a0","title":"kolu"}
+      {"id":"escape-watch","ord":"a0","parent":"escape-kolu","title":"watch","custom":{"held-for":"2m"}}
+      """
+    And I open the plugins panel
+    And I expand settings for the plugin "kolu"
+    Then the plugins panel shows "kolu" configured "watch.held-for" as "2m"
+    When I remember the settings file "_olai/Settings.olai"
+    And I type "90s" into "kolu" setting "watch.held-for"
+    And I press "Escape" in "kolu" setting "watch.held-for"
+    Then the plugins panel remains open
+    And the plugins panel shows "kolu" configured "watch.held-for" as "2m"
+    And the "kolu" setting "watch.held-for" has focus
+    When I leave "kolu" setting "watch.held-for"
+    Then the remembered settings file is unchanged
+    And there should be no page errors
+
   @git:repo
   Scenario: Enable git, choose Auto, see the write in the ledger and keep it across a restart
     Given I open the app

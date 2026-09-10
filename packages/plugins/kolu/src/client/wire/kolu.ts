@@ -176,46 +176,6 @@ export type WatchPulse = typeof WatchPulse.Type
  *  fold: no recency value answers, so the header can't compute an age. */
 export const KOLU_UNPULSED: WatchPulse | null = null
 
-/**
- * The watch's configuration location on the current vault revision.
- * The convention selects by served path, so an empty or torn file still
- * names the policy source. `null` means no file decides the watch's defaults.
- * Editing is provided by the inspector; this cell remains a read-only location.
- *
- * IT USED TO CARRY A MUTE LIST TOO — `{file, names}`, the titles of the
- * terminals `_olai/Settings.olai`'s `mutes` node silenced, narrowed to the
- * ones the watcher's fold could actually say. The mutes went with the
- * second doorbell (2026-08-31), and the cell was RENAMED rather than
- * dropped: the wake FILTER FILE a person picks per conversation is the
- * silence control now, and two silence mechanisms aimed at one fleet is
- * one too many — a terminal no scoped file claims wakes nobody, which is
- * the whole of what a mute was for. What could not go with them is the
- * WRENCH: its door has no other source on this wire, and the duration
- * knobs it opens survive whole.
- *
- * SO IT IS ONE FIELD AND STAYS A STRUCT. A bare `NullOr(String)` cell
- * would say the same thing today and would have to be re-SHAPED the day a
- * second standing fact about the config joins it; a struct makes that an
- * added key rather than a changed member, which is the difference between
- * a decode a stale tab survives and one it does not.
- */
-export const KoluKnobs = Schema.Struct({
-  node: Schema.optionalKey(Schema.String),
-  /** Which file decided the config — see above. */
-  file: Schema.NullOr(Schema.String),
-})
-export type KoluKnobs = typeof KoluKnobs.Type
-
-/** The watcher-on-defaults reading: no file decided anything. Minted once,
- *  the way `KOLU_UNDIALED` is: before any revision lands, and on every face
- *  whose vault walk is not wired. */
-export const NO_KNOBS: KoluKnobs = { file: null }
-
-/** Two readings that say the same thing about the config — the cell's
- *  `equals`: the vault walk re-derives on every keystroke, and a revision
- *  that did not move the deciding file must publish nothing. */
-export const sameKnobs = (a: KoluKnobs, b: KoluKnobs): boolean => a.file === b.file && a.node === b.node
-
 /** Two readings that say the same thing about the link — the member's `equals`,
  *  so a re-dial that found exactly what it found last time publishes nothing
  *  and `since` does not creep. Everything but `since` is compared; `since` is

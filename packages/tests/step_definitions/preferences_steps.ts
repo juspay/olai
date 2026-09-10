@@ -1426,7 +1426,7 @@ Then("the plugin {string} keeps settings open when {string} becomes {string}", a
 });
 
 Then("the plugin {string} has authored enablement {string}", async function (this: OlaiWorld, plugin: string, value: string) {
-  await (await shownRow(this, plugin)).locator(`[data-config="on"]:has-text("on ${value}")`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await (await shownRow(this, plugin)).locator(`[data-config="on"]:has-text("Enabled: ${value === "yes" ? "Yes" : "No"} — set in Settings.olai")`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 Then("This serve is collapsed", async function (this: OlaiWorld) {

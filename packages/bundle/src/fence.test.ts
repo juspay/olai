@@ -1801,7 +1801,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/outlines/src/server.ts",
       "plugins/outlines/src/tools.ts",
       "plugins/pins/src/server.ts",
-      "plugins/plugin-inspector/src/Panel.tsx", // the required author label, not a row lookup
       "plugins/plugin-inspector/src/approval.ts",
       "plugins/search/src/server.ts",
       "plugins/search/src/table.bench.ts",
@@ -2239,6 +2238,8 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
   }
 
 
+  // settings.test.ts pairs this name fence with the inspector Config-key fence,
+  // deriving keys from live schemas without making this text-only audit load plugins.
   test("no package outside the registry and the plugin's own tenant spells it", () => {
     const actual = Object.fromEntries(PLUGIN_NAMES.map((name) => {
       const mine = TENANTS.get(name) ?? new Set<string>()

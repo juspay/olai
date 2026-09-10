@@ -39,11 +39,11 @@ export function Control(props: {
       setDraft(text())
     })
   }
-  const commit = () => { if (dirty) save(draft()) }
+  const saveDraft = () => { if (dirty) save(draft()) }
   // Bound natively on the input: Solid's delegated listener runs at document,
   // where the popover's Escape dismissal would already have spent the key.
   const keyboard = (event: KeyboardEvent) => {
-    if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); commit() }
+    if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); saveDraft() }
     if (event.key === "Escape") {
       event.preventDefault(); event.stopPropagation()
       dirty = false; setDraft(text()); setRefused(undefined)
@@ -78,7 +78,7 @@ export function Control(props: {
             step={metadata()?.kind === "number" && (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).integer ? 1 : "any"}
             placeholder={metadata()?.kind === "text" ? (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "text" }>).expected : undefined}
             onInput={event => { dirty = true; setDraft(event.currentTarget.value); setRefused(undefined) }}
-            onBlur={event => { if (event.relatedTarget !== reset) commit() }} on:keydown={keyboard} />
+            onBlur={event => { if (event.relatedTarget !== reset) saveDraft() }} on:keydown={keyboard} />
         </Match>
       </Switch>
       <span class="text-muted">{props.value.setBy !== "default" ? configurationAuthored : "default"}</span>

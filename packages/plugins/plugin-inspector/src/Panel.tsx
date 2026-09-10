@@ -136,6 +136,7 @@ import {
   type PluginPick,
   pluginSummary,
   configurationLinkLabel,
+  configurationAuthored,
   enableLabel,
   groupCount,
   pluginConfig,
@@ -484,7 +485,7 @@ function PluginRow(props: {
           }}>{disclosed() ? "▾" : "▸"}</summary>
           <Controls name={plugin().name} values={values()} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
           <Environment values={plugin().environment ?? []} />
-          <Show when={plugin().desiredOn !== undefined}><p class="text-xs text-muted" data-config="on">on {plugin().desiredOn ? "yes" : "no"} ·vault</p></Show>
+          <Show when={plugin().desiredOn !== undefined}><p class="text-xs text-muted" data-config="on">Enabled: {plugin().desiredOn ? "Yes" : "No"} — {configurationAuthored}</p></Show>
           <Show when={plugin().configurationNode && props.panel.state.file()}>
             {(File) => { const Link = File() as NonNullable<ReturnType<InspectorState["file"]>>; return <div class="mt-2" onClick={() => props.panel.state.door.setOpen(false)}><Link
               file={plugin().configurationNode!.file} at={plugin().configurationNode!.id}

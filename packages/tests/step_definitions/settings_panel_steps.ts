@@ -126,3 +126,7 @@ Given("the next browser configuration request names reserved key {string}", asyn
     server.onMessage(message => client.send(message))
   })
 })
+
+Then("the plugins panel remains open", async function(this: OlaiWorld) {
+  assert.equal(await this.pluginsPanel().isVisible(), true)
+})

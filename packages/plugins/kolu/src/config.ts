@@ -8,7 +8,6 @@ import { name } from "./wire.ts"
 
 export interface WatchReading {
   readonly config: WatchConfig
-  readonly node?: string
 }
 export const watchConfigIn = (nodes: ReadonlyArray<Located>, file: string | null): WatchReading => {
   if (file === null) return { config: DEFAULT_WATCH }
@@ -16,7 +15,7 @@ export const watchConfigIn = (nodes: ReadonlyArray<Located>, file: string | null
   const node = configurationNode(inside, name)
   if (node === undefined) return { config: DEFAULT_WATCH }
   const parsed = decodePolicy(Config, inside, node, () => {})
-  return { config: configuredWatch(parsed.config as typeof Config.Type), node: node.node.id }
+  return { config: configuredWatch(parsed.config as typeof Config.Type) }
 }
 
 /** Live policy uses the same broken-file gate as the shared reader. */

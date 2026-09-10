@@ -26,10 +26,7 @@ const PADI_PILL = '[data-testid="padi"]'
  *  reader typed, the `it_stays_live` scenario's quotes included. */
 const vaultFile = (file: string): string => `${VAULT_LINK}${attr("data-file", file)}`
 
-/** Absence proofs settle on the EVENTS panel: the `knobs` cell rides the same
- *  subscription the feed does, so when the feed has answered the cell's
- *  value has too — a foot that has not drawn by then is a foot that will
- *  not. */
+/** Wait for the feed before interacting with its controls. */
 const visible = (world: OlaiWorld, selector: string) =>
   world.page.locator(selector).first().waitFor({ state: "visible", timeout: POLL_TIMEOUT })
 

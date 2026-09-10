@@ -78,7 +78,6 @@ import type { Effect, Stream } from "effect"
 import type {
   FleetTerminal,
   KoluEvent,
-  KoluKnobs,
   KoluLink,
   Snapshot,
   TerminalFrame,
@@ -88,8 +87,8 @@ import type {
 import { createFleet, type Fleet, FleetProvider, readingScreen, watchingTerminal } from "./fleet.tsx"
 
 /**
- * THE MEMBERS this appliance reads, structurally — the three cells (the link,
- * the pulse and the drawer's foot), the two collections (the fleet and the
+ * THE MEMBERS this appliance reads, structurally — the two cells (the link
+ * and the pulse), the two collections (the fleet and the
  * watcher's events), the screen read and the live pane.
  *
  * Written as the shape rather than imported as the client's type for the reason
@@ -113,10 +112,6 @@ export interface KoluClient {
      *  `null` before the boot pulse is ever read. */
     readonly pulse: {
       use: () => { readonly value: Accessor<WatchPulse | null | undefined> }
-    }
-    /** The drawer's foot — which file decides the watch. */
-    readonly knobs: {
-      use: () => { readonly value: Accessor<KoluKnobs | undefined> }
     }
   }
   readonly collections: {
@@ -156,7 +151,6 @@ export function createKoluUi(props: {readonly client: KoluClient; readonly now: 
   return createFleet({now:props.now,sources: {
         link: props.client.cells.link.use().value,
         pulse: props.client.cells.pulse.use().value,
-        knobs: props.client.cells.knobs.use().value,
         fold: props.client.collections.fleet.use().fold as never,
         events: props.client.collections.events.use().fold as never,
         read: readingScreen(props.client.procedures.screen.text),

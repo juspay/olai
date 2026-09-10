@@ -840,7 +840,6 @@ export default definePlugin({
     yield* vault.unloaded(Effect.sync(() => {
       derived = undefined
       file = undefined
-      half.unloaded()
     }))
 
     /** RESOLVE KOLU'S MCP COMMAND, asked once per conversation opening — the

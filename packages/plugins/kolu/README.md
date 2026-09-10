@@ -20,14 +20,14 @@ The browser's kolu half, unchanged by the move but for its address:
 - **`src/appliance/padi/said.ts`** — every word a status reads has one home; the header and the chat's probe speak this three-state sentence. THE ONE VOCAB — what an event IS — is `@olai/kolu-client`'s `KoluEvent`.
 - **`src/appliance/testids.ts`** — this half's `data-testid`s, spread into [`src/testids.ts`](src/testids.ts) so the package has one door for them.
 
-## The seven, as a surface of their own
+## The six members, as a surface of their own
 
 [`src/wire.ts`](src/wire.ts) declares a **whole surface** — `defineSurface`, exactly as `@olai/surface` calls it — out of the declarations, schemas, `equals` and doc blocks that stay in `@olai/kolu-client/wire`. Core composes it as a **sibling** under this plugin's `name`, so the framework mints every address and olai computes none of them:
 
 | declared here | on the wire, composed |
 | --- | --- |
 | cell `link` | `surface/kolu/link/get` |
-| cells `pulse`, `knobs` | `surface/kolu/pulse/get`, `surface/kolu/knobs/get` |
+| cell `pulse` | `surface/kolu/pulse/get` |
 | collections `fleet`, `events` | `surface/kolu/fleet/…` |
 | stream `terminal` | `surface/kolu/terminal/…` |
 | procedure `screen.text` | `surface/kolu/screen/text` |
@@ -60,7 +60,7 @@ Core grew ONE thing for this: `Deliveries` — `scopes()`, which conversations o
 
 The taps into the watcher are two optional callbacks on `KoluDeps` in the shape `claimants` and `config` already take — `rang` for the events (what crosses is the wire's own frozen `KoluEvent`) and `beating` for the subscription's stamps (the doorbell's floor-on-silence rides those, and only the cadence crosses). So `@olai/kolu-client` still cannot spell an outline record, in either direction.
 
-Silence is the absence of a call. There is no third arm and no unclaimed-terminal warning anywhere: a doorbell that also reported what it decided not to ring about is one nobody would leave on. And **the mute list went with this PR** — the filter file a conversation is scoped to is the silence control now, so `_olai/Settings.olai` keeps its duration knobs and nothing else, and the former `mutes` cell became `knobs`, publishing the watch’s configuration location. The drawer’s wrench now reaches the inspector’s controls through an optional declared service.
+Silence is the absence of a call. There is no third arm and no unclaimed-terminal warning anywhere: a doorbell that also reported what it decided not to ring about is one nobody would leave on. And **the mute list went with this PR** — the filter file a conversation is scoped to is the silence control now, so `_olai/Settings.olai` keeps its duration knobs under its `kolu` node. The drawer’s wrench now reaches the inspector’s controls through an optional declared service.
 
 ...BUT IT IS NO LONGER SILENT TO THE OWNER, which is what `doorbell-missing-claim` (P1, 2026-09-01) bought. [`src/trace.ts`](src/trace.ts) is one formatter and one line per moment (`kolu doorbell <moment> key=value …`), written with `Effect.logDebug`, so it is off until `log-level: debug` on the serve’s configuration node. It goes out through `detached` — the one named seam across the appliance boundary — because the line is written from a thunk core calls at the delivery moment, from its own fiber and not from this plugin.s. It is part of the feature rather than instrumentation over it, on the same argument every seam here makes about second spellings: a doorbell whose failure mode is *a call that does not happen* is byte-for-byte identical to a healthy quiet one, so nothing but an account of what it decided can tell them apart. That P1 was diagnosed by counting messages **by hand** out of a chat transcript, because the transcript was the only record there was; the `derived` line — which NAMES the ringing set rather than counting it, since the readable fact is usually an absence and an absence needs a list to be read against — would have ended it in a glance. [`docs.md`](docs.md#what-the-doorbell-says-it-did) is the owner's page for it, including the `why=` vocabulary a silent classification carries — `settled`, `not-live`, `unmarked-leaf`, `unmatched`, `unclaimed` — which is the half that turns "absent from the set" into "absent, and here is the gate".
 
