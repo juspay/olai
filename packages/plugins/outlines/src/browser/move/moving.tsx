@@ -239,7 +239,10 @@ export const createMoving = (
     // return before the first tracked read would leave it with no dependencies
     // at all — an effect that runs once, at creation, and never again.
     const held = standing()
-    if (held === null) return
+    if (held === null || sending()) return
+    // A revision may arrive before the write reply. Keep the gesture until
+    // the reply supplies its destination, so a newly hidden row can leave
+    // its confirmation under that destination instead of losing it.
     const drawn = flatten(page.rows(), page.collapsed())
     const moved = refound(drawn, held.record, held.place) ??
       // …or the row it landed in, for a destination this page does not draw —

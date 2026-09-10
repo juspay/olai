@@ -115,6 +115,10 @@ const PROBE = "__olaiProbe";
  * for both is a step that will one day ask for one.
  */
 export const markScreen = async (world: OlaiWorld): Promise<void> => {
+  // Content and shell providers can finish their initial activation separately.
+  // Establish both subjects before marking the baseline for the next gesture.
+  await world.page.locator(PANE).first().waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+  await world.page.locator(SIDEBAR).first().waitFor({ state: "attached", timeout: POLL_TIMEOUT });
   await markRegion(world, SIDEBAR, "sidebar");
   await world.page.evaluate(
     ([sidebar, pane, probe]) => {

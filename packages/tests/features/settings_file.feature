@@ -5,9 +5,10 @@ Feature: The vault settings file applies policy to running rows
 
   Scenario: Editing one leaf preserves valid siblings and updates the panel
     Given I open the app
+    # Leave push at its default so the disclosure exists before it is opened.
     When I rewrite "_olai/Settings.olai" as:
       """
-      {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"off","push":"off"}}
+      {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"off"}}
       """
     And I open the plugins panel
     Then the plugins panel shows "git" configured "commit" as "off"
