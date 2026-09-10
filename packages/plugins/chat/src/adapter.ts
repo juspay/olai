@@ -51,13 +51,10 @@ export const AGENT_PATH_ENV = "OLAI_AGENT_PATH"
  * decides it already is ({@link ./agents/roster.ts}), and spent here and on the
  * wire. One reading, two readers.
  *
- * The three read differently on purpose, because a person has a different thing
- * to do about each: an EMPTY variable is somebody saying "not this time", no
- * ENGINE is a the file’s row selection list that named none of the rows that would have
- * probed, and NONE INSTALLED is the only one where looking somewhere else is the
- * answer — which is why it is the line that names the search path, since "olai
- * cannot see the opencode I installed" is a PATH question and this is the line
- * somebody greps.
+ * The two reasons need different remedies. With no engine rows enabled, change
+ * file enablement. With engines enabled but no executable found, check their
+ * resource paths. The latter log line names the search path so a person can
+ * diagnose an installed executable that this process cannot find.
  *
  * NO ENGINE IS NAMED IN ANY OF THEM, and that is not a loss of detail — it is
  * the fence. Which engines this build has is a list of ROWS, each with its own

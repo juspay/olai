@@ -10,7 +10,7 @@ const bench = (use: (root: string, rows: () => Array<{ title: string; custom: Re
   try { use(root, () => readFileSync(join(root, "_olai/Settings.olai"), "utf8").trim().split("\n").map(line => JSON.parse(line))) }
   finally { rmSync(root, { recursive: true, force: true }) }
 }
-test("exact fixtures preserve every reader-profile row unless explicitly switched off", () => bench((root, read) => {
+test("fixture selection preserves reader defaults and records explicit file choices", () => bench((root, read) => {
   writeFixturePolicy(root, { only: ["test-counter"] })
   const readers = ROWS.filter(row => row.disabled !== true && row.profiles?.includes("test-minimal"))
   expect(readers.length).toBeGreaterThan(0)

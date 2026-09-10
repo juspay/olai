@@ -24,13 +24,13 @@
  *
  * One value about the served INSTANCE rather than about any file in it — the
  * shape `manifest` and `git` already are. It is seeded at the composition root,
- * out of the flag and the rows, and REPUBLISHED from every re-compose
+ * out of the policy reading and the rows, and REPUBLISHED from every re-compose
  * (`@olai/server`'s `runtime.ts`): a plugin is a fiber, so a register or a
  * dispose moves the roster and the word on a row is read live.
  *
  * It therefore has both of the things it was once documented as needing
  * neither of. A CONNECTOR, because a cell that is only seeded goes on saying
- * what the flag said while rows change state underneath it — the connector
+ * the initial policy while rows change state underneath it — the connector
  * hands the cell to the runtime and `recompose` is the one clock that moves it.
  * And an `equals` ({@link sameRoster}): a republish used to be a thing that
  * never happened, so a comparator would have been dead weight with a comment
@@ -41,9 +41,8 @@
  *
  * ## STILL READ-ONLY, and the panel is no longer frozen
  *
- * Those two used to be one sentence — *read-only on the wire because the file’s row selection
- * was a read-only startup selection* — and the loader surface
- * separated them. There IS a browser verb now (`plugins.set`, on the root spec),
+ * Reading a roster and requesting an enablement change are separate doors.
+ * The root exposes `plugins.set` as a browser procedure,
  * and this cell still carries no write verb, because the two are about different
  * things: a flip is an ACT with a subject and a refusal, and what comes back
  * from it is this cell moving. A `set` on the cell would be "make the roster say
@@ -101,7 +100,7 @@ export const BuiltPlugin = Schema.Struct({
    * one thing `running` cannot say.
    *
    * A plugin is a fiber now, and `false` covers six different mornings:
-   * the operator's flag left it out, the BUILD leaves it out until somebody
+   * file policy left it out, the BUILD leaves it out until somebody
    * asks, a PERSON turned it off at the panel, its `apply` DIED, it is still
    * waiting on a service that has not arrived, or — for a plugin the VAULT
    * defines — nobody has yet approved the version that is written down. Those
@@ -363,33 +362,21 @@ export const PLUGIN_BROWSER_NODE = "browser.tsx"
  *                is why it is not the same word as `off`: a row nobody chose is
  *                not a row somebody turned off, and only one of the two is
  *                worth a person's attention when they went looking for a chip.
- *   - `switched` A PERSON TURNED IT OFF HERE, at the panel, on this serve. Also
- *                total absence, and the third author of it — which is the whole
- *                reason it needed a word. Absence used to have exactly two
- *                authors, the flag and the build, and `pin` told them apart;
- *                the switch is a third, and without this the panel told a person
- *                who had just pressed the switch that the BUILD ships this off
- *                by default and named a flag they should type. It is the one of
- *                the four absences that undoes itself: a restart brings the row
- *                back to whatever the flag and the file say, and pressing the
- *                switch again brings it back now.
+ *   - `switched` a person stopped a row through its session-only switch.
+ *                Reader infrastructure and dynamic definitions retain this
+ *                process-local state; ordinary built rows persist `on` in the
+ *                policy file and report `off` after the write settles.
  *   - `failed`   its `apply` DIED, which the registry records as a throw out of
  *                the mount. The one word that is a FAULT: it was asked
  *                for, it is absent, and nothing else on screen says so.
  *   - `pending`  A PERSON HAS NOT DECIDED. Only ever a row the VAULT defines
  *                ({@link BuiltPlugin.source}): the source is written, this
  *                version is not the one anybody approved, and nothing of it has
- *                been imported, compiled or run. The fifth absence and the only
- *                one that is a QUESTION rather than an answer — the other four
- *                are states somebody or something already settled, and this one
- *                is waiting on a reader. It is the state phase 12 exists to
- *                draw: the panel shows the source under it and the verb beside
- *                it, which is the one place in this product where a person
- *                approves code rather than changes a setting.
- *   - `waiting`  the plugin is waiting on a service that has not arrived. Not
- *                reachable while every service a plugin NAMES is provided before
- *                the bundle is, and declared here because the runtime that can
- *                produce it is already the one running.
+ *                been imported, compiled or run. The panel shows its source
+ *                and approval action, which authorizes code rather than
+ *                changing a behaviour setting.
+ *   - `waiting` a required service is absent. The row activates when its
+ *                provider arrives and returns here when that provider leaves.
  *
  * ## The LIST is the declaration, and the type is derived from it
  *
@@ -460,7 +447,10 @@ export const PluginRoster = Schema.Struct({
   configurationAvailable: Schema.optionalKey(Schema.Boolean),
 
   instance: Schema.optionalKey(Schema.Struct({
-    hostname: Schema.String, host: Schema.String, port: Schema.Number,
+    hostname: Schema.String,
+    // Older serves sent the name without provenance. They remain decodable.
+    hostnameAuthor: Schema.optionalKey(Schema.Literals(["env", "process"])),
+    host: Schema.String, port: Schema.Number,
     hostAuthor: Schema.Literals(["flag", "default", "process"]), portAuthor: Schema.Literals(["flag", "default", "process"]),
     policy: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.Unknown,
       setBy: Schema.Literals(["vault", "default"]), says: Schema.String })),
@@ -527,10 +517,8 @@ export const NO_ROSTER: PluginRoster = { built: [] }
  * TWO ROSTERS THAT SAY THE SAME THING ARE ONE — and this cell needs an `equals`
  * now, where for its whole life it did not.
  *
- * It moved at most once per serve: the flag was read at the composition root
- * and nothing afterwards could change what it said, so a republish was a thing
- * that never happened and an `equals` would have been dead weight with a
- * comment explaining why it was there.
+ * A roster seeded only at boot needed no equality check. Runtime lifecycle
+ * changes and file policy now republish it throughout the serve.
  *
  * That stopped being true in two steps. A plugin is a FIBER, so the roster is
  * republished from the re-compose — every register and every dispose — and the

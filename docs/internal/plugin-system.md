@@ -223,7 +223,7 @@ bare `Effect.runFork`, which is a fiber on the default runtime with no owner
 and none of the operator's settings — a second, unnamed seam, which is the one
 thing having a named seam is for.
 
-the file’s row selection, the bundle's rows and the browser slots are **phase 2** of a longer
+The bundle’s rows and browser slots form the composition model in a longer
 plan (the Cordis proposal's §6); the Effect API above is **phase 4**; node agents
 as scopes are **phase 6**, the chat row is **phase 7**, and the panel's switch —
 §7 below — is **phase 8**. What is deliberately NOT here: HMR (no Bun cache bust
@@ -265,7 +265,7 @@ Skim the table; the sections after it give one example each.
 
 ### name
 
-One word, and it does four jobs: the preferences row, the the file’s row selection value, the
+One word, and it does four jobs: the preferences row, the policy namespace, the
 docs address (`docs/plugins/<name>.md`), and — the load-bearing one — the **wire
 prefix**. Because the name *is* the prefix, the two cannot drift apart.
 
@@ -1317,7 +1317,7 @@ compiled from the page itself by `olai-plugin-vault-plugins`' `worked.test.ts`.
 
 ### Vault provider
 
-The ordinary `olai-plugin-vault/server` row lives in `packages/bundle/olai.yml` and is selected by every default profile. Explicit the file’s row selection selections may omit it. It waits on `VaultSettings`, supplied after the bundle’s declared vocabulary is available, and acquires the one-brain lock before the store. The row owns its watcher and revision publisher and offers `Vault`, `Directory` and `Ops`; `Kinds` remains core-provided. Late revision subscribers receive the current snapshot. Tenants naming `Vault` wait while it is absent and reactivate when it returns.
+The ordinary `olai-plugin-vault/server` row lives in `packages/bundle/olai.yml` and is selected by every default profile. Its session switch can stop it; file enablement is ignored for the reader owners. It waits on `VaultSettings`, supplied after the bundle’s declared vocabulary is available, and acquires the one-brain lock before the store. The row owns its watcher and revision publisher and offers `Vault`, `Directory` and `Ops`; `Kinds` remains core-provided. Late revision subscribers receive the current snapshot. Tenants naming `Vault` wait while it is absent and reactivate when it returns.
 
 Capability providers acquire `Directory` and `Ops` through their scoped needs.
 `makeOps` runs inside the vault row after the store acquisition. The gate owns
@@ -1345,7 +1345,7 @@ The vault switch remains available and explains its cost. Disabling it clears se
 
 `TransportSurface.register` accepts scoped HTTP route layers and upgrade handlers. Core’s `listener.ts` owns one port and rebuilds HTTP dispatch from those contributions; it has no transport flags or transport-specific branch. Each registration owns only its contribution. The ws plugin owns origin checks, header admission, stale-tab checks, heartbeat enrollment and connection cleanup using the framework’s socket primitives. The web-app plugin owns static routes, the service worker and manifest. The MCP plugin owns its route, carrier, protocol server, tool projection and scoped ticket registry. It applies request attribution to the host’s composed agent generation; domain providers enforce the supplied session rule. Static write reservations come from the bundle’s owner declarations and remain active when their owner is disabled. Route changes preserve existing websocket connections. With only MCP registered, the same listener serves only its HTTP route.
 
-`mountBundle` resolves only the modules in `olai.yml`. Profiles cannot insert rows or supply a special resolver. The default `web` profile preserves the catalogue defaults, while `surface` and `test-minimal` disable rows without their `profiles` membership. An explicit the file’s row selection list overrides the profile for every row, including transports: a policy with all rows off mounts nothing and opens no listener. The browser test harness explicitly composes its socket, assets and MCP carrier for nonempty test tags. `BUNDLE_NAMES` includes every transport, so dynamic definitions cannot replace those reserved names. The generator reads package exports: only a declared `./browser` gets a browser-table entry and chunk, and only a declared `./all.css` enters the style chain. Server-only packages require neither stub.
+`mountBundle` resolves only the modules in `olai.yml`. Profiles cannot insert rows or supply a special resolver. The default `web` profile preserves the catalogue defaults, while `surface` and `test-minimal` disable rows without their `profiles` membership. Explicit file enablement overrides profile defaults for ordinary rows, including transports. Reader owners ignore file `on`; disabling every transport opens no listener. The browser test harness explicitly composes its socket, assets and MCP carrier for nonempty test tags. `BUNDLE_NAMES` includes every transport, so dynamic definitions cannot replace those reserved names. The generator reads package exports: only a declared `./browser` gets a browser-table entry and chunk, and only a declared `./all.css` enters the style chain. Server-only packages require neither stub.
 
 
 The plugins panel holds its switches while the browser reconciles a roster. A server-only row can change without remounting that panel; its state may arrive before the socket replacement finishes. Waiting for the whole queued reconciliation prevents a second press from being sent on a connection that is about to close. The browser-asset scenario covers two consecutive off/on cycles through that boundary.

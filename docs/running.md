@@ -237,7 +237,7 @@ Whether writes record themselves and commits push is policy of the directory, sh
 
 `commit` is `off`, `manual` (default), or `auto`; `push` is `off` (default) or `auto`. They are independent. Auto-commit records everything waiting after fifteen quiet seconds, including writes made without a browser. Auto-push follows every commit olai makes, whether from the button, an agent, or the quiet window. See [git.md](git.md#modes).
 
-Each plugin's `Config` schema declares its defaults and descriptions. The panel reads those plus the file and marks authored values `·vault`, even when they equal the default. `GitState.pinned` retains its historical wire name but reports the policy in force, equal to `policy`; it no longer distinguishes startup inputs. Stale files under `$XDG_STATE_HOME/olai/git/` are inert.
+Each plugin's `Config` schema declares its defaults and descriptions. The panel reads those plus the file and marks authored values `·vault`, even when they equal the default. `GitState.policy` reports the decoded policy in force. Stale files under `$XDG_STATE_HOME/olai/git/` are inert.
 
 Turning the git row off removes the ledger, pill and tools. Setting `commit: off` keeps a mounted ledger that has been told not to record.
 
@@ -317,7 +317,7 @@ The wrapper records which defaults it supplied in `OLAI_WRAPPER_DEFAULTS`; this 
 
 **A switch writes `on` to the file**, through the ordinary write door, then waits for the next revision and reconciliation. It creates a missing namespace while preserving siblings. The edit appears in the ledger and follows the directory's commit policy. A restart reads the file again.
 
-The vault and settings-reader switches are session-only to keep their own recovery door available; their owners are derived from services, not hardcoded names. Their rows say so. When the reader is absent, one foot line says that switches are session-only. Applied patches stand when the reader withdraws; a returning vault publishes and patches again. A broken file must be repaired before a durable switch writes. If a person directly authors the reader off in the file, repair that property and enable its session switch to restore reading.
+The vault and settings-reader switches are session-only to keep their own recovery door available; their owners are derived from services, not hardcoded names. Their rows say so. When the reader is absent, one foot line says that switches are session-only. Applied patches stand when the reader withdraws; a returning vault publishes and patches again. A broken file must be repaired before a durable switch writes. The follower ignores `on` on both reader owners and warns once per row and file, so file policy cannot lock its own reader out. Their session switches can stop and reopen them without a disk edit.
 
 **Every browser sees it**, because it is not this browser's setting. A flip made in one tab moves the roster the server publishes, and every other tab pointed at the same server follows it — the same standing as the connection dot, and the reason these rows are not on the preferences panel with the theme.
 

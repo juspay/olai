@@ -38,6 +38,7 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
   let current: Configuration | undefined
   let active: ConfigurationSource | undefined
   const lastOn = new Map<string, boolean | undefined>()
+  const warnedEnablement = new Set<string>()
   const subscriptions = yield* Effect.forkScoped(Stream.runForEach(
     Stream.switchMap(serviceChanges(host, ConfigurationSource),
       (source): Stream.Stream<Publication> => source === undefined ? Stream.succeed({ source })
@@ -49,14 +50,28 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
     const returning = active !== publication.source
     active = publication.source
     current = publication.source === undefined ? undefined : publication.value
-    if (current !== undefined) processChanged(current)
+    const session = new Set(sessionOwners())
+    if (current !== undefined) {
+      const rows = new Map(current.rows)
+      for (const [id, row] of rows) if (session.has(id) && row.on !== undefined) {
+        const key = `${current.file}#${id}`
+        if (!warnedEnablement.has(key)) {
+          warnedEnablement.add(key)
+          yield* Effect.logWarning(`${current.file}: ${id}.on is ignored; this reader’s switch is session-only so the file cannot disable its own reader.`)
+        }
+        const { on: _ignored, ...reading } = row
+        rows.set(id, reading)
+      }
+      current = { ...current, rows }
+      processChanged(current)
+    }
     if (current !== undefined || !initialized) {
       const changes = BUNDLE_NAMES.map(id => {
         const row = current?.rows.get(id)
         const config = row?.node === undefined ? bootConfig.get(id) : row.config
         const enabled = row?.on ?? !disabled.get(id)
         return { id,
-          ...(returning || !initialized || lastOn.get(id) !== row?.on ? { disabled: !enabled } : {}),
+          ...(!initialized || (!session.has(id) && (returning || lastOn.get(id) !== row?.on)) ? { disabled: !enabled } : {}),
           ...(config === undefined || live.has(id) ? {} : { config }),
         }
       })

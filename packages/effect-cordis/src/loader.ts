@@ -186,10 +186,9 @@ const entriesOf = (host: Host): ReadonlyArray<Entry> =>
  * `EntryTree.update(id, …)` — the tree-level verb — calls `tree.write()`, and
  * the include's `write()` dumps the whole entry list back over `olai.yml`. That
  * is the loader's own answer for a settings page that OWNS its config file, and
- * it is the opposite of this phase's ruling: a flip is the instance's, for as
- * long as the process runs, and the boot-time answer stays the file, the flag
- * and nix. So this reaches the ENTRY and calls `entry.update`, which reconciles
- * without writing.
+ * this generic operation only reconciles the instance. Its caller owns durable
+ * policy and any file writes. Reaching the ENTRY and calling `entry.update`
+ * preserves that boundary instead of rewriting the build declaration.
  *
  * The other way a write can happen is subtler and is closed by ORDER rather than
  * by avoidance. Cordis tells the loader about every dispose, and the loader

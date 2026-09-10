@@ -31,8 +31,7 @@
  * makes a fiber in the same registry, with the same seven states, and a plugin
  * whose `apply` throws lands `FAILED` having installed nothing, siblings
  * untouched. What a loader ENTRY would add on top is a row in `olai.yml` — a
- * file this phase must not write, by the same ruling that made a flip
- * session-only — and a second identity for a plugin whose identity is a node in
+ * build declaration this runtime never writes — and a second identity for a plugin whose identity is a node in
  * a vault. So the fiber is made directly and the ROW is this module's map.
  *
  * ## THE MODULE IS NEVER RESOLVED AGAINST A DISK
@@ -174,9 +173,9 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>): Dy
   /** Definitions as the last revision left them — what {@link rows} draws and
    *  what {@link again} re-follows. */
   let seen: ReadonlyArray<Defined> = []
-  /** ...and the rows a person switched off here. Per PROCESS, exactly like a
-   *  built row's flip: nothing is written, and a restart comes back to what the
-   *  vault says. */
+  /** Definitions stopped for this process. Unlike a built row's durable `on`
+   * switch, stopping a definition writes nothing. Restart rereads its source
+   * and approval from the vault. */
   const stopped = new Set<string>()
 
   const follow = (defined: ReadonlyArray<Defined>): Effect.Effect<boolean> =>
@@ -274,7 +273,8 @@ const optionsKey = (one: Defined): string => JSON.stringify(one.configuration?.n
   custom: "custom" in item.node ? Object.fromEntries(Object.entries(item.node.custom ?? {}).filter(([key]) => key !== "approved" && key !== "plugin")) : {},
 })))
 
-const wordsOf = (defined: ReadonlyArray<Defined>): string =>
+/** Metadata fingerprint: field boundaries must survive text containing line breaks. */
+export const wordsOf = (defined: ReadonlyArray<Defined>): string =>
   defined
     .map((one) => [one.name, one.node, one.file, one.version, one.approved, one.fault, optionsKey(one)].join("\0"))
     .join("\n")
@@ -374,14 +374,9 @@ const loaded = async (text: string): Promise<Plugin | string> => {
 /**
  * ONE DEFINITION AS A ROSTER ROW.
  *
- * The word a row wears is decided here rather than by the fiber, because four of
- * the five ways a dynamic row can be absent are not fiber states at all: a
- * definition nobody approved, a definition with a fault in its shape, one whose
- * source would not compile, and one a person switched off. Only the fifth —
- * a plugin that mounted and then failed, or that is waiting on a door — is the
- * registry's answer, and that one is READ AFRESH, off the same report a bundle
- * row's word comes from ({@link DynamicRuntime.rows} argues why it is handed in
- * rather than remembered from the mount).
+ * Definition metadata decides pending approval, invalid shape, compilation
+ * failure and a session stop. A mounted definition’s running, waiting or failed
+ * state comes from its live registry report, just like a built row.
  */
 const rowOf = (
   one: Defined,

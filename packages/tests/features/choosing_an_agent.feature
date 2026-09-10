@@ -262,7 +262,7 @@ Feature: Choosing an agent
     Then the panel says there is no agent
     And the panel tells me how to install "opencode"
     And the panel explains how to configure one, naming "OLAI_ACP_AGENT"
-    # ...and it says WHICH of the three ways it got here rather than hedging
+    # ...and it says which of the two reasons brought it here rather than hedging
     # across them. Here no engine executable is installed.
     And the panel says no engine is installed
     And there is nothing to type into

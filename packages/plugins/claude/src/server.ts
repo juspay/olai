@@ -21,15 +21,12 @@
  * is what makes every bet in this directory a thing with a unit test rather than
  * a branch reachable only by starting a subprocess.
  *
- * ## The variable is READ HERE and MEANS TWO THINGS
+ * ## The executable path belongs to this engine
  *
- * `OLAI_ACP_AGENT` is this row's whole door — the pinned adapter is baked into
- * the packaged binary's wrapper with `--set-default`, and a person who points
- * the variable somewhere else is still saying *read that the way you read Claude
- * Code*, which is what the override has always meant. The EMPTY STRING is not
- * this plugin's to interpret: it is the whole off switch, core's, and it is read
- * before anything is probed (`olai-plugin-chat`'s `agents/roster.ts`). Both readings
- * are argued at the constant, in `@olai/acp/engine`, which is where they meet.
+ * `OLAI_ACP_AGENT` names this row's adapter. The packaged wrapper supplies a
+ * default path, and an explicit path overrides it. An empty path leaves this
+ * engine unavailable; it does not disable chat or other engine rows. File
+ * enablement decides which rows run, independently of executable discovery.
  */
 
 import { adapterFrom, AGENT_ENV } from "@olai/acp/engine"

@@ -1,5 +1,5 @@
 /**
- * THE ROWS' OWN CLAIMS — what the built-in default is, and what a flag does to
+ * THE ROWS' OWN CLAIMS — what the built-in default is, and what file policy does to
  * it.
  *
  * ## Why this is about the ROW and not about a manifest field
@@ -7,12 +7,12 @@
  * A plugin that needs a secret this machine may not have is off until somebody
  * asks for it. That could be a `defaultOn: false` on the wire half — a field
  * core reads to build a default list — and it is the row's own `disabled`
- * instead, because that is the SAME FIELD the flag's patch writes. One
+ * instead, because that is the same field the file-policy patch writes. One
  * mechanism, two writers: the file says what the build does by default, and the
  * patch says what the operator asked for, and there is no second spelling for
  * the two to disagree across.
  *
- * What that buys is visible in the third case below: turning an opt-in plugin ON
+ * What that buys is pinned in configuration.test.ts: turning an opt-in plugin ON
  * is not a special path. It is a patch setting `disabled: false` on a row the
  * file set `true`, which is the same line of code that turns another row off.
  */
@@ -44,7 +44,7 @@ test("the built-in default is the rows that did not opt out", () => {
  * conversation anywhere, and every engine and every tenant sits `waiting`
  * behind the doors it offers. That is a legitimate serve and there is a
  * scenario for it (`features/the_doorbell_rings.feature`) — reached by an
- * operator typing the file’s row selection, and by nothing else. A `disabled: true` left on
+ * operator disabling the chat row through the file or its panel switch. A `disabled: true` left on
  * this row by somebody debugging would ship that serve as the DEFAULT, and
  * every claim about it would still pass: the rule above would simply agree that
  * an opted-out row is opted out.

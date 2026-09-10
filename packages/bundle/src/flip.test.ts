@@ -21,7 +21,7 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * ## THE FILE IS THE OTHER SUBJECT
  *
  * The loader operation is session-local: it writes nothing,
- * and a restart comes back to `olai.yml`, the flag or nix. That is not a
+ * and the composition root applies durable file policy separately. That is not a
  * property anybody can see by reading `setRow`, because the thing that would
  * break it is upstream's — `EntryTree.update` writes the tree, and the loader
  * writes the tree again when it sees a dispose it did not cause. Both are one
@@ -276,15 +276,12 @@ test("a row this build does not have answers no, and moves nothing", async () =>
 })
 
 /**
- * ...AND IT GOES AGAINST THE FLAG, which is the direction nobody would guess is
- * available and is the one a person actually wants.
+ * A DISABLED PROVIDER CAN BE ENABLED THROUGH THE SAME ROW PATCH.
  *
- * A row the file’s row selection left out is a row the patch wrote `disabled` onto, and the
- * switch writes the SAME FIELD — the built-in default, the operator's overlay
- * and the press are one mechanism, which is what the row patch has said since
- * the bundle became rows. So there is no state the panel can reach that a flag
- * could not have started you in, and none it cannot reach: a serve begun with
- * a file enabling one row can have the rest back without stopping.
+ * Build defaults and file policy both produce loader options. Updating the
+ * disabled option acquires the provider and wakes its waiting consumers.
+ * This test asks the loader directly; durable panel writes are covered by the
+ * serve and settings workflow tests.
  *
  * WHAT MAKES IT WORTH A CASE OF ITS OWN is the second assertion. The consumer
  * did not start either — it was `waiting`, naming the door nobody was behind —
@@ -292,7 +289,7 @@ test("a row this build does not have answers no, and moves nothing", async () =>
  * the whole of what brings it up, which is the reactive coeffect arriving at a
  * row that was never disabled at all.
  */
-test("a row the flag left out can be switched on, and its dependants start", async () => {
+test("a disabled provider can be enabled, and its dependants start", async () => {
   await inADirectory(async (dir) => {
     const said: Array<string> = []
     writeFileSync(join(dir, "olai.yml"), BUNDLE)
@@ -300,7 +297,7 @@ test("a row the flag left out can be switched on, and its dependants start", asy
     const opened = await run(openPlugins({ vars: {}, now: () => "", served: "/" }))
     const rows = pair(opened.host, said)
     // a policy selecting only downstairs: the consumer named, the provider left out. Both
-    // directions of the patch, which is what the flag writes.
+    // directions of the same loader patch that file policy produces.
     await run(mountRows(opened.host, {
       baseUrl: pathToFileURL(join(dir, "/")).href,
       path: "olai.yml",

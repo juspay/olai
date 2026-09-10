@@ -132,7 +132,7 @@ test("every arm core writes in full is one short line", () => {
 })
 
 
-test("each absence says its own why, and they are five different whys", () => {
+test("built-row absence reasons have distinct explanations", () => {
   const optIn = row("optIn")
   const failed = row("failed", "no socket at /run/nothing")
   const waiting = row("waiting")
@@ -183,7 +183,7 @@ test("an absent row names its own word and what to type at boot", () => {
   const off = pluginHint(only(row("off")))
   expect(off).toContain("alpha")
   expect(off).toContain("on: yes")
-  // sentence telling somebody to turn every other plugin off.
+  // Enabling one row does not recommend disabling the rest of the catalogue.
   expect(off).not.toContain("--plugins=")
 })
 
@@ -307,7 +307,7 @@ test("a running row that carries nobody says nothing", () => {
 })
 
 /**
- * THE STRIP READS THE BOOLEAN, never the five-word state.
+ * THE STRIP READS THE BOOLEAN, independently of the detailed state.
  *
  * `running` is the field the two ends have always agreed on and the one every
  * mount licence is read from. A strip showing On for `waiting` — asked for, not
@@ -315,7 +315,7 @@ test("a running row that carries nobody says nothing", () => {
  * from the negation of. The WHY of an absence is the hint's job; the switch has
  * two words and answers the question it is asking.
  */
-test("the switch shows what is running, not which of five mornings it is having", () => {
+test("the switch shows what is running, independently of its absence reason", () => {
   expect(pluginSwitch(only(row("running")), false).value).toBe("on")
   for (const state of ["waiting", "failed", "optIn", "off"]) {
     expect([state, pluginSwitch(only(row(state)), false).value]).toEqual([state, "off"])
@@ -362,7 +362,7 @@ test("a press freezes only that row's strip, and does not move it", () => {
 
 
 test("the foot names the file instead of retired startup flags", () => {
-  for (const value of [roster(["alpha"]), roster(["alpha"]), roster([])]) {
+  for (const value of [roster(["alpha"]), roster([])]) {
     expect(pluginsStarted(value)).toContain("_olai/Settings.olai")
     expect(pluginsStarted(value)).not.toContain("--plugins")
   }

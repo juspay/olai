@@ -17,9 +17,8 @@ cells: {
      *
      * A CELL for the reason the two above it are: one value about the served
      * INSTANCE rather than about any file in it. It is the sharpest case of it
-     * on this spec — the flag is read once, at the composition root, so this
-     * flag is read once at the composition root and nothing on that side
-     * republishes it by itself.
+     * on this spec: the composition root combines policy readings with live
+     * registration state and republishes when either changes.
      *
      * IT NO LONGER MOVES AT MOST ONCE, and the `equals` below is what that
      * costs. A plugin is a fiber, so the roster is republished from the

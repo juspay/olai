@@ -99,8 +99,8 @@ plugins: { /**
        * agent wrote, in a vault the agent can write, and retracting it is
        * deleting the node.
        *
-       * A restart comes back to what the vault says, exactly like the panel's
-       * switch: nothing here writes.
+       * Stopping a definition is session-only: restart rereads its source and
+       * approval. Built-row panel switches instead persist `on` in the file.
        */
       stop: {
         input: Schema.Struct({ name: Schema.String }),

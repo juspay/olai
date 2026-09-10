@@ -90,10 +90,9 @@ export const withServe = async <A>(
      * belong in `policy`, which authors the fixture before boot. */
     readonly vars?: Record<string, string | undefined>
     readonly policy?: FixturePolicy
-    /** WHICH rows this serve composes — the file’s row selection as a person types it.
-     *  Unset is nobody having said, which is the built-in default and what
-     *  every harness here wants: these stand up the whole product. A test
-     *  that names a narrower list is a test ABOUT a row's absence. */
+    /** Fixture row selection, authored as file policy before boot. Default
+     * reader rows stay enabled unless policy.without explicitly excludes them.
+     * Unset uses the profile and build defaults. */
     readonly plugins?: ReadonlyArray<string>
   },
   body: (said: ReadonlyArray<Logged>) => Promise<A>,

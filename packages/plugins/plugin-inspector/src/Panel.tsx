@@ -362,7 +362,7 @@ export function Panel(props: {
         <details class="py-2 text-xs text-muted" data-testid={TESTID.thisServe}>
           <summary class="cursor-pointer font-bold">This serve</summary>
           <div class="flex flex-wrap gap-2 py-2">
-            <span>hostname {instance().hostname} ·env</span>
+            <span>hostname {instance().hostname}{instance().hostnameAuthor === undefined ? "" : ` ·${instance().hostnameAuthor}`}</span>
             <span>host {instance().host} ·{instance().hostAuthor}</span>
             <span>port {instance().port} ·{instance().portAuthor}</span>
             <Config values={instance().policy} />

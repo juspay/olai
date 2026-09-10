@@ -1,4 +1,3 @@
-import { writeFixturePolicy } from "@olai/bundle/testlib"
 import { writeFileSync, rmSync } from "node:fs"
 import { join } from "node:path"
 import { expect, test } from "bun:test"
@@ -183,13 +182,13 @@ test("vault withdrawal removes content tools and resync, then a new activation r
   })
 })
 
-test("an explicit content selection waits for its vault and acquires tools when it arrives", async () => {
+test("selected content rows lose their tools while the vault is stopped and regain them on return", async () => {
   const root = served()
-  await withServing({ root, plugins: ["outlines", "ws", "mcp", "web-app"], policy: { without: "vault" } }, async (url) => {
+  await withServing({ root, plugins: ["outlines", "ws", "mcp", "web-app"] }, async (url) => {
+    await flip(url, "vault", false)
     const listed = await request(url)
     expect((await listed.json()).result.tools.map((tool: { name: string }) => tool.name)).not.toContain("outlines_read")
     expect((await fetch(url + "/olai/resync", { method: "POST" })).status).toBe(404)
-    writeFixturePolicy(root, { extra: "vault" })
     await flip(url, "vault", true)
     const read = await request(url, "tools/call", { name: "outlines_read", arguments: { id: "a" } })
     expect((await read.json()).result.isError).not.toBe(true)
@@ -257,10 +256,11 @@ test("CLI content removal applies over the headless profile without requiring a 
   } finally { expect(await child.stop()).toBe(130) }
 }, 15000)
 
-test("file policy composes a non-notebook MCP host without a vault", async () => {
-  const child = startWeb({ root: served(), policy: {"only": "mcp,test-counter", without: "vault"}, extra: ["--profile", "surface"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
+test("a non-notebook MCP host remains available after its vault is stopped", async () => {
+  const child = startWeb({ root: served(), policy: {"only": "mcp,ws,test-counter"}, extra: ["--profile", "surface"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
   try {
     const url = await child.address()
+    await flip(url, "vault", false)
     const listed = await request(url)
     const tools = (await listed.json()).result.tools.map((tool: { name: string }) => tool.name)
     expect(tools).toEqual([])

@@ -73,7 +73,7 @@ export { App, appName } from "./app.ts"
 
 /** Which plugins this build has and which this serve runs — the `plugins` cell
  *  whole, its seed, and one row of it. See {@link ./plugins.ts}: the server
- *  MINTS this out of the flag and the registry, and the preferences panel is
+ *  mints this from policy and the registry, and the plugins panel is
  *  the only thing that reads it.
  *
  *  `watchable` is the one reading of a row's `wake.kinds`, and it is exported

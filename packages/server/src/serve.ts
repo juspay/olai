@@ -22,7 +22,7 @@ import { localStateFor } from "./localState.ts";
 import { pruneGone } from "@olai/state";
 import { openLoading } from "@olai/plugin-api/services";
 import { watchFault } from "./fault.ts";
-import { hostname } from "./hostname.ts";
+import { hostnameReading } from "./hostname.ts";
 import { NOBODY, readingOf } from "./who.ts";
 import { type Profile } from "./profiles.ts";
 import { listener } from "./listener.ts";
@@ -76,7 +76,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
     // readers. `settled` below waits out MOVEMENT rather than readiness
     // (`@olai/effect-cordis`'s `settled`), so a row the patch disabled never
     // entered the registry, holds no inertia, and costs the barrier one `has`;
-    // a list narrowed to the enabled rows would be a second reading of the flag
+    // a list narrowed to enabled rows would miss declarations from inactive providers
     // beside the row patch's, and the two would drift. `openLoading` takes it
     // as the RESERVED names, so a plugin the served directory defines cannot
     // claim a bundle row's word. And `bind` walks it to build the roster, which
@@ -137,8 +137,8 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
     // a settle later, and every row that names `Vault`, `Ops` or `Directory`
     // would be a turn behind it for no reason a reader could find.
     //
-    // `mountBundle` turns the rows into fibers under the profile patch and the
-    // the file’s row selection pin, and returns once every one of them has stopped moving.
+    // Prepare the default reader profile first. The configuration follower
+    // applies file policy before enabling the remaining rows.
     //
     // `openLoading` provides `HostLoading`, which is how a row publishes a
     // CATALOG of plugins it loads itself — the served directory's own
@@ -205,7 +205,8 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
     // bundle mid-assembly (`@olai/effect-cordis`'s `settled` argues the loop).
     yield* settled(plugins.host, built);
     report = yield* reportBundle(plugins.host, loading.names());
-    const theMachine = hostname();
+    const machine = hostnameReading();
+    const theMachine = machine.value;
     const startedAt = new Date(Date.now() - process.uptime() * 1000).toISOString();
     const wired = yield* bind({
         hostname: theMachine,
@@ -216,7 +217,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
             built,
             instance: () => ({ host: options.host, port: addressPort,
               hostAuthor: options.addressAuthors?.host ?? "process", portAuthor: options.addressAuthors?.port ?? "process", policy: ownPolicy.values,
-              hostname: theMachine, origins: options.allowedOrigins, bearer: { set: token.length > 0 } }),
+              hostname: theMachine, hostnameAuthor: machine.author, origins: options.allowedOrigins, bearer: { set: token.length > 0 } }),
             offByDefault: ROWS.filter((row) => row.disabled).map((row) => row.id),
             browserOnly: ROWS.filter((row) => row.browserOnly).map((row) => row.id),
             report: () => report,

@@ -677,7 +677,7 @@ test("a revision that changes no pin sends no frame", () =>
  *
  * `plugins` is a runtime with nothing mounted on it, because these cases are
  * about the ROSTER's arithmetic and never about a plugin: what is running is the
- * second argument, handed in, so a case can say "the flag left it on and nothing
+ * second argument, handed in, so a case can say "the file enables it and nothing
  * mounted" — which is a real state and the one the old derivation could not
  * express.
  *
@@ -692,7 +692,7 @@ const EMPTY_PLUGINS: Plugins = await standing()(
  *
  *  The roster asks the FIBER (through `@olai/bundle`'s `reportBundle`) rather
  *  than guessing from what a plugin happened to register. It guessed twice
- *  before — from the flag, then from the sibling and engine tables — and each
+ *  before — from startup selection, then from sibling and engine tables — and each
  *  guess was wrong for the first plugin that did not fit it. */
 const mounted = (names: ReadonlyArray<string>): ReadonlyMap<string, RowReport> =>
   new Map(names.map((name) => [name, { state: "running" as const }]))
@@ -731,10 +731,9 @@ test("every plugin the build has is on the roster, running or not", () => {
   // ...and an opt-in row is a row that is THERE and off, which is the state a
   // panel has to be able to draw and a filter over the running set could not.
   expect(all.built.length).toBeGreaterThanOrEqual(DEFAULT_BUNDLE_NAMES.length)
-  // under it has to say whether a person typed this policy or got the default.
 
   // ...and one name out of the list leaves every other row present and off,
-  // which is the row that could not exist if this were a filter. `running` is
+  // which is the row that could not exist if this were a filter. `running`
   // reports the runtime rather than re-reading the reason.
   const first = PLUGIN_NAMES[0]
   if (first === undefined) throw new Error("this build has no plugins to pin")
@@ -744,20 +743,15 @@ test("every plugin the build has is on the roster, running or not", () => {
 })
 
 
-test("a requested plugin with no activation draws as off", () => {
-  const roster = rosterOf(offering())
+test("a file-enabled row still reports missing activation as off", () => {
+  const first = PLUGIN_NAMES[0]!
+  const roster = rosterOf({ ...offering([]), configuration: () => ({ revision: 1, rows: new Map([[first, { on: true, config: {}, values: [] }]]) }) })
   expect(roster.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(roster.built.some((row) => row.running)).toBe(false)
-  // did: the two facts are independent and the panel draws both.
+  expect(roster.built.find(row => row.name === first)).toMatchObject({ state: "off", desiredOn: true })
 })
 
-/**
- * a policy with all rows off IS A POLICY and saying nothing is the default, so the empty list
- * survives the crossing as itself. Collapsing it to `null` here would make the
- * two indistinguishable in the browser, where the only thing that tells them
- * apart is the line under the row.
- */
-test("a file-disabled build default stays off when the policy reader is unavailable", () => {
+test("build-disabled and ordinary absent rows stay distinct without a policy reader", () => {
   const defaults = [PLUGIN_NAMES[0]!]
   const roster = rosterOf({ ...offering(), offByDefault: defaults, configuration: () => undefined })
   expect(roster.built.find(row => row.name === defaults[0])?.state).toBe("optIn")
@@ -792,7 +786,7 @@ test("no plugin slot is no roster, rather than every plugin off", () => {
 })
 
 
-test("a row that is not running says which of the four absences it is", () => {
+test("loader reports distinguish disabled rows, failures and active providers", () => {
   const first = PLUGIN_NAMES[0]
   const second = PLUGIN_NAMES[1]
   if (first === undefined || second === undefined) {
@@ -805,7 +799,6 @@ test("a row that is not running says which of the four absences it is", () => {
   expect(optIn.built.find((row) => row.name === first)?.state).toBe("optIn")
   expect(optIn.built.find((row) => row.name === first)?.running).toBe(false)
 
-  // that can say which of them wrote it.
   const off = rosterOf(offering([], new Map([[first, { state: "off" }], [second, { state: "running" }]])))
   expect(off.built.find((row) => row.name === first)?.state).toBe("off")
 
@@ -912,11 +905,11 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
   // ordinary case — absent rather than an empty sentence.
   expect(all.built.find((row) => row.name === second)?.wake).toBeUndefined()
 
-  // not run — with no picker on it.
-  const pinned = rosterOf(offering([], mounted([second])), wakes)
-  expect(pinned.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
-  expect(pinned.built.find((row) => row.name === first)?.running).toBe(false)
-  expect(pinned.built.find((row) => row.name === first)?.wake).toBeUndefined()
+  // A declared wake contributes no picker while its provider is stopped.
+  const inactive = rosterOf(offering([], mounted([second])), wakes)
+  expect(inactive.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
+  expect(inactive.built.find((row) => row.name === first)?.running).toBe(false)
+  expect(inactive.built.find((row) => row.name === first)?.wake).toBeUndefined()
 })
 
 /** ... and a caller that only wants to know which plugins the build HAS says so
@@ -992,7 +985,6 @@ test("a row a person switched off is not the build's default", () => {
   if (first === undefined) throw new Error("this claim needs a build with a row")
   const absent = new Map([[first, { state: "off" as const }]])
 
-  // which is the reading this case is distinguishing itself from.
   expect(rosterOf(offering(PLUGIN_NAMES, absent)).built.find((row) => row.name === first)?.state)
     .toBe("optIn")
 
@@ -1019,27 +1011,13 @@ test("a row a person switched off is not the build's default", () => {
   expect(back.built.find((row) => row.name === first)?.state).toBe("running")
 })
 
-test("running and switched remain distinct activation states", () => {
-  const [first, second] = PLUGIN_NAMES
-  if (first === undefined || second === undefined) {
-    throw new Error("this claim needs a build with two rows")
-  }
-
-  const extra = rosterOf(offering(PLUGIN_NAMES, mounted([first])))
-  expect(extra.built.find((row) => row.name === first)?.state).toBe("running")
-  expect(extra.built.find((row) => row.name === first)?.running).toBe(true)
-
-  const without = rosterOf(
-    offering(PLUGIN_NAMES, new Map([[second, { state: "off" as const }]])),
-  )
-  expect(without.built.find((row) => row.name === second)?.state).toBe("optIn")
-  expect(without.built.find((row) => row.name === second)?.running).toBe(false)
-
-  const pressed = rosterOf({
-    ...offering(PLUGIN_NAMES, new Map([[second, { state: "off" as const }]])),
-    switched: () => new Set([second]),
+test("a file-enabled build-disabled row reports its real activation", () => {
+  const first = PLUGIN_NAMES[0]!
+  const roster = rosterOf({
+    ...offering([first], mounted([first])),
+    configuration: () => ({ revision: 1, rows: new Map([[first, { on: true, config: {}, values: [] }]]) }),
   })
-  expect(pressed.built.find((row) => row.name === second)?.state).toBe("switched")
+  expect(roster.built.find(row => row.name === first)).toMatchObject({ state: "running", running: true, desiredOn: true })
 })
 
 /**

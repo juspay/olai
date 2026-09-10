@@ -27,8 +27,8 @@ import type { BuiltPlugin } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 import { Effect, Option, Stream } from "effect"
 
-import { openDynamic } from "./runtime.ts"
-import { ALWAYS, versionOf } from "./source.ts"
+import { openDynamic, wordsOf } from "./runtime.ts"
+import { ALWAYS, definedIn, versionOf } from "./source.ts"
 
 /** A plugin that mounts and registers nothing — the smallest whole server half,
  *  and the shape a `plugins.inspect` answer tells an agent to write. */
@@ -514,3 +514,14 @@ for (const key of ["plugin", "approved"]) {
     expect(row?.fault).toContain("reserved")
   })))
 }
+
+
+test("definition metadata preserves field boundaries across delimiter-like text", () => {
+  const base = definedIn(vault({}), [])[0]!
+  for (const separator of ["\n", "\\0"]) {
+    const before = { ...base, approved: `pending${separator}fragment`, fault: "tail" }
+    const after = { ...base, approved: "pending", fault: `fragment${separator}tail` }
+    expect(wordsOf([before])).not.toBe(wordsOf([after]))
+    expect(wordsOf([before])).toBe(wordsOf([{ ...before }]))
+  }
+})

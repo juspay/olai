@@ -1250,7 +1250,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // The agent's stderr is a log sink, not a channel: the adapter
         // redirects all its console output there. The socket already drains
         // it; this listener is the residue that turns each chunk into a DEBUG
-        // line and keeps the cap the turn-failure dump reads. `olai.log-level:         // debug` is how you ask for the rest; WARN when a turn fails, because
+        // line and keeps the cap the turn-failure dump reads. Set `log-level` to
+        // `debug` on the olai policy node to read it. A failed turn warns because
         // that is where opencode dumps its JSON-RPC errors and the 2026-08-22
         // silent-send was otherwise undiagnosable.
         child.stderr?.on("data", (chunk: string | Buffer) => {

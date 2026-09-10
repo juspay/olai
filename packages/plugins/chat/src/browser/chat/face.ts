@@ -42,18 +42,15 @@ export interface Showing {
   readonly asking: boolean
 }
 
-/** The five things the panel's body can be. */
+/** The panel body’s mutually exclusive faces. */
 export type Face =
   /**
    * This serve has no agent at all. Nothing was attempted, so nothing was
    * refused; what is owed is the explanation and, on the one arm where it is
    * the answer, how to get one.
    *
-   * WHY IS ON THE ARM, which is this module's own rule taken to the one face
-   * that had been guessing: an empty roster has three causes — the off switch,
-   * no engine plugin mounted, every engine asked and none installed — and only
-   * the SERVER can tell them apart. `null` where it has not said yet, which is
-   * a page before its first frame and is not one of the three.
+   * The server distinguishes no enabled engine from no installed executable.
+   * `null` means the page has not received its first reading yet.
    */
   | { readonly kind: "no-agent"; readonly off: OffBecause | null }
   /** The conversations no node claims, and the gesture that gives one a node

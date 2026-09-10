@@ -458,3 +458,15 @@ test("the walk can tell a keyed list from a positional one and from a mixed one"
   expect(keyings(Nullable, "key").get("rows")).toBe("positional")
   expect(keyings(Mixed, "key").get("rows")).toBe("mixed")
 })
+
+// Unknown fields from older serves must not tear down the roster subscription.
+test("older rosters with retired pin fields still decode", () => {
+  const older = { built: [{ name: "old-row", running: true }], pin: { kind: "only", names: ["old-row"] }, pinned: true }
+  expect(Schema.decodeUnknownSync(PluginRoster)(older)).toEqual({ built: [{ name: "old-row", running: true }] })
+})
+
+test("a serve instance without hostname provenance remains decodable", () => {
+  const older = { built: [], instance: { hostname: "old-host", host: "127.0.0.1", port: 3000,
+    hostAuthor: "default", portAuthor: "default", policy: [], origins: [], bearer: { set: true } } }
+  expect(Schema.decodeUnknownSync(PluginRoster)(older).instance?.hostnameAuthor).toBeUndefined()
+})

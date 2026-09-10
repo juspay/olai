@@ -45,30 +45,15 @@
  * record would have gone on offering an engine this serve could not mount, with
  * nothing in core knowing why.
  *
- * ## IT SAYS WHICH, and it used to GUESS
+ * ## The server supplies the reason
  *
- * This face read one empty array and hedged: *"seeing this with an agent
- * installed usually means one of two things"*, then two bullets. One of them —
- * a start that did not go through the wrapper that bakes the pinned adapters in
- * — cannot happen on any documented way of starting olai, since every one of
- * them bakes it in. And the case that DOES happen most, a the file’s row selection list
- * naming no engine row, was the one the face never mentioned: a person who
- * turned every engine off was told to point `OLAI_ACP_AGENT` at an executable,
- * which would have changed nothing, because with no engine plugin mounted there
- * is nobody left to read that variable.
+ * No engine rows enabled and no installed executable need different remedies.
+ * The server holds the registry and probe results, so it publishes the reason
+ * through OffBecause. The panel and log consume that same reading.
  *
- * The server knows which of the three it is — it reads the off switch before it
- * probes, it holds the engine registry, and it holds what the probes said — and
- * it now sends it (`@olai/surface`'s {@link OffBecause}, minted in `olai-plugin-chat`'s
- * `agents/roster.ts`, the same value the journal line is made from). So the
- * opening sentence is ONE arm, saying what happened and what to do about it, and
- * asserts nothing about the other two.
- *
- * THE LIST STAYS UNDER ALL OF THEM, which is the human's ruling of 2026-08-21
- * unchanged: an empty roster shows how to get an agent rather than an empty
- * list, and *which agents olai can talk to* is a true and useful thing to read
- * whichever of the three brought somebody here. It is the GUESSING that went,
- * not the answer.
+ * An empty registry cannot offer installation guidance from absent rows. When
+ * engines are enabled but unavailable, their own install slots supply the list.
+ * Changing an executable path cannot enable a row that the file switched off.
  */
 
 import { For, Match, Show, Switch } from "solid-js"

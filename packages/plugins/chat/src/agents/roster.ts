@@ -122,24 +122,14 @@ export interface Installed {
 /**
  * WHAT THIS MACHINE ANSWERED: the agents it has, or the reason it has none.
  *
- * A UNION RATHER THAN AN ARRAY THAT CAN BE EMPTY, and the arm is the whole
- * point. An empty roster did THREE jobs — chat switched off, no engine plugin
- * mounted, every engine asked and none installed — and the panel, holding one
- * empty array, hedged across all of them in prose. One of its two guesses ("olai
- * was started by hand, without the wrapper that bakes the pinned adapters in")
- * cannot happen on any documented way of starting olai, so the commonest real
- * cause — a the file’s row selection list naming no engine — was the one case the face never
- * named.
- *
- * The three are told apart HERE, where the deciding is, and the answer carries
- * the reason on the arm that has one: `because` exists only where there is
- * nothing installed, and `installed` is non-empty wherever it exists. Neither is
- * a state a reader has to check the other for.
+ * An empty array cannot explain whether no engine rows were enabled or their
+ * probes found no executable. This union carries that distinction from the
+ * decision to the panel and log. A nonempty reading carries the installed rows.
  */
 export type Roster =
   /** At least one agent, in the order the engines were given. */
   | { readonly kind: "here"; readonly installed: ReadonlyArray<Installed> }
-  /** ...or none at all, and which of the three ways — `@olai/surface`'s
+  /** ...or none at all, and which of the two reasons — `@olai/surface`'s
    *  {@link OffBecause}, drawn by the panel and written to the log. */
   | { readonly kind: "none"; readonly because: OffBecause }
 
@@ -147,8 +137,8 @@ export type Roster =
  * Every engine installed here, in the order it was given — or why there are
  * none.
  *
- * PURE over {@link Where} and the engines handed in, which is what makes the off
- * switch, each row's shape AND each reason assertable by a function a test can
+ * PURE over {@link Where} and the engines handed in, which makes each row’s
+ * shape and each absence reason assertable by a function a test can
  * call with a made-up environment and a made-up engine.
  *
  * THE ORDER IS THE CALLER'S. It is the order the picker draws and the order the

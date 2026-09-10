@@ -26,7 +26,7 @@ Every plugin that could reach a conversation names one of the five doors this ro
 
 So **a serve with no chat row leaves all of them `waiting`**, and the plugins panel says so per row, on whose account. That is not a failure and it is not silent: a plugin holding a door that nobody offers is a plugin that has not started, which is a legitimate state the runtime resolves the moment the door arrives.
 
-If what you meant was "odu, and chat as usual", name chat beside it. The flag is a list of everything this serve runs, not a list of the extras.
+Enable the chat row alongside any tenant that needs its services. Each namespace’s `on` property controls that row; unspecified rows retain their profile and build defaults.
 
 ## The property a node agent carries
 

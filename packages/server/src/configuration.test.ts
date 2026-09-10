@@ -1,6 +1,7 @@
 /** The root's publication worker, over real loader rows and scoped service offers. */
 import { expect, test } from "bun:test"
 import { Effect, Deferred, Exit, Fiber, Scope, SubscriptionRef } from "effect"
+import { ROWS } from "@olai/bundle"
 import { mountBundle, patchBundleRow, provide } from "@olai/bundle/bundle"
 import { ConfigurationSource, Ops as WriteDoor, openPlugins } from "@olai/plugin-api/services"
 import type { Configuration } from "@olai/plugin-api/configuration"
@@ -94,4 +95,11 @@ test("reader withdrawal during an accepted write refuses settlement without undo
   const failure = yield* Fiber.join(press)
   expect(written).toBe(true)
   expect(failure.message).toBe("The configuration reader withdrew before the change settled. The file retains the write.")
+})))
+
+
+test("on yes activates a row declared disabled by the build", () => bench(({ plugins }) => Effect.gen(function*() {
+  expect(ROWS.find(row => row.id === "test-counter")?.disabled).toBe(true)
+  const row = plugins.composed().find(row => row.name === "test-counter")
+  expect(row).toBeDefined()
 })))

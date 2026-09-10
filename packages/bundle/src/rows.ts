@@ -219,13 +219,9 @@ export const inBundleOrder = <A>(
 ): ReadonlyArray<A> => [...items].sort((one, other) => bundleRank(keyOf(one)) - bundleRank(keyOf(other)))
 
 /**
- * ...AND WHAT OMITTING THE FLAG RUNS, which is not necessarily all of them.
- *
- * A row that carries its own `disabled` is opt-in: off until the file’s row selection names
- * it. That is the built-in default living in the file the loader reads rather
- * than in a field on a manifest, which is what lets the flag and the default be
- * ONE mechanism — a `disabled` written by the row, or a `disabled` written by
- * the patch.
+ * The build’s default enablement, before profile and file policy.
+ * A row with `disabled: true` is opt-in. File `on: yes` enables it through the
+ * same loader option used by build defaults, without a separate activation path.
  */
 export const DEFAULT_BUNDLE_NAMES: ReadonlyArray<string> = ROWS
   .flatMap((row) => row.disabled === true ? [] : [row.id])

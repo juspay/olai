@@ -978,7 +978,7 @@ export const VaultViews = serviceTag<VaultViews>("vault-views")
  *
  * A COMPONENT cannot do it either, for {@link VaultViews}' reason: a row that
  * reads `waiting` is reported as not running, and `/mcp` must keep answering
- * through a failed vault, a the file’s row selection set that omits it, and the panel switch.
+ * through a failed vault and a provider stopped by its session switch.
  *
  * So this is the audit's other permitted answer — *a service whose documented
  * job includes handling the arrival and departure of its backing providers*. Its

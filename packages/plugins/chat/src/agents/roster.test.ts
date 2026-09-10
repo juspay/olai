@@ -5,7 +5,7 @@
  * (`@olai/acp/engine`'s `Where`) and THE ENGINES IT IS HANDED, which is the
  * whole reason it is written that way: what a person is offered depends on two
  * variables, a filesystem and a bundle, and none of those is a thing to arrange
- * in order to check that the off switch is still the off switch.
+ * in order to distinguish an empty registry from unsuccessful probes.
  *
  * ## The engines here are MADE UP, and that is the phase
  *
@@ -14,8 +14,8 @@
  * this directory. Each is a plugin now, with its own directory and its own
  * release clock, and each of those claims is asserted beside the plugin that
  * answers it (`packages/plugins/<engine>/src/server.test.ts`). What is left here
- * is what CORE decides, and the fakes below are what make that visible: the off
- * switch, the order, and that a row is offered exactly when its own probe
+ * is what CORE decides, and the fakes below make that visible: the absence
+ * reason, the order, and that a row is offered exactly when its own probe
  * answered.
  *
  * {@link onPath} gets its own tests against a real directory, because what it is
@@ -45,8 +45,8 @@ const nowhere = () => null
  *  through {@link rosterOf} untouched. */
 const NO_LEG = {} as Leg
 
-/** One made-up engine, offered where `at` says so. The three real ones are three
- *  directories; what this file is about is what core does with any of them. */
+/** One made-up engine, offered where `at` says so. Real engines each live in their own
+ *  directory; what this file is about is what core does with any of them. */
 const engine = (id: string, at: (where: Where) => Adapter | null): Engine => ({
   id,
   name: `${id} (a name)`,
@@ -105,16 +105,15 @@ describe("who is offered", () => {
   })
 
   test("no engines at all is a whole state, and it is the empty roster", () => {
-    // a policy with all rows off with nothing named, or a build with every engine row
+    // A file policy or a build can leave every engine row
     // disabled. The panel draws the face that says so; nothing here refuses.
     expect(rosterOf({ env: {}, cwd: CWD, found: () => "/bin/anything" }, []))
       .toEqual({ kind: "none", because: { kind: "no-engine" } })
   })
 
   test("an empty adapter path does not disable other engines", () => {
-    // The documented way to turn chat off. A machine with an engine installed
-    // must not get that engine instead of the "off" somebody asked for — and
-    // nothing is probed at all, whichever engines the build has.
+    // An empty path belongs to one engine. Another enabled engine still probes
+    // and remains available when its own executable is present.
     let probed = false
     const found = rosterOf(
       { env: { [AGENT_ENV]: "" }, cwd: CWD, found: nowhere },

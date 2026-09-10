@@ -232,20 +232,15 @@ test("...so the only reachable collision is one WORD twice, and it names both pl
 })
 
 /**
- * THE BUILT HALF READS EVERY ROW, AND THAT IS WHAT KEEPS A FILE'S VERDICT OFF
- * THE FLAG.
- *
- * The distance between the two halves IS the file’s row selection: a vault declaring
- * `kolu-terminal` on a serve running only odu has written a legal row — refusing
- * it would make one file broken on one machine and clean on the next, off a flag
- * the file cannot see — while its VALUES are plain text, because `admits` is a
- * promise only a plugin that is here can make.
+ * The build vocabulary validates declarations independently of active rows.
+ * A declaration stays legal on a serve whose policy disables its provider;
+ * values lose the provider’s live face and remain ordinary text.
  *
  * A disabled row never mounts, so its words are not in `Kinds` and cannot
  * be. {@link declaredKinds} is the other reading, and it is deliberately not
  * filtered by anything.
  */
-test("the built vocabulary carries every row's words, whatever the flag said", async () => {
+test("the built vocabulary carries every row's words, regardless of runtime enablement", async () => {
   const built = await Effect.runPromise(declaredKinds)
   // Not vacuous: this build's rows teach words, and the walk above found them.
   expect(ROWS.length).toBeGreaterThan(0)

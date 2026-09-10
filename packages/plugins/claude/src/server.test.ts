@@ -10,7 +10,7 @@
  * IT LIVES HERE and not in `olai-plugin-chat` because the row does. The roster's own
  * bench asked all three engines' questions when the three were a table in one
  * core file; each of them is one plugin's fact now, asserted beside the plugin
- * that answers it, and what is left in core is the OFF SWITCH and the shape of
+ * that answers it, and what is left in core is ordering and the shape of
  * the reading (`olai-plugin-chat`'s `agents/roster.test.ts`).
  */
 
@@ -59,11 +59,8 @@ describe("finding the Claude Code adapter on a host", () => {
     expect(probed).toBe(false)
   })
 
-  test("the EMPTY variable is no row here — and core makes it the whole panel", () => {
-    // This function answers only about ITS row. That the empty string is the
-    // documented off switch for the WHOLE roster is core's reading, taken before
-    // anything is probed (`olai-plugin-chat`'s `agents/roster.ts`), and the two agree
-    // by construction because both go through the same constant.
+  test("an empty adapter path leaves this engine unavailable", () => {
+    // This engine cannot start without its adapter; other engines decide independently.
     expect(ENGINE.at({ env: { [AGENT_ENV]: "" }, cwd: CWD, found: nowhere })).toBeNull()
   })
 

@@ -48,3 +48,7 @@ reconciliation. The vault provider and configuration reader stay session-only,
 said on their rows, so either can be restored from the panel. When the reader
 is absent, that shared limitation is said once at the foot. Broken configuration
 is named and must be repaired before another durable press can write.
+
+The follower ignores file `on` values on the vault and configuration reader
+owners, warning once per row and file. Their session switches remain usable
+without editing policy on disk, including after the reader reconnects.

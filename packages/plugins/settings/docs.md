@@ -22,3 +22,7 @@ from the offers table. Without this reader, the foot says once that switches
 are session-only. A broken file is named and must be repaired before a durable
 press can write. If the file itself says `on: no` for this row, edit that property
 to restore durable switching.
+
+The follower ignores file `on` values on the vault and configuration reader
+owners, warning once per row and file. Their session switches remain usable
+without editing policy on disk, including after the reader reconnects.

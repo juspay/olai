@@ -54,10 +54,9 @@ import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/co
  * A row used to draw one sentence off a boolean and share a second sentence
  * with every other row. That was exact while a plugin's presence was decided
  * once, before anything ran. A plugin is a fiber now, and
- * `running: false` covers five different mornings — the file left it out, the
- * BUILD leaves it out until somebody asks, a PERSON switched it off here, its
- * `apply` died, or it is waiting on a service — of which exactly one is a fault
- * and exactly one is something a person can act on.
+ * absence can mean file policy, a build default, a session stop, failed apply,
+ * a missing service or unapproved definition source. The remedy depends on
+ * which reason the roster reports.
  *
  * So the two questions were split, and both were per row. ONE of them stayed
  * there:
@@ -96,14 +95,14 @@ export type PluginPick = "on" | "off"
  * WHAT THE STRIP SHOWS AND WHETHER IT MAY BE PRESSED — the whole of the switch's
  * state, as a function of the row and one fact this tab owns.
  *
- * ## The value is the BOOLEAN, never the six-word state
+ * ## The value is the BOOLEAN, independently of the detailed state
  *
  * `running` is the field the two ends have always agreed on and the one every
  * mount licence is read from (`@olai/surface`'s `pluginState` argues it from
  * the other side). A strip that showed On for `waiting` — a plugin that was
  * asked for and has not arrived — would be a control claiming a fact the rest
  * of the page is drawn from the negation of. The WHY of an absence is the
- * hint's job and it has six words for it; the switch has two, and it answers
+ * hint's job; the switch has two words, and it answers
  * the question the switch is asking.
  *
  * ## A FAILED ROW STILL DRAWS ONE, which is a ruling rather than a leftover
@@ -287,7 +286,7 @@ const withoutConfiguration = (roster: PluginRoster): boolean =>
   roster.configurationAvailable === false
 
 /** What applies to every row is said once, at the foot: policy location,
- * private memory, startup selection, and loss of the configuration reader.
+ * private memory and loss of the configuration reader.
  * Repeating the same caveat under each row made the panel a scroll of identical
  * paragraphs (#543). A row keeps only what differs, including its own
  * session-only exception while the shared reader is available.

@@ -58,8 +58,8 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const SRC = join(HERE, "src")
 
 /** One row. `disabled` is the row's own built-in default and rides into the
- *  emitted `ROWS`, because the composition root reads it to decide what an
- *  omitted the file’s row selection runs. It reaches NONE of the other three files: what a
+ *  emitted `ROWS`, because the composition root uses it when
+ *  the file has no enablement choice for a row. It reaches NONE of the other three files: what a
  *  build HAS and what a serve RUNS are two questions, and the browser learns
  *  the second off the roster cell at runtime, which is the whole of why a
  *  disabled plugin's chunk is fetched by nobody rather than absent from the

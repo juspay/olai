@@ -627,7 +627,7 @@ export default definePlugin({
           // rather than a second one: the panel draws this face out of one value
           // it already subscribes to, and a tab that has not heard yet holds
           // `CHAT_OFF` itself, whose `off` is `null` — "not told" rather than any
-          // of the three ways of being off.
+          // of the two reasons for having no agent.
           state: { store: inMemoryStore<ChatState>(CHAT_OFF) },
           sessionsRevision: { store: inMemoryStore<number>(0) },
           agents: { store: inMemoryStore<Agents>(NO_AGENT_ROSTER) },

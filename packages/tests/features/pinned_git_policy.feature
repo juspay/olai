@@ -41,11 +41,9 @@ Feature: Git policy travels with the vault
     And there should be no page errors
 
   @policy:git.commit=auto @policy:git.push=off
-  Scenario: The flag is what the loop actually does, not only what it draws
-    # THE FENCE FOR A FLAG HONOURED IN THE DRAWING AND NOT IN THE DOING. Nobody
-    # has turned anything on in this browser and there is no control here that
-    # could — and the flurry still records itself, because the loop the flag
-    # armed is the server's.
+  Scenario: File policy controls what the commit loop does as well as what it draws
+    # This browser has no git preference. The file’s auto policy makes the
+    # server record the external edit without a browser action.
     Then this browser has stored nothing about git
     When I rewrite "notes.md" as:
       """

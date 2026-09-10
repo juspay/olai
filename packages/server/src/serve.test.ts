@@ -56,9 +56,12 @@ const PIN = "serve-test-box"
 process.env.OLAI_HOSTNAME = PIN
 const MANIFEST = manifestOf(PIN)
 // Twin of startWeb: this file's `run()` does not go through withServe,
-// so it has to say the off switch itself. A PATH `opencode` would otherwise
-// spawn on every in-process boot, which is not what a listen test is about.
+// so it clears explicit engine paths and discovery independently. Listen tests
+// must not spawn an external engine found on the developer’s machine.
 process.env.OLAI_ACP_AGENT = ""
+process.env.OLAI_ACP_CODEX = ""
+process.env.OLAI_ACP_PI = ""
+process.env.OLAI_AGENT_PATH = ""
 
 /** Hang detector around a real listen. Longer than {@link BOOT_TIMEOUT} so a
  *  slow boot fails on the serving line (or bun would steal it at 5s and say
@@ -678,4 +681,54 @@ test("a row disabled in the first file reading never registers before policy is 
     expect(rows().some(one => one.name === "kolu")).toBe(false)
     expect(registered).toBe(false)
   }).pipe(Effect.scoped, Effect.provide(SERVER_LAYERS), Effect.runPromise)
+})
+
+
+test("hostname provenance distinguishes an OS default from an environment override on the wire", async () => {
+  const before = process.env.OLAI_HOSTNAME
+  try {
+    delete process.env.OLAI_HOSTNAME
+    await withServing({ root: served() }, async url => {
+      expect((await configurationRoster(url)).instance).toMatchObject({ hostname: hostname(), hostnameAuthor: "process" })
+    })
+    process.env.OLAI_HOSTNAME = "explicit-machine"
+    await withServing({ root: served() }, async url => {
+      expect((await configurationRoster(url)).instance).toMatchObject({ hostname: "explicit-machine", hostnameAuthor: "env" })
+    })
+  } finally {
+    if (before === undefined) delete process.env.OLAI_HOSTNAME
+    else process.env.OLAI_HOSTNAME = before
+  }
+})
+
+test("file enablement cannot lock either reader out; session switches survive publications and reopen", async () => {
+  const root = served()
+  const file = path.join(root, "_olai/Settings.olai")
+  fs.mkdirSync(path.dirname(file))
+  const write = (on: string) => fs.writeFileSync(file, ["vault", "settings"].map((title, n) =>
+    JSON.stringify({ id: `reader-${n}`, ord: `a${n}`, title, custom: { on } })).join("\n") + "\n")
+  write("no")
+  await withServing({ root }, async (url, said) => {
+    const row = async (name: string) => (await configurationRoster(url)).built.find(row => row.name === name)!
+    const flip = (name: string, enabled: boolean) => configurationCall(url, "surface/plugins/set", { name, enabled })
+    for (const name of ["vault", "settings"]) {
+      expect(await row(name)).toMatchObject({ running: true, switchPersistence: "session" })
+      expect((await row(name)).desiredOn).toBeUndefined()
+      await flip(name, false)
+      await eventually(async () => !(await row(name)).running)
+      await flip(name, true)
+      await eventually(async () => (await row(name)).running && (await configurationRoster(url)).configurationAvailable === true)
+    }
+    write("yes")
+    await fetch(url + "/olai/resync", { method: "POST" })
+    write("no")
+    await fetch(url + "/olai/resync", { method: "POST" })
+    for (const name of ["vault", "settings"]) {
+      expect((await row(name)).running).toBe(true)
+      const warnings = said.filter(line => String(line.message).includes(`${name}.on is ignored`))
+      expect(warnings.length).toBe(1)
+      expect(String(warnings[0]?.message)).toContain("_olai/Settings.olai")
+    }
+    expect(fs.readFileSync(file, "utf8")).toContain('"on":"no"')
+  })
 })
