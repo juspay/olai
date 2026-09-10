@@ -19,7 +19,7 @@ Then("the document match {string} is lit in the viewport at line {int}", async f
     return box !== null && box.y >= 0 && box.y + box.height <= this.viewport().height
   }, `the matching block and its highlighted word to land in the viewport`)
   assert.equal(new URL(this.page.url()).hash, `#L${line}`)
-  assert.equal(new URL(this.page.url()).searchParams.get("q"), word)
+  assert.ok(new URL(this.page.url()).searchParams.get("q")?.includes(word), "the address carries the highlighted query word")
 })
 
 Then("the long search document is at the top without a highlight", async function(this: OlaiWorld) {

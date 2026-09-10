@@ -20,6 +20,7 @@ Feature: A document search result lands at its matching source line
     Then the palette lists the document "landing.md"
     When I press "Enter"
     Then the document match "zinnialanding" is lit in the viewport at line 140
+    And the address is exactly "/landing.md?q=zinnialanding%20OR%20date%3Atoday#L140"
     And there should be no page errors
 
   @phone
