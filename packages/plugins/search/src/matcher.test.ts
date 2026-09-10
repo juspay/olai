@@ -407,7 +407,7 @@ describe("the notes a query asks for", () => {
       [["notes/bug.md", "# a bug\n\nthe prose lives here\n"]],
     )
     const [hit] = search(readingOf(set), { text: "bug", withDesc: true }, TODAY, NO_KINDS).hits
-      .filter((one) => one.at.kind === "document")
+      .filter((one) => one.at.kind === "document" && one.at.path === "notes/bug.md")
     expect(hit).toMatchObject({ at: { kind: "document", path: "notes/bug.md" } })
     expect(hit).not.toHaveProperty("desc")
   })
