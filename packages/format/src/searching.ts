@@ -146,6 +146,9 @@ export type NodeHit = typeof NodeHit.Type
  */
 export const DocumentHit = Schema.Struct({
   at: AtDocument,
+  /** The 1-based file line of the strongest body word match. Absent for
+   * title/path/tag/operator matches and files whose body is not kept. */
+  line: Schema.optionalKey(Schema.Int),
   /** What the document is called: its own face's title, so this row, the
    *  palette, `markdown_index` and the page's own heading say one name. */
   title: Schema.String,

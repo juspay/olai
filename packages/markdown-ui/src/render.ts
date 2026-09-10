@@ -1,3 +1,5 @@
+import { styleTags } from "./tags.ts"
+import type { Element } from "hast"
 /**
  * Markdown, rendered.
  *
@@ -238,4 +240,27 @@ const idsFor = (key: string): string => {
     hash = Math.imul(hash, 0x01000193)
   }
   return `md-${(hash >>> 0).toString(36)}`
+}
+
+/** Render a source-line landing through the existing parsed tree and highlight walk.
+ * No shared cache retains a page's query or highlights. */
+export const renderLineLanding = (source: string, from: string, line: number, needles: ReadonlyArray<string>): string => {
+  const tree = renderToTree(source, from, "block")
+  if (line < 1 || line > source.split("\n").length) return hastToHtml(tree)
+  let selected: Element | undefined
+  const lines = source.split("\n")
+  for (const child of tree.children) {
+    if (child.type !== "element" || child.position === undefined) continue
+    let start = child.position.start.line
+    let end = child.position.end.line
+    if (child.tagName === "pre" && /^\s*(```|~~~)/.test(lines[start - 1] ?? "")) { start++; end-- }
+    if (start > line) break
+    selected = child
+    if (line <= end) break
+  }
+  if (selected !== undefined) {
+    selected.properties.dataSearchLanding = "true"
+    styleTags(selected, needles)
+  }
+  return hastToHtml(tree)
 }

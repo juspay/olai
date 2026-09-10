@@ -179,6 +179,10 @@ export const proseIn = (body: string): string => {
   return matter === null ? body : body.slice(matter.from)
 }
 
+/** Number of source lines removed before the prose, shared by search and rendering. */
+export const proseLineOffset = (body: string): number =>
+  body.slice(0, body.length - proseIn(body).length).split("\n").length - 1
+
 /**
  * The properties a body's frontmatter writes — EMPTY for a body that opens
  * with none, and empty for a block this reading finds nothing readable in.

@@ -282,3 +282,17 @@ The panels under a row are deliberately not part of that. They cap at eight as w
 Searching by MEANING — "the first page load is too heavy" finding a note that never uses those words — is parked rather than shipped. The implementation that was written for it needed a model server (Ollama) running on the reader's machine, and olai requires no dependency outside Nix itself. It returns when it can be nix-native.
 
 Open palette and header searches follow vault changes without another keystroke. Removed matches leave the shortlist, new matches arrive, and counts update with the same answer. Search is still performed on the server; closing or clearing the query ends its subscription.
+
+A body match on a markdown document carries an optional 1-based **file line**
+through the search answer, including to `search_nodes`. Opening it from the
+palette or header sets `?q=<query>#L<line>` and scrolls to the rendered block
+containing that source line, highlighting the query's words there. The address
+is shareable; Back returns to the page searched from. Blank lines and opening
+fence markers land on the preceding block. A line past the end opens at the top
+without an error. Title, path, tag and operator matches have no line and open
+at the top as before. Files whose bodies are not kept never carry a line.
+
+The markdown page owns its landing and highlight. It reads only address data;
+it acquires no search service. Leaving the page cancels its pending animation
+frame and removes its drawing. The hit's line is pure data produced after the
+cap inside the existing search reading.

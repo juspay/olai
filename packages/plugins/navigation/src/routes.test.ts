@@ -11,7 +11,7 @@
 
 import { expect, test } from "bun:test"
 
-import { atElement, atFile, atNode, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
+import { atElement, atFile, atNode, lineFragment, lineAt, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
 import { ROUTES, routingIn } from "./routes.testlib.ts"
 
 /** No plugin claims a URL — the roster these cases are about, named rather
@@ -362,4 +362,14 @@ test("an unavailable plugin page is distinct from home and replacement providers
   expect(samePage(HOME_ROUTE, gone)).toBe(false)
   expect(samePage(gone, { ...gone, source: source() })).toBe(false)
   expect(samePage(gone, gone)).toBe(true)
+})
+
+test("a source-line document link preserves its query without making the page narrowable", () => {
+  const route = atFile("notes/a.md", lineFragment(140), "word #tag")
+  expect(hrefOf(route)).toBe("/notes/a.md?q=word+%23tag#L140")
+  expect(routeOf(hrefOf(route))).toEqual(route)
+  expect(narrowable(route)).toBe(false)
+  expect(lineAt("L999")).toBe(999)
+  expect(lineAt("L0")).toBeUndefined()
+  expect(lineAt("L9007199254740992")).toBeUndefined()
 })
