@@ -41,16 +41,8 @@
  * paragraphs in this header explaining three rows of one table; it is three
  * `server.ts` headers in three directories, each beside the leg it belongs to.
  *
- * ## The two variables that are still CORE'S
+ * ## The shared engine search path
  *
- *   - **`OLAI_ACP_AGENT` set to the EMPTY string is the whole off switch.** Not
- *     "no Claude row" — no roster at all, nothing probed, the panel off. That is
- *     what the variable has always meant and what a person setting it means by
- *     it; making it merely one row's absence would turn the documented way of
- *     turning chat off into a way of getting some other agent instead. It is
- *     read HERE, before anything is probed, which is why the constant lives in
- *     `@olai/acp/engine` where both this file and the engine that reads it as
- *     its own adapter can reach it.
  *   - **`OLAI_AGENT_PATH` is where the probes look**, defaulting to `PATH`. It
  *     exists because olai's PATH is not your shell's: run as a systemd user
  *     service (the home-manager unit) it inherits neither your profile nor your
@@ -61,9 +53,6 @@
  *     so it can also say "look nowhere": the empty string finds no agent, which
  *     is what the e2e suite spawns a server with when a scenario is not about
  *     the roster.
- *
- * Both are core's because both are about the SERVE rather than about one engine:
- * whether there is a panel at all, and where this process may look.
  *
  * ## TWO HALVES, AND ONLY ONE OF THEM WAS EVER MEANT TO HOLD STILL
  *
@@ -107,7 +96,7 @@
  * and not the disk.
  */
 
-import { AGENT_ENV, type Adapter, type Engine, type Leg, type PromptChannel, type Where } from "@olai/acp/engine"
+import { type Adapter, type Engine, type Leg, type PromptChannel, type Where } from "@olai/acp/engine"
 import type { OffBecause } from "olai-plugin-chat/wire"
 import { AGENT_PATH_ENV } from "../adapter.ts"
 
@@ -133,24 +122,14 @@ export interface Installed {
 /**
  * WHAT THIS MACHINE ANSWERED: the agents it has, or the reason it has none.
  *
- * A UNION RATHER THAN AN ARRAY THAT CAN BE EMPTY, and the arm is the whole
- * point. An empty roster did THREE jobs — chat switched off, no engine plugin
- * mounted, every engine asked and none installed — and the panel, holding one
- * empty array, hedged across all of them in prose. One of its two guesses ("olai
- * was started by hand, without the wrapper that bakes the pinned adapters in")
- * cannot happen on any documented way of starting olai, so the commonest real
- * cause — a `--plugins` list naming no engine — was the one case the face never
- * named.
- *
- * The three are told apart HERE, where the deciding is, and the answer carries
- * the reason on the arm that has one: `because` exists only where there is
- * nothing installed, and `installed` is non-empty wherever it exists. Neither is
- * a state a reader has to check the other for.
+ * An empty array cannot explain whether no engine rows were enabled or their
+ * probes found no executable. This union carries that distinction from the
+ * decision to the panel and log. A nonempty reading carries the installed rows.
  */
 export type Roster =
   /** At least one agent, in the order the engines were given. */
   | { readonly kind: "here"; readonly installed: ReadonlyArray<Installed> }
-  /** ...or none at all, and which of the three ways — `@olai/surface`'s
+  /** ...or none at all, and which of the two reasons — `@olai/surface`'s
    *  {@link OffBecause}, drawn by the panel and written to the log. */
   | { readonly kind: "none"; readonly because: OffBecause }
 
@@ -158,8 +137,8 @@ export type Roster =
  * Every engine installed here, in the order it was given — or why there are
  * none.
  *
- * PURE over {@link Where} and the engines handed in, which is what makes the off
- * switch, each row's shape AND each reason assertable by a function a test can
+ * PURE over {@link Where} and the engines handed in, which makes each row’s
+ * shape and each absence reason assertable by a function a test can
  * call with a made-up environment and a made-up engine.
  *
  * THE ORDER IS THE CALLER'S. It is the order the picker draws and the order the
@@ -168,11 +147,8 @@ export type Roster =
  * imports came back in, which is a fact about the filesystem on the day
  * (`@olai/server`'s `probes.ts` argues it, and has an e2e failure behind it).
  *
- * THE ORDER OF THE `none` ARMS IS ALSO A RULING. The off switch wins even where
- * no engine was mounted either, because it is the one a PERSON ASKED FOR:
- * somebody who wrote `OLAI_ACP_AGENT=` is owed "you turned this off" rather than
- * a lecture about `--plugins`. Below it, no engine at all outranks nothing
- * installed for the plainer reason that nothing was ever asked.
+ * No enabled engine and no installed engine are separate readings: the first
+ * probes nothing, while the second names where each enabled engine looked.
  */
 export const rosterOf = (
   where: Where,
@@ -183,7 +159,7 @@ export const rosterOf = (
    *
    * It exists for exactly one caller ({@link detecting}, which answers from a
    * table it keeps) and it is a PARAMETER rather than that caller reimplementing
-   * this loop, because the loop is where the ORDER, the off switch and the three
+   * this loop, because the loop is where the ORDER and the two
    * `none` arms are decided and none of those is a thing to have twice. The
    * default is the behaviour every existing caller had; nothing about a one-shot
    * reading changed.
@@ -199,10 +175,6 @@ export const rosterOf = (
     }
   },
 ): Roster => {
-  // The explicit off switch, and it is the WHOLE panel rather than one row —
-  // see the header. Read before anything is probed, so a machine with an agent
-  // installed still gets the "off" a person asked for.
-  if (where.env[AGENT_ENV] === "") return { kind: "none", because: { kind: "switched-off" } }
   const found: Array<Installed> = []
   for (const engine of engines) {
     const one = detected(engine)
@@ -262,12 +234,6 @@ export const roster = (
  * re-probing this whole arrangement exists to avoid. `has` rather than a
  * truthiness check on the value, so a cached absence is a hit.
  *
- * ## The off switch is NOT cached, and could not be
- *
- * `OLAI_ACP_AGENT=` is read per call, inside {@link rosterOf}. It is one map
- * lookup, and it is the whole panel rather than one row — so caching it would
- * save nothing and would make the one answer a PERSON set the one answer this
- * function could not re-read.
  */
 export const detecting = (
   vars: Record<string, string | undefined>,

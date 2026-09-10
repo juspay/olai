@@ -40,35 +40,20 @@
  *
  * IT IS STRICTLY MORE HONEST THAN THE TABLE it replaces, and the reason is the
  * tab following the roster: this list is the engines this SERVE composed, not
- * the engines this BUILD has. A serve started `--plugins=opencode,pi` never
+ * the engines this BUILD has. A serve started a policy selecting only opencode, pi never
  * fetches the Claude chunk, so no Claude row is drawn — where a compiled-in
  * record would have gone on offering an engine this serve could not mount, with
  * nothing in core knowing why.
  *
- * ## IT SAYS WHICH, and it used to GUESS
+ * ## The server supplies the reason
  *
- * This face read one empty array and hedged: *"seeing this with an agent
- * installed usually means one of two things"*, then two bullets. One of them —
- * a start that did not go through the wrapper that bakes the pinned adapters in
- * — cannot happen on any documented way of starting olai, since every one of
- * them bakes it in. And the case that DOES happen most, a `--plugins` list
- * naming no engine row, was the one the face never mentioned: a person who
- * turned every engine off was told to point `OLAI_ACP_AGENT` at an executable,
- * which would have changed nothing, because with no engine plugin mounted there
- * is nobody left to read that variable.
+ * No engine rows enabled and no installed executable need different remedies.
+ * The server holds the registry and probe results, so it publishes the reason
+ * through OffBecause. The panel and log consume that same reading.
  *
- * The server knows which of the three it is — it reads the off switch before it
- * probes, it holds the engine registry, and it holds what the probes said — and
- * it now sends it (`@olai/surface`'s {@link OffBecause}, minted in `olai-plugin-chat`'s
- * `agents/roster.ts`, the same value the journal line is made from). So the
- * opening sentence is ONE arm, saying what happened and what to do about it, and
- * asserts nothing about the other two.
- *
- * THE LIST STAYS UNDER ALL OF THEM, which is the human's ruling of 2026-08-21
- * unchanged: an empty roster shows how to get an agent rather than an empty
- * list, and *which agents olai can talk to* is a true and useful thing to read
- * whichever of the three brought somebody here. It is the GUESSING that went,
- * not the answer.
+ * An empty registry cannot offer installation guidance from absent rows. When
+ * engines are enabled but unavailable, their own install slots supply the list.
+ * Changing an executable path cannot enable a row that the file switched off.
  */
 
 import { For, Match, Show, Switch } from "solid-js"
@@ -92,34 +77,23 @@ export function NoAgent(props: { readonly off: OffBecause | null }) {
       data-testid={TESTID.chatNoAgent}
     >
       {/* THE OPENING SENTENCE IS THE ARM, and there is exactly one of it. What
-          the three have in common — the outlines are served either way — is
+          the two have in common — the outlines are served either way — is
           said once, below. */}
       <Switch
         fallback={
           /* THE SERVER HAS NOT SAID YET: the value a page holds before the
-             first frame lands (`CHAT_OFF`). Not one of the three, so this
+             first frame lands (`CHAT_OFF`). Not one of the two, so this
              claims none of them. */
           <p class="m-0 mb-3 text-ink">This panel has no agent.</p>
         }
       >
-        <Match when={props.off?.kind === "switched-off"}>
-          <p class="m-0 mb-3 text-ink">Chat is switched off.</p>
-          <p class="m-0 mb-4">
-            <code class="font-mono">{AGENT_ENV}</code> is set to the empty
-            string, which is the explicit way to say so. Unset it and reload,
-            and this panel comes back with whatever this machine has.
-          </p>
-        </Match>
-
         <Match when={props.off?.kind === "no-engine"}>
           <p class="m-0 mb-3 text-ink">This serve has no agent engine.</p>
           <p class="m-0 mb-4">
             Every agent olai can talk to is a plugin, and all of them are on by
-            default — so this is a{" "}
-            <code class="font-mono">--plugins</code> list that named none of
-            them, or an engine whose plugin failed to start (the plugins
-            preferences say which). Drop the flag, or add an engine's word to
-            it.
+            default. None is enabled here, or an engine failed to start.
+            The plugins panel names the reason; enable an engine there or
+            change its node in the configuration file.
           </p>
         </Match>
 

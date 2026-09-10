@@ -5,10 +5,10 @@
  * stderr sink writes to stderr" is a routing property, not a preference, and
  * it is asserted rather than argued.
  *
- * The face is a second contract: non-TTY (and `OLAI_LOG=logfmt`) is logfmt
+ * The face is a second contract: non-TTY (and `log-format: logfmt`) is logfmt
  * **byte-identical** to Effect's `formatLogFmt`, because the testlib decoder
  * and every agent that greps a line depend on that shape. Pretty is only for
- * a human TTY — and `OLAI_LOG=pretty` can force it even when nothing is a TTY,
+ * a human TTY — and `log-format: pretty` can force it even when nothing is a TTY,
  * which is what the override test proves.
  *
  * Through Effect's own `TestConsole` rather than a spy on the global one:
@@ -25,7 +25,8 @@ import {
   colorsFor,
   formatFor,
   prettyFor,
-  resetInvalidOlaiLogWarning,
+  LogPresentation,
+  type Presentation,
   type Stream,
   toStderr,
   toStdout,
@@ -34,30 +35,16 @@ import {
 /** Say one thing through `sink`, and answer which stream it went to. */
 const written = (
   sink: Layer.Layer<never>,
+  format: Presentation = "auto",
 ): Promise<{ readonly out: ReadonlyArray<unknown>; readonly err: ReadonlyArray<unknown> }> =>
   Effect.gen(function*() {
     yield* Effect.logInfo("serving").pipe(
       Effect.annotateLogs({ url: "http://127.0.0.1:7714" }),
       Effect.provide(sink),
+      Effect.provideService(LogPresentation, () => format),
     )
     return { out: yield* TestConsole.logLines, err: yield* TestConsole.errorLines }
   }).pipe(Effect.provide(TestConsole.layer), Effect.runPromise)
-
-/** Force `OLAI_LOG` for the duration of `body`, then restore. */
-const withOlaiLog = async <A>(
-  value: string | undefined,
-  body: () => Promise<A>,
-): Promise<A> => {
-  const prev = process.env["OLAI_LOG"]
-  if (value === undefined) delete process.env["OLAI_LOG"]
-  else process.env["OLAI_LOG"] = value
-  try {
-    return await body()
-  } finally {
-    if (prev === undefined) delete process.env["OLAI_LOG"]
-    else process.env["OLAI_LOG"] = prev
-  }
-}
 
 /** Force `NO_COLOR` for the duration of `body`, then restore. */
 const withNoColor = async <A>(
@@ -96,6 +83,7 @@ const renderedPretty = (stream: Stream): Promise<string> =>
  */
 const writtenWithExpected = (
   sink: Layer.Layer<never>,
+  format: Presentation = "auto",
 ): Promise<{
   readonly out: ReadonlyArray<unknown>
   readonly err: ReadonlyArray<unknown>
@@ -112,6 +100,7 @@ const writtenWithExpected = (
       // beside the sink's loggers so both see the same Options.
       Effect.provide(Logger.layer([collector], { mergeWithExisting: true })),
       Effect.provide(sink),
+      Effect.provideService(LogPresentation, () => format),
     )
     return {
       out: yield* TestConsole.logLines,
@@ -122,8 +111,9 @@ const writtenWithExpected = (
 }
 
 test("the stdout sink writes logfmt on stdout", async () => {
-  await withOlaiLog("logfmt", async () => {
-    const { err, out } = await written(toStdout)
+  {
+    const format = "logfmt" as const
+    const { err, out } = await written(toStdout, format)
 
     expect(err).toEqual([])
     expect(out).toHaveLength(1)
@@ -134,45 +124,48 @@ test("the stdout sink writes logfmt on stdout", async () => {
     expect(line).toContain("message=serving")
     expect(line).toContain("url=http://127.0.0.1:7714")
     expect(line).not.toContain("\n")
-  })
+  }
 })
 
 test("the stderr sink writes the same line on stderr, so stdout stays the protocol", async () => {
-  await withOlaiLog("logfmt", async () => {
-    const { err, out } = await written(toStderr)
+  {
+    const format = "logfmt" as const
+    const { err, out } = await written(toStderr, format)
 
     expect(out).toEqual([])
     expect(err).toHaveLength(1)
     expect(String(err[0])).toContain("message=serving")
     expect(String(err[0])).toContain("url=http://127.0.0.1:7714")
-  })
+  }
 })
 
 // The contract agents and the testlib decoder hold: when nothing is a TTY (or
-// OLAI_LOG forces logfmt), the bytes are exactly Effect's formatLogFmt — not
+// log-format forces logfmt), the bytes are exactly Effect's formatLogFmt — not
 // "looks like logfmt", the same string on the same event.
-test("non-TTY (OLAI_LOG=logfmt) is byte-identical to formatLogFmt", async () => {
-  await withOlaiLog("logfmt", async () => {
-    const stdout = await writtenWithExpected(toStdout)
+test("non-TTY (log-format: logfmt) is byte-identical to formatLogFmt", async () => {
+  {
+    const format = "logfmt" as const
+    const stdout = await writtenWithExpected(toStdout, format)
     expect(stdout.err).toEqual([])
     expect(String(stdout.out[0])).toBe(stdout.expected)
 
-    const stderr = await writtenWithExpected(toStderr)
+    const stderr = await writtenWithExpected(toStderr, format)
     expect(stderr.out).toEqual([])
     expect(String(stderr.err[0])).toBe(stderr.expected)
-  })
+  }
 })
 
-test("OLAI_LOG=pretty forces pretty even when the stream is not a TTY", async () => {
+test("log-format: pretty forces pretty even when the stream is not a TTY", async () => {
   // process.stdout under bun test is typically not a TTY; if it is, the
   // override is still the thing under test — pretty must win either way.
   expect(formatFor({ isTTY: false })).toBe("logfmt")
 
-  await withOlaiLog("pretty", async () => {
-    expect(formatFor({ isTTY: false })).toBe("pretty")
-    expect(formatFor({ isTTY: true })).toBe("pretty")
+  {
+    const format = "pretty" as const
+    expect(formatFor({ isTTY: false }, format)).toBe("pretty")
+    expect(formatFor({ isTTY: true }, format)).toBe("pretty")
 
-    const { out } = await written(toStdout)
+    const { out } = await written(toStdout, format)
     // Pretty is message-first with local time — not logfmt's
     // `timestamp=… level=INFO message=…` field order. One line at least
     // carries the message; none is a bare logfmt line.
@@ -181,16 +174,17 @@ test("OLAI_LOG=pretty forces pretty even when the stream is not a TTY", async ()
     expect(joined).not.toMatch(/^timestamp=\S+ level=INFO /m)
     // Coloured level is uppercased in pretty; logfmt now is too (Effect rc).
     expect(joined).toMatch(/INFO/)
-  })
+  }
 })
 
 // The load-bearing new wiring: pretty on toStderr must still leave stdout
 // empty. If LogToStderr were dropped, pretty would land on stdout and
 // corrupt a stream the caller wanted left alone, with every logfmt-only
 // test still green.
-test("OLAI_LOG=pretty on toStderr keeps stdout empty (the protocol stream)", async () => {
-  await withOlaiLog("pretty", async () => {
-    const { err, out } = await written(toStderr)
+test("log-format: pretty on toStderr keeps stdout empty (the protocol stream)", async () => {
+  {
+    const format = "pretty" as const
+    const { err, out } = await written(toStderr, format)
 
     expect(out).toEqual([])
     expect(err.length).toBeGreaterThan(0)
@@ -198,31 +192,15 @@ test("OLAI_LOG=pretty on toStderr keeps stdout empty (the protocol stream)", asy
     expect(joined).toContain("serving")
     expect(joined).not.toMatch(/^timestamp=\S+ level=INFO /m)
     expect(joined).toMatch(/INFO/)
-  })
-})
-
-test("OLAI_LOG=logfmt forces logfmt even when the stream is a TTY", () => {
-  const prev = process.env["OLAI_LOG"]
-  process.env["OLAI_LOG"] = "logfmt"
-  try {
-    expect(formatFor({ isTTY: true })).toBe("logfmt")
-  } finally {
-    if (prev === undefined) delete process.env["OLAI_LOG"]
-    else process.env["OLAI_LOG"] = prev
   }
 })
 
-test("without OLAI_LOG, a TTY is pretty and a pipe is logfmt", () => {
-  const prev = process.env["OLAI_LOG"]
-  delete process.env["OLAI_LOG"]
-  try {
-    expect(formatFor({ isTTY: true })).toBe("pretty")
-    expect(formatFor({ isTTY: false })).toBe("logfmt")
-    expect(formatFor({})).toBe("logfmt")
-  } finally {
-    if (prev === undefined) delete process.env["OLAI_LOG"]
-    else process.env["OLAI_LOG"] = prev
-  }
+test("presentation is explicit, while auto follows the destination", () => {
+  expect(formatFor({ isTTY: true }, "logfmt")).toBe("logfmt")
+  expect(formatFor({ isTTY: false }, "pretty")).toBe("pretty")
+  expect(formatFor({ isTTY: true })).toBe("pretty")
+  expect(formatFor({ isTTY: false })).toBe("logfmt")
+  expect(formatFor({})).toBe("logfmt")
 })
 
 // Factory lock: stub streams, not the real process fds. Necessary but not
@@ -279,10 +257,11 @@ const withIsTTY = async <A>(
 // does *not* lock toStdout's binding (that is the symmetric test below).
 test("toStderr's pretty colour comes from stderr, not stdout", async () => {
   await withNoColor(undefined, async () => {
-    await withOlaiLog("pretty", async () => {
+    {
+      const format = "pretty" as const
       await withIsTTY(process.stdout, false, () =>
         withIsTTY(process.stderr, true, async () => {
-          const { err, out } = await written(toStderr)
+          const { err, out } = await written(toStderr, format)
           expect(out).toEqual([])
           expect(err.map(String).join("\n")).toContain("\u001b[")
         }),
@@ -291,11 +270,11 @@ test("toStderr's pretty colour comes from stderr, not stdout", async () => {
       // (emit-time colour from *this* stream, not the sibling).
       await withIsTTY(process.stdout, true, () =>
         withIsTTY(process.stderr, false, async () => {
-          const { err } = await written(toStderr)
+          const { err } = await written(toStderr, format)
           expect(err.map(String).join("\n")).not.toContain("\u001b[")
         }),
       )
-    })
+    }
   })
 })
 
@@ -303,29 +282,31 @@ test("toStderr's pretty colour comes from stderr, not stdout", async () => {
 // prettyStdout, so the toStderr test cannot see this binding.
 test("toStdout's pretty colour comes from stdout, not stderr", async () => {
   await withNoColor(undefined, async () => {
-    await withOlaiLog("pretty", async () => {
+    {
+      const format = "pretty" as const
       // stdout is the pipe: no ANSI, even though stderr is a TTY.
       await withIsTTY(process.stdout, false, () =>
         withIsTTY(process.stderr, true, async () => {
-          const { out } = await written(toStdout)
+          const { out } = await written(toStdout, format)
           expect(out.map(String).join("\n")).not.toContain("\u001b[")
         }),
       )
       // Converse: stdout is the TTY, so it colours even though stderr is a pipe.
       await withIsTTY(process.stdout, true, () =>
         withIsTTY(process.stderr, false, async () => {
-          const { out } = await written(toStdout)
+          const { out } = await written(toStdout, format)
           expect(out.map(String).join("\n")).toContain("\u001b[")
         }),
       )
-    })
+    }
   })
 })
 
 // LogToStderr must stay local to toStderr's pretty logger. A program-wide
 // Layer.succeed would force every mergeWithExisting peer onto stderr too.
 test("toStderr does not force LogToStderr on sibling loggers", async () => {
-  await withOlaiLog("pretty", async () => {
+  {
+    const format = "pretty" as const
     let saw: boolean | undefined
     const probe = Logger.make((options) => {
       saw = options.fiber.getRef(Logger.LogToStderr)
@@ -333,44 +314,14 @@ test("toStderr does not force LogToStderr on sibling loggers", async () => {
     await Effect.gen(function*() {
       yield* Effect.logInfo("serving").pipe(
         Effect.provide(Logger.layer([probe], { mergeWithExisting: true })),
-        Effect.provide(toStderr),
+        Effect.provide(Layer.merge(toStderr, Layer.succeed(LogPresentation, () => format))),
       )
     }).pipe(Effect.provide(TestConsole.layer), Effect.runPromise)
 
     expect(saw).toBe(false)
-  })
-})
-
-test("unrecognised OLAI_LOG is diagnosed once then ignored", () => {
-  resetInvalidOlaiLogWarning()
-  const prev = process.env["OLAI_LOG"]
-  const errors: Array<string> = []
-  const orig = console.error
-  console.error = (...args: Array<unknown>) => {
-    errors.push(args.map(String).join(" "))
-  }
-  try {
-    process.env["OLAI_LOG"] = "json"
-    expect(formatFor({ isTTY: false })).toBe("logfmt")
-    expect(formatFor({ isTTY: true })).toBe("pretty")
-    expect(errors).toHaveLength(1)
-    expect(errors[0]).toContain('OLAI_LOG="json"')
-    expect(errors[0]).toContain("logfmt")
-    expect(errors[0]).toContain("pretty")
-
-    // Empty is not a typo — treat as unset.
-    process.env["OLAI_LOG"] = ""
-    resetInvalidOlaiLogWarning()
-    errors.length = 0
-    formatFor({ isTTY: false })
-    expect(errors).toHaveLength(0)
-  } finally {
-    console.error = orig
-    if (prev === undefined) delete process.env["OLAI_LOG"]
-    else process.env["OLAI_LOG"] = prev
-    resetInvalidOlaiLogWarning()
   }
 })
+
 
 test("compact output keeps context inline, abbreviates UUIDs, and names root changes", async () => {
   const lines = await Effect.gen(function*() {
@@ -406,14 +357,15 @@ test("compact output keeps context inline, abbreviates UUIDs, and names root cha
 })
 
 test("compact errors retain the cause and root on the selected stream", async () => {
-  await withOlaiLog("pretty", async () => {
+  {
+    const format = "pretty" as const
     const { out, err } = await Effect.gen(function*() {
       yield* Effect.logInfo("ready")
       yield* Effect.logError("turn failed", Cause.fail(new Error("connection lost\nretry exhausted")))
       return { out: yield* TestConsole.logLines, err: yield* TestConsole.errorLines }
     }).pipe(
       Effect.annotateLogs({ root: "/vault/failure" }),
-      Effect.provide(toStderr),
+      Effect.provide(Layer.merge(toStderr, Layer.succeed(LogPresentation, () => format))),
       Effect.provide(TestConsole.layer),
       Effect.runPromise,
     )
@@ -425,7 +377,7 @@ test("compact errors retain the cause and root on the selected stream", async ()
     expect(failure).toContain("connection lost")
     expect(failure).toContain("retry exhausted")
     expect(failure).toContain("\n")
-  })
+  }
 })
 
 test("compact messages handle errors, circular values, bigint and redaction", async () => {

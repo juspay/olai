@@ -664,7 +664,7 @@ Feature: Talking to the agent
     # The one state a person should never reach by following a documented way
     # of starting olai — `nix run`, the packaged binary and `just serve` all
     # come with the pinned adapter. Reached here the way somebody would reach
-    # it deliberately: `OLAI_ACP_AGENT` set to the empty string.
+    # it with no executable inputs and an empty agent search path.
     #
     # The panel still DRAWS. A capability that is silently absent cannot be
     # told apart from one that is broken, or from one you have not found yet.

@@ -1735,6 +1735,24 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * claim can fail in are not symmetric.
    */
   const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = {
+    // Generic configuration fields and service contracts share this word.
+    "settings": [
+      "plugin-api/src/configuration.ts",
+      "plugin-api/src/services.ts",
+      "plugins/chat/src/agent.ts",
+      "plugins/chat/src/agents/settings.ts",
+      "plugins/chat/src/browser/alerts.ts",
+      "plugins/chat/src/browser/chat/Header.tsx",
+      "plugins/chat/src/browser/chat/Model.tsx",
+      "plugins/chat/src/chat.ts",
+      "plugins/chat/src/server.ts",
+      "plugins/chat/src/wire/members.ts",
+      "plugins/identity/src/server.ts",
+      "plugins/kolu/src/doorbell.ts",
+      "plugins/vault/src/server.ts",
+      "plugins/vault/src/setup.ts",
+      "plugins/xyne-spaces/src/server.ts"
+    ],
     "chat": [
       "format/src/committing.ts",
       "plugins/git/src/browser/commit/said.ts",
@@ -1763,6 +1781,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "ops/src/plan.ts",
       "ops/src/standing.bench.ts",
       "ops/src/walks.bench.ts",
+      "plugin-api/src/configuration.ts",
       "plugin-api/src/services.ts",
       "plugin-build/src/bind.ts",
       "plugin-build/src/imports.ts",
@@ -1786,6 +1805,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/search/src/server.ts",
       "plugins/search/src/table.bench.ts",
       "plugins/search/src/tools.ts",
+      "plugins/settings/src/server.ts",
       "plugins/sidebar/src/browser.tsx",
       "plugins/sidebar/src/contract.ts",
       "plugins/trash/src/browser.tsx",
@@ -1798,6 +1818,8 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/vault-plugins/src/tools.ts",
       "plugins/xyne-spaces/src/server.ts",
       "server/src/main.ts",
+      "server/src/serve.ts", // declared content service, used to identify its owner
+      "surface/src/plugins.ts",
       "surface/src/seal.ts"
     ],
     "git": [
@@ -1812,9 +1834,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/preferences/src/Preferences.tsx",
       "plugins/trash/src/browser/question.ts",
       "plugins/trash/src/tools.ts",
-      "server/src/gitPolicy.ts",
-      "server/src/main.ts",
-      "server/src/serve.ts"
+      "server/src/main.ts"
     ],
     "search": [
       "format/src/address.ts",
@@ -1906,7 +1926,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/git/src/ledger/pending.ts",
       "plugins/odu/src/probe.ts",
       "server/src/dial.ts",
-      "server/src/gitPolicy.ts",
       "server/src/main.ts",
       "server/src/mcpClient.ts",
       "server/src/serve.ts"
@@ -1956,7 +1975,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "web/src/client/keys.ts"
     ],
     "preferences": [
-      "plugins/chat/src/browser/chat/NoAgent.tsx",
       "plugins/outlines/src/browser.tsx",
       "plugins/theme/src/browser.tsx"
     ],
@@ -2220,6 +2238,8 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
   }
 
 
+  // settings.test.ts pairs this name fence with the inspector Config-key fence,
+  // deriving keys from live schemas without making this text-only audit load plugins.
   test("no package outside the registry and the plugin's own tenant spells it", () => {
     const actual = Object.fromEntries(PLUGIN_NAMES.map((name) => {
       const mine = TENANTS.get(name) ?? new Set<string>()
@@ -2396,12 +2416,6 @@ describe("a module another package can open holds no live value", () => {
     // default, a suite installs a listener for the length of its own case, and
     // what it hears is every narrowed write rather than any activation's value.
     "format/src/validate.ts": "a WeakMap ledger memo, and one slot a suite installs a listener in",
-
-    // WARN-ONCE FLAGS, which is `grumble.ts`'s class one package over: what they
-    // hold is whether this process has already said a sentence, and forgetting
-    // it would only mean saying it twice.
-    "log/src/level.ts": "whether this process has already warned about OLAI_LOG_LEVEL",
-    "log/src/sinks.ts": "whether this process has already warned about OLAI_LOG",
 
     // A REGEX CURSOR, which is a `lastIndex` and not a value: the scan sets it
     // to 0 before it starts and moves it as it goes, so what is kept between

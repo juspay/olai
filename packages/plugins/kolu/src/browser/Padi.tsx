@@ -95,14 +95,14 @@ export function Padi(props: { readonly app: KoluApp }) {
       </button>
       {/* The panel is the app's box — portalled, placed and layered by it —
           and drawn only while open, which is why there is no `Show` here. The
-          wrench inside it navigates OUT of the drawer, so it closes without
+          wrench opens the configuration panel, so this drawer closes without
           the dismissal's walk back to the trigger: the page it lands on is
           where the reader's caret goes. */}
       <popover.Panel
         testid={TESTID.padiFeed}
         label="what recently wanted attention"
       >
-        <Feed app={props.app} onLeave={popover.close} />
+        <Feed onLeave={popover.close} />
       </popover.Panel>
     </Show>
   )

@@ -1,3 +1,4 @@
+import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
 /**
  * A real olai as a CHILD PROCESS: how to start one, how to read its address,
  * and how to ask whether it stopped.
@@ -85,9 +86,8 @@ export interface WebChild {
  * process default is 0 (OS-assigned), and that is a fact these callers
  * rely on rather than re-spell. Pass `--port N` in `extra` to pin one.
  *
- * `--no-commit` is the default extra because most callers are not about git.
- * Pass `extra: []` to take the process default (`manual`), which is the one
- * thing Effect 4 started refusing without a fallback on the boolean flag.
+ * A file fixture defaults commits off because most callers are not about git.
+ * Pass `policy: {}` to exercise the schema defaults.
  */
 export const startWeb = (options: {
   readonly root: string
@@ -95,19 +95,21 @@ export const startWeb = (options: {
    *  meet somewhere the environment decides they do — said explicitly rather
    *  than left to what this process happens to have inherited. */
   readonly env?: NodeJS.ProcessEnv
-  /** Argv after `web <root>`. Unset includes `--no-commit`. */
+  /** Process arguments after `web <root>`; policy belongs in the file fixture. */
   readonly extra?: ReadonlyArray<string>
+  readonly policy?: FixturePolicy
 }): WebChild => {
-  const extra = options.extra ?? ["--no-commit"]
+  const extra = options.extra ?? []
+  writeFixturePolicy(options.root, { ...(options.policy ?? { commit: "off" }), process: { ...options.policy?.process, "log-format": "logfmt" } })
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     OLAI_DIST_DIR: clientDist(),
     // No agent: none of these tests is about the chat panel, and a real one
     // would make them depend on a model and a network.
     OLAI_ACP_AGENT: "",
-    // The address is read as logfmt; do not inherit a developer's
-    // OLAI_LOG=pretty.
-    OLAI_LOG: "logfmt",
+    OLAI_ACP_CODEX: "",
+    OLAI_ACP_PI: "",
+    OLAI_AGENT_PATH: "",
     // TIED TO THIS TEST PROCESS: a server arms the kernel's parent-death
     // signal only for a spawner that tied it, and this one does — `bun test`
     // killed mid-file is exactly the runner death #355 stopped leaking

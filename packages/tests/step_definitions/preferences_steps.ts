@@ -17,12 +17,13 @@ import { TESTID } from "@olai/bundle/testids"
 
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
-import type { Page } from "playwright";
+import type { Page, Locator } from "playwright";
 
 
 import { fileKind } from "@olai/format";
 
-import { SIZE_STORAGE_KEY } from "@olai/web/testlib"
+import { BOX_NAME } from "../support/hooks.ts";
+import { SIZE_STORAGE_KEY, selector } from "@olai/web/testlib"
 // A PREFERENCE IS KEPT BY WHOEVER DRAWS THE THING, and the key it is kept
 // under is that row's name for it. These six came through `@olai/web/testlib`,
 // which is how a general package came to declare `olai-plugin-chat` and
@@ -913,16 +914,23 @@ Then(
  *  reason. */
 When("I open the plugins panel", async function (this: OlaiWorld) {
   if ((await this.pluginsPanel().count()) > 0) return;
-  await this.press(this.page.locator(PLUGINS_TRIGGER).locator("visible=true"));
+  const trigger = this.page.locator(PLUGINS_TRIGGER).locator("visible=true");
+  await this.waitUntil(async () => (await this.pluginsPanel().count()) > 0 || await trigger.isVisible(), "the restored panel or its trigger");
+  // A returning layout can restore an open inspector before its trigger.
+  if ((await this.pluginsPanel().count()) > 0) return;
+  await this.press(trigger);
   await this.pluginsPanel().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 When("I close the plugins panel", async function (this: OlaiWorld) {
+  // A flip publishes its row before the replacement socket finishes opening.
+  // Wait for the reconnecting dialog to release pointer and keyboard input.
+  await this.page.locator(selector(TESTID.offline)).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => await this.pluginsPanel().locator(`${PLUGIN_SWITCH}[aria-disabled="true"]`).count() === 0, "the panel controls to finish reconciling");
   const trigger = this.page.locator(`${PLUGINS_TRIGGER}:visible`);
-  // A plugin rebuild can retain the panel while resetting the phone drawer.
-  // Keep the ordinary toggle where it is reachable; Escape is the phone's
-  // remaining door when its trigger is hidden behind the retained panel.
-  if ((await trigger.count()) > 0) await this.press(trigger);
+  // Desktop retains the ordinary trigger click, including Playwright's wait
+  // for any reconnecting overlay. On a phone the panel covers that trigger.
+  if (this.viewport().width > 700) await this.press(trigger);
   else await this.pluginsPanel().press("Escape");
   await this.page.locator(PLUGINS_PANEL).waitFor({ state: "detached" });
 });
@@ -931,7 +939,7 @@ When("I close the plugins panel", async function (this: OlaiWorld) {
  * WHAT ONE PLUGIN'S ROW SAYS IT IS DOING — the hint, which is the half of the
  * row a person can act on.
  *
- * By the plugin's NAME, which is the word `--plugins` takes and the label the
+ * By the plugin's NAME, which is the settings namespace and the label the
  * row wears, so a scenario names the row the same way the operator who caused
  * this state did.
  */
@@ -983,6 +991,9 @@ Then(
   async function (this: OlaiWorld, plugin: string) {
     const row = await shownRow(this, plugin);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // Silence also describes an off or pending row now. Pin running first,
+    // especially after approval, before treating the missing caption as ready.
+    await row.locator(`${PLUGIN_SWITCH}[aria-checked="true"]`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     // `detached` rather than a count read: this is asked after a flip, so the
     // sentence that has to be gone may still be on screen for a frame — and a
     // count read once would be asserting about whichever frame it landed in.
@@ -990,38 +1001,17 @@ Then(
   },
 );
 
-/**
- * WHERE THIS SERVE WAS STARTED, said ONCE for the panel — the line that used to
- * be repeated under every row.
- *
- * It is a separate step from the per-row one because it is a separate claim:
- * the rows say what each plugin is doing, and this says what the process came up
- * with and how long a press here lasts. A scenario that asserted it through a
- * row would be asserting the arrangement this panel was rewritten to end.
- */
+/** Read the displayed effective value, including the default named beneath a
+ * refused file spelling. Raw drafts are asserted by the input-specific steps. */
 Then(
   "the plugins panel shows {string} configured {string} as {string}",
   async function (this: OlaiWorld, plugin: string, key: string, value: string) {
     const row = await shownRow(this, plugin);
-    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const pair = row.locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`);
-    try {
-      await pair.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-      const said = (await pair.innerText()).replaceAll("\n", " ");
-      assert.ok(
-        said.includes(value),
-        `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${
-          JSON.stringify(value)
-        }, and it says ${JSON.stringify(said)}`,
-      );
-    } catch (error) {
-      if (error instanceof assert.AssertionError) throw error
-      assert.fail(
-        `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${
-          JSON.stringify(value)
-        }, and it has no config for that key`,
-      );
-    }
+    await this.waitUntil(async () => await pair.count() === 1,
+      `the ${JSON.stringify(plugin)} row has no config for ${JSON.stringify(key)}`);
+    await this.waitUntil(async () => await pair.isVisible() && (await configurationValue(pair)) === value,
+      `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${JSON.stringify(value)}`);
   },
 );
 
@@ -1038,7 +1028,7 @@ Then(
   },
 );
 
-/** ONE PLUGIN'S ROW on the plugins panel, by the word `--plugins` takes — which
+/** ONE PLUGIN'S ROW on the plugins panel, by the settings namespace — which
  *  is the label the row wears, so a scenario names it the way the operator who
  *  caused this state did. */
 const rowFor = (world: OlaiWorld, plugin: string) =>
@@ -1411,3 +1401,86 @@ Then("the plugin {string} has no browser warning", async function (this: OlaiWor
 Then("the plugins panel shows no refusal", async function (this: OlaiWorld) {
   await this.page.locator(`${PLUGINS_PANEL} ${PLUGINS_REFUSED}`).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
+
+Then("the plugin {string} has inline controls", async function (this: OlaiWorld, plugin: string) {
+  const row = await shownRow(this, plugin);
+  assert.equal(await row.locator('[data-testid="plugin-defaults"], [data-testid="plugin-summary"]').count(), 0);
+  const knobs = row.locator('[data-testid="plugin-knob"]');
+  assert.ok(await knobs.count() > 0);
+  for (const knob of await knobs.all()) assert.equal(await knob.isVisible(), true);
+});
+Then("the plugin {string} marks {string} as authored by {string}", async function (this: OlaiWorld, plugin: string, key: string, author: string) {
+  const row = await shownRow(this, plugin);
+  await this.waitUntil(async () => await row.locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`).getAttribute("data-set-by") === author, "the author mark");
+  const knob = row.locator(`[data-testid="plugin-knob"]${attr("data-config", key)}`);
+  if (await knob.count()) {
+    assert.equal(await knob.locator('[data-testid="plugin-source"]').count(), author === "vault" ? 1 : 0);
+    if (author === "vault") {
+      assert.equal(await knob.locator('[data-testid="plugin-source"]').getAttribute("title"), "set in Settings.olai");
+      assert.equal(await knob.locator('[data-testid="plugin-reset"]').isVisible(), true);
+    }
+  }
+});
+When("I follow the policy link for {string}", async function (this: OlaiWorld, plugin: string) {
+  await (await shownRow(this, plugin)).locator('[data-testid="plugin-config-link"]').click();
+});
+Then("the policy link targets node {string}", async function (this: OlaiWorld, node: string) {
+  await this.waitUntil(async () => this.page.url().includes(node), "the policy node in the address");
+});
+Then("the plugin {string} has no policy link", async function (this: OlaiWorld, plugin: string) {
+  await (await shownRow(this, plugin)).locator('[data-testid="plugin-config-link"]').waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+});
+Then("the plugin {string} keeps its control visible when {string} becomes {string}", async function (this: OlaiWorld, plugin: string, key: string, value: string) {
+  await this.waitUntil(async () => await configurationValue((await shownRow(this, plugin)).locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`)) === value, "the new default reading");
+  assert.equal(await (await shownRow(this, plugin)).locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`).isVisible(), true);
+});
+
+Then("This serve is expanded", async function (this: OlaiWorld) {
+  const foot = this.pluginsPanel().locator('[data-testid="this-serve"]')
+  assert.notEqual(await foot.getAttribute("open"), null)
+})
+When("I open This serve", async function (this: OlaiWorld) {
+  const section = this.pluginsPanel().locator('[data-testid="this-serve"]')
+  if (await section.getAttribute("open") === null) await section.locator("summary").click()
+})
+Then("This serve names its bound address and a set bearer without its value", async function (this: OlaiWorld) {
+  const text = await this.pluginsPanel().locator('[data-testid="this-serve"]').innerText()
+  assert.ok(text.includes("host 127.0.0.1"))
+  assert.ok(text.includes(`hostname ${BOX_NAME} ·env`))
+  assert.ok(text.includes(`port ${new URL(this.baseUrl).port}`))
+  assert.ok(text.includes("bearer set"))
+})
+Then("This serve reads {string} as {string} from {string}", async function (this: OlaiWorld, key: string, value: string, author: string) {
+  const control = this.pluginsPanel().locator(`[data-testid="this-serve"] ${attr("data-config", key)}${attr("data-set-by", author)}`)
+  await this.waitUntil(async () => await control.isVisible() && await configurationValue(control) === value, "the serve control reading")
+})
+
+
+Then("the plugin {string} is running", async function (this: OlaiWorld, plugin: string) {
+  await (await shownRow(this, plugin)).locator(`${PLUGIN_SWITCH}[aria-checked="true"]`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+Then("the commit ledger includes the settings switch", async function (this: OlaiWorld) {
+  const group = this.page.locator(`${selector(TESTID.commitGroup)}${attr("data-file", "_olai/Settings.olai")}`);
+  await group.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.ok((await group.innerText()).includes("journal"), "the journal namespace is recorded as an ordinary node change");
+});
+
+
+/** Read the selected control, never the text of its unselected alternatives. */
+const configurationValue = async (line: Locator): Promise<string> => {
+  // A refused file spelling stays in the input; the effective default is the
+  // value actually drawn in its problem line, not that unaccepted spelling.
+  const problem = line.locator(selector(TESTID.pluginProblem))
+  if (await problem.count()) {
+    const text = await problem.first().innerText()
+    const marker = " · using "
+    if (text.includes(marker)) return text.slice(text.lastIndexOf(marker) + marker.length)
+  }
+  const input = line.locator("input, select")
+  if (await input.count()) return input.first().inputValue()
+  const picked = line.locator('[aria-pressed="true"]')
+  if (await picked.count()) return (await picked.first().getAttribute("data-value")) ?? ""
+  const toggle = line.locator('[role="switch"]')
+  if (await toggle.count()) return await toggle.first().getAttribute("aria-checked") === "true" ? "yes" : "no"
+  return (await line.getAttribute("data-value")) ?? (await line.innerText()).replaceAll("\n", " ")
+}

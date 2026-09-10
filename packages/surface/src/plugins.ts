@@ -1,7 +1,7 @@
 /**
  * WHICH PLUGINS THIS BUILD HAS, and which this SERVE runs — the two lists as
- * one value, because the distance between them is the whole of what `--plugins`
- * means and a browser that held only one of them could not draw it.
+ * one value, because a file’s requested row selection can differ from what the runtime
+ * can mount and a browser that held only one of them could not draw it.
  *
  * ## Why this is CORE'S member and not a plugin's
  *
@@ -24,13 +24,13 @@
  *
  * One value about the served INSTANCE rather than about any file in it — the
  * shape `manifest` and `git` already are. It is seeded at the composition root,
- * out of the flag and the rows, and REPUBLISHED from every re-compose
+ * out of the policy reading and the rows, and REPUBLISHED from every re-compose
  * (`@olai/server`'s `runtime.ts`): a plugin is a fiber, so a register or a
  * dispose moves the roster and the word on a row is read live.
  *
  * It therefore has both of the things it was once documented as needing
  * neither of. A CONNECTOR, because a cell that is only seeded goes on saying
- * what the flag said while rows change state underneath it — the connector
+ * the initial policy while rows change state underneath it — the connector
  * hands the cell to the runtime and `recompose` is the one clock that moves it.
  * And an `equals` ({@link sameRoster}): a republish used to be a thing that
  * never happened, so a comparator would have been dead weight with a comment
@@ -41,9 +41,8 @@
  *
  * ## STILL READ-ONLY, and the panel is no longer frozen
  *
- * Those two used to be one sentence — *read-only on the wire because `--plugins`
- * is CLI/nix ONLY, no settings file, no browser toggle* — and the loader surface
- * separated them. There IS a browser verb now (`plugins.set`, on the root spec),
+ * Reading a roster and requesting an enablement change are separate doors.
+ * The root exposes `plugins.set` as a browser procedure,
  * and this cell still carries no write verb, because the two are about different
  * things: a flip is an ACT with a subject and a refusal, and what comes back
  * from it is this cell moving. A `set` on the cell would be "make the roster say
@@ -66,7 +65,7 @@
  * this or of the panel moving.
  */
 
-import { fileKind, PluginPin } from "@olai/format"
+import { fileKind } from "@olai/format"
 import { Schema } from "effect"
 
 /**
@@ -76,11 +75,30 @@ import { Schema } from "effect"
  * running names — because two lists are two things to keep in step and a name
  * in the second that is not in the first is a state nothing on screen could
  * draw. A row that says `false` is the row the panel exists for: a plugin left
- * out of `--plugins` has no surface, no face and no probe, and an absent row
+ * out of the file’s row selection has no surface, no face and no probe, and an absent row
  * would be indistinguishable from a build that never had it.
  */
+/** Secret readings have no value field on their wire arm. */
+export const EnvironmentReading = Schema.Union([
+  Schema.Struct({ key: Schema.String, kind: Schema.Literal("secret"), set: Schema.Boolean, says: Schema.String }),
+  Schema.Struct({ key: Schema.String, kind: Schema.Literal("resource"), set: Schema.Boolean, says: Schema.String, value: Schema.optionalKey(Schema.String), source: Schema.optionalKey(Schema.Literal("wrapper")) }),
+])
+
+const PolicyControl = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("choice"), options: Schema.Array(Schema.String) }),
+  Schema.Struct({ kind: Schema.Literal("switch") }),
+  Schema.Struct({ kind: Schema.Literal("number"), integer: Schema.Boolean, min: Schema.optionalKey(Schema.Number), max: Schema.optionalKey(Schema.Number) }),
+  Schema.Struct({ kind: Schema.Literal("text"), expected: Schema.optionalKey(Schema.String) }),
+])
+const PolicyValue = Schema.Struct({
+  key: Schema.String, value: Schema.Unknown, setBy: Schema.Literals(["vault", "default"]), says: Schema.String,
+  // Old serves still decode; their readings remain read-only without metadata.
+  control: Schema.optionalKey(PolicyControl),
+  problem: Schema.optionalKey(Schema.Struct({ raw: Schema.String, why: Schema.String })),
+})
+
 export const BuiltPlugin = Schema.Struct({
-  /** The plugin's `name` — the namespace, the docs slug, the word `--plugins`
+  /** The plugin's `name` — the namespace, the docs slug, the settings namespace
    *  takes and the label the row wears. One spelling, and this is it travelling
    *  (`@olai/plugin-api`'s `plugin.ts`). */
   name: Schema.String,
@@ -95,7 +113,7 @@ export const BuiltPlugin = Schema.Struct({
    * one thing `running` cannot say.
    *
    * A plugin is a fiber now, and `false` covers six different mornings:
-   * the operator's flag left it out, the BUILD leaves it out until somebody
+   * file policy left it out, the BUILD leaves it out until somebody
    * asks, a PERSON turned it off at the panel, its `apply` DIED, it is still
    * waiting on a service that has not arrived, or — for a plugin the VAULT
    * defines — nobody has yet approved the version that is written down. Those
@@ -139,7 +157,7 @@ export const BuiltPlugin = Schema.Struct({
    * service and no row offers it; a panel that says only *waiting for something
    * it needs* is telling a person that something is wrong and nothing about
    * what, on the one screen whose whole job is to say what to do next. Under
-   * `--plugins=kolu` the answer is `deliveries`, and the answer to THAT is
+   * a policy selecting only kolu the answer is `deliveries`, and the answer to THAT is
    * "compose the chat row" — which is a sentence somebody can act on.
    *
    * CORE'S OWN VOCABULARY, unlike {@link fault}, which is why core names these
@@ -258,6 +276,11 @@ export const BuiltPlugin = Schema.Struct({
    * empty record would be a row claiming to have been configured as nothing.
    */
   config: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
+  configurationValues: Schema.optionalKey(Schema.Array(PolicyValue)),
+  configurationNode: Schema.optionalKey(Schema.Struct({ file: Schema.String, id: Schema.String })),
+  desiredOn: Schema.optionalKey(Schema.Boolean),
+  environment: Schema.optionalKey(Schema.Array(EnvironmentReading)),
+  switchPersistence: Schema.optionalKey(Schema.Literals(["file", "session"])),
   /**
    * WHERE THIS ROW CAME FROM, when it came from the VAULT rather than the build
    * — the whole of what a dynamic plugin adds to this member.
@@ -343,40 +366,28 @@ export const PLUGIN_BROWSER_NODE = "browser.tsx"
  *
  *   - `running`  composed: members on the wire, faces drawn, probe run, kinds
  *                held. The ordinary state and the only one that is good news.
- *   - `off`      the operator's `--plugins` did not name it. Total absence, asked for.
+ *   - `off`      the vault policy leaves it off. Total absence, asked for.
  *   - `optIn`    this BUILD leaves it off until somebody asks — the row's own
  *                `disabled`, which is the built-in default living in the file
  *                the loader reads. Also total absence, and NOBODY ASKED, which
  *                is why it is not the same word as `off`: a row nobody chose is
  *                not a row somebody turned off, and only one of the two is
  *                worth a person's attention when they went looking for a chip.
- *   - `switched` A PERSON TURNED IT OFF HERE, at the panel, on this serve. Also
- *                total absence, and the third author of it — which is the whole
- *                reason it needed a word. Absence used to have exactly two
- *                authors, the flag and the build, and `pin` told them apart;
- *                the switch is a third, and without this the panel told a person
- *                who had just pressed the switch that the BUILD ships this off
- *                by default and named a flag they should type. It is the one of
- *                the four absences that undoes itself: a restart brings the row
- *                back to whatever the flag and the file say, and pressing the
- *                switch again brings it back now.
+ *   - `switched` a person stopped a row through its session-only switch.
+ *                Reader infrastructure and dynamic definitions retain this
+ *                process-local state; ordinary built rows persist `on` in the
+ *                policy file and report `off` after the write settles.
  *   - `failed`   its `apply` DIED, which the registry records as a throw out of
  *                the mount. The one word that is a FAULT: it was asked
  *                for, it is absent, and nothing else on screen says so.
  *   - `pending`  A PERSON HAS NOT DECIDED. Only ever a row the VAULT defines
  *                ({@link BuiltPlugin.source}): the source is written, this
  *                version is not the one anybody approved, and nothing of it has
- *                been imported, compiled or run. The fifth absence and the only
- *                one that is a QUESTION rather than an answer — the other four
- *                are states somebody or something already settled, and this one
- *                is waiting on a reader. It is the state phase 12 exists to
- *                draw: the panel shows the source under it and the verb beside
- *                it, which is the one place in this product where a person
- *                approves code rather than changes a setting.
- *   - `waiting`  the plugin is waiting on a service that has not arrived. Not
- *                reachable while every service a plugin NAMES is provided before
- *                the bundle is, and declared here because the runtime that can
- *                produce it is already the one running.
+ *                been imported, compiled or run. The panel shows its source
+ *                and approval action, which authorizes code rather than
+ *                changing a behaviour setting.
+ *   - `waiting` a required service is absent. The row activates when its
+ *                provider arrives and returns here when that provider leaves.
  *
  * ## The LIST is the declaration, and the type is derived from it
  *
@@ -442,37 +453,26 @@ export const pluginState = (plugin: BuiltPlugin): PluginState => {
  * in an order nothing else in the product uses.
  */
 export const PluginRoster = Schema.Struct({
+  configurationFile: Schema.optionalKey(Schema.String),
+  configurationError: Schema.optionalKey(Schema.String),
+  configurationAvailable: Schema.optionalKey(Schema.Boolean),
+
+  instance: Schema.optionalKey(Schema.Struct({
+    hostname: Schema.String,
+    // Older serves sent the name without provenance. They remain decodable.
+    hostnameAuthor: Schema.optionalKey(Schema.Literals(["env", "process"])),
+    host: Schema.String, port: Schema.Number,
+    hostAuthor: Schema.Literals(["flag", "default", "process"]), portAuthor: Schema.Literals(["flag", "default", "process"]),
+    policy: Schema.Array(PolicyValue),
+    configurationNode: Schema.optionalKey(Schema.Struct({ file: Schema.String, id: Schema.String })),
+    origins: Schema.Array(Schema.String),
+    bearer: Schema.Struct({ set: Schema.Boolean }),
+  })),
   /** Every plugin THIS RUNTIME COMPOSES OVER. Empty for a runtime handed no
    *  plugins at all — `olai surface`, the headless faces, every server test —
    *  which composes no sibling surface and so has no roster to be about. */
   built: Schema.Array(BuiltPlugin),
-  /**
-   * The names `--plugins` was GIVEN, or `null` when the flag was not given.
-   *
-   * `null` IS NOT THE EMPTY LIST, and keeping them apart is the whole reason
-   * this field is here rather than derived from `built`. `null` is nobody
-   * having said, which means the built-in default; `[]` is `--plugins=`,
-   * somebody saying NONE out loud. Both leave the same rows on screen when a
-   * build has one plugin, and the line under them says two different things:
-   * one names the flag that did it, the other names the built-in default. The
-   * git pin keeps exactly this distinction one setting over (`@olai/format`'s
-   * `GitPin`), and for the same reason — a value that had already expanded
-   * `null` into the full list could not tell a reader which of the two they
-   * were looking at.
-   *
-   * Exact-arm projection of {@link pin}, kept so a tab too old to read the
-   * sum still sees `--plugins` / omitted. A delta serve publishes `null` here.
-   */
-  pinned: Schema.NullOr(Schema.Array(Schema.String)),
-  /**
-   * WHAT THE OPERATOR PINNED — one value, the git pin's sibling.
-   *
-   * OPTIONAL so a serve too old to send it still decodes; the exact-arm
-   * projection {@link pinned} is what that serve wrote, and
-   * `@olai/format`'s `pluginPinOf` reconstructs the sum from it. A new serve
-   * writes this field and keeps `pinned` as the exact-arm half.
-   */
-  pin: Schema.optionalKey(PluginPin),
+
 })
 export type PluginRoster = typeof PluginRoster.Type
 
@@ -522,16 +522,14 @@ export const watchable = (kinds: ReadonlyArray<string>, file: string): boolean =
  * running kolu on its way to the truth. That is the same argument `GIT_OFF`
  * makes for seeding the git cell with the setting face rather than the fault.
  */
-export const NO_ROSTER: PluginRoster = { built: [], pinned: null }
+export const NO_ROSTER: PluginRoster = { built: [] }
 
 /**
  * TWO ROSTERS THAT SAY THE SAME THING ARE ONE — and this cell needs an `equals`
  * now, where for its whole life it did not.
  *
- * It moved at most once per serve: the flag was read at the composition root
- * and nothing afterwards could change what it said, so a republish was a thing
- * that never happened and an `equals` would have been dead weight with a
- * comment explaining why it was there.
+ * A roster seeded only at boot needed no equality check. Runtime lifecycle
+ * changes and file policy now republish it throughout the serve.
  *
  * That stopped being true in two steps. A plugin is a FIBER, so the roster is
  * republished from the re-compose — every register and every dispose — and the

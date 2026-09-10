@@ -37,19 +37,14 @@ describe("which body the panel draws", () => {
     //
     // `off: null` is `CHAT_OFF`'s own value and is a REAL state rather than a
     // placeholder: it is what a page holds before its first frame, which is
-    // "the server has not said which" and not one of the three ways of being
-    // off.
+    // "the server has not said which" and not one of the two reasons for having no agent.
     expect(drawn(CHAT_OFF)).toEqual({ kind: "no-agent", off: null })
   })
 
   test("...and the REASON rides the face, so the body never has to ask again", () => {
-    // The one field this face was missing, and the defect it left: three causes
-    // arrived as one empty roster, so the panel hedged in prose — including a
-    // guess (a start that skipped the wrapper) that no documented way of
-    // starting olai can produce, while the commonest real cause, a `--plugins`
-    // list naming no engine, went unmentioned. Only the server can tell them
-    // apart, so it sends which and this carries it through untouched.
-    for (const kind of ["switched-off", "no-engine", "none-installed"] as const) {
+    // The server distinguishes an empty registry from unsuccessful probes.
+    // The face preserves that reason instead of guessing from an empty list.
+    for (const kind of ["no-engine", "none-installed"] as const) {
       expect(drawn({ ...CHAT_OFF, off: { kind } })).toEqual({
         kind: "no-agent",
         off: { kind },

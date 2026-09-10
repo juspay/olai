@@ -3,40 +3,19 @@
  * The destination stream controls format and colour at emit time. Both sinks
  * retain tracerLogger so events also reach any configured tracing backend.
  */
-import { Formatter, type Layer, Logger } from "effect"
+import { Context, Formatter, type Layer, Logger } from "effect"
 
 /** Stream shape we need for the TTY check — Node's stdout/stderr, or a stub. */
 export type Stream = { readonly isTTY?: boolean }
 
-/** Latch for the once-per-process invalid-`OLAI_LOG` diagnostic. */
-let warnedInvalidOlaiLog = false
+export type Presentation = "auto" | "logfmt" | "pretty"
+/** A scoped reading: the root supplies a live getter; standalone tools use auto. */
+export class LogPresentation extends Context.Reference<() => Presentation>("olai/log/presentation", {
+  defaultValue: () => () => "auto",
+}) {}
 
-/**
- * Clears the invalid-`OLAI_LOG` latch so a test can assert the one-line-once
- * diagnostic without depending on suite order.
- */
-export const resetInvalidOlaiLogWarning = (): void => {
-  warnedInvalidOlaiLog = false
-}
-
-/**
- * Which face a line gets. `OLAI_LOG=logfmt|pretty` wins; otherwise a TTY is
- * pretty and everything else (pipe, systemd, tests) is logfmt. An unrecognised
- * value is ignored (with one diagnostic) rather than treated as a third face.
- */
-export const formatFor = (stream: Stream): "pretty" | "logfmt" => {
-  const forced = process.env["OLAI_LOG"]
-  if (forced === "pretty" || forced === "logfmt") return forced
-  if (forced !== undefined && forced !== "" && !warnedInvalidOlaiLog) {
-    warnedInvalidOlaiLog = true
-    // One line, once: a typo in the documented knob would otherwise look like
-    // "it works" while silently following the TTY.
-    console.error(
-      `@olai/log: ignoring OLAI_LOG=${JSON.stringify(forced)}; expected "logfmt" or "pretty"`,
-    )
-  }
-  return stream.isTTY === true ? "pretty" : "logfmt"
-}
+export const formatFor = (stream: Stream, format: Presentation = "auto"): "pretty" | "logfmt" =>
+  format === "auto" ? (stream.isTTY === true ? "pretty" : "logfmt") : format
 
 /**
  * Whether pretty output should carry ANSI. Follows the destination stream —
@@ -102,7 +81,7 @@ const adaptive = (
   logfmt: Logger.Logger<unknown, void>,
 ): Logger.Logger<unknown, void> =>
   Logger.make((options) => {
-    ;(formatFor(stream) === "pretty" ? pretty : logfmt).log(options)
+    ;(formatFor(stream, options.fiber.getRef(LogPresentation)()) === "pretty" ? pretty : logfmt).log(options)
   })
 
 /** Logs on stdout — olai web, and the default for anything else. */

@@ -182,8 +182,10 @@ test("vault withdrawal removes content tools and resync, then a new activation r
   })
 })
 
-test("an explicit content selection waits for its vault and acquires tools when it arrives", async () => {
-  await withServing({ root: served(), plugins: ["outlines", "ws", "mcp", "web-app"] }, async (url) => {
+test("selected content rows lose their tools while the vault is stopped and regain them on return", async () => {
+  const root = served()
+  await withServing({ root, plugins: ["outlines", "ws", "mcp", "web-app"] }, async (url) => {
+    await flip(url, "vault", false)
     const listed = await request(url)
     expect((await listed.json()).result.tools.map((tool: { name: string }) => tool.name)).not.toContain("outlines_read")
     expect((await fetch(url + "/olai/resync", { method: "POST" })).status).toBe(404)
@@ -212,7 +214,7 @@ test("an exact MCP selection can override the profile's transports", async () =>
 
 test("an exact MCP CLI selection does not require a browser build in web profile", async () => {
   for (let cycle = 0; cycle < 3; cycle += 1) {
-  const child = startWeb({ root: served(), extra: ["--plugins=vault,mcp"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
+  const child = startWeb({ root: served(), policy: {"only": "vault,mcp"}, extra: [], env: { OLAI_DIST_DIR: "/no-browser-build" } })
   try {
     const url = await child.address()
     expect((await request(url)).status).toBe(200)
@@ -243,7 +245,7 @@ test("an exact asset-only selection serves its build without websocket admission
 })
 
 test("CLI content removal applies over the headless profile without requiring a browser build", async () => {
-  const child = startWeb({ root: served(), extra: ["--profile", "surface", "--without-plugins=outlines"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
+  const child = startWeb({ root: served(), policy: {"without": "outlines"}, extra: ["--profile", "surface"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
   try {
     const url = await child.address()
     const listed = await request(url)
@@ -254,10 +256,11 @@ test("CLI content removal applies over the headless profile without requiring a 
   } finally { expect(await child.stop()).toBe(130) }
 }, 15000)
 
-test("CLI extra and removal flags compose a non-notebook MCP host without a vault", async () => {
-  const child = startWeb({ root: served(), extra: ["--profile", "test-minimal", "--extra-plugins=mcp,test-counter", "--without-plugins=vault"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
+test("a non-notebook MCP host remains available after its vault is stopped", async () => {
+  const child = startWeb({ root: served(), policy: {"only": "mcp,ws,test-counter"}, extra: ["--profile", "surface"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
   try {
     const url = await child.address()
+    await flip(url, "vault", false)
     const listed = await request(url)
     const tools = (await listed.json()).result.tools.map((tool: { name: string }) => tool.name)
     expect(tools).toEqual([])

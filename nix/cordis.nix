@@ -10,7 +10,7 @@
 # 2026-09-02, and the reason `packages/cordis-spike` shipped nothing.
 #
 # WHY FOUR AND NOT TWO. The spike hydrated core and the loader, which is enough
-# to mount a fiber from a row. olai's base bundle is a FILE, and `--plugins` is
+# to mount a fiber from a row. olai's base bundle is a FILE, and the file’s row selection is
 # a `disabled` patch over the rows in it — which is `@cordisjs/plugin-include`'s
 # job, and `-group` is the one builtin (`cordis:group`) a row may name to nest
 # other rows. Both are peers of the core the pin already carries, so hydrating

@@ -9,7 +9,7 @@
  * agent id a closed union. Adding an engine was a core PR in two general
  * packages; bumping THIS adapter's pin was an edit in a file the other two
  * shared. Both are gone: this engine is one directory, one row in `olai.yml`,
- * and one `--plugins` word.
+ * and one the file’s row selection word.
  *
  * ## What is on THIS side of the wall, and what is not
  *
@@ -21,15 +21,12 @@
  * is what makes every bet in this directory a thing with a unit test rather than
  * a branch reachable only by starting a subprocess.
  *
- * ## The variable is READ HERE and MEANS TWO THINGS
+ * ## The executable path belongs to this engine
  *
- * `OLAI_ACP_AGENT` is this row's whole door — the pinned adapter is baked into
- * the packaged binary's wrapper with `--set-default`, and a person who points
- * the variable somewhere else is still saying *read that the way you read Claude
- * Code*, which is what the override has always meant. The EMPTY STRING is not
- * this plugin's to interpret: it is the whole off switch, core's, and it is read
- * before anything is probed (`olai-plugin-chat`'s `agents/roster.ts`). Both readings
- * are argued at the constant, in `@olai/acp/engine`, which is where they meet.
+ * `OLAI_ACP_AGENT` names this row's adapter. The packaged wrapper supplies a
+ * default path, and an explicit path overrides it. An empty path leaves this
+ * engine unavailable; it does not disable chat or other engine rows. File
+ * enablement decides which rows run, independently of executable discovery.
  */
 
 import { adapterFrom, AGENT_ENV } from "@olai/acp/engine"
@@ -83,9 +80,13 @@ export const ENGINE: Registering = {
  * A FAILURE HERE IS NOT A BOOT FAILURE. The fiber lands in `FAILED` having
  * installed nothing, and every other engine — and every tenant — goes on
  * running. A serve that lost this row is a serve whose picker has no Claude in
- * it, which is exactly what `--plugins=opencode,pi` asks for on purpose.
+ * it, which is exactly what a policy selecting only opencode, pi asks for on purpose.
  */
 export default definePlugin({
+  environment: [
+    {"key": "OLAI_ACP_AGENT", "secret": false, "says": "the Claude ACP adapter"},
+    {"key": "ANTHROPIC_API_KEY", "secret": true, "says": "the provider credential read by Claude"},
+  ],
   name,
   needs: [Agents],
   apply: Effect.gen(function*() {

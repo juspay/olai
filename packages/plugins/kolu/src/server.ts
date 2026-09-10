@@ -42,7 +42,7 @@
  *
  * The two vault walks are the sharpest instance of it and they came with the
  * call: {@link ./claimants.ts} reads who OWNS a terminal and {@link ./config.ts}
- * reads what `_olai/Kolu.olai` says, both over outline records, which is a thing
+ * reads what `_olai/Settings.olai` says, both over outline records, which is a thing
  * the package that dials padi must not learn (its interfaces are PARAMETRIC in
  * the node type so a compiler can hold it to that). They were in `@olai/server`
  * under kolu-shaped filenames. They are behind the plugin wall now, and what
@@ -89,7 +89,10 @@ import { type Dial, koluHalf } from "olai-plugin-kolu/appliance"
 import type { KoluEvent } from "olai-plugin-kolu/appliance/wire"
 
 import { claimantsIn } from "./claimants.ts"
-import { koluFileIn, watchConfigIn } from "./config.ts"
+import { watchConfigIn, watchReadingIn } from "./config.ts"
+import { configurationFileIn } from "@olai/plugin-api/configuration"
+import { Config } from "./settings.ts"
+export { Config } from "./settings.ts"
 import {
   bodyFor,
   classify,
@@ -153,8 +156,7 @@ export { wake } from "./wake.ts"
  * THREE PIECES, and each is here for a reason the other two do not share. The
  * NODES are what the claims and the watch knobs are read off. The SET is what
  * the owned file is found among — served paths, not recorded ones, because a
- * config that parses to nothing contributes no records and the drawer's wrench
- * onto it must not fall away with them ({@link ./config.ts}'s `koluFileIn`).
+ * config that parses to nothing still decides the policy ({@link ./config.ts}'s `configurationFileIn`).
  * And `changed`/`removed` are what makes that finding cheap: `conventionServed`
  * hands back the SAME object while nothing it describes has moved, so the walk
  * over every served path runs on the revisions that could have changed its
@@ -216,9 +218,15 @@ type Ctx = SurfaceCtx<typeof surface.spec>
  * that is absent rather than a member that is present and empty.
  */
 export default definePlugin({
+  environment: [
+    {"key": "PADI_SOCKET", "secret": false, "says": "the padi daemon socket"},
+  ],
   name,
   needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
-  apply: Effect.gen(function*() {
+  config: Config,
+  // Our declared Vault subscription follows policy without dropping the fleet.
+  configUpdates: "live",
+  apply: (_settings) => Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against each
     // other by looking at one screen.
@@ -272,7 +280,7 @@ export default definePlugin({
       // the convention below — the same `let`, set on the same revision, and read
       // synchronously inside the very call that set it.
       claimants: (nodes) => claimantsIn(declaring, nodes),
-      config: watchConfigIn,
+      config: () => currentWatch,
       // THE DOORBELL'S TAP, and the THIRD instance of the same boundary: what
       // crosses into this package is the wire's own frozen `KoluEvent`, and what
       // this side does with it — join it against the un-done nodes of a file
@@ -301,14 +309,11 @@ export default definePlugin({
       // lines stand alone. A pair that has to be read in order is one Effect
       // saying both, not two calls.
       say: (line) => run(Effect.logDebug(line)),
-      // What the OWNER must read: a malformed `_olai/Kolu.olai` value — the
-      // sentences whose promise lives in this package's `docs.md`. Rare by latch
-      // (one line per new shape), and the default console level is `info`, so the
-      // channel is `warning`, not `debug`.
+      // Watch failures reach the owner through the shared warning channel.
       warn: (line) => run(Effect.logWarning(line)),
     })
 
-    /** WHICH SERVED OUTLINE IS `_olai/Kolu.olai`, carried across revisions.
+    /** WHICH SERVED OUTLINE IS `_olai/Settings.olai`, carried across revisions.
      *  `conventionServed` hands the same object back while nothing it describes
      *  has moved, so this is a walk over the served paths on the revisions that
      *  could have changed the answer and a pointer comparison on the rest. It is
@@ -321,6 +326,7 @@ export default definePlugin({
      *  pointer read on every revision the declarations file did not move on.
      *  `NO_TYPING` before the first revision is the truth about it: nothing has
      *  been read, so nothing is declared, so nothing claims a terminal. */
+    let currentWatch = watchConfigIn([], null)
     let declaring: PropDeclarations = NO_TYPING
 
     /** ...AND THE REVISION ITSELF, for the doorbell's walk.
@@ -778,7 +784,7 @@ export default definePlugin({
      *
      * The FILE is asked of the SERVED outlines rather than of the records
      * (`served`, not `recorded`): a file the codec tore apart still names itself,
-     * and the foot's wrench over it must not fall away WITH the nodes.
+     * and its policy location must not fall away with the nodes.
      *
      * THE PAYLOAD IS NARROWED HERE, in this plugin's own signature: core rings
      * the whole published snapshot and {@link VaultRevision} names the parts kolu
@@ -794,7 +800,7 @@ export default definePlugin({
      */
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
-        file = conventionServed(koluFileIn, revision.value.set, revision, file)
+        file = conventionServed(configurationFileIn, revision.value.set, revision, file)
         declaring = declarationsOf(revision.value.derived, ownKinds)
         // ...AND THE READING ITSELF, held for the doorbell. It is the same pointer
         // the two walks above are about, kept because the doorbell's walk runs on
@@ -802,6 +808,7 @@ export default definePlugin({
         // between revisions, and the vault it is joined against has to be the last
         // one that landed.
         derived = revision.value.derived
+        currentWatch = watchReadingIn(revision.value)
         half.revision(revision.value.derived.nodes, file.file ?? null)
       })
     )
@@ -809,9 +816,8 @@ export default definePlugin({
     /**
      * THE STORE HAS NEVER PUBLISHED — and this is NOT teardown.
      *
-     * The vault's kolu verdict goes out with the canvas: yesterday's wrench,
-     * aimed at a file this serve can no longer say it read, is a claim the store
-     * cannot vouch for. The watch knobs are NOT touched — their timers hold their
+     * The vault's kolu verdict goes out with the canvas: the store can no
+     * longer vouch for the previous configuration location. The watch knobs are NOT touched — their timers hold their
      * last hand-off while the mirror, equally starved, has nothing new for them
      * to gate.
      *
@@ -834,7 +840,6 @@ export default definePlugin({
     yield* vault.unloaded(Effect.sync(() => {
       derived = undefined
       file = undefined
-      half.unloaded()
     }))
 
     /** RESOLVE KOLU'S MCP COMMAND, asked once per conversation opening — the

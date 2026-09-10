@@ -65,11 +65,12 @@
  */
 
 import * as fs from "node:fs";
+import { createRequire } from "node:module";
 import * as path from "node:path";
 
 import { expect, test } from "bun:test";
 
-import { BUNDLE_NAMES as PLUGIN_NAMES } from "@olai/bundle";
+import { BUNDLE_NAMES as PLUGIN_NAMES, ROWS } from "@olai/bundle";
 
 import { ROOT } from "./support/sweep.ts";
 
@@ -195,3 +196,15 @@ test("every page the index links is a page that is there", () => {
   });
   expect(broken).toEqual([]);
 });
+
+
+test("every environment door declared by a row is named in running.md", async () => {
+  const doc = fs.readFileSync(path.join(ROOT, "docs/running.md"), "utf8")
+  for (const row of ROWS) {
+    if (row.browserOnly) continue
+    const module = await import(createRequire(path.join(ROOT, "packages/bundle/package.json")).resolve(row.name))
+    for (const door of module.default.environment ?? []) {
+      expect(doc, `${row.id}: ${door.key}`).toContain(door.key)
+    }
+  }
+})

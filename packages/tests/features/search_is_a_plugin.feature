@@ -5,7 +5,7 @@ Feature: The matcher is a plugin
   Existing queries follow the scoped provider and resume through a fresh
   client after it returns; basic outline editing remains independent.
 
-  @plugins:vault,chat,claude,git,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  @rows:vault,chat,claude,git,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that did not name search has no box, and its palette says why
     When I open the app
     Then the header has no search box
@@ -32,6 +32,7 @@ Feature: The matcher is a plugin
     # level with the next reading it is handed — which is why the same query
     # finds the same node again and nothing had to be invalidated.
     When I switch the plugin "search" on
+    And I close the plugins panel
     And I search the header for "cabinets"
     Then the header search lists the node "order the new cabinets"
     And there should be no page errors

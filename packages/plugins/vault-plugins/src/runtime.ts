@@ -28,11 +28,10 @@
  * The plan says *a row appended to the live bundle (`loader.update` from phase
  * 8), so it is a fiber like any other, with the same states and the same
  * containment.* Both halves of what that buys are `mountPlugin`'s already: it
- * makes a fiber in the same registry, with the same five states, and a plugin
+ * makes a fiber in the same registry, with the same seven states, and a plugin
  * whose `apply` throws lands `FAILED` having installed nothing, siblings
  * untouched. What a loader ENTRY would add on top is a row in `olai.yml` — a
- * file this phase must not write, by the same ruling that made a flip
- * session-only — and a second identity for a plugin whose identity is a node in
+ * build declaration this runtime never writes — and a second identity for a plugin whose identity is a node in
  * a vault. So the fiber is made directly and the ROW is this module's map.
  *
  * ## THE MODULE IS NEVER RESOLVED AGAINST A DISK
@@ -45,13 +44,14 @@
  */
 
 import { buildHalf, REGISTRY } from "@olai/plugin-build"
-import type { Derived } from "@olai/format"
+import { UsageFailure, type OpFailure, type WriteRequest, type Derived } from "@olai/format"
 import * as plugins from "@olai/plugin-api/services"
 import { type OwnedLoader, type Mounted, type Plugin, type RowReport } from "@olai/plugin-api/services"
 import type { BuiltPlugin } from "@olai/surface"
 import { PLUGIN_CHUNK_PREFIX, type PluginState } from "@olai/surface"
 import * as effect from "effect"
 import { Effect } from "effect"
+import { decodePolicy, policyEdit } from "@olai/plugin-api/configuration"
 
 import { type Defined, definedIn, isApproved } from "./source.ts"
 
@@ -117,6 +117,7 @@ export interface DynamicRuntime {
    *  panel's switch, and the agent's `plugins.stop`. Answers whether there was
    *  such a row. */
   readonly set: (name: string, enabled: boolean) => Effect.Effect<boolean>
+  readonly configure: (name: string, key: string, value: string | null) => Effect.Effect<boolean, OpFailure>
   /** One definition as the vault holds it, for the two agent-facing verbs.
    *  `null` for a word this vault does not define. */
   readonly defined: (name: string) => Defined | null
@@ -154,7 +155,7 @@ interface Live {
  * this version, and not tried again until the version moves.
  */
 type Started =
-  | ({ readonly up: true; readonly version: string } & Live)
+  | ({ readonly up: true; readonly version: string; readonly policy: ReturnType<typeof decodePolicy>; readonly declaration: Plugin["config"]; readonly updates: Plugin["configUpdates"] } & Live)
   | { readonly up: false; readonly version: string; readonly why: string }
 
 /**
@@ -163,15 +164,19 @@ type Started =
  * `built` is every word this build already has, so a definition cannot take one
  * (`./source.ts` argues why that is a fault and not an override).
  */
-export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>): DynamicRuntime => {
+export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, write: (request: WriteRequest) => Effect.Effect<void, OpFailure> = () => Effect.fail(new UsageFailure({ reason: "The directory’s write door is unavailable." }))): DynamicRuntime => {
   /** WHAT CAME OF THE LAST ATTEMPT AT EACH WORD — see {@link Started}. */
   const started = new Map<string, Started>()
+  const optionsKeys = new Map<string, string>()
+  const warnings: string[] = []
+  const warned = new Set<string>()
+  const warn = (line: string) => { if (!warned.has(line)) { warned.add(line); warnings.push(line) } }
   /** Definitions as the last revision left them — what {@link rows} draws and
    *  what {@link again} re-follows. */
   let seen: ReadonlyArray<Defined> = []
-  /** ...and the rows a person switched off here. Per PROCESS, exactly like a
-   *  built row's flip: nothing is written, and a restart comes back to what the
-   *  vault says. */
+  /** Definitions stopped for this process. Unlike a built row's durable `on`
+   * switch, stopping a definition writes nothing. Restart rereads its source
+   * and approval from the vault. */
   const stopped = new Set<string>()
 
   const follow = (defined: ReadonlyArray<Defined>): Effect.Effect<boolean> =>
@@ -198,19 +203,33 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>): Dy
       // version is the source it was made against, so an unchanged broken
       // definition is skipped by the loop below rather than compiled again.
       for (const [name, one] of [...started]) {
-        if (wanted.get(name)?.version === one.version) continue
+        const next = wanted.get(name)
+        if (next?.version === one.version) {
+          if (!one.up && optionsKeys.get(name) === optionsKey(next)) continue
+          if (one.up) {
+            const policy = policyFor(one.declaration, next, warn)
+            if (one.updates === "live" || JSON.stringify(policy.config) === JSON.stringify(one.policy.config)) {
+              started.set(name, { ...one, policy })
+              optionsKeys.set(name, optionsKey(next))
+              continue
+            }
+          }
+        }
         started.delete(name)
+        optionsKeys.delete(name)
         if (!one.up) continue
         yield* one.mounted.dispose
         moved = true
       }
       for (const [name, one] of wanted) {
         if (started.has(name)) continue
-        started.set(name, yield* start(host, one))
+        started.set(name, yield* start(host, one, warn))
+        optionsKeys.set(name, optionsKey(one))
         // EITHER WAY: a word that was not up is now mounted or is now failed
         // with a sentence, and both are rows that say something they did not.
         moved = true
       }
+      for (const line of warnings.splice(0)) yield* Effect.logWarning(line)
       return moved
     })
 
@@ -232,6 +251,16 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>): Dy
         else stopped.add(name)
         return Effect.as(follow(seen), true)
       }),
+    configure: (name, key, value) => Effect.gen(function*() {
+      const one = seen.find(one => one.name === name)
+      if (one === undefined) return false
+      if (key.split(".").some(part => part === "plugin" || part === "approved")) return yield* Effect.fail(new UsageFailure({ reason: `${key} is reserved for the definition's name and approval` }))
+      const mounted = started.get(name)
+      const declaration = mounted?.up === true ? mounted.declaration : undefined
+      const request = yield* Effect.try({ try: () => policyEdit(declaration, one.configuration?.nodes ?? [], one.configuration?.node, one.file, name, key, value), catch: error => error as UsageFailure })
+      if (request !== undefined) yield* write(request)
+      return true
+    }),
     defined: (name) => seen.find((one) => one.name === name) ?? null,
   }
 }
@@ -248,9 +277,17 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>): Dy
  * A comparison rather than a diff, because the answer is one boolean: the caller
  * re-composes or it does not.
  */
-const wordsOf = (defined: ReadonlyArray<Defined>): string =>
+const optionsKey = (one: Defined): string => JSON.stringify(one.configuration?.nodes.map(item => ({
+  id: item.node.id,
+  ...("parent" in item.node ? { parent: item.node.parent } : {}),
+  ...("title" in item.node ? { title: item.node.title } : {}),
+  custom: "custom" in item.node ? Object.fromEntries(Object.entries(item.node.custom ?? {}).filter(([key]) => key !== "approved" && key !== "plugin")) : {},
+})))
+
+/** Metadata fingerprint: field boundaries must survive text containing line breaks. */
+export const wordsOf = (defined: ReadonlyArray<Defined>): string =>
   defined
-    .map((one) => [one.name, one.node, one.file, one.version, one.approved, one.fault].join(" "))
+    .map((one) => [one.name, one.node, one.file, one.version, one.approved, one.fault, optionsKey(one)].join("\0"))
     .join("\n")
 
 /**
@@ -267,7 +304,16 @@ const wordsOf = (defined: ReadonlyArray<Defined>): string =>
  * what a row draws for it is the REPORT rather than anything this function knows.
  * Every arm below is a way the definition never became a fiber at all.
  */
-const start = (host: OwnedLoader, one: Defined): Effect.Effect<Started> =>
+const policyFor = (schema: Plugin["config"], one: Defined, warn: (line: string) => void): ReturnType<typeof decodePolicy> => {
+  if (schema === undefined) return { config: {}, values: [] }
+  if (schema.ast._tag === "Objects") for (const field of schema.ast.propertySignatures) {
+    if (field.name === "plugin" || field.name === "approved") throw new Error(`${String(field.name)} is reserved for the definition's name and approval`)
+  }
+  return decodePolicy(schema, one.configuration?.nodes ?? [], one.configuration?.node,
+    (key, value, reason) => warn(`${one.file}#${one.node}: ${key}: ${JSON.stringify(value)} uses its default — ${reason}`))
+}
+
+const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): Effect.Effect<Started> =>
   Effect.gen(function*() {
     const faulted = (why: string): Started => ({ up: false, version: one.version, why })
     const server = yield* Effect.promise(() => buildHalf("server", one.server))
@@ -290,9 +336,15 @@ const start = (host: OwnedLoader, one: Defined): Effect.Effect<Started> =>
           + `says "${one.name}". The node's \`plugin\` property is the name; make the half agree with it.`,
       )
     }
-    const mounted = yield* host.mount(plugin)
+    let policy: ReturnType<typeof decodePolicy>
+    try { policy = policyFor(plugin.config, one, warn) }
+    catch (error) { return faulted(`Invalid Config declaration: ${String(error)}`) }
+    const mounted = yield* host.mount(plugin, policy.config)
     return {
       up: true,
+      policy,
+      declaration: plugin.config,
+      updates: plugin.configUpdates,
       version: one.version,
       mounted,
       chunk: browser === null ? null : browser.text,
@@ -333,14 +385,9 @@ const loaded = async (text: string): Promise<Plugin | string> => {
 /**
  * ONE DEFINITION AS A ROSTER ROW.
  *
- * The word a row wears is decided here rather than by the fiber, because four of
- * the five ways a dynamic row can be absent are not fiber states at all: a
- * definition nobody approved, a definition with a fault in its shape, one whose
- * source would not compile, and one a person switched off. Only the fifth —
- * a plugin that mounted and then failed, or that is waiting on a door — is the
- * registry's answer, and that one is READ AFRESH, off the same report a bundle
- * row's word comes from ({@link DynamicRuntime.rows} argues why it is handed in
- * rather than remembered from the mount).
+ * Definition metadata decides pending approval, invalid shape, compilation
+ * failure and a session stop. A mounted definition’s running, waiting or failed
+ * state comes from its live registry report, just like a built row.
  */
 const rowOf = (
   one: Defined,
@@ -364,6 +411,7 @@ const rowOf = (
     state,
     ...more,
     source,
+    ...(up === null ? {} : { configurationValues: up.policy.values, configurationNode: { file: one.file, id: one.node } }),
   })
   const said = one.fault ?? (started?.up === false ? started.why : undefined)
   if (said !== undefined) return at("failed", { fault: said })

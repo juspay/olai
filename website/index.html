@@ -322,17 +322,34 @@
   table.plug td:first-child a:hover { color: var(--accent); }
   table.plug td:last-child { color: var(--muted); white-space: nowrap; font-family: var(--mono); font-size: 0.72rem; }
 
-  .plugrow { display: flex; align-items: baseline; gap: 0.7rem; padding: 0.35rem 0; }
-  .plugname { font-family: var(--mono); font-size: 0.78rem; }
-  .seg {
-    margin-left: auto; display: inline-flex; flex: none;
-    border: 1px solid var(--rule); border-radius: 999px;
-    font-family: var(--mono); font-size: 0.62rem; line-height: 1.7;
-  }
-  .seg span { padding: 0 0.55em; color: var(--muted); }
-  .seg .pick { color: var(--paper); background: var(--ink); border-radius: 999px; }
-  .plughint { font-size: 0.75rem; color: var(--muted); padding: 0 0 0.45rem 0; line-height: 1.4; }
-  .plugfoot { font-size: 0.72rem; color: var(--muted); margin-top: 0.7rem; padding-top: 0.65rem; border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); }
+  .plugmock { width: 100%; max-width: 880px; aspect-ratio: 1; margin: 0 auto 2rem; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); font: 12px var(--mono); display: flex; flex-direction: column; overflow: hidden; }
+  .plughead, .plugfoot { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; }
+  .plughead { border-bottom: 1px solid var(--rule); }
+  .plughead a { color: var(--muted); font-size: 11px; }
+  .plugbody { padding: 8px 16px; flex: 1; overflow: auto; }
+  .plugcolumns { columns: 2; column-gap: 24px; }
+  .pluggroup { break-inside: avoid; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+  .pluggroup summary { display: flex; justify-content: space-between; cursor: pointer; font-size: 11px; padding-bottom: 8px; }
+  .pluggroup summary strong { text-transform: uppercase; letter-spacing: .025em; }
+  .plugrow > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pluggroup summary span, .plugkey, .plugfacts { color: var(--muted); }
+  .plugrow { display: grid; grid-template-columns: 80px minmax(0, 1fr) 30px; gap: 8px; padding: 5px 0; align-items: start; }
+  .plugknobs { display: flex; flex-wrap: wrap; gap: 5px 10px; align-items: center; min-width: 0; }
+  .plugknob { display: inline-flex; align-items: center; gap: 5px; }
+  .plugchoice { display: inline-flex; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+  .plugchoice span { padding: 3px 5px; color: var(--muted); }
+  .plugchoice .pick { color: var(--ink); background: color-mix(in srgb, var(--done) 20%, var(--panel)); }
+  .pluginput { white-space: nowrap; overflow: hidden; min-height: 1em; border: 1px solid var(--rule); border-radius: 4px; padding: 3px 5px; background: var(--well); }
+  .plugswitch { display: inline-block; position: relative; width: 30px; height: 17px; border-radius: 10px; background: var(--done); margin-top: 3px; }
+  .plugswitch::after { content: ""; position: absolute; right: 2px; top: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--panel); }
+  .plugsession::before { content: ""; position: absolute; inset: -3px; border: 1px dashed var(--muted); border-radius: 13px; }
+  .plugoff .plugswitch { background: var(--rule); }
+  .plugoff .plugswitch::after { right: auto; left: 2px; }
+  .plugoff .plugknobs { opacity: .42; }
+  .plugsource { color: var(--done); font-size: 9px; }
+  .plugfoot { border-top: 1px solid var(--rule); color: var(--muted); font-size: 10px; flex-wrap: wrap; }
+  .plugring { display: inline-block; width: 12px; height: 8px; border: 1px dashed var(--muted); border-radius: 6px; }
+  @media (max-width: 700px) { .plugmock { aspect-ratio: auto; } .plugcolumns { columns: 1; } }
 
   #agent {
     background: #0A1220; color: #D5E8F5;
@@ -631,31 +648,69 @@
     <a href="https://github.com/cordiverse/cordis">Cordis</a>, a meta-framework
     of spatiotemporal composability. The paper is on
     <a href="https://arxiv.org/abs/2608.25512" title="A Programming Paradigm for Spatiotemporal Composability">arXiv</a>.</p>
-    <div class="cols">
-      <div class="panel" aria-label="The plugins panel, with journal switched off">
-        <div class="file">plugins</div>
-        <div class="plugrow"><span class="plugname">chat</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
-        <div class="plugrow"><span class="plugname">vault</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
-        <div class="plugrow"><span class="plugname">git</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
-        <div class="plugrow"><span class="plugname">journal</span><span class="seg"><span class="pick">Off</span><span>On</span></span></div>
-        <p class="plughint">Switched off here. A restart brings it back.</p>
-        <div class="plugrow"><span class="plugname">search</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
-        <div class="plugrow"><span class="plugname">xyne-spaces</span><span class="seg"><span class="pick">Off</span><span>On</span></span></div>
-        <p class="plughint">Off by default — --plugins=xyne-spaces starts it at boot.</p>
-        <p class="plugfoot">A flip lasts until this process ends.</p>
-      </div>
-      <div>
+    <div class="plugmock" aria-label="The plugins panel, with inline preference controls">
+      <div class="plughead"><strong>⧉ plugins</strong><a href="https://github.com/juspay/olai/blob/master/docs/running.md#settings-declarations">_olai/Settings.olai ↗</a></div>
+      <div class="plugbody"><div class="plugcolumns">
+<details class="pluggroup" open><summary><strong>Conversation</strong><span>5 on</span></summary>
+<div class="plugrow"><span>chat</span><span class="plugknobs"><span class="plugknob"><span class="plugkey">idle</span><span class="pluginput">900000</span></span><span class="plugkey">ms</span></span><span class="plugswitch" aria-label="Enable chat"></span></div>
+<div class="plugrow"><span>claude</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable claude"></span></div>
+<div class="plugrow"><span>codex</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable codex"></span></div>
+<div class="plugrow"><span>opencode</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable opencode"></span></div>
+<div class="plugrow"><span>pi</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable pi"></span></div>
+</details>
+<details class="pluggroup" open><summary><strong>Vault</strong><span>7 on</span></summary>
+<div class="plugrow"><span>vault</span><span class="plugknobs"><span class="plugknob"><span class="plugkey">format</span><span class="plugchoice"><span class="pick">olai</span></span></span></span><span class="plugswitch plugsession" aria-label="Enable vault" title="session-only"></span></div>
+<div class="plugrow"><span>settings</span><span class="plugknobs"></span><span class="plugswitch plugsession" aria-label="Enable settings" title="session-only"></span></div>
+<div class="plugrow"><span>git</span><span class="plugknobs"><span class="plugknob"><span class="plugkey">commit</span><span class="plugchoice"><span>off</span><span class="pick">manual</span><span>auto</span></span></span><span class="plugknob"><span class="plugkey">push</span><span class="plugchoice"><span class="pick">off</span><span>auto</span></span></span></span><span class="plugswitch" aria-label="Enable git"></span></div>
+<div class="plugrow"><span>search</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable search"></span></div>
+<div class="plugrow"><span>identity</span><span class="plugknobs"><span class="plugknob"><span class="plugkey">login</span><span class="pluginput" style="width:22ch">Tailscale-User-Login</span></span><span class="plugknob"><span class="plugkey">email</span><span class="pluginput" style="width:22ch"></span></span><span class="plugknob"><span class="plugkey">name</span><span class="pluginput" style="width:22ch">Tailscale-User-Name</span></span><span class="plugknob"><span class="plugkey">picture</span><span class="pluginput" style="width:22ch">Tailscale-User-Profile-Pic</span></span><span class="plugknob"><span class="plugkey">avatar</span><span class="pluginput" style="width:22ch"></span></span></span><span class="plugswitch" aria-label="Enable identity"></span></div>
+<div class="plugrow"><span>journal</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable journal"></span></div>
+<div class="plugrow"><span>vault-plugins</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable vault-plugins"></span></div>
+</details>
+<details class="pluggroup" open><summary><strong>Appliances</strong><span>2 on · 1 off</span></summary>
+<div class="plugrow"><span>kolu</span><span class="plugknobs"><span class="plugknob"><span class="plugkey">held</span><span class="pluginput">1m</span></span><span class="plugknob"><span class="plugkey">nag</span><span class="pluginput">10m</span></span><span class="plugknob"><span class="plugkey">heartbeat</span><span class="pluginput">1m</span></span></span><span class="plugswitch" aria-label="Enable kolu"></span></div>
+<div class="plugrow"><span>odu</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable odu"></span></div>
+<div class="plugrow plugoff"><span>xyne-spaces</span><span class="plugknobs"><span class="plugknob"><span class="plugkey">reply</span><span class="pluginput">500</span></span><span class="plugfacts">url env · unset</span><span class="plugfacts">token env · unset</span></span><span class="plugswitch" aria-label="Enable xyne-spaces"></span></div>
+</details>
+<details class="pluggroup"><summary><strong>Transports</strong><span>3 on</span></summary>
+<div class="plugrow"><span>ws</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable ws"></span></div>
+<div class="plugrow"><span>mcp</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable mcp"></span></div>
+<div class="plugrow"><span>web-app</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable web-app"></span></div>
+</details>
+<details class="pluggroup"><summary><strong>This tab</strong><span>7 on</span></summary>
+<div class="plugrow"><span>ui-renderer</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable ui-renderer"></span></div>
+<div class="plugrow"><span>layout</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable layout"></span></div>
+<div class="plugrow"><span>sidebar</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable sidebar"></span></div>
+<div class="plugrow"><span>preferences</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable preferences"></span></div>
+<div class="plugrow"><span>theme</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable theme"></span></div>
+<div class="plugrow"><span>plugin-inspector</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable plugin-inspector"></span></div>
+<div class="plugrow"><span>navigation</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable navigation"></span></div>
+</details>
+<details class="pluggroup"><summary><strong>Pages</strong><span>6 on</span></summary>
+<div class="plugrow"><span>outlines</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable outlines"></span></div>
+<div class="plugrow"><span>markdown</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable markdown"></span></div>
+<div class="plugrow"><span>files</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable files"></span></div>
+<div class="plugrow"><span>pins</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable pins"></span></div>
+<div class="plugrow"><span>capture</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable capture"></span></div>
+<div class="plugrow"><span>trash</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable trash"></span></div>
+</details>
+<details class="pluggroup"><summary><strong>Fixtures</strong><span>2 off</span></summary>
+<div class="plugrow plugoff"><span>test-layout</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable test-layout"></span></div>
+<div class="plugrow plugoff"><span>test-counter</span><span class="plugknobs"></span><span class="plugswitch" aria-label="Enable test-counter"></span></div>
+</details>
+<details class="pluggroup" open><summary><strong>This serve</strong><span>127.0.0.1:4444</span></summary><div class="plugrow"><span>log</span><span class="plugknobs"><span class="plugknob"><span class="plugkey"></span><span class="plugchoice"><span>debug</span><span class="pick">info</span><span>warn</span><span>error</span></span></span><span class="plugknob"><span class="plugkey"></span><span class="plugchoice"><span class="pick">auto</span><span>logfmt</span><span>pretty</span></span></span></span></div><span class="plugfacts">hostname laptop ·process &nbsp; host 127.0.0.1 ·process &nbsp; port 4444 ·process &nbsp; origins none &nbsp; bearer set</span></details>
+      </div></div><div class="plugfoot"><span><span class="plugsource">●</span> set in Settings.olai · <span class="plugring"></span> session-only</span><span>memory · $XDG_STATE_HOME/olai</span></div>
+    </div>
+    <div>
         <p>An agent can write one into your vault. You read the source on the
         panel and approve it. The worked example is a morning agenda: each
         morning it reads the day and puts it into the conversation.
         <a href="https://github.com/juspay/olai/blob/master/docs/dynamic-plugins.md#a-worked-example-the-morning-agenda">Read the morning agenda</a>.</p>
-        <p>A serve starts with the default set. Add a row with
-        <code>--extra-plugins</code>, drop one with
-        <code>--without-plugins</code>, or name the exact set with
-        <code>--plugins</code>. The Nix module has the same three. The rest is
-        in the
+        <p>The vault carries your settings. A top-level node in
+        <code>_olai/Settings.olai</code> names each tool; its properties choose
+        how it behaves and whether it runs. The panel writes the same file.
+        See the
         <a href="https://github.com/juspay/olai/blob/master/docs/running.md">running docs</a>.</p>
-      </div>
     </div>
     <div class="tablewrap">
       <table class="plug">

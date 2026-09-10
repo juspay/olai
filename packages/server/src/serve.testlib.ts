@@ -1,3 +1,4 @@
+import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
 /**
  * What it takes to stand a real server up in a test, spelled once.
  *
@@ -29,11 +30,12 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { serve } from "./serve.ts"
-// Twin of startWeb's OLAI_ACP_AGENT: "". None of these in-process boots
-// is about the chat panel, and a real `opencode` on PATH would spawn one
-// per serve() — the load that blows a listen wait. Empty is the documented
-// off switch, so nothing else is probed either.
+// These in-process boots do not exercise external chat engines. Clear explicit
+// executable paths and the discovery search path to keep each serve isolated.
 process.env.OLAI_ACP_AGENT = ""
+process.env.OLAI_ACP_CODEX = ""
+process.env.OLAI_ACP_PI = ""
+process.env.OLAI_AGENT_PATH = ""
 
 /** The platform a real server needs: the CLI's own services (stdio, terminal,
  *  file system) and the static layer's (the file-response platform and ETags)
@@ -77,30 +79,25 @@ export const withServe = async <A>(
   options: {
     readonly profile?: import("./profiles.ts").Profile
     readonly root: string
-    /** How writes reach git. `off` unless a test is ABOUT committing — a temp
-     *  directory is not a repository, and the tests that do not care should not
-     *  spawn git to find that out. */
+    /** How writes reach git. Absent uses the schema’s manual default. */
     readonly commits?: "off" | "manual" | "auto"
     /** The browser bundle to serve. Unset is a stand-in directory that exists,
      *  which is all a boot test asks of a bundle it is never going to fetch a
      *  page out of. Pass a real (or assembled) dist when the test is about
      *  what the static layer actually answers. */
     readonly clientDist?: string
-    /** WHAT THE SERVE CAN SEE — the identity row's `OLAI_IDENTITY_*` family
-     *  is what a test in this package sets through it, since who is looking
-     *  is a row's reading now and core holds none of its vocabulary. Unset is
-     *  `process.env`, which is Tailscale's own header names with no avatar
-     *  template: a test that is not about identity should not have to name
-     *  one. */
+    /** Secrets and machine resources for this test's serve. Behaviour knobs
+     * belong in `policy`, which authors the fixture before boot. */
     readonly vars?: Record<string, string | undefined>
-    /** WHICH rows this serve composes — `--plugins` as a person types it.
-     *  Unset is nobody having said, which is the built-in default and what
-     *  every harness here wants: these stand up the whole product. A test
-     *  that names a narrower list is a test ABOUT a row's absence. */
+    readonly policy?: FixturePolicy
+    /** Fixture row selection, authored as file policy before boot. Default
+     * reader rows stay enabled unless policy.without explicitly excludes them.
+     * Unset uses the profile and build defaults. */
     readonly plugins?: ReadonlyArray<string>
   },
   body: (said: ReadonlyArray<Logged>) => Promise<A>,
 ): Promise<A> => {
+  writeFixturePolicy(options.root, { commit: options.commits, only: options.plugins, ...options.policy })
   const { layer, said } = collector()
   return Effect.gen(function*() {
     yield* serve({
@@ -113,15 +110,7 @@ export const withServe = async <A>(
       clientDist: options.clientDist ?? served(),
       allowedOrigins: [],
       ...(options.vars === undefined ? {} : { vars: options.vars }),
-      pin: { commit: options.commits ?? "off", push: null },
-      // The built-in default, which is what omitting `--plugins` means and what a
-      // real serve does — these harnesses stand up the whole product, and a
-      // composition narrower than the one a person gets would be a suite proving
-      // something nobody runs. A test that is about what a MISSING row leaves
-      // behind says so, and gets the list it named.
-      pluginPin: options.plugins === undefined
-        ? { kind: "omitted" }
-        : { kind: "exact", names: options.plugins },
+
     })
     return yield* Effect.promise(() => body(said))
   }).pipe(
@@ -155,6 +144,7 @@ export const withServing = <A>(
     readonly commits?: "off" | "manual" | "auto"
     readonly clientDist?: string
     readonly vars?: Record<string, string | undefined>
+    readonly policy?: FixturePolicy
     readonly plugins?: ReadonlyArray<string>
   },
   body: (url: string, said: ReadonlyArray<Logged>) => Promise<A>,

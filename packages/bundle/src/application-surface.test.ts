@@ -363,20 +363,10 @@ test("the plugin roster is keyed by the one word core knows about a plugin", () 
  * which are on. An empty roster draws no rows at all, which is also exactly
  * what a runtime composing no plugins publishes.
  */
-test("a page that has heard nothing has no plugin rows and no flag to name", () => {
+test("a page that has heard nothing has no plugin rows", () => {
   expect(core.spec.cells.plugins.default).toEqual(NO_ROSTER)
-  expect(NO_ROSTER.built).toEqual([])
-  // `null` is nobody having said, which is NOT the empty list: `--plugins=` is
-  // somebody saying none out loud, and the row's line says two different things.
-  expect(NO_ROSTER.pinned).toBeNull()
+  expect(NO_ROSTER).toEqual({ built: [] })
   expect(Schema.is(PluginRoster)(NO_ROSTER)).toBe(true)
-  expect(Schema.is(PluginRoster)({ built: [], pinned: [] })).toBe(true)
-  // A serve too old to send `pin` still decodes; a new one writes the sum.
-  expect(Schema.is(PluginRoster)({
-    built: [],
-    pinned: null,
-    pin: { kind: "delta", extra: ["xyne-spaces"], without: null },
-  })).toBe(true)
 })
 
 /**
@@ -384,8 +374,8 @@ test("a page that has heard nothing has no plugin rows and no flag to name", () 
  * word, and the collision is core's own now rather than one this package made.
  *
  * This case used to say there was no verb at all: *a plugin's enablement is
- * CLI/nix only — no settings file, no browser toggle — so there is no verb for a
- * tab to call, the way there is none for `--commit`.* The loader surface gave it
+ * a read-only startup selection — so there is no verb for a
+ * tab to call, the way there is none for the `git.commit` property.* The loader surface gave it
  * one, and the shape it gave it is the interesting half. The cell keeps `get`
  * alone, because a `set` on it would mean "make the roster say this", which is a
  * browser telling a serve what its own fibers are doing; the PROCEDURE is an act
@@ -467,4 +457,16 @@ test("the walk can tell a keyed list from a positional one and from a mixed one"
   expect(keyings(Optional, "key").get("rows")).toBe("positional")
   expect(keyings(Nullable, "key").get("rows")).toBe("positional")
   expect(keyings(Mixed, "key").get("rows")).toBe("mixed")
+})
+
+// Unknown fields from older serves must not tear down the roster subscription.
+test("older rosters with retired pin fields still decode", () => {
+  const older = { built: [{ name: "old-row", running: true }], pin: { kind: "only", names: ["old-row"] }, pinned: true }
+  expect(Schema.decodeUnknownSync(PluginRoster)(older)).toEqual({ built: [{ name: "old-row", running: true }] })
+})
+
+test("a serve instance without hostname provenance remains decodable", () => {
+  const older = { built: [], instance: { hostname: "old-host", host: "127.0.0.1", port: 3000,
+    hostAuthor: "default", portAuthor: "default", policy: [], origins: [], bearer: { set: true } } }
+  expect(Schema.decodeUnknownSync(PluginRoster)(older).instance?.hostnameAuthor).toBeUndefined()
 })

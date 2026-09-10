@@ -4,7 +4,7 @@
  * ## THE ROW NAMES THE SERVED DIRECTORY, and may be without one
  *
  * The protocol server, its route, its carrier and its ticket mint stand up on a
- * serve with no vault at all — a failed directory, `--plugins=mcp,ws,web-app`,
+ * serve with no vault at all — a failed directory, a policy selecting only mcp, ws, web-app,
  * the vault switched off at the panel — where the endpoint keeps serving and
  * the domain tools refuse in the vault's own words.
  *

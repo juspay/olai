@@ -1,3 +1,4 @@
+import { selectFixtureRows } from "@olai/bundle/testlib"
 import { VaultBoot } from "olai-plugin-vault/boot"
 import { CONTENT_ROWS, runtimeFor } from "../capabilities.testlib.ts"
 /**
@@ -97,7 +98,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
   Effect.gen(function*() {
     const root = served()
     const plugins = yield* openPlugins({ vars: {}, now: () => "" })
-    yield* mountBundle(plugins.host, { kind: "exact", names: ["vault", ...CONTENT_ROWS] })
+    yield* mountBundle(plugins.host, selectFixtureRows(["vault", ...CONTENT_ROWS]))
     yield* provide(plugins.host, VaultBoot, () => ({root, runtime: runtimePaths}))
     yield* settled(plugins.host, ["vault", ...CONTENT_ROWS])
     const store = offered(plugins.host, Directory)!.store as Store

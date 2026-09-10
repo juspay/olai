@@ -33,7 +33,7 @@ import type { Reading, Verdict } from "@olai/format"
 import type * as StoreModule from "@olai/store"
 import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt, writerOf } from "../git/fixtures.testlib.ts"
 import * as Ops from "@olai/ops"
-import { COMMIT_TOOL, fixedPolicy, make as makeLedger, whyOf } from "./pending.ts"
+import { COMMIT_TOOL, make as makeLedger, whyOf } from "./pending.ts"
 
 type OutlineStore = StoreModule.Store<Reading, Verdict>
 
@@ -154,10 +154,10 @@ const withRepo = <A>(
       watch: false,
       settle: "10 millis",
     })
-    const policy = fixedPolicy({
+    const policy = {
       commit: options.commits ?? "manual",
-      push: options.pushes ?? null,
-    })
+      push: options.pushes ?? "off",
+    } as const
     const ledger = makeLedger({
       at: Effect.map(store.read("cheap"), (s) => s.snapshot?.value ?? null),
       root: served,
@@ -273,7 +273,7 @@ describe("manual is the default", () => {
         )
         // Nothing committed itself, and the op says what it is waiting for
         // rather than leaving a reader to infer it.
-        expect(applied.why).toContain("--commit=manual")
+        expect(applied.why).toContain("commit: manual")
         expect(subjects(fixture)).toEqual(["fixtures"])
 
         const pending = yield* fixture.ops.pending
@@ -1022,7 +1022,7 @@ describe("the agent's door", () => {
 })
 
 /**
- * `--commit=auto` — the QUIET WINDOW, which is what that flag now is.
+ * `commit: auto` — the QUIET WINDOW, which is what that mode does.
  *
  * It used to be one commit per write, made inside the write gate. These are the
  * scenarios that replace it: nothing commits a write on its own any more, and
@@ -1033,7 +1033,7 @@ describe("the agent's door", () => {
  * would be fifteen seconds long. `observe` is the server's publisher, called by
  * hand: the loop is armed by the arrival of a survey and by nothing else.
  */
-describe("--commit=auto: the quiet window", () => {
+describe("commit: auto: the quiet window", () => {
   test("a write does not commit itself, and says what it is waiting for", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
@@ -1044,7 +1044,7 @@ describe("--commit=auto: the quiet window", () => {
         // before `run` returned.
         expect(subjects(fixture)).toEqual(["fixtures"])
         // ... and it says what it IS waiting for, which is not a button.
-        expect(applied.why).toContain("--commit=auto")
+        expect(applied.why).toContain("commit: auto")
         expect(applied.why).not.toContain("Commit button")
         expect((yield* fixture.ops.pending).wrote).toEqual([
           { writer: "chat-agent", ops: 1 },
@@ -1194,7 +1194,7 @@ describe("--commit=auto: the quiet window", () => {
 })
 
 /**
- * `--push=auto` — what a SETTLED commit does next.
+ * `push: auto` — what a SETTLED commit does next.
  *
  * The flag used to govern the browsers and nothing else: the only trigger was
  * inside one tab's own `git.commit` callback, so a commit an agent made, or one
@@ -1202,7 +1202,7 @@ describe("--commit=auto: the quiet window", () => {
  * nothing anywhere saying why. It is the server's now, and it follows every
  * commit olai makes by whichever door.
  */
-describe("--push=auto", () => {
+describe("push: auto", () => {
   test("a commit the AGENT asked for is pushed", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
@@ -1289,7 +1289,7 @@ describe("--push=auto", () => {
       }), { commits: "auto", pushes: "auto", quiet: 40 }))
 })
 
-describe("--commit=off", () => {
+describe("commit: off", () => {
   test("has nothing to say at all", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
@@ -1463,7 +1463,7 @@ test("what a waiting write says names the door that caller actually has", () => 
   // it is waiting for is the directory going quiet.
   const window = whyOf("auto", ready, null, "mcp")
   expect(window).toStartWith("waiting to be committed")
-  expect(window).toContain("--commit=auto")
+  expect(window).toContain("commit: auto")
   expect(window).not.toContain(COMMIT_TOOL)
   expect(window).not.toContain("Commit button")
 })
@@ -1531,7 +1531,7 @@ test("a manual write on a healthy repository still just says it is waiting", () 
  * and the chip would go back to `✓ committed · N unpushed` with the reason
  * nowhere, which is the whole of `push-failure-invisible` restored.
  *
- * So the words are RE-EARNED. One push at boot, under `--push=auto` and no
+ * So the words are RE-EARNED. One push at boot, under `push: auto` and no
  * other mode, and whatever git says lands on the cell.
  */
 describe("the one push a boot owes", () => {
@@ -1557,7 +1557,7 @@ describe("the one push a boot owes", () => {
     fixture.git("commit", "--quiet", "-m", "olai: earlier")
   }
 
-  test("a boot under --push=auto re-earns the words, on the FIRST reading", () =>
+  test("a boot under push: auto re-earns the words, on the FIRST reading", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         diverge(fixture.remote())
@@ -1582,7 +1582,7 @@ describe("the one push a boot owes", () => {
         expect(fixture.settlements()).toBeGreaterThan(0)
       }), { commits: "manual", pushes: "auto" }))
 
-  test("a boot under --push=off attempts nothing at all", () =>
+  test("a boot under push: off attempts nothing at all", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         diverge(fixture.remote())
@@ -1623,7 +1623,7 @@ describe("the one push a boot owes", () => {
  * The Push BUTTON lets it through to git on purpose: a person who pressed it is
  * owed git's own words about the remote they have not set. A boot nobody asked
  * for is owed nothing of the kind — and if it let the same refusal through, the
- * loop of every `--commit=auto --push=auto` directory whose branch has never
+ * loop of every `commit: auto push: auto` directory whose branch has never
  * been pushed would stop at every start, over a thing that is not wrong.
  */
 test("a boot says nothing about a branch that has no upstream at all", () =>
@@ -1658,3 +1658,9 @@ test("the Push button still hands over git's refusal about a missing upstream", 
       expect(sent._tag).toBe("Failed")
       if (sent._tag === "Failed") expect(sent.said).not.toBe("")
     }), { commits: "manual", pushes: "off" }))
+
+
+test("the git reading carries the decoded policy, including push defaults", () =>
+  withRepo({ "house.olai": HOUSE }, fixture => Effect.gen(function*() {
+    const { git } = yield* fixture.ops.status
+  })))

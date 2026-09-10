@@ -51,6 +51,7 @@ export {
   openHost,
   closeHost,
   hostChanges,
+  serviceChanges,
   provide,
   type RowReport,
   type RowState,

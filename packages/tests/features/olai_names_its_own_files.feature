@@ -125,12 +125,12 @@ Feature: The files olai names for itself, and the doors onto them
     # a row on the next publish — no preference, no rescan, no restart of
     # anything. And the wrench in the padi drawer can land on it because of
     # exactly this.
-    When I rewrite "_olai/Kolu.olai" as:
+    When I rewrite "_olai/Settings.olai" as:
       """
       {"id":"watch","ord":"a0","title":"watch"}
       """
-    Then the vault group links to "_olai/Kolu.olai"
-    But the outline list does not link to "_olai/Kolu.olai"
+    Then the vault group links to "_olai/Settings.olai"
+    But the outline list does not link to "_olai/Settings.olai"
     And there should be no page errors
 
   # ── the inbox mints under _olai/, and gets a door ────────────────────

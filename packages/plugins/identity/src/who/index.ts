@@ -15,8 +15,8 @@
  * drawn, and it must read those from the code rather than re-typing them
  * (`packages/tests/step_definitions/identity_steps.ts`); a door onto the
  * row's `apply` would drag the plugin runtime into a cucumber process for
- * two constants. Nothing in here is an Effect, imports the plugin API's
- * runtime or touches `process.env`.
+ * two constants. This door decodes configuration synchronously; it neither imports the
+ * plugin API's runtime nor touches `process.env`.
  *
  * WHAT CROSSES THE DOOR, and no more — five names, each with a caller.
  * The environment variable names, the placeholder a template spells the
@@ -36,7 +36,7 @@
 /** THE OPERATOR'S WIRING, and the reading over it — the two the row's own
  *  `../server.ts` needs to stand behind the `Identity` door, plus the
  *  allowlist the upgrade takes. */
-export { identityConfig, type IdentityConfig } from "./config.ts"
+export { type IdentityConfig } from "./config.ts"
 export { headerNamesOf } from "./identity.ts"
 export { whoOf } from "./reading.ts"
 /** ...and the two a SUITE pins rather than re-types: the header a Given

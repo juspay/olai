@@ -923,7 +923,7 @@ export const PLUGIN_CONFIRM_KEEP = selector(TESTID.pluginConfirmKeep);
 /** ...and what the serve would not take, when a press is refused. */
 export const PLUGINS_REFUSED = selector(TESTID.pluginsRefused);
 /** A row's config, as data under it. `data-config` is the key. */
-export const PLUGIN_CONFIG = selector(TESTID.pluginConfig);
+export const PLUGIN_CONFIG = `:is(${selector(TESTID.pluginConfig)}, ${selector(TESTID.pluginKnob)})`;
 /** THE SOURCE OF A PLUGIN THE VAULT DEFINES, drawn under the rows — the two
  *  halves as somebody wrote them, which is the thing a person is being asked to
  *  read. `data-plugin` is the word and `data-version` is the hash it is
@@ -1832,31 +1832,19 @@ export class OlaiWorld extends World {
   hasPi = false;
   /** The Codex roster row, using the scripted ACP transport. */
   hasCodex = false;
-  /** Which git situation this scenario's server was started into (`@git:…`),
-   *  or `undefined` for the `--no-commit` every other scenario runs with.
-   *  Carried for the same reason as the three above: a restart mid-scenario has
-   *  to reproduce the first boot, and this one decides both the argv and what
-   *  the served directory IS. */
+  /** Repository condition, reproduced when the scenario restarts its server. */
   gitMode?: GitMode;
-  /** The git POLICY this scenario's server was started with (`@pin:commit=…`,
-   *  `@pin:push=…`) — an empty object for the ordinary server, which pins
-   *  nothing and leaves both preference rows to the browser. Carried for the
-   *  same reason as `gitMode`: a restart has to reproduce the first boot, and
-   *  this decides what every browser's preferences panel is allowed to do. */
-  gitPin: { commit?: string; push?: string } = {};
-  /** WHICH INTEGRATIONS this scenario's server composed — the `--plugins` value
-   *  a `@plugins:` tag asked for, `""` for none, and `undefined` for the flag
-   *  nobody gave (every integration this build has). Held for `gitPin`'s reason:
-   *  a restart has to reproduce the first boot, and a server that came back
-   *  running a different set is a different server. */
-  pluginPin: string | undefined = undefined;
-  extraPluginPin: string | undefined = undefined;
-  withoutPluginPin: string | undefined = undefined;
+  /** Policy authored before boot. Absent leaves keep schema defaults. */
+  gitPolicy: { commit?: string; push?: string } = {};
+  /** Requested fixture selection; undefined preserves build defaults. */
+  selectedRows: string | undefined = undefined;
+  rowsOn: string | undefined = undefined;
+  rowsOff: string | undefined = undefined;
 
   /** The avatar URL template this scenario's server was started with
    *  (`@avatar-template`), or `undefined` for the ordinary server, which has
    *  none and pictures people from the rungs below it. Carried for the same
-   *  reason as `gitPin`: a restart has to reproduce the first boot, and a
+   *  reason as `gitPolicy`: a restart has to reproduce the first boot, and a
    *  server that came back without its template would picture the open page's
    *  person differently — a different server rather than the same one
    *  restarted. */

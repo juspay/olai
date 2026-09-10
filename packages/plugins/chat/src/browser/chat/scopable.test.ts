@@ -51,7 +51,7 @@ const SERVED: ReadonlyArray<string> = [
   "_olai/Trash.olai",
   "_olai/Pins.olai",
   "_olai/Properties.olai",
-  "_olai/Kolu.olai",
+  "_olai/Settings.olai",
   "_olai/Inbox.olai",
   "Archive.olai",
   "old/Archive.olai",

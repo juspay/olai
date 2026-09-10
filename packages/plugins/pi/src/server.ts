@@ -43,11 +43,8 @@ export { name } from "./index.ts"
  * WHICH EXECUTABLE SPEAKS ACP FOR PI — the pi-acp adapter, pinned and baked into
  * the packaged binary's wrapper beside the Claude Code one.
  *
- * ONE VARIABLE PER ADAPTER rather than a pair syntax on `OLAI_ACP_AGENT`, and it
- * is THIS PLUGIN'S rather than core's: `OLAI_ACP_AGENT` is core's because its
- * empty value is the whole off switch, and this one has no such second meaning —
- * it is one engine's door onto one pin, and it belongs in that engine's
- * directory the way that engine's patches do.
+ * One executable resource per adapter. Enablement is separate: the pi node's
+ * on property decides whether this row runs, like the other engine rows.
  */
 export const PI_AGENT_ENV = "OLAI_ACP_PI"
 
@@ -78,6 +75,9 @@ export const ENGINE: Registering = {
 }
 
 export default definePlugin({
+  environment: [
+    {"key": "OLAI_ACP_PI", "secret": false, "says": "the Pi ACP adapter"},
+  ],
   name,
   needs: [Agents],
   apply: Effect.gen(function*() {

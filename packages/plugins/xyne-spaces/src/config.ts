@@ -21,6 +21,8 @@
  * whose session may change: a seated node without a session is named intent
  * and posts nothing, while a conversation no eligible node claims is ignored.
  */
+import { Effect, Schema } from "effect"
+
 import { customText, isRegular, type Derived, type NodeAgent } from "@olai/format"
 import { serviceTag } from "@olai/plugin-api/services"
 
@@ -36,6 +38,14 @@ export const CHANNEL_PROP = "xyne-channel"
 
 /** Default orchestrator-reply cap, the human's ruling. */
 export const DEFAULT_TRIM = 500
+
+export const Config = Schema.Struct({
+  "reply-limit": Schema.Union([Schema.Int, Schema.NumberFromString.check(Schema.isInt())]).check(Schema.isGreaterThanOrEqualTo(1)).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(DEFAULT_TRIM)),
+    Schema.annotate({ description: "maximum reply characters mirrored to a channel" }),
+  ),
+})
+
 
 export interface ChannelBind {
   readonly node: string
@@ -62,7 +72,7 @@ export interface SpacesReading {
  * channel is a second custom key on the same node. First claim wins where two
  * nodes name one session, the same rule as chat's own `agentAt`.
  */
-export const spacesConfigIn = (derived: Derived, seated: Seats): SpacesReading => {
+export const spacesConfigIn = (derived: Derived, seated: Seats, trim = DEFAULT_TRIM): SpacesReading => {
   const channelOf = new Map<string, string>()
   for (const located of derived.nodes) {
     if (!isRegular(located)) continue
@@ -92,7 +102,7 @@ export const spacesConfigIn = (derived: Derived, seated: Seats): SpacesReading =
     })
   }
 
-  return { binds, named, trim: DEFAULT_TRIM }
+  return { binds, named, trim }
 }
 
 /** The bind for this conversation, or nothing — a chat no node agent

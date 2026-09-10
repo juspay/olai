@@ -23,7 +23,7 @@ export function Plugins(props: {
       title="plugins: which integrations this server is running, and why"
       // Keep this door open when its switch removes a plugin provider.
       held={props.state.door}
-      panel={(at, inside) => <Panel at={at} inside={inside} state={props.state} management={props.management} />}
+      panel={(_at, inside) => <Panel inside={inside} state={props.state} management={props.management} />}
     />
   )
 }

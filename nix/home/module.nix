@@ -5,40 +5,7 @@
 let
   cfg = config.services.olai;
 
-  # `--commit=X` / `--push=X` only where a value was actually chosen. `null` is
-  # the default on both, and it is not the same as passing the mode olai would
-  # have defaulted to: giving the flag is a patch onto the git row's config,
-  # and saying nothing applies the built-in default. A module that helpfully
-  # passed `--commit=manual` because that is the default would claim a flag
-  # nobody typed.
-  gitArgs = lib.optionals (cfg.commit != null) [ "--commit" cfg.commit ]
-    ++ lib.optionals (cfg.push != null) [ "--push" cfg.push ];
-
-  # ...and the plugin flags, on exactly the same terms. `null` is nobody having
-  # said, which is not the same as saying NONE: an omitted flag applies the
-  # built-in default and an empty list passes `--plugins ""`, which is somebody
-  # saying none out loud. The preferences panel reads the two differently — one
-  # names the flag under the row, the other names the default — so a module that
-  # helpfully expanded `null` into a list would claim a flag nobody typed,
-  # exactly as `gitArgs` above refuses to. extraPlugins and withoutPlugins are
-  # the same three-way, rendered only when set.
-  #
-  # A COMMA LIST because that is what the flag takes; `concatStringsSep` and not a
-  # repeated flag, since the CLI reads one value.
-  pluginArgs = lib.optionals (cfg.plugins != null)
-    [ "--plugins" (lib.concatStringsSep "," cfg.plugins) ]
-  ++ lib.optionals (cfg.extraPlugins != null)
-    [ "--extra-plugins" (lib.concatStringsSep "," cfg.extraPlugins) ]
-  ++ lib.optionals (cfg.withoutPlugins != null)
-    [ "--without-plugins" (lib.concatStringsSep "," cfg.withoutPlugins) ];
-
-  pluginOverlap =
-    if cfg.extraPlugins == null || cfg.withoutPlugins == null then [ ]
-    else lib.intersectLists cfg.extraPlugins cfg.withoutPlugins;
-
-  # Pure argv for both supervisors. The package bakes OLAI_DIST_DIR (the
-  # browser bundle); host/port/dataDir, the git policy and the plugin list are
-  # the only service knobs.
+  # Process location and listener only; policy belongs to the served file.
   webArgs = [
     (lib.getExe cfg.package)
     "web"
@@ -47,7 +14,7 @@ let
     (toString cfg.port)
     "--host"
     cfg.host
-  ] ++ gitArgs ++ pluginArgs;
+  ];
 in
 {
   options.services.olai = {
@@ -73,126 +40,6 @@ in
       type = lib.types.str;
       default = "127.0.0.1";
       description = "Address to listen on. olai has no auth; keep this loopback (or behind Tailscale).";
-    };
-
-    commit = lib.mkOption {
-      type = lib.types.nullOr (lib.types.enum [ "off" "manual" "auto" ]);
-      default = null;
-      example = "auto";
-      description = ''
-        When olai git-commits writes, as this instance's POLICY.
-
-        Committing is a fact about the DIRECTORY, so the server holds it and
-        every browser draws the same answer, always read-only. null (the
-        default) passes no flag: the built-in default applies (`manual` — a
-        write waits for the Commit button or the agent's commit tool).
-
-        Setting it is a patch onto the git row's config, drawn under that row
-        on the plugins panel. Never hidden and never overridable from a
-        browser. There is no runtime door.
-
-        manual — a write lands on disk and waits for the Commit button or the
-        agent's commit tool. auto — everything waiting records itself once
-        writes stop arriving for fifteen seconds, whoever made them, and with
-        no browser open at all. off — olai never touches git in this directory
-        (the same as --no-commit).
-      '';
-    };
-
-    push = lib.mkOption {
-      type = lib.types.nullOr (lib.types.enum [ "off" "auto" ]);
-      default = null;
-      example = "off";
-      description = ''
-        Whether a settled commit is pushed to the branch's upstream, as this
-        instance's policy — null (the default) applies the built-in default
-        (`off`), and a value is a patch onto the git row's config, exactly as
-        `commit` above is. Drawn under that row on the plugins panel.
-
-        auto follows EVERY commit olai makes in this directory: the Commit
-        button's, an agent's commit tool's, and the quiet window's own. So
-        commit = "auto" beside push = "auto" records and shares a directory
-        nobody has a tab open on.
-
-        Two values and not three: a branch that is not pushed on its own is
-        pushed by the Push button, so there is no third thing to be.
-      '';
-    };
-
-    plugins = lib.mkOption {
-      # A LIST OF STRINGS and deliberately not an enum: which plugins a build
-      # has is the BINARY's fact, and a nix option that enumerated them would be
-      # a second copy of the registry — one this file would have to be edited to
-      # keep in step, in a repo whose whole thesis is that no general place
-      # spells a plugin's name. The binary is the authority and it refuses an
-      # unknown name ONCE, loudly, with the legal words beside it
-      # (`olai web --plugins nope` names what this build actually has). A wrong
-      # value here is a service that fails to start with that sentence in its
-      # journal, which is the right place for it.
-      type = lib.types.nullOr (lib.types.listOf lib.types.str);
-      default = null;
-      example = lib.literalExpression ''[ "vault" "odu" ]'';
-      description = ''
-        Which of the built-in integrations this instance runs, as this
-        instance's POLICY — the same shape `commit` and `push` above have, and
-        for the same reason: it is a fact about the SERVE, so the server holds
-        it and every browser draws the same answer, always read-only. There is
-        no settings file and no browser toggle.
-
-        null (the default) passes no flag and applies the built-in default.
-        That is NOT the same as listing every plugin this build has: a plugin
-        may be opt-in, and the binary is the authority for which. An omitted
-        flag draws "the built-in default" under the preferences row, where a
-        given one names the flag.
-
-        The empty list is somebody saying NONE out loud, and it is a real,
-        supported state — a box with no CI tooling and no agent terminals runs
-        a whole olai with no plugin composed at all: no sibling on the wire, no
-        probe, no chrome pill, and every property that would have worn a live
-        face drawing as the text it always was.
-
-        The exact set must name `vault` to serve files. extraPlugins and
-        withoutPlugins never touch it: they only move the rows they name, so
-        the vault stays unless you list it there. `[ "odu" ]` is a control
-        plane with no directory.
-
-        THE ACP ENGINES ARE ROWS TOO (`claude`, `codex`, `opencode`, `pi`), and
-        all four are on by default — so a list that names none of them is an
-        instance whose chat panel has no agent. The flag doing what it says
-        rather than a trap, but worth knowing before you write
-        `[ "vault" "odu" ]` and wonder where the agent went: the panel draws
-        and names that cause rather than guessing at one. Name the engines you
-        want beside the appliances.
-
-        Run `olai web --help` for the names this build has.
-
-        Cannot be set beside extraPlugins or withoutPlugins: the exact set
-        already says everything.
-      '';
-    };
-
-    extraPlugins = lib.mkOption {
-      type = lib.types.nullOr (lib.types.listOf lib.types.str);
-      default = null;
-      example = lib.literalExpression ''[ "xyne-spaces" ]'';
-      description = ''
-        Rows to turn on in addition to the built-in default (`--extra-plugins`).
-        Nothing else moves. null (the default) passes no flag.
-
-        Cannot be set beside plugins: the exact set already says everything.
-      '';
-    };
-
-    withoutPlugins = lib.mkOption {
-      type = lib.types.nullOr (lib.types.listOf lib.types.str);
-      default = null;
-      example = lib.literalExpression ''[ "journal" ]'';
-      description = ''
-        Rows to turn off from the built-in default (`--without-plugins`).
-        Nothing else moves. null (the default) passes no flag.
-
-        Cannot be set beside plugins: the exact set already says everything.
-      '';
     };
 
     environmentFile = lib.mkOption {
@@ -229,21 +76,6 @@ in
       '';
     };
 
-    logLevel = lib.mkOption {
-      type = lib.types.nullOr (lib.types.enum [ "debug" "info" "warn" "error" ]);
-      default = null;
-      example = "debug";
-      description = ''
-        Minimum log level for this instance (`OLAI_LOG_LEVEL`).
-
-        null (the default) sets nothing: the process stays at info, which is
-        what olai itself defaults to — lifecycle lines on, agent stderr off.
-
-        debug turns on the rest, including everything the chat agent writes to
-        its stderr (JSON-RPC errors live there). This is an instance fact, like
-        `--commit`, not a per-browser preference; see docs/running.md.
-      '';
-    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -255,16 +87,6 @@ in
       {
         assertion = cfg.environmentFile == null || pkgs.stdenv.hostPlatform.isLinux;
         message = "services.olai.environmentFile is systemd-only; launchd has no equivalent.";
-      }
-      {
-        assertion = cfg.plugins == null || (cfg.extraPlugins == null && cfg.withoutPlugins == null);
-        message = "services.olai.plugins already names the exact set, so extraPlugins and withoutPlugins have nothing left to say.";
-      }
-      {
-        assertion = pluginOverlap == [ ];
-        message = "services.olai: ${lib.concatStringsSep ", " pluginOverlap} ${
-          if builtins.length pluginOverlap == 1 then "is" else "are"
-        } named in both extraPlugins and withoutPlugins.";
       }
     ];
 
@@ -296,8 +118,7 @@ in
           Restart = "always";
           RestartSec = "1s";
           SuccessExitStatus = 130;
-        } // lib.optionalAttrs (cfg.logLevel != null) {
-          Environment = [ "OLAI_LOG_LEVEL=${cfg.logLevel}" ];
+
         } // lib.optionalAttrs (cfg.environmentFile != null) {
           EnvironmentFile = cfg.environmentFile;
         };
@@ -326,8 +147,7 @@ in
           # launchd otherwise drops the process's output.
           StandardOutPath = "${config.home.homeDirectory}/Library/Logs/olai.out.log";
           StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/olai.err.log";
-        } // lib.optionalAttrs (cfg.logLevel != null) {
-          EnvironmentVariables = { OLAI_LOG_LEVEL = cfg.logLevel; };
+
         };
       };
     };

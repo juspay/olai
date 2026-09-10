@@ -20,10 +20,21 @@
  * sentence, which is the whole reason the pieces exist.
  */
 
+import { mountBundle, provide, settled } from "@olai/bundle/bundle"
+import { openPlugins } from "@olai/plugin-api/services"
+import { VaultBoot } from "olai-plugin-vault/boot"
+import { hostname } from "./hostname.ts"
+import { followConfiguration } from "./configuration.ts"
+import { runtimePaths } from "./runtime-paths.ts"
 import { BUILD_ASSETS } from "@olai/bundle/assets"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test as bunTest } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Stream, Option } from "effect"
+import { createSurfaceSocket } from "@kolu/surface-app/connect"
+import { SURFACE_WS_PATH } from "@kolu/surface-app"
+import { surface } from "@olai/surface"
+import type { PluginRoster } from "@olai/surface/host"
+import { WebSocket as WsClient } from "ws"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -45,9 +56,12 @@ const PIN = "serve-test-box"
 process.env.OLAI_HOSTNAME = PIN
 const MANIFEST = manifestOf(PIN)
 // Twin of startWeb: this file's `run()` does not go through withServe,
-// so it has to say the off switch itself. A PATH `opencode` would otherwise
-// spawn on every in-process boot, which is not what a listen test is about.
+// so it clears explicit engine paths and discovery independently. Listen tests
+// must not spawn an external engine found on the developer’s machine.
 process.env.OLAI_ACP_AGENT = ""
+process.env.OLAI_ACP_CODEX = ""
+process.env.OLAI_ACP_PI = ""
+process.env.OLAI_AGENT_PATH = ""
 
 /** Hang detector around a real listen. Longer than {@link BOOT_TIMEOUT} so a
  *  slow boot fails on the serving line (or bun would steal it at 5s and say
@@ -92,14 +106,6 @@ const run = (
       host: options.host ?? "127.0.0.1",
       clientDist: served(),
       allowedOrigins: [],
-      // These start and stop a real server against a temp directory; committing
-      // to whatever repository happens to contain it is not theirs to do.
-      pin: { commit: "off", push: null },
-      // The built-in default, which is what omitting `--plugins` means and what a
-      // real serve does — these harnesses stand up the whole product, and a
-      // composition narrower than the one a person gets would be a suite proving
-      // something nobody runs.
-      pluginPin: { kind: "omitted" },
     })
   }).pipe(
     Effect.scoped,
@@ -426,5 +432,331 @@ test("a vault file under assets/ opens as a page — the hashed prefix moved", a
     expect(answer.headers.get("content-type") ?? "").toMatch(/^text\/html/)
     expect(await answer.text()).toBe(await shell.text())
     expect(answer.headers.get("cache-control")).toBe("no-store")
+  })
+})
+
+
+/** Drive the real root, reader and loader through the same wire as the panel.
+ * A fresh socket per request also proves the reconciled identity offer is what
+ * a later connection reads; no test-only loader or provider is substituted. */
+const configurationCall = async <A>(url: string, verb: string, input: unknown): Promise<A> => {
+  const socket = await createSurfaceSocket({ group: surface.group,
+    url: `${url.replace("http://", "ws://")}${SURFACE_WS_PATH}`, retired: () => {},
+    connect: target => new WsClient(target) as unknown as WebSocket })
+  try { return await Effect.runPromise(verb.endsWith("/get")
+    ? Effect.map(Stream.runHead(socket.link.dispatch.stream(verb, input) as Stream.Stream<A>), Option.getOrThrow)
+    : socket.link.dispatch.unary(verb, input) as Effect.Effect<A>) }
+  finally { await socket.dispose() }
+}
+const configurationRoster = (url: string) => configurationCall<PluginRoster>(url, "surface/plugins/get", {})
+const eventually = async (check: () => Promise<boolean>) => {
+  const deadline = Date.now() + 5000
+  do { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 20)) } while (Date.now() < deadline)
+  throw new Error("the configuration did not settle")
+}
+
+test("the settings offer withdraws with its row, applied patches stand, and returning vault re-patches", async () => {
+  const root = served()
+  fs.mkdirSync(path.join(root, "_olai"))
+  const file = path.join(root, "_olai/Settings.olai")
+  const write = (mode: string) => fs.writeFileSync(file, JSON.stringify({ id: "git-policy", ord: "a0", title: "git", custom: { commit: mode } }) + "\n")
+  write("manual")
+  await withServing({ root }, async url => {
+    const row = async () => (await configurationRoster(url)).built.find(one => one.name === "git")!
+    await eventually(async () => (await row()).config?.commit === "manual")
+    expect((await row()).configurationValues?.find(one => one.key === "commit")).toMatchObject({ value: "manual", setBy: "vault" })
+    const flip = (name: string, enabled: boolean) => configurationCall(url, "surface/plugins/set", { name, enabled })
+    await flip("settings", false)
+    await eventually(async () => (await configurationRoster(url)).configurationAvailable === false)
+    write("auto")
+    // The stopped reader cannot acknowledge an external edit. Wait for the
+    // ordinary content reading before restarting it, so its first revision
+    // no longer contains its own previous on:no.
+    await eventually(async () => {
+      const answer = await fetch(`${url}/mcp`, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "outlines_read", arguments: { id: "git-policy" } } }) })
+      return JSON.stringify(await answer.json()).includes("auto")
+    })
+    expect((await row()).config?.commit).toBe("manual")
+    await flip("settings", true)
+    await eventually(async () => (await row()).config?.commit === "auto")
+    await flip("vault", false)
+    await eventually(async () => (await configurationRoster(url)).configurationAvailable === false)
+    expect((await row()).config?.commit).toBe("auto")
+    write("manual")
+    await flip("vault", true)
+    await eventually(async () => (await configurationRoster(url)).configurationAvailable === true && (await row()).config?.commit === "manual")
+  })
+})
+
+test("a settings edit reconciles a live row and malformed leaves default once", async () => {
+  const root = served()
+  fs.mkdirSync(path.join(root, "_olai"))
+  const file = path.join(root, "_olai/Settings.olai")
+  const write = (header: string) => fs.writeFileSync(file, JSON.stringify({ id: "person-policy", ord: "a0", title: "identity", custom: { "login-header": header } }) + "\n")
+  write("Remote-User")
+  await withServing({ root, vars: { OLAI_ACP_AGENT: "" } }, async url => {
+    const who = () => fetch(`${url}/olai/who`, { headers: { "Remote-User": "first", "Another-User": "second" } }).then(one => one.json())
+    expect(await who()).toMatchObject({ login: "first" })
+    write("Another-User")
+    await eventually(async () => (await who()).login === "second")
+    fs.writeFileSync(file, '{torn line\n')
+    await eventually(async () => (await configurationRoster(url)).configurationError?.includes("Settings.olai") === true)
+    const row = (await configurationRoster(url)).built.find(one => one.name === "identity")!
+    expect(row.configurationValues?.find(one => one.key === "login-header")?.setBy).toBe("default")
+  })
+})
+
+test("the unticketed agent face refuses enablement both ways and accepts behaviour knobs", async () => {
+  const root = served()
+  fs.mkdirSync(path.join(root, "_olai"))
+  const file = path.join(root, "_olai/Settings.olai")
+  fs.writeFileSync(file, '{"id":"policy","ord":"a0","title":"git","custom":{"on":"yes","commit":"off"}}\n')
+  await withServing({ root }, async url => {
+    const prop = async (key: string, value: string | null) => {
+      const answer = await fetch(`${url}/mcp`, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "outlines_prop", arguments: { id: "policy", key, value } } }) })
+      return (await answer.json()).result
+    }
+    for (const value of ["no", null]) {
+      const answer = await prop("on", value)
+      expect(answer.isError).toBe(true)
+      expect(JSON.stringify(answer)).toContain("person's decision")
+    }
+    fs.writeFileSync(file, '{"id":"policy","ord":"a0","title":"git","custom":{"on":"no","commit":"off"}}\n')
+    await eventually(async () => (await configurationRoster(url)).built.find(one => one.name === "git")?.desiredOn === false)
+    expect((await prop("on", "yes")).isError).toBe(true)
+    expect((await prop("commit", "manual")).isError).not.toBe(true)
+  })
+})
+
+
+test("a kolu watch edit preserves its activation, while on still unloads and remounts it", async () => {
+  const root = served()
+  fs.mkdirSync(path.join(root, "_olai"))
+  const file = path.join(root, "_olai/Settings.olai")
+  const write = (held: string, on = "yes") => fs.writeFileSync(file, [
+    { id: "appliance", ord: "a0", title: "kolu", custom: { on } },
+    { id: "watch", ord: "a0", parent: "appliance", title: "watch", custom: { "held-for": held } },
+  ].map(one => JSON.stringify(one)).join("\n") + "\n")
+  write("30s")
+  await Effect.gen(function*() {
+    const plugins = yield* openPlugins({ vars: { OLAI_ACP_AGENT: "" }, now: () => new Date().toISOString() })
+    yield* mountBundle(plugins.host)
+    yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
+    yield* settled(plugins.host, ["vault", "settings", "kolu"])
+    let publications = 0
+    const policy = yield* followConfiguration(plugins.host, () => { publications++ }, () => [])
+    yield* Effect.addFinalizer(() => policy.close)
+    yield* policy.ready
+    const registration = () => plugins.composed().find(one => one.name === "kolu")
+    const first = registration()
+    expect(first).toBeDefined()
+    const firstGit = plugins.composed().find(one => one.name === "git")
+    expect(firstGit).toBeDefined()
+    yield* policy.configure("git", "commit", "auto")
+    expect(plugins.composed().find(one => one.name === "git")).not.toBe(firstGit)
+    yield* policy.configure("kolu", "watch.held-for", "90s")
+    expect(policy.current()?.rows.get("kolu")?.values.find(one => one.key === "watch.held-for")?.value).toBe("90s")
+    expect(registration()).toBe(first)
+    yield* Effect.promise(async () => {
+      const before = publications
+      write("45s")
+      await eventually(async () => publications > before && policy.current()?.rows.get("kolu")?.values
+        .some(one => one.key === "watch.held-for" && one.value === "45s") === true)
+      // This sibling is registered in the actual row's scope. A config restart
+      // withdraws it and registers a new object even if the final state is on.
+      expect(registration()).toBe(first)
+      write("45s", "no")
+      await eventually(async () => registration() === undefined)
+      write("45s", "yes")
+      await eventually(async () => registration() !== undefined)
+      expect(registration()).not.toBe(first)
+    })
+  }).pipe(Effect.scoped, Effect.provide(SERVER_LAYERS), Effect.runPromise)
+})
+
+test("panel presses create namespaces, preserve siblings, serialize and survive restart", async () => {
+  const root = served()
+  const file = path.join(root, "_olai/Settings.olai")
+  await withServing({ root }, async url => {
+    const flip = (name: string, enabled: boolean) => configurationCall(url, "surface/plugins/set", { name, enabled })
+    await Promise.all([flip("journal", false), flip("git", false)])
+    const read = () => fs.readFileSync(file, "utf8").trim().split("\n").map(line => JSON.parse(line))
+    expect(read().filter(node => node.title === "journal")).toHaveLength(1)
+    expect(read().find(node => node.title === "journal").custom.on).toBe("no")
+    expect(read().find(node => node.title === "git").custom.on).toBe("no")
+    const before = fs.readFileSync(file, "utf8")
+    await flip("journal", false)
+    expect(fs.readFileSync(file, "utf8")).toBe(before)
+    const nodes = read()
+    nodes.find(node => node.title === "git").custom.commit = "manual"
+    fs.writeFileSync(file, nodes.map(node => JSON.stringify(node)).join("\n") + "\n")
+    await eventually(async () => (await configurationRoster(url)).built.find(row => row.name === "git")?.configurationValues?.some(one => one.key === "commit" && one.setBy === "vault") === true)
+    await flip("git", true)
+    expect(read().find(node => node.title === "git").custom).toMatchObject({ on: "yes", commit: "manual" })
+    expect((await configurationRoster(url)).built.find(row => row.name === "git")?.running).toBe(true)
+  })
+  await withServing({ root }, async url => {
+    expect((await configurationRoster(url)).built.find(row => row.name === "journal")?.desiredOn).toBe(false)
+  })
+})
+
+test("the content provider switch is session-only and a broken file is never overwritten", async () => {
+  const root = served()
+  const file = path.join(root, "_olai/Settings.olai")
+  await withServing({ root }, async url => {
+    const flip = (name: string, enabled: boolean) => configurationCall(url, "surface/plugins/set", { name, enabled })
+    expect((await configurationRoster(url)).built.find(row => row.name === "vault")?.switchPersistence).toBe("session")
+    await flip("vault", false)
+    expect(() => fs.readFileSync(file, "utf8")).toThrow(expect.objectContaining({ code: "ENOENT" }))
+    expect((await configurationRoster(url)).built.every(row => row.switchPersistence === "session")).toBe(true)
+    await flip("journal", false)
+    expect(() => fs.readFileSync(file, "utf8")).toThrow(expect.objectContaining({ code: "ENOENT" }))
+    await flip("vault", true)
+    expect((await configurationRoster(url)).built.find(row => row.name === "settings")?.switchPersistence).toBe("session")
+    await flip("settings", false)
+    expect(() => fs.readFileSync(file, "utf8")).toThrow(expect.objectContaining({ code: "ENOENT" }))
+    await flip("settings", true)
+    expect(() => fs.readFileSync(file, "utf8")).toThrow(expect.objectContaining({ code: "ENOENT" }))
+    expect((await configurationRoster(url)).built.find(row => row.name === "journal")?.switchPersistence).toBe("file")
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, "{broken\n", { flag: "wx" })
+    await eventually(async () => (await configurationRoster(url)).configurationError !== undefined)
+    await expect(flip("journal", true)).rejects.toThrow("Repair")
+    expect(fs.readFileSync(file, "utf8")).toBe("{broken\n")
+  })
+})
+
+test("the roster publishes declared env readings without secrets, including disabled rows", async () => {
+  await withServing({ root: served(), vars: { OLAI_SPACES_TOKEN: "private-fixture-token", OLAI_SPACES_URL: "https://example.invalid" } }, async url => {
+    const roster = await configurationRoster(url)
+    expect(JSON.stringify(roster)).not.toContain("private-fixture-token")
+    expect(roster.instance?.bearer).toEqual({ set: true })
+    expect(roster.instance?.hostname).toBe(hostname())
+    const row = roster.built.find(row => row.name === "xyne-spaces")!
+    expect(row.environment).toContainEqual({ key: "OLAI_SPACES_TOKEN", kind: "secret", set: true, says: "the credential for Spaces" })
+    expect(row.environment?.find(one => one.key === "OLAI_SPACES_URL")).toMatchObject({ value: "https://example.invalid", kind: "resource" })
+  })
+})
+
+test("file policy readings agree with activation across edits and deletion", async () => {
+  const root = served()
+  await withServing({ root, commits: "auto" }, async url => {
+    const row = async () => (await configurationRoster(url)).built.find(one => one.name === "git")!
+    const value = async () => (await row()).configurationValues?.find(one => one.key === "commit")
+    expect(await value()).toMatchObject({ value: "auto", setBy: "vault" })
+    const file = path.join(root, "_olai/Settings.olai")
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, '{"id":"startup-policy","ord":"a0","title":"git","custom":{"commit":"off"}}\n')
+    await eventually(async () => (await value())?.value === "off" && (await value())?.setBy === "vault")
+    fs.writeFileSync(file, '{"id":"startup-policy","ord":"a0","title":"git"}\n')
+    await eventually(async () => (await value())?.value === "manual" && (await value())?.setBy === "default")
+    fs.unlinkSync(file)
+    await eventually(async () => (await value())?.value === "manual" && (await value())?.setBy === "default")
+    expect((await row()).config?.commit).toBe("manual")
+  })
+})
+
+
+test("an explicitly authored schema default remains file-authored", async () => {
+  await withServing({ root: served(), commits: "manual" }, async url => {
+    const row = (await configurationRoster(url)).built.find(one => one.name === "git")!
+    expect(row.configurationValues?.find(one => one.key === "commit"))
+      .toMatchObject({ value: "manual", setBy: "vault" })
+  })
+})
+
+
+test("a row disabled in the first file reading never registers before policy is ready", async () => {
+  const root = served()
+  fs.mkdirSync(path.join(root, "_olai"))
+  fs.writeFileSync(path.join(root, "_olai/Settings.olai"), '{"id":"appliance","ord":"a0","title":"kolu","custom":{"on":"no"}}\n')
+  await Effect.gen(function*() {
+    let registered = false
+    let rows: () => ReadonlyArray<{ name: string }> = () => []
+    const plugins = yield* openPlugins({ vars: {}, now: () => new Date().toISOString(),
+      changed: () => { registered ||= rows().some(one => one.name === "kolu") } })
+    rows = plugins.composed
+    yield* mountBundle(plugins.host, [], "web", true)
+    yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
+    yield* settled(plugins.host, ["vault", "settings"])
+    const policy = yield* followConfiguration(plugins.host, () => {}, () => [])
+    yield* Effect.addFinalizer(() => policy.close)
+    yield* policy.ready
+    expect(policy.current()?.rows.get("kolu")?.on).toBe(false)
+    expect(rows().some(one => one.name === "kolu")).toBe(false)
+    expect(registered).toBe(false)
+  }).pipe(Effect.scoped, Effect.provide(SERVER_LAYERS), Effect.runPromise)
+})
+
+
+test("hostname provenance distinguishes an OS default from an environment override on the wire", async () => {
+  const before = process.env.OLAI_HOSTNAME
+  try {
+    delete process.env.OLAI_HOSTNAME
+    await withServing({ root: served() }, async url => {
+      expect((await configurationRoster(url)).instance).toMatchObject({ hostname: hostname(), hostnameAuthor: "process" })
+    })
+    process.env.OLAI_HOSTNAME = "explicit-machine"
+    await withServing({ root: served() }, async url => {
+      expect((await configurationRoster(url)).instance).toMatchObject({ hostname: "explicit-machine", hostnameAuthor: "env" })
+    })
+  } finally {
+    if (before === undefined) delete process.env.OLAI_HOSTNAME
+    else process.env.OLAI_HOSTNAME = before
+  }
+})
+
+test("file enablement cannot lock either reader out; session switches survive publications and reopen", async () => {
+  const root = served()
+  const file = path.join(root, "_olai/Settings.olai")
+  fs.mkdirSync(path.dirname(file))
+  const write = (on: string) => fs.writeFileSync(file, ["vault", "settings"].map((title, n) =>
+    JSON.stringify({ id: `reader-${n}`, ord: `a${n}`, title, custom: { on } })).join("\n") + "\n")
+  write("no")
+  await withServing({ root }, async (url, said) => {
+    const row = async (name: string) => (await configurationRoster(url)).built.find(row => row.name === name)!
+    const flip = (name: string, enabled: boolean) => configurationCall(url, "surface/plugins/set", { name, enabled })
+    for (const name of ["vault", "settings"]) {
+      expect(await row(name)).toMatchObject({ running: true, switchPersistence: "session" })
+      expect((await row(name)).desiredOn).toBeUndefined()
+      await flip(name, false)
+      await eventually(async () => !(await row(name)).running)
+      await flip(name, true)
+      await eventually(async () => (await row(name)).running && (await configurationRoster(url)).configurationAvailable === true)
+    }
+    write("yes")
+    await fetch(url + "/olai/resync", { method: "POST" })
+    write("no")
+    await fetch(url + "/olai/resync", { method: "POST" })
+    for (const name of ["vault", "settings"]) {
+      expect((await row(name)).running).toBe(true)
+      const warnings = said.filter(line => String(line.message).includes(`${name}.on is ignored`))
+      expect(warnings.length).toBe(1)
+      expect(String(warnings[0]?.message)).toContain("_olai/Settings.olai")
+    }
+    expect(fs.readFileSync(file, "utf8")).toContain('"on":"no"')
+  })
+})
+
+
+test("configure writes the file, refuses invalid values without touching it, and Use default removes the key", async () => {
+  const root = served()
+  await withServing({ root }, async url => {
+    const configure = (name: string, key: string, value: string | null) => configurationCall(url, "surface/plugins/configure", { name, key, value })
+    await configure("git", "commit", "auto")
+    const file = path.join(root, "_olai/Settings.olai")
+    const before = fs.readFileSync(file, "utf8")
+    await expect(configure("git", "commit", "occasionally")).rejects.toThrow("manual")
+    expect(fs.readFileSync(file, "utf8")).toBe(before)
+    await configure("git", "commit", null)
+    const node = fs.readFileSync(file, "utf8").trim().split("\n").map(line => JSON.parse(line)).find(one => one.title === "git")
+    expect(node.custom ?? {}).not.toHaveProperty("commit")
+    expect((await configurationRoster(url)).built.find(one => one.name === "git")?.configurationValues?.find(one => one.key === "commit")).toMatchObject({ value: "manual", setBy: "default" })
+    expect((await configurationRoster(url)).instance).not.toHaveProperty("configurationNode")
+    await configure("olai", "log-level", "warn")
+    expect((await configurationRoster(url)).instance?.policy.find(one => one.key === "log-level")).toMatchObject({ value: "warn", setBy: "vault" })
+    expect((await configurationRoster(url)).instance?.configurationNode?.file).toBe("_olai/Settings.olai")
   })
 })

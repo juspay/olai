@@ -265,7 +265,7 @@ export const markOf = (face: Face, git: GitState): Mark | null =>
  */
 export const DETAIL: Readonly<Record<Face, string>> = {
   unknown: "waiting to hear from the server",
-  off: "commits are off for this server (`--commit=off`), so nothing here is recorded",
+  off: "commits are off for this server (`commit: off`), so nothing here is recorded",
   "no-repo":
     "this directory is not a git work tree, so writes land on disk but are not committed anywhere",
   // True of both ways this state is reached — a git that could not be asked
@@ -437,7 +437,7 @@ export const AUTO_STOPPED =
  * a shorter version of the rule is a promise the loop does not keep. It was
  * made out of a shorter version — the policy and the repository's readiness,
  * without the term that says something is WAITING — so on a clean tree under
- * `--commit=auto` the committed pill printed {@link AUTO_ARMED} over an empty
+ * `commit: auto` the committed pill printed {@link AUTO_ARMED} over an empty
  * list, while the server's own answer was `""` precisely because there was
  * nothing to record.
  */

@@ -2451,7 +2451,7 @@ const declaredWrong = (
   const claimed = new Set(declarationsExcept(scope.typed.declarations, node.id).keys())
   // THE BUILT VOCABULARY reaches this through the scope's own typing, which
   // is where a plan and the validator read one value: a `type` naming a kind
-  // this binary knows is accepted here whether or not `--plugins` is running
+  // this binary knows is accepted here whether or not the file’s row selection is running
   // its plugin, and `type: banana` is refused naming every legal word
   // (`@olai/format`'s `KindVocabulary`).
   const wrong = wrongDeclaration(

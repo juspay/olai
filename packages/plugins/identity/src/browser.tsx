@@ -25,7 +25,7 @@ import type {} from "olai-plugin-layout/slots"
  * Nothing. This module is evaluated only when the roster names `identity`:
  * its chunk is fetched then and not before, its fiber is mounted then, and
  * the registration below unwinds by itself if the roster stops naming it —
- * so `--plugins` without it is a bar whose last seat is empty, beside a
+ * so the file’s row selection without it is a bar whose last seat is empty, beside a
  * server on which every request is nobody. The two halves say the same
  * thing, which is what makes the absence readable rather than a chip stuck
  * on `asking`.

@@ -1,6 +1,6 @@
 {
   "name": "olai-plugin-opencode",
-  "//name": "UNSCOPED, like every other tenant: `@olai/*` is the scope for the packages that ARE olai, and an ENGINE is somebody else's agent with olai's judgement about it on top \u2014 the closest thing in this tree to a plugin written outside it. The directory is the plugin word (`opencode`), which is the row's `id`, the word `--plugins` takes, and the address of its docs page.",
+  "//name": "UNSCOPED, like every other tenant: `@olai/*` is the scope for the packages that ARE olai, and an ENGINE is somebody else's agent with olai's judgement about it on top \u2014 the closest thing in this tree to a plugin written outside it. The directory is the plugin word (`opencode`), which is the row's `id`, the settings namespace, and the address of its docs page.",
   "version": "0.1.0",
   "private": true,
   "type": "module",

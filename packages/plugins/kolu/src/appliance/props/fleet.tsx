@@ -60,7 +60,7 @@
  * judgement ABOUT kolu, and it has a package of its own now:
  * `olai-plugin-kolu`. It walks the vault for who OWNS a terminal
  * (`claimants.ts` — outline records, injected into the dial rather than known
- * by it) and for what `_olai/Kolu.olai` says (`config.ts`); it decides what an
+ * by it) and for what `_olai/Settings.olai` says (`config.ts`); it decides what an
  * absent kolu MEANS, in five English sentences, over the probe it reaches
  * through `@olai/kolu-client/detect` (`probe.ts`, which was `olai-plugin-chat`'s
  * until the plugin wall went up); and it owns the padi pill and the feed its
@@ -80,14 +80,13 @@ import { Effect, Result, type Stream } from "effect"
 import type {
   FleetTerminal,
   KoluEvent,
-  KoluKnobs,
   KoluLink,
   Snapshot,
   TerminalFrame,
   WatchPulse,
 } from "olai-plugin-kolu/appliance/wire"
 import { after, type Held, seeded } from "./held.ts"
-import { KOLU_UNDIALED, NO_KNOBS, SnapshotRefused } from "olai-plugin-kolu/appliance/wire"
+import { KOLU_UNDIALED, SnapshotRefused } from "olai-plugin-kolu/appliance/wire"
 
 /** Take a snapshot of one terminal. The answer is the text or the refusal —
  *  never a throw, because both are things the pane draws. */
@@ -111,11 +110,6 @@ export interface Fleet {
    *  surface's `pulse` cell, mounted at
    *  `packages/plugins/kolu/src/wire.ts`). */
   readonly pulse: Accessor<WatchPulse | null | undefined>
-  /** THE DRAWER'S FOOT — WHICH FILE decides the watch (the surface's
-   *  `knobs` cell). Wire-truth: the convention's own answer, live as the
-   *  vault moves. The empty reading is the defaults': no file decided
-   *  anything, so there is no page to open. */
-  readonly knobs: Accessor<KoluKnobs>
   /** THE ROWS, as a map keyed by padi's full id — handed over whole rather
    *  than as a lookup, because a chip does not look its value UP: it RESOLVES
    *  it (`@olai/surface`'s `resolveTerminal`), and a prefix needs the key set
@@ -165,9 +159,6 @@ export interface FleetSources {
   /** The wire's `pulse` cell's value — the watcher's last
    *  stamp, so the pill can read liveness on its own cadence. */
   readonly pulse: Accessor<WatchPulse | null | undefined>
-  /** The wire's `knobs` cell's value — which file decided the watch,
-   *  re-answered on every revision. */
-  readonly knobs: Accessor<KoluKnobs | undefined>
   readonly fold: CollectionFold<string, FleetTerminal>
   /** THE LOG the server is keeping — the events collection's fold, fed by the
    *  watcher (`@olai/kolu-client`'s `watch.ts`). It reads THROUGH the same
@@ -215,12 +206,6 @@ export function createFleet(props: {readonly sources: FleetSources; readonly now
     // reach every renderer for the sake of it.
     link: createMemo(() => props.sources.link() ?? KOLU_UNDIALED),
     pulse: props.sources.pulse,
-    // The seed is the DEFAULTS' reading and not `undefined`, for `link`'s
-    // reason one member up: a reader draws the foot off this in the same
-    // breath it draws the pill, and a first frame that found the cell quiet
-    // and one that said nothing yet read the same — no file decided
-    // anything, so there is no door.
-    knobs: createMemo(() => props.sources.knobs() ?? NO_KNOBS),
     terminals: () => held()?.rows ?? NO_ROWS,
     events: () => ring()?.rows ?? NO_EVENTS,
     read: props.sources.read,
@@ -250,7 +235,6 @@ export const useFleet = (): Fleet =>
   useContext(FleetContext) ?? {
     link: () => KOLU_UNDIALED,
     pulse: () => null,
-    knobs: () => NO_KNOBS,
     terminals: () => NO_ROWS,
     events: () => NO_EVENTS,
     // A HOLLOW STILL TICKS, because a row drawn outside a provider still draws

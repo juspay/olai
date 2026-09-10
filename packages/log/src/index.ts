@@ -10,12 +10,12 @@
  * emits a line without losing the fiber's settings ({@link ./emit.ts}), and
  * the instance's minimum level ({@link ./level.ts}).
  *
- * `OLAI_LOG` picks the face; `OLAI_LOG_LEVEL` picks how quiet. The verbs stay
+ * The serve supplies the face and how quiet it is. The verbs stay
  * Effect's. The level is a fact of the running process, read at the one env
  * edge, default `info`.
  */
 
 export { codeOf, prettyCause, reasonOf } from "./cause.ts"
 export { type Emit, emitter } from "./emit.ts"
-export { atLevel, LEVEL_ENV_VAR, levelFor } from "./level.ts"
+export { liveLevel } from "./level.ts"
 export { toStderr, toStdout } from "./sinks.ts"

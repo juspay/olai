@@ -50,7 +50,7 @@ Feature: Selective commits remain usable on a phone
     And I switch the plugin "git" on
     And I close the plugins panel
     And I press "Escape"
-    Then the phone commit banner says 1 uncommitted
+    Then the phone commit banner says 2 uncommitted
     And the phone commit banner sits below the header
     When I press the sidebar shortcut
     And I open the commit panel

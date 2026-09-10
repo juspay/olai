@@ -17,7 +17,8 @@
     "./policy": "./src/policy.ts",
     "./tree-testlib": "./src/tree.testlib.ts",
     "./inputs": "./src/inputs.ts",
-    "./agent-face": "./src/agent-face.ts"
+    "./agent-face": "./src/agent-face.ts",
+    "./testlib": "./src/fixture.testlib.ts"
   },
   "//devDependencies": "The TypeScript compiler is the PARSER `src/tree.testlib.ts` reads a module's top-level declarations with, for the shared-live-state claim in `src/fence.test.ts`. A regex over transpiled text cannot tell a module-scope `createSignal` from one inside a factory, and a fence may only ever be wrong in the direction that fails LOUDLY — so the reading is a real parser rather than a pattern. It is a dev dependency of this package alone: nothing this package SHIPS imports it, and the root already carries it for `tsc`.",
   "devDependencies": {
@@ -71,6 +72,7 @@
     "@olai/ui-primitives": "workspace:*",
     "@olai/markdown-ui": "workspace:*",
     "@olai/edit-history": "workspace:*",
-    "@olai/store": "workspace:*"
+    "@olai/store": "workspace:*",
+    "olai-plugin-settings": "workspace:*"
   }
 }

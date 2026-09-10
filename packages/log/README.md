@@ -12,7 +12,7 @@ What this package owns is what a logging seam is otherwise re-decided at, once p
 | file | what it owns |
 |---|---|
 | `sinks.ts` | two streams and which face each line wears — stdout for `olai web`, stderr for a process whose stdout is already spoken for; pretty on a TTY, logfmt everywhere a machine reads |
-| `level.ts` | the instance's minimum level — `OLAI_LOG_LEVEL`, default `info` |
+| `level.ts` | a serve-owned live level and presentation, supplied by the composition root |
 | `cause.ts` | what a failure says, in the two lengths anything wants it: `prettyCause` for a log, `reasonOf` for a sentence somebody reads |
 | `emit.ts` | `emitter`: how a plain Node callback emits a line without losing the fiber's level, annotations and spans |
 | `lines.testlib.ts` | how a TEST hears a line, on the `./testlib` subpath: the collecting logger inside the process, the logfmt decoder outside it |
@@ -28,23 +28,7 @@ Effect's, used the way [kolu's own logger](https://github.com/juspay/kolu) docum
 | `logWarning` | degraded but recoverable — bound off loopback, a connection that failed, a boot the next prompt will retry |
 | `logError` | a failure something stops for |
 
-**Quiet by default.** Effect's minimum level is `Info`, so `logDebug` is off until asked for. `OLAI_LOG_LEVEL` is the instance knob — the same kind of fact `--commit` is, read at the one env edge. A systemd unit raises it without rewriting argv; the home-manager module's `logLevel` option sets it.
-
-**Precedence:** set, `OLAI_LOG_LEVEL` wins. Unset, Effect's `--log-level` applies (default `info`). That is how `olai web --log-level warn` stays quiet, and how a unit file raises debug without rewriting ExecStart.
-
-```sh
-OLAI_LOG_LEVEL=debug olai web ~/outlines
-olai web ~/outlines --log-level warn   # only when OLAI_LOG_LEVEL is unset
-```
-
-| value | what you get |
-|---|---|
-| unset | `--log-level`, else `info` — lifecycle: the address bound, a conversation opened, a prompt sent, a turn that ended or failed, the agent process coming and going |
-| `info` | the same, pinned, even if `--log-level` says otherwise |
-| `debug` | the rest, including every chunk of the agent's own stderr |
-| `warn` / `error` | quieter still |
-
-The two faces (`OLAI_LOG`) are a different question and stay a different variable.
+**Quiet by default.** The serve starts at `info`. Its composition root follows `log-level` and `log-format` on the `olai` node in the shared settings file and updates the live logging layer. Existing fibers and callback emitters consult that layer when emitting; changing logging does not restart their resources. The scoped owner supplies both the sinks and the live presentation getter. Log level and format are not read from environment variables; `NO_COLOR` remains the terminal colour convention or global mutable state.
 
 ## The format
 
@@ -54,7 +38,7 @@ The two faces (`OLAI_LOG`) are a different question and stay a different variabl
 |---|---|
 | destination is a TTY | **pretty** — Effect's `formatStructured` composed with `Logger.map`: local time, coloured level, message and inline key=values |
 | piped / systemd / tests | **logfmt** — byte-identical to Effect's `formatLogFmt`, what it always was |
-| `OLAI_LOG=pretty` or `OLAI_LOG=logfmt` | that face, regardless of the TTY |
+| `log-format: pretty` or `log-format: logfmt` | that face, regardless of the TTY |
 
 Pretty is for a human watching a terminal. Logfmt is for everything that parses a line — the `@olai/log` testlib decoder, the e2e suite reading the bound address off stdout, any agent grepping `url=`. Pretty may only exist where no machine reads; colour and abbreviated terminal fields would break those readers.
 
@@ -86,8 +70,8 @@ Routine events occupy one line; errors retain Effect-rendered causes on indented
 Force either face when the auto pick is wrong (a TTY you want to pipe from, or a non-TTY you still want to read):
 
 ```sh
-OLAI_LOG=logfmt olai web ~/outlines | …   # keep logfmt on a TTY
-OLAI_LOG=pretty olai web ~/outlines       # pretty even when redirected
+# Set log-format: logfmt on the olai node to keep logfmt on a TTY
+# Set log-format: pretty there for pretty output even when redirected
 NO_COLOR=1 olai web ~/outlines            # pretty layout, no ANSI
 ```
 
@@ -126,7 +110,7 @@ It matches the message exactly (two of this server's lines carry a `url=`), unqu
 
 ## Logging from a callback
 
-Half of what a server has to say happens in a Node callback — a websocket that hung up, a promise the surface runtime rejected, a subprocess writing to its stderr. There is no fiber there, and `Effect.runFork` would emit the line against the defaults: the operator's `OLAI_LOG_LEVEL` would silently not apply to the noisiest half of the program.
+Half of what a server has to say happens in a Node callback — a websocket that hung up, a promise the surface runtime rejected, a subprocess writing to its stderr. There is no fiber there, and `Effect.runFork` would emit the line against the defaults: the operator's the live minimum level would silently not apply to the noisiest half of the program.
 
 So capture the services once, where there IS a fiber, and run every later line under them. Annotate first, then take the emitter — the capture reads what is in force at that point:
 

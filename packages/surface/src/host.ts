@@ -133,6 +133,7 @@ export const hostFaces = {
     // code it wrote and can retract by deleting the node, and it may not
     // `plugins.approve` anything at all.
     "plugins.set": "tool",
+    "plugins.configure": "tool",
     // WHO IS LOOKING on this connection — the browser's alone, because an agent
     // arrives on HTTP `/mcp` and has no login header on that face. The chip is a
     // paint instruction for a person (`./core.ts` argues the member).

@@ -11,11 +11,10 @@
 import { report as reportTransport } from "./report.ts";
 import { CurrentWho, whoRoute } from "./who.ts";
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers";
-import { type GitPin, type PluginPin } from "@olai/format";
 import { BUNDLE_NAMES, ROWS, configsOf, mountBundle, provide, settled, offered, reportBundle, rowsNaming, setRow, } from "@olai/bundle/bundle";
 import { bundleRank } from "@olai/bundle";
-import { emitter } from "@olai/log";
-import { Identity, openPlugins, type ToolServer, } from "@olai/plugin-api/services";
+import { emitter, liveLevel } from "@olai/log";
+import { ConfigurationSource, Vault as ContentRevision, Identity, openPlugins, type ToolServer, } from "@olai/plugin-api/services";
 import { Deferred, Effect, Layer } from "effect";
 import { randomBytes } from "node:crypto";
 import { resolve } from "node:path";
@@ -23,7 +22,7 @@ import { localStateFor } from "./localState.ts";
 import { pruneGone } from "@olai/state";
 import { openLoading } from "@olai/plugin-api/services";
 import { watchFault } from "./fault.ts";
-import { hostname } from "./hostname.ts";
+import { hostnameReading } from "./hostname.ts";
 import { NOBODY, readingOf } from "./who.ts";
 import { type Profile } from "./profiles.ts";
 import { listener } from "./listener.ts";
@@ -31,20 +30,24 @@ import { provideInputs, ticketsFor } from "@olai/bundle/inputs";
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy";
 import { runtimePaths } from "./runtime-paths.ts"
 import { TransportSurface } from "@olai/plugin-api/transport";
-import { gitConfigPatch } from "./gitPolicy.ts";
 import { bind } from "./runtime.ts";
+import { followConfiguration } from "./configuration.ts";
+import { processPolicy } from "./process-policy.ts";
 export interface ServeOptions {
     readonly profile?: Profile;
     readonly root: string;
     readonly port: number;
     readonly host: string;
+    readonly addressAuthors?: { readonly host: "flag" | "default"; readonly port: "flag" | "default" };
     readonly clientDist: string | Effect.Effect<string>;
     readonly allowedOrigins: ReadonlyArray<string>;
     readonly vars?: Record<string, string | undefined>;
-    readonly pin: GitPin;
-    readonly pluginPin: PluginPin;
 }
-export const serve = (options: ServeOptions) => Effect.gen(function* () {
+export const serve = (options: ServeOptions) => Effect.gen(function*() {
+    const logging = yield* liveLevel;
+    return yield* serving(options, logging).pipe(Effect.provide(logging.layer));
+});
+const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel>) => Effect.gen(function* () {
     // THE STATE HOME IS SWEPT ONCE PER BOOT, and this is the first statement
     // because it is the only one in this function that nothing else waits on.
     // Every temp directory a test or a script ever served leaves
@@ -69,12 +72,12 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     }));
     const profile = options.profile ?? "web";
     // EVERY ROW THIS BUILD HAS, read before the profile patch and before
-    // `--plugins` — which is what makes it the right list for all three of its
+    // the file’s row selection — which is what makes it the right list for all three of its
     // readers. `settled` below waits out MOVEMENT rather than readiness
     // (`@olai/effect-cordis`'s `settled`), so a row the patch disabled never
     // entered the registry, holds no inertia, and costs the barrier one `has`;
-    // a list narrowed to the enabled rows would be a second reading of the flag
-    // beside `pluginsPatch`'s, and the two would drift. `openLoading` takes it
+    // a list narrowed to enabled rows would miss declarations from inactive providers
+    // beside the row patch's, and the two would drift. `openLoading` takes it
     // as the RESERVED names, so a plugin the served directory defines cannot
     // claim a bundle row's word. And `bind` walks it to build the roster, which
     // is why a disabled row is a ROW on the plugins panel with a switch under it
@@ -85,6 +88,9 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     const built = BUNDLE_NAMES;
     const onChange = { run: (): void => { } };
     const token = randomBytes(24).toString("hex");
+    let addressPort = options.port;
+    let ownPolicy = processPolicy(undefined, () => {});
+    const warned = new Set<string>();
     /**
      * THE CYCLE BROKEN, and this box is the break.
      *
@@ -131,8 +137,8 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     // a settle later, and every row that names `Vault`, `Ops` or `Directory`
     // would be a turn behind it for no reason a reader could find.
     //
-    // `mountBundle` turns the rows into fibers under the profile patch and the
-    // `--plugins` pin, and returns once every one of them has stopped moving.
+    // Prepare the default reader profile first. The configuration follower
+    // applies file policy before enabling the remaining rows.
     //
     // `openLoading` provides `HostLoading`, which is how a row publishes a
     // CATALOG of plugins it loads itself — the served directory's own
@@ -156,10 +162,17 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
         changed: () => onChange.run(),
     });
     issueTicket = ticketsFor(plugins.host);
-    const pluginPin = options.pluginPin;
     yield* provideInputs(plugins.host, { root: served, runtime: runtimePaths });
-    yield* mountBundle(plugins.host, pluginPin, gitConfigPatch(options.pin), profile);
+    yield* mountBundle(plugins.host, [], profile, true);
     const loading = yield* openLoading(plugins.host, built, () => onChange.run(), { services: plugins.serviceKeys, browserServices: plugins.browserKeys });
+    const policy = yield* followConfiguration(plugins.host, () => onChange.run(), () => [plugins.offers().get(ContentRevision.cordis), plugins.offers().get(ConfigurationSource.cordis)], publication => {
+      ownPolicy = processPolicy(publication, line => {
+        if (!warned.has(line)) { warned.add(line); say(Effect.logWarning(line)); }
+      });
+      logging.set(ownPolicy.config["log-level"]);
+      logging.setFormat(ownPolicy.config["log-format"]);
+    }, profile);
+    yield* policy.ready;
     let report = yield* reportBundle(plugins.host, loading.names());
     const switched = new Set<string>();
     const flipped = (id: string, enabled: boolean) => Effect.gen(function* () {
@@ -192,7 +205,8 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     // bundle mid-assembly (`@olai/effect-cordis`'s `settled` argues the loop).
     yield* settled(plugins.host, built);
     report = yield* reportBundle(plugins.host, loading.names());
-    const theMachine = hostname();
+    const machine = hostnameReading();
+    const theMachine = machine.value;
     const startedAt = new Date(Date.now() - process.uptime() * 1000).toISOString();
     const wired = yield* bind({
         hostname: theMachine,
@@ -201,12 +215,20 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
             plugins,
             onChange,
             built,
+            instance: () => ({ host: options.host, port: addressPort,
+              hostAuthor: options.addressAuthors?.host ?? "process", portAuthor: options.addressAuthors?.port ?? "process", policy: ownPolicy.values, ...(ownPolicy.node === undefined ? {} : { configurationNode: ownPolicy.node }),
+              hostname: theMachine, hostnameAuthor: machine.author, origins: options.allowedOrigins, bearer: { set: token.length > 0 } }),
+            offByDefault: ROWS.filter((row) => row.disabled).map((row) => row.id),
             browserOnly: ROWS.filter((row) => row.browserOnly).map((row) => row.id),
-            pin: pluginPin,
             report: () => report,
             names: () => rowsNaming(plugins.host),
             configs: () => configsOf(plugins.host),
-            set: flipped,
+            configuration: policy.current,
+            configurationDefaults: policy.defaults,
+            environment: policy.environment,
+            persistent: policy.persistent,
+            configure: policy.configure,
+            set: (id, enabled) => policy.set(id, enabled, () => flipped(id, enabled)),
             reread: Effect.gen(function* () {
                 report = yield* reportBundle(plugins.host, loading.names());
             }),
@@ -252,6 +274,9 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     const runtime = yield* watchFault(wired.bound);
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()));
     yield* Effect.addFinalizer(() => plugins.close);
+    // Stop the root's patch worker before row withdrawal starts. The reader's
+    // offer then disappears without scheduling reconcile work during teardown.
+    yield* Effect.addFinalizer(() => policy.close);
     const transports = yield* listener({ host: options.host, port: options.port });
     // Handlers and exposure are read at each connection, not captured at boot:
     // a capability switch must revoke old authority and affect the next dial.
@@ -315,7 +340,7 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     // every other tenant of it (`@olai/plugin-api`'s `Identity`). That is the
     // right answer for a list that went bad mid-serve and the wrong one for a
     // serve that came up with a list nothing can ever serve: an
-    // `OLAI_IDENTITY_LOGIN_HEADER` an operator misspelled would then read as a
+    // a trusted identity header an operator misspelled would then read as a
     // server that starts, accepts, and quietly attributes every request to
     // nobody.
     //
@@ -335,6 +360,8 @@ export const serve = (options: ServeOptions) => Effect.gen(function* () {
     // (`./fault.ts`; `./serve.test.ts` holds it against a real socket).
     yield* Effect.onError(Effect.sync(() => checkUpgradeHeaders(currentIdentity().headers)), () => runtime.stopped);
     const url = yield* Effect.onError(transports.start, () => runtime.stopped);
+    if (url) addressPort = Number(new URL(url).port || "80");
+    onChange.run();
     // Shutdown step 1 of the four ordered above — registered last so it runs
     // first, and only once the two statements that need the `onError` clause
     // are behind us.

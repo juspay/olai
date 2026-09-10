@@ -15,7 +15,7 @@
  *
  * ## Why this file is mostly about the empty roster
  *
- * `--plugins` off, `olai surface`, the headless MCP faces and every test in
+ * the file’s row selection off, `olai surface`, the headless MCP faces and every test in
  * `@olai/server` compose a runtime with no plugins at all, which reaches
  * `implementRootedSurfaces` and then never calls `mount`. That path is the
  * ordinary one for most of the processes olai runs, and it is the one nobody
@@ -195,7 +195,7 @@ describe("one plugin", () => {
  */
 describe("a roster that moves", () => {
   test("dropping a sibling restores the root exactly, tag for tag", async () => {
-    // The claim `--plugins` has always made, asked at a moment it could not be
+    // The claim the file’s row selection has always made, asked at a moment it could not be
     // asked at before: the filter used to run once, so absence was a thing that
     // happened at boot. Now it is a `drop()` and the question is whether the
     // wire goes back to what it was.

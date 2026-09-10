@@ -1,10 +1,7 @@
 @scratch:good @git:repo
-Feature: Git policy is the instance's, not this browser's
-  Committing and pushing are facts about a DIRECTORY: a flag on the command
-  line (or the nix module) is the git plugin's pin, the same in every
-  browser. There is no runtime door and nothing about git is stored here.
-  Theme, font, size, notes and done are personal view choices, and there is
-  nothing about them for a server to have an opinion on.
+Feature: Git policy travels with the vault
+  The panel reads the git node's properties and names their authors.
+  Editing that node re-applies the row for every browser of this serve.
 
   Background:
     Given I open the outline "garden.olai"
@@ -30,22 +27,21 @@ Feature: Git policy is the instance's, not this browser's
   Scenario: The git row always names the policy in force
     When I open the plugins panel
     Then the plugins panel shows "git" configured "commit" as "manual"
-    And the plugins panel shows "git" configured "push" as "off"
+    Then the plugins panel shows "git" configured "push" as "off"
     And there should be no page errors
 
-  @pin:commit=auto
-  Scenario: --commit=auto is the git row's config on the plugins panel
+  @policy:git.commit=auto
+  Scenario: commit: auto is the git row's config on the plugins panel
     When I open the plugins panel
     Then the plugins panel shows "git" configured "commit" as "auto"
-    And the plugins panel shows "git" configured "push" as "off"
+    And the plugin "git" marks "commit" as authored by "vault"
+    Then the plugins panel shows "git" configured "push" as "off"
     And there should be no page errors
 
-  @pin:commit=auto @pin:push=off
-  Scenario: The flag is what the loop actually does, not only what it draws
-    # THE FENCE FOR A FLAG HONOURED IN THE DRAWING AND NOT IN THE DOING. Nobody
-    # has turned anything on in this browser and there is no control here that
-    # could — and the flurry still records itself, because the loop the flag
-    # armed is the server's.
+  @policy:git.commit=auto @policy:git.push=off
+  Scenario: File policy controls what the commit loop does as well as what it draws
+    # This browser has no git preference. The file’s auto policy makes the
+    # server record the external edit without a browser action.
     Then this browser has stored nothing about git
     When I rewrite "notes.md" as:
       """
@@ -53,5 +49,5 @@ Feature: Git policy is the instance's, not this browser's
       """
     Then the flurry records itself
     And olai has recorded 1 commit here
-    # ... and --push=off is honoured too: the commit is made and stays here.
+    # ... and push: off is honoured too: the commit is made and stays here.
     And there should be no page errors

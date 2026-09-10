@@ -38,7 +38,7 @@ serve:
     # decides nothing. A pi row needs both halves handed in: OLAI_ACP_PI for
     # the adapter, the `pi` on OLAI_AGENT_PATH for the probe.
     # THE CALL ANSWERS: AGENT/PI_AGENT from the environment, else a seed file
-    # in HOME (the same shape as olai-commit / olai-plugins). Empty is off.
+    # in HOME. Empty leaves executable discovery to the supplied search path.
     if [[ -z "${AGENT:-}" && -f "$HOME/olai-acp-agent" ]]; then
         AGENT="$(cat "$HOME/olai-acp-agent")"
     fi
@@ -49,17 +49,5 @@ serve:
     # fixture build that should sit in front of the plugin's probes. The
     # one law holds: the call answers, empty is off.
     [[ -n "${EXTRA_PATH:-}" ]] && export PATH="$EXTRA_PATH:$PATH"
-    extra=()
-    # HOME is .saatchi/home. Seed flags there so a flags instance and a
-    # bare instance are two runs, not a recipe that decides.
-    [[ -f "$HOME/olai-commit" ]] && extra+=(--commit "$(cat "$HOME/olai-commit")")
-    [[ -f "$HOME/olai-push" ]] && extra+=(--push "$(cat "$HOME/olai-push")")
-    # WHICH PLUGINS, the same way and for the same reason. The seed file is
-    # read with `-f` rather than `-s`, which is the one place this differs
-    # from the two above and is the whole point: an EMPTY file is
-    # `--plugins=` — every plugin off — and that is a state a person can only
-    # photograph if empty is expressible. Omitting the file is omitting the
-    # flag, which is the built-in default (all of them). Those are two
-    # different pictures and the recipe decides neither.
-    [[ -f "$HOME/olai-plugins" ]] && extra+=(--plugins "$(cat "$HOME/olai-plugins")")
-    exec {{ nix_shell }} bun packages/server/src/main.ts web "$DATA" --port "$PORT" "${extra[@]}"
+    # Policy is authored in $DATA/_olai/Settings.olai before this run.
+    exec {{ nix_shell }} bun packages/server/src/main.ts web "$DATA" --port "$PORT"

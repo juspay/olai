@@ -288,10 +288,10 @@ serve dir="docs" *args: build-client
     set -euo pipefail
     # The chat panel defaults to the pinned Claude Code adapter, exactly as the
     # packaged binary does — scripts/acp-agent.sh is the one place that is
-    # decided, and `OLAI_ACP_AGENT` overrides it (empty disables).
+    # decided, and `OLAI_ACP_AGENT` overrides it (empty uses command discovery).
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
     # Codex is shipped from the pin inside its plugin, with a separate override
-    # so the historical whole-chat off switch above remains exactly that.
+    # so each engine has its own executable resource.
     export OLAI_ACP_CODEX="$(sh scripts/acp-codex.sh)"
     # The pi row's adapter, the other half of the same pin — a machine with a
     # `pi` on the search path gets the row, every other machine gets nothing
@@ -317,7 +317,7 @@ serve dir="docs" *args: build-client
 # The one brain: `olai web` on this repo's docs, on an OS-assigned port.
 # Distinct from `serve`: that one is the web edit loop (client bundler
 # watch + server watch); this one watches only the server. Extra args after
-# the directory reach the binary (`--commit=manual`, `--host`, …). Defaults
+# the directory reach the binary (`commit: manual`, `--host`, …). Defaults
 # to the same pinned agent `just serve` and the packaged binary do: no
 # documented way of starting olai may land in the no-agent state by accident.
 # A fixed `--port` is a deploy's word, not this recipe's. `--port 0` (the
@@ -360,8 +360,7 @@ nix:
     #
     # The one-dash `${VAR-...}` is asserted too, and it is load-bearing: it
     # substitutes only when the variable is UNSET, which is what makes an empty
-    # OLAI_ACP_AGENT the explicit off switch instead of a fall-through to the
-    # default.
+    # command skip the packaged default and leave search-path discovery in force.
     agent=$(sed -n "s|.*OLAI_ACP_AGENT=\${OLAI_ACP_AGENT-'\(.*\)'}.*|\1|p" "$out/bin/olai")
     if [ -z "$agent" ]; then
       echo "the packaged binary does not bake OLAI_ACP_AGENT into its wrapper," >&2

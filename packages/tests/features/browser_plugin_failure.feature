@@ -13,7 +13,7 @@ Feature: Browser initialization failures are visible
     And no row wears a swatch
     And the browser service catalog includes "palette.colours"
     When the browser palette initialization is repaired
-    Then the plugins panel says "palette" is "read the source below and approve it"
+    Then the plugin "palette" is off without prose
     When I read the plugin "palette" again
     And I approve the plugin "palette"
     Then the browser palette face is "first"

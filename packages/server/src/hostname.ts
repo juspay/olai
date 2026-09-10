@@ -27,7 +27,11 @@ const HOSTNAME_ENV_VAR = "OLAI_HOSTNAME"
 
 /** The configured name, or the machine's own. Empty means unset — a
  *  whitespace-only `OLAI_HOSTNAME` is nobody's tuned value. */
-export const hostname = (): string => {
+export const hostnameReading = (): { value: string; author: "env" | "process" } => {
   const asked = process.env[HOSTNAME_ENV_VAR]?.trim()
-  return asked === undefined || asked === "" ? os.hostname() : asked
+  return asked === undefined || asked === ""
+    ? { value: os.hostname(), author: "process" }
+    : { value: asked, author: "env" }
 }
+
+export const hostname = (): string => hostnameReading().value

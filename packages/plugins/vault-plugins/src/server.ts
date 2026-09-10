@@ -29,11 +29,14 @@ export default definePlugin({
     const describedSlots = slotCatalog(moduleCatalog.map(module => module.exports))
     const loading = yield* HostLoading
     const gate = (yield* Ops).gate as Gate
-    const dynamic = openDynamic(yield* loading.acquire, loading.reserved)
+    const dynamic = openDynamic(yield* loading.acquire, loading.reserved, request => Effect.gen(function*() {
+      yield* gate.run(request, "web")
+      yield* followed(yield* gate.read)
+    }))
     const settling = <T>(run: Effect.Effect<T>) => Effect.ensuring(run, Effect.sync(loading.changed))
     const followed = (read: Reading | null) => Effect.asVoid(settling(dynamic.follow(read?.derived ?? null)))
     yield* Effect.addFinalizer(() => Effect.asVoid(dynamic.follow(null)))
-    yield* loading.describe({ names: dynamic.names, rows: dynamic.rows, set: (name, enabled) => settling(dynamic.set(name, enabled)) })
+    yield* loading.describe({ names: dynamic.names, rows: dynamic.rows, set: (name, enabled) => settling(dynamic.set(name, enabled)), configure: dynamic.configure })
     yield* (yield* Vault).revision<Snapshot<Reading>>(snapshot => followed(snapshot.value))
     yield* (yield* Vault).unloaded(followed(null))
     const deps: ImplementSurfaceDeps<typeof surface.spec> = { procedures: { plugins: {
@@ -104,6 +107,7 @@ run: ({ input }) =>
                 version: one.version,
                 state: row?.state ?? "off",
                 approved: isApproved(one),
+                configurationValues: row?.configurationValues ?? [],
                 ...(row?.fault === undefined ? {} : { fault: row.fault }),
               }
             }),
@@ -141,6 +145,7 @@ inspect: () =>
                 approved: APPROVED_KEY,
                 server: SERVER_NODE,
                 browser: BROWSER_NODE,
+                config: { schema: "Config", properties: "properties on the definition node; child nodes hold schema sections", reserved: [PLUGIN_KEY, APPROVED_KEY] },
               },
               taken: [...loading.reserved, ...dynamic.names()],
             }))

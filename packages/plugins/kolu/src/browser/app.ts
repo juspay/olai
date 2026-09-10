@@ -26,10 +26,9 @@
  *     cycle with the panels the other two open, sit at the app's own layer, and
  *     be placed by the app's own anchor arithmetic (a computed `top`/`bottom`
  *     key compiles away silently in Solid and leaves a panel below the fold —
- *     it cost the Commit panel its placement once);
- *   - the DOOR ONTO A FILE, because the feed's wrench opens `_olai/Kolu.olai`
- *     as an ordinary outline page, and how olai spells an address, what a
- *     modifier press means and where a split pane opens are all the router's.
+ *     it cost the Commit panel its placement once).
+ *
+ * The feed reaches its configuration editor through a separate declared service.
  *
  * Every one of those is a contract whose breakage is SILENT — the app's own
  * suite stays green, because the face that broke is in another package. That is
@@ -57,13 +56,13 @@ export interface PillLook {
 
 /** The panel that hangs off the pill — whether it is up, where it sits, and the
  *  one focus cycle the trigger and the panel make between them. Handed WHOLE
- *  rather than as its parts: see the header on the four contracts a plugin
+ *  rather than as its parts: see the header on the three contracts a plugin
  *  would otherwise restate. */
 export interface AppPopover {
   readonly open: () => boolean
   readonly toggle: () => void
   /** Put it away WITHOUT the caret walking back to the trigger — the wrench's
-   *  press navigates, and the caret belongs to the page it lands on. */
+   *  press opens another panel, which owns the next focus. */
   readonly close: () => void
   readonly setTrigger: (el: HTMLElement | undefined) => void
   /** Portalled, placed, layered, focusable-but-not-tabbable, and drawn only
@@ -75,24 +74,13 @@ export interface AppPopover {
   }) => JSX.Element
 }
 
-/** A door onto a served file — the router and the address grammar as the one
- *  thing this plugin wants out of them. */
-export type FileLink = (props: {
-  readonly file: string
-  readonly class?: string
-  readonly testid?: string
-  readonly label: string
-  readonly title?: string
-  readonly children: JSX.Element
-}) => JSX.Element
-
 /*
  * THE CLOCK IS NOT ON THIS RECORD, and it used to be — a `KoluClocks` with the
  * two facts the mount spends, on a `KoluApp.clocks` beside the rest.
  *
  * Nothing ever read it out of here. The mount spends the `Clocks` service DIRECTLY at
  * `../browser.tsx`, which is where the cadence is decided, and every `app.*`
- * read in this package is one of the four below. The field was the record
+ * read in this package is one of the three below. The field was the record
  * carrying a service reference past every face that wanted it, to nobody.
  *
  * Its comment also said the cadence "crosses rather than being decided in this
@@ -102,10 +90,9 @@ export type FileLink = (props: {
  * takes the stale argument with it and leaves the live one standing.
  */
 
-/** THE WHOLE OF WHAT THIS PLUGIN IS HANDED — four facts, and each is spent. */
+/** THE WHOLE OF WHAT THIS PLUGIN IS HANDED — three facts, and each is spent. */
 export interface KoluApp {
   readonly desktop: () => boolean
   readonly pill: PillLook
   readonly popover: () => AppPopover
-  readonly FileLink: FileLink
 }

@@ -146,7 +146,7 @@ Feature: Committing on purpose
     And the remote has "olai: the herb bed needs splitting"
     And there should be no page errors
 
-  @pin:push=auto
+  @policy:git.push=auto
   Scenario: A commit is pushed when the directory's push policy is Auto-push
     # The instance's policy governs every commit olai makes here — the
     # button's, an agent's, and the quiet window's. The existing scenario above
@@ -198,7 +198,7 @@ Feature: Committing on purpose
     And the commit button is disabled
     And there should be no page errors
 
-  @pin:commit=auto @pin:push=auto
+  @policy:git.commit=auto @policy:git.push=auto
   Scenario: A flurry of edits records itself as one commit, and is pushed
     # The whole of the quiet window, end to end, with the push beside it: the
     # human's goal in his own words — "with both enabled, all changes sync to
@@ -257,7 +257,7 @@ Feature: Committing on purpose
     Then the panel promises nothing
     And there should be no page errors
 
-  @pin:commit=auto
+  @policy:git.commit=auto
   Scenario: The window alone records, and the commits wait to be pushed
     # The other half of the pair. Without Auto-push the commit is still made on
     # its own and the pill carries the honest count of what is recorded here and
@@ -272,7 +272,7 @@ Feature: Committing on purpose
     And the commit pill says 1 unpushed
     And there should be no page errors
 
-  @pin:commit=auto @pin:push=auto
+  @policy:git.commit=auto @policy:git.push=auto
   Scenario: A branch somebody else has moved stops the loop, and says so
     # THE CONFLICT, ruled at dispatch: conflict-safe enough not to corrupt, and
     # on one, STOP rather than retry blindly. A divergence is what a single user
@@ -316,7 +316,7 @@ Feature: Committing on purpose
     And the commit pill says auto-commit is "paused"
     And there should be no page errors
 
-  @pin:commit=auto @pin:push=auto
+  @policy:git.commit=auto @policy:git.push=auto
   Scenario: A reload does not clear a stop, and Resume in any tab does
     # THE WHOLE OF THE MOVE, as one scenario. The pause used to live in this
     # tab's memory, so reloading the page started the loop again with nothing

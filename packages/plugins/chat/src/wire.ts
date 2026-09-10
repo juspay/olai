@@ -56,7 +56,7 @@ import {
 } from "./wire/members.ts"
 
 /** The sibling key, the preferences row, the docs slug, and the word
- *  `--plugins` takes. Spelled once, here — and because the sibling key IS the
+ *  the file’s row selection takes. Spelled once, here — and because the sibling key IS the
  *  wire prefix, the name and every tag it appears in cannot drift apart. */
 export const name = "chat"
 

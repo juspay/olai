@@ -1,6 +1,6 @@
 @scratch:good
-@extra-plugins:test-layout
-@without-plugins:layout
+@rows-on:test-layout
+@rows-off:layout
 Feature: Content runs under an independent layout
   The maintained fixture only consumes the navigation outlet and renderer
   contracts. Neither content implementation imports or detects this fixture.

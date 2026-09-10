@@ -177,14 +177,14 @@ describe("laying a drawer out", () => {
     // WHAT THE SECOND LICENCE USED TO PIN, and the state that replaced it.
     //
     // This case was "a face whose plugin this serve is not running draws as a
-    // plain chip", and it was the whole of what `--plugins` meant in a browser:
+    // plain chip", and it was the whole of what the file’s row selection meant in a browser:
     // the tab registered what the BUILD had, because import time was all it
     // had, and asked at the DRAW whether the serve had composed the plugin
     // whose face it was about. The failure it pinned was not a missing face —
     // it was a face DRAWING ITS OWN nothing-here arm, which is a row
     // complaining about a daemon somebody deliberately turned off rather than
     // the plain chip an undressed property has always shown. A live serve with
-    // `--plugins=` is what found it.
+    // a policy with all rows off is what found it.
     //
     // A tab registers nothing at import time any more: a face is registered by
     // its plugin's own fiber, and a plugin the roster does not name has no

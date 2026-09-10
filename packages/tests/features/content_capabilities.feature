@@ -222,7 +222,7 @@ Feature: Outline and Markdown capabilities have independent lifetimes
     Then the row being typed holds "choose the handles"
     And there should be no page errors
 
-  @plugins:vault,ws,web-app,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,markdown,files
+  @rows:vault,ws,web-app,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,markdown,files
   Scenario: A Markdown-only startup edits a document without ever activating outlines
     Given I open the document "finishes.md"
     When I start editing the document
@@ -238,7 +238,7 @@ Feature: Outline and Markdown capabilities have independent lifetimes
     And the document shows the property "topic" holding "independent startup"
     And there should be no page errors
 
-  @plugins:vault,ws,web-app,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,files
+  @rows:vault,ws,web-app,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,files
   Scenario: An outline-only startup edits rows without ever activating Markdown
     Given I open the outline "house.olai"
     When I click the title of "handles"

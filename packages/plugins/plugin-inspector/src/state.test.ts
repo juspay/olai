@@ -26,3 +26,36 @@ test("inspector history survives presentation replacement but ends with its acti
   expect(state.read().size).toBe(0)
   next.close()
 })
+
+test("optional links withdraw and reconnect independently of the panel", () => {
+  const state = createInspectorState()
+  const first = () => null
+  const second = () => null
+  state.door.setOpen(true)
+  const release = state.link(first)
+  expect(state.file()).toBe(first)
+  release()
+  expect(state.file()).toBeUndefined()
+  expect(state.door.open()).toBe(true)
+  const releaseSecond = state.link(second)
+  release()
+  expect(state.file()).toBe(second)
+  state.close()
+  releaseSecond()
+  expect(state.file()).toBeUndefined()
+  expect(() => state.link(first)).toThrow("closed")
+})
+
+test("a configuration request opens its row and cannot outlive the inspector", () => {
+  const state = createInspectorState()
+  state.reveal("example")
+  expect(state.door.open()).toBe(true)
+  expect(state.requested()).toBe("example")
+  state.reveal("replacement")
+  state.revealed("example")
+  expect(state.requested()).toBe("replacement")
+  state.revealed("replacement")
+  expect(state.requested()).toBeUndefined()
+  state.close()
+  expect(() => state.reveal("example")).toThrow("closed")
+})

@@ -7,12 +7,12 @@
  * Host management remains available without either component. Its capability
  * supplies operations and scoped readings, never the notebook client or bundle.
  * Recovery presentation follows the host's retry/reload diagnosis. */
-import { definePlugin, Offers, serviceTag } from "@olai/plugin-api"
+import { definePlugin, Offers, serviceTag, Links } from "@olai/plugin-api"
 import { browserManagement } from "@olai/surface/management"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { tools } from "olai-plugin-layout/contract"
 import { Effect } from "effect"
-import { name } from "./index.ts"
+import { name, type ConfigurationPanel } from "./index.ts"
 import { createInspectorState, type InspectorState } from "./state.ts"
 import { Plugins } from "./Plugins.tsx"
 import { approvals as sourceApprovals } from "olai-plugin-vault-plugins/contract"
@@ -22,8 +22,14 @@ const inspectorState = serviceTag<InspectorState>("plugin-inspector.state")
 export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*() {
   const state = yield* Effect.acquireRelease(Effect.sync(createInspectorState), (state) => Effect.sync(state.close))
   yield* (yield* Offers).own("state", () => state)
+  yield* (yield* Offers).own("configuration", (): ConfigurationPanel => ({ open: state.reveal }))
 }) })
 export const components = {
+  links: definePlugin({ name: "links", needs: [inspectorState, Links], apply: Effect.gen(function*() {
+    const state = yield* inspectorState
+    const links = yield* Links
+    yield* Effect.acquireRelease(Effect.sync(() => state.link(links.File)), release => Effect.sync(release))
+  }) }),
   /** Saying yes to code, DECLARED — a component of its own so the panel keeps
    *  showing what a serve is running when there is no approval provider
    *  (`./approvals.ts`). */

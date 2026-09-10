@@ -125,6 +125,19 @@ export const hostChanges = (host: Host): Stream.Stream<void> => Stream.callback<
     (release) => Effect.promise(async () => { await release() }),
   ), { bufferSize: 1, strategy: "sliding" })
 
+/** Observe optional availability at the actual service boundary. The observer
+ * owns the listener; no plugin acquires a host through this root-only door. */
+export const serviceChanges = <Shape>(host: Host, key: ServiceKey<Shape>): Stream.Stream<Shape | undefined> =>
+  Stream.changes(Stream.callback<Shape | undefined>((queue) => Effect.acquireRelease(
+    Effect.sync(() => {
+      const publish = () => { Queue.offerUnsafe(queue, offered(host, key)) }
+      const release = ctxOf(host).on("internal/service", (name) => { if (name === key.cordis) publish() })
+      publish()
+      return release
+    }),
+    (release) => Effect.promise(async () => { await release() }),
+  )))
+
 const closing = new WeakMap<Host, Promise<void>>()
 
 /** Stop every mounted fiber and join cleanup, even while initialization waits. */
@@ -311,7 +324,7 @@ const PASSES = 100
  *
  * This waits out MOVEMENT, not readiness. A fiber genuinely `PENDING` on a key
  * nothing in this build offers holds no inertia at all, so it settles at once
- * and stays `waiting` — the `--plugins=kolu`-without-its-provider case, which is
+ * and stays `waiting` — the a policy selecting only kolu-without-its-provider case, which is
  * a legitimate resting state and is what {@link rowReport} is about to name.
  */
 export const settled = (host: Host, ids: ReadonlyArray<string>): Effect.Effect<void> =>

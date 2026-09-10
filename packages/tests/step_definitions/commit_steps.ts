@@ -518,7 +518,7 @@ Then("the panel promises to record it on its own", async function (this: OlaiWor
  *
  * The promise is the SERVER's own gate asked by the panel, and the term the
  * panel's shorter copy of it had lost is that something is waiting: on a clean
- * tree under `--commit=auto` the policy is still the window and the repository
+ * tree under `commit: auto` the policy is still the window and the repository
  * is still ready, so it printed "Auto-commit will record all of this as one
  * commit once the edits stop" over an empty list.
  */

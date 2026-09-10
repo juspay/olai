@@ -310,13 +310,13 @@ export interface ContributedKind {
  * WHAT WORDS A DECLARATION MAY NAME BEYOND THE SEVEN — handed in, because this
  * package imports no plugin.
  *
- * TWO MAPS, AND THE DISTANCE BETWEEN THEM IS WHAT `--plugins` MEANS. It is not
+ * TWO MAPS, AND THE DISTANCE BETWEEN THEM IS WHAT the file’s row selection MEANS. It is not
  * a redundancy: the two are asked by two questions that must answer
  * differently, and collapsing them breaks one or the other.
  *
  *   - {@link built} is what this BINARY knows how to mean, and it is what a
  *     DECLARATION is refused against. A vault that names `terminal` while this
- *     serve runs `--plugins=odu` wrote a legal word; refusing it would make one
+ *     serve runs a policy selecting only odu wrote a legal word; refusing it would make one
  *     directory's `Properties.olai` broken on one machine and clean on the
  *     next, which is the one thing a file's verdict may not depend on.
  *   - {@link enabled} is what this SERVE actually runs, and it is what a VALUE
@@ -337,7 +337,7 @@ export interface KindVocabulary {
 }
 
 /** A build that composed no plugin — which is not a fallback but a serve
- *  somebody can ask for (`--plugins=`), and is what every reader below one
+ *  somebody can ask for (a policy with all rows off), and is what every reader below one
  *  answers with when nobody hands it a vocabulary. One value rather than a
  *  fresh pair of empty maps per call, for {@link NO_TYPING}'s reason. */
 export const NO_KINDS: KindVocabulary = { built: new Map(), enabled: new Map() }
@@ -596,7 +596,7 @@ export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded
     resolves: false,
     // THE BUILT VOCABULARY AND NOT THE ENABLED ONE, which is the asymmetry
     // {@link KindVocabulary} argues: a declaration is a fact about the vault
-    // and a serve's `--plugins` is a fact about the machine, so a word this
+    // and a serve's the file’s row selection is a fact about the machine, so a word this
     // binary knows how to mean is a legal word whether or not this process is
     // answering for it. The alternative — refusing here — makes one file
     // broken on one host and clean on the next, off a flag the file cannot see.
@@ -779,7 +779,7 @@ export const declarationsIn = (
  * keep taking THE DECLARATIONS as one value.
  *
  * IT RIDES `enabled`, NOT `built`, and that is what makes a disabled plugin
- * free. A serve running `--plugins=odu` has no `terminal` kind in `enabled`, so
+ * free. A serve running a policy selecting only odu has no `terminal` kind in `enabled`, so
  * no claim, so the key is undeclared — byte-identical to a vault that never
  * heard of kolu. Built ≠ enabled needed no new rule to say so.
  *
@@ -1391,9 +1391,9 @@ const wrongOne = (
  * `undefined` FOR A WORD NOBODY IS ANSWERING FOR, and that is the whole of what
  * a disabled plugin costs a vault: the value is still a name, it is still
  * stored, and nothing here has an opinion about it. Refusing instead would make
- * a directory that serves fine under `--plugins=kolu,odu` come up broken under
- * `--plugins=odu` — a verdict on a file decided by a flag on the machine, which
- * is what {@link KindVocabulary} exists to keep from happening.
+ * the same content valid while its provider runs and invalid when the vault’s
+ * `on` policy disables that provider. {@link KindVocabulary} separates a
+ * declaration’s validity from the set of plugins currently running.
  *
  * THE ENABLED MAP AND NOT THE BUILT ONE, for the same reason from the other
  * end: a kind whose plugin is not running has no `admits` anybody is standing
@@ -1571,9 +1571,8 @@ export const storedValue = (
   if (declared === undefined || declared.type.kind === "text") return Result.succeed(value)
   // A CONTRIBUTED KIND IS TRIMMED WHETHER OR NOT ITS PLUGIN IS RUNNING, which
   // is deliberate: the DECLARATION is what says this value is a name rather
-  // than prose, and that sentence is the vault's. Trimming on one `--plugins`
-  // and not on another would put a flag on the machine in charge of what gets
-  // written to a file.
+  // than prose, and that sentence is the vault’s. The vault’s `on` choices
+  // must not change how this value is stored when its provider stops or starts.
   const stored = declared.type.kind === "date"
     ? canonicalDate(value, offsetIn(now) ?? null) ?? value.trim()
     : value.trim()

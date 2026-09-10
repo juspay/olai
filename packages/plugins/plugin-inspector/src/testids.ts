@@ -1,11 +1,19 @@
 /** Stable DOM identifiers owned by this renderer. Shared consumers import
  * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
+  thisServe: "this-serve",
   pluginsTrigger: "plugins-trigger",
   pluginsPanel: "plugins-panel",
   pluginsRefused: "plugins-refused",
   pluginsStarted: "plugins-started",
   pluginConfig: "plugin-config",
+  pluginKnob: "plugin-knob",
+  pluginSource: "plugin-source",
+  pluginReset: "plugin-reset",
+  pluginProblem: "plugin-problem",
+  pluginsFile: "plugins-file",
+  pluginConfigLink: "plugin-config-link",
+  pluginConfigError: "plugin-config-error",
   pluginSwitch: "plugin-switch",
   pluginGroup: "plugin-group",
   pluginConfirm: "plugin-confirm",

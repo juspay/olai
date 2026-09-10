@@ -44,7 +44,7 @@ import type { OlaiWorld } from "../support/world.ts";
 const DEFINITION = "swatch.olai";
 
 /** ONE DEFINITION'S BLOCK on the panel, by the word its `plugin` property
- *  carries — the same way a person finds it and the same way `--plugins` would
+ *  carries — the same way a person finds it and the same way the file’s row selection would
  *  name it if it were a built row. */
 const blockFor = (world: OlaiWorld, plugin: string) =>
   world.pluginsPanel().locator(`${PLUGINS_SOURCE}${attr("data-plugin", plugin)}`);
