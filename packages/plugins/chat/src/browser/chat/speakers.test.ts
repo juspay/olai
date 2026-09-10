@@ -36,7 +36,7 @@ const called = (extra: Partial<ToolEntry> = {}): ToolEntry => ({
   ...head,
   id: "tool-1",
   kind: "tool",
-  text: "read_subtree",
+  text: "outlines_subtree",
   status: "completed",
   ...extra,
 })

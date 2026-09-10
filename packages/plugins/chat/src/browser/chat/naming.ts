@@ -55,7 +55,7 @@
  * using. What it CANNOT do is move a file row somebody is already on.
  */
 
-import type { NodeHit } from "@olai/surface"
+import type { NodeHit } from "@olai/format"
 
 import { dirOf, folded, matchFiles, nameOf } from "@olai/web/client/file/matching.ts"
 /** How many rows the list offers — the eight every shortlist in this app shows
@@ -64,7 +64,7 @@ import { dirOf, folded, matchFiles, nameOf } from "@olai/web/client/file/matchin
  *  arithmetic below hands the file half whatever the node half did not use, so
  *  a cap that differed from the one on the request would be giving away rows
  *  that were never on offer. */
-import { LIMIT } from "@olai/web/client/search/nodes.ts"
+import { LIMIT } from "olai-plugin-search/reading"
 import { nodeMatches, type NodeMatch } from "./nodes.ts"
 
 

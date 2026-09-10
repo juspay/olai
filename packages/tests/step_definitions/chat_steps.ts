@@ -158,11 +158,9 @@ Given("the agent panel is open", async function (this: OlaiWorld) {
   // the thumb strip is the door. Open-ness is remembered in localStorage, so
   // a reload inside a scenario may come back already open.
   if (!(await panel.isVisible())) {
-    if (await toggle.isVisible()) {
-      await toggle.click();
-    } else {
-      await this.page.locator(CHAT_STRIP).click();
-    }
+    // A browser plugin may still be activating. Wait for either responsive
+    // door instead of mistaking a not-yet-mounted desktop toggle for a phone.
+    await this.page.locator(`${CHAT_TOGGLE}:visible, ${CHAT_STRIP}:visible`).first().click();
     await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   }
   // Settled means the agent has finished handshaking — or that there is no
@@ -658,8 +656,11 @@ Then("the panel does not say it is busy", async function (this: OlaiWorld) {
 });
 
 Then("the agent is idle", async function (this: OlaiWorld) {
+  // A send click returns before its acknowledgement. The previous idle frame
+  // is not evidence that the new turn has finished; require both facts from
+  // the same rendered panel. Sends intentionally remain nonblocking above.
   await this.expectAttribute(
-    CHAT_PANEL,
+    `${CHAT_PANEL}${attr("data-pending-sends", "0")}`,
     "data-status",
     "idle",
     "the agent panel",
@@ -976,13 +977,13 @@ Then("the chat shows a refusal", async function (this: OlaiWorld) {
 });
 
 Then("the chat shows no refusal", async function (this: OlaiWorld) {
-  // The turn has already been asserted to have LANDED by whatever step comes
-  // before this one, so there is nothing left to wait for: a refusal, if there
-  // were one, would be on screen by now.
-  assert.strictEqual(
-    await this.page.locator(CHAT_REFUSAL).count(),
-    0,
-    "the panel drew a refusal for a write that was supposed to land",
+  // The scenario establishes completion before checking the transcript.
+  // That receipt need not be a successful write: web refusals stay local too.
+  const refusals = await this.page.locator(CHAT_REFUSAL).allInnerTexts();
+  assert.deepStrictEqual(
+    refusals,
+    [],
+    `expected no chat refusals; found: ${JSON.stringify(refusals)}`,
   );
 });
 
@@ -3908,4 +3909,37 @@ Then("there is no terminal output", async function (this: OlaiWorld) {
 });
 Then("terminal output omits {string}", async function (this: OlaiWorld, text: string) {
   await this.waitUntil(async () => (await this.page.getByRole("region", { name: "Terminal output", exact: true }).allTextContents()).every(output => !output.includes(text)), "terminal output to omit: " + text, HYDRATION_TIMEOUT);
+});
+
+Then("my transcript speaker is {string}", async function (this: OlaiWorld, name: string) {
+  const speaker = this.page.locator(`${selector(PLUGIN_TESTID.chatSpeaker)}[data-speaker="human"]`).first();
+  await this.waitUntil(async () => await speaker.getAttribute("data-speaker-name") === name,
+    `the human speaker to be ${name}`);
+});
+
+Then("my transcript speaker wears an anonymous silhouette", async function (this: OlaiWorld) {
+  const speaker = this.page.locator(`${selector(PLUGIN_TESTID.chatSpeaker)}[data-speaker="human"]`).first();
+  await speaker.locator("svg").waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(await speaker.locator("img").count(), 0);
+});
+
+When(
+  "I pick the conversation {string} under the agent {string}",
+  async function (this: OlaiWorld, title: string, agent: string) {
+    await this.page.locator(`${CHAT_SESSION}${attr("data-agent", agent)}`, { hasText: title }).first().click();
+  },
+);
+
+Then("the open agent's work contains {string} but not {string}", async function (this: OlaiWorld, own: string, other: string) {
+  const work = this.page.locator(CHAT_PREVIEW);
+  await this.waitUntil(async () => (await work.innerText()).includes(own), `the child work to contain ${own}`, HYDRATION_TIMEOUT);
+  assert.ok(!(await work.innerText()).includes(other), `the child work contains another session's output: ${other}`);
+});
+
+When("I open {string} from the open agent's work", async function (this: OlaiWorld, named: string) {
+  await this.page.locator(`${CHAT_PREVIEW} ${CHAT_LANE_DOOR}`, { hasText: named }).click();
+});
+
+When("I return to the parent agent {string}", async function (this: OlaiWorld, name: string) {
+  await this.page.getByRole("button", { name: `Back to ${name}`, exact: true }).click();
 });

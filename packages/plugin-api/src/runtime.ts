@@ -93,6 +93,13 @@
  */
 
 export {
+  location,
+  locations,
+  type Location,
+  type LocationOwner,
+  type Locations,
+  type LocationReport,
+  type Contribution,
   broadcast,
   type Bus,
   definePlugin,
@@ -103,6 +110,7 @@ export {
   type Mounted,
   mountPlugin,
   type Plugin,
+  type Provision,
   registry,
   type Registry,
   roster,

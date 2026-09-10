@@ -15,7 +15,7 @@ Feature: A dated node that comes back
 
   The decision that makes the spawn a feature rather than a field lives in the
   PLANNER, so it holds for both doors: the `Complete` this feature presses and
-  an agent's `set_done` are the same request. What is driven here is the face a
+  an agent's `outlines_done` are the same request. What is driven here is the face a
   person sees.
 
   The scenarios date their node in 2019 on purpose, like the agenda's fixtures:

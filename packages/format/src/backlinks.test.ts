@@ -91,7 +91,7 @@ test("a placement is not a reference, and neither is an ordering edge", () => {
       `{"id":"sooner","ord":"c","title":"sooner","blocks":["herbs"]}`,
     "b.olai": `{"id":"m","ord":"a","mirror":"herbs"}`,
   })
-  // The mirror is drawn where it sits and answered by `read_node`'s `mirrors`;
+  // The mirror is drawn where it sits and answered by `outlines_read`'s `mirrors`;
   // the two ordering edges are drawn as `blocked by` and `after` on the pages
   // that already say them. None of the three is a reference.
   expect(backlinksOf(view, "herbs")).toEqual([])

@@ -93,6 +93,40 @@ When(
 );
 
 /**
+ * …and readable again — the mirror of the step above, and the half that turns a
+ * refusal into a claim.
+ *
+ * A state provably REACHED and never provably LEFT says nothing about whether
+ * the page can come back from it: a face that latched its refusal, or a store
+ * that never looks at a file it has already given up on, is green in a suite
+ * whose only chmod goes one way. Every reader of a refusal that this suite
+ * asserts (a document's page, a node's `doc` line, a saved page) is therefore
+ * owed the other direction from the same door.
+ *
+ * 0644 rather than whatever the file wore before, for the reason the step above
+ * hard-codes 000: the mode a served file has here is the mode this suite gives
+ * it, and remembering the old one would be a second place holding that fact.
+ *
+ * Pending on root for its twin's reason — root reads a 0000 file, so a root run
+ * skips the PAIR rather than half of it and leaves the recovery unasserted
+ * against a refusal that never happened.
+ */
+When(
+  "the served file {string} can be read again",
+  async function (this: OlaiWorld, file: string) {
+    if (typeof process.getuid === "function" && process.getuid() === 0) {
+      return "pending";
+    }
+    const target = path.join(this.scratch(), file);
+    fs.chmodSync(target, 0o644);
+    // chmod changes neither size nor mtime, so the stamps say nothing moved —
+    // which is exactly the trade the verified class exists to refuse. Same
+    // door as the refusal, so recovery is asked for the way it was caused.
+    await askResync(this.baseUrl, POLL_TIMEOUT);
+  },
+);
+
+/**
  * Somebody else, writing, mid-scenario.
  *
  * The same door as `I rewrite` — a file changing under a running server — but
@@ -255,7 +289,30 @@ When(
  * what only an e2e can say is that both halves reach a reader.
  */
 When("the served directory is taken away", function (this: OlaiWorld) {
-  fs.rmSync(this.scratch(), { recursive: true, force: true });
+  // A RENAME, and not a recursive remove, because the scenario's subject is a
+  // root that is GONE — a mount that vanished, an EACCES — and a recursive
+  // remove is not that. `rmSync(recursive)` unlinks the entries and only then
+  // the root, so for as long as it runs the directory is READABLE AND
+  // EMPTYING: the watcher can publish a valid depleted revision, that becomes
+  // the last good one, and the banner then stands over an empty page rather
+  // than over the tree the scenario is named for.
+  //
+  // That is not a hypothesis. Splitting this step in two and putting a
+  // controlled gap between the contents and the root flips the outcome at
+  // about 100ms on an unloaded box: below it the page holds all eleven rows,
+  // above it the page is empty. The same flip happens on this branch's base
+  // (58f4f3172), so the race is the fault injection's and pre-existing — and
+  // a CI shard running at twice its siblings' wall clock is exactly where the
+  // window would open on its own.
+  //
+  // A rename on the same filesystem is one atomic step: the root is there, and
+  // then it is not, with nothing in between for a watcher to see. The renamed
+  // tree is removed afterwards — by then it is at a path nothing is watching,
+  // so how long THAT takes cannot be observed.
+  const root = this.scratch();
+  const gone = `${root}.taken-away`;
+  fs.renameSync(root, gone);
+  fs.rmSync(gone, { recursive: true, force: true });
 });
 
 // ── what is actually drawn ─────────────────────────────────────────────

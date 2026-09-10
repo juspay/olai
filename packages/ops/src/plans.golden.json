@@ -93,7 +93,7 @@
   },
   {
     "what": "prop shadowing a field the format has — refused toward the verb that writes it",
-    "sha": "f9d6d305f0d89058"
+    "sha": "f61b7ad2c578e418"
   },
   {
     "what": "move under another parent",
@@ -145,7 +145,7 @@
   },
   {
     "what": "create an outline that already exists — refused",
-    "sha": "304b3468b9b82d4a"
+    "sha": "c27c2211d46b2531"
   },
   {
     "what": "create an empty outline",
@@ -161,7 +161,7 @@
   },
   {
     "what": "empty an outline that is not the trash — refused",
-    "sha": "a48876512c0c05af"
+    "sha": "40d80306fe9d4058"
   },
   {
     "what": "empty the trash",
@@ -209,7 +209,7 @@
   },
   {
     "what": "unmirror a node that is not a placement — refused",
-    "sha": "e14afe5e546ee706"
+    "sha": "72b31553ddd8d7ea"
   },
   {
     "what": "write a document, whole",
@@ -229,7 +229,7 @@
   },
   {
     "what": "create a document that already exists — refused",
-    "sha": "189bbf56c47939b0"
+    "sha": "d7f2360bbc8dc951"
   },
   {
     "what": "update several fields of one node at once",
@@ -325,7 +325,7 @@
   },
   {
     "what": "delete an outline holding records — refused, naming them",
-    "sha": "d73742f32014462b"
+    "sha": "737785308aa2925e"
   },
   {
     "what": "delete a page of the kinds olai only shows — refused",

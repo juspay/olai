@@ -1,3 +1,4 @@
+import type {} from "olai-plugin-chat/slots"
 /**
  * THE PI ENGINE'S BROWSER HALF — two faces, and both are a drawing ABOUT
  * this engine.

@@ -1,3 +1,13 @@
+import { Ops, Vault, Surfaces, VaultViews } from "@olai/plugin-api/services"
+import type { Ops as Gate } from "@olai/ops"
+import { inMemoryChannel, type ImplementSurfaceDeps } from "@kolu/surface/server"
+import { surface, faces } from "./surface.ts"
+/** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
+ *  faces. They were entries in `@olai/ops`' one closed table until #546, which
+ *  meant a general package named this row's vocabulary and a serve without this
+ *  row still advertised them; declaring them here is what makes switching the
+ *  row off take its tools along. */
+import { tools } from "./tools.ts"
 /**
  * SEARCH'S SERVER HALF — one table, one walk, and the door they stand behind.
  *
@@ -90,3 +100,53 @@ export default definePlugin({
     }))
   }),
 })
+
+/** Search's wire owner follows the vault revision pulse while every answer
+ * still reads through Ops' gate. The index provider above owns the SQLite
+ * table; this component owns its protocol, so withdrawing search removes its
+ * procedures and streams without depending on the outline renderer. */
+export const components = { wire: definePlugin({
+  name: "wire", needs: [Search, Ops, Vault, Surfaces, VaultViews],
+  apply: Effect.gen(function*() {
+    const gate = (yield* Ops).gate as Gate
+    /**
+     * WHAT A QUERY IS ANSWERED BY, TOLD TO THE STORE THAT ASKS.
+     *
+     * The vault's settings carry a matcher, and the vault cannot name `Search`:
+     * this component waits for `Vault`, so the reverse edge would be a cycle.
+     * It used to be a lookup at the far end (`HostServices.current(Search)`,
+     * over the whole host, for a key the vault never declared — the audit's
+     * §5), so the PROVIDER registers instead. This component is where it goes
+     * because it is the half that already waits for the vault; the row above
+     * stands behind the door on `Offers` alone and keeps answering a serve with
+     * no vault at all.
+     */
+    yield* (yield* VaultViews).search(yield* Search)
+    const revisions = inMemoryChannel<void>()
+    const vault = yield* Vault
+    yield* vault.revision(() => Effect.sync(() => revisions.publish(undefined)))
+    yield* vault.unloaded(Effect.sync(() => revisions.publish(undefined)))
+    const deps: ImplementSurfaceDeps<typeof surface.spec> = {
+      onStreamReadError: (error, { stream }) => {
+        Effect.runFork(Effect.logWarning(`search ${stream} read failed: ${String(error)}`))
+      },
+      streams: {
+        searchResults: {
+          read: input => Effect.runPromise(gate.search(input)),
+          install: (_input, onEvent) => revisions.consume({ onEvent, onError: () => {} }),
+          isEqual: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+        },
+      },
+      procedures: { search: { nodes: ({ input }) => gate.search(input) } },
+    }
+    yield* (yield* Surfaces).register({ surface, faces, tools, deps })
+  }),
+}) }
+
+/** Static sibling metadata matches the browser-owned client. Agent grants
+ * belong to the standalone aliases registered by this activation, so copying
+ * them here would advertise a second set of namespaced agent tools. */
+import { faces as standaloneFaces } from "./surface.ts"
+const siblingFaces = { browser: standaloneFaces.browser }
+export { siblingFaces as faces }
+export { surface } from "./surface.ts"

@@ -28,7 +28,7 @@
  * `@solid-primitives/storage`'s `makePersisted` was the other candidate here
  * and does sync across tabs. It is not adopted, for two reasons that are one
  * reason: the theme is not a signal that happens to be stored — `<html>` is
- * the state and the signal MIRRORS it (theme/state.ts), written first by a
+ * the state and the signal MIRRORS it (the theme provider), written first by a
  * boot script in the shell that has no modules to import — and this file's
  * contract is that storage may throw and the preference stands anyway, which
  * is a promise made here rather than one taken on trust from a dependency.
@@ -37,14 +37,10 @@
  *
  * The CIRCUIT over these primitives — read the entry into a signal, write a
  * change back, follow the browser's other tabs — is {@link createPreference},
- * and every stored value this browser keeps runs on it, with TWO exceptions.
- * The theme and the typeface cannot: their first read belongs to the shell's
- * boot script, which runs before any module exists, because a first paint
- * cannot wait for one — and `<html>` is the state their signals mirror, so a
- * second copy in a signal here would be the disagreement theme/state.ts and
- * theme/fontState.ts exist to prevent. So those two keep their own wiring and
- * import the primitives, and a test beside this file holds the line: nothing
- * else may.
+ * and remaining web preferences use that factory. The theme provider owns a
+ * separate scoped appearance circuit: HTML attributes are seeded before first
+ * paint, and provider activation rereads storage after any period of absence.
+ * Its storage watchers and DOM restoration belong to that provider's scope.
  */
 
 import { type Accessor, createSignal } from "solid-js"
@@ -149,24 +145,24 @@ export const preferenceChanged = (
 }
 
 /**
- * Follow a preference for as long as this document lives: `apply` is called
+ * Follow a preference until the returned disposer runs: `apply` is called
  * with what ANOTHER tab left under `key`, and never with this tab's own writes.
  *
- * No teardown, for the same reason `viewport.ts` has none: what this belongs to
- * is the document, a preference outlives every component that reads one, and
- * the only thing that could end the listener also ends the page.
+ * The owning capability decides the lifetime, independently of any settings UI.
  */
 export const watchPreference = (
   key: string,
   apply: (value: string | null) => void,
-): void => {
+): (() => void) => {
   // `window.` spelled out: the bare global resolves to the untyped overload,
   // which hands a listener a plain `Event` and loses the whole point of asking
   // for this one.
-  window.addEventListener("storage", (event) => {
+  const listener = (event: StorageEvent) => {
     const value = preferenceChanged(event, key)
     if (value !== undefined) apply(value)
-  })
+  }
+  window.addEventListener("storage", listener)
+  return () => window.removeEventListener("storage", listener)
 }
 
 /**
@@ -208,10 +204,8 @@ export interface Preference<T> {
    *  may have written since. For a preference that is a set of independent
    *  facts rather than one pick, a write starts from this. */
   readonly stored: () => T
-  /** Follow the browser's other tabs for as long as this document lives —
-   *  started once, from `main.tsx`, because a preference belongs to the
-   *  browser and a browser is more than one tab. */
-  readonly follow: () => void
+  /** Refresh from storage and follow other tabs until disposed. */
+  readonly follow: () => () => void
 }
 
 /**
@@ -242,7 +236,8 @@ export const createPreference = <T>(
       if (opts?.persist !== false) writePreference(key, codec.print(next))
     },
     follow: () => {
-      watchPreference(key, (raw) => hold(codec.parse(raw)))
+      hold(codec.parse(readPreference(key)))
+      return watchPreference(key, (raw) => hold(codec.parse(raw)))
     },
   }
 }

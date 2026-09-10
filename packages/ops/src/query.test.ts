@@ -104,10 +104,10 @@ const at = () => derivedOf(LEDGER())
  * assertions later on `undefined`.
  */
 const walked = (of: Reading, request: SubtreeRequest): SubtreeAnswer =>
-  succeeded(subtree(of, request), "`read_subtree` to answer")
+  succeeded(subtree(of, request), "`outlines_subtree` to answer")
 
 const refusedWalk = (of: Reading, request: SubtreeRequest): OpFailure =>
-  failed(subtree(of, request), "`read_subtree`")
+  failed(subtree(of, request), "`outlines_subtree`")
 
 /**
  * A node read that ANSWERED — `detail`'s pair, since it went the way of
@@ -116,11 +116,11 @@ const refusedWalk = (of: Reading, request: SubtreeRequest): OpFailure =>
  * two lines above, which is where `walked`/`refusedWalk` already live for it.
  */
 const read = (of: Derived, id: string, fields?: ReadonlyArray<string>): Detail | null =>
-  succeeded(detail(of, id, fields), "`read_node` to answer")
+  succeeded(detail(of, id, fields), "`outlines_read` to answer")
 
 /** The one that REFUSED — {@link read}'s other arm. */
 const refusedRead = (of: Derived, id: string, fields: ReadonlyArray<string>): OpFailure =>
-  failed(detail(of, id, fields), "`read_node`")
+  failed(detail(of, id, fields), "`outlines_read`")
 
 /**
  * The two ARMS of an answer that is not the `{ missing }` one — a diagnostic
@@ -296,7 +296,7 @@ describe("what a node is waiting on", () => {
  * The custom map, on a node read — every named fact it carries, and nothing
  * invented for a node that carries none.
  *
- * Without it `set_prop` would be a write whose result no read could show, which
+ * Without it `outlines_prop` would be a write whose result no read could show, which
  * is the gap `see` and `after` were given their own fields on an answer to
  * close: a value written by id and unreadable can only be changed by guessing.
  */
@@ -374,7 +374,7 @@ describe("what refers to a node", () => {
   })
 })
 describe("placements", () => {
-  /** WHERE ELSE this node is drawn — the id half of `remove_mirror`, and the
+  /** WHERE ELSE this node is drawn — the id half of `outlines_unmirror`, and the
    *  only way to reach a placement a previous session made. */
   test("`mirrors` names every placement of a node, chains followed", () => {
     // `git` is placed twice: directly by `focus-git`, and through it by
@@ -400,7 +400,7 @@ describe("placements", () => {
    * reader draws one beside the errors. The answer is the record that id
    * means: `byId` is first-claim-wins, the format's one rule for duplicates,
    * and `mirrors` is read out of an index keyed by id like every other. Two
-   * entries here would name a record `remove_mirror` could never reach, since
+   * entries here would name a record `outlines_unmirror` could never reach, since
    * that verb takes an ID and one of the two would always be the other.
    *
    * The rule is §3 of https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/model-indices.md — the tax an index
@@ -450,11 +450,11 @@ describe("placements", () => {
   })
 
   /**
-   * THE WALK NAMES WHAT IT WILL NOT DESCEND — `read_subtree`'s answer to a
+   * THE WALK NAMES WHAT IT WILL NOT DESCEND — `outlines_subtree`'s answer to a
    * board of mirrors, in the very shape the node read pins above.
    *
    * The case this was filed from (2026-08-27, and again 2026-08-31): a day
-   * board's children are ALL placements, and `read_subtree(day-root)`
+   * board's children are ALL placements, and `outlines_subtree(day-root)`
    * answered `children: []` — the practical answer to "what is on this
    * board" was silence, and an orchestrator read it as the board wiped.
    * `now` is exactly that node, and the whole claim is that the walk says
@@ -619,7 +619,7 @@ describe("the caller shapes the rows", () => {
       "title",
     ])
     // The SECOND row carries this lane's OWN clock, BOTH halves: `started`,
-    // the stamp `set_doing` wrote, and `worked`, the bank it cannot be read
+    // the stamp `outlines_doing` wrote, and `worked`, the bank it cannot be read
     // without — a multi-round row naming the stamp alone would say one
     // round's wall for several rounds' work. And the asked-for names it
     // does not hold stay ABSENT, exactly as they are on a full row.
@@ -679,10 +679,10 @@ describe("the caller shapes the rows", () => {
       { id: "dated", title: "only dated" },
       { id: "stamped-free", title: "done before instants", status: "done" },
     ] as const
-    // The child list of a `read_node` …
+    // The child list of a `outlines_read` …
     expect(read(readingOf(SPAN()).derived, "lane", ["title", "status", "took"])?.children)
       .toEqual(expected)
-    // …and every row of a `read_subtree`: one derivation, one vocabulary,
+    // …and every row of a `outlines_subtree`: one derivation, one vocabulary,
     // two doors — the timings ask the parameter was born for. (The walk's
     // rows carry their own `children`, the structure being the walk's own.)
     const rows =
@@ -863,8 +863,8 @@ describe("the caller shapes the rows", () => {
 })
 
 /**
- * A WHOLE OUTLINE IN ONE CALL — `read_subtree`'s second way in, and the reason
- * this item exists: `list_outlines` says which files there are and what their
+ * A WHOLE OUTLINE IN ONE CALL — `outlines_subtree`'s second way in, and the reason
+ * this item exists: `outlines_index` says which files there are and what their
  * roots are CALLED, and until this the only way down was one call per root.
  */
 describe("a whole outline, walked", () => {
@@ -897,7 +897,7 @@ describe("a whole outline, walked", () => {
     // BOTH roots, in the sibling order a reader sees them in — which is the
     // whole claim: two roots used to be two calls.
     expect(rootIds(answer)).toEqual(["today", "later"])
-    // …and each one walked, not merely named: `list_outlines` already answers
+    // …and each one walked, not merely named: `outlines_index` already answers
     // the titles.
     const answered = outlineOf(answer)
     expect(answered.roots[0]?.children.map((child) => child.id)).toEqual(["call"])
@@ -956,7 +956,7 @@ describe("a whole outline, walked", () => {
    * THE ONE PLACE THE TWO ANSWERS ABOUT ONE OUTLINE DIFFER, pinned so it is a
    * decision rather than something that happens.
    *
-   * `list_outlines` names a file's roots in the order the FILE writes them, and
+   * `outlines_index` names a file's roots in the order the FILE writes them, and
    * that is deliberate and has a case of its own ("the directory", below). This
    * walk answers in the TREE's order, `ord`, which is what a page draws and
    * what every `children` list in the same answer is in — a walk that ordered
@@ -1028,7 +1028,7 @@ describe("a whole outline, walked", () => {
 
   test("a file that did not parse is refused with the validator's own rows", () => {
     // Never answered as an outline holding nothing: nobody read that file, so
-    // there is nothing to answer with — `read_document`'s rule for a `.md`.
+    // there is nothing to answer with — `markdown_read`'s rule for a `.md`.
     const refusal = refusedWalk(shelf(), { file: "torn.olai" })
     expect(refusal._tag).toBe("ValidationFailure")
     expect(
@@ -1079,7 +1079,7 @@ describe("the tags a node carries", () => {
   // AS WRITTEN, sigil and all. `#alice` and `@alice` are two different tags
   // (`@olai/format`'s TAG_SIGILS), so a list of bare names could not say which
   // of them a node carries — and this is the shape an agent reads off
-  // `read_node`, which nothing on the wire side would notice losing.
+  // `outlines_read`, which nothing on the wire side would notice losing.
   test("a node read reports its tags as they are written", () => {
     expect(read(derivedOf(TAGGED()), "call")?.tags).toEqual([
       "@alice",
@@ -1144,7 +1144,7 @@ describe("the directory", () => {
 /**
  * LISTING SIZES ≡ RECOMPUTE-FROM-BODY.
  *
- * `list_documents` used to UTF-8-encode every served body on every call to
+ * `markdown_index` used to UTF-8-encode every served body on every call to
  * report a size the decode already knew. The size now lives on the document;
  * this is the gate that the remembered number is still the old answer, byte
  * for byte — including over multi-byte UTF-8, which is the case a
@@ -1188,7 +1188,7 @@ describe("a document listing's sizes are a recompute from the body", () => {
   })
 
   test("after a write replaces the body", () => {
-    // THE APPLY STEP, which a cold listing never reaches. `write_document`
+    // THE APPLY STEP, which a cold listing never reaches. `markdown_write`
     // lands through `following`'s fold (`bodiedDocument` on the applied
     // text); a future fast path that spread a document and swapped `body`
     // without `bytes` would pass every fixture above and fail here.
@@ -1199,7 +1199,7 @@ describe("a document listing's sizes are a recompute from the body", () => {
     const made = planned(set, { op: "doc", file: "note.md", text: next })
     const folded = succeeded(
       folding(scoping(readingOf(set), steady(), NO_KINDS))(made),
-      "`write_document` to apply",
+      "`markdown_write` to apply",
     )
     agree(folded.set)
     const listed = documents(folded.set).find((row) => row.file === "note.md")
@@ -1384,8 +1384,8 @@ const HOUSE = (): OutlineSet =>
     "house.olai": [
       `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
       `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets"}`,
-      // A placement of `order`, which is the id an agent writes: `read_node`
-      // answers `mirrors` with it and `remove_mirror` takes it.
+      // A placement of `order`, which is the id an agent writes: `outlines_read`
+      // answers `mirrors` with it and `outlines_unmirror` takes it.
       `{"id":"echo","ord":"a1","mirror":"order"}`,
       // ...and one whose chain ends nowhere.
       `{"id":"nowhere","ord":"a2","mirror":"gone"}`,

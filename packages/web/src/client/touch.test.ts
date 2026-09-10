@@ -6,8 +6,8 @@
 
 import { expect, test } from "bun:test"
 
-import { LEADING, STEP_REM } from "./theme/scale.ts"
-import { ROW_NOTE, ROW_TITLE, SECTION_TITLE } from "./touch.ts"
+import { LEADING, STEP_REM } from "@olai/appearance/scale.ts"
+import { ROW_NOTE, ROW_TITLE, SECTION_TITLE } from "@olai/ui-primitives/touch.ts"
 
 const remOf = (classes: string): number => {
   const found = classes.match(/text-\[(\d+(?:\.\d+)?)rem\]/)

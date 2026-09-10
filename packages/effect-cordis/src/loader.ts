@@ -35,6 +35,7 @@ import type { Entry } from "@cordisjs/plugin-loader"
 import Loader from "@cordisjs/plugin-loader"
 import { Effect } from "effect"
 
+import { pluginModule } from "./module.ts"
 import { interrupt } from "./lifecycle.ts"
 import { ctxOf, type Host } from "./host.ts"
 
@@ -106,8 +107,6 @@ export const mountRows = (host: Host, options: {
    *  `{ id, config }` copied onto the matching row. An empty list is nobody
    *  having said anything, and the rows' own defaults stand. */
   readonly patches: ReadonlyArray<Partial<Row> & { readonly id: string }>
-  /** Composition-root rows inserted into the same loader tree. */
-  readonly rows?: ReadonlyArray<Row & { readonly name: string }>
   /** How a row's module specifier becomes a module — see the header. */
   readonly resolve: (specifier: string) => Promise<unknown>
 }): Effect.Effect<void> =>
@@ -117,7 +116,7 @@ export const mountRows = (host: Host, options: {
     await ctx.plugin(Loader)
     ;(ctx.loader as unknown as { internal: unknown }).internal = {
       version: "v1",
-      import: (specifier: string) => options.resolve(specifier),
+      import: async (specifier: string) => pluginModule(await options.resolve(specifier)),
     }
     // THE ROWS, AS THE INCLUDE MAKES THEM — registered BEFORE the include, which
     // is the whole of why this line is here and not further down: the event
@@ -129,7 +128,7 @@ export const mountRows = (host: Host, options: {
     ;(ctx as unknown as Record<symbol, Array<Entry>>)[ROWS] = rows
     await ctx.plugin(Include, {
       path: options.path,
-      patches: [...options.patches, ...(options.rows?.length ? [{ insert: [...options.rows] }] : [])],
+      patches: [...options.patches],
     })
     await ctx.loader.await()
   })

@@ -24,12 +24,12 @@ import type { DayGroup } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { Dynamic } from "solid-js/web"
 
-import { CRUMB } from "@olai/web/client/Breadcrumbs.tsx"
-import { Link } from "@olai/web/client/router.tsx"
+import { CRUMB } from "olai-plugin-outlines/chrome"
+import { Link } from "olai-plugin-navigation/routing"
 import { TESTID } from "../../testids.ts"
 import { DayNode } from "./DayNode.tsx"
 import { placeOf } from "./place.ts"
-import { atFile } from "@olai/web/client/routes.ts"
+import { atFile } from "olai-plugin-navigation/routes"
 
 /** Which heading level a group's file name is drawn as. */
 export type Heading = "h2" | "h3" | "h4"

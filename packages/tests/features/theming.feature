@@ -18,6 +18,10 @@ Feature: The theme is a pick, and it is yours
   are about, and they are worth having because "it works" and "it works without
   asking anybody" look identical on screen.
 
+  The network measurement starts after the picker is open and its fonts have
+  loaded. Opening that surface and loading the initial page are separate from
+  choosing a palette; every request made by the pick still counts.
+
   There is no "system" chip. The OS's preference used to choose the palette,
   which meant two ways to be dark that could disagree, and a page that changed
   under a reader who had already said what they wanted. A page that has picked
@@ -102,6 +106,7 @@ Feature: The theme is a pick, and it is yours
 
   Scenario: Picking a theme asks the server for nothing
     When I open the app
+    And the appearance controls have finished loading their fonts
     And I watch what the page asks for
     And I pick the theme "ember"
     Then the page is in the theme "ember"

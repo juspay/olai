@@ -20,15 +20,25 @@ import type { Installed } from "./agents/roster.ts"
 import { ephemeralLocalState } from "./local.ts"
 import { forLocalState } from "./memory.ts"
 import { make } from "./scoped.ts"
+import { forLocalState as scopesIn } from "./scopes.ts"
 import { makePanel } from "./chat.ts"
 
 
+const ACTIVATION = {}
+
 const logging = () => {
   const { layer, said } = collector()
-  const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(
-    effect.pipe(Effect.provideService(References.MinimumLogLevel, "Info"), Effect.provide(layer)),
-  )
-  return { run, said }
+  const under = <A, E>(effect: Effect.Effect<A, E>): Effect.Effect<A, E> =>
+    effect.pipe(Effect.provideService(References.MinimumLogLevel, "Info"), Effect.provide(layer))
+  const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(under(effect))
+  /** THE BENCH'S OWN FORK, and it carries the bench's logger for the reason the
+   *  scheduler asks for one at all: work started through `Options.fork` runs on
+   *  whatever runtime the caller supplied, so a fork that dropped this layer
+   *  would be a case asserting on lines the collector never saw. Under a serve
+   *  that runtime is the plugin's, which carries the operator's settings; here
+   *  it is this. */
+  const fork = (work: Effect.Effect<void>) => Effect.runFork(under(work))
+  return { run, fork, said }
 }
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "doorbell-agent.ts")
@@ -67,13 +77,18 @@ afterEach(() => {
 })
 
 test("two node scopes work together, then an idle one is reaped and woken in place", async () => {
-  const { run, said } = logging()
+  const { run, fork, said } = logging()
   let nodes: ReadonlyArray<NodeAgent> = [
     { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
     { id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
   ]
   const released: Array<string> = []
   const chat = await run(make({
+    // THE BENCH'S OWN RUNTIME, said out loud. `Options.fork` has no default —
+    // one would have to be `Effect.runFork`, which is the unowned default
+    // runtime this scheduler stopped reaching for. A bench chooses it here,
+    // where the choice is visible, and `logging()`'s carries the collector.
+    fork,
     roster: () => [installed("alpha"), installed("beta")],
     engines: () => ["alpha", "beta"],
     cwd,
@@ -81,6 +96,7 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
     seatableAt: (id) => nodes.some((node) => node.id === id),
     nodes: () => nodes,
+    wake: () => undefined,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
       nodes.find((node) => node.engine === agent && node.session === session) ?? null,
@@ -131,7 +147,7 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     }
 
     await run(chat.doorFor("kolu").deliver(
-      { agent: "alpha", session: oneSession ?? "" },
+      chat.doorFor("kolu").scopes().find((row) => row.agent === "alpha")!,
       () => "wake in the background",
     ))
     await until("the sleeping scope to wake and finish", () => chat.live().get("one")?.status === "idle")
@@ -144,7 +160,7 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
   expect(released.toSorted()).toEqual(["one", "one", "two"])
   expect(said.some(line => line.message.includes("chat agent exited")
     && line.annotations.reason === "idle eviction" && line.annotations.node === "one")).toBe(true)
-})
+}, 20_000)
 
 test("boot routes a remembered node session before spawning any panel", async () => {
   let probes = 0
@@ -164,13 +180,14 @@ test("boot routes a remembered node session before spawning any panel", async ()
   await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
 
   const { layer, said } = collector()
-  const logged = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(
+  const under = <A, E>(effect: Effect.Effect<A, E>): Effect.Effect<A, E> =>
     effect.pipe(
       Effect.provideService(References.MinimumLogLevel, "Info"),
       Effect.provide(layer),
-    ),
-  )
+    )
+  const logged = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(under(effect))
   const chat = await logged(make({
+    fork: (work) => Effect.runFork(under(work)),
     roster: () => [installed("alpha")],
     engines: () => ["alpha"],
     cwd,
@@ -186,6 +203,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
     seatableAt: (id) => nodes.some((node) => node.id === id),
     nodes: () => nodes,
+    wake: () => ACTIVATION,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
       nodes.find((node) => node.engine === agent && node.session === session) ?? null,
@@ -207,8 +225,177 @@ test("boot routes a remembered node session before spawning any panel", async ()
   }
 })
 
+/**
+ * SHUTDOWN LANDING IN THE MIDDLE OF A BOOT — the one way a node scope's
+ * resources could appear AFTER the thing that owns them said it had stopped.
+ *
+ * The boot is forked and detached on purpose: recalling a session, locating a
+ * node and acquiring a panel must not hold up whoever called `start`. It was
+ * also unowned, so a shutdown ran its whole sequence — root panel stopped,
+ * every slot in `nodes` closed — while the boot was still walking towards a
+ * `nodes.set` the snapshot had already been taken past. What survived was a
+ * minted MCP credential and a spawned ACP subprocess with nothing left that
+ * could release either.
+ *
+ * THREE ASSERTIONS, one per thing that could be left behind: a slot the live
+ * roster still names, a ticket minted and never released, and a subprocess
+ * that was told it was ready and never told to go.
+ */
+test("a shutdown that lands mid-boot leaves no scope, no ticket and no process", async () => {
+  const { run, fork, said } = logging()
+  const node: NodeAgent = {
+    id: "one",
+    file: "Work.olai",
+    title: "one",
+    engine: "alpha",
+    session: "remembered",
+    memory: 2,
+  }
+  // REMEMBERED, so the boot goes straight for the node scope rather than
+  // through a root session first — the longest walk, and the one with a
+  // credential and a subprocess in the middle of it.
+  const memory = forLocalState(ephemeralLocalState(), "alpha")
+  await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
+  const minted: Array<string> = []
+  const released: Array<string> = []
+  // THE MOMENT THE BOOT IS PAST THE POINT OF NO RETURN. The credential is
+  // minted immediately after `acquire` checks whether the scheduler has
+  // stopped and immediately before it spawns anything, so a stop that waits
+  // for this lands in the window and nowhere else. Without it the case is
+  // vacuous: `start` answers before the boot has recalled anything, and a stop
+  // that quick is refused at the check rather than racing past it.
+  const minting = Promise.withResolvers<void>()
+  const chat = await run(make({
+    fork,
+    roster: () => [installed("alpha")],
+    engines: () => ["alpha"],
+    cwd,
+    memory,
+    tools: () => null,
+    nodeAt: (id) => id === node.id ? node : null,
+    seatableAt: (id) => id === node.id,
+    nodes: () => [node],
+    wake: () => ACTIVATION,
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: ({ agent, session }) =>
+      node.engine === agent && node.session === session ? node : null,
+    ticket: (held) => {
+      minted.push(held)
+      minting.resolve()
+      return { bearer: `ticket-${held}`, release: () => released.push(held) }
+    },
+    onState: () => {},
+    onTranscript: () => {},
+  }))
+
+  await run(chat.start)
+  await minting.promise
+  await run(chat.stop)
+  // Long enough for a boot that outlived the stop to have reached its
+  // `session/load` and registered a slot.
+  await run(Effect.sleep("1500 millis"))
+
+  expect(chat.live().size).toBe(0)
+  expect([...released].sort()).toEqual([...minted].sort())
+  const ready = said.filter((line) => line.message.includes("chat agent ready"))
+  const exited = said.filter((line) => line.message.includes("chat agent exited"))
+  expect(exited).toHaveLength(ready.length)
+}, 30_000)
+
+/**
+ * ...AND THE SAME SHUTDOWN LANDING ON A PATH THAT IS NOT THE BOOT.
+ *
+ * Owning the boot fiber closes the boot's window and only the boot's. Every
+ * acquisition takes several yields to spawn a panel, and three others reach it
+ * — `reread`'s relocation, `assignedTo`, and a session started at a node — so
+ * any of them can be past the shutting-down check, inside the uninterruptible
+ * panel acquisition, when a stop sets its flag and reads the node map. The slot
+ * then lands in a map nobody reads again, with a credential and a process in
+ * it.
+ *
+ * TWO OF THEM, and neither is the boot's: a session started at a node, and the
+ * RELOCATION the audit names by name.
+ *
+ * The FIRST is the discriminating one — it fails against the arrangement this
+ * replaced, with a spawned agent that was told it was ready and never told to
+ * go. The second covers the other path and passes either way on this machine:
+ * its acquisition happens to finish before the stop reads the node map. Said
+ * here rather than left for a reader to discover, because a case that cannot
+ * fail is coverage and not evidence, and the two are not the same thing.
+ */
+for (const path of ["a session started at a node", "a relocation"] as const) {
+test(`a shutdown that lands mid-acquisition during ${path} leaves nothing behind`, async () => {
+  const { run, fork, said } = logging()
+  const node: NodeAgent = {
+    id: "one",
+    file: "Work.olai",
+    title: "one",
+    engine: "alpha",
+    session: null,
+    memory: 2,
+  }
+  const minted: Array<string> = []
+  const released: Array<string> = []
+  // The same latch the boot case uses, and for the same reason: the credential
+  // is minted immediately after the shutting-down check and immediately before
+  // anything is spawned, so a stop that waits for it lands in the window.
+  const minting = Promise.withResolvers<void>()
+  const chat = await run(make({
+    fork,
+    roster: () => [installed("alpha")],
+    engines: () => ["alpha"],
+    cwd,
+    tools: () => null,
+    nodeAt: (id) => id === node.id ? node : null,
+    seatableAt: (id) => id === node.id,
+    nodes: () => [node],
+    wake: () => ACTIVATION,
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: () => null,
+    ticket: (held) => {
+      minted.push(held)
+      minting.resolve()
+      return { bearer: `ticket-${held}`, release: () => released.push(held) }
+    },
+    onState: () => {},
+    onTranscript: () => {},
+  }))
+
+  // A RELOCATION MOVES A CONVERSATION THAT EXISTS, so that path opens one at
+  // the root first and waits for the boot to be done with it — which is what
+  // makes the acquisition under test unambiguously not the boot's. The other
+  // path takes no boot at all.
+  if (path === "a relocation") {
+    await run(chat.start)
+    await until("the root conversation to open", () =>
+      chat.state().session !== null && chat.state().status === "idle")
+  }
+  const seating = run(Effect.catch(
+    path === "a session started at a node"
+      ? chat.startAgentSession(node.id, "alpha")
+      : chat.assignedTo(node.id, {
+        agent: "alpha",
+        session: chat.state().session?.id ?? "",
+      }),
+    () => Effect.void,
+  ))
+  await minting.promise
+  await run(chat.stop)
+  await seating
+  // Long enough for an acquisition that outlived the stop to have finished
+  // spawning and registered its slot.
+  await run(Effect.sleep("1500 millis"))
+
+  expect(chat.live().size).toBe(0)
+  expect([...released].sort()).toEqual([...minted].sort())
+  const ready = said.filter((line) => line.message.includes("chat agent ready"))
+  const exited = said.filter((line) => line.message.includes("chat agent exited"))
+  expect(exited).toHaveLength(ready.length)
+}, 30_000)
+}
+
 test("boot moves a newly identified node session into its scope", async () => {
-  const { run, said } = logging()
+  const { run, fork, said } = logging()
   const node: NodeAgent = {
     id: "one",
     file: "Work.olai",
@@ -221,6 +408,7 @@ test("boot moves a newly identified node session into its scope", async () => {
   }
   const released: Array<string> = []
   const chat = await run(make({
+    fork,
     roster: () => [installed("alpha")],
     engines: () => ["alpha"],
     cwd,
@@ -228,6 +416,7 @@ test("boot moves a newly identified node session into its scope", async () => {
     nodeAt: (id) => id === node.id ? node : null,
     seatableAt: (id) => id === node.id,
     nodes: () => [node],
+    wake: () => ACTIVATION,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
       node.engine === agent && node.session === session ? node : null,
@@ -260,13 +449,15 @@ test("boot moves a newly identified node session into its scope", async () => {
 })
 
 test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wake", async () => {
-  const { run, said } = logging()
+  const { run, fork, said } = logging()
   let nodes: ReadonlyArray<NodeAgent> = [
     { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
     { id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
   ]
   const released: Array<string> = []
   const chat = await run(make({
+    fork,
+    scoping: await run(scopesIn(ephemeralLocalState())),
     roster: () => [installed("alpha"), installed("beta")],
     engines: () => ["alpha", "beta"],
     cwd,
@@ -274,6 +465,7 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
     seatableAt: (id) => nodes.some((node) => node.id === id),
     nodes: () => nodes,
+    wake: () => ACTIVATION,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
       nodes.find((node) => node.engine === agent && node.session === session) ?? null,
@@ -310,10 +502,19 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
       expect(refused.failure.message).toContain("1 node agents are already live")
     }
 
+    // Clearing a sleeping conversation must also remove deliveries held by
+    // the scheduler's capacity queue, without taking another plugin's body.
+    await run(chat.scope({ agent: "alpha", session: oneSession }, "kolu", "Work.olai"))
+    await run(chat.doorFor("kolu").deliver(
+      chat.doorFor("kolu").scopes()[0]!, () => "cleared capacity delivery",
+    ))
+    await run(chat.scope({ agent: "alpha", session: oneSession }, "kolu", null))
+
+    await run(chat.scope({ agent: "alpha", session: oneSession }, "odu", "Work.olai"))
     // This edge fires once. The same full-cap refusal must retain its thunk,
     // and opening the node after the busy slot settles must flush it.
     await run(chat.doorFor("odu").deliver(
-      { agent: "alpha", session: oneSession },
+      chat.doorFor("odu").scopes()[0]!,
       () => "one-shot first-red",
     ))
     await until("the busy slot to settle", () => chat.live().get("two")?.status === "idle")
@@ -321,16 +522,17 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
     await until("the held wake to enter the conversation", () =>
       JSON.stringify([...chat.entries().values()]).includes("one-shot first-red"))
     expect(released).toEqual(["one", "two"])
+    expect(JSON.stringify([...chat.entries().values()])).not.toContain("cleared capacity delivery")
   } finally {
     await run(chat.stop)
   }
   expect(said.some(line => line.message.includes("chat agent exited")
     && line.annotations.reason === "capacity eviction" && line.annotations.expected === true)).toBe(true)
 
-})
+}, 20_000)
 
 test("agent switches, disabled plugins and listing probes have distinct exit reasons", async () => {
-  const { run, said } = logging()
+  const { run, fork, said } = logging()
   let roster = [installed("alpha"), installed("beta")]
   const panel = await run(makePanel({
     roster: () => roster,
@@ -360,3 +562,77 @@ test("agent switches, disabled plugins and listing probes have distinct exit rea
     await run(panel.stop)
   }
 })
+
+
+test("node wake picks are off by default, independent, durable and clear the live inbox", async () => {
+  const { run, fork } = logging()
+  const local = ephemeralLocalState()
+  const scoping = await run(scopesIn(local))
+  const nodes: ReadonlyArray<NodeAgent> = [
+    { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: "one-session", memory: 2 },
+    { id: "two", file: "Work.olai", title: "two", engine: "beta", session: "two-session", memory: 3 },
+  ]
+  const one = { agent: "alpha", session: "one-session" }
+  const two = { agent: "beta", session: "two-session" }
+  const chat = await run(make({
+    fork, scoping, cwd,
+    roster: () => [installed("alpha"), installed("beta")],
+    engines: () => ["alpha", "beta"],
+    tools: () => null,
+    nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
+    seatableAt: (id) => nodes.some((node) => node.id === id),
+    nodes: () => nodes,
+    wake: (plugin) => plugin === "kolu" || plugin === "odu" ? ACTIVATION : undefined,
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: ({ agent, session }) => nodes.find((node) => node.engine === agent && node.session === session) ?? null,
+    ticket: () => ({ bearer: "", release: () => {} }),
+    onState: () => {}, onTranscript: () => {},
+  }))
+  try {
+    expect(chat.doorFor("kolu").scopes()).toEqual([])
+    expect(chat.doorFor("odu").scopes()).toEqual([])
+    // Delivery-only plugins retain node recipients, through the same service.
+    expect(chat.doorFor("agenda").scopes().map((scope) => scope.under)).toEqual(["one", "two"])
+    await run(chat.scope(one, "kolu", "Other.olai"))
+    await run(chat.scope(one, "odu", "Work.olai"))
+    expect(chat.live().size).toBe(0)
+    expect(chat.doorFor("kolu").ringing("Other.olai", "outside-one").map(({ current: _current, ...row }) => row)).toEqual([
+      { ...one, file: "Other.olai" },
+    ])
+    await run(chat.loadSession(one.agent, one.session))
+    expect(chat.state().wake.map(({ name, file }) => ({ name, file }))).toEqual([
+      { name: "kolu", file: "Other.olai" }, { name: "odu", file: "Work.olai" },
+    ])
+    await run(chat.scope(one, "kolu", "Work.olai"))
+    expect(chat.state().wake.find((row) => row.name === "kolu")?.file).toBe("Work.olai")
+    await run(chat.loadSession(two.agent, two.session))
+    expect(chat.state().wake).toEqual([])
+    // A delayed choice for the other conversation cannot change this one's strip.
+    await run(chat.scope(one, "kolu", "Other.olai"))
+    expect(chat.state().wake).toEqual([])
+    await run(chat.loadSession(one.agent, one.session))
+    expect(chat.state().wake.find((row) => row.name === "kolu")?.file).toBe("Other.olai")
+    await run(chat.send("wait:5000", [], []))
+    await until("a running turn", () => chat.state().status === "thinking")
+    await run(chat.doorFor("kolu").deliver(chat.doorFor("kolu").scopes()[0]!, () => "discard this kolu delivery"))
+    await run(chat.doorFor("odu").deliver(chat.doorFor("odu").scopes()[0]!, () => "keep this odu delivery"))
+    expect(chat.state().wake.find((row) => row.name === "kolu")?.waiting).toBe(1)
+    await run(chat.scope(one, "kolu", null))
+    expect(chat.state().wake.map((row) => row.name)).toEqual(["odu"])
+    expect(chat.doorFor("kolu").scopes()).toEqual([])
+    await run(chat.cancel)
+    await until("odu's queued message", () => JSON.stringify([...chat.entries().values()]).includes("keep this odu delivery"))
+    expect(JSON.stringify([...chat.entries().values()])).not.toContain("discard this kolu delivery")
+    // Fault and healing updates reach the node panel, not just the root panel.
+    await run(chat.faults(() => "gone", () => true))
+    expect(chat.state().wake[0]?.fault).toBe("gone")
+    expect(chat.doorFor("odu").scopes()).toEqual([])
+    await run(chat.faults(() => null, () => true))
+    expect(chat.state().wake[0]?.fault).toBeNull()
+    await run(chat.scope(one, "odu", null))
+    expect((await run(scopesIn(local))).rows()).toEqual([])
+    expect(chat.doorFor("odu").scopes()).toEqual([])
+  } finally {
+    await run(chat.stop)
+  }
+}, 25_000)

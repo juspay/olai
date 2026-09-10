@@ -119,7 +119,7 @@ export const composed = (
  *
  * The TITLE, not the id. The design's example named an id and read well because
  * the roadmap's ids are slugs somebody chose (`outlines-collection done`) — but
- * `add_node` MINTS one when nobody supplies it, so the moment an agent captures
+ * `outlines_add` MINTS one when nobody supplies it, so the moment an agent captures
  * a node the same subject reads `1vax4izq created`. A log line nobody can read
  * is the failure this whole convention exists to avoid, and the title is the one
  * field that is always meant for a person. (A mirror has no title of its own,

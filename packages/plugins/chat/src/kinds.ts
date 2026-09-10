@@ -14,10 +14,10 @@
  * `@olai/format` and read by four packages, because when chat was core there was
  * nobody else it could belong to. A key's SPELLING is not a licence, and this
  * key carries the sharpest one in the tree: a value here decides which node a
- * session is fenced to, which subtree it may write in, and which ancestor a
- * refusal names. A vault that happens to call a column `agent-session` and means
- * something else by it was, until this lane, a vault whose columns olai read as
- * bindings.
+ * session is seated on — its home, its history, its doorbells — and which
+ * conversation it is having. A vault that happens to call a column
+ * `agent-session` and means something else by it was, until this lane, a vault
+ * whose columns olai read as bindings.
  *
  * ## TWO LAYERS, AND THE VAULT IS THE OUTER ONE
  *
@@ -34,29 +34,25 @@
  * where the rule is, and its `kinds.test.ts` holds this file's second spelling
  * equal to the registry's.
  *
- * ## AND WHAT AN EXISTING VAULT OWES: ONE ROW
+ * ## A VAULT MAY KEEP THIS KIND ON A COLUMN OF ITS OWN NAME
  *
- * A vault written before this lane carries the bare key `agent-session`, which
- * nothing claims any more. One row in `_olai/Properties.olai` keeps it:
+ * One row in `_olai/Properties.olai` puts the kind on any key a board likes:
  *
  *     {"title":"agent-session","custom":{"type":"chat-agent-session"}}
  *
  * olai never writes that row for anybody — a tool that edited somebody's
  * declarations file to keep its own feature working would be the vault's
- * judgement being overruled by a release. What olai does instead is SAY SO, and
- * it says it in ITS OWN column: the agents section draws the row to paste when
- * this board holds bindings under the bare key and nothing declares it
- * ({@link ./server/agents.ts}'s `migrationOwed`), and `docs/plugins/chat.md` and
- * `docs/running.md` carry it in words. It was a validator finding and is not any
- * more — {@link ./wire/agents.ts}'s `Migration` argues what that cost.
+ * judgement being overruled by a release. The reading takes whatever the
+ * declarations say ({@link ./server/agents.ts}'s `keys`), and
+ * `docs/plugins/chat.md` carries it in words.
  *
  * THIS REPOSITORY HAS NO BOARD OF ITS OWN — the orchestrator's vault lives
- * elsewhere — so what gained the row in this lane is the two vaults the repo
- * DOES carry, and they are fixtures: `.saatchi/fixtures/_olai/Properties.olai`,
- * whose lanes are photographed, and `packages/tests/fixtures/lanes/`, which the
- * suite serves. Both keep records under the bare key on purpose, which makes
- * them the migration's own standing rehearsal rather than a pair of files that
- * happened to need editing.
+ * elsewhere — so what exercises that is the two vaults the repo DOES carry, and
+ * they are fixtures: `.saatchi/fixtures/_olai/Properties.olai`, whose lanes are
+ * photographed, and `packages/tests/fixtures/lanes/`, which the suite serves.
+ * Both declare the kind on the bare key `agent-session`, which makes them the
+ * standing rehearsal for a board that keeps its bindings under a word of its
+ * own.
  *
  * ## The shape is the FORMAT'S reading, read backwards
  *
@@ -69,12 +65,7 @@
 
 import { sessionIn } from "@olai/format"
 
-/** THE TWO WORDS, from the door that publishes them. They are `./binding.ts`'s
- *  and not this module's because ANOTHER PLUGIN reads them — a Spaces mirror
- *  has to know which column a node agent's binding is in — and that module
- *  imports nothing at all, so naming the word costs a consumer one file rather
- *  than this one's graph. Re-exported here because everything on THIS side of
- *  the wall reaches for the vocabulary, not the door. */
+/** Internal words; other plugins ask chat.seating for the reading. */
 export { SESSION_KIND, SESSION_TYPE } from "./binding.ts"
 import { SESSION_KIND, SESSION_TYPE } from "./binding.ts"
 
@@ -90,13 +81,10 @@ import { SESSION_KIND, SESSION_TYPE } from "./binding.ts"
  * so a column somebody else calls `agent-session` is untouchable by a flag on
  * the machine.
  *
- * THE MIGRATION IS THIS PLUGIN'S TO SAY, and it is said nowhere near this
- * table. \`SESSION_KIND\` — the key this kind was spelled as while chat was core —
- * is emphatically not a second claim: a bare \`agent-session\` is a word any vault
- * might be using for something of its own, so olai declares it for nobody and
- * SAYS SO instead, in the agents section, off a reading of this plugin's own
- * ({@link ./server/agents.ts}'s \`migrationOwed\`, and {@link ./wire/agents.ts}'s
- * \`Migration\` for why the validator no longer files it).
+ * \`SESSION_KIND\` — the BARE word, the second half of the composition — is
+ * emphatically not a second claim: a bare \`agent-session\` is a word any vault
+ * might be using for something of its own, so olai declares it for nobody. A
+ * board that wants its bindings under that column declares it there itself.
  */
 export const kinds = [{
   kind: SESSION_KIND,

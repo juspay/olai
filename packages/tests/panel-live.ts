@@ -1,3 +1,4 @@
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 /**
  * The PANEL, against a live conversation with the PINNED ADAPTER — the fifth
  * driver here, and the one a PIN BUMP is not finished without.
@@ -29,7 +30,7 @@
  */
 import { chromium } from "playwright"
 
-import { selector, type TestId } from "@olai/web/testlib"
+import { selector } from "@olai/web/testlib"
 // ...and the PLUGINS' half of the same namespace, which is where every `chat-*`
 // name below now lives: the panel became `olai-plugin-chat` and its ids went
 // with it. This driver spells them as LITERALS rather than off a table

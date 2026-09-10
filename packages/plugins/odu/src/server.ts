@@ -66,7 +66,7 @@ import { Effect } from "effect"
 import { type DialRun, oduHalf, type RunNotice } from "olai-plugin-odu/appliance"
 
 import { bodyFor, claimedIn, claimingIn, coalesceOf, countsFor } from "./doorbell.ts"
-import { probe } from "./probe.ts"
+import { probing } from "./probe.ts"
 import { wake } from "./wake.ts"
 import { kinds as ours, ownKinds } from "./kinds.ts"
 import { faces, name, surface } from "./wire.ts"
@@ -85,7 +85,7 @@ export { faces, name, surface } from "./wire.ts"
  *  division is odu-supplies-the-evidence / olai-the-judgement, exactly as
  *  kolu's one appliance over, and it is on this door for the same reason: a
  *  probe starts a subprocess, and the manifest is a door the browser opens. */
-export { probe } from "./probe.ts"
+export { probing } from "./probe.ts"
 
 /**
  * WHAT THE STRIP'S DOORBELL CONTROL SAYS, on this door rather than inside
@@ -281,7 +281,7 @@ export default definePlugin({
             || !deliveries.ringing(scope.file, claim.node).some((row) => sameScope(row, scope))
           ) continue
           yield* deliveries.deliver(
-            { agent: scope.agent, session: scope.session },
+            scope,
             // ASKED AGAIN AT THE MOMENT IT GOES IN — see {@link said}.
             () => said(scope, notice),
             { coalesce: coalesceOf(notice) },
@@ -422,7 +422,7 @@ export default definePlugin({
      *  `env.vars` and not `process.env`: a probe that read the environment itself
      *  would answer a different question than the one a session's spawn will
      *  ask. */
-    yield* opening.ask(Effect.promise(() => probe(env.vars)))
+    yield* opening.ask(Effect.scoped(probing(env.vars)))
 
     /**
      * AND NO FINALIZER OF ITS OWN, which is a reading of this half rather than

@@ -177,7 +177,7 @@ export const codecFor = (kinds: KindVocabulary): Codec<Document, Reading, Verdic
    * the set, because a set is what a codec judges; whether the judgement has
    * anything to do with the files a commit is putting down is a different
    * question, and until the verdict had a shape there was nowhere to ask it —
-   * so one outline failing typed validation refused an `add_node` into a
+   * so one outline failing typed validation refused an `outlines_add` into a
    * perfectly healthy file three directories away, and refused it with a
    * sentence that named nothing.
    *

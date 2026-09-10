@@ -121,7 +121,7 @@ The rule itself is a PURE FUNCTION — one per LEG, `allowedWithoutAsking(tool, 
 
 The second reading of that same `_meta` corner, and the reason there are two: **an agent can spawn agents**, and the protocol has no way of saying so. A subagent's tool calls arrive on the one feed every other frame arrives on, with the same shape — so a turn that sent three agents out reaches a panel as one agent doing everything, and a reader cannot tell that a subagent was ever started.
 
-The adapter knows. It keeps a registry of the tasks it has seen start, keyed by the subagent's own agent id, and stamps the spawning `Agent` call onto every frame that comes out of one: the streamed `tool_call`, the `tool_call_update` that completes it, the permission request in between. The Claude leg's `parentToolUse` is the whole of what this package does about it, and it fails the same way its sibling does — a frame that says nothing is the main agent's own, so an agent that is not that adapter has no subagents here and the transcript looks exactly as it did before any of this was read.
+The adapter knows. It keeps a registry of the tasks it has seen start, keyed by the subagent's own agent id, and stamps the spawning `Agent` call onto every frame that comes out of one: the streamed `tool_call`, the `tool_call_update` that completes it, the permission request in between. The Claude leg's `parentToolUse` reads this metadata. Codex instead announces native child sessions: `Activity` retains their explicit ancestry and puts their calls behind their own work doors, including nested agents. Both paths use the same transcript rows and question attribution; an adapter exposing neither remains flat.
 
 What `transcript.ts` stores is that call's ROW, in this collection's own key shape, rather than the id it arrived as: a reader of the field wants the frame, and two spellings — an id on the wire, a key on screen — would be a mapping to keep in step for nothing. It is sticky like every other field on a tool row, and for a sharper reason than most: the adapter has a completion shape carrying only a status, and a row that read that silence as "no agent now" would step out of its lane at the moment the call finished, which is the moment somebody looks.
 
@@ -300,3 +300,37 @@ After `tools.server` settles, `server.ts` seeds the node roster from `Ops.readin
 `agents/settings.ts` normalizes advertised select and boolean options; the panel serializes setting requests against session changes and prompting. Responses and config updates replace the available options. `plan` notifications replace the session plan, which is cleared on session departure.
 
 `terminals.ts` owns client-created command handles and bounded UTF-8 output snapshots. Tool references bind those snapshots to transcript rows; release invalidates the agent handle while retaining its output. Codex and pi opt into metadata decoding through their legs and feed the same snapshots without transferring process ownership. Standard terminal requests validate the active session, and cancellation/session teardown stop client-owned process groups. See [chat documentation](../../../docs/chat.md#session-controls-and-progress) for user-visible behavior and limits.
+
+Codex native activity is decoded and negotiated by `@olai/acp`, with only typed facts entering the conversation-owned `Activity` registry. `Calls` qualifies remembered facts by native session while preserving raw IDs for adapter interpretation. `Terminals` retains output, ownership and live handles in one record, so released client handles remain distinguishable from adapter-owned terminal IDs.
+
+
+## Per-conversation wake choices
+
+Every plugin that registers a `Wakes` declaration is opt-in for every chat,
+including node-bound sessions. The existing wake table stores a file per
+conversation and plugin; clearing removes the row. The scheduler routes writes
+to the live panel that owns the inbox, or writes a sleeping session's choice
+without acquiring its process. Changes refresh all live panels and discard
+queued deliveries for replaced, cleared and evicted picks. File faults refresh
+node panels as well as the root panel.
+
+The declaration is read live through `Wakes.current`, using the same registry
+and scoped registration as `Wakes.declared`. No plugin names or second registry
+are embedded in the scheduler. Delivery-only plugins retain node-derived
+recipients. Cordis still owns service availability and plugin cleanup; the
+scheduler still owns concurrent node processes and their Effect scopes.
+
+`Scopes.recipient` carries the lifetime of one saved choice. Successful writes
+replace that lifetime; fault marking and healing preserve it. The scheduler
+composes it with the live wake declaration and carries the predicate through
+startup, pending work, ownership transfer and retry. `Panel.offer` evaluates
+the guarded body under its sending permit immediately before the transcript
+write. Queue removal releases discarded work and updates the strip; it is not
+the authority check.
+
+`server/deliveries.ts` binds the public door to the consumer lifetime supplied by
+Cordis through the existing Effect activation. Unloading a plugin revokes old
+service calls and recipients, including queued direct notices. Reloading keeps
+saved choices while issuing new recipients. Wake registrations likewise have
+fresh identity per activation, so core-generated fault warnings cannot survive
+a plugin leaving and returning.

@@ -19,7 +19,7 @@ import { Effect } from "effect"
 
 import { dialOlai } from "./dial.ts"
 import { mcpUrl } from "./mcpClient.ts"
-import { MCP_PATH } from "./mcp/route.ts"
+import { MCP_PATH } from "olai-plugin-mcp/testlib"
 
 /** What `dialOlai` says it would dial, for a given `--url`. */
 const resolvedTo = async (url: string): Promise<string> => {

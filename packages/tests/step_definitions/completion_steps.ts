@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * The three input widgets: what a trigger character puts on screen, what
  * walking it does, and what taking a row writes.
@@ -18,7 +19,7 @@ import * as assert from "node:assert";
 
 import { Then, When } from "@cucumber/cucumber";
 
-import { TESTID } from "@olai/web/testlib";
+
 
 import {
   COMPLETION_ITEM,

@@ -257,7 +257,7 @@ test("a DANGLING ref value is flagged the way a dangling edge is — with a did-
 })
 
 test("a LIST is checked member by member, and the sentence quotes the bad one", () => {
-  // No door writes one — `set_prop` and `add_node`'s map are text — so this arm
+  // No door writes one — `outlines_prop` and `outlines_add`'s map are text — so this arm
   // is reached by a hand-edited file alone, and it still has to answer.
   expect(wrong("pr", "190")).toBeUndefined()
   expect(wrongValue(typed, "orchestrator/lanes.olai", "pr", ["190", "191"])).toBeUndefined()
@@ -283,7 +283,7 @@ const NORMALISED: ReadonlyArray<readonly [string, string]> = [
   ["2026-08-25T10:06:00-07:00", "2026-08-25T10:06:00-07:00"],
   ["2026-08-25T10:06Z", "2026-08-25T10:06:00+00:00"],
   // `Z` AND `+00:00` ARE ONE OFFSET AND TWO SPELLINGS: the numeric one is what
-  // `set_done` writes for every offset including zero, so it is the one this
+  // `outlines_done` writes for every offset including zero, so it is the one this
   // format holds — and UTC does not get to be the single zone in which two
   // files meaning the same thing differ byte for byte.
   ["2026-08-25T10:06:00Z", "2026-08-25T10:06:00+00:00"],
@@ -292,7 +292,7 @@ const NORMALISED: ReadonlyArray<readonly [string, string]> = [
   ["2026-08-25T10:06:07.482-04:00", "2026-08-25T10:06:07-04:00"],
 ]
 
-test("a date's accepted spellings all store the ONE spelling set_done writes", () => {
+test("a date's accepted spellings all store the ONE spelling outlines_done writes", () => {
   for (const [written, held] of NORMALISED) {
     expect(stored("dispatched", written)).toBe(held)
   }

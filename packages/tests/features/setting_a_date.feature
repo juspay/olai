@@ -1,7 +1,7 @@
 @share-scratch
 @scratch:good
 Feature: Setting a date from the web
-  An agent could set OR clear a node's `date` (`set_date`) and a person could
+  An agent could set OR clear a node's `date` (`outlines_date`) and a person could
   only clear one (#124's `•••` verb) — a consistency deviation
   rather than a missing feature. The picker closes it, and it is reached from
   the two places a date already is: the pill on the row, and the row's menu.
@@ -54,7 +54,7 @@ Feature: Setting a date from the web
     And there should be no page errors
 
   Scenario: A dated row's menu says which of the two it is, and still clears
-    # Both halves of `set_date` are a person's now, and the entry is named for
+    # Both halves of `outlines_date` are a person's now, and the entry is named for
     # what the row carries. Clearing keeps the verb #124 gave it, unchanged.
     When I open the node menu of "order"
     Then the node menu offers "Change date…"

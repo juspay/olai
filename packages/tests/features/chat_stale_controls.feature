@@ -144,3 +144,23 @@ Feature: A delayed tab cannot apply a chat control to another node's turn
     When I send the undelivered message again
     Then the agent's answer mentions "you said: only for install"
     And there should be no page errors
+
+
+  Scenario: Delayed send acceptance cannot make the previous idle frame finish a turn
+    Given incoming updates to this browser tab can be held
+    And I open the app
+    And the agent panel is open
+    When I hold incoming updates to the original browser tab
+    And I ask the agent "ready"
+    Then the model picker is disabled
+    When I release incoming updates to the original browser tab
+    Then the agent is idle
+    When I ask the agent "refuse steering"
+    Then the agent is idle
+    When I ask the agent "hold"
+    Then the agent is working
+    When I interrupt the agent with "retained steering"
+    Then the chat shows my message "retained steering" as "refused"
+    When the agent is released
+    Then the agent is idle
+    And there should be no page errors

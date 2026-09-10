@@ -6,13 +6,24 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//exports": "FIVE, and the split is the tree's three-door rule with nothing added. `./server` is what the row mounts: the trigram table, the matcher over it, and the one door this row stands behind — no `solid-js` anywhere on that graph, because a process that renders nothing must not pull a UI runtime. `./browser` is the chunk the tab fetches when the roster names this row, and it carries exactly one face: the header's search box, which used to be imported by `@olai/web`'s `AppHeader.tsx`. The ROOT is the plugin's word — this row composes no sibling surface, because `search.nodes` is CORE's member and stays on core's three faces (a row that renamed it would rename a tool an agent already calls). `./testids` and `./all.css` are the two contracts the generated bundle files need of every row.",
+  "//exports": "SIX now, and the split is the tree's three-door rule plus the one #546 added. `./tools` is this row's agent verbs \u2014 the single `search_nodes` entry that used to sit in `@olai/ops`' closed table, declared here so a serve without this row advertises no search at all. `./server` is what the row mounts: the trigram table, the matcher over it, and the one door this row stands behind — no `solid-js` anywhere on that graph, because a process that renders nothing must not pull a UI runtime. `./browser` is the chunk the tab fetches when the roster names this row, and it carries exactly one face: the header's search box, which used to be imported by `@olai/web`'s `AppHeader.tsx`. The ROOT is the plugin's word — this row composes no sibling surface, because `search.nodes` is CORE's member and stays on core's three faces (a row that renamed it would rename a tool an agent already calls). `./testids` and `./all.css` are the two contracts the generated bundle files need of every row.",
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
     "./browser": "./src/browser.tsx",
     "./testids": "./src/testids.ts",
-    "./all.css": "./src/browser/all.css"
+    "./all.css": "./src/browser/all.css",
+    "./surface": "./src/surface.ts",
+    "./tools": "./src/tools.ts",
+    "./reading": "./src/contracts/reading.ts",
+    "./ui/*": "./src/contracts/ui/*",
+    "./ui/Shortlist.tsx": "./src/contracts/ui/Shortlist.tsx",
+    "./ui/Count.tsx": "./src/contracts/ui/Count.tsx",
+    "./ui/Result.tsx": "./src/contracts/ui/Result.tsx",
+    "./ui/count.ts": "./src/contracts/ui/count.ts",
+    "./ui/place.ts": "./src/contracts/ui/place.ts",
+    "./ui/props.ts": "./src/contracts/ui/props.ts",
+    "./ui/row.ts": "./src/contracts/ui/row.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -25,12 +36,34 @@
     "@olai/plugin-api": "workspace:*",
     "@olai/web": "workspace:*",
     "effect": "4.0.0-rc.112",
-    "solid-js": "^1.9.0"
+    "solid-js": "^1.9.0",
+    "olai-plugin-navigation": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "@olai/store": "workspace:*",
+    "@olai/surface": "workspace:*",
+    "@olai/markdown-ui": "workspace:*",
+    "olai-plugin-files": "workspace:*",
+    "olai-plugin-outlines": "workspace:*"
   },
   "//devDependencies": "@olai/store for the differential test that drives the real write gate across a series of writes (src/matcher.index.test.ts, which was `@olai/ops`' `search.index.test.ts` and moved with the table it is about). @effect/platform-node is that test's file system. @types/node is the path and fs it stages a directory with.",
   "devDependencies": {
     "@effect/platform-node": "4.0.0-rc.112",
     "@olai/store": "workspace:*",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "olai-plugin-layout": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./testids",
+      "./surface",
+      "./reading",
+      "./ui/Count.tsx",
+      "./ui/Result.tsx",
+      "./ui/Shortlist.tsx",
+      "./ui/count.ts",
+      "./ui/place.ts",
+      "./ui/props.ts",
+      "./ui/row.ts"
+    ]
   }
 }

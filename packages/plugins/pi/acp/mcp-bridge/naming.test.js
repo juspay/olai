@@ -23,7 +23,7 @@ const Type = {
 
 describe("toolName", () => {
   test("olai and kolu arrive unchanged", () => {
-    expect(toolName("olai", "read_node")).toBe("olai_read_node");
+    expect(toolName("olai", "outlines_read")).toBe("olai_outlines_read");
     expect(toolName("kolu", "list_terminals")).toBe("kolu_list_terminals");
   });
 

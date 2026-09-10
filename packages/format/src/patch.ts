@@ -115,7 +115,7 @@ import { byPath } from "./paths.ts"
  * One file's records, as the delta carries them.
  *
  * Structural, and deliberately the SMALLEST reading of the wire's own entry:
- * `@olai/surface`'s `OutlineEntry` carries a revision and a parse failure
+ * `olai-plugin-outlines`'s `OutlineEntry` carries a revision and a parse failure
  * beside its nodes, and satisfies this by having the field this needs. So the
  * frame a browser receives and the files a probe re-decoded are handed to one
  * function without either end repackaging anything — and this package, which is

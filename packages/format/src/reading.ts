@@ -18,8 +18,8 @@
  *
  * `./searching.ts` moved ONE of the four reads down here and argued it from a
  * drift that was live. These are the other three — the directory
- * (`list_outlines`), one node in full (`read_node`), and a node with everything
- * under it (`read_subtree`) — and they were **the last query answers with no
+ * (`outlines_index`), one node in full (`outlines_read`), and a node with everything
+ * under it (`outlines_subtree`) — and they were **the last query answers with no
  * wire shape at all**: TypeScript interfaces in `@olai/ops`' `query.ts`, which
  * no surface can declare and no browser can be handed. They are moved BEFORE
  * anything carries them rather than after, which is the whole lesson of the
@@ -136,21 +136,21 @@ export const Found = Schema.Struct({
   /** What this node must come AFTER, as target ids — the edges it carries
    *  itself, exactly as they are written.
    *
-   *  Here for the same reason `see` is, and now for a second one: `set_after`
+   *  Here for the same reason `see` is, and now for a second one: `outlines_after`
    *  removes a target BY ID, so a reader that could not see the list could only
    *  change it by guessing. Not the derived blockedness — what is standing in
    *  the way right now is a question about marks, and this is what the record
    *  says. A node read answers both, and {@link Detail.blockedBy} is the other
-   *  one; a hit answers this half alone, which is the half `set_after` takes. */
+   *  one; a hit answers this half alone, which is the half `outlines_after` takes. */
   after: RegularNode.fields.after,
   /**
    * The named facts this node carries that olai gives no meaning to — the
-   * record's own map, handed back VERBATIM, and what `set_prop` writes into.
+   * record's own map, handed back VERBATIM, and what `outlines_prop` writes into.
    * Absent for a node carrying none, which is the writer's own rule for
    * absence rather than an empty map on every bullet in the vault.
    *
    * Here rather than on {@link Detail} alone, which is the whole of the change:
-   * a search hit is a {@link Found}, so a property answered only by `read_node`
+   * a search hit is a {@link Found}, so a property answered only by `outlines_read`
    * made "every lane at review" a query PLUS one read per hit — and an agent
    * that has to read each hit to see the fact it searched by is doing by hand
    * what the query already knew. `prop:agent=claude-opus` now answers with the
@@ -207,7 +207,7 @@ const Unreadable = Schema.Struct({
  *
  * RENAMED at the move, for the reason the module header gives: `Outline` is
  * taken here and means one file's decoded NODES. This is the summary
- * `list_outlines` answers with, and the summary is what a map is: enough to
+ * `outlines_index` answers with, and the summary is what a map is: enough to
  * choose a file, nothing that would make listing a directory cost what reading
  * it does.
  *
@@ -268,7 +268,7 @@ export type OutlineAnswer = typeof OutlineAnswer.Type
  * race needs asks for it twice (roadmap `perf-capture-paths`).
  *
  * NOT A NARROWING OF {@link OutlineAnswer}, and not derived from one: the
- * listing keeps its counts and its roots, because `list_outlines` is what an
+ * listing keeps its counts and its roots, because `outlines_index` is what an
  * AGENT reads to choose a file and those are what it chooses by. This is a
  * second question with a smaller answer, which is what makes the two doors
  * honest — one costs the directory's records and says so, the other costs its
@@ -327,7 +327,7 @@ export const DocumentSummary = Schema.Union([
      *  and a search hit all say the same name. */
     title: Schema.String,
     /** Its text's size in bytes, as UTF-8 — what a caller decides with before
-     *  asking for the whole of it. It is the size of the text `read_document`
+     *  asking for the whole of it. It is the size of the text `markdown_read`
      *  would answer with, which is the file's own size for a file that is valid
      *  UTF-8 and every `.md` anything here wrote. A file that is NOT can read
      *  larger than it is on disk, because the bytes the decoder could not read
@@ -362,11 +362,11 @@ export type DocumentAnswer = typeof DocumentAnswer.Type
 
 /** Asking for one document. A node read names an id because a node HAS one; a
  *  document has no identity below the file, so this names the path — the same
- *  spelling the listing answers with and `write_document` takes. */
+ *  spelling the listing answers with and `markdown_write` takes. */
 export const DocumentRequest = Schema.Struct({
   file: Schema.String.annotate({
     description:
-      "Path of a document (`.md`) under the served directory, exactly as `list_documents` lists it.",
+      "Path of a document (`.md`) under the served directory, exactly as `markdown_index` lists it.",
   }),
 })
 export type DocumentRequest = typeof DocumentRequest.Type
@@ -381,7 +381,7 @@ export type DocumentRequest = typeof DocumentRequest.Type
  * are minted, guessed at and carried around in prose. A path is not guessed
  * at: it was listed, or a caller typed it, and the useful answer to a typo is
  * the near miss, which only a refusal carries (`NotFoundFailure`, with
- * `didYouMean`'s closest path). That is also the voice `write_document`
+ * `didYouMean`'s closest path). That is also the voice `markdown_write`
  * already refuses a missing path in, and the two reaching for one path should
  * not be told two different things about it.
  *
@@ -452,7 +452,7 @@ export type DocumentBody = typeof DocumentBody.Type
  * the record's;
  * `doc` and `blocks` are record fields the read vocabulary has never answered
  * — `blocks` is sugar that `after` answers for, and a capture-time document
- * attachment is `read_document`'s subject. And `file`/`line` were always a
+ * attachment is `markdown_read`'s subject. And `file`/`line` were always a
  * row's PLACE rather than one of its facts: a caller shaping a lean read drops
  * the place first, which is the whole point of the dial.
  */
@@ -479,7 +479,7 @@ export type Projectable = (typeof PROJECTABLE)[number]
  * THE PARTITION'S other half: every record field NOT in {@link PROJECTABLE},
  * keyed by its reason — `id` because it rides every row already, `ord`
  * because a fractional index is a sorting detail no read reports, `doc`
- * because the attachment is `read_document`'s subject, `blocks` because
+ * because the attachment is `markdown_read`'s subject, `blocks` because
  * `after` answers the same edge said from the waiting node, `mirror`
  * because a placement's own mark is the node it shows.
  *
@@ -489,7 +489,7 @@ export type Projectable = (typeof PROJECTABLE)[number]
  * moment it exists, and one listed twice is an excess property — the day
  * the record says something new, the compile says which half of the
  * partition it was born into. The `DOORS` arrangement in `./node.ts` read
- * one way round: that fence keeps `set_prop` off the record's own words,
+ * one way round: that fence keeps `outlines_prop` off the record's own words,
  * this one keeps the dial's vocabulary the whole set of them.
  */
 const NOT_PROJECTABLE: Record<
@@ -498,7 +498,7 @@ const NOT_PROJECTABLE: Record<
 > = {
   id: "rides every row already",
   ord: "a fractional index is a sorting detail, not a fact a read reports",
-  doc: "the attachment is `read_document`'s subject",
+  doc: "the attachment is `markdown_read`'s subject",
   blocks: "`after` answers the same edge said from the waiting node",
   mirror: "a placement carries its target's id, not a life of its own",
 }
@@ -553,7 +553,7 @@ export const Projected = Schema.Struct({
   took: Schema.optionalKey(Schema.Int),
   ...STAMPED,
   /** When the CURRENT round of work started — the record's own instant,
-   *  verbatim, re-stamped by every `set_doing`, exactly as {@link Detail}
+   *  verbatim, re-stamped by every `outlines_doing`, exactly as {@link Detail}
    *  carries it: the span a `doing` row's live tick runs from, with the
    *  rounds before it banked in `worked`. */
   started: RegularNode.fields.started,
@@ -601,7 +601,7 @@ const FieldsRequest = Schema.optionalKey(
  * Asking for one node: an id, and — with `fields` — the shape of its
  * children.
  *
- * THE CHILD ROWS are what `fields` shapes, not the node: a `read_node` is "one
+ * THE CHILD ROWS are what `fields` shapes, not the node: a `outlines_read` is "one
  * node in full" (see {@link Detail}), and the lever on a full read's cost was
  * never its own row, it is the list. The child rows with no `fields` given
  * are the full situated rows of today; with one they are id + what was named
@@ -621,14 +621,14 @@ export type NodeRequest = typeof NodeRequest.Type
  *
  * Not a {@link Found} — a placement has no title, no mark and no ancestry of
  * its own; it draws the node's. What it does have is an id, and that id is the
- * only thing `remove_mirror` takes, which is why a node's own read is where the
+ * only thing `outlines_unmirror` takes, which is why a node's own read is where the
  * placements of it are answered. A search never returns one: a mirror is a
  * second location of a node, and a hit for it would be the same node twice,
  * once at a place no write lands.
  */
 export const Placement = Schema.Struct({
   id: Schema.String,
-  /** Where the MIRROR RECORD sits — the line `remove_mirror` takes away, never
+  /** Where the MIRROR RECORD sits — the line `outlines_unmirror` takes away, never
    *  the line the node it shows lives on. The narrowing is this declaration's;
    *  the pair is {@link Site}'s. */
   ...Site.fields,
@@ -650,7 +650,7 @@ export type Placement = typeof Placement.Type
  * `shows` is the node itself, situated the way every other full answer here
  * situates one — id, title, mark, `file:line`, ancestry — because that is
  * what the list is FOR: the reader wants the items, and the placement id is
- * what lets it take one off. This is `read_node`'s `placed`, and the walk's
+ * what lets it take one off. This is `outlines_read`'s `placed`, and the walk's
  * when no `fields` were named. The projected walk's pair is
  * {@link ProjectedPlaced}: same entry, `shows` shaped like the row, so a
  * caller of this declaration is never told `title` may be absent.
@@ -665,7 +665,7 @@ export type Placed = typeof Placed.Type
  * {@link Placed} when the walk named `fields` — the same entry, `shows` the
  * same projection as the row. The split is {@link Subtree} /
  * {@link ProjectedSubtree}'s: one declaration that unioned the two arms
- * would tell `read_node` that `shows.title` may be absent, which it never
+ * would tell `outlines_read` that `shows.title` may be absent, which it never
  * is.
  */
 export const ProjectedPlaced = Schema.Struct({
@@ -708,7 +708,7 @@ export const Detail = Schema.Struct({
   ...Found.fields,
   ...STAMPED,
   /** When the CURRENT round of work started — the record's own `started`,
-   *  verbatim, re-stamped by every `set_doing`. It is what a `doing` row's
+   *  verbatim, re-stamped by every `outlines_doing`. It is what a `doing` row's
    *  live tick runs from: the instant crosses the wire once, and the clock
    *  the chip ticks against is the reader's. */
   started: RegularNode.fields.started,
@@ -774,7 +774,7 @@ export const Detail = Schema.Struct({
    *
    *  It is here because a placement is otherwise UNFINDABLE: mirrors are left
    *  out of search and out of every child list on purpose, so without this the
-   *  only id `remove_mirror` could ever be given is one the same session had
+   *  only id `outlines_unmirror` could ever be given is one the same session had
    *  just created. Asked of the node rather than answered as a node, which is
    *  the same shape every refusal about mirrors takes — a mirror is not a node,
    *  so you ask the node where it is placed. */
@@ -812,7 +812,7 @@ export const Detail = Schema.Struct({
    * `done`, a target with no mark, and anything put away in an
    * `_olai/Trash.olai` stand in nobody's way, so an `after` of three can show
    * nothing here. Two fields because they answer two questions — "what does
-   * this record declare" is what `set_after` edits, "can this start" is what a
+   * this record declare" is what `outlines_after` edits, "can this start" is what a
    * reader is deciding on.
    *
    * ONE derivation, `./derive.ts`'s `blockersOf`, which is also what the app
@@ -877,7 +877,7 @@ export const DEFAULT_SUBTREE_DEPTH = 3
  *
  * TWO WAYS IN, AND EXACTLY ONE PER CALL. A node is named by `id` and a file by
  * `file`, and the second is what makes an outline of N top-level roots one call
- * rather than N: `list_outlines` already says which files there are and what
+ * rather than N: `outlines_index` already says which files there are and what
  * each one's roots are CALLED, and until this there was no read that could
  * descend into more than one of them at a time.
  *
@@ -887,7 +887,7 @@ export const DEFAULT_SUBTREE_DEPTH = 3
  * table takes a schema apart by its `.fields` (`@olai/ops`' `Arguments`, and
  * `@olai/server`'s `argsOf`), and the JSON Schema an MCP host reads is an
  * object with properties rather than an `anyOf` it may or may not honour — the
- * same constraint that unrolls `add_node`'s capture. What a `check` on the
+ * same constraint that unrolls `outlines_add`'s capture. What a `check` on the
  * struct COULD do is reject the pair at the decode, and that is declined rather
  * than unavailable: it answers with a complaint about a shape, where what a
  * caller who named both needs is which of the two reads it meant. So the shape
@@ -907,7 +907,7 @@ export const SubtreeRequest = Schema.Struct({
   file: Schema.optionalKey(
     Schema.String.annotate({
       description:
-        "An outline (`.olai`) under the served directory, exactly as `list_outlines` lists it. Reads the WHOLE file: every top-level node in it, each walked to `depth`. Give this or `id` — never both, never neither.",
+        "An outline (`.olai`) under the served directory, exactly as `outlines_index` lists it. Reads the WHOLE file: every top-level node in it, each walked to `depth`. Give this or `id` — never both, never neither.",
     }),
   ),
   depth: Schema.optionalKey(
@@ -959,7 +959,7 @@ export type SubtreeRequest = typeof SubtreeRequest.Type
  * the documented way to spell a genuinely recursive Effect schema. It costs
  * nothing here and would have cost something one file over: a recursive schema
  * compiles to a `$ref`, and the MCP projection inlines local refs and strips
- * the pool — which is why `add_node`'s capture is UNROLLED to a fixed depth
+ * the pool — which is why `outlines_add`'s capture is UNROLLED to a fixed depth
  * (`@olai/ops`' `NESTING`). That constraint is about a schema an agent READS as
  * JSON Schema. This one is an answer, advertised to nobody, so the recursion
  * can be honest.
@@ -1050,12 +1050,12 @@ export type ProjectedRoots = typeof ProjectedRoots.Type
  */
 const Missing = Schema.Struct({ missing: Schema.String })
 
-/** What `read_node` says: the node, or the id it does not hold. */
+/** What `outlines_read` says: the node, or the id it does not hold. */
 export const NodeAnswer = Schema.Union([Detail, Missing])
 export type NodeAnswer = typeof NodeAnswer.Type
 
 /**
- * A WHOLE OUTLINE, walked — what `read_subtree` answers a `file` with.
+ * A WHOLE OUTLINE, walked — what `outlines_subtree` answers a `file` with.
  *
  * ROOTS AND NOT ONE TREE, because a file is not a node. An outline has as many
  * top-level nodes as somebody wrote, and a synthetic parent standing for the
@@ -1074,7 +1074,7 @@ export type NodeAnswer = typeof NodeAnswer.Type
  * its line moving.
  *
  * A MIRROR AT THE TOP LEVEL IS NOT A ROOT, which is the walk's own rule read
- * one level up: `read_subtree` does not walk placements, and {@link
+ * one level up: `outlines_subtree` does not walk placements, and {@link
  * OutlineSummary}'s `roots` does not name one either. Placements UNDER a
  * node are named on its row ({@link Subtree.placed}); placements at the top
  * of a file are named here, on the answer, because a file is not a node and
@@ -1096,7 +1096,7 @@ export const OutlineRoots = Schema.Struct({
 })
 export type OutlineRoots = typeof OutlineRoots.Type
 
-/** What `read_subtree` says: the node, the whole outline, or the id the set
+/** What `outlines_subtree` says: the node, the whole outline, or the id the set
  *  does not hold — each of the first two full or projected. A `file` that is
  *  not one is REFUSED rather than answered — a path is not an id, and the
  *  useful answer to a typo is the near miss, which is the split
@@ -1130,7 +1130,7 @@ export type SubtreeAnswer = typeof SubtreeAnswer.Type
  * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md` is taking away.
  *
  * A BATCH, and that is the whole reason this is not the read next door: one
- * message is one question. A `read_node` per span would be a dozen round trips
+ * message is one question. A `outlines_read` per span would be a dozen round trips
  * to draw one paragraph, each carrying a node in full where the answer needed
  * is a yes with an id on it.
  *

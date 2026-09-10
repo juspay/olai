@@ -109,7 +109,7 @@ import * as Memory from "./memory.ts"
 import { ephemeralLocalState } from "./local.ts"
 import { annotated } from "./prompt.ts"
 import type { Probe } from "./probes.ts"
-import type { Fault, Faulted, Scopes } from "./scopes.ts"
+import type { Fault, Faulted, Scoped, Scopes } from "./scopes.ts"
 import { succeeded } from "./succession.ts"
 import { teachingFor } from "./teaching.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
@@ -120,6 +120,7 @@ export type { ToolServer } from "./agent.ts"
 
 /** One conversation a plugin may wake, optionally narrowed to a node scope. */
 export interface WakeScope {
+  readonly current: () => boolean
   readonly agent: string
   readonly session: string
   readonly file: string
@@ -523,7 +524,7 @@ export interface Panel {
      * Which arm it took is not reported back.
      */
     readonly deliver: (
-      to: { readonly agent: string; readonly session: string },
+      to: { readonly agent: string; readonly session: string; readonly current?: () => boolean },
       say: () => string | null,
       options?: {
         /** Bodies sharing a key, WHILE STILL HELD, replace each other in place —
@@ -541,7 +542,10 @@ export interface Panel {
     to: { readonly agent: string; readonly session: string },
     plugin: string,
     file: string | null,
-  ) => Effect.Effect<void, OpFailure>
+  ) => Effect.Effect<ReadonlyArray<Scoped>, OpFailure>
+  /** Refresh this panel after the shared picks changed, dropping deliveries
+   * for every replaced, cleared or evicted pick. */
+  readonly refreshWakes: (left: ReadonlyArray<Scoped>) => void
   /**
    * WHICH SCOPED FILES A DOORBELL CAN STILL WATCH — asked of every published
    * revision, and answered with the conversations whose doorbell JUST BROKE.
@@ -617,7 +621,7 @@ export interface Panel {
      *  told about is left unmarked, so the one signal is not spent by a serve
      *  that has no doorbell to lose. */
     sayable: (plugin: string) => boolean,
-  ) => Effect.Effect<ReadonlyArray<Faulted>>
+  ) => Effect.Effect<ReadonlyArray<Faulted & { readonly current: () => boolean }>>
   /** Told by the MCP layer about a write it refused, so the panel can draw the
    *  refusal rather than the agent's account of it. */
   readonly recordRefusal: (
@@ -1661,7 +1665,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // its own sake. A LOAD clears too, in the replay that follows. Only a
           // DEAD agent leaves the rows where they are — nobody asked for that,
           // and the `gone` notice explains them.
-          if (event.why === "new") publish(transcript.clear())
+          if (event.why === "new" || event.why === "refused") publish(transcript.clear())
           // The servers go with the session they were handed TO. The next one
           // is probed fresh and says so before it opens; leaving the last
           // one's roster up in between would be the panel answering "which
@@ -2097,18 +2101,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * have changed was over — and then a cancel threw it away. Both were the
      * same mistake, and neither is what happens now.
      *
-     * ONE VERB, ONE LANE: it goes out as a plain `session/prompt`, busy or
-     * idle. An idle agent starts on it; a busy one holds it behind the turn it
-     * is working on and gets to it next, in order, which it does itself — this
-     * file keeps no queue and never learns what the agent is busy WITH. That
-     * last part is the whole of the `/compact` fix: a compaction is a turn like
-     * any other from here, so a message sent during one waits for it instead of
-     * tearing it down.
-     *
-     * `steer` is the deliberate exception and the only one — an INTERRUPTION,
-     * asked for by a gesture somebody had to make on purpose
-     * ({@link deliver}). Either way the row is written first and the words are
-     * on screen before anything is on the wire.
+     * Queue-capable agents receive ordinary prompts and hold them in order.
+     * This preserves Claude's `/compact` when another message arrives. Agents
+     * advertising steering without a queue use steering for busy sends; the
+     * explicit gesture also selects steering on queue-capable agents.
+     * The row is published before either delivery path starts.
      */
     const send = (
       text: string,
@@ -2280,17 +2277,12 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // which is the oldest — the ones behind it are waiting at the agent and
         // interrupting a turn that has not started is nothing at all.
         const aimed = turns.head
-        // NOBODY IS INTERRUPTED BY ACCIDENT. Without the gesture this is a
-        // plain prompt, mid-turn or not, and the agent takes it in its turn —
-        // which is what every send did on opencode all along and what every
-        // send does everywhere now. And nobody is interrupted on an agent that
-        // never said it could be, or in a conversation where interrupting
-        // would not END ({@link queuedHere}): both are what the composer drew
-        // its control from, and a send arriving with the flag set anyway — a
-        // stale tab, a tab that queued in another window — falls through to
-        // the plain prompt it was going to be rather than being refused. That
-        // is the safe direction, and the only one this file fails in.
-        if (steer && aimed !== null && advertises.steers && !queuedHere) {
+        // An agent that advertises steering but no prompt queue takes busy
+        // sends through steering. A second ordinary prompt can overwrite its
+        // pending turn (Codex), leaving the first request unanswered forever.
+        // Queue-capable agents retain the explicit interruption gesture.
+        const steeringSend = steer || !advertises.queues
+        if (steeringSend && aimed !== null && advertises.steers && !queuedHere) {
           const steered = yield* Effect.result(agent.steer(prompt))
           if (steered._tag === "Failure") {
             // WHICH failure it was is the agent's reading, not ours: it is the
@@ -2574,7 +2566,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
               // prefix ({@link saidHere}). Forked for `flushing`'s reason and
               // silent for a conversation no node claims, which is nearly all
               // of them.
-              yield* Effect.forkDetach(saidHere())
+              yield* aside(saidHere())
               // ... AND THE TURN BOUNDARY IS WHERE A DOORBELL'S WORDS GET IN.
               // `turns.leave` answered TRUE, which is exactly "the set emptied"
               // ({@link ./turns.ts}), so this is the first moment since the body
@@ -2586,7 +2578,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
               // FORKED, so nothing about this turn's ending waits on a permit a
               // send may be holding. DETACHED, because the fiber that reaches
               // this line is itself detached and about to finish.
-              yield* Effect.forkDetach(flushing)
+              yield* aside(flushing)
             }
             // WHOEVER THE AGENT IS ON NOW HAS STOPPED WAITING. This turn is
             // over, so the message behind it is the one being worked on — and
@@ -2976,7 +2968,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // no.
       stopSaid = false
       const quietSince = heard
-      yield* Effect.forkDetach(Effect.gen(function*() {
+      yield* aside(Effect.gen(function*() {
         yield* Effect.sleep(CANCEL_GRACE)
         // A turn that has LEFT the set is one that ended, which is the cancel
         // having worked. Asking about the tickets this press was about, rather
@@ -3209,9 +3201,32 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // block the fiber already holding it and the open would never
           // complete. This is the same moment one beat later, outside the
           // permit, and it is the only safe one.
-          yield* Effect.forkDetach(flushing)
+          yield* aside(flushing)
         }),
       )
+
+    /**
+     * WORK THIS PANEL STARTED BESIDE ITS OWN FIBER, and the handle on it.
+     *
+     * Five things here fork: a turn-boundary write, a doorbell flush at three
+     * moments, and the watcher that says a cancel has gone quiet. None of them
+     * is anybody's to WAIT for — a send may be holding a permit one of them
+     * wants — and every one of them was `Effect.forkDetach`, which attaches to
+     * the GLOBAL scope: the panel's stop could not reach them, so they went on
+     * over a conversation that had ended.
+     *
+     * They are the panel's now. The fork still detaches — the point of forking
+     * is that nothing about this turn waits on them — and what changed is that
+     * `stopWithReason` knows where they are.
+     */
+    const beside = new Set<Fiber.Fiber<void, unknown>>()
+    const aside = <E>(work: Effect.Effect<void, E>): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        const running: Fiber.Fiber<void, E> = yield* Effect.forkDetach(
+          Effect.ensuring(work, Effect.sync(() => { beside.delete(running) })),
+        )
+        beside.add(running)
+      })
 
     const setSetting = (agent: string, session: string, config: string, value: string | boolean): Effect.Effect<void, OpFailure> => opening.withPermit(sending.withPermit(Effect.gen(function*() {
         if (state.status !== "idle" || talking?.row.id !== agent || state.session?.id !== session) {
@@ -3225,6 +3240,16 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // EVERY turn, not the newest ({@link ./turns.ts}).
       const running = turns.drain().flatMap((ticket) => ticket.fiber ?? [])
       for (const fiber of running) yield* Fiber.interrupt(fiber)
+      // ...AND EVERY OTHER FIBER THIS PANEL STARTED, which is what
+      // {@link aside} exists to make possible. They used to be
+      // `Effect.forkDetach` — the GLOBAL scope, so a stopped panel's
+      // turn-boundary write, doorbell flush or cancel watcher went on running
+      // with nothing left that could stop it. Interrupted rather than joined:
+      // each of them is work ABOUT a conversation that is ending, and a
+      // doorbell flush for a panel nobody can read again is not worth the wait.
+      const alongside = [...beside]
+      beside.clear()
+      for (const fiber of alongside) yield* Fiber.interrupt(fiber)
       const at = talking
       talking = null
       if (at !== null) yield* at.agent.stopWithReason(reason)
@@ -3238,6 +3263,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
 
     return {
       entries: () => transcript.entries(),
+      refreshWakes: (left) => {
+        for (const row of left) held.dropped(row, row.plugin)
+        const wake = wakeOf()
+        if (!sameWake(wake, state.wake)) move({ wake })
+      },
       state: () => state,
       enginesMoved,
       overheard: () => options.overheard?.rows() ?? [],
@@ -3368,7 +3398,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // The `plugin` column goes on the way out: a door is already
             // ABOUT one plugin, so carrying its name back to it would be the
             // caller's own question answered a second time.
-            .map(({ agent, file, session }) => ({ agent, file, session }))
+            .map((row) => options.scoping!.recipient(row))
         return {
           scopes,
           ringing: (file) => scopes().filter((scope) => scope.file === file),
@@ -3417,13 +3447,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // will not re-derive it, because the terminals it named need not be
           // claimed in the new file at all.
           //
-          // FIRST, BEFORE THE WRITE, because the write is filesystem I/O and a
-          // turn ending in that window would flush a body the person has
-          // already disowned. Dropping early is safe in the one direction it
-          // can be wrong: a held body is a fresh derivation of what is standing
-          // ({@link ./deliveries.ts}), so a drop under a write that then fails
-          // costs a re-derivation on the plugin's next tick, where a drop that
-          // came too late costs a sentence nobody can account for.
+          // Drop existing work eagerly. The choice changes when persistence
+          // succeeds; deliveries admitted during that write still belong to the
+          // old choice. The successful write revokes their recipients, and the
+          // second drop below removes any bodies queued during the write.
+          // A failed write preserves the choice and costs only a re-derivation.
           held.dropped(to, plugin)
           const left = yield* Effect.mapError(
             scoping.set(to, plugin, file),
@@ -3437,6 +3465,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // and arrive from a doorbell its strip now draws as off.
           for (const row of left) held.dropped(row, row.plugin)
           move({ wake: wakeOf() })
+          return left
         }),
       /**
        * A revision, judged against the picks. See {@link Panel.faults} for what
@@ -3482,7 +3511,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // value. `watched()` above keeps the same discipline for the same
           // reason.
           if (!sameWake(wakeOf(), state.wake)) move({ wake: wakeOf() })
-          return fell.success
+          return fell.success.map((row) => ({ ...row, ...scoping.recipient(row) }))
         }),
       recordRefusal: (tool: string, failure: OpFailure) =>
         Effect.sync(() => {
@@ -3549,7 +3578,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // inside the event ({@link changeSession}). A BOOT is how a doorbell
           // reaches the conversation this directory was last in without
           // anybody pressing anything.
-          yield* Effect.forkDetach(flushing)
+          yield* aside(flushing)
         })
       }),
       stop: stopWithReason("shutdown"),

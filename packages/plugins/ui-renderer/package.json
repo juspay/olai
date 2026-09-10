@@ -1,0 +1,20 @@
+{
+  "name": "olai-plugin-ui-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./browser": "./src/browser.tsx",
+    "./contract": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "solid-js": "^1.9.0",
+    "@olai/web": "workspace:*"
+  }
+}

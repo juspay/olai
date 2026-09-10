@@ -309,7 +309,7 @@ Then(
  * README's rule is that a static render assertion does not earn a browser, and
  * these browsers are already open for the things only a browser shows. It is
  * pinned in the suite at all because `edits` is a RULING (`@olai/ops`'
- * `write_document` takes a `.md` and nothing else, so a control here would be a
+ * `markdown_write` takes a `.md` and nothing else, so a control here would be a
  * door onto a refusal) and because the natural home for it — a unit test over
  * `@olai/web`'s `FACES` — cannot be written: that table is a `.tsx`, and
  * importing one into this repository's unit runner pulls in a JSX runtime that

@@ -221,7 +221,7 @@ Feature: Zoom and navigate
     And there should be no page errors
 
   Scenario: A row address naming a placement lands on the mirror's own row
-    # `kitchen-herbs` is a MIRROR: `read_node`'s `mirrors` reports the
+    # `kitchen-herbs` is a MIRROR: `outlines_read`'s `mirrors` reports the
     # placement's own id, and an agent citing the row spells exactly that —
     # the fragment then names no node the page shows, only a place it draws.
     # The landing answers the id with the mirror row itself, which is the
@@ -402,4 +402,31 @@ Feature: Zoom and navigate
     # would ask this no question at all: BY the boundary is the claim here,
     # not BY the clock as it was up there (the review's own fence-ruling).
     Then the landing's sentence has gone with its page
+    And there should be no page errors
+
+  # A CONFIRMED HARNESS DEFECT, kept as a scenario because the fixture that
+  # exposes it is this corpus's own. `house.olai`'s `kitchen-herbs` mirrors
+  # `herbs` out of `garden.olai`, so garden's records are drawn INSIDE house's
+  # tree — `mint` visibly, `basil` once done rows are shown. The wait that used
+  # to stand behind "I click the outline" asked for a ROW carrying the
+  # destination's `data-file`, and that row was already on screen before the
+  # click: its post-condition was true at step entry, so it established nothing
+  # for this pair. It says nothing about why the draft scenario failed in CI
+  # once, and nothing here claims it does.
+  #
+  # What the wait asks now is the PANE's own `data-drawn-file` — the file of the
+  # page it is DRAWING, which a pane keeps at the previous page while the next
+  # reading is in flight, so neither the href nor the URL can answer it early.
+  Scenario: Walking to a mirrored outline waits for that outline's page, not for a row it lends
+    Given I open the outline "house.olai"
+    # The mirrored row, on screen while the page is house's — the whole reason
+    # the old wait was vacuous.
+    Then the node "mint" is shown
+    And the focused pane is drawing the outline "house.olai"
+    When I click the outline "garden.olai"
+    Then the focused pane is drawing the outline "garden.olai"
+    And the node "herbs" is shown
+    When I click the outline "house.olai"
+    Then the focused pane is drawing the outline "house.olai"
+    And the node "kitchen" is shown
     And there should be no page errors

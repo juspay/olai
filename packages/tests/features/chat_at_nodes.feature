@@ -62,7 +62,7 @@ Feature: Typing @ in the chat completes a node of the directory
     # node taken off the list reaches the prompt as the line `•••` Ask agent
     # already produced — the id in backticks, the title, the `file:line`, the
     # titles it hangs under — and the scripted agent reads that line, calls
-    # `read_node` with the id it found, and says the title that came back. No
+    # `outlines_read` with the id it found, and says the title that came back. No
     # spelling of the prompt that lost the id could produce that sentence
     # (`features/node_context.feature` argues it at length).
     When I type "context @hing" into the chat

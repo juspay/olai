@@ -108,13 +108,15 @@ import { emitter, reasonOf } from "@olai/log"
 import type { ChatServer } from "olai-plugin-chat/wire"
 import type { Reported } from "@olai/acp/engine"
 import type { AskAnswer } from "@olai/acp/wire"
-import { Clock, Data, type Duration, Effect, References, Semaphore } from "effect"
+import { Clock, Data, type Duration, Effect, Fiber, References, Semaphore } from "effect"
 
 import type { Leg, Meta, ModelReading } from "@olai/acp/engine"
 import { acceptsSetting, settingsIn } from "./agents/settings.ts"
 import type { SessionSetting } from "olai-plugin-chat/wire"
 import { modelPickerIn, type Picker, pickerValueFor, sameModel } from "./agents/models.ts"
 import { Calls } from "./calls.ts"
+import { Activity } from "./activity.ts"
+import { nativeActivity } from "@olai/acp"
 import { sameDirectory } from "./directory.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import type { MemorySnapshot, Memory, MemoryFailure } from "./memory.ts"
@@ -508,6 +510,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       options.onEvent(event)
     }
 
+    const activity = options.leg.nativeActivity ? new Activity(emit) : null
+    const sessionRoot = (id: string): string => activity?.root(id) ?? id
+    const callId = (session: string, id: string): string => activity?.toolId(session, id) ?? id
     const terminalTools = new Map<string, readonly string[]>()
     const terminals = new Terminals((id) => {
       for (const [tool, ids] of terminalTools) if (ids.includes(id)) {
@@ -516,7 +521,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }, options.cwd)
     let terminalCleanup = Promise.resolve()
     const terminalSession = (session: string): void => {
-      if (session !== activeSession || replaying) throw RequestError.invalidParams("inactive terminal session")
+      if (sessionRoot(session) !== activeSession || replaying) throw RequestError.invalidParams("inactive terminal session")
     }
 
     const trouble = (message: string) => {
@@ -595,6 +600,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       terminalTools.clear()
       questions.withdrawAll()
       calls.forget()
+      activity?.clear(closed)
       forgetModel()
       // ... and the doubled-prologue arm along with the rest: it names a chunk
       // the session BEING LEFT announced. Spared this line, an arm whose
@@ -631,14 +637,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * A form drawn in nobody's name is drawn as the main agent's, which is the
      * one thing a subagent's question must not say.
      */
-    const put = (form: Form, signal: AbortSignal): Promise<Questions.Settled> =>
+    const put = (form: Form, signal: AbortSignal, session?: string): Promise<Questions.Settled> =>
       questions.ask(form, signal, (id) => {
         emit({
           _tag: "asked",
           id,
           message: form.message,
           fields: form.fields,
-          parent: calls.about(form.toolCall).parent,
+          parent: (session === undefined ? undefined : activity?.parent(session)) ?? calls.about(form.toolCall, session).parent,
         })
       })
 
@@ -653,12 +659,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       params: CreateElicitationRequest,
       signal: AbortSignal,
     ): Promise<CreateElicitationResponse> => {
+      const named = "sessionId" in params ? params.sessionId : undefined
+      if (typeof named === "string" && fromElsewhere(sessionRoot(named), activeSession, closed)) return { action: "cancel" }
       const form = formOf(params)
       if (form instanceof Refused) {
         undrawable(form.reason)
         return { action: "decline" }
       }
-      const settled = await put(form, signal)
+      const settled = await put(form, signal, typeof named === "string" ? named : undefined)
       // A dismissal is a DECLINE and a withdrawal is a CANCEL, and the adapter
       // reads them differently: decline tells the model the person skipped and
       // lets the turn go on, cancel aborts the tool use. Saying "cancel" for a
@@ -676,7 +684,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  other field of the same answer, and both are a lookup because the
      *  request's own words went in through the same door every frame does. */
     const toolOf = (request: RequestPermissionRequest): string | null =>
-      calls.about(request.toolCall.toolCallId).name ?? null
+      calls.about(request.toolCall.toolCallId, request.sessionId).name ?? null
 
     const onPermission = async (
       params: RequestPermissionRequest,
@@ -687,7 +695,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // name and, for a subagent's call, whose it is — so it goes in through
       // the same door rather than being read as a second kind of source. Both
       // questions below are then a lookup.
-      calls.heard(params.toolCall.toolCallId, params.toolCall._meta)
+      calls.heard(params.toolCall.toolCallId, params.toolCall._meta, params.sessionId)
       // The tools olai handed this conversation are answered here and now —
       // already mediated, already validated — and everything else is put in
       // front of a person. Which is which is `allowedWithoutAsking`, and it is
@@ -697,7 +705,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       if (allowed !== null) {
         return { outcome: { outcome: "selected", optionId: allowed } }
       }
-      const settled = await put(permissionFormOf(params), signal)
+      if (fromElsewhere(sessionRoot(params.sessionId), activeSession, closed)) return { outcome: { outcome: "cancelled" } }
+      const settled = await put(permissionFormOf(params), signal, params.sessionId)
       const picked = settled.content[PERMISSION_FIELD]
       // Dismissed, withdrawn, or — impossible, since the field is required, but
       // said in one place rather than assumed in two — nothing chosen. All
@@ -715,8 +724,18 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // conversation nobody had spoken in. Replay is not this — a load
       // un-closes the id it is about to replay, below, before the frames
       // land.
-      if (fromElsewhere(notification.sessionId, activeSession, closed)) return
+      if (fromElsewhere(sessionRoot(notification.sessionId), activeSession, closed)) return
       const update = notification.update
+      const parent = activity?.parent(notification.sessionId)
+      // A child's prose belongs in its own fold; its settings, title, usage,
+      // plan and replayed user messages must never replace the root's.
+      if (parent !== undefined) {
+        if (update.sessionUpdate === "agent_message_chunk") {
+          activity?.report(notification.sessionId, textOf(update.content))
+          return
+        }
+        if (update.sessionUpdate !== "tool_call" && update.sessionUpdate !== "tool_call_update") return
+      }
       reportServers(options.leg.serversInUpdate?.(update) ?? null)
       switch (update.sessionUpdate) {
         case "agent_message_chunk": {
@@ -779,22 +798,23 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // by which fields it guarantees, and a consumer keyed by call id does
         // the same thing with either.
         case "tool_call":
-        case "tool_call_update":
+        case "tool_call_update": {
+          const id = callId(notification.sessionId, update.toolCallId)
           // Not drawn, and not an event: what this frame said about its call —
           // which tool it is, and which agent made it — is what the two
           // handlers above need and what neither question they answer carries
           // ({@link ./calls.ts}).
-          calls.heard(update.toolCallId, update._meta)
+          calls.heard(update.toolCallId, update._meta, notification.sessionId)
           emit({
             _tag: "tool",
-            id: update.toolCallId,
+            id,
             title: update.title ?? undefined,
             // NO CAST. The protocol's four words and the panel's are the same
             // four, and this is the one seam that says so: a fifth status on
             // either side stops compiling HERE, where a person can decide what
             // the panel should do with it, rather than riding a cast onto a row
             // whose look-up table has no entry for it.
-            status: update.status ?? undefined,
+            status: activity?.status(id, update.status ?? undefined) ?? update.status ?? undefined,
             detail: detailOf(update.rawInput, update.rawOutput),
             progress: progressOf(update.content),
             // The two vocabularies for what a call CHANGED, and a call is at
@@ -810,7 +830,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // from. A subagent's frames arrive on this one feed with nothing
             // in the protocol to tell them apart, so this is the only thing
             // that says a turn had more than one agent in it.
-            parent: options.leg.parentToolUse(update._meta) ?? undefined,
+            parent: parent ?? options.leg.parentToolUse(update._meta) ?? undefined,
             // ... and, the other way round, whether this call SENT an agent
             // out. Read here rather than left to the parent stamp because the
             // stamp is answered by a subagent's own frames and a subagent that
@@ -827,19 +847,25 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             armed: options.leg.backgroundTask(update._meta) ?? undefined,
           })
           {
-            const meta = options.leg.terminalOutput ? terminalMetaIn(update._meta) : []
-            const refs = update.content?.flatMap((item) => item.type === "terminal" ? [item.terminalId] : [])
-            const ids = [...new Set([...(refs ?? terminalTools.get(update.toolCallId) ?? []), ...meta.map((item) => item.id)])]
-            terminalTools.set(update.toolCallId, ids)
+            // Adapter-owned terminal IDs, like tool IDs, are scoped to a
+            // session. Client-created handles are already globally unique.
+            const terminalId = (raw: string): string => activity !== null && !terminals.clientOwned(raw)
+              ? activity.toolId(notification.sessionId, raw) : raw
+            const meta = (options.leg.terminalOutput ? terminalMetaIn(update._meta) : [])
+              .map((item) => ({ ...item, id: terminalId(item.id) }))
+            const refs = update.content?.flatMap((item) => item.type === "terminal" ? [terminalId(item.terminalId)] : [])
+            const ids = [...new Set([...(refs ?? terminalTools.get(id) ?? []), ...meta.map((item) => item.id)])]
+            terminalTools.set(id, ids)
             for (const item of meta) {
               if (item.kind === "begin") terminals.begin(item.id)
               else if (item.kind === "output") terminals.append(item.id, item.data)
               else terminals.finish(item.id, item.code, item.signal)
             }
-            if (refs !== undefined || ids.length > 0) emit({ _tag: "toolTerminals", id: update.toolCallId,
+            if (refs !== undefined || ids.length > 0) emit({ _tag: "toolTerminals", id,
               terminals: ids.map((id) => terminals.view(id)) })
           }
           return
+        }
         case "plan":
           emit({ _tag: "plan", entries: update.entries })
           return
@@ -1279,6 +1305,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           .onNotification(methods.client.session.update, (context) => {
             onUpdate(context.params)
           })
+        const stream = streamOver(child)
+        const extension = activity === null ? { stream, clientMeta: {} } : nativeActivity(opened, stream, ({ session, update }) => {
+          if (!fromElsewhere(sessionRoot(session), activeSession, closed)) activity.read(session, update)
+        })
         // The agent's own message, forwarded verbatim because the call that
         // OPENED this conversation asked for it (the leg's `openMeta`, on
         // `session/new` and `session/load` both — the Claude adapter reads the
@@ -1332,7 +1362,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           .onRequest(methods.client.terminal.waitForExit, ({ params }) => { terminalSession(params.sessionId); return terminals.wait(params) })
           .onRequest(methods.client.terminal.kill, ({ params }) => { terminalSession(params.sessionId); return terminals.kill(params) })
           .onRequest(methods.client.terminal.release, ({ params }) => { terminalSession(params.sessionId); return terminals.release(params) })
-          .connect(streamOver(child))
+          .connect(extension.stream)
 
         const initialized = (yield* Effect.raceFirst(
           ask(
@@ -1350,7 +1380,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 // empty object is how the protocol spells "yes" here.
                 elicitation: { form: {} },
                 terminal: true,
-                ...(options.leg.terminalOutput ? { _meta: { terminal_output: true } } : {}),
+                _meta: {
+                  ...(options.leg.terminalOutput ? { terminal_output: true } : {}),
+                  ...extension.clientMeta,
+                },
                 session: { configOptions: { boolean: {} } },
                 // WHAT IS NOT ASKED FOR, named here because this is where it
                 // would be asked for and a decision recorded anywhere else is a
@@ -1597,8 +1630,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // about THIS visit. Load un-closes before the replay too, because the
         // frames land before this runs.
         closed.delete(id)
-        emit({ _tag: "session", id, title })
-        yield* lifecycle(Effect.logInfo("conversation opened"), { how, duration: yield* elapsedSince(started) })
         yield* note(
           // The model is a fact ABOUT a conversation, so it travels with one:
           // coming back into the conversation we remember keeps what it was
@@ -1608,6 +1639,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           { agent: options.id, session: id, model: modelFor(id) },
           (why) => `this conversation will not be restored after a restart: ${why}`,
         )
+        // The session event makes the panel idle. Publish it after the local
+        // write settles, so restarting an apparently ready conversation cannot
+        // interrupt its memory and restore the previous selection. A failed
+        // write still opens the conversation with note's existing notice.
+        emit({ _tag: "session", id, title })
+        yield* lifecycle(Effect.logInfo("conversation opened"), { how, duration: yield* elapsedSince(started) })
       })
 
     /**
@@ -1695,9 +1732,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // that reorders ships the banner to the transcript instead, which is
         // the safe direction.
         prologue = options.leg.prologueIn(made)
-        yield* entered(made.sessionId, null, "new", started)
         readModel(made.configOptions)
-        yield* askForBypass(at, made.sessionId)
+        yield* askForBypass(at, made.sessionId, made.configOptions)
+        yield* entered(made.sessionId, null, "new", started)
       })
 
     const load = (
@@ -1765,9 +1802,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // they are rows, and `replayStarted` has already emptied the transcript
         // for them — so what the panel is short of in between is the title,
         // which it gets a moment later along with everything else.
-        yield* entered(id, title, "loaded", started)
         yield* restore(at, id, loaded?.configOptions, wanted)
-        yield* askForBypass(at, id)
+        yield* askForBypass(at, id, loaded?.configOptions)
+        yield* entered(id, title, "loaded", started)
       })
 
     /**
@@ -1883,32 +1920,45 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         },
       )
 
-    /**
-     * Ask for the permission mode that makes the backstop above unnecessary.
-     *
-     * A refusal is normal — running as root, an agent that has no such mode —
-     * and is not a boot failure. Ignored rather than reported, and that is a
-     * trade with its own reason rather than a swallow: NOTHING IS LOST when
-     * this is refused. The backstop it was trying to make unnecessary is still
-     * there and still answers every permission request, so what a refusal
-     * costs is one round trip per tool call, which is not a fact about a
-     * person's outlines and has no honest place on their screen.
-     */
-    const askForBypass = (at: Live, id: string): Effect.Effect<void> => {
-      // An agent with NO such mode is not asked at all, which is one step
-      // better than a refusal ignored: opencode's modes are `build` and
-      // `plan` and it answers `-32602` to anything else, so the request was
-      // a round trip and a line of somebody else's stderr per conversation,
-      // bought with nothing.
+    /** Apply the engine's permission policy before activating the session.
+     *  Some engines require it; others retain their permission backstop when
+     *  the adapter refuses. Neither refusal is silent. */
+    const askForBypass = (
+      at: Live, id: string, config: ReadonlyArray<SessionConfigOption> | null | undefined,
+    ): Effect.Effect<void, AgentGone> => Effect.gen(function*() {
       const mode = options.leg.bypassMode
-      if (mode === null) return Effect.void
-      return Effect.ignore(
-        ask(at.connection, methods.agent.session.setMode, {
-          sessionId: id,
-          modeId: mode,
-        }),
-      )
-    }
+      if (mode === null) return
+      const result = yield* Effect.result(ask(at.connection, methods.agent.session.setMode, {
+        sessionId: id,
+        modeId: mode,
+      }))
+      if (result._tag === "Failure") {
+        const why = `could not select permission mode ${mode} for session ${id}: ${result.failure.why}`
+        if (options.leg.bypassModeRequired === true) {
+          // Replay and settings can arrive before selection. Withdraw that
+          // provisional visit and fence its late notifications just like a
+          // session we left; no active session or memory claim was made.
+          closed.add(id)
+          leaving()
+          show(null)
+          emit({ _tag: "sessionOver", why: "refused" })
+          return yield* new AgentGone({ gone: result.failure.gone, why })
+        }
+        trouble(`${why}; continuing with the adapter's existing permission mode`)
+        return
+      }
+      // set_mode may acknowledge without publishing config_option_update.
+      // Reflect its confirmed value only in an advertised mode control that
+      // actually offers that value; unrelated settings retain their last update.
+      const ids = new Set((config ?? []).filter((option) => option.category === "mode").map((option) => option.id))
+      let changed = false
+      settings = settings.map((option) => {
+        if (!ids.has(option.id) || option.type !== "select" || !acceptsSetting(option, mode) || option.currentValue === mode) return option
+        changed = true
+        return { ...option, currentValue: mode }
+      })
+      if (changed) emit({ _tag: "settings", settings: settings.filter((option) => option.id !== models?.config) })
+    })
 
     /** The subprocess, and nothing about a conversation. Its own step because
      *  the two things a caller can want are genuinely different: {@link boot}
@@ -2068,7 +2118,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // fiber's dump.
           if (cancelPending) {
             cancelPending = false
-            yield* Effect.forkDetach(
+            // OWNED BY THIS AGENT, not by the global scope. It was
+            // `Effect.forkDetach`, so a session stopped inside the ten
+            // milliseconds below sent its cancel to a connection that had
+            // already closed — small, and the same class as the panel's own
+            // forks one file over ({@link ./chat.ts}'s `aside`).
+            yield* aside(
               Effect.onError(
                 Effect.andThen(
                   Effect.sleep("10 millis"),
@@ -2189,8 +2244,23 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       )
     })
 
+    /** WORK THIS AGENT STARTED BESIDE ITS OWN FIBER — one site, the deferred
+     *  cancel, and the same shape `./chat.ts`'s panel keeps: forked so nothing
+     *  waits on it, tracked so stopping can reach it. */
+    const beside = new Set<Fiber.Fiber<void, unknown>>()
+    const aside = <E>(work: Effect.Effect<void, E>): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        const running: Fiber.Fiber<void, E> = yield* Effect.forkDetach(
+          Effect.ensuring(work, Effect.sync(() => { beside.delete(running) })),
+        )
+        beside.add(running)
+      })
+
     const stopWithReason = (reason: StopReason) => Effect.promise(async () => {
       stopped = true
+      const alongside = [...beside]
+      beside.clear()
+      await Promise.all(alongside.map((fiber) => Effect.runPromise(Fiber.interrupt(fiber))))
       const at = live
       if (at !== null) requestedStops.set(at.child, { reason, session: activeSession })
       live = null

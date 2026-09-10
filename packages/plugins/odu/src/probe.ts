@@ -19,11 +19,21 @@
  * reason. Kolu asks a server for a cell only a live padi can answer, because
  * the daemon is what could be absent. odu's `mcp` BEARS no daemon — what
  * could be absent is the SHAPE this olai was written against: a conversation
- * spans many lanes, so the verbs must take a per-call `checkout` (the
- * checkout-targeting shape, juspay/odu's agent lane — an `mcp` older than it
- * binds olai's own directory and every call a lane asked for lands on olai's
- * served root instead, which is worse than no tools at all). So the round
- * trip is `initialize` + `tools/list`, and the check reads the answer.
+ * spans many lanes, so no verb may aim at the server's own cwd (an `mcp` that
+ * does binds olai's served root, and every call a lane asked for lands there
+ * instead, which is worse than no tools at all). So the round trip is
+ * `initialize` + `tools/list`, and the check reads the answer.
+ *
+ * WHAT "AIMED" MEANS MOVED ONCE, and the move is why {@link VERBS} is a table
+ * rather than a list. juspay/odu#97 settled the first answer — every verb
+ * takes a per-call `checkout` — and juspay/odu#105 replaced it with a sharper
+ * one: a run is now addressed GLOBALLY by `runId`, so only the verbs that name
+ * a DIRECTORY still carry `checkout`, and the ones that name a RUN carry an id
+ * that was never anybody's cwd. Both are aimed; they are aimed by different
+ * keys. So the table pairs each verb with the key that aims it, and the check
+ * is per verb — which is strictly more than the old "every verb takes
+ * `checkout`" could say, because it also catches a `run_wait` that grew a
+ * `checkout` back.
  *
  * ## Where the MCP chatter lives, and why it is this file
  *
@@ -33,8 +43,8 @@
  * therefore HERE, as small as the protocol allows: newline-delimited JSON-RPC
  * on the child's pipes, two requests, one notification, done. It is written
  * collocated with the judgement rather than in `@olai/odu-client` because the
- * one thing that makes this probe odu's — WHICH tools must exist and that
- * they take `checkout` — is this plugin's expectation of the shape, and the
+ * one thing that makes this probe odu's — WHICH tools must exist and what
+ * aims each of them — is this plugin's expectation of the shape, and the
  * two halves that exist on kolu's side answer two questions on this one.
  *
  * ## Why it is on the `./server` door and not on the manifest
@@ -47,6 +57,8 @@
 import { spawn, type ChildProcess } from "node:child_process"
 import { accessSync, constants } from "node:fs"
 import { delimiter, join } from "node:path"
+
+import { Effect, type Scope } from "effect"
 
 /**
  * AN MCP SERVER TO HAND A SESSION, and what a person is owed about one they
@@ -67,7 +79,7 @@ export interface StdioServer {
 }
 
 /** ...and the other half. `where` is `null` in exactly one arm: a PATH with
- *  no `odu` on it at all ({@link probe}), where nothing was resolved so there
+ *  no `odu` on it at all ({@link probing}), where nothing was resolved so there
  *  is nothing to name. Every OTHER way an odu can fail begins by having been
  *  resolved and started, and a `where` is the first thing that path takes.
  *  `why` is a WHOLE SENTENCE and it is this package's — core displays it and
@@ -101,14 +113,42 @@ export const ODU_COMMAND = "odu"
 const ARGS = ["mcp"] as const
 
 /**
- * THE VERBS A CONVERSATION IS PROMISED — the dispatch's own list: with these,
- * an agent can start a run, retry one node, stop one, wait, and hold a venue
- * across runs. An answer without them is not an answer to the question this
- * probe asks: presence is checked against THIS list and nothing wider, so a
- * NEWER odu shipping more is a fine answer and this list never has to move
- * for it.
+ * THE VERBS A CONVERSATION IS PROMISED, EACH WITH THE INPUT KEY THAT AIMS IT
+ * — the dispatch's own list: with these, an agent can start a run, retry one
+ * node, stop one, wait, and hold a venue across runs. An answer without them
+ * is not an answer to the question this probe asks: presence is checked
+ * against THIS table and nothing wider, so a NEWER odu shipping more is a fine
+ * answer and this table never has to move for it.
+ *
+ * THE SIX CAPABILITIES ARE THE SAME SIX they have always been; only the
+ * spellings moved, at juspay/odu#105 — `run`→`run_start`,
+ * `node_rerun`→`run_retry`, `node_cancel`→`run_cancel`,
+ * `wait_for_settle`→`run_wait`, `lease`→`venue_hold`,
+ * `release`→`venue_release`. The list is deliberately not widened while
+ * renaming it: `log_read`, `run_read`, `pipeline_read`, `venue_probe` and the
+ * catalog verbs are real and useful, but a conversation was never promised
+ * them, and a promise is the thing this table states.
+ *
+ * THE VALUE IS THE AIM. A verb that names a DIRECTORY takes `checkout` — an
+ * absolute path, so the server stays parked while the agent aims per call. A
+ * verb that names a RUN takes `runId`, which odu's catalog makes global: it
+ * resolves to the same run from any directory, so there is no cwd for it to
+ * fall back to. Either key is a verb that cannot quietly mean "here"; a verb
+ * with NEITHER is the failure this probe exists to catch.
  */
-const VERBS = ["run", "node_rerun", "node_cancel", "wait_for_settle", "lease", "release"] as const
+const VERBS = {
+  run_start: "checkout",
+  run_retry: "runId",
+  run_cancel: "runId",
+  run_wait: "runId",
+  venue_hold: "checkout",
+  venue_release: "checkout",
+} as const
+
+/** The table's keys, in its own order — the sentences below name them in the
+ *  order they are written above, which is the order the capabilities were
+ *  argued in. */
+const VERB_NAMES = Object.keys(VERBS) as ReadonlyArray<keyof typeof VERBS>
 
 /** odu's own `initialize` payload wants one — the newest one olai's tree
  *  carries (`@modelcontextprotocol/sdk`'s, one pin up). What the responder
@@ -132,10 +172,12 @@ const DEADLINE_MS = 5_000
  */
 export type Verdict =
   | {
-    /** It spoke MCP well enough to answer both questions. `checkout` is
-     *  per-call `checkout` on that tool's `inputSchema`, read at probe time. */
+    /** It spoke MCP well enough to answer both questions. `inputs` is that
+     *  tool's `inputSchema` property NAMES, read at probe time — the names
+     *  rather than a boolean, because which key aims a verb is
+     *  {@link VERBS}'s to say and not this reader's. */
     readonly _tag: "answered"
-    readonly tools: ReadonlyArray<{ readonly name: string; readonly checkout: boolean }>
+    readonly tools: ReadonlyArray<{ readonly name: string; readonly inputs: ReadonlyArray<string> }>
   }
   /** The OS would not start it — the spawn call raised. */
   | { readonly _tag: "couldNotStart"; readonly cause: string }
@@ -169,7 +211,7 @@ export const askOver = async (child: ChildProcess, deadlineMs: number): Promise<
   return await new Promise<Verdict>((resolve) => {
     let buffer = ""
     let done = false
-    const tools: Array<{ name: string; checkout: boolean }> = []
+    const tools: Array<{ name: string; inputs: ReadonlyArray<string> }> = []
     const finish = (verdict: Verdict): void => {
       if (done) return
       done = true
@@ -219,7 +261,7 @@ export const askOver = async (child: ChildProcess, deadlineMs: number): Promise<
             const schema = tool["inputSchema"] as { properties?: Record<string, unknown> } | undefined
             tools.push({
               name: String(tool["name"]),
-              checkout: schema?.properties !== undefined && "checkout" in schema.properties,
+              inputs: Object.keys(schema?.properties ?? {}),
             })
           }
           const again = result?.nextCursor
@@ -270,7 +312,7 @@ const resolveOn = (path: string | undefined): string | null => {
 
 /** The one sentence for the resolve that found NOTHING — the command named,
  *  said not to be on the server's PATH, with the build's promise beside it
- *  so the row is also the directions out ({@link probe}'s header argues it).
+ *  so the row is also the directions out ({@link probing}'s header argues it).
  *  kolu's `EXPECTED` is the same sentence one appliance over, pinned there
  *  to `PADI_SOCKET`; here the bake itself is what expects. The second clause
  *  states the promise and STOPS — any diagnosis (a serve started outside
@@ -317,55 +359,74 @@ const NOT_FOUND = `no \`${ODU_COMMAND}\` is on the PATH this server was started 
  * it can find are two different fixes: an odu so old the verbs were never
  * there, and one new enough to run a run but too old to AIM one.
  */
-export const probe = async (env: Record<string, string | undefined>): Promise<Probed> => {
-  const found = resolveOn(env["PATH"])
-  if (found === null) return { server: null, missing: { name: ODU_COMMAND, where: null, why: NOT_FOUND } }
+export const probing = (
+  env: Record<string, string | undefined>,
+): Effect.Effect<Probed, never, Scope.Scope> =>
+  Effect.gen(function*() {
+    const found = resolveOn(env["PATH"])
+    if (found === null) return { server: null, missing: { name: ODU_COMMAND, where: null, why: NOT_FOUND } }
 
-  const child = spawn(found, [...ARGS], { stdio: ["pipe", "pipe", "ignore"] })
-  const verdict = await askOver(child, DEADLINE_MS)
-  // The child outlives an answered probe by exactly the kill: the probe's
-  // whole point is that the SESSION re-spawns the file it was handed, rather
-  // than inheriting a second-hand server.
-  child.kill()
+    // THE CHILD IS THE SCOPE'S, and the kill that used to sit on the happy path
+    // below is its release. It ran on every return `probe` had, so an abandoned
+    // probe never orphaned a server for longer than the deadline — but "for
+    // longer than the deadline" is a lifetime nobody wrote down, and an asking
+    // that is called off has no business holding an `odu mcp` open for another
+    // five seconds. Acquired and released together, so the spawn cannot land
+    // without its kill.
+    //
+    // The comment the kill carried is still the reason there IS one: the child
+    // outlives an answered probe by exactly this, because the probe's whole
+    // point is that the SESSION re-spawns the file it was handed rather than
+    // inheriting a second-hand server.
+    const child = yield* Effect.acquireRelease(
+      Effect.sync(() => spawn(found, [...ARGS], { stdio: ["pipe", "pipe", "ignore"] })),
+      (child) => Effect.sync(() => { child.kill() }),
+    )
+    // AND THE ASK IS INTERRUPTIBLE, which is the other half: a stopped fiber
+    // leaves this wait where it stands, so the release above runs at once
+    // rather than after the deadline. The promise underneath carries on with
+    // nobody listening and settles on the child's own `exit` — which the kill
+    // is what causes — so its timer is cleared on the way out.
+    const verdict = yield* Effect.promise(() => askOver(child, DEADLINE_MS))
 
-  if (verdict._tag !== "answered") {
-    return { server: null, missing: { name: ODU_COMMAND, where: found, why: whyOf(verdict) } }
-  }
-  const names = new Set(verdict.tools.map((tool) => tool.name))
-  const absent = VERBS.filter((verb) => !names.has(verb))
-  if (absent.length > 0) {
-    return {
-      server: null,
-      missing: {
-        name: ODU_COMMAND,
-        where: found,
-        why: `it answers, but its tool surface is missing ${absent.map((one) => `\`${one}\``).join(", ")}`
-          + ` — this olai hands a conversation ${VERBS.map((one) => `\`${one}\``).join(", ")},`
-          + " and one of the two needs an upgrade",
-      },
+    if (verdict._tag !== "answered") {
+      return { server: null, missing: { name: ODU_COMMAND, where: found, why: whyOf(verdict) } }
     }
-  }
-  const aimless = VERBS.find((verb) => {
-    const tool = verdict.tools.find((one) => one.name === verb)
-    return tool !== undefined && !tool.checkout
+    const names = new Set(verdict.tools.map((tool) => tool.name))
+    const absent = VERB_NAMES.filter((verb) => !names.has(verb))
+    if (absent.length > 0) {
+      return {
+        server: null,
+        missing: {
+          name: ODU_COMMAND,
+          where: found,
+          why: `it answers, but its tool surface is missing ${absent.map((one) => `\`${one}\``).join(", ")}`
+            + ` — this olai hands a conversation ${VERB_NAMES.map((one) => `\`${one}\``).join(", ")},`
+            + " and one of the two needs an upgrade",
+        },
+      }
+    }
+    const aimless = VERB_NAMES.find((verb) => {
+      const tool = verdict.tools.find((one) => one.name === verb)
+      return tool !== undefined && !tool.inputs.includes(VERBS[verb])
+    })
+    if (aimless !== undefined) {
+      return {
+        server: null,
+        missing: {
+          name: ODU_COMMAND,
+          where: found,
+          why: `it answers, but \`${aimless}\` takes no \`${VERBS[aimless]}\``
+            + " — a conversation spans many lanes, and this build could only ever aim at olai's own served directory;"
+            + " one of the two needs an upgrade",
+        },
+      }
+    }
+    return {
+      server: { name: ODU_COMMAND, command: found, args: [...ARGS], env: {} },
+      missing: null,
+    }
   })
-  if (aimless !== undefined) {
-    return {
-      server: null,
-      missing: {
-        name: ODU_COMMAND,
-        where: found,
-        why: `it answers, but \`${aimless}\` takes no per-call \`checkout\``
-          + " — a conversation spans many lanes, and this build could only ever aim at olai's own served directory;"
-          + " one of the two needs an upgrade",
-      },
-    }
-  }
-  return {
-    server: { name: ODU_COMMAND, command: found, args: [...ARGS], env: {} },
-    missing: null,
-  }
-}
 
 /** The sentence per WAY a found `odu` failed — whole sentences, because core
  *  displays them and composes none (`olai-plugin-kolu`'s `whyOf` argues the

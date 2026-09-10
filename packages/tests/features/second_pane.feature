@@ -151,3 +151,33 @@ Feature: The second pane
     And I press Alt+Right without the page claiming it
     Then the row "install" holds the caret
     And the address is exactly "/house.olai"
+
+  # THE DESTINATION IS ALREADY DRAWN SOMEWHERE ELSE, which is the false positive
+  # the mirror fix left one step out: a wait satisfied by ANY pane is satisfied
+  # before the pane the reader is in has moved. `mint` is a `garden.olai` record
+  # mirrored into `house.olai`, so zooming it to the right opens a pane whose
+  # drawn file is garden's while the reader stays in house's.
+  #
+  # `router.go` is `goIn(workspace().focus, next)` — a plain link navigates the
+  # pane you are in — so the sidebar click's destination is pane 0, and the wait
+  # behind it has to be about pane 0 and nothing else.
+  Scenario: A sidebar click waits for the pane the reader is in, not for a neighbour already showing it
+    Given I open the outline "house.olai"
+    And I show the done nodes
+    When I alt-click the zoom of "mint"
+    Then there are 2 panes
+    And pane 1 is focused
+    And pane 1 is already drawing the outline "garden.olai"
+    When I focus pane 0
+    Then pane 0 is already drawing the outline "house.olai"
+    When I click the outline "garden.olai"
+    # READ ONCE: an assertion that waited could not tell a click step that
+    # established the arrival from one that returned early and let the app catch
+    # up while it looked. On an unloaded box this passes under either selector —
+    # a loopback reading lands inside the tick — so what this scenario pins is
+    # the PRECONDITION above, which is timing-free: the destination is already
+    # drawn in a pane that is not the reader's, which is exactly the state that
+    # satisfied the old wait at step entry.
+    Then pane 0 is already drawing the outline "garden.olai"
+    And pane 0 is showing "/garden.olai"
+    And there should be no page errors

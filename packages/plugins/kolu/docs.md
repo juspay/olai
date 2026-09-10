@@ -65,7 +65,7 @@ It wears **the terminal's own theme and font**, taken from the theme that termin
 
 Attaching is a write on a shared pty, and kolu's semantic is that every client sees the same size — so opening a pane sets the terminal's grid, and another client attaching later moves it for both of you. When that happens the pane takes the new size from padi's next frame rather than asserting its own back, because two viewers each answering the other's resize is a war whose symptom on both screens is a garbled terminal.
 
-Closing drops the attach. Twelve lanes on a page are twelve rows and **zero** attached terminals until somebody presses one.
+Closing drops the attach, and the emulator with it — the terminal is disposed, the box watching it for resizes is disconnected, and a re-attach the pane had pending is cancelled. Twelve lanes on a page are twelve rows and **zero** attached terminals until somebody presses one; closing forty panes leaves nothing running either, including a pane closed while its emulator was still being fetched.
 
 ## The events feed
 

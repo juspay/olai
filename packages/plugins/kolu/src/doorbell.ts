@@ -74,7 +74,7 @@
  * the file holds a MIRROR of a lane whose steps live in another file entirely,
  * the descent is the only way in. Those steps are then unreachable rather than
  * merely unclaimed. Two format facts keep that from being theoretical:
- * `set_cancelled` is not gated on the branch beneath it, and a git merge can
+ * `outlines_cancelled` is not gated on the branch beneath it, and a git merge can
  * leave unfinished work under a `done` node. {@link Walked} says what the walk
  * therefore refuses to claim about a carrier it never looked at.
  *
@@ -403,7 +403,7 @@ export interface Excluded {
  * in that position reads as `unclaimed` at the classification, and the settled
  * ancestor is in this list saying why the branch ended.
  *
- * Two format facts sharpen it rather than making it a doorbell bug: `set_cancelled`
+ * Two format facts sharpen it rather than making it a doorbell bug: `outlines_cancelled`
  * is not gated on the branch beneath it, and a git merge can leave unfinished
  * work under a `done` node. So a settled ancestor over live steps is reachable
  * in practice — and the honest answer, that the walk stopped at a verdict, is
@@ -1347,6 +1347,7 @@ export interface Conversation {
  *  control, or a file the watcher can no longer read — is simply absent from
  *  that list, which is the whole of how this module learns to stop. */
 export interface Scoped extends Conversation {
+  readonly current: () => boolean
   readonly file: string
   readonly under?: string
 }
@@ -1571,7 +1572,7 @@ export const makeHeartbeat = (deps: {
   readonly scopes: () => ReadonlyArray<Scoped>
   /** Core's delivery door, write-only, taking the words as a THUNK. */
   readonly deliver: (
-    to: Conversation,
+    to: Scoped,
     say: () => string | null,
     options?: { readonly coalesce?: string },
   ) => void
@@ -1670,7 +1671,7 @@ export const makeHeartbeat = (deps: {
           trace("beat-passed", { file: scope.file, agent: scope.agent, why: "no-revision" })
           continue
         }
-        const to = { agent: scope.agent, session: scope.session }
+        const to = scope
         trace("beating", { file: scope.file, agent: scope.agent, session: scope.session })
         deps.deliver(
           to,

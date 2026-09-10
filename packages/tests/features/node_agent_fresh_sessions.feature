@@ -90,7 +90,7 @@ Feature: Fresh node sessions have distinct identities and durable history
     Then the panel is in the remembered conversation "first"
     And the agent has answered "cabinet first session" exactly once
 
-  Scenario: Resuming a node's past session keeps its subtree write boundary
+  Scenario: Resuming a node's past session still writes the vault
     When I open the session picker
     And I start a fresh session
     Then the panel has a different conversation from "first"
@@ -99,12 +99,13 @@ Feature: Fresh node sessions have distinct identities and durable history
     When I open the session picker
     And I open the past session "cabinet first session"
     Then the panel is in the remembered conversation "first"
-    When I ask the agent "done order"
+    When I show the done nodes
+    And I ask the agent "done order"
     Then the agent is idle
-    And the chat shows a refusal
-    And node "order" is not done
+    And node "order" is done
+    And the chat shows no refusal
 
-  Scenario: Restarting while reading node history restores its write boundary
+  Scenario: Restarting while reading node history still writes the vault
     When I open the session picker
     And I start a fresh session
     Then the panel has a different conversation from "first"
@@ -119,10 +120,11 @@ Feature: Fresh node sessions have distinct identities and durable history
     And the agent panel is open
     Then the panel is in the remembered conversation "first"
     And the panel header names the node agent "install the cabinets"
-    When I ask the agent "done order"
+    When I show the done nodes
+    And I ask the agent "done order"
     Then the agent is idle
-    And the chat shows a refusal
-    And node "order" is not done
+    And node "order" is done
+    And the chat shows no refusal
 
   Scenario: A current node turn keeps running while its history is read and continued
     When I show the done nodes

@@ -1,3 +1,7 @@
+import { createRoot } from "solid-js"
+import type {} from "olai-plugin-chat/slots"
+import type {} from "olai-plugin-layout/slots"
+import type {} from "olai-plugin-outlines/slots"
 /**
  * KOLU'S BROWSER HALF — a plugin, exactly the shape its server half is.
  *
@@ -29,7 +33,7 @@
 import { Bar, Clocks, definePlugin, Links, Slots, Wired } from "@olai/plugin-api"
 import { Effect } from "effect"
 
-import { KoluUi, TerminalBlock } from "./appliance/index.ts"
+import { KoluUi, createKoluUi, TerminalBlock } from "./appliance/index.ts"
 import type { KoluClient } from "./appliance/index.ts"
 import type { KoluApp } from "./browser/app.ts"
 import { KoluMark } from "./browser/Mark.tsx"
@@ -75,6 +79,7 @@ export default definePlugin({
     // receiver threw deep inside a render, so every call site had to re-wrap one.
     // A tag's shape is the record, so holding one is exactly what it was when the
     // app handed a record over (`@olai/plugin-api`'s `browser.test.ts`).
+    const owned = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({dispose, value: createKoluUi({client:wired.client() as KoluClient, now:clocks.createTicking(clocks.MINUTE)})}))), owned => Effect.sync(owned.dispose))
     const app: KoluApp = {
       desktop: bar.desktop,
       pill: bar.pill,
@@ -87,31 +92,13 @@ export default definePlugin({
     // plugin's own name, exactly as `Kinds` composes it on the server, so the
     // word a face is looked up by and the word a vault declares cannot be two
     // spellings.
-    yield* slots.register("outline.row.block", TERMINAL_KIND, TerminalBlock)
+    yield* slots.register("outline.row.block", TERMINAL_KIND, props => <KoluUi value={owned.value}><TerminalBlock {...props} /></KoluUi>)
     // THE PADI PILL, in the app's chrome row. Where it sits in the cluster is the
     // app's decision and always was; what a plugin gets is a seat.
-    yield* slots.register("app.header", { place: "cluster", body: () => <Padi app={app} /> })
+    yield* slots.register("app.header", { place: "cluster", body: () => <KoluUi value={owned.value}><Padi app={app} /></KoluUi> })
     // KOLU'S FACE IN A TRANSCRIPT — the mark over a sentence its doorbell
     // delivered into somebody's conversation.
     yield* slots.register("delivery.mark", KoluMark)
-    // THE TAB'S KOLU HALF — one subscription however many rows draw. `KoluUi`
-    // binds the three cells, the two collections, the screen read and the pane's
-    // un-enrolled stream, and its own header argues each.
-    //
-    // THE CADENCE IS THIS PACKAGE'S JUDGEMENT and not the appliance's: the Dock's
-    // recency phrase ticks by the MINUTE in olai and by the SECOND in kolu's own
-    // dock, because an outline can carry forty lanes with a terminal each and a
-    // per-second tick per row is a re-render storm bought for a digit nobody is
-    // watching in a document somebody is reading. What stays the app's is the
-    // LADDER and the LIFETIME — `Clocks` owns the units and hands back a timer
-    // that disposes with its component.
-    yield* slots.register("app.mount", (props) => (
-      <KoluUi
-        client={wired.client() as KoluClient}
-        now={clocks.createTicking(clocks.MINUTE)}
-      >
-        {props.children}
-      </KoluUi>
-    ))
+
   }),
 })

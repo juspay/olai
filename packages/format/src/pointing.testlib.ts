@@ -344,9 +344,9 @@ export const linkyVault = (
  *     most of what anybody types and which must move this index NOT AT ALL —
  *     the arm that makes "an edit costs what it touched" a thing a run can
  *     count rather than a sentence;
- *   - a TITLE rewritten with a different link in it, which is what `set_title`
+ *   - a TITLE rewritten with a different link in it, which is what `outlines_title`
  *     does to a row somebody wrote a `[…](…)` into;
- *   - a NOTE rewritten, which is `set_desc` and is the edit a reference somebody
+ *   - a NOTE rewritten, which is `outlines_desc` and is the edit a reference somebody
  *     adds in prose actually is;
  *   - a `doc` ATTACHED, re-pointed or taken away, which is the one field of a
  *     record that names a file;

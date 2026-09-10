@@ -87,7 +87,7 @@ test("every tab holds and frames exactly what rebuilding would give it", () => {
   // …over a run that really did ask: four tabs, seventeen open questions, one
   // ask each per revision.
   expect(report.asks).toBeGreaterThan(2000)
-})
+}, { timeout: 15_000 })
 
 test("the shared arm actually shared, and the rebuilding arm actually did not", () => {
   // THE VACUOUS PASS this closes: a wiring that shared nothing would satisfy

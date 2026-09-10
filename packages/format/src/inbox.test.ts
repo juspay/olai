@@ -204,7 +204,7 @@ test("…and the identical fields reach the seed of the inbox it mints", () => {
 test("a capture lands already counted — the row it mints is the row the badge reads", () => {
   // The two halves of this convention meeting is the point of the law, so it
   // is ONE case rather than two: the mark above is what the file holds after
-  // the write planner stores it (`todo` stores `true`, the way `set_todo`
+  // the write planner stores it (`todo` stores `true`, the way `outlines_todo`
   // writes it), and a file holding that record counts it.
   //
   // The literal is hand-written and the case says so, because the join — a

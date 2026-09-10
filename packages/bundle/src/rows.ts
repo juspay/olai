@@ -42,7 +42,8 @@
  * NOT FETCHED. The bundle ships every built plugin's code, in its own chunk, and
  * the tab loads only the chunks the ROSTER names — so a plugin this serve did
  * not compose is not merely undrawn, it is never evaluated, registers nothing
- * and costs one entry in this array. That is the browser's exact twin of *no
+ * and costs one entry in this array. A server-only package has no browser
+ * export and no entry in this table at all. That is the browser's exact twin of *no
  * fiber, no surface, no handler*, and it is what retired the two mount licences
  * `@olai/web` used to carry: a licence is only needed for something you are
  * holding, and the tab is no longer holding it.
@@ -88,6 +89,8 @@ export { BROWSER_ROWS } from "./rows.generated.ts"
 export interface BrowserHalf {
   readonly surface?: { readonly spec: unknown }
   readonly default: Plugin
+  /** Independently gated browser components, owned by this row. */
+  readonly components?: Readonly<Record<string, Plugin>>
 }
 
 /**
@@ -104,6 +107,8 @@ export interface BrowserHalf {
  */
 export interface BrowserRow {
   readonly id: string
+  /** Build metadata: resolve the same entry named by the literal import. */
+  readonly specifier: string
   readonly load: () => Promise<BrowserHalf>
 }
 
@@ -122,9 +127,21 @@ export interface BrowserRow {
  * written by the file or written by the patch.
  */
 export interface BundleRow {
+  /** Selected by the host; executed only in a browser. Derived from package exports. */
+  readonly browserOnly?: boolean
   readonly id: string
   readonly name: string
   readonly disabled?: boolean
+  /** Extra default profiles that select this row; web uses the built default. */
+  readonly profiles?: ReadonlyArray<string>
+  /** The plugin’s explanation of what stopping its row costs. */
+  readonly switchHint?: string
+  /** The row's own settings. Absent is none. `--commit` / `--push` patch git's. */
+  readonly config?: Readonly<Record<string, unknown>>
+  /** The plugins panel group this row sits in. Verbatim on screen. */
+  readonly section: string
+  /** The group may start collapsed when every member is running and quiet. */
+  readonly quiet?: boolean
 }
 
 export { ROWS } from "./rows.generated.ts"

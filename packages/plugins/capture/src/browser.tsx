@@ -1,0 +1,42 @@
+import { Edits, Wired } from "@olai/plugin-api"
+import { holdClient, type Client } from "./client.ts"
+import { dispatch } from "./surface.ts"
+import { holdEdits } from "./writes.ts"
+import { inboxIn } from "@olai/format"
+import { definePlugin } from "@olai/plugin-api"
+import { createInboxHeld } from "./inbox.ts"
+import { Effect } from "effect"
+import { navigation } from "olai-plugin-navigation/contract"
+import { fileNamed } from "olai-plugin-navigation/routes"
+import { regions,type SidebarRegionProps } from "olai-plugin-sidebar/contract"
+import { rendererSlots } from "olai-plugin-ui-renderer/contract"
+import { fileAccess } from "olai-plugin-vault/contract"
+import { holdServed, servedDirectory, useServed } from "./vault.ts"
+import { createMemo,Show } from "solid-js"
+import { Inbox } from "./Inbox.tsx"
+import { capturePalette } from "./Palette.tsx"
+function Entry(props: SidebarRegionProps & {active:()=>string|undefined}) {
+ const count=createInboxHeld(); const served = useServed(); const inbox = createMemo(() => inboxIn(served()))
+ return <Show when={inbox()}>{file => <Inbox file={file()} isActive={file => props.active() === file} broken={servedDirectory()?.broken().has(file()) === true} count={count().count}/>}</Show>
+}
+export const components={palette:capturePalette}
+export default definePlugin({name:"capture", needs:[Wired, Edits, rendererSlots, navigation, fileAccess], apply:Effect.gen(function*(){
+  // The served directory, held for this activation — `./vault.ts` on why the
+  // inbox entry reads it here rather than out of the vault's own module.
+  const served = yield* fileAccess
+  yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
+  const ownWire = yield* Wired
+  yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
+  // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through
+  // `Edits` rather than pushed into a module-scope map in a general package
+  // (`@olai/plugin-api`'s `Edits` carries the whole of why). The hold
+  // beside it is how this row's faces spend the same table (`./writes.ts`).
+  const edits = yield* Edits
+  yield* edits.register(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))
+  yield* Effect.acquireRelease(Effect.sync(() => holdEdits(edits)), stop => Effect.sync(stop))
+
+ const nav=yield* navigation
+ yield* (yield* rendererSlots).contribute(regions, {at:"primary" as const, Body:props=><Entry {...props} active={()=>fileNamed(nav.route())??nav.focused()?.file}/>})
+})})
+
+export { surface } from "./surface.ts"

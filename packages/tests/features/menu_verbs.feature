@@ -89,7 +89,7 @@ Feature: The ••• menu writes
     And "house.olai" holds the node "order" with no date
 
   Scenario: Retiring a placement takes the line and leaves the node
-    # What `remove_mirror` does, from the row it is about: the placement's own
+    # What `outlines_unmirror` does, from the row it is about: the placement's own
     # record goes, the node it showed stays exactly where it lives.
     When I open the node menu of "kitchen-herbs"
     Then the node menu offers "Remove this placement"

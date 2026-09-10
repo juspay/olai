@@ -61,24 +61,19 @@ export const useRuns = (): Runs => useContext(RunsContext) ?? NO_CI
  * arrived" from "nothing running" would be drawing a loading state for a
  * fact whose honest default is silence.
  */
-export function RunsProvider(props: {
-  readonly runs: Accessor<CiRuns | undefined>
-  readonly children: JSX.Element
-}): JSX.Element {
+export function createRuns(runs: Accessor<CiRuns | undefined>): Runs {
   /** ONE memo per tab over the whole reading, so a page of twelve such rows does
    *  twelve map READS per frame rather than twelve walks of the array. The
    *  memo re-runs only when the cell publishes, which the member's `equals`
    *  has already narrowed to frames that moved something. */
   const byWorktree = createMemo(() => {
     const held = new Map<string, CiRun>()
-    for (const run of (props.runs() ?? NO_RUNS).runs) held.set(run.id, run)
+    for (const run of (runs() ?? NO_RUNS).runs) held.set(run.id, run)
     return held
   })
-  return (
-    <RunsContext.Provider
-      value={{ runOf: (worktree) => byWorktree().get(worktree) }}
-    >
-      {props.children}
-    </RunsContext.Provider>
-  )
+  return { runOf: worktree => byWorktree().get(worktree) }
+}
+
+export function RunsProvider(props: {readonly value: Runs;readonly children: JSX.Element}): JSX.Element {
+  return <RunsContext.Provider value={props.value}>{props.children}</RunsContext.Provider>
 }

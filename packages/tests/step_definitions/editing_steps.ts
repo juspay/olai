@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * The row editor: the caret, the keys, and what the file says afterwards.
  *
@@ -31,7 +32,13 @@ import { Then, When } from "@cucumber/cucumber";
 import { MARKS } from "@olai/format";
 
 import { shiftDay } from "@olai/format";
-import { IDLE_COMMIT, isoDayOf, TESTID } from "@olai/web/testlib";
+import { isoDayOf } from "@olai/web/testlib"
+// HOW LONG THE OUTLINE WAITS BEFORE IT COMMITS is the outline row's number, and
+// a step that asserts "not yet" has to outwait the one the client actually
+// uses. It was re-exported by `@olai/web/testlib`, which put
+// `olai-plugin-outlines` in a general package's manifest for a deadline that is
+// entirely that row's — the equality `@olai/bundle`'s `fence.test.ts` holds.
+import { IDLE_COMMIT } from "olai-plugin-outlines/testlib"
 
 import type { Locator } from "playwright";
 
@@ -66,7 +73,7 @@ import type { OlaiWorld } from "../support/world.ts";
  *
  * It fails loudly in the common case — the click is swallowed by the open
  * draft, no editor opens on the named row, and the NEXT step times out — which
- * is how the convention was found rather than reasoned out (`set_doing`
+ * is how the convention was found rather than reasoned out (`outlines_doing`
  * refuses, 2026-08-15). It would fail QUIETLY if the two rows happened to
  * accept the same keys.
  *
@@ -207,6 +214,20 @@ When(
 
 When("I press {string}", async function (this: OlaiWorld, key: string) {
   await pressed(this, key);
+});
+
+When("a DOM reorder briefly removes and refocuses the title editor", async function (this: OlaiWorld) {
+  // Force the browser ordering that a keyed row move can produce: blur fires
+  // during removal while isConnected is still true; focus returns before the
+  // DOM update task ends. A synchronous blur handler mistakes this for leaving.
+  await this.page.locator(TITLE_EDITOR).first().evaluate((element) => {
+    if (document.activeElement !== element) throw new Error("title editor is not focused");
+    const parent = element.parentNode!;
+    const next = element.nextSibling;
+    parent.removeChild(element);
+    parent.insertBefore(element, next);
+    (element as HTMLElement).focus();
+  });
 });
 
 /** The same key, with nothing waited for afterwards — which is how a person
@@ -859,7 +880,7 @@ Then(
 /**
  * A PLACEMENT the file holds, named by what it shows and where it sits.
  *
- * Not by its own id, which is the whole point: `add_mirror` mints one, this
+ * Not by its own id, which is the whole point: `outlines_mirror` mints one, this
  * surface names no ids (`@olai/surface`'s edit.ts), and a scenario that asked
  * for a chosen id would be asking for a thing the `((` widget cannot send. So
  * the assertion is the record's SHAPE — a `mirror` of that target, under that
@@ -1104,4 +1125,16 @@ Then("the note retains the backward selection {string}", async function (this: O
     return input.value.slice(input.selectionStart, input.selectionEnd) === text
       && input.selectionDirection === "backward";
   }, expected), `the note to retain its backward selection of ${JSON.stringify(expected)}`);
+});
+
+const parkedInputs = new WeakMap<OlaiWorld, import("playwright").ElementHandle<HTMLElement | SVGElement>>();
+When("I remember the first parked input", async function (this: OlaiWorld) {
+  const input = await this.page.locator(`${NEW_ROW} ${TITLE_EDITOR}`).first().elementHandle();
+  assert.ok(input);
+  parkedInputs.set(this, input);
+});
+Then("the remembered parked input still holds the caret", async function (this: OlaiWorld) {
+  const input = parkedInputs.get(this);
+  assert.ok(input);
+  assert.equal(await input.evaluate((element) => element.isConnected && document.activeElement === element), true);
 });

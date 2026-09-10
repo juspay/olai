@@ -1,3 +1,4 @@
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * The server half, driven through a fake Spaces and a fake watching bus —
  * never the human's live instance.
@@ -30,7 +31,7 @@ import {
   type LocalState,
   mountPlugin,
   Offers,
-  openPlugins,
+
   type Registered,
   standing,
   Watching,
@@ -38,6 +39,7 @@ import {
 import { expect, test } from "bun:test"
 import { Effect, Scope } from "effect"
 
+import { seatingIn } from "./seating.testlib.ts"
 import spaces from "./server.ts"
 import { listen } from "./testlib/fake-spaces.ts"
 
@@ -70,7 +72,7 @@ interface Doubles {
   readonly env: Record<string, string | undefined>
   readonly served: string
   readonly now: () => string
-  readonly deliver?: Deliveries["deliver"]
+  readonly notify?: Deliveries["notify"]
   readonly dial?: unknown
   readonly localState?: LocalState
 }
@@ -119,10 +121,12 @@ const mounted = async (doubles: Doubles) => {
       needs: [Offers],
       apply: Effect.gen(function*() {
         const offers = yield* Offers
+        yield* offers.own("seating", () => ({ in: seatingIn }))
         yield* offers.offer(DeliveriesDoor, () => ({
           scopes: () => [],
           ringing: () => [],
-          deliver: doubles.deliver ?? (() => Effect.void),
+          deliver: () => Effect.void,
+          notify: doubles.notify ?? (() => Effect.void),
         }))
         yield* offers.offer(Watching, () => ({
           subscribe: (handler) =>
@@ -192,7 +196,7 @@ test("a doorbell in the bound conversation posts; a heartbeat and this plugin's 
       env: { OLAI_SPACES_URL: spaces.url, OLAI_SPACES_TOKEN: "tok" },
       served: served(),
       now: () => "2026-09-01T12:00:00Z",
-      deliver: (_to, say) =>
+      notify: (_to, say) =>
         Effect.sync(() => {
           const body = say()
           if (body !== null) faults.push(body)
@@ -295,7 +299,7 @@ test("a bind without env is a fault, named, and said once into the conversation"
       env: {},
       served: served(),
       now: () => "2026-09-01T12:00:00Z",
-      deliver: (_to, say) =>
+      notify: (_to, say) =>
         Effect.sync(() => {
           const body = say()
           if (body !== null) faults.push(body)

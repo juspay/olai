@@ -15,7 +15,7 @@ import { isClean } from "@olai/format"
 import { kindOf, type OpFailure } from "@olai/format"
 import { Show } from "solid-js"
 
-import { Rows } from "@olai/web/client/errors/Report.tsx"
+import { Rows } from "olai-plugin-vault/errors/Report.tsx"
 import { TESTID } from "../../testids.ts"
 
 export function Refusal(props: { readonly failure: OpFailure }) {

@@ -1,0 +1,68 @@
+# Layout
+
+`layout` is a browser-only row selected by the default web bundle. It consumes
+`ui-renderer.slots` and contributes the application at `root`. Without the
+renderer it waits; disabling layout removes that contribution and disposes
+its Solid subtree. Its selection has no server capability dependencies.
+
+An exact `--plugins` list must include both `ui-renderer` and `layout` to draw
+the current application; include `sidebar` for its directory column and rail. Headless profiles select neither. If either is
+disabled through the panel, use the authorized non-UI plugin-management
+interface or restart with the desired selection to restore the UI.
+
+The frame and header implementations live in this plugin; `web/App.tsx` and
+`web/AppHeader.tsx` are removed. The two providers the frame composes are
+navigation's — `RouterProvider` in `Frame.tsx` and `PaneProvider` in
+`pane/Panes.tsx`, both imported from `olai-plugin-navigation` — and it composes
+no outline or document provider of its own. What it takes from `@olai/web` is
+leaf rendering and connection utilities, never a feature implementation.
+
+The root entry's integration owns visual-viewport and breakpoint listeners,
+layout preference subscriptions, and the Solid effect publishing panel/sidebar
+CSS widths. Removing the entry detaches those listeners and restores the prior
+inline CSS declarations. A fresh activation re-reads preferences from storage,
+including changes made by another tab while layout was absent. These observers
+are no longer started by the permanent browser entry point.
+
+Those readings are what `layout.shell` carries: the breakpoint, whether each
+panel is open and how wide, which snap the mobile sheet is on, and the panel's
+own drag handle. Six other rows spend some of it — the outline and the document
+size their column against the panel, chat is the tenant of the right seat, git
+chooses between a pill and a banner, the sidebar and the file rail open the
+column, and the palette resets both widths — and each declares the key on a
+COMPONENT of its own rather than on its row, because content runs under another
+layout entirely (`olai-plugin-test-layout`). With no shell mounted those
+readings answer what they always answered — a phone-width viewport, a shut
+panel, an open sidebar — and the presses do nothing.
+
+`layout.deployment` carries what this deployment calls itself and when it
+started, which is one answer to one `app.get` asked and re-asked by the
+`deployment` component. Chat's notification title names it.
+
+Viewport width is a reactive input to column fitting. Resizing an open desktop
+layout recomputes both columns while preserving stored preferred widths, so the
+main content keeps its minimum available space when the window narrows.
+
+The root declares `layout.sidebar`. The frame reads that seat through the
+renderer contract and imports no sidebar implementation. The sidebar row owns
+its two extension locations; chat's panel entry owns delivery marks and engine
+installation entries. Remaining outline and navigation compatibility locations
+still belong to the frame until those providers are extracted.
+
+`layout.tools` accepts controls with explicit desktop and mobile ordering. The
+preferences row contributes there, so the frame and header no longer import its
+implementation. Tools may opt into the mobile header when there is no sidebar.
+
+Both preferences and the inspector now contribute through `layout.tools`;
+layout imports neither implementation. Entries supply their header/drawer order
+and decide whether to appear on mobile pages without a sidebar.
+
+Pane geometry, resizing and responsive preferences live in the layout package.
+The frame consumes navigation state and renders registered overlays and content
+status presentations. It creates no outline history, drag registry, document
+state or directory subscription. Alternate layouts can use navigation's public
+page outlet with the same content registrations.
+
+Deployment name and uptime readings are fresh for each layout activation.
+Withdrawal cancels publication from an outstanding name request; a returning
+layout asks again instead of inheriting the previous activation's signals.

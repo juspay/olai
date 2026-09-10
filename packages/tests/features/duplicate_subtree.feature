@@ -2,7 +2,7 @@
 @scratch:good
 Feature: Duplicating a subtree
   One gesture copies a node and everything under it as the sibling below —
-  `duplicate_node` for an agent, `Duplicate` in the row's ••• menu and ⌘⇧D for
+  `outlines_duplicate` for an agent, `Duplicate` in the row's ••• menu and ⌘⇧D for
   a person, all three the SAME op through the same write gate.
 
   What the op promises is short enough to hold in one sentence: the copy is a

@@ -135,7 +135,7 @@ export const inboxHeldIn = (
  * two fields a door may not say.
  *
  * `after` is declared on a capture so that an agent writing the edge list under
- * the name `set_after` gives it is turned away BY NAME rather than having its
+ * the name `outlines_after` gives it is turned away BY NAME rather than having its
  * dependency silently dropped ({@link ./writing.ts}) — and at the TOP of an
  * `add` that same word means the sibling anchor, which is a string. So the two
  * spellings genuinely collide, and a door of ours spreading a whole capture
@@ -158,8 +158,8 @@ export type Capturing = Omit<Capture, "after" | "mark">
  * THREE DOORS capture into this directory and none of them names a file: the
  * palette's `⌘K` `+` sends a line, the `capture` TOOL sends one from an agent
  * or from `olai surface capture`, and an agent that would rather aim reads the
- * outlines and calls `add_node` or `create_outline` itself (which is why
- * `list_outlines` says the convention in words — the one door that is handed
+ * outlines and calls `outlines_add` or `files_create` itself (which is why
+ * `outlines_index` says the convention in words — the one door that is handed
  * the rule rather than the function). The first two resolve through THIS, and
  * that is the whole reason
  * it is here rather than in whichever face happened to need it first: it is a
@@ -188,7 +188,7 @@ export type Capturing = Omit<Capture, "after" | "mark">
  * NOTHING IS VALIDATED HERE. A blank title, a date that is not a date, a
  * property spelled like a field this format already has — each is refused by
  * the write planner in its own words, which is the same sentence an agent's
- * `add_node` gets. A second rule here would be a door refusing something in
+ * `outlines_add` gets. A second rule here would be a door refusing something in
  * words no tool uses.
  *
  * PURE, over the directory's OUTLINE PATHS — not over a whole `Reading`,
@@ -221,7 +221,7 @@ export const captureInto = (
  *  because the format gives it no meaning and olai reads nothing in it — it is
  *  there for the person who captured, and for `prop:captured-by=…`. Hyphenated
  *  like the two the Mail recipe writes (`message-id`), and deliberately not a
- *  word the format already has, which `set_prop`'s own rule would refuse. */
+ *  word the format already has, which `outlines_prop`'s own rule would refuse. */
 export const CAPTURED_BY = "captured-by"
 
 /**
@@ -249,7 +249,7 @@ export const CAPTURED_BY = "captured-by"
  */
 export const CaptureRequest = Schema.Struct({
   /** The row. Verbatim: a blank one is refused by the ops layer in its own
-   *  words, which is the sentence an agent's `add_node` gets. */
+   *  words, which is the sentence an agent's `outlines_add` gets. */
   title: Schema.String,
   /** The note. Markdown, stored verbatim, exactly as a `desc` anywhere else. */
   text: Schema.optionalKey(Schema.String),

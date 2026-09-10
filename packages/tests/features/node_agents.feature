@@ -188,7 +188,8 @@ Feature: A node with an `agent-session` property IS an agent
     # The binding took: the roster says this agent is the conversation the
     # panel is in, which is the half `bound` answers.
     Then the agent "door-live" stands "idle"
-    And the panel offers no manual wake scope
+    And this conversation's "kolu" wake is on nothing
+    And this conversation's "odu" wake is on nothing
     When I ask the agent "what is blocking the connector?"
     Then the agent was told its contract 1 time
     And the contract names "watch the connector" and its subtree
@@ -202,27 +203,28 @@ Feature: A node with an `agent-session` property IS an agent
     # says back what it was given, so the last thing olai heard is the question.
     And the door on "door-live" last said "and now?"
 
-  # ── the subtree is both wake scope and write boundary ────────────────
+  # ── wake choices belong to the conversation; writes reach the vault ────────────────
 
   @scratch:lanes
-  Scenario: A node agent cannot write a sibling outside its subtree
-    # The agent can read the whole vault, but the bearer on this ACP process
-    # is seated at `door-live`. `door-review` is a sibling, so the refusal is
-    # made after planning and before the store gate; the row stays untouched.
+  Scenario: A node agent can write a sibling outside its subtree
+    # The subtree is the session's home, not its territory. `door-review` is a
+    # sibling of the seat, and the write lands the same way a loopback MCP
+    # write would.
     Given I open the outline "lanes.olai"
+    And I show the done nodes
     And the agent panel is open
     Then the agent "door-live" stands "idle"
     When I ask the agent "ready"
     And the agent is idle
     When I ask the agent "done door-review"
     Then the agent is idle
-    And the chat shows a refusal
-    And the node "door-review" has status "todo"
+    And the node "door-review" has status "done"
+    And the chat shows no refusal
 
   @scratch:lanes
   Scenario: A node agent may write its own subtree
     # At the root counts as inside. This is the same MCP tool and the same
-    # writer as the refused sibling call above; only the planned footprint
+    # writer as the sibling call above; only the planned footprint
     # differs.
     Given I open the outline "lanes.olai"
     And I show the done nodes
@@ -629,44 +631,18 @@ Feature: A node with an `agent-session` property IS an agent
     When the agent is released
     Then the agent is idle
 
-  @scratch:lanes
-  Scenario: A board that predates the rename is told the row, in its own column
-    # THE MIGRATION EVERY EXISTING VAULT IS OWED, and where it is said.
-    #
-    # `agent-session` was a key core owned outright. It is chat's kind
-    # `chat-agent-session` now, and a plugin may only ever declare a key
-    # carrying its own name — which is what makes enabling a plugin unable to
-    # take over a column somebody has been using for something of their own —
-    # so olai declares this one for nobody and says so instead.
-    #
-    # IT IS THE PLUGIN THAT SAYS IT, and that is the whole of this scenario. It
-    # was a validator finding for a revision, and a finding BREAKS the file it
-    # is filed on: the only honest file for this one is the declarations page,
-    # so the notice put that page into errors-only and refused every other write
-    # to it until somebody pasted the row. A notice that darkens the page it is
-    # asking you to edit costs more than the thing it is about.
-    Given I open the outline "lanes.olai"
-    When the vault has not declared the binding key yet
-    # THE AGENTS ARE GONE, which is the state the sentence is about — the roster
-    # is the query over the DECLARED key, so there is nothing to list.
-    Then the agents roster holds 0 agents
-    # ...and the section draws anyway, for this alone. A person who came looking
-    # for an agent that stopped appearing finds the reason where they looked.
-    And the agents section says "This board has"
-    And the agents section says "holding"
-    And the agents section says "agent-session"
-    And the agents section says "chat-agent-session"
-    # THE ROW ITSELF, asserted apart from the prose so a reworded sentence
-    # cannot quietly change the JSON a person is about to paste.
-    And the agents section offers the row:
-      """
-      {"id":"prop-agent-session","ord":"a0","title":"agent-session","custom":{"type":"chat-agent-session"}}
-      """
-    # ...AND THE OTHER ANSWER is offered too, because it is a real one: a board
-    # that never meant these as bindings says so and stops hearing about it.
-    And the agents section says "Declaring it"
-    # THE FIX, taken the way a person takes it — and both halves land together,
-    # because the notice and the roster are one reading of one declaration.
-    When I paste that row into the declarations
-    Then the agents roster lists "door-live"
-    And the door on "door-live" reads "claude"
+  @agent-stored @scratch:lanes
+  Scenario: Assignment keeps the composer closed until the session handoff replies
+    Given incoming updates to this browser tab can be held
+    And I open the outline "lanes.olai"
+    And the agent panel is open
+    When I open the unassigned chats
+    And I look for a node to give "the last conversation" to, with "lane nobody"
+    And I hold incoming updates to the original browser tab
+    And I give the conversation to the offered node titled "a lane nobody has put an agent on"
+    Then the unassigned list waits for the assignment to finish
+    When I release incoming updates to the original browser tab
+    And I close the unassigned chats
+    And I ask the agent "where were we?"
+    Then the agent was told its contract 1 time
+    And the contract says the conversation was assigned

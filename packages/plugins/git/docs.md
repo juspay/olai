@@ -1,6 +1,6 @@
 # The ledger
 
-Git is a plugin. Everything about recording what olai wrote — the pill in the header, the phone banner, the commit panel, the `commit` and `push` tools, and the two cells an agent used to read as `surface://cells/git` and `surface://cells/pending` — arrives with one row in the build's plugin list. A serve that does not name that row has none of it: writes still land on disk, and nobody records them.
+Git is a plugin. Everything about recording what olai wrote — the pill in the header, the phone banner, the commit panel, the `git_commit` and `git_push` tools, and the two cells an agent used to read as `surface://cells/git` and `surface://cells/pending` — arrives with one row in the build's plugin list. A serve that does not name that row has none of it: writes still land on disk, and nobody records them.
 
 What git *does* has its own page: [git.md](../git.md) is the feature. This page is about the row.
 
@@ -12,7 +12,7 @@ Nothing. It is on by default, like chat and the appliances. Two things take it a
 
 ```
 olai web ~/outlines                                  # the pill, as always
-olai web ~/outlines --plugins=chat,kolu,odu          # writes land, recorded by nobody
+olai web ~/outlines --plugins=vault,chat,kolu,odu,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector          # writes land, recorded by nobody
 ```
 
 The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag. Switched off at the panel, the pill leaves while you are watching, and `ops.commit` refuses in words.
@@ -21,9 +21,20 @@ The plugins panel — `⧉` in the header — turns it off and on **while the se
 
 ## The config
 
-`--commit` and `--push` are a CLI patch onto this row's `config:`, the way `--plugins` is a patch onto `disabled`. They are the same flags they were: omitted is the built-in default (`manual` / `off`); a given flag is drawn under the git row on the plugins panel. Turning the plugin off is a different fact from `--commit=off`: off is "no provider mounted", so there is no pill and no tool; `--commit=off` with the row on is a mounted ledger that has been told not to record.
+`--commit` and `--push` are a CLI patch onto this row's `config:`, the way `--plugins` is a patch onto `disabled`. The built-in default (`manual` / `off`) lives on the row in `olai.yml`, so the plugins panel always draws it; a flag overlays those values. Turning the plugin off is a different fact from `--commit=off`: off is "no provider mounted", so there is no pill and no tool; `--commit=off` with the row on is a mounted ledger that has been told not to record.
 
 See [running.md](../running.md#the-git-policy).
+
+## The door, and where it is told about
+
+This row stands behind `Ledger`, and it TELLS THE VAULT about the same door
+through `vault-views`. The vault's settings carry a ledger — where a write is
+recorded — and the vault cannot name this key: this row waits for `Vault`, so
+the reverse edge would be a cycle. It used to be a lookup at the far end, over
+the whole host, for a key the vault never declared; the arrow points this way
+now, which costs this row no wait it did not already have. The registration
+unwinds with this activation, so a vault outliving the ledger falls back to
+refusing in its own words.
 
 ## In the browser
 
@@ -37,13 +48,13 @@ Git's members compose as a sibling, under its own key:
 - `surface/git/pending` — what is waiting
 - `surface/git/git/commit`, `surface/git/git/push`, `surface/git/git/resume` — the three verbs
 
-They are on the browser face. The MCP tools an agent calls are still named `commit` and `push` — they are the ops table's, landing on these sibling verbs when the row is mounted and refusing in words when it is not. An agent cannot see what is pending, and `commit` records everything waiting unless it passes `paths`. The `surface://cells/git` and `surface://cells/pending` URIs leave with core's members; the adapter has no sibling segment.
+They are on the browser face. The MCP tools an agent calls are `git_commit` and `git_push` — the row's word in front of its own verb, on every face (#546) — and they are THIS ROW'S now (`packages/plugins/git/src/tools.ts`, juspay/olai#546): they used to be two entries in `@olai/ops`' one closed table, which meant a serve with no ledger row still advertised them. They do not land on the sibling verbs above; they call through the ops layer's own ledger door, which this row stands behind when it is mounted and which refuses in words when it is not. So the row still puts nothing on the agent face. An agent cannot see what is pending, and `git_commit` records everything waiting unless it passes `paths`. The `surface://cells/git` and `surface://cells/pending` URIs are gone with them. The adapter HAS a sibling segment now (juspay/kolu#2234, so a row's resource reads `surface://cells/<row>/<member>`), and that is no longer what would keep them off the face: this row publishes no `resources` map, which is the decision rather than a limitation. An agent observes the recorder through `git_commit` and `git_push`.
 
 ## Where it hangs in the tab
 
-| seat | what the shell keeps | what git brings |
+| seat | who declares it, and what they keep | what git brings |
 | --- | --- | --- |
-| `app.header` | where in the bar cluster a readout sits | the Commit pill |
-| `app.mount` | the fold that wraps the page | the phone banner (news only) |
+| `app.header` | `layout` — where in the bar cluster a readout sits | the Commit pill |
+| `app.banner` | `layout` — where a banner sits over the page | the phone banner (news only) |
 
 The panel travels with the pill, portalled against the viewport, the way it always did.

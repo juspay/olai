@@ -355,10 +355,10 @@ describe("add with children", () => {
     // mark ops read, so a captured mark and a marked capture agree.
     expect(record(nodes, "n2").done).toBe(STAMP)
     expect(record(nodes, "n3").doing).toBe(true)
-    // …and that agreement includes the STAMP, or "exactly as set_doing would"
+    // …and that agreement includes the STAMP, or "exactly as outlines_doing would"
     // is the sentence the door would be lying with: a node BORN `doing` is
     // work born under way, so it carries its `started` from birth — the only
-    // door it has, since `set_doing` refuses a node already doing. This is
+    // door it has, since `outlines_doing` refuses a node already doing. This is
     // the orchestrator's shape: a lane is captured with its mark in one call.
     expect(record(nodes, "n3").started).toBe(STAMP)
     expect(record(nodes, "n4")).toMatchObject({
@@ -467,7 +467,7 @@ describe("add with children", () => {
     expect(failure._tag).toBe("UsageFailure")
     // Named, so the caller knows where to cut the tree in half.
     expect(failure.message).toContain("`four`")
-    expect(failure.message).toContain("second `add_node`")
+    expect(failure.message).toContain("second `outlines_add`")
 
     // The same tree without its last generation is the deepest one that lands:
     // the node being added, and three levels under it.
@@ -663,7 +663,7 @@ describe("done and doing", () => {
   // BULLET, and from a bullet the same `started` would answer every later
   // settle — the round counted twice, and the pause with it, forever. The
   // choreography the reviewers walked: 09:00 doing, 09:10 done, 10:00 undo,
-  // 10:00:05 done (no `set_doing` in between) — and what the bank must say
+  // 10:00:05 done (no `outlines_doing` in between) — and what the bank must say
   // at the end is still 600, with the stamp BURIED: the second settle
   // closed no round (the `doing` that made one closable went with the undo),
   // and a kept stamp would draw [09:00, 10:00:05] against 600 banked
@@ -818,7 +818,7 @@ describe("done and doing", () => {
   })
 
   /**
-   * `set_cancelled`, the fourth mark's own verb — what it writes, what it
+   * `outlines_cancelled`, the fourth mark's own verb — what it writes, what it
    * refuses, and the two things it deliberately does NOT do.
    */
   test("`cancelled` is a mark that SETTLES, and is gated like one", () => {
@@ -859,7 +859,7 @@ describe("done and doing", () => {
     expect(refused(finished, { op: "cancelled", id: "x" }).message)
       .toContain("is done. Undo that first")
 
-    // THE ORDER IS NOT A LAW FOR IT. `set_doing` is the one verb the `after`
+    // THE ORDER IS NOT A LAW FOR IT. `outlines_doing` is the one verb the `after`
     // graph gates, and calling work off is a decision rather than an
     // instruction to start: a blocked node can always be cancelled.
     const blocked = setOf({
@@ -874,7 +874,7 @@ describe("done and doing", () => {
    * THE FOURTH MARK'S SECOND RULING at the write gate: it is NOT gated on the
    * branch below it, and it does not re-open a stale mark above it.
    *
-   * Both of `set_done`'s doors exist because done-HIDING sweeps a done row with
+   * Both of `outlines_done`'s doors exist because done-HIDING sweeps a done row with
    * its subtree, and nothing hides a cancelled row. So there is nothing for a
    * refusal to protect and nothing for an arrival to repair — what is left
    * standing stays on the page, and the answer NAMES it instead.
@@ -1051,7 +1051,7 @@ describe("done and doing", () => {
     // straight through. The state is not hypothetical: it is the one this
     // lane's own no-cascade ruling PRODUCES. Cancel a branch, and the rows
     // under it keep their marks and stay owed; finish the last of them and the
-    // old spelling said "mark it done too" about a node `set_done` refuses
+    // old spelling said "mark it done too" about a node `outlines_done` refuses
     // outright — "is cancelled. Undo that first" — which is a suggestion whose
     // only possible outcome is the refusal it walks into.
     const calledOff = setOf({
@@ -1109,11 +1109,11 @@ describe("done and doing", () => {
 // ── doing refuses what the order forbids ───────────────────────────────
 
 /**
- * The DAG stops being a drawing and becomes a mechanism: `set_doing` on a node
+ * The DAG stops being a drawing and becomes a mechanism: `outlines_doing` on a node
  * whose `after` targets are unfinished work refuses, naming them.
  *
- * The asymmetry is what most of this block is about. `set_done` keeps its
- * allow-with-nudge — finishing out of order is sometimes true — and `set_todo`
+ * The asymmetry is what most of this block is about. `outlines_done` keeps its
+ * allow-with-nudge — finishing out of order is sometimes true — and `outlines_todo`
  * is untouched, because filing work is not starting it. Only the STARTING verb
  * says no.
  */
@@ -1161,7 +1161,7 @@ describe("starting what is blocked", () => {
   /**
    * The hole the DRAWN reading leaves, and the reason the gate asks
    * `standingBefore` rather than `blockersOf`: an unmarked node is not drawn
-   * blocked — a bullet is not work — but `set_doing` is about to make it work,
+   * blocked — a bullet is not work — but `outlines_doing` is about to make it work,
    * and its `after` edges said what comes first. Asking the drawn reading here
    * would make "start it from a bullet" the way round the whole law.
    */
@@ -1235,7 +1235,7 @@ describe("starting what is blocked", () => {
 
   // THE ASYMMETRY, stated as a test rather than only as a comment: the verb
   // that records what happened is not the verb that instructs what to do next.
-  test("`set_done` still lands on a blocked node, with its nudge unchanged", () => {
+  test("`outlines_done` still lands on a blocked node, with its nudge unchanged", () => {
     const result = planned(WAITING, { op: "done", id: "install" })
     expect(record(fileOf(result, "house.olai"), "install").done).toBe(STAMP)
     expect(result.summary).toBe("done: install them")
@@ -1244,7 +1244,7 @@ describe("starting what is blocked", () => {
     expect(result.nudge).toBeUndefined()
   })
 
-  test("`set_todo` is untouched — filing work is not starting it", () => {
+  test("`outlines_todo` is untouched — filing work is not starting it", () => {
     expect(record(fileOf(planned(WAITING, { op: "todo", id: "install" }), "house.olai"), "install")
       .todo).toBe(true)
   })
@@ -1270,7 +1270,7 @@ describe("starting what is blocked", () => {
    * graph, so gating this verb would make the order unsayable exactly when
    * somebody has learned what it is.
    */
-  test("`set_after` onto an already-doing node lands: the graph is not immutable", () => {
+  test("`outlines_after` onto an already-doing node lands: the graph is not immutable", () => {
     const started = chain(
       `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true}`,
       `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","doing":true}`,
@@ -1352,7 +1352,7 @@ describe("starting what is blocked", () => {
  * The state made unreachable is one state — a node storing `done` with
  * unfinished tasks in the branch below it, which done-hiding sweeps off the
  * page — and the two doors onto it are answered differently on purpose: the
- * CLAIM (`set_done`) is refused, the ARRIVAL (a task turning up under a mark
+ * CLAIM (`outlines_done`) is refused, the ARRIVAL (a task turning up under a mark
  * that has gone stale) re-opens what stood over it and says so.
  */
 describe("done over open work: the claim is refused", () => {
@@ -1411,7 +1411,7 @@ describe("done over open work: the claim is refused", () => {
 
   // A placement is not containment (`@olai/format`'s `derive.ts`). The work the
   // mirror draws keeps its own row where it really lives, so hiding this
-  // branch hides no work — and `add_mirror` is therefore not gated either.
+  // branch hides no work — and `outlines_mirror` is therefore not gated either.
   test("a mirror of open work is a second view, not a second obligation", () => {
     const set = setOf({
       "a.olai": [
@@ -1600,7 +1600,7 @@ describe("done over open work: the arrival re-opens what stood over it", () => {
 
   // THE INCIDENT ITSELF, one op wide: a task filed under a branch somebody
   // called finished last week.
-  test("`set_todo` under a done ancestor takes the mark off it, and says so", () => {
+  test("`outlines_todo` under a done ancestor takes the mark off it, and says so", () => {
     const set = shut(`{"id":"leak","parent":"attic","ord":"a0","title":"the leak"}`)
     const result = planned(set, { op: "todo", id: "leak" })
     const nodes = fileOf(result, "a.olai")
@@ -1617,7 +1617,7 @@ describe("done over open work: the arrival re-opens what stood over it", () => {
     expect(result.summary).toBe("todo: the leak (reopened: the house, the attic)")
   })
 
-  test("`set_doing` arrives the same way, and an undo never does", () => {
+  test("`outlines_doing` arrives the same way, and an undo never does", () => {
     const set = shut(`{"id":"leak","parent":"attic","ord":"a0","title":"the leak","todo":true}`)
     expect(record(fileOf(planned(set, { op: "doing", id: "leak" }), "a.olai"), "attic").done)
       .toBeUndefined()
@@ -2001,7 +2001,7 @@ describe("title, note and date", () => {
   })
 
   test("no condition at all is last-one-wins, which is what typing means", () => {
-    // What `set_title` has always meant, unchanged: a request with no `was`
+    // What `outlines_title` has always meant, unchanged: a request with no `was`
     // overwrites whatever is there.
     const moved = setOf({
       "house.olai": KITCHEN.replace(
@@ -2327,14 +2327,14 @@ describe("prop", () => {
   })
 
   /** `worked`'s door is the settles themselves: the bank is counted by
-   *  `set_done` / `set_cancelled` and written by nothing else, so the
+   *  `outlines_done` / `outlines_cancelled` and written by nothing else, so the
    *  refusal names them and not a verb that does not exist. */
   test("the bank is fenced off toward the settles that count it", () => {
     const failure = refused(house(), { op: "prop", id: "order", key: "worked", value: "600" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("`worked`")
-    expect(failure.message).toContain("`set_done`")
-    expect(failure.message).toContain("`set_cancelled`")
+    expect(failure.message).toContain("`outlines_done`")
+    expect(failure.message).toContain("`outlines_cancelled`")
   })
 
   /** `status` is the one shadowed word that is NOT a field — three fields
@@ -2344,7 +2344,7 @@ describe("prop", () => {
     const status = refused(house(), { op: "prop", id: "order", key: "status", value: "done" })
     expect(status.message).not.toContain("with a field of its own")
     expect(status.message).toContain("`status` is what a node's own fields already answer")
-    expect(status.message).toContain("`set_done`")
+    expect(status.message).toContain("`outlines_done`")
     // ...and a word that IS a field still says so.
     expect(refused(house(), { op: "prop", id: "order", key: "date", value: "x" }).message)
       .toContain("with a field of its own")
@@ -2352,7 +2352,7 @@ describe("prop", () => {
 
   /**
    * A write that would change nothing is REFUSED, which is the rule every other
-   * op in this file already follows — `set_done` on a done node, `set_see` with
+   * op in this file already follows — `outlines_done` on a done node, `outlines_see` with
    * a target it already names — and the one this op was missing.
    *
    * It matters more here than it looks, because of the stamps. Such a write
@@ -2421,7 +2421,7 @@ describe("prop", () => {
   // rather than by whoever built the request — the text verbs' own rule, for
   // their reason: the write gate re-plans this same request whenever the store
   // moves under it, so every attempt plans and every attempt tests. Its
-  // ABSENCE is unchanged: last-one-wins is what a plain `set_prop` has always
+  // ABSENCE is unchanged: last-one-wins is what a plain `outlines_prop` has always
   // meant.
 
   /** The one-node vault every conditional-prop test varies one record of. */
@@ -2642,7 +2642,7 @@ describe("stamps", () => {
   })
 
   test("archiving stamps nothing, because archiving is not writing", () => {
-    // `trash_node`'s own promise — "nothing is stamped: archiving is not
+    // `outlines_trash`'s own promise — "nothing is stamped: archiving is not
     // finishing" — read across to the other stamp. A whole subtree's worth of
     // `changed` for one gesture that changed nothing anybody wrote would be
     // noise in every future reading.
@@ -2733,7 +2733,7 @@ describe("move", () => {
   })
 
   test("a MIRROR moved under what it shows is refused by the same walk", () => {
-    // The other way into the same cycle, and the one `add_mirror` has always
+    // The other way into the same cycle, and the one `outlines_mirror` has always
     // refused for a placement being CREATED: the record moving is the
     // placement itself, so what it draws is its target's whole subtree.
     const set = setOf({
@@ -2796,7 +2796,7 @@ describe("move", () => {
 
 /** A vault that DECLARES a `node` key, so a property naming a node is a
  *  reference the set RESOLVES rather than a string that looks like one — the
- *  kind `empty_trash` already refuses a deletion for, and the one an id-changing
+ *  kind `trash_empty` already refuses a deletion for, and the one an id-changing
  *  recreation would strand without a word.
  *
  *  `node` AND NOT `ref`, and the two are different promises rather than two
@@ -2867,7 +2867,7 @@ describe("move across outlines", () => {
     // under it still hangs under it.
     expect(record(arrived, "install").parent).toBe("garden")
     expect(childOrder(arrived, "install")).toEqual(["handles", "knobs"])
-    // …LAST among its new siblings, which is `move_node`'s own default.
+    // …LAST among its new siblings, which is `outlines_move`'s own default.
     expect(childOrder(arrived, "garden"))
       .toEqual(["beds", "paths", "garden-install", "install"])
   })
@@ -3026,7 +3026,7 @@ describe("move across outlines", () => {
     // waiting on — the reading behind the dim and the `blocked by` line — and
     // it is empty for a plain bullet, since a bullet is not work being told it
     // cannot start. `standingBefore` is what a node WOULD wait on the moment it
-    // became work, which is the write side's (`set_doing`'s gate). A
+    // became work, which is the write side's (`outlines_doing`'s gate). A
     // differential over the second alone would have passed on an unmarked node
     // by saying nothing about either.
     const derived = (set: OutlineSet) => derive(recordsOf(set))
@@ -3119,7 +3119,7 @@ describe("move across outlines", () => {
    * the value resolved to, with neither file written.
    *
    * AND IT IS NOT THIS PR'S, which is the half worth pinning rather than
-   * asserting: `trash_node` takes the identical subtree on the identical
+   * asserting: `outlines_trash` takes the identical subtree on the identical
    * arithmetic today and is refused in the identical words. Both arms are
    * below, side by side, so a change that teaches one mover about typed paths
    * and not the others fails here.
@@ -3243,7 +3243,7 @@ describe("move across outlines", () => {
     expect(failure.message).toContain("`shed.olai` is not an outline")
   })
 
-  test("moving INTO the trash is refused toward `trash_node`", () => {
+  test("moving INTO the trash is refused toward `outlines_trash`", () => {
     const set = setOf({
       "house.olai": `{"id":"install","ord":"a0","title":"install the cabinets"}`,
       "_olai/Trash.olai": `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`,
@@ -3256,12 +3256,12 @@ describe("move across outlines", () => {
         { op: "move", id: "install", parent: "tiles" },
       ] as const
     ) {
-      expect(refused(set, request).message).toContain("`trash_node`")
+      expect(refused(set, request).message).toContain("`outlines_trash`")
     }
   })
 
-  test("moving OUT of the trash is refused toward `untrash_node`", () => {
-    // Load-bearing rather than tidy. `untrash_node` tidies the scaffold the
+  test("moving OUT of the trash is refused toward `trash_restore`", () => {
+    // Load-bearing rather than tidy. `trash_restore` tidies the scaffold the
     // archive wrote above the node and re-opens the `done` marks that were true
     // while the branch was over and stop being true the moment it is live
     // again; a move would leave both behind.
@@ -3270,7 +3270,7 @@ describe("move across outlines", () => {
       "_olai/Trash.olai": `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`,
     })
     expect(refused(set, { op: "move", id: "tiles", parent: "kitchen" }).message)
-      .toContain("`untrash_node`")
+      .toContain("`trash_restore`")
   })
 
   test("...but reordering INSIDE the trash still works, because nothing crosses", () => {
@@ -3381,7 +3381,7 @@ describe("create", () => {
     expect(result.id).toBe("n1")
   })
 
-  // The hole this closes: `create` then `add_node` was TWO plans, and a second
+  // The hole this closes: `create` then `outlines_add` was TWO plans, and a second
   // one that refused left an empty outline on disk nobody had asked for. A seed
   // is a whole capture now, so the file and everything in it are one plan.
   test("a seed is a whole capture — the outline is born holding its tree", () => {
@@ -3502,7 +3502,7 @@ describe("create", () => {
     const failure = refused(house(), { op: "create", file: "house.olai" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("already")
-    expect(failure.message).toContain("add_node")
+    expect(failure.message).toContain("outlines_add")
   })
 
   test("an empty seed title is refused — a node is its title", () => {
@@ -4168,7 +4168,7 @@ describe("empty", () => {
    * fixture with the second arrow added.
    *
    * The edges go on the live records and the archives are made by the op, so
-   * what is being tested is what `trash_node` actually writes rather than a
+   * what is being tested is what `outlines_trash` actually writes rather than a
    * hand-typed archive that could drift from it.
    */
   const crossPiles = (
@@ -4204,7 +4204,7 @@ describe("empty", () => {
     // the plan at all, so nothing outside the archive can be touched.
     expect(result.files.map((entry) => entry.file)).toEqual(["_olai/Trash.olai"])
     expect(result.summary).toBe("empty: _olai/Trash.olai (4 records)")
-    // A file op answers with its PATH, `create_outline`'s own shape — there is
+    // A file op answers with its PATH, `files_create`'s own shape — there is
     // no node left for an id to name.
     expect(result.id).toBe("_olai/Trash.olai")
     expect(result.file).toBe("_olai/Trash.olai")
@@ -4227,7 +4227,7 @@ describe("empty", () => {
     const failure = refused(filled(), { op: "empty", file: "house.olai" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("is not the trash")
-    expect(failure.message).toContain("trash_node")
+    expect(failure.message).toContain("outlines_trash")
   })
 
   test("a file the set does not hold is a miss, naming what there is", () => {
@@ -4249,7 +4249,7 @@ describe("empty", () => {
     expect(failure.message).toContain("`loose`")
     expect(failure.message).toContain("`see`")
     // The way through is said, in the vocabulary of the thing to do.
-    expect(failure.message).toContain("untrash_node")
+    expect(failure.message).toContain("trash_restore")
   })
 
   test("an `after` edge and a mirror hold it just as a `see` does", () => {
@@ -4280,7 +4280,7 @@ describe("empty", () => {
 
   test("a record naming ITSELF is not its own dependent", () => {
     // A `see` inside the subtree pointing at the subtree's own root: it goes
-    // when it goes, exactly as `remove_mirror` reads the same index.
+    // when it goes, exactly as `outlines_unmirror` reads the same index.
     const set = after(
       after(house(), { op: "see", id: "install", add: ["install"] }),
       { op: "trash", id: "install" },
@@ -4846,7 +4846,7 @@ describe("unmirror", () => {
     const failure = refused(PLACED(), { op: "unmirror", id: "demo" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("is a node, not a mirror")
-    expect(failure.message).toContain("trash_node")
+    expect(failure.message).toContain("outlines_trash")
   })
 
   /**
@@ -4953,12 +4953,12 @@ describe("documents", () => {
 
     const far = refused(vault(), { op: "doc", file: "elsewhere.md", text: "x" })
     expect(far._tag).toBe("NotFoundFailure")
-    expect(far.message).toContain("create_document")
+    expect(far.message).toContain("markdown_create")
   })
 
   // The verb takes what it is named for. The set's bodied list is wider than
   // the documents — a `.html` is read by the same probe and carried in the same
-  // field — so membership alone would have made `write_document` a way to
+  // field — so membership alone would have made `markdown_write` a way to
   // overwrite a saved page, and the refusal a caller gets would have been about
   // nothing. It is the same sentence a path the directory does not hold gets,
   // because from the caller's side it is the same thing: this verb has no such
@@ -4998,7 +4998,7 @@ describe("documents", () => {
   test("create refuses a path that exists — write is what edits one", () => {
     const failure = refused(vault(), { op: "create-doc", file: "flat.md" })
     expect(failure._tag).toBe("UsageFailure")
-    expect(failure.message).toContain("write_document")
+    expect(failure.message).toContain("markdown_write")
   })
 
   test("create judges the path the way every minted path is judged", () => {
@@ -5063,7 +5063,7 @@ describe("delete", () => {
     expect(failure.message).toContain("`polish`")
     // The direction the refusal owes the reader: trash is how a record
     // LEAVES, and this verb does not guess at emptying.
-    expect(failure.message).toContain("trash_node")
+    expect(failure.message).toContain("outlines_trash")
   })
 
   test("a document a `doc` FIELD still names is refused, naming the record that names it", () => {
@@ -5530,11 +5530,11 @@ test("whatever an op plans, the bytes are one record per line", () => {
 // ── typed properties ───────────────────────────────────────────────────
 //
 // A key a vault DECLARES has a type, and the write gate refuses a value that
-// does not fit it — the same fence `set_doing` and the duplicate-id rule
+// does not fit it — the same fence `outlines_doing` and the duplicate-id rule
 // already are (`@olai/format`'s `typing.ts`). Every door that writes a property
 // is here, because the whole claim of the design is that the check sits at the
 // plan seam and so covers all of them rather than the one somebody remembered:
-// `set_prop`, `add_node`'s `props` (children included), `apply`, `update`, and
+// `outlines_prop`, `outlines_add`'s `props` (children included), `apply`, `update`, and
 // the capture the inbox lands.
 
 /** A board that declares one of every kind that can refuse something, with the
@@ -5565,7 +5565,7 @@ const laneAfter = (request: Request): RegularNode =>
   record(fileOf(planned(board(), request), "lanes.olai"), "lane")
 
 describe("typed properties", () => {
-  test("set_prop refuses a value that does not fit, naming what the key may hold", () => {
+  test("outlines_prop refuses a value that does not fit, naming what the key may hold", () => {
     expect(
       refused(board(), {
         op: "prop",
@@ -5593,9 +5593,9 @@ describe("typed properties", () => {
     ).toContain("did you mean `claude`?")
   })
 
-  test("set_prop STORES the one spelling, folding the obvious ones into it", () => {
+  test("outlines_prop STORES the one spelling, folding the obvious ones into it", () => {
     // `2026-08-25 10:06` is what a person types and what the day page already
-    // accepts; what lands is the instant `set_done` writes, stamped with the
+    // accepts; what lands is the instant `outlines_done` writes, stamped with the
     // offset of the clock this write is being made on.
     expect(
       laneAfter({ op: "prop", id: "lane", key: "dispatched", value: "2026-08-25 10:06" })
@@ -5678,7 +5678,7 @@ describe("typed properties", () => {
     expect(failure.message).toContain("`int` (a digit run)")
   })
 
-  test("set_prop of a bad type on a declaration is the same refusal", () => {
+  test("outlines_prop of a bad type on a declaration is the same refusal", () => {
     const held = setOf({
       "_olai/Properties.olai":
         `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
@@ -5759,7 +5759,7 @@ describe("typed properties", () => {
     })))).toBe(true)
   })
 
-  test("set_prop of type on a declaration is the same existing-values fence", () => {
+  test("outlines_prop of type on a declaration is the same existing-values fence", () => {
     const held = setOf({
       "_olai/Properties.olai":
         `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
@@ -5842,7 +5842,7 @@ describe("typed properties", () => {
     expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"claude\"")
   })
 
-  test("move_node into Properties is the same existing-values fence", () => {
+  test("outlines_move into Properties is the same existing-values fence", () => {
     const held = setOf({
       "_olai/Properties.olai":
         `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
@@ -5883,7 +5883,7 @@ describe("typed properties", () => {
     expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"claude\"")
   })
 
-  test("untrash_node into Properties is the same fence", () => {
+  test("trash_restore into Properties is the same fence", () => {
     const held = setOf({
       "_olai/Properties.olai":
         `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
@@ -5901,12 +5901,12 @@ describe("typed properties", () => {
     expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"not a path\"")
   })
 
-  test("duplicate_node of a declaration is the same fence — the key is already claimed", () => {
+  test("outlines_duplicate of a declaration is the same fence — the key is already claimed", () => {
     const failure = refused(board(), { op: "duplicate", id: "prop-merge" })
     expect(failure.message).toContain("`merge` is already declared by an earlier node")
   })
 
-  test("split_node of a Properties root that renames onto a key with unfit values is the same fence", () => {
+  test("outlines_split of a Properties root that renames onto a key with unfit values is the same fence", () => {
     const held = setOf({
       "_olai/Properties.olai":
         `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
@@ -5923,7 +5923,7 @@ describe("typed properties", () => {
     expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"not a path\"")
   })
 
-  test("split_node of a Properties root still refuses the typeless tail", () => {
+  test("outlines_split of a Properties root still refuses the typeless tail", () => {
     const held = setOf({
       "_olai/Properties.olai":
         `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
@@ -5937,7 +5937,7 @@ describe("typed properties", () => {
     expect(failure.message).toContain("`tail` declares a property key but does not say its `type`")
   })
 
-  test("merge_node of a Properties root is the same existing-values fence", () => {
+  test("outlines_merge of a Properties root is the same existing-values fence", () => {
     const held = setOf({
       "_olai/Properties.olai": [
         `{"id":"brain","ord":"a0","title":"brain","custom":{"type":"doc"}}`,
@@ -5951,7 +5951,7 @@ describe("typed properties", () => {
     expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"not a path\"")
   })
 
-  test("create_outline of Properties.olai is the same fence over the rest of the set", () => {
+  test("files_create of Properties.olai is the same fence over the rest of the set", () => {
     const held = setOf({
       "lanes.olai":
         `{"id":"lane","ord":"a0","title":"a lane","custom":{"brainstorm":"not a path"}}`,
@@ -6028,7 +6028,7 @@ describe("typed properties", () => {
     })
   })
 
-  test("add_node refuses a bad value on the node being born", () => {
+  test("outlines_add refuses a bad value on the node being born", () => {
     expect(
       refused(board(), {
         op: "add",
@@ -6061,7 +6061,7 @@ describe("typed properties", () => {
     expect(born.custom).toEqual({ dispatched: "2026-08-25T10:06:00-04:00", pr: "194" })
   })
 
-  test("create_outline's seed is the same capture, so it is the same refusal", () => {
+  test("files_create's seed is the same capture, so it is the same refusal", () => {
     expect(
       refused(board(), {
         op: "create",
@@ -6071,7 +6071,7 @@ describe("typed properties", () => {
     ).toContain("names a node under `roster`")
   })
 
-  test("update writes properties through set_prop's own planner, in its words", () => {
+  test("update writes properties through outlines_prop's own planner, in its words", () => {
     expect(
       refused(board(), { op: "update", id: "lane", props: { merge: "maybe" } }).message,
     ).toContain("`merge` is `auto` | `human`")
@@ -6098,7 +6098,7 @@ describe("typed properties", () => {
     expect(failure.message).toContain("`ops[1]` (`prop`) was refused, so nothing in this batch was written")
   })
 
-  test("apply's `prop` is set_prop's whole arm — the `was` included, refused as itself", () => {
+  test("apply's `prop` is outlines_prop's whole arm — the `was` included, refused as itself", () => {
     // grok's SHOULD and Opus's SHOULD, the one ask on the batch door: the
     // CONDITION half of `prop` rides the batch too, and its failure is
     // dressed the same as any other — `ops[1]` naming the CONDITION'S own
@@ -6123,7 +6123,7 @@ describe("typed properties", () => {
   // has already approved, so it can carry no value the set did not already
   // hold — a Properties ROOT is the other case, and is the declaration
   // door above.
-  test("duplicate_node copies a declared value and stays legal", () => {
+  test("outlines_duplicate copies a declared value and stays legal", () => {
     const held = setOf({
       ...DECLARED,
       "lanes.olai": `{"id":"lane","ord":"a0","title":"the props lane","custom":{"merge":"auto"}}`,
@@ -6139,10 +6139,10 @@ describe("typed properties", () => {
 describe("typed properties, further", () => {
   // grok's MUST. `namedBy` is `targetsOf` read backwards, and `targetsOf` is
   // the FORMAT's list of fields — so a reference living inside `custom` under a
-  // declared `ref`/`node` key is invisible to it. Without this, `empty_trash`
+  // declared `ref`/`node` key is invisible to it. Without this, `trash_empty`
   // deletes a node a live lane still names and answers SUCCESS, leaving the
   // very dangling value the validator refuses on the next load.
-  test("empty_trash names the records that point into the archive by a typed property", () => {
+  test("trash_empty names the records that point into the archive by a typed property", () => {
     const held = setOf({
       ...DECLARED,
       "lanes.olai":

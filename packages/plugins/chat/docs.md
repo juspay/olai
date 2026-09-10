@@ -12,8 +12,8 @@ Nothing. It is on by default, like the appliances and the engines. Two things ta
 
 ```
 olai web ~/outlines                                  # the panel, as always
-olai web ~/outlines --plugins=kolu,odu               # the outliner alone
-olai web ~/outlines --plugins=chat,claude            # a conversation and one engine
+olai web ~/outlines --plugins=vault,kolu,odu,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector               # the outliner alone
+olai web ~/outlines --plugins=vault,chat,claude,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector            # a conversation and one engine
 ```
 
 The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag, the nix option, or the row's own default. It is the switch to reach for when the answer is *not on this machine right now*; the flag is a deployment's word.
@@ -22,13 +22,14 @@ The plugins panel — `⧉` in the header — turns it off and on **while the se
 
 ## What waits on it
 
-Every plugin that could reach a conversation names one of the four doors this row stands behind:
+Every plugin that could reach a conversation names one of the five doors this row stands behind:
 
 | door | what it is | who names it |
 | --- | --- | --- |
 | `agents` | which ACP engines this build can seat | [claude](claude.md), [codex](codex.md), [opencode](opencode.md), [pi](pi.md) |
 | `deliveries` | where a doorbell may ring | [kolu](kolu.md), [odu](odu.md) |
 | `session-start` | what to ask this host when a conversation opens | kolu, odu |
+| `chat.seating` | the durable nodes, engines and sessions over one vault reading | xyne-spaces |
 | `watching` | what a plugin that mirrors a conversation is told | [xyne-spaces](xyne-spaces.md) |
 
 So **a serve with no chat row leaves all of them `waiting`**, and the plugins panel says so per row, on whose account. That is not a failure and it is not silent: a plugin holding a door that nobody offers is a plugin that has not started, which is a legitimate state the runtime resolves the moment the door arrives.
@@ -44,37 +45,31 @@ chat-agent-session: claude                     a node agent with no session yet
 chat-agent-session: claude:0f3c8d21-…          ...and one that is bound
 ```
 
-The subtree under that node is that agent's memory, and the write fence keeps it there: an agent writes strictly inside its own subtree and asks its ancestor for anything above.
+The subtree under that node is that agent's memory — its home, its history, its doorbells. Writes reach the vault.
 
-### An existing vault needs one row
+### Keeping it on a column of your own name
 
-Before this became a plugin, the key was `agent-session` — a bare word core owned. It is a plugin's kind now, composed the way every plugin's kind is (`<plugin>-<kind>`), so a vault written by an older olai carries a key nothing claims.
-
-**One row in `_olai/Properties.olai` keeps it working:**
+A kind claims the key equal to its own composed word, so `chat-agent-session` needs no declaration at all. To keep bindings under some other column — `agent-session`, say, which is the bare word core owned before chat became a plugin — **declare that key as this kind, with one row in `_olai/Properties.olai`:**
 
 ```json
 {"title":"agent-session","custom":{"type":"chat-agent-session"}}
 ```
 
-olai never writes that row for you. A tool that edited your declarations file to keep its own feature working would be your vault's judgement overruled by a release — so what olai does instead is say so, in its own column: while your board holds bindings under the bare key and nothing declares it, the **Agents** section draws the row to paste. That is exactly when the section has nothing else to draw, because the roster is the query over the declared key — so an agent that has stopped appearing explains itself in the place you went looking for it.
-
-It is not a validator finding, and that is deliberate: a finding breaks the file it is filed on, the only honest file for this one is your declarations page, and a notice that darkened the page it was asking you to edit — refusing every other write to it until you pasted the row — cost more than the thing it was about. Declaring the key `text` instead says the column is prose, and stops it being said.
-
-You can also simply rename the key to `chat-agent-session`, which needs no declaration at all — a kind claims the key equal to its own composed word.
+olai never writes that row for you, and it never reads an undeclared column as a binding either. A plugin may only ever declare a key carrying its own name, which is what makes enabling a plugin unable to take over a column you have been using for something of your own — a bare `agent-session` is a word any vault might mean something else by. Your board says which column it means; a release does not decide for you. Renaming the key to `chat-agent-session` works just as well and needs no row.
 
 ## Where it hangs in the tab
 
-The shell declares the seats and the plugin brings the faces. That split is worth knowing if you are reading the code rather than using it:
+Each seat is declared by the plugin that owns the place it is in, and chat brings the face. That split is worth knowing if you are reading the code rather than using it:
 
-| seat | what the shell keeps | what chat brings |
+| seat | who declares it, and what they keep | what chat brings |
 | --- | --- | --- |
-| `app.panel` | the width the page reserves, the open/closed preference, the drag handle | the dock, the mobile sheet, the minimized strip, the wake strip |
-| `app.header` | where in the bar cluster a readout sits | the toggle, and what it says about a waiting question |
-| `sidebar.section` | the region and its place above the shelf | the agents roster |
-| `outline.row.door` | where under a property run a door is drawn | the agent's row, drawn only where there is one |
-| `outline.row.action` | the menu's order and its dividers | *Ask agent*, and one *Start an agent session* per installed engine |
-| `app.command` | the palette's box, its prefix strip, where a refusal is drawn | `>`, and what it sends |
-| `app.mount` | the fold that wraps the page | one roster subscription for the whole tab |
+| `app.panel` | `layout` — the width the page reserves, the open/closed preference, the drag handle | the dock, the mobile sheet, the minimized strip, the wake strip |
+| `app.header` | `layout` — where in the bar cluster a readout sits | the toggle, and what it says about a waiting question |
+| `sidebar.section` | `sidebar` — the region and its place above the shelf | the agents roster |
+| `outline.row.door` | `outlines` — where under a property run a door is drawn | the agent's row, drawn only where there is one |
+| `outline.row.action` | `outlines` — the menu's order and its dividers | *Ask agent*, and one *Start an agent session* per installed engine |
+| `app.command` | `navigation` — the palette's box, its prefix strip, where a refusal is drawn | `>`, and what it sends |
+| `preferences.sections` | `preferences` — the panel and the shape of a row | the alert controls |
 
 Two slots go the other way — chat is the *reader*. An engine plugin hangs its install sentence on `engine.install` and any plugin hangs the mark its delivered sentences wear on `delivery.mark`; the panel draws both, and composes no word of either.
 
@@ -90,7 +85,7 @@ surface/chat/saying/deltas             the row still being said
 surface/chat/conversation/send         …and the fourteen verbs
 ```
 
-**The MCP face is unchanged.** Not one chat member was ever on it: an agent talking to this store reads the vault through `surface://` and the ops tools, and the conversation is the human's session at the other end of that. So no client's tool names or URIs moved, and `--plugins=chat` changes nothing an agent can see.
+**The MCP face is unchanged.** Not one chat member was ever on it: an agent talking to this store reads the vault through `surface://` and the ops tools, and the conversation is the human's session at the other end of that. So no client's tool names or URIs moved, and `--plugins=vault,chat,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector` changes nothing an agent can see.
 
 ## Turning it off is not the same as turning the agent off
 
@@ -100,3 +95,17 @@ Two switches, two meanings:
 - `OLAI_ACP_AGENT=""` is **not this time**. The row is there, the panel draws, and it says the agent is switched off — which is what you want when the answer is *not right now* rather than *no conversation here*.
 
 The second is the one to reach for by habit. The first is a deployment's word, or a person deciding this serve should stop being a chat for a while.
+
+The browser activation owns one agent roster and conversation reading. Its panel, header, sidebar and row-door contributions provide that same roster only to their own children; row commands close over the scoped reading. Chat no longer wraps the application to provide state, so switching it off leaves surviving outline and document editor instances intact. Agent-list callbacks from a departed activation cannot trigger another lookup.
+
+Notification permission state and service-worker click listeners belong to the
+chat alerts provider. Withdrawal detaches permission observers and prevents a
+pending permission request from delivering an old notification; reactivation
+reads the browser's current permission. Each mounted attention circuit also
+owns its first-gesture listeners and audio context, closing them when it leaves.
+
+Session settings close and remain disabled while a send is awaiting acceptance,
+including before the server's working-state update arrives. The pending count
+belongs to this browser activation and clears when each send settles. An idle
+panel with an unacknowledged send does not establish that its new turn finished;
+sequential browser workflows wait for both acceptance and idle.

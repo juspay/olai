@@ -42,6 +42,8 @@ import {
   CHAT_INPUT,
   CHAT_WAKE,
   CHAT_WAKE_FILE,
+  CHAT_WAKE_FAULT,
+  CHAT_WAKE_WAITING,
   CHAT_WAKE_PICKER,
   CHAT_WAKE_QUERY,
   NODE_REF_ANY,
@@ -66,12 +68,6 @@ const thePicker = async (world: OlaiWorld, plugin: string): Promise<Locator> => 
   await picker.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   return picker;
 };
-
-/** Node-bound sessions derive every wake from their subtree, so the whole
- * manual strip is absent rather than drawn with a control that must refuse. */
-Then("the panel offers no manual wake scope", async function (this: OlaiWorld) {
-  assert.strictEqual(await this.page.locator(CHAT_WAKE).count(), 0);
-});
 
 /** What that control is pointed at, as data: a path, or the word `off`. The
  *  words around it are the plugin's own sentence, and a scenario asserting
@@ -127,6 +123,17 @@ Then(
     await pointedAt(this, plugin, file);
   },
 );
+
+Then("this conversation offers no {string} wake control", async function (this: OlaiWorld, plugin: string) {
+  await this.page.locator(`${CHAT_WAKE_PICKER}${attr("data-plugin", plugin)}`).waitFor({
+    state: "detached", timeout: POLL_TIMEOUT,
+  });
+});
+
+When("I clear this conversation's {string} wake", async function (this: OlaiWorld, plugin: string) {
+  const row = (await thePicker(this, plugin)).locator("..");
+  await this.press(row.getByRole("button", { name: "clear", exact: true }));
+});
 
 // ── the far end ────────────────────────────────────────────────────────
 
@@ -270,20 +277,43 @@ Then(
 );
 
 /**
- * ... and that it is about the terminal the board claims.
+ * ... and WHAT THE SENTENCE SAYS — one step, because every doorbell's proof has
+ * the same shape.
  *
- * The id is asserted and not the wording: every word of the sentence is the
- * plugin's own and `doorbell.test.ts` pins them. What this claim is for is the
- * JOIN — the file a person picked, the un-done step in it, and a terminal on the
- * far end of a real socket are three separate facts, and this is the one place
- * they meet.
+ * The words are asserted and never the wording around them: every word of a
+ * delivery is the plugin's own and its own bench pins them. What a claim like
+ * this is for is the JOIN — some fact the plugin could only have got through the
+ * door it named, arriving in a sentence it wrote itself. kolu's is a terminal id
+ * on the far end of a real socket, joined against the file a person picked and
+ * the un-done step in it; the morning agenda's is an overdue node's title, read
+ * through `journal.agenda` out of a reading it never looked inside. Two subjects,
+ * one question, and it was two steps with identical bodies for one commit.
+ *
+ * WAITED FOR: a delivery is composed at the moment it enters the conversation,
+ * which is some frames after whatever caused it.
  */
 Then(
-  "that sentence names the terminal {string}",
-  async function (this: OlaiWorld, terminal: string) {
+  "that sentence names {string}",
+  async function (this: OlaiWorld, words: string) {
     await this.waitUntil(
-      async () => ((await rungRow(this).first().textContent()) ?? "").includes(terminal),
-      `the machine's message to name the terminal ${terminal}`,
+      async () => ((await rungRow(this).first().textContent()) ?? "").includes(words),
+      `the machine's message to name ${JSON.stringify(words)}`,
+    );
+  },
+);
+
+/**
+ * ...and the negative, which is a different claim and not the same one read
+ * backwards: a row that has not arrived yet names nothing, so this is asked
+ * AFTER a positive one on the same row and is a read rather than a wait.
+ */
+Then(
+  "that sentence does not name {string}",
+  async function (this: OlaiWorld, words: string) {
+    const said = (await rungRow(this).first().textContent()) ?? "";
+    assert.ok(
+      !said.includes(words),
+      `the machine's message names ${JSON.stringify(words)}:\n${said}`,
     );
   },
 );
@@ -345,3 +375,15 @@ Then(
     }
   },
 );
+
+Then("this conversation's {string} missing-file warning is queued", async function (this: OlaiWorld, plugin: string) {
+  const row = (await thePicker(this, plugin)).locator("..");
+  await this.waitUntil(async () =>
+    await row.locator(CHAT_WAKE_FAULT).getAttribute("data-fault") === "gone"
+      && await row.locator(CHAT_WAKE_WAITING).getAttribute("data-waiting") === "1",
+  `${plugin}'s missing-file warning to be queued`);
+});
+
+Then("the conversation has received no plugin messages", async function (this: OlaiWorld) {
+  assert.strictEqual(await rungRow(this).count(), 0);
+});

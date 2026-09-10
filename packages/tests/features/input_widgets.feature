@@ -11,8 +11,8 @@ Feature: The three input widgets
 
   And one rule about what they WRITE: a tag is text, so it goes into the draft
   and commits with it — but a day and a placement are OPS, sent through the
-  same `edit` gate the keys and the agent's tools go through (`set_date`,
-  `add_mirror`). Nothing is echoed: the pill appears and the row appears when
+  same `edit` gate the keys and the agent's tools go through (`outlines_date`,
+  `outlines_mirror`). Nothing is echoed: the pill appears and the row appears when
   the file says they did.
 
   `@scratch:` because these write the directory they are served. They share
@@ -45,7 +45,7 @@ Feature: The three input widgets
     Then the active completion is "tomorrow"
 
   Scenario: Choosing a day sets the date and takes the words back out
-    # ONE `date` edit, at the gate `set_date` goes through — and the `!2026-09-01`
+    # ONE `date` edit, at the gate `outlines_date` goes through — and the `!2026-09-01`
     # is not something anybody wants left in a title, so it comes out of the line
     # before the line is committed.
     When I click the title of "handles"
@@ -235,9 +235,9 @@ Feature: The three input widgets
   Scenario: The placement is drawn, and ⌘Z retires it
     # A pointer's write and a keystroke's file onto one stack, so the chord does
     # not mean two things depending on which hand made the edit. The inverse of
-    # `add_mirror` is `remove_mirror`, named by the placement the write minted.
+    # `outlines_mirror` is `outlines_unmirror`, named by the placement the write minted.
     # Escape first: the draft must stay closed after the write lands. It used
-    # to bounce back when add_mirror was still in flight (`kept` in draft.ts).
+    # to bounce back when outlines_mirror was still in flight (`kept` in draft.ts).
     # The chord after that spends the inverse `send` recorded — caret.ts waits
     # for the placement to be drawn, which is this tab having the way back.
     When I click the title of "knobs"

@@ -45,3 +45,9 @@ export const TESTID = {
    *  olai made of it; `data-node` is the `<namepath>@<platform>` id. */
   ciCell: "ci-cell",
 } as const
+
+import type {} from "@olai/ui-primitives/testids.ts"
+type OwnedTestIds = typeof TESTID
+declare module "@olai/ui-primitives/testids.ts" {
+  interface TestIdTables { readonly "plugins/odu": OwnedTestIds }
+}

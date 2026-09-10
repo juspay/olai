@@ -1,3 +1,10 @@
+import { VaultBoot } from "olai-plugin-vault/boot"
+import { CONTENT_ROWS } from "./capabilities.testlib.ts"
+import { TestClock } from "effect/testing"
+import { runtimePaths } from "./runtime-paths.ts"
+import { mountBundle, offered as door, provide, settled } from "@olai/bundle/bundle"
+import { openPlugins as openHostPlugins, Directory, Ops as OpsDoor } from "@olai/plugin-api/services"
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * One runtime, several faces, several writers — the rebinding, as a fence.
  *
@@ -19,12 +26,13 @@
  */
 
 import {
-  codecFor,
-  make as makeOps,
   type Ops,
   type Store as OutlineStore,
 } from "@olai/ops"
-import type { App, DocumentEntry, Head, Manifest, PluginRoster, Shelf } from "@olai/surface"
+import type { App, PluginRoster } from "@olai/surface"
+import type { DocumentEntry } from "olai-plugin-markdown/wire"
+import type { Head, Manifest } from "olai-plugin-vault/wire"
+import type { Shelf } from "@olai/format"
 import { NO_ROSTER } from "@olai/surface"
 import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle"
 import type { RowReport } from "@olai/bundle/bundle"
@@ -36,7 +44,7 @@ import {
   definePlugin,
   mountPlugin,
   Offers,
-  openPlugins,
+
   rowReport,
   standing,
   Surfaces,
@@ -45,10 +53,7 @@ import {
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { defineSurface } from "@kolu/surface/define"
 import { restrictHandlers } from "@kolu/surface/expose"
-import { facesOf } from "./faces.ts"
 import { inMemoryStore } from "@kolu/surface/server"
-import { NO_KINDS } from "@olai/format"
-import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, mock, test } from "bun:test"
 import { Effect, Fiber, Queue, Schema, Scope, Stream } from "effect"
@@ -59,11 +64,6 @@ import * as path from "node:path"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { type Bound, bind, type PluginRuntime, rosterOf, writerAt } from "./runtime.ts"
-
-/** The codec this suite validates through — the vocabulary of a build that
- *  composed no plugin, which is what these fixtures declare nothing about
- *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
 
 /** A known start instant, so `app.get` is asserted against a mint rather
  *  than against whatever clock the suite happened to read. */
@@ -81,7 +81,12 @@ const STARTED = "2026-08-29T09:31:00.000Z"
 const withRuntime = <A>(
   files: Readonly<Record<string, string>>,
   use: (bound: {
-    readonly wired: { readonly bound: Bound; readonly faces: ReturnType<typeof facesOf> }
+    // `bind`'s own return type, read off the function rather than named: the
+    // gate pair used to be typed by `@olai/bundle`'s `facesOf`, which is one of
+    // the three hand-written face tables #546 deleted. There is nothing left to
+    // import — a face's grant is composed from the rows' own `faces` maps now —
+    // and the composer is the only thing that knows the shape.
+    readonly wired: { readonly bound: Bound; readonly faces: Effect.Success<ReturnType<typeof bind>>["faces"] }
     readonly ops: Ops
     readonly store: OutlineStore
     /** The directory this runtime is serving, for the one test that rewrites a
@@ -91,27 +96,11 @@ const withRuntime = <A>(
      *  `@olai/store`.s `body`, which is the one door `./bodies.ts` may use.
      *  Recorded rather than mocked: the real read still happens. */
     readonly reads: ReadonlyArray<string>
-    /** THE PLUGIN CONTEXT this runtime was handed, or `null` where a case took
-     *  no plugin slot — for the one case that mounts a plugin AFTER the bundle
-     *  is composed, which is the only way to reach the live re-compose from
-     *  here. Every other case gets its plugins mounted before `bind` and has no
-     *  use for it. */
-    readonly plugins: Plugins | null
+    readonly attached: Effect.Effect<string>
+    /** The live host, including the vault row and any test doubles. */
+    readonly plugins: Plugins
   }) => Effect.Effect<A, unknown>,
-  /**
-   * The two slots the doorbell's gates need and no other test here does —
-   * OPTIONAL, so the ten cases above say nothing about either and get exactly
-   * the boot they always got.
-   *
-   * `chat` is the panel this runtime answers for, absent by default because a
-   * directory is readable whether or not an agent is installed and every
-   * reading test here is that machine. `plugins` is WHICH DOUBLES to mount:
-   * `undefined` is no plugin runtime at all ({@link rosterOf}'s `NO_ROSTER`),
-   * `[]` is a mounted runtime with nothing in it, and a list is the doubles a
-   * case built. What is behind a name is a plugin with no
-   * appliance under it ({@link doubleCalled}) — this harness mounts what the
-   * runtime is handed and never looks inside it.
-   */
+  /** Additional rows mounted beside the test-minimal vault provider. */
   extra: {
     readonly plugins?: ReadonlyArray<{
       readonly name: string
@@ -126,50 +115,45 @@ const withRuntime = <A>(
   const reads: Array<string> = []
 
   return Effect.gen(function*() {
-    const opened: OutlineStore = yield* Store.make({
-      root,
-      codec,
-      watch: false,
-      settle: "10 millis",
-    })
-    const store: OutlineStore = {
-      ...opened,
-      body: (path) => {
-        reads.push(path)
-        return opened.body(path)
-      },
-    }
-    const ops = makeOps({ store, root })
-    /** The re-compose holder `bind` fills in — one per boot, as `./serve.ts`
-     *  makes one per serve. */
     const onChange = { run: (): void => {} }
-    /** The plugin context this boot was handed, held so the body can reach it —
-     *  see the `plugins` field the harness yields. */
-    const mounted = extra.plugins === undefined
-      ? null
-      : yield* mounting(extra.plugins ?? [], onChange)
+    const mounted = yield* openHostPlugins({ vars: {}, now: () => STARTED, changed: () => onChange.run() })
+    yield* mountBundle(mounted.host, { kind: "exact", names: ["vault", ...CONTENT_ROWS] }, [], "surface")
+    yield* provide(mounted.host, VaultBoot, () => ({root, runtime: runtimePaths}))
+    yield* settled(mounted.host, ["vault", ...CONTENT_ROWS])
+    const directory = door(mounted.host, Directory) as { readonly store: OutlineStore } | undefined
+    if (!directory) throw new Error("test-minimal did not open its vault row")
+    const opened = directory.store
+    const readBody = opened.body
+    Object.assign(opened, {body: (path: string) => { reads.push(path); return readBody(path) }})
+    const store = opened
+    const gate = door(mounted.host, OpsDoor)?.gate as Ops | undefined
+    if (!gate) throw new Error("test-minimal did not offer its gate")
+    for (const one of extra.plugins ?? []) yield* mountPlugin(mounted.host, one.plugin)
+    const attachments = yield* Queue.unbounded<string>()
+    const markdown = mounted.composed().find(one => one.name === "markdown")
+    const documents = (markdown?.deps as {collections?: {documents?: {readOne?: (key: string) => unknown}}})?.collections?.documents
+    if (!documents?.readOne) throw new Error("Markdown did not offer its document reader")
+    const readOne = documents.readOne
+    documents.readOne = key => {
+      const value = readOne(key)
+      Queue.offerUnsafe(attachments,key)
+      return value
+    }
     const wired = yield* bind({
-      store,
-      ops,
-      writer: "web",
       hostname: hostname(),
       startedAt: STARTED,
-      // NO PLUGINS, unless a case asked for doubles. Every runtime in this file
-      // but the doorbell's is a reader — a bound face, an MCP route — and none
-      // of them is about a terminal door or a CI chip; dialing whatever daemons
-      // happen to be on the machine running the suite would make these tests
-      // depend on them. `null` is the OFF setting, and what it produces is a
-      // rooted bundle with no sibling mounted on it: no tag, no handler and no
-      // expose row, so olai's own group is byte for byte what it always was.
-      //
-      // The doorbell's cases DO take the slot, and they still dial nothing:
-      // what stands behind their names is a double with no appliance under it
-      // ({@link doubleCalled}).
-      plugins: mounted === null ? null : {
-        plugins: mounted,
+      // Actual notebook providers supply the wire. Additional rows below are
+      // scoped doubles used only by registry/recomposition cases.
+      plugins: {
+        // These cases drive registration changes through onChange and read
+        // fiber reports directly. Status notifications also force verified
+        // store refreshes; keep that independent background stream out of the
+        // fixture so exact body-frame assertions have one revision producer.
+        // Live status reconciliation is covered by the serve/profile tests.
+        plugins: { ...mounted, changes: Stream.empty },
         onChange,
-        built: (extra.plugins ?? []).map((one) => one.name),
-        pinned: null,
+        built: extra.plugins === undefined ? ["vault", ...CONTENT_ROWS] : extra.plugins.map((one) => one.name),
+        pin: { kind: "omitted" },
         // THE DOUBLES' OWN FIBERS, asked the way a serve asks the bundle's.
         // These runtimes mount doubles directly rather than through the loader,
         // so `reportBundle` (which walks `BUNDLE_NAMES`) has nothing to say
@@ -177,7 +161,7 @@ const withRuntime = <A>(
         // and asking it here is what makes these cases exercise the same
         // derivation a real boot does rather than a hand-made map.
         report: yield* Effect.map(
-          rowReport(mounted.host, (extra.plugins ?? []).map((one) => one.name)),
+          rowReport(mounted.host, extra.plugins === undefined ? ["vault", ...CONTENT_ROWS] : extra.plugins.map((one) => one.name)),
           (read) => () => read,
         ),
         // THESE DOUBLES ARE NOT LOADER ROWS, so there is nothing to name and
@@ -197,15 +181,38 @@ const withRuntime = <A>(
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => runtime.stopped)
-    return yield* use({ wired, ops, store, reads, root, plugins: mounted })
-  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
+    return yield* use({ wired, ops: gate, store, reads, attached: Queue.take(attachments), root, plugins: mounted })
+  }).pipe(
+    Effect.scoped,
+    Effect.provide(NodeServices.layer),
+    // These connector tests advance disk through explicit refreshes. The vault
+    // row also starts a watcher and backstop; hold their timers so an incidental
+    // probe cannot add a revision between the exact frames asserted below.
+    Effect.provide(TestClock.layer()),
+    Effect.runPromise,
+  )
 }
 
-/** Every CORE member whose answer records WHO asked, as the wire spells them.
- *  Git's sibling commit also records the writer, but only when the git row
- *  minted the tag — this harness mounts no plugins, so the rebound set is
- *  ops.run alone. A LITERAL rather than a derivation, deliberately. */
-const RECORDS_THE_WRITER = ["surface/ops/run"]
+/**
+ * ONE ENTRY PER WRITING ROW, under that row's own name.
+ *
+ * The harness mounts the six content owners; four of them declare `writes:
+ * ["surface/ops/run"]` (`olai-plugin-{outlines,markdown,files,trash}`'s
+ * `server.ts`) and `pins` and `capture` declare none — they write through
+ * `edit.apply`, which is a browser door and carries the browser's writer.
+ *
+ * There was a FIFTH entry here, the bare `surface/ops/run`, and it was the root
+ * mount's alias rather than a fifth writer: while those rows registered `root:
+ * true`, `./composition.ts` emitted the bare tag beside the scoped one so
+ * attribution held on whichever door a caller used. #546 left one tag per
+ * member, so the alias is not served and there is no second name left to
+ * launder a write through. Keep the set literal: a row that grows a write and
+ * forgets to declare it is invisible any other way.
+ */
+const RECORDS_THE_WRITER = [
+  "surface/files/ops/run", "surface/markdown/ops/run",
+  "surface/outlines/ops/run", "surface/trash/ops/run",
+]
 
 const OUTLINE = `{"id":"a","ord":"a0","title":"a"}\n`
 /** A row whose parent nothing declares — a MEANING error rather than a syntax
@@ -253,7 +260,7 @@ const opening = (
   readonly reader: Fiber.Fiber<void>
 }> =>
   Effect.gen(function*() {
-    const get = bound.handlers["surface/documents/get"]
+    const get = bound.handlers["surface/markdown/documents/get"]
     if (get === undefined) throw new Error("the documents collection has no `get`")
     return yield* watching(get({ key }) as Stream.Stream<DocumentEntry>)
   })
@@ -271,7 +278,7 @@ test("app.get answers the box and the start this runtime was minted with", () =>
 test("a face served under another writer differs by exactly the members that record one", () =>
   withRuntime({ "a.olai": OUTLINE }, ({ wired, ops }) =>
     Effect.gen(function*() {
-      const agent = writerAt(wired.bound, ops, { writer: "mcp", fence: null })
+      const agent = writerAt(wired.bound, ops, { writer: "mcp" })
 
       // The RECORD is the group's, exactly — which is also what `restrictHandlers`
       // asserts before any face binds, so a mis-derived tag is a boot crash rather
@@ -301,7 +308,7 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
     { "a.olai": OUTLINE, "report.html": "<h1>Cabinet quote</h1>\n" },
     ({ wired, store }) =>
       Effect.gen(function*() {
-        const get = wired.bound.handlers["surface/documents/get"]
+        const get = wired.bound.handlers["surface/markdown/documents/get"]
         if (get === undefined) throw new Error("the documents collection has no `get`")
 
         const frames = yield* Stream.runCollect(
@@ -315,7 +322,7 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
         // assertion the whole change is for.
         const keys = yield* Stream.runCollect(
           Stream.take(
-            wired.bound.handlers["surface/documents/keys"]?.({}) as Stream.Stream<
+            wired.bound.handlers["surface/markdown/documents/keys"]?.({}) as Stream.Stream<
               ReadonlyArray<string>
             >,
             1,
@@ -343,7 +350,7 @@ test("a reader watching a head is told the file moved, and no body is read", () 
     { "a.olai": OUTLINE, "report.html": "<h1>Before</h1>\n" },
     ({ wired, store, root, reads }) =>
       Effect.gen(function*() {
-        const get = wired.bound.handlers["surface/heads/get"]
+        const get = wired.bound.handlers["surface/vault/heads/get"]
         if (get === undefined) throw new Error("the heads collection has no `get`")
 
         const open = yield* watching(get({ key: "report.html" }) as Stream.Stream<Head>)
@@ -430,7 +437,7 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
         // took its frame and exited.
         yield* Fiber.interrupt(open.reader)
 
-        const heads = wired.bound.handlers["surface/heads/get"]
+        const heads = wired.bound.handlers["surface/vault/heads/get"]
         if (heads === undefined) throw new Error("the heads collection has no `get`")
         const moved = yield* watching(heads({ key: "report.html" }) as Stream.Stream<Head>)
         yield* moved.take
@@ -440,18 +447,20 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
 
         // The barrier: a body asked for by a reader who IS here, which the
         // serial reader cannot answer before anything the revision asked for.
+        // The write and the cheap refresh can land as one revision or two, so
+        // the number is not the claim — the body is, and that there were only
+        // the two reads a holder asked for.
         const again = yield* opening(wired.bound, "report.html")
-        expect(yield* again.take).toEqual({
-          rev: 2,
-          text: "<h1>After</h1>\n",
-          refused: false,
-        })
+        const body = yield* again.take
+        expect(body.text).toBe("<h1>After</h1>\n")
+        expect(body.refused).toBe(false)
+        expect(body.rev).toBeGreaterThanOrEqual(2)
         expect(reads).toEqual(["report.html", "report.html"])
       }),
   ))
 
 /**
- * The birth-announce edge, closed by the same change (`./published.ts`).
+ * The birth-announce edge, closed by the same change (`olai-plugin-markdown`'s `projection.ts`).
  *
  * A reader may hold a `get` open on a key the directory does not hold yet — the
  * framework allows it, and a file appearing is what used to leave such a reader
@@ -461,16 +470,19 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
  * announcement on the same key.
  */
 test("a reader holding a key across a file's birth is handed the body", () =>
-  withRuntime({ "a.olai": OUTLINE }, ({ wired, store, root }) =>
+  withRuntime({ "a.olai": OUTLINE }, ({ wired, store, root, attached }) =>
     Effect.gen(function*() {
       const open = yield* opening(wired.bound, "report.html")
+      // A scoped sibling handler can yield before its subscription attaches.
+      // Wait for the actual snapshot read before creating the absent key.
+      expect(yield* attached).toBe("report.html")
 
       fs.writeFileSync(path.join(root, "report.html"), "<h1>Born</h1>\n")
       yield* store.refresh("cheap")
 
       // TWO frames, in this order: the upsert that says the collection has a new
       // key (which cannot carry a body — nothing has read one), and the body
-      // read for the reader holding it. That order is `published.ts`'s
+      // read for the reader holding it. That order is `olai-plugin-markdown`'s `projection.ts`'s
       // holder-across-birth contract, and this connector's apply-then-unread.
       expect(yield* open.take).toEqual({ rev: 2, text: null, refused: false })
       expect(yield* open.take).toEqual({
@@ -544,8 +556,8 @@ test("a broken outline publishes its head, with its own rows on it", () =>
     { "a.olai": REFUSED, "b.olai": `{"id":"b","ord":"a0","title":"b"}\n` },
     ({ wired }) =>
       Effect.gen(function*() {
-        const said = wired.bound.handlers["surface/manifest/get"]
-        const framed = wired.bound.handlers["surface/heads/deltas"]
+        const said = wired.bound.handlers["surface/vault/manifest/get"]
+        const framed = wired.bound.handlers["surface/vault/heads/deltas"]
         if (said === undefined) throw new Error("the manifest cell has no `get`")
         if (framed === undefined) throw new Error("the heads collection has no `deltas`")
 
@@ -592,7 +604,7 @@ test("the shelf is answered per revision, so a rename elsewhere renames the pin"
     },
     ({ wired, store, root }) =>
       Effect.gen(function*() {
-        const get = wired.bound.handlers["surface/pins/get"]
+        const get = wired.bound.handlers["surface/pins/pins/get"]
         if (get === undefined) throw new Error("the pins cell has no `get`")
 
         const open = yield* watching(get({}) as Stream.Stream<Shelf>)
@@ -637,7 +649,7 @@ test("a revision that changes no pin sends no frame", () =>
     },
     ({ wired, store, root }) =>
       Effect.gen(function*() {
-        const get = wired.bound.handlers["surface/pins/get"]
+        const get = wired.bound.handlers["surface/pins/pins/get"]
         if (get === undefined) throw new Error("the pins cell has no `get`")
         const open = yield* watching(get({}) as Stream.Stream<Shelf>)
         expect(yield* open.take).toEqual([
@@ -688,11 +700,17 @@ const mounted = (names: ReadonlyArray<string>): ReadonlyMap<string, RowReport> =
 const offering = (
   pinned: ReadonlyArray<string> | null = null,
   report: ReadonlyMap<string, RowReport> = new Map(),
+  extra: ReadonlyArray<string> | null = null,
+  without: ReadonlyArray<string> | null = null,
 ): PluginRuntime => ({
   plugins: EMPTY_PLUGINS,
   onChange: { run: () => {} },
   built: PLUGIN_NAMES,
-  pinned,
+  pin: pinned !== null
+    ? { kind: "exact", names: pinned }
+    : extra !== null || without !== null
+    ? { kind: "delta", extra, without }
+    : { kind: "omitted" },
   report: () => report,
   // NOTHING NAMES ANYTHING in these cases, so no row carries another — which is
   // the state every row of a real bundle but the chat row is in. The `carrying`
@@ -730,8 +748,9 @@ test("every plugin the build has is on the roster, running or not", () => {
   // ...and an opt-in row is a row that is THERE and off, which is the state a
   // panel has to be able to draw and a filter over the running set could not.
   expect(all.built.length).toBeGreaterThanOrEqual(DEFAULT_BUNDLE_NAMES.length)
-  // `pinned` stays `null` rather than expanding into that list, because the row
+  // `pin` stays `omitted` rather than expanding into that list, because the row
   // under it has to say whether a person typed this policy or got the default.
+  expect(all.pin).toEqual({ kind: "omitted" })
   expect(all.pinned).toBeNull()
 
   // ...and one name out of the list leaves every other row present and off,
@@ -744,6 +763,7 @@ test("every plugin the build has is on the roster, running or not", () => {
   const one = rosterOf(offering([first], mounted([first])))
   expect(one.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(one.built.filter((row) => row.running).map((row) => row.name)).toEqual([first])
+  expect(one.pin).toEqual({ kind: "exact", names: [first] })
   expect(one.pinned).toEqual([first])
 })
 
@@ -765,6 +785,7 @@ test("a plugin the flag left on but nothing mounted draws as off", () => {
   expect(roster.built.some((row) => row.running)).toBe(false)
   // ...and the flag is still reported as nobody having said, because nobody
   // did: the two facts are independent and the panel draws both.
+  expect(roster.pin).toEqual({ kind: "omitted" })
   expect(roster.pinned).toBeNull()
 })
 
@@ -786,6 +807,7 @@ test("a row's config travels on the roster as data, and a row without one sends 
 
 test("an empty flag crosses as an empty list, not as nobody having said", () => {
   const none = rosterOf(offering([]))
+  expect(none.pin).toEqual({ kind: "exact", names: [] })
   expect(none.pinned).toEqual([])
   expect(none.built.some((row) => row.running)).toBe(false)
   expect(none.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
@@ -830,7 +852,7 @@ test("a row that is not running says which of the four absences it is", () => {
   expect(optIn.built.find((row) => row.name === first)?.running).toBe(false)
 
   // ...and the SAME snapshot under a flag is `off`, because somebody asked and
-  // did not ask for this. One field, two layers, and `pinned` is the only thing
+  // did not ask for this. One field, two layers, and `pin` is the only thing
   // that can say which of them wrote it.
   const off = rosterOf(offering([second], new Map([[first, { state: "off" }], [second, { state: "running" }]])))
   expect(off.built.find((row) => row.name === first)?.state).toBe("off")
@@ -1083,6 +1105,32 @@ test("a row a person switched off is not the build's default", () => {
   expect(back.built.find((row) => row.name === first)?.state).toBe("running")
 })
 
+test("the pin travels onto the roster, and does not mint extra fiber words", () => {
+  const [first, second] = PLUGIN_NAMES
+  if (first === undefined || second === undefined) {
+    throw new Error("this claim needs a build with two rows")
+  }
+
+  const extra = rosterOf(offering(null, mounted([first]), [first], null))
+  expect(extra.built.find((row) => row.name === first)?.state).toBe("running")
+  expect(extra.built.find((row) => row.name === first)?.running).toBe(true)
+  expect(extra.pin).toEqual({ kind: "delta", extra: [first], without: null })
+  expect(extra.pinned).toBeNull()
+
+  const without = rosterOf(
+    offering(null, new Map([[second, { state: "off" as const }]]), null, [second]),
+  )
+  expect(without.built.find((row) => row.name === second)?.state).toBe("optIn")
+  expect(without.built.find((row) => row.name === second)?.running).toBe(false)
+  expect(without.pin).toEqual({ kind: "delta", extra: null, without: [second] })
+
+  const pressed = rosterOf({
+    ...offering(null, new Map([[second, { state: "off" as const }]]), null, [second]),
+    switched: () => new Set([second]),
+  })
+  expect(pressed.built.find((row) => row.name === second)?.state).toBe("switched")
+})
+
 /**
  * ...AND A ROW THAT IS NOT RUNNING CARRIES NOBODY, whatever the tables say.
  *
@@ -1162,7 +1210,7 @@ test("the roster is served on the plugins cell", () =>
       const get = wired.bound.handlers["surface/plugins/get"]
       if (get === undefined) throw new Error("the plugins cell has no `get`")
       const open = yield* watching(get({}) as Stream.Stream<PluginRoster>)
-      expect(yield* open.take).toEqual(NO_ROSTER)
+      expect((yield* open.take).built.map((row) => [row.name, row.state])).toEqual(["vault", ...CONTENT_ROWS].map(name => [name, name === "vault" ? "waiting" : "running"]))
       yield* Fiber.interrupt(open.reader)
     })))
 
@@ -1206,6 +1254,7 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
       Effect.gen(function*() {
         if (plugins === null) throw new Error("this case needs the plugin runtime")
         const before = Object.keys(wired.bound.handlers).length
+        const composedBefore = plugins.composed().map(one => one.name)
 
         // A surface with a cell and DEPS THAT DO NOT MENTION IT — the shape a
         // plugin's own `satisfies` makes unspellable in its own package, which
@@ -1227,7 +1276,7 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
         // state: this file holds what a composition root can see, and what a
         // composition root can see is the four words the bridge answers with.
         expect((yield* refused.report).state).toBe("failed")
-        expect(plugins.composed().map((one) => one.name)).toEqual([])
+        expect(plugins.composed().map((one) => one.name)).toEqual(composedBefore)
         expect(Object.keys(wired.bound.handlers).length).toBe(before)
 
         // ...and the next plugin in is untouched by it, which is the half that
@@ -1247,7 +1296,7 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
           }),
         )
         expect((yield* healthy.report).state).toBe("running")
-        expect(plugins.composed().map((one) => one.name)).toEqual(["healthy"])
+        expect(plugins.composed().map((one) => one.name)).toEqual([...composedBefore, "healthy"])
 
         // The roster a browser reads carries the truth about both: the build has
         // no rows here (these doubles are not the bundle's), so what it says is
@@ -1491,35 +1540,3 @@ const engineCalled = (name: string) => ({
     }),
   }),
 })
-
-/**
- * A PLUGIN RUNTIME WITH `doubles` MOUNTED — what a composition root is handed,
- * built for one case.
- *
- * The whole runtime is opened, exactly as `./serve.ts` opens one: the doubles
- * name what they name and see what they named, which is the harness saying that
- * out loud rather than assembling a subset by hand.
- *
- * NO `doorFor`, and its absence is the lane: where a doorbell may deliver is a
- * promise the chat ROW keeps, so there is nothing here for a composition root to
- * hand over.
- *
- * SCOPED to the case: the scope is never closed, because a runtime.test's
- * runtimes live as long as the case does and there is nothing here to hold open
- * against a second one.
- */
-const mounting = (
-  doubles: ReadonlyArray<{ readonly plugin: ReturnType<typeof definePlugin> }>,
-  onChange: { run: () => void },
-): Effect.Effect<Plugins, never, Scope.Scope> =>
-  Effect.gen(function*() {
-    const plugins = yield* openPlugins({
-      vars: {},
-      now: () => STARTED,
-      // The double's own directory, which none of these cases reads.
-      served: "/tmp",
-      changed: () => onChange.run(),
-    })
-    for (const one of doubles) yield* mountPlugin(plugins.host, one.plugin)
-    return plugins
-  })

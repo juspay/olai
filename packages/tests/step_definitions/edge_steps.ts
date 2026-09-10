@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * Writing a node's edges: the panel, its two doors, and what the file says
  * afterwards.
@@ -23,7 +24,7 @@
 
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
-import { TESTID } from "@olai/web/testlib";
+
 
 import {
   AFTER_REFS,
@@ -484,4 +485,11 @@ Then("the edge panel search reads {string}", async function (this: OlaiWorld, qu
 Then("no edge panel is open", async function (this: OlaiWorld) {
   await this.waitUntil(async () => (await this.page.locator(EDGE_PANEL).count()) === 0,
     "the edge panel to be closed");
+});
+
+Then("the edge search has requested {string} without relabelling its retained rows", async function(this: OlaiWorld, query: string) {
+  await this.waitUntil(async () => this.socketAskedSince("searchResults", query) > 0, "the debounced search to reach the wire while its reply is held");
+  assert.equal(await this.page.locator(`${EDGE_PANEL} [data-asked]`).count(), 0,
+    "old search rows must not acquire the new query label before its answer arrives");
+  assert.ok((await this.page.locator(EDGE_HIT).first().innerText()).includes("the compost heap"));
 });

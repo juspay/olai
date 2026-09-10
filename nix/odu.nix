@@ -10,10 +10,27 @@
 # already hydrated one file over. One directory, copied; no expansion to ask
 # for, and nothing for a seed list to compute.
 #
-# THE PIN TRACKS MASTER at the exact revision this tree compiled against.
-# `just update-pins` walks it forward; `npins/sources.json` records the tested
-# revision in this diff. The pinned master includes juspay/odu#101, which lets
-# independent sharded leaves share burst capacity.
+# The pin tracks odu's master, at the exact revision recorded in
+# npins/sources.json. `just update-pins` advances it with the other pins.
+# Coordinator and runner are built together from this source, including the
+# working-tree snapshot transport used by the fast-remote recipes.
+#
+# WHAT #105 COST THE CONSUMER, since a pin bump is where it landed. odu's MCP
+# face was renamed wholesale: the verbs `run`, `node_rerun`, `node_cancel`,
+# `wait_for_settle`, `lease`, `release` became `run_start`, `run_retry`,
+# `run_cancel`, `run_wait`, `venue_hold`, `venue_release` (plus `run_read`,
+# `log_read`, `pipeline_read`, `venue_probe`, `catalog_import`,
+# `catalog_prune`, `protect_apply`), and a run is now addressed globally by
+# `runId` rather than by the checkout it was started in. On the first bump NONE
+# of the six names the probe asked for were present, so a conversation drew
+# "its tool surface is missing `run`" instead of holding CI tools —
+# `packages/plugins/odu/src/probe.ts` now names the new six and checks the key
+# that AIMS each of them, and `just odu-surface` asks the built binary that
+# same question so the next move of this pin cannot be quiet about it.
+#
+# The pinned tree still carries juspay/odu#103, under which a remote lane that
+# loses its ssh link is re-claimed onto a fresh venue and only its unfinished
+# nodes rerun (bounded by `ODU_MAX_LANE_RESURRECTIONS`, default 2).
 #
 # WHY THE SCRIPT IS KOLU'S. The copier is generic — `<src> <dest>` pairs, `cp
 # -rL` so a hydrated source's own imports resolve up into the root

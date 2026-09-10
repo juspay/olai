@@ -7,9 +7,6 @@
  * Codex permission request is always left to the person: failing to recognise
  * a call may cost a click, while guessing could grant authority nobody gave.
  *
- * Codex's native subagent metadata is similarly richer than ACP's flat feed,
- * but it identifies threads rather than the one spawning call Leg needs. This
- * first integration draws those calls flat instead of inventing parentage.
  */
 import { namedExactly, type Leg, type Meta, type Reported } from "@olai/acp/engine"
 
@@ -54,6 +51,7 @@ export const serversInUpdate = (update: unknown): ReadonlyArray<Reported> | null
 }
 
 export const CODEX: Leg = {
+  nativeActivity: true,
   serversInUpdate,
   toolNameIn: (_meta: Meta) => null,
   toolNameOf: () => null,
@@ -64,12 +62,13 @@ export const CODEX: Leg = {
   taskNotification: () => null,
   listedIn: () => null,
   prologueIn: () => null,
-  // `agent-full-access` disables approvals and grants unrestricted host access;
-  // olai does not silently select it. Codex keeps its adapter default instead.
-  bypassMode: null,
+  // The orchestrator intentionally runs like `codex --yolo`: no approval
+  // prompts and unrestricted filesystem/network access, on new and loaded sessions.
+  bypassMode: "agent-full-access",
+  bypassModeRequired: true,
   steering: {
     method: "_session/steering",
-    meta: undefined,
+    meta: { steering: { idleBehavior: "promptRequired" } },
     timeout: "30 seconds",
     taken: steerTaken,
     advertised: steeringAdvertised,

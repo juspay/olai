@@ -67,6 +67,7 @@
  * as a fiber.
  */
 
+import { deliveryProvision } from "./server/deliveries.ts"
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
 import {
@@ -110,6 +111,7 @@ import { openLocalState } from "./local.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { forLocalState as memoryIn } from "./memory.ts"
+import { seatingIn } from "./seating.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
 import { assignSession, type Binding, startAgentSession } from "./server/binding.ts"
@@ -119,12 +121,7 @@ import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
 import type { ChatEntry, ChatState } from "./wire/members.ts"
 import { CHAT_OFF } from "./wire/members.ts"
-import {
-  type Agents,
-  type Migration,
-  NO_AGENT_ROSTER,
-  NO_MIGRATION,
-} from "./wire/agents.ts"
+import { type Agents, NO_AGENT_ROSTER } from "./wire/agents.ts"
 import { faces, name, surface } from "./wire.ts"
 
 /** The kinds this plugin teaches a vault — see {@link ./kinds.ts} for the word
@@ -181,11 +178,11 @@ const asFailure = (refusal: Refusal): OpFailure => refusal as OpFailure
  * WHY A SESSION MAY NOT WRITE THE KEY IT IS SEATED ON — this plugin's own
  * sentence, carried on the ticket beside the keys it is about.
  *
- * A node agent may write anywhere under its own node and still may not rewrite
- * the property that says WHICH conversation it is: that is the binding rather
- * than the work, and it is a person's gesture in the panel. The refusal spends
- * this clause verbatim (`@olai/ops`' `fenceRefusal`), which is why it reads as a
- * reason and starts in lower case.
+ * A node agent may write the vault and still may not rewrite the property that
+ * says WHICH conversation it is: that is the binding rather than the work, and
+ * it is a person's gesture in the panel. The refusal spends this clause
+ * verbatim (`@olai/ops`' `doorRefusal`), which is why it reads as a reason and
+ * starts in lower case.
  */
 const SEATS =
   "it is what seats a conversation on a node, and that is a person's gesture in the panel"
@@ -203,6 +200,7 @@ export default definePlugin({
     const kindsDoor = yield* Kinds
     const localState = yield* openLocalState(yield* LocalState)
     const offers = yield* Offers
+    yield* offers.own("seating", () => ({ in: seatingIn }))
     const ops = yield* Ops
     const surfaces = yield* Surfaces
     const tools = yield* Tools
@@ -286,11 +284,7 @@ export default definePlugin({
      * yet, and holding the ring would deliver yesterday's news into today's
      * first turn.
      */
-    yield* offers.offer(Deliveries, (who) => ({
-      scopes: () => chat?.doorFor(who).scopes() ?? [],
-      ringing: (file, node) => chat?.doorFor(who).ringing(file, node) ?? [],
-      deliver: (...args) => Effect.suspend(() => chat?.doorFor(who).deliver(...args) ?? Effect.void),
-    }))
+    yield* offers.offer(Deliveries, deliveryProvision(() => chat, wakes.current))
 
     /** WHAT A PLUGIN THAT MIRRORS A CONVERSATION IS TOLD — a bus this row owns,
      *  contained per handler with the subscribing plugin's word on the line. */
@@ -632,10 +626,6 @@ export default definePlugin({
           state: { store: inMemoryStore<ChatState>(CHAT_OFF) },
           sessionsRevision: { store: inMemoryStore<number>(0) },
           agents: { store: inMemoryStore<Agents>(NO_AGENT_ROSTER) },
-          // WHAT THIS VAULT IS OWED to get those agents back, or nothing — and
-          // nothing is what every board reaches (`./wire/agents.ts` argues why
-          // this is a cell of ours rather than a finding of the validator's).
-          migration: { store: inMemoryStore<Migration | null>(NO_MIGRATION) },
         },
         collections: {
           // Server-authored, one writer: `readAll` reads the transcript itself,
@@ -677,12 +667,6 @@ export default definePlugin({
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
         nodeAgents.seen(revision.value.derived)
-        // ...AND WHAT THE BOARD IS OWED, in the same breath and off the same
-        // reading. It is published HERE rather than from {@link republishAgents}
-        // because it moves for one reason only — a declarations file — and
-        // that reason is a revision. Hanging it off every chat frame would be
-        // a second answer to a question no conversation can change.
-        mine?.cells.migration.set(nodeAgents.migration())
         // WHICH NODE AGENT THE OPEN CONVERSATION BELONGS TO is a PROPERTY, so a
         // revision can change it. Without this the panel would go on saying it
         // belonged to nobody until the next time a session opened.
@@ -693,14 +677,13 @@ export default definePlugin({
     )
     yield* vault.unloaded(Effect.sync(() => {
       nodeAgents.seen(null)
-      mine?.cells.migration.set(NO_MIGRATION)
       republishAgents()
     }))
 
     /** A SCOPE ITS DOORBELL CANNOT WATCH — the walk, over this revision.
      *  {@link ./server/doorbell.ts} argues every clause of it; what is here is
      *  the two readings it does not take for itself. */
-    const faulted = (snapshot: VaultRevision): void => {
+    function faulted(snapshot: VaultRevision): void {
       const open = chat
       if (open === null) return
       ring(Effect.flatMap(rings, (declared) =>
@@ -710,10 +693,12 @@ export default definePlugin({
         })))
     }
 
-    /** WHAT THIS SERVE REFUSED A WRITER — a row in the transcript, so what the
-     *  agent then says about it is prose and the unfinished children are data. */
+    /** Agent refusals belong in the transcript. Web gestures receive the
+     *  same failure at their own surface and must not add a chat row. */
     yield* ops.refused((refusal) =>
-      chat === null ? Effect.void : chat.recordRefusal(refusal.op, asFailure(refusal.failure))
+      chat === null || refusal.writer === "web"
+        ? Effect.void
+        : chat.recordRefusal(refusal.op, asFailure(refusal.failure))
     )
 
     // ── the build, once the serve is up ──────────────────────────────────
@@ -801,6 +786,7 @@ export default definePlugin({
           ),
         memory: memoryIn(localState, mounted()[0]?.id ?? ""),
         scoping: yield* scopesIn(localState),
+        wake: (plugin) => wakes.current().get(plugin),
         overheard: yield* sessionsIn(localState),
         agentAt: (to) => nodeAgents.agentAt(to),
         nodeAt: (node) => nodeAgents.nodeAt(node),
@@ -809,27 +795,30 @@ export default definePlugin({
         nearestAt: (node, candidates) => nodeAgents.nearestAt(node, candidates),
         // EVERY KEY THIS VAULT DECLARES THE BINDING KIND ON, not the one a write
         // would land on: a board mid-migration has two, this plugin's roster
-        // reads a binding off either, and a fence that named only the writing
-        // key would leave the other as a door a seated agent could re-seat
-        // itself through. A THUNK, so the answer follows the revision — a
+        // reads a binding off either, and a door that forbade only the writing
+        // key would leave the other as a way a seated agent could re-seat
+        // itself. A THUNK, so the answer follows the revision — a
         // migration row landing mid-conversation moves what the ticket forbids.
-        ticket: (node) =>
+        ticket: (_node) =>
           tools.ticket(
             // ...AND THE SENTENCE IS THIS PLUGIN'S, beside the keys it is
             // about. It used to be composed inside `@olai/ops`' refusal, which
             // was a general package writing prose about a word only this
             // package owns — invisible while there was one forbidden key and
             // untrue of half its subjects the moment there were two.
-            () => ({
-              under: node,
-              forbidden: nodeAgents.keys().map((key) => ({ key, says: SEATS })),
-            }),
-            nodeAgents.above,
+            () => nodeAgents.keys().map((key) => ({ key, says: SEATS })),
+            "chat-agent",
           ),
         onState: publishState,
         ...(nodeIdle === undefined ? {} : { idle: nodeIdle }),
         onTranscript: publishTranscript,
         onLive: republishAgents,
+        // THE SEAM'S OTHER SHAPE, for the one thing the scheduler interrupts
+        // by name. Taken from the same `detached` as `ring`, and taken BEFORE
+        // the finalizer below is registered, so LIFO unwinding stops the
+        // conversations first and interrupts whatever is still in flight
+        // second.
+        fork: ring.held,
       })
       yield* Effect.addFinalizer(() => chat === null ? Effect.void : chat.stop)
       yield* chat.start
@@ -841,3 +830,5 @@ export default definePlugin({
 
   }),
 })
+
+export { slotContracts as slots } from "./slots.ts"

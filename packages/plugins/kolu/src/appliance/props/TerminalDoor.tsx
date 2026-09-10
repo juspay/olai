@@ -66,14 +66,14 @@ import type { BlockContext } from "./block.ts"
 import { LivePane } from "./LivePane.tsx"
 import { useFleet } from "./fleet.tsx"
 import { readingOf } from "./terminal.ts"
-import { TESTID } from "../testids.ts"
+import { TESTID } from "../../contracts/appliance-testids.ts"
 
 /**
  * THE BLOCK — the fact on one line, and the row beneath it.
  *
  * TWO STATEMENTS, and they are not the same one. The line on top is olai's
  * record — this node names THAT terminal — and the row beneath is kolu's
- * reading of it. A block that drew only the row would hide the id a `set_prop`
+ * reading of it. A block that drew only the row would hide the id a `outlines_prop`
  * is written with and a lane is grepped by; a block that drew only the line
  * would be the chip this replaced.
  *

@@ -79,10 +79,10 @@ export interface World {
  * one conversation are two separate things that happened, and the second must
  * not swallow the first.
  *
- * THE PAIR AND NOT THE ROW. A delivery is addressed to a conversation, and
- * handing the whole scope over would put the plugin's own `plugin` and `file`
- * columns on an address — the caller's question answered a second time, in the
- * one place the keying is the safety property.
+ * The fault row carries the same choice identity as its healthy predecessor.
+ * Delivery retains that authority: clearing, replacing or evicting the choice
+ * revokes even a warning suspended in session startup. Healing is separate and
+ * is answered by the body below.
  */
 export const faultedIn = (chat: Chat, world: World): Effect.Effect<void> =>
   Effect.flatMap(
@@ -110,7 +110,7 @@ export const faultedIn = (chat: Chat, world: World): Effect.Effect<void> =>
           )
         const still = (): string | null => healed() ? null : words
         return chat.doorFor(row.plugin)
-          .deliver({ agent: row.agent, session: row.session }, still)
+          .deliver(row, still)
       }, { discard: true }),
   )
 
@@ -154,7 +154,7 @@ export const scopeThrough = (
   },
 ): Effect.Effect<void, { readonly reason: string }> =>
   declared.has(input.plugin)
-    ? chat.scope({ agent: input.agent, session: input.session }, input.plugin, input.file)
+    ? Effect.asVoid(chat.scope({ agent: input.agent, session: input.session }, input.plugin, input.file))
     : Effect.fail({
       reason: `no plugin called \`${input.plugin}\` rings a conversation here`,
     })

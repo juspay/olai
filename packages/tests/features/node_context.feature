@@ -6,7 +6,7 @@ Feature: The outline and the chat point at each other
 
   What the first half has to prove is not that a chip appeared: it is that the
   node reached the AGENT, in a form it can act on. So the scripted agent reads
-  the id out of its own prompt, calls `read_node` with it and says the title
+  the id out of its own prompt, calls `outlines_read` with it and says the title
   that came back — a sentence no spelling of the prompt that lost the node
   could produce.
 
@@ -28,7 +28,7 @@ Feature: The outline and the chat point at each other
     When I open the node menu of "order"
     And I choose "Ask agent" from the node menu
     Then the composer is armed with "order"
-    # The agent's own assertion: it was handed `order`, and `read_node` under
+    # The agent's own assertion: it was handed `order`, and `outlines_read` under
     # that id answers with the title the file holds. Asserted on the ANSWER and
     # in the agent's own sentence, because the chip on the message carries the
     # title as well — a step matching the bare title anywhere in the panel

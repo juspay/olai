@@ -15,7 +15,7 @@
  * would be a second classification of the same events, free to disagree with
  * `changesOf` the day either moves — and it would have to re-answer questions
  * the comparison already answers from the records: an `undo` that takes a mark
- * off, a `set_date` clearing one, a `create` whose seed captured a subtree. The
+ * off, a `outlines_date` clearing one, a `create` whose seed captured a subtree. The
  * two readings this compares are the set the write was planned against and the
  * records the plan will write, which are both in hand at the moment the reply
  * is assembled and cost one pass over the touched files.
@@ -58,13 +58,13 @@ import type { Plan } from "./plan.ts"
  * The one word for what this plan does to that set, or `undefined` when it does
  * nothing at all.
  *
- * `undefined` is a real answer and not a failure: a `set_done` on a node that
+ * `undefined` is a real answer and not a failure: a `outlines_done` on a node that
  * is already done plans a file whose records are identical, which is a write
  * that landed and changed nothing. Saying *edited* there would be inventing a
  * change to report.
  *
  * A FILE is not a record, though, and one op moves the first without the
- * second: `create_outline` with no seed mints an empty `.olai`, which compares
+ * second: `files_create` with no seed mints an empty `.olai`, which compares
  * as nothing at all. That one is *created* — a file that was not there before
  * is exactly what the word means, and the alternative is a panel telling
  * somebody that a write which just made an outline changed nothing.
@@ -129,7 +129,7 @@ export const sortOfWrite = (
   const change = changes.find((entry) => entry.id === about) ?? biggestOf(changes)
   if (change !== null && change !== undefined) return change.sort
   // No RECORD moved — and one write can still mean something, because a file is
-  // not a record: `create_outline` with no seed mints an empty `.olai`, which
+  // not a record: `files_create` with no seed mints an empty `.olai`, which
   // compares as nothing at all. Reporting *nothing changed* about a write that
   // just brought a file into being is a lie the panel would draw, so the
   // arrival of the FILE is the change, in the word the format already has for

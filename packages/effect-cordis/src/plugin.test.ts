@@ -26,7 +26,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { Cause, Effect, Logger, Schema, Scope } from "effect"
+import { Cause, Effect, Fiber, Logger, Schema, Scope } from "effect"
 
 import { definePlugin, detached, PluginName } from "./plugin.ts"
 import { mountPlugin, openHost, provide, settled } from "./host.ts"
@@ -299,6 +299,51 @@ test("a defect in detached work is said, with the plugin's word on it", async ()
   expect(detachedLine).toContain("the watcher threw")
 })
 
+test("detached work handed back as a fiber keeps the plugin's lifetime and its word", async () => {
+  // THE SEAM'S OTHER SHAPE, and it is the same seam. What `held` adds is the
+  // handle; what it must not lose is either of the two things the seam is for
+  // — the plugin's lifetime, so work still in flight when the row unloads is
+  // interrupted with it, and the plugin's word on a contained failure. A
+  // caller that needed the handle used to reach for a bare `Effect.runFork`,
+  // which has neither.
+  const said: Array<string> = []
+  const collector = Logger.make<unknown, void>(({ message, cause }) => {
+    const line = Array.isArray(message) ? message.map(String).join(" ") : String(message)
+    said.push(cause === undefined ? line : `${line} ${String(Cause.squash(cause))}`)
+  })
+  const order: Array<string> = []
+  let held!: Fiber.Fiber<void>
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const host = yield* openHost
+    yield* provide(host, Ledger, ledgerOf([]))
+    const mounted = yield* mountPlugin(
+      host,
+      definePlugin({
+        name: "scribe",
+        needs: [Ledger],
+        apply: Effect.gen(function*() {
+          const run = yield* detached
+          run.held(Effect.die(new Error("the held work threw")))
+          held = run.held(Effect.gen(function*() {
+            yield* Effect.addFinalizer(() => Effect.sync(() => { order.push("held work stopped") }))
+            yield* Effect.never
+          }).pipe(Effect.scoped))
+        }),
+      }),
+    )
+    yield* Effect.sleep("10 millis")
+    // THE HANDLE IS REAL: the caller can wait for it by name, which is the
+    // whole of what this shape adds.
+    yield* mounted.dispose
+    yield* Fiber.await(held)
+    order.push("the plugin stopped")
+  })).pipe(Effect.provide(Logger.layer([collector]))))
+  expect(order).toEqual(["held work stopped", "the plugin stopped"])
+  const line = said.find((one) => one.includes("detached work"))
+  expect(line).toContain(`"scribe"`)
+  expect(line).toContain("the held work threw")
+})
+
 test("a scope a plugin opened is closed by the disposer, not by the fiber", async () => {
   // The two accumulators are one accumulator, asserted rather than argued: a
   // resource acquired with `Effect.acquireRelease` inside an `apply` is held for
@@ -461,9 +506,36 @@ test("a plugin with Config is handed the decoded value, and invalid config fails
   })))
   expect(seen).toEqual({})
 
-  const standard = (plugin.Config as {
-    readonly "~standard": { readonly validate: (value: unknown) => { readonly issues?: unknown } }
-  })["~standard"]
-  expect(standard.validate({ commit: "auto" }).issues).toBeUndefined()
-  expect(standard.validate({ commit: "nope" }).issues).toBeDefined()
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const host = yield* openHost
+    const valid = yield* mountPlugin(host, plugin, { config: { commit: "auto" } })
+    expect(seen).toEqual({ commit: "auto" })
+    yield* valid.dispose
+    const invalid = yield* mountPlugin(host, plugin, { config: { commit: "nope" } })
+    const report = yield* invalid.report
+    expect(report.state).toBe("failed")
+    expect(report.state === "failed" ? report.fault : undefined).toContain("auto")
+    expect(seen).toEqual({ commit: "auto" })
+  })))
 })
+
+
+for (const failure of ["provision", "initialization"]) {
+  test(`a consumer lifetime is revoked after failed ${failure}`, async () => {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+      const host = yield* openHost
+      let current = () => false
+      yield* provide(host, Ledger, (_plugin, lifetime) => {
+        current = lifetime!.current
+        expect(current()).toBe(true)
+        if (failure === "provision") throw new Error("no ledger")
+        return { write: () => Effect.void }
+      })
+      const mounted = yield* mountPlugin(host, definePlugin({
+        name: "scribe", needs: [Ledger], apply: Effect.die(new Error("no scribe")),
+      }))
+      expect((yield* mounted.report).state).toBe("failed")
+      expect(current()).toBe(false)
+    })))
+  })
+}

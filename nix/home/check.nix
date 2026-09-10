@@ -112,6 +112,8 @@ let
     # built-in default" under the preferences row, where a given one names the
     # flag. A module that expanded the default into a list would claim one.
     assert !(lib.hasInfix "--plugins" execPlain);
+    assert !(lib.hasInfix "--extra-plugins" execPlain);
+    assert !(lib.hasInfix "--without-plugins" execPlain);
     assert linux.config.home.packages == [ fakeOlai ];
     # No log-level env when the option is unset — info is olai's own default,
     # and a module that helpfully passed it would still be an instance pin
@@ -159,6 +161,36 @@ let
     # carries no plugin flag.
     assert !(lib.hasInfix "--commit" oduOnly);
     assert !(lib.hasInfix "--plugins" pinnedExec);
+    true;
+
+  extraOnly = execOf
+    (evalFor { isLinux = true; isDarwin = false; } { extraPlugins = [ "xyne-spaces" ]; });
+  withoutOnly = execOf
+    (evalFor { isLinux = true; isDarwin = false; } { withoutPlugins = [ "journal" ]; });
+  extraAndWithout = execOf (evalFor { isLinux = true; isDarwin = false; } {
+    extraPlugins = [ "xyne-spaces" ];
+    withoutPlugins = [ "journal" ];
+  });
+  pluginsBesideExtra = evalFor { isLinux = true; isDarwin = false; } {
+    plugins = [ "odu" ];
+    extraPlugins = [ "xyne-spaces" ];
+  };
+  extraBesideWithoutSame = evalFor { isLinux = true; isDarwin = false; } {
+    extraPlugins = [ "journal" ];
+    withoutPlugins = [ "journal" ];
+  };
+  _patches =
+    assert lib.hasInfix "--extra-plugins xyne-spaces" extraOnly;
+    assert !(lib.hasInfix "--plugins" extraOnly);
+    assert !(lib.hasInfix "--without-plugins" extraOnly);
+    assert lib.hasInfix "--without-plugins journal" withoutOnly;
+    assert !(lib.hasInfix "--plugins" withoutOnly);
+    assert !(lib.hasInfix "--extra-plugins" withoutOnly);
+    assert lib.hasInfix "--extra-plugins xyne-spaces" extraAndWithout;
+    assert lib.hasInfix "--without-plugins journal" extraAndWithout;
+    assert !(lib.hasInfix "--plugins" extraAndWithout);
+    assert builtins.length (failed pluginsBesideExtra) == 1;
+    assert builtins.length (failed extraBesideWithoutSame) == 1;
     true;
 
   # --- log level, when an operator raises it -------------------------------
@@ -224,12 +256,14 @@ assert _linux;
 assert _darwin;
 assert _pinned;
 assert _plugins;
+assert _patches;
 assert _loud;
 assert _env;
 pkgs.runCommand "olai-hm-module-check" { } ''
   echo "services.olai module evaluates (linux systemd + darwin launchd)"
   echo "  ... and the git policy options reach argv only when they are set"
   echo "  ... and --plugins tells apart nobody-said, none, and a list"
+  echo "  ... and --extra-plugins / --without-plugins render, compose, and refuse --plugins beside them"
   echo "  ... and the log level reaches both supervisors when it is raised"
   echo "  ... and environmentFile reaches the unit on Linux, and is refused on Darwin"
   touch $out

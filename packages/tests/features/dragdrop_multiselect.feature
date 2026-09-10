@@ -6,7 +6,7 @@ Feature: Dragging rows, and picking several
   of rows to complete, indent, move or put away in one go.
 
   Neither is a new kind of write. A drop is the surface's own `place` — the
-  parent and the sibling to sit after, which is the `move_node` an agent would
+  parent and the sibling to sit after, which is the `outlines_move` an agent would
   send — and a bulk verb is the edit the single-row key already sends, once per
   row, in the order that produces the shape asked for. So these are `@scratch:`
   for the reason the keyboard's are: they write the directory they are served.

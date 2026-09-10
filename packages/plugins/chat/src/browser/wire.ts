@@ -13,19 +13,26 @@
  * ## A HOLDER, and the reason is a redial rather than convenience
  *
  * The tab follows the roster: a plugin turned off on the server leaves the tab
- * without a reload, and one that arrives is dialled in. Each of those builds a
- * NEW connection and kills the old, so a module-scope constant would be a handle
- * onto a dead wire from the first roster frame onwards — and thirty modules in
+ * without a reload, and one that arrives is dialled in. This paragraph used to
+ * say that each of those builds a NEW connection and kills the old, and that
+ * the app's tree is rebuilt on a redial so every `use()` runs again. Neither
+ * has been true since the pinned kolu's #2228: the CONNECTION is one object for
+ * the life of the tab, only its wire is replaced, and a sibling on both rosters
+ * keeps its exact client. The tree is not rebuilt.
+ *
+ * The holder is still right, for the reason that survived: a DEPARTING sibling
+ * is retracted and its key DELETED from `clients`, and an arriving one gets a
+ * client built after the adopt. A module-scope constant would be a handle onto
+ * whichever of those the first roster frame left behind — and thirty modules in
  * this package read this name at module scope.
  *
  * So what is held is the READ, not the client: {@link chatWire} resolves against
- * whichever connection is current at the moment it is called. That is exactly
- * the arrangement `@olai/web`'s `olai` keeps for core's own client, and it does
- * not pretend to keep a stale subscription alive — a `use()` binds to the client
- * it was called on, and one opened on a superseded wire is dead however it was
- * reached. What the holder buys is that the NEXT call lands on the live wire,
- * which is all it has to do: the app's tree is rebuilt on a redial, so every
- * `use()` runs again and each of them reads through here at that moment.
+ * whatever is behind this plugin's key at the moment it is called. That is
+ * exactly the arrangement `@olai/web`'s `olai` keeps for core's own client, and
+ * it does not pretend to keep a stale subscription alive — a `use()` binds to
+ * the client it was called on, and every open subscription is failed by the
+ * supersession fence and re-opened by its own retry a second later, which is
+ * the reconnection contract `docs/internal/plugin-system.md` §6 writes down.
  *
  * ## THE SHAPE IS STRUCTURAL, and that is the point
  *
@@ -38,6 +45,7 @@
  */
 
 import type { SurfaceClient } from "@kolu/surface/solid"
+import { Effect, type Scope } from "effect"
 
 import type { surface } from "../wire.ts"
 
@@ -59,14 +67,35 @@ export type ChatClient = SurfaceClient<typeof surface.spec>
  *  is the read and not the client. */
 let held: (() => ChatClient) | null = null
 
-/** TOLD BY `../browser.tsx`, and by nothing else. It is a statement rather than
- *  a config field for the reason the app's own holder is one: the client arrives
- *  as a service this half NAMED, so the moment it is in hand is inside the
- *  `apply`, and passing it down through thirty modules would make every
- *  component's signature a function of what one descendant needs. */
-export const holdChatWire = (read: () => ChatClient): void => {
-  held = read
-}
+/**
+ * TOLD BY `../browser.tsx`, and by nothing else. It is a statement rather than
+ * a config field for the reason the app's own holder is one: the client arrives
+ * as a service this half NAMED, so the moment it is in hand is inside the
+ * `apply`, and passing it down through thirty modules would make every
+ * component's signature a function of what one descendant needs.
+ *
+ * ## IT IS THE ACTIVATION'S, and it was nobody's
+ *
+ * This was a bare assignment with no undo, so a stopped half left its read
+ * reachable for the life of the tab: `chatWire()` went on answering out of a
+ * client the runtime had already withdrawn, and the panel's own "a face read
+ * the chat's wire before the plugin was mounted" throw — the one thing that
+ * says out loud that this half is not here — was unreachable after the first
+ * mount.
+ *
+ * An `acquireRelease` on the calling activation's scope, and the release clears
+ * BY IDENTITY: a second activation installs its own read before the first one's
+ * finalizers necessarily run, and a clear that did not check would take the
+ * replacement's value out from under it. That is the rule every other holder in
+ * this tree keeps and the one the audit's §4 is about.
+ */
+export const holdChatWire = (
+  read: () => ChatClient,
+): Effect.Effect<void, never, Scope.Scope> =>
+  Effect.acquireRelease(
+    Effect.sync(() => { held = read }),
+    () => Effect.sync(() => { if (held === read) held = null }),
+  )
 
 /**
  * CHAT'S OWN MEMBERS, on whichever wire is current.

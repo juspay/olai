@@ -1153,7 +1153,7 @@ test("the silence says WHICH gate — every `Why`, plus unmatched and unclaimed"
 const WINDOW = 1_800_000
 
 /** ONE SCOPED SEAT — a conversation, and the file somebody pointed it at. */
-const SEAT: Scoped = { agent: "olai", session: "s-1", file: "lanes.olai" }
+const SEAT: Scoped = { current: () => true, agent: "olai", session: "s-1", file: "lanes.olai" }
 
 /** A board with one un-done claim on it, and the same board grown a second. */
 const ONE_CLAIM = {
@@ -1246,7 +1246,7 @@ test("an EMPTY WINDOW produces exactly one heartbeat, and it carries the four fa
   it.after(WINDOW)
   it.heart.beat(WINDOW)
   expect(it.held.length).toBe(1)
-  expect(it.held[0]?.to).toEqual({ agent: "olai", session: "s-1" })
+  expect(it.held[0]?.to).toBe(SEAT)
   // Held under one key per conversation, so two beats through one busy turn
   // arrive as one message — lossless, because the body is a fresh derivation.
   expect(it.held[0]?.coalesce).toBe("kolu:heartbeat")
@@ -1299,7 +1299,7 @@ test("a busy day never sees a heartbeat at all", () => {
 })
 
 test("...and one seat's traffic does not silence another seat's floor", () => {
-  const other: Scoped = { agent: "olai", session: "s-2", file: "lanes.olai" }
+  const other: Scoped = { current: () => true, agent: "olai", session: "s-2", file: "lanes.olai" }
   const it = bench(ONE_CLAIM)
   it.scope(SEAT, other)
   it.heart.delivered(SEAT)

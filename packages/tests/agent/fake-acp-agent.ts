@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { nativeActivity } from "./native-activity.ts"
 /**
  * A scripted ACP agent, for driving the chat loop without a language model.
  *
@@ -23,8 +24,8 @@
  *   links        write two LINKS in prose — a relative `.md` path and an
  *                address of this app — which is what an agent asked about a
  *                vault does unprompted, and what used to reload the whole app
- *   done <id>    call `set_done` on that node, then say so
- *   add <title>  call `add_node` under the first outline's first root
+ *   done <id>    call `outlines_done` on that node, then say so
+ *   add <title>  call `outlines_add` under the first outline's first root
  *   edit [file]  report a DIRECT file edit, as a `diff` content block — an
  *                outline if the name ends `.olai`, an over-budget rewrite for
  *                `huge.md`, unbroken tokens (add, remove, and a same-line
@@ -202,6 +203,7 @@ import { basename, join } from "node:path"
 import { readMessages } from "../support/ndjson.ts"
 import { emitter, MARKER, RELEASE, released as releasedIn, speaking } from "../support/scripted.ts"
 import { sessionStore } from "./session-store.ts"
+import { commandWords } from "./command.ts"
 
 const OUT = process.stdout
 
@@ -372,6 +374,8 @@ let listRefused = false
  *  client that did not advertise `elicitation.form` is one a real adapter would
  *  never ask a structured question of, and this one does not either. */
 let capabilities: Record<string, unknown> = {}
+
+const CODEX = process.env["OLAI_FAKE_CODEX"] === "yes"
 
 const STORED = process.env["OLAI_FAKE_ACP_STORED"] ?? ""
 const stored = () => STORED !== ""
@@ -1136,10 +1140,10 @@ const takeSteering = async (): Promise<void> => {
   // unreachable `?? ""` standing in for a `shift` the loop guard already made
   // impossible.
   for (const text of steered.splice(0)) {
-    const [verb, ...rest] = text.trim().split(/\s+/)
+    const [verb, ...rest] = commandWords(text)
     const argument = rest.join(" ")
     if (verb === "done") {
-      await useTool("set_done", { id: argument })
+      await useTool("outlines_done", { id: argument })
       say(` — steered mid-turn: marked \`${argument}\` done.`)
       continue
     }
@@ -1255,7 +1259,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // adapter's own order, and the reason a `/model` is heard one turn late.
   sdkInit(liveModel)
 
-  const [verb, ...rest] = text.trim().split(/\s+/)
+  const [verb, ...rest] = commandWords(text)
   const argument = rest.join(" ")
 
   // FALL OVER SAYING NOTHING, and BEFORE the usage frames below — which is the
@@ -1263,6 +1267,20 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // that produced not one frame leaves the client unable to tell a prompt that
   // was read from one that never arrived, which is the case a message may
   // honestly be marked for. `crash` speaks first and must NOT be markable.
+  if (verb === "native") {
+    const air = (capabilities._meta as { jetbrains?: { air?: { version?: number; capabilities?: string[] } } } | undefined)?.jetbrains?.air
+    if (air?.version !== 1 || !air.capabilities?.includes("nativeSubagentSessions") || !air.capabilities.includes("asyncTasks")) {
+      refuse(id, -32603, "native activity capabilities were not negotiated"); return
+    }
+    await nativeActivity(argument, sessionId, notify, request, async () => {
+      if (argument !== "slow") return released()
+      while (!cancelled && !existsSync(`${cwd}/${MARKER.release}`)) { await takeSteering(); await sleep(20) }
+      if (!cancelled) rmSync(`${cwd}/${MARKER.release}`, { force: true })
+    }, () => cancelled)
+    if (endedCancelled(id)) return
+    say("Native work handled")
+    reply(id, { stopReason: "end_turn" }); return
+  }
   if (verb === "settings") {
     if (argument === "update") {
       reasoning = "high"; mode = "plan"; fast = true
@@ -1854,7 +1872,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // draw one, and must never come back `auto` unless somebody pressed it.
     const plan = verb === "plan"
     const toolCallId = `call-${++nextMcpId}`
-    const toolName = plan ? "ExitPlanMode" : "mcp__olai__set_done"
+    const toolName = plan ? "ExitPlanMode" : "mcp__olai__outlines_done"
     notify("session/update", {
       sessionId,
       update: {
@@ -2503,7 +2521,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // WHAT THE AGENT RECEIVED, asserted by the agent itself. A node armed on a
   // row reaches a prompt as one line naming its id (`olai-plugin-chat`'s
   // `context.ts`), and the whole claim of that design is that the id is the
-  // handle olai's own tools take — so this reads the line, calls `read_node`
+  // handle olai's own tools take — so this reads the line, calls `outlines_read`
   // with what it found, and says the TITLE that came back. A scenario that
   // sees the right title has proof the id crossed the wire and resolved: no
   // spelling of the prompt that lost it could produce that sentence.
@@ -2521,7 +2539,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       return
     }
     for (const { id: node, said } of named) {
-      const read = await useTool("read_node", { id: node })
+      const read = await useTool("outlines_read", { id: node })
       const found = read["structuredContent"] as { title?: string } | undefined
       // A SENTENCE the browser could not have written on its own — the chip on
       // the message carries the title too, so a scenario matching the bare
@@ -2539,7 +2557,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // An id in PROSE and nothing else — no tool call, no write. What is under
   // test is the panel's reading of a backtick, and the id a scenario wants to
   // see named is not always one a tool would accept (a placement is the case
-  // this exists for: `set_done` refuses one, and an agent still writes them).
+  // this exists for: `outlines_done` refuses one, and an agent still writes them).
   if (verb === "name") {
     say(`look at \`${argument}\`.`)
     reply(id, { stopReason: "end_turn" })
@@ -2564,7 +2582,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
 
   if (verb === "done") {
-    await useTool("set_done", { id: argument })
+    await useTool("outlines_done", { id: argument })
     say(`marked \`${argument}\` done.`)
     reply(id, { stopReason: "end_turn" })
     return
@@ -2596,14 +2614,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
 
   if (verb === "add") {
-    const outlines = await callMcp("tools/call", { name: "list_outlines", arguments: {} })
+    const outlines = await callMcp("tools/call", { name: "outlines_index", arguments: {} })
     const listed = (outlines["structuredContent"] as
       | { outlines?: ReadonlyArray<{ file: string }> }
       | undefined)?.outlines ?? []
     // `_olai/Trash.olai` sorts first, and capturing into the trash is not
     // a capture — the tree would never show the row (#226).
     const file = listed.find((one) => one.file !== "_olai/Trash.olai")?.file
-    await useTool("add_node", { file, title: argument })
+    await useTool("outlines_add", { file, title: argument })
     say(`added \`${argument}\`.`)
     reply(id, { stopReason: "end_turn" })
     return
@@ -2842,7 +2860,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           // (the read loop has queued prompts behind the running turn all
           // along); what depends on it is the panel's PROMISE, which is made
           // only for an agent that said this.
-          ...(silent() ? {} : { _meta: { claudeCode: { promptQueueing: true } } }),
+          ...(silent() || CODEX ? {} : { _meta: { claudeCode: { promptQueueing: true } } }),
         },
         agentInfo: { name: "fake-acp-agent", version: "0.1.0" },
         // ... and IT TAKES AN INTERRUPTION, in the top-level `_meta` beside
@@ -2944,6 +2962,9 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         for (const update of sessionStore(cwd).read(sessionId)?.updates ?? []) {
           sendNotification("session/update", { sessionId, update })
         }
+      } else if (CODEX && sessionId === "fake-stored-old") {
+        await nativeActivity("agents", sessionId, notify, request, released)
+        await nativeActivity("watch stopped", sessionId, notify, request, released)
       } else replay()
       // THE PIN, ASSERTED OVER THE CONVERSATION'S OWN MODEL — which is the bug
       // `chat-model-reverts-on-restart` is about, and what the real adapter
@@ -3111,7 +3132,7 @@ readMessages(
       // whole shape of an agent with no queue: the refusal comes back at once
       // rather than when the running turn ends, and nothing about the turn in
       // flight changes.
-      if (busyRefused && running) {
+      if ((busyRefused || CODEX) && running) {
         // Output belongs to the still-running earlier turn. Put it before the
         // refusal deterministically: a conversation-wide output counter must
         // not make the queued prompt appear delivered because its sibling spoke.

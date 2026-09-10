@@ -1,19 +1,26 @@
 /**
- * `search_nodes` ANSWERS THE SHAPE ITS TABLE ENTRY DECLARES — the same walk
- * `@olai/ops`' `tools.test.ts` runs, with this row's matcher behind the door.
+ * `search_nodes` ANSWERS THE SHAPE ITS OWN ENTRY DECLARES — the same walk
+ * `olai-plugin-outlines` and `olai-plugin-markdown` run over their tables, with
+ * this row's matcher behind the door.
  *
- * The claim, and the incident behind it, are that file's: object-literal
+ * The claim, and the incident behind it, are the harness's: object-literal
  * freshness is lost through a `.map`, so a field DROPPED from a declaration
  * still compiles at the one place it is produced, and every consumer encoding
  * against the declaration then drops it in silence
  * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/surface-mcp-positions.md).
  * That is not hypothetical here: SEARCH is the door it happened through.
  *
- * So the walk is a harness (`@olai/ops/testlib/tools`) run twice. Over there it
- * is run with `NO_SEARCH`, which pins what a serve minus this row tells an
- * agent; here it is run with the matcher, which is the only way the hit shapes
- * are reached at all — and the fixture is the SAME one, because two copies of a
- * maximal set is two things to keep maximal.
+ * So the walk is a harness (`@olai/ops/testlib/tools`) run TWICE IN THIS FILE,
+ * over the one table this row declares:
+ *
+ *   - with the matcher, which is the only way the hit shapes are reached at all;
+ *   - with `NO_SEARCH`, which pins what an agent is told on a serve that mounts
+ *     no matcher at all. That used to be `@olai/ops`' own run, back when the
+ *     tool was in its table; the tool is this row's now (juspay/olai#546), so
+ *     the answer a serve gives WITHOUT this row is asserted where the tool is.
+ *
+ * The fixture is the same one either way, because two copies of a maximal set is
+ * two things to keep maximal.
  *
  * OFF THE TABLE rather than off {@link ./matcher.ts} directly: `Query.search`
  * is not what an agent calls, `search_nodes` is, and the envelope between them
@@ -21,11 +28,13 @@
  */
 
 import { NO_KINDS } from "@olai/format"
-import { CALLS, gaveOf, READS } from "@olai/ops/testlib/tools"
+import { NO_SEARCH } from "@olai/ops"
+import { CALLS, escapedIn, gaveOf, paragraphsIn, readsOf, uncalled } from "@olai/ops/testlib/tools"
 import { expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 
 import { search } from "./matcher.ts"
+import { tools } from "./tools.ts"
 
 /** This row's door, exactly as {@link ./server.ts} offers it — minus the table,
  *  which changes no answer and is soaked in `./table.test.ts`. */
@@ -41,13 +50,17 @@ const DOOR = {
     ),
 }
 
-const answers = () => gaveOf(DOOR as never)
+const answers = () => gaveOf(DOOR as never, tools, "search")
 
 const searchTool = () => {
-  const found = READS.find((tool) => tool.name === "search_nodes")
-  if (found === undefined) throw new Error("`search_nodes` is not in the tool table")
+  const found = readsOf(tools).find((tool) => tool.name === "nodes")
+  if (found === undefined) throw new Error("`search_nodes` is not in this row's tool table")
   return found
 }
+
+test("every read this row declares is called here", () => {
+  expect(uncalled(tools, "search")).toEqual([])
+})
 
 test("every hit decodes through the shape `search_nodes` declares", () => {
   const tool = searchTool()
@@ -55,18 +68,18 @@ test("every hit decodes through the shape `search_nodes` declares", () => {
     tool.answers as Schema.Codec<unknown, unknown, never, never>,
     { errors: "all", onExcessProperty: "error" },
   )
-  for (const answer of answers()("search_nodes")) {
+  for (const answer of answers()("nodes")) {
     // Compared with what went in, so the assertion is "this IS the shape"
     // rather than "this parses" — a decode that dropped a field would
     // otherwise pass.
     expect(decode(answer)).toEqual(answer)
   }
   // …and the calls are the harness's, so a query added there is asked here.
-  expect(answers()("search_nodes").length).toBe((CALLS["search_nodes"] ?? []).length)
+  expect(answers()("nodes").length).toBe((CALLS["search_nodes"] ?? []).length)
 })
 
 test("the fixture reaches every optional field of a hit, so the check is not vacuous", () => {
-  const searches = answers()("search_nodes")
+  const searches = answers()("nodes")
   expect(searches[0]?.["hits"]).toMatchObject([
     { id: "paint", matched: "title", parent: "house" },
   ])
@@ -89,4 +102,39 @@ test("the fixture reaches every optional field of a hit, so the check is not vac
   // does not carry by default, reached here so the decode above is not vacuous
   // about it.
   expect(searches[5]?.["hits"]).toMatchObject([{ id: "house", desc: "the note" }])
+})
+
+/**
+ * WHAT AN AGENT IS TOLD WHEN NOBODY IS SEARCHING — the same six queries,
+ * through the same tool, over a serve that mounts no matcher. Every one of them
+ * is no hits AND THE REASON, quoting what the reader typed: the shape a door
+ * already draws for a query the grammar could not read, spent on a serve that
+ * has no grammar to read it with.
+ *
+ * It is asserted here rather than in `@olai/ops` because the TOOL is here: a
+ * serve without this row offers no `search_nodes` at all, and what `NO_SEARCH`
+ * is for is the serve that has the row's tool reaching a door nobody stands
+ * behind. The decode still has to hold, and the refusal envelope is a shape
+ * somebody reads.
+ */
+test("with no matcher mounted, every query is no hits and the reason", () => {
+  const tool = searchTool()
+  const decode = Schema.decodeUnknownSync(
+    tool.answers as Schema.Codec<unknown, unknown, never, never>,
+    { errors: "all", onExcessProperty: "error" },
+  )
+  for (const answer of gaveOf(NO_SEARCH, tools, "search")("nodes")) {
+    expect(decode(answer)).toEqual(answer)
+    expect(answer["hits"]).toEqual([])
+    expect(answer["total"]).toBe(0)
+    expect(answer["refusals"]).toBeArrayOfSize(1)
+  }
+})
+
+/** WHAT AN AGENT ACTUALLY READS — the flat ban {@link escapedIn} argues, over
+ *  this row's table, and the paragraph breaks really being there in the one
+ *  description that means to have them. */
+test("no tool describes itself with an escaped newline", () => {
+  expect(escapedIn(tools)).toEqual([])
+  expect(paragraphsIn(tools, "nodes")).toBeGreaterThan(0)
 })

@@ -11,7 +11,7 @@
  * composer, whether an id in the answer became pressable, which row the page
  * says is the one being pointed at. What the AGENT received is asserted by the
  * agent itself (`agent/fake-acp-agent.ts`'s `context` verb, which reads the id
- * out of its own prompt and calls `read_node` with it) — the one claim a
+ * out of its own prompt and calls `outlines_read` with it) — the one claim a
  * browser cannot make on its own.
  */
 
@@ -159,7 +159,7 @@ Then(
  *  node's title too, so a scenario matching the title anywhere in the panel
  *  passed on a build where the node never reached the prompt. What proves
  *  receipt is a sentence only the agent can produce — it read the id out of
- *  its prompt and called `read_node` with it. */
+ *  its prompt and called `outlines_read` with it. */
 Then(
   "the agent's answer says {string}",
   async function (this: OlaiWorld, said: string) {

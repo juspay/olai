@@ -31,7 +31,6 @@ import {
   type CommitResult,
   type HomesAnswer,
   type HomesRequest,
-  inboxIn,
   type KindVocabulary,
   NO_KINDS,
   type MovingAnswer,
@@ -43,8 +42,6 @@ import {
   NOTHING_WRONG,
   type OpFailure,
   type OutlineError,
-  outlineNames,
-  outlinePaths,
   type PageReading,
   type PageRequest,
   type PushResult,
@@ -65,10 +62,9 @@ import {
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import { type Fence, outsideFence } from "./fenced.ts"
+import { type SessionRule, barred, doorRefusal } from "./door.ts"
 import { type Context, plan, scoping } from "./plan.ts"
 import * as Query from "./query.ts"
-import { fenceRefusal } from "./refusals.ts"
 import { standing } from "./standing.ts"
 import { sortOfWrite } from "./sorted.ts"
 import { asking, type Asking } from "./tools.ts"
@@ -208,10 +204,10 @@ export interface Options {
    * silently ignored" is a property of WRITES, not of whichever transport
    * asked for one: an observer on the MCP server would leave a second writer —
    * the web UI's own ops procedures, when they arrive — reporting nothing.
-   * The agent gets the same detail in its tool result; this is what puts it in
-   * front of the person watching.
+   * The writer travels with the refusal so observers can keep it on the
+   * surface that asked. The caller also receives the original failure.
    */
-  readonly onRefusal?: (request: Request, failure: OpFailure) => Effect.Effect<void>
+  readonly onRefusal?: (request: Request, failure: OpFailure, writer: Writer) => Effect.Effect<void>
 }
 
 /**
@@ -260,7 +256,7 @@ export interface Ops extends Asking {
    * ./query.ts}'s `named`).
    *
    * HERE FOR {@link narrowing}'s REASON, one door over: an agent that wants to
-   * know whether an id is real reads it (`read_node` answers the node or the id
+   * know whether an id is real reads it (`outlines_read` answers the node or the id
    * it does not hold), and is told everything about it. This answers a dozen
    * ids with nothing but the node each names, which is useful only to a caller
    * already looking at the words those ids are written in — the chat panel,
@@ -291,8 +287,8 @@ export interface Ops extends Asking {
    * HERE RATHER THAN ON {@link Asking} for {@link dated}'s reason, and it is
    * the sharpest instance of it: what comes back is a SCREEN — rows carrying
    * their own fold keys, a rollup beside a checkbox, the blockers a mark draws.
-   * An agent asking what an outline holds asks `list_outlines` and
-   * `read_subtree` and is answered in nodes, which is the thing it can act on.
+   * An agent asking what an outline holds asks `outlines_index` and
+   * `outlines_subtree` and is answered in nodes, which is the thing it can act on.
    *
    * ONE MEMBER for seven routes, because they are one question asked with
    * different words: which page does this address name, and what does it put on
@@ -308,7 +304,7 @@ export interface Ops extends Asking {
    * (`@olai/format`'s `moving.ts`).
    *
    * HERE for the reason above, and NOT beside the write it previews: the write
-   * is `move_node`, which refuses in its own words on the way through
+   * is `outlines_move`, which refuses in its own words on the way through
    * {@link ./plan.ts}. This is what a person reads a moment earlier, over the
    * same set, and it may never refuse something the planner would allow.
    */
@@ -362,7 +358,7 @@ export interface Ops extends Asking {
   readonly run: (
     request: Request,
     writer: Writer,
-    fence?: Fence,
+    rule?: SessionRule,
   ) => Effect.Effect<Applied, OpFailure>
   /**
    * No {@link run} is in flight.
@@ -467,7 +463,12 @@ const aboutFiles = (findings: ReadonlyArray<OutlineError>): ReadonlyArray<string
     ),
   ].sort(byPath)
 
-export const make = (options: Options): Ops => {
+/** A directory provider is absent; reads and writes share one refusal. */
+export const NO_DIRECTORY = new UsageFailure({ reason: "this process is serving no directory, so there is nothing to write to" })
+
+export const make = (options: Options): Ops & { readonly close: Effect.Effect<void> } => {
+  let closed = false
+  const currentStore = Effect.suspend(() => closed ? Effect.fail(NO_DIRECTORY) : Effect.succeed(options.store))
   const kinds = options.kinds ?? NO_KINDS
   const context: Context = options.context ?? {
     mint: () => Math.random().toString(36).slice(2, 10),
@@ -500,9 +501,10 @@ export const make = (options: Options): Ops => {
   const search = options.search ?? NO_SEARCH
 
   const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
-    const { snapshot } = yield* options.store.read("cheap")
+    const store = yield* currentStore
+    const { snapshot } = yield* store.read("cheap")
     if (snapshot === null) {
-      const errors = yield* SubscriptionRef.get(options.store.errors)
+      const errors = yield* SubscriptionRef.get(store.errors)
       return yield* new ValidationFailure({
         reason: "the served directory has never loaded, so there is nothing to read",
         verdict: errors ?? NOTHING_WRONG,
@@ -516,9 +518,10 @@ export const make = (options: Options): Ops => {
   const run = (
     request: Request,
     writer: Writer,
-    fence?: Fence,
+    rule?: SessionRule,
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.gen(function*() {
+      const store = yield* currentStore
       let repairs = REPAIRS
       /**
        * THE ONE ALTERNATIVE EXPLANATION, ruled out before either refusal arm
@@ -569,13 +572,13 @@ export const make = (options: Options): Ops => {
       const repair = (files: ReadonlyArray<string>): Effect.Effect<boolean> =>
         Effect.gen(function*() {
           if (repairs === 0 || files.length === 0) return false
-          const drift = yield* Effect.result(options.store.drifted(files))
+          const drift = yield* Effect.result(store.drifted(files))
           if (!Result.isSuccess(drift) || drift.success.length === 0) return false
           // Drift is proof, so the budget is spent before the look is taken:
           // the LOOK failing answers the refusal with the repair accounted
           // for, and no second resync is owed however the round goes on.
           repairs -= 1
-          const resynced = yield* Effect.result(options.store.refresh("verified"))
+          const resynced = yield* Effect.result(store.refresh("verified"))
           return Result.isSuccess(resynced)
         })
       for (let races = 0; races < ROUNDS;) {
@@ -584,9 +587,9 @@ export const make = (options: Options): Ops => {
         // the gate, which probes on its way in. A tree that moved under the
         // plan comes back `StaleWrite` and the round runs again — the drift
         // this read cannot see is the drift the gate is there to catch.
-        const { snapshot } = yield* options.store.read("cheap")
+        const { snapshot } = yield* store.read("cheap")
         if (snapshot === null) {
-          const errors = yield* SubscriptionRef.get(options.store.errors)
+          const errors = yield* SubscriptionRef.get(store.errors)
           return yield* new ValidationFailure({
             reason:
               "the served directory has never loaded, so there is nothing to write to",
@@ -615,7 +618,7 @@ export const make = (options: Options): Ops => {
            * `ValidationFailure` ({@link ./plan.ts}'s `writable` — the file
            * answered, and the answer was rows from the broken list). Every
            * other refusal the planner makes is a `UsageFailure` about the
-           * REQUEST — a typo, a misuse, a fence the write ran into — and
+           * REQUEST — a typo, a misuse, a door the write ran into — and
            * those are words about what was ASKED, never about bytes the
            * set holds: a stale copy cannot invent a usage fault, so the
            * hottest refusal path pays no byte check for it.
@@ -639,17 +642,16 @@ export const make = (options: Options): Ops => {
         }
         const { files, documents = [], removed = [], ...about } = planned.success
 
-        if (fence !== undefined) {
-          const outside = outsideFence(
-            fence,
-            snapshot.value.derived,
-            outlineNames(snapshot.value.set),
-            inboxIn(outlinePaths(snapshot.value.set)),
-            planned.success,
-          )
-          if (outside !== null) {
+        if (rule !== undefined) {
+          if (rule._tag === "closed") {
             return yield* new UsageFailure({
-              reason: fenceRefusal(snapshot.value.derived, fence, outside),
+              reason: doorRefusal({ why: "closed" }),
+            })
+          }
+          const reached = barred(rule.forbidden, snapshot.value.derived, planned.success)
+          if (reached !== null) {
+            return yield* new UsageFailure({
+              reason: doorRefusal(reached),
             })
           }
         }
@@ -669,7 +671,7 @@ export const make = (options: Options): Ops => {
           ...removed.map((path) => ({ path, contents: null })),
         ]
         const outcome = yield* Effect.result(
-          options.store.commit({ baseRev: snapshot.rev, changes }),
+          store.commit({ baseRev: snapshot.rev, changes }),
         )
 
         if (Result.isFailure(outcome)) {
@@ -722,7 +724,7 @@ export const make = (options: Options): Ops => {
            * disagree about one write.
            */
           const alreadyBroken =
-            (yield* SubscriptionRef.get(options.store.errors)) !== null
+            (yield* SubscriptionRef.get(store.errors)) !== null
           const blocker = blockerOf(written.failure, paths, alreadyBroken)
           return yield* new ValidationFailure({
             reason: blocker !== undefined
@@ -738,7 +740,7 @@ export const make = (options: Options): Ops => {
 
         /**
          * A DOCUMENT WRITE'S YES IS EARNED, NOT REPORTED. (2026-09-01: a
-         * `create_document` answered a revision over a ~2KB body and the file
+         * `markdown_create` answered a revision over a ~2KB body and the file
          * was 0 bytes — the origin never reproduced, so this is the class
          * narrowed rather than the cause named.) The gate stages, renames,
          * re-probes, and takes the promised bytes only where the disk reads
@@ -754,7 +756,7 @@ export const make = (options: Options): Ops => {
          * what it closes is narrower than the window: the write is already
          * PUBLISHED, and stays right to exist. A refusal here can only take
          * back the ANSWER, not the landing — so it says what landed (rev,
-         * file, what the disk holds) and names `write_document` as the way
+         * file, what the disk holds) and names `markdown_write` as the way
          * back. "The disk did not keep it" is said only when the disk itself
          * says so: a path the serve's walk prunes is refused at plan, and a
          * real read failure arrives with its own words attached.
@@ -773,14 +775,14 @@ export const make = (options: Options): Ops => {
         // write left behind is dirty there exactly as any other write's is.
         ledger.wrote(writer)
         for (const document of documents) {
-          const held = yield* Effect.result(options.store.body(document.file))
+          const held = yield* Effect.result(store.body(document.file))
           if (Result.isFailure(held)) {
             return yield* new ValidationFailure({
               reason:
                 `\`${about.summary}\` landed — rev ${written.success} is published and ` +
                 `\`${document.file}\` is on disk — but reading it back failed: ` +
-                `${held.failure.message} \`read_document\` shows what is there and ` +
-                `\`write_document\` is the way back.`,
+                `${held.failure.message} \`markdown_read\` shows what is there and ` +
+                `\`markdown_write\` is the way back.`,
               verdict: NOTHING_WRONG,
             })
           }
@@ -790,7 +792,7 @@ export const make = (options: Options): Ops => {
                 `\`${about.summary}\` landed — rev ${written.success} is published — but ` +
                 `the served set does not hold \`${document.file}\` now: something outside ` +
                 `this write took it out of the set inside the write's own window. Check ` +
-                `the directory, and \`write_document\` is the way back to the text that ` +
+                `the directory, and \`markdown_write\` is the way back to the text that ` +
                 `was asked for.`,
               verdict: NOTHING_WRONG,
             })
@@ -805,7 +807,7 @@ export const make = (options: Options): Ops => {
                   kept === wrote
                     ? `different bytes of the same ${kept}-byte length`
                     : `${kept} bytes where ${wrote} were written`
-                }. The set serves what the disk holds; \`write_document\` is the way ` +
+                }. The set serves what the disk holds; \`markdown_write\` is the way ` +
                 `back (the file exists now, so create is refused).`,
               verdict: NOTHING_WRONG,
             })
@@ -846,13 +848,13 @@ export const make = (options: Options): Ops => {
   const reported = (
     request: Request,
     writer: Writer,
-    fence?: Fence,
+    rule?: SessionRule,
   ): Effect.Effect<Applied, OpFailure> =>
     options.onRefusal === undefined
-      ? run(request, writer, fence)
+      ? run(request, writer, rule)
       : Effect.tapError(
-        run(request, writer, fence),
-        (failure) => options.onRefusal!(request, failure),
+        run(request, writer, rule),
+        (failure) => options.onRefusal!(request, failure, writer),
       )
 
   // Counted from the start of `run`, not from the store gate: planning a
@@ -886,15 +888,19 @@ export const make = (options: Options): Ops => {
   const tracked = (
     request: Request,
     writer: Writer,
-    fence?: Fence,
+    rule?: SessionRule,
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.suspend(() => {
       beginWrite()
-      return Effect.ensuring(reported(request, writer, fence), Effect.sync(endWrite))
+      return Effect.ensuring(reported(request, writer, rule), Effect.sync(endWrite))
     })
 
   return {
     run: tracked,
+    // Closing first stops fresh calls through a retained handle, then drains
+    // accepted writes. The row acquires this after its store, so this release
+    // completes before the watcher and directory lock can leave.
+    close: Effect.andThen(Effect.sync(() => { closed = true }), idle),
     idle,
     read,
     // The four query answers, over the gated read above — one declaration of
@@ -946,8 +952,12 @@ export const make = (options: Options): Ops => {
     // and what the trash does to a count, is `@olai/format`'s `vocabulary.ts`.
     tags: (request) =>
       Effect.map(read, (at) => Query.tags(at.derived, request)),
-    commit: (request, writer) => ledger.record(request, writer),
-    push: Effect.suspend(() => ledger.push),
-    resume: Effect.suspend(() => ledger.resume),
+    commit: (request, writer) => Effect.suspend(() => closed
+      ? Effect.succeed({ _tag: "Failed" as const, said: NO_DIRECTORY.reason })
+      : ledger.record(request, writer)),
+    push: Effect.suspend(() => closed
+      ? Effect.succeed({ _tag: "Failed" as const, said: NO_DIRECTORY.reason })
+      : ledger.push),
+    resume: Effect.suspend(() => closed ? Effect.void : ledger.resume),
   }
 }

@@ -14,7 +14,7 @@
 
 import { collector, findSaid } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Fiber } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -474,7 +474,10 @@ test("dirty says where the branch stands against its upstream", async () => {
   expect((await surveyed(root)).upstream)
     .toEqual({ name: "origin/main", ahead: 0 })
   expect(git(bare)("log", "--format=%s", "-1", "main").trim()).toBe("one of mine")
-})
+// Real repository creation, status, commit and two pushes share this budget.
+// The default five seconds can terminate an otherwise successful Git process
+// when browser shards compete for the same runner.
+}, 30_000)
 
 /**
  * A push that git refuses comes back with git's own words, exactly as a refused
@@ -774,6 +777,110 @@ test("a refused commit puts the index back exactly as it was", async () => {
   // has been taken back out.
   expect(before.status).toContain(" M a.olai")
 })
+
+/**
+ * THE THIRD WAY OUT — a commit that is STOPPED, which is the one the two
+ * dispositions above had no answer for.
+ *
+ * A serve that stops, a git row switched off, a SIGTERM: every one of them
+ * interrupts the fiber this commit is running on, and the calls that put the
+ * index back used to be ordinary statements after an awaited subprocess. An
+ * interrupt landing on that await abandoned them.
+ *
+ * TWO CASES, because the two sides of the commit want opposite answers and a
+ * fix that gets one right can get the other exactly backwards. Stopped BEFORE
+ * the commit landed, the staging is olai's and must go. Stopped AFTER it
+ * landed, the index is agreeing with a commit that exists and putting the
+ * backup back would stage a DELETION of the file just recorded.
+ *
+ * Both are slow on purpose: git is made to take its time inside the step, so
+ * the interrupt lands where it matters rather than wherever it happened to.
+ */
+test("a commit stopped before it lands stages nothing and leaves no backup behind", async () => {
+  const { root } = repo()
+  const run = git(root)
+  // A CLEAN FILTER THAT SLEEPS, which is how `git add` is made slow without a
+  // hook: filters run on the way INTO the index.
+  fs.writeFileSync(path.join(root, ".gitattributes"), "slow.md filter=slow\n")
+  run("config", "filter.slow.clean", "sh -c 'sleep 3; cat'")
+  run("add", ".gitattributes")
+  run("commit", "-m", "attributes")
+  const slow = path.join(root, "slow.md")
+  fs.writeFileSync(slow, "one line\n")
+  const before = run("log", "--format=%s")
+
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const committing = yield* Effect.forkChild(
+      asEffect(root, (git) => git.commit({ paths: [slow], message: "olai: slow" })),
+    )
+    yield* Effect.sleep("600 millis")
+    yield* Fiber.interrupt(committing)
+  })))
+
+  expect(run("diff", "--cached", "--name-only").trim()).toBe("")
+  expect(run("log", "--format=%s")).toBe(before)
+  expect(fs.readdirSync(path.join(root, ".git")).filter((one) => one.startsWith("olai-index-")))
+    .toEqual([])
+}, 30_000)
+
+test("a commit stopped after it lands keeps it, and does not un-stage what it recorded", async () => {
+  const { root } = repo()
+  const run = git(root)
+  // `--no-verify` skips the hooks that could REFUSE a commit; `post-commit`
+  // runs after the commit is already in, which is exactly the window.
+  const hook = path.join(root, ".git", "hooks", "post-commit")
+  fs.writeFileSync(hook, "#!/bin/sh\nsleep 3\n")
+  fs.chmodSync(hook, 0o755)
+  const fresh = path.join(root, "fresh.olai")
+  fs.writeFileSync(fresh, `{"id":"f","ord":"a0","title":"f"}\n`)
+
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const committing = yield* Effect.forkChild(
+      asEffect(root, (git) => git.commit({ paths: [fresh], message: "olai: hooked" })),
+    )
+    yield* Effect.sleep("1200 millis")
+    yield* Fiber.interrupt(committing)
+  })))
+
+  expect(run("log", "--format=%s").trim().split("\n")[0]).toBe("olai: hooked")
+  // NOT `D  fresh.olai`, which is what restoring the pre-`add` backup over a
+  // landed commit reads as.
+  expect(run("status", "--porcelain").trim()).toBe("")
+  expect(fs.readdirSync(path.join(root, ".git")).filter((one) => one.startsWith("olai-index-")))
+    .toEqual([])
+}, 30_000)
+
+/**
+ * ...AND THE FOURTH WAY OUT, which is neither a refusal nor a stop: git NEVER
+ * ANSWERED.
+ *
+ * A `post-commit` hook that outlives the ten-second budget is killed, and what
+ * comes back is `ok: false` — the same shape a refusal has, over a commit that
+ * has already moved HEAD. Restoring the pre-`add` backup there stages a
+ * deletion of the file just recorded, which is the corruption `keptIndex`'s
+ * header is about, reached through the timeout rather than through an
+ * interrupt. It is slow on purpose and it cannot be made fast: the budget is
+ * what has to be outlived.
+ */
+test("a commit whose hook outlives the budget is not un-staged over a landed commit", async () => {
+  const { root } = repo()
+  const run = git(root)
+  const hook = path.join(root, ".git", "hooks", "post-commit")
+  fs.writeFileSync(hook, "#!/bin/sh\nsleep 14\n")
+  fs.chmodSync(hook, 0o755)
+  const fresh = path.join(root, "wedged.olai")
+  fs.writeFileSync(fresh, `{"id":"w","ord":"a0","title":"w"}\n`)
+
+  const done = await asked(root, (git) => git.commit({ paths: [fresh], message: "olai: wedged" }))
+  // GIT SAID NOTHING, so olai reports the write as not committed — which is
+  // honest, and is not the same as knowing it did not land.
+  expect(done._tag).toBe("Failed")
+  // ...and it DID land, which is what the index must agree with.
+  expect(run("log", "--format=%s").trim().split("\n")[0]).toBe("olai: wedged")
+  expect(run("status", "--porcelain").trim()).toBe("")
+  expect(fs.readdirSync(path.join(root, ".git")).filter((one) => one.startsWith("olai-index-")))
+    .toEqual([])
+}, 60_000)
 
 /**
  * And the SUCCESS path still updates the index for what it committed, which is

@@ -238,13 +238,13 @@ describe("prose", () => {
 describe("tool calls", () => {
   test("a second report is the same row, not a second one", () => {
     const transcript = new Transcript()
-    transcript.tool("call-1", { title: "set_done", status: "in_progress" })
+    transcript.tool("call-1", { title: "outlines_done", status: "in_progress" })
     transcript.tool("call-1", { status: "completed", detail: "{}" })
 
     expect(rows(transcript)).toHaveLength(1)
     expect(rows(transcript)[0]).toMatchObject({
       kind: "tool",
-      text: "set_done",
+      text: "outlines_done",
       status: "completed",
       detail: "{}",
     })
@@ -252,9 +252,9 @@ describe("tool calls", () => {
 
   test("an absent field is unchanged, never cleared", () => {
     const transcript = new Transcript()
-    transcript.tool("call-1", { title: "set_done", detail: "{}" })
+    transcript.tool("call-1", { title: "outlines_done", detail: "{}" })
     transcript.tool("call-1", { status: "completed" })
-    expect(rows(transcript)[0]).toMatchObject({ text: "set_done", detail: "{}" })
+    expect(rows(transcript)[0]).toMatchObject({ text: "outlines_done", detail: "{}" })
   })
 
   test("a call's name is picked once, and a later title does not move it", () => {
@@ -1630,7 +1630,7 @@ describe("refusals and replacement", () => {
         message: "`order` is already the id of another node",
       }]),
     })
-    transcript.refuse("`set_done` was refused", failure)
+    transcript.refuse("`outlines_done` was refused", failure)
 
     const entry = rows(transcript)[0]
     expect(entry?.kind).toBe("refusal")

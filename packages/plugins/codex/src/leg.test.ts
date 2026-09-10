@@ -25,16 +25,19 @@ describe("Codex steering", () => {
     expect(steering?.taken({ outcome: "startedNewTurn" })).toBe(true)
     expect(steering?.taken({ outcome: "failed" })).toBe(false)
     expect(steering?.taken({ outcome: "future" })).toBe(false)
-    expect(steering).toMatchObject({ method: "_session/steering", timeout: "30 seconds" })
+    expect(steering).toMatchObject({ method: "_session/steering", timeout: "30 seconds",
+      meta: { steering: { idleBehavior: "promptRequired" } } })
+    expect(steering?.taken({ outcome: "promptRequired", reason: "noRunningTurn" })).toBe(false)
+    expect(CODEX.queues(HANDSHAKE)).toBe(false)
   })
 })
 
 describe("Codex's conservative wire readings", () => {
   test("never infers a programmatic tool name or auto-approves a call", () => {
-    const meta = { is_mcp_tool_call: true, codex: { tool: "olai.read_node" } }
+    const meta = { is_mcp_tool_call: true, codex: { tool: "olai.outlines_read" } }
     expect(CODEX.toolNameIn(meta)).toBeNull()
     expect(CODEX.toolNameOf("opaque-call-id")).toBeNull()
-    expect(CODEX.allowedWithoutAsking("olai.read_node", ["olai"], [
+    expect(CODEX.allowedWithoutAsking("olai.outlines_read", ["olai"], [
       { optionId: "yes", name: "Allow", kind: "allow_once" },
     ])).toBeNull()
   })
@@ -44,7 +47,8 @@ describe("Codex's conservative wire readings", () => {
       .toBeNull()
     expect(CODEX.spawned({ codex: { subagent: { threadId: "two" } } }, {})).toBeNull()
     expect(CODEX.queues(HANDSHAKE)).toBe(false)
-    expect(CODEX.bypassMode).toBeNull()
+    expect(CODEX.bypassMode).toBe("agent-full-access")
+    expect(CODEX.bypassModeRequired).toBe(true)
   })
 
   test("reads the model picker by exact model id", () => {

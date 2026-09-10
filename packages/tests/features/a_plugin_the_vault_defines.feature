@@ -5,9 +5,9 @@ Feature: A plugin the vault defines
   agent, which the serve compiles and mounts while it is running.
 
   A definition is a node with a `plugin` property and two children carrying the
-  halves in their notes, so an agent writes one with `add_node` and `set_desc`:
-  the ordinary write door, under the ordinary subtree fence, recorded by the
-  ordinary ledger commit. There is no second write door and no new kind of file.
+  halves in their notes, so an agent writes one with `outlines_add` and
+  `outlines_desc`: the ordinary write door, recorded by the ordinary ledger
+  commit. There is no second write door and no new kind of file.
 
   WHAT THESE SCENARIOS ARE FOR is the last inch, and only that. Everything
   behind it is benched a package away (`@olai/server`'s `dynamic/`): written,
@@ -42,6 +42,7 @@ Feature: A plugin the vault defines
 
     When I open the plugins panel
     Then the plugins panel says "swatch" is "read the source below and approve it"
+    And the plugins panel groups "swatch" under "Needs you"
     # THE SOURCE TRAVELS, in full, which is why the roster carries it at all:
     # approving is READING, and a panel that asked somebody to say yes to a
     # content hash would be asking them to approve something they cannot see.
@@ -60,6 +61,7 @@ Feature: A plugin the vault defines
     # the roster moves, the tab redials, and it fetches a chunk this serve built
     # out of a note thirty milliseconds ago.
     Then the plugins panel says nothing more about "swatch"
+    And the plugins panel groups "swatch" under "Defined here"
     # ...AND THE FACE DRAWS. The value on that row is `swatch-hex`, which is the
     # plugin's bare word composed with the plugin's own name — claimed by the
     # registration, so it is held to the kind with no declarations file in this
@@ -149,7 +151,7 @@ Feature: A plugin the vault defines
 
   @scratch:plugins
   Scenario: Trashing the definition takes the row with it
-    # Retracting one is `trash_node`. The records stay regular nodes and still
+    # Retracting one is `outlines_trash`. The records stay regular nodes and still
     # carry the `plugin` property; without skipping a put-away file the panel
     # went on drawing them with `_olai/Trash.olai` as the file, in the same
     # state they had before.
@@ -167,4 +169,26 @@ Feature: A plugin the vault defines
     When I open the plugins panel
     Then the plugins panel does not list "swatch"
     And the plugins panel does not show the source of "swatch"
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: Approval survives its browser provider failing while server definitions remain available
+    Given the browser module for "vault-plugins" cannot be fetched
+    And I open the outline "colours.olai"
+    And I open the plugins panel
+    Then the plugins panel says "vault-plugins" is "Module load failed"
+    And the plugins panel shows the source of "swatch"
+    When I approve the plugin "swatch"
+    Then the plugins panel refuses with "the vault plugin approval capability is not active"
+    And the plugins panel says "swatch" is "read the source below and approve it"
+    And no row wears a swatch
+    Given I mark the page
+    When the browser module can be fetched again
+    And I retry the failed browser activation
+    Then the browser activation has recovered
+    And the page has not reloaded
+    When I approve the plugin "swatch"
+    Then the plugins panel shows no refusal
+    And the plugins panel says nothing more about "swatch"
+    And the row "amber" wears a swatch for "#ff8800"
     And there should be no page errors

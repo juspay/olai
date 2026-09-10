@@ -24,7 +24,7 @@
 
 import { type Accessor, createSignal } from "solid-js"
 
-import { setPanelOpen } from "@olai/web/client/layout/prefs.ts"
+import { setPanelOpen } from "../../shell.ts"
 
 const [asked, setAsked] = createSignal(false)
 

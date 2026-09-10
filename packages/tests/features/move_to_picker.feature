@@ -12,7 +12,7 @@ Feature: Moving a row to a parent you search for
   the hand that has no keyboard. Both open one panel in place under the row —
   the search every other door in this client uses, over the whole set — and
   `Enter` carries the row, with everything under it, under the node chosen.
-  What lands is one `move_node`, the op an agent sends.
+  What lands is one `outlines_move`, the op an agent sends.
 
   ANOTHER OUTLINE IS A DESTINATION, and that is the newest thing here. The
   search is of the whole directory, so it finds rows of every file; picking one
@@ -52,7 +52,7 @@ Feature: Moving a row to a parent you search for
 
   Scenario: A destination chosen with Enter carries the row and its subtree
     # `install` holds three rows and lives under `kitchen`; `order` is its
-    # sibling. Moving it under `order` is one `move_node`, and what follows it
+    # sibling. Moving it under `order` is one `outlines_move`, and what follows it
     # is the whole branch — `handles` is still its child afterwards, drawn
     # under it in its new home.
     When I click the title of "install"
@@ -67,7 +67,7 @@ Feature: Moving a row to a parent you search for
 
   Scenario: The row lands LAST among its new siblings
     # Where among the children is not a field on the wire: "last" is the ops
-    # layer's own default for a `move_node` naming a parent and no anchor, read
+    # layer's own default for a `outlines_move` naming a parent and no anchor, read
     # where the write is judged. `install` already holds `handles`, `hinges`
     # and `knobs`, so a row arriving there arrives after all three.
     When I click the title of "demo"
@@ -170,7 +170,7 @@ Feature: Moving a row to a parent you search for
     # The gesture this scenario exists for is the one that used to be dimmed:
     # `compost` lives in `garden.olai` and the row lives in `house.olai`.
     # `install` holds three rows and an attached document, and what lands is one
-    # `move_node` naming a parent in another file — the op an agent sends.
+    # `outlines_move` naming a parent in another file — the op an agent sends.
     When I click the title of "install"
     And I press "ControlOrMeta+Shift+m"
     And I search the move picker for "the compost heap"

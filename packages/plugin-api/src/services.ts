@@ -73,15 +73,17 @@
  * of the package.
  *
  * No `intercept` on the vault, either, and that is a phase and not an oversight:
- * the subtree write fence belongs on {@link Vault} as interception metadata, and
- * it arrives with node-agent scopes.
+ * node-agent scopes arrive with a credential, not with interception metadata
+ * on {@link Vault}.
  */
 
 import type { Engine, Registering } from "@olai/acp/engine"
 import {
   broadcast,
+  contained,
   type Host,
   openHost,
+  offered as readOffered,
   hostChanges,
   closeHost,
   offer,
@@ -93,11 +95,13 @@ import {
   serviceTag,
   type ServiceKey,
 } from "@olai/effect-cordis"
-import { Deferred, Effect, Exit, Scope, type Stream } from "effect"
+import { Deferred, Effect, Exit, Scope, Semaphore, Queue, Stream } from "effect"
 
+import { ownedKey, ownService, type OwnServices } from "./owned.ts"
 import {
   type ConversationSeen,
   type Deliveries as DeliveryDoor,
+  type Forbidden,
   kindWordOf,
   type MintedTicket,
   NO_TICKET,
@@ -107,7 +111,6 @@ import {
   type PropWrite,
   type Refusal,
   type Refused,
-  type Seated,
   type Wake,
 } from "./contract.ts"
 
@@ -143,6 +146,61 @@ export interface Env {
   readonly dial: unknown
 }
 export const Env = serviceTag<Env>("env")
+
+/**
+ * ## `HostServices` IS GONE, and the absence is the phase
+ *
+ * There was a capability here whose whole shape was *give me whatever stands
+ * behind this key* — `current: <A>(key: ServiceKey<A>) => A | undefined`, over
+ * the host, for any key. Two rows named it: the MCP row spent it on `Directory`,
+ * `Ops` and `Ledger`, and the vault row's settings on `Ledger` and `Search`.
+ * None of those five dependencies was DECLARED anywhere, so the graph a person
+ * reads — a row's `needs`, `plugins.inspect`, the panel's sentence about what
+ * would go `waiting` if this row were turned off — said one thing while the
+ * code did another (the Cordis audit's §5).
+ *
+ * ## A COMPONENT IS THE WRONG REPAIR, and the reason cost a CI run
+ *
+ * The obvious answer is a component per optional key: the runtime holds it
+ * `waiting` while its provider is absent, says which key on the panel, and
+ * unwinds it when the provider leaves. It is wrong, and the paragraph is here
+ * because nothing else on this page would tell you why: a row's report FOLDS
+ * its components, so a component waiting for a provider that will never arrive
+ * makes the whole ROW read `waiting` — and `@olai/server`'s runtime reports a
+ * row as `running` only when it does not. A vault short of git would have
+ * stopped being loaded by the tab at all. A component is for a half that is
+ * *optional to have*; it is not for a provider that is *optional to exist*.
+ *
+ * ## What replaced it is two shapes, and both are declared
+ *
+ * The PROVIDER REGISTERS, wherever the arrow can be turned around:
+ * {@link VaultViews} is a door the vault stands behind, and git and search tell
+ * it about their {@link Ledger} and {@link Search}. Both already name
+ * {@link Vault}, so neither gains a wait, the edge is in the graph at the end
+ * that can carry it, and the registration is a finalizer on the PROVIDER's
+ * scope. It is the shape {@link Kinds.register}, {@link Surfaces.register} and
+ * {@link Wakes.register} already have.
+ *
+ * ...and a NARROW BROKER where it cannot: {@link Served} carries the served
+ * directory and its write gate for MCP, which must stand up with no vault at
+ * all and cannot invert (a vault registering its gate with the transport would
+ * be the directory knowing what an MCP endpoint is). What makes that legitimate
+ * where `HostServices` was not is that it is CLOSED — two readings, named in
+ * the type, about one provider — rather than a lookup over every key there is.
+ *
+ * The fifth reach was DEAD: `bindAgent` took a `ledger` predicate the lookup
+ * answered and no line in that package ever read.
+ *
+ * Every optional behaviour the lookup was reached for is kept — **MCP works
+ * without a vault, and the vault works without git** — and neither shape
+ * introduces the cycle a mandatory `needs` would.
+ */
+
+/** Inert module declarations from the selected bundle, including disabled rows. */
+export interface BundleModules {
+  readonly read: Effect.Effect<ReadonlyArray<{ readonly name: string; readonly exports: unknown }>>
+}
+export const BundleModules = serviceTag<BundleModules>("host.bundle-modules")
 
 /** THE CLOCK, as ISO-8601 — what a link's `since` is stamped from, and the
  *  reason a test that asserts "connected · just now" can own the instant it was
@@ -245,6 +303,50 @@ export interface Vault {
 }
 export const Vault = serviceTag<Vault>("vault")
 
+/** Core's directory seam. The composition root checks the store's concrete
+ * type against the floor; the plugin API does not import the vault grammar. */
+export interface Directory {
+  readonly root: string
+  readonly store: unknown
+}
+export const Directory = serviceTag<Directory>("directory")
+
+/** Core supplies these after mounting declarations. Floor-specific values are
+ * opaque here; the provider checks them against @olai/ops’s typed half. */
+export interface VaultSettings {
+  readonly runtime: unknown
+  readonly root: string
+  readonly kinds: unknown
+  readonly ledger: unknown
+  readonly search: unknown
+}
+export const VaultSettings = serviceTag<VaultSettings>("vault-settings")
+
+/** A provider owns both buses. Registration replays its current reading so a
+ * tenant activated after the first disk read still receives the vault. */
+export const vaultEvents = (served: string) => {
+  const delivery = Semaphore.makeUnsafe(1)
+  let latest: unknown | null = null
+  const revisions = broadcast<unknown>("a vault revision")
+  const quieted = broadcast<void>("the vault going quiet")
+  return {
+    door: (plugin: string): Vault => ({
+      served,
+      revision: ((handler: (snapshot: unknown) => Effect.Effect<void>) => delivery.withPermit(Effect.gen(function*() {
+        yield* revisions.listen(plugin)(handler)
+        if (latest !== null) {
+          yield* contained(plugin, "a vault revision", Effect.suspend(() => handler(latest)))
+        }
+      }))) as Vault["revision"],
+      unloaded: (handler) => quieted.listen(plugin)(() => handler),
+    }),
+    published: (snapshot: unknown) => delivery.withPermit(Effect.andThen(
+      Effect.sync(() => { latest = snapshot }), revisions.tell(snapshot))),
+    quiet: delivery.withPermit(Effect.andThen(
+      Effect.sync(() => { latest = null }), quieted.tell(undefined))),
+  }
+}
+
 /**
  * THE DOORBELL'S DOOR — which conversations opted into the CALLING plugin's
  * wakes, and the one write-only verb that reaches them.
@@ -304,6 +406,8 @@ export const Deliveries = serviceTag<Deliveries>("deliveries")
  * untouched rather than killing the boot.
  */
 export interface Kinds {
+  readonly current: () => ReadonlyMap<string, ComposedKind>
+  readonly changes: Stream.Stream<void>
   /** Teach one word, for as long as the calling plugin is loaded. */
   readonly register: (kind: PropKind) => Effect.Effect<void, never, Scope.Scope>
 }
@@ -335,12 +439,64 @@ export interface ComposedKind extends PropKind {
  * is no line anywhere for the two to drift apart on.
  */
 export interface Sibling {
+  /** Public procedure tags whose calls use transport-supplied attribution,
+   * named as this plugin's OWN surface spells them. The composition root is
+   * what puts them under `surface/<name>/`, so four rows declaring
+   * `["surface/ops/run"]` is four rows each naming their own member. */
+  readonly writes?: ReadonlyArray<string>
   /** The plugin's own surface — a `Surface<Spec>`, opaque on this side of the
    *  wall for the reason `deps` is. */
   readonly surface: { readonly spec: unknown }
   /** Which of its members each face may see — its own `ExposeMap` per face,
-   *  written against its own spec. */
+   *  written against its own spec.
+   *
+   * ONE GRANT, NOT TWO. This used to have a `scopedFaces` beside it, because a
+   * row could register `root: true` and keep its members answering under the
+   * monolith's bare tags as well: `faces` granted those and `scopedFaces`
+   * granted the qualified ones, and a member could be on one and not the other.
+   * #546 deleted the bare tags, so a member has one name and this is the map
+   * that says who may reach it. */
   readonly faces: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  /**
+   * WHICH OF ITS MEMBERS AN AGENT MAY ADDRESS AS A `surface://` RESOURCE — this
+   * row's OWN `ExposeMap`, written against its own spec, opaque here for the
+   * reason `faces` is.
+   *
+   * A SECOND MAP RATHER THAN A READING OF `faces.agent`, and the difference is
+   * the one `olai-plugin-markdown`'s `surface.ts` argues: `faces.agent` is what
+   * a caller may CALL, and every `ops.*` on it is reachable and is no resource,
+   * because a procedure is not a thing with an address. Deriving one from the
+   * other would either publish a URI for a verb or take a resource away from a
+   * row that grants both.
+   *
+   * ABSENT ON MOST ROWS, and that is the ordinary case rather than an omission:
+   * a row whose whole agent face is verbs publishes nothing addressable. It is
+   * still a sibling of the served bundle — EVERY standing row is, whatever it
+   * declares — because its `tools` ride the same entry and that is what makes a
+   * verb leave with the row that brought it. An empty map beside them says it
+   * has no addresses to give.
+   *
+   * IT WAS `@olai/bundle`'s `MCP`, one flat map naming three rows' members from
+   * a package none of them could edit, resolved against one flat aggregate
+   * spec. #546 sent each line home to its row and juspay/kolu#2234 made the
+   * per-sibling map the framework's own shape; this field is the wall those
+   * maps travel across, and without it the served bundle has no siblings at all
+   * — `@olai/server`'s `mcp/face.test.ts` reads the URIs that proves.
+   */
+  readonly resources?: Readonly<Record<string, unknown>>
+  /**
+   * THIS ROW'S AGENT VERBS — the tools an MCP host is offered while this row is
+   * standing, opaque here for the reason `deps` and `faces` are.
+   *
+   * They used to be one closed table in `@olai/ops`, thirty entries naming
+   * every row's vocabulary from a general package, with a second table in
+   * `olai-plugin-mcp` saying which row each one belonged to. That is the same
+   * permissions duplication `faces` was pulled apart to end, one seam over: a
+   * row switched off left its verbs advertised until somebody edited a filter
+   * two packages away. A tool leaves with its row now, because the row is what
+   * brought it.
+   */
+  readonly tools?: ReadonlyArray<unknown>
   /** This plugin's `ImplementSurfaceDeps`, against its own spec. */
   readonly deps: unknown
   /** This plugin's OWN ctx, handed back the moment its sibling is implemented.
@@ -430,6 +586,8 @@ export const Surfaces = serviceTag<Surfaces>("surfaces")
  */
 export interface Wakes {
   readonly register: (wake: Wake) => Effect.Effect<void, never, Scope.Scope>
+  /** The same live declarations for synchronous delivery-scope readers. */
+  readonly current: () => ReadonlyMap<string, Wake>
   /** What every ringing plugin declared right now, keyed by its name. A name
    *  with no entry is a plugin that wakes nobody, which is a whole plugin. */
   readonly declared: Effect.Effect<ReadonlyMap<string, Wake>>
@@ -758,6 +916,88 @@ export interface Search {
 export const Search = serviceTag<Search>("search")
 
 /**
+ * WHERE AN OPTIONAL VIEW OF THE SET REGISTERS — the door a row that PROVIDES
+ * one tells the store about it through, and the vault's half of the audit's §5.
+ *
+ * ## Why the arrow points this way
+ *
+ * The store is built over two readings that may have nobody behind them: where
+ * a write is RECORDED ({@link Ledger}) and what a query is ANSWERED BY
+ * ({@link Search}). Neither can be a `needs` on the vault row — git needs the
+ * vault, so requiring its ledger would be an activation cycle, and `--plugins`
+ * composes serves with neither.
+ *
+ * It was a LOOKUP: `HostServices.current(Ledger)`, over the whole host, for a
+ * key the vault never declared. What replaced it cannot be a component of the
+ * vault either, and the reason is worth writing down because it is not obvious:
+ * a row's report folds its components, and a row that reads `waiting` is a row
+ * the roster reports as not running — so a vault with an optional integration
+ * short of its provider would stop being loaded by the tab at all.
+ *
+ * So the PROVIDER registers, which is the shape every other table on this page
+ * already has ({@link Kinds.register}, {@link Surfaces.register},
+ * {@link Wakes.register}): git and search already name `Vault`, so they are
+ * already waiting for this row, and registering costs them no new wait. The
+ * registration is a finalizer on the CALLING plugin's scope, so a provider that
+ * unloads takes its view with it and the store falls back to refusing in the
+ * vault's own words.
+ *
+ * ONE VIEW EACH, and a second registration of either is REFUSED — a defect, the
+ * way every other double-claim on this page is one: two rows answering "where is
+ * this write recorded" would resolve silently in favour of whichever mounted
+ * last. That sentence stood here for a commit while the implementation wrote
+ * unconditionally; it is `olai-plugin-vault`'s `views.ts` that keeps it.
+ *
+ * ONE TABLE PER VAULT ACTIVATION is the other half, and it is the vault's to
+ * keep rather than this door's: what a provider registers into belongs to the
+ * activation that stood behind this key, so two hosts in one process are two
+ * tables. A module variable would be private to a package and owned by nobody.
+ */
+export interface VaultViews {
+  /** Record writes through this ledger, for as long as the calling plugin is
+   *  loaded. */
+  readonly ledger: (door: Ledger) => Effect.Effect<void, never, Scope.Scope>
+  /** ...and answer queries with this matcher, the same way. */
+  readonly search: (door: Search) => Effect.Effect<void, never, Scope.Scope>
+}
+export const VaultViews = serviceTag<VaultViews>("vault-views")
+
+/**
+ * THE SERVED DIRECTORY, AS A ROW THAT MAY BE WITHOUT ONE READS IT — the narrow
+ * broker §5 permits, and MCP's half of the same finding.
+ *
+ * ## Why a broker here and a registration one door up
+ *
+ * The vault's two views could invert, because their providers already wait for
+ * the vault. MCP's cannot: the protocol server, its carrier, its route and its
+ * ticket mint stand up on a serve with **no vault at all**, and a vault that
+ * registered its gate with the transport would be the directory knowing what an
+ * MCP endpoint is.
+ *
+ * A COMPONENT cannot do it either, for {@link VaultViews}' reason: a row that
+ * reads `waiting` is reported as not running, and `/mcp` must keep answering
+ * through a failed vault, a `--plugins` set that omits it, and the panel switch.
+ *
+ * So this is the audit's other permitted answer — *a service whose documented
+ * job includes handling the arrival and departure of its backing providers*. Its
+ * job is exactly that and nothing else: TWO readings about ONE provider, named
+ * in the type, where `HostServices` was `current<A>(key: ServiceKey<A>)` and a
+ * row could reach anything at all with nothing in its `needs` to say so.
+ *
+ * BOTH ARE READ PER CALL, because the roster moves under a standing connection:
+ * a vault switched off mid-session must refuse the NEXT tool call rather than
+ * the one after the next reconnect.
+ */
+export interface Served {
+  /** The directory this serve opened, or nothing. Opaque here for
+   *  {@link Directory}'s reason — the vocabulary belongs to the floor. */
+  readonly directory: () => unknown | undefined
+  /** ...and its write gate, as {@link Ops.gate} carries it. */
+  readonly gate: () => unknown | undefined
+}
+export const Served = serviceTag<Served>("host.served")
+
+/**
  * IDENTITY — who is this request, from the headers it arrived with.
  *
  * Core defines the door and does not stand behind it. The identity row offers
@@ -819,15 +1059,7 @@ export const Identity = serviceTag<Identity>("identity")
  * who is looking. The set of core keys is closed; their providers are replaceable.
  * Plugins contribute new keys through Offers.own, under their own namespace.
  */
-export const OFFERABLE = [
-  Agents,
-  Deliveries,
-  SessionStart,
-  Watching,
-  Ledger,
-  Search,
-  Identity,
-] as const
+
 
 /**
  * PROVIDING A SERVICE WITHOUT HANDING OVER THE HOST.
@@ -850,12 +1082,27 @@ export const OFFERABLE = [
  * no provision or host access. Offering remains a stamped capability the
  * provider must explicitly name in needs.
  */
-export interface Offers {
-  /** Offer `<this plugin>.<word>`, stamped with the calling fiber's name.
-   * Consumers name `serviceTag<Shape>("provider.word")` in their needs. */
-  readonly own: <Shape>(word: string, door: Provision<Shape>) => Effect.Effect<void, never, Scope.Scope>
+export interface Offers extends OwnServices {
+  /**
+   * A browser contract discoverable without running browser code on the server.
+   * The declaration promises that this plugin authors these local words; the
+   * same namespace grammar and owner stamp apply as for own. It does not
+   * provide a server dependency, validate the browser implementation's shape,
+   * or prove that any tab loaded or activated that implementation.
+   *
+   * This is why inspect says `declared`, not `provided`. Browser activation
+   * belongs to each tab's host and its panel; discovery belongs to the server
+   * an agent can ask without opening a tab. Unloading the declaring scope
+   * withdraws its entries, so discovery does not retain a stopped author's
+   * claims. Built plugins share their word constants between both halves.
+   */
+  readonly browser: (words: ReadonlyArray<string>) => Effect.Effect<void, never, Scope.Scope>
   /** Stand behind one door, for as long as the calling plugin is loaded. */
   readonly offer: {
+    (key: typeof VaultSettings, door: Provision<VaultSettings>): Effect.Effect<void, never, Scope.Scope>
+    (key: typeof Ops, door: Provision<Ops>): Effect.Effect<void, never, Scope.Scope>
+    (key: typeof Vault, door: Provision<Vault>): Effect.Effect<void, never, Scope.Scope>
+    (key: typeof Directory, door: Provision<Directory>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Agents, door: Provision<Agents>): Effect.Effect<void, never, Scope.Scope>
     (
       key: typeof Deliveries,
@@ -868,6 +1115,7 @@ export interface Offers {
     (key: typeof Watching, door: Provision<Watching>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Ledger, door: Provision<Ledger>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Search, door: Provision<Search>): Effect.Effect<void, never, Scope.Scope>
+    (key: typeof VaultViews, door: Provision<VaultViews>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Identity, door: Provision<Identity>): Effect.Effect<void, never, Scope.Scope>
   }
 }
@@ -924,28 +1172,32 @@ export interface ToolServer {
 export interface Tools {
   readonly server: Effect.Effect<ToolServer>
   /**
-   * ...AND A CREDENTIAL THAT NARROWS IT TO ONE SUBTREE, for one session.
+   * ...AND A CREDENTIAL FOR ONE SESSION.
    *
-   * The write fence phase 6 built: a node agent writes strictly inside its own
-   * subtree and asks its ancestor for anything above. The ENFORCEMENT is
-   * `@olai/ops`', between `plan` and `commit`; the CHANNEL is a bearer the MCP
-   * route resolves per request; and what is minted here is the pairing of the
-   * two, so a session handed this bearer reaches a door that is the same face
-   * with a fence on it.
+   * A node agent's door is the same write door loopback MCP has, under the
+   * node's credential. The remaining rule is the keys on {@link Forbidden}: an
+   * agent may not rewrite who is seated where, its own binding included. The
+   * ENFORCEMENT is `@olai/ops`', between `plan` and `commit`; the CHANNEL is
+   * a bearer the MCP route resolves per request; and what is minted here is
+   * the pairing of the two, so a session handed this bearer reaches a door
+   * that is the same face with that property rule on it.
    *
-   * TWO FUNCTIONS AND NOT TWO VALUES, and both are read per request rather than
-   * closed over. `seated` is asked because a session's subtree may be re-pointed
-   * under it, and `above` because the ancestor a refusal names is a reading of a
-   * vault that moves — which is exactly the reading the plugin holding the
-   * sessions has and core does not.
+   * A FUNCTION AND NOT A VALUE, and it is read per request rather than
+   * closed over. The list is asked because the keys a vault declares this
+   * kind on may move mid-conversation — a migration row landing is a
+   * different forbidden table, which is exactly the reading the plugin
+   * holding the sessions has and core does not.
+   *
+   * `writer` is the session provider’s attribution, validated by the host’s
+   * ledger vocabulary; the transport does not choose a plugin’s name.
    *
    * `release` is the session's own teardown, and it is the whole point of the
    * ticket being a value: reaping a node scope drops its MCP footprint in the
    * same breath rather than leaving a bearer alive for a session that is gone.
    */
   readonly ticket: (
-    seated: () => Seated,
-    above: (node: string) => string | null,
+    forbidden: () => ReadonlyArray<Forbidden>,
+    writer: string,
   ) => MintedTicket
 }
 export const Tools = serviceTag<Tools>("tools")
@@ -962,9 +1214,10 @@ export const Tools = serviceTag<Tools>("tools")
  * because that was the only place both halves were in hand — and a plugin that
  * owns the conversation owns one of the halves.
  *
- * It is NOT `Ops` handed over. {@link PropWrite} is one key on one node, and
+ * The complete gate is carried opaquely for core’s readers; the convenience
+ * methods retain the gestures plugins already use. {@link PropWrite} is one key on one node, and
  * {@link reading} answers a value rather than the layer that produced it, so
- * nothing behind this door can trash, move or commit. What judges the write is
+ * those convenience methods do not add a second planner. What judges the write is
  * unchanged: the same planner, the same validator, the same ledger commit a
  * keystroke goes through, under the writer the composition root bound.
  *
@@ -978,6 +1231,11 @@ export const Tools = serviceTag<Tools>("tools")
  * nobody has to find that out.
  */
 export interface Ops {
+  /** The complete gate, opaque here because its vocabulary belongs to the
+   * floor. Core checks this against @olai/ops; plugin gestures use the typed
+   * convenience methods below. Absence is no gate, never a replacement gate. */
+  readonly gate: unknown
+
   /** THE READING every write is resolved against — one answer to "there is
    *  nothing loaded yet", shared with the tools and with a keystroke. */
   readonly reading: Effect.Effect<unknown>
@@ -996,8 +1254,8 @@ export interface Ops {
    *
    *  ON THE WRITE GATE and not on the MCP server, because it is WRITES this is
    *  a property of: a second writer would report nothing. What a plugin makes of
-   *  it is its own — the chat draws a row in the transcript, so what the agent
-   *  then says about the refusal is prose and the unfinished children are data.
+   *  it is its own — the writer attribution lets chat leave web refusals at
+   *  their requesting surface while drawing agent refusals in the transcript.
    *
    *  Contained here, like every other bus on this page: a handler that dies
    *  costs its plugin a line rather than the write its answer was about. */
@@ -1006,6 +1264,24 @@ export interface Ops {
   ) => Effect.Effect<void, never, Scope.Scope>
 }
 export const Ops = serviceTag<Ops>("ops")
+
+export const OFFERABLE = [
+  VaultSettings,
+  VaultViews,
+  Ops,
+  Vault,
+  Directory,
+  Agents,
+  Deliveries,
+  SessionStart,
+  Watching,
+  Ledger,
+  Search,
+  Identity,
+] as const
+
+/** The vault row owns refusal subscriptions with its gate. */
+export const opsEvents = () => broadcast<Refused>("a refused write")
 
 /**
  * WHERE A PLUGIN SITS IN THE BUILD'S OWN LIST OF ROWS.
@@ -1075,22 +1351,15 @@ export interface Plugins {
    *
    * Core row offers and plugin-owned keys appear here. Host services are
    * provided before any row is mounted and are nobody's to hold, so a row can never be
-   * carrying another on `vault` or `clock`.
+   * carrying another on `clock`.
    */
   readonly offers: () => ReadonlyMap<string, string>
   /** Public discovery: the stable authoring catalog plus currently offered
    * plugin-owned keys. Ownership also tracks internal core doors, which this
    * catalog deliberately does not expose. */
   readonly serviceKeys: () => ReadonlyArray<string>
-  /** TELL EVERY PLUGIN A REVISION LANDED, and wait for each of them — see
-   *  {@link Vault}. */
-  readonly published: (snapshot: unknown) => Effect.Effect<void>
-  /** ...and that the store has none. */
-  readonly quiet: Effect.Effect<void>
-  /** ONE REFUSED WRITE to every subscriber, in subscription order — see
-   *  {@link Ops.refused}. Rung by whoever owns the write gate, which is the
-   *  composition root; nothing on this page can refuse a write. */
-  readonly refused: (refusal: Refused) => Effect.Effect<void>
+  /** Browser declarations owned by running server providers. */
+  readonly browserKeys: () => ReadonlyArray<string>
 }
 
 /**
@@ -1113,9 +1382,8 @@ export interface Plugins {
  *
  * ## ONE ANSWER TO "NOT READY YET", and this file no longer holds a second
  *
- * `./browser.ts` answers it with a SECOND PROVIDE — `App.furnish` provides the
- * chrome services later, and a half that beat the call simply sits `waiting` on
- * the runtime.s own PENDING mechanism. This file used to answer it a second way,
+ * Browser providers publish their scoped services through Offers; a half that
+ * precedes its provider simply sits `waiting` on the runtime's own mechanism. This file used to answer it a second way,
  * with a LOOKUP ASKED PER CALL, so `deliveries` was always present and answered
  * `[]` and a no-op where there was no chat.
  *
@@ -1135,8 +1403,6 @@ export interface PluginsConfig {
   readonly vars: Record<string, string | undefined>
   /** ISO-8601, now. */
   readonly now: () => string
-  /** The directory this serve is about, resolved. */
-  readonly served: string
   /** One plugin's machine-local record, by name — minted ONCE per plugin, which
    *  is what orders its writes. Where a machine keeps olai's own files is not a
    *  plugin's business. */
@@ -1157,32 +1423,22 @@ export interface PluginsConfig {
    */
   readonly tools?: Deferred.Deferred<ToolServer>
   /**
-   * ...AND THE FENCED CREDENTIAL MINTED OFF IT — see {@link Tools.ticket}.
+   * ...AND THE SESSION CREDENTIAL MINTED OFF IT — see {@link Tools.ticket}.
    *
    * A THUNK rather than a value, and it answers `null` until the listener has
    * bound, for the reason the address above is a `Deferred` and this is not: a
    * ticket is minted per SESSION, at a moment the plugin chooses, and a plugin
-   * that spawned one before there was a face to fence would be asking for a
-   * bearer onto nothing. `null` is that state said out loud, and the one caller
-   * refuses to seat a session on it rather than inventing one.
+   * that spawned one before there was a face to mint against would be asking
+   * for a bearer onto nothing. `null` is that state said out loud, and the one
+   * caller refuses to seat a session on it rather than inventing one.
    *
-   * OPTIONAL, and absent means NO FENCE EVER — the headless faces and every
-   * bench, which have no MCP face to narrow.
+   * OPTIONAL, and absent means NO CREDENTIAL EVER — the headless faces and
+   * every bench, which have no MCP face to mint against.
    */
   readonly ticketFor?: (
-    seated: () => Seated,
-    above: (node: string) => string | null,
+    forbidden: () => ReadonlyArray<Forbidden>,
+    writer: string,
   ) => MintedTicket | null
-  /**
-   * THE VAULT'S NARROW OPS DOOR — see
-   * {@link Ops}.
-   *
-   * OPTIONAL, and absent means NO VAULT IS BEING WRITTEN: a root with no store
-   * behind it (every bench that only wants the table) answers a reading of
-   * nothing and refuses a write, which is what a plugin asking one of a process
-   * that serves no directory should be told.
-   */
-  readonly ops?: Pick<Ops, "reading" | "page" | "prop" | "document">
   /**
    * WHERE EACH PLUGIN SITS IN THE BUILD'S LIST OF ROWS — see {@link Bundle}.
    *
@@ -1224,40 +1480,13 @@ export const openPlugins = (
       dial: config.dials?.[plugin],
     }))
     yield* provide(host, Clock, () => ({ now: config.now }))
-    // THE THREE BUSES, and they are one primitive rather than three hand-rolled
-    // copies of it ({@link @olai/effect-cordis}'s `broadcast`). Each holds its
-    // handlers in subscription order, wraps every one of them ONCE with the
-    // registering plugin's word, and AWAITS all of them when it is rung —
-    // containment as a property of the bus rather than a discipline every plugin
-    // is asked to keep, and one sentence rather than three.
-    const revisions = broadcast<unknown>("a vault revision")
-    const quieted = broadcast<void>("the vault going quiet")
-    const seen = broadcast<ConversationSeen>("a conversation event")
-
-    yield* provide(host, Vault, (plugin) => ({
-      served: config.served,
-      // THE ONE ASSERTION, and it used to be three — one in each plugin, each
-      // under a paragraph saying the compiler had checked it. The bus carries a
-      // whole published snapshot; what a half names is the part of it that half
-      // touches, and that narrowing is inferred from the handler it hands over.
-      //
-      // THIS IS WHERE THE UNSOUNDNESS LIVES, and the interface says so above it
-      // rather than leaving a reader to find this line: `A` is the caller's to
-      // pick, so a half's parameter type is a claim about what the root rings
-      // and this `as` is what lets the two meet.
-      revision: revisions.listen(plugin) as Vault["revision"],
-      // The other door takes no value, so a plugin hands over the Effect itself
-      // rather than a function of nothing.
-      unloaded: (handler) => quieted.listen(plugin)(() => handler),
-    }))
-
     /**
-     * ...AND THE SEVEN THAT CORE DOES NOT PROVIDE AT ALL, which is the whole
+     * THE DOORS THAT CORE DOES NOT PROVIDE, which is the whole
      * of this phase and reads here as an absence.
      *
      * Four of {@link OFFERABLE} are the chat row's to keep; {@link Ledger} is
      * the git row's, {@link Search} the search row's and {@link Identity} the
-     * identity row's. Offered from the
+     * identity row's; Vault and Directory belong to the vault row. Offered from the
      * offering plugin's own `apply`
      * ({@link Offers}). Core standing behind them was scaffolding
      * with a date on it: a stand-in whose door was `undefined` answered every
@@ -1274,8 +1503,20 @@ export const openPlugins = (
      * accepted cost.
      */
 
-    const kinds = registry<string, ComposedKind>()
+    const kindListeners = new Set<() => void>()
+    const kinds = registry<string, ComposedKind>(() => { for (const notify of kindListeners) notify() })
+    const kindChanges = Stream.callback<void>((queue) => Effect.acquireRelease(
+      Effect.sync(() => {
+        const notify = () => { Queue.offerUnsafe(queue, undefined) }
+        kindListeners.add(notify)
+        notify()
+        return notify
+      }),
+      (notify) => Effect.sync(() => { kindListeners.delete(notify) }),
+    ), { bufferSize: 1, strategy: "sliding" })
     yield* provide(host, Kinds, (plugin) => ({
+      current: kinds.read,
+      changes: kindChanges,
       register: (kind) =>
         Effect.suspend(() => {
           const word = kindWordOf(plugin, kind.kind)
@@ -1320,7 +1561,9 @@ export const openPlugins = (
       register: (wake) =>
         wakes.claim(
           plugin,
-          wake,
+          // A registration is one activation, even when the module reuses its
+          // constant declaration after unload. Readers can retain its lifetime.
+          { ...wake },
           () =>
             `plugins: "${plugin}" declared a second wake — a plugin rings under one `
               + "declaration, and the second would silently replace the first.",
@@ -1329,11 +1572,13 @@ export const openPlugins = (
       // one truth and both ends of the wall are looking at it. A copy is handed
       // over, so a reader that wrote into it would be writing into its own.
       declared: Effect.sync(wakes.read),
+      current: wakes.read,
     }))
 
 
     // This table reports ownership; Cordis itself refuses duplicate providers.
     const offered = new Map<string, { readonly plugin: string }>()
+    const browserKeys = registry<string, string>()
     yield* provide(host, Offers, (plugin) => {
       const stand = <Shape>(key: ServiceKey<Shape>, door: Provision<Shape>) =>
         Effect.suspend(() => {
@@ -1353,15 +1598,13 @@ export const openPlugins = (
           )
         })
       return {
-        own: <Shape>(word: string, door: Provision<Shape>) => Effect.suspend(() => {
-          if (![plugin, word].every((part) => /^[a-z][a-z0-9-]*$/.test(part))) {
-            return Effect.die(new Error(
-              `plugins: "${plugin}" cannot offer local service word "${word}"; `
-                + "each segment must start with a lowercase letter and contain only lowercase letters, digits or hyphens.",
-            ))
-          }
-          return stand(serviceTag<Shape>(`${plugin}.${word}`), door)
-        }),
+        own: ownService(plugin, stand),
+        browser: (words) => Effect.forEach(words, (word) =>
+          Effect.flatMap(ownedKey(plugin, word), (key) => browserKeys.claim(key, plugin, () =>
+            `plugins: "${plugin}" declared browser service "${key}" twice`,
+          )),
+          { discard: true },
+        ),
         offer: <Shape>(key: ServiceKey<Shape>, door: Provision<Shape>) => Effect.suspend(() => {
           if (!OFFERABLE.some((one) => one.cordis === key.cordis)) {
             return Effect.die(new Error(
@@ -1380,32 +1623,24 @@ export const openPlugins = (
       // plugin gated on one is gated for the life of that process. See
       // {@link PluginsConfig.tools}.
       server: config.tools === undefined ? Effect.never : Deferred.await(config.tools),
-      // ...and NULL rather than never for the fence, because this one is asked
-      // per session and a caller has somewhere to put the absence: a root with
-      // no MCP face seats a session unfenced, which is the state it was already
-      // in ({@link PluginsConfig.ticketFor}).
-      ticket: (seated, above) => config.ticketFor?.(seated, above) ?? NO_TICKET,
-    }))
-
-    // THE WRITE GATE, or a process that is writing nothing. Both arms are real
-    // states: a serve has a store behind it, and every bench that only wants the
-    // table has none — which answers a reading of nothing and refuses a write in
-    // the vocabulary the caller already speaks rather than throwing at it.
-    //
-    // The REFUSALS half is a bus here rather than a field on the root's door, so
-    // it is contained like its three neighbours: a handler that dies is caught
-    // with the registering plugin's word on the line, and a mirror that threw on
-    // one refusal cannot take down the write whose answer it was about.
-    const refusals = broadcast<Refused>("a refused write")
-    yield* provide(host, Ops, (plugin) => ({
-      reading: config.ops?.reading ?? Effect.succeed(null),
-      page: (request) => config.ops?.page(request) ?? Effect.fail(NOWHERE_TO_WRITE),
-      prop: (write) => config.ops?.prop(write) ?? Effect.fail(NOWHERE_TO_WRITE),
-      document: (file) => config.ops?.document(file) ?? Effect.fail(NOWHERE_TO_WRITE),
-      refused: refusals.listen(plugin),
+      // ...and NULL rather than never for the credential, because this one is
+      // asked per session and a caller has somewhere to put the absence: a root
+      // with no MCP face seats a session with no remaining write rule, which is
+      // the state it was already in ({@link PluginsConfig.ticketFor}).
+      ticket: (forbidden, writer) => config.ticketFor?.(forbidden, writer) ?? NO_TICKET,
     }))
 
     yield* provide(host, Bundle, () => ({ rank: config.rank ?? (() => 0) }))
+
+    // TWO READINGS ABOUT ONE PROVIDER, and the only lookup left in this file.
+    // {@link Served} carries the whole of why it is allowed to be one: MCP is a
+    // row that must stand up with no vault and cannot invert the arrow, and a
+    // component would take the row out of the roster. Per call, because the
+    // roster moves under a standing connection.
+    yield* provide(host, Served, (plugin) => ({
+      directory: () => readOffered(host, Directory, plugin),
+      gate: () => readOffered(host, Ops, plugin)?.gate,
+    }))
 
     // ...AND ONE LOCAL-STATE DOOR PER PLUGIN NAME, not per activation. The write chain
     // that orders a plugin's saves lives on the door, and this provision runs
@@ -1439,11 +1674,9 @@ export const openPlugins = (
       declared: wakes.read,
       offers: () => new Map([...offered].map(([key, owner]) => [key, owner.plugin])),
       serviceKeys: () => [...SERVICE_KEYS, ...[...offered.keys()].filter((key) => key.includes("."))].sort(),
+      browserKeys: () => [...browserKeys.read().keys()].sort(),
       changes: hostChanges(host),
       close: closeHost(host),
-      published: revisions.tell,
-      quiet: quieted.tell(undefined),
-      refused: refusals.tell,
     }
   })
 
@@ -1458,7 +1691,6 @@ export type {
   Refusal,
   Refused,
   Forbidden,
-  Seated,
   StdioServer,
   Wake,
 } from "./contract.ts"
@@ -1513,6 +1745,10 @@ export type { Registering } from "@olai/acp/engine"
  * naming that key would be reaching past a door it already has.
  */
 export const SERVICES = [
+  BundleModules,
+  Served,
+  VaultViews,
+  VaultSettings,
   Env,
   Clock,
   Vault,
@@ -1536,4 +1772,6 @@ export const SERVICE_KEYS: ReadonlyArray<string> = SERVICES.map((one) => one.cor
 
 /** THE SLOT CATALOG, from the one module both processes may open — see
  *  `./slots.ts` on why it is not `./browser.ts`'s any more. */
-export { SLOTS, type SlotKey } from "./slots.ts"
+export type { SlotKey } from "./slots.ts"
+
+export { HostLoading, openLoading, type Catalog, type OwnedLoader } from "./loading.ts"

@@ -1,41 +1,28 @@
 /**
- * The tool surface: everything an agent may do to a served directory, and
- * nothing else.
+ * THE GRAMMAR A TOOL IS BUILT IN — the four kinds, what each of them CARRIES,
+ * and the doors they reach. Not the list: that left.
  *
- * This is a CLOSED list, and what is missing from it is the design. There is no
- * shell, no grep, no listing of the DIRECTORY, and no read or write that names
- * a byte — the agent names a NODE, or (since `md-editing`) a whole DOCUMENT,
- * or (since `empty-trash`) a whole TRASH. The DOCUMENT is the closest this
- * list comes to file access and is deliberately not it: the four document
- * tools name a `.md` the SET serves and carry its text ENTIRELY —
- * `write_document` through the same plan → validate
- * → stage → rename → commit gate, `read_document` out of the same snapshot
- * every other read answers from — so there is no offset, no range, and nothing
- * for a caller to splice at either end. `list_documents` is that closure said
- * out loud: what an agent may read is what the served set holds, so the listing
- * IS the namespace and there is no directory walk under it.
+ * This file used to hold a closed `TOOLS` table as well, twenty-eight entries
+ * naming every verb an agent had. Two things were wrong with that and both were
+ * one thing: a GENERAL package spelled every row's vocabulary, and a row
+ * switched off left its verbs advertised — an engine is handed the table, so a
+ * serve without the search row still offered `search_nodes`, and one without a
+ * ledger still offered `git_commit`. The tables are the ROWS' now
+ * (juspay/olai#546): `olai-plugin-outlines`' `tools.ts` holds the node verbs,
+ * `olai-plugin-markdown`' the document ones, and so on for trash, files,
+ * search, capture and git. A tool leaves with the row that owns it, so
+ * switching a row off takes its verbs along.
  *
- * THE THIRD UNIT IS `empty_trash`'s, and HALF of what deletes: it names
- * `_olai/Trash.olai` the set already serves and empties it whole, so it is
- * the rule above read once more rather than an exception to it — a path the
- * listing already holds, every record in it or none, and nothing that could
- * name part of one. The FOURTH unit is `delete_file`, and it is the other
- * half: one FILE, gone. The pair is one sentence — RECORDS are destroyed by
- * emptying the pile that holds them, FILES by the verb that names one — and
- * the file arm is the one that cost the most to say honestly, because its
- * undo story is GIT's rather than the set's: `untrash_node` puts a record
- * back, and nothing spells a file back. What a `delete_file` call can refuse
- * YOU against is as long as what it can do, which is argued where the request
- * is declared ({@link ../../format/src/writing.ts}'s `DeleteRequest`) and said
- * again in the tool's own description, because the description is the agent's
- * only manual.
- *
- * The reads came late (`md-second-class`, the read half) and their absence was
- * not a policy: an agent could `create_document` a file it could never read
- * back, and `write_document`'s `was` — the conditional write that refuses to
- * land on words nobody saw — asked callers for text no tool of theirs could
- * fetch. A surface with a write and no read is not a narrow surface, it is a
- * broken one.
+ * WHAT DID NOT LEAVE IS THE ARGUMENT THE TABLES ARE WRITTEN AGAINST, because it
+ * is a fact about this layer rather than about any row. What an agent may name
+ * is a UNIT, and there are four of them: a NODE, a whole DOCUMENT (since
+ * `md-editing`), a whole TRASH (since `empty-trash`), and a whole FILE. There is
+ * no shell, no grep, no listing of the DIRECTORY, and no read or write that
+ * names a byte — no offset, no range, nothing for a caller to splice at either
+ * end. A listing is that closure said out loud: what an agent may read is what
+ * the served set holds, so the listing IS the namespace and there is no
+ * directory walk under it. A row that grows a fifth unit is making a decision
+ * this comment is the record of.
  *
  * Two consequences follow from the whole-text rule, and both were paid for:
  *
@@ -48,71 +35,48 @@
  *     validator's own rows as data, which is what lets the agent fix the one
  *     line that is wrong and the chat panel draw the report.
  *
+ * WHAT A ROW GETS FROM HERE is {@link Tool} and the four constructors that
+ * build one — {@link read}, {@link write}, {@link act}, {@link plan} — plus the
+ * three doors an entry may reach ({@link Asking}, {@link Acting},
+ * {@link Planning}) and the envelope {@link asking} builds the read half in.
  * Each entry carries its request schema, and the JSON Schema an agent sees is
- * DERIVED from it ({@link ./mcp.ts}) rather than written beside it. A READ
- * carries its reader too, in the same entry — so a tool the table declares and
- * nothing answers is a type error rather than a runtime throw, which is what
- * the dispatch switch this replaced could only discover when somebody called
- * it. One declaration, several uses, no second list to keep in step.
+ * DERIVED from it rather than written beside it. A READ carries its reader too,
+ * in the same entry — so a tool a table declares and nothing answers is a type
+ * error rather than a runtime throw, which is what the dispatch switch this
+ * replaced could only discover when somebody called it.
  *
  * And WHAT EACH ENTRY SAYS ABOUT ITS SCHEMA is checked against that schema, in
- * all three arms: a read's asker and an act's are handed the request the entry
+ * all four arms: a read's asker and an act's are handed the request the entry
  * names, a write's fixed field is a field of it, and a write's schema is an arm
- * of the vocabulary its own writer takes. None of that is written out here — it
- * is inferred from the one schema the entry already carries, so there is
- * nothing beside it to spell differently.
+ * of the vocabulary its own writer takes. None of that is written out at a call
+ * site — it is inferred from the one schema the entry already carries, so there
+ * is nothing beside it to spell differently. That relation is pinned in
+ * `./tools.test.ts`, which builds the five calls the constructors must refuse;
+ * that the reads really answer what they declare is pinned by the walk this
+ * package publishes as a harness ({@link ./tools.testlib.ts}) and every row
+ * with a read runs over its own table.
  */
 
 import { Effect, Result, Schema } from "effect"
 
 import {
-  AddRequest,
-  AfterRequest,
-  ApplyRequest,
-  TrashRequest,
-  DuplicateRequest,
-  EmptyRequest,
   CommitRequest,
   type CommitResult,
-  CreateDocumentRequest,
-  CreateRequest,
-  DateRequest,
-  DeleteRequest,
-  DescRequest,
+  isOpFailure,
   DocumentAnswer,
   DocumentBody,
   DocumentRequest,
-  LEGAL_FIELDS,
-  MARKS,
-  MarkRequest,
-  CaptureRequest,
-  captureInto,
-  capturingOf,
-  MergeRequest,
-  MirrorRequest,
-  MoveRequest,
   NodeAnswer,
   NodeRequest,
-  PropRequest,
   type OpFailure,
   OutlineAnswer,
   type PathsAnswer,
   type PushResult,
   type Reading,
-  REPEAT_GRAMMAR,
-  RepeatRequest,
   SearchAnswer,
   SearchRequest,
-  SeeRequest,
-  SplitRequest,
-  type Status,
   SubtreeAnswer,
   SubtreeRequest,
-  TitleRequest,
-  UntrashRequest,
-  UnmirrorRequest,
-  UpdateRequest,
-  WriteDocumentRequest,
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
@@ -206,7 +170,7 @@ interface Described {
  * the walks.
  */
 export interface Asking {
-  /** Every outline under the served directory — `list_outlines`. */
+  /** Every outline under the served directory — `outlines_index`. */
   readonly outlines: Effect.Effect<OutlineAnswer, OpFailure>
   /**
    * The outline PATHS of that same directory, and no tool at all: this is the
@@ -222,10 +186,10 @@ export interface Asking {
    * plan arm was built around.
    */
   readonly paths: Effect.Effect<PathsAnswer, OpFailure>
-  /** One node in full, or the id nothing here declares — `read_node`. */
+  /** One node in full, or the id nothing here declares — `outlines_read`. */
   readonly node: (request: NodeRequest) => Effect.Effect<NodeAnswer, OpFailure>
   /** A node and what hangs under it, nested — or a whole outline, every
-   *  top-level node in it. `read_subtree`, and the second of the two reads here
+   *  top-level node in it. `outlines_subtree`, and the second of the two reads here
    *  that can refuse from the walk itself: a `file` is a path, and a path that
    *  is not one is answered with the near miss. */
   readonly subtree: (
@@ -235,10 +199,10 @@ export interface Asking {
   readonly search: (
     request: SearchRequest,
   ) => Effect.Effect<SearchAnswer, OpFailure>
-  /** Every document under the served directory — `list_documents`. The other
+  /** Every document under the served directory — `markdown_index`. The other
    *  kind of file, listed the way the outlines are. */
   readonly documents: Effect.Effect<DocumentAnswer, OpFailure>
-  /** One document, whole — `read_document`. The only read here that REFUSES a
+  /** One document, whole — `markdown_read`. The only read here that REFUSES a
    *  miss instead of answering it: a path is not an id, and the useful answer
    *  to a typo is the near miss ({@link ./query.ts}). */
   readonly document: (
@@ -345,7 +309,7 @@ export interface Running {
 }
 
 /** The half of the ops layer a self-answering tool reaches. Named as an
- *  argument rather than imported as the whole `Ops`, so the table below stays a
+ *  argument rather than imported as the whole `Ops`, so a row's table stays a
  *  declaration of tools rather than a consumer of the writer. */
 export interface Acting {
   readonly commit: (request: CommitRequest) => Effect.Effect<CommitResult>
@@ -382,7 +346,7 @@ export interface Planning {
  * Three arms, and each CARRIES what answers it rather than leaving the
  * dispatcher to know: a READ answers from a snapshot and says how; an ACT
  * answers from the ops layer and says how; a WRITE names the part of the
- * request its own NAME already decides (`set_done` is `op: "done"`), so that
+ * request its own NAME already decides (`outlines_done` is `op: "done"`), so that
  * field never appears in the schema an agent fills in — and it is the one arm
  * carrying a value rather than a call, because every write is the same call.
  *
@@ -406,8 +370,11 @@ export type Tool =
      * comes back as `unknown` and its literal — the `outlines` envelope, the
      * `{ missing }` — is checked against nothing at all.
      *
-     * READ AT RUNTIME by `./tools.test.ts`, which walks the table, calls every
-     * reader over a maximal set and decodes each answer against this. That is
+     * READ AT RUNTIME by the walk this package publishes as a harness
+     * ({@link ./tools.testlib.ts}), which every row holding a read runs over its
+     * OWN table: it calls every reader over one maximal set — the same fixture
+     * in each package, because two copies of a maximal set is two things to keep
+     * maximal — and decodes each answer against this. That is
      * deliberately a test rather than an encode at the MCP seam: what is being
      * checked is that the declaration agrees with the producer, which is a
      * fact about the build, and an encode there would either drop a drifted
@@ -462,20 +429,90 @@ export type Tool =
       args: never,
     ) => Result.Result<Request, OpFailure>
   })
+  | (Described & {
+    /**
+     * THE ARM THAT REACHES A ROW'S OWN SURFACE, and the one that names no door
+     * of this package at all.
+     *
+     * The four above it each take one of the ops-layer doors — {@link Asking},
+     * {@link Running}, {@link Acting}, {@link Planning} — which is what made
+     * them expressible in a general package: every one of them is a question or
+     * a write about the SET, and the set is what `@olai/ops` is. A row whose
+     * verbs are about its own procedures has none of those. `olai-plugin-vault-plugins`
+     * is the case that forced it: `vault-plugins_inspect` reads the live registry,
+     * `vault-plugins_run` and `vault-plugins_stop` move a definition, and there is no arm
+     * above that can say any of it.
+     *
+     * They lived as three hand-written `BespokeTool`s inside `olai-plugin-mcp`
+     * until #546, with a name-to-member map beside them in a `catalog.ts` that
+     * decided when to advertise them. That was one row's vocabulary held by
+     * another row — the same duplication `TOOLS` was in a general package — and
+     * this arm is what let it go home.
+     *
+     * `client` IS THE CALLER'S, opaque here. A row narrows it to a
+     * `SurfaceClient` over its OWN spec, where the members are compiler-checked;
+     * this package cannot name that type without naming every row. It is the
+     * same erasure `Sibling.faces` and `Sibling.deps` take, for the same reason
+     * and at the same wall.
+     *
+     * `mutates` is SPELLED rather than derived. The other four arms answer it
+     * from their kind — a read does not, everything else does — and this arm
+     * cannot: `vault-plugins_inspect` is a read of the registry and `vault-plugins_run` is
+     * not, and both are the same kind here. It is what an MCP host draws as
+     * `readOnlyHint`, so guessing would mislabel one of them for a live agent.
+     */
+    readonly kind: "surface"
+    readonly mutates: boolean
+    readonly call: (client: never, args: never) => Effect.Effect<unknown, OpFailure>
+  })
 
-// ── reading ────────────────────────────────────────────────────────────
+/**
+ * A SURFACE CALL, NARROWED BACK TO THE FAILURES A TOOL MAY DECLARE — the rule
+ * every arm of {@link Tool} answers under, and the reason it lives beside the
+ * union rather than in the adapter that used to own it.
+ *
+ * It was private to `olai-plugin-mcp`'s `tools.ts` until the `surface` arm
+ * existed. That arm hands a ROW its own client and asks for
+ * `Effect<unknown, OpFailure>` back, so a row now has to apply this rule too —
+ * and a row spelling it again would be a second copy of a claim about a channel
+ * this package declares. `olai-plugin-vault-plugins`' three verbs are the first
+ * caller; the adapter is the second, unchanged.
+ *
+ * A member call, narrowed back to the failures the ops layer declares.
+ *
+ * Every call over a surface carries the framework's transport failure channel
+ * on top of the member's own — the socket died, the protocol could not decode —
+ * and the ops-layer interfaces do not have an arm for that, correctly: a
+ * transport death is not a refusal. It is a DEFECT here for the same reason
+ * `olai-plugin-mcp`'s `answer` catches nothing but `OpFailure`: dressing one up as a refusal
+ * would tell an agent to try something else about a condition that is not its
+ * fault, and the one thing an agent could do about a dead socket — dial again —
+ * the adapter already does for it before this is ever reached.
+ */
+export const landed = <A>(call: Effect.Effect<A, unknown>): Effect.Effect<A, OpFailure> =>
+  Effect.catch(
+    call,
+    (failure) => isOpFailure(failure) ? Effect.fail(failure) : Effect.die(failure),
+  )
+// ── asking nothing ─────────────────────────────────────────────────────
 
-/** A read asks NOTHING that is not on the floor either — the request schemas
- *  below are `@olai/format`'s, for the reason its `./reading.ts` argues: a
- *  question the agent's face asks and a question a wire spec would carry are one
- *  question, and two spellings of it are two spellings free to drift. The two
- *  LISTINGS ask nothing at all — a directory is not a question with parameters —
- *  and an empty struct is not a shape the floor would publish for either of
- *  them, so the one they share is declared here. `push` reads it too, for the
- *  same reason with the same nothing to ask. */
-const NoArgs = Schema.Struct({})
+/** A read asks NOTHING that is not on the floor either — the request schemas a
+ *  row's table names are `@olai/format`'s, for the reason its `./reading.ts`
+ *  argues: a question the agent's face asks and a question a wire spec would
+ *  carry are one question, and two spellings of it are two spellings free to
+ *  drift. The two LISTINGS ask nothing at all — a directory is not a question
+ *  with parameters — and an empty struct is not a shape the floor would publish
+ *  for either of them, so the one they share is declared here. `git_push` reads it
+ *  too, for the same reason with the same nothing to ask.
+ *
+ *  EXPORTED because the three that read it are now in three different rows —
+ *  `outlines_index` in outlines, `markdown_index` in markdown, `git_push` in git —
+ *  and three rows each spelling `Schema.Struct({})` is three empty structs free
+ *  to stop being the same one. It is grammar rather than vocabulary, so it stays
+ *  here with the constructors. */
+export const NoArgs = Schema.Struct({})
 
-// ── the list ───────────────────────────────────────────────────────────
+// ── the four constructors ──────────────────────────────────────────────
 
 /**
  * Both schemas, then the question between them.
@@ -499,8 +536,10 @@ const NoArgs = Schema.Struct({})
  * the one the tool advertises to an agent.
  *
  * A read whose asker names the wrong request now fails to COMPILE, which is the
- * one thing `./tools.test.ts`'s walk over the table cannot check — it is pinned
- * there instead, which is what the three constructors are exported for.
+ * one thing a walk over a row's table cannot check — a `Tool` erases every entry
+ * to `(asking, args: never)`. It is pinned in `./tools.test.ts` instead, against
+ * the constructors themselves, which is one of the two reasons they are
+ * exported; the other is that the rows build their tables with them.
  *
  * NOTHING IS ASSERTED HERE ANY MORE. Widening the asker onto the `Tool` arm's
  * `(asking, args: never)` used to need an `as`; tied to the schema it is a
@@ -533,17 +572,18 @@ export const read = <S extends Arguments, R>(
  * of the request this call already names, written out beside it. Typed as a
  * `Partial<S["Type"]>` the two have to agree, so `{ op: "creat" }` under
  * `CreateRequest` is a compile error rather than a tool that advertises
- * `create_outline` and asks the planner for a verb nothing has heard of.
+ * `files_create` and asks the planner for a verb nothing has heard of.
  * PARTIAL, and not narrower, because which fields a name decides is the tool's
  * own business — every write here fixes exactly its `op`, and one that fixed a
  * second field would be saying something true about itself.
  *
  * WHAT THAT DOES NOT REACH is a schema whose `op` is more than one literal:
  * `MarkRequest`'s is the format's whole `Status`, so this type is satisfied by
- * any of the three and cannot tell `set_done` from `set_todo`. Nothing here can
- * — the fact lives in the NAME — which is why the three are built by keying
- * both off one `mark` ({@link MARK_TOOLS}) rather than written out; that is a
- * construction holding them together, and this type is not a second one.
+ * any of the four and cannot tell `outlines_done` from `outlines_todo`. Nothing here can
+ * — the fact lives in the NAME — which is why the four are built by keying both
+ * off one `mark` (`olai-plugin-outlines`' `tools.ts`, `MARK_TOOLS`) rather than
+ * written out; that is a construction holding them together, and this type is
+ * not a second one.
  *
  * THE SCHEMA ITSELF is bounded by `Request`, the write vocabulary the planner
  * switches on. Every write is the same call — `Running.run` — so a table entry
@@ -562,7 +602,7 @@ export const write = <S extends Arguments & { readonly Type: Request }>(
 ): Tool => ({ name, title, description, schema, kind: "write", fixed })
 
 /** The act arm's constructor, inferring its `args` the way {@link read} does
- *  and for the same reason: what `commit` takes is `@olai/format`'s to say, and
+ *  and for the same reason: what `git_commit` takes is `@olai/format`'s to say, and
  *  saying it again here is a second spelling free to drift from the schema this
  *  same call advertises. */
 export const act = <S extends Arguments>(
@@ -578,6 +618,33 @@ export const act = <S extends Arguments>(
   schema,
   kind: "act",
   act: answer,
+})
+
+/**
+ * The surface arm's constructor, inferring its `args` the way {@link read} does
+ * and for the same reason.
+ *
+ * `C` is the ROW's client type and is inferred from the callback, so the row
+ * writes `calls("vault-plugins_run", …, schema, true, (client: Client, args) => …)`
+ * and gets its own members checked where it wrote them. Nothing about `C`
+ * survives into {@link Tool}, which is the point: a general package that could
+ * name one row's client could name them all.
+ */
+export const calls = <S extends Arguments, C>(
+  name: string,
+  title: string,
+  description: string,
+  schema: S,
+  mutates: boolean,
+  answer: (client: C, args: S["Type"]) => Effect.Effect<unknown, OpFailure>,
+): Tool => ({
+  name,
+  title,
+  description,
+  schema,
+  kind: "surface",
+  mutates,
+  call: answer as (client: never, args: never) => Effect.Effect<unknown, OpFailure>,
 })
 
 /** The plan arm's constructor, inferring its `args` the way {@link read} does
@@ -604,304 +671,4 @@ export const plan = <S extends Arguments>(
   plan: resolve,
 })
 
-/**
- * What each MARK's tool says. The prose is per mark — they refuse for
- * different reasons and mean different things — but WHICH marks there are is
- * not this table's to decide, which is what the spread below is for.
- */
-const MARK_TOOL = {
-  done: {
-    title: "Mark done",
-    description:
-      "Mark a node done, or undo that with `undo: true`. The mark RECORDS THE INSTANT it is made — a local ISO datetime with this machine's UTC offset, written for you — so the node appears on that day's journal page; there is no way here to write a bare `true` or to choose the day, and `set_date` is what schedules a node for one. Works on any node, children or not — a mark is a stored fact, never computed from what hangs below. Done-hidden hides a done node WITH its subtree, so this is a claim about the whole branch: it is REFUSED while the branch below holds a task that is not done, and the refusal names them (title, id and mark). Finish those first, or `set_cancelled` the ones that are not happening — a cancelled task settles and stands in nobody's way, and neither does an unmarked bullet. That is the ONLY thing that gates this verb: the `after` order does not, because finishing out of order is sometimes simply what happened. THE INSTANT ALSO CLOSES THE ROUND a `set_doing` stamp opened: its span banks into the record's `worked`, and `read_node` answers the whole of the work as `took`, in whole seconds — rounds summed, the pauses between them never counted. ONLY A LIVE ROUND BANKS: settle, undo, settle again — with no `set_doing` in between — and the second settle mints nothing (and buries the now-orphaned stamp), so no settle can ever count the same seconds twice. A round put down early — queued, or its start un-done — already banked at the peel, so this settle meeting no `doing` mints nothing either. The answer to this call is the write, not a report: a span is asked of a READING.",
-  },
-  cancelled: {
-    title: "Mark cancelled",
-    description:
-      "Mark a node as NOT HAPPENING, or undo that with `undo: true`. This is how work is called off: the thing was on the list, somebody decided against it, and that decision is now a stored fact rather than a row quietly going blank.\n\nIT RECORDS THE INSTANT, exactly as `set_done` does — a local ISO datetime with this machine's UTC offset, written for you — so the node appears on that day's journal page, struck through, labelled `cancelled`. That is the whole reason this is a mark and not `set_todo` with `undo: true`: clearing a mark leaves a bullet, which is a line nobody ever called work, carrying no instant and landing on no day. A month later the vault could not tell you that anything had been decided, let alone when.\n\nIT SETTLES, WHICH IS THE PART THAT CHANGES OTHER NODES. \"Not happening\" ends the wait exactly as finishing does: anything waiting on this node (`after`) is UNBLOCKED the moment the mark lands, this node stops being overdue and stops being counted in what a day owes, and a parent may be marked `done` over it — a cancelled child is not an unfinished task standing in the way. The two settling marks say different things and share exactly that one property; nobody is waiting on either.\n\nNOTHING IS REFUSED ABOUT THE BRANCH BELOW. Unlike `set_done`, this verb is not gated on what hangs under the node: cancelling a parent is a decision somebody is making now, and making them clear the branch bottom-up first is how a tool gets lied to. Nothing is hidden either — a cancelled row stays on the page with its subtree — so anything still unfinished under it stays visible, stays owed and goes on blocking. The answer's `nudge` NAMES those, so you know what is left standing; cancel them too if they are not happening either.\n\nA NODE THAT IS ALREADY DONE MUST BE UN-DONE FIRST, and one that is already cancelled must be un-cancelled before another mark: a settling mark carries an instant that is on a day's page, and nothing here overwrites one on your behalf. Works on any node, children or not. The call-off also BANKS THE ROUND: what a `started` under this node kept going until now is the time sunk, and it lands in `worked` exactly as a finished round does — the chip and `read_node` read the two settling marks the same way. And the rule is one rule: only a live `doing` opens a round — one queued or un-started already banked at the peel, its stamp gone with the `doing` — so a settle that found none mints nothing, whatever the stamp says.",
-  },
-  doing: {
-    title: "Mark doing",
-    description:
-      "Mark a node as under way, or undo that with `undo: true`. Stored as `true` and not dated, and a date written here by hand would place the node nowhere: the journal reads a node's `date` and its SETTLING instant only — a dated `done` or a dated `cancelled` — because the day work was picked up is a fact about the task rather than about the day. BUT STARTING IS STAMPED, beside the marks rather than on them — and EVERY start is stamped anew: this verb writes the instant now over whatever `started` says, because what came before this round is not this round's business. The round that came before is already BANKED: wherever it closed — at its settle, or at the peel that took the `doing` off — its span went into `worked`, so undoing the `done` and starting again opens a fresh round — the clock the row's chip reads counts `worked` plus this round alone, and the pause between two rounds is never counted as work. And undoing THIS mark, before any settle, closes its round at the peel: the span banks into `worked` and the stamp goes with the `doing`, because live minutes cannot sit on a record with nothing open. An undo that is never re-started leaves `worked` standing, because the work did happen. `read_node` answers all three: `worked` and `started` verbatim, and once the node SETTLES — `set_done` or, for the time sunk, `set_cancelled` — `took`, the whole of it in whole seconds, DERIVED AT READ TIME and carried by no write's answer. A todo→done JUMP banks nothing and is answered none — `created` is the node's age, never the work's start. A node that has already SETTLED must be undone first, whichever mark it carries: `done` because finished work is not un-finished on your behalf, `cancelled` because the instant it was called off at is on that day's page. THE ORDER IS A LAW FOR THIS VERB: a node whose `after` targets include a task nobody has settled cannot start, and the refusal names them — finish those, or CANCEL the ones that are not happening, or start what is ready. A `done` target clears the way and so does a `cancelled` one: nobody can finish work somebody has decided against, so it stands in nobody's way. `set_done` is not gated that way, because finishing out of order is sometimes simply what happened, and neither is `set_cancelled`, because calling work off is a decision rather than an instruction to start. Works on any node, children or not. IF AN ANCESTOR IS DONE, its `done` comes OFF — starting work under a branch somebody called finished says the branch is not finished; the write lands and the answer's `nudge` names every mark it took off. (A `cancelled` ancestor is left alone: nothing hides a cancelled row, so there is nothing for the arrival to repair.)",
-  },
-  todo: {
-    title: "Mark todo",
-    description:
-      "Mark a node as work that has not started, or undo that with `undo: true`. Stored as `true` and not dated, and a date written here by hand would place the node nowhere: the journal reads a node's `date` and its SETTLING instant only — a dated `done` or a dated `cancelled` — so `set_date` is what says which day a task is FOR. This is what makes a bullet a TASK: a node with no mark is not an unstarted task, it is not a task at all, so there is nothing to search for until someone says otherwise. THE ORDER IS NOT A LAW FOR THIS VERB — filing work is not starting it, and a blocked node must be able to stop claiming to be under way — and a LIVE round put back on the pile CLOSES there, at the peel: the span it had run banks into `worked` and the `started` goes with the `doing`, so the pause spent queued is nobody's work and the settle that lands later is an ordinary one — but a node that has already SETTLED must be undone first, whichever mark it carries: nothing walks a `done` or a `cancelled` back on your behalf, because each carries an instant that is on that day's journal page. Works on any node, children or not — a parent whose children are all notes is marked exactly like a leaf. IF AN ANCESTOR IS DONE, its `done` comes OFF — done-hiding would sweep this new task off the page with the branch, and a mark that has gone stale is not a reason to refuse work somebody is filing; the write lands and the answer's `nudge` names every mark it took off. (A `cancelled` ancestor is left alone: nothing hides a cancelled row, so there is nothing for the arrival to repair.)",
-  },
-} as const satisfies Record<Status, { readonly title: string; readonly description: string }>
 
-/** One tool per mark, keyed by the format's own list: written out one by one,
- *  a mark could be plannable, writable and derivable everywhere and still have
- *  no way for an agent to set it, silently. Keyed, that is a missing key. */
-const MARK_TOOLS: ReadonlyArray<Tool> = MARKS.map((mark) =>
-  write(
-    `set_${mark}`,
-    MARK_TOOL[mark].title,
-    MARK_TOOL[mark].description,
-    MarkRequest,
-    { op: mark },
-  )
-)
-
-export const TOOLS: ReadonlyArray<Tool> = [
-  // THE ONLY PLAN ARM, and the reason that arm exists. Every other write here
-  // is aimed by its arguments; a capture is aimed by a CONVENTION — the inbox
-  // this directory happens to keep, or the one that gets minted holding it —
-  // so the request cannot be known until the directory has been looked at.
-  //
-  // It was `POST /capture`, ~550 lines re-deriving for one verb what this table
-  // gives every verb: a body schema, an identity rule, a status table and its
-  // own writer. As one entry here it is instead the SAME verb an agent calls
-  // and the same one `olai surface capture` calls, under one name, with one
-  // schema and one attribution rule — which is what makes the CLI a client of
-  // this table rather than a second door onto the directory.
-  plan(
-    "capture",
-    "Capture a thought",
-    "Capture one line into this directory's inbox — the fastest way to get something out of your head and into the vault, from an agent or from a terminal. `title` is the row and `text` becomes its note; there is nothing else to say, which is the point. THERE IS NO WAY TO SAY WHERE: a capture lands at the top level of the inbox the directory has — `_olai/Inbox.olai` is minted when there is none — and where it really belongs is a decision made afterwards, in the app, which is what an inbox is for. It ARRIVES DATED, so it is on the day's journal page as well as in the inbox, which is the half a capture made while nobody was looking actually needs. And it is BORN `todo`: the Inbox door's badge counts the rows marked `todo` or `doing`, at any depth, and nothing else — an unmarked capture would be invisible to it. Date AND mark compose into DUE WORK, which is deliberate (ruled 2026-08-29): an away capture ticks that day's agenda, and shows overdue from the next morning until it is done or the date is struck. `captured-by` is written from the identity this door already has and there is no argument for it: a capture cannot say who made it.",
-    CaptureRequest,
-    (at, args) =>
-      Result.succeed(captureInto(at.paths, capturingOf(args, at.login, at.now()))),
-  ),
-  read(
-    "list_outlines",
-    "List outlines",
-    "Every outline under the served directory, with its top-level titles and how many nodes it holds. Start here: it is the map.\n\nA FILE THAT DID NOT PARSE IS A ROW TOO, and it carries `unreadable` — the reason, in the validator's own words — INSTEAD of a count and roots, because neither is known for a file that would not read. So a row is one shape or the other, never a count of zero standing in for an answer nobody has.\n\nTHREE FILENAMES IN IT MEAN SOMETHING, each by name and none by any field. An `_olai/Trash.olai` holds what was put away (`untrash_node` is the way back out). An `Inbox.olai` is where a line goes when nobody named a place for it: capture into whichever outline is called that — case-insensitively, shallowest first, then path order, so a directory keeping `notes/inbox.olai` gets its own file rather than a second one — and when this list holds none, `create_outline` `_olai/Inbox.olai`, seeded with the line, because `_olai/` is where olai puts the files it names itself rather than the reader's own top level. The web's ⌘K `+` resolves exactly that; doing it by hand here is the same two moves and lands in the same file.\n\nA `Pins.olai` is the SHELF the sidebar draws at the top of its directory column — the doors somebody keeps. Its TOP-LEVEL nodes are the pins, in `ord` order, and a pin is an ordinary node whose TITLE is an address the app would mint: `/#<id>` a node, `/<path>` a document or an outline (the suffix says which page it opens), `/d/<ISO>` a day, `/today`, `/agenda`, `/trash`, each optionally carrying `?q=<filter>` — which is how a saved query is pinned. Found the same way the inbox is (by name, case-insensitively, shallowest first) — but MINTED somewhere else: when this list holds none, `create_outline` `_olai/Pins.olai`, seeded with the address, because `_olai/` is where olai puts files it names itself rather than the reader's own top level. A shelf a directory already keeps anywhere is the one to use. So `add_node` into it pins, `move_node` reorders it, and `trash_node` unpins. A markdown link (`[what is late](/agenda?q=is%3Atodo)`) NAMES a pin; a bare address takes its name from whatever it points at, live, so nothing goes stale. A row in there that is not an address is not a pin and is simply not drawn.",
-    NoArgs,
-    OutlineAnswer,
-    (asking) => asking.outlines,
-  ),
-  read(
-    "search_nodes",
-    "Search the directory",
-    "Find nodes by title, id, `#tag` or note — and by what they ARE, with the operators `text` documents (`is:`, `has:`, `date:`, `created:`, `changed:`, `prop:`, and `-` to negate), plus `\"quoted phrases\"` and `OR`. `prop:` searches a node's custom properties: `prop:pr` finds every node carrying that key, `prop:agent=claude-opus` every node whose value is that. A key the vault DECLARES `int` or `date` in `_olai/Properties.olai` also takes a SPAN, in `date:`'s own syntax: `prop:records=190..200`, `prop:dispatched=2026-08-20..`. An `int` compares as a number; a range on any other key is REFUSED, naming what the key is. Results carry `file:line`, its ancestor titles, its parent's id (`parent`, absent at a root — `path` is titles, and a write takes the id) and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task. THE MARKS `is:` SELECTS ON ARE `is:done`, `is:cancelled`, `is:doing` and `is:todo`, with `is:marked` for any of them — so `is:marked -is:done -is:cancelled` is \"work, unsettled\" and `is:cancelled` is what was called off. `is:blocked` reads the ordering graph rather than a mark, and a SETTLED target blocks nothing: anything after a `done` or a `cancelled` node is free to start. A hit also carries the edges the node itself writes, when it has any: `see` (free cross-references) and `after` (what it must come after), which are the ids `set_see` and `set_after` remove by. AND IT CARRIES `custom`, the whole map, uncut — so selecting by one property answers with the others beside it and \"every lane with `pr=…`\" or \"every node with `source=…`\" is THIS CALL, not this call and a `read_node` per hit. Absent for a node carrying no property. WHY a hit is there is TWO fields, because both can be true of one: `matched` says which field carried the WORDS, and is ABSENT for a query that named none (`is:done` on its own); `matchedProps` lists the custom keys a `prop:` clause selected the node on, in the node's OWN spelling (the query is case-folded, the map is not), and is ABSENT for a query that named no property. A NEGATED clause names nothing there — a node found by `-prop:agent` was not found ON `agent`, it carries no such key — so `matchedProps` is only ever keys the node really has, and reads straight into the `custom` map beside it.\n\nASK FOR THE NOTES WITH `withDesc: true` and every node hit carries `desc`, its note, WHOLE — so \"read every bug with what was written under it\" is THIS CALL, not this call and a `read_node` per hit. It is OFF by default and that is the only field of a record you have to ask for: a note is unbounded prose where a title, a mark and a property are not, so a query that will not read one does not pay for twelve of them. Absent for a node that has no note, asked for or not. It carries no document's prose either way — a `.md` is one text, and `read_document` is how it is read.\n\nSCOPE IT when you know where to look: `file` is one outline, `under` is a node and everything beneath it. That is the same narrowing a person gets by filtering a zoomed page, which is why it is here — the two faces answer one question.\n\nIT ALSO FINDS DOCUMENTS. A hit is a node or a `.md`, and every one of them carries `at`, its ADDRESS — `#a1b2c3` for a node, `notes/plan.md` for a document — which is both where it goes and what tells the two apart. A document is looked for in four places that line up with a node's one for one: its TITLE (its first line, heading marks off), its PATH (what a node's id is — `2026-08-12` finds the day's note whose prose never says the date), the `#tag`/`@mention` in its prose, and the PROSE ITSELF, which is the half of this directory a search could not see before. A document hit carries no `file:line`, no `status` and no ancestors, because a document has none. `prop:` DOES select documents: a `.md` writes named facts about itself in YAML frontmatter — the `---` block at the top of the file — and those are the same open namespace a node's `custom` is, so `prop:pr` and `prop:agent=claude-opus` answer with both kinds in one ranked list. A document hit carries `props` (its whole frontmatter map, absent when it has none) and `matchedProps` (the keys the clause selected it on) exactly as a node hit carries `custom` and `matchedProps`. Values are TEXT or a list of text; a key whose value is a nested map, a block scalar or an anchor is not read and so is not a property the document carries. An operator over a field a document still does not have (`is:done`, `has:date`, `date:`, `created:`, `changed:`) selects NO document — there is nowhere on a `.md` to write a mark, and a file carries neither stamp — and a NEGATED one is satisfied, since a document is indeed not done. A frontmatter `date:` or `done:` is a PROPERTY named that, found by `prop:date` / `prop:done`, and never a day or a mark. A SCOPED query (`file`, `under`) selects no documents either: both are questions about where a record sits in a tree. Ask `kind: \"node\"` or `kind: \"document\"` for one of the two alone. The name of this tool is older than the answer; it searches the whole directory.",
-    // `@olai/format`'s, and so is what comes back — ONE declaration behind the
-    // JSON Schema this tool advertises and the wire shape the palette's
-    // `search.nodes` procedure carries, so the two faces cannot ask for
-    // different things or be told different ones. The operator prose above and
-    // the per-field prose in that schema are the same grammar described from
-    // the two ends a caller reads it from.
-    SearchRequest,
-    SearchAnswer,
-    (asking, args) => asking.search(args),
-  ),
-  read(
-    "read_node",
-    "Read a node",
-    "One node in full: its record, its `custom` properties (the named facts `set_prop` writes), its tags (`#topic` and `@person`, reported as written), its ancestors, its parent's id (`parent`, absent for a top-level root — `path` is titles, and every write that names a parent takes the id), its immediate children, and its mark when it carries one — a node with no `status` is not a task. `progress` counts how many of its child tasks are done, which is an annotation and nothing more. `worked` is the work already banked, in whole seconds — every round a live `doing` opened banked where it closed, at its settle or at the peel that took the `doing` off, so the pauses between rounds are never counted and no settle can bank one twice. `started` is the instant the CURRENT round opened (`set_doing` re-stamps it on every start), present exactly while the bank can still account for it — a settle that banked nothing buried it, a peel took it with the `doing` — and `took` is the whole of the work once the node SETTLES: the bank alone, or — on a record whose rounds all predate the bank — the settling instant minus `started`, in WHOLE SECONDS, derived rather than stored and ABSENT when there is no span to tell. A still-running node has no `took` yet: its live figure is `worked` plus now-minus-`started`, summed where the clock is, because the wire carries the instant and the bank, never a running duration. A todo→done jump banked nothing and started nothing, so it is answered none — `created` is the node's age, never the work's start. Its edges come too when it has them — `see` and `after`, the ids `set_see` / `set_after` take. The node itself is always answered whole — `fields` shapes the CHILD LIST, never the node.\n\nSHAPE THE CHILD ROWS WITH `fields`: the legal names are " +
-    LEGAL_FIELDS +
-    " — the record's own fields, `status` the derived mark, and `took` the one derived span admitted beside it, since per-step durations are the recurring ask this dial was born for. The id rides regardless, and whatever was not named is not there — the place and the ancestry included, which is the point: a timings ask is `fields: [\"title\", \"status\", \"took\"]`, and each step's row answers HOW LONG the work took directly — whole seconds, derived at read time and absent when there is no span to tell — rather than a `sed` against the file. (A PROPERTY named `took` is a different fact: `custom.took` is the caller's own text — \"4m\", a ledger somebody wrote — never the derived span, and a row asked both carries both.) Absent, the rows are the full situated ones of today — and the lists the node itself reads (`mirrors`, `placed`, `referencedBy`, `blockedBy`) are full situated rows either way: the dial is the child list's alone. A name that is not one of these is REFUSED, with the legal ones named in the sentence.\n\nTHIS IS ALSO WHERE MIRRORS ARE FOUND: a placement is not a node, so a search never returns one and `children` never lists one — you ask the node instead. `mirrors` is every placement OF this node — where else it is drawn, chains followed — and each entry's `id` is what `remove_mirror` takes, so a Now entry is retired by reading the ITEM that finished. `placed` is the other half: the placements UNDER this node, each with the node it shows — which is how you read a curated list (\"what is on Now?\") without knowing in advance what is on it. And `read_subtree` answers `placed` on every row of its walk — the same entry, with `shows` fully situated unless that walk named `fields`, in which case `shows` is the same projection the walk's own rows are.\n\nAND IT IS WHERE REFERENCES ARE READ BACKWARDS. Every reference in this format points one way on disk, so `referencedBy` is the only way to ask what TALKS ABOUT a node: each entry is a record whose `see` lands here (`ways: [\"see\"]`) or whose title or note writes this node's `@id` (`ways: [\"mention\"]`), or both. A placement is NOT one — that is `mirrors` above, a second view rather than a reference — and neither is an `after` or a `blocks`, which are the ordering graph and are read through `after` and `blockedBy` on the node itself. A referrer written in an `_olai/Trash.olai` is left out, as it is everywhere else. Absent when nothing refers to the node.\n\nAND IT SAYS WHETHER THE NODE CAN BE STARTED. `blockedBy` is what is standing in its way RIGHT NOW — each blocker situated like every other node here, with its title, its `file:line`, its ancestors and the mark it carries, which is always `todo` or `doing`. It is DERIVED, so it is not `after` read back: `after` is every target this record names, and this is which of them are still unfinished work. An edge written as `blocks` on the OTHER record counts, so a node carrying no `after` at all can be waiting; and a SETTLED target — `done`, or `cancelled`, since \"not happening\" ends the wait exactly as finishing does — a target with NO mark (a bullet is not work, so there is nothing under it to finish) and anything put away in an `_olai/Trash.olai` stand in nobody's way, so a node with three `after` ids can be blocked by none of them. Absent when nothing is in the way, which is nearly every node. This is the same answer `search_nodes`' `is:blocked` selects on and the same one the app dims a row with — one derivation, so what you are told and what a person sees cannot differ. `set_doing` reads those targets ONE STEP EARLIER and so is not this list's yes-or-no: a node with no mark shows nothing here, because nothing is telling a bullet it cannot start, and marking it `doing` is still refused while its `after` targets are unfinished — the refusal names them.",
-    NodeRequest,
-    NodeAnswer,
-    (asking, args) => asking.node(args),
-  ),
-  read(
-    "read_subtree",
-    "Read a subtree",
-    "A node and everything under it, nested. Says when it stopped at the depth it was given rather than at a leaf. Mirrors are not walked — a placement is a second view of a node rather than something hanging off this one — but they ARE NAMED: a node with placements under it carries `placed` on its row — the placement's own id (the one `remove_mirror` takes), where the mirror record sits, and `shows`, the node it stands for. Named, never expanded — the node you want is one `read_node` away. `shows` is fully situated when no `fields` were named, and the same projection as the walk's own rows when they were: the naming (the entry's id, `shows.id`) survives the dial; the place, the ancestry and the rest of a `Found` do not, which is the 51KB lane-walk the dial exists to end. So a curated list — a day board, a Now list — reads as WHAT IS ON IT rather than as empty: the one case where a walk's `children` comes back `[]` while the node is anything but.\n\nEACH NODE CARRIES `parent`, the parent node's id, absent for a top-level root — the same field `read_node` and a search hit answer, so a walk is also how you learn where a child sits for a write. `path` is titles; a write takes the id.\n\nAND THE NOTES ARE A DIAL, THE OTHER WAY FROM `search_nodes`. `withDesc` is ON by default: a targeted read usually wants the note. `withDesc: false` is the lean read for a table of contents — ids, titles, marks, props, structure only, per-node `truncated` unchanged. Depth bounds how many LEVELS come back; it does not bound how much PROSE each row carries, and notes dominate the cost. Ask without notes when the question is structural.\n\nOR SHAPE EVERY ROW WITH `fields` — the one parameter `read_node` takes, and the same legal names: " +
-    LEGAL_FIELDS +
-    ", with the id riding regardless. The names are the record's own, plus the two derivations with standing — `status`, and `took`: how long the work took, in whole seconds, derived at read time and absent with no span to tell — so the recurring timings ask is one field rather than the record's instants fetched per row to subtract. `depth` stays depth, and the walk's own keys — `children`, `truncated`, `placed` — are structure rather than fields, so a projection cannot drop the naming. What each child ROW carries, and what each `placed` entry's `shows` carries, still obeys `fields`; `truncated` is a flag and has no payload to shape — which is what changes what each row CARRIES, the answer a harness can actually READ IN FULL rather than spill to disk and grep. An ask without `fields` is the full rows of today, so a walk two fields wide is the caller's decision and never the walk's. Naming BOTH `fields` and `withDesc` is refused — one dial spelled twice, `desc` being a field now.\n\nOR A WHOLE OUTLINE, IN ONE CALL. Give `file` instead of `id` — a `.olai` path exactly as `list_outlines` lists it — and the answer is `{file, roots, placed?}`: EVERY top-level node in that outline, each walked to `depth`, in the order a reader sees them — the tree's own sibling order, which is what every `children` list here is in. (`list_outlines` names the same roots in the order the FILE writes them, which is the one place the two answers differ.) That is the read for \"what does this outline say\", and it is one call rather than one per root: `list_outlines` names the roots, this descends into all of them at once. Each root says its own `truncated`, so one can bottom out at a leaf while its neighbour is cut. A placement UNDER one of them is named on its row, exactly as under an `id` walk. A mirror at the TOP LEVEL is not a root — it is named on the answer as `placed`, because `{file, roots}` is the row a file has. A file whose top level is all mirrors answers `roots: []` with `placed` saying what is on it.\n\nGIVE ONE OF THE TWO. `id` and `file` are different reads and exactly one is required — naming both is refused, naming neither is refused, and each refusal says which is which. To narrow a QUERY to one outline, that is `search_nodes`' own `file` scope, not this.\n\nA `file` THAT IS NOT AN OUTLINE IS REFUSED, never answered empty: the closest path that is one comes back with it, or the list of them when nothing is close — the same near miss `read_document` gives for a `.md`. A file the directory holds but could NOT read is refused with the validator's own rows, because an outline that did not parse holds nothing this can answer with.",
-    SubtreeRequest,
-    SubtreeAnswer,
-    (asking, args) => asking.subtree(args),
-  ),
-  read(
-    "list_documents",
-    "List documents",
-    "Every document under the served directory — every `.md` the set serves — with the line it opens with, how big it is, and the named facts its frontmatter writes. The map for the other kind of file, exactly as `list_outlines` is the map for the outlines: enough to choose one, never the text of all of them.\n\n`title` IS DERIVED, NOT DECLARED. It is the document's first non-blank line with its heading marks taken off (`# Finishes` is a document called Finishes), because a `.md` has no record for a name to be written on — it is the same line the app draws under a node that attaches one. Empty for a document holding nothing. `bytes` is what its text weighs as UTF-8, which is what to decide with before asking for the whole of it.\n\n`props` is the YAML block at the top of the file — the same open map a `prop:` query answers with and a node's `custom` is. Omitted when the document wrote none, so a listing of files that have no frontmatter does not grow an empty map per row. Present, the keys are in the file's canonical order. A `date:` here is a property named date, not the journal's day; a `done:` is a property, not a mark.\n\nWHAT IS NOT IN IT is a `.html` the directory holds: the app shows those and the set keeps their path without their body, so there is nothing for `read_document` to answer about one and nothing here to measure. `document` is the same word `create_document` and `write_document` use, and this is the listing those two are read against — what is here is what they take.\n\nA FILE THE SET COULD NOT READ is still here, carrying `unreadable` — its own errors — INSTEAD of a title and a size, because neither is known for a file nobody read. So a row is one shape or the other, never an empty title standing in for a name nobody has. It carries no `props` either: nobody read the block.",
-    NoArgs,
-    DocumentAnswer,
-    (asking) => asking.documents,
-  ),
-  read(
-    "read_document",
-    "Read a document",
-    "One document, whole and verbatim: the text `write_document` would replace, out of the same snapshot every other read here answers from. `file` is a `.md` path exactly as `list_documents` lists it.\n\nREAD BEFORE YOU WRITE, and pass back what you read as `write_document`'s `was`. That makes the write CONDITIONAL: if the document changed since — another editor, a `git pull` — the write is refused instead of landing on top of words you have not seen. Reading, editing the text you were given and writing it back is the whole loop, and it is the only one there is: there is no offset and no line range at either end, because a document is one text.\n\nREFUSED, NOT ANSWERED EMPTY, when the path is not one. A path the set does not hold comes back with the closest one that does, in the same words `write_document` refuses a missing path in — one typo, one answer, whichever verb you typed it at. A `.html` is refused the same way: the set keeps its path and not its body. And a file the directory holds but could NOT read is refused with the validator's own rows, because handing back an empty text for a file that is not empty would be a lie an edit is then written against.\n\nMarkdown, stored exactly as on disk and interpreted only at view time. Nothing here parses it, and nothing about it is validated.",
-    DocumentRequest,
-    DocumentBody,
-    (asking, args) => asking.document(args),
-  ),
-
-  write(
-    "create_outline",
-    "Create an outline",
-    "Start a new outline file under the served directory. `file` is a relative `.olai` path (no absolute paths, no `..`); refused if that file already exists. This is how a brand-new outline is born: `add_node` only writes into outlines that are already loaded.\n\nSEED IT WITH EVERYTHING YOU ALREADY KNOW. `seed` is a whole capture — the same fields and the same nested `children` `add_node` takes — so a new outline and the dozen nodes in it are ONE call: one validation, one atomic write, one commit. A seed that is refused anywhere in its tree leaves NO file behind, which is why this beats creating an empty outline and filling it afterwards (that way, a refused second call leaves an empty outline nobody asked for). Create without a `seed` only when you genuinely do not know yet what goes in it; `add_node` fills it later, and takes the same `children`. A seed meets the same refusals a capture does, including the one that matters here: a node born `done` with an unfinished task born under it in the same call is refused, and no file is created.\n\nTWO FILENAMES ARE A CONVENTION rather than a choice, and both are minted under `_olai/` — where olai puts the files it names itself, rather than at the top level of somebody else's directory. `_olai/Inbox.olai` is where a captured line goes when the directory has no inbox yet, and `_olai/Pins.olai` is where a pin goes when it has no shelf (`list_outlines` says how to look for either one first, and how a directory that keeps its own elsewhere is found — the reading is by NAME, wherever the file sits, and only the mint is written here). Seed it with the line or the address — one call, so a refused write leaves no empty file behind.",
-    CreateRequest,
-    { op: "create" },
-  ),
-  write(
-    "add_node",
-    "Add a node",
-    "Capture a new node, and — with `children` — everything under it. Give `parent` to put it under a node, or `file` to put it at the top level of an *existing* outline. It goes last among its siblings unless `before` or `after` names one. To start a brand-new outline file, use `create_outline` — whose `seed` takes this same shape, so a new outline and its contents are one call.\n\nUSE `children` WHENEVER YOU ALREADY KNOW MORE THAN ONE NODE — rooms and what is in them, a plan and its steps, a page of notes. Thirteen nodes is ONE call rather than thirteen: one validation, one atomic write, one commit, and nothing is written unless all of it is. The answer names every node it made in `captured` (id and title), which is how you mark, note or capture under one of them afterwards.\n\nAND CAPTURE THE EDGES AND THE FACTS WITH THEM. Every node in the tree — the root and every child — may also carry `waitsOn` (what it must come after, `set_after`'s edges), `see` (free cross-references, `set_see`'s) and `props` (named facts, `set_prop`'s map, several keys at once). So a plan and the order its steps happen in is ONE call, not one call and nine `set_after`s: give each step a chosen `id` and name it from the step that waits on it. TARGETS MAY POINT FORWARD — a node may wait on a sibling declared LATER in the same call, or anywhere else in the tree, or on a node already in the set — because every id is claimed before any edge is read. It is `waitsOn` and not `after` for one reason worth knowing: at the top of a capture `after` already names the SIBLING this node is placed after. Writing `after` anywhere else in a capture is REFUSED, naming the word that works — it is not quietly dropped, because a dependency that vanished while the call reported success is the one outcome this surface will not produce.\n\nWHEN NOBODY NAMED A PLACE — a line to keep, with no parent it obviously belongs under — the `file` is the directory's INBOX rather than whichever outline you read last. `list_outlines` says how to find it, and `create_outline` mints one when there is none.\n\nCAPTURING UNDER A FINISHED BRANCH IS NOT REFUSED. If what arrives carries a `todo` or `doing` mark anywhere in it and an ancestor is `done`, that ancestor's mark comes OFF — done-hiding would have swept the capture off the page — and the answer's `nudge` names every mark it took off. What IS refused is a capture that contradicts itself: a node born `done` with an unfinished task born under it in the same call. The edges and the properties meet their own verbs' refusals, unchanged: an unknown `see` / `waitsOn` target is answered with the closest id that exists (the ids this call is minting included), an edge that would close a loop is refused NAMING the loop, a `props` key spelled like a field the format already has is turned toward the verb that writes that fact, and a `props` value that does not fit what its key DECLARES in `_olai/Properties.olai` is refused with the values it may hold named — the root and every child alike, since one bad value refuses the whole capture.",
-    AddRequest,
-    { op: "add" },
-  ),
-  write(
-    "update",
-    "Write several fields of one node",
-    "Write any of one node's fields in ONE call — `title`, `desc`, `date`, `repeat`, `props`, `after`, `mark` — instead of one call per field. Give the id and whichever fields you are changing; leave out the rest and they are untouched.\n\nUSE IT WHENEVER YOU ARE ABOUT TO SEND TWO WRITES ABOUT ONE NODE. \"Retitle it, note what you found, mark it done\" is one `update`, one validation, one atomic write and one revision — where three calls are three of each, and a refusal on the third leaves the first two on disk. Nothing lands unless all of it does.\n\nIT IS THE SINGLE VERBS, FOLDED — the same planner writes each field, so every refusal you would have met arrives word for word: a `props` key spelled like a field the format already has, an `after` target that does not exist (answered with the closest id), an edge that would close a loop (named as a loop), a mark on a node that already carries it, and the done-over-open-work gate refusing exactly as `set_done` does.\n\nTWO FIELDS BEHAVE DIFFERENTLY AND BOTH ON PURPOSE. `props` MERGES key by key — a key you do not name is left alone, `null` (or `\"\"`) removes the one you do — which is `set_prop` repeated. `after` REPLACES: the array you give is the node's whole `after` list, and `[]` clears it, because every other field here is that field's whole value. Read the node first if you mean to add one edge and keep the rest — or use `set_after`, which is the incremental verb and takes `add` / `remove`. It is `after` here and `waitsOn` on `add_node`, and that is one edge with two names for one reason: a capture's top level already spells `after` for the SIBLING a node is placed after, and this shape has no placement in it.\n\nIT TAKES `set_title`'s AND `set_desc`'s CONDITIONAL WRITE, per field: `was: {title, desc}` says what you expect those fields to hold right now, checked before anything is written and on every retry, so \"put back the note I just read\" is refused instead of landing on top of words you have not seen. Only those two: `set_prop` has a condition of its own now, but it is ONE key's — and `props` here is a key-by-key merge — so a `was` for `date`, `props` or `after` is a conditional form this surface does not have, and a `was` naming a field this call is not writing is refused rather than ignored.\n\nTHE FIELD ORDER IS FIXED and one pair of it bends: `repeat` is written after `date`, so scheduling a node and giving it a rule is one call — and when you are STOPPING a recurrence (`repeat: null`) the rule comes off FIRST, so `{date: null, repeat: null}` works too. A rule needs a date under it at every step, and this is the order that holds both ways.\n\nTHE MARK IS APPLIED LAST, after every other field, so it is judged against the node this call has finished making. Asking for `mark: \"doing\"` in the same call as an `after` edge on an unfinished task is therefore refused, as `set_doing` refuses it. `mark: null` takes off whatever mark the node carries — the one thing here that has no single-verb spelling, since `set_done`/`set_cancelled`/`set_doing`/`set_todo` each have to be told which mark they are undoing.\n\nFor several NODES, use `apply`.",
-    UpdateRequest,
-    { op: "update" },
-  ),
-  ...MARK_TOOLS,
-  write(
-    "set_title",
-    "Retitle a node",
-    "Replace a node's title. Inline tags live in the title — `#topic` and `@person` — so this is also how a tag is added or removed.",
-    TitleRequest,
-    { op: "title" },
-  ),
-  write(
-    "set_desc",
-    "Write a note",
-    "Replace a node's note (markdown, stored verbatim). `null` removes it.",
-    DescRequest,
-    { op: "desc" },
-  ),
-  write(
-    "set_date",
-    "Schedule a node",
-    "Set the node's ISO date, making it a scheduled node, or clear it with `null`.",
-    DateRequest,
-    { op: "date" },
-  ),
-  write(
-    "set_repeat",
-    "Make a node repeat",
-    "Give a dated node a REPEAT RULE — `set_repeat {id, repeat: \"every week on monday\"}` — or stop the recurrence with `null`.\n\nTHE GRAMMAR IS SMALL AND IT IS THE WHOLE GRAMMAR: " + REPEAT_GRAMMAR + ". Nothing else parses — no intervals (`every 2 weeks`), no end dates, no counts, no lists of days, no cron. The rule is stored as WORDS, so the file says out loud how the node repeats and a person reading the `.olai` needs no key to it. Reading is forgiving and writing is not: case does not matter, `mon` is `monday` and `every monday` is the same rule said shorter, and whichever you send lands as the grammar's own spelling — two files meaning the same thing must not differ byte for byte.\n\nIT NEEDS A `date`, which is what it repeats FROM: the rule says how often and the date says when the next one is. `set_repeat` on a node with no date is refused by the validator, naming the line — `set_date` first, or write both in one `update`.\n\nCOMPLETING THE NODE MAKES THE NEXT ONE. `set_done` on a node that repeats stamps the `done` instant as it always does AND captures a FRESH node at the next date — same title, same note, same rule, born `todo`, placed immediately after it — so the journal keeps every completion as its own record rather than one row whose date keeps moving. The answer names it in `captured`, and the `nudge` says the day it landed on. The rule TRAVELS to that new node and comes off the finished one: un-doing the `done` therefore spawns nothing when you re-do it, and the occurrence already made stays — it is owed whatever anybody says about the one before it.\n\nThe next date is one period after the node's OWN date, never after today: a chore finished three weeks late spawns the occurrence that was genuinely next, which may itself be overdue. Skip a backlog by clearing those nodes, not by asking the rule to catch up.",
-    RepeatRequest,
-    { op: "repeat" },
-  ),
-  write(
-    "set_prop",
-    "Set a property",
-    "Put a named FACT on a node — `set_prop {id, key, value}` — or take it off with `value: null`. Any key, holding any text: `pr`, `agent`, `stage`, `isbn`, `source`. Nothing gives a key a meaning and nothing parses the value; a URL is a string that looks like a URL.\n\nUSE IT FOR WHAT WOULD OTHERWISE BE PROSE NOBODY CAN QUERY. A note saying \"PR #176, running on claude-opus\" is a sentence every reader re-parses by eye; `pr` and `agent` as properties are the same two facts, and `search_nodes` finds every node carrying them (`prop:pr`, `prop:agent=claude-opus`). The note keeps the story — what was found, what was ruled, why — and the properties keep the facts.\n\nIT WRITES ONLY INSIDE `custom`, the record's one open field, and it structurally cannot touch anything else: a node's own facts are FIELDS, and those have their own verbs (`set_done`, `set_date`, `set_repeat`, `set_after`, `set_see`, `set_title`, `set_desc`). The one refusal here is about SHADOWING — a key spelled like a field the format already has (`done`, `doing`, `todo`, `cancelled`, `status`, `started`, `worked`, `date`, `see`, `after`, `id`, `title`, `created`, `changed`) is turned toward the verb that writes that fact, because a node saying `done` twice with two meanings is a node no reader can trust.\n\nA KEY THE VAULT DECLARES HAS A TYPE, and then the value is fenced. Declarations live in `_olai/Properties.olai` — one node per key, the title IS the key, the type in that node's own props, and an enum's variants are its children — so `merge` may be `auto` or `human` and nothing else, `records` is a whole number, `dispatched` is a date and nothing else, `brief` names a document this directory serves, `agent` names a node under a roster. A value that does not fit is REFUSED, with the values it may hold named and the closest one offered; the commentary that made it not fit belongs in the note. An accepted spelling is stored as the ONE canonical spelling: `2026-08-25 10:06` lands as the instant a mark records. A REF VALUE IS THE VARIANT'S ID, never its title, because names rename and ids do not. Typing is OPT-IN PER KEY — a key nothing declares is text and takes anything, which is nearly every key.\n\n`read_node` answers `custom`, so read before you overwrite: this replaces one key's value outright. Pass the value you read back as `was` to make the write CONDITIONAL — `null` expects the key to be absent, which is what an add is: if the key has moved since — another agent, a person's chip — the write is refused instead of landing on top of words you have not seen, and the answer names what the key says NOW, so you can read again. Omit `was` only when overwriting whatever is there is what you mean.",
-    PropRequest,
-    { op: "prop" },
-  ),
-  write(
-    "move_node",
-    "Move a node",
-    "Reparent, reorder, or move a node INTO ANOTHER OUTLINE — the node and everything under it, in one atomic write. `parent: null` puts it at top level; `file` names the outline it goes to, at top level; `before` / `after` place it among its new siblings. Landing a subtree that holds an unfinished task under a `done` ancestor takes that ancestor's mark OFF, as `set_todo` does: the answer's `nudge` names what it re-opened.\n\nCROSSING OUTLINES KEEPS EVERY ID, which is the whole of what makes it a move rather than a re-creation. Name a `parent` in another outline (the parent decides the file, exactly as on `add_node`) or a `file` for its top level, and the subtree arrives shaped as it left. Nothing has to be re-pointed: every `see`, `after`, `blocks`, `mirror` placement and typed `node` property aimed at the node — or at anything under it, from anywhere in the set — goes on resolving, because ids are unique across the whole directory and the node never left it. A PIN keeps working too: a pin's title is an ADDRESS, and a node address names the id, so even `/house.olai#install` goes on drawing the node after it has left `house.olai`. This is the same promise `trash_node` makes about the same journey. What you must NOT do instead is capture a copy under fresh ids and trash the original: an id is unique across the set INCLUDING the trash, so the copy cannot even reuse the ids, and every reference into what you moved detaches in silence.\n\nONE REFERENCE CAN BREAK, AND IT IS REFUSED RATHER THAN BROKEN: a property whose key is declared `ref` in `_olai/Properties.olai` asserts that its value is a child of that declaration's `under` root, not merely that the node exists (`node` is the kind that means existence). So moving the ROOT carries its variants and every `ref` still holds, while moving a VARIANT out of that root is refused `bad-prop` — naming the key and the values it may hold — with neither outline rewritten. Move the root, or re-point the properties first.\n\nNOTHING IS RE-STAMPED. Marks, dates, `created`, notes and properties travel untouched — moving is not editing — exactly as archiving carries a subtree. Only the record that moved records a `changed`, as it does for a move within one outline.\n\nTHE TRASH IS NEITHER END OF IT: `trash_node` is what puts a node into `_olai/Trash.olai` (recording the outline it left) and `untrash_node` is what takes it back out (tidying that record, and re-opening marks that stop being true once the branch is live again). Naming a trash here is refused toward whichever of those you meant. Reordering rows inside the trash is an ordinary move, since nothing crosses.\n\nREFUSED WHERE THE MOVE WOULD MAKE THE TREE DRAW ITSELF, and there are two ways in — both named with the chain they close. A parent that is one of this node's own descendants is the plain loop. The other runs through a PLACEMENT and is the one worth knowing about: everything this node DRAWS moves with it, so a branch holding a mirror (a Now list of live work) may not go under what that mirror shows, and a mirror itself may not go under its own target. That one crosses outlines even when the move does not, because drawing is how one node is shown in two files. It is the same rule `add_mirror` refuses a new placement by, asked of the record being moved.",
-    MoveRequest,
-    { op: "move" },
-  ),
-  write(
-    "split_node",
-    "Split a node in two",
-    "Cut one node into two siblings: `title` is what it KEEPS, `rest` is what comes off it as a brand-new node placed immediately after it. One op — one validation and one atomic write — because a `set_title` followed by an `add_node` can half-land, and both halves of the half are wrong: the tail written over an untouched head duplicates the sentence, and a truncated head with a refused tail loses what came off it.\n\nTWO TITLES, NEVER AN OFFSET. Nothing here names a character position — a position re-planned against a newer snapshot would cut somebody else's retitle in half, and no write in this table names a range into a field.\n\nEverything that DESCRIBED the node stays with the head: its children, note, mark, date and edges. The new node is born a bullet — no mark, so it is not an unstarted task until someone says so — and the answer's `id` names it. `merge_node` on that id is the exact inverse.",
-    SplitRequest,
-    { op: "split" },
-  ),
-  write(
-    "merge_node",
-    "Merge a node into the one above",
-    "Join a node into the sibling ABOVE it: the titles are concatenated with nothing between them, the notes are joined one blank line apart, the children MOVE to the end of that sibling's own — an arrival, so if any of them is unfinished work and that sibling (or something above it) is `done`, that mark comes off and the `nudge` names it — and the merged node's record goes to `_olai/Trash.olai` keeping its id. One op, because a retitle plus N reparentings plus a trash can stop in the middle and leave the outline saying something nobody wrote.\n\nTHE ROW ABOVE IS NOT AN ARGUMENT: which sibling that is is a fact about the set, read where the write is judged, so the request re-plans cleanly when something else writes first. Refused when the node is first among its siblings (there is nothing above it) or when the row above is a MIRROR (a placement has no title to merge into).\n\nWHAT DOES NOT SURVIVE ON THE PAGE: the merged node's mark, date and edges. The format allows one mark per node and the survivor already has its own answer, so they go with the record into the trash — nothing is destroyed, `untrash_node` brings it back with its id, and the answer's `nudge` says so whenever there was anything to say. What the merged node's own mark never does is reach the destination: only the children it hands over can re-open anything there (above), by the same rule `set_todo` and `move_node` follow.",
-    MergeRequest,
-    { op: "merge" },
-  ),
-  write(
-    "trash_node",
-    "Move a subtree to the Trash",
-    "Move a node and everything under it into `_olai/Trash.olai` — the one trash for the served directory — recording the outline it left as the outermost scaffold title, then the chain of ancestor titles it hung off. Ids move with the nodes, so mirrors and edges pointing at them keep resolving. This is the way OUT of a live outline, not a way between two: `move_node` takes a subtree to another outline, with the same promise about ids. Nothing is stamped: trashing is not finishing. What DOES change beyond the file is which readings draw it: a node put away is out of every date reading — no day page, no calendar day, nothing owed on the agenda — and out of a search unless the query says `is:trashed`. Its own dates and marks are untouched, and `untrash_node` is the way back.",
-    TrashRequest,
-    { op: "trash" },
-  ),
-  write(
-    "duplicate_node",
-    "Duplicate a subtree",
-    "Copy a node and everything under it, as the sibling immediately below it. One call, one write: the whole subtree lands or none of it does, however deep it goes — there is no nesting cap here, because nothing is being described (the op reads what is on disk).\n\nEVERY ID IN THE COPY IS FRESH, root and descendants alike, and that is the whole promise: the copy is a second thing, not a second claim on the first. The answer's `captured` names every node it made, parent before child, so you can mark, retitle or capture under one of them without a search — and `id` is the copy's root.\n\nEVERYTHING ELSE COMES ACROSS VERBATIM, THE MARKS INCLUDED: a `done` keeps the instant it was stamped at (so the copy lands on that day's page too), a `todo` stays a `todo`, and the date, the repeat rule, the note, the properties and the attached `doc` come with it. Nothing is re-stamped and nothing is cleared, because every alternative would invent a claim you did not make; the two fields that ARE the copy's own are `created` (now) and `changed` (absent), which are the ledger's rather than yours. Sweeping the copy's marks afterwards is an `apply`.\n\nWHAT THE COPY POINTS AT follows one rule with two halves. A reference INSIDE the subtree is re-aimed at the copy of what it named — a mirror placed under it, a `see` between two of its nodes, an `after` edge one of them waits on — so the copy is self-contained. A reference OUT of it keeps its target, which was never copied. A reference pointing INTO the subtree from OUTSIDE is not followed at all — the node that made it keeps it, aimed where it always was, because this call was not asked to touch that record. A mirror is copied as a MIRROR: the placement, not the identity, so a curated list inside the subtree still shows the same node rather than a twin of it.\n\nRefused on the id of a mirror (a placement is not a node — `add_mirror` places a second one), and on an id nothing declares, with the closest one that exists. Where the copy GOES is not a field: it lands beside the original, and `move_node` carries it elsewhere.",
-    DuplicateRequest,
-    { op: "duplicate" },
-  ),
-  write(
-    "untrash_node",
-    "Put a subtree back",
-    "Take a node and everything under it back OUT of `_olai/Trash.olai` — the inverse of `trash_node`. The subtree comes back intact with its ids, and it lands LAST among its new siblings (the trash does not record where in a row a node sat). Where it lands: by default the outermost scaffold title is the outline it came from, and the rest of the ancestor-title chain is matched inside that outline; the call is refused — naming what it found — when that file is gone or the chain matches nowhere or more than one place; give `parent` (it goes under that node) or `file` (top level of that outline) to decide instead. An ancestor the removal leaves empty in the trash is tidied away, provided it is the bare title scaffold `trash_node` wrote and nothing still names it. Work in the trash is over, so nothing in it is unfinished — and that exemption ends HERE, in both directions. A subtree holding a `todo` or `doing` that comes back under a `done` ancestor takes that ancestor's mark off; and any `done` INSIDE what comes back, standing over unfinished work in it, comes off too — those marks were true while the branch was over and are false the moment it is live again. The answer's `nudge` names every one of them. Nothing is refused: the trash is not a place you can edit a mark, so a refusal would strand the subtree there.",
-    UntrashRequest,
-    { op: "untrash" },
-  ),
-  write(
-    "empty_trash",
-    "Empty the trash",
-    "PERMANENTLY DELETE every record in `_olai/Trash.olai`. This is one of the two writes in this whole surface that destroys rather than moves — `delete_file` destroys FILES; this one destroys RECORDS — and the record's node-and-all story is the pile's: `trash_node` puts a node away, `untrash_node` is the way out of it, and this is what stops carrying the pile. What survives is whatever git had already recorded — the file is rewritten with no records in it, through the same gate and the same commit door as every other write — so a directory with no history, or one whose trash was never committed, keeps nothing.\n\nIT NAMES THE TRASH AND NEVER A NODE. There is no way here to delete ONE row out of the trash; the unit is the pile, exactly as a bin is emptied rather than picked through. Name `_olai/Trash.olai` (`list_outlines` says the files the set holds). A leftover `Archive.olai` is not the trash and is refused.\n\nREFUSED four ways, and the fourth is the one to plan around: an outline the set does not hold, an outline that is not the trash (nothing here deletes out of a live outline — `trash_node` is how a node leaves one), a trash that holds nothing, and — the important one — a record OUTSIDE the trash still pointing into it. Ids move with a node when it is put away, so a mirror, a `see` or an `after` written in a live outline goes on resolving at what was put away; deleting those records would leave it naming ids nothing declares. A PROPERTY COUNTS TOO where the vault declared its key `ref` or `node` in `_olai/Properties.olai` — such a value is a reference, and the refusal names it with the key as the field. The refusal names each such record with its `file:line` and the field it points with. Re-point or retire them, or `untrash_node` what they name back out, and call again. The `.md` a `doc` field named is a FILE and is never touched.\n\n`was` IS THE COUNT YOU EXPECT — optional, and worth sending whenever a number was shown to somebody. A write is re-planned against a newer snapshot when the store moves under it, and a re-plan of this one silently widens: a node put away in between goes too. With `was`, that is a refusal naming both counts instead.",
-    EmptyRequest,
-    { op: "empty" },
-  ),
-  write(
-    "set_see",
-    "Set see references",
-    "Add and/or remove free cross-references (`see`) on an existing node. `see` is a link and nothing more — no ordering, no blocking, cycles fine. Give `add` and/or `remove` (ids of targets in the loaded set); an unknown add is refused with the closest id that exists. Search and node reads carry a node's `see` so you can traverse what is already there. For \"this cannot start until that is done\", use `set_after` instead — that one is the ordering graph.",
-    SeeRequest,
-    { op: "see" },
-  ),
-  write(
-    "set_after",
-    "Set what a node waits on",
-    "Add and/or remove `after` edges on an existing node: the ids it must come AFTER. This is how a DEPENDENCY is written — `set_after(id: \"install\", add: [\"order\"])` says installing waits on ordering, and olai then draws `install` as blocked while `order` is an unfinished task. Say it from the waiting node: `a blocks b` is spelled as `b after a`, and the ops layer writes the arrow one way. A target with no mark blocks nothing (a bullet is not work — mark the node, or its branch, with `set_todo`/`set_doing`), and neither does one that has SETTLED: `done` and `cancelled` both end the wait, so anything after them is free to start. Unknown adds are refused with the closest id that exists, and an add that would close a loop is refused NAMING the loop, because nothing in a cycle could ever start first. Node reads carry a node's `after` so you can see what is already there before changing it.",
-    AfterRequest,
-    { op: "after" },
-  ),
-  write(
-    "add_mirror",
-    "Place a mirror",
-    "Show a node that already exists in a SECOND place, without moving or copying it. The record written is a placement — `{id, parent, ord, mirror}` and nothing else — so the mirror has no title, no mark and no note of its own: it draws its target's, wherever the target lives, and edits go on landing at the target. It may cross outlines (a `parent` is same-file, a mirror is how a node appears in another file at all), and its target may itself be a mirror.\n\nTHIS IS HOW A CURATED LIST IS BUILT — a Now/Focus section is mirrors of the items that are live, so the entry and the item can never drift apart the way a re-typed copy does. Place it with `parent` (under a node) or `file` (top level of an outline), `before`/`after` among the siblings there; give `id` to keep a naming convention (`now-<item>`), or let it be minted — the answer's `id` names the placement either way, and that is what retires it. Refused if the placement would sit inside the subtree it shows, which would expand forever.\n\nA PLACEMENT IS NOT CONTAINMENT, so this verb is not gated the way the ones that move work are: mirroring an unfinished task under a `done` branch is neither refused nor does it take that branch's mark off, because the work it draws keeps its own row where the node really lives and hiding a second view of something hides no work.",
-    MirrorRequest,
-    { op: "mirror" },
-  ),
-  write(
-    "remove_mirror",
-    "Retire a mirror",
-    "Take one placement out. `id` is the MIRROR's own id — the placement — never the id of the node it shows: what goes is that one line, and the node keeps its title, its mark, its children, its own place in the outline that defines it, and every other placement of it. So this is what retires a finished item from a Now list without touching the work: nothing is trashed, nothing is deleted, nothing is unsaid. Find the id with `read_node`: `mirrors` on the finished ITEM says where it is placed, and `placed` on the LIST says what is on it. Refused on the id of a regular node (`trash_node` is what puts a node and its subtree away), and refused while anything still names the placement — another mirror chained onto it, an edge written at it, or a property whose key the vault declared `ref` or `node` — naming what to re-point first.",
-    UnmirrorRequest,
-    { op: "unmirror" },
-  ),
-
-  write(
-    "create_document",
-    "Create a document",
-    "Start a new `.md` document under the served directory. `file` is a relative `.md` path (no absolute paths, no `..`, and nothing under a directory the serve's walk prunes — one starting with `.`, or `node_modules` — because a create there lands a file no reader can see); refused if that document already exists — `write_document` is what edits one, and the split is what keeps a typo from minting a file. `text` is what it is born holding; absent creates it empty. The new document joins the set on the write's own revision, so the sidebar and every open tab see it immediately, and the write lands and waits for `commit` like any other.\n\nTHE SUCCESS MEANS THE BYTES ARE THERE. After the write lands, the file is read back off the disk before the revision is answered, and a file holding anything but `text` is refused — with what the disk DOES hold, the revision it still published, and `write_document` as the way back (the file exists now, so a second create is refused).\n\nWHERE IT GOES IS A CONVENTION YOU READ, NOT ONE YOU PICK. This directory is somebody's vault and it already has a shape: look at `list_documents` before choosing a path, and put the new file where its neighbours are. That matters most for a DAY'S NOTE, whose name is the whole of what makes it one (a basename that is exactly an ISO date, `2026-08-13.md`): a vault keeping `Daily/2026/08/2026-08-12.md` wants `Daily/2026/08/2026-08-13.md`, and the same file at the root is a second convention nobody asked for. The web's calendar derives exactly that from the newest existing daily note; there is no separate op for it because the answer is a path, and this is the tool that takes one.",
-    CreateDocumentRequest,
-    { op: "create-doc" },
-  ),
-  write(
-    "write_document",
-    "Write a document",
-    "Replace a document's text, whole and verbatim. `file` names a `.md` the set already holds (refused with the closest path otherwise); `text` is the entire new content — markdown, stored exactly as given, interpreted only at view time, never validated. Read the document first (`read_document`) and pass what you read back as `was` to make the write CONDITIONAL: if the file has changed since — another editor, a `git pull` — the write is refused instead of landing on top of words you have not seen, and the answer says to read again. Omit `was` only when overwriting whatever is there is what you mean. The write lands on disk, reaches every open page on its own revision, and waits for `commit`. And the success is EARNED, not reported: the landed file is read back off the disk first, and one holding anything but `text` is refused — with what it holds, the revision it still published, and this same verb as the way back.",
-    WriteDocumentRequest,
-    { op: "doc" },
-  ),
-  write(
-    "delete_file",
-    "Delete a file",
-    "Remove ONE file entirely: a `.md` document of any content, or an `.olai` outline holding NO records. The file leaves the served directory, the sidebar and every live collection on the write's own revision, and waits for `commit` like any other write — which is also the undo story, the whole of it: there is no file-level trash in olai, and what survives a delete is whatever git had already recorded, because the write rides the same gate and the same commit door as every other. `untrash_node` puts a RECORD back; nothing spells a FILE back.\n\nREFUSED five ways, and each names what to settle first. An outline still carrying RECORDS is refused, naming them — this is a delete, not a move: `trash_node` is how a record leaves an outline, and what empties one entirely is nobody's verb to guess (nor is this the way to empty the TRASH — `empty_trash` is what deletes records, and its unit is the pile; name it, never a row). A DOCUMENT still NAMED is refused, naming the records that name it: a `doc` field, or the value of a key declared `doc` in `_olai/Properties.olai` — deleting under them would leave them pointing at nothing, which is the finding the validator would print on the next load, said early. A path the set does not hold is refused with the closest path it does. And a file the set could not READ — an outline whose lines did not parse, a document that would not open — is refused with the validator's own rows, because dropping bytes nobody has seen is not a delete, it is a loss.\n\nWHAT IS NOT SAID. A `.html`, `.csv`, picture or `.pdf` is a file olai only SHOWS and never writes — refused, however empty: it belongs to whatever put it there. A pin or shelf row into the file goes dead as an honest dead row (re-pinning is the fix), a markdown link into it is just a link that no longer opens, and a `path`-typed property PROMISES a shape and never an existence — so none of those is yours to settle first. Only a `doc` is: it promised its value names something served.\n\nNOT IN `apply`, with the other file verbs: each is already atomic over the thing it makes, and a mistyped path has no business in somebody else's transaction. There is no `was`: the path IS the condition — a delete of a file that is not exactly as asked is refused, which is the whole of what a conditional could add here.",
-    DeleteRequest,
-    { op: "delete" },
-  ),
-
-  write(
-    "apply",
-    "Run several ops as one write",
-    "Run a LIST of write ops as one write. Each entry is exactly what its own tool takes, plus the `op` tag that names the verb — `{\"op\":\"done\",\"id\":\"order\"}`, `{\"op\":\"prop\",\"id\":\"lane\",\"key\":\"pr\",\"value\":\"https://…\"}`, `{\"op\":\"move\",\"id\":\"x\",\"parent\":\"y\"}` — and they are applied in the order given. A `prop` op is `set_prop`'s WHOLE arm, the `was` included: the conditional write works inside a batch, and its refusal names the op that failed, nothing written.\n\nWHEN A FILE HOLDS SEVERAL VALUES A DECLARATION REFUSES, this is the repair: one batch that rewrites every bad value is one validated write and lands, where a single `set_prop` of one still leaves the others and the gate refuses the file. A type declaration itself refuses while any existing value does not fit, naming the offenders — fix them here, then declare.\n\nALL OR NOTHING. One validation, one atomic write, one revision, one pending row for the whole list. If any op is refused, NOTHING is written — the file on disk is byte for byte what it was — and the answer names which one: ``ops[3]`` and that verb's own refusal underneath it. That is the property you cannot build by looping: thirteen calls in a loop is thirteen revisions, and the seventh refusing leaves six landed with nothing to say which six.\n\nEACH OP SEES WHAT THE ONES BEFORE IT DID. Nothing touches the disk until the whole list is planned: each op is planned against the set the ops before it WOULD LEAVE, worked out in memory from their plans. So a later op may name a node an earlier one created (give it a chosen `id`), mark what an earlier one captured, or move what an earlier one retitled — and a `set_doing` after a `set_after` in the same list meets the same gate it would have met as two calls.\n\nWHEN TO REACH FOR IT, and when NOT to. Use it for several NODES at once: sweeping five lanes to done, retiring three mirrors off a Now list, reconciling a roadmap against what shipped. Do NOT use it to build a subtree — `add_node` already takes `children`, `waitsOn`, `see` and `props`, so a whole plan with its dependencies wired is one `add_node`, not a list of them. Do not use it for several fields of ONE node either: that is `update`, which says the same thing in a shape you cannot get an index wrong in.\n\nWHAT IS NOT IN IT: `create_outline`, `create_document`, `write_document`, `delete_file` — the writes whose subject is a FILE rather than a node. Each is already atomic over the thing it makes (a `create_outline` whose seed is refused leaves no file behind), and a mistyped path has no business being part of somebody else's transaction. And `apply` itself, because a batch of batches is one flat batch with an index nobody can name.\n\nThe answer carries `captured` — every node the whole run created, in order — and a `nudge` joining whatever the ops had to say.",
-    ApplyRequest,
-    { op: "apply" },
-  ),
-
-  act(
-    "commit",
-    "Commit what you changed",
-    "Record what is waiting in the repository as one git commit — the audit trail of what this tool wrote. Writes land on disk immediately and WAIT for this; nothing commits on your behalf. Call it when a train of thought is finished, not after every edit, and give `message` saying what the work was (`reconcile the roadmap with the #70-#81 merges`) — an omitted one is composed from what changed, which can only describe the edits and not why you made them.\n\nIT SWEEPS THE WHOLE REPOSITORY, not only the outlines: every file that differs from HEAD, including a `.md` or a source file a person edited by hand, and including anything untracked that `.gitignore` does not cover. What is waiting is the pending set: `outlines` with their node-level changes, `others` as paths with a status each, and `served` saying which part of the repository olai serves. Give `paths` (repository-root-relative, as pending lists them) to commit only some of it; what you leave out stays waiting for a commit and a message of its own. A path nothing is waiting on is refused rather than quietly skipped. A row that says `renamed` names both halves in `from`, and it is ONE path to give — the commit carries the side it came from with it.\n\nIt never touches git's index, so anything staged by hand is left exactly as it was, and it refuses while the repository is mid-merge, mid-rebase or on a detached HEAD.",
-    CommitRequest,
-    (ops, args) => ops.commit(args),
-  ),
-
-  act(
-    "push",
-    "Push what is recorded",
-    "Send the current branch to the upstream it already tracks. One verb and no arguments: no remote to pick, no refspec, never a force, and nothing that resolves a divergence — pending carries `unpushed` (the upstream's name and how many commits it is missing), and that is what this sends. Answers `NothingToPush` for a branch already in sync, and hands back git's own words verbatim when it refuses: authentication, a non-fast-forward, a branch with no upstream at all. Those are the terminal's business to resolve; report what git said rather than retrying.",
-    NoArgs,
-    (ops) => ops.push,
-  ),
-]

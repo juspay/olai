@@ -119,7 +119,7 @@ Feature: A `.html` in the vault
 
   @corpus:good
   Scenario: A `.html` is read, not written — there is no editor on its page
-    # `write_document` takes a `.md` and refuses anything else (`@olai/ops`),
+    # `markdown_write` takes a `.md` and refuses anything else (`@olai/ops`),
     # so an Edit control here would be a door onto a refusal. The document page
     # beside it still has one, which is what makes this an assertion about the
     # KIND rather than about the page having lost a button.
@@ -1741,7 +1741,7 @@ Feature: A `.html` in the vault
     # somewhere else. A page that re-arms its walk-off every time the markup is
     # restored gets a bounded number of tries and then the empty seal, so this
     # also says the answer terminates rather than ping-ponging forever.
-    Then the app is not loaded inside the preview
+    Then the preview exhausts its walk-off budget and becomes empty
     # …and the app around it is untouched, which is the half that was never at
     # risk and is asserted anyway, because that is what a probe is for.
     And the app's storage is untouched by the preview

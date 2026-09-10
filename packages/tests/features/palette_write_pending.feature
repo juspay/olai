@@ -7,7 +7,8 @@ Feature: Palette write responses belong to the interaction that sent them
     Then the pinned shelf holds "/#order"
     When I press the palette shortcut
     And I type "Unpin this page" into the palette
-    And I hold incoming updates to the original browser tab
+    Then the palette offers "Unpin this page"
+    When I hold incoming updates to the original browser tab
     And I press "Enter" without waiting
     And I press "Escape" without waiting
     Then the command palette is closed
@@ -25,7 +26,10 @@ Feature: Palette write responses belong to the interaction that sent them
     And I open the node "<node>"
     When I press the palette shortcut
     And I type "<command>" into the palette
-    And I hold incoming updates to the original browser tab
+    # The contextual command arrives with page metadata. Freeze only after
+    # the intended write is offered; typing alone does not make it available.
+    Then the palette offers "<command>"
+    When I hold incoming updates to the original browser tab
     And I press "Enter" without waiting
     And I press "Escape" without waiting
     Then the command palette is closed
@@ -50,7 +54,8 @@ Feature: Palette write responses belong to the interaction that sent them
     And I open the node "handles"
     When I press the palette shortcut
     And I type "Mark todo" into the palette
-    And I hold incoming updates to the original browser tab
+    Then the palette offers "Mark todo"
+    When I hold incoming updates to the original browser tab
     And I press "Enter" without waiting
     And I type "garden" into the palette
     And I release incoming updates to the original browser tab

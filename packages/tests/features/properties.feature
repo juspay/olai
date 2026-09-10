@@ -3,7 +3,7 @@
 Feature: Properties on a node, from the web
   A property is a named fact on a node — `pr`, `agent`, `isbn` — kept in the
   record's one open field, `custom` (docs/format.md). An agent writes one with
-  `set_prop`; this is the person's door onto the same op.
+  `outlines_prop`; this is the person's door onto the same op.
 
   They are read ON THE ROW, under its title, as a wrapping run of chips: the key
   small and muted, the value first-class. AUTO-SHOWN, whether the row is open or
@@ -285,7 +285,7 @@ Feature: Properties on a node, from the web
 
   Scenario: A chip whose key disappears under an open, typed editor is refused — the resurrect dies at the gate
     # THE FLIP the `was` lane was queued for — both reviewers' handoff flags
-    # ride here. The agent's `set_prop` DROPS the key while its editor is open
+    # ride here. The agent's `outlines_prop` DROPS the key while its editor is open
     # and typed; the drawer's chip is disposed, and the blur at that disposal
     # has no gesture and is byte-identical to a person's leaving — the record
     # is `null`, so the typed value is still committed (grok's axis 2: the
@@ -342,7 +342,7 @@ Feature: Properties on a node, from the web
   Scenario: A shadow custom key does not open an editor inside the system chip
     # pi's S2. `custom` is open all the way, so a hand-written record may carry
     # a custom `date` beside the FIELD of that name — a legal record that only
-    # `set_prop` refuses to MAKE. Both chips are drawn on the node's own page.
+    # `outlines_prop` refuses to MAKE. Both chips are drawn on the node's own page.
     Given I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
@@ -359,7 +359,7 @@ Feature: Properties on a node, from the web
     And there should be no page errors
 
   Scenario: A property holding a LIST is removed by clearing it
-    # pi's S3. `set_prop` writes text, so a list can only be hand-written — but
+    # pi's S3. `outlines_prop` writes text, so a list can only be hand-written — but
     # REMOVAL is exact whatever the key held, which is why the deleted menu
     # offered `Remove <key>` on a list and no `Edit <key>…`. Excluding the chip
     # took the removal away with the edit.
@@ -555,7 +555,7 @@ Feature: Properties on a node, from the web
   Scenario: The node's own facts have no entries in the menu
     # `order` carries a date, and the entry for it is `Change date…`. An
     # `Edit date…` beside it would be a second spelling of one write — and the
-    # one `set_prop` refuses by name.
+    # one `outlines_prop` refuses by name.
     When I open the node menu of "order"
     Then the node menu does not offer "Edit date…"
     And the node menu does not offer "Remove date"

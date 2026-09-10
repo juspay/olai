@@ -125,10 +125,20 @@ interface Reading {
  * `narrowing/get` is the STREAM it subscribes to instead, once per settled
  * query. Counted together, the column means one thing on both sides: how many
  * times this page asked what its filter selects.
+ *
+ * THREE of them since #546, and the third is the SAME member as the second
+ * under the name it answers to now. Nine rows kept a bare alias beside their
+ * own tag until that change, so a narrowed page asked `surface/narrowing/get`;
+ * outlines is the owner and it is `surface/outlines/narrowing/get`. Both stay
+ * listed for the reason the retired `search/matching` does — this driver
+ * measures a server from MASTER against one from a branch, and a list narrowed
+ * to what the branch emits would count the master run as zero and read the
+ * rename as a saving.
  */
 const MATCHER = [
   `"tag":"surface/search/matching"`,
   `"tag":"surface/narrowing/get"`,
+  `"tag":"surface/outlines/narrowing/get"`,
 ]
 
 /**

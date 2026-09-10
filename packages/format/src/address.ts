@@ -403,7 +403,7 @@ const LINKED = /^\[([^\]]*)\]\(([^()\s]+)\)$/
  * this, on opposite sides of a wire — the SERVER, resolving the `pin` a
  * browser sent into the row it adds to `Pins.olai`
  * (`@olai/server`'s `edit.ts`), and the BROWSER, renaming a pin that is
- * already up there with the `set_title` an agent would send
+ * already up there with the `outlines_title` an agent would send
  * (`@olai/web`'s `pins/naming.ts`). A title written one way and read another
  * is a row that stops being a door, which is the one failure a shelf cannot
  * show you.

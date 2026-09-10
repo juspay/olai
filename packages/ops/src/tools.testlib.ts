@@ -3,23 +3,28 @@
  * answers a read door gives over them.
  *
  * It was the top half of {@link ./tools.test.ts}, and it moved here when the
- * matcher became a row. That file's whole claim is that every read in
- * {@link TOOLS} answers the shape its own entry declares, over a fixture
- * MAXIMAL enough that the check is not vacuous — and one of the six reads is
- * now answered by a door core does not stand behind (`search_nodes`, through
- * {@link ../ops.ts}'s `Search`). So the walk is parameterised by that door and
- * run twice, in two packages:
+ * matcher became a row. The claim it carries is that every read answers the
+ * shape its own entry declares, over a fixture MAXIMAL enough that the check is
+ * not vacuous — the drift it exists against is
+ * https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/surface-mcp-positions.md,
+ * where a field dropped from a declaration still compiled at the one place it
+ * was produced and every consumer then encoded it away in silence.
  *
- *   - `./tools.test.ts` runs it with `NO_SEARCH`, which is what a serve minus
- *     the `search` row answers with: the decode still has to hold, and the
- *     refusal envelope is a shape somebody reads.
- *   - `olai-plugin-search`'s `tools.test.ts` runs it with the real matcher and
- *     keeps every assertion about what a hit carries — which is exactly where
- *     the drift this whole file exists against arrived from
- *     (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/surface-mcp-positions.md).
+ * IT IS PARAMETERISED TWICE NOW, and each parameter is a thing that left this
+ * package:
  *
- * A HARNESS rather than two copies of a fixture, because the two runs must be
- * the same walk over the same set or the second proves nothing about the first.
+ *   - the SEARCH DOOR, since the matcher became a row: `NO_SEARCH` is what a
+ *     serve minus that row answers with, and the real matcher is what reaches
+ *     the hit shapes at all;
+ *   - the TABLE, since #546 sent every tool out to the row that owns it. There
+ *     is no closed `TOOLS` here to walk, so a caller hands its OWN table:
+ *     `olai-plugin-outlines` walks the three node reads, `olai-plugin-markdown`
+ *     the two document ones, `olai-plugin-search` its one — each over this same
+ *     fixture and this same call list.
+ *
+ * A HARNESS rather than a copy per package, because those runs must be the same
+ * walk over the same set or the later ones prove nothing about the first. Two
+ * copies of a maximal fixture is two things to keep maximal.
  */
 
 import { NO_KINDS, type OutlineSet, type Reading } from "@olai/format"
@@ -27,7 +32,7 @@ import { Effect } from "effect"
 
 import { readingOf, setOf, steady } from "./fixtures.testlib.ts"
 import type { Search } from "./ops.ts"
-import { asking, type Tool, TOOLS } from "./tools.ts"
+import { asking, type Tool } from "./tools.ts"
 
 /** One house, and everything a read can carry: both marker kinds, a note, a
  *  date, both tag sigils, a placement with a parent and one without, a child
@@ -65,12 +70,22 @@ export const at = (): Reading => readingOf(EVERYTHING())
  * What each read is CALLED with, one entry per tool and several calls per
  * entry.
  *
- * Several, because a read's answer is not one shape: `read_node` answers a
+ * Several, because a read's answer is not one shape: `outlines_read` answers a
  * detail or the id it does not hold, a search answers hits or a refusal, and a
  * walk answers truncated or finished. Each of those is a decode of its own.
  */
+/**
+ * KEYED BY THE AGENT-VISIBLE NAME — `<row>_<verb>`, which is what a tool is
+ * called on the wire and in every doc.
+ *
+ * A row's own table declares the verb RELATIVE to the row (`list`, `read`), and
+ * composition puts the row in front (juspay/kolu#2234) — so `list` alone is
+ * three different reads here (`outlines_index`, `markdown_index`) and a flat map
+ * keyed by the declared word could not hold them. The walkers below take the
+ * row and compose the key, which is the same composition the served face makes.
+ */
 export const CALLS: Record<string, ReadonlyArray<unknown>> = {
-  list_outlines: [{}],
+  outlines_index: [{}],
   search_nodes: [
     { text: "hall" },
     { text: "is:open" },
@@ -80,7 +95,7 @@ export const CALLS: Record<string, ReadonlyArray<unknown>> = {
     // The one field of a record a hit does not carry unless it is asked for.
     { text: "House", withDesc: true },
   ],
-  read_node: [
+  outlines_read: [
     { id: "house" },
     { id: "paint" },
     { id: "shed" },
@@ -90,7 +105,7 @@ export const CALLS: Record<string, ReadonlyArray<unknown>> = {
   // All three arms of the answer: one node walked, the WHOLE outline walked,
   // and an id the set does not hold — and both walks SHAPED, since `fields`
   // joined the answer's union.
-  read_subtree: [
+  outlines_subtree: [
     { id: "house", depth: 1 },
     { id: "house" },
     { file: "house.olai" },
@@ -104,25 +119,75 @@ export const CALLS: Record<string, ReadonlyArray<unknown>> = {
     { id: "house", fields: ["title", "status", "done"] },
     { file: "house.olai", depth: 1, fields: ["title", "status", "custom"] },
   ],
-  list_documents: [{}],
+  markdown_index: [{}],
   // The reads that REFUSE are not called here: this walk decodes ANSWERS, and
-  // a refusal has none. What `read_document` says about a path the set does not
-  // hold — and what `read_subtree` says about one, and about a call naming both
+  // a refusal has none. What `markdown_read` says about a path the set does not
+  // hold — and what `outlines_subtree` says about one, and about a call naming both
   // ways in or neither — is the MCP face's own test and
   // `an_external_agent.feature`'s, where the refusal travels as a tool result
   // rather than being discharged by an `orDie` that would simply throw.
-  read_document: [{ file: "notes/finishes.md" }, { file: "plain.md" }],
+  markdown_read: [{ file: "notes/finishes.md" }, { file: "plain.md" }],
 }
 
-export const READS = TOOLS.filter((tool) => tool.kind === "read")
+/** The read arms of ONE ROW'S table — narrowed, so a caller gets `answers` and
+ *  `ask` rather than having to re-test the tag it just filtered on. It used to
+ *  be a constant over the one closed table; a row hands its own now. */
+export const readsOf = (tools: ReadonlyArray<Tool>) =>
+  tools.filter((tool) => tool.kind === "read")
 
 /**
- * ONE WALK OF THE TABLE, over one door — every read asked with every entry in
- * {@link CALLS}, grouped by the tool that answered.
+ * WHICH OF A ROW'S READS THIS HARNESS HAS NO CALLS FOR — the closure, and the
+ * reason {@link CALLS} is a lookup rather than a list: a read added to a row
+ * without a fixture here is a NAMED miss rather than a shape nothing checks.
+ *
+ * A row asserts this is empty. The other direction — a call list entry for a
+ * tool no row declares — is deliberately not checked, because no package can
+ * see every row's table and a check that only some rows could run is a check
+ * nobody runs.
+ */
+export const uncalled = (tools: ReadonlyArray<Tool>, row: string): ReadonlyArray<string> =>
+  readsOf(tools).map((tool) => tool.name).filter((name) => CALLS[`${row}_${name}`] === undefined)
+
+/**
+ * WHICH TOOLS DESCRIBE THEMSELVES WITH AN ESCAPED NEWLINE — over a row's whole
+ * table, because the way this breaks is per-description and silent.
+ *
+ * `markdown_index` and `markdown_read` shipped to review with `\\n\\n` in their
+ * descriptions: two characters, a backslash and an `n`, where every other entry
+ * has a real paragraph break. Nothing catches that. It compiles, the prose
+ * assertions elsewhere still pass (they look for words, not shape), and the only
+ * reader who ever sees it is the model reading `tools/list` — which gets
+ * `lists it.\n\nREAD BEFORE YOU WRITE` run together with a stray escape in the
+ * middle of it. These descriptions are long and structured, so the breaks are
+ * load-bearing: they are what separates "what this answers" from "what it
+ * refuses".
+ *
+ * A BACKSLASH-N IS NEVER RIGHT in one of these, so this is a flat ban rather
+ * than a count — and it covers a description written next year as readily as the
+ * two that provoked it. Titles too, which have no business holding a newline of
+ * either kind. It is here rather than in one test because the tables are the
+ * ROWS' now: every row runs the same ban over its own.
+ */
+export const escapedIn = (tools: ReadonlyArray<Tool>): ReadonlyArray<string> =>
+  tools
+    .filter((tool) => tool.description.includes("\\n") || tool.title.includes("\\n"))
+    .map((tool) => tool.name)
+
+/** How many REAL paragraph breaks one tool's description has — the other half of
+ *  {@link escapedIn}'s claim, since a description with neither spelling would
+ *  pass the ban by saying nothing. */
+export const paragraphsIn = (tools: ReadonlyArray<Tool>, name: string): number =>
+  (tools.find((tool) => tool.name === name)?.description.match(/\n\n/g) ?? []).length
+
+/**
+ * ONE WALK OF A ROW'S TABLE, over one door — every read asked with every entry
+ * in {@link CALLS}, grouped by the tool that answered.
  *
  * The door is the SAME `asking` the ops layer builds over its own gated read,
  * so what this walks is the envelope an agent actually receives and not a
- * `Query` call the envelope is made of.
+ * `Query` call the envelope is made of. It is built over the WHOLE fixture
+ * whichever row is walking, so a row's reads are asked against the same set
+ * every other row's are.
  *
  * ## Why the door is built ONCE, and why this is one function
  *
@@ -147,14 +212,14 @@ export const READS = TOOLS.filter((tool) => tool.kind === "read")
  * channel is discharged here rather than threaded through tests that have
  * nothing to say about it.
  */
-export const gaveOf = (search: Search) => {
+export const gaveOf = (search: Search, tools: ReadonlyArray<Tool>, row: string) => {
   const door = asking(Effect.sync(at), steady().now, NO_KINDS, search)
   const gave = new Map<string, ReadonlyArray<Record<string, unknown>>>()
-  for (const tool of READS) {
+  for (const tool of readsOf(tools)) {
     if (tool.kind !== "read") continue
     gave.set(
       tool.name,
-      (CALLS[tool.name] ?? []).map((args) =>
+      (CALLS[`${row}_${tool.name}`] ?? []).map((args) =>
         Effect.runSync(Effect.orDie(tool.ask(door, args as never))) as Record<string, unknown>
       ),
     )

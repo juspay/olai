@@ -11,9 +11,9 @@ import { mkdirSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { paletteCss } from "../../web/src/client/theme/css.ts"
-import { scaleCss } from "../../web/src/client/theme/scale.ts"
-import { sizeCss } from "../../web/src/client/theme/sizes.ts"
+import { paletteCss } from "@olai/appearance/css.ts"
+import { scaleCss } from "@olai/appearance/scale.ts"
+import { sizeCss } from "@olai/appearance/sizes.ts"
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const WEB = resolve(HERE, "../../web")

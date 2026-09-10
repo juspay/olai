@@ -13,33 +13,62 @@
  * WHAT IS PINNED: absence is a MISSING ROW, never quiet (a packaged olai
  * bakes the binary onto the server's PATH, so a resolve that finds nothing
  * names the command and says so, with no `where` — nothing was resolved);
- * an answer carrying the six verbs WITH `checkout` on every one is
+ * an answer carrying the six verbs, each with the key that AIMS it, is
  * the server a session gets (path pinned, args are `mcp`, env empty); a
- * missing VERB and a missing `checkout` are TWO sentences, because they are
+ * missing VERB and a missing aim are TWO sentences, because they are
  * two different fixes; a wedged server and a hung-up one are told apart by
  * which verdict comes back (`timedOut` against a fixture that reads and never
  * answers, `closed` against one that exits); and a paginated `tools/list`
  * arrives whole, because the loop that asks for the next page is the sort of
  * code that rots unexercised.
+ *
+ * AND WHAT THIS FILE CANNOT PIN, which is why it is not the only check on the
+ * shape. Every `odu` here is a script this file wrote, so the surface it
+ * answers with is whatever this file says it is — which is exactly what let a
+ * pin bump to an odu that had renamed every one of these verbs leave this
+ * suite green while the panel drew a missing row in every conversation.
+ * `just odu-surface` asks the SAME question of the binary the build actually
+ * bakes (scripts/check-odu-surface.ts); these cases pin the judgement, that
+ * one pins the pin.
  */
 
-import { spawn } from "node:child_process"
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { spawn, type ChildProcess } from "node:child_process"
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { afterEach, describe, expect, test } from "bun:test"
+import { Effect, Fiber } from "effect"
 
-import { askOver, ODU_COMMAND, probe, type Verdict } from "./probe.ts"
+import { askOver, ODU_COMMAND, type Probed, probing, type Verdict } from "./probe.ts"
+
+/** ONE WHOLE PROBE, over its own scope — which is what the child belongs to
+ *  now, so a probe that answers has already killed the `odu mcp` it asked.
+ *  The cases below read like the promise-shaped `probe` they were written
+ *  against; what changed is who owns the subprocess. */
+const probe = (env: Record<string, string | undefined>): Promise<Probed> =>
+  Effect.runPromise(Effect.scoped(probing(env)))
 
 /** Every directory this test made, removed after each case. */
 const made: Array<string> = []
+
+/** ...and every child this test spawned ITSELF — the two cases that ask
+ *  `askOver` directly start a wedged fixture with no probe around it, so
+ *  nothing else is going to kill them. They used to be one orphaned `odu`
+ *  apiece, per run of this file. */
+const started: Array<ChildProcess> = []
+const wedged = (): ChildProcess => {
+  const child = spawn(join(where, ODU_COMMAND), ["mcp"], { stdio: ["pipe", "pipe", "ignore"] })
+  started.push(child)
+  return child
+}
 
 /** WHERE THIS CASE'S `odu` IS — the PATH the probe is handed, never this
  *  process's own. */
 let where = ""
 
 afterEach(() => {
+  for (const child of started.splice(0)) child.kill()
   for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true })
   where = ""
 })
@@ -79,26 +108,48 @@ const answering = (answers: Record<number, unknown>): string => `
   })
 `
 
-/** One tool as odu's `tools/list` would carry it, with or without the shape
- *  this olai was written against. */
-const tool = (name: string, checkout = true): Record<string, unknown> => ({
+/** One tool as odu's `tools/list` would carry it, under the input keys named
+ *  — `aims` is the whole property set, so a case can hand over a verb aimed
+ *  by the wrong key as easily as one aimed by none. */
+const tool = (name: string, ...aims: ReadonlyArray<string>): Record<string, unknown> => ({
   name,
-  inputSchema: { type: "object", properties: checkout ? { checkout: { type: "string" } } : {} },
+  inputSchema: {
+    type: "object",
+    properties: Object.fromEntries(aims.map((key) => [key, { type: "string" }])),
+  },
 })
 
-/** The whole answer a build of the right shape gives on the second request. */
+/** The whole answer a build of the right shape gives on the second request —
+ *  the real spelling, as of juspay/odu#105: the directory verbs aimed by
+ *  `checkout`, the run verbs by a globally-resolvable `runId`. */
 const SURFACE = {
   tools: [
-    tool("run"),
-    tool("node_rerun"),
-    tool("node_cancel"),
-    tool("wait_for_settle"),
-    tool("lease"),
-    tool("release"),
+    tool("run_start", "checkout", "expectedSha", "requestId"),
+    tool("run_retry", "runId", "selector", "requestId"),
+    tool("run_cancel", "runId", "scope", "requestId"),
+    tool("run_wait", "runId", "after", "deadlineMs"),
+    tool("venue_hold", "checkout", "requestId"),
+    tool("venue_release", "checkout", "requestId"),
     // ...and the ones the shape ALSO carries, which the probe asks nothing of:
-    tool("lane_cancel"),
-    tool("cancel"),
-    tool("runs"),
+    tool("run_read", "runId"),
+    tool("log_read", "key"),
+    tool("pipeline_read", "checkout"),
+    tool("venue_probe"),
+  ],
+}
+
+/** The surface of an odu from BEFORE juspay/odu#105 — every capability there
+ *  under its old name. Kept as a fixture because "an older odu" is a real
+ *  thing a machine can have, and what it must draw is a sentence rather than
+ *  a conversation quietly holding tools that answer to nothing. */
+const SURFACE_BEFORE_105 = {
+  tools: [
+    tool("run", "checkout"),
+    tool("node_rerun", "checkout"),
+    tool("node_cancel", "checkout"),
+    tool("wait_for_settle", "checkout"),
+    tool("lease", "checkout"),
+    tool("release", "checkout"),
   ],
 }
 
@@ -149,21 +200,34 @@ describe("odu's mcp, asked for fresh", () => {
 
   test("an answer missing a VERB is a sentence naming which", async () => {
     oduOnPath(answering(handshake({
-      tools: [tool("run"), tool("node_rerun"), tool("wait_for_settle")],
+      tools: [tool("run_start", "checkout"), tool("run_retry", "runId"), tool("run_wait", "runId")],
     })))
     const found = await probe({ PATH: where })
     expect(found.server).toBeNull()
     expect(found.missing?.name).toBe("odu")
-    expect(found.missing?.why).toContain("`node_cancel`")
-    expect(found.missing?.why).toContain("`lease`")
+    expect(found.missing?.why).toContain("`run_cancel`")
+    expect(found.missing?.why).toContain("`venue_hold`")
     expect(found.missing?.why).toContain("needs an upgrade")
   })
 
-  test("a whole tool surface taking no `checkout` is the OTHER sentence — the one with a different fix", async () => {
+  test("an odu from BEFORE juspay/odu#105 is a missing-verb sentence, not a handover", async () => {
+    // THE CASE THE PIN BUMP TAUGHT, from the other side. Every capability is
+    // there under the name it had before #105 renamed the face — an odu that
+    // can genuinely run CI, and cannot be spoken to by this olai. What it must
+    // NOT do is answer close enough to be handed over.
+    oduOnPath(answering(handshake(SURFACE_BEFORE_105)))
+    const found = await probe({ PATH: where })
+    expect(found.server).toBeNull()
+    expect(found.missing?.why).toContain("`run_start`")
+    expect(found.missing?.why).toContain("`venue_release`")
+    expect(found.missing?.why).toContain("needs an upgrade")
+  })
+
+  test("a whole tool surface aimed by nothing is the OTHER sentence — the one with a different fix", async () => {
     // The dangerous half: this odu genuinely RUNS runs, and a conversation
     // spanning lanes would aim every one of them at olai's served root.
     oduOnPath(answering(handshake({
-      tools: SURFACE.tools.map((one) => tool(String(one["name"]), false)),
+      tools: SURFACE.tools.map((one) => tool(String(one["name"]))),
     })))
     const found = await probe({ PATH: where })
     expect(found.server).toBeNull()
@@ -171,21 +235,36 @@ describe("odu's mcp, asked for fresh", () => {
     expect(found.missing?.why).toContain("needs an upgrade")
   })
 
-  test("one tool without `checkout` refuses the whole surface — the run it could not aim is not named", async () => {
+  test("one directory verb without `checkout` refuses the whole surface — the run it could not aim is not named", async () => {
     oduOnPath(answering(handshake({
-      tools: [tool("run", false), tool("node_rerun"), tool("node_cancel"), tool("wait_for_settle"), tool("lease"), tool("release")],
+      tools: [tool("run_start", "expectedSha"), ...SURFACE.tools.slice(1)],
     })))
     const found = await probe({ PATH: where })
     expect(found.server).toBeNull()
-    expect(found.missing?.why).toContain("`run`")
+    expect(found.missing?.why).toContain("`run_start`")
+    expect(found.missing?.why).toContain("`checkout`")
   })
 
-  test("a newer odu shipping an extra tool without `checkout` is still handed over", async () => {
+  test("a run verb aimed by `checkout` instead of `runId` is refused too — aim is per verb", async () => {
+    // The regression the old blanket check could not have seen: this
+    // `run_wait` reads as aimed, and waits on whatever run the SERVER's own
+    // directory happens to hold rather than on the one the agent started in a
+    // lane. `runId` is global; a checkout is a guess about where you are.
+    oduOnPath(answering(handshake({
+      tools: [...SURFACE.tools.filter((one) => one["name"] !== "run_wait"), tool("run_wait", "checkout")],
+    })))
+    const found = await probe({ PATH: where })
+    expect(found.server).toBeNull()
+    expect(found.missing?.why).toContain("`run_wait`")
+    expect(found.missing?.why).toContain("`runId`")
+  })
+
+  test("a newer odu shipping an extra unaimed tool is still handed over", async () => {
     // Presence and aim are checked against the verbs a conversation is
     // promised, and nothing wider: a newer odu growing a tool this olai
     // does not aim is not a reason to refuse the six that do.
     oduOnPath(answering(handshake({
-      tools: [...SURFACE.tools, tool("future_verb", false)],
+      tools: [...SURFACE.tools, tool("future_verb")],
     })))
     const found = await probe({ PATH: where })
     expect(found.missing).toBeNull()
@@ -223,7 +302,7 @@ describe("odu's mcp, asked for fresh", () => {
       // The fixture reads forever and says nothing: the deadline is the only
       // thing that answers, and which answer it is carries the whole case.
       oduOnPath(`setInterval(() => {}, 1000)`)
-      const verdict = await askOver(spawn(join(where, ODU_COMMAND), ["mcp"], { stdio: ["pipe", "pipe", "ignore"] }), 100)
+      const verdict = await askOver(wedged(), 100)
       expect(verdict).toEqual({ _tag: "timedOut", deadlineMs: 100 })
     })
 
@@ -236,9 +315,57 @@ describe("odu's mcp, asked for fresh", () => {
 
     test("one that says something that is not JSON-RPC is `failed`, with the sentence", async () => {
       oduOnPath(`process.stdout.write("the bridge is up\\n"); setInterval(() => {}, 1000)`)
-      const verdict: Verdict = await askOver(spawn(join(where, ODU_COMMAND), ["mcp"], { stdio: ["pipe", "pipe", "ignore"] }), 1000)
+      const verdict: Verdict = await askOver(wedged(), 1000)
       expect(verdict._tag).toBe("failed")
       if (verdict._tag === "failed") expect(verdict.cause).toContain("not JSON-RPC")
     })
   })
+
+  test("a probe that is called off kills the `odu mcp` it started, without waiting out the deadline", async () => {
+    // THE CHILD IS THE ASKING'S, and this is what that buys. A conversation
+    // whose open is abandoned — the session goes away, the plugin stops —
+    // used to leave a wedged `odu mcp` running until the five-second deadline
+    // let the old `probe` reach its kill. Interrupting the ask closes its
+    // scope, and the scope is what holds the child.
+    const dir = mkdtempSync(join(tmpdir(), "olai-odu-"))
+    made.push(dir)
+    const pidFile = join(dir, "pid")
+    process.env["OLAI_ODU_PROBE_PID"] = pidFile
+    oduOnPath(`
+      require("node:fs").writeFileSync(process.env.OLAI_ODU_PROBE_PID, String(process.pid))
+      setInterval(() => {}, 1000)
+    `)
+    await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+      const asking = yield* Effect.forkChild(Effect.scoped(probing({ PATH: where })))
+      yield* Effect.promise(() => until(() => existsSync(pidFile)))
+      // IT RETURNS, which is half the claim: an ask parked in an
+      // uninterruptible wait would stand here for the whole deadline and this
+      // case would die on the runner's own timeout rather than on an
+      // expectation.
+      yield* Fiber.interrupt(asking)
+    })))
+    const pid = Number(readFileSync(pidFile, "utf8"))
+    expect(Number.isFinite(pid)).toBe(true)
+    await until(() => !alive(pid))
+    expect(alive(pid)).toBe(false)
+  })
 })
+
+/** Poll a fact into being, or give up — a budget well under the probe's own
+ *  five-second deadline, so a child that is only killed by the deadline fails
+ *  this rather than passing it slowly. */
+const until = async (fact: () => boolean): Promise<void> => {
+  for (let waited = 0; waited < 1_500 && !fact(); waited += 10) {
+    await new Promise((resume) => { setTimeout(resume, 10) })
+  }
+}
+
+/** Is that process still there? `signal 0` is the ask that sends nothing. */
+const alive = (pid: number): boolean => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}

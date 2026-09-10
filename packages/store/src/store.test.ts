@@ -1336,7 +1336,7 @@ test("a set that moved under the write is judged again", () =>
 // sorting first is not where the candidate had it. Same paths, same values,
 // different map — so the verdict may not be spent, and what publishes is what
 // the listing says. (This is the shape of the bug found on review: for olai's
-// codec the map's order IS the published file order, which `list_outlines`
+// codec the map's order IS the published file order, which `outlines_index`
 // answers with.)
 test("a new path that sorts to the front is judged again, in the listing's order", () =>
   withStore({ "b.txt": "beta" }, ({ store }) =>

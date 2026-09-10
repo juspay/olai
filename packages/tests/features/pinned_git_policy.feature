@@ -27,10 +27,17 @@ Feature: Git policy is the instance's, not this browser's
     Then the panel says these preferences are this browser's
     And there should be no page errors
 
+  Scenario: The git row always names the policy in force
+    When I open the plugins panel
+    Then the plugins panel shows "git" configured "commit" as "manual"
+    And the plugins panel shows "git" configured "push" as "off"
+    And there should be no page errors
+
   @pin:commit=auto
   Scenario: --commit=auto is the git row's config on the plugins panel
     When I open the plugins panel
     Then the plugins panel shows "git" configured "commit" as "auto"
+    And the plugins panel shows "git" configured "push" as "off"
     And there should be no page errors
 
   @pin:commit=auto @pin:push=off

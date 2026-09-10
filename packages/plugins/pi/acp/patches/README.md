@@ -70,7 +70,7 @@ Inside the bridge:
 - one SDK client per server, from `PI_ACP_MCP_SERVERS` — stdio entries by
   command, `http`/`sse` entries by url;
 - every listed tool `pi.registerTool`ed as `${server}_${tool}`, the name
-  olai's panel already reads (`olai_read_node`, `kolu_list_terminals`),
+  olai's panel already reads (`olai_outlines_read`, `kolu_list_terminals`),
   with the MCP `inputSchema` converted to the TypeBox `pi.registerTool`
   demands (`naming.js`'s `schemaToTypebox`, the way its tests assert);
 - a server that declines its attach says so in the transcript — spoken

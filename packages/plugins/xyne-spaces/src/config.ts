@@ -1,87 +1,38 @@
 /**
- * THE VAULT HALF of the Spaces mirror — a `xyne-channel` property on a
- * node agent.
+ * THE MIRROR'S CHANNELS, joined to another plugin's seating answer.
  *
- * Secrets stay in ENV (`OLAI_SPACES_URL`, `OLAI_SPACES_TOKEN`). Which
- * channel a conversation posts to is CONFIG, so it lives on the node that
- * IS the agent — the one carrying a binding — not in a sidecar file and not
- * on a session id that *fresh session* is allowed to throw away.
+ * Spaces owns `xyne-channel`, channel selection and reply trimming. It does
+ * not own which property seats a node or how the vault declares that property.
+ * The old import of chat's kind word made this file repeat that interpretation.
+ * Now the server asks `chat.seating` about the same derived snapshot whose
+ * channel properties are read below, and this function joins the two answers.
+ * A change to chat's binding grammar stays behind its service; a change to
+ * Spaces channel policy stays here.
  *
- *   chat-agent-session: claude:<session>
- *   xyne-channel:       <spaces channel id>
+ * The consumer mints a tag with the key and shape it expects. A tag declares
+ * a requirement; it does not provide a service or import its implementation.
+ * `server.ts` names it in `needs`, so a mirror with no seating provider is
+ * `waiting`, with no subscription or sibling registered. It is not a running
+ * mirror guessing that nobody is seated. Chat arriving activates it; chat
+ * leaving unwinds its registrations; chat returning runs its setup again.
+ * Already-posted messages are emissions and cannot be taken back by teardown.
  *
- * A node with the channel and no session yet is named intent (the pill
- * can fault on missing env) and posts nothing until a conversation is
- * bound. A conversation no node claims does not post. Trim is the
- * default; there is no second file of knobs.
- *
- * ## WHY THIS FILE NAMES ANOTHER PLUGIN'S WORD, and does not spell it
- *
- * The binding used to be `@olai/format`'s `AGENT_PROP`, a bare key core owned,
- * and this module re-exported it. It is a chat KIND now
- * (`olai-plugin-chat`'s `kinds.ts`), so the format spells nothing and the word
- * has to come from the plugin that teaches it: `olai-plugin-chat/binding`, a
- * door of two strings with an empty import graph.
- *
- * AN IMPORT AND NOT A COPY, which is the phase rather than a preference. *No
- * plugin consumes a plugin* was a rule of this tree and the Cordis proposal
- * retired it: `needs` is the dependency arm, it is REACTIVE, and the
- * half-wired state the ban feared is `waiting` — a legitimate, inspectable
- * state the runtime resolves or reports. This mirror is named in that section
- * as the first edge that needs it, and the edge is already real: this half
- * names `Watching`, which chat's row OFFERS, so it is `waiting` without chat
- * either way. A hand-copied constant would have bought nothing and could
- * silently disagree — one plugin renamed and this one goes on reading a column
- * no vault has.
- *
- * IT IS NOT A CLAIM, and could not be. A claim is the registry's, set equal to
- * the word the REGISTERING plugin's name composes, so this package declares
- * nothing about anybody's vault. What {@link SESSIONS} does is fold chat's
- * claim into a reading of THIS revision's declarations, which is what any
- * reader of a declared kind does — and it is that fold, not the constant, that
- * makes a vault's own migration row win over the claimed key here exactly as it
- * does in chat.
+ * Secrets remain in the environment. Channel intent belongs on the node,
+ * whose session may change: a seated node without a session is named intent
+ * and posts nothing, while a conversation no eligible node claims is ignored.
  */
+import { customText, isRegular, type Derived, type NodeAgent } from "@olai/format"
+import { serviceTag } from "@olai/plugin-api/services"
 
-import {
-  agentsIn,
-  customText,
-  declarationsOf,
-  isRegular,
-  type Derived,
-  type KindVocabulary,
-} from "@olai/format"
-import { SESSION_TYPE } from "olai-plugin-chat/binding"
+/** The mirror needs these seat fields, not the roster's memory counts. */
+export type Seats = ReadonlyArray<Pick<NodeAgent, "id" | "file" | "title" | "engine" | "session">>
 
-/** The property a node agent carries to name the Spaces channel. */
+/** Chat owns the reading and its vocabulary; the consumer names its contract. */
+export const Seating = serviceTag<{
+  readonly in: (derived: Derived) => Seats
+}>("chat.seating")
+
 export const CHANNEL_PROP = "xyne-channel"
-
-/** THE KIND A BINDING IS, re-exported so this package's own bench builds its
- *  fixtures under the same word the reading looks for — and so a reader of
- *  either finds one name rather than two. It is chat's, and the header argues
- *  why that is an import. */
-export { SESSION_TYPE }
-
-/**
- * ...AND THAT KIND AS A VOCABULARY, so the reading below sees chat's CLAIM
- * folded in exactly as every other reader of it does (`@olai/format`'s
- * `withClaims`, which is the one place precedence lives).
- *
- * BOTH HALVES ARE THE SAME TABLE, which is `olai-plugin-kolu`'s `ownKinds`
- * argument one plugin over: a Spaces mirror runs only where there are
- * conversations to mirror, so the kind is enabled wherever this reading happens.
- * `admits` is the widest predicate this side can honestly offer — the shape of a
- * binding value is chat's own reading, not this package's — and it decides
- * nothing here anyway: a value gate belongs to the serve that REGISTERED the
- * kind, and what this table is spent on is the fold.
- */
-const OWN = new Map([[SESSION_TYPE, {
-  kind: SESSION_TYPE,
-  takes: `\`${SESSION_TYPE}\` (an engine, optionally \`:\` and a session id)`,
-  admits: () => true,
-  claims: SESSION_TYPE,
-}]])
-const SESSIONS: KindVocabulary = { built: OWN, enabled: OWN }
 
 /** Default orchestrator-reply cap, the human's ruling. */
 export const DEFAULT_TRIM = 500
@@ -106,13 +57,12 @@ export interface SpacesReading {
 /**
  * What the vault says the mirror's knobs are, read off one revision.
  *
- * The roster is {@link agentsIn}, asked with this revision's declarations and
- * chat's word: put-away and mirrors are already out, and which COLUMN the
- * bindings are in is the vault's answer rather than a key spelled here. The
+ * The roster comes from the seating door: put-away and mirrors are already out.
+ * Which column holds bindings is the vault's answer rather than a key spelled here. The
  * channel is a second custom key on the same node. First claim wins where two
  * nodes name one session, the same rule as chat's own `agentAt`.
  */
-export const spacesConfigIn = (derived: Derived): SpacesReading => {
+export const spacesConfigIn = (derived: Derived, seated: Seats): SpacesReading => {
   const channelOf = new Map<string, string>()
   for (const located of derived.nodes) {
     if (!isRegular(located)) continue
@@ -124,7 +74,7 @@ export const spacesConfigIn = (derived: Derived): SpacesReading => {
   const named: Array<{ readonly node: string; readonly file: string }> = []
   const claimed = new Set<string>()
   const binds: Array<ChannelBind> = []
-  for (const agent of agentsIn(derived, declarationsOf(derived, SESSIONS), SESSION_TYPE)) {
+  for (const agent of seated) {
     const channel = channelOf.get(agent.id)
     if (channel === undefined) continue
     named.push({ node: agent.id, file: agent.file })

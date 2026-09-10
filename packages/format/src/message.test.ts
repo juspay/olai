@@ -151,7 +151,7 @@ describe("a message that also carries other files", () => {
  *
  * The design's own example — `olai: 11 edits to roadmap — outlines-collection
  * done` — named the ID, and read perfectly well, because every id in that
- * roadmap is a slug somebody chose. `add_node` MINTS one when the caller does
+ * roadmap is a slug somebody chose. `outlines_add` MINTS one when the caller does
  * not supply it, which is the ordinary case for an agent capturing nodes, and
  * the same subject then reads `olai: 2 edits to house — 1vax4izq created`. That
  * is a line in a permanent log that nobody can read and nobody can correct

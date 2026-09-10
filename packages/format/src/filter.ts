@@ -1077,7 +1077,7 @@ const propClause = (
  * arrived folded from the tokenizer, so the two spellings meet without either
  * side scanning. It used to fold the map per clause, which worked here and left
  * the WRITE side reading the map exactly — so `prop:PR` was a span while
- * `set_prop {"key":"PR"}` was untyped, the grammar and the gate disagreeing
+ * `outlines_prop {"key":"PR"}` was untyped, the grammar and the gate disagreeing
  * about one word. The fold now happens once, where the map is built.
  */
 const declaredKind = (
@@ -2189,7 +2189,7 @@ const being = (derived: Derived, at: LocatedRegular, value: IsValue): boolean =>
     // remaining record field unreadable from here in both directions. This is
     // the direction that has a subject: not "is this record a placement" but
     // "is this NODE drawn somewhere else", which is what a curated list puts on
-    // a node and what `read_node` already answers as `mirrors`. The index is
+    // a node and what `outlines_read` already answers as `mirrors`. The index is
     // the same one, so a query cannot find a placement that read does not
     // report, or miss one it does.
     case "mirrored":

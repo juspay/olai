@@ -33,11 +33,23 @@
 
 import type { Applied, Edit } from "@olai/surface"
 import type { OpFailure } from "@olai/format"
-import { Result } from "effect"
+import { type Effect, Result } from "effect"
+
+import { NO_EDITS, type EditWriters } from "@olai/plugin-api"
+import { heldService } from "@olai/ui-primitives/held.ts"
 
 import { runAsync } from "./run.ts"
-import { olai } from "./wire.ts"
-import type { Undo } from "./edit/undoing.ts"
+import type { Undo } from "@olai/edit-history/undoing.ts"
+
+/**
+ * HOW AN EDIT REACHES ITS ROW, with the real types on it.
+ *
+ * `Edits` is spelled structurally in `@olai/plugin-api` because that package
+ * may not import `@olai/surface` (which names it), so the `unknown` is cast
+ * once at each end. This is the reading end: everything below is typed, and a
+ * caller binds the service's `write` to this alias in one line.
+ */
+export type EditWriter = (edit: Edit) => Effect.Effect<Applied, unknown>
 
 /** What a verb has to say afterwards, in the two moods a write has: `alarm`
  *  for a refusal, which is why nothing happened, and `aside` for a remark
@@ -64,7 +76,22 @@ import type { Said } from "./saying.ts"
  * sat — and a `Put back` pressed in the Trash, whose inverse is the archive
  * again.
  */
-export const applying = async (
+/** The three, over one row's writer. `olai-plugin-outlines`' `browser/writes.ts`
+ *  is the worked example: one `writingWith` per activation, held for it. */
+export interface Writing {
+  readonly applying: (edit: Edit, record: Undo["record"]) => Promise<Said | undefined>
+  readonly applyingAll: (
+    edits: ReadonlyArray<Edit>,
+    record: Undo["record"],
+  ) => Promise<Said | undefined>
+  readonly applied: (
+    edit: Edit,
+    record: Undo["record"],
+  ) => Promise<Result.Result<Applied, OpFailure>>
+}
+
+export const writingWith = (write: EditWriter): Writing => {
+const applying = async (
   edit: Edit,
   record: Undo["record"],
 ): Promise<Said | undefined> => {
@@ -96,7 +123,7 @@ export const applying = async (
  * shown. What already landed stays landed, exactly as it would have if a person
  * had pressed the key once per row and stopped when it would not go.
  */
-export const applyingAll = async (
+const applyingAll = async (
   edits: ReadonlyArray<Edit>,
   record: Undo["record"],
 ): Promise<Said | undefined> => {
@@ -119,11 +146,55 @@ export const applyingAll = async (
  * reply. Recording is the same either way — which writes have an inverse is
  * the server's answer, filed here so no caller can forget to file it.
  */
-export const applied = async (
+const applied = async (
   edit: Edit,
   record: Undo["record"],
 ): Promise<Result.Result<Applied, OpFailure>> => {
-  const outcome = await runAsync(olai.procedures.edit.apply(edit))
+  const outcome = await runAsync(write(edit))
   if (Result.isSuccess(outcome)) record(outcome.success.undo)
   return outcome
+}
+
+  return { applying, applyingAll, applied }
+}
+
+/**
+ * ONE ROW'S BINDING OF THE APP'S EDIT TABLE — the hold its activation makes,
+ * the send over whatever it is holding, and the three sentences above.
+ *
+ * ## A factory, because six packages had the same ten lines
+ *
+ * Every row that spends an edit held `Edits` in a private module of its own,
+ * and those modules were byte-identical: mint a holder, bind a send over it,
+ * spread {@link writingWith}. What is per-package is WHICH activation holds
+ * the table — and a factory keeps exactly that while removing the copies.
+ * Calling it twice gives two holders, which is the rule
+ * `@olai/ui-primitives`' `heldService` and `@olai/plugin-api`'s `heldFaces`
+ * already keep.
+ *
+ * It also puts the two things that move on one schedule in one place: the
+ * shape of {@link writingWith} and the answer for a row that is not holding
+ * are this file's, and they used to be restated in six.
+ *
+ * ## The send resolves PER CALL
+ *
+ * A row that stopped and came back writes through the table it is holding
+ * NOW, and a face drawn with nothing held is refused in the words a verb whose
+ * provider left already got — rather than throwing inside a click handler.
+ * The cast is the one this file's header describes: `Edits` is spelled
+ * structurally in `@olai/plugin-api`, which may not name `@olai/surface`.
+ */
+export interface HeldWrites extends Writing {
+  /** Told by the row's `apply`, for that activation. */
+  readonly holdEdits: (table: EditWriters) => () => void
+  /** The raw send, for the one caller that needs the promise before it is
+   *  awaited: the row editor reserves its place on the undo stack while the
+   *  write is still in flight. */
+  readonly writeEdit: EditWriter
+}
+
+export const heldWrites = (): HeldWrites => {
+  const table = heldService<EditWriters>()
+  const writeEdit = ((edit) => (table.read() ?? NO_EDITS).write(edit)) as EditWriter
+  return { holdEdits: table.hold, writeEdit, ...writingWith(writeEdit) }
 }

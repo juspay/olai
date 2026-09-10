@@ -33,7 +33,6 @@ import {
   didYouMean,
   didYouMeanDeclared,
   isOutline,
-  isMirror,
   markdownIn,
   NotFoundFailure,
   type OpFailure,
@@ -47,44 +46,6 @@ import {
 import { Result } from "effect"
 
 import type { Asked } from "./asked.ts"
-import type { Fence, Outside } from "./fenced.ts"
-
-export const fenceRefusal = (
-  derived: Derived,
-  fence: Fence,
-  reached: Outside,
-): string => {
-  if (reached.why === "closed") {
-    return "this conversation has been reaped, so the door it was handed is closed and nothing may be written through it."
-  }
-  const under = fence.under as string
-  const at = derived.byId.get(under)
-  const seat = at === undefined || isMirror(at.node) ? undefined : at.node.title
-  const mine = seat === undefined ? `\`${under}\`` : `“${seat}” (\`${under}\`)`
-  const you = `you are the node agent for ${mine}, and your writes land at or under that node`
-  const above = fence.ask()
-  const then = above === null
-    ? ` There is no node agent above ${mine}, so say what you need in the panel.`
-    : ` Ask ${above}, the nearest node agent above you, to make this change.`
-  switch (reached.why) {
-    case "seat":
-      return `${mine} — the node you are the agent for — is not in the loaded set any more, so there is nothing this door may write.${then}`
-    case "record":
-      return `\`${reached.id}\` (“${reached.title}”, in \`${reached.file}\`) is not inside your subtree, so this write is refused: ${you}.${then}`
-    case "file":
-      return `\`${reached.path}\` is a file, and a file is inside nobody's subtree: ${you}.${then}`
-    case "document":
-      return `\`${reached.path}\` is a document, and a document is inside nobody's subtree: ${you}.${then}`
-    case "key":
-      // THE CLAUSE IS THE FENCE'S, carried on the ticket beside the key it is
-      // about (`./fenced.ts`'s `Fence.forbidden`). It used to be written here,
-      // in a general package, about a word a plugin owns; a second forbidden
-      // key — one that is a person's approval of code rather than a
-      // conversation's binding — is what made that one sentence untrue of half
-      // its subjects.
-      return `\`${reached.key}\` is a property this door may not write — ${reached.says}, on “${reached.title}” (\`${reached.id}\`) as anywhere else.${then}`
-  }
-}
 
 /**
  * An id nothing in the set declares — ONE refusal, whatever the id was doing.
@@ -122,7 +83,7 @@ export const notFound = (derived: Derived, id: string): OpFailure =>
  * Split out for exactly one caller ({@link ./plan.ts}'s `wiring`): a capture's
  * edges may name a sibling in the same call, so an id that is a typo of one of
  * THOSE has to be offered too. A second spelling of this refusal would be a
- * `see` target corrected one way by `set_see` and another by `add_node`.
+ * `see` target corrected one way by `outlines_see` and another by `outlines_add`.
  *
  * IT TAKES THE MAP, not the ids, and the extra candidates BESIDE it rather than
  * concatenated onto it — which is what lets the offer be answered off an index
@@ -171,7 +132,7 @@ export const notANode = (id: string, target: string): OpFailure =>
  * that can be handed one.
  *
  * {@link notFound}'s counterpart for the other thing an op can name. A
- * `write_document` and a `read_document` refuse the same miss, and each built
+ * `markdown_write` and a `markdown_read` refuse the same miss, and each built
  * the same near-miss list out of the same set and then wrote the same sentence
  * before this was one function: a caller who mistypes a path once should not
  * learn two different things about it depending on which verb the typo landed
@@ -259,7 +220,7 @@ const noSuchOutline = (asked: Asked, file: string): OpFailure => {
  * IT TAKES THE ASKING rather than the set, since `perf-batch-assemble`: what a
  * path holds is one of the three questions a planner used to ask the directory
  * per op, and the point of that node was that they are asked once and handed
- * over. A read holds no batch and no context to carry, so `read_subtree` builds
+ * over. A read holds no batch and no context to carry, so `outlines_subtree` builds
  * one for the call (`./query.ts`) — which costs nothing, because the answers
  * inside one are held with the set and computed only when somebody asks.
  */
@@ -296,8 +257,8 @@ export const notLoadedBecause = (file: string): string =>
  * like {@link noSuchDocument} and {@link noSuchOutline} beside it, over the one
  * thing that goes wrong with a path the set DOES hold.
  *
- * ONE SENTENCE FOR THE TWO READS THAT ANSWER A WHOLE FILE. `read_document` and
- * `read_subtree`'s `file` arm meet the identical fact with the identical
+ * ONE SENTENCE FOR THE TWO READS THAT ANSWER A WHOLE FILE. `markdown_read` and
+ * `outlines_subtree`'s `file` arm meet the identical fact with the identical
  * consequence — the file is there, nobody read what is in it, so there is
  * nothing to answer with — and answering either as an empty document or as an
  * outline holding nothing would be handing back a body nobody read. It is not

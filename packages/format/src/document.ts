@@ -241,7 +241,7 @@ export type Outline = typeof Outline.Type
  *
  * `bytes` is what the body WEIGHS as UTF-8 — remembered here at decode so a
  * listing does not re-encode every served `.md` to report a size
- * (`list_documents`, `@olai/ops`' `query.ts`). {@link ./documents.ts}'s
+ * (`markdown_index`, `@olai/ops`' `query.ts`). {@link ./documents.ts}'s
  * `bytesOf` is how it is measured; this is that answer given a field.
  *
  * `headings` is what makes a document ADDRESSABLE BELOW THE FILE, which is the
@@ -354,7 +354,7 @@ export const outlineDocument = (
     links,
     tags,
     // A FILE writes no properties of its own here: an outline's named facts
-    // are on its records, where `set_prop` puts them, and a `.olai` has no
+    // are on its records, where `outlines_prop` puts them, and a `.olai` has no
     // frontmatter to read. Empty because nothing wrote one, which is the same
     // sentence the unkept arm's empty `links` says.
     props: {},
@@ -428,7 +428,7 @@ export const bodiedDocument = (file: string, text: string | null): Markdown | Un
  *
  * The one question the wire asks of this sum — a published entry carries a
  * document's text, and `null` means "served, and its body is not here"
- * (`@olai/server`'s `published.ts`, which has the argument). It is a function
+ * (`@olai/surface`'s `projection.ts`, which has the argument). It is a function
  * rather than a field so that the arms stay honest: an unkept file has no
  * `body` to be `null`, it has no body.
  */
@@ -446,7 +446,7 @@ export const isOutline = (document: Document): document is Outline =>
  *  beside {@link isOutline} rather than spelled as an inline `kind` test at each
  *  of its two askers — the LIST of them ({@link ./set.ts}'s `bodiedIn`) and the
  *  ONE-FILE question a projection asks of a path it was handed (`@olai/server`'s
- *  `published.ts`) — because a list and a membership test that came to disagree
+ *  `@olai/surface`'s `projection.ts`) — because a list and a membership test that came to disagree
  *  would be a collection whose keys and whose deltas were about different files. */
 export const isBodied = (document: Document): document is Markdown | Unkept =>
   document.kind !== "outline"

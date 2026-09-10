@@ -59,7 +59,7 @@
  *   round it went;
  * - and the COUNT is checked, because `removed` is the weaker of the store's
  *   two lists: a departure a `resync` swallowed is in neither of them
- *   (`@olai/server`'s `published.ts` says so, and mints the remove the store
+ *   (`@olai/surface`'s `projection.ts` says so, and mints the remove the store
  *   could not name). An arrival is always named — a path with no cached stamp
  *   cannot be skipped — so a membership change the delta did not account for
  *   can only be a departure, and a departure always shows in the size. That
@@ -138,7 +138,7 @@ export interface PathSet {
  * WHICH PATHS A REVISION MOVED — the store's own diff, and the only part of a
  * snapshot this module reads.
  *
- * Named here rather than taken as a whole `Snapshot`, for `published.ts`'s
+ * Named here rather than taken as a whole `Snapshot`, for `@olai/surface`'s `projection.ts`'s
  * reason exactly: this package is the floor and may not learn the store's
  * types to read two arrays off a value. A `Snapshot` satisfies it by having
  * the fields.

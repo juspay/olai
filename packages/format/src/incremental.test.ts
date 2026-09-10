@@ -751,4 +751,6 @@ test("the narrowed verdict is the full verdict, over the real vault", () => {
   // walking the corpus anyway — this vault is a directory that VALIDATES, so
   // nearly every revision here is one the narrowing was really asked about.
   holds(report, { narrowed: 60, whole: 0, declined: { first: 1 } })
-})
+// This replays 120 revisions over the pinned real vault alongside other CI
+// workers. It checks equivalence, not a five-second performance budget.
+}, 20_000)

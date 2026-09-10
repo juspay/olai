@@ -11,7 +11,7 @@ Two facts, and they live in different places because one is a secret:
 - **`$OLAI_SPACES_URL`** and **`$OLAI_SPACES_TOKEN`** in the environment — the Spaces origin and the installed app's JWT. The human reuses the existing "kolu" Spaces app, so the bot's name in-channel is kolu. That is accepted. These are secrets; they are never written to the vault.
 - **`xyne-channel` on a node agent** — the conversation→channel bind. The node is the identity (`agent-session`); the session is cattle. There is no `_olai/XyneSpaces.olai`.
 
-**Off by default.** Omitting `--plugins` runs the default bundle; this plugin stays off until the flag names it (`--plugins=chat,claude,xyne-spaces`, or listed with the others). A Spaces app JWT is a secret this machine may not have, and a pill in every bar for an integration nobody pointed at is the wrong default.
+**Off by default.** Omitting `--plugins` runs the default bundle; this plugin stays off until a flag names it. `--extra-plugins=xyne-spaces` is the flag that does that without listing everything else; `--plugins=vault,chat,claude,xyne-spaces,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector` is the exact set, and turns off every row it does not name. A Spaces app JWT is a secret this machine may not have, and a pill in every bar for an integration nobody pointed at is the wrong default.
 
 No env and no `xyne-channel` → the plugin is honestly **absent**, not broken. A node agent with `xyne-channel` and no env is a **fault**, not absent: the user named a channel and this process cannot post. The pill is loud and names the missing env; the first bound conversation is told once.
 
@@ -22,6 +22,8 @@ Beside the connection pill in the header is a readout with three states rather t
 - `● xyne fault` in the alarm colour — a post was refused, or a channel is bound and the env is missing, and the tip names **which**.
 
 The third is why the readout is not a boolean. *Nothing was ever configured* and *a channel is bound but the process has no app* have opposite loudness, and a fault reported as absent would hide the bind the user already wrote.
+
+The mirror declares `chat.seating` in `needs`, alongside its delivery and conversation subscriptions. Chat owns the seating reading and respects the vault’s property declarations. Turning chat off leaves the mirror waiting with `chat.seating` named; turning it on restores the mirror automatically. No plugin package imports another plugin.
 
 ## The binding
 
@@ -63,3 +65,5 @@ A refused post, and a bind whose process has no Spaces app, are said **once** in
 - **No inbound.** A message in the Spaces channel, an @mention, a DM, a slash command or a button click does not reach this olai. That is phase 2.
 - **No live test in CI.** The suite pins request shapes against a fake Spaces. Deploying against the real instance is the human's, before merge.
 - **No picker.** The prototypes showed a channel picker on the chat strip; this slice ships the `xyne-channel` property on the node agent.
+
+The seating service supplies node, file, title, engine and session; roster-only details such as memory counts are outside the mirror’s contract. Channel policy tests supply those answers directly, while chat’s own tests cover how vault declarations become seats.

@@ -117,7 +117,7 @@ import { dirOf, folded, type Folded, matchFiles, nameOf } from "@olai/web/client
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
 import { QUIET_PILL } from "@olai/web/client/pill.ts"
-import { useServed } from "@olai/web/client/served.tsx"
+import { useServed } from "../vault.ts"
 import { TESTID } from "../../testids.ts"
 import { olai } from "@olai/web/client/wire.ts"
 import { scopable } from "./scopable.ts"
@@ -210,7 +210,7 @@ export function Wake(props: { readonly chat: Chat }) {
     props.chat.scope(at.agent, at.session, plugin, file)
   }
   return (
-    <Show when={rows().length > 0 && to() !== undefined && props.chat.state().bound === null}>
+    <Show when={rows().length > 0 && to() !== undefined}>
       <section
         // `relative` is the picker's containing block: the list hangs from
         // this strip's box the way the sessions list hangs from the header's.

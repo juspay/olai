@@ -40,10 +40,11 @@ Feature: A restored node recovers its complete conversation history
     And the panel is in the remembered conversation "historical"
     When I ask the agent "history continued after restoration"
     Then the agent has answered "history continued after restoration" exactly once
-    When I ask the agent "done outside-recovery"
+    When I show the done nodes
+    And I ask the agent "done outside-recovery"
     Then the agent is idle
-    And the chat shows a refusal
-    And node "outside-recovery" is not done
+    And node "outside-recovery" is done
+    And the chat shows no refusal
     When I open the session picker
     And I return to the node agent's current session
     Then the panel is in the remembered conversation "current"

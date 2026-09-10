@@ -25,6 +25,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { Then, When } from "@cucumber/cucumber";
 
+import { isoDayOf } from "@olai/web/testlib";
+
 import {
   attr,
   PLUGINS_APPROVE,
@@ -45,7 +47,7 @@ const DEFINITION = "swatch.olai";
  *  carries — the same way a person finds it and the same way `--plugins` would
  *  name it if it were a built row. */
 const blockFor = (world: OlaiWorld, plugin: string) =>
-  world.page.locator(`${PLUGINS_PANEL} ${PLUGINS_SOURCE}${attr("data-plugin", plugin)}`);
+  world.pluginsPanel().locator(`${PLUGINS_SOURCE}${attr("data-plugin", plugin)}`);
 
 Then(
   "the plugins panel shows the source of {string}",
@@ -63,6 +65,29 @@ Then(
 );
 
 /**
+ * ...AND A DEFINITION THAT IS ONLY A SERVER HALF, which is a whole plugin.
+ *
+ * `browser.tsx` is optional — a plugin that only teaches the vault a word, or
+ * only rings a doorbell, draws nothing — and the ABSENCE is asserted beside the
+ * presence because a block that quietly drew an empty second half would be the
+ * panel inventing a file the author did not write, in the one place a person is
+ * being asked to say yes to what they can see.
+ */
+Then(
+  "the plugins panel shows only the server half of {string}",
+  async function (this: OlaiWorld, plugin: string) {
+    const block = blockFor(this, plugin);
+    await block.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const said = await block.innerText();
+    assert.ok(said.includes("server.ts"), `the block for "${plugin}" draws no server half:\n${said}`);
+    assert.ok(
+      !said.includes("browser.tsx"),
+      `the block for "${plugin}" draws a browser half it does not have:\n${said}`,
+    );
+  },
+);
+
+/**
  * SAY YES TO IT, the way a person does.
  *
  * `Approve this version` rather than `Approve always`, because the version is
@@ -70,7 +95,13 @@ Then(
  * somebody iterating with an agent and is a different claim.
  */
 When("I approve the plugin {string}", async function (this: OlaiWorld, plugin: string) {
-  await this.press(blockFor(this, plugin).locator(PLUGINS_APPROVE));
+  await this.showPluginRow(plugin);
+  const block = blockFor(this, plugin);
+  await block.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  if ((await block.getAttribute("open")) === null) {
+    await this.press(block.locator("summary"));
+  }
+  await this.press(block.locator(PLUGINS_APPROVE));
 });
 
 /** ...and the press that arms them again after the definition moved under the
@@ -184,12 +215,54 @@ Then("that swatch is round", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+/**
+ * NO CHIP, and it is a WAIT rather than a count read once.
+ *
+ * The claim is unchanged — nothing a plugin nobody has approved drew may be on
+ * the page — but the moment it becomes true is not the moment the PANEL says so.
+ * Every use of this step but the first is asked across a transition (an edit put
+ * the row back to pending; a provider left and took its consumer with it), and
+ * the two halves travel by different routes: the row's own sentence is the
+ * panel's, while the chip goes when the roster republishes, the tab redials and
+ * the tree is built again. A count read on the frame the sentence arrived in was
+ * therefore asking a question whose answer was still in flight, and CI answered
+ * it with `1 !== 0` on a loaded shard. (Phase 12c reached the same conclusion
+ * from the other end, and the two changes met in a merge.)
+ *
+ * The first use — before anybody has approved anything — is unaffected: the
+ * count is zero already and the wait returns on its first pass.
+ */
 Then("no row wears a swatch", async function (this: OlaiWorld) {
-  assert.strictEqual(
-    await this.page.locator("[data-swatch]").count(),
-    0,
-    "a swatch is drawn by a plugin nobody has approved",
+  await this.waitUntil(
+    async () => (await this.page.locator("[data-swatch]").count()) === 0,
+    "every swatch to leave after the plugin is stopped or loses approval",
   );
+});
+
+/**
+ * SOMETHING ON TODAY, written while the scenario runs.
+ *
+ * The corpus dates its work in 2019, which is this suite's own convention for
+ * "reliably overdue whenever this runs" — and it means the OTHER half of
+ * `journal.agenda`'s answer, `dated`, is empty for ever. The morning agenda
+ * prints that half under `On today:`, and the field it reads there is the one a
+ * structural consumer can lose silently, so the only way to cover it is a write
+ * that puts something on today (`journal_steps.ts` makes the same argument for
+ * the calendar's own mark).
+ *
+ * Appended rather than written whole, and the date is asked of the CLOCK the way
+ * the client asks it, so this cannot disagree with the plugin about which day it
+ * is at a local midnight.
+ */
+When("a task is due today", function (this: OlaiWorld) {
+  this.appendServed("work.olai", {
+    id: "sand",
+    parent: "deck",
+    ord: "a3",
+    title: "sand the rails",
+    todo: true,
+    date: isoDayOf(new Date()),
+  });
 });
 
 When("the palette provider is replaced", function (this: OlaiWorld) {
@@ -201,15 +274,55 @@ When("the palette provider is replaced", function (this: OlaiWorld) {
 Then("the agent service catalog {word} {string}", async function (this: OlaiWorld, presence: string, key: string) {
   const { callTool, connectTerminalAgent } = await import("../support/mcp.ts");
   this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
-  const answer = await callTool(this.terminalAgent, "inspect_plugins", {});
-  const catalog = answer["structuredContent"] as { services: Array<string> };
-  assert.ok(catalog.services.includes("vault"), "core services remain discoverable");
-  assert.strictEqual(catalog.services.includes(key), presence === "includes");
+  const answer = await callTool(this.terminalAgent, "vault-plugins_inspect", {});
+  const catalog = answer["structuredContent"] as { services: Array<{ key: string; half: string }> };
+  const keys = catalog.services.filter((one) => one.half === "server").map((one) => one.key);
+  assert.ok(keys.includes("vault"), "core services remain discoverable");
+  assert.strictEqual(keys.includes(key), presence === "includes");
 });
 
 Then("the palette {word} the colour {string}", async function (this: OlaiWorld, verdict: string, value: string) {
   const { connectTerminalAgent, tryTool } = await import("../support/mcp.ts");
   this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
-  const answer = await tryTool(this.terminalAgent, "set_prop", { id: "amber", key: "swatch-hex", value });
+  const answer = await tryTool(this.terminalAgent, "outlines_prop", { id: "amber", key: "swatch-hex", value });
   assert.strictEqual(answer["isError"] === true, verdict === "rejects", JSON.stringify(answer));
+});
+
+When("the browser palette provider is replaced", function (this: OlaiWorld) {
+  const file = path.join(this.scratch(), "palette.olai");
+  const source = fs.readFileSync(file, "utf8");
+  assert.ok(source.includes("browser-palette-first"));
+  fs.writeFileSync(file, source.replace("browser-palette-first", "browser-palette-second"));
+});
+
+Then("the browser palette face is {string}", async function (this: OlaiWorld, version: string) {
+  await this.page.locator(`.browser-palette-${version} [data-swatch]`).waitFor({
+    state: "visible", timeout: POLL_TIMEOUT,
+  });
+});
+
+Then("the browser service catalog {word} {string}", async function (this: OlaiWorld, presence: string, key: string) {
+  const { callTool, connectTerminalAgent } = await import("../support/mcp.ts");
+  this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
+  const answer = await callTool(this.terminalAgent, "vault-plugins_inspect", {});
+  const catalog = answer["structuredContent"] as { services: Array<{ key: string; half: string; availability: string }> };
+  assert.strictEqual(catalog.services.some((one) => one.key === key && one.half === "browser" && one.availability === "declared"), presence === "includes");
+});
+
+When("the browser palette initialization is repaired", function (this: OlaiWorld) {
+  const file = path.join(this.scratch(), "palette.olai");
+  const rows = fs.readFileSync(file, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+  const browser = rows.find((row) => row.title === "browser.tsx");
+  const broken = '\n  yield* Effect.die(new Error("palette initialization failed"))';
+  assert.ok(browser.desc.includes(broken));
+  browser.desc = browser.desc.replace(broken, "");
+  fs.writeFileSync(file, rows.map((row) => JSON.stringify(row)).join("\n") + "\n");
+});
+
+Then("the browser has reported the palette initialization failure", async function (this: OlaiWorld) {
+  const expected = (error: string) => error.startsWith('console.error: olai: the plugin "palette"')
+    && error.includes("browser half failed to start") && error.includes("palette initialization failed");
+  await this.waitUntil(async () => this.errors.some(expected), "the expected palette initialization diagnostic");
+  // Consume only this deliberately induced diagnostic; unrelated errors remain.
+  this.errors = this.errors.filter((error) => !expected(error));
 });

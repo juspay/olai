@@ -144,7 +144,7 @@ level in: a row with ancestors, a row found by something a reader cannot see on
 it, and two rows nothing but their place tells apart.
 
 The trash is `_olai/Trash.olai` — the one trash, same as every other corpus.
-`list_outlines` answers in path order and that file sorts first, so the
+`outlines_index` answers in path order and that file sorts first, so the
 scripted agent's `add` verb skips it: capturing into the trash is not a
 capture, and a row written there is drawn on no page (#226).
 
@@ -335,13 +335,13 @@ Four lane steps in three states, each carrying a `terminal`, and the lines of
 {"id":"prop-agent-session","ord":"a2","title":"agent-session","custom":{"type":"chat-agent-session"}}
 ```
 
-**The second row is the MIGRATION, exercised rather than described.** `chat` is
-a plugin, so the key a node agent carries is its composed kind word
-`chat-agent-session` — and every vault written before that carries the bare
-`agent-session`, which is exactly what `lanes.olai` still carries. That row is
-the one line `docs/plugins/chat.md` tells a person to add, and this corpus keeps
-the bare key on purpose so that the documented path is the path the suite walks.
-A fixture renamed to the claimed word would have tested the easy half.
+**The second row is a BOARD KEEPING THIS KIND ON A COLUMN OF ITS OWN NAME,
+exercised rather than described.** `chat` is a plugin, so the key a node agent
+carries is its composed kind word `chat-agent-session` — and `lanes.olai` carries
+the bare `agent-session` instead, which is a word olai claims for nobody and
+reads as a binding only because that row says to. This corpus keeps the bare key
+on purpose so that the declared-column path is the path the suite walks. A
+fixture renamed to the claimed word would have tested the easy half.
 
 **That row is load-bearing and its absence is silent.** `terminal` is a kind
 `olai-plugin-kolu` contributes, and the ownership walk finds its key by that
@@ -357,3 +357,29 @@ because the fleet resolves a prefix and the block says so when one names
 several. They are hex, which is what that kind admits — a value with a remark
 stapled to it is refused, and `typed/`'s `far` is where that mistake is kept, on
 a key deliberately left undeclared.
+
+## `morning-agenda/` — a plugin the vault defines, standing on one the build ships
+
+`work.olai` is four dated rows and a node to seat an agent on: two pieces of
+un-done work owed in 2019 (so they are overdue whenever this runs) and one
+OCCURRENCE — a dated row with no mark — which is on the day and is nobody's late
+work. That third row is the assertion, not the padding: it must not appear on an
+overdue line.
+
+`morning-agenda.olai` is the definition — one node carrying `plugin:
+morning-agenda` and one child, `server.ts`, holding the whole source in its
+note. There is no `browser.tsx`, because a plugin that draws nothing is a whole
+plugin.
+
+The source is `docs/dynamic-plugins.md`'s worked example with **two lines
+changed, both of them the clock**: it looks from midnight rather than seven and
+beats every second rather than every five minutes, because a scenario cannot sit
+out either.
+
+That sentence is checked rather than promised. `../morning_agenda.test.ts` reads
+the note, substitutes the two lines back, and asks the page whether it carries
+the result — so **this file is not edited by hand**: change the page and
+regenerate it, or the suite says which line wandered. Everything else — the key
+it names (`journal.agenda`), the shape both ends spell, the delivery, the
+once-a-day guard — is the source a person would paste.
+`features/the_morning_agenda.feature` is what it is for.

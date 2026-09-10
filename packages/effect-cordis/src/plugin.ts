@@ -39,6 +39,7 @@
 import type { Context as CordisContext } from "cordis"
 import { Cause, Context, Effect, Exit, Fiber, FiberSet, Schema, Scope } from "effect"
 
+import { moduleOwner } from "./module.ts"
 import { failed } from "./broadcast.ts"
 import { held } from "./host.ts"
 import { Offering, activate } from "./lifecycle.ts"
@@ -127,15 +128,39 @@ export const PluginName = Context.Reference<string>("effect-cordis/PluginName", 
  * real work is `apply` and its registrations are finalizers rather than a pile
  * of forks.
  */
-export type Detach = (work: Effect.Effect<void>) => void
+export interface Detach {
+  (work: Effect.Effect<void>): void
+  /**
+   * THE SAME FORK WITH THE FIBER LEFT ON — one seam, two shapes, and the
+   * second is not a widening of what it PROMISES.
+   *
+   * Everything above holds: the plugin's own services, the plugin's own scope,
+   * the plugin's word on a contained failure. What changes is only that the
+   * caller is handed the handle instead of it being dropped, because some
+   * background work is a thing its owner interrupts or waits for BY NAME — an
+   * idle timer a scheduler arms, re-arms and cancels; a boot a shutdown has to
+   * join before it reads the table the boot writes into.
+   *
+   * It exists because the alternative is what was there: a caller that needs
+   * the handle reaching for a bare `Effect.runFork`, which is a fiber on the
+   * default runtime with no owner and none of the operator's logging settings
+   * — a second, unnamed seam in a plugin, which is the exact thing having one
+   * named seam is for.
+   */
+  readonly held: (work: Effect.Effect<void>) => Fiber.Fiber<void>
+}
 
 /** The seam, for the scope that yields it. */
 export const detached: Effect.Effect<Detach, never, Scope.Scope> = Effect.gen(function*() {
   const who = yield* PluginName
   const run = yield* FiberSet.makeRuntime<never, void, never>()
-  return (work) => {
-    run(Effect.catchCause(work, (cause) => failed(who, "detached work", cause)))
-  }
+  const contained = (work: Effect.Effect<void>): Effect.Effect<void> =>
+    Effect.catchCause(work, (cause) => failed(who, "detached work", cause))
+  const detach: Detach = Object.assign(
+    (work: Effect.Effect<void>) => { run(contained(work)) },
+    { held: (work: Effect.Effect<void>) => run(contained(work)) },
+  )
+  return detach
 })
 
 /**
@@ -146,51 +171,21 @@ export const detached: Effect.Effect<Detach, never, Scope.Scope> = Effect.gen(fu
  * loader's own contract is "a function, or an object with an `apply`". Nothing
  * about it is this package's to make ceremonious.
  *
- * `Config` is the row's `config:` validated at load, Standard Schema so the
- * loader refuses an invalid value with a sentence before `apply` runs. Absent
- * when the plugin has no config.
+ * Config decoding belongs to the bridge activation, before user apply.
+ * Native Cordis constructor validation bypasses that lifetime: the pinned
+ * loader can leave a constructor failure pending and reject an unobserved
+ * promise. Running the schema here gives invalid config the same failed-row
+ * reporting and cleanup as every other initialization failure.
  */
 export interface Plugin {
   readonly name: string
   readonly inject: ReadonlyArray<string>
-  /** Standard Schema, so Cordis validates the row's `config:` at load. */
-  readonly Config?: {
-    readonly "~standard": {
-      readonly version: 1
-      readonly vendor: string
-      readonly validate: (
-        value: unknown,
-      ) => { readonly value: unknown } | { readonly issues: ReadonlyArray<{ readonly message: string }> }
-    }
-  }
   readonly apply: (ctx: CordisContext, config?: unknown) => Promise<() => Promise<void>>
 }
 
 type NeedsOf<Keys extends ReadonlyArray<AnyKey>> =
   | Scope.Scope
   | Context.Service.Identifier<Keys[number]>
-
-/** Wrap an Effect schema as the Standard Schema Cordis validates at load.
- *  Absent / null config becomes `{}`, so a row with no `config:` still
- *  decodes to the schema's defaults; an invalid value fails with a sentence. */
-const standardOf = (schema: Schema.Schema<unknown>): NonNullable<Plugin["Config"]> => ({
-  "~standard": {
-    version: 1,
-    vendor: "effect-cordis",
-    validate: (value: unknown) => {
-      try {
-        const decode = Schema.decodeUnknownSync as (
-          schema: Schema.Schema<unknown>,
-        ) => (value: unknown) => unknown
-        return { value: decode(schema)(value ?? {}) }
-      } catch (error) {
-        return {
-          issues: [{ message: error instanceof Error ? error.message : String(error) }],
-        }
-      }
-    },
-  },
-})
 
 /**
  * DEFINE ONE.
@@ -199,9 +194,9 @@ const standardOf = (schema: Schema.Schema<unknown>): NonNullable<Plugin["Config"
  * `id`, which is also the sibling key, the docs slug and the stamp every keyed
  * service reads.
  *
- * `config` is the schema a row's `config:` is validated against at load.
- * Defaults live on the fields; an invalid value fails the load with a
- * sentence. The decoded value is handed to `apply`.
+ * `config` is decoded inside the activation before user `apply`. Defaults
+ * live on the fields; an invalid value fails the row with a sentence through
+ * the same contained failure path as initialization.
  */
 export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = unknown>(
   spec: {
@@ -215,37 +210,46 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
 ): Plugin => ({
   name: spec.name,
   inject: spec.needs.map((key) => key.cordis),
-  ...(spec.config === undefined ? {} : { Config: standardOf(spec.config as Schema.Schema<unknown>) }),
   apply: async (ctx: CordisContext, config?: unknown) => {
     const opened = held(ctx)
     // Disposal can win before Cordis reaches its deferred apply call.
     if (ctx.fiber.uid === null) return async () => {}
     // THE STAMP, READ ONCE, off the registry binding — never off anything the
     // plugin supplied. Every keyed service below is minted from it.
-    const who = ctx.fiber.name
+    const who = moduleOwner(ctx)
     // Runtime string lookup is the one point where the key's shape is erased.
     // Resolve it here; lifetime ownership has no opinion about service shapes.
     let services = Context.merge(opened, Context.make(PluginName, who)) as Context.Context<never>
-    for (const key of spec.needs) {
-      const provision = (ctx as unknown as Record<string, unknown>)[key.cordis]
-      if (typeof provision !== "function") {
-        throw new Error(
-          `effect-cordis: "${who}" named the service "${key.cordis}", which is `
-            + "provided as something other than a provision — a host provides "
-            + "`(plugin) => service` and nothing else.",
-        )
-      }
-      services = Context.add(
-        services,
-        key as unknown as Context.Service<unknown, unknown>,
-        (provision as (plugin: string) => unknown)(who),
-      ) as Context.Context<never>
-    }
     const activation = activate(ctx, opened)
+    try {
+      for (const key of spec.needs) {
+        const provision = (ctx as unknown as Record<string, unknown>)[key.cordis]
+        if (typeof provision !== "function") {
+          throw new Error(
+            `effect-cordis: "${who}" named the service "${key.cordis}", which is `
+              + "provided as something other than a provision — a host provides "
+              + "`(plugin) => service` and nothing else.",
+          )
+        }
+        services = Context.add(
+          services,
+          key as unknown as Context.Service<unknown, unknown>,
+          (provision as (plugin: string, lifetime: { current: () => boolean }) => unknown)(who, { current: activation.current }),
+        ) as Context.Context<never>
+      }
+    } catch (error) {
+      await activation.close(Exit.void)
+      throw error
+    }
     services = Context.add(Context.add(services, Offering, activation), Scope.Scope, activation.scope) as Context.Context<never>
-    const work = Effect.suspend(() => Effect.isEffect(spec.apply)
-      ? spec.apply
-      : spec.apply((config ?? {}) as Config))
+    const work = Effect.suspend(() => {
+      // The schema has no external services (the same restriction as the old
+      // Standard Schema adapter). A decode failure is a defect inside this
+      // activation, so the row fails before its apply acquires any resources.
+      const decode = Schema.decodeUnknownSync as (schema: Schema.Schema<Config>) => (input: unknown) => Config
+      const value = spec.config === undefined ? (config ?? {}) as Config : decode(spec.config)(config ?? {})
+      return Effect.isEffect(spec.apply) ? spec.apply : spec.apply(value)
+    })
     const running = Effect.runForkWith(services)(work as Effect.Effect<void>)
     activation.bind(running)
     const exit = await Effect.runPromise(Fiber.await(running))

@@ -1,3 +1,5 @@
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "@olai/bundle/testids"
 /**
  * The Cucumber World: one instance per scenario, holding the Playwright page
  * and the handful of locators every feature reaches for.
@@ -27,14 +29,7 @@ import * as os from "node:os";
 // and this is the ATTRIBUTE a pressable node reference in the chat panel
 // carries. Two different things, one word — so the import says which.
 import { NODE_REF as CHAT_NODE_REF_ATTR } from "olai-plugin-chat/testlib";
-import {
-  LONG_PRESS_MS,
-  REFERRINGS,
-  ROW_TESTID,
-  selector,
-  TESTID,
-  type TestId,
-} from "@olai/web/testlib";
+import { LONG_PRESS_MS, selector } from "@olai/web/testlib"
 // ...and the PLUGINS' half of the same table, which is where the bulk of this
 // file's selectors now come from. The ids split by RENDERER — a scenario
 // asserting on the padi pill is asserting on `olai-plugin-kolu`'s output, not
@@ -47,11 +42,20 @@ import {
 //
 // They route through the REGISTRY rather than through each plugin's own door
 // because `packages/bundle/src/fence.test.ts` holds, as an equality per
-// package, that nothing outside it names a plugin except this suite's two
-// recorded testlib imports. The testid door is NAMES ONLY, which is what keeps
-// a component (and behind kolu's, a terminal emulator) off the graph of a
-// process with no browser in it.
+// package, that nothing outside it names a plugin except the doors that file
+// records line by line — this suite's among them. The testid door is NAMES
+// ONLY, which is what keeps a component (and behind kolu's, a terminal
+// emulator) off the graph of a process with no browser in it.
 import { PLUGIN_TESTID } from "@olai/bundle/testids";
+// ...and two names that WERE on `@olai/web`'s door and are their rows' again.
+// Re-exporting them put `olai-plugin-files` and `olai-plugin-outlines` in a
+// general package's manifest and on its import graph, for two strings this
+// suite can ask the rows it is already driving — which is the equality above,
+// read from the other end: the boot package's line in that table is empty now,
+// and these two are the suite's, recorded. `ROW_TESTID` is which row one KIND
+// of file draws; `REFERRINGS` is the outline's word for a reference.
+import { ROW_TESTID } from "olai-plugin-files/kinds";
+import { REFERRINGS } from "olai-plugin-outlines/testlib";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
 import type { LivePadi } from "olai-plugin-kolu/appliance/testlib";
 import {
@@ -375,7 +379,7 @@ export const TIP = selector(TESTID.tip);
 export const SEE_REFS = selector(TESTID.seeRefs);
 /** What a node itself says it comes AFTER — its own field, drawn on its page
  *  beside the DERIVED `blocked by` row above it. The two are different claims:
- *  this one is what `set_after` writes, and only this one carries an `×`. */
+ *  this one is what `outlines_after` writes, and only this one carries an `×`. */
 export const AFTER_REFS = selector(TESTID.afterRefs);
 /** The `×` on one drawn reference — drop that target. `data-ref` is which. */
 export const REF_DROP = selector(TESTID.refDrop);
@@ -911,6 +915,11 @@ export const PLUGINS_PANEL = selector(TESTID.pluginsPanel);
  *  line and not a row's: it used to be repeated under every row, which is the
  *  arrangement the loader surface ended. */
 export const PLUGINS_STARTED = selector(TESTID.pluginsStarted);
+export const PLUGIN_SWITCH = selector(TESTID.pluginSwitch);
+export const PLUGIN_GROUP = selector(TESTID.pluginGroup);
+export const PLUGIN_CONFIRM = selector(TESTID.pluginConfirm);
+export const PLUGIN_CONFIRM_OFF = selector(TESTID.pluginConfirmOff);
+export const PLUGIN_CONFIRM_KEEP = selector(TESTID.pluginConfirmKeep);
 /** ...and what the serve would not take, when a press is refused. */
 export const PLUGINS_REFUSED = selector(TESTID.pluginsRefused);
 /** A row's config, as data under it. `data-config` is the key. */
@@ -1094,6 +1103,8 @@ export const CHAT_ARMED_STILL = selector(PLUGIN_TESTID.chatArmedStill);
 /** THE STRIP UNDER THOSE: what this conversation WAKES ON. One line per
  *  running plugin that declares a doorbell, and the file a person pointed it
  *  at. Absent where there is no conversation to be scoped. */
+export const CHAT_WAKE_FAULT = selector(PLUGIN_TESTID.chatWakeFault);
+export const CHAT_WAKE_WAITING = selector(PLUGIN_TESTID.chatWakeWaiting);
 export const CHAT_WAKE = selector(PLUGIN_TESTID.chatWake);
 /** One plugin's control on it. `data-plugin` is whose doorbell and `data-file`
  *  is the path or the word `off` — the STATE AS DATA, because the words around
@@ -1819,6 +1830,8 @@ export class OlaiWorld extends World {
    *  Same reasoning as the row above: which agents a server finds decides
    *  whether its panel asks, so it is a property of the scenario. */
   hasPi = false;
+  /** The Codex roster row, using the scripted ACP transport. */
+  hasCodex = false;
   /** Which git situation this scenario's server was started into (`@git:…`),
    *  or `undefined` for the `--no-commit` every other scenario runs with.
    *  Carried for the same reason as the three above: a restart mid-scenario has
@@ -1837,6 +1850,8 @@ export class OlaiWorld extends World {
    *  a restart has to reproduce the first boot, and a server that came back
    *  running a different set is a different server. */
   pluginPin: string | undefined = undefined;
+  extraPluginPin: string | undefined = undefined;
+  withoutPluginPin: string | undefined = undefined;
 
   /** The avatar URL template this scenario's server was started with
    *  (`@avatar-template`), or `undefined` for the ordinary server, which has
@@ -1931,6 +1946,14 @@ export class OlaiWorld extends World {
           oneLine(await fault.innerText()),
       );
     }
+    // The header can paint while a socket is still connecting or redialling.
+    // Offline deliberately swallows global shortcuts in the capture phase;
+    // a painted page is therefore not yet an interactive page. Explicit
+    // connecting/fault scenarios use settle() and inspect that state themselves.
+    await this.page.locator(OFFLINE).waitFor({
+      state: "hidden",
+      timeout: HYDRATION_TIMEOUT,
+    });
   }
 
   /** Go to a path and wait for the app to commit to one of its shapes — the
@@ -2171,6 +2194,39 @@ export class OlaiWorld extends World {
     return this.node(id).locator(control).first();
   }
 
+  /**
+   * The plugins panel that is on screen. Header and closet both portal one
+   * when the door is held open; locators that take the first match otherwise
+   * wait on the drawer copy, which is hidden.
+   */
+  pluginsPanel(): Locator {
+    return this.page.locator(`${PLUGINS_PANEL}:visible`);
+  }
+
+  /**
+   * Quiet groups start collapsed. A scenario that names a row in one has to
+   * open the heading first — the same press a person makes — or the wait for
+   * visible is a wait for a summary.
+   */
+  async showPluginRow(plugin: string): Promise<Locator> {
+    const panel = this.pluginsPanel();
+    const row = panel.locator(`${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
+    await row.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    // Walk from the row, not from a group selector: after a shell remount the
+    // heading is still a `<details>` wrapping the row, and a CSS walk that
+    // missed it left every quiet row hidden.
+    const opened = await row.evaluate((el) => {
+      const details = el.closest("details");
+      if (!(details instanceof HTMLDetailsElement) || details.open) return false;
+      const summary = details.querySelector(":scope > summary");
+      if (summary instanceof HTMLElement) summary.click();
+      details.open = true;
+      return true;
+    });
+    if (opened) await this.waitForFrame();
+    return row;
+  }
+
   /** Press something, and let the render settle.
    *
    *  The gesture is a parameter because it is the only thing a phone scenario
@@ -2260,6 +2316,24 @@ export class OlaiWorld extends World {
       ? await this.intoView(target)
       : first;
     if (before.pressable || !before.pinned) return;
+    // A control inside a `fixed` panel (the plugins drawer, preferences) is
+    // not in the page's scroll. Scrolling the document under a sticky header
+    // cannot uncover it; a reader scrolls the panel. Try that before asking
+    // the page to move, and before calling the press impossible.
+    const overlay = await target.evaluate((el) => {
+      for (let node: Element | null = el; node !== null; node = node.parentElement) {
+        if (getComputedStyle(node).position === "fixed") return true;
+      }
+      return false;
+    });
+    if (overlay) {
+      await target.evaluate((el) => {
+        el.scrollIntoView({ block: "nearest", inline: "nearest" });
+      });
+      await this.waitForFrame();
+      const recovered = await coverOf(target);
+      if (recovered.pressable) return;
+    }
     await this.page.evaluate((by) => window.scrollBy(0, by), before.clearBy);
     await this.waitForFrame();
     const after = await coverOf(target);

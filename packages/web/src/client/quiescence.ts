@@ -119,9 +119,9 @@
  *     first real paint. Where the geometry IS the claim, the geometry is what
  *     a reader has to wait for.
  *
- *   - **A PAGE THIS APP IS NOT DRAWING.** The attribute rides the app shell
- *     (`./App.tsx`), so a fault card — where the boundary has replaced the
- *     whole tree — carries no counter. Nothing there answers a key either.
+ *   - **NAVIGATION IS DISABLED.** The navigation activation owns the attribute
+ *     on the document root. Alternative layouts observe the same counter;
+ *     withdrawing navigation removes its observer and restores the old attribute.
  *
  *   - **A CALL THAT NEVER ANSWERS.** The counter is exactly as honest as the
  *     promises it holds: a procedure that neither resolves nor rejects holds
@@ -143,7 +143,7 @@
 import { type Accessor, createSignal } from "solid-js"
 
 /**
- * The attribute the count is published as, on the app shell, counting down to
+ * The attribute navigation publishes on the document root, counting down to
  * `"0"`.
  *
  * Its name is here rather than spelled at the two ends because it is the same
@@ -360,6 +360,8 @@ export const quiescence: Quiescence = createQuiescence(inTheBrowser)
  * It counts a SYNTHETIC key too, because a synthetic key is answered by the
  * same handlers and its effects land the same way.
  */
-export const followKeys = (): void => {
-  window.addEventListener("keydown", () => quiescence.began(), true)
+export const followKeys = (): (()=>void) => {
+  const began=()=>quiescence.began()
+  window.addEventListener("keydown", began, true)
+  return ()=>window.removeEventListener("keydown",began,true)
 }

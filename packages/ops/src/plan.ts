@@ -299,7 +299,7 @@ export interface Scope extends Reading {
    * check needs beside it (`@olai/format`'s `Typed`).
    *
    * On the scope rather than fetched at each door because there are five doors
-   * and they are one rule: `set_prop`, `add_node`'s `props` (children
+   * and they are one rule: `outlines_prop`, `outlines_add`'s `props` (children
    * included), `apply`, `update` and `capture` all reach {@link typedProps} or
    * {@link planProp}, which is the plan/validate seam the design names
    * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/typed-properties.md: births are gated too).
@@ -353,11 +353,11 @@ export const typedIn = (at: Reading, kinds: KindVocabulary): Typed => {
 
 /**
  * WHICH NODE OF THE CAPTURE a refusal is about — the locus a value refusal owes
- * and a `set_prop` one does not.
+ * and a `outlines_prop` one does not.
  *
  * A capture is a TREE, and a bad value in it is a fact about one node of that
- * tree. `set_prop` names its subject by construction (the caller sent one id);
- * `add_node` sends thirteen nodes and gets back a sentence about a key, and
+ * tree. `outlines_prop` names its subject by construction (the caller sent one id);
+ * `outlines_add` sends thirteen nodes and gets back a sentence about a key, and
  * "`merge` is `auto` | `human`" with no title in front of it is a sentence
  * whose subject the caller has to go and find. Which is exactly the reason
  * {@link misplacedAfter} beside this leads with the title too, and why the
@@ -394,7 +394,7 @@ const NO_PROPS: Readonly<Record<string, string>> = {}
  * and the whole tree is not walked again per keystroke for an answer already in
  * hand.
  *
- * ONE WRITE, ONE ASKING: this is what a single `set_done` builds, and building
+ * ONE WRITE, ONE ASKING: this is what a single `outlines_done` builds, and building
  * it costs nothing at all — the context's answers are lazy and held with the
  * set ({@link ./asked.ts}), so an op that only asks whether its file is
  * writable pays for that one answer and no walk of the directory.
@@ -511,7 +511,7 @@ const regularAt = (scope: Scope, id: string): Result.Result<LocatedRegular, OpFa
  * content is a BODY lost its text, a file whose content is records lost those —
  * so a caller cannot ask for the wrong sentence about the file it named.
  *
- * The FACT is `brokenIn`'s, on the floor, because `read_document` turns on the
+ * The FACT is `brokenIn`'s, on the floor, because `markdown_read` turns on the
  * same one and reaches a different conclusion from it: a write refuses because
  * re-emitting the file would erase what is really in it, a read refuses because
  * the empty text is a body nobody read. One fact, two verbs, two sentences —
@@ -540,13 +540,13 @@ interface Landing {
 
 /**
  * Where a record a call BRINGS INTO BEING goes, and whether that file may be
- * written — the prologue `add` and `add_mirror` share.
+ * written — the prologue `add` and `outlines_mirror` share.
  *
  * The two answers are one question asked twice over, and both ops have to get
  * the same one: with a `parent`, the file is the parent's, always, because
  * `parent` is same-file by the format and a `file` that disagreed would be a set
  * the validator rejects; without one, the caller names an outline the set
- * already holds, since `create_outline` is the only op that mints a file.
+ * already holds, since `files_create` is the only op that mints a file.
  */
 const landsIn = (
   scope: Scope,
@@ -964,13 +964,13 @@ const capturedNode = (
     // the reason {@link planMark} mints it: a lane is captured `doing` by
     // its orchestrator in one breath, and without this line the span that
     // one began with could never be measured. And there is no later door
-    // for it: `set_doing` refuses a node that is already doing, so a start
+    // for it: `outlines_doing` refuses a node that is already doing, so a start
     // missed at the capture is missed for the node's whole working life.
     if (capture.mark === "doing") node.started = scope.context.now()
   }
   if (capture.date !== undefined) node.date = capture.date
   if (capture.desc !== undefined) node.desc = capture.desc
-  // The properties, through the SAME writer one `set_prop` per key would reach
+  // The properties, through the SAME writer one `outlines_prop` per key would reach
   // (`@olai/format`'s `withCustom`), so "a key holding nothing is a key the
   // file does not carry" is one rule and not a second one spelled for captures.
   // The keys were judged by {@link propKey} and the VALUES by
@@ -985,7 +985,7 @@ const capturedNode = (
     // A map with no keys left is no `custom` field rather than `{}` — the
     // format's own rule for absence (`@olai/format`'s `nothing`, which spells
     // the empty map out), asked here rather than restated, so a capture whose
-    // every property was an empty string produces the record a `set_prop` of
+    // every property was an empty string produces the record a `outlines_prop` of
     // the same nothing would.
     if (!nothing(custom)) node.custom = custom
   }
@@ -1052,7 +1052,7 @@ const emit = (
   if (capture.title.trim() === "") {
     return new UsageFailure({ reason: "a node needs a title" })
   }
-  // The property KEYS, judged before the record is built and in `set_prop`'s own
+  // The property KEYS, judged before the record is built and in `outlines_prop`'s own
   // words ({@link propKey}). Here rather than at the end of the walk because a
   // shadowed key is a fact about the key alone — it needs no id resolved and no
   // sibling minted — and a refusal that arrives at the node it is about is the
@@ -1094,7 +1094,7 @@ const emit = (
         `a capture nests at most ${NESTING} levels of \`children\`, and ` +
         `\`${capture.title}\` is already that deep, so nothing was written. Capture ` +
         `down to \`${capture.title}\` first — THAT answer's \`captured\` gives it an ` +
-        `id — then hang the rest off it with a second \`add_node\`.`,
+        `id — then hang the rest off it with a second \`outlines_add\`.`,
     })
   }
 
@@ -1129,7 +1129,7 @@ const emit = (
  * all claimed first ({@link Minting.taken}) and the edges are answered against
  * the whole call.
  *
- * **THE REFUSALS ARE `set_see`'s AND `set_after`'s**, reached through the same
+ * **THE REFUSALS ARE `outlines_see`'s AND `outlines_after`'s**, reached through the same
  * two functions: an unknown target is {@link missingId}, with the closest id
  * that exists — and the ids a capture is minting are among the candidates, so a
  * typo of a sibling is corrected to that sibling — and an `after` edge that
@@ -1157,7 +1157,7 @@ const captured = (
   file: string,
   at: At & { readonly below: number },
   /** Whether the ROOT of this capture has a placement anchor — true for
-   *  `add_node`, whose `after` at the top level names the sibling it lands
+   *  `outlines_add`, whose `after` at the top level names the sibling it lands
    *  after, and false for a seed, whose file has no other rows to land among.
    *  It decides one thing only: whether the root's own `after` is a word this
    *  call means or {@link misplacedAfter}'s footgun. */
@@ -1173,10 +1173,10 @@ const captured = (
  * `after` written where it means nothing — the bend {@link Capture}'s `waitsOn`
  * pays for, caught rather than dropped.
  *
- * A capture spells its ordering edges `waitsOn`, because at `add_node`'s top
+ * A capture spells its ordering edges `waitsOn`, because at `outlines_add`'s top
  * level `after` is the placement anchor. Below that level `after` is not a
  * field at all, and an Effect struct DROPS a key it does not declare — so an
- * agent that has read `set_after`, or that is looking at the anchor one line
+ * agent that has read `outlines_after`, or that is looking at the anchor one line
  * up, writes `after` on a child, loses the whole dependency and is told the
  * capture succeeded. A silent half-write is the one outcome this layer refuses
  * outright, so the schema declares the key ({@link Capture}'s `after`) purely
@@ -1250,7 +1250,7 @@ const wiring = (
 
   // The edges as they will read once this capture lands, per node, deduped in
   // the order they were written — `@olai/format`'s own rule that a target named
-  // twice is named once, which `set_see` and `set_after` keep by never
+  // twice is named once, which `outlines_see` and `outlines_after` keep by never
   // appending an id the list already holds. A `Set` keeps insertion order, so
   // the dedupe is the rule and not a reordering of it.
   const born = new Map<string, Wire>()
@@ -1319,7 +1319,7 @@ const UNMARKED = {
  * page would fill up with work that was written down then rather than done
  * then, and `/today` would drift into a capture log. Finishing is the event a
  * journal is about; filing is not, and neither is starting. Nothing is lost for
- * a person who wants one: `set_date` schedules, and a hand-written date on any
+ * a person who wants one: `outlines_date` schedules, and a hand-written date on any
  * mark still reads (the format takes all four).
  *
  * `cancelled` JOINED THE STAMPED SIDE and not the `true` side (the human,
@@ -1355,7 +1355,7 @@ const marker = (scope: Scope, mark: Status): string | true =>
  *     what changed when one moves is where a node is drawn, and the node itself
  *     did not hear about it;
  *   - ARCHIVING and unarchiving, which move a subtree between files without
- *     asking anything about its content. `trash_node` already promises that
+ *     asking anything about its content. `outlines_trash` already promises that
  *     "nothing is stamped: archiving is not finishing", and re-stamping every
  *     node under a branch because somebody put the branch away would fill a
  *     whole subtree's worth of `changed` with one gesture that changed nothing
@@ -1368,7 +1368,7 @@ const touched = <N extends Node>(scope: Scope, node: N): N =>
  * A record COMING INTO BEING, stamped — {@link touched}'s twin, and the other
  * half of the one rule the two of them make: the ops layer puts `created` on a
  * node when it is captured and re-puts `changed` on it whenever it is written
- * afterwards. There is no verb for either, and `set_prop` refuses both by name.
+ * afterwards. There is no verb for either, and `outlines_prop` refuses both by name.
  *
  * TWO OPS MINT A NODE and the rule has to be one sentence for both: a CAPTURE
  * builds a record out of a request ({@link capturedNode}), and a DUPLICATE
@@ -1462,7 +1462,7 @@ const planMark = (
   }
 
   // DOOR ONE ({@link sweepingOpenWork}): a `done` may not be written over
-  // unfinished work in the branch below it. `set_cancelled` IS NOT GATED HERE
+  // unfinished work in the branch below it. `outlines_cancelled` IS NOT GATED HERE
   // and that is the fourth mark's first open question, answered — see
   // {@link stillStanding}, which is the advisory that replaces it.
   if (!undo && mark === "done") {
@@ -1617,7 +1617,7 @@ interface Recurrence {
  * THE SPAWN, and the one place in this system that decides it.
  *
  * It sits in the planner rather than at either door for the reason every other
- * policy here does: the browser's `Complete` and an agent's `set_done` are the
+ * policy here does: the browser's `Complete` and an agent's `outlines_done` are the
  * same request, planned by the same function, so "finishing a repeating node
  * makes the next one" is a fact about the OP and not a behaviour two surfaces
  * agreed to implement. A web-side spawn would be a rule MCP does not have, and
@@ -1715,7 +1715,7 @@ const recurring = (
   // `repeat` is spread on after it, and it is the one field that has to be: a
   // capture cannot carry a rule (nothing captures one — a rule arrives by
   // travelling from the occurrence before it), so there is no `Capture` field
-  // for it and inventing one would be a door `add_node` would then advertise.
+  // for it and inventing one would be a door `outlines_add` would then advertise.
   const spawned: RegularNode & { readonly date: string } = {
     ...capturedNode(scope, {
       title: node.title,
@@ -1737,18 +1737,18 @@ const recurring = (
  * and {@link nudged} below are the two halves of it, deliberately adjacent so
  * the divergence is one thing to read rather than two rules in two files:
  *
- *   - **`set_done` allows and remarks.** Finishing out of order is sometimes
+ *   - **`outlines_done` allows and remarks.** Finishing out of order is sometimes
  *     TRUE — the world outruns the plan, somebody did the thing, and a tool
  *     that refuses to record what happened is a tool that gets lied to. So the
  *     rollup says what it noticed and the write lands.
- *   - **`set_doing` refuses.** Starting is not a report about the world, it is
+ *   - **`outlines_doing` refuses.** Starting is not a report about the world, it is
  *     an INSTRUCTION about what to pick up next, and `a after b` is the set's
  *     own statement that b comes first. A machine told to start what the DAG
  *     forbids has been told to do the impossible, and the honest answer is to
  *     say so before the write rather than to draw the row dim afterwards. The
  *     app has drawn blockedness since edges-ui and nothing REFUSED it; that
  *     gap is what this closes.
- *   - **`set_todo` is not here at all.** Filing work is not starting it, and
+ *   - **`outlines_todo` is not here at all.** Filing work is not starting it, and
  *     un-starting needs no gate — a node put back on the pile is a node that
  *     stopped claiming to be in progress, which is exactly what a blocked node
  *     should be doing.
@@ -1766,7 +1766,7 @@ const recurring = (
  * here. `blockersOf` answers what a node IS waiting on, which is empty for a
  * plain bullet — a bullet is not work, so nothing is telling it it cannot
  * start, and that is right for every DRAWING of blockedness. But this write is
- * about to make the node work. Asking the drawn reading would let `set_doing`
+ * about to make the node work. Asking the drawn reading would let `outlines_doing`
  * on an unmarked node walk straight past the gate its own `after` edges
  * declare, land `doing`, and be drawn blocked a frame later — the exact state
  * this refusal exists to make unreachable. So the question asked is the one the
@@ -1783,16 +1783,16 @@ const recurring = (
  * task and is not refused. The rule this is an instance of is the one below: a
  * gate on STARTING is a gate on the instruction, never on the pair of facts. A
  * capture states both at once, by a caller that knows both, which is the
- * discovery — the same thing `set_doing` followed by `set_after` states in two
+ * discovery — the same thing `outlines_doing` followed by `outlines_after` states in two
  * calls and is refused nowhere. What is refused is being told to start
  * something the set ALREADY says cannot start, and a node that does not exist
  * yet has no already. The row lands, drawn blocked, saying what it waits for.
  *
  * NOT SOFTENED BY `apply`, and by construction rather than by a rule of its
  * own: a batch plans each op against what the ops before it left, so
- * `[set_after, set_doing]` meets this gate exactly as those two calls do.
+ * `[outlines_after, outlines_doing]` meets this gate exactly as those two calls do.
  *
- * NOT `set_after` EITHER, and that one is a choice. Wiring an edge onto a node
+ * NOT `outlines_after` EITHER, and that one is a choice. Wiring an edge onto a node
  * that is already `doing` leaves a started row waiting on something, and that
  * is a true thing to record: "I picked this up and have just realised it needs
  * X first" is how anybody finds out. The row goes dim and says what it is
@@ -1827,7 +1827,7 @@ const heldUp = (scope: Scope, node: RegularNode): OpFailure | undefined => {
  *     else hangs off it;
  *   - a `cancelled` written over a branch that is still FULL of unfinished
  *     work ({@link stillStanding}), which is the fourth mark's answer to
- *     "should this be gated like `set_done`". It is not, and this sentence is
+ *     "should this be gated like `outlines_done`". It is not, and this sentence is
  *     why that costs nothing: what is under it stays on the screen, still owed,
  *     and the answer says so by name.
  *
@@ -1900,7 +1900,7 @@ const nudged = (
 /**
  * What a `cancelled` leaves STANDING under it — the advisory, and the whole of
  * this lane's answer to the first of its two open questions: **does
- * `set_cancelled` need a children gate like `set_done`'s?**
+ * `outlines_cancelled` need a children gate like `outlines_done`'s?**
  *
  * IT DOES NOT, and the reason is that the gate it would copy is not about
  * marks at all — it is about HIDING. {@link sweepingOpenWork} refuses a `done`
@@ -1994,18 +1994,18 @@ const capped = <T>(all: ReadonlyArray<T>, name: (one: T) => string): string =>
  * It used to be reachable two ways, and the incident of 2026-08-16 walked
  * through the second:
  *
- *   - **the done comes to the work.** `set_done` over a branch holding open
+ *   - **the done comes to the work.** `outlines_done` over a branch holding open
  *     tasks. This was allowed-with-a-nudge, and the nudge is now the refusal's
  *     own sentence ({@link sweepingOpenWork}).
  *   - **the work comes to the done.** A task arriving under an ancestor that
  *     was marked done when the branch really was finished — a capture, a
- *     `set_todo`, a move, a merge, a return from the archive. Nobody marked
+ *     `outlines_todo`, a move, a merge, a return from the archive. Nobody marked
  *     anything over anything; the ancestor's mark simply went stale, five days
  *     of new children at a time ({@link arriving}).
  *
  * ONE DOOR REFUSES AND THE OTHER REPAIRS, which is the same asymmetry
  * {@link heldUp} draws between finishing and starting, read at a different
- * angle. `set_done` is a CLAIM about the branch, made now, by somebody looking
+ * angle. `outlines_done` is a CLAIM about the branch, made now, by somebody looking
  * at it: "this is finished" while three tasks under it are not is a claim that
  * is false as it is made, the person is right there, and the refusal names
  * what to do about it. An arriving task makes no claim about anything above
@@ -2038,7 +2038,7 @@ const capped = <T>(all: ReadonlyArray<T>, name: (one: T) => string): string =>
  * follow from the format's own sentence — a mirror is a second view of a node,
  * not a second obligation (`@olai/format`'s `derive.ts`) — and the reason it is
  * the right sentence here is that hiding a placement hides no work: the node
- * itself keeps its own row, wherever it really lives. `add_mirror` is
+ * itself keeps its own row, wherever it really lives. `outlines_mirror` is
  * therefore not gated at all, which is only consistent.
  *
  * ── AND THIS DOOR IN PARTICULAR ──
@@ -2130,7 +2130,7 @@ const staleDoneAbove = (
  * THE HOLE THIS CLOSES (grok's review of #207). Both doors exempt the archive,
  * for a reason that is right: work put away is over, so nothing in there is
  * unfinished and nothing in there is hidden by a mark. But an exemption is a
- * place where the state can legally be BORN — `set_done` on an archived branch
+ * place where the state can legally be BORN — `outlines_done` on an archived branch
  * over an archived `todo` is refused nowhere — and `unarchive` then carries it
  * into the live set, where door two was only ever looking ABOVE the landing.
  * The contradiction landed through an ops write, which is precisely what these
@@ -2333,7 +2333,7 @@ const planEdit = (
  *
  * The two refusals {@link planProp} makes before it has looked at a node at
  * all, and they are out here rather than inside it because a CAPTURE writes
- * properties too now (`add_node`'s `props`, `olai-batch-verbs`): a key spelled
+ * properties too now (`outlines_add`'s `props`, `olai-batch-verbs`): a key spelled
  * like a field has to be turned toward the same verb whether it arrives on a
  * node that exists or on one being born, and the sentence saying so may not
  * have two versions.
@@ -2359,7 +2359,7 @@ const propKey = (key: string): OpFailure | undefined => {
  * fact about this file rather than about the rule. There are two classes: an
  * EDIT on a node that exists ({@link planProp}, which `apply` and `update`
  * both fold into, so all three arrive here through one line) and a BIRTH
- * ({@link emit}, which every capture walks — `add_node`, `create_outline`'s
+ * ({@link emit}, which every capture walks — `outlines_add`, `files_create`'s
  * seed, quick capture, and every child of any of them). Scattering the check
  * per planner would put the same three lines in five places and make the
  * planner's own decomplecting a five-way merge.
@@ -2367,7 +2367,7 @@ const propKey = (key: string): OpFailure | undefined => {
  * THE SENTENCE IS THE FORMAT'S (`@olai/format`'s `storedValue`, which
  * normalises and then checks with the very function the validator reports
  * through). Nothing is worded here: a person moving between a refused
- * `set_prop` and a broken file has to read one wording, and this layer's job
+ * `outlines_prop` and a broken file has to read one wording, and this layer's job
  * is to raise it as a `usage` refusal one moment before the validator would
  * raise it as a finding about bytes. A `usage` failure and not a `validation`
  * one, because nothing has been written and there are no rows to carry — the
@@ -2375,7 +2375,7 @@ const propKey = (key: string): OpFailure | undefined => {
  *
  * IT ANSWERS WITH VALUES rather than with a verdict, and that is the half a
  * caller must not skip: `dispatched` written `2026-08-25 10:06` is STORED as
- * the instant `set_done` would write, with the offset of the clock this write
+ * the instant `outlines_done` would write, with the offset of the clock this write
  * is being stamped with. Writing the map that came in, having checked this
  * one, would be the door writing something the validator is about to refuse.
  *
@@ -2387,7 +2387,7 @@ const propKey = (key: string): OpFailure | undefined => {
  *
  * THE FIRST BAD VALUE REFUSES THE WHOLE CALL, and a capture is one plan — so
  * one refused value is one refused call and nothing is written, which is the
- * same promise a single `set_prop` makes.
+ * same promise a single `outlines_prop` makes.
  */
 const typedProps = (
   scope: Scope,
@@ -2412,7 +2412,7 @@ const typedProps = (
  * raise it as a finding about bytes.
  *
  * THE SENTENCE IS THE FORMAT'S (`@olai/format`'s {@link wrongDeclaration}).
- * Nothing is worded here: a person moving between a refused `add_node` and a
+ * Nothing is worded here: a person moving between a refused `outlines_add` and a
  * broken declarations file has to read one wording, and this layer's job is to
  * raise it as a `usage` refusal the way {@link typedProps} raises a value's.
  *
@@ -2521,7 +2521,7 @@ const governedUnfit = (
   return new UsageFailure({
     reason: `\`${key}\` cannot be declared \`${declared.type.kind}\` while ` +
       `${n} existing ${n === 1 ? "value does" : "values do"} not fit: ${named}. ` +
-      `The same fence \`set_prop\` already is — fix ` +
+      `The same fence \`outlines_prop\` already is — fix ` +
       `${n === 1 ? "that value" : "those values"} first (one \`apply\` can ` +
       `write them all), then declare. Nothing was written.`,
   })
@@ -2696,7 +2696,7 @@ const propStale = (
  * WHAT IT CANNOT DO IS NOT POLICED HERE, and that is the shape doing the work:
  * every fact olai reads is a FIELD at the top level and this writes inside one
  * map, so there is no list of forbidden keys to keep in step with the format —
- * `set_prop` could not reach `done` if it tried.
+ * `outlines_prop` could not reach `done` if it tried.
  *
  * The one rule left is about SHADOWING rather than about writing, which is why
  * it reads a table beside the record's own fields (`@olai/format`'s
@@ -2775,13 +2775,13 @@ const planProp = (
       value === null || value === ""
         ? `prop: ${node.title} -> ${key} (cleared)`
         : `prop: ${node.title} -> ${key}=${value}`,
-    // A WRITE THAT WOULD CHANGE NOTHING IS REFUSED, which is what `set_done` on
-    // a done node and `set_see` with a target it already names both do — and
+    // A WRITE THAT WOULD CHANGE NOTHING IS REFUSED, which is what `outlines_done` on
+    // a done node and `outlines_see` with a target it already names both do — and
     // what this op was missing.
     //
     // It matters more here than the symmetry suggests, because of the stamps.
     // Every write stamps `changed`, and the stamps are deliberately invisible to
-    // the comparison (`@olai/format`'s `changes.ts`), so a set_prop of the value
+    // the comparison (`@olai/format`'s `changes.ts`), so a outlines_prop of the value
     // already held used to land on disk, dirty git, count as an op in the chat
     // transcript and report `edited` — while the pending panel listed nothing at
     // all for a tree git called dirty. One gesture, two faces, neither of them
@@ -2860,10 +2860,10 @@ const stale = (
  * A SECOND OP would have had to re-declare every rule below — the anchor, the
  * two loop refusals, the mirror rule, door two, "last among its new siblings" —
  * and two spellings of a rule is two things free to drift. The whole surface the
- * third case needs is ONE optional field, and it is the field `add_node` and
- * `untrash_node` already take, judged by the function they already judge it with
+ * third case needs is ONE optional field, and it is the field `outlines_add` and
+ * `trash_restore` already take, judged by the function they already judge it with
  * ({@link landsIn}, through {@link movesTo}). The web faces come along for free:
- * the move-to picker's `Enter` and an agent's `move_node` are one request.
+ * the move-to picker's `Enter` and an agent's `outlines_move` are one request.
  *
  * ## What the two halves share, and where they part
  *
@@ -2926,7 +2926,7 @@ const planMove = (
     //
     // The graph is `@olai/format`'s `drawnFrom`, walked by its `drawingPath`,
     // which is the walk the validator's own containment rule makes and the one
-    // `add_mirror` refuses by ({@link showsInto}). Without this the plan was
+    // `outlines_mirror` refuses by ({@link showsInto}). Without this the plan was
     // BUILT and the write gate then refused the set — a refusal about a file
     // that was never written, for a reason the tool that planned it did not
     // know about, which is exactly what sharing that graph exists to prevent.
@@ -3008,7 +3008,7 @@ const planMove = (
  *
  * {@link landsIn} answers both of the cases that name somewhere — which is what
  * makes "a parent in another outline just works" true rather than implemented:
- * the parent's file IS the destination, judged by the same function `add_node`
+ * the parent's file IS the destination, judged by the same function `outlines_add`
  * judges it with, refused in the same words for an id nothing declares, for a
  * placement named as a parent, and for a file the set does not hold or could not
  * read.
@@ -3046,7 +3046,7 @@ const movesTo = (
  * Each direction is refused toward the op that does that job, because each of
  * those ops does something this one deliberately does not. Putting a node away
  * records the outline it left as a scaffold of ancestor titles, which is what
- * `untrash_node` reads to put it back; taking one out tidies that scaffold and
+ * `trash_restore` reads to put it back; taking one out tidies that scaffold and
  * re-opens the `done` marks that were true while the branch was over and stop
  * being true the moment it is live again ({@link contradictedWithin}). A move
  * that quietly did neither would leave a pile nothing can restore, or a live
@@ -3064,17 +3064,17 @@ const notThroughTheTrash = (
   const named = isMirror(node) ? node.id : node.title
   if (isTrashed(to)) {
     return new UsageFailure({
-      reason: `that would move \`${named}\` INTO \`${to}\`, and \`move_node\` does not ` +
-        `put things away: \`trash_node\` is what moves a node and everything under it ` +
-        `there, recording the outline it left so \`untrash_node\` can find its way back.`,
+      reason: `that would move \`${named}\` INTO \`${to}\`, and \`outlines_move\` does not ` +
+        `put things away: \`outlines_trash\` is what moves a node and everything under it ` +
+        `there, recording the outline it left so \`trash_restore\` can find its way back.`,
     })
   }
   if (isTrashed(from)) {
     return new UsageFailure({
       reason: `\`${named}\` is in \`${from}\`, and what is put away comes back out ` +
-        `through \`untrash_node\` — the op that tidies the scaffold above it and ` +
+        `through \`trash_restore\` — the op that tidies the scaffold above it and ` +
         `re-opens the marks that stop being true the moment the branch is live again. ` +
-        `\`move_node\` does neither, so it would leave both behind.`,
+        `\`outlines_move\` does neither, so it would leave both behind.`,
     })
   }
   return null
@@ -3175,7 +3175,7 @@ const containing = (scope: Scope, id: string, parent: string): string | null => 
  * One node into two: the head it keeps, and the tail beside it — as the
  * sibling after it, or, with `under`, as its FIRST CHILD.
  *
- * ONE PLAN, and that is the reason this is an op rather than a `set_title`
+ * ONE PLAN, and that is the reason this is an op rather than a `outlines_title`
  * followed by an `add`. Those are two writes at two revisions, and both ways of
  * half-landing are wrong — a tail written while the head still says the whole
  * sentence duplicates it, and a head written with the tail refused loses what
@@ -3191,7 +3191,7 @@ const containing = (scope: Scope, id: string, parent: string): string | null => 
  * inventing a claim about a node nobody has described.
  *
  * THE TWO PLACEMENTS, and which one is a fact about the CALLER. The sibling is
- * the op's own default, exactly as it always was — an MCP `split_node` asks for
+ * the op's own default, exactly as it always was — an MCP `outlines_split` asks for
  * no other. `under` is the browser's, sent when the head's children are on
  * screen: the first line under an expanded head IS its first child, and the
  * sibling lands below the whole subtree — the teleport a mid-line `Enter` on a
@@ -3322,7 +3322,7 @@ const planSplit = (
  * THE SIBLING ABOVE IS READ, never named. "The row above" is a fact about the
  * set, so it is answered against the snapshot this write is judged on — which
  * is what lets the write gate re-plan the request when the store moves under
- * it, exactly as it re-plans `set_done`.
+ * it, exactly as it re-plans `outlines_done`.
  */
 const planMerge = (
   scope: Scope,
@@ -3576,7 +3576,7 @@ const planCreate = (
       new UsageFailure({
         reason:
           `\`${file}\` is already an outline under the served directory — create ` +
-          `starts a new one; capture into this one with \`add_node\``,
+          `starts a new one; capture into this one with \`outlines_add\``,
       }),
     )
   }
@@ -3679,7 +3679,7 @@ const creatable = (raw: string, extension: string): string | null => {
   // Every segment above the file's own is a directory the serve's walk must be
   // willing to descend into. The walk prunes dot-directories and `node_modules`
   // (`@olai/store`'s listing), so a file under one is written and NEVER HELD —
-  // invisible to the set, to `list_documents`, and to every reader. A mint
+  // invisible to the set, to `markdown_index`, and to every reader. A mint
   // there can only answer success for nothing, so it is refused here, where
   // the path is being judged anyway.
   for (const directory of segments.slice(0, -1)) {
@@ -4002,7 +4002,7 @@ const planUntrash = (
     return Result.fail(
       new UsageFailure({
         reason: `\`${node.title}\` is in \`${file}\`, which is not the trash — ` +
-          `\`untrash_node\` takes back what \`trash_node\` put away, and this ` +
+          `\`trash_restore\` takes back what \`outlines_trash\` put away, and this ` +
           `one was never put away`,
       }),
     )
@@ -4310,7 +4310,7 @@ const bareScaffold = (node: Node): boolean => {
  * set does not hold, and an outline that is not an archive, are both "you are
  * pointing at the wrong file" and say so in the archive's own terms. An archive
  * with nothing in it is refused rather than written as a no-op, which is the
- * rule `set_see` already keeps for a call that would change nothing — and it is
+ * rule `outlines_see` already keeps for a call that would change nothing — and it is
  * what makes "the trash is already empty" a sentence somebody reads rather than
  * a commit with no diff in it.
  *
@@ -4332,7 +4332,7 @@ const planEmpty = (
   const file = request.file
   // "Is this a file the directory serves, and can it be written?" is
   // {@link landsIn}'s own pair, asked with no `parent` — the same two
-  // refusals `add_node` gives for a file it cannot reach, in the same words.
+  // refusals `outlines_add` gives for a file it cannot reach, in the same words.
   // Spelling them again here would be one wording for an unserved path in
   // `add` and another in `empty`, drifting the first time either is edited.
   const named = landsIn(scope, { file })
@@ -4342,9 +4342,9 @@ const planEmpty = (
     return Result.fail(
       new UsageFailure({
         reason:
-          `\`${file}\` is not the trash, and \`empty_trash\` empties \`${TRASH_FILE}\` ` +
-          `— the one file \`trash_node\` writes. Nothing here deletes out of a ` +
-          `live outline; \`trash_node\` is how a node leaves one.`,
+          `\`${file}\` is not the trash, and \`trash_empty\` empties \`${TRASH_FILE}\` ` +
+          `— the one file \`outlines_trash\` writes. Nothing here deletes out of a ` +
+          `live outline; \`outlines_trash\` is how a node leaves one.`,
       }),
     )
   }
@@ -4377,7 +4377,7 @@ const planEmpty = (
   }
 
   // Every record STAYING that names one that is going — {@link heldBy}, the
-  // one question `remove_mirror` asks about a single placement, asked here
+  // one question `outlines_unmirror` asks about a single placement, asked here
   // about the whole emptying.
   const held = heldBy(scope, new Set(going.map((record) => record.id)))
   if (held.length > 0) {
@@ -4395,7 +4395,7 @@ const planEmpty = (
         reason: `\`${file}\` still has ${record} pointed INTO it from ` +
           `outside: ${capped(held, (naming) => naming)}. Deleting what ${thatNames} ` +
           `would leave ${it} pointing at nothing, so nothing was written — re-point ` +
-          `or retire ${it} first, or \`untrash_node\` what ${itNames} back out.`,
+          `or retire ${it} first, or \`trash_restore\` what ${itNames} back out.`,
       }),
     )
   }
@@ -4403,7 +4403,7 @@ const planEmpty = (
   return Result.succeed({
     files: [{ file, nodes: [] }],
     // A file op answers with its PATH where a node op answers with an id and a
-    // title, which is `create_outline`'s own shape and for its reason: there is
+    // title, which is `files_create`'s own shape and for its reason: there is
     // no node here for either field to be about, and inventing one would be a
     // reply naming a record this write has just deleted.
     id: file,
@@ -4453,7 +4453,7 @@ const planEmpty = (
  * real siblings ({@link placed}).
  *
  * WHAT IT REFUSES is what every op that names a node refuses: an id nothing
- * declares, an id that is a MIRROR (a placement is not a node — `add_mirror`
+ * declares, an id that is a MIRROR (a placement is not a node — `outlines_mirror`
  * places a second one), and a file the set could not read. An ordinary
  * subtree has no rule of its own: a copy is isomorphic to something the
  * validator has already approved. A copy of a Properties ROOT is a
@@ -4578,7 +4578,7 @@ const copiesOf = (scope: Scope, subtree: ReadonlyArray<Node>): Copies => {
  *
  * The fields are the format's own closed list rather than a list spelled here:
  * {@link targetsOf} answers what a record points at AND with which field, which
- * is the same function the validator reads forwards and `remove_mirror` reads
+ * is the same function the validator reads forwards and `outlines_unmirror` reads
  * backwards. So a fourth relation added to the format is re-pointed by this op
  * the day it exists, rather than being the one field a copy quietly leaves
  * aimed at the original.
@@ -4777,14 +4777,14 @@ const planApply = (
  * order the caller wrote them, `after`, and the MARK LAST. Everything before
  * the mark is a fact about the node; the mark is a claim about it, and a claim
  * is judged against the node this call has finished making. `{mark: "doing",
- * after: ["order"]}` therefore meets `set_doing`'s gate with the edge already
+ * after: ["order"]}` therefore meets `outlines_doing`'s gate with the edge already
  * in place, and is refused — which is the answer a caller asking for both in one
  * breath should get, and the opposite order would have landed a `doing` and
  * drawn it blocked a frame later.
  *
  * `after` REPLACES, and this is where that becomes a difference of what is
  * written: the whole list arrives, the difference against what the node holds is
- * computed, and `set_after` is handed exactly that difference. So the edges an
+ * computed, and `outlines_after` is handed exactly that difference. So the edges an
  * update does not mention come OFF — which is what "this is the list" means —
  * while every refusal is still the incremental verb's, including its no-op one:
  * a list identical to what is there changes nothing, and is turned away rather
@@ -4827,7 +4827,7 @@ const planUpdate = (
       op: "title",
       id,
       title: request.title,
-      // `set_title`'s OWN field, handed straight through — so the condition is
+      // `outlines_title`'s OWN field, handed straight through — so the condition is
       // tested inside the plan and therefore on every attempt the write gate
       // makes, which is the whole point of it living there rather than here.
       ...(was.title === undefined ? {} : { was: was.title }),
@@ -4840,7 +4840,7 @@ const planUpdate = (
       id,
       desc: request.desc,
       // `null` is a real answer here — "expects no note at all" — which is why
-      // the test is on the key being present, exactly as `set_desc`'s is.
+      // the test is on the key being present, exactly as `outlines_desc`'s is.
       ...(was.desc === undefined ? {} : { was: was.desc }),
     })
     wrote.push("note")
@@ -4881,7 +4881,7 @@ const planUpdate = (
     wrote.push(`\`${key}\``)
   }
   if (request.after !== undefined) {
-    // The list, handed to `set_after` as the whole `add` plus whatever it
+    // The list, handed to `outlines_after` as the whole `add` plus whatever it
     // displaces — never as a difference on both sides. That is what carries the
     // incremental verb's refusals unchanged, the no-op one included: a list
     // identical to what is there arrives as an `add` of every target the node
@@ -4906,10 +4906,10 @@ const planUpdate = (
   if (request.mark !== undefined) {
     if (request.mark === null) {
       // THE ONE REFUSAL HERE THAT NO SINGLE VERB MAKES, named as the exception
-      // it is: `mark: null` has no single-verb spelling — `set_done`,
-      // `set_doing` and `set_todo` each have to be TOLD which mark they are
+      // it is: `mark: null` has no single-verb spelling — `outlines_done`,
+      // `outlines_doing` and `outlines_todo` each have to be TOLD which mark they are
       // undoing — so "there is no mark to take off" is a sentence this shape
-      // needs and none of them has. It is worded after `set_prop`'s refusal for
+      // needs and none of them has. It is worded after `outlines_prop`'s refusal for
       // a key that is not there, which is the same gesture over the other kind
       // of absence. Every other refusal in this function is the single verb's,
       // verbatim, because every other field is that verb's own request.
@@ -4948,8 +4948,8 @@ const planUpdate = (
     scope,
     ops,
     // The verb's own refusal, UNDRESSED. A caller of `update` wrote fields, not
-    // a list, so there is no index to name — and a `set_prop` refusal about a
-    // shadowed key reads exactly as it does when `set_prop` is what was called.
+    // a list, so there is no index to name — and a `outlines_prop` refusal about a
+    // shadowed key reads exactly as it does when `outlines_prop` is what was called.
     (_index, _op, failure) => failure,
     // The fields, not the sub-summaries: `update: the header (title, note,
     // done)` says what one gesture did, where five subjects strung together
@@ -4998,7 +4998,7 @@ const cycling = (scope: Scope, node: RegularNode, target: string): OpFailure | n
  * The refusal itself, over whatever ordering graph the caller is holding.
  *
  * TWO graphs ask now, which is why the walk and the sentence are split from the
- * one that reads the derivation. `set_after` asks over the set's edges, which is
+ * one that reads the derivation. `outlines_after` asks over the set's edges, which is
  * `derive`'s own normalised map. A CAPTURE asks over that map plus the edges the
  * capture is bringing with it ({@link wiring}) — nodes that do not exist yet,
  * pointing at each other and at nodes that do — and there is no derivation of a
@@ -5069,8 +5069,8 @@ const EDGE = {
 type WritableEdge = keyof typeof EDGE
 
 /**
- * Add and/or remove edge targets on a node — the whole of `set_see` and
- * `set_after`, which are one gesture over two fields.
+ * Add and/or remove edge targets on a node — the whole of `outlines_see` and
+ * `outlines_after`, which are one gesture over two fields.
  *
  * INCREMENTAL rather than a whole-array replace: an agent that has just
  * discovered one reference should not have to re-state every other one it
@@ -5242,7 +5242,7 @@ const planMirror = (
     files: [
       { file, nodes: withOrds([...recordsOf(scope, file), record], ords.success) },
     ],
-    // The PLACEMENT's id — it is what `remove_mirror` takes, and nobody may
+    // The PLACEMENT's id — it is what `outlines_unmirror` takes, and nobody may
     // have chosen it — under the TARGET's title, which is what a person reading
     // the log recognises.
     id,
@@ -5265,11 +5265,11 @@ const planMirror = (
  * and a rule that walks a shared graph its own way is a second answer with
  * extra steps.)
  *
- * TWO OPS ASK IT, and the difference is only what `target` is. `add_mirror`
+ * TWO OPS ASK IT, and the difference is only what `target` is. `outlines_mirror`
  * asks about the node the new placement would SHOW: that placement has exactly
  * one way in — it is a child of `parent` — so the question is whether drawing
  * the target ever reaches `parent`, and a top-level placement (no parent) has
- * no way in at all. `move_node` asks about the record being MOVED, which is
+ * no way in at all. `outlines_move` asks about the record being MOVED, which is
  * the same question one level out: everything that record draws — its own
  * subtree, and whatever the placements inside it show — is about to hang under
  * `parent`.
@@ -5297,12 +5297,12 @@ const shownTitle = (scope: Scope, target: string): string =>
  * Removing a mirror deletes a LINE, not a node: the target keeps its title, its
  * mark, its children and its own place in whatever outline defines it, and
  * every other placement of it stays exactly where it was. That is the whole
- * semantic, and it is why this is not `trash_node` (which MOVES a node and its
+ * semantic, and it is why this is not `outlines_trash` (which MOVES a node and its
  * subtree into `_olai/Trash.olai`, ids and all) and not a delete of anything —
  * there is no op in this layer that destroys content, and this one does not
  * become the first by accident.
  *
- * So the refusal for a regular node is not a technicality. `remove_mirror` on
+ * So the refusal for a regular node is not a technicality. `outlines_unmirror` on
  * the id of a node would be a caller asking to unsay something it never said,
  * and answering it by archiving the node — the nearest thing that "removes" it
  * — would put a subtree away nobody asked to put away.
@@ -5336,9 +5336,9 @@ const planUnmirror = (
     return Result.fail(
       new UsageFailure({
         reason:
-          `\`${request.id}\` is a node, not a mirror. \`remove_mirror\` retires a ` +
+          `\`${request.id}\` is a node, not a mirror. \`outlines_unmirror\` retires a ` +
           `PLACEMENT — one line showing a node in a second location — and never ` +
-          `touches the node itself; \`trash_node\` is what puts a node and its ` +
+          `touches the node itself; \`outlines_trash\` is what puts a node and its ` +
           `subtree away.`,
       }),
     )
@@ -5410,10 +5410,10 @@ const planUnmirror = (
  *
  * IT WRITES DOCUMENTS, and that is narrower than "a file the set holds". The
  * set carries every BODIED file — a `.html` rides the same collection and the
- * same probe — and this verb is `write_document`: what it takes is what it is
+ * same probe — and this verb is `markdown_write`: what it takes is what it is
  * named for, asked of the format's registry rather than of which list the path
  * turned up in. So a `.html` is not found here, and the sentence a caller gets
- * is the one below, naming `create_document` and the nearest document. That is
+ * is the one below, naming `markdown_create` and the nearest document. That is
  * the whole of why the page for one has no Edit control (`@olai/web`'s
  * `document/faces.tsx`): the affordance would be a door onto this refusal.
  *
@@ -5434,7 +5434,7 @@ const planWriteDocument = (
 ): Planned => {
   // Both halves are the FLOOR's — which of the set's bodied files are
   // documents, and what a path that is not one is told. This verb and
-  // `read_document` refuse the same miss, and the only thing they say
+  // `markdown_read` refuse the same miss, and the only thing they say
   // differently is where to go instead.
   const document = scope.asked.markdown(request.file)
   if (document === undefined) {
@@ -5445,7 +5445,7 @@ const planWriteDocument = (
         // the one thing here that answers about the directory ({@link ./asked.ts}).
         scope.asked.set,
         request.file,
-        "`create_document` is what starts one",
+        "`markdown_create` is what starts one",
       ),
     )
   }
@@ -5481,7 +5481,7 @@ const planWriteDocument = (
 /**
  * A brand-new document under the served directory.
  *
- * `create_outline`'s twin: the path is judged by the same segment rules with
+ * `files_create`'s twin: the path is judged by the same segment rules with
  * the other extension ({@link documentPath}), a path the set already holds is
  * refused — write refuses a missing file and create an existing one, so a typo
  * can never quietly mint a document — and the write gate's stage → validate →
@@ -5512,7 +5512,7 @@ const planCreateDocument = (
       new UsageFailure({
         reason:
           `\`${file}\` is already a document under the served directory — create ` +
-          `starts a new one; \`write_document\` is what edits this one`,
+          `starts a new one; \`markdown_write\` is what edits this one`,
       }),
     )
   }
@@ -5541,7 +5541,7 @@ const planCreateDocument = (
  *
  * The walk is {@link namingByProp}'s shape, deliberately: one sweep of the
  * nodes, one row per naming record per means, in the `id (key, file:line)`
- * spelling the reader already meets in `remove_mirror`'s and `empty_trash`'s
+ * spelling the reader already meets in `outlines_unmirror`'s and `trash_empty`'s
  * refusals. What is NOT here is every other way a path can be named. A
  * `path`-declared value promised its SHAPE only; a markdown link going dead
  * is markdown being markdown (format.md's addressing says so); a pin landing
@@ -5607,7 +5607,7 @@ const namingDocument = (
  * would otherwise leave for the LOAD to find:
  *
  *   - an outline still carrying RECORDS. This is a delete, not a move:
- *     `trash_node` is how a record leaves an outline, and what empties one
+ *     `outlines_trash` is how a record leaves an outline, and what empties one
  *     entirely is nobody's verb to guess;
  *   - a document still NAMED — a `doc` field, or a `doc`-declared value,
  *     naming it ({@link namingDocument}). Deleting under them would break
@@ -5660,8 +5660,8 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
     return Result.fail(
       new NotFoundFailure({
         reason: near === ""
-          ? `\`${request.file}\` is not a file under the served directory — \`create_document\` ` +
-            `starts a document and \`create_outline\` an outline; nothing here deletes one ` +
+          ? `\`${request.file}\` is not a file under the served directory — \`markdown_create\` ` +
+            `starts a document and \`files_create\` an outline; nothing here deletes one ` +
             `that was never there`
           : `\`${request.file}\` is not a file under the served directory${near}`,
         named: request.file,
@@ -5684,7 +5684,7 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
           reason:
             `\`${request.file}\` still holds ${held.length === 1 ? "a record" : `${held.length} records`} — ` +
             `${capped(held, (one) => `\`${one.id}\` (${shownTitle(scope, one.id)})`)}. Delete removes ` +
-            `only an EMPTY outline: \`trash_node\` is what moves a record out of one`,
+            `only an EMPTY outline: \`outlines_trash\` is what moves a record out of one`,
         }),
       )
     }
@@ -5722,8 +5722,8 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
  * over a set of ids rather than over one.
  *
  * Both writes that take records OUT of the set have to ask it, and they are
- * asking the same thing: `remove_mirror` about a single placement, and
- * `empty_trash` about every record in an archive. A second spelling would be
+ * asking the same thing: `outlines_unmirror` about a single placement, and
+ * `trash_empty` about every record in an archive. A second spelling would be
  * two answers to "who still names this" — and, worse, two formats for the
  * sentence that names them, in the two refusals a person is most likely to
  * meet one after the other.
@@ -5773,7 +5773,7 @@ const heldBy = (scope: Scope, going: ReadonlySet<string>): ReadonlyArray<string>
  * (`@olai/format`'s `typing.ts`), not about the format, and no index built by
  * `derive` could hold it without the declarations.
  *
- * Left out, `empty_trash` would delete a node a live lane's `agent` still names
+ * Left out, `trash_empty` would delete a node a live lane's `agent` still names
  * and answer SUCCESS, leaving the very dangling value the validator refuses on
  * the next load — a write that lands and immediately breaks the set. Which is
  * the exact failure this whole function exists to prevent for the other four
@@ -5782,7 +5782,7 @@ const heldBy = (scope: Scope, going: ReadonlySet<string>): ReadonlyArray<string>
  * IT WALKS, and the guard is what makes that affordable: a vault that declares
  * no `ref` and no `node` key — every vault before this feature, and most after
  * it — pays one map read and no walk at all. Where there IS one, the walk is
- * per removal (`remove_mirror`, `empty_trash`), never per write.
+ * per removal (`outlines_unmirror`, `trash_empty`), never per write.
  *
  * THE KEY IS THE FIELD in the sentence, which is what makes the refusal
  * actionable: `` `lane` (`agent`, orchestrator/lanes.olai:12) `` reads exactly
@@ -5816,7 +5816,7 @@ const namingByProp = (
   return found
 }
 
-/** {@link heldBy} of one record — what `remove_mirror` asks about the placement
+/** {@link heldBy} of one record — what `outlines_unmirror` asks about the placement
  *  it is retiring. */
 const dependents = (scope: Scope, id: string): ReadonlyArray<string> =>
   heldBy(scope, new Set([id]))

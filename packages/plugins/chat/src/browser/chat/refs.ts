@@ -7,7 +7,7 @@
  *
  * **The convention is one the agent already emits.** Every olai tool takes an
  * `id`, every tool description spells one in BACKTICKS, every read answers with
- * one — so an agent that has just called `set_done` writes "marked `order`
+ * one — so an agent that has just called `outlines_done` writes "marked `order`
  * done", the way the scripted one in `packages/tests/agent/` does and the way
  * the Claude Code adapter does. A code span is what markdown makes of that, and
  * it is already in the rendered HTML. Nothing new is asked of the agent, no
@@ -68,7 +68,7 @@ export const NODE_REF = "data-node-ref"
  *
  * **It answers with the id it RESOLVED to, not with the one the span says**,
  * and the difference is a placement. An agent writes placement ids — that is
- * what `read_node`'s `mirrors` answers with and what `remove_mirror` takes —
+ * what `outlines_read`'s `mirrors` answers with and what `outlines_unmirror` takes —
  * and a mirror is not a row: every row in the tree carries the node it SHOWS
  * (`../fold/rows.ts`), so a span marked with the placement's own id names
  * nothing that can be focused and every press of it would leave the page for a

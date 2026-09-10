@@ -77,8 +77,8 @@ describe("an id the agent named", () => {
   })
 
   test("a PLACEMENT the agent named points at the node it shows", () => {
-    // An agent writes placement ids: `read_node` answers `mirrors` with them
-    // and `remove_mirror` takes them. What the span must carry is the id of
+    // An agent writes placement ids: `outlines_read` answers `mirrors` with them
+    // and `outlines_unmirror` takes them. What the span must carry is the id of
     // the node a reader can be SHOWN — no row in the tree is `echo` (a row
     // carries the node it shows), so a span marked `echo` could only ever fail
     // to find a row and leave the page for a node that is right there.

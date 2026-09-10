@@ -24,9 +24,9 @@
 import type { DirtyOutline, NodeChange } from "@olai/format"
 import { For, Show } from "solid-js"
 
-import { GLYPH, SAID } from "@olai/web/client/changes.ts"
-import { renderTitle } from "@olai/web/client/markdown/title.ts"
-import { TitleHtml } from "@olai/web/client/markdown/TitleHtml.tsx"
+import { GLYPH, SAID } from "olai-plugin-outlines/changes"
+import { renderTitle } from "@olai/markdown-ui/title.ts"
+import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { Moved } from "./Moved.tsx"
 import { HOW, HOW_TONE, localOf } from "./said.ts"
 import type { Selection } from "./selection.ts"

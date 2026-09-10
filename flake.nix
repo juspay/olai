@@ -62,6 +62,7 @@
         in
         kolu.packages // {
           inherit (olai) olai olai-client olai-fonts kolu-mark odu-mark acp-agent codex-agent odu-bin;
+          odu = olai.odu-bin;
           default = olai.olai;
           # `nix run .#bun2nix -- -l bun.lock -o bun.nix` regenerates the
           # lockfile-derived nix expression (`just regenerate-bun-nix`).

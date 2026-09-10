@@ -48,7 +48,7 @@
 
 import type { Owed } from "@olai/format"
 
-import { CHIP_ALARM, CHIP_QUIET } from "@olai/web/client/layout/chip.ts"
+import { CHIP_ALARM, CHIP_QUIET } from "olai-plugin-layout/chip"
 
 /** Which of the three the entry is wearing. `quiet` is today's entry, unchanged
  *  — an agenda with nothing late and nothing on today is a door, not news. */

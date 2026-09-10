@@ -16,6 +16,7 @@ import {
   OUTLINE_LINK,
   OUTLINE_LIST,
   OUTLINE_TREE,
+  PANE,
   POLL_TIMEOUT,
   RAIL_DOCS,
   RAIL_OUTLINES,
@@ -78,14 +79,29 @@ Then(
   },
 );
 
+/**
+ * ...AND THE SAME LINK GONE.
+ *
+ * IT WAITS, and the reason is what every caller of this step is actually
+ * saying. A deletion is a write: the press goes to the gate, the gate answers,
+ * the store publishes and the sidebar redraws — three hops after the frame the
+ * confirm step waits for. Read once, this asserted that the sidebar had ALREADY
+ * caught up, which is not a claim any scenario here means to make and is not
+ * one a loaded machine keeps: it passed for as long as the round trip fitted
+ * inside one animation frame and failed the day a shard put four workers on one
+ * box.
+ *
+ * Waiting costs nothing where the link was never there — the first read
+ * answers zero and the loop ends — so the absence a scenario asserts from a
+ * standing start is the same absence it was.
+ */
 Then(
   "the outline list does not link to {string}",
   async function (this: OlaiWorld, file: string) {
     await this.showSidebar();
-    assert.strictEqual(
-      await this.outlineLink(file).count(),
-      0,
-      `the sidebar links to "${file}", which is not an outline`,
+    await this.waitUntil(
+      async () => (await this.outlineLink(file).count()) === 0,
+      `the sidebar to stop linking to "${file}", which is not an outline`,
     );
   },
 );
@@ -108,10 +124,42 @@ Then(
   },
 );
 
-/** A row of THIS file — the swap, not any outline-tree still held from the
- *  page before. Shared by the click and the open so they cannot drift. */
+/**
+ * THE DESTINATION PAGE, ARRIVED — a pane that is DRAWING this file, and the
+ * tree inside it. Shared by the click and the open so they cannot drift.
+ *
+ * ## It was a row's `data-file`, and that established nothing
+ *
+ * `Tree.tsx` puts `data-file` on each ROW, as the file of the RECORD that row
+ * draws — and a mirror pulls another outline's records into this one. The
+ * `good` corpus has exactly that: `house.olai`'s `kitchen-herbs` mirrors
+ * `herbs` out of `garden.olai`, so with `/house.olai` on screen the old
+ * selector already matched a visible row (`mint`, and `basil` once done rows
+ * are shown). Its post-condition was true at step ENTRY, so the wait
+ * synchronised nothing at all for that pair — a review found it, and a probe
+ * confirmed it in the DOM.
+ *
+ * ## Nor the href, nor the URL
+ *
+ * Both move the frame a link is clicked. A pane keeps the page it has while
+ * the next reading is in flight (`olai-plugin-outlines`' `PageView.tsx`), so a
+ * wait on either returns with the previous page still on screen. What this
+ * asks is the pane's own `data-drawn-file`: the file of the page it is
+ * DRAWING, which is the arrival itself.
+ *
+ * ## THE INTENDED PANE, which is the FOCUSED one
+ *
+ * "Any pane drawing it" was the same false positive one step out: a split with
+ * the destination already open beside the reader satisfies it before the pane
+ * they are IN has moved. The destination pane is not a guess — `router.go` is
+ * `goIn(workspace().focus, next)`, so a plain link navigates the pane you are
+ * in, and both callers of this are plain links. A step that means a particular
+ * pane asks `paneAt` instead.
+ */
 const treeOf = (world: OlaiWorld, file: string) =>
-  world.page.locator(`${OUTLINE_TREE} ${attr("data-file", file)}`).first();
+  world.page
+    .locator(`${PANE}[data-pane-focused="true"]${attr("data-drawn-file", file)} ${OUTLINE_TREE}`)
+    .first();
 
 /** The same click one kind over from "I click the document": the entry in the
  *  tree, pressed from wherever the reader already is. Its sibling below opens
@@ -130,6 +178,26 @@ When(
       state: "visible",
       timeout: POLL_TIMEOUT,
     });
+  },
+);
+
+/**
+ * WHICH PAGE THE INTENDED PANE IS DRAWING — the arrival itself, asserted rather
+ * than waited on incidentally.
+ *
+ * THE FOCUSED PANE, because that is where a sidebar click opens: a step that
+ * accepted any pane would pass on a split where the file was already open
+ * beside the one the reader is in. {@link treeOf}'s wait is deliberately wider
+ * — it means "the destination is on screen" and the click decides where — and
+ * this is the narrower claim a scenario makes when the pane matters.
+ */
+Then(
+  "the focused pane is drawing the outline {string}",
+  async function (this: OlaiWorld, file: string) {
+    await this.page
+      .locator(`${PANE}[data-pane-focused="true"]${attr("data-drawn-file", file)}`)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
 

@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * The `•••` menu: opening it, what it offers, what it asks, and what it said.
  *
@@ -26,7 +27,7 @@
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
-import { selector, TESTID } from "@olai/web/testlib";
+import { selector } from "@olai/web/testlib"
 
 import { chunkOf } from "../support/chunks.ts";
 import { pressed } from "../support/settling.ts";

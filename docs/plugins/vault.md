@@ -1,0 +1,1 @@
+../../packages/plugins/vault/docs.md

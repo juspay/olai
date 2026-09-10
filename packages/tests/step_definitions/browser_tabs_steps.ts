@@ -15,7 +15,9 @@ const tabs = new WeakMap<OlaiWorld, Tabs>();
 Given("incoming updates to this browser tab can be held", async function (this: OlaiWorld) {
   const state: Tabs = { original: this.page, held: false, pending: [] };
   tabs.set(this, state);
-  await this.page.routeWebSocket("**/rpc/ws", (client) => {
+  // A reconnect echoes the server identity as ?pid=… . Match the transport's
+  // pathname so that redial cannot escape an intentionally held response.
+  await this.page.routeWebSocket(url => url.pathname === "/rpc/ws", (client) => {
     const server = client.connectToServer();
     client.onMessage((message) => server.send(message));
     server.onMessage((message) => {

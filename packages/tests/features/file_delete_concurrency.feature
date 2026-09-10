@@ -49,17 +49,18 @@ Feature: File deletion rechecks the content and references that arrive while it 
     And there should be no page errors
 
   @phone
-  Scenario: A provider change on a phone requires a fresh deletion confirmation
+  Scenario: Restarting files on a phone requires a fresh deletion confirmation
     Given I open the document "notes/palette.md"
     And I mark the page
     When I press Delete file
     And I open another browser tab
     And I press the sidebar shortcut
     And I open the plugins panel
-    And I switch the plugin "chat" off
+    And I switch the plugin "files" off
+    And I switch the plugin "files" on
     And I press "Escape"
     And I use the original browser tab
-    Then the conversation is gone-from the header
+    Then the document open is "notes/palette.md"
     When I press Delete file
     And I cancel deleting the file
     Then the file "notes/palette.md" has been created

@@ -127,3 +127,7 @@ Then(
     await announcedTimes(this, nodeSelector(id), `row "${id}"`, times);
   },
 );
+
+Then("the row {string} kept every element it had", async function (this: OlaiWorld, id: string) {
+  await regionHeld(this, nodeSelector(id), `row "${id}"`);
+});

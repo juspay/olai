@@ -6,12 +6,9 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   that is the lane a prompt goes out on and the one every word about its fate is
   already written for.
 
-  WHICH unassigned conversation hears it is one person's answer, given in one
-  place. The wake strip under the panel's other two is that place: a file per
-  conversation, picked by hand. A node agent instead inherits its own subtree
-  and has no picker. No serve scopes an unassigned conversation, and one nobody
-  has scoped hears nothing — which is why the strip's ordinary state is `off`
-  and is still drawn.
+  Each conversation chooses its own file for each plugin, including chats
+  bound to nodes. New conversations are off. Clearing the file turns that
+  plugin's notifications off without changing any other conversation or plugin.
 
   ONE SCENARIO, and the whole of the rest is unit-tested. What a filter file
   CLAIMS, what a wake MEANS and what the sentence says are pure functions over a
@@ -32,8 +29,8 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   re-arms a hold that is already standing — so writing the config is the gesture
   that fires the watcher, and this scenario never sits out a clock.
 
-  @agent-stored @scratch:lanes @padi:lanes
-  Scenario: The conversation I pointed at the board hears from it, and my half-typed message does not move
+  @scratch:lanes @padi:lanes
+  Scenario Outline: The <chat> conversation hears its selected board without moving my draft
     Given I open the outline "lanes.olai"
     And the agent panel is open
     # The default, and it is a ruling rather than an oversight: nobody is opted
@@ -68,10 +65,24 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     # derived from is the thing a person reaches for from the collapsed message.
     And that sentence can be pressed through to the board
     When I open that sentence
-    Then that sentence names the terminal "22222222-2222-4222-8222-222222222222"
+    # THE JOIN, and the id is asserted rather than the wording: every word of the
+    # sentence is kolu's own and `doorbell.test.ts` pins them. What this line is
+    # for is that the file a person picked, the un-done step in it, and a
+    # terminal on the far end of a real socket are three separate facts, and this
+    # is the one place they meet.
+    Then that sentence names "22222222-2222-4222-8222-222222222222"
     And there should be no page errors
 
-  @scratch:lanes @plugins:kolu
+    Examples:
+      | chat       |
+      | node-bound |
+
+    @agent-stored
+    Examples:
+      | chat       |
+      | unassigned |
+
+  @scratch:lanes @plugins:vault,kolu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that composed no chat row says which door kolu is waiting behind
     # THE RULING'S ACCEPTED COST, and the sentence that makes it payable.
     #
@@ -99,3 +110,159 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     # THE CHAT ROW ITSELF is a different absence and gets a different sentence:
     # nobody asked for it, so there is nothing to fix and nothing amber.
     And the plugins panel says "chat" is "was not asked for"
+
+
+  @scratch:lanes
+  Scenario: Node conversations control each doorbell and remember off across restart
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    Then the agent "door-live" stands "idle"
+    And this conversation's "kolu" wake is on nothing
+    And this conversation's "odu" wake is on nothing
+    When I point this conversation's "kolu" wake at "lanes.olai"
+    And I point this conversation's "odu" wake at "backlog.olai"
+    Then this conversation's "kolu" wake is on "lanes.olai"
+    And this conversation's "odu" wake is on "backlog.olai"
+    When I point this conversation's "kolu" wake at "backlog.olai"
+    Then this conversation's "kolu" wake is on "backlog.olai"
+    And this conversation's "odu" wake is on "backlog.olai"
+    When I clear this conversation's "kolu" wake
+    Then this conversation's "kolu" wake is on nothing
+    And this conversation's "odu" wake is on "backlog.olai"
+    When I leave the app
+    And the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then this conversation's "kolu" wake is on nothing
+    And this conversation's "odu" wake is on "backlog.olai"
+    When I clear this conversation's "odu" wake
+    Then this conversation's "odu" wake is on nothing
+    When I point this conversation's "kolu" wake at "lanes.olai"
+    Then this conversation's "kolu" wake is on "lanes.olai"
+    And this conversation's "odu" wake is on nothing
+    And there should be no page errors
+
+
+  @scratch:lanes
+  Scenario: Wake choices survive a plugin leaving and returning through Cordis
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I point this conversation's "kolu" wake at "lanes.olai"
+    And I point this conversation's "odu" wake at "backlog.olai"
+    And I open the plugins panel
+    And I switch the plugin "kolu" off
+    And I close the plugins panel
+    Then this conversation offers no "kolu" wake control
+    And this conversation's "odu" wake is on "backlog.olai"
+    When I open the plugins panel
+    And I switch the plugin "kolu" on
+    And I close the plugins panel
+    Then this conversation's "kolu" wake is on "lanes.olai"
+    And this conversation's "odu" wake is on "backlog.olai"
+    When I clear this conversation's "kolu" wake
+    And I reload the page
+    And the agent panel is open
+    Then this conversation's "kolu" wake is on nothing
+    And this conversation's "odu" wake is on "backlog.olai"
+    And there should be no page errors
+
+
+  @scratch:chat
+  Scenario: A fresh node session starts off and its history keeps separate wake choices
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
+    When I open the node menu of "install"
+    And I choose "Start an agent session" from the node menu
+    And the agent panel is open
+    And I ask the agent "wake history"
+    Then the agent has answered "wake history" exactly once
+    When I remember this conversation as "first"
+    And I point this conversation's "kolu" wake at "house.olai"
+    And I point this conversation's "odu" wake at "yard.olai"
+    And I open the session picker
+    And I start a fresh session
+    Then the panel is ready in a new conversation after "first"
+    And this conversation's "kolu" wake is on nothing
+    And this conversation's "odu" wake is on nothing
+    When I remember this conversation as "current"
+    And I point this conversation's "kolu" wake at "yard.olai"
+    And I open the session picker
+    And I open the past session "wake history"
+    Then the panel is in the remembered conversation "first"
+    And this conversation's "kolu" wake is on "house.olai"
+    And this conversation's "odu" wake is on "yard.olai"
+    When I clear this conversation's "odu" wake
+    And I open the session picker
+    And I return to the node agent's current session
+    Then the panel is in the remembered conversation "current"
+    And this conversation's "kolu" wake is on "yard.olai"
+    And this conversation's "odu" wake is on nothing
+    And there should be no page errors
+
+
+  @scratch:lanes
+  Scenario Outline: Clearing a node wake discards its queued missing-file warning
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I point this conversation's "<plugin>" wake at "backlog.olai"
+    And I ask the agent "hold"
+    Then the agent is working
+    When I remove the served file "backlog.olai"
+    Then this conversation's "<plugin>" missing-file warning is queued
+    When I clear this conversation's "<plugin>" wake
+    And the agent is released
+    Then the agent is idle
+    And the conversation has received no plugin messages
+    And there should be no page errors
+
+    Examples:
+      | plugin |
+      | kolu   |
+      | odu    |
+
+
+  @scratch:lanes
+  Scenario Outline: Repointing a node wake discards its queued missing-file warning
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I point this conversation's "<plugin>" wake at "backlog.olai"
+    And I ask the agent "hold"
+    Then the agent is working
+    When I remove the served file "backlog.olai"
+    Then this conversation's "<plugin>" missing-file warning is queued
+    When I point this conversation's "<plugin>" wake at "lanes.olai"
+    And the agent is released
+    Then the agent is idle
+    And the conversation has received no plugin messages
+    And there should be no page errors
+
+    Examples:
+      | plugin |
+      | kolu   |
+      | odu    |
+
+
+  @scratch:lanes
+  Scenario Outline: A plugin reload preserves the pick and revokes its queued warning
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I point this conversation's "<plugin>" wake at "backlog.olai"
+    And I ask the agent "hold"
+    Then the agent is working
+    When I remove the served file "backlog.olai"
+    Then this conversation's "<plugin>" missing-file warning is queued
+    When I open the plugins panel
+    And I switch the plugin "<plugin>" off
+    And I switch the plugin "<plugin>" on
+    And I close the plugins panel
+    Then this conversation's "<plugin>" wake is on "backlog.olai"
+    When the agent is released
+    Then the agent is idle
+    And the conversation has received no plugin messages
+    And there should be no page errors
+
+    Examples:
+      | plugin |
+      | kolu   |
+      | odu    |

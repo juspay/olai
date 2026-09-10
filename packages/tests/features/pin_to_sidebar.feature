@@ -7,8 +7,8 @@ Feature: Pinning a page to the sidebar
   The whole of it is STORED IN THE DIRECTORY and nothing about it is
   browser-local — `Pins.olai`, one ordinary node per pin, whose title is the
   ADDRESS the pin opens. That is what makes the shelf something an agent can
-  read and write with the tools it already has (`add_node`, `move_node`,
-  `trash_node`), and it is why these scenarios assert on the FILE as often as
+  read and write with the tools it already has (`outlines_add`, `outlines_move`,
+  `outlines_trash`), and it is why these scenarios assert on the FILE as often as
   on the column.
 
   Two promises a screenshot cannot make are here as scenarios: a click lands on
@@ -139,7 +139,7 @@ Feature: Pinning a page to the sidebar
     And there should be no page errors
 
   Scenario: A pin is renamed from the shelf, and ⌘Z takes the name back
-    # Renaming is `set_title` on the pin's own row — the op an agent sends and
+    # Renaming is `outlines_title` on the pin's own row — the op an agent sends and
     # the one the undo stack already knows — so the shelf's door onto it needs
     # no verb of its own.
     Given the directory has the pins:
@@ -176,6 +176,11 @@ Feature: Pinning a page to the sidebar
     When I pin the page
     And I unpin "/house.olai"
     Then the pinned shelf is not drawn
+    When I press "ControlOrMeta+z"
+    Then the pinned shelf holds "/house.olai"
+    When I press "ControlOrMeta+Shift+z"
+    Then the pinned shelf is not drawn
+    And there should be no page errors
 
   Scenario: Pins are ordered by the file, and a drag reorders them
     Given the directory has the pins:
@@ -184,6 +189,10 @@ Feature: Pinning a page to the sidebar
       | /agenda   |
     Then the pinned shelf reads "/#order /#demo /agenda"
     When I drag the pin "/agenda" above "/#order"
+    Then the pinned shelf reads "/agenda /#order /#demo"
+    When I press "ControlOrMeta+z"
+    Then the pinned shelf reads "/#order /#demo /agenda"
+    When I press "ControlOrMeta+Shift+z"
     Then the pinned shelf reads "/agenda /#order /#demo"
     And there should be no page errors
 

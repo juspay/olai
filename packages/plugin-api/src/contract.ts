@@ -288,12 +288,15 @@ export interface Refusal {
 
 /** ...AND ONE THIS SERVE ACTUALLY REFUSED, as a plugin watching writes is told.
  *
- *  `op` is the ops request's own verb (`set_prop`, `add_node`, …) and is a word
+ *  `op` is the ops request's own verb (`outlines_prop`, `outlines_add`, …) and is a word
  *  rather than a union for the reason above: the vocabulary is the ops layer's,
  *  and a copy of it here would be a second list to keep in step. */
 export interface Refused {
   readonly op: string
   readonly failure: Refusal
+  /** The write gate's attribution, carried as a word like `op` so this
+   * contract does not duplicate the format's writer vocabulary. */
+  readonly writer: string
 }
 
 /**
@@ -361,10 +364,27 @@ export type ConversationSeen =
  * A capability that could do both would be the appliance reading the human's
  * mail, and no amount of care at the call site takes that back afterwards.
  */
+/** A delivery address and the lifetime that still authorizes its use. Retain
+ * this capability when passing a recipient between readers and async work. */
+export interface DeliveryRecipient {
+  readonly agent: string
+  readonly session: string
+  readonly current: () => boolean
+}
+
 export interface Deliveries {
+  /** Addressed notices from delivery-only plugins, such as transport failures.
+   * A plugin declaring a selectable wake must use its issued recipient instead. */
+  readonly notify: (
+    to: { readonly agent: string; readonly session: string },
+    say: () => string | null,
+    options?: { readonly coalesce?: string },
+  ) => Effect.Effect<void>
   /**
    * THE CONVERSATIONS THAT OPTED INTO THIS PLUGIN'S WAKES, each with the file a
-   * person picked to filter by.
+   * person picked to filter by. Pass the issued scope, including its `current` capability, to
+   * `deliver`: it carries the authority of that exact pick through startup
+   * and queued work. Bare routing coordinates are not a delivery recipient.
    *
    * SYNCHRONOUS, and that shapes what is behind it: the composition root builds
    * this blob inside a plain `.map`, and the caller is a watcher sink with no
@@ -378,12 +398,10 @@ export interface Deliveries {
    * where that reads as physics rather than as a promise. A fresh conversation's
    * doorbell is off, and the only thing that turns it on is a person.
    */
-  readonly scopes: () => ReadonlyArray<{
-    readonly agent: string
-    readonly session: string
+  readonly scopes: () => ReadonlyArray<DeliveryRecipient & {
     readonly file: string
     /** A derived node-agent scope. Absent means a person picked the whole file
-     * for an unassigned conversation. */
+     * for a conversation. */
     readonly under?: string
   }>
   /** The scopes that hear a claim made by `node` in `file`. Manual whole-file
@@ -433,7 +451,7 @@ export interface Deliveries {
    * a reader gets for free, and it is better spent saying what happened.
    */
   readonly deliver: (
-    to: { readonly agent: string; readonly session: string },
+    to: DeliveryRecipient,
     /**
      * THE WORDS, COMPOSED AT THE MOMENT THEY ENTER THE CONVERSATION — not when
      * this was called.
@@ -879,20 +897,9 @@ export interface Wake {
   }
 }
 
-/**
- * WHERE A SESSION IS SEATED — the subtree its writes are fenced to, and the keys
- * it may not touch inside it.
- *
- * Re-declared here for {@link Refusal}'s reason: the shape is
- * `@olai/server`'s (`mcp/tickets.ts`), and it is three fields of strings that
- * both ends have to spell. Contravariance makes the agreement the strong
- * direction — whoever completes the ticket door hands over a value that has to
- * satisfy both spellings at the composition root, so a drift is a type error in
- * the one file that holds both.
- *
- * `forbidden` is inside the fence rather than beside it: a node agent may write
- * anywhere under its own node and still may not rewrite the property that says
- * WHICH conversation it is, because that is the binding rather than the work.
+/** One key a session's door may not write, and the clause that says why — spent
+ *  verbatim inside the refusal (`@olai/ops`' `doorRefusal`), so it reads as a
+ *  reason and not as a label.
  *
  * EACH KEY CARRIES ITS OWN SENTENCE, and that is not decoration. The refusal a
  * session reads used to be composed in `@olai/ops` — a general package writing
@@ -902,16 +909,7 @@ export interface Wake {
  * one moves when this plugin's idea of a binding moves, and the composition
  * root's moves when the host's own vocabulary does. So the clause travels from
  * whoever forbade the key, which is this tree's ordinary rule — failure prose is
- * the owner's, and core carries it.
- */
-export interface Seated {
-  readonly under: string
-  readonly forbidden: ReadonlyArray<Forbidden>
-}
-
-/** One key a session's door may not write, and the clause that says why — spent
- *  verbatim inside the refusal (`@olai/ops`' `fenceRefusal`), so it reads as a
- *  reason and not as a label. */
+ * the owner's, and core carries it. */
 export interface Forbidden {
   readonly key: string
   readonly says: string
@@ -938,11 +936,12 @@ export const NOWHERE_TO_WRITE: Refusal & { readonly reason: string } = {
  *
  *  THE BEARER IS EMPTY RATHER THAN ABSENT so the type stays one shape, and the
  *  empty string is a value a caller must TEST: handed to a tool door it is a
- *  session the door cannot place, so the subtree write fence is off for it —
- *  seated, and unfenced, which is the one thing a seat may not be.
+ *  session the door cannot place, so the session's remaining write rule is off
+ *  for it — seated, and with no credential, which is the one thing a seat may
+ *  not be.
  *
  *  The one caller in this tree tests it (`olai-plugin-chat`'s `scoped.ts`, which
- *  hands no MCP face at all rather than an unfenced one). It said so here for a
- *  while when that caller did not, which is how a sentence about a fence stops
- *  being a fence. */
+ *  hands no MCP face at all rather than a door with no credential). It said so
+ *  here for a while when that caller did not, which is how a sentence about a
+ *  door stops being a door. */
 export const NO_TICKET: MintedTicket = { bearer: "", release: () => {} }

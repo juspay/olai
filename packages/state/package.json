@@ -11,7 +11,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "`effect` and nothing else, deliberately: this is a LEAF beside `format`, `git` and `log` (docs/architecture.md), and it is the whole point of the extraction — a package that knows where a machine keeps files and knows nothing about outlines, git or a wire. A workspace sibling appearing here would be that knowledge coming back.",
+  "//dependencies": "`effect` and nothing else, deliberately: this is a LEAF beside `format`, `git` and `log` (docs/architecture.md), and it is the whole point of the extraction \u2014 a package that knows where a machine keeps files and knows nothing about outlines, git or a wire. A workspace sibling appearing here would be that knowledge coming back.",
   "dependencies": {
     "effect": "4.0.0-rc.112"
   },

@@ -16,7 +16,7 @@
  * WHAT IS FORCED, and what is not. Nothing is fabricated and no frame is
  * rewritten. The server is a real `olai web` over a real directory that really
  * does not parse, so the manifest cell really does say `null`. The only
- * interference is a DELAY: the SECOND frame of `surface/manifest/get` — the
+ * interference is a DELAY: the SECOND frame of `surface/vault/manifest/get` — the
  * `{}` that says the set finally loaded — is held for {@link HOLD_MS} by a
  * Playwright `routeWebSocket`, and the heads of that same revision pass
  * through untouched. Every frame this driver touches is announced on stdout
@@ -160,7 +160,7 @@ let headsRequest: number | null = null
 let manifestFrames = 0
 let heldAt: number | null = null
 
-await page.routeWebSocket("**/rpc/ws", (ws) => {
+await page.routeWebSocket(url => url.pathname === "/rpc/ws", (ws) => {
   const server = ws.connectToServer()
   // The tab's own questions, passed through whole. Read only for the two
   // request ids: a member's frames are answered under the id its subscription
@@ -171,8 +171,8 @@ await page.routeWebSocket("**/rpc/ws", (ws) => {
       try {
         const frame = JSON.parse(line)
         if (frame._tag !== "Request") continue
-        if (frame.tag === "surface/manifest/get") manifestRequest = frame.id
-        if (frame.tag === "surface/heads/deltas") headsRequest = frame.id
+        if (frame.tag === "surface/vault/manifest/get") manifestRequest = frame.id
+        if (frame.tag === "surface/vault/heads/deltas") headsRequest = frame.id
       } catch {
         // Not ours to read. The transport is ndjson and this driver is only
         // ever looking for two lines of it.

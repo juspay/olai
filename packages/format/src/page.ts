@@ -304,6 +304,61 @@ export const PageReading = Schema.Struct({
 export type PageReading = typeof PageReading.Type
 
 /**
+ * A PAGE THAT IS A FILE, which is the half of the union above that a row
+ * serving files can answer at all.
+ *
+ * The two narrowings below and the one under them are the shapes a MEMBER is
+ * declared with rather than shapes a walk produces, and they are here, on the
+ * floor, for the reason every other wire shape in this package is: one
+ * vocabulary that the spec and the ops layer both stand on, so there is no
+ * second spelling to drift. They used to be `FiledPageRequest`,
+ * `FiledPageReading` and `DocumentPageRequest` in `@olai/surface`, where "core"
+ * meant the one spec the whole app was — and where they were the last thing a
+ * content row still had to reach up into a general package to declare its own
+ * member with. Two rows narrow this union and neither is core: `outlines`
+ * declares `page` over {@link FiledPageRequest}, `markdown` declares
+ * `documentPage` over {@link DocumentPageRequest}, and both answer in
+ * {@link FiledPageReading}.
+ *
+ * WHY A NARROWING AND NOT A SECOND UNION: `day` and `agenda` are the journal's
+ * pages, and the journal is a row of its own. A member that admitted them would
+ * be a member promising an answer its owner cannot compute — the refusal would
+ * be at the handler, one frame late, instead of at the door.
+ */
+export type FiledPageRequest = Extract<PageRequest, { readonly kind: "at" | "trash" }>
+export const FiledPageRequest = PageRequest.check(
+  Schema.makeFilter(
+    (request: PageRequest) => request.kind === "at" || request.kind === "trash",
+    { expected: "a file, node, or trash page request" },
+  ),
+) as typeof PageRequest & { readonly Type: FiledPageRequest }
+
+/** What such a page shows — {@link PageReading} with the two journal shapes
+ *  taken out of `shows`, so the reading and the request narrow together. */
+type FiledShown = Exclude<PageReading["shows"], { readonly kind: "day" | "agenda" }>
+export type FiledPageReading = Omit<PageReading, "shows"> & { readonly shows: FiledShown }
+export const FiledPageReading = PageReading.check(
+  Schema.makeFilter(
+    (reading: PageReading) => reading.shows.kind !== "day" && reading.shows.kind !== "agenda",
+    { expected: "a file, node, or trash page reading" },
+  ),
+) as typeof PageReading & { readonly Type: FiledPageReading }
+
+/** A BODIED file's address and nothing else — what `markdown` narrows
+ *  {@link FiledPageRequest} down to for its own member, because a metadata
+ *  reading of a `.olai` is a question about a file that has no body to read.
+ *  {@link bodyKind} is the one place that decides which kinds those are, so
+ *  this filter asks it rather than listing extensions a second time. */
+export type DocumentPageRequest = {
+  readonly kind: "at"
+  readonly address: Extract<NonNullable<Extract<PageRequest, { readonly kind: "at" }>["address"]>, { readonly kind: "document" }>
+}
+export const DocumentPageRequest = FiledPageRequest.check(Schema.makeFilter(request => {
+  if (request.kind !== "at" || request.address?.kind !== "document") return false
+  return bodyKind(request.address.path) !== null
+})) as typeof FiledPageRequest & { readonly Type: DocumentPageRequest }
+
+/**
  * Whether two readings say the same thing — what keeps a revision that changed
  * nothing on this page from sending a frame to the tab drawing it.
  *

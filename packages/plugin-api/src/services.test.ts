@@ -1,3 +1,4 @@
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * THE SERVICES' OWN BENCH — what a registration does to the table it writes
  * into, and what it does when the composition root refuses it.
@@ -16,7 +17,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { Cause, Effect, Layer, Logger, type Scope } from "effect"
+import { Cause, Deferred, Effect, Fiber, Layer, Logger, type Scope } from "effect"
 
 import {
   Deliveries,
@@ -28,13 +29,14 @@ import {
   type Mounted,
   mountPlugin,
   Offers,
-  openPlugins,
+
   Ops,
   type PluginsConfig,
   SessionStart,
   serviceTag,
   Surfaces,
   Vault,
+  vaultEvents,
   Wakes,
   Watching,
 } from "./services.ts"
@@ -456,9 +458,10 @@ test("the doorbell's door is keyed by the plugin, with no way to spell another's
           yield* (yield* Offers).offer(Deliveries, (plugin) => {
             asked.push(plugin)
             return {
-              scopes: () => [{ agent: "a", session: "s", file: `${plugin}.olai` }],
-              ringing: (file) => [{ agent: "a", session: "s", file }],
+              scopes: () => [{ agent: "a", session: "s", file: `${plugin}.olai`, current: () => true }],
+              ringing: (file) => [{ agent: "a", session: "s", file, current: () => true }],
               deliver: () => Effect.void,
+              notify: () => Effect.void,
             }
           })
         }),
@@ -591,19 +594,32 @@ test("what a plugin reads off wakes is what is declared right now, not what was"
     // THE READER IS A PLUGIN TOO, holding the Effect rather than its answer —
     // which is the only way to ask the question twice.
     let asking: Effect.Effect<ReadonlyMap<string, unknown>> = Effect.succeed(new Map())
+    let current: () => ReadonlyMap<string, unknown> = () => new Map()
     yield* mountPlugin(
       plugins.host,
       definePlugin({
         name: "chat",
         needs: [Wakes],
         apply: Effect.gen(function*() {
-          asking = (yield* Wakes).declared
+          const wakes = yield* Wakes
+          asking = wakes.declared
+          current = wakes.current
         }),
       }),
     )
     expect([...(yield* asking).keys()]).toEqual(["kolu"])
+    expect([...current().keys()]).toEqual(["kolu"])
+    const first = current().get("kolu")
     yield* ringing.dispose
     expect([...(yield* asking).keys()]).toEqual([])
+    expect([...current().keys()]).toEqual([])
+    yield* mountPlugin(plugins.host, definePlugin({
+      name: "kolu", needs: [Wakes], apply: Effect.gen(function*() {
+        yield* (yield* Wakes).register(WAKING)
+      }),
+    }))
+    expect(current().get("kolu")).not.toBe(first)
+    expect(current().get("kolu")).toBe((yield* asking).get("kolu"))
   })))
 })
 
@@ -643,7 +659,7 @@ const rowOf = (mounted: Mounted) =>
  * that left stops being told" true without anybody remembering to say so.
  */
 test("a refused write reaches every plugin watching writes, and stops when one leaves", async () => {
-  const heard: Array<{ readonly who: string; readonly op: string; readonly tag: string }> = []
+  const heard: Array<{ readonly who: string; readonly op: string; readonly tag: string; readonly writer: string }> = []
   await Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
       const plugins = yield* runtime()
@@ -654,7 +670,7 @@ test("a refused write reaches every plugin watching writes, and stops when one l
           apply: Effect.gen(function*() {
             yield* (yield* Ops).refused((refusal) =>
               Effect.sync(() => {
-                heard.push({ who: name, op: refusal.op, tag: refusal.failure._tag })
+                heard.push({ who: name, op: refusal.op, tag: refusal.failure._tag, writer: refusal.writer })
               })
             )
           }),
@@ -662,20 +678,20 @@ test("a refused write reaches every plugin watching writes, and stops when one l
       const mirror = yield* mountPlugin(plugins.host, watching("mirror"))
       yield* mountPlugin(plugins.host, watching("panel"))
 
-      yield* plugins.refused({ op: "prop", failure: { _tag: "UsageFailure" } })
+      yield* plugins.refused({ op: "prop", failure: { _tag: "UsageFailure" }, writer: "web" })
       // BOTH, in subscription order, each with the verb and the failure's own
       // tag — the payload is carried and not composed around.
       expect(heard).toEqual([
-        { who: "mirror", op: "prop", tag: "UsageFailure" },
-        { who: "panel", op: "prop", tag: "UsageFailure" },
+        { who: "mirror", op: "prop", tag: "UsageFailure", writer: "web" },
+        { who: "panel", op: "prop", tag: "UsageFailure", writer: "web" },
       ])
 
       // ...and a plugin that leaves stops being told, which is the half a
       // hand-rolled bus gets wrong.
       heard.length = 0
       yield* mirror.dispose
-      yield* plugins.refused({ op: "trash", failure: { _tag: "ValidationFailure" } })
-      expect(heard).toEqual([{ who: "panel", op: "trash", tag: "ValidationFailure" }])
+      yield* plugins.refused({ op: "trash", failure: { _tag: "ValidationFailure" }, writer: "chat-agent" })
+      expect(heard).toEqual([{ who: "panel", op: "trash", tag: "ValidationFailure", writer: "chat-agent" }])
     })),
   )
 })
@@ -794,9 +810,10 @@ test("the door a plugin stands behind is the door its dependents are handed", as
             // STAMPED BY THE OFFERING ROW'S PROVISION with the word the registry
             // bound the CONSUMER under — the keying survives the hand-over,
             // which is the property that would be worth nothing if it did not.
-            scopes: () => [{ agent: "a", session: "s", file: `${who}.olai` }],
+            scopes: () => [{ agent: "a", session: "s", file: `${who}.olai`, current: () => true }],
             ringing: () => [],
             deliver: () => Effect.void,
+              notify: () => Effect.void,
           }))
         }),
       }),
@@ -1056,3 +1073,75 @@ test("discovery follows plugin-owned offers without publishing internal core doo
     expect(plugins.serviceKeys()).toEqual([...SERVICE_KEYS].sort())
   })))
 })
+
+test("a late vault subscriber replays the published reading before receiving the next one", () =>
+  Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const events = vaultEvents("/tmp")
+    yield* events.published("first")
+    const replaying = yield* Deferred.make<void>()
+    const continueReplay = yield* Deferred.make<void>()
+    const seen: string[] = []
+    const listener = yield* Effect.forkScoped(events.door("late").revision((value: string) =>
+      Effect.gen(function*() {
+        seen.push(value)
+        if (value === "first") {
+          yield* Deferred.succeed(replaying, undefined)
+          yield* Deferred.await(continueReplay)
+        }
+        seen.push(`${value} done`)
+      })))
+    yield* Deferred.await(replaying)
+    const publish = yield* Effect.forkScoped(events.published("second"))
+    yield* Effect.yieldNow
+    expect(seen).toEqual(["first"])
+    yield* Deferred.succeed(continueReplay, undefined)
+    yield* Fiber.join(listener)
+    yield* Fiber.join(publish)
+    expect(seen).toEqual(["first", "first done", "second", "second done"])
+  }))))
+
+test("browser declarations are scoped discovery, not server provisions", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const Viewer = serviceTag<{}>("source.viewer")
+    const consumer = yield* mountPlugin(plugins.host, definePlugin({
+      name: "consumer", needs: [Viewer], apply: Effect.void,
+    }))
+    const provider = yield* mountPlugin(plugins.host, definePlugin({
+      name: "source", needs: [Offers], apply: Effect.gen(function*() {
+        yield* (yield* Offers).browser(["viewer"])
+      }),
+    }))
+    expect(plugins.browserKeys()).toEqual(["source.viewer"])
+    expect(plugins.serviceKeys()).not.toContain("source.viewer")
+    expect((yield* consumer.report).state).toBe("waiting")
+    yield* provider.dispose
+    expect(plugins.browserKeys()).toEqual([])
+  })))
+})
+
+for (const words of [["viewer", "viewer"], ["viewer", "other.viewer"]]) {
+  test(`invalid browser declarations roll back: ${words.join(", ")}`, async () => {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+      const plugins = yield* runtime()
+      const row = yield* mountPlugin(plugins.host, definePlugin({
+        name: "source", needs: [Offers], apply: Effect.gen(function*() {
+          yield* (yield* Offers).browser(words)
+        }),
+      }))
+      expect((yield* row.report).state).toBe("failed")
+      expect(plugins.browserKeys()).toEqual([])
+    })))
+  })
+}
+
+test("a synchronous replay failure cannot prevent later subscribers or publications", () =>
+  Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const events = vaultEvents("/tmp")
+    yield* events.published("first")
+    yield* events.door("thrower").revision(() => { throw new Error("nope") })
+    const seen: string[] = []
+    yield* events.door("neighbour").revision((value: string) => Effect.sync(() => { seen.push(value) }))
+    yield* events.published("second")
+    expect(seen).toEqual(["first", "second"])
+  }))))

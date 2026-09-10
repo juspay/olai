@@ -246,7 +246,7 @@ Feature: The ⌘K palette writes
     # against a reading the first has not landed in yet, so on a directory
     # with no inbox both resolve to the same `create _olai/Inbox.olai`, the write
     # gate re-plans that REQUEST rather than re-resolving the edit, and the
-    # second comes back refused in `create_outline`'s own words — over a line
+    # second comes back refused in `files_create`'s own words — over a line
     # that DID land, with the refusal overwriting the remark saying so.
     #
     # So: one write at a time, the date picker's rule. The remark below is the
@@ -268,7 +268,7 @@ Feature: The ⌘K palette writes
 
   Scenario: A capture of nothing is refused in the ops layer's own words
     # No fence on this face: the resolver sends a blank title verbatim, so what
-    # comes back is the sentence an agent's `add_node` gets — and an Enter that
+    # comes back is the sentence an agent's `outlines_add` gets — and an Enter that
     # did nothing and said nothing would be exactly the silent failure this
     # slot exists to prevent. The line stays in the box to be fixed.
     When I press the palette shortcut

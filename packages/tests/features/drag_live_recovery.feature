@@ -74,7 +74,7 @@ Feature: Held drags remain safe when their source or destination disappears
     And the page has not reloaded
     And there should be no page errors
 
-  Scenario: A plugin rebuild cancels the held gesture and leaves a fresh drag usable
+  Scenario: Restarting outlines cancels the held gesture and leaves a fresh drag usable
     Given I rewrite "drag-recovery.olai" as:
       """
       {"id":"drag-source","ord":"a0","title":"Source row"}
@@ -87,10 +87,11 @@ Feature: Held drags remain safe when their source or destination disappears
     Then the drop line would put it under "drag-parent"
     When I open another browser tab
     And I open the plugins panel
-    And I switch the plugin "chat" off
+    And I switch the plugin "outlines" off
+    And I switch the plugin "outlines" on
     And I close the plugins panel
     And I use the original browser tab
-    Then the conversation is gone-from the header
+    Then the node "drag-source" is shown
     When I let go
     Then the node "drag-source" is not a child of "drag-parent"
     And the outline "drag-recovery.olai" shows exactly the nodes "drag-source, drag-parent, drag-anchor"

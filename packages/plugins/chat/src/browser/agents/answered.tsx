@@ -97,20 +97,19 @@ import {
   createSignal,
   type JSX,
   useContext,
+  onCleanup,
 } from "solid-js"
 
 import {
   type AgentChoice,
   agentIn,
   type Listed,
-  type Migration,
   NO_AGENT_ROSTER,
   type SessionInfo,
   type Unreachable,
 } from "olai-plugin-chat/wire"
 import { createChatState } from "../chat/state.ts"
 import { run } from "@olai/web/client/run.ts"
-import { olai } from "@olai/web/client/wire.ts"
 import { type Chatting, chatKey, claimedIn, unassignedIn } from "../../lineage.ts"
 import type { Row } from "./roster.ts"
 import { chatWire } from "../wire.ts"
@@ -155,10 +154,6 @@ export interface Roster {
    *  that went — as opposed to one agent that could not be asked, which is a
    *  row of the answer above. `null` when the last ask landed. */
   readonly chatsRefusal: Accessor<string | null>
-  /** WHAT THIS VAULT IS OWED to get its node agents back, or `null` — which is
-   *  what every board that has said the word answers, and every board that
-   *  never used the old one ({ ../../wire/agents.ts}'s `Migration`). */
-  readonly migration: Accessor<Migration | null>
   /** WHICH CONVERSATION THE PANEL IS IN, as the pair that names one — `null`
    *  when it is in none. Off the chat cell this provider already holds, so a
    *  list that marks the row a reader is already looking at costs no second
@@ -175,20 +170,15 @@ export interface Roster {
 
 const AgentsContext = createContext<Roster>()
 
-export function AgentsProvider(props: { readonly children: JSX.Element }) {
+export function createAgents(chat = createChatState()): Roster {
+  let active = true
+  onCleanup(() => { active = false })
   const cell = chatWire().cells.agents.use()
   // THE CHAT CELL AND NOT THE PANEL. `createChatState` subscribes the small
   // cell and deliberately not the transcript (`../chat/state.ts`) — a roster
   // that folded the conversation to paint three dots would be paying the
   // panel's whole cost for the panel's chrome.
-  const chat = createChatState()
   const rows = createMemo(() => cell.value() ?? NO_AGENT_ROSTER)
-  // WHAT THE BOARD IS OWED, on the same terms as the roster and beside it: it
-  // is the sentence the EMPTY roster needs, so a reader that has one has both.
-  // Its own cell, because it moves only when a declarations file does
-  // (`../../wire/agents.ts`).
-  const owed = chatWire().cells.migration.use()
-  const migration = createMemo(() => owed.value() ?? null)
   const byNode = createMemo(() => new Map(rows().map((row) => [row.id, row])))
   // OFF THE SAME FRAME, and a memo rather than a read at each asker so that a
   // chat frame which moved a dot does not re-run the menu's catalog: the list
@@ -219,6 +209,7 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
   let asking = false
   let held = false
   const settleAsk = (apply: () => void): void => {
+    if (!active) return
     // THE FLAGS GO DOWN BEFORE THE ANSWER IS APPLIED, and the queue drains
     // after: `run` rethrows a defect and a signal's subscribers run inside
     // `apply`, so either arm throwing would otherwise pass the release by and
@@ -231,6 +222,7 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
     if (refire) askChats()
   }
   const askChats = (): void => {
+    if (!active) return
     // COALESCED, not stacked: while one ask is in flight a second says nothing
     // the settle will not say fresher — and the settle RE-FIRES when anything
     // queued, because the queue is how an event that raced an in-flight ask
@@ -345,24 +337,13 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
     return listed === null ? [] : unassignedIn(listed.sessions, cell.value() ?? NO_AGENT_ROSTER)
   })
 
-  return (
-    <AgentsContext.Provider
-      value={{
-        rows,
-        at: (node) => byNode().get(node),
-        engines,
-        unassigned,
-        chats,
-        unreachable,
-        openChat,
-        chatsRefusal,
-        migration,
-        askChats,
-      }}
-    >
-      {props.children}
-    </AgentsContext.Provider>
-  )
+  return { rows, at: node => byNode().get(node), engines, unassigned, chats,
+    unreachable, openChat, chatsRefusal, askChats }
+}
+
+/** Each contribution carries the same activation-owned roster to its children. */
+export function AgentsProvider(props: { readonly value: Roster; readonly children: JSX.Element }) {
+  return <AgentsContext.Provider value={props.value}>{props.children}</AgentsContext.Provider>
 }
 
 /** The roster as the server last answered it — or a throw when a consumer is

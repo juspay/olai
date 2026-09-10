@@ -243,7 +243,7 @@ test("a request whose host is not a host gets a policy that fetches nothing", as
 
 // A `.html` THAT IS THERE AND WILL NOT OPEN, which is a different failure from
 // a file that is not there and is now this route's alone to answer for. The
-// preview stopped asking for the body over the wire (`@olai/surface`'s `Head`),
+// preview stopped asking for the body over the wire (`olai-plugin-vault`'s `Head`),
 // so nothing else in this process ever opens a saved page for a person: what a
 // reader gets is a sealed page that says the file could not be read — not the
 // 404 a miss gets, which is the wrong sentence over a heading that already

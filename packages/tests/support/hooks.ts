@@ -48,7 +48,7 @@ import * as path from "node:path";
 
 import { installReaper, killProcessGroup, reap } from "./reaper.ts";
 
-import { After, AfterAll, Before, BeforeAll, Status } from "@cucumber/cucumber";
+import { After, AfterAll, AfterStep, Before, BeforeAll, Status } from "@cucumber/cucumber";
 import { findLogfmt } from "@olai/log/testlib";
 
 import { chromium } from "playwright";
@@ -84,7 +84,150 @@ import {
 } from "./workers.ts";
 
 const FIXTURES = path.resolve(import.meta.dirname, "..", "fixtures");
-const REPORTS = path.resolve(import.meta.dirname, "..", "reports");
+
+/**
+ * WHERE A FAILURE'S EVIDENCE SURVIVES — outside the tree the run is deleted
+ * with, and under a name no second attempt can take.
+ *
+ * ## The boundary this is written against
+ *
+ * Odu runs a leg in a COPY of the worktree (`/tmp/odu/olai/<sha>-<pid>-<hash>`)
+ * and exports exactly one thing from it: the leg's stdout, to
+ * `.ci/<sha>/<platform>/<leg>.log`. There is no artifact interface — `odu
+ * logs <node>` is the whole of it — and the path is keyed by SHA ALONE, so a
+ * second attempt on the same commit OVERWRITES the first. That is not a
+ * hypothetical: a CI failure on this branch was lost exactly that way, by a
+ * re-run made to find out whether it was a flake.
+ *
+ * So evidence goes to two places, and neither of them is the run's own tree:
+ *
+ *   - **stdout**, in a compact block, because stdout is what the runner
+ *     exports and it is therefore the one thing a reviewer can always read.
+ *   - **a directory outside the sandbox**, for what does not belong in a log:
+ *     the screenshot, and the whole of the page's error console.
+ *
+ * `OLAI_E2E_EVIDENCE` names that directory; the default is the XDG state home,
+ * which is a per-user place for exactly this and is not swept with the run.
+ */
+const EVIDENCE = process.env["OLAI_E2E_EVIDENCE"] ?? path.join(
+  process.env["XDG_STATE_HOME"] ?? path.join(os.homedir(), ".local", "state"),
+  "olai", "e2e-evidence",
+);
+
+/**
+ * ONE DIRECTORY PER ATTEMPT, and the name is what makes a re-run additive.
+ *
+ * Odu's sandbox is already named `<sha>-<pid>-<hash>`, which is precisely the
+ * identity wanted — the commit, and a token no second attempt repeats — so it
+ * is used when the run is in one. Outside Odu there is no such name, and the
+ * clock and the process supply one.
+ */
+const ATTEMPT = process.env["OLAI_E2E_ATTEMPT"] ?? (() => {
+  // WITHOUT A RUNNER TO NAME IT, the sandbox already carries the identity
+  // wanted — Odu's copy is `<sha>-<pid>-<hash>` — and a direct run gets the
+  // clock and the process instead.
+  const named = path.basename(path.resolve(import.meta.dirname, "..", "..", ".."));
+  return /^[0-9a-f]{7,40}-\d+-[0-9a-f]+$/.test(named)
+    ? named
+    : `local-${new Date().toISOString().replace(/[:.]/g, "-")}-${process.pid}`;
+})();
+
+/** What the current step is, so a failure can say which one it was. Cucumber's
+ *  `After` is handed the scenario's result and not the step that produced it. */
+let failingStep: string | undefined;
+
+/** How many failures this worker has kept, so two of them cannot take one
+ *  name even where Cucumber's ids are unavailable. */
+let failures = 0;
+
+
+AfterStep(function (this: OlaiWorld, step) {
+  if (step.result.status === Status.FAILED) failingStep = step.pickleStep?.text;
+});
+
+/**
+ * KEEP WHAT A FAILURE LEFT — and never fail because keeping it failed.
+ *
+ * Every arm is caught separately: a screenshot that cannot be taken must not
+ * cost the page errors beside it, and none of it may change the scenario's
+ * status. A run that turned a red scenario green by mishandling its own
+ * evidence would be the worst possible bug in this file.
+ */
+const keepEvidence = async (world: OlaiWorld, scenario: {
+  readonly pickle: { readonly id?: string; readonly name: string; readonly uri: string };
+  readonly testCaseStartedId?: string;
+  readonly result?: { readonly message?: string };
+}): Promise<void> => {
+  const name = scenario.pickle.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+    || "scenario";
+  const worker = process.env["CUCUMBER_WORKER_ID"] ?? "0";
+  /**
+   * THE NAME IS PER EXECUTION, and a title is not enough to make one.
+   *
+   * Two features in this tree carry the identical scenario title ("A write
+   * that landed with something to say says it here too"), a Scenario Outline's
+   * examples all share theirs, and a retry runs the same case twice. Named by
+   * worker and title alone, the second failure in an attempt silently replaced
+   * the first — a review reproduced exactly that, with those two real
+   * scenarios.
+   *
+   * So the stem carries the CASE (Cucumber's pickle id, which is distinct per
+   * example) and the EXECUTION (`testCaseStartedId`, distinct per retry), with
+   * the feature's own file in front of the title so a reader can tell the two
+   * same-named scenarios apart without decoding an id. A counter closes the
+   * last gap: if either id is ever absent, two failures still cannot collide.
+   */
+  const feature = path.basename(scenario.pickle.uri).replace(/\.feature$/, "");
+  const runs = String(++failures).padStart(3, "0");
+  const execution = (scenario.testCaseStartedId ?? scenario.pickle.id ?? "").slice(0, 8);
+  const stem = [`${worker}-${runs}`, feature, name, execution].filter((one) => one !== "").join("-");
+  const url = (() => { try { return world.page?.url() ?? "no page"; } catch { return "unreadable"; } })();
+  const errors = world.errors ?? [];
+  // ONE LINE PER FACT, prefixed, so a reviewer can grep a 300,000-line shard
+  // log for it once the recipe has printed the file.
+  const said = [
+    `olai-e2e-evidence: scenario ${JSON.stringify(scenario.pickle.name)} (${scenario.pickle.uri})`,
+    `olai-e2e-evidence: step ${JSON.stringify(failingStep ?? "unknown")}`,
+    `olai-e2e-evidence: url ${url}`,
+    // THE PAGE ERRORS EVEN THOUGH NOBODY ASSERTED THEM: `there should be no
+    // page errors` is the last step of nearly every scenario, so a failure
+    // before it SKIPS the one step that would have printed these.
+    `olai-e2e-evidence: page errors ${errors.length}`,
+    ...errors.map((one, at) => `olai-e2e-evidence:   [${at}] ${one.replaceAll("\n", " ")}`),
+    `olai-e2e-evidence: kept in ${path.join(EVIDENCE, ATTEMPT)}`,
+  ];
+  // `process.stderr` AND NOT `console.log`: Cucumber captures a hook's console
+  // into the scenario's attachments, and the formatter this suite runs does not
+  // print those — so a block written the ordinary way reached nobody, which is
+  // the one failure mode this whole function exists to avoid. The runner
+  // exports the leg's stream; this writes to it.
+  const dir = path.join(EVIDENCE, ATTEMPT);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, `${stem}.txt`), [
+      ...said,
+      `olai-e2e-evidence: error ${scenario.result?.message ?? "none recorded"}`,
+    ].join("\n") + "\n");
+  } catch (cause) {
+    process.stderr.write(`olai-e2e-evidence: could not write the failure note: ${String(cause)}\n`);
+  }
+  // INDEPENDENTLY OF THE SCREENSHOT, and before it: the server's own output is
+  // what distinguishes an intermediate valid revision from a reset, and a
+  // failure that could not be photographed is exactly the failure whose log is
+  // wanted most. A page that has gone will not screenshot; the log is already
+  // in hand.
+  try {
+    const printed = world.serverLog?.text ?? "";
+    if (printed !== "") fs.writeFileSync(path.join(dir, `${stem}.server.log`), printed);
+  } catch (cause) {
+    process.stderr.write(`olai-e2e-evidence: could not write the server log: ${String(cause)}\n`);
+  }
+  try {
+    await world.page?.screenshot({ path: path.join(dir, `${stem}.png`), fullPage: true });
+  } catch (cause) {
+    process.stderr.write(`olai-e2e-evidence: could not capture the screenshot: ${String(cause)}\n`);
+  }
+};
 
 /**
  * The ACP agent every server under test is pointed at.
@@ -299,7 +442,9 @@ const PIN_TAG = /^@pin:(commit|push)=([a-z]+)$/;
 
 /**
  * `@plugins:<name>[,<name>]` / `@plugins:none`: this scenario's server was
- * started with `--plugins`, so it composed only what the tag names.
+ * started with an exact `--plugins` set. Each feature explicitly includes its
+ * transport, shell and content capabilities; the harness adds no hidden rows.
+ * `none` is left empty, so it starts no listener and is not a browser scenario.
  *
  * A TAG rather than a step for `@pin:`'s reason exactly — it decides how the
  * server is STARTED, and the whole point of the flag is that a page knows
@@ -314,6 +459,8 @@ const PIN_TAG = /^@pin:(commit|push)=([a-z]+)$/;
  * plugin or spells one in production code — and this suite is neither.
  */
 const PLUGINS_TAG = /^@plugins:([a-z0-9,-]+)$/;
+const EXTRA_PLUGINS_TAG = /^@extra-plugins:([a-z0-9,-]+)$/;
+const WITHOUT_PLUGINS_TAG = /^@without-plugins:([a-z0-9,-]+)$/;
 
 
 /**
@@ -584,6 +731,7 @@ interface Spawn {
    *  scripted adapter named by `OLAI_ACP_PI` — the two halves of the row.
    *  See {@link FAKE_PI_DIR}. */
   readonly pi?: boolean;
+  readonly codex?: boolean;
   /** Absent is `--no-commit`, which is what every scenario but the git ones
    *  wants. Present drops the opt-out and says which of the three git
    *  situations this server is being started into. */
@@ -597,6 +745,10 @@ interface Spawn {
    *  nothing after it, which is NONE; `undefined` is the flag not given, which
    *  is every one this build has and is every other scenario. */
   readonly plugins?: string;
+  /** `--extra-plugins`, when the scenario asked — see {@link EXTRA_PLUGINS_TAG}. */
+  readonly extraPlugins?: string;
+  /** `--without-plugins`, when the scenario asked — see {@link WITHOUT_PLUGINS_TAG}. */
+  readonly withoutPlugins?: string;
 
   /** The avatar URL template this server pictures people with, when the
    *  scenario asked for one — see {@link AVATAR_TAG}. Absent is no template,
@@ -649,6 +801,12 @@ const startServerChild = async (
       ...(spawnOptions.plugins === undefined
         ? []
         : ["--plugins", spawnOptions.plugins]),
+      ...(spawnOptions.extraPlugins === undefined
+        ? []
+        : ["--extra-plugins", spawnOptions.extraPlugins]),
+      ...(spawnOptions.withoutPlugins === undefined
+        ? []
+        : ["--without-plugins", spawnOptions.withoutPlugins]),
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -676,7 +834,8 @@ const startServerChild = async (
         // The packaged binary now carries Codex too. Every scenario here is
         // deterministic against the scripted engine(s) it explicitly asks
         // for, so its real baked adapter must not silently add a picker row.
-        OLAI_ACP_CODEX: "",
+        OLAI_ACP_CODEX: spawnOptions.codex === true ? FAKE_AGENT : "",
+        ...(spawnOptions.codex === true ? { OLAI_FAKE_CODEX: "yes" } : {}),
         ...(spawnOptions.stored === true ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
         // WHERE OLAI LOOKS FOR AGENTS, and by default nowhere: the empty
         // string is "look on no path at all", so a developer's own opencode
@@ -886,6 +1045,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       agent: world.hasAgent,
       opencode: world.hasOpencode,
       pi: world.hasPi,
+      codex: world.hasCodex,
       kolu: world.hasKolu,
       stateRoot: scratchState(world.scratch()),
       ...(world.gitMode === undefined ? {} : { git: world.gitMode }),
@@ -896,6 +1056,10 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       // ... and the same plugin set, on the same sentence: a restart that came
       // back composing more than it did is a different server.
       ...(world.pluginPin === undefined ? {} : { plugins: world.pluginPin }),
+      ...(world.extraPluginPin === undefined ? {} : { extraPlugins: world.extraPluginPin }),
+      ...(world.withoutPluginPin === undefined
+        ? {}
+        : { withoutPlugins: world.withoutPluginPin }),
       // ... and the same avatar template, on the same sentence: a restart that
       // came back without it would draw the open page's person off a lower rung.
       ...(world.avatarTemplate === undefined
@@ -1242,6 +1406,7 @@ Before(
       (tag) => tag.name === OPENCODE_TAG,
     );
     this.hasPi = scenario.pickle.tags.some((tag) => tag.name === PI_TAG);
+    this.hasCodex = scenario.pickle.tags.some((tag) => tag.name === "@codex");
 
     // On the world rather than in a local, because a restart mid-scenario has
     // to reproduce this boot (`startOwnServer`).
@@ -1266,6 +1431,14 @@ Before(
     this.pluginPin = scenario.pickle.tags.flatMap((tag) => {
       const asked = PLUGINS_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1] === "none" ? "" : asked[1]!];
+    })[0];
+    this.extraPluginPin = scenario.pickle.tags.flatMap((tag) => {
+      const asked = EXTRA_PLUGINS_TAG.exec(tag.name);
+      return asked === null ? [] : [asked[1]!];
+    })[0];
+    this.withoutPluginPin = scenario.pickle.tags.flatMap((tag) => {
+      const asked = WITHOUT_PLUGINS_TAG.exec(tag.name);
+      return asked === null ? [] : [asked[1]!];
     })[0];
     const pinned = Object.keys(this.gitPin).length > 0;
     // A pinned server without a `@git:` tag is started `--no-commit`, which is
@@ -1297,6 +1470,13 @@ Before(
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
+    if ((this.extraPluginPin !== undefined || this.withoutPluginPin !== undefined) && !writes) {
+      throw new Error(
+        `@extra-plugins: / @without-plugins: decide which rows its server composes, so the ` +
+          `scenario must own that server: tag it @scratch:${asked.corpus} rather than ` +
+          `@corpus:${asked.corpus}.`,
+      );
+    }
     if (this.gitMode !== undefined && !writes) {
       throw new Error(
         `@git:${this.gitMode} decides what its server commits to, so the scenario must own ` +
@@ -1322,9 +1502,9 @@ Before(
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
-    if (this.hasPi && !writes) {
+    if ((this.hasPi || this.hasCodex) && !writes) {
       throw new Error(
-        `${PI_TAG} decides which agents its server finds, so the scenario must own ` +
+        `The agent tag decides which agents its server finds, so the scenario must own ` +
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
@@ -1360,6 +1540,7 @@ Before(
         agent: this.hasAgent,
         opencode: this.hasOpencode,
         pi: this.hasPi,
+        codex: this.hasCodex,
         kolu: this.hasKolu,
         ...(this.padi === undefined ? {} : { padiSocket: this.padi.socket }),
         ...(this.avatarTemplate === undefined
@@ -1368,12 +1549,19 @@ Before(
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
         ...(pinned ? { pin: this.gitPin } : {}),
         ...(this.pluginPin === undefined ? {} : { plugins: this.pluginPin }),
+        ...(this.extraPluginPin === undefined
+          ? {}
+          : { extraPlugins: this.extraPluginPin }),
+        ...(this.withoutPluginPin === undefined
+          ? {}
+          : { withoutPlugins: this.withoutPluginPin }),
       };
       const ownCopy = async (): Promise<void> => {
         const own = await scratchServerFor(asked.corpus, spawnOptions);
         this.baseUrl = own.baseUrl;
         this.served = own.root;
         this.ownServer = own.child;
+        this.serverLog = own.said;
       };
       if (asked.mode === "share") {
         const featureKey = `${scenario.pickle.uri}::${asked.corpus}::${spawnFingerprint(spawnOptions)}`;
@@ -1388,13 +1576,22 @@ Before(
           this.baseUrl = slot.server.baseUrl;
           this.served = slot.server.root;
           this.ownServer = slot.server.child;
+          this.serverLog = slot.server.said;
           this.scratchShare = { key: featureKey };
         }
       } else {
         await ownCopy();
       }
     } else {
-      this.baseUrl = (await serverFor(this.corpus)).baseUrl;
+      // THE SHARED SERVER'S OUTPUT COMES WITH ITS URL. `world.serverLog` used
+      // to be filled only by a scenario that RESTARTED its own server, so the
+      // one place a log is most wanted — a failure on an ordinary shared-corpus
+      // scenario — retained none. The box is the server's own and is shared
+      // deliberately: it is what that process has printed, and a scenario that
+      // borrowed the process borrowed the printing.
+      const shared = await serverFor(this.corpus);
+      this.baseUrl = shared.baseUrl;
+      this.serverLog = shared.said;
     }
 
     const handheld = scenario.pickle.tags.some((tag) => tag.name === PHONE_TAG);
@@ -1503,24 +1700,14 @@ Before(
 );
 
 After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenario) {
-  if (scenario.result?.status === Status.FAILED && this.page) {
-    const name =
-      scenario.pickle.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "") || "scenario";
-    const dir = path.join(REPORTS, "screenshots");
-    fs.mkdirSync(dir, { recursive: true });
-    const worker = process.env.CUCUMBER_WORKER_ID ?? "0";
-    await this.page
-      .screenshot({
-        path: path.join(dir, `${worker}-${name}.png`),
-        fullPage: true,
-      })
-      .catch((cause: unknown) => {
-        console.error("could not capture a failure screenshot:", cause);
-      });
+  if (scenario.result?.status === Status.FAILED) {
+    // WRAPPED WHOLE, on top of the per-arm catches inside: keeping evidence
+    // must not be able to change what a scenario reported.
+    await keepEvidence(this, scenario).catch((cause: unknown) => {
+      process.stderr.write(`olai-e2e-evidence: could not keep this failure's evidence: ${String(cause)}\n`);
+    });
   }
+  failingStep = undefined;
   // Closing the CONTEXT (not the browser) is what isolates scenarios: storage,
   // cookies and any in-flight WebSocket go with it, so the next scenario's
   // first frame is a genuine cold load.
@@ -1585,3 +1772,4 @@ After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenari
     fs.rmSync(scratchState(this.served), { recursive: true, force: true });
   }
 });
+

@@ -1,0 +1,1 @@
+../../packages/plugins/test-counter/docs.md

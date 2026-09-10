@@ -32,3 +32,11 @@ Then("the sidebar retains the width reached before cancellation", async function
   const box = await this.box(this.page.locator(SIDEBAR), "sidebar");
   assert.ok(Math.abs(box.width - at.width) <= 1, `sidebar width ${box.width}, expected ${at.width}`);
 });
+
+Then("the sidebar has grown by {int}px since the resize was held", async function (this: OlaiWorld, dx: number) {
+  const at = held.get(this);
+  assert.ok(at, "no held resize");
+  const box = await this.box(this.page.locator(SIDEBAR), "sidebar");
+  const expected = at.width + dx;
+  assert.ok(Math.abs(box.width - expected) <= 1, `sidebar width ${box.width}, expected ${expected}`);
+});

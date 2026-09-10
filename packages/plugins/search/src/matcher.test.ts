@@ -3,8 +3,8 @@
  *
  * These cases were `@olai/ops`' `query.test.ts` and they travelled with the
  * function they are about ({@link ./matcher.ts}, which was `Query.search`).
- * That file keeps every case about what a READ of the set answers — `read_node`,
- * `read_subtree`, `list_outlines`, the narrowing over one page — and what is
+ * That file keeps every case about what a READ of the set answers — `outlines_read`,
+ * `outlines_subtree`, `outlines_index`, the narrowing over one page — and what is
  * here is every case about the ranked, capped, situated answer this row stands
  * behind.
  *
@@ -86,7 +86,7 @@ const reading = () => readingOf(LEDGER())
 /** A node read that ANSWERED — the ops layer's own door, used by the two cases
  *  below whose claim is that a hit and a read say the same thing. */
 const read = (of: Derived, id: string): Detail | null =>
-  succeeded(Query.detail(of, id), "`read_node` to answer")
+  succeeded(Query.detail(of, id), "`outlines_read` to answer")
 
 /** A set with both sigils, including the same NAME under each — which is the
  *  whole reason the sigil is reported. `@olai/ops`' own suite keeps a copy for
@@ -113,7 +113,7 @@ describe("the fields a hit carries", () => {
 
 
   /** THE HIT, which is the point of the field being on `Found` at all: a board
-   *  asking "every lane at review" is one call, not one call and a `read_node`
+   *  asking "every lane at review" is one call, not one call and a `outlines_read`
    *  per row to see the fact the query already matched on.
    *
    *  Both ways of reaching the node in ONE test, because they are one path — a
@@ -353,7 +353,7 @@ describe("what a shortlist selects", () => {
  *
  * The rule is the same at both ends: a note is unbounded prose, so a query that
  * will not read one does not pay for twelve of them — and one that will gets
- * them WHOLE, in the call that made the selection, rather than in a `read_node`
+ * them WHOLE, in the call that made the selection, rather than in a `outlines_read`
  * per hit.
  */
 describe("the notes a query asks for", () => {
@@ -380,7 +380,7 @@ describe("the notes a query asks for", () => {
   })
 
   test("the note travels WHOLE — the flag is the dial, never a length", () => {
-    // A cut note is one no reader can tell from a short one, and `set_desc` and
+    // A cut note is one no reader can tell from a short one, and `outlines_desc` and
     // `update`'s `was` both take the note as ONE text: a shortened one is a note
     // an edit gets written against. The same argument `custom`'s values won.
     const long = `forensics: ${"the pill said committed while nothing was. ".repeat(40)}`
@@ -400,7 +400,7 @@ describe("the notes a query asks for", () => {
   })
 
   test("a document hit is untouched by the flag", () => {
-    // A `.md`'s prose is the file, and `read_document` is how a file is read —
+    // A `.md`'s prose is the file, and `markdown_read` is how a file is read —
     // so there is nothing on this arm for the flag to turn on.
     const set = setOf(
       { "bugs.olai": `{"id":"one","ord":"a0","title":"a bug"}` },

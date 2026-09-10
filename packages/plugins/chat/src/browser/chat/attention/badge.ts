@@ -58,7 +58,6 @@
 import { isInstalledFromEnv } from "@kolu/surface-app/solid"
 
 import { grumble } from "@olai/web/client/grumble.ts"
-import { markWaiting } from "@olai/web/client/theme/chrome.ts"
 
 /** Which of the two channels a page in this shape uses. */
 export type Channel = "app" | "tab"
@@ -88,6 +87,7 @@ const INSTALLED_MODES = ["standalone", "minimal-ui", "fullscreen"]
  * conversation: three `MediaQueryList` objects per call is three allocations
  * for an answer that settled when the window opened.
  */
+export const createBadge = (tabWaiting: (value: boolean) => void) => {
 let running: boolean | undefined
 
 const installed = (): boolean => {
@@ -120,7 +120,7 @@ const noBadge = (cause: unknown): void => {
 let worn = -1
 
 /** Carry `count` questions on the icon, or clear it with `0`. */
-export const wear = (count: number): void => {
+return (count: number): void => {
   if (count === worn) return
   worn = count
   const badging = "setAppBadge" in navigator
@@ -133,5 +133,7 @@ export const wear = (count: number): void => {
     void asked?.catch(noBadge)
     return
   }
-  markWaiting(count > 0)
+  tabWaiting(count > 0)
+}
+
 }

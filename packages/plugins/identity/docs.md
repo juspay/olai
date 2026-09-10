@@ -12,7 +12,7 @@ Nothing. It is on by default, like chat and git. Two things take it away, and th
 
 ```
 olai web ~/outlines                                    # the chip, as always
-olai web ~/outlines --plugins=chat,git,claude          # every request is nobody
+olai web ~/outlines --plugins=vault,chat,git,claude,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector          # every request is nobody
 ```
 
 The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag. Switched off at the panel, the chip leaves while you are watching, `who.get` starts answering nobody, and a capture taken from that moment on records no `captured-by`.
@@ -37,10 +37,12 @@ What the row stands behind is the `Identity` door (`@olai/plugin-api`): the head
 
 ## Where it hangs in the tab
 
-| seat | what the shell keeps | what identity brings |
+| seat | who declares it, and what they keep | what identity brings |
 | --- | --- | --- |
-| `app.viewer` | the last seat in the bar — top right, and the one seat a phone keeps | the chip, its four faces, and every word in them |
+| `app.viewer` | `layout` — the last seat in the bar — top right, and the one seat a phone keeps | the chip, its four faces, and every word in them |
 
 There is one seat and one occupant: two chips answering "who am I" in one bar is not an answer, so a second row claiming it is refused by name at the moment it registers.
 
-The chat panel draws the same person over each run of their own messages, wearing the same picture, through this row's `./person` door — one ask for the whole tab, so a header saying one thing about who is looking and a transcript saying another cannot happen. With the row off, that face falls back to the silhouette, the way it does behind a proxy that names nobody.
+The browser half offers `identity.viewer`: one scoped resource over `who.get`, the name formatter and the user icon. Its header chip and chat's transcript speaker share that reading. Chat's speaker component names the key in `needs`; with identity off it reads **waiting for identity.viewer** in the plugins panel while the conversation keeps its anonymous silhouette. Re-enabling identity creates a fresh resource and restores the person's name and picture without reloading the page.
+
+The resource follows the connection epoch and closes with the identity provider. The server half declares its browser service words through `Offers.browser`, so `plugins.inspect` lists the key with `half: "browser"` and `availability: "declared"`. That advertises a contract, not a claim about any particular tab's state.

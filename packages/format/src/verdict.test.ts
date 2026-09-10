@@ -334,7 +334,7 @@ test("the same write lands once nothing names the moved variant", () => {
  *
  * WHAT THE FENCE IS NOW is the SENTENCE, and that is worth keeping rather than
  * deleting: #439's argument was that a person moving between a refused
- * `set_prop` and a refused declaration should read one kind of sentence, and a
+ * `outlines_prop` and a refused declaration should read one kind of sentence, and a
  * `usage` refusal naming file, node and value before any bytes move is a better
  * one than the gate's raw rows. Two doors, one promise, and the promise is the
  * one that cannot be forgotten at a new verb.

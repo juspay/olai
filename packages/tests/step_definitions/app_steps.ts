@@ -39,6 +39,13 @@ Then("there should be no page errors", function (this: OlaiWorld) {
   );
 });
 
+Then("the browser mount has no rendered application", async function (this: OlaiWorld) {
+  await this.page.waitForFunction((selector) => {
+    const mount = document.querySelector(selector);
+    return mount !== null && mount.childElementCount === 0;
+  }, ROOT, { timeout: HYDRATION_TIMEOUT });
+});
+
 Given("I mark the page", async function (this: OlaiWorld) {
   await this.markPage();
 });
@@ -102,4 +109,11 @@ Then("the page has not reloaded", async function (this: OlaiWorld) {
     "the marker planted on `window` is gone, so the document was replaced — " +
       "something navigated when it should have re-rendered in place",
   );
+});
+
+
+/** Close the app's live connections before a persistence-only server restart.
+ * Reconnect workflows keep their tab open and exercise the connection overlay. */
+When("I leave the app", async function (this: OlaiWorld) {
+  await this.page.goto("about:blank");
 });

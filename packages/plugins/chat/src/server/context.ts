@@ -80,7 +80,7 @@ const nodeContextFor = (
   const located = at.derived.byId.get(id)
   if (located === undefined) return Result.fail(notFound(at.derived, id))
   if (isMirror(located.node)) return Result.fail(notANode(id, located.node.mirror))
-  // Situated by the ops layer's own reader, which is what answers `read_node`
+  // Situated by the ops layer's own reader, which is what answers `outlines_read`
   // about this id in the same conversation — so the two cannot describe one
   // node differently. What is TAKEN from it is the subset a context line says:
   // the mark and the edges are the agent's to read for itself, and a prompt is

@@ -111,7 +111,7 @@ Feature: Choosing an agent
   @opencode @scratch:chat
   Scenario: A write through opencode's own tool naming reaches the outline
     # Opencode names an MCP server's tools `<server>_<tool>`, not
-    # `mcp__server__tool`. The panel has to recognise `olai_set_done` as one of
+    # `mcp__server__tool`. The panel has to recognise `olai_outlines_done` as one of
     # the tools it handed this session — so no permission form is drawn, the
     # write goes through the real ops layer, and the checkbox in front of a
     # person moves.
@@ -274,7 +274,7 @@ Feature: Choosing an agent
     # agent being installed.
     And the outline list is shown
 
-  @plugins:chat,odu @scratch:chat
+  @plugins:vault,chat,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins @scratch:chat
   Scenario: A serve that enabled no engine says THAT, rather than guessing
     # THE CASE THE FACE USED TO MISS ENTIRELY, and the commonest real one now
     # that every engine is a plugin: all four engine rows are ENABLED BY
@@ -540,7 +540,7 @@ Feature: Choosing an agent
     # env (packages/plugins/pi/acp/patches/README.md's pi-mcp-servers section), and the bridge
     # registers them on pi's own extension API under the SAME names this
     # surface already reads. The scenario mirrors the wire the patch mints:
-    # an `olai_read_node:0` call — pending, in_progress, completed, with
+    # an `olai_outlines_read:0` call — pending, in_progress, completed, with
     # the tool's answer riding its card. The round trip that is protocol-
     # true lives down in packages/plugins/pi/acp/mcp-bridge/roundtrip.test.js, one SDK pair
     # away from the real servers.

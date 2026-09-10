@@ -5,7 +5,7 @@
  * already produces without a disk. What each case is really asserting is that
  * the answer agrees with what the commit panel would say about the same two
  * readings, which is the whole reason this is one derivation rather than a
- * table keyed by op name: `set_done` with `undo` and `set_done` without it are
+ * table keyed by op name: `outlines_done` with `undo` and `outlines_done` without it are
  * one tool and opposite events.
  */
 
@@ -80,7 +80,7 @@ describe("what a write is called", () => {
 
   test("clearing a date is the opposite event of setting one, on one op", () => {
     // The case the commit message cites as a reason not to tabulate by op
-    // name: `set_date` is one tool and two events, told apart by what the
+    // name: `outlines_date` is one tool and two events, told apart by what the
     // field became rather than by which tool was called.
     const scheduled = setOf({
       "house.olai": `{"id":"order","ord":"a0","title":"order","date":"2026-08-20"}`,
@@ -105,7 +105,7 @@ describe("what a write is called", () => {
 
   test("a write that changes no record says nothing rather than `edited`", () => {
     // Retyping a title as it already reads. The planner refuses most no-ops
-    // outright (`set_done` on a node that is already done is a refusal, not a
+    // outright (`outlines_done` on a node that is already done is a refusal, not a
     // write), so this is the shape that reaches here — and inventing a change
     // to report about it is the one thing this answer must not do.
     expect(sorting(house(), { op: "title", id: "order", title: "order the cabinets" }))

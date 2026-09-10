@@ -146,7 +146,7 @@ Then(
   async function (this: OlaiWorld, id: string) {
     // The record's own id, on the page beside the row. Two statements, not one:
     // the row is kolu's reading of a terminal and this is olai's record of
-    // WHICH — and the value is what a `set_prop` is written with.
+    // WHICH — and the value is what a `outlines_prop` is written with.
     const value = await blockOn(this, id).getAttribute("data-terminal");
     assert.ok(value !== null && value !== "", `the ${id} block should name its terminal`);
     const drawn = await blockOn(this, id)

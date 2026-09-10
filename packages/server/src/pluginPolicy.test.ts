@@ -20,33 +20,47 @@ import { expect, test } from "bun:test"
 import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle"
 import { BUNDLE_NAMES as PLUGIN_NAMES } from "@olai/bundle"
 
-import { pluginsPin, pluginsSaid } from "./pluginPolicy.ts"
+import {
+  extraPluginsSaid,
+  pluginPin,
+  pluginsSaid,
+  withoutPluginsSaid,
+} from "./pluginPolicy.ts"
 
 test("nobody having said is not the same answer as saying none", () => {
   // THE DISTINCTION THE WHOLE FLAG IS SHAPED AROUND. A browser draws this row
   // read-only and has to say which of the two it is looking at: a policy the
   // operator typed, or the build's own default. A `--plugins` that defaulted to
   // the full list would have thrown that away at the first parse.
-  expect(pluginsPin(null)).toBe(null)
-  expect(pluginsPin("")).toEqual([])
+  expect(pluginPin(null, null, null)).toEqual({ kind: "omitted" })
+  expect(pluginPin("", null, null)).toEqual({ kind: "exact", names: [] })
 })
 
 test("a list is the names in it, however a person spaced them", () => {
   const [first] = PLUGIN_NAMES
   expect(first).toBeDefined()
-  expect(pluginsPin(first as string)).toEqual([first as string])
-  expect(pluginsPin(PLUGIN_NAMES.join(","))).toEqual([...PLUGIN_NAMES])
+  expect(pluginPin(first as string, null, null)).toEqual({
+    kind: "exact",
+    names: [first as string],
+  })
+  expect(pluginPin(PLUGIN_NAMES.join(","), null, null)).toEqual({
+    kind: "exact",
+    names: [...PLUGIN_NAMES],
+  })
   // A person separating with `, ` is not making a mistake, and a trailing
   // comma is not a name that matches nothing.
-  expect(pluginsPin(PLUGIN_NAMES.join(", ") + ",")).toEqual([...PLUGIN_NAMES])
+  expect(pluginPin(PLUGIN_NAMES.join(", ") + ",", null, null)).toEqual({
+    kind: "exact",
+    names: [...PLUGIN_NAMES],
+  })
 })
 
 test("a name this build does not have is refused, with the ones it does", () => {
   // The ONE place an unknown name is answered, and it is where a person typed
   // it. `@olai/plugin-api`'s own `enabled` deliberately refuses nothing.
-  expect(() => pluginsPin("nope")).toThrow(/nope/)
+  expect(() => pluginPin("nope", null, null)).toThrow(/nope/)
   for (const name of PLUGIN_NAMES) {
-    expect(() => pluginsPin("nope")).toThrow(new RegExp(name))
+    expect(() => pluginPin("nope", null, null)).toThrow(new RegExp(name))
   }
 })
 
@@ -65,4 +79,49 @@ test("the sentence names every plugin this build has", () => {
   // they cannot change it — they can — but that what they change there goes with
   // the process, and this flag is what a restart comes back to.
   expect(said).toContain("restart comes back to this flag")
+  expect(said).toContain("--extra-plugins")
+  expect(said).toContain("--without-plugins")
+})
+
+test("the two patch flags name every plugin this build has, and refuse --plugins", () => {
+  for (const said of [extraPluginsSaid(), withoutPluginsSaid()]) {
+    for (const name of PLUGIN_NAMES) expect(said).toContain(name)
+    expect(said).toContain("Cannot be given beside --plugins")
+    expect(said).toContain("restart comes back to this flag")
+  }
+})
+
+test("the three flags compose as one pin, and refuse the two collisions", () => {
+  const [first, second] = PLUGIN_NAMES
+  if (first === undefined || second === undefined) {
+    throw new Error("this claim needs a build with two plugins")
+  }
+
+  expect(pluginPin(null, null, null)).toEqual({ kind: "omitted" })
+  expect(pluginPin(first, null, null)).toEqual({ kind: "exact", names: [first] })
+  expect(pluginPin(null, first, second)).toEqual({
+    kind: "delta",
+    extra: [first],
+    without: [second],
+  })
+  expect(pluginPin("", null, null)).toEqual({ kind: "exact", names: [] })
+
+  expect(() => pluginPin(first, second, null)).toThrow(
+    /already names the exact set/,
+  )
+  expect(() => pluginPin(first, null, second)).toThrow(
+    /already names the exact set/,
+  )
+  expect(() => pluginPin(null, first, first)).toThrow(
+    new RegExp(`${first} is named in both`),
+  )
+})
+
+test("an unknown name is refused on whichever flag it arrived", () => {
+  expect(() => pluginPin("nope", null, null)).toThrow(/--plugins names nope/)
+  expect(() => pluginPin(null, "nope", null)).toThrow(/--extra-plugins names nope/)
+  expect(() => pluginPin(null, null, "nope")).toThrow(/--without-plugins names nope/)
+  for (const name of PLUGIN_NAMES) {
+    expect(() => pluginPin(null, "nope", null)).toThrow(new RegExp(name))
+  }
 })

@@ -1,0 +1,34 @@
+{
+  "name": "olai-plugin-theme",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./browser": "./src/browser.tsx",
+    "./contract": "./src/index.ts",
+    "./all.css": "./src/all.css",
+    "./assets": "./src/assets.ts",
+    "./testids": "./src/testids.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "@olai/web": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "solid-js": "^1.9.0",
+    "olai-plugin-ui-renderer": "workspace:*",
+    "olai-plugin-preferences": "workspace:*",
+    "@olai/fonts": "workspace:*",
+    "@olai/appearance": "workspace:*",
+    "olai-plugin-layout": "workspace:*",
+    "@olai/ui-primitives": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./testids"
+    ]
+  }
+}

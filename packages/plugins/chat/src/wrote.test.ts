@@ -21,7 +21,7 @@ const result = (structured: unknown) => ({
 })
 
 const MARKED = {
-  did: "set_done",
+  did: "outlines_done",
   id: "order",
   title: "order the cabinets",
   file: "house.olai",

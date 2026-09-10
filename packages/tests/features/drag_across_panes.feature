@@ -11,7 +11,7 @@ Feature: Dragging a row from one pane into the other
   the write goes to the file, both trees redraw off the one store, and the row
   leaves one pane and arrives in the other on the same frame. Showing
   DIFFERENT files they cannot — a parent is always in the same file, which is
-  the format's own rule and the one `move_node` refuses on — so the pane says
+  the format's own rule and the one `outlines_move` refuses on — so the pane says
   so under the pointer, before the hand lets go, rather than swallowing a drop
   or landing it somewhere nobody was pointing.
 

@@ -1,3 +1,6 @@
+import { createRoot } from "solid-js"
+import type {} from "olai-plugin-chat/slots"
+import type {} from "olai-plugin-layout/slots"
 /**
  * XYNE SPACES' BROWSER HALF — a plugin, exactly the shape its server half is.
  *
@@ -59,6 +62,7 @@ export default definePlugin({
     const bar = yield* Bar
     const slots = yield* Slots
     const wired = yield* Wired
+    const owned = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({dispose, link:(wired.client() as LinkClient).cells.link.use().value}))), owned => Effect.sync(owned.dispose))
 
     // THE PILL, and no drawer under it: a readout that opened nothing would be a
     // control that lied, and what this one says fits in the pill.
@@ -70,18 +74,9 @@ export default definePlugin({
     // NAMES the two services it wants and composes its own reading of them here,
     // once.
     const app: SpacesApp = { desktop: bar.desktop, pill: bar.pill }
-    yield* slots.register("app.header", { place: "cluster", body: () => <Spaces app={app} /> })
+    yield* slots.register("app.header", { place: "cluster", body: () => <LinkProvider link={owned.link}><Spaces app={app} /></LinkProvider> })
     yield* slots.register("delivery.mark", SpacesMark)
-    yield* slots.register("app.mount", (props) => (
-      // INSIDE the component: `use()` opens a subscription and wants an owner.
-      // The cast is the one narrowing at the one edge — the value came from the
-      // framework's own client bundle under this plugin's key, so the only thing
-      // a runtime test could catch is a composition built wrong, which is a
-      // boot-time failure upstream rather than a branch to draw a face for.
-      <LinkProvider link={(wired.client() as LinkClient).cells.link.use().value}>
-        {props.children}
-      </LinkProvider>
-    ))
+
     // NO TEARDOWN BEYOND THE REGISTRATIONS, and it is now unspellable to pretend
     // otherwise. This `apply` used to return a `() => {}` — a disposer for a half
     // that has nothing to dispose — because the shape asked for one whether or

@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/web/client/testids.ts"
 /**
  * THE APP, FROZEN — one overlay over everything, drawn exactly while a
  * question cannot reach the server.
@@ -77,7 +78,7 @@ import { withOfflineFocus } from "./focus.ts"
 import { reachable } from "./reaching.ts"
 import { lookOf, type SurfaceReadout } from "./status.ts"
 import { Reload } from "../Reload.tsx"
-import { TESTID } from "../testids.ts"
+
 
 /** What the freeze itself says, and the only sentence here that is not the
  *  pill's: the pill reports on the WIRE, and this reports on what that does to

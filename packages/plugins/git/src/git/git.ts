@@ -112,6 +112,13 @@ interface Said {
   readonly said: string
   /** stdout, verbatim. Trailing newlines are data when the answer is a list. */
   readonly out: string
+  /** GIT NEVER ANSWERED, as opposed to answering no. Both are `ok: false`,
+   *  and for every caller but one that is the right collapse — a wedged hook
+   *  and a refusal are equally "the write did not go through". {@link commit}
+   *  is the exception: it has a backup to dispose of, and "git refused" and
+   *  "git was killed at the budget, possibly after moving HEAD" want opposite
+   *  answers. See its `hung` arm. */
+  readonly hung?: true
 }
 
 /** Run git, and answer with whether it worked and what it said. Never fails:
@@ -136,7 +143,7 @@ const git = (root: string, argv: ReadonlyArray<string>): Effect.Effect<Said> =>
       return { ok: result.ok, said: result.said, out: result.out }
     } catch (cause) {
       if (!(cause instanceof Hung)) throw cause
-      return { ok: false, said: cause.message, out: cause.out }
+      return { ok: false, said: cause.message, out: cause.out, hung: true }
     }
   })
 
@@ -787,11 +794,37 @@ export interface CommitInput {
  * from the index is a staged DELETION. Git's own `git commit -- <paths>` writes
  * the committed paths back into the real index for exactly that reason, and
  * that write is the one this file must keep making.
+ *
+ * ## THE THIRD WAY OUT, which this used to have no answer for
+ *
+ * A refusal is not the only way a commit ends. A serve that stops, a git row
+ * switched off in the panel, a SIGTERM — every one of them INTERRUPTS the
+ * fiber, and the two calls that used to put the index back were ordinary
+ * statements after an awaited subprocess. An interrupt landing on that await
+ * abandoned the generator where it stood: the staging survived, the backup was
+ * orphaned in `.git/`, and nothing would ever put either right. Reproduced both
+ * halves — a commit stopped during `git add` left `A  slow.md` staged with no
+ * commit, and one stopped inside a `post-commit` hook left the commit landed
+ * with a pre-`add` backup beside it whose restoration reads `D  fresh.olai`, a
+ * staged deletion of the file that had just been committed.
+ *
+ * So the disposition is the INDEX'S, decided once and acted on once, and
+ * {@link commit} hands the deciding moment to it rather than spelling both
+ * calls at four returns. Every way out of that function runs {@link
+ * Index.settle} — refusal, defect, interrupt and success alike — and the only
+ * thing that changes what `settle` DOES is a commit that reported it landed.
  */
 interface Index {
-  /** Where the real index is, and where its copy went. */
-  readonly restore: () => void
-  readonly forget: () => void
+  /** The commit landed: the index is now agreeing with a commit that exists,
+   *  so what {@link settle} must do is drop the copy rather than write it
+   *  back. Said only by a `git commit` that answered `ok`, from inside the
+   *  same uninterruptible region that observed it — a flag set after an
+   *  interruptible subprocess is a flag an interrupt can arrive in front of. */
+  readonly keep: () => void
+  /** Put the index back, or drop the copy if {@link keep} was said. Once: a
+   *  second call after a defect would rename a backup that is no longer
+   *  there. */
+  readonly settle: () => void
 }
 
 let backups = 0
@@ -805,13 +838,24 @@ const keptIndex = (placed: Placement): Index => {
   // "there was none" is a state to put back rather than a reason to skip.
   const had = fs.existsSync(index)
   if (had) fs.copyFileSync(index, backup)
+  // THE SAFE ANSWER IS THE DEFAULT, which is the whole reason this is a flag
+  // and not a reading of how the Effect ended. `Failed` is an ordinary SUCCESS
+  // value here, so a successful exit does not mean git committed; and an
+  // interrupt arriving after git moved HEAD is a FAILED exit over a commit
+  // that landed. Neither direction is legible from the outside.
+  let keep = false
+  let settled = false
   return {
-    restore: () => {
+    keep: () => { keep = true },
+    settle: () => {
+      if (settled) return
+      settled = true
+      if (keep) {
+        if (had) fs.rmSync(backup, { force: true })
+        return
+      }
       if (had) fs.renameSync(backup, index)
       else fs.rmSync(index, { force: true })
-    },
-    forget: () => {
-      if (had) fs.rmSync(backup, { force: true })
     },
   }
 }
@@ -838,67 +882,134 @@ const keptIndex = (placed: Placement): Index => {
  * whose owner asked for signed ones, which is the same class of mistake as
  * swallowing an error. What the refusal must not do is leave the index dirty —
  * see {@link keptIndex}.
+ *
+ * ## THE TWO STEPS THAT TOUCH GIT ARE UNINTERRUPTIBLE, and only those two
+ *
+ * Interruption is what {@link keptIndex}'s third section is about, and a
+ * disposition flag only answers it if olai can never be stopped BETWEEN git
+ * doing something and olai writing down what git did. So the `add` and the
+ * `commit` are each an uninterruptible step: a stop arriving inside one is
+ * held until that subprocess has answered and its answer has been recorded,
+ * and then it lands on the step boundary where the finalizer below settles the
+ * index. Nothing else here is uninterruptible — the `rev-parse` afterwards is
+ * plain, because an abandoned one costs a sha and not an index.
+ *
+ * WHAT THAT COSTS is that a shutdown waits out a wedged git. THREE steps at
+ * {@link BUDGET} and not two, because the `hung` arm below asks the index one
+ * more question from inside the same uninterruptible region — plus up to three
+ * seconds of `@olai/child`'s stopping grace each, so about thirty-nine seconds
+ * in the pathological case, against a service manager that allows ninety. Reading the
+ * ref back in the finalizer instead was tried and is worse: at the moment of an
+ * interrupt HEAD may already have moved while olai's own git is still alive
+ * inside a `post-commit` hook, so the read races olai's own child and answers
+ * either side of the update depending on scheduling — and it would also call a
+ * fourth subprocess onto the path this file's header calls out as hot.
  */
 const commit = (
   root: string,
   placed: Placement,
   what: CommitInput,
 ): Effect.Effect<Done> =>
-  Effect.gen(function*() {
-    const index = keptIndex(placed)
+  // EVERY WAY OUT, IN ONE PLACE — and the copy is made in the same step that
+  // says how to dispose of it. `keptIndex` writes a file, which makes it an
+  // acquisition however plainly it is spelled, and a `const` followed by a
+  // `yield*` that installs the finalizer is the exact gap the MCP endpoint's
+  // own header names one plugin over: an interrupt observed at that step
+  // boundary leaves the backup on disk with nothing that will ever settle it.
+  // `acquireUseRelease` closes it, and the release runs on every exit — a
+  // refusal, a defect and an interrupt are three ways of not having committed,
+  // and the fourth is the one the body says so about. There is no reading of
+  // the exit here, deliberately: see {@link keptIndex}.
+  Effect.acquireUseRelease(
+    Effect.sync(() => keptIndex(placed)),
+    (index) =>
+      Effect.gen(function*() {
+        // ONLY THE PATHS THAT ARE THERE, which is the whole of `commit-op-staged-rename`.
+        //
+        // The `add` exists for one reason — an untracked file is not committable
+        // without it — so a path with no working-tree content has nothing for it to
+        // do. It used to be handed every path anyway, and `git add` looks at the
+        // working tree and the index and NOWHERE ELSE: the departing half of a
+        // staged `git mv` is in neither, so git refused the whole call with
+        // `fatal: pathspec '<old>' did not match any files` and a person watched
+        // their own rename come back as git's raw words.
+        //
+        // Skipping it loses nothing. `git commit -- <paths>` records a departure
+        // out of HEAD and the index without any staging at all, which is exactly
+        // what git's own porcelain does for a `git rm`, and it is why the commit
+        // below still names every path it was given.
+        const staging = what.paths.filter(there)
+        if (staging.length > 0) {
+          const staged = yield* Effect.uninterruptible(git(root, ["add", "--", ...staging]))
+          if (!staged.ok) {
+            yield* Effect.annotateLogs(
+              Effect.logWarning("olai git: could not stage the write"),
+              { said: staged.said },
+            )
+            return { _tag: "Failed", said: staged.said } as const
+          }
+        }
 
-    // ONLY THE PATHS THAT ARE THERE, which is the whole of `commit-op-staged-rename`.
-    //
-    // The `add` exists for one reason — an untracked file is not committable
-    // without it — so a path with no working-tree content has nothing for it to
-    // do. It used to be handed every path anyway, and `git add` looks at the
-    // working tree and the index and NOWHERE ELSE: the departing half of a
-    // staged `git mv` is in neither, so git refused the whole call with
-    // `fatal: pathspec '<old>' did not match any files` and a person watched
-    // their own rename come back as git's raw words.
-    //
-    // Skipping it loses nothing. `git commit -- <paths>` records a departure
-    // out of HEAD and the index without any staging at all, which is exactly
-    // what git's own porcelain does for a `git rm`, and it is why the commit
-    // below still names every path it was given.
-    const staging = what.paths.filter(there)
-    if (staging.length > 0) {
-      const staged = yield* git(root, ["add", "--", ...staging])
-      if (!staged.ok) {
-        index.restore()
-        yield* Effect.annotateLogs(
-          Effect.logWarning("olai git: could not stage the write"),
-          { said: staged.said },
-        )
-        return { _tag: "Failed", said: staged.said } as const
-      }
-    }
+        const committed = yield* Effect.uninterruptible(Effect.gen(function*() {
+          const said = yield* git(
+            root,
+            ["commit", "--no-verify", "-m", what.message, "--", ...what.paths],
+          )
+          // SAID HERE, inside the step that observed it. These are the only two
+          // sentences in the file that can move the index's disposition, and
+          // both are a line away from the answer they read.
+          if (said.ok) {
+            index.keep()
+            return said
+          }
+          if (said.hung !== true) return said
+          // GIT NEVER ANSWERED, which is not the same as git saying no and must
+          // not be treated as it. A `commit` killed at {@link BUDGET} may have
+          // moved HEAD already — a `post-commit` hook that outlives the budget
+          // does exactly that — and restoring the pre-`add` backup over a
+          // landed commit stages a DELETION of the file just recorded, which is
+          // the corruption {@link keptIndex}'s header exists to prevent,
+          // reached through the timeout rather than through an interrupt.
+          //
+          // So the index is ASKED. `git commit -- <paths>` writes those paths
+          // back into the real index, so a landed commit leaves nothing staged
+          // for them and a commit that never ran leaves what the `add` staged.
+          // One extra subprocess, on the one path where olai does not know what
+          // happened, and no race behind it: `@olai/child` kills the child and
+          // awaits it before this arm is reached, so nothing of olai's is still
+          // moving HEAD while this reads.
+          //
+          // The one reading it can get wrong is a commit that never ran and
+          // staged nothing — and there the backup and the live index are the
+          // same bytes, so keeping either is keeping the same thing.
+          //
+          // ...AND ONE RESIDUE, named rather than papered over: git's own
+          // window between moving the ref and writing the index back is
+          // microseconds wide, and the budget's kill lands in a HOOK, which is
+          // after both. A commit killed inside that window would read as not
+          // landed. Nothing in this file can narrow it further; what can is
+          // git growing a way to ask.
+          const staged = yield* git(root, ["diff", "--cached", "--name-only", "--", ...what.paths])
+          if (staged.ok && staged.out.trim() === "") index.keep()
+          return said
+        }))
+        if (!committed.ok) {
+          // The ordinary case is "nothing to commit" — a write that produced the
+          // bytes already there. Worth a line in the log, never worth failing.
+          // What becomes of the index was decided above, where the answer was
+          // read; this arm is the sentence, not the disposition.
+          yield* Effect.annotateLogs(
+            Effect.logWarning("olai git: the write was not committed"),
+            { commitMessage: what.message.split("\n")[0] ?? "", said: committed.said },
+          )
+          return { _tag: "Failed", said: committed.said } as const
+        }
 
-    const committed = yield* git(root, [
-      "commit",
-      "--no-verify",
-      "-m",
-      what.message,
-      "--",
-      ...what.paths,
-    ])
-    if (!committed.ok) {
-      // The ordinary case is "nothing to commit" — a write that produced the
-      // bytes already there. Worth a line in the log, never worth failing. The
-      // index goes back to what it was either way: what this call staged was
-      // staged in order to commit it, and it did not.
-      index.restore()
-      yield* Effect.annotateLogs(
-        Effect.logWarning("olai git: the write was not committed"),
-        { commitMessage: what.message.split("\n")[0] ?? "", said: committed.said },
-      )
-      return { _tag: "Failed", said: committed.said } as const
-    }
-
-    index.forget()
-    const head = yield* git(root, ["rev-parse", "HEAD"])
-    return { _tag: "Committed", sha: head.ok ? head.said : "" } as const
-  })
+        const head = yield* git(root, ["rev-parse", "HEAD"])
+        return { _tag: "Committed", sha: head.ok ? head.said : "" } as const
+      }),
+    (index) => Effect.sync(index.settle),
+  )
 
 /** What pushing did. `said` on BOTH arms, because git talks on both: what it
  *  wrote to a remote is worth showing once, and why it would not is worth

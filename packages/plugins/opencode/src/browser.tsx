@@ -1,3 +1,4 @@
+import type {} from "olai-plugin-chat/slots"
 /**
  * THE OPENCODE ENGINE'S BROWSER HALF — two faces, and both are a drawing ABOUT
  * this engine.

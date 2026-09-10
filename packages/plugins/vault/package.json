@@ -1,0 +1,59 @@
+{
+  "name": "olai-plugin-vault",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./testids": "./src/testids.ts",
+    "./testlib": "./src/testlib.ts",
+    "./browser": "./src/browser.tsx",
+    "./contract": "./src/contract.ts",
+    "./directory": "./src/browser/directory.ts",
+    "./file-state": "./src/browser/state.ts",
+    "./status": "./src/browser/Status.tsx",
+    "./boot": "./src/boot.ts",
+    "./errors/Broken.tsx": "./src/browser/errors/Broken.tsx",
+    "./surface": "./src/file-surface.ts",
+    "./errors/Report.tsx": "./src/browser/errors/Report.tsx",
+    "./wire": "./src/wire.ts",
+    "./projection": "./src/projection.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@effect/platform-node": "4.0.0-rc.112",
+    "@olai/format": "workspace:*",
+    "@olai/log": "workspace:*",
+    "@olai/ops": "workspace:*",
+    "@olai/plugin-api": "workspace:*",
+    "@olai/store": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "@olai/surface": "workspace:*",
+    "@olai/web": "workspace:*",
+    "solid-js": "^1.9.0",
+    "olai-plugin-ui-renderer": "workspace:*",
+    "olai-plugin-layout": "workspace:*",
+    "@olai/edit-intents": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "olai-plugin-navigation": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  },
+  "olai": {
+    "contracts": [
+      "./file-state",
+      "./boot",
+      "./testids",
+      "./errors/Broken.tsx",
+      "./surface",
+      "./errors/Report.tsx",
+      "./wire"
+    ]
+  }
+}

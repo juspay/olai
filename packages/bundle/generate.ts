@@ -22,8 +22,8 @@
  *
  * ## Three files, because a plugin's name is spellable in three grammars
  *
- *   - `src/rows.generated.ts` — one row per plugin with a dynamic `import()` of
- *     its browser half. The literal specifier is what makes each plugin its own
+ *   - `src/rows.generated.ts` — the catalogue, plus a dynamic `import()` for each
+ *     declared browser export. The literal specifier is what makes each plugin its own
  *     CHUNK, which is the browser's form of *no fiber, no surface, no handler*:
  *     a plugin the roster does not name is never fetched, never evaluated and
  *     registers nothing.
@@ -50,7 +50,7 @@
  */
 
 import { load } from "js-yaml"
-import { readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -68,6 +68,11 @@ interface Row {
   readonly id: string
   readonly name: string
   readonly disabled?: boolean
+  readonly profiles?: ReadonlyArray<string>
+  readonly switchHint?: string
+  readonly section: string
+  readonly quiet?: boolean
+  readonly config?: Readonly<Record<string, unknown>>
 }
 
 /** The rows, from the one file. It is read here rather than imported from
@@ -83,7 +88,21 @@ function readRows(): ReadonlyArray<Row> {
     if (typeof one?.id !== "string" || typeof one?.name !== "string") {
       throw new Error(`bundle: row ${at} of ${file} needs an \`id\` and a \`name\``)
     }
-    return { id: one.id, name: one.name, ...(one.disabled === true ? { disabled: true } : {}) }
+    if (one.profiles !== undefined && (!Array.isArray(one.profiles) || one.profiles.some((profile) => typeof profile !== "string"))) throw new Error(`bundle: ${one.id} profiles must be words`)
+    if (one.switchHint !== undefined && typeof one.switchHint !== "string") throw new Error(`bundle: ${one.id} switchHint must be a sentence`)
+    if (typeof one.section !== "string" || one.section.length === 0) throw new Error(`bundle: ${one.id} needs a \`section\` for the plugins panel`)
+    if (one.quiet !== undefined && one.quiet !== true) throw new Error(`bundle: ${one.id} quiet must be true when present`)
+    const config = configOf(one.id, (row as { config?: unknown }).config)
+    return {
+      id: one.id,
+      name: one.name,
+      section: one.section,
+      ...(one.disabled === true ? { disabled: true } : {}),
+      ...(one.profiles === undefined ? {} : { profiles: one.profiles }),
+      ...(one.switchHint === undefined ? {} : { switchHint: one.switchHint }),
+      ...(one.quiet === true ? { quiet: true } : {}),
+      ...(config === undefined ? {} : { config }),
+    }
   })
 }
 
@@ -115,6 +134,25 @@ function readRows(): ReadonlyArray<Row> {
  */
 const WORDS = /^[@A-Za-z0-9._/-]+$/
 
+const configOf = (id: string, value: unknown): Readonly<Record<string, unknown>> | undefined => {
+  if (value === undefined) return undefined
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`bundle: ${id} config must be a map of keys to values`)
+  }
+  const config: Record<string, unknown> = {}
+  for (const [key, one] of Object.entries(value as Record<string, unknown>)) {
+    if (!WORDS.test(key)) throw new Error(`bundle: ${id} config key ${JSON.stringify(key)} is not a word`)
+    if (typeof one !== "string" && typeof one !== "boolean" && typeof one !== "number") {
+      throw new Error(`bundle: ${id} config.${key} must be a string, boolean or number`)
+    }
+    config[key] = one
+  }
+  return config
+}
+
+const configLiteral = (config: Readonly<Record<string, unknown>>): string =>
+  `{ ${Object.entries(config).map(([key, value]) => `${quoted(key)}: ${JSON.stringify(value)}`).join(", ")} }`
+
 const quoted = (word: string): string => {
   if (!WORDS.test(word)) {
     throw new Error(
@@ -130,6 +168,22 @@ const packageOf = (row: Row): string => {
   const at = row.name.indexOf("/")
   return at === -1 ? row.name : row.name.slice(0, at)
 }
+
+/** Exports describe which graphs exist. A server-only package needs no empty
+ * browser module or stylesheet, and the generator never imports server code. */
+const hasDoor = (row: Row, door: string): boolean => {
+  let directory = dirname(Bun.resolveSync(row.name, HERE))
+  while (!existsSync(join(directory, "package.json"))) {
+    const parent = dirname(directory)
+    if (parent === directory) throw new Error(`bundle: no manifest for ${row.name}`)
+    directory = parent
+  }
+  const manifest = JSON.parse(readFileSync(join(directory, "package.json"), "utf8"))
+  return Object.hasOwn(manifest.exports ?? {}, door)
+}
+
+/** Prose is a source string too; JSON’s two raw line separators need escaping. */
+const prose = (value: string): string => JSON.stringify(value).replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029")
 
 const HEADER = (from: string) =>
   `// GENERATED from packages/bundle/olai.yml by packages/bundle/generate.ts.\n` +
@@ -154,19 +208,18 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
   // a specifier does.
   const server = rows
     .map((row) =>
-      `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${
+      `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${hasDoor(row, "./server") ? "" : ", browserOnly: true"}${
         row.disabled === true ? ", disabled: true" : ""
-      } },`
+      }${row.profiles === undefined ? "" : `, profiles: [${row.profiles.map(quoted).join(", ")}]`}${row.switchHint === undefined ? "" : `, switchHint: ${prose(row.switchHint)}`}${row.config === undefined ? "" : `, config: ${configLiteral(row.config)}`}, section: ${prose(row.section)}${row.quiet === true ? ", quiet: true" : ""} },`
     )
     .join("\n")
   const entries = rows
+    .filter((row) => hasDoor(row, "./browser"))
     .map((row) =>
-      `  { id: ${quoted(row.id)}, load: () => import(${
-        quoted(`${packageOf(row)}/browser`)
-      }) },`
+      `  { id: ${quoted(row.id)}, specifier: ${quoted(`${packageOf(row)}/browser`)}, load: () => import(${quoted(`${packageOf(row)}/browser`)}) },`
     )
     .join("\n")
-  return `${HEADER("Every row, twice: what a composition root mounts and what the tab loads.")}
+  return `${HEADER("Every server row, and only the browser exports the tab can load.")}
 import type { BrowserRow, BundleRow } from "./rows.ts"
 
 export const ROWS: ReadonlyArray<BundleRow> = [
@@ -181,6 +234,7 @@ ${entries}
 
 function styleChain(rows: ReadonlyArray<Row>): string {
   const imports = rows
+    .filter((row) => hasDoor(row, "./all.css"))
     .map((row) => `@import ${quoted(`${packageOf(row)}/all.css`)};`)
     .join("\n")
   return `/* GENERATED from packages/bundle/olai.yml by packages/bundle/generate.ts.
@@ -221,4 +275,18 @@ export const PLUGIN_TESTID = ${merged} as const
 const rows = readRows()
 writeFileSync(join(SRC, "rows.generated.ts"), rowsModule(rows))
 writeFileSync(join(SRC, "all.generated.css"), styleChain(rows))
-writeFileSync(join(SRC, "testids.generated.ts"), testidsModule(rows))
+writeFileSync(join(SRC, "testids.generated.ts"), testidsModule(rows.filter((row) => hasDoor(row, "./testids"))))
+
+const assetRows = rows.filter((row) => hasDoor(row, "./assets"))
+writeFileSync(join(SRC, "assets.generated.ts"), `${HEADER("Static build contributions; no runtime may import this graph.")}
+import type { BuildAssets } from "./assets.ts"
+${assetRows.map((row, at) => `import p${at} from ${quoted(`${packageOf(row)}/assets`)}`).join("\n")}
+export const BUILD_ASSETS: ReadonlyArray<BuildAssets> = [${assetRows.map((_, at) => `p${at}`).join(", ")}]
+`)
+
+const policyRows = rows.filter((row) => hasDoor(row, "./policy"))
+writeFileSync(join(SRC, "policy.generated.ts"), `${HEADER("Static write reservations; enforced even when the runtime owner is disabled.")}
+import type { WriteReservation } from "./policy.ts"
+${policyRows.map((row, at) => `import { writeReservations as p${at} } from ${quoted(`${packageOf(row)}/policy`)}`).join("\n")}
+export const WRITE_RESERVATIONS: ReadonlyArray<WriteReservation> = [${policyRows.map((_, at) => `...p${at}`).join(", ")}]
+`)

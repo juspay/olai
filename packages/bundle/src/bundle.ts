@@ -46,8 +46,10 @@
  * door in this package keeps, in a third grammar.
  */
 
+import type { PluginPin } from "@olai/format"
+export type { PluginPin } from "@olai/format"
 import type { Host, PropKind, RowReport } from "@olai/plugin-api"
-import { kindWordOf, rowReport } from "@olai/plugin-api"
+import { definePlugin, kindWordOf, rowReport } from "@olai/plugin-api"
 // THE TWO REACHES PAST `@olai/plugin-api`, and the only ones in the tree, for
 // two different reasons.
 //
@@ -65,11 +67,12 @@ import { kindWordOf, rowReport } from "@olai/plugin-api"
 // is the bundle read from the inside. `offered` is a root-only read of any
 // offered service; a plugin holding a host could spend it, and none can.
 // Everything else this file spends of the bridge comes through the door above.
-import { namedBy, offered, settled } from "@olai/effect-cordis"
+import { BundleModules } from "@olai/plugin-api/services"
+import { namedBy, offered, provide, settled } from "@olai/effect-cordis"
 
 export { offered, provide, settled } from "@olai/effect-cordis"
 import { flipRow, mountRows, rowConfigs } from "@olai/effect-cordis/loader"
-import { Effect } from "effect"
+import { Effect, type Scope } from "effect"
 
 import { BUNDLE_NAMES, ROWS } from "./rows.ts"
 
@@ -109,18 +112,23 @@ export type { RowReport, RowState } from "@olai/plugin-api"
 /**
  * `--plugins`, AS A PATCH — the overlay an operator's flag writes over the rows.
  *
- * `null` is nobody having said, and it writes NO patch at all: the rows' own
+ * `omitted` is nobody having said, and it writes NO patch at all: the rows' own
  * `disabled` stands, which is the built-in default. That is also what keeps the
  * distinction between an omitted flag and one typed out loud — the preferences
- * row is drawn from it, and a patch that had already expanded `null` could not
+ * row is drawn from it, and a patch that had already expanded `omitted` could not
  * tell a reader which of the two they were looking at.
  *
- * A flag that WAS given writes a `disabled` onto EVERY row, set from whether the
+ * A flag that WAS given writes a `disabled` onto every row, set from whether the
  * flag named it. Both directions, deliberately: a name the flag gives turns a
  * row ON even where the file left it off, which is the whole of how an opt-in
  * plugin is opted into, and a name the flag omits turns a row off even where the
  * file left it on. `--plugins=` — somebody saying NONE out loud — is that with an
  * empty list, and disables every row.
+ *
+ * `--extra-plugins` and `--without-plugins` are the other encoding of the same
+ * pin: each names only the rows it moves, so the file's answer stands for
+ * everything else. They live on `delta`. Exact set is a different arm. The
+ * type is the refusal; this function is not passed both.
  *
  * That is exactly the shape the include's own patch algorithm takes: `{ id,
  * …overrides }` copied onto the matching row. The flag refuses an unknown name
@@ -129,9 +137,20 @@ export type { RowReport, RowState } from "@olai/plugin-api"
  * right arm for an overlay that outlived a build.
  */
 export const pluginsPatch = (
-  names: ReadonlyArray<string> | null,
-): ReadonlyArray<{ readonly id: string; readonly disabled?: boolean }> =>
-  names === null ? [] : ROWS.map((row) => ({ id: row.id, disabled: !names.includes(row.id) }))
+  pin: PluginPin,
+): ReadonlyArray<{ readonly id: string; readonly disabled?: boolean }> => {
+  switch (pin.kind) {
+    case "omitted":
+      return []
+    case "exact":
+      return ROWS.map((row) => ({ id: row.id, disabled: !pin.names.includes(row.id) }))
+    case "delta":
+      return [
+        ...(pin.extra ?? []).map((id) => ({ id, disabled: false as const })),
+        ...(pin.without ?? []).map((id) => ({ id, disabled: true as const })),
+      ]
+  }
+}
 
 /**
  * WHAT EVERY BUILT PLUGIN TEACHES THE VAULT, running or not — the declarations a
@@ -166,7 +185,13 @@ export const declaredKinds: Effect.Effect<ReadonlyMap<string, PropKind>> = Effec
  *  see this module's header for why it cannot live in the loader's own package,
  *  and `@olai/effect-cordis`'s `mountRows` for what the slot it fills is pinned
  *  to. */
-const importByName = (specifier: string): Promise<unknown> => import(specifier)
+const importByName = async (specifier: string): Promise<unknown> => {
+  const row = ROWS.find((row) => row.name === specifier)
+  // This fiber is the loader's selection record, not a server implementation.
+  // Never import the browser entry on the server, including for inspection.
+  if (row?.browserOnly) return { default: definePlugin({ name: row.id, needs: [], apply: Effect.void }) }
+  return import(specifier)
+}
 
 /**
  * EVERY ROW'S STATE, off the live registry — which plugin is where.
@@ -315,26 +340,31 @@ export const setRow = (
  */
 export const mountBundle = (
   host: Host,
-  names: ReadonlyArray<string> | null,
+  pin: PluginPin,
   configs: ReadonlyArray<{ readonly id: string; readonly config: unknown }> = [],
-  extra?: {
-    readonly rows: ReadonlyArray<{ readonly id: string; readonly name: string; readonly disabled?: boolean }>
-    readonly resolve: (name: string) => Promise<unknown>
-  },
-): Effect.Effect<void> =>
-  Effect.flatMap(
+  profile: string = "web",
+): Effect.Effect<void, never, Scope.Scope> => Effect.gen(function*() {
+  yield* provide(host, BundleModules, () => ({
+    read: Effect.promise(() => Promise.all(ROWS.map(async (row) => ({ name: row.id, exports: await importByName(row.name) })))),
+  }))
+  yield* Effect.flatMap(
     mountRows(host, {
       baseUrl: BASE_URL,
       path: BUNDLE,
-      patches: [...pluginsPatch(names), ...configs],
-      rows: extra?.rows,
-      resolve: (name) => extra?.rows.some((row) => row.name === name)
-        ? extra.resolve(name)
-        : importByName(name),
+      patches: [...profilePatch(profile), ...pluginsPatch(pin), ...configs],
+      resolve: importByName,
     }),
     // EVERY ROW THIS BUILD HAS, and not only the ones the flag left on: a row
     // the patch disabled never entered the registry, so it holds no inertia and
     // costs the walk one `has` — while a list narrowed to the enabled ones would
     // be a second reading of the flag beside {@link pluginsPatch}'s.
-    () => settled(host, [...BUNDLE_NAMES, ...(extra?.rows.map((row) => row.id) ?? [])]),
+    () => settled(host, BUNDLE_NAMES),
   )
+})
+
+/** Profiles disable rows from the catalogue; they never insert a second list.
+ * An explicit --plugins selection overrides those defaults for every row. */
+export const profilePatch = (profile: string) => profile === "web" ? [] : ROWS.map((row) => ({
+  id: row.id,
+  disabled: row.disabled === true || !row.profiles?.includes(profile),
+}))

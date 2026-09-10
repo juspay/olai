@@ -4,7 +4,7 @@ Feature: Writing a node's edges — `see` and `after`
   The web has DRAWN both edges since edges-ui: the `see` links under a node,
   and — for `after` — the dim on a row, the mark column's glyph and the
   `blocked by` line on a node's page. It could write neither. An agent could do
-  both (`set_see`, `set_after`), so that was a standing consistency violation
+  both (`outlines_see`, `outlines_after`), so that was a standing consistency violation
   rather than a missing feature ("MCP and Web ops must be
   consistent; never deviate").
 
@@ -121,7 +121,7 @@ Feature: Writing a node's edges — `see` and `after`
   Scenario: ⌘Z after a × puts the target back — at the END of the list
     # THE DOCUMENTED RESIDUAL, pinned as behaviour rather than left as prose.
     # `hinges` declares `handles` then `order`; dropping the FIRST and taking
-    # that back re-adds it, and `set_see`/`set_after` are incremental — an add
+    # that back re-adds it, and `outlines_see`/`outlines_after` are incremental — an add
     # APPENDS — so it comes back last. The relation is the same set either way,
     # which is why this is a residual and not a bug; closing it would mean a
     # whole-array write on both faces, a change to the op rather than to an
@@ -139,7 +139,7 @@ Feature: Writing a node's edges — `see` and `after`
   Scenario: A loop is refused in the ops layer's own words, naming the loop
     # `install` already comes after `order`. Asking for `order` after `install`
     # would close `order → install → order`, and what a person reads is the
-    # sentence `set_after` gives an agent — never a summary, and never a
+    # sentence `outlines_after` gives an agent — never a summary, and never a
     # silently disabled row.
     When I open the node menu of "order"
     And I choose "Wait for a node…" from the node menu
@@ -190,7 +190,7 @@ Feature: Writing a node's edges — `see` and `after`
 
   Scenario: A target named twice draws ONE link, and the page survives the frame
     # A `.olai` is plain text and a hand-edited one can say the same thing twice.
-    # What it MEANS is the write layer's own answer: `set_see` and `set_after`
+    # What it MEANS is the write layer's own answer: `outlines_see` and `outlines_after`
     # treat these fields as SETS — re-adding a target the node already names is
     # a silent no-op — so a file naming one target three times names it once,
     # and the page draws one link (ruled by the human, 2026-08-16).

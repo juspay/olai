@@ -36,11 +36,19 @@
 # that will not typecheck here is a blocker rather than a nuisance. That is the
 # whole reason this arrangement is worth its cost, and it is unchanged.
 #
-# The kolu pin tracks master at PR #2228's merge commit,
-# 4b1758afad90b15624030e0fd00e1116586b4054. That PR makes redial retain the
-# connection and surviving clients while replacing their underlying wire.
-# npins records the immutable archive and hash; ordinary updates advance it.
-# https://github.com/juspay/kolu/pull/2228
+# The kolu pin tracks MASTER, and `npins/sources.json` is the one place its
+# revision is written down — a second copy in this comment is a copy that goes
+# stale silently, and did: it named PR #2228's merge commit for several bumps
+# after the pin had moved past it.
+#
+# What the pin is depended on FOR, which does not move with every bump:
+#   * PR #2228 — a redial retains the connection and every surviving client,
+#     replacing only the wire underneath. `packages/web/src/client/wire.ts` and
+#     `docs/internal/plugin-system.md`'s reconnection contract both rest on it.
+#     https://github.com/juspay/kolu/pull/2228
+#   * PR #2234 — a rooted bundle, so each sibling's own spec and resource map go
+#     in under its own key and `reroster` re-composes the whole bundle on a
+#     roster move. https://github.com/juspay/kolu/pull/2234
 #
 # NOTE THE ATTR RENAME. Members are `kolu-surface`, not `kolu-src-surface`:
 # the slug is kolu's now, and a consumer inventing its own would be one more

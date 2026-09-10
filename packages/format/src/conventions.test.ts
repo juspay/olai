@@ -420,7 +420,7 @@ test("the hot case is covered, and the two lists really do disagree", () => {
 test("a departure the delta never names is caught by the count", () => {
   // `removed` is the weaker of the store's two lists: a `resync` forgets the
   // stamp table the listing diff is taken against, so a file that went away can
-  // be in neither list (`@olai/server`'s `published.ts` says so and mints the
+  // be in neither list (`@olai/surface`'s `projection.ts` says so and mints the
   // remove itself). The carrier must not take an empty delta as "nothing
   // moved", and this is the case that says it does not.
   const files: Corpus = { ...START, "Pins.olai": pin("root"), "Inbox.olai": capture("root") }

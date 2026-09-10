@@ -1,0 +1,60 @@
+/** capture owns these legacy wire members for its activation. The vault
+ * remains the write authority. All readings and subscriptions are acquired on
+ * this provider's scope; UI and layout are not dependencies of this half. */
+import { definePlugin, Directory, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
+import type { Ops as Gate, Store } from "@olai/ops"
+import { Effect, Stream, SubscriptionRef } from "effect"
+import { inMemoryStore, inMemoryChannel, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
+import type { Reading } from "@olai/format"
+import type { Snapshot } from "@olai/store"
+import { applyEdit, runWrite } from "@olai/edit-intents/apply"
+import { surface, faces } from "./surface.ts"
+/** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
+ *  faces. They were entries in `@olai/ops`' one closed table until #546, which
+ *  meant a general package named this row's vocabulary and a serve without this
+ *  row still advertised them; declaring them here is what makes switching the
+ *  row off take its tools along. */
+import { tools } from "./tools.ts"
+import { name } from "./name.ts"
+export { name } from "./name.ts"
+import { NO_INBOX, inboxHeldIn, conventionServed, inboxIn, type Convention } from "@olai/format"
+
+export default definePlugin({
+  name, needs: [Directory, Ops, Vault, Surfaces],
+  apply: Effect.gen(function*() {
+    const store = (yield* Directory).store as Store
+    const gate = (yield* Ops).gate as Gate
+    const vault = yield* Vault
+    let ctx: SurfaceRuntime<typeof surface.spec>["ctx"] | undefined
+    const value = inMemoryStore(NO_INBOX)
+    const publish = (next: typeof NO_INBOX) => ctx ? ctx.cells.inbox.set(next) : value.set(next)
+    let file: Convention | undefined
+    yield* vault.revision<Snapshot<Reading>>(snapshot => Effect.sync(() => {
+      file = conventionServed(inboxIn, snapshot.value.set, snapshot, file)
+      publish(inboxHeldIn(snapshot.value.derived, file.file))
+    }))
+    yield* vault.unloaded(Effect.sync(() => {
+      publish(NO_INBOX)
+      file = undefined
+    }))
+    const deps: ImplementSurfaceDeps<typeof surface.spec> = {
+      cells: {
+        inbox: { store: value }
+      },
+      procedures: {
+        edit: { apply: ({ input }) => applyEdit(gate, input) },
+      },
+    }
+    yield* (yield* Surfaces).register({ surface, faces, tools, deps, published: value => { ctx = value as typeof ctx } })
+  }),
+})
+
+export { dispatch } from "./surface.ts"
+
+/** Static sibling metadata matches the browser-owned client. Agent grants
+ * belong to the standalone aliases registered by this activation, so copying
+ * them here would advertise a second set of namespaced agent tools. */
+import { faces as standaloneFaces } from "./surface.ts"
+const siblingFaces = { browser: standaloneFaces.browser }
+export { siblingFaces as faces }
+export { surface } from "./surface.ts"

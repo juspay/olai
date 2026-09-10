@@ -109,7 +109,7 @@ describe("a capture carries its edges and its facts", () => {
     })
   })
 
-  test("properties are written through the same writer `set_prop` reaches", () => {
+  test("properties are written through the same writer `outlines_prop` reaches", () => {
     const result = planned(house(), {
       op: "add",
       parent: "kitchen",
@@ -132,14 +132,14 @@ describe("a capture carries its edges and its facts", () => {
     expect(record(fileOf(result, "house.olai"), "n1").after).toEqual(["order", "install"])
   })
 
-  test("a `props` key spelled like a field is refused in `set_prop`'s words", () => {
+  test("a `props` key spelled like a field is refused in `outlines_prop`'s words", () => {
     const failure = refused(house(), {
       op: "add",
       parent: "kitchen",
       title: "lane",
       props: { done: "yesterday" },
     })
-    // Word for word what `set_prop` says about the same key — the one sentence,
+    // Word for word what `outlines_prop` says about the same key — the one sentence,
     // reached through one function.
     expect(failure.message).toBe(
       refused(house(), { op: "prop", id: "order", key: "done", value: "yesterday" }).message,
@@ -172,7 +172,7 @@ describe("a capture carries its edges and its facts", () => {
   })
 
   test("`after` on a captured node is REFUSED, not dropped, naming the bend", () => {
-    // The footgun `waitsOn` costs: an agent that has read `set_after`, or that
+    // The footgun `waitsOn` costs: an agent that has read `outlines_after`, or that
     // is looking at the anchor one level up, writes `after` on a child. An
     // Effect struct drops a key it does not declare, so the whole dependency
     // would have vanished under a call that reported success — which is why the
@@ -188,7 +188,7 @@ describe("a capture carries its edges and its facts", () => {
     expect(failure.message).toContain("write `waitsOn` instead")
     expect(failure.message).toContain("Nothing was written.")
 
-    // At `add_node`'s ROOT the same word is the placement anchor and means
+    // At `outlines_add`'s ROOT the same word is the placement anchor and means
     // exactly what it says, so it is not refused — which is the collision this
     // whole bend exists for.
     const placed = planned(house(), {
@@ -246,7 +246,7 @@ describe("a capture carries its edges and its facts", () => {
     expect(failure.message).toMatch(/`a` → `b` → `a`|`b` → `a` → `b`/)
   })
 
-  test("a loop closing through the set is refused naming it, as `set_after` would", () => {
+  test("a loop closing through the set is refused naming it, as `outlines_after` would", () => {
     // `install` after `order` already; a capture that `order` waits on closes
     // the ring through two nodes the set holds and one it is minting.
     const wired = setOf({
@@ -285,8 +285,8 @@ describe("a capture carries its edges and its facts", () => {
   })
 
   test("a capture may arrive `doing` and blocked — the discovery, not the instruction", () => {
-    // `set_doing` refuses a node the set ALREADY says cannot start. There is no
-    // already about a node being born, and `set_after` on a started node is
+    // `outlines_doing` refuses a node the set ALREADY says cannot start. There is no
+    // already about a node being born, and `outlines_after` on a started node is
     // refused nowhere, so the pair written in one breath lands.
     const result = planned(house(), {
       op: "add",
@@ -361,7 +361,7 @@ describe("apply", () => {
     expect((failure as { named?: string }).named).toBe("nowhere")
   })
 
-  test("the done-over-open-work gate refuses exactly as `set_done` would", () => {
+  test("the done-over-open-work gate refuses exactly as `outlines_done` would", () => {
     const alone = refused(house(), { op: "done", id: "kitchen" })
     const batched = refused(house(), batch({ op: "done", id: "kitchen" }))
     expect(batched.message).toBe(`\`ops[0]\` (\`done\`) was refused, so nothing in ` +
@@ -381,7 +381,7 @@ describe("apply", () => {
     expect(batched.message).toContain("`chase it` (`chase`, todo)")
 
     // And it is the single verb's sentence, word for word — asserted against
-    // `set_done` run alone over the set that capture really leaves, which is
+    // `outlines_done` run alone over the set that capture really leaves, which is
     // the only comparison that says "identical" about a moving target.
     const alone = refused(after(house(), filed as Request), { op: "done", id: "loose" })
     expect(batched.message).toBe(
@@ -405,7 +405,7 @@ describe("apply", () => {
     expect(record(fileOf(result, "house.olai"), "kitchen").done).toBe(STAMP)
   })
 
-  test("`set_doing` after `set_after` in one batch meets the same gate", () => {
+  test("`outlines_doing` after `outlines_after` in one batch meets the same gate", () => {
     const failure = refused(
       house(),
       batch(
@@ -584,7 +584,7 @@ describe("update", () => {
     expect(record(fileOf(cleared, "house.olai"), "install").after).toBeUndefined()
   })
 
-  test("`after` carries `set_after`'s refusals — unknown, loop, and no-op", () => {
+  test("`after` carries `outlines_after`'s refusals — unknown, loop, and no-op", () => {
     expect(refused(house(), { op: "update", id: "install", after: ["nowhere"] })._tag)
       .toBe("NotFoundFailure")
 
@@ -597,7 +597,7 @@ describe("update", () => {
     expect(refused(wired, { op: "update", id: "order", after: ["install"] }).message)
       .toContain("`order` → `install` → `order`")
     // A list identical to what is there changes nothing, and is turned away
-    // rather than written — `set_after`'s own no-op refusal, word for word.
+    // rather than written — `outlines_after`'s own no-op refusal, word for word.
     expect(refused(wired, { op: "update", id: "install", after: ["order"] }).message)
       .toBe(refused(wired, { op: "after", id: "install", add: ["order"] }).message)
     // …and the emptiest no-op of all, `[]` over a node that has none, is the
@@ -631,7 +631,7 @@ describe("update", () => {
       .toContain("carries no mark, so there is none to take off")
   })
 
-  test("`was` is `set_title`'s and `set_desc`'s, per field, and is CHECKED", () => {
+  test("`was` is `outlines_title`'s and `outlines_desc`'s, per field, and is CHECKED", () => {
     const rich = setOf({
       "house.olai": KITCHEN.replace(
         `{"id":"loose","ord":"a1","title":"a node with no children"}`,
@@ -675,7 +675,7 @@ describe("update", () => {
       .toContain("`was.title` says what this write expects")
   })
 
-  test("a shadowed property key is refused in `set_prop`'s own words, undressed", () => {
+  test("a shadowed property key is refused in `outlines_prop`'s own words, undressed", () => {
     const failure = refused(house(), { op: "update", id: "order", props: { done: "x" } })
     expect(failure.message).toBe(
       refused(house(), { op: "prop", id: "order", key: "done", value: "x" }).message,

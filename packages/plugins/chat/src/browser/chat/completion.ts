@@ -71,7 +71,7 @@
 
 import { tagOpensAt } from "@olai/format"
 
-import { type Written, written } from "@olai/web/client/complete/trigger.ts"
+import { type Written, written } from "@olai/markdown-ui/insert.ts"
 
 /** What the box has armed, if anything. `from` is the index of the opener's
  *  FIRST character, so `[from, caret)` is the span a chosen row replaces —

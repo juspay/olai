@@ -285,6 +285,9 @@ export interface Reported {
  * can start, and its `agent.ts` does the talking.
  */
 export interface Leg {
+  /** Native child-session and AIR async-task lifecycle streams. Opt in only
+   * where the adapter implements these versioned extensions. */
+  readonly nativeActivity?: boolean
   /** Connection reports carried by ordinary session updates, where an adapter
    * exposes them. Display only: this must never grant tool permissions. */
   readonly serversInUpdate?: (update: unknown) => ReadonlyArray<Reported> | null
@@ -400,11 +403,15 @@ export interface Leg {
    */
   readonly prologueIn: (opened: unknown) => string | null
 
-  /** The permission mode to ask a fresh session for, or `null` for an agent
-   *  that has none. A refusal is not a boot failure either way:
-   *  {@link Leg.allowedWithoutAsking} is the backstop, and what a refusal costs
-   *  is one round trip per tool call. */
+  /** The permission mode requested for every new or loaded session, or `null`
+   *  to leave the adapter default unchanged (not configuration inheritance).
+   *  Refusal behavior is declared separately by `bypassModeRequired`. */
   readonly bypassMode: string | null
+
+  /** Require successful mode selection before activating a session. Otherwise
+   *  report a refusal and keep the adapter default and permission backstop.
+   *  Omission preserves the nonfatal behavior of existing integrations. */
+  readonly bypassModeRequired?: boolean
 
   /** How a message reaches the turn ALREADY RUNNING, on purpose — or `null`
    *  for an agent with no such gesture. Never how an ordinary send is

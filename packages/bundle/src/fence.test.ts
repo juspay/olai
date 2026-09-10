@@ -1,143 +1,18 @@
-/**
- * THE FENCE — that core does not know a plugin's name, held as claims a test
- * can be red about.
+/** Architectural boundaries over the complete workspace and transitive runtime
+ * import graphs. The bundle alone selects plugins. Feature integrations import
+ * explicit static contracts; contract declarations cannot hide private provider
+ * implementation or acquire its runtime resources. Pure helpers have static
+ * library owners. Permanent browser/server entries reach no feature runtime.
  *
- * ## Why a test and not a shell script
+ * Browser and server graphs are checked separately, including unresolved edges
+ * so a missing module cannot make a graph appear clean. Plugin directories and
+ * the row catalog agree; third-party appliance clients stay in their owners.
+ * Static build assets and write reservations are separate generated graphs.
  *
- * The two fences this ABSORBED — `scripts/check-kolu-deps.sh`'s fourth and
- * fifth assertions and `scripts/check-odu-deps.sh`'s second and third — ended
- * in `rg … 2>/dev/null || true` over `packages/<name>/src`, and both halves of
- * that are hazards this file declines to inherit. `ripgrep` is not in the dev
- * shell's package list, so on a machine without an ambient one the redirect
- * turns "command not found" into an empty result and a GREEN fence — a fence
- * that passes by failing to run is worse than none. And `packages/<name>/src`
- * misses `packages/tests` entirely, which is the only member with no `src/`,
- * which is how four product-tier `@kolu/*` imports sat in its geometry harness
- * with `just check` green.
- *
- * A test runs under the pinned bun, walks the PACKAGE rather than its `src`,
- * and reads an import two ways — the shape `@olai/acp`'s manifest test already
- * is, and this file is that test one boundary over.
- *
- * What is LEFT in a shell script is the other job those two files did, which
- * was never the same job: agreeing with a pin's declared VERSIONS, read out of
- * the Nix store, deliberately with no `install` in front of it so it fails
- * fast. That is `scripts/check-hydrated-deps.sh` now — one script, invoked once
- * per pin, with no import fence in it at all.
- *
- * ## What it claims
- *
- *   1. **Only `@olai/bundle` names a plugin.** Held as an EQUALITY per
- *      package — `[]` for every general one — and never as a filtered list
- *      asserted empty: a pattern that rotted would report nothing found and
- *      pass, which is the failure mode the sweeps in `@olai/tests` were
- *      written after two days of exactly it.
- *   2. **No plugin imports the REGISTRY, and every plugin imports the
- *      INTERFACE.** The first is what keeps the direction a DAG the manifests
- *      express: `@olai/bundle` imports every plugin, so a plugin that imported
- *      back would be a cycle. The second is the arrow that made the split
- *      necessary — a server half is an Effect whose `needs` names service tags
- *      `@olai/plugin-api` declares — and it is asserted to EXIST,
- *      because a fence that only forbade would pass on a tree where the
- *      services door had quietly stopped being reachable.
- *
- *      **"No plugin imports another plugin" is NOT among these any more.**
- *      The Cordis proposal overturns it: `needs` is the dependency arm and it
- *      is reactive, so the half-wired state the ban feared is `waiting`. What
- *      the ban protected is claim 6's: an appliance's TIER stays inside its
- *      tenant, so a plugin reaching into another's `./server` drags that
- *      appliance's client onto its own graph and goes red there.
- *   3. **A plugin is a SIBLING, and core computes none of its addresses.**
- *      Each plugin composes under its own name, no two share one, and a name
- *      is a legal tag segment because it becomes one. The framework would
- *      catch a collision at boot with a duplicate-tag throw; here it is a test,
- *      in a process that has not started yet.
- *   4. **The browser's door names every plugin and imports none, and each
- *      plugin's own chunk stays a browser chunk.** It was one claim about one
- *      door — *the wire door stays a wire door*, `@olai/bundle/wire` being what
- *      every listener pulled in statically, forbidden a UI runtime because a
- *      SERVER read it and an appliance's client because a BROWSER did. There is
- *      no such door: the root is one ROW per plugin with a dynamic `import()`
- *      behind it, so its closure reaches no plugin at all and the bound is
- *      satisfied by there being nothing to bound — which is why the door must
- *      also SPELL every plugin, asserted first, and why what the browser
- *      actually opens is walked separately, per tenant, as the `./browser`
- *      chunk a roster fetches. The confinement went there with it: no `node:`
- *      builtin, and no appliance's product tier — the same claim
- *      `check-kolu-deps.sh`'s fifth assertion makes about the slice one floor
- *      down, made here about the door that would ship it to a reader.
- *   5. **...and the server door stays a server door.** The modules the bundle's
- *      ROWS name MAY pull an appliance's client, the vault's format and a
- *      `node:` builtin — that is what a runtime half is made of — and may not
- *      pull a browser face onto the graph of a process that renders nothing.
- *      It is the complement of claim 4 rather than a repetition of it, and the
- *      two together are why there are three doors. It is walked as each ROW's
- *      module rather than as one array's import graph, because there is no
- *      array: a row names a specifier the loader resolves at mount, so what is
- *      walked is every module this build will actually mount.
- *   6. **An appliance's PRODUCT TIER stays inside its tenant**, and the tenant
- *      is COMPUTED. Which packages may name `@kolu/padi-client` or
- *      `@odu/run-client` used to be two hand-written `grep -v` path
- *      substrings, one per script, and a hand copy of an architecture is the
- *      exact failure a fence exists to prevent — it went red the day a plugin
- *      grew a testlib that legitimately named its own appliance. Here the
- *      answer is derived: a plugin's TENANT is the set of workspace packages
- *      reachable from its own doors and from NO other plugin's, so a package
- *      two tenants share is general by construction and a third plugin brings
- *      its own tenant with it.
- *   7. **...and what a general package may not name is derived too.** The
- *      product tier is not a list either: it is every specifier a tenant
- *      resolves out of the ROOT `node_modules` that the root manifest never
- *      declared — which is exactly the hydrated set, and exactly what the
- *      isolated linker cannot refuse.
- *
- *   8. **...and no general package spells a plugin's NAME in code either.**
- *      The seven above are about imports; this one is about the other door a
- *      name gets in through — a `koluHalf(…)` call, a `wiring.kolu` slot, an
- *      `olai.cells["plugins:odu:ci"]`. None of those is an import, and every
- *      one of them was in this tree before the extraction.
- *
- *   9. **`packages/plugins/` is the tenant container and holds nothing else.**
- *      Two directions, read off two different sources — the registry's roster
- *      and the filesystem — so a plugin left outside it and a general package
- *      dropped inside it are each a red test rather than a thing a reviewer has
- *      to notice. It is what makes the appliance fold's layout an invariant
- *      instead of a habit.
- *
- * ## Where the READING is, and why it is not here
- *
- * Every claim here is an EQUALITY over a corpus, so the corpus is the whole
- * proof — and reading this repository is not what this file is about. The
- * globs, the manifests, the source walk, the four import grammars and the
- * module graph are `./tree.testlib.ts`, which knows nothing about plugins;
- * this file is the nine claims and their reasons. `mechanics.test.ts` reads
- * the same walk, which is what it stopped carrying its own copy of.
- *
- * The corpus comes off the root manifest's own `workspaces` globs rather than
- * a one-level `readdir`, and the difference is not academic: the tenants nest
- * under `packages/plugins/` now, and a one-level walk would have gone on
- * reporting `[]` from every general package while never opening either plugin.
- * A fence whose corpus can quietly shrink is the shell script this file
- * replaced, wearing a `.ts`.
- *
- * ## What it deliberately does NOT claim
- *
- * That no file anywhere SPELLS the word. Prose that names a package is not a
- * dependency, and a fence that failed on a comment is a fence people learn to
- * work around — which is `check-kolu-deps.sh`'s own ruling and is kept. Claim 8
- * therefore reads what a file COMPILES TO rather than what it says, and it is
- * scoped to production sources: a bench's fixture carries a VAULT's words
- * ("Kolu integration" as a node title, `kolu fleet watch` as a command somebody
- * ran), and the end-to-end suite spawns a fake padi over kolu's own testlib,
- * which is what testing kolu looks like.
- *
- * That claim used to be a POINTER — "the companion sweep lives in
- * `@olai/tests`" — and pi's review found it aimed at a sweep nobody had
- * written. Its reason for exile ("a sweep here reading the browser would be the
- * floor reading the roof") overstated the direction: this file already reads
- * every package's sources as text, which is where the four grammars above come
- * from, and reading is not depending. It is a claim now.
- */
+ * Exact lexical collision tables cover public domain vocabulary, UI nouns and
+ * preserved wire names. They grant no import or lifetime exemption: all graph
+ * and resource claims remain independent. The filesystem/parser machinery is
+ * tree.testlib.ts; this file evaluates no plugin implementation. */
 
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import * as path from "node:path"
@@ -170,6 +45,7 @@ import {
   doorsOf,
   graphFrom,
   grammarOf,
+  liveStateIn,
   manifestAt,
   MEMBER_OF_PACKAGE,
   mainOf,
@@ -233,6 +109,77 @@ const TENANTS_OF: ReadonlyArray<{ name: string; pkg: string; dir: string }> = PL
 
 const PLUGIN_PACKAGES = TENANTS_OF.map((one) => one.pkg)
 const PLUGIN_DIRS = TENANTS_OF.map((one) => one.dir)
+
+/** Explicit static doors are APIs, never wildcard implementation exports. A
+ * declaration only makes an edge eligible: closure checks below prove that it
+ * does not pull a private browser/server implementation through another door. */
+const staticDoors = (pkg: string): ReadonlyArray<string> => {
+  const member = MEMBER_OF_PACKAGE.get(pkg)
+  if (member === undefined) return []
+  const manifest = manifestAt(path.join(PACKAGES, member)) as { readonly olai?: { readonly contracts?: readonly string[] } } | undefined
+  const declared = manifest?.olai?.contracts ?? []
+  if (!Array.isArray(declared) || declared.some(door => typeof door !== "string" || !door.startsWith("./") || door.includes("*"))) {
+    throw new Error(`fence: ${pkg} olai.contracts must name explicit static export doors`)
+  }
+  return [...new Set(["./contract", ...declared])]
+}
+const staticDoor = (spec: string): boolean => {
+  const pkg = packageOf(spec)
+  return staticDoors(pkg).includes(`.${spec.slice(pkg.length)}`)
+}
+const staticTargets = (pkg: string): ReadonlyArray<string> => {
+  const member = MEMBER_OF_PACKAGE.get(pkg)
+  if (!member) return []
+  const manifest = manifestAt(path.join(PACKAGES, member))
+  return staticDoors(pkg).flatMap(door => {
+    const target = manifest === undefined ? undefined : doorsOf(manifest)[door]
+    return target ? [path.resolve(PACKAGES, member, target)] : []
+  })
+}
+
+
+/**
+ * WHERE A FOREIGN SPECIFIER LANDS, as a `packages/`-relative path — or nothing
+ * where it names no module of this tree.
+ *
+ * `tree.testlib.ts`'s `graphFrom` resolves the same question inside a WALK and
+ * keeps it private, because a walk needs the discriminated answer (it must tell
+ * "the graph ends here" from "the walk could not go on"). This asks the flat
+ * version for one claim: which FILE does a package that opens this door
+ * actually open. The wildcard arm is what makes `@olai/web`'s `./client/*`
+ * answerable at all, which is where three of the audit's own findings were.
+ */
+const openedAt = (member: string, spec: string): string | undefined => {
+  const manifest = manifestAt(path.join(PACKAGES, member))
+  if (manifest === undefined) return undefined
+  const doors = doorsOf(manifest)
+  const subpath = spec.slice(packageOf(spec).length)
+  const door = subpath === "" ? "." : `.${subpath}`
+  const exact = doors[door] ?? (door === "." ? mainOf(manifest) : undefined)
+  const target = exact ?? wildcardAt(doors, door)
+  return target === undefined || !/\.tsx?$/.test(target) ? undefined : path.join(member, target)
+}
+
+/** ...and the one wildcard rule, spelled the way `tree.testlib.ts` spells it:
+ *  exactly one `*` on each side, substituted verbatim, and anything else
+ *  refused rather than half-honoured. */
+const wildcardAt = (
+  doors: Readonly<Record<string, string>>,
+  door: string,
+): string | undefined => {
+  for (const [key, value] of Object.entries(doors)) {
+    const at = key.indexOf("*")
+    if (at === -1 || key.indexOf("*", at + 1) !== -1) continue
+    const head = key.slice(0, at)
+    const tail = key.slice(at + 1)
+    if (!door.startsWith(head) || !door.endsWith(tail)) continue
+    if (door.length < head.length + tail.length) continue
+    const into = value.indexOf("*")
+    if (into === -1 || value.indexOf("*", into + 1) !== -1) continue
+    return value.slice(0, into) + door.slice(head.length, door.length - tail.length) + value.slice(into + 1)
+  }
+  return undefined
+}
 
 /** WHERE A TENANT LIVES, as a directory rather than a preference:
  *  `packages/plugins/` is the plugin container and holds nothing else. Held as
@@ -365,10 +312,15 @@ const BROWSER_DOOR = graphFrom(path.join(PACKAGES, REGISTRY, "src", "rows.ts"))
  * `./browser`, which is the chunk a roster fetches. What it may carry is
  * genuinely different from what `./wire` could, and the list below says how.
  */
-const BROWSER_DOORS: ReadonlyArray<{ readonly name: string; readonly door: Door }> = TENANTS_OF
+const BROWSER_TENANTS = TENANTS_OF.flatMap((tenant) => {
+  const manifest = manifestAt(path.join(PACKAGES, tenant.dir))
+  const target = manifest === undefined ? undefined : doorsOf(manifest)["./browser"]
+  return target === undefined ? [] : [{ ...tenant, target }]
+})
+const BROWSER_DOORS: ReadonlyArray<{ readonly name: string; readonly door: Door }> = BROWSER_TENANTS
   .map((tenant) => ({
     name: tenant.name,
-    door: graphFrom(path.join(PACKAGES, tenant.dir, "src", "browser.tsx")),
+    door: graphFrom(path.join(PACKAGES, tenant.dir, tenant.target)),
   }))
 
 /** One walked door, as the two claims below read it. */
@@ -394,6 +346,20 @@ type Door = ReturnType<typeof graphFrom>
  *     `check-kolu-deps.sh` used to make about a `-client`, held here about the
  *     door that would ship it to a reader.
  *
+ * `@olai/surface/projection` IS on it, and the entry is the whole of a split
+ * this fence could not otherwise see. A row's ENTRY SCHEMA crosses to the
+ * browser — `./surface.ts` declares its member with it, and the browser loads
+ * the spec — while the PROJECTION that builds one is the server reading a
+ * revision, and reaches `@olai/format`'s set readers to do it. The two lived
+ * in one `wire.ts` for exactly one commit, which put four hundred lines of
+ * slicing machinery no tab can call onto all three content chunks, and
+ * nothing here went red: the door was a declared contract, the module has no
+ * `node:` import and no side effect, and dead weight is not something an e2e
+ * scenario can see. So the split is by GRAPH rather than by subject —
+ * a row's `./wire` door is inert and its `./projection` is the
+ * server's — and this line is what holds it, because a value re-exported back
+ * into a wire door would otherwise pass forever.
+ *
  * `@olai/format` is NOT on this list, and its absence is a measured decision
  * rather than an oversight: odu's chip reads the vault's own file-kind words to
  * decide what a run is about, so the format is on that chunk today and is
@@ -406,6 +372,7 @@ const NOT_IN_A_TAB = [
   /^node:/,
   /^@odu\//,
   /^@kolu\/padi-client(\/|$)/,
+  /^@olai\/surface\/projection$/,
 ] as const
 
 /**
@@ -424,7 +391,7 @@ const NOT_IN_A_TAB = [
  * below is about.
  */
 const SERVER_DOOR = ((): ReturnType<typeof graphFrom> => {
-  const graphs = ROWS.map((row) => {
+  const graphs = ROWS.filter((row) => !row.browserOnly).map((row) => {
     // `olai-plugin-kolu/server` → `packages/plugins/kolu/src/server.ts`.
     // The one piece of arithmetic, and it is the ecosystem's rather than this
     // file's: a package's `./server` subpath is `src/server.ts` in every member
@@ -459,10 +426,10 @@ const SERVER_DOOR = ((): ReturnType<typeof graphFrom> => {
  * SPELL every plugin, which is the property that makes the emptiness a design
  * rather than a mistake, and it is asserted first.
  */
-describe("the browser's door names every plugin and imports none", () => {
+describe("the browser's door names every browser export and imports none", () => {
   const reached = BROWSER_DOOR.reached
 
-  test("it spells every plugin, in a specifier a bundler can split on", () => {
+  test("it spells exactly the browser exports, in specifiers a bundler can split on", () => {
     // THE FLOOR, and the one that matters here. A generated table that had
     // dropped a row, or spelled a package that does not exist, would satisfy
     // every bound below by naming nothing — so what is asserted is the
@@ -473,7 +440,7 @@ describe("the browser's door names every plugin and imports none", () => {
     // file and leaves this one as a name. That IS the split: a literal the
     // bundler can see, and a module nothing pulls until the roster asks.
     const named = new Set(reached.filter((one) => namesAPlugin(one.spec)).map((one) => one.spec))
-    expect([...named].sort()).toEqual(PLUGIN_PACKAGES.map((pkg) => `${pkg}/browser`).sort())
+    expect([...named].sort()).toEqual(BROWSER_TENANTS.map((tenant) => `${tenant.pkg}/browser`).sort())
   })
 
   test("...and the walk did NOT cross into any of them", () => {
@@ -521,8 +488,8 @@ describe("a plugin's browser chunk stays a browser chunk", () => {
     // NOT VACUOUS, in both directions at once: a resolver that answered nothing
     // would walk one file per tenant and satisfy the list below by being empty,
     // and an entry that does not exist would do the same more quietly. Every
-    // tenant has a browser half — it is what its row's chunk IS — so an absent
-    // one is a defect rather than a plugin that happens to draw nothing.
+    // declared browser export must exist. Server-only rows are absent from
+    // BROWSER_TENANTS, derived independently from the manifest exports.
     for (const { name, door } of BROWSER_DOORS) {
       expect([name, door.unresolved]).toEqual([name, []])
       expect([name, door.files.length > 1]).toEqual([name, true])
@@ -538,13 +505,16 @@ describe("a plugin's browser chunk stays a browser chunk", () => {
     expect([...new Set(bad)].sort()).toEqual([])
   })
 
-  test("...and each one DOES carry components, which is what a chunk is for", () => {
-    // The complement, said out loud: this door exists to carry exactly what the
-    // composition root's may not. A version of it that reached nothing would
-    // pass the claim above by being empty, and the faces would be on somebody
-    // else's graph — which is the arrangement the split replaced.
+  test("each browser row carries rendering or an explicit activation", () => {
+    // A scoped client provider need not draw anything. It must still contain
+    // an activation, so an accidentally empty entry cannot satisfy this
+    // browser ownership check simply by importing static contracts.
     for (const { name, door } of BROWSER_DOORS) {
-      expect([name, componentsOn(door).length > 0]).toEqual([name, true])
+      const activated = door.files.some(file => {
+        const source = readFileSync(path.join(PACKAGES, file), "utf8")
+        return runtimeImportsOf(file, source).some(spec => spec === "@olai/plugin-api") && /\bdefinePlugin\s*\(/.test(source)
+      })
+      expect([name, componentsOn(door).length > 0 || activated]).toEqual([name, true])
     }
   })
 })
@@ -586,7 +556,7 @@ describe("the server door pulls no browser face", () => {
     // Not vacuous, for the wire door's reason: a resolver that answered
     // `undefined` for every workspace specifier would walk one file and pass.
     const files = new Set(reached.map((one) => one.file))
-    for (const tenant of TENANTS_OF) {
+    for (const tenant of TENANTS_OF.filter((tenant) => !ROWS.find((row) => row.id === tenant.name)?.browserOnly)) {
       expect([...files].some((f) => f === path.join(tenant.dir, "src", "server.ts")), tenant.name)
         .toBe(true)
     }
@@ -724,98 +694,176 @@ describe("only the registry knows a plugin's name", () => {
   /**
    * THE FOLDED TESTLIB DOORS, recorded rather than widened.
    *
-   * `@olai/tests` reaches three plugins by name, and each is a claim rather than
-   * a hole. KOLU's is the fake padi the e2e spawn stands on. CHAT's is the
-   * panel's own two constants — how close to the foot of the transcript still
-   * counts as following, and which trigger the composer has armed — which were
-   * on `@olai/web`'s curated list until the panel became a row, and which a step
-   * must read from the client rather than re-decide (a number typed twice
-   * eventually disagrees). IDENTITY's is the same case for the same reason, one
-   * row over: the header names a Given injects and the gravatar URL a Then
-   * expects to see drawn were `@olai/identity`'s while that was a general
-   * package, and a suite that re-typed either would go on passing after the
-   * default header moved or the hash spelling changed. `olai-plugin-identity/who`
-   * is the READING with no runtime in it — no Effect, no plugin API, no browser
-   * — which is what makes it importable from a cucumber process at all.
+   * TWO PACKAGES ARE IN THIS TABLE, and the interesting fact about it is which
+   * one is NOT: `@olai/web` is absent, and its absence is the claim. The boot
+   * package used to hold a `web: [...]` row, and around it a `pins/` directory
+   * of benches over a module that had become `olai-plugin-pins`', the same for
+   * `palette/`, `pane/`, `trash/` and `file/completing.test.ts`, a
+   * `suite.testlib.ts` that re-exported five constants out of four rows, and a
+   * `runtime.test.ts` borrowing two slot NAMES off `olai-plugin-layout` for a
+   * claim about fibers. Each of those went to the row whose concept it carried,
+   * or became a local fake, so the general package that BOOTS the app now spells
+   * no tenant's name at all — in an implementation or in a bench. It is an
+   * equality against `[]` by way of the `?? []` below, which is exactly as red
+   * on the day one comes back as a named row would be.
    *
-   * An equality against those lines and declarations is the opposite of
-   * letting a general package import a plugin: a fifth file, a different
-   * subpath, or a fourth plugin is red. `packages/server` carves two doors the
-   * same way — the git testlib, so `headless.test.ts` does not copy `gitIn`,
-   * and identity's reading, so the gravatar URL its two-door test asserts a
-   * chip drew is the hash the row itself computes rather than a second
-   * spelling of it.
+   * WHAT REMAINS IS TWO SUITES THAT DRIVE ROWS, and every line is a claim
+   * rather than a hole.
+   *
+   * `@olai/tests` is the cucumber suite: it drives plugins, so it names them.
+   * KOLU's door is the fake padi the e2e spawn stands on. CHAT's is the panel's
+   * own constants — how close to the foot of the transcript still counts as
+   * following, which trigger the composer has armed, and the two keys an alert
+   * preference is stored under. IDENTITY's is the header names a Given injects
+   * and the gravatar URL a Then expects drawn; `olai-plugin-identity/who` is the
+   * READING with no runtime in it — no Effect, no plugin API, no browser — which
+   * is what makes it importable from a cucumber process at all. FILES', LAYOUT's
+   * and OUTLINES' are the newest, and they are the same names as before under a
+   * different roof: which row one KIND of file draws, what a minting door is
+   * called, the width the sidebar remembers, the outline's referring word, its
+   * idle commit and its three view keys were all reaching this suite THROUGH
+   * `@olai/web/testlib`. A pass-through is not a smaller dependency than an
+   * import — it is the same edge with a general package's name on it — so the
+   * suite asks the row it is already driving, and the row is named here.
+   *
+   * `packages/server` carves its doors the same way: the git testlib, so
+   * `headless.test.ts` does not copy `gitIn`; identity's reading, so the
+   * gravatar URL its two-door test asserts a chip drew is the hash the row
+   * itself computes rather than a second spelling of it; mcp's and vault's for
+   * their own suites.
+   *
+   * MULTIPLICITY IS PER IMPORT STATEMENT, not per unique specifier: the reader
+   * (`specifiersOf`) hands back one entry every time a file spells a name, so
+   * five `route.test.ts` lines below mean five separate `import` statements in
+   * that one file reaching the same door. Merging two of them into one braced
+   * list is a legitimate edit that turns this table red — delete the surplus
+   * line, do not chase a phantom import. The duplication is kept rather than
+   * de-duplicated because collapsing it would hide the day a SIXTH appeared.
    */
   const TESTLIB_IMPORTS: Readonly<Record<string, ReadonlyArray<string>>> = {
     tests: [
       "tests/step_definitions/chat_steps.ts: olai-plugin-chat/testlib",
+      "tests/step_definitions/editing_steps.ts: olai-plugin-outlines/testlib",
       "tests/step_definitions/identity_steps.ts: olai-plugin-identity/who",
+      "tests/step_definitions/new_file_steps.ts: olai-plugin-files/making",
+      "tests/step_definitions/panel_steps.ts: olai-plugin-layout/preferences",
+      "tests/step_definitions/preferences_steps.ts: olai-plugin-chat/alert-keys",
+      "tests/step_definitions/preferences_steps.ts: olai-plugin-outlines/testlib",
       "tests/support/hooks.ts: olai-plugin-kolu/appliance/testlib",
       "tests/support/world.ts: olai-plugin-chat/testlib",
+      "tests/support/world.ts: olai-plugin-files/kinds",
       "tests/support/world.ts: olai-plugin-kolu/appliance/testlib",
+      "tests/support/world.ts: olai-plugin-outlines/testlib",
     ],
     server: [
+      "server/src/capabilities.testlib.ts: olai-plugin-vault/testlib",
+      "server/src/dial.test.ts: olai-plugin-mcp/testlib",
+      // `faces.test.ts` LEFT THIS LIST, and that is the change rather than an
+      // omission: it reached the mcp row for `mcpContract` + `AGENT_EXPOSE` —
+      // the flat contract juspay/kolu#2234 deleted — and what it resolves the
+      // published URIs from now is `@olai/bundle`'s own `AGENT_SIBLINGS`, which
+      // is the registry composing plugin-owned declarations and needs no door.
       "server/src/headless.test.ts: olai-plugin-git/testlib",
-      "server/src/identity.test.ts: olai-plugin-identity/who",
+      "server/src/lock.test.ts: olai-plugin-vault/testlib",
+      "server/src/mcp/face.test.ts: olai-plugin-mcp/testlib",
+      "server/src/mcp/face.test.ts: olai-plugin-mcp/testlib",
+      // ...and the three MCP benches each reach it FEWER times. They imported
+      // the flat contract, the flat client and its route in separate
+      // statements; a bench builds the bundle now, and `route.test.ts`'s six
+      // lines are one braced list.
+      "server/src/mcp/route.test.ts: olai-plugin-mcp/testlib",
+      "server/src/mcp/tools.test.ts: olai-plugin-mcp/testlib",
+      "server/src/mcp/tools.test.ts: olai-plugin-mcp/testlib",
+      "server/src/mcp/tools.test.ts: olai-plugin-mcp/testlib",
+      "server/src/resync.test.ts: olai-plugin-vault/testlib",
+      "server/src/serve.test.ts: olai-plugin-web-app/testlib",
+      "server/src/who.test.ts: olai-plugin-identity/who",
     ],
   }
+  /** ...and the fourth door, which no reading of a source can see. The claim
+   *  below UNIONS this list with the static-door scan, so what must be here is
+   *  whatever is justified by nothing else — `olai-plugin-kolu`,
+   *  `olai-plugin-outlines` and identity's reading, none of which come through a
+   *  declared contract. A row reached BOTH ways may be named here too and often
+   *  is (chat, vault), which costs nothing and says out loud that the suite
+   *  drives it. `olai-plugin-files`, `olai-plugin-layout` and
+   *  `olai-plugin-markdown` are the other side of the same coin: declared, and
+   *  absent from here, because the scan already found their doors.
+   *
+   *  `@olai/web` is absent from BOTH tables and declares no plugin, which is the
+   *  boundary claim stated where a MANIFEST can fail it: a dropped import with
+   *  the `workspace:*` line left behind is a package still standing on the wrong
+   *  side of the wall, and that is precisely what its seven rows had become. */
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    tests: ["olai-plugin-chat", "olai-plugin-identity", "olai-plugin-kolu"],
-    server: ["olai-plugin-git", "olai-plugin-identity"],
+    tests: ["olai-plugin-chat", "olai-plugin-identity", "olai-plugin-kolu", "olai-plugin-outlines"],
+    server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-mcp", "olai-plugin-vault", "olai-plugin-web-app"],
   }
 
-  /**
-   * ONE PLUGIN DECLARING ANOTHER — recorded here, because the manifest door has
-   * no carve-out for it and should not get one.
-   *
-   * The IMPORT claim above skips every tenant outright: *plugins may import each
-   * other; that ban retired*. The MANIFEST claim below cannot afford the same
-   * blanket, and the asymmetry is deliberate rather than an oversight left in
-   * place. A manifest line is how a dependency is really declared — `workspace:*`
-   * is what a resolver reads, and a package that dropped the import but kept the
-   * line is still standing on the far side of the wall — so an equality here is
-   * the only reading that stays exact when the sources move.
-   *
-   * TWO EDGES. The first is the one the Cordis phase named. `olai-plugin-xyne-spaces`
-   * mirrors what a node agent's conversation says, so it has to know which column
-   * that binding is in — and the column is chat's kind (`chat-agent-session`),
-   * composed from chat's own name. The alternative was a hand-copied constant in
-   * the mirror, which is the one thing that can silently disagree. The edge was
-   * already real without it: this half names the `Watching` door, which chat's
-   * row OFFERS, so it is `waiting` without chat either way.
-   *
-   * The subpath is `olai-plugin-chat/binding`, which is two strings behind a door
-   * that imports nothing — so what crosses is a name, not a graph, and the tenant
-   * claim below is what holds that.
-   *
-   * THE SECOND IS A GRAPH, and it is a MOVE rather than a new coupling. The chat
-   * panel names the person over each run of their own messages, wearing the
-   * picture the identity row's ladder resolved and asking through the SAME single
-   * `who.get` the header chip asks through — a header saying one thing about who
-   * is looking and a transcript saying another is the drift one ask exists to
-   * prevent. That edge existed before this phase pointing at
-   * `@olai/web/client/who/*`, because the chip was core's; it points at the row
-   * that owns the subject now. What crosses is `olai-plugin-identity/person` —
-   * three browser modules, no wire, no server half — and it is deliberately NOT
-   * in chat's `needs`: with no identity row mounted, `who.get` is still core's
-   * and answers nobody, so the face draws its silhouette rather than waiting.
-   *
-   * A third plugin declaring one of these, or either of these declaring a second,
-   * is red on this line with the argument beside it.
-   */
-  const PLUGIN_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    "plugins/chat": ["olai-plugin-identity"],
-    "plugins/xyne-spaces": ["olai-plugin-chat"],
-  }
+  test("plugins consume other plugins only through static contract doors", () => {
+    const other = TENANTS_OF.flatMap(({ name, dir }) => tree.get(dir)?.flatMap((source) =>
+      source.plugins.filter((spec) => packageOf(spec) !== `olai-plugin-${name}` && !staticDoor(spec))
+        .map((spec) => `${source.file}: ${spec}`)) ?? [])
+    expect(other).toEqual([])
+  })
 
-  test("no package outside the registry imports a plugin", () => {
+  test("cross-plugin static contracts resolve without private implementation or owned resources", () => {
+    const violations: string[] = []
+    for (const dir of packages) {
+      const specs = new Set(tree.get(dir)?.flatMap((source) => source.plugins.filter((spec) => staticDoor(spec))) ?? [])
+      for (const spec of specs) {
+        const provider = MEMBER_OF_PACKAGE.get(packageOf(spec))
+        expect(provider, spec).toBeDefined()
+        const manifest = manifestAt(path.join(PACKAGES, provider!))
+        const target = manifest === undefined ? undefined : doorsOf(manifest)[`.${spec.slice(packageOf(spec).length)}`]
+        expect(target, spec).toBeDefined()
+        const graph = graphFrom(path.join(PACKAGES, provider!, target!))
+        expect(graph.unresolved, spec).toEqual([])
+        const bad = graph.files.filter(file => {
+          const absolute = path.resolve(PACKAGES, file)
+          const member = memberOf(file)
+          if (!member || !PLUGIN_DIRS.includes(member)) return false
+          const pkg = manifestAt(path.join(PACKAGES, member))?.name
+          if (typeof pkg !== "string") return true
+          const targets = staticTargets(pkg)
+          // A contract can use sibling contract helpers, but not reach back
+          // into its provider's state/presentation implementation.
+          const identity = /^export const name = ["'][a-z0-9-]+["'];?\s*$/.test(transpilers[file.endsWith(".tsx") ? "tsx" : "ts"].transformSync(readFileSync(absolute, "utf8")).trim())
+          return !identity && !targets.includes(absolute) && !absolute.startsWith(path.join(PACKAGES, member, "src/contracts") + path.sep)
+        })
+        violations.push(...bad.map(file => `${spec}: private implementation ${file}`))
+        const acquiring = graph.files.filter(file => {
+          const member = memberOf(file)
+          if (!member || !PLUGIN_DIRS.includes(member)) return false
+          const source = readFileSync(path.join(PACKAGES, file), "utf8")
+          const code = transpilers[file.endsWith(".tsx") ? "tsx" : "ts"].transformSync(source)
+          return /\b(?:setTimeout|setInterval|createRoot|watchPreference|definePlugin)\s*\(|\.addEventListener\s*\(|\bEffect\.(?:acquireRelease|fork)|new (?:MutationObserver|ResizeObserver|WebSocket)\s*\(/.test(code)
+        })
+        violations.push(...acquiring.map(file => `${spec}: runtime acquisition ${file}`))
+        // ...AND IT HOLDS NO LIVE VALUE — the audit's §12, over the same graph
+        // the two claims above walk. A contract that acquires nothing and
+        // reaches no private module can still HOLD another activation's
+        // service in a module variable, which is the shape the check above was
+        // blind to: `let held: Client | undefined` with an
+        // `export const current = () => held` beside it.
+        violations.push(...graph.files.flatMap(file => {
+          const member = memberOf(file)
+          return !member || !PLUGIN_DIRS.includes(member)
+            ? []
+            : liveStateIn(file).map(said => `${spec}: ${said}`)
+        }))
+      }
+    }
+    expect([...new Set(violations)]).toEqual([])
+  })
+
+  test("general production packages name no plugins; test readers use explicit static doors", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
       // A plugin importing its own doors — `olai-plugin-kolu/appliance` after
       // the fold — is not a general package naming a plugin. Plugins may also
-      // import each other; that ban retired. This claim is the general side.
+      // consume each other through declared services. This is the general side.
       if (PLUGIN_DIRS.includes(pkg)) continue
-      const reached = tree.get(pkg)?.flatMap((s) => s.plugins.map((p) => `${s.file}: ${p}`)) ?? []
+      const reached = tree.get(pkg)?.flatMap((s) => s.plugins.filter(p => !/\.(?:test|browsertest|testlib)\.tsx?$/.test(s.file) || !staticDoor(p)).map((p) => `${s.file}: ${p}`)) ?? []
       // An EQUALITY against the recorded answer — `[]` for all but the folded
       // testlib door — never a length on a filter: a pattern that rotted would
       // report nothing and pass.
@@ -823,13 +871,13 @@ describe("only the registry knows a plugin's name", () => {
     }
   })
 
-  test("no package outside the registry declares a plugin in its manifest", () => {
+  test("plugin dependencies correspond to static contracts or explicit testlib doors", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
-      expect(declaredBy(pkg), pkg).toEqual([
+      expect([...declaredBy(pkg)].sort(), pkg).toEqual([...new Set([
         ...(TESTLIB_DECLARED[pkg] ?? []),
-        ...(PLUGIN_DECLARED[pkg] ?? []),
-      ])
+        ...[...new Set(tree.get(pkg)?.flatMap((source) => source.plugins.filter((spec) => staticDoor(spec)).map(packageOf)) ?? [])].filter(name => name !== manifestAt(path.join(PACKAGES, pkg))?.name),
+      ])].sort())
     }
   })
 
@@ -1229,31 +1277,8 @@ const TENANTS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
       [...(CLOSURES.get(name) ?? [])].filter((pkg) =>
         pkg !== REGISTRY &&
         !GENERAL_REACH.has(pkg) &&
-        // A PLUGIN'S OWN DIRECTORY IS ITS OWN TENANT MEMBER, whoever else
-        // reaches it — the twin of the line {@link GENERAL_REACH} already keeps
-        // about the general side, and it is needed for the same reason from the
-        // other direction.
-        //
-        // The shared-package clause below asks "does another plugin reach this",
-        // and while a plugin was a tenant over a VENDORED APPLIANCE that was
-        // exact: nothing another plugin wanted was in kolu's closure. The Cordis
-        // phase retired *no plugin consumes a plugin* — `needs` is a reactive
-        // dependency arm — and the first edge it licensed is the spaces mirror
-        // reaching `olai-plugin-chat/binding` for the word a node agent's
-        // binding is declared under. Under the clause alone that one import
-        // emptied CHAT'S OWN TENANT, and an empty tenant is not a small thing
-        // here: three claims consult `TENANTS` as an exemption set, so the name
-        // sweep instantly reported sixty-two files of `plugins/chat` for
-        // spelling `chat`. A plugin losing its own directory because somebody
-        // imported one string from it is the derivation answering a question
-        // nobody asked.
-        //
-        // What the clause is FOR is unchanged and still runs on everything else:
-        // a package two plugins share is general by construction and drops out.
-        // A plugin's own package is never that — it exists for exactly one
-        // plugin by definition, which is the sentence a tenant IS. What a
-        // consumer may reach across that edge is bounded by the claims above:
-        // no other tenant's product tier, and no door that drags one.
+        // A plugin owns its directory; libraries reached by multiple tenants
+        // are shared furniture. Cross-plugin imports are refused above.
         (pkg === dir ||
           ![...CLOSURES].some(([other, theirs]) => other !== name && theirs.has(pkg)))
       ),
@@ -1316,20 +1341,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
     // red the day it grows, and red again the day it shrinks.
     expect(
       Object.fromEntries([...TENANTS].map(([name, members]) => [name, [...members].sort()])),
-    ).toEqual({
-      chat: ["plugins/chat"],
-      claude: ["plugins/claude"],
-      codex: ["plugins/codex"],
-      git: ["plugins/git"],
-      identity: ["plugins/identity"],
-      journal: ["plugins/journal"],
-      kolu: ["plugins/kolu"],
-      odu: ["plugins/odu"],
-      opencode: ["plugins/opencode"],
-      pi: ["plugins/pi"],
-      search: ["plugins/search"],
-      "xyne-spaces": ["plugins/xyne-spaces"],
-    })
+    ).toEqual(Object.fromEntries(TENANTS_OF.map(({ name, dir }) => [name, [dir]])))
     // ...and each APPLIANCE tenant has a TIER, which is the other way this
     // derivation comes back empty: a `node_modules` that was never hydrated.
     // A plugin that talks HTTP and hydrates nothing (Spaces) is a whole
@@ -1339,30 +1351,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
         name,
         (TIERS.get(name) ?? new Set()).size > 0,
       ])),
-    ).toEqual({
-      // AN ENGINE HYDRATES NOTHING and neither does Spaces: a plugin that talks
-      // a protocol, or HTTP, has no vendored client to confine. An empty tier
-      // there is the truth rather than a missed pin, and the two `true`s are
-      // what keep the derivation from being empty everywhere.
-      // CHAT HYDRATES NOTHING either, and it is the sharpest instance of the
-      // sentence below: it is a plugin over olai's OWN floor rather than over
-      // somebody else's vendored client, so there is no vendored tier to confine.
-      chat: false,
-      claude: false,
-      codex: false,
-      git: false,
-      identity: false,
-      journal: false,
-      kolu: true,
-      odu: true,
-      opencode: false,
-      pi: false,
-      // SEARCH HYDRATES NOTHING for chat's reason exactly: it is a plugin over
-      // olai's own floor — a table on `bun:sqlite` and a walk over the format's
-      // matcher — rather than over somebody else's vendored client.
-      search: false,
-      "xyne-spaces": false,
-    })
+    ).toEqual(Object.fromEntries(TENANTS_OF.map(({ name }) => [name, ["kolu", "odu"].includes(name)])))
   })
 
   /**
@@ -1572,7 +1561,9 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       return text
     }
     for (const spec of runtimeImportsOf(file, text)) js = js.split(spec).join("")
-    return js
+    // A plugin-owned service key is a declared dependency, not a package import.
+    // Transpilation has removed type arguments before this narrow call pattern.
+    return js.replace(/\bserviceTag\(\s*["'][a-z][a-z0-9-]*\.[a-z][a-z0-9-]*["']\s*\)/g, "serviceTag()")
   }
 
   /**
@@ -1723,6 +1714,18 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    *     language, and no reading of a compiled file can say that this `PI` is a
    *     constant and that one would have been an engine.
    *
+   * ...and #546 produced a third kind, which is why this table grew by seven
+   * files at once. `@olai/ops`' `tools.ts` used to be ONE file holding thirty
+   * verbs, and it spelled `vault`, `git`, `journal`, `search` and the rest in
+   * their DESCRIPTIONS — the prose an agent reads before it calls something. It
+   * was recorded here as a single entry. Each row carries its own `tools.ts`
+   * now, so that one collision became seven, and every one of them is the same
+   * kind it always was: a description written in the vault's own English, in
+   * the package that owns the verb. `plugins/mcp/src/catalog.ts` left this
+   * table in the same change — a tool was offered because a filter two packages
+   * away still named its owner, and it is offered because the row that brought
+   * it is standing.
+   *
    * RECORDED AS AN EQUALITY rather than excused with a pattern, which is the
    * move {@link DEBT} makes and for the same reason: a fifth file is red, a
    * different plugin's name in any of these four is red, and the day the example
@@ -1732,216 +1735,503 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * claim can fail in are not symmetric.
    */
   const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = {
-    claude: [
-      "format/src/filter.ts",
-      "format/src/searching.ts",
-      "ops/src/tools.ts",
-    ],
-    pi: ["web/src/client/theme/tagInk.ts"],
-    /** `journal` is also an ordinary domain word: patch/search/tool metadata
-     * use it in their own vocabularies, unrelated to the plugin row. */
-    journal: [
-      "format/src/patch.ts",
-      "format/src/searching.ts",
-      "ops/src/tools.ts",
-      "sigterm/src/sigterm.ts",
-    ],
-    /**
-     * `chat` IS AN ENGLISH WORD, and these five are the three ways that costs.
-     *
-     * **THE WRITER, in the ledger.** `chat-agent` is what a commit made through
-     * the panel's own MCP face is recorded as — a word written into trailers on
-     * a disk, in repositories that already have thousands of them. Renaming it
-     * would put two spellings of one writer into one repository's history, on
-     * the release that shipped the rename, and buy nothing: the word is a fact
-     * about WHO asked, and the answer is still "the agent in the conversation".
-     * `format/src/committing.ts` declares it; `server/src/serve.ts` binds the
-     * face under it and `server/src/mcp/tickets.ts` binds the fenced one.
-     *
-     * **THE OLD STATE LAYOUT.** The server door recognizes the former
-     * `chat/<hash>.json` path so core can fold it into the plugin document on
-     * first write. It names a historical directory, not a plugin import or
-     * address, and disappears when that migration window closes.
-     *
-     * **SOMEBODY ELSE'S ROUTES.** Xyne Spaces posts to `/api/apps/chat/…` —
-     * that is their API, read off their own source and never guessed, and the
-     * two files that spell it are that plugin's own dial and the fake server its
-     * bench stands up. It is the same case as `prop:agent=claude-opus` in the
-     * search grammar three rows up: a word in somebody else's vocabulary that
-     * happens to be a plugin's name here.
-     *
-     * RECORDED AS AN EQUALITY rather than excused with a pattern, which is the
-     * move the two above make and for the same reason: a sixth file is red, a
-     * different plugin's name in any of these is red, and the day the writer
-     * word is retired this entry is red until it is deleted.
-     */
-    chat: [
+    "chat": [
       "format/src/committing.ts",
       "plugins/git/src/browser/commit/said.ts",
       "plugins/git/src/ledger/pending.ts",
+      "plugins/layout/src/layout/live.ts",
+      "plugins/layout/src/layout/prefs-owner.ts",
+      "plugins/layout/src/layout/prefs.ts",
       "plugins/xyne-spaces/src/client.ts",
-      "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
-      "server/src/localState.ts",
-      "server/src/mcp/tickets.ts",
-      "server/src/serve.ts",
-      "web/src/client/layout/prefs.ts",
+      "plugins/xyne-spaces/src/testlib/fake-spaces.ts"
     ],
-    /** The server's expiring migration table maps the old unkeyed `mirror/`
-     * record to the tenant that wrote it. Remove with that migration row. */
-    "xyne-spaces": ["server/src/localState.ts"],
-    /**
-     * `search` IS THE VERB, and it is the widest collision in this table by a
-     * long way — which is a fact about the word rather than about the row.
-     *
-     * The row is `olai-plugin-search`: a trigram table, a walk over it, and the
-     * header's box. What core keeps, and spells everywhere, is everything the
-     * row is asked THROUGH — one grammar (`@olai/format`'s `filter.ts`,
-     * `searching.ts`: `SearchRequest`, `SearchHit`, `SearchAnswer`,
-     * `DEFAULT_SEARCH_LIMIT`), one member on three faces (`search.nodes`, and
-     * the `search_nodes` tool it lands through), one door
-     * (`@olai/ops`' `Search` / `NO_SEARCH`), and the four browser doors that
-     * ask it — the ⌘K palette, the composer's `@` list, the edges panel and the
-     * move picker, whose shortlist kit is core furniture by the scope ruling
-     * that took this phase. None of those is the plugin's name; every one of
-     * them is the English word for what a person is doing.
-     *
-     * RECORDED AS AN EQUALITY rather than excused with a pattern, exactly as
-     * `git` and `chat` below and above are: a forty-first file is red, and the
-     * day one of these stops spelling it this entry is red until it is trimmed.
-     */
-    search: [
+    "vault": [
+      "format/src/conventions.bench.ts",
+      "format/src/dates.bench.ts",
+      "format/src/filter.bench.ts",
+      "format/src/meaning.ts",
+      "format/src/page.ts",
+      "format/src/patch.bench.ts",
+      "format/src/pointing.bench.ts",
+      "format/src/scope.bench.ts",
+      "format/src/searching.ts",
+      "format/src/typing.ts",
+      "format/src/validate.bench.ts",
+      "format/src/vocabulary.bench.ts",
+      "format/src/writing.ts",
+      "ops/src/documents.bench.ts",
+      "ops/src/plan.ts",
+      "ops/src/standing.bench.ts",
+      "ops/src/walks.bench.ts",
+      "plugin-api/src/services.ts",
+      "plugin-build/src/bind.ts",
+      "plugin-build/src/imports.ts",
+      "plugins/capture/src/server.ts",
+      "plugins/capture/src/tools.ts",
+      "plugins/chat/src/server.ts",
+      "plugins/files/src/Files.tsx",
+      "plugins/files/src/testids.ts",
+      "plugins/git/src/server.ts",
+      "plugins/journal/src/agenda.ts",
+      "plugins/journal/src/server.ts",
+      "plugins/kolu/src/server.ts",
+      "plugins/markdown/src/server.ts",
+      "plugins/markdown/src/tools.ts",
+      "plugins/odu/src/appliance/index.ts",
+      "plugins/odu/src/server.ts",
+      "plugins/outlines/src/server.ts",
+      "plugins/outlines/src/tools.ts",
+      "plugins/pins/src/server.ts",
+      "plugins/plugin-inspector/src/approval.ts",
+      "plugins/search/src/server.ts",
+      "plugins/search/src/table.bench.ts",
+      "plugins/search/src/tools.ts",
+      "plugins/sidebar/src/browser.tsx",
+      "plugins/sidebar/src/contract.ts",
+      "plugins/trash/src/browser.tsx",
+      "plugins/trash/src/server.ts",
+      "plugins/trash/src/tools.ts",
+      "plugins/vault-plugins/src/client.ts",
+      "plugins/vault-plugins/src/index.ts",
+      "plugins/vault-plugins/src/server.ts",
+      "plugins/vault-plugins/src/source.ts",
+      "plugins/vault-plugins/src/tools.ts",
+      "plugins/xyne-spaces/src/server.ts",
+      "server/src/main.ts",
+      "surface/src/seal.ts"
+    ],
+    "git": [
+      "format/src/committing.ts",
+      "format/src/index.ts",
+      "format/src/searching.ts",
+      "format/src/writing.ts",
+      "plugins/files/src/file/delete.ts",
+      "plugins/files/src/tools.ts",
+      "plugins/kolu/src/client/fleet.ts",
+      "plugins/markdown/src/tools.ts",
+      "plugins/preferences/src/Preferences.tsx",
+      "plugins/trash/src/browser/question.ts",
+      "plugins/trash/src/tools.ts",
+      "server/src/gitPolicy.ts",
+      "server/src/main.ts",
+      "server/src/serve.ts"
+    ],
+    "search": [
       "format/src/address.ts",
       "format/src/documents.ts",
       "format/src/filter.ts",
       "format/src/index.ts",
       "format/src/searching.ts",
+      "ops/src/live.ts",
       "ops/src/ops.ts",
       "ops/src/query.ts",
       "ops/src/refusals.ts",
       "ops/src/tools.ts",
       "plugin-api/src/services.ts",
       "plugin-build/src/bind.ts",
+      "plugins/capture/src/Palette.tsx",
       "plugins/chat/src/agents/roster.ts",
       "plugins/chat/src/browser/chat/completion.ts",
       "plugins/chat/src/testids.ts",
       "plugins/journal/src/browser.tsx",
-      "server/src/faces.ts",
+      "plugins/mcp/src/endpoint.ts",
+      "plugins/mcp/src/tools.ts",
+      "plugins/navigation/src/palette/Palette.tsx",
+      "plugins/navigation/src/palette/items.ts",
+      "plugins/navigation/src/router.tsx",
+      "plugins/navigation/src/routes.ts",
+      "plugins/navigation/src/testids.ts",
+      "plugins/navigation/src/workspace.ts",
+      "plugins/outlines/src/browser/complete/trigger.ts",
+      "plugins/outlines/src/browser/edges/relation.ts",
+      "plugins/outlines/src/browser/move/MovePicker.tsx",
+      "plugins/outlines/src/browser/palette/ops.ts",
+      "plugins/outlines/src/testids.ts",
+      "plugins/outlines/src/tools.ts",
+      "plugins/pins/src/browser/palette.ts",
+      "plugins/vault/src/server.ts",
+      "plugins/vault/src/setup.ts",
+      "plugins/vault/src/views.ts",
       "server/src/main.ts",
-      "server/src/mcp/face.ts",
-      "server/src/mcp/tools.ts",
-      "server/src/runtime.ts",
-      "server/src/serve.ts",
-      "surface/src/index.ts",
       "surface/src/media.ts",
-      "surface/src/search.ts",
-      "web/src/client/complete/trigger.ts",
-      "web/src/client/edges/relation.ts",
       "web/src/client/keys.ts",
-      "web/src/client/move/MovePicker.tsx",
-      "web/src/client/palette/Palette.tsx",
-      "web/src/client/palette/items.ts",
-      "web/src/client/palette/ops.ts",
-      "web/src/client/pins/palette.ts",
-      "web/src/client/router.tsx",
-      "web/src/client/routes.ts",
-      "web/src/client/search/Count.tsx",
-      "web/src/client/search/nodes.ts",
-      "web/src/client/testids.ts",
-      "web/src/client/workspace.ts",
+      "web/src/host/loading.ts"
     ],
-    /**
-     * `git` IS THE COMMAND, and `GitState` / `GIT_OFF` / `gitPolicy` are the
-     * floor's names for a repository reading that stays in core: a write still
-     * waits to be recorded, and the format owns the shape. The plugin is the
-     * provider behind that door. These files spell the word as English or as
-     * those types, not as the row.
-     */
-    git: [
-      "format/src/committing.ts",
-      "format/src/index.ts",
-      "format/src/searching.ts",
-      "format/src/writing.ts",
-      "ops/src/tools.ts",
-      "plugins/kolu/src/client/fleet.ts",
-      "server/src/gitPolicy.ts",
-      "server/src/main.ts",
-      "server/src/published.bench.ts",
-      "server/src/serve.ts",
-      "web/src/client/file/delete.ts",
-      "web/src/client/settings/Preferences.tsx",
-       "web/src/client/trash/question.ts",
-     ],
-    /**
-     * `identity` IS AN ENGLISH WORD, and it is the most ordinary one on this
-     * list — which is why the entry is long and why every line of it is a
-     * different sense of it than the row.
-     *
-     * **THE DOOR, which is core's.** `Identity` is a service tag
-     * `@olai/plugin-api` declares and `@olai/server`'s composition root reads;
-     * the row is the PROVIDER behind it. That is the `git` case one entry up,
-     * exactly — a reading core defines and a plugin stands behind — and the
-     * interface and `serve.ts` are spelling the tag, never the row.
-     *
-     * TWO SERVER FILES AND A THIRD LEFT THIS LIST, and that is the fence
-     * measuring a refactor rather than tolerating one: the listener and the
-     * MCP route used to be handed the DOOR and now take a header list and a
-     * reading, and `server/src/identity.ts` mints that reading from a type
-     * import. None of the three can name the tag any more, so the word is
-     * gone from what they compile to — which is the claim this table exists
-     * to be able to notice in either direction.
-     *
-     * **THE PROCESS's identity, which is the framework's.** `system/identity`
-     * is the reserved member every kolu surface answers with its process id —
-     * the stale-tab handshake — and it is a different question from who is
-     * looking, argued at length in `@olai/surface`'s README. kolu's dial and
-     * probe spell it, and its probe also reports on "the daemon's identity",
-     * which is a third sense again.
-     *
-     * **A RUN's identity, which is odu's.** `identityOf(run)` is that
-     * appliance's own `<sha7>#<seq>` spelling of which commit a run is of.
-     *
-     * **AN ATTRIBUTION RULE, in prose.** The capture tool's description says
-     * `captured-by` is written from "the identity this door already has" —
-     * words in a sentence an agent reads.
-     *
-     * **AN EDITOR's identity.** Outline and document panes key their draft
-     * lifetime by file and pane. These local keys do not name the plugin.
-     *
-     * RECORDED AS AN EQUALITY for the reason the four entries above are: a
-     * twelfth file is red, and the day one of these stops spelling the word
-     * this entry is red until the line is deleted.
-     */
-    identity: [
-      "ops/src/tools.ts",
+    "identity": [
       "plugin-api/src/services.ts",
+      "plugins/capture/src/tools.ts",
       "plugins/kolu/src/client/detect.ts",
       "plugins/kolu/src/client/fleet.ts",
       "plugins/kolu/src/client/link.ts",
+      "plugins/markdown/src/browser/document/DocumentPage.tsx",
       "plugins/odu/src/appliance/wire/index.ts",
       "plugins/odu/src/browser/RunMatrix.tsx",
       "plugins/odu/src/browser/words.ts",
       "plugins/odu/src/doorbell.ts",
-      "server/src/serve.ts",
-      "web/src/client/document/DocumentPage.tsx",
-      "web/src/client/edit/Editable.tsx",
+      "plugins/outlines/src/browser/edit/Editable.tsx",
+      "plugins/outlines/src/tools.ts",
+      "server/src/serve.ts"
     ],
+    "journal": [
+      "format/src/patch.ts",
+      "format/src/searching.ts",
+      "plugins/capture/src/tools.ts",
+      "plugins/markdown/src/tools.ts",
+      "plugins/outlines/src/tools.ts",
+      "sigterm/src/sigterm.ts"
+    ],
+    "claude": [
+      "format/src/filter.ts",
+      "format/src/searching.ts",
+      "plugins/outlines/src/tools.ts",
+      "plugins/search/src/tools.ts"
+    ],
+    "codex": [],
+    "opencode": [],
+    "pi": [
+      "appearance/src/tagInk.ts"
+    ],
+    "kolu": [],
+    "odu": [],
+    "xyne-spaces": [],
+    "ws": [],
+    "mcp": [
+      "format/src/committing.ts",
+      "plugins/chat/src/agent.ts",
+      "plugins/chat/src/fixtures/lifecycle-agent.ts",
+      "plugins/chat/src/server.ts",
+      "plugins/claude/src/leg.ts",
+      "plugins/codex/src/leg.ts",
+      "plugins/git/src/browser/commit/said.ts",
+      "plugins/git/src/ledger/pending.ts",
+      "plugins/odu/src/probe.ts",
+      "server/src/dial.ts",
+      "server/src/gitPolicy.ts",
+      "server/src/main.ts",
+      "server/src/mcpClient.ts",
+      "server/src/serve.ts"
+    ],
+    "web-app": [
+      "plugins/theme/src/chrome.ts"
+    ],
+    "ui-renderer": [],
+    "layout": [
+      "plugins/chat/src/browser/chat/Panel.tsx",
+      "plugins/navigation/src/workspace.ts",
+      "plugins/test-layout/src/browser.tsx",
+      "plugins/test-layout/src/index.ts",
+      "plugins/vault-plugins/src/server.ts",
+      "plugins/vault-plugins/src/surface.ts",
+      "plugins/vault-plugins/src/tools.ts"
+    ],
+    "sidebar": [
+      "plugins/chat/src/browser.tsx",
+      "plugins/files/src/Files.tsx",
+      "plugins/files/src/browser.tsx",
+      "plugins/files/src/fold/folders.ts",
+      "plugins/files/src/testids.ts",
+      "plugins/files/src/tools.ts",
+      "plugins/journal/src/browser.tsx",
+      "plugins/layout/src/Frame.tsx",
+      "plugins/layout/src/Header.tsx",
+      "plugins/layout/src/browser.tsx",
+      "plugins/layout/src/index.ts",
+      "plugins/layout/src/layout/Handle.tsx",
+      "plugins/layout/src/layout/css.ts",
+      "plugins/layout/src/layout/live.ts",
+      "plugins/layout/src/layout/prefs-owner.ts",
+      "plugins/layout/src/layout/prefs.ts",
+      "plugins/layout/src/testids.ts",
+      "plugins/markdown/src/tools.ts",
+      "plugins/navigation/src/palette/Palette.tsx",
+      "plugins/navigation/src/palette/items.ts",
+      "plugins/outlines/src/browser/NotFound.tsx",
+      "plugins/outlines/src/browser/menu/verbs.ts",
+      "plugins/outlines/src/tools.ts",
+      "plugins/pins/src/browser.tsx",
+      "plugins/pins/src/browser/palette.ts",
+      "plugins/trash/src/browser.tsx",
+      "plugins/trash/src/browser/question.ts",
+      "plugins/vault/src/browser/errors/Page.tsx",
+      "web/src/client/keys.ts"
+    ],
+    "preferences": [
+      "plugins/chat/src/browser/chat/NoAgent.tsx",
+      "plugins/outlines/src/browser.tsx",
+      "plugins/theme/src/browser.tsx"
+    ],
+    "theme": [
+      "appearance/src/css.ts",
+      "appearance/src/palettes.ts",
+      "plugins/kolu/src/appliance/props/LivePane.tsx",
+      "plugins/kolu/src/appliance/props/TerminalDoor.tsx",
+      "plugins/kolu/src/client/fleet.ts",
+      "plugins/kolu/src/client/wire/kolu.ts",
+      "plugins/preferences/src/Preferences.tsx",
+      "plugins/web-app/src/manifest.ts"
+    ],
+    "plugin-inspector": [],
+    "navigation": [
+      "plugins/capture/src/Palette.tsx",
+      "plugins/capture/src/browser.tsx",
+      "plugins/files/src/browser.tsx",
+      "plugins/layout/src/browser.tsx",
+      "plugins/markdown/src/browser.tsx",
+      "plugins/outlines/src/browser.tsx",
+      "plugins/outlines/src/browser/PageView.tsx",
+      "plugins/outlines/src/browser/palette/adapter.tsx",
+      "plugins/pins/src/browser.tsx",
+      "plugins/pins/src/browser/Palette.tsx",
+      "plugins/test-layout/src/browser.tsx",
+      "plugins/trash/src/browser.tsx"
+    ],
+    "outlines": [
+      "format/src/committing.ts",
+      "format/src/index.ts",
+      "format/src/message.ts",
+      "format/src/node.ts",
+      "format/src/page.ts",
+      "format/src/pointing.bench.ts",
+      "format/src/reading.ts",
+      "format/src/searching.ts",
+      "format/src/set.ts",
+      "format/src/validate.bench.ts",
+      "format/src/validate.ts",
+      "format/src/window.ts",
+      "format/src/writing.ts",
+      "ops/src/asked.ts",
+      "ops/src/live.ts",
+      "ops/src/ops.ts",
+      "ops/src/plan.ts",
+      "ops/src/query.ts",
+      "ops/src/refusals.ts",
+      "ops/src/standing.bench.ts",
+      "ops/src/tools.ts",
+      "ops/src/walks.bench.ts",
+      "plugins/chat/src/adapter.ts",
+      "plugins/chat/src/browser/chat/NoAgent.tsx",
+      "plugins/chat/src/browser/chat/Unopened.tsx",
+      "plugins/files/src/Rail.tsx",
+      "plugins/files/src/testids.ts",
+      "plugins/files/src/tools.ts",
+      "plugins/git/src/browser/commit/Outlines.tsx",
+      "plugins/git/src/browser/commit/Panel.tsx",
+      "plugins/git/src/browser/commit/said.ts",
+      "plugins/git/src/browser/commit/selection.ts",
+      "plugins/git/src/ledger/pending.bench.ts",
+      "plugins/git/src/ledger/pending.ts",
+      "plugins/git/src/tools.ts",
+      "plugins/layout/src/Fault.tsx",
+      "plugins/markdown/src/tools.ts",
+      "plugins/mcp/src/endpoint.ts",
+      "plugins/mcp/src/tools.ts",
+      "plugins/search/src/table.bench.ts",
+      "plugins/search/src/tools.ts",
+      "plugins/trash/src/tools.ts",
+      "plugins/vault-plugins/src/tools.ts",
+      "plugins/vault/src/browser/errors/Page.tsx",
+      "server/src/main.ts"
+    ],
+    "markdown": [
+      "appearance/src/scale.ts",
+      "edit-intents/src/index.ts",
+      "format/src/document.ts",
+      "format/src/incremental.ts",
+      "format/src/index.ts",
+      "format/src/node.ts",
+      "format/src/page.ts",
+      "format/src/reading.ts",
+      "format/src/rules.ts",
+      "format/src/searching.ts",
+      "format/src/set.ts",
+      "format/src/validate.bench.ts",
+      "format/src/validate.ts",
+      "format/src/writing.ts",
+      "markdown-ui/src/Markdown.tsx",
+      "markdown-ui/src/TitleHtml.tsx",
+      "markdown-ui/src/chunk.ts",
+      "markdown-ui/src/title.ts",
+      "ops/src/asked.ts",
+      "ops/src/documents.bench.ts",
+      "ops/src/ops.ts",
+      "ops/src/plan.ts",
+      "ops/src/query.ts",
+      "ops/src/refusals.ts",
+      "ops/src/sorted.ts",
+      "plugins/chat/src/browser/chat/Entry.tsx",
+      "plugins/chat/src/browser/chat/ToolFrame.tsx",
+      "plugins/files/src/tools.ts",
+      "plugins/journal/src/server.ts",
+      "plugins/kolu/src/appliance/props/EventsFeed.tsx",
+      "plugins/kolu/src/appliance/props/TerminalDoor.tsx",
+      "plugins/outlines/src/browser/Note.tsx",
+      "plugins/outlines/src/browser/document-properties.tsx",
+      "plugins/outlines/src/tools.ts",
+      "plugins/search/src/tools.ts",
+      "plugins/test-layout/src/browser.tsx",
+      "plugins/xyne-spaces/src/client.ts",
+      "plugins/xyne-spaces/src/mirror.ts",
+      "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
+      "server/src/main.ts"
+    ],
+    "files": [
+      "format/src/conventions.bench.ts",
+      "format/src/dates.bench.ts",
+      "format/src/errors.ts",
+      "format/src/filter.bench.ts",
+      "format/src/message.ts",
+      "format/src/node.ts",
+      "format/src/page.ts",
+      "format/src/patch.bench.ts",
+      "format/src/patch.ts",
+      "format/src/pointing.bench.ts",
+      "format/src/reading.ts",
+      "format/src/scope.bench.ts",
+      "format/src/set.ts",
+      "format/src/validate.bench.ts",
+      "format/src/verdict.ts",
+      "format/src/vocabulary.bench.ts",
+      "ops/src/codec.ts",
+      "ops/src/door.ts",
+      "ops/src/following.ts",
+      "ops/src/ops.ts",
+      "ops/src/plan.ts",
+      "ops/src/query.ts",
+      "ops/src/sorted.ts",
+      "ops/src/standing.bench.ts",
+      "ops/src/walks.bench.ts",
+      "plugins/chat/src/browser/chat/Composer.tsx",
+      "plugins/chat/src/browser/chat/DropTarget.tsx",
+      "plugins/chat/src/browser/chat/Panel.tsx",
+      "plugins/chat/src/browser/chat/Wake.tsx",
+      "plugins/chat/src/browser/chat/holding.ts",
+      "plugins/chat/src/browser/chat/naming.ts",
+      "plugins/chat/src/chat.ts",
+      "plugins/git/src/browser/commit/Panel.tsx",
+      "plugins/git/src/browser/commit/selection.ts",
+      "plugins/git/src/git/git.ts",
+      "plugins/git/src/ledger/pending.bench.ts",
+      "plugins/git/src/ledger/pending.ts",
+      "plugins/kolu/src/server.ts",
+      "plugins/layout/src/Fault.tsx",
+      "plugins/markdown/src/browser.tsx",
+      "plugins/markdown/src/projection.ts",
+      "plugins/markdown/src/tools.ts",
+      "plugins/mcp/src/endpoint.ts",
+      "plugins/navigation/src/browser.tsx",
+      "plugins/outlines/src/browser.tsx",
+      "plugins/outlines/src/browser/NotFound.tsx",
+      "plugins/outlines/src/browser/focus.ts",
+      "plugins/outlines/src/browser/fold/memory.ts",
+      "plugins/outlines/src/browser/page.ts",
+      "plugins/outlines/src/projection.ts",
+      "plugins/outlines/src/tools.ts",
+      "plugins/search/src/table.bench.ts",
+      "plugins/search/src/table.ts",
+      "plugins/sidebar/src/Sidebar.tsx",
+      "plugins/trash/src/browser/PageView.tsx",
+      "plugins/trash/src/browser/TrashPage.tsx",
+      "plugins/trash/src/tools.ts",
+      "plugins/vault/src/browser.tsx",
+      "plugins/vault/src/browser/errors/Banner.tsx",
+      "plugins/vault/src/browser/errors/Page.tsx",
+      "plugins/vault/src/browser/errors/Report.tsx",
+      "plugins/vault/src/browser/errors/banner.ts",
+      "plugins/vault/src/http/media.ts",
+      "plugins/vault/src/lock.ts",
+      "plugins/vault/src/projection.ts",
+      "plugins/web-app/src/manifest.ts",
+      "server/src/main.ts",
+      "store/src/probe.ts",
+      "store/src/store.ts",
+      "surface/src/projection.ts",
+      "web/src/client/connection/status.ts",
+      "web/src/client/file/matching.ts"
+    ],
+    "pins": [
+      "edit-intents/src/index.ts",
+      "format/src/conventions.bench.ts",
+      "format/src/index.ts",
+      "format/src/node.ts",
+      "format/src/shelf.ts",
+      "ops/src/plan.ts",
+      "plugins/files/src/tools.ts",
+      "plugins/outlines/src/browser/Tree.tsx",
+      "plugins/outlines/src/browser/menu/actions.ts",
+      "plugins/outlines/src/tools.ts"
+    ],
+    "capture": [
+      "edit-intents/src/index.ts",
+      "format/src/conventions.bench.ts",
+      "format/src/inbox.ts",
+      "format/src/index.ts",
+      "format/src/message.ts",
+      "format/src/writing.ts",
+      "ops/src/plan.ts",
+      "ops/src/walks.bench.ts",
+      "plugins/chat/src/browser/chat/Composer.tsx",
+      "plugins/files/src/tools.ts",
+      "plugins/outlines/src/browser/drag/Handle.tsx",
+      "plugins/outlines/src/browser/palette/adapter.tsx",
+      "plugins/outlines/src/tools.ts",
+      "plugins/pins/src/browser/Pin.tsx",
+      "server/src/main.ts",
+      "surface/src/edit.ts",
+      "web/src/client/Tip.tsx"
+    ],
+    "trash": [
+      "edit-intents/src/index.ts",
+      "format/src/index.ts",
+      "format/src/message.ts",
+      "format/src/moving.ts",
+      "format/src/narrowing.ts",
+      "format/src/node.ts",
+      "format/src/page.ts",
+      "format/src/searching.ts",
+      "format/src/writing.ts",
+      "ops/src/plan.ts",
+      "plugins/files/src/tools.ts",
+      "plugins/layout/src/pane/label.ts",
+      "plugins/mcp/src/endpoint.ts",
+      "plugins/navigation/src/address/address.ts",
+      "plugins/navigation/src/palette/items.ts",
+      "plugins/navigation/src/routes.ts",
+      "plugins/outlines/src/browser/PageView.tsx",
+      "plugins/outlines/src/browser/edit/redraws.ts",
+      "plugins/outlines/src/browser/filter/drawn.ts",
+      "plugins/outlines/src/browser/menu/verbs.ts",
+      "plugins/outlines/src/browser/page.ts",
+      "plugins/outlines/src/browser/select/SelectionBar.tsx",
+      "plugins/outlines/src/browser/select/bulk.ts",
+      "plugins/outlines/src/surface.ts",
+      "plugins/outlines/src/testids.ts",
+      "plugins/outlines/src/tools.ts",
+      "plugins/pins/src/browser/Shelf.tsx",
+      "plugins/pins/src/browser/pinning.ts",
+      "plugins/vault-plugins/src/tools.ts",
+      "server/src/main.ts",
+      "surface/src/edit.ts"
+    ],
+    "test-layout": [],
+    "test-counter": [],
+    "vault-plugins": [
+      "server/src/main.ts"
+    ]
   }
 
+
   test("no package outside the registry and the plugin's own tenant spells it", () => {
-    for (const name of PLUGIN_NAMES) {
+    const actual = Object.fromEntries(PLUGIN_NAMES.map((name) => {
       const mine = TENANTS.get(name) ?? new Set<string>()
       const spelled = packages
         .filter((pkg) => pkg !== REGISTRY && !mine.has(pkg))
-        .flatMap((pkg) =>
-          (compiled.get(pkg) ?? [])
-            .filter((one) => spellingOf(name).test(one.code))
-            .map((one) => one.file)
-        )
-      // An EQUALITY against the recorded answer — `[]` for all but the two
-      // collisions above — never a filter asserted empty: a pattern that rotted
-      // would report nothing and pass.
-      expect(spelled.sort(), name).toEqual([...(NOT_A_PLUGIN[name] ?? [])])
-    }
+        .flatMap((pkg) => (compiled.get(pkg) ?? [])
+          .filter((one) => spellingOf(name).test(one.code)).map((one) => one.file))
+      return [name, spelled.sort()]
+    }))
+    // Compare every name together so one moved file cannot mask a second
+    // boundary violation in the same extraction.
+    expect(actual).toEqual(Object.fromEntries(PLUGIN_NAMES.map((name) => [name, [...(NOT_A_PLUGIN[name] ?? [])]])))
   })
 
   test("every recorded collision is a plugin and a file that still exist", () => {
@@ -1956,4 +2246,491 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       for (const file of files) expect([file, seen.has(file)]).toEqual([file, true])
     }
   })
+})
+
+
+/**
+ * A MODULE ANOTHER PACKAGE CAN OPEN HOLDS NO LIVE VALUE — the Cordis audit's
+ * §12, and the claim the four above could not make.
+ *
+ * ## What it is about
+ *
+ * The three claims one describe up are about IMPORTS: what a door reaches for,
+ * what its closure carries, what it acquires. None of them can see the shape
+ * the audit names:
+ *
+ * ```ts
+ * let held: Client | undefined
+ * export const current = () => held
+ * ```
+ *
+ * A door like that reaches for nothing, acquires nothing and is red nowhere —
+ * and it hands one activation's live service to every package that can spell
+ * its path. Nobody declares a dependency, so the runtime holds nobody
+ * `waiting`, the panel reports nothing, and a consumer goes on reading a
+ * provider that stopped because nothing told it. That is the defect §2 is about
+ * arriving through a door rather than through a service.
+ *
+ * ## The corpus is every module opened ACROSS a package boundary
+ *
+ * Precisely that — the target a foreign specifier resolves to, in every
+ * grammar the reader above knows. It is what "crossing package boundaries"
+ * means, it needs no graph walk to be exact, and it covers what the plugin-only
+ * claim above cannot: `@olai/web`'s `./client/*` is a wildcard door a browser
+ * half opens sixty times, and three of the audit's own findings were behind it.
+ *
+ * A module a package opens only for ITSELF is not here and should not be: the
+ * private holder each row keeps for its own faces is the plan's own allowance
+ * — a value its declared component installed, cleared by identity when that
+ * component stops — and it is what every consumer in this branch uses to get a
+ * service from the `apply` that named it down to the face that draws with it.
+ *
+ * ## The rules are `liveStateIn`'s, and it uses a real parser
+ *
+ * `let`/`var` at module scope, a reactive cell minted when the module is
+ * evaluated, and a `const` the module writes into. Not every top-level `Map`:
+ * an inert lookup table is a valid contract and a `ReadonlyMap` annotation
+ * proves nothing about runtime, so what is read is whether the module WRITES.
+ * See `./tree.testlib.ts` for why the reading is `typescript`'s parser rather
+ * than the pattern every other claim here is.
+ *
+ * ## And what is ALLOWED is written down, with its reason
+ *
+ * An equality, like {@link DEBT} and {@link NOT_A_PLUGIN}: red the day the list
+ * grows, red again the day an entry is fixed and left behind. Every one of them
+ * is a module whose state is NOT an activation's — a process's, a page's, a
+ * memo over immutable input, or the one declared broker §6 establishes.
+ */
+describe("a module another package can open holds no live value", () => {
+  /**
+   * WHAT MAY, and why each is not an activation's state.
+   *
+   * The reason is the entry: a module that grows one of these without one is a
+   * module somebody has to argue for in review rather than add to a list.
+   */
+  const ALLOWED: Readonly<Record<string, string>> = {
+    // THE §6 BROKER. `Wired` promises a stable client whose subscriptions and
+    // calls follow the connection, and this module is what keeps that promise:
+    // one connection object for the life of the tab, redialled on a roster
+    // change, with the sibling clients mutated in place. Phase 1 established
+    // the contract by reading the pinned sources and proved it with
+    // `filter_live_recovery.feature`; `docs/internal/plugin-system.md` §6
+    // writes it down. It is a DECLARED broker whose readers name `Wired`, which
+    // is exactly the distinction the audit's §5 draws — not a module variable
+    // standing in for a service nobody declared.
+    "web/src/client/wire.ts": "the connection Wired brokers — plugin-system.md §6",
+    // THE PAGE'S LAYER STACK. What is on top is a fact about the DOCUMENT, and
+    // its lifetime is the document's: a popover pushes while it is open and
+    // pops when it shuts, and there is no activation whose stop should empty
+    // it. A row that took ownership would be a row whose withdrawal decided
+    // what covers what on a page it does not own.
+    "web/src/client/topmost.ts": "the page's own layer stack, with no owner but the document",
+    // ...AND ONE BOOLEAN HELD ACROSS ONE SYNCHRONOUS CALL. `withOfflineFocus`
+    // sets it, calls, and clears it in a `finally`; nothing observes it between
+    // turns. It is a re-entrancy guard rather than state.
+    "web/src/client/connection/focus.ts": "a re-entrancy guard, set and cleared inside one call",
+    // A WARN-ONCE SET. What it holds is which sentences this page has already
+    // said, so a loop cannot fill somebody's console with one line. Nothing
+    // reads it, nothing owns it, and forgetting it would only mean saying a
+    // thing twice.
+    "web/src/client/grumble.ts": "which warnings this page has already said, once each",
+    // A MEMO OVER AN IMMUTABLE INPUT. The fold is keyed on the served list by
+    // identity (a `WeakMap`), so the same list answers the same fold and a new
+    // list computes a new one. There is no moment at which it holds a value
+    // somebody else installed.
+    "web/src/client/file/matching.ts": "a WeakMap memo keyed on the list it folds",
+    // ...and the same shape one package over, over rendered markdown.
+    "markdown-ui/src/render.ts": "a memo over the text it renders",
+    // `edit-history/src/writing.ts` WAS HERE, and the reasoning was wrong. It
+    // said the entries were each one activation's and refused twice, which is
+    // true and is about LIFETIME rather than ownership — and then that no row
+    // reads another row's value out of it, which is false: the module's own
+    // header says history contains inverses from several providers, so
+    // markdown's editor spends outlines' writer out of one stack. Five plugin
+    // activations wrote into a general package's `Map` and four packages read
+    // it, which is the sentence this claim is built on. The algorithm is still
+    // that package's; the TABLE is the app's, behind `Edits`.
+    // THE PROCESS'S OWN SIGNALS. `sigterm` installs a handler on the binary and
+    // remembers what it replaced; its lifetime is the process, and the one
+    // package that opens it is the composition root's entry.
+    "sigterm/src/sigterm.ts": "the process's signal handlers, for the life of the process",
+    // A COUNTER FOR STAGED FILENAMES. Two overlapping writes to one destination
+    // must stage through two files, and this is what makes a name a call's own
+    // (`@olai/state`'s own paragraph). It is a nonce, not a value anybody reads.
+    "state/src/index.ts": "a per-process nonce for staged filenames",
+    // THE TREE READER'S MEMOS — this package's own, opened by one BENCH
+    // (`@olai/web`'s `claims.test.ts`, which sweeps the same sources). Both are
+    // caches over files read once per run; a second read could only answer
+    // differently if something rewrote the tree mid-run, which no claim here
+    // does.
+    "bundle/src/tree.testlib.ts": "the corpus reader's own memos, over a tree read once",
+
+    // ── AND WHAT THE WALK BEHIND THE DOORS ADDED ──────────────────────────
+    //
+    // The claim used to read the door FILE and stop. It walks the providing
+    // package now (a review finding: a `let` one import behind a door is state
+    // a package can open with nothing in the door to see), and what that found
+    // is below — none of it introduced here, all of it in the same three
+    // classes the list above already has.
+
+    // THE ENGINE'S OWN BOOKKEEPING, keyed by the thing each entry is about: a
+    // host's close, a fiber's activation, a module fiber's children. It is
+    // Cordis' runtime state in the one package this tree lets be an engine, and
+    // an "owner" for it would be the runtime owning itself.
+    "effect-cordis/src/host.ts": "a host's own close, keyed by that host",
+    "effect-cordis/src/lifecycle.ts": "the engine's activation table, keyed by fiber",
+    "effect-cordis/src/module.ts": "a module fiber's children, keyed by that fiber",
+
+    // MEMOS OVER IMMUTABLE INPUT, every one a `WeakMap` keyed by the value it
+    // folds — the same shape as `file/matching.ts` and `markdown-ui`'s
+    // `render.ts` above. A new input computes a new answer and the old entry
+    // goes with the object it was about; there is no moment at which one holds
+    // a value somebody else installed.
+    "format/src/filter.ts": "two WeakMap memos of a record's folded text, keyed by the record",
+    "format/src/set.ts": "a WeakMap memo of a set's derived reading, keyed by the set",
+    "format/src/suggest.ts": "a WeakMap memo of a known table's index, keyed by the table",
+    "format/src/tape.ts": "two WeakMap memos over a derived pair, keyed by the pair",
+    "format/src/typing.ts": "a WeakMap memo of a derivation's declared kinds, keyed by it",
+    "format/src/vocabulary.ts": "a WeakMap memo of a derivation's tag counts, keyed by it",
+    // ...and one file with a memo AND a diagnostic slot: `watching(null)` is the
+    // default, a suite installs a listener for the length of its own case, and
+    // what it hears is every narrowed write rather than any activation's value.
+    "format/src/validate.ts": "a WeakMap ledger memo, and one slot a suite installs a listener in",
+
+    // WARN-ONCE FLAGS, which is `grumble.ts`'s class one package over: what they
+    // hold is whether this process has already said a sentence, and forgetting
+    // it would only mean saying it twice.
+    "log/src/level.ts": "whether this process has already warned about OLAI_LOG_LEVEL",
+    "log/src/sinks.ts": "whether this process has already warned about OLAI_LOG",
+
+    // A REGEX CURSOR, which is a `lastIndex` and not a value: the scan sets it
+    // to 0 before it starts and moves it as it goes, so what is kept between
+    // two calls is nothing.
+    "plugin-build/src/bind.ts": "a sticky regex's cursor, reset at the top of every scan",
+
+    // THE PAGE'S ONE OPEN TIP — `topmost.ts`'s class exactly. "At most one tip
+    // is on screen" is a fact about the DOCUMENT, its lifetime is the
+    // document's, and a row that owned it would be a row whose withdrawal
+    // decided what a pointer resting somewhere else is showing.
+    "web/src/client/tip.ts": "which tip the document has open, with no owner but the page",
+  }
+
+  /** Every module the tree opens from another package, with the openers — the
+   *  corpus, and the failure's own pointer to who would have to change. */
+  const OPENED: ReadonlyMap<string, ReadonlyArray<string>> = (() => {
+    const found = new Map<string, Array<string>>()
+    for (const [member, sources] of tree) {
+      for (const source of sources) {
+        if (source.grammar === "css") continue
+        for (const spec of source.specs) {
+          const named = MEMBER_OF_PACKAGE.get(packageOf(spec))
+          if (named === undefined || named === member) continue
+          const target = openedAt(named, spec)
+          if (target === undefined) continue
+          const held = found.get(target)
+          if (held === undefined) found.set(target, [source.file])
+          else held.push(source.file)
+        }
+      }
+    }
+    return found
+  })()
+
+  test("the corpus is actually the tree's cross-package doors", () => {
+    // NOT VACUOUS: a resolver that answered nothing would make the equality
+    // below `[] === []`, which is this file's oldest failure mode. The floor is
+    // a floor rather than a count so a new door does not edit a test.
+    expect(OPENED.size).toBeGreaterThan(200)
+    // ...and it reaches the wildcard door the plugin-only claim above cannot,
+    // which is where three of the audit's own findings were.
+    expect([...OPENED.keys()].some((file) => file.startsWith("web/src/client/"))).toBe(true)
+  })
+
+  /**
+   * ...AND WHAT IS BEHIND EACH DOOR, not only the door.
+   *
+   * The claim read the door FILE and stopped there, which is a hole the size of
+   * one import: a `let` in a private helper, re-exported from the door, is
+   * live state a package can open with nothing in the door itself to see. The
+   * plugin-contract claim above has walked its graph since it was written;
+   * this one is the reading over the OTHER doors — `@olai/web/client/*`,
+   * `@olai/plugin-api`, `@olai/ui-primitives`, `@olai/edit-history` — which is
+   * exactly where `today.tsx`, `named.ts` and `ghost.ts` used to live and
+   * where three of the audit's findings were.
+   *
+   * WITHIN THE PROVIDING PACKAGE. A door reaches its own package's private
+   * modules and that is the point of a door; it also reaches `effect` and
+   * `solid-js` and half the tree, and a walk that judged those would be judging
+   * somebody else's package through an import it does not control. So the
+   * files judged are the door's own package's, and a door that re-exported
+   * ANOTHER package's holder is caught at that package's own door.
+   *
+   * AND ONLY FOR A GENERAL PACKAGE, which is the other half of the rule and not
+   * a softening of it. A plugin's `./browser` is a door the BUNDLE opens to
+   * MOUNT the row, not to read values out of — everything behind it is that
+   * row's own activation state, which is precisely where this phase put things.
+   * A plugin's CONTRACT doors are walked, with the same reading, by
+   * "cross-plugin static contracts resolve…" above; between the two, every door
+   * whose values cross a wall is read to its implementation and no row is told
+   * its private modules may hold nothing.
+   */
+  const behind = (file: string): ReadonlyArray<string> => {
+    const member = memberOf(file)
+    if (member === undefined || PLUGIN_DIRS.includes(member)) return [file]
+    const graph = graphFrom(path.join(PACKAGES, file))
+    expect(graph.unresolved, file).toEqual([])
+    return [file, ...graph.files.filter((one) => memberOf(one) === member)]
+  }
+
+  test("nothing opened across a boundary holds live state, but the ones that are not state", () => {
+    const found = [...OPENED.keys()].sort().flatMap((door) =>
+      door in ALLOWED ? [] : [...new Set(behind(door))].flatMap((file) =>
+        file in ALLOWED ? [] : liveStateIn(file).map((said) =>
+          file === door ? said : `${said} (behind ${door})`,
+        ),
+      ),
+    )
+    expect([...new Set(found)]).toEqual([])
+  })
+
+  test("every allowance names a module that is still reachable across a boundary and still holds state", () => {
+    // The other half of an equality, and the half a plain filter cannot make: an
+    // allowance for a module nobody can open any more, or one that stopped
+    // holding anything, is a sentence nobody has to keep true. Both are red
+    // here — over the SAME reach the claim above walks, so an allowance is
+    // judged by the rule it is an exception to rather than by a narrower one.
+    const reachable = new Set([...OPENED.keys()].flatMap((door) => [...behind(door)]))
+    for (const [file, why] of Object.entries(ALLOWED)) {
+      expect([file, reachable.has(file)]).toEqual([file, true])
+      expect([file, liveStateIn(file).length > 0]).toEqual([file, true])
+      expect([file, why.length > 20]).toEqual([file, true])
+    }
+  })
+
+  /**
+   * THE READING ITSELF, over the shapes rather than over the tree.
+   *
+   * A sweep is only ever as good as what it can SEE, and the two directions it
+   * can fail in are not symmetric: a pattern that stopped matching would make
+   * every claim above pass over a tree full of holders, in silence. So the
+   * prohibited shapes are written out here — including the audit's own — and so
+   * are the legitimate ones they are easiest to confuse with.
+   */
+  test("...and the reading catches every prohibited shape", () => {
+    const said = (source: string) => liveStateIn("fixture.ts", source)
+    // The audit's own example, verbatim.
+    expect(said(`let held: Client | undefined\nexport const current = () => held`))
+      .toEqual(["fixture.ts: `held` is a module-scope let/var"])
+    // ...a Solid cell minted when the module is evaluated.
+    expect(said(`const [a, setA] = createSignal(1)\nexport const read = a`))
+      .toEqual(["fixture.ts: `[a, setA]` is a module-scope createSignal()"])
+    // ...a store, a mutable and a resource, which are the same fact.
+    expect(said(`const s = createStore({})`).length).toBe(1)
+    expect(said(`const m = createMutable({})`).length).toBe(1)
+    expect(said(`const r = createResource(() => 1)`).length).toBe(1)
+    // ...a `const` collection the module writes into — the audit's "cover
+    // mutable objects declared with `const`".
+    expect(said(`const seats = new Map()\nexport const take = (k, v) => seats.set(k, v)`))
+      .toEqual(["fixture.ts: `seats` is a const this module writes to"])
+    // ...and one written through a property rather than a method.
+    expect(said(`const box = {}\nexport const put = (v) => { box.value = v }`))
+      .toEqual(["fixture.ts: `box` is a const this module writes to"])
+    // ...and through an index.
+    expect(said(`const by = {}\nexport const put = (k, v) => { by[k] = v }`).length).toBe(1)
+    // A `var`, which is a `let` with an older spelling.
+    expect(said(`var held\nexport const current = () => held`).length).toBe(1)
+
+    // ── THE SHAPES A REVIEW FOUND THIS READING BLIND TO ────────────────────
+    //
+    // Every one of them carries a `let` without writing one, and the first is
+    // this phase's OWN primitive: a provider exporting a holder through a door
+    // publishes live state with a `const` and no cell in sight.
+    expect(said(`import { heldService } from "@olai/ui-primitives/held.ts"\nexport const box = heldService()`))
+      .toEqual(["fixture.ts: `box` is a module-scope heldService() holder"])
+    // ...UNDER AN ALIAS, which is the first thing anybody reaches for and what
+    // a table of bare words would miss. Matched by the door and the EXPORTED
+    // name, so the local spelling is free.
+    expect(said(`import { heldService as slot } from "@olai/ui-primitives/held.ts"\nexport const box = slot()`))
+      .toEqual(["fixture.ts: `box` is a module-scope slot() holder"])
+    // ...and through a namespace import, the same way.
+    expect(said(`import * as held from "@olai/ui-primitives/held.ts"\nexport const box = held.heldService()`))
+      .toEqual(["fixture.ts: `box` is a module-scope held.heldService() holder"])
+    // ...and the slot table's twin, from the other door.
+    expect(said(`import { heldFaces } from "@olai/plugin-api"\nexport const f = heldFaces()`))
+      .toEqual(["fixture.ts: `f` is a module-scope heldFaces() holder"])
+    // A STATE-BEARING IIFE: the `let` is inside, and what escapes closes over it.
+    expect(said(`export const count = (() => { let n = 0; return () => ++n })()`))
+      .toEqual(["fixture.ts: `count` is a module-scope IIFE"])
+    // ...and one that mints a cell rather than a `let`.
+    expect(said(`export const seat = (() => { const [a, setA] = createSignal(); return { a, setA } })()`))
+      .toEqual(["fixture.ts: `seat` is a module-scope IIFE"])
+    // AN INSTANCE OF A CLASS THIS MODULE DECLARED, which is the same slot with
+    // a `this` in front of it.
+    expect(said(`class R { held = new Map()\n put(k) { this.held.set(k, 1) } }\nexport const registry = new R()`))
+      .toEqual(["fixture.ts: `registry` is a module-scope new R()"])
+    // ...including one that assigns the field rather than filling a collection.
+    expect(said(`class Box { at = null\n put(v) { this.at = v } }\nexport const box = new Box()`))
+      .toEqual(["fixture.ts: `box` is a module-scope new Box()"])
+
+    // AN UNRELATED LOCAL FURTHER DOWN DOES NOT HIDE THE WRITE, which a second
+    // review reproduced as clean: the reading asked whether ANY descendant of
+    // an enclosing scope declared the name, so a `const` in a nested block
+    // three lines later shadowed a use that came before it and outside it.
+    expect(said(`const writers = new Map()
+export const register = (k, v) => {
+  writers.set(k, v)
+  { const writers = []; writers.push("local") }
+}`)).toEqual(["fixture.ts: `writers` is a const this module writes to"])
+    // ...the same one loop-scoped rather than block-scoped.
+    expect(said(`const seats = new Map()
+export const fill = (rows) => {
+  seats.set(1, 1)
+  for (const seats of rows) void seats
+}`)).toEqual(["fixture.ts: `seats` is a const this module writes to"])
+    // ...and one hidden inside a nested FUNCTION, which has its own scope and
+    // never lent a binding to its parent.
+    expect(said(`const held = new Map()
+export const put = (k) => {
+  held.set(k, 1)
+  return () => { const held = []; held.push(k) }
+}`)).toEqual(["fixture.ts: `held` is a const this module writes to"])
+    // ...and a `var`, which IS the function's however deep it is written, so a
+    // write beside it is that local's and not the module's — the one case
+    // where "somewhere inside" was the right answer.
+    expect(said(`const counted = new Map()
+export const count = (k) => {
+  { var counted = new Map() }
+  counted.set(k, 1)
+}`)).toEqual([])
+  })
+
+  test("...and passes every legitimate contract", () => {
+    const said = (source: string) => liveStateIn("fixture.ts", source)
+    // A FACTORY. Half this tree's browser furniture is one, and it is the
+    // shape `@olai/ui-primitives`' `held.ts` exists to be: two callers get two
+    // holders, and nothing is minted until somebody asks.
+    expect(said(`export const make = () => { const [a, setA] = createSignal(); return { a, setA } }`))
+      .toEqual([])
+    // ...including one whose body is a block with locals in it.
+    expect(said(`export const walk = (rows) => { let n = 0; for (const r of rows) n += 1; return n }`))
+      .toEqual([])
+    // AN INERT LOOKUP TABLE, which the audit names as a valid contract: built
+    // once, read for ever, written by nobody.
+    expect(said(`export const KINDS = new Map([["olai", 1]])\nexport const of = (k) => KINDS.get(k)`))
+      .toEqual([])
+    // ...a frozen table, a primitive, a type and a class.
+    expect(said(`export const LAYER = Object.freeze({ row: 10 })`)).toEqual([])
+    expect(said(`export const MS = 300\nexport type Held = { readonly at: number }`)).toEqual([])
+    expect(said(`export class Door { private held = 1; take() { this.held += 1 } }`)).toEqual([])
+    // A COMMENT QUOTING A PROHIBITED SHAPE, which is the whole reason this
+    // reading is a parser: the header of this very describe block contains
+    // `let held: Client | undefined`, and a fence that failed on prose is a
+    // fence people learn to work around.
+    expect(said(`/** \`let held\` and \`const [a, setA] = createSignal()\` */\nexport const MS = 1`))
+      .toEqual([])
+    // ...and the same words inside a string.
+    expect(said(`export const SAID = "let held = createSignal()"`)).toEqual([])
+
+    // ── AND THE LEGITIMATE TWINS OF THE THREE SHAPES ABOVE ────────────────
+    //
+    // A FACTORY THAT MINTS A HOLDER is the whole point of the primitive: it is
+    // where two callers get two holders, and it keeps nothing itself.
+    expect(said(`import { heldService } from "@olai/ui-primitives/held.ts"\nexport const open = () => heldService()`))
+      .toEqual([])
+    // A HOLDER-SHAPED NAME FROM SOMEWHERE ELSE is not this tree's primitive: the
+    // match is on the DOOR, so a same-named import from another package says
+    // nothing here (and would be caught at that package's own door).
+    expect(said(`import { heldService } from "some-other-lib"\nexport const box = heldService()`))
+      .toEqual([])
+    // AN IIFE THAT COMPUTES A CONSTANT — half a dozen doors in this tree pick a
+    // row out of a frozen table this way and throw if it is not there
+    // (`@olai/appearance`'s `DEFAULT_PALETTE`). Nothing survives the call.
+    expect(said(`export const DEFAULT = (() => { const one = TABLE.get("a"); if (!one) throw new Error("no"); return one })()`))
+      .toEqual([])
+    // AN INSTANCE OF A CLASS THAT KEEPS NOTHING, which is a value like any
+    // other: it reads a frozen table and does arithmetic.
+    expect(said(`class Clock { at(ms) { return Math.floor(ms / 1000) } }\nexport const CLOCK = new Clock()`))
+      .toEqual([])
+    // ...and `new` of a class this module did NOT declare, which is somebody
+    // else's shape and is judged where it is written.
+    expect(said(`export const stamp = new Date(0)`)).toEqual([])
+    // A LOCAL THAT SHARES A MODULE-SCOPE NAME. `@olai/ops`' `query.ts` exports
+    // a function called `homes` that builds a local array called `homes` and
+    // pushes to it; a reading that could not tell them apart said the module
+    // writes to a `const` it never touches.
+    expect(said(`export const homes = (rows) => { const homes = []\n for (const r of rows) homes.push(r)\n return homes }`))
+      .toEqual([])
+    // ...and the same shadowing one block down, where the write IS the local's.
+    expect(said(`const rows = new Map()
+export const count = (all) => { const rows = []\n for (const one of all) rows.push(one)\n return rows.length }`))
+      .toEqual([])
+    // ...a parameter, which shadows for the whole body.
+    expect(said(`const held = new Map()
+export const put = (held) => { held.set(1, 1) }`)).toEqual([])
+    // ...and a loop binding, over the loop.
+    expect(said(`const at = new Map()
+export const walk = (rows) => { for (const at of rows) at.set(1, 1) }`)).toEqual([])
+  })
+})
+
+test("the composition root imports no plugin definition factory", () => {
+  const definitions = (tree.get("server") ?? []).filter((source) =>
+    !/\.(test|testlib|bench)\./.test(source.file)
+    && /\b(?:import|export)\s*\{[^}]*\bdefinePlugin\b/.test(readFileSync(path.join(PACKAGES, source.file), "utf8")))
+  expect(definitions.map((source) => source.file)).toEqual([])
+})
+
+
+test("the generated style chain contains exactly the declared stylesheet exports", () => {
+  const expected = TENANTS_OF.flatMap((tenant) => {
+    const manifest = manifestAt(path.join(PACKAGES, tenant.dir))
+    return manifest !== undefined && doorsOf(manifest)["./all.css"] !== undefined
+      ? [`${tenant.pkg}/all.css`] : []
+  })
+  const actual = cssImportsOf(readFileSync(path.join(PACKAGES, "bundle/src/all.generated.css"), "utf8"))
+  expect([...actual].sort()).toEqual(expected.sort())
+  expect(BROWSER_TENANTS.length).toBeGreaterThan(0)
+  expect(BROWSER_TENANTS.length).toBeLessThan(TENANTS_OF.length)
+})
+
+/** Domain-free host closures, not merely clean entry files. Static catalog
+ * declarations may cross a provider directory; runtime implementations may not. */
+test("permanent host entry closures contain no Olai feature implementation", () => {
+  const policyTargets = new Set(TENANTS_OF.flatMap(tenant => {
+    const target = doorsOf(manifestAt(path.join(PACKAGES, tenant.dir))!)["./policy"]
+    return target ? [path.relative(PACKAGES, path.resolve(PACKAGES, tenant.dir, target))] : []
+  }))
+  const contractTargets = new Set(PLUGIN_PACKAGES.flatMap(pkg => staticTargets(pkg).map(file => path.relative(PACKAGES, file))))
+  const entries = ["web/src/client/main.tsx", "server/src/serve.ts"]
+  const violations = entries.flatMap(entry => {
+    const graph = graphFrom(path.join(PACKAGES, entry))
+    expect(graph.unresolved, entry).toEqual([])
+    // The host may carry typed contracts, but concrete extension locations
+    // belong to the provider that draws or implements them. Moving a slot
+    // consumer back into web must not hide behind an otherwise legal door.
+    expect(graph.reached.filter(edge => namesAPlugin(edge.spec) && edge.spec.endsWith("/slots")), entry).toEqual([])
+    return graph.files.filter(file => {
+      const member = memberOf(file)
+      return member !== undefined && (
+        PLUGIN_DIRS.includes(member) && !policyTargets.has(file) && !contractTargets.has(file)
+        || ["ops", "store", "edit-intents", "edit-history", "markdown-ui", "appearance"].includes(member)
+      )
+    }).map(file => `${entry}: ${file}`)
+  })
+  expect(violations).toEqual([])
+})
+
+test("bundle static asset and policy catalogs match declared row exports", () => {
+  for (const [door, file] of [["./assets", "assets.generated.ts"], ["./policy", "policy.generated.ts"]] as const) {
+    const expected = TENANTS_OF.flatMap(tenant => doorsOf(manifestAt(path.join(PACKAGES, tenant.dir))!)[door]
+      ? [`${tenant.pkg}/${door.slice(2)}`] : [])
+    const source = readFileSync(path.join(PACKAGES, REGISTRY, "src", file), "utf8")
+    expect(specifiersOf(source).filter(namesAPlugin).sort()).toEqual(expected.sort())
+    const graph = graphFrom(path.join(PACKAGES, REGISTRY, "src", file))
+    expect(graph.unresolved, file).toEqual([])
+    expect(graph.files.filter(name => /\.(tsx|jsx)$/.test(name) || /\/(browser|server)\.[cm]?[jt]s$/.test(name)), file).toEqual([])
+    if (door === "./policy") {
+      expect(graph.reached.filter(edge => /^node:|^solid-js(?:\/|$)/.test(edge.spec))).toEqual([])
+    }
+  }
 })

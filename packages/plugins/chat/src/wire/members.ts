@@ -143,7 +143,7 @@ export type Ask = typeof Ask.Type
  * here independently of the five they are read off.
  * What is deliberately NOT here is the node's CONTENT: a subtree pasted into a
  * prompt is a copy that stops being true the moment anything writes, and the
- * agent has `read_node` / `read_subtree` for the live one. That is the same
+ * agent has `outlines_read` / `outlines_subtree` for the live one. That is the same
  * decision an attachment already makes — the agent is handed the path and reads
  * the file itself, rather than the bytes riding the prompt.
  */

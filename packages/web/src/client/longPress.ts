@@ -53,7 +53,6 @@
 
 import { onCleanup } from "solid-js"
 
-import { swallowGhost } from "./ghost.ts"
 
 /**
  * How long a finger has to stay put.
@@ -122,7 +121,22 @@ type Finger =
  * Call it in the owner that draws the element — a row — so a row that goes
  * away mid-press takes its timer and its transient listeners with it.
  */
-export const longPressOn = (press: (from: PointerEvent) => void): LongPress => {
+export const longPressOn = (
+  press: (from: PointerEvent) => void,
+  /**
+   * EAT THE SYNTHETIC CLICK a touch browser makes after the lift, or nothing —
+   * handed in rather than reached for.
+   *
+   * The arbiter that eats it is one per page and belongs to a row's activation
+   * (`olai-plugin-navigation`'s `navigation.gestures`, over `./ghost.ts`'s
+   * factory). This module is furniture and declares no dependency on any row,
+   * so what it takes is the ONE verb it spends — which is also what makes a
+   * bench able to watch the press without standing an arbiter up
+   * (`@olai/bundle`'s fence refuses a general door that holds another
+   * activation's value).
+   */
+  swallowGhost: () => void = () => {},
+): LongPress => {
   let finger: Finger = { kind: "gone" }
 
   const move = (event: PointerEvent): void => {

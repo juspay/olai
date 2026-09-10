@@ -880,7 +880,7 @@ test("a key spelled like a field, and the two words the bootstrap reserves", () 
     errorsOf({
       "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"done","custom":{"type":"text"}}`,
     })[0]?.message,
-  ).toContain("`set_done` writes it")
+  ).toContain("`outlines_done` writes it")
   expect(
     errorsOf({
       "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"type","custom":{"type":"text"}}`,

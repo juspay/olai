@@ -10,7 +10,7 @@
 
 import { expect, test } from "bun:test"
 
-import type { NodeHit } from "@olai/surface"
+import type { NodeHit } from "@olai/format"
 
 import { offers } from "./naming.ts"
 

@@ -21,9 +21,14 @@
  */
 
 import { describe, expect, test } from "bun:test"
+import { readFileSync } from "node:fs"
 
 import { BUNDLE_NAMES as PLUGIN_NAMES } from "./rows.ts"
-import { PLUGIN_TESTID } from "./testids.ts"
+import { PLUGIN_TESTID, TESTID } from "./testids.ts"
+import { TESTID as boot } from "@olai/web/client/testids.ts"
+import { TESTID as primitives } from "@olai/ui-primitives/testids.ts"
+import { TESTID as markdown } from "@olai/markdown-ui/testids.ts"
+import { TESTID as history } from "@olai/edit-history/testids.ts"
 
 /**
  * THE TABLES, DERIVED FROM THE ROSTER rather than written beside it.
@@ -41,14 +46,32 @@ import { PLUGIN_TESTID } from "./testids.ts"
  * and a static import cannot be. It is top-level `await` in a test module,
  * which bun runs directly; nothing bundles this file.
  */
+const WITH_TESTIDS = PLUGIN_NAMES.filter((name) => {
+  const manifest = JSON.parse(readFileSync(new URL(`../../plugins/${name}/package.json`, import.meta.url), "utf8"))
+  return Object.hasOwn(manifest.exports ?? {}, "./testids")
+})
+
 const TABLES: ReadonlyArray<readonly [string, Readonly<Record<string, string>>]> = await Promise.all(
-  PLUGIN_NAMES.map(async (name) => {
+  WITH_TESTIDS.map(async (name) => {
     const door = (await import(`olai-plugin-${name}/testids`)) as {
       TESTID: Readonly<Record<string, string>>
     }
     return [name, door.TESTID] as const
   }),
 )
+
+test("the bundle catalogue keeps every owner distinct, including shared renderers", () => {
+  const tables = [boot, primitives, markdown, history, ...TABLES.map(([, table]) => table)]
+  const keys = tables.flatMap(table => Object.keys(table))
+  const values = tables.flatMap(table => Object.values(table))
+  expect(new Set(keys).size).toBe(keys.length)
+  expect(new Set(values).size).toBe(values.length)
+  expect(Object.keys(TESTID).length).toBe(keys.length)
+})
+
+test("the permanent web host owns only its boot overlay identifiers", () => {
+  expect(boot).toEqual({ offline: "offline", reload: "reload" })
+})
 
 describe("the plugins' testids are disjoint", () => {
   test("the sweep is actually reading the tables, and some of them have rows", () => {
@@ -63,7 +86,7 @@ describe("the plugins' testids are disjoint", () => {
     // What still has to hold is that the sweep READ something: a resolver that
     // answered `{}` for every door, or a roster that came back short, would
     // make every claim below pass over nothing.
-    expect(TABLES.length).toBe(PLUGIN_NAMES.length)
+    expect(TABLES.length).toBe(WITH_TESTIDS.length)
     expect(TABLES.filter(([, table]) => Object.keys(table).length > 0).length)
       .toBeGreaterThan(1)
   })

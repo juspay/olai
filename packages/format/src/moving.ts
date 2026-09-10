@@ -8,7 +8,7 @@
  * every hit is drawn and the ones that cannot take the row say so.
  *
  * ANOTHER OUTLINE IS NOT ONE OF THEM ANY MORE, and that is the change worth
- * naming here because this module was most of the fence: `move_node` carries a
+ * naming here because this module was most of the fence: `outlines_move` carries a
  * row and everything under it into another outline, ids intact
  * (`@olai/ops`' `planMove`), so a destination in another file is an ordinary
  * destination and this reading has nothing to say about it. What survives is
@@ -59,7 +59,7 @@
  * ## The current parent is refused too, and that was a decision
  *
  * It is OFFERED (finding it and not finding it is a reader hunting for a bug)
- * and REFUSED, because it is not the no-op it looks like. A `move_node` naming
+ * and REFUSED, because it is not the no-op it looks like. A `outlines_move` naming
  * a parent and no anchor lands the row LAST among that parent's children, so
  * picking the parent a row already has is a REORDER — silently, to the bottom
  * of a list that may be long, from a gesture that reads as "put it where it

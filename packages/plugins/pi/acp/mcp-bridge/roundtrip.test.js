@@ -55,7 +55,7 @@ const fakePi = () => {
 const makeServer = () => {
   const server = new McpServer({ name: "olai-double", version: "0.0.0" });
   server.registerTool(
-    "read_node",
+    "outlines_read",
     {
       description: "read a node",
       inputSchema: { node: z.string().describe("the node's name") },
@@ -78,8 +78,8 @@ describe("the MCP round trip through pi's table", () => {
     const names = await registerServerTools(pi, Type, client, plan);
 
     // the panel's name, not the wire's:
-    expect(names).toEqual(["olai_read_node"]);
-    const def = pi.registered.get("olai_read_node");
+    expect(names).toEqual(["olai_outlines_read"]);
+    const def = pi.registered.get("olai_outlines_read");
     // the shape, not the plain object: the string stays a string, the
     // one required name stays required.
     expect(def.parameters.properties.node?.type).toBe("string");
