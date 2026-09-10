@@ -20,11 +20,11 @@
         "owner": "srid",
         "repo": "ekapkgs"
       },
-      "branch": "add-olai-hosted-fonts",
+      "branch": "add-olai-tools",
       "submodules": false,
-      "revision": "32ea630161641beaeec70cff7a9c495c76deda04",
-      "url": "https://github.com/srid/ekapkgs/archive/32ea630161641beaeec70cff7a9c495c76deda04.tar.gz",
-      "hash": "sha256-ZUSx9zBeOfKVKZmJuB9+vy6rvMorMj0FztpxalFBX54="
+      "revision": "d0472896f2727847d5fe8eb031d7d5ba0cc89774",
+      "url": "https://github.com/srid/ekapkgs/archive/d0472896f2727847d5fe8eb031d7d5ba0cc89774.tar.gz",
+      "hash": "sha256-FVYaYtXDZdwvzKEocSb0Xq8v4Vtkea80onBk7qUOcL0="
     },
     "kolu": {
       "type": "Git",
@@ -38,19 +38,6 @@
       "revision": "56152455be3d7e4e339d406d95eaa2e72152a2db",
       "url": "https://github.com/juspay/kolu/archive/56152455be3d7e4e339d406d95eaa2e72152a2db.tar.gz",
       "hash": "sha256-jnFozd13hWuCiikgVgh1MiPGAGnjzcHUiJR931QYpus="
-    },
-    "npins": {
-      "type": "Git",
-      "repository": {
-        "type": "GitHub",
-        "owner": "andir",
-        "repo": "npins"
-      },
-      "branch": "master",
-      "submodules": false,
-      "revision": "e818ca8833f1d92fda553fe91b2f02999ff9a511",
-      "url": "https://github.com/andir/npins/archive/e818ca8833f1d92fda553fe91b2f02999ff9a511.tar.gz",
-      "hash": "sha256-PRdGQlxpv8qXdQ6KwlP2Ky2HBHDY83lGTSiD6yljUxE="
     },
     "odu": {
       "type": "Git",

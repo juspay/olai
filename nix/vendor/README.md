@@ -1,7 +1,9 @@
 Packages this tree overlays onto ekapkgs because the pin does not yet
 ship them. Each is a candidate to drop when the pin grows the attribute.
 
-Hosted typefaces live in the pin (ekapkgs#5), not here.
-
-- `nixpkgs-fmt.nix` — formatter this tree already uses (ekapkgs ships nixfmt)
+- `fonts/` — hosted typefaces the default face serves (ekapkgs#5 may not merge)
 - `playwright/` — chromium browsers for e2e (`PLAYWRIGHT_BROWSERS_PATH`)
+
+`ripgrep`, `npins` and `nixpkgs-fmt` come from the ekapkgs pin (ekapkgs#8).
+`nixpkgs-fmt.nix` remains as the expression that PR carries; the overlay
+no longer calls it.
