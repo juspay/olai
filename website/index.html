@@ -322,17 +322,31 @@
   table.plug td:first-child a:hover { color: var(--accent); }
   table.plug td:last-child { color: var(--muted); white-space: nowrap; font-family: var(--mono); font-size: 0.72rem; }
 
-  .plugrow { display: flex; align-items: baseline; gap: 0.7rem; padding: 0.35rem 0; }
-  .plugname { font-family: var(--mono); font-size: 0.78rem; }
-  .seg {
-    margin-left: auto; display: inline-flex; flex: none;
-    border: 1px solid var(--rule); border-radius: 999px;
-    font-family: var(--mono); font-size: 0.62rem; line-height: 1.7;
-  }
-  .seg span { padding: 0 0.55em; color: var(--muted); }
-  .seg .pick { color: var(--paper); background: var(--ink); border-radius: 999px; }
-  .plughint { font-size: 0.75rem; color: var(--muted); padding: 0 0 0.45rem 0; line-height: 1.4; }
-  .plugfoot { font-size: 0.72rem; color: var(--muted); margin-top: 0.7rem; padding-top: 0.65rem; border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); }
+  .plugmock { width: 100%; max-width: 880px; aspect-ratio: 1; margin: 0 auto 2rem; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); font: 12px var(--mono); display: flex; flex-direction: column; overflow: hidden; }
+  .plughead, .plugfoot { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; }
+  .plughead { border-bottom: 1px solid var(--rule); }
+  .plughead a { color: var(--muted); font-size: 11px; }
+  .plugbody { padding: 8px 16px; flex: 1; overflow: auto; }
+  .plugcolumns { columns: 2; column-gap: 24px; }
+  .pluggroup { break-inside: avoid; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+  .pluggroup summary { display: flex; justify-content: space-between; cursor: pointer; font-size: 11px; padding-bottom: 8px; }
+  .pluggroup summary span, .plugkey, .plugfacts { color: var(--muted); }
+  .plugrow { display: grid; grid-template-columns: 80px minmax(0, 1fr) 30px; gap: 8px; padding: 5px 0; align-items: start; }
+  .plugknobs { display: flex; flex-wrap: wrap; gap: 5px 10px; align-items: center; min-width: 0; }
+  .plugknob { display: inline-flex; align-items: center; gap: 5px; }
+  .plugchoice { display: inline-flex; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+  .plugchoice span { padding: 3px 5px; color: var(--muted); }
+  .plugchoice .pick { color: var(--ink); background: color-mix(in srgb, var(--done) 20%, var(--panel)); }
+  .pluginput { border: 1px solid var(--rule); border-radius: 4px; padding: 3px 5px; background: var(--well); }
+  .plugswitch { display: inline-block; position: relative; width: 30px; height: 17px; border-radius: 10px; background: var(--done); margin-top: 3px; }
+  .plugswitch::after { content: ""; position: absolute; right: 2px; top: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--panel); }
+  .plugoff .plugswitch { background: var(--rule); }
+  .plugoff .plugswitch::after { right: auto; left: 2px; }
+  .plugoff .plugknobs { opacity: .42; }
+  .plugsource { color: var(--done); font-size: 9px; }
+  .plugfoot { border-top: 1px solid var(--rule); color: var(--muted); font-size: 10px; flex-wrap: wrap; }
+  .plugring { display: inline-block; width: 12px; height: 8px; border: 1px dashed var(--muted); border-radius: 6px; }
+  @media (max-width: 700px) { .plugmock { aspect-ratio: auto; } .plugcolumns { columns: 1; } }
 
   #agent {
     background: #0A1220; color: #D5E8F5;
@@ -631,19 +645,18 @@
     <a href="https://github.com/cordiverse/cordis">Cordis</a>, a meta-framework
     of spatiotemporal composability. The paper is on
     <a href="https://arxiv.org/abs/2608.25512" title="A Programming Paradigm for Spatiotemporal Composability">arXiv</a>.</p>
-    <div class="cols">
-      <div class="panel" aria-label="The plugins panel, with journal switched off">
-        <div class="file">plugins</div>
-        <div class="plugrow"><span class="plugname">chat</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
-        <div class="plugrow"><span class="plugname">vault</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
-        <div class="plugrow"><span class="plugname">git</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
-        <div class="plugrow"><span class="plugname">journal</span><span class="seg"><span class="pick">Off</span><span>On</span></span></div>
-        <p class="plughint">_olai/Settings.olai says on: no.</p>
-        <div class="plugrow"><span class="plugname">search</span><span class="seg"><span>Off</span><span class="pick">On</span></span></div>
-        <div class="plugrow"><span class="plugname">xyne-spaces</span><span class="seg"><span class="pick">Off</span><span>On</span></span></div>
-        <p class="plughint">Off by default. Switch it on here when this machine has Spaces credentials.</p>
-        <p class="plugfoot">Switches are saved in the vault and survive a restart.</p>
-      </div>
+    <div class="plugmock" aria-label="The plugins panel, with inline preference controls">
+      <div class="plughead"><strong>⧉ plugins</strong><a href="https://github.com/juspay/olai/blob/master/docs/running.md#settings-declarations">_olai/Settings.olai ↗</a></div>
+      <div class="plugbody"><div class="plugcolumns">
+<details class="pluggroup" open><summary><strong>VAULT</strong><span>3 on</span></summary><div class="plugrow"><span>vault</span><span class="plugknobs"><span class="plugknob"><span class="plugkey">watch</span><span class="plugchoice"><span class="pick">native</span><span>poll</span></span></span></span><span class="plugswitch" aria-label="vault on"></span></div><div class="plugrow"><span>settings</span><span class="plugknobs"></span><span class="plugswitch" aria-label="settings on"></span></div><div class="plugrow"><span>git</span><span class="plugknobs"><span class="plugknob"><span class="plugkey">commit</span><span class="plugchoice"><span>off</span><span class="pick">manual</span><span>auto</span></span></span><span class="plugknob"><span class="plugkey">push</span><span class="plugchoice"><span class="pick">off</span><span>auto</span></span></span></span><span class="plugswitch" aria-label="git on"></span></div></details>
+<details class="pluggroup" open><summary><strong>WORK</strong><span>3 on · 1 off</span></summary><div class="plugrow"><span>chat</span><span class="plugknobs"><span class="plugknob"><span class="plugkey">idle</span><span class="pluginput">900000</span></span><span class="plugkey">ms</span></span><span class="plugswitch" aria-label="chat on"></span></div><div class="plugrow"><span>kolu</span><span class="plugknobs"><span class="plugknob"><span class="plugkey">nag</span><span class="pluginput">10m</span><span class="plugsource" title="set in Settings.olai">●</span><span>↺</span></span><span class="plugknob"><span class="plugkey">held</span><span class="pluginput">60s</span></span><span class="plugknob"><span class="plugkey">heartbeat</span><span class="pluginput">60s</span></span></span><span class="plugswitch" aria-label="kolu on"></span></div><div class="plugrow"><span>odu</span><span class="plugknobs"></span><span class="plugswitch" aria-label="odu on"></span></div><div class="plugrow plugoff"><span>journal</span><span class="plugknobs"></span><span class="plugswitch" aria-label="journal off"></span></div></details>
+<details class="pluggroup" open><summary><strong>FIND</strong><span>1 on · 1 off</span></summary><div class="plugrow"><span>search</span><span class="plugknobs"></span><span class="plugswitch" aria-label="search on"></span></div><div class="plugrow plugoff"><span>xyne-spaces</span><span class="plugknobs"><span class="plugfacts">token env · unset</span></span><span class="plugswitch" aria-label="xyne-spaces off"></span></div></details>
+<details class="pluggroup" open><summary><strong>IDENTITY</strong><span>1 on</span></summary><div class="plugrow"><span>identity</span><span class="plugknobs"><span class="plugknob"><span class="plugkey">login</span><span class="pluginput">x-auth-request-user</span></span><span class="plugknob"><span class="plugkey">email</span><span class="pluginput">x-auth-request-email</span></span></span><span class="plugswitch" aria-label="identity on"></span></div></details>
+<details class="pluggroup" open><summary><strong>EDITORS</strong><span>3 on</span></summary><div class="plugrow"><span>outlines</span><span class="plugknobs"></span><span class="plugswitch" aria-label="outlines on"></span></div><div class="plugrow"><span>markdown</span><span class="plugknobs"></span><span class="plugswitch" aria-label="markdown on"></span></div><div class="plugrow"><span>files</span><span class="plugknobs"></span><span class="plugswitch" aria-label="files on"></span></div></details>
+<details class="pluggroup" open><summary><strong>THIS SERVE</strong><span>127.0.0.1:4444</span></summary><div class="plugrow"><span>log</span><span class="plugknobs"><span class="plugknob"><span class="plugkey"></span><span class="plugchoice"><span>debug</span><span class="pick">info</span><span>warn</span><span>error</span></span></span><span class="plugknob"><span class="plugkey"></span><span class="plugchoice"><span class="pick">auto</span><span>logfmt</span><span>pretty</span></span></span></span></div><span class="plugfacts">hostname · env · host · default · port · default · origins same-origin · bearer set</span></details>
+      </div></div><div class="plugfoot"><span><span class="plugsource">●</span> set in Settings.olai · <span class="plugring"></span> session-only</span><span>memory · $XDG_STATE_HOME/olai</span></div>
+    </div>
+    <div>
       <div>
         <p>An agent can write one into your vault. You read the source on the
         panel and approve it. The worked example is a morning agenda: each

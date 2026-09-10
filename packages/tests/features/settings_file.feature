@@ -10,7 +10,6 @@ Feature: The vault settings file applies policy to running rows
       {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"off","push":"off"}}
       """
     And I open the plugins panel
-    When I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "off"
     When I rewrite "_olai/Settings.olai" as:
       """
@@ -22,7 +21,7 @@ Feature: The vault settings file applies policy to running rows
       """
       {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"still-wrong","push":"auto"}}
       """
-    Then the plugin "git" keeps settings open when "commit" becomes "manual"
+    Then the plugin "git" keeps its control visible when "commit" becomes "manual"
     And the plugins panel shows "git" configured "commit" as "manual"
     And the plugins panel shows "git" configured "push" as "auto"
     And there should be no page errors
@@ -34,7 +33,6 @@ Feature: The vault settings file applies policy to running rows
       {"id":"identity-policy","ord":"a0","title":"identity","custom":{"login-header":"Remote-User"}}
       """
     And I open the plugins panel
-    When I expand settings for the plugin "identity"
     Then the plugins panel shows "identity" configured "login-header" as "Remote-User"
     When I rewrite "Settings.olai" as:
       """
@@ -52,15 +50,15 @@ Feature: The vault settings file applies policy to running rows
       {"id":"journal-policy","ord":"a0","title":"journal","custom":{"on":"no"}}
       """
     And I open the plugins panel
-    Then the plugins panel says "journal" is "_olai/Settings.olai says on: no"
+    Then the plugin "journal" is off without prose
     And there should be no page errors
 
   Scenario: A switch authors a durable namespace and links to it
     Given I open the app
     When I open the plugins panel
-    Then the plugin "git" keeps settings folded
+    Then the plugin "git" has inline controls
     When I switch the plugin "journal" off
-    Then the plugins panel says "journal" is "_olai/Settings.olai says on: no"
+    Then the plugin "journal" is off without prose
     When I close the plugins panel
     And I open the commit panel
     Then the commit ledger includes the settings switch
@@ -69,7 +67,19 @@ Feature: The vault settings file applies policy to running rows
     And the server starts again on the same port
     And I open the app
     And I open the plugins panel
-    Then the plugins panel says "journal" is "_olai/Settings.olai says on: no"
+    Then the plugin "journal" is off without prose
+    And there should be no page errors
+
+  Scenario: The header opens the file and section headings count their switches
+    Given I open the app
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"header-policy","ord":"a0","title":"git","custom":{"commit":"manual"}}
+      """
+    And I open the plugins panel
+    Then the plugins panel section counts match their switches
+    When I open the settings file from the panel header
+    Then the address names the settings file
     And there should be no page errors
 
   Scenario: Authored controls name their source and the arrow opens the namespace
@@ -79,7 +89,6 @@ Feature: The vault settings file applies policy to running rows
       {"id":"policy-target","ord":"a0","title":"git","custom":{"commit":"off"}}
       """
     And I open the plugins panel
-    When I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "off"
     And the plugin "git" marks "commit" as authored by "vault"
     And the plugins panel shows "git" configured "push" as "off"
@@ -95,7 +104,6 @@ Feature: The vault settings file applies policy to running rows
       {"id":"policy-return","ord":"a0","title":"git","custom":{"commit":"off"}}
       """
     And I open the plugins panel
-    When I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "off"
     When I switch the plugin "navigation" off
     Then the plugin "git" has no policy link
@@ -112,13 +120,13 @@ Feature: The vault settings file applies policy to running rows
   Scenario: The reader switch cannot lock durable controls off
     Given I open the app
     When I open the plugins panel
-    Then the plugins panel says "settings" is "Switch is session-only"
+    Then the plugin "settings" has a session-only switch ring
     When I switch the plugin "settings" off
-    Then the plugins panel was started "Switches are session-only while the configuration reader is absent"
+    Then the plugins panel was started "session-only"
     When I switch the plugin "settings" on
-    Then the plugins panel says "settings" is "Switch is session-only"
+    Then the plugin "settings" has a session-only switch ring
     When I switch the plugin "journal" off
-    Then the plugins panel says "journal" is "_olai/Settings.olai says on: no"
+    Then the plugin "journal" is off without prose
     And there should be no page errors
 
   Scenario: A broken file refuses a durable switch visibly
@@ -148,15 +156,13 @@ Feature: The vault settings file applies policy to running rows
       {"id":"agent-policy","ord":"a1","title":"git"}
       """
     And I open the plugins panel
-    When I expand settings for the plugin "journal"
-    Then the plugin "journal" has authored enablement "<before>"
+    Then file "_olai/Settings.olai" has namespace "journal" setting "on" as "<before>"
     Given a terminal agent is connected to the served directory
     When the terminal agent sets property "on" on "reserved-choice" to "<after>"
     Then the terminal refusal says "person's decision"
-    And the plugin "journal" has authored enablement "<before>"
+    And file "_olai/Settings.olai" has namespace "journal" setting "on" as "<before>"
 
     When the terminal agent sets property "commit" on "agent-policy" to "off"
-    And I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "off"
     And file "_olai/Settings.olai" has namespace "git" setting "commit" as "off"
 

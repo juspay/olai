@@ -4,6 +4,7 @@ import { TESTID } from "olai-plugin-plugin-inspector/testids"
  *  panel has thirty binaries and the two-pill strip is a wall. */
 export function Switch(props: {
   readonly label: string
+  readonly session?: boolean
   readonly on: boolean
   readonly frozen?: boolean
   readonly onPick: (value: "on" | "off") => void
@@ -16,8 +17,10 @@ export function Switch(props: {
       aria-label={props.label}
       aria-checked={props.on}
       aria-disabled={frozen() ? true : undefined}
+      title={props.session ? "session-only" : undefined}
+      data-session={props.session ? "true" : undefined}
       data-testid={TESTID.pluginSwitch}
-      class={`relative h-[1.15rem] w-[2.05rem] shrink-0 rounded-full shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-ink)_6%,transparent)] ${
+      class={`prototype-switch relative h-[1.15rem] w-[2.05rem] shrink-0 rounded-full shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-ink)_6%,transparent)] ${
         frozen() ? "opacity-60" : ""
       } ${props.on ? "bg-done" : "bg-rule"}`}
       onClick={() => {

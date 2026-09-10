@@ -3,7 +3,7 @@ Feature: The events drawer opens the watch controls
   The optional inspector owns the editor. Its advanced node link still opens
   the file; the feed keeps running when that editor is unavailable.
 
-  Scenario: The wrench opens the row controls and the last link opens its node
+  Scenario: The wrench opens the row controls and the link beside its name opens its node
     Given I open the outline "house.olai"
     When I rewrite "_olai/Settings.olai" as:
       """

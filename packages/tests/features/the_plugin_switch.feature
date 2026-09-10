@@ -58,6 +58,7 @@ Feature: A plugin is turned on and off while the serve runs
     # heard of kolu is already in: no door, no sentence about a missing one, and
     # nothing red anywhere, because nothing is wrong.
     Then "door-implement" wears no terminal door at all
+    And the plugin "kolu" is off without prose
     And there should be no page errors
     # ...AND NOTHING ELSE WENT QUIET WITH IT. The strongest thing this feature
     # can assert, and the one that is not about any particular plugin: the app
@@ -141,7 +142,7 @@ Feature: A plugin is turned on and off while the serve runs
     Then the plugins panel says "kolu" is "Waiting for deliveries, session-start"
     # ...and the panel says the row is off because the file disabled it, which is
     # a different morning from a press and from the build's own default.
-    And the plugins panel says "chat" is "Off"
+    And the plugin "chat" is off without prose
 
     When I switch the plugin "settings" off
     And I switch the plugin "chat" on
@@ -150,7 +151,7 @@ Feature: A plugin is turned on and off while the serve runs
     # doors they named have arrived; the conversation's own chrome is drawn
     # because its members are on the wire and the tab's redial reached them.
     Then the plugins panel says nothing more about "kolu"
-    And the plugins panel was started "Switches are session-only while the configuration reader is absent"
+    And the plugins panel was started "session-only"
     And the conversation is in the header
     # THE ASSERTION THAT WOULD HAVE BEEN RED WHATEVER ELSE PASSED. The rest of
     # this scenario can be satisfied by chrome that mounted off a roster frame;

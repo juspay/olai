@@ -1,3 +1,4 @@
+import { TESTID } from "./testids.ts"
 import { PLUGIN_PREF } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
 
@@ -13,7 +14,6 @@ import {
   pluginGroups,
   pluginHint,
   pluginRows,
-  pluginsStarted,
   rowCopy,
   pluginSwitch,
   THIS_VAULT,
@@ -127,33 +127,32 @@ test("every arm core writes in full is one short line", () => {
     pluginConfirm(only(row("running", undefined, undefined, ["kolu"]))),
   ]
   for (const said of every) {
-    expect([said, said !== null && said.length < 100]).toEqual([said, true])
+    expect(said === null || said.length < 100).toBe(true)
   }
 })
 
 
-test("built-row absence reasons have distinct explanations", () => {
+test("only failed and waiting rows explain their absence", () => {
   const optIn = row("optIn")
   const failed = row("failed", "no socket at /run/nothing")
   const waiting = row("waiting")
   const off = row("off")
   const switched = row("switched")
 
-  expect(pluginHint(only(optIn))).toContain("by default")
-  expect(pluginHint(only(off))).toContain("switch on here")
+  expect(pluginHint(only(optIn))).toBeNull()
+  expect(pluginHint(only(off))).toBeNull()
   expect(pluginHint(only(waiting))).toContain("waiting for something it needs")
   expect(pluginHint(only(failed))).toContain("Failed to start")
-  expect(pluginHint(only(switched))).toContain("Switched off here")
+  expect(pluginHint(only(switched))).toBeNull()
 
   const said = [optIn, off, waiting, failed, switched].map((sent) => pluginHint(only(sent)))
-  expect(new Set(said).size).toBe(5)
+  expect(new Set(said).size).toBe(3)
 })
 
 
-test("a session-switched row explains its lifetime", () => {
+test("a session-switched row has no prose and remains pressable", () => {
   const said = pluginHint(only(row("switched")))
-  expect(said).toContain("restart")
-  expect(said).not.toContain("--plugins")
+  expect(said).toBeNull()
   // ...and the switch beside it is still drawn and still pressable, because
   // pressing it is the undo.
   expect(pluginSwitch(only(row("switched")), false)).toEqual({ value: "off", frozen: false })
@@ -176,15 +175,8 @@ test("a failed row quotes what the plugin said, or says it said nothing", () => 
 })
 
 
-test("an absent row names its own word and what to type at boot", () => {
-  const optIn = pluginHint(only(row("optIn")))
-  expect(optIn).toContain("on: yes")
-
-  const off = pluginHint(only(row("off")))
-  expect(off).toContain("alpha")
-  expect(off).toContain("on: yes")
-  // Enabling one row does not recommend disabling the rest of the catalogue.
-  expect(off).not.toContain("--plugins=")
+test("off, opt-in and switched rows have no prose", () => {
+  for (const state of ["off", "optIn", "switched"]) expect(pluginHint(only(row(state)))).toBeNull()
 })
 
 /**
@@ -198,12 +190,12 @@ test("an absent row names its own word and what to type at boot", () => {
  * narrowing happens; this case is the panel's half of it.
  */
 test("a state this tab has never heard of falls back to the boolean", () => {
-  expect(pluginHint(only(row("hibernating")))).toContain("switch on here")
+  expect(pluginHint(only(row("hibernating")))).toBeNull()
   // ...and a serve too old to send one at all is the same fallback, which is
   // exactly how this panel drew every row before the word existed.
   const old = roster(["alpha"])
   expect(pluginHint(old.built[0]!)).toBe(null)
-  expect(pluginHint(old.built[1]!)).toContain("switch on here")
+  expect(pluginHint(old.built[1]!)).toBeNull()
 })
 
 /**
@@ -361,22 +353,10 @@ test("a press freezes only that row's strip, and does not move it", () => {
 })
 
 
-test("the foot names the file instead of retired startup flags", () => {
-  for (const value of [roster(["alpha"]), roster([])]) {
-    expect(pluginsStarted(value)).toContain("_olai/Settings.olai")
-    expect(pluginsStarted(value)).not.toContain("--plugins")
-  }
-})
-
-test("the foot names durable policy and private memory; session exceptions belong on rows", () => {
+test("session exceptions use the legend and never add row prose", () => {
   const value = roster(["alpha"])
-  const said = pluginsStarted(value)
-  expect(said).toContain("_olai/Settings.olai")
-  expect(said).toContain("travels with this directory")
-  expect(said).toContain("LocalState")
-  expect(said).not.toContain("session-only")
-  expect(rowCopy({ name: "alpha", running: true, switchPersistence: "session" }, value)).toContain("session-only")
-  expect(rowCopy({ name: "alpha", running: true, switchPersistence: "file" }, value)).toBe(null)
+  expect(rowCopy({ name: "alpha", running: true, switchPersistence: "session" }, value)).toBeNull()
+  expect(rowCopy({ name: "alpha", running: true, switchPersistence: "file" }, value)).toBeNull()
 })
 
 
@@ -477,57 +457,37 @@ test("a quiet healthy group starts collapsed, and opt-in rows remain reachable",
   expect(groupCount(groups[0]!.rows)).toBe("1 on")
 })
 
-test("a file-authored off state names the file that decided it", () => {
-  expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false }, { built: [], configurationFile: "_olai/Settings.olai" }))
-    .toBe("Off — _olai/Settings.olai says on: no.")
+test("a file-authored off state and session exceptions have no row sentence", () => {
+  expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false }, { built: [], configurationFile: "_olai/Settings.olai" })).toBeNull()
+  for (const configurationAvailable of [false, true]) {
+    expect(rowCopy({ name: "alpha", running: true, switchPersistence: "session" }, { built: [], configurationAvailable })).toBeNull()
+  }
 })
 
-
-test("an absent configuration reader is one panel fact, not a caveat repeated on every row", () => {
-  const absent: PluginRoster = { configurationAvailable: false, built: ["alpha", "beta"].map(name => ({
-    name, running: true, switchPersistence: "session",
-  })) }
-  expect(pluginsStarted(absent)).toContain("Switches are session-only while the configuration reader is absent")
-  for (const row of absent.built) expect(rowCopy(row, absent)).toBeNull()
-  const present: PluginRoster = { ...absent, configurationAvailable: true }
-  expect(pluginsStarted(present)).not.toContain("Switches are session-only")
-  expect(rowCopy(present.built[0]!, present)).toContain("Switch is session-only")
-})
-
-
-import { environmentAtDefault } from "./rows.ts"
-test("environment disclosure distinguishes wrapper defaults from explicit store paths", () => {
+import { environmentSource } from "./rows.ts"
+test("environment readings distinguish wrapper defaults from explicit store paths", () => {
   const resource = { key: "EXECUTABLE", kind: "resource" as const, set: true, value: "/nix/store/operator/bin/tool", says: "the executable" }
-  expect(environmentAtDefault(resource)).toBe(false)
-  expect(environmentAtDefault({ ...resource, source: "wrapper" })).toBe(true)
-  expect(environmentAtDefault({ ...resource, set: false })).toBe(true)
-  expect(environmentAtDefault({ key: "TOKEN", kind: "secret", set: true, says: "credential" })).toBe(false)
-  expect(environmentAtDefault({ key: "TOKEN", kind: "secret", set: false, says: "credential" })).toBe(true)
+  expect(environmentSource(resource)).toBe("env")
+  expect(environmentSource({ ...resource, source: "wrapper" })).toBe("wrapper")
+  expect(environmentSource({ ...resource, set: false })).toBe("env")
+  expect(environmentSource({ key: "TOKEN", kind: "secret", set: true, says: "credential" })).toBe("env")
+  expect(environmentSource({ key: "TOKEN", kind: "secret", set: false, says: "credential" })).toBe("env")
 })
 
 
-test("summaries retain schema order, humanize labels and choices, and disclose defaults once", async () => {
-  const { pluginSummary, labelOf, valueLabel, enableLabel } = await import("./rows.ts")
-  const values = [
-    { key: "commit", value: "manual", setBy: "default" as const, says: "", control: { kind: "choice" as const, options: ["manual", "auto"] } },
-    { key: "push", value: "off", setBy: "default" as const, says: "", control: { kind: "choice" as const, options: ["off", "auto"] } },
-  ]
-  expect(pluginSummary(values)).toEqual({ text: "Commit: Manual · Push: Off — using defaults", title: "" })
-  expect(pluginSummary(values).text).not.toContain("·default")
-  expect(pluginSummary([{ ...values[1]!, setBy: "vault" }, values[0]!])).toEqual({ text: "Push: Off · Commit: Manual", title: "Push: set in Settings.olai" })
-  expect(labelOf("watch.held-for")).toBe("Watch held for")
-  expect(valueLabel({ ...values[0]!, value: "90s", control: { kind: "text" } })).toBe("90s")
-  expect(valueLabel({ ...values[0]!, value: true, control: { kind: "switch" } })).toBe("Yes")
-  expect(valueLabel({ ...values[0]!, value: 42, control: { kind: "number", integer: true } })).toBe("42")
+test("inline knobs derive compact labels and widths without hiding defaults", async () => {
+  const { knobLabel, knobWidth, knobUnit, knobAuthored, enableLabel } = await import("./rows.ts")
+  expect(knobLabel("watch.held-for")).toBe("held")
+  expect(knobLabel("login-header")).toBe("login")
+  expect(knobUnit("idle-ms")).toBe("ms")
+  const value = { key: "login-header", value: "X-User", setBy: "default" as const, says: "" }
+  expect(knobWidth(value)).toBe("22ch")
+  expect(knobWidth({ ...value, key: "watch.nag" })).toBe("6ch")
+  expect(knobWidth({ ...value, control: { kind: "number", integer: true } })).toBe("9ch")
+  expect(knobAuthored(value)).toBe(false)
+  expect(knobAuthored({ ...value, setBy: "vault" })).toBe(true)
+  expect(knobAuthored({ ...value, problem: { raw: "bad", why: "refused" } })).toBe(false)
   expect(enableLabel("example")).toBe("Enable example")
-})
-
-test("summary truncation counts remaining leaves and invalid values without hiding their default", async () => {
-  const { pluginSummary } = await import("./rows.ts")
-  const values = ["one", "two", "three", "four", "five", "six"].map((key, n) => ({ key, value: n, setBy: "default" as const, says: "", control: { kind: "number" as const, integer: true } }))
-  expect(pluginSummary(values).text).toBe("One: 0 · Two: 1 · Three: 2 · Four: 3 · +2 — using defaults")
-  expect(pluginSummary([{ ...values[0]!, problem: { raw: "bad", why: "a number" } }]).text).toBe("One: 0 — using defaults · 1 invalid")
-  expect(pluginSummary([])).toEqual({ text: "", title: "" })
 })
 
 test("environment and old-serve readings have no editable control", async () => {
@@ -535,4 +495,11 @@ test("environment and old-serve readings have no editable control", async () => 
   expect(controlOf({ key: "TOKEN", kind: "secret", set: true, says: "credential" })).toBeUndefined()
   expect(controlOf({ key: "EXECUTABLE", kind: "resource", set: true, value: "/bin/example", says: "executable" })).toBeUndefined()
   expect(controlOf({ key: "old", value: "quiet", setBy: "default", says: "old serve" })).toBeUndefined()
+})
+
+
+test("inline controls replace summary and defaults identifiers", () => {
+  expect(Object.values(TESTID)).toContain("plugin-knob")
+  expect(Object.values(TESTID)).not.toContain("plugin-summary")
+  expect(Object.values(TESTID)).not.toContain("plugin-defaults")
 })

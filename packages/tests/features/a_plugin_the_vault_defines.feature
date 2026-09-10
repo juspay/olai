@@ -41,7 +41,7 @@ Feature: A plugin the vault defines
     Then no row wears a swatch
 
     When I open the plugins panel
-    Then the plugins panel says "swatch" is "read the source below and approve it"
+    Then the plugin "swatch" is off without prose
     And the plugins panel groups "swatch" under "Needs you"
     # THE SOURCE TRAVELS, in full, which is why the roster carries it at all:
     # approving is READING, and a panel that asked somebody to say yes to a
@@ -86,7 +86,7 @@ Feature: A plugin the vault defines
     When the plugin's face is edited
     # BACK TO WAITING, and the fiber came down with it: the chip the approved
     # version drew is gone, because the plugin that drew it is gone.
-    Then the plugins panel says "swatch" is "read the source below and approve it"
+    Then the plugin "swatch" is off without prose
     And no row wears a swatch
     # ...AND THE VERBS ARE NOT ARMED. This is the case the serve's own guard was
     # written for and could never see: the roster is live, so the block now
@@ -133,7 +133,7 @@ Feature: A plugin the vault defines
     Then the row "amber" wears a swatch for "#ff8800"
 
     When the palette provider is replaced
-    Then the plugins panel says "palette" is "read the source below and approve it"
+    Then the plugin "palette" is off without prose
     And the plugins panel says "swatch" is "palette.colours"
     And no row wears a swatch
     And the agent service catalog excludes "palette.colours"
@@ -157,7 +157,7 @@ Feature: A plugin the vault defines
     # state they had before.
     Given I open the outline "swatch.olai"
     And I open the plugins panel
-    Then the plugins panel says "swatch" is "read the source below and approve it"
+    Then the plugin "swatch" is off without prose
     And the plugins panel offers to approve "swatch"
 
     When I close the plugins panel
@@ -180,7 +180,7 @@ Feature: A plugin the vault defines
     And the plugins panel shows the source of "swatch"
     When I approve the plugin "swatch"
     Then the plugins panel refuses with "the vault plugin approval capability is not active"
-    And the plugins panel says "swatch" is "read the source below and approve it"
+    And the plugin "swatch" is off without prose
     And no row wears a swatch
     Given I mark the page
     When the browser module can be fetched again

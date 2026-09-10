@@ -1,4 +1,4 @@
-import { configurationUnavailable, configurationBroken, type EnvironmentReading } from "@olai/plugin-api/configuration"
+import { CONFIGURATION_FILE, configurationUnavailable, configurationBroken, type EnvironmentReading } from "@olai/plugin-api/configuration"
 import { approveDefinition } from "./approval.ts"
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
@@ -21,36 +21,16 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * what the SERVE is running, for everybody looking at it — which is a different
  * kind of thing from a theme, and still wants a door of its own.
  *
- * Each row summarises effective policy and discloses schema-derived controls,
- * descriptions, provenance and file problems. The last link opens its node. An enable switch
+ * Each row draws schema-derived controls inline, with descriptions in titles,
+ * source dots and file problems. The link beside its name opens its node. An enable switch
  * writes `on` through the ordinary write door, then waits for the revision and
  * root-owned reconcile before releasing the press. The infrastructure rows
  * needed to read and write that file retain a session-only switch.
  *
- * ## ...WHICH IS WHY THIS PANEL HAS A PANEL-WIDE LINE, having argued it needed
- * none
- *
- * The old argument, in full: *nothing here is the reader's. Every row is the
- * instance's, and every row already says so on its own line — `./rows.ts`'s
- * `pluginSetBy` ends each one with the same clause. A panel-wide sentence would
- * be that clause a fourth time, under three rows that had each just said it,
- * which is how a caveat stops being read at all.*
- *
- * Every clause of that is true and the conclusion is backwards. If the same
- * sentence is on every row, the panel is ALREADY drawing the caveat N times;
- * the per-row placement is what makes it N rather than one. A serve started
- * with a policy selecting only claude, codex, chat, kolu, odu drew that flag, quoted in full and
- * wrapped over three lines, eight times — under a hint that was itself the same
- * sentence on six of the eight. The human, 2026-09-04, with the screenshot:
- * *portrait spammy*.
- *
- * So the rule did not change; which sentence is per-row and which is per-panel
- * did. What is the same for every row — where policy lives, private memory, how
- * this serve was started, and whether the configuration reader is absent — is
- * one line at the foot ({@link pluginsStarted}).
- * What actually differs stays on the row, and the opt-in row is exactly the
- * case the old paragraph was reaching for: under no flag, one row's built-in
- * default is ON and its neighbour's is OFF, and only the row can say which.
+ * Shared facts are drawn once: the settings file in the header, source and
+ * session legends and private memory at the foot. Only failed or waiting rows
+ * add a reason beneath their controls; repeating ordinary status made the old
+ * panel a vertical wall of text.
  *
  * ## What is on it, and what is NOT
  *
@@ -62,13 +42,9 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * over holds that as an equality; this file is written so there is nothing for
  * it to catch.
  *
- * A ROW HAS A NAME, SUMMARY, ENABLE SWITCH AND DISCLOSURE. Status adds a
- * sentence only when needed. An ordinary running row adds no status — so
- * `pluginHint` answers `null` and this panel draws no paragraph at
- * all. Eight rows read as a short list rather than a scroll, and the four rows
- * that DO carry a sentence (a failure, a wait, an absence, a row that carries
- * others) are the four a reader's eye lands on, because they are the only ones
- * with text under them.
+ * A ROW HAS A NAME, INLINE KNOBS AND ENABLE SWITCH. Sections collapse, while
+ * knobs need no additional gesture. The row's switch expresses off states;
+ * a dashed ring records a session-only switch without repeating the legend.
  *
  * THE LABEL IS THE NAME, VERBATIM — not prettified into `Kolu`. It is the
  * settings namespace, the namespace its members are composed under and the docs
@@ -103,10 +79,10 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  *
  * The bar is `sticky` with a z-index, which makes it a stacking context and a
  * 3rem-tall box, so the panel is portalled out of it and positioned against the
- * VIEWPORT (`@olai/web/client/anchor.ts`) — exactly as the preferences panel
- * beside it and the Commit panel two chips along are.
+ * VIEWPORT. Its stylesheet centers the square box independently of the
+ * trigger position; the host still owns dismissal and focus registration.
  *
- * Optional Links follow their declared service lifetime. Disclosure and group
+ * Optional Links follow their declared service lifetime. Section and approval
  * state belong to the inspector, so navigation withdrawal drops the links
  * without forgetting what this reader opened.
  */
@@ -122,8 +98,6 @@ import {
   pluginState,
 } from "@olai/surface"
 
-import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
-import { PANEL_BOX } from "@olai/web/client/readout.ts"
 import { run } from "@olai/web/client/run.ts"
 import { TESTID as PRIMITIVE } from "@olai/ui-primitives/testids.ts"
 
@@ -134,16 +108,15 @@ import { Control } from "./Control.tsx"
 
 import {
   type PluginPick,
-  pluginSummary,
   configurationLinkLabel,
   configurationAuthored,
   enableLabel,
+  environmentSource,
   groupCount,
   pluginConfig,
   pluginConfirm,
   pluginGroups,
   pluginRows,
-  pluginsStarted,
   pluginSwitch,
   rowCopy,
 } from "./rows.ts"
@@ -151,9 +124,6 @@ import {
 export function Panel(props: {
   readonly state: InspectorState
   readonly management: BrowserManagement
-  /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
-   *  a matter of CSS alone. */
-  readonly at: Anchor
   /** Register this surface with the click-away, since it is portalled and so is
    *  not a descendant of the control that opened it. */
   readonly inside: (el: HTMLElement | undefined) => void
@@ -186,7 +156,7 @@ export function Panel(props: {
       if (!active || props.state.requested() !== name) return
       const row = element?.querySelector<HTMLElement>(`[data-pref="${CSS.escape(pluginPref(name))}"]`)
       row?.scrollIntoView({ block: "nearest" })
-      row?.querySelector<HTMLElement>("input, select, details > summary")?.focus({ preventScroll: true })
+      row?.querySelector<HTMLElement>("input, select, button")?.focus({ preventScroll: true })
       props.state.revealed(name)
     })
   })
@@ -284,138 +254,74 @@ export function Panel(props: {
   }
 
   return (
-    <section
-      ref={el => { element = el; props.inside(el) }}
-      class={`${PANEL_BOX} gap-1`}
-      style={styleOf(props.at)}
-      // Focusable, and never in the tab order: opening puts the caret here so a
-      // keyboard is standing IN the panel rather than beside it
-      // (`../popover.ts` says why a portal needs that), and Tab from here is
-      // the first control. No ring on it, because it is a waypoint rather than
-      // a control.
-      tabindex="-1"
-      data-testid={TESTID.pluginsPanel}
-      aria-label="plugins"
-    >
-      <For each={groups().map(group => group.label)}>
-        {(label) => {
+    <section ref={el => { element = el; props.inside(el) }} class="plugins-grid-panel" tabindex="-1" data-testid={TESTID.pluginsPanel} aria-label="plugins">
+      <header class="plugins-grid-head">
+        <strong>⧉ plugins</strong>
+        <Show when={props.state.file()} fallback={<span class="text-xs text-muted">{plugins().configurationFile ?? CONFIGURATION_FILE}</span>}>
+          {File => { const Link = File(); return <span class="text-xs text-muted" onClick={() => props.state.door.setOpen(false)}><Link
+            file={plugins().configurationFile ?? CONFIGURATION_FILE} label={plugins().configurationFile ?? CONFIGURATION_FILE} title={`Open ${plugins().configurationFile ?? CONFIGURATION_FILE}`} testid={TESTID.pluginsFile}>
+            {plugins().configurationFile ?? CONFIGURATION_FILE} ↗
+          </Link></span> }}
+        </Show>
+      </header>
+      <div class="plugins-grid-body"><div class="plugins-grid-columns">
+        <For each={groups().map(group => group.label)}>{label => {
           const current = () => groups().find(group => group.label === label)!
           const group = { label, get rows() { return current().rows }, get needs() { return current().needs }, get collapsed() { return current().collapsed } }
-          return <section
-            class="border-b border-rule/55 py-2 last:border-b-0"
-            data-testid={TESTID.pluginGroup}
-            data-section={group.label}
-            data-needs={group.needs ? "true" : undefined}
-            data-collapsed={group.needs || groupOpen(group) ? undefined : "true"}
-          >
-            <Show
-              when={!group.needs}
-              fallback={
-                <>
-                  <div class="mb-1 flex items-baseline justify-between gap-3 text-[0.72rem]">
-                    <span class="font-bold tracking-wide text-alarm uppercase">{group.label}</span>
-                    <span class="text-muted">{group.rows.length}</span>
-                  </div>
-                  <For each={group.rows.map(plugin => plugin.name)}>
-                    {(name) => <PluginRow plugin={group.rows.find(plugin => plugin.name === name)!} panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}
-                  </For>
-                </>
-              }
-            >
-              <details
-                open={groupOpen(group)}
-                class="group/section"
-                onToggle={(event) => {
-                  // Native toggle events can arrive after this group leaves
-                  // the roster and its DOM owner has been disposed.
-                  if (!event.currentTarget.isConnected) return
-                  const next = event.currentTarget.open
-                  if (next === groupOpen(group)) return
-                  toggleGroup(group.label, next)
-                }}
-              >
-                <summary class="flex cursor-pointer list-none items-baseline justify-between gap-3 py-1 text-[0.8rem] text-muted [&::-webkit-details-marker]:hidden">
-                  <span class="flex items-center gap-1.5">
-                    <span class="inline-block w-2.5 group-open/section:hidden">▸</span>
-                    <span class="hidden w-2.5 group-open/section:inline-block">▾</span>
-                    <span class="text-[0.72rem] font-bold tracking-wide text-ink uppercase">{group.label}</span>
-                  </span>
-                  <span>{groupCount(group.rows)}</span>
-                </summary>
-                <For each={group.rows.map(plugin => plugin.name)}>
-                  {(name) => <PluginRow plugin={group.rows.find(plugin => plugin.name === name)!} panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}
-                </For>
-              </details>
-            </Show>
+          return <section class="plugins-grid-group" data-testid={TESTID.pluginGroup} data-section={group.label}
+            data-needs={group.needs ? "true" : undefined} data-collapsed={groupOpen(group) ? undefined : "true"}>
+            <details open={groupOpen(group)} class="group/section" onToggle={event => {
+              if (!event.currentTarget.isConnected) return
+              const next = event.currentTarget.open
+              if (next !== groupOpen(group)) toggleGroup(group.label, next)
+            }}>
+              <summary class="plugins-grid-heading">
+                <span class={`font-bold uppercase tracking-wide ${group.needs ? "text-alarm" : ""}`}><span class="group-open/section:hidden">▸ </span><span class="hidden group-open/section:inline">▾ </span>{group.label}</span>
+                <span class="text-muted" data-group-count>{groupCount(group.rows)}</span>
+              </summary>
+              <For each={group.rows.map(plugin => plugin.name)}>{name => <PluginRow plugin={group.rows.find(plugin => plugin.name === name)!}
+                panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}</For>
+            </details>
           </section>
-        }}
-      </For>
-
-      {/* A BUILD WITH NO PLUGINS SAYS SO, where on the preferences panel it
-          drew nothing at all and could: there, the rows had six neighbours and
-          an empty section was simply an absent one. A panel of its own that
-          opened onto nothing is a control that looks broken, so the degenerate
-          case gets the one sentence it needs — and it is the same sentence for
-          a page that has not heard from the server yet, because `NO_ROSTER` is
-          deliberately those two states in one value and neither has a row to
-          draw. */}
-      <Show when={rows().length === 0}>
-        <p class="text-xs text-ink/70">
-          This build has no plugins, or this page has not heard from the server yet.
-        </p>
-      </Show>
-
-      {/* WHAT THE SERVER WOULD NOT TAKE, beside the rows that asked. One place
-          rather than per row: a refusal is about the press just made, and the
-          press just made is the only one whose row is not still live. */}
-      <Show when={refused()}>
-        {(said) => (
-          <p class="wrap-anywhere text-xs text-alarm" data-testid={TESTID.pluginsRefused}>
-            {said()}
-          </p>
-        )}
-      </Show>
-
-      {/* HOW THIS SERVE WAS STARTED, AND HOW LONG A FLIP LASTS — once, for the
-          whole panel. This was a three-line block under every row; the header
-          argues why the panel that spent its whole life insisting it needed no
-          such line now has exactly one.
-
-          Drawn only where there are rows, because the empty-build sentence
-          above is a different fact and a serve with no plugins has nothing to
-          say about how it started them. */}
-      <Show when={plugins().configurationError}>
-        {(error) => <p class="text-xs text-alarm" data-testid={TESTID.pluginConfigError}>{error()}. Repair the file to restore its policy.</p>}
-      </Show>
-      <Show when={plugins().instance}>{instance => (
-        <details class="py-2 text-xs text-muted" data-testid={TESTID.thisServe}>
-          <summary class="cursor-pointer font-bold">This serve</summary>
-          <Controls name="olai" values={instance().policy} configure={props.management.configure} frozen={frozen()} />
-          <div class="flex flex-wrap gap-2 py-2">
-            <span>hostname {instance().hostname}{instance().hostnameAuthor === undefined ? "" : ` ·${instance().hostnameAuthor}`}</span>
-            <span>host {instance().host} ·{instance().hostAuthor}</span>
-            <span>port {instance().port} ·{instance().portAuthor}</span>
-            <span>origins {instance().origins.join(", ") || "(none)"} ·env</span>
-            <span>bearer {instance().bearer.set ? "set" : "unset"} ·process</span>
-          </div>
-          <Show when={instance().configurationNode && props.state.file()}>{File => { const Link = File() as NonNullable<ReturnType<InspectorState["file"]>>; return <div onClick={() => props.state.door.setOpen(false)}><Link file={instance().configurationNode!.file} at={instance().configurationNode!.id} label={configurationLinkLabel} title={configurationLinkLabel} testid={TESTID.pluginConfigLink}>{configurationLinkLabel} ↗</Link></div> }}</Show>
-        </details>
-      )}</Show>
-      <Show when={rows().length > 0}>
-        <p class="text-xs leading-relaxed text-muted" data-testid={TESTID.pluginsStarted}>
-          {pluginsStarted(plugins())}
-        </p>
-      </Show>
+        }}</For>
+        <Show when={plugins().instance}>{instance => <section class="plugins-grid-group">
+          <details data-testid={TESTID.thisServe} open={props.state.opened()["This serve"] ?? true} onToggle={event => {
+            if (event.currentTarget.isConnected) props.state.setGroupOpen("This serve", event.currentTarget.open)
+          }}>
+            <summary class="plugins-grid-heading"><strong class="uppercase tracking-wide">This serve</strong><span class="text-muted">{instance().host}:{instance().port}</span></summary>
+            <div class="plugins-grid-row">
+              <span class="plugins-grid-name"><span>log</span><NodeLink node={instance().configurationNode} state={props.state} /></span>
+              <div class="plugins-grid-knobs col-span-2"><Controls labels={false} name="olai" values={instance().policy} configure={props.management.configure} frozen={frozen()} /></div>
+              <div class="plugins-grid-extra flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted">
+                <span>hostname {instance().hostname}{instance().hostnameAuthor === undefined ? "" : ` ·${instance().hostnameAuthor}`}</span>
+                <span>host {instance().host} ·{instance().hostAuthor}</span><span>port {instance().port} ·{instance().portAuthor}</span>
+                <span>origins {instance().origins.join(", ") || "none"}</span><span>bearer {instance().bearer.set ? "set" : "unset"}</span>
+              </div>
+            </div>
+          </details>
+        </section>}</Show>
+      </div>
+      <Show when={refused()}>{said => <p class="text-xs text-alarm" data-testid={TESTID.pluginsRefused}>{said()}</p>}</Show>
+      <Show when={plugins().configurationError}>{error => <p class="text-xs text-alarm" data-testid={TESTID.pluginConfigError}>{error()}</p>}</Show>
+      </div>
+      <footer class="plugins-grid-foot" data-testid={TESTID.pluginsStarted}>
+        <span class="flex flex-wrap items-center gap-3"><span><span class="text-done">●</span> {configurationAuthored}</span><span><span class="mr-1 inline-block h-2.5 w-3.5 rounded-full border border-dashed border-muted" />session-only</span></span>
+        <span>memory · $XDG_STATE_HOME/olai</span>
+      </footer>
     </section>
   )
 }
 
+function NodeLink(props: { readonly node: { readonly file: string; readonly id: string } | undefined; readonly state: InspectorState }) {
+  return <Show when={props.node && props.state.file()}>{File => { const Link = File() as NonNullable<ReturnType<InspectorState["file"]>>; return <span onClick={() => props.state.door.setOpen(false)}><Link
+    file={props.node!.file} at={props.node!.id} label={configurationLinkLabel} title={configurationLinkLabel} testid={TESTID.pluginConfigLink}>↗</Link></span> }}</Show>
+}
+
 function Environment(props: { readonly values: ReadonlyArray<EnvironmentReading> }) {
   return <For each={props.values}>{one => (
-    <span class="block py-1 text-xs text-muted"
-      data-testid={TESTID.pluginConfig} data-config={one.key} data-value={one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")} data-set-by={one.kind === "resource" && one.source === "wrapper" ? "default" : "env"} title={one.says}>
-      {one.key} {one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")}
-      {one.kind === "resource" && one.source === "wrapper" ? " ·wrapper" : " ·env"}
+    <span class="plugins-grid-env"
+      data-testid={TESTID.pluginConfig} data-config={one.key} data-value={one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")} data-set-by={environmentSource(one) === "wrapper" ? "default" : "env"} title={`${one.says ?? one.key} · ${one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")}`}>
+      {one.key.toLowerCase().split("_").at(-1)} {environmentSource(one)} · {one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")}
     </span>
   )}</For>
 }
@@ -436,63 +342,21 @@ function PluginRow(props: {
 }) {
   const plugin = (): BuiltPlugin => props.plugin
   const values = (): ReadonlyArray<PolicyValue> => plugin().configurationValues ?? pluginConfig(plugin()).map(([key, value]) => ({ key, value, setBy: "default", says: "" }))
-  const summary = () => pluginSummary(values())
-  const disclosed = () => props.panel.state.disclosed()[plugin().name] ?? false
   const look = () => props.panel.management.look(plugin().name)
   const strip = () => pluginSwitch(plugin(), props.flipping() === plugin().name || props.panel.management.changing())
   const copy = () => rowCopy(plugin(), props.plugins(), look(), props.panel.management.reports())
   const cost = () => pluginConfirm(plugin(), look())
   const state = () => pluginState(plugin())
-  const pip = (): "wait" | "fail" | "pending" | null => {
-    const word = state()
-    if (word === "waiting") return "wait"
-    if (word === "failed") return "fail"
-    if (word === "pending") return "pending"
-    return null
-  }
   return (
-    <div
-      data-testid={PRIMITIVE.prefsRow}
-      data-pref={pluginPref(plugin().name)}
-      class="relative"
-    >
-      <div class="flex min-h-[1.85rem] flex-wrap items-center justify-between gap-x-3 gap-y-1 py-0.5 pr-5" data-plugin-line>
-        <span class="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm text-ink">
-          <Show when={pip()}>
-            {(kind) => (
-              <span
-                class={`size-[0.42rem] shrink-0 rounded-full ${
-                  kind() === "fail" ? "bg-alarm" : kind() === "pending" ? "bg-accent" : "bg-doing"
-                }`}
-              />
-            )}
-          </Show>
-          <span class="shrink-0">{plugin().name}</span>
-          <span class="text-xs text-muted" data-testid={TESTID.pluginSummary} title={summary().title}>{summary().text}</span>
-        </span>
-        <Switch
-          label={enableLabel(plugin().name)}
-          on={strip().value === "on"}
-          frozen={strip().frozen}
-          onPick={(value) => props.set(plugin().name, value)}
-        />
+    <div data-testid={PRIMITIVE.prefsRow} data-pref={pluginPref(plugin().name)} class="plugins-grid-row" data-off={!plugin().running ? "true" : undefined} data-plugin-line>
+      <span class="plugins-grid-name"><span>{plugin().name}</span><NodeLink node={plugin().configurationNode} state={props.panel.state} /></span>
+      <div class="plugins-grid-knobs">
+        <Controls name={plugin().name} values={values()} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
+        <Environment values={plugin().environment ?? []} />
       </div>
-      <Show when={values().length > 0 || (plugin().environment?.length ?? 0) > 0 || plugin().configurationNode}>
-        <details class="pb-1 text-xs text-muted" data-testid={TESTID.pluginDefaults} open={disclosed()}>
-          <summary class="absolute right-0 top-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden" aria-label={`Edit configuration for ${plugin().name}`} onClick={event => {
-            event.preventDefault()
-            props.panel.state.disclose(plugin().name, !disclosed())
-          }}>{disclosed() ? "▾" : "▸"}</summary>
-          <Controls name={plugin().name} values={values()} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
-          <Environment values={plugin().environment ?? []} />
-          <Show when={plugin().desiredOn !== undefined}><p class="text-xs text-muted" data-config="on">Enabled: {plugin().desiredOn ? "Yes" : "No"} — {configurationAuthored}</p></Show>
-          <Show when={plugin().configurationNode && props.panel.state.file()}>
-            {(File) => { const Link = File() as NonNullable<ReturnType<InspectorState["file"]>>; return <div class="mt-2" onClick={() => props.panel.state.door.setOpen(false)}><Link
-              file={plugin().configurationNode!.file} at={plugin().configurationNode!.id}
-              label={configurationLinkLabel} title={configurationLinkLabel} testid={TESTID.pluginConfigLink}>{configurationLinkLabel} ↗</Link></div> }}
-          </Show>
-        </details>
-      </Show>
+      <Switch label={enableLabel(plugin().name)} on={strip().value === "on"} frozen={strip().frozen}
+        session={plugin().switchPersistence === "session" || props.plugins().configurationAvailable === false} onPick={value => props.set(plugin().name, value)} />
+      <div class="plugins-grid-extra">
       <Show when={copy()}>
         {(said) => (
           <p
@@ -553,6 +417,7 @@ function PluginRow(props: {
           <button type="button" onClick={() => props.panel.management.reload()}>Reload page</button>
         </Show>
       </Show>
+      </div>
     </div>
   )
 }
@@ -566,11 +431,12 @@ function Controls(props: {
   readonly name: string
   readonly values: ReadonlyArray<PolicyValue>
   readonly configure: BrowserManagement["configure"]
+  readonly labels?: boolean
   readonly frozen?: string
 }) {
   // Keys preserve drafts across unrelated publications; the reading stays live.
   return <For each={props.values.map(one => one.key)}>{key => <Control name={props.name}
-    value={props.values.find(one => one.key === key)!} configure={props.configure} frozen={props.frozen} />}</For>
+    label={props.labels} value={props.values.find(one => one.key === key)!} configure={props.configure} frozen={props.frozen} />}</For>
 }
 
 /**

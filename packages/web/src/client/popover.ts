@@ -172,8 +172,8 @@ export const createPopover = (options: {
     ...(trigger === undefined ? [] : [trigger]),
     ...(panel === undefined
       ? []
-      // Closed disclosures contain controls in the DOM, but not in the tab
-      // cycle. Include their summary so the keyboard can open them first.
+      // Closed sections contain controls in the DOM, but not in the tab
+      // cycle. Their headings and definition source disclosures remain reachable.
       : [...panel.querySelectorAll<HTMLElement>(TABBABLE)].filter(el => el.getClientRects().length > 0)),
   ]
 

@@ -11,8 +11,7 @@ silent. A press on the heading opens one, and that walk lives on inspector
 state — the same place the door's open bit lives — so a roster redraw or the
 rebuild a switch causes cannot slam it shut. Failed, pending and waiting rows sit in **Needs you** first. Plugins
 the vault defines are **Defined here** — they have no YAML section because they
-are not in the YAML; pending ones are Needs you until approved. Ordinary
-running rows show a name, effective-value summary, labelled enable switch and disclosure; carrying and a row's `switchHint` are a
+are not in the YAML; pending ones are Needs you until approved. Ordinary rows show a name, inline knobs and a labelled enable switch; carrying and a row's `switchHint` are a
 confirm on Off, not a caption on On.
 
 Its provider owns panel visibility and the source versions the reader has
@@ -35,45 +34,50 @@ control; the inspector remains usable. A returning provider supplies a fresh
 client for the next request. No host approval binding or hard dependency keeps
 the definition provider alive.
 
-The server derives each control and any invalid-file problem from the leaf’s
-`Config` schema. The panel receives metadata, not schemas. Its summary lists
-`Label: Value` in schema order, four fields then `+N`, with `— using defaults`
-only when every field defaults and `· N invalid` when needed. Choice and boolean
-values are capitalised; text and numbers stay verbatim. Authored fields are
-named in the summary’s hover.
+The desktop panel is a wide square with two columns of collapsible sections;
+phones use one column without a fixed aspect ratio. Section headings count on
+and off rows. The header links to `_olai/Settings.olai`; the foot explains the
+source dot and session ring and names private memory without opening it.
 
-The enable switch is labelled `Enable <row>`. Expanded controls show their
-schema descriptions and either `default` or `set in Settings.olai` with
-**Use default**. Four or fewer choices use segmented buttons, more use a
-select; booleans use switches and numbers/text use inputs. Enter or blur saves;
-Escape restores the current reading. Drafts belong to mounted controls and
-survive unrelated roster updates. The tab cycle reaches disclosures and skips
-hidden controls. A bad hand-written leaf shows its raw text and the schema’s
-message beneath the effective default.
+Every schema leaf is an inline control beside its row name. Short lowercase
+labels derive from leaf keys; the schema description is the knob's tooltip.
+Four or fewer choices use segmented buttons, longer choices a select; booleans
+use switches and text/numbers use compact inputs. Numeric bounds, units and
+format hints stay available. The enable switch is labelled `Enable <row>` and
+has no visible caption. Off rows dim their knobs but leave them editable; only
+failed and waiting rows add a reason.
+
+A file-authored value has a ● with the tooltip `set in Settings.olai` and a ↺
+reset beside it. Default values have no marker. Invalid file text appears in an
+alarmed input with the schema message and effective default beneath it; its
+reset can remove the malformed property. Enter or blur saves; Escape restores
+the accepted reading without closing the panel. Drafts survive unrelated roster
+updates. The tab cycle includes section headings and skips closed sections.
 
 `plugins.configure` is a browser procedure. It validates the leaf before an
 ordinary file write, creates a missing namespace or section child, and waits
 for the revision and follower. **Use default** deletes the property. An invalid
 value is refused before the file changes. No reader or a broken file freezes controls with
-the server’s refusal sentence; a knob never falls back to session state.
+the server’s refusal in their tooltips; a knob never falls back to session state.
 
 Environment readings are read-only, including wrapper provenance and secret
-set/unset. **Open settings node ↗** is last when the node exists. An optional
+set/unset. A ↗ beside the row name appears on hover or focus when the node exists. An optional
 Links integration supplies that link and withdraws it when navigation stops.
 Inspector state survives the renderer’s replacement. **This serve** uses the
 same controls for the process’s `olai` node, followed by read-only facts. The
-foot names the policy file and private LocalState memory without opening memory.
+foot names private memory without opening it.
 
 The inspector offers a scoped `configuration` service with an `open(name)`
-verb. It opens the row’s group and disclosure and moves focus into the controls.
+verb. It opens the row’s section and moves focus into the controls.
 Kolu consumes this through an optional component for its watch wrench; losing
 that provider removes the wrench without stopping the feed. No live inspector
 state crosses the package boundary through an import.
 
 A switch writes `on` through the directory’s ordinary write door and waits for
 reconciliation. The vault provider and configuration reader stay session-only,
-said on their rows, so either can be restored from the panel. When the reader
-is absent, that shared limitation is said once at the foot. Broken configuration
+marked by a dashed ring with the `session-only` tooltip, so either can be
+restored from the panel. When the reader is absent, session switches have that
+same ring. Broken configuration
 is named and must be repaired before another durable press can write.
 
 The follower ignores file `on` values on the vault and configuration reader

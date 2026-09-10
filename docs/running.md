@@ -173,7 +173,7 @@ Logging policy is on the top-level `olai` node of `_olai/Settings.olai`:
 
 `log-level` accepts `debug`, `info`, `warn`, or `error`, defaulting to `info`. Debug includes the agent's stderr feed; failed turns already report stderr at warn. `log-format` accepts `auto`, `logfmt`, or `pretty`; auto selects pretty on a TTY and logfmt elsewhere. Both follow revisions live, including existing callback emitters. Before the vault is available, the process uses defaults.
 
-Expand **This serve** on `⧉` to edit Log level and Log format with the same controls as plugin settings. Both write the `olai` node and apply live without a restart. Hostname, host, bound port, allowed origins and bearer set/unset remain read-only, with their actual authors. The bearer value is never published there.
+Use **This serve** on `⧉` to edit Log level and Log format with the same controls as plugin settings. Both write the `olai` node and apply live without a restart. Hostname, host, bound port, allowed origins and bearer set/unset remain read-only, with their actual authors. The bearer value is never published there.
 
 A SIGINT writes `olai web: received SIGINT` to stderr before the process unwinds. Effect still treats the interrupt as a successful stop and exits 130 — the shipped user unit counts 130 as success so `systemctl stop` is not a failed unit. That one line is what lets a journal tell a signaled death from a deliberate stop.
 
@@ -237,7 +237,7 @@ Whether writes record themselves and commits push is policy of the directory, sh
 
 `commit` is `off`, `manual` (default), or `auto`; `push` is `off` (default) or `auto`. They are independent. Auto-commit records everything waiting after fifteen quiet seconds, including writes made without a browser. Auto-push follows every commit olai makes, whether from the button, an agent, or the quiet window. See [git.md](git.md#modes).
 
-Each plugin's `Config` schema declares its defaults, descriptions and controls. Expand the git row on the plugins panel to choose Commit and Push. Each control says `set in Settings.olai` or `default`; an explicit value equal to the default is still authored. **Use default** removes that property from the file. `GitState.policy` reports the decoded policy in force. Stale files under `$XDG_STATE_HOME/olai/git/` are inert.
+Each plugin's `Config` schema declares its defaults, descriptions and controls. The git row on the plugins panel draws commit and push controls inline. A ● marks values set in the file; an explicit value equal to the default is still authored. **Use default** removes that property from the file. `GitState.policy` reports the decoded policy in force. Stale files under `$XDG_STATE_HOME/olai/git/` are inert.
 
 Turning the git row off removes the ledger, pill and tools. Setting `commit: off` keeps a mounted ledger that has been told not to record.
 
@@ -284,21 +284,21 @@ Use one top-level node per row in `_olai/Settings.olai`. For example:
 | browser | how this tab reads | `⚙`, localStorage |
 | memory (not a settings door) | private plugin records, named but never opened by the panel | `$XDG_STATE_HOME/olai/<plugin>/<hash>.json` |
 
-Memory is a separate machine-local record, named below the panel and never opened there.
+Memory is a separate machine-local record. The panel foot names `memory · $XDG_STATE_HOME/olai` beside the source-dot and session-ring legend, and never opens memory.
 
 ### Settings declarations
 
 Each plugin's `Config` schema is the sole declaration of keys, defaults, validation and descriptions. `olai.yml` carries `id`, `name`, `section`, and optional `disabled`, `profiles`, `quiet` and `switchHint`; it carries no config block. The settings row reads the vault's revision, publishes a service, and owns no loader verbs. The composition root applies patches and waits for reconciliation. A changed config normally re-applies its row. A plugin may declare that it follows values live; Kolu does this for its `watch` child on the same revision, preserving its activation. It never reads `Kolu.olai`.
 
-The reader selects `Settings.olai` by case-folded basename, shallowest path first, then path order. Missing file, node or leaf uses defaults. An invalid leaf defaults, warns once, and appears beneath its control with the file’s text and the schema’s message; a broken line defaults all rows and names the broken file on the panel. Repair restores the reading. Boot enables the vault and reader profile first, then folds the first policy reading into the remaining row patches before enabling them. A row the file disables never applies. There is no second disk reader before the vault lock.
+The reader selects `Settings.olai` by case-folded basename, shallowest path first, then path order. Missing file, node or leaf uses defaults. An invalid leaf defaults and warns once; the input shows the refused file text in alarm, with the schema message and effective default beneath it; a broken line defaults all rows and names the broken file on the panel. Repair restores the reading. Boot enables the vault and reader profile first, then folds the first policy reading into the remaining row patches before enabling them. A row the file disables never applies. There is no second disk reader before the vault lock.
 
-Each row has a compact effective summary, such as `Commit: Manual · Push: Off — using defaults`, and a switch labelled `Enable git`. The summary follows schema order, shows at most four fields then `+N`, and counts invalid file values. Its hover names authored fields. Expand the disclosure to edit each leaf with its schema description and provenance: up to four choices use buttons, longer choices use a select, booleans use switches, and numbers and text use inputs. Numeric bounds and text-format hints come from the schema. Enter or blur saves an input; Escape reverts its draft. **Use default** removes the property, rather than writing a copy of the default.
+The plugins panel is a wide square with two columns of collapsible sections, each heading counting on and off rows. Phones use one column. Every row draws its name, inline knobs and a switch labelled `Enable <row>` without a caption. There is no summary or per-row disclosure. Short lowercase labels come from the leaf keys, and schema descriptions are tooltips. Up to four choices use segmented buttons, longer choices a select, booleans a switch, and numbers/text compact inputs. A ● marks file-authored values; its tooltip says `set in Settings.olai`, and ↺ removes the property. Defaults have no marker. Off rows dim their knobs but leave them editable. Enter or blur saves; Escape reverts a draft without closing the panel.
 
 The browser’s `plugins.configure({ name, key, value })` validates the value with the leaf’s schema before writing through the ordinary ops door. A dotted key targets its section child; a missing row or section is created with the write. `null` removes the leaf. The control waits for the resulting revision and reconciliation. Validation refusals appear at the control and leave the file unchanged. If the reader withdraws after an accepted write, the settlement refusal says that the file retains it. Two tabs use the last accepted edit; other revisions do not discard a draft being typed. These changes are ordinary ledger-visible edits and follow the directory’s commit policy.
 
-Knob edits have no session fallback. An absent reader freezes controls with “Settings can be edited when the configuration reader is running”; a broken file freezes them with “Repair _olai/Settings.olai before changing settings” (using the selected file’s path). Reader-owner switches remain session-only for recovery, but their knobs use the same durable controls.
+Knob edits have no session fallback. An absent reader freezes controls with the tooltip “Settings can be edited when the configuration reader is running”; a broken file freezes them with the tooltip “Repair _olai/Settings.olai before changing settings” (using the selected file’s path). Reader-owner switches show a dashed session-only ring for recovery, but their knobs use the same durable controls.
 
-Environment readings follow the controls and stay read-only. Wrapper-provided executable paths are `·wrapper`; explicit resource inputs are `·env`, including explicit nix-store paths. Secrets show only set/unset. **Open settings node ↗** is the last line when the node exists, opening it in the outliner for direct editing. The first panel edit creates a missing node.
+Environment readings follow the controls and stay read-only. Wrapper-provided executable paths are `·wrapper`; explicit resource inputs are `·env`, including explicit nix-store paths. Secrets show only set/unset. A ↗ beside the row name appears on hover or focus when the node exists, opening it in the outliner for direct editing. The panel header opens the whole settings file. The first panel edit creates a missing node.
 
 ### Environment doors
 
@@ -509,7 +509,7 @@ The vault row’s `Config` schema declares `format` with default `olai`. The bun
   name: olai-plugin-vault/server
 ```
 
-The plugins panel derives its Format control and `Format: Olai` summary from that schema. The row’s `Config` schema validates the choice before acquiring the directory; unsupported values fail that row. Only `olai` is supported now. This makes the codec selection the place for a future Org implementation, without adding Org or migrating any files today. A different storage backend would instead be another provider behind `Directory`. The write gate is created and released with the vault row; without that row, there is no gate.
+The plugins panel derives its inline format control from that schema. The row’s `Config` schema validates the choice before acquiring the directory; unsupported values fail that row. Only `olai` is supported now. This makes the codec selection the place for a future Org implementation, without adding Org or migrating any files today. A different storage backend would instead be another provider behind `Directory`. The write gate is created and released with the vault row; without that row, there is no gate.
 
 ### Browser shell selection
 

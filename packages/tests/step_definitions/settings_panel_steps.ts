@@ -11,7 +11,7 @@ const owner = (world: OlaiWorld, name: string) => world.pluginsPanel().locator(
   name === "olai" ? '[data-testid="this-serve"]' : attr("data-pref", `plugin-${name}`),
 )
 const control = (world: OlaiWorld, name: string, key: string) => owner(world, name)
-  .locator(`${selector(TESTID.pluginControl)}${attr("data-config", key)}`)
+  .locator(`${selector(TESTID.pluginKnob)}${attr("data-config", key)}`)
 const held = new WeakMap<OlaiWorld, { file: string; contents: string; pid: number | undefined }>()
 
 When("I remember the settings file {string}", function(this: OlaiWorld, file: string) {
@@ -28,20 +28,13 @@ Then("the same serve process is running", function(this: OlaiWorld) {
   assert.equal(this.ownServer?.pid, before.pid)
   assert.equal(this.ownServer?.exitCode, null)
 })
-Then("the plugin {string} has summary {string}", async function(this: OlaiWorld, name: string, text: string) {
-  await this.waitUntil(async () => await owner(this, name).locator(selector(TESTID.pluginSummary)).innerText() === text, "the effective configuration summary")
-})
 Then("the plugin {string} line has only its labelled enable switch", async function(this: OlaiWorld, name: string) {
-  const line = owner(this, name).locator("[data-plugin-line]")
-  assert.equal(await line.locator("button, input, select, a, summary").count(), 1)
+  const line = owner(this, name)
   assert.equal(await line.getByRole("switch", { name: `Enable ${name}`, exact: true }).count(), 1)
-  assert.ok(!(await line.innerText()).includes("·default"))
+  assert.equal(await line.locator('[data-testid="plugin-summary"], [data-testid="plugin-defaults"]').count(), 0)
 })
 When("I focus the enable switch for {string}", async function(this: OlaiWorld, name: string) {
   await (await this.showPluginRow(name)).getByRole("switch", { name: `Enable ${name}`, exact: true }).focus()
-})
-Then("the {string} configuration disclosure has focus", async function(this: OlaiWorld, name: string) {
-  assert.equal(await owner(this, name).locator("details > summary").evaluate(el => el === document.activeElement), true)
 })
 Then("the {string} setting {string} has focus", async function(this: OlaiWorld, name: string, key: string) {
   assert.equal(await control(this, name, key).locator("input").evaluate(el => el === document.activeElement), true)
@@ -60,7 +53,7 @@ When("I leave {string} setting {string}", async function(this: OlaiWorld, name: 
   await control(this, name, key).locator("input").blur()
 })
 When("I use the default for {string} setting {string}", async function(this: OlaiWorld, name: string, key: string) {
-  await control(this, name, key).locator(selector(TESTID.pluginUseDefault)).click()
+  await control(this, name, key).locator(selector(TESTID.pluginReset)).click()
 })
 When("I toggle {string} setting {string}", async function(this: OlaiWorld, name: string, key: string) {
   await control(this, name, key).getByRole("switch").click()
@@ -76,7 +69,7 @@ Then("the {string} setting {string} has no problem", async function(this: OlaiWo
 })
 Then("the {string} setting {string} is frozen because {string}", async function(this: OlaiWorld, name: string, key: string, text: string) {
   const line = control(this, name, key)
-  await this.waitUntil(async () => (await line.innerText()).includes(text), "the frozen control's reason")
+  await this.waitUntil(async () => await line.locator("[title]").evaluateAll((elements, text) => elements.some(el => el.getAttribute("title") === text), text), "the frozen control's reason")
   const inputs = line.locator("input, select, button")
   assert.ok(await inputs.count() > 0)
   for (const input of await inputs.all()) assert.equal(await input.isDisabled(), true)
@@ -129,4 +122,63 @@ Given("the next browser configuration request names reserved key {string}", asyn
 
 Then("the plugins panel remains open", async function(this: OlaiWorld) {
   assert.equal(await this.pluginsPanel().isVisible(), true)
+})
+
+Then("the plugin {string} is off without prose", async function(this: OlaiWorld, name: string) {
+  const row = await this.showPluginRow(name)
+  await this.waitUntil(async () => await row.getByRole("switch", { name: `Enable ${name}`, exact: true }).getAttribute("aria-checked") === "false", "the off switch")
+  assert.equal(await row.locator('[data-testid="prefs-hint"]').count(), 0)
+  assert.equal(await row.getAttribute("data-off"), "true")
+})
+Then("the plugin {string} has a session-only switch ring", async function(this: OlaiWorld, name: string) {
+  const row = await this.showPluginRow(name)
+  const toggle = row.getByRole("switch", { name: `Enable ${name}`, exact: true })
+  await this.waitUntil(async () => await toggle.getAttribute("title") === "session-only", "the session switch")
+  assert.equal(await toggle.evaluate(el => getComputedStyle(el, "::before").borderTopStyle), "dashed")
+  assert.ok(!(await row.innerText()).includes("session-only"))
+})
+Then("the first choice of {string} setting {string} has focus", async function(this: OlaiWorld, name: string, key: string) {
+  assert.equal(await control(this, name, key).locator('[aria-pressed]').first().evaluate(el => el === document.activeElement), true)
+})
+Then("the plugins panel is square and has no horizontal overflow", async function(this: OlaiWorld) {
+  const panel = this.pluginsPanel()
+  const box = await panel.boundingBox()
+  assert.ok(box)
+  assert.ok(Math.abs(box.width / box.height - 1) <= .1, `panel is ${box.width} × ${box.height}`)
+  assert.equal(await panel.evaluate(el => el.scrollWidth <= el.clientWidth), true)
+  assert.equal(await panel.locator('.plugins-grid-body').evaluate(el => el.scrollWidth <= el.clientWidth), true)
+  assert.equal(await panel.locator('.plugins-grid-columns').evaluate(el => getComputedStyle(el).columnCount), "2")
+})
+Then("the {string} setting {string} shows refused file text {string} inline with default {string}", async function(this: OlaiWorld, name: string, key: string, raw: string, fallback: string) {
+  const line = control(this, name, key)
+  await this.waitUntil(async () => await line.locator('input').inputValue() === raw, "the refused file spelling")
+  assert.equal(await line.locator('input').getAttribute('aria-invalid'), "true")
+  assert.ok((await line.locator(selector(TESTID.pluginProblem)).innerText()).includes(`· using ${fallback}`))
+  assert.equal(await line.locator(selector(TESTID.pluginSource)).count(), 0)
+  assert.equal(await line.locator(selector(TESTID.pluginReset)).isVisible(), true)
+})
+When("I open the settings file from the panel header", async function(this: OlaiWorld) {
+  await this.pluginsPanel().locator(selector(TESTID.pluginsFile)).click()
+})
+Then("the plugins panel section counts match their switches", async function(this: OlaiWorld) {
+  for (const group of await this.pluginsPanel().locator(selector(TESTID.pluginGroup)).all()) {
+    const switches = group.locator('[data-plugin-line] > [role="switch"]')
+    const enabled = await switches.evaluateAll(elements => elements.filter(el => el.getAttribute('aria-checked') === 'true').length)
+    const off = await switches.count() - enabled
+    const expected = off === 0 ? `${enabled} on` : enabled === 0 ? `${off} off` : `${enabled} on · ${off} off`
+    assert.equal(await group.locator('[data-group-count]').innerText(), expected)
+  }
+})
+
+Then("the address names the settings file", async function(this: OlaiWorld) {
+  await this.waitUntil(async () => decodeURIComponent(this.page.url()).includes("_olai/Settings.olai"), "the settings file address")
+})
+Then("the plugins panel has one column and fits the phone", async function(this: OlaiWorld) {
+  const panel = this.pluginsPanel()
+  const box = await panel.boundingBox()
+  assert.ok(box)
+  assert.ok(box.x >= 0 && box.x + box.width <= this.viewport().width)
+  assert.equal(await panel.locator('.plugins-grid-columns').evaluate(el => getComputedStyle(el).columnCount), "1")
+  assert.equal(await panel.locator('.plugins-grid-body').evaluate(el => el.scrollWidth <= el.clientWidth), true)
+  assert.equal(await panel.evaluate(el => getComputedStyle(el).aspectRatio), "auto")
 })

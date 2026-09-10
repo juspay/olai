@@ -6,8 +6,7 @@ Feature: File policy chooses the rows that run
   Scenario: File policy turns an opt-in row on
     Given I open the outline "lanes.olai"
     When I open the plugins panel
-    When I expand settings for the plugin "xyne-spaces"
-    Then the plugin "xyne-spaces" has authored enablement "yes"
+    Then file "_olai/Settings.olai" has namespace "xyne-spaces" setting "on" as "yes"
     And the plugin "xyne-spaces" is running
     And the plugins panel says nothing more about "journal"
 
@@ -15,22 +14,21 @@ Feature: File policy chooses the rows that run
   Scenario: File policy turns a default row off
     Given I open the outline "lanes.olai"
     When I open the plugins panel
-    Then the plugins panel says "journal" is "Settings.olai says on: no"
+    Then the plugin "journal" is off without prose
 
   @scratch:lanes @rows-on:xyne-spaces @rows-off:journal
   Scenario: Independent row choices compose
     Given I open the outline "lanes.olai"
     When I open the plugins panel
-    When I expand settings for the plugin "xyne-spaces"
-    Then the plugin "xyne-spaces" has authored enablement "yes"
+    Then file "_olai/Settings.olai" has namespace "xyne-spaces" setting "on" as "yes"
     And the plugin "xyne-spaces" is running
-    And the plugins panel says "journal" is "Settings.olai says on: no"
+    And the plugin "journal" is off without prose
 
   @scratch:good @rows-off:mcp
   Scenario: File policy removes a transport while preserving browser control
     When I open the app
     And I open the plugins panel
-    Then the plugins panel says "mcp" is "Settings.olai says on: no"
+    Then the plugin "mcp" is off without prose
     And the MCP transport answers with status 404
     And the browser build answers with status 200
     When I switch the plugin "mcp" on

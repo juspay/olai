@@ -32,6 +32,7 @@ Feature: The matcher is a plugin
     # level with the next reading it is handed — which is why the same query
     # finds the same node again and nothing had to be invalidated.
     When I switch the plugin "search" on
+    And I close the plugins panel
     And I search the header for "cabinets"
     Then the header search lists the node "order the new cabinets"
     And there should be no page errors

@@ -109,7 +109,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     And the plugins panel says "kolu" is "no plugin in this build offers them"
     # THE CHAT ROW ITSELF is a different absence and gets a different sentence:
     # nobody asked for it, so there is nothing to fix and nothing amber.
-    And the plugins panel says "chat" is "Off"
+    And the plugin "chat" is off without prose
 
 
   @scratch:lanes

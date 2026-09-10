@@ -21,7 +21,7 @@ Feature: Browser plugins depend on plugin-owned services
     When I switch the plugin "palette" on
     Then the row "amber" wears a swatch for "#ff8800"
     When the browser palette provider is replaced
-    Then the plugins panel says "palette" is "read the source below and approve it"
+    Then the plugin "palette" is off without prose
     And no row wears a swatch
     When I read the plugin "palette" again
     And I approve the plugin "palette"

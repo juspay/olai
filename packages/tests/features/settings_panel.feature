@@ -1,19 +1,17 @@
 @scratch:good
 Feature: Edit plugin settings on the panel
-  The controls write the vault file. The summary reads the effective policy.
+  The controls write the vault file and remain visible beside their row names.
 
-  Scenario: The keyboard opens a disclosure before entering its controls
+  Scenario: The square panel exposes controls and the keyboard reaches the next row's knob
     Given I open the app
     When I open the plugins panel
-    And I focus the enable switch for "kolu"
+    Then the plugins panel is square and has no horizontal overflow
+    And the plugin "vault" has inline controls
+    And the plugin "git" has inline controls
+    And the plugin "kolu" has inline controls
+    When I focus the enable switch for "settings"
     And I press "Tab"
-    Then the "kolu" configuration disclosure has focus
-    When I press "Enter"
-    And I press "Tab"
-    Then the "kolu" setting "watch.held-for" has focus
-    When I type "90s" into "kolu" setting "watch.held-for"
-    And I press "Enter" in "kolu" setting "watch.held-for"
-    Then file "_olai/Settings.olai" has namespace "kolu" setting "watch.held-for" as "90s"
+    Then the first choice of "git" setting "commit" has focus
     And there should be no page errors
 
   Scenario: Escape discards an uncommitted draft without dismissing the panel
@@ -24,7 +22,6 @@ Feature: Edit plugin settings on the panel
       {"id":"escape-watch","ord":"a0","parent":"escape-kolu","title":"watch","custom":{"held-for":"2m"}}
       """
     And I open the plugins panel
-    And I expand settings for the plugin "kolu"
     Then the plugins panel shows "kolu" configured "watch.held-for" as "2m"
     When I remember the settings file "_olai/Settings.olai"
     And I type "90s" into "kolu" setting "watch.held-for"
@@ -44,11 +41,9 @@ Feature: Edit plugin settings on the panel
       {"id":"git-panel","ord":"a0","title":"git","custom":{"on":"no"}}
       """
     And I open the plugins panel
-    Then the plugins panel says "git" is "_olai/Settings.olai says on: no"
+    Then the plugin "git" is off without prose
     When I switch the plugin "git" on
-    Then the plugin "git" has summary "Commit: Manual · Push: Off — using defaults"
-    And the plugin "git" line has only its labelled enable switch
-    When I expand settings for the plugin "git"
+    Then the plugin "git" line has only its labelled enable switch
     And I pick "auto" for "git" setting "commit"
     Then the plugins panel shows "git" configured "commit" as "auto"
     And the plugin "git" marks "commit" as authored by "vault"
@@ -61,14 +56,12 @@ Feature: Edit plugin settings on the panel
     And the server starts again on the same port
     And I open the app
     And I open the plugins panel
-    And I expand settings for the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "auto"
     And there should be no page errors
 
   Scenario: A section edit creates its nodes, rejects a bare number, and Use default removes the key
     Given I open the app
     When I open the plugins panel
-    And I expand settings for the plugin "kolu"
     Then the "kolu" setting "watch.held-for" suggests "a non-negative duration with a unit"
     When I type "90s" into "kolu" setting "watch.held-for"
     And I press "Enter" in "kolu" setting "watch.held-for"
@@ -92,7 +85,6 @@ Feature: Edit plugin settings on the panel
   Scenario: An unrelated revision preserves a draft and two tabs settle on the last accepted edit
     Given I open the app
     When I open the plugins panel
-    And I expand settings for the plugin "kolu"
     And I type "90s" into "kolu" setting "watch.held-for"
     And I rewrite "_olai/Settings.olai" as:
       """
@@ -105,7 +97,6 @@ Feature: Edit plugin settings on the panel
     Then file "_olai/Settings.olai" has namespace "kolu" setting "watch.held-for" as "90s"
     When I open another browser tab
     And I open the plugins panel
-    And I expand settings for the plugin "kolu"
     And I type "2m" into "kolu" setting "watch.held-for"
     And I press "Enter" in "kolu" setting "watch.held-for"
     Then file "_olai/Settings.olai" has namespace "kolu" setting "watch.held-for" as "2m"
@@ -120,22 +111,35 @@ Feature: Edit plugin settings on the panel
     Then the plugins panel shows "kolu" configured "watch.held-for" as "3m"
     And there should be no page errors
 
-  Scenario: A refused hand-written leaf shows the file text, schema message and effective default
+  Scenario: A refused file value is alarmed inline while its default remains in force
     Given I open the app
     When I rewrite "_olai/Settings.olai" as:
       """
-      {"id":"kolu-panel","ord":"a0","title":"kolu"}
-      {"id":"watch-panel","ord":"a0","parent":"kolu-panel","title":"watch","custom":{"held-for":"60"}}
+      {"id":"kolu-panel","ord":"a0","title":"kolu","custom":{"on":"no"}}
+      {"id":"watch-panel","ord":"a0","parent":"kolu-panel","title":"watch","custom":{"nag":"10"}}
       """
     And I open the plugins panel
-    And I expand settings for the plugin "kolu"
-    Then the "kolu" setting "watch.held-for" problem says "File says \"60\""
-    And the "kolu" setting "watch.held-for" problem says "spell a number and a unit"
-    And the "kolu" setting "watch.held-for" problem says "using 1m"
-    And the plugin "kolu" has summary "Watch held for: 1m · Watch nag: 10m · Watch heartbeat: 30m — using defaults · 1 invalid"
-    When I use the default for "kolu" setting "watch.held-for"
-    Then the "kolu" setting "watch.held-for" has no problem
-    And file "_olai/Settings.olai" has namespace "kolu" setting "watch.held-for" as "<absent>"
+    Then the plugin "kolu" is off without prose
+    And the "kolu" setting "watch.nag" shows refused file text "10" inline with default "10m"
+    And the "kolu" setting "watch.nag" problem says "spell a number and a unit"
+    When I use the default for "kolu" setting "watch.nag"
+    Then the "kolu" setting "watch.nag" has no problem
+    And file "_olai/Settings.olai" has namespace "kolu" setting "watch.nag" as "<absent>"
+    And there should be no page errors
+
+  Scenario: Refused choices and numbers retain the actual file spelling in the input
+    Given I open the app
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"bad-choice","ord":"a0","title":"git","custom":{"commit":"sometimes"}}
+      {"id":"bad-number","ord":"a1","title":"chat","custom":{"idle-ms":"whenever"}}
+      """
+    And I open the plugins panel
+    Then the "git" setting "commit" shows refused file text "sometimes" inline with default "manual"
+    And the "chat" setting "idle-ms" shows refused file text "whenever" inline with default "900000"
+    When I use the default for "git" setting "commit"
+    Then the "git" setting "commit" has no problem
+    And the plugin "git" has inline controls
     And there should be no page errors
 
   @rows-off:settings
@@ -143,10 +147,8 @@ Feature: Edit plugin settings on the panel
     Given I open the app
     When I open the plugins panel
     And I switch the plugin "settings" off
-    And I expand settings for the plugin "kolu"
     Then the "kolu" setting "watch.held-for" is frozen because "Settings can be edited when the configuration reader is running"
     When I switch the plugin "settings" on
-    And I expand settings for the plugin "kolu"
     And I type "90s" into "kolu" setting "watch.held-for"
     And I press "Enter" in "kolu" setting "watch.held-for"
     Then file "_olai/Settings.olai" has namespace "kolu" setting "watch.held-for" as "90s"
@@ -160,7 +162,6 @@ Feature: Edit plugin settings on the panel
       """
     And I remember the settings file "_olai/Settings.olai"
     And I open the plugins panel
-    And I expand settings for the plugin "kolu"
     Then the "kolu" setting "watch.held-for" is frozen because "Repair _olai/Settings.olai before changing settings"
     And the remembered settings file is unchanged
     When I rewrite "_olai/Settings.olai" as:
@@ -170,4 +171,13 @@ Feature: Edit plugin settings on the panel
     And I type "90s" into "kolu" setting "watch.held-for"
     And I press "Enter" in "kolu" setting "watch.held-for"
     Then file "_olai/Settings.olai" has namespace "kolu" setting "watch.held-for" as "90s"
+    And there should be no page errors
+
+  @phone
+  Scenario: The phone panel uses one column without horizontal overflow
+    Given I open the app
+    When I tap the burger
+    And I open the plugins panel
+    Then the plugins panel has one column and fits the phone
+    And the plugin "git" has inline controls
     And there should be no page errors

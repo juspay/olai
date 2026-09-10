@@ -1,81 +1,11 @@
 import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
-/**
- * WHICH PLUGINS THIS SERVE RUNS, read as the plugins panel reads it.
- *
- * Policy and enablement live in the directory's configuration file.
- * The panel writes through `plugins.set`, names that file and private memory
- * once, and puts a session-only exception on the row that needs it.
- *
- * ## A ROW WITH NOTHING TO SAY SAYS NOTHING, and that took a screenshot
- *
- * Both readings here used to answer a string, always. On a serve started with
- * a policy selecting only claude, codex, chat, kolu, odu that drew, under every one of eight
- * rows, the same two blocks: *Running — its chips, panels and delivered
- * messages all work*, and the startup selection, quoted in full, wrapped over three lines,
- * eight times. Roughly nine tenths of the panel was one paragraph repeated. The
- * human, 2026-09-04, with the picture: *portrait spammy*.
- *
- * The old header called that arrangement a feature — no panel-wide line was
- * needed *because every row already says so on its own line* — which is the
- * repetition noticed and then argued for. It is not a per-row fact if it is
- * byte-identical on every row; it is a panel fact drawn N times. So:
- *
- *   - What is the SAME for every row is said ONCE, at the foot
- *     ({@link pluginsStarted}): where policy lives and how this serve was started.
- *   - What DIFFERS is per row, and only then. Both readings answer `null` for a
- *     row with nothing to add, and the ordinary running row is exactly that —
- *     the switch already reads On, and a sentence under it saying so is the
- *     control announcing itself.
- *
- * WHAT SURVIVES PER ROW is the list the old argument was actually built for:
- * a `failed` row (the plugin's own words), a `waiting` row (which door, and so
- * which plugin would offer it), an absent row (which file choice disables it — and that names THIS row, so it is not the same line twice), and a
- * `running` row that carries others (what stops with it). Every one of those is
- * different on the row beside it.
- *
- * **THE ROWS ARE A WALK, and this module spells no plugin's name.** What
- * arrives on the `plugins` cell is a row per plugin the BUILD has, each saying
- * whether this serve runs it — so a third plugin reaches this panel without a
- * line here or in `./Panel.tsx` moving, and nothing in `@olai/web` can be the
- * place a plugin's name is hardcoded. The fence one package over holds that as
- * an equality per package (`@olai/bundle`'s `fence.test.ts`); this module is
- * written so there is nothing for it to catch.
- *
- * **PURE FUNCTIONS OF THE CELL, and nothing else.** There is no state here, no
- * store, and no subscription: the one reader is `./Panel.tsx`, which holds the
- * cell and the one signal a press needs, and a unit test asks these with a
- * roster built by hand. {@link pluginSwitch} is the newest of them and is the
- * reason the press did not drag state in here with it: what a strip SHOWS and
- * whether it may be pressed are a function of the row and one boolean, so they
- * are asked here and proved here rather than read off a rendered panel.
- *
- * ## TWO QUESTIONS PER ROW, and they were one
- *
- * A row used to draw one sentence off a boolean and share a second sentence
- * with every other row. That was exact while a plugin's presence was decided
- * once, before anything ran. A plugin is a fiber now, and
- * absence can mean file policy, a build default, a session stop, failed apply,
- * a missing service or unapproved definition source. The remedy depends on
- * which reason the roster reports.
- *
- * So the two questions were split, and both were per row. ONE of them stayed
- * there:
- *
- *   - {@link pluginHint} is WHAT THIS ROW ADDS to what the switch beside it
- *     already says — the why of an absence, the plugin's own failure words,
- *     the door a wait is short of, what stops if this one is turned off, and
- *     which file choice disables it. `null` where the switch has said it
- *     all.
- *   - HOW THIS SERVE STARTED is {@link pluginsStarted} and is the PANEL's, not
- *     the row’s, because those process facts are shared by every row. It was per row on the argument that an opt-in row and its neighbour
- *     have different built-in defaults — which is true, and is why THAT
- *     difference is still drawn per row, in the hint, where it names the
- *     node a person can edit. What moved is only the part that was the same
- *     everywhere.
- *
- * The word itself is narrowed by `@olai/surface`'s `pluginState`, which is
- * where an absent or unknown one is answered — a serve too old to send one, or
- * newer than this tab. Nothing here re-derives it.
+/** Pure readings of the roster, independent of this tab's mounted controls.
+ * The panel walks the build: no plugin names or configuration keys belong here.
+ * Enablement is visible in the switch. Only failures and waits add a reason;
+ * repeating a shared explanation beneath each row hides the rows needing help.
+ * File provenance and session persistence use the panel's shared legend.
+ * Drafts and pending requests belong to the mounted controls, while section
+ * state belongs to the inspector activation. Neither is another policy store.
  */
 
 import type { RowReport } from "@olai/plugin-api"
@@ -151,95 +81,20 @@ export const pluginConfig = (
   return Object.entries(config).map(([key, value]) => [key, typeof value === "object" && value !== null ? JSON.stringify(value) : String(value)] as const)
 }
 
-/**
- * WHAT THIS ROW ADDS TO WHAT THE SWITCH ALREADY SAYS — one short line, or
- * NOTHING.
- *
- * ## SHORT, and that is a ruling rather than a preference
- *
- * These were paragraphs. Each absent arm recited the four things a missing
- * plugin costs — no member served, no probe, no face drawn, a property
- * validated as plain text — and every one of those is TRUE and is a claim the
- * code keeps. None of them is what a person opening this panel wants. The human
- * (2026-09-02): *users are not going to read novels*.
- *
- * So the long account moved to where long accounts belong — this comment, the
- * package READMEs, `docs/running.md` — and what is on screen is the state and
- * the ONE thing a reader can act on. A hint that is not read is worth nothing,
- * however true it is.
- *
- * ## ...AND THE SHORTEST LINE IS NO LINE
- *
- * The ordinary running row said *Running — its chips, panels and delivered
- * messages all work*, under a switch reading On, on every row of a serve
- * running six plugins. That is the control announcing itself, six times, and it
- * is most of what made this panel a scroll (the human, 2026-09-04, with the
- * screenshot: *portrait spammy*).
- *
- * So this answers `null` wherever the switch has already said everything true
- * about the row, and the panel draws no paragraph at all there. Which leaves
- * exactly the arms that carry something the switch cannot:
- *
- *   - `failed`  the plugin's OWN words, verbatim, because core composes no
- *               clause of a plugin's failure prose. A throw with nothing to say
- *               says so. The one arm that is a FAULT.
- *   - `waiting` WHICH DOOR nobody is behind. "Something it needs" is the
- *               sentence that sends a person nowhere; a service is another
- *               ROW's to offer, so naming the door is naming the plugin to
- *               compose, one step removed.
- *   - `optIn` / `off`  The build or file choice. The durable switch writes
- *               this row’s namespace, and restarting reads that choice again.
- *   - `running` + `carrying`  WHAT ELSE STOPS if this is turned off.
- *
- * ## THE CARRYING ARM IS THE OTHER END OF THE WAIT
- *
- * A row that stands behind doors carries the rows that named them
- * ({@link BuiltPlugin}'s `carrying`), and the moment it is worth saying is the
- * moment somebody is about to press Off. The panel drew nothing about it while
- * the rows were frozen — there was no press to warn about — and a switch that
- * took chat down and left kolu, odu and every engine `waiting` with no warning
- * would be the most expensive control in the product.
- *
- * `waiting` names the DOORS a row is short of; this names the ROWS that would
- * go short. One fact from either side, both read live off the serve, so neither
- * can be the copy that rots.
- *
- * UNBOUNDED IN LENGTH, exactly as `waiting`'s is, and for the same reason: the
- * names are the serve's and core caps neither list. A build whose chat row
- * carried a dozen plugins would draw a dozen names, which is a longer sentence
- * and a true one — where a cap would be this panel deciding which of somebody's
- * plugins was worth telling them about.
- */
-
+/** Failed and waiting rows explain their own obstruction. All other states
+ * are expressed by the enable switch, without an additional prose arm. */
 export const pluginHint = (
   plugin: BuiltPlugin,
   roster: PluginRoster = { built: [] },
   look: PluginLook = {},
 ): string | null => {
-  if (pluginState(plugin) === "off" && plugin.desiredOn === false && roster.configurationFile !== undefined) {
-    return `Off — ${roster.configurationFile} says on: no.`
-  }
   switch (pluginState(plugin)) {
     case "running":
-      return null
+    case "off":
     case "optIn":
-      return `Off by default — switch on here or set on: yes in the ${plugin.name} policy node.`
-    case "pending":
-      // A PERSON HAS NOT DECIDED, and this is the one absence whose answer is
-      // on this very panel: the source is drawn under the rows and the verb is
-      // beside it. So the line says what is being asked rather than where to go
-      // — the other absences all send a reader somewhere else, and this one is
-      // waiting on them here.
-      return `Waiting for you: read the source below and approve it, or leave it.`
     case "switched":
-      // THE PRESS A PERSON JUST MADE, and the one absence that undoes itself.
-      // The other three all send a reader somewhere else — a node to edit, a
-      // build to rebuild, a plugin to compose — and this one is answered by the
-      // switch beside the sentence, so what it owes is not an instruction but
-      // the fact a reader might not have: it does not survive the serve. Without
-      // this arm the row read `optIn` and told a person who had just pressed it
-      // that the BUILD ships this off by default.
-      return `Switched off here. A restart brings it back.`
+    case "pending":
+      return null
     case "failed":
       return `Failed to start. ${said(plugin.fault)}`
     case "waiting":
@@ -252,8 +107,7 @@ export const pluginHint = (
         : `Waiting for ${plugin.missing.join(", ")} — no plugin in this build offers `
           + `${plugin.missing.length === 1 ? "it" : "them"}.`
     default:
-      // The row’s own namespace is the durable enablement door.
-      return `Off — switch on here or set on: yes in the ${plugin.name} policy node.`
+      return null
   }
 }
 
@@ -270,7 +124,7 @@ const said = (fault: string | undefined): string =>
  * waiting on something and cannot yet say what — so the sentence has to survive
  * having no names. A `running` row with no `carrying` is a row nothing depends
  * on, which is a whole answer and the ordinary one: most rows carry nobody, and
- * the honest thing to draw about them is the sentence that was always there.
+ * the switch needs no dependency confirmation.
  *
  * A serve too old to send the field at all lands on the same arm, and correctly:
  * it is telling this tab nothing about what depends on what, and a panel that
@@ -281,18 +135,6 @@ const carries = (plugin: BuiltPlugin): string | undefined =>
   plugin.carrying === undefined || plugin.carrying.length === 0
     ? undefined
     : plugin.carrying.join(", ")
-
-const withoutConfiguration = (roster: PluginRoster): boolean =>
-  roster.configurationAvailable === false
-
-/** What applies to every row is said once, at the foot: policy location,
- * private memory and loss of the configuration reader.
- * Repeating the same caveat under each row made the panel a scroll of identical
- * paragraphs (#543). A row keeps only what differs, including its own
- * session-only exception while the shared reader is available.
- */
-export const pluginsStarted = (roster: PluginRoster): string =>
-  `Policy lives in ${roster.configurationFile ?? CONFIGURATION_FILE} and travels with this directory.${withoutConfiguration(roster) ? " Switches are session-only while the configuration reader is absent; they last until this serve stops." : ""} Memory: LocalState, $XDG_STATE_HOME/olai/<plugin>/<hash>.json; private to the serve.`
 
 /** A running server row can have a waiting browser component. Keep the
  * server's switch semantics and name that component and its missing keys. */
@@ -334,8 +176,7 @@ export const rowCopy = (
 ): string | null => {
   const hint = pluginHint(plugin, roster, look)
   const browser = plugin.running ? browserHint(plugin.name, reports, plugin.browserOnly) : null
-  const duration = plugin.switchPersistence === "session" && !withoutConfiguration(roster) ? "Switch is session-only; it lasts until this serve stops." : null
-  return [hint, browser, duration].filter(Boolean).join(" ") || null
+  return [hint, browser].filter(Boolean).join(" ") || null
 }
 
 /**
@@ -425,9 +266,9 @@ export const groupCount = (rows: ReadonlyArray<BuiltPlugin>): string => {
   return `${on} on · ${off} off`
 }
 
-/** Unset doors and wrapper provisions belong with defaults, not operator inputs. */
-export const environmentAtDefault = (one: EnvironmentReading): boolean =>
-  !one.set || (one.kind === "resource" && one.source === "wrapper")
+/** Wrapper provisions are distinct from explicit machine inputs. */
+export const environmentSource = (one: EnvironmentReading): "wrapper" | "env" =>
+  one.kind === "resource" && one.source === "wrapper" ? "wrapper" : "env"
 
 export type PolicyReading = NonNullable<BuiltPlugin["configurationValues"]>[number]
 export const labelOf = (key: string): string => {
@@ -435,21 +276,17 @@ export const labelOf = (key: string): string => {
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
 export const controlOf = (value: PolicyReading | EnvironmentReading) => "control" in value ? value.control : undefined
-export const valueLabel = (value: PolicyReading): string => {
-  const text = typeof value.value === "boolean" ? (value.value ? "yes" : "no") : String(value.value)
-  return value.control?.kind === "choice" || value.control?.kind === "switch"
-    ? text.charAt(0).toUpperCase() + text.slice(1) : text
-}
-export const pluginSummary = (values: ReadonlyArray<PolicyReading>): { text: string; title: string } => {
-  if (values.length === 0) return { text: "", title: "" }
-  const pieces = values.slice(0, 4).map(one => `${labelOf(one.key)}: ${valueLabel(one)}`)
-  if (values.length > 4) pieces.push(`+${values.length - 4}`)
-  const authored = values.filter(one => one.setBy !== "default")
-  const invalid = values.filter(one => one.problem !== undefined).length
-  return { text: pieces.join(" · ") + (authored.length === 0 ? " — using defaults" : "") + (invalid ? ` · ${invalid} invalid` : ""),
-    title: authored.map(one => `${labelOf(one.key)}: ${configurationAuthored}`).join("\n") }
-}
 export const enableLabel = (name: string): string => `Enable ${name}`
 
 export const configurationAuthored = `set in ${CONFIGURATION_FILE.split("/").pop()}`
 export const configurationLinkLabel = `Open ${CONFIGURATION_FILE.split("/").pop()!.split(".")[0]!.toLowerCase()} node`
+
+/** Compact spelling is derived from the leaf, never a plugin-specific table. */
+export const knobLabel = (key: string): string => key.split(".").at(-1)!.split("-")[0]!.toLowerCase()
+export const knobUnit = (key: string): string | undefined => {
+  const suffix = key.split("-").at(-1)!
+  return ["ms", "seconds", "minutes", "bytes"].includes(suffix) ? suffix : undefined
+}
+export const knobWidth = (value: PolicyReading): string => value.control?.kind === "number" ? "9ch"
+  : /(?:header|template)$/.test(value.key) ? "22ch" : "6ch"
+export const knobAuthored = (value: PolicyReading): boolean => value.setBy !== "default"
