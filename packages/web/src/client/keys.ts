@@ -611,9 +611,12 @@ export const paneKey = (event: KeyboardEvent): PaneAction | null => {
   return null
 }
 
-export const listKey = (event: KeyboardEvent): ListAction | null => {
+export function listKey(event: KeyboardEvent): ListAction | null
+export function listKey(event: KeyboardEvent, tabs: true): ListAction | "cycle" | null
+export function listKey(event: KeyboardEvent, tabs = false): ListAction | "cycle" | null {
   if (event.key === "Escape") return "dismiss"
   if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return null
+  if (tabs && event.key === "Tab") return "cycle"
   if (event.key === "ArrowDown") return "next"
   if (event.key === "ArrowUp") return "prev"
   if (event.key === "Enter") return "take"

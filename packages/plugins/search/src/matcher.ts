@@ -252,5 +252,7 @@ export const search = (
 
   // The TOTAL is what matched, never what was kept, so "twelve of ninety" is
   // sayable — the one number that has to be read off the uncapped lists.
-  return { hits, total: nodes.length + documents.length + outlines.length }
+  return { hits, total: nodes.length + documents.length + outlines.length,
+    ...(query.kind === undefined ? { totals: { node: nodes.length, file: documents.length + outlines.length } } : {}),
+  }
 }

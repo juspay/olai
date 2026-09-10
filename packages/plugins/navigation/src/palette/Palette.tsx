@@ -1,3 +1,5 @@
+import type {} from "olai-plugin-search/box"
+import { paletteOnly } from "../faces.ts"
 import { TESTID } from "olai-plugin-navigation/testids"
 import type { AppCommand } from "olai-plugin-navigation/slots"
 import { type Navigation,paletteAdapters } from "../index.ts"
@@ -343,7 +345,8 @@ export function Palette(props: {
 
   // The nodes, from the server — one primitive, its own failure, and no
   // request bookkeeping in this component ({@link ../search/nodes.ts}).
-  const nodes = createSearch(asked)
+  const below = () => paletteOnly("search.box.below")?.face
+  const nodes = createSearch(asked, () => below()?.pick())
   /**
    * The zoomed node's verbs — its OWN memo, and guarded on the palette being
    * open, which is what keeps them from being rebuilt for nobody.
@@ -915,7 +918,12 @@ export function Palette(props: {
             // answered once, on the window, where every layer has already been
             // asked (`onMount` above, and `../topmost.ts`).
             onKeyDown={(e) => {
-              const action = listKey(e)
+              const action = listKey(e, true)
+              if (action === "cycle") {
+                const face = listing() ? below() : undefined
+                if (face !== undefined) { e.preventDefault(); e.stopPropagation(); face.cycle() }
+                return
+              }
               if (action === null || action === "dismiss") return
               e.preventDefault()
               if (action === "next") walk(1)
@@ -949,7 +957,8 @@ export function Palette(props: {
               not take. Without this a typo in `is:` looks exactly like an empty
               directory (`../search/nodes.ts`). Drawn by `../refusals.tsx`,
               which is where that sentence and the ear it is read to live. */}
-          <Refusals
+          <Show when={listing() ? below() : undefined}>{face => face().body({ search: nodes })}</Show>
+        <Refusals
             of={nodes.refusals()}
             class={ALERT_ROW}
             testid={TESTID.searchRefusal}
@@ -1034,6 +1043,7 @@ export function Palette(props: {
                     was. */}
                 <SearchCount
                   of={nodes}
+                  empty={nodes.answering() !== null}
                   class="m-0 shrink-0 border-t border-rule px-4 py-2 font-mono text-xs text-muted"
                 />
               </>

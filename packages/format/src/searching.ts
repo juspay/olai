@@ -209,6 +209,8 @@ export const SearchAnswer = Schema.Struct({
   /** How many nodes matched in all. `hits` is capped; this is not, so "twelve
    *  of ninety" is sayable. */
   total: Schema.Int,
+  /** Uncapped totals by category, present when no kind was requested. */
+  totals: Schema.optionalKey(Schema.Struct({ node: Schema.Int, file: Schema.Int })),
   /** What the grammar could not read, in its own words — a known operator with
    *  an unknown value (`is:open`). ABSENT for every query it could read.
    *

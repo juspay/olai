@@ -312,3 +312,28 @@ At every search door, including `search_nodes`, `kind: node` selects records,
 selects outline files, and `kind: file` selects documents and outlines together.
 All arms are ranked and capped together when kind is absent. File kinds remain
 the static core table; the existing search reading owns the answer.
+
+The palette and header have an **All / Nodes / Files** selector under the box.
+Files includes outlines, markdown, saved HTML, CSV, images and PDFs. The pick
+sets the request's `kind` before ranking is capped; it never filters an already
+capped answer. Tab cycles the segments while the caret is in either listing
+box. The node-only edge/move pickers, mirror completion and chat list have no
+selector.
+
+The pick lasts for this browser session, is shared by both listing boxes, and
+survives a wire reconnect. Page load or a search-plugin rebuild resets it to All.
+It is not a vault preference. When All is selected, the answer's optional
+`totals: { node, file }` supplies both category counts. After picking one kind,
+only its count is known. Refusals and the count line remain visible, including
+`0 matches` for Files with `is:done`. A capped list still says `8 of 20 matches`;
+narrow it with the box or selector. There is no results page or larger limit.
+
+Search's `kind` component owns one activation-local signal and offers it as
+`search.kind`. The `selector` integration declares that service and contributes
+its face into `search.box.below`, a location owned by the search header
+contribution. Both listing boxes read the optional face through their declared
+renderer faces. With the face absent, they ask with no kind and draw no control;
+neither box requires `search.kind` to become ready. Revocation withdraws the
+face before closing its signal. Every acquisition is scoped, and replacing a
+query or kind closes the preceding subscription before opening its replacement.
+A stale answer cannot authorize Enter for a new kind.
