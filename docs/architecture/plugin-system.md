@@ -1212,7 +1212,9 @@ stable files through a generated catalog.
 | web-app | install metadata and icons |
 | Markdown | its renderer preload |
 | layout | viewport, geometry, deployment naming |
-| chat | alerts, notification permission listeners, audio, attention state |
+| alerts | notification channel and permission listeners, audio, badge and tab-attention writer |
+| chat | question attention state; consumes `alerts.channel` on its attention component |
+| journal | daily reminder record, owed subscription and `due` press claim; consumes `alerts.channel` on its reminders component |
 
 - The runtime does not import this build graph. Clock factories belong to the
   renderer and timers to their consuming scopes. Late asynchronous completions

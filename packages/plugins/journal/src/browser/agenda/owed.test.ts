@@ -141,3 +141,18 @@ test("a mark is a VALUE: the counts are copied, not held by reference", () => {
   expect(after.count).toBe(4)
   expect(unchanged(before, after)).toBe(false)
 })
+
+
+import { phraseOf } from "./owed.ts"
+test("the entry and reminder share the exact count phrase", () => {
+  for (const [owed, phrase] of [
+    [{ overdue: 2, today: 0 }, "2 overdue"],
+    [{ overdue: 0, today: 3 }, "3 on today"],
+    [{ overdue: 2, today: 3 }, "2 overdue, 3 on today"],
+  ] as const) {
+    expect(phraseOf(owed)).toBe(phrase)
+    expect(markOf(owed).said).toBe(`Agenda — ${phrase}`)
+  }
+  expect(phraseOf({ overdue: 0, today: 0 })).toBe("")
+  expect(markOf({ overdue: 0, today: 0 }).said).toBeUndefined()
+})

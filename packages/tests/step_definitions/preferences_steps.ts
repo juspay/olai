@@ -31,7 +31,7 @@ import { SIZE_STORAGE_KEY, selector } from "@olai/web/testlib"
 // exactly the pass-through `@olai/bundle`'s `fence.test.ts` holds an equality
 // against. The SIZE key above stays on that door, because the door hands it on
 // from `@olai/appearance`, which really does own it.
-import { ALERT_SOUND_KEY, ALERTS_KEY } from "olai-plugin-chat/alert-keys"
+import { ALERT_SOUND_KEY, ALERTS_KEY } from "olai-plugin-alerts/keys"
 import { DENSITY_KEY, type Density, DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY } from "olai-plugin-outlines/testlib"
 
 import { focusedOn } from "../support/caret.ts";
@@ -275,7 +275,7 @@ Then("the preferences panel opens downward, clear of the bar", async function (t
  * is the subtle half: pressing and carrying on races the render, and each row
  * having its own copy of that wait is how the third one gets it slightly wrong.
  */
-const pickChoice = async (
+export const pickChoice = async (
   page: Page,
   pref: string,
   value: string,

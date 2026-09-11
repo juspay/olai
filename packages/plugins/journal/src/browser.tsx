@@ -7,6 +7,9 @@ import { holdLocations } from "./browser/locations.ts"
 import { documentEditing } from "olai-plugin-markdown/contract"
 import { holdDocumentActions } from "./browser/editing.ts"
 import { holdServed } from "./browser/vault.ts"
+import { useToday } from "./browser/clock.ts"
+import { createOwed } from "./browser/dates.ts"
+import { holdReady, journalReady } from "./browser/ready.ts"
 import { holdClocks } from "./browser/clock.ts"
 import { propertyRoutes } from "olai-plugin-outlines/contract"
 import { definePlugin, Slots, Wired } from "@olai/plugin-api"
@@ -19,7 +22,7 @@ import { Effect } from "effect"
 import { AgendaPage } from "./browser/agenda/AgendaPage.tsx"
 import { DayPage } from "./browser/day/DayPage.tsx"
 import { AgendaEntry, CalendarSection, JournalRail } from "./browser/sidebar.tsx"
-import { agenda as agendaKind, day as dayKind, dayRoute } from "./browser/routes.ts"
+import { agenda as agendaKind, agendaRoute, day as dayKind, dayRoute } from "./browser/routes.ts"
 import { type JournalClient, holdJournalWire } from "./browser/wire.ts"
 import { name, surface } from "./wire.ts"
 
@@ -92,11 +95,50 @@ export default definePlugin({
       search: "go to agenda due overdue upcoming owed",
       href: agendaKind.href({}),
     })
+    yield* Effect.acquireRelease(Effect.sync(holdReady), stop => Effect.sync(stop))
   }),
 })
 
+import { alertsChannel } from "olai-plugin-alerts/contract"
+import { navigation } from "olai-plugin-navigation/contract"
+import { deployment } from "olai-plugin-layout/contract"
+import { sections } from "olai-plugin-preferences/contract"
+import { Show, createEffect, createRoot, untrack } from "solid-js"
+import { createRemindersState } from "./browser/reminders/said.ts"
+import { reminderServices, reminderState } from "./browser/reminders/held.ts"
+import { createReminders } from "./browser/reminders/circuit.ts"
+import { ReminderRow } from "./browser/reminders/ReminderRow.tsx"
+
 /** Date-property navigation is an integration, independent of journal readings. */
 export const components = {
+  reminders: definePlugin({ name: "reminders", needs: [alertsChannel, navigation, deployment], apply: Effect.gen(function*() {
+    const channel = yield* alertsChannel
+    const route = yield* navigation
+    const named = yield* deployment
+    yield* Effect.acquireRelease(Effect.sync(() => reminderServices.hold({ channel, navigation: route, deployment: named })), stop => Effect.sync(stop))
+    const state = yield* createRemindersState
+    yield* Effect.acquireRelease(Effect.sync(() => reminderState.hold(state)), stop => Effect.sync(stop))
+    yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+      createEffect(() => {
+        // Registration finishes before navigation publishes the route face.
+        // Leave a cold press with alerts until go can name the agenda; an
+        // unknown plugin route otherwise prints as the home address.
+        if (!journalReady() || !route.routes.face(agendaRoute)) return
+        untrack(() => {
+          const services = reminderServices.read()!
+          const today = useToday()
+          createReminders({ today, owed: createOwed(() => today() || undefined), state,
+            channel: services.channel, called: services.deployment.called, go: services.navigation.go })
+        })
+      })
+      return dispose
+    })), dispose => Effect.sync(dispose))
+  }) }),
+  "reminder-controls": definePlugin({ name: "reminder-controls", needs: [alertsChannel, rendererSlots], apply: Effect.gen(function*() {
+    const channel = yield* alertsChannel
+    yield* (yield* rendererSlots).contribute(sections, () =>
+      <Show when={reminderState.read()}>{state => <ReminderRow channel={channel} state={state()} />}</Show>)
+  }) }),
   /** Where a minted note is opened, DECLARED — a component of its own so the
    *  calendar, the agenda and every day page keep working with no document row
    *  mounted (`./browser/editing.ts`). */

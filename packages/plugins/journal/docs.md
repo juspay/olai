@@ -8,6 +8,74 @@ Set `on: no` on the `journal` node in `_olai/Settings.olai`, or use its durable 
 
 Turning the plugin off does not change the files. `date`, `repeat`, stamped marks and daily-note filenames remain ordinary parts of the [file format](../format.md). Re-enabling journal reads the same values again.
 
+## Reminders
+
+**Olai is pull with one push.** Dates, repeats and the agenda are readings:
+nothing on disk is a reminder, nothing schedules one, and nothing fires at a
+chosen time of day. The one thing olai says unprompted about due work is that
+the day has work on it. Once per local day, in each browser, its first non-empty
+reading of what is owed raises a notification. The title is the deployment's
+name and the body uses the Agenda entry's own phrase, such as **Agenda: 2
+overdue, 3 on today**. Pressing it opens `/agenda` in the focused pane.
+
+The notification is the reminder. A chime accompanies it only if Alert sound
+is on and an earlier pointer or keyboard gesture in this page has unlocked
+audio. Before that, the sound is skipped for the day and never replayed at a
+later gesture. Reminders never badge the app or mark the tab: the Agenda entry
+and rail dot already carry the durable reading of due work; the badge counts
+chat's questions alone.
+
+**Reminders** is a browser preference, default on, beneath **Alerts** and
+**Alert sound**. Turning it off leaves the Agenda entry working. Turning Alerts
+off silences reminders too and freezes the Reminders row with an explanation.
+Neither switch spends an unannounced day: turning it back on can remind once.
+The choice is kept under `olai.reminders`, not in the vault's configuration.
+
+The rule reads the renderer's existing local-day clock and the journal's
+existing `owed` stream: `overdue + today > 0`, with a known day and a first
+frame, and with both preferences on. It has no timer and reads neither focus
+nor visibility. Boot with overdue work, local midnight in an open tab, waking
+after midnight, and a mid-day count leaving zero all reach the same rule.
+Completing a repeat creates a fresh dated task, so it needs no separate trigger.
+
+Before asking for the notification and then the chime, the circuit records
+the day under `olai.reminders.said` in local storage and follows that record
+across tabs. A later frame, reconnect, reload, later-opened tab or journal
+reactivation that day says nothing again. Two tabs can still race on their
+first reading and chime twice; the shared OS tag `olai:due:<day>` replaces
+duplicate banners instead of stacking them. There is no cross-tab election.
+
+This uses the [alerts row's channel](alerts.md), with the same running-app
+limit as chat: foreground or background, the app has to be running, and a
+fully closed olai hears nothing. There are no per-node alarms, times added to
+dates, snooze, repeat-specific alerts or push server. Each would be a separate
+decision, not an unfinished part of reminders.
+
+### Ownership and absence
+
+The journal's `reminders` component names `alerts.channel`, `navigation.state`
+and `layout.deployment`; the journal row itself does not depend on alerts.
+It owns the preference and daily-record followers, the effect and owed
+subscription, and the `due` claim on `channel.onPress`. It shares the row's
+existing clock and wire holders. Startup waits for those row resources and
+for navigation to publish the agenda route before claiming `due`: the alerts
+row holds the newest unclaimed press until then, including a cold-start press.
+There is one framework click listener, owned by alerts, so chat's `ask` claim
+cannot consume the journal's click.
+
+On withdrawal the effect and subscription stop, followers leave, and the
+`due` claim is released; the day stays in storage. A press arriving afterwards
+is held by alerts until the component returns, or dropped when that channel
+activation ends. Without a clock there is no day to ask about. With alerts
+absent, reminders wait while calendar, day and agenda keep working. With the
+journal off, its reading and Reminders row leave together.
+
+The separate `reminder-controls` component names `alerts.channel` and
+`rendererSlots` and contributes the row to `preferences.sections`, using the
+reminders activation's preference state. Its contribution is withdrawn with
+its owner; there is no Reminders row while alerts is absent. Turning the
+Alerts *preference* off instead leaves the row visible and frozen.
+
 ## Pages and navigation
 
 The plugin owns three address forms:

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
-import { createNotifications, notifyClick, type Notice } from "./notify.ts"
+import { createNotifications, notifyClick } from "./notify.ts"
+import type { Notice } from "./contract.ts"
 const notice: Notice = { tag: "ask", title: "Question", body: "Waiting", data: { kind: "ask" } }
 const flush = async () => { await Promise.resolve(); await Promise.resolve() }
 
@@ -16,7 +17,7 @@ test("notification owner releases observers, rereads permission, and cancels del
   const seam = { requestPermission: async () => { await pending; return true }, show: async () => { shown++ }, onClick: () => { clicks++; return () => { stopped++ } } }
   const first = createNotifications({ seam, permission: () => permission, query })
   await flush()
-  first.onPress(() => {})
+  first.onPress("ask", () => {})
   const delivery = first.notify(notice)
   expect([added, clicks]).toEqual([1, 1])
   first.dispose()
@@ -51,6 +52,7 @@ test("a permission query resolving after withdrawal attaches no listener", async
 
 test("a click envelope of ours is read", () => {
   expect(notifyClick({ kind: "ask" })).toEqual({ kind: "ask" })
+  expect(notifyClick({ kind: "due" })).toEqual({ kind: "due" })
 })
 
 test("anything that is not one of ours is dropped", () => {

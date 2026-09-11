@@ -104,7 +104,7 @@ const SECTION = "Agents"
 
 export default definePlugin({
   name,
-  needs: [Faces, Slots, Wired, Offers, alertSettings, fileAccess, Clocks],
+  needs: [Faces, Slots, Wired, Offers, fileAccess, Clocks],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
     const faces = yield* Faces
@@ -124,6 +124,7 @@ export default definePlugin({
       const conversation = createChatState()
       return {dispose, conversation, agents: createAgents(conversation)}
     })), state => Effect.sync(state.dispose))
+    yield* Effect.acquireRelease(Effect.sync(() => holdConversation(state.conversation)), stop => Effect.sync(stop))
     yield* (yield* Offers).own("state", () => state)
 
 
@@ -156,16 +157,11 @@ export default definePlugin({
 
 /** The speaker waits for identity without taking the conversation away. */
 import { speaker } from "./browser/viewer.ts"
-// The alert provider lives with the chat row, independently of its panel and
-// preferences. Each UI component names its own dependencies; the section waits
-// for preferences to return without discarding the stored state or listeners.
-import { alertSettings, createAlerts, holdAlerts } from "./browser/alerts.ts"
-import { followNotifications } from "./browser/notify.ts"
-import { AlertRows } from "./browser/AlertRows.tsx"
-import { rendererSlots } from "olai-plugin-ui-renderer/contract"
-import { sections } from "olai-plugin-preferences/contract"
-import { appearance } from "olai-plugin-theme/contract"
-import { createEffect, createRoot } from "solid-js"
+import { alertsChannel } from "olai-plugin-alerts/contract"
+import { holdChannel } from "./browser/channel.ts"
+import { holdConversation, conversation } from "./browser/conversation.ts"
+import { createAttention } from "./browser/chat/attention/attention.ts"
+import { createEffect, createRoot, untrack } from "solid-js"
 export const components = {
   /** What this deployment is called, DECLARED — a component of its own so a
    *  notification is raised with the bare word rather than not at all when the
@@ -195,22 +191,16 @@ export const components = {
     const value = yield* outlineReferences
     yield* Effect.acquireRelease(Effect.sync(() => holdReferences(value)), stop => Effect.sync(stop))
   }) }),
-  "tab-attention": definePlugin({ name: "tab-attention", needs: [appearance, alertSettings], apply: Effect.gen(function*() {
-    const view = yield* appearance
-    const alerts = yield* alertSettings
-    yield* Effect.acquireRelease(Effect.sync(() => createRoot((dispose) => {
-      createEffect(() => view.chrome.waiting(alerts.tabWaiting()))
+  attention: definePlugin({ name: "attention", needs: [alertsChannel], apply: Effect.gen(function*() {
+    const channel = yield* alertsChannel
+    yield* Effect.acquireRelease(Effect.sync(() => holdChannel(channel)), stop => Effect.sync(stop))
+    yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+      createEffect(() => {
+        const reading = conversation()
+        if (reading) untrack(() => createAttention(reading))
+      })
       return dispose
-    })), (dispose) => Effect.sync(() => { dispose(); view.chrome.waiting(false) }))
+    })), dispose => Effect.sync(dispose))
   }) }),
   speaker,
-  alerts: definePlugin({ name: "alerts", needs: [Offers], apply: Effect.gen(function*() {
-    yield* Effect.acquireRelease(Effect.sync(followNotifications), stop => Effect.sync(stop))
-    const state = yield* createAlerts
-    yield* holdAlerts(state)
-    yield* (yield* Offers).own("alerts", () => state)
-  }) }),
-  "alert-controls": definePlugin({ name: "alert-controls", needs: [alertSettings, rendererSlots], apply: Effect.gen(function*() {
-    yield* (yield* rendererSlots).contribute(sections, AlertRows)
-  }) }),
 }

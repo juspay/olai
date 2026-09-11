@@ -15,8 +15,7 @@
     "./testids": "./src/testids.ts",
     "./all.css": "./src/browser/all.css",
     "./testlib": "./src/testlib.ts",
-    "./slots": "./src/slots.ts",
-    "./alert-keys": "./src/browser/alerts/keys.ts"
+    "./slots": "./src/slots.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -42,16 +41,14 @@
     "effect": "4.0.0-rc.112",
     "solid-js": "^1.9.0",
     "zod": "^4.0.0",
-    "olai-plugin-ui-renderer": "workspace:*",
-    "olai-plugin-preferences": "workspace:*",
-    "olai-plugin-theme": "workspace:*",
     "@olai/markdown-ui": "workspace:*",
     "olai-plugin-outlines": "workspace:*",
     "olai-plugin-layout": "workspace:*",
     "olai-plugin-navigation": "workspace:*",
     "@olai/ui-primitives": "workspace:*",
     "olai-plugin-vault": "workspace:*",
-    "olai-plugin-search": "workspace:*"
+    "olai-plugin-search": "workspace:*",
+    "olai-plugin-alerts": "workspace:*"
   },
   "//kolu": "@olai/kolu-client is GONE from this list, and its absence is the whole of what the plugin wall bought here. This package used to carry a `kolu.ts` — the judgement half of a probe, and five English sentences about one appliance's ways of failing — inside a package whose subject is one conversation with one ACP agent. It is olai-plugin-kolu's now; what is left is the SHAPE of the question (src/probes.ts), a list the composition root fills, and nothing on this manifest names an appliance.",
   "//devDependencies": "@types/node is for the Node stream types `pipes.ts` still names — the ACP transport, residue on top of `@olai/child`.",
@@ -62,8 +59,7 @@
   "olai": {
     "contracts": [
       "./slots",
-      "./testids",
-      "./alert-keys"
+      "./testids"
     ]
   }
 }

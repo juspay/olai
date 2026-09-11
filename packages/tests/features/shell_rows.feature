@@ -129,19 +129,31 @@ Feature: The renderer and layout are browser rows
     Then the plugins panel says nothing more about "ui-renderer"
     And there should be no page errors
 
-  Scenario: Chat owns its alert controls and remembers their values when restored
+  Scenario: Alerts owns its controls and remembers their values when restored
+    Given I open the app
+    When I set Alerts to "off"
+    And I press Escape on the preferences
+    And I open the plugins panel
+    And I switch the plugin "alerts" off
+    And I open the preferences
+    Then the preferences have no alert rows
+    And the preferences retain their Notes control
+    When I press Escape on the preferences
+    And I open the plugins panel
+    And I switch the plugin "alerts" on
+    And I open the preferences
+    Then the Alerts row explains "silent"
+    And the alert sound cannot be set
+    And Reminders cannot be set
+    And there should be no page errors
+
+  Scenario: Chat can leave while the shared alert controls remain
     Given I open the app
     When I set Alerts to "off"
     And I press Escape on the preferences
     And I open the plugins panel
     And I switch the plugin "chat" off
-    And I open the preferences
-    Then the preferences have no chat alert controls
-    And the preferences retain their Notes control
-    When I press Escape on the preferences
-    And I open the plugins panel
-    And I switch the plugin "chat" on
-    And I open the preferences
     Then the Alerts row explains "silent"
     And the alert sound cannot be set
+    And Reminders cannot be set
     And there should be no page errors

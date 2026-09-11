@@ -5,7 +5,7 @@
  * THE TRIGGER IS THE CELL, and that is the roadmap item's scope note read
  * literally: `ChatState.asking` is how many of the agent's questions are still
  * waiting on a person, and the SERVER counts it off the very rows the panel
- * draws as forms (`../../../../plugins/chat/src/chat.ts`) — the pending question, the
+ * draws as forms (`../../../chat.ts`) — the pending question, the
  * permission prompt, the plan approval, all of them, and nothing that is not
  * one. There is no new wire signal here and nothing derived in the browser:
  * the fact was already on the cell, drawn as the header toggle's
@@ -23,17 +23,17 @@
  * the ask ROW and only then moves the cell — and when the panel is shut there
  * is no snapshot at all, which the banner says rather than guesses.
  *
- * MOUNTED FROM `../Panel.tsx`, which is drawn open or minimized and never
- * absent, so this lives as long as the app does. Deliberately not in
- * `main.tsx` beside the document-lifetime followers: it is a reader of a
- * SUBSCRIPTION, and the panel is what owns the panel's subscriptions.
+ * Mounted by chat's `attention` component (`../../../browser.tsx`), which
+ * names `alerts.channel` and owns this circuit while the channel and the
+ * row's conversation are available. Minimizing the panel leaves it running;
+ * withdrawing the component stops it without stopping the conversation.
  *
  * THREE DEVICES, THREE INDEPENDENCES, which is why they are three modules with
  * one `if` each rather than one "notify" call: the chime needs only that the
- * page has been touched at some point ({@link ./chime.ts}), the badge needs
- * nothing at all ({@link ./badge.ts}), and only the banner needs the OS's
- * consent (`../../notify.ts`, the origin's one seam) — which the ruling says
- * must not take the other two down with it when it is refused.
+ * page has been touched at some point (`../../../../../alerts/src/chime.ts`),
+ * the badge needs nothing at all (`../../../../../alerts/src/badge.ts`), and
+ * only the banner needs the OS's consent (`../../../../../alerts/src/notify.ts`,
+ * the origin's one seam). Refusing consent must not take the other two down.
  *
  * WHAT IS NOT HERE is a turn ending. Turn-complete is deliberately silent
  * (ruled): an agent that finished will still be finished in five minutes, and
@@ -45,37 +45,29 @@ import { type Accessor, createEffect, onCleanup, untrack } from "solid-js"
 
 import type { ChatState } from "olai-plugin-chat/wire"
 import { calledApp } from "../../deployment.ts"
-import { notify, onNotifyPress } from "../../notify.ts"
-import { useAlerts } from "../../alerts.ts"
+import { useChannel } from "../../channel.ts"
 import { type Awaiting, alarmFor } from "./alarm.ts"
 import { askPending } from "./asked.ts"
-import { createBadge } from "./badge.ts"
-import { createChime } from "./chime.ts"
 import { noticeOf } from "./notice.ts"
 import { reveal } from "./reveal.ts"
 import { createWatching } from "./watching.ts"
 
 /**
- * Watch the conversation for as long as this app is up, and say so when it
+ * Watch the conversation for this attention activation, and say so when it
  * stops on a person who is not looking.
  */
 export const createAttention = (state: Accessor<ChatState>): void => {
   const watching = createWatching()
-  const alerts = useAlerts()
-  const wear = createBadge(alerts.setTabWaiting)
+  const alerts = useChannel()
+  const { wear, notify, onPress: onNotifyPress } = alerts
   onCleanup(() => wear(0))
-
-  // The first gesture this page gets opens the audio context — the platform's
-  // rule, not ours ({@link ./chime.ts}).
-  const sound = createChime()
-  onCleanup(sound.dispose)
 
   // A press of a banner is not a render, so it is routed here rather than in a
   // component: `reveal` opens the panel and leaves the question for the
   // transcript to take up when it mounts ({@link ./reveal.ts}). It covers the
   // cold start too — a press that had to OPEN this window carries its payload
-  // in the URL, and the seam hands it over at startup.
-  onCleanup(onNotifyPress(() => reveal()))
+  // in the URL, and alerts holds it until this component claims "ask".
+  onCleanup(onNotifyPress("ask", reveal))
 
   // A FOLD over the readings, which is what this is: the effect is handed the
   // last one it took and answers with this one, so "did something ARRIVE" can
@@ -86,13 +78,9 @@ export const createAttention = (state: Accessor<ChatState>): void => {
     const now = state()
     const here: Awaiting = { count: now.asking, watched: watching() }
     const alarm = alarmFor(was, here)
-    // Alerts off is off for all three devices, and the icon is put BACK rather
-    // than left wearing the last count: a preference switched off has to be
-    // able to clear what it was doing.
-    const on = alerts.alertsOn()
-    wear(on ? alarm.badge : 0)
-    if (on && alarm.alert) {
-      if (alerts.alertSoundOn()) sound.chime()
+    wear(alarm.badge)
+    if (alarm.alert) {
+      alerts.chime()
       // UNTRACKED, and both halves of that matter. The words are taken NOW
       // rather than on the far side of the permission round trip, because what
       // a notification is ABOUT must not be re-read after it was raised. And
@@ -100,7 +88,7 @@ export const createAttention = (state: Accessor<ChatState>): void => {
       // open panel's snapshot are things this fold has no business waking for
       // — a session being retitled would otherwise re-run the whole reading.
       // The UN-tracked read takes the deployment's word as it stands NOW
-      // (`../../named.ts`) too: a banner deserves the name the OS labels it
+      // (`../../deployment.ts`) too: a banner deserves the name the OS labels it
       // with, and — as with the conversation's own title — one it got after
       // the banner is no longer this banner's business.
       const notice = untrack(() => noticeOf(now, askPending(), calledApp()))

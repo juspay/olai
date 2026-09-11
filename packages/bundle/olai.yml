@@ -53,6 +53,10 @@
 # The order is not what makes any of that work — the runtime is reactive, and a
 # row that mounts late is picked up when its `apply` provides — but this file is
 # read by people, and the thing everything else waits on reads first.
+- id: alerts
+  name: olai-plugin-alerts
+  section: This tab
+  quiet: true
 - id: chat
   name: olai-plugin-chat/server
   section: Conversation

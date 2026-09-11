@@ -680,7 +680,6 @@ export const TESTID = {
    *  for the pane, because one call carries every message's ids
    *  (`@olai/web`'s `client/declared.ts`). */
   chatRefsFailure: "chat-refs-failure",
-  prefsAllowNotify: "prefs-allow-notify",
 } as const
 
 /**
