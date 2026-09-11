@@ -7652,6 +7652,7 @@
   "olai-plugin-plugin-inspector" = copyPathToStore ./packages/plugins/plugin-inspector;
   "olai-plugin-preferences" = copyPathToStore ./packages/plugins/preferences;
   "olai-plugin-search" = copyPathToStore ./packages/plugins/search;
+  "olai-plugin-settings" = copyPathToStore ./packages/plugins/settings;
   "olai-plugin-sidebar" = copyPathToStore ./packages/plugins/sidebar;
   "olai-plugin-test-counter" = copyPathToStore ./packages/plugins/test-counter;
   "olai-plugin-test-layout" = copyPathToStore ./packages/plugins/test-layout;

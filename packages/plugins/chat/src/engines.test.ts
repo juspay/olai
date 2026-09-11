@@ -147,7 +147,7 @@ const panelOver = async (initial: ReadonlyArray<Installed>) => {
  *
  * BOTH DIRECTIONS, because a switch has two: a row that leaves goes, and a row
  * that arrives — which is somebody turning a plugin ON, or a serve started
- * `--plugins=kolu` getting its engines back — appears. Only asserting the first
+ * a policy selecting only kolu getting its engines back — appears. Only asserting the first
  * would pass against an implementation that emptied the list and never refilled.
  */
 test("an engine switched off leaves the picker, and one switched on enters it", async () => {
@@ -196,7 +196,7 @@ test("a new conversation cannot be opened on an engine whose plugin has left", a
  * serve composed without an engine row shows.
  *
  * This is the invariant the whole loader surface rests on, seen from inside the
- * panel: a row somebody switched off and a row the flag never named are ONE
+ * panel: a row somebody switched off and a row with `on: no` in `_olai/Settings.olai` are ONE
  * state. `no-engine` is the word for both, so a person who switches their last
  * engine off reads what a person who never had one reads.
  *
@@ -225,8 +225,8 @@ test("the last engine leaving is the off face, and a returning one leaves it", a
  * The argument, so it is not re-litigated: the paper's boundary rule reverts
  * REGISTRATIONS and compensates EMISSIONS, and a spawned ACP child is a process
  * olai owns exclusively and can stop, so it is inside the boundary. And a row
- * switched off must be the same state as a row the flag never named — under
- * `--plugins=` without claude there is no claude conversation, so a moment after
+ * switched off must be the same state as a row with `on: no` in `_olai/Settings.olai` — under
+ * a policy with all rows off without claude there is no claude conversation, so a moment after
  * switching claude off there must not be one either.
  *
  * ## What is asserted, and why it is these three

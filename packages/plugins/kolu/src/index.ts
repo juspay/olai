@@ -71,7 +71,7 @@
  * `deps` carries its own `satisfies ImplementSurfaceDeps<typeof surface.spec>`
  * (`./server.ts`); a face hung in a slot the app does not declare is a type
  * error on its own `slots.register` line, and the reading of the app this
- * half composes out of the `Bar`, `Clocks` and `Links` tags
+ * half composes out of the `Bar` and `Clocks` tags
  * (`./browser/app.ts`) fails on the line that composes it. It is the same
  * structural agreement `@olai/ops` keeps with the surface's `Status` and
  * `./appliance/`'s `props/block.ts` keeps with the drawer's entry — read at the

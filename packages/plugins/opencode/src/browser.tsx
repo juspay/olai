@@ -27,7 +27,7 @@ import type {} from "olai-plugin-chat/slots"
  * Nothing. This module is evaluated only when the roster names `opencode`: its
  * chunk is fetched then and not before, its fiber is mounted then, and the
  * registration below unwinds by itself if the roster stops naming it. So
- * `--plugins=claude,pi` is a tab with none of them in it, in the same sense
+ * a policy selecting only claude, pi is a tab with none of them in it, in the same sense
  * that it is a serve with no row for this engine and no probe of one.
  *
  * ## NO `surface`, which is the one way this half differs from a tenant's
@@ -66,7 +66,7 @@ export default definePlugin({
     // three byte-identical files, one restyle away from drifting.
     //
     // A plugin the roster does not name registers nothing, which is what makes
-    // `--plugins` draw a panel with nothing of this engine anywhere in it.
+    // the file’s row selection draw a panel with nothing of this engine anywhere in it.
     //
     // THERE IS NO PICKER-ROW FACE BESIDE IT. A picker row's words are this
     // engine's `name`, which the server already sends per installed agent, so

@@ -612,7 +612,9 @@ export const shownOf = (at: Reading, request: PageRequest): Shown => {
   }
 
   // What is left is an OUTLINE, or the front page — whichever outline was found
-  // first, skipping the trash and leftover archives: the trash is the trash
+  // first, preferring ordinary outlines over the `_olai/` conventions.
+  // The conventions remain addressable and are a fallback if alone. Skip
+  // the trash and leftover archives: the trash is the trash
   // page's to show, and a leftover is dormant, so neither is anybody's front
   // page. A named leftover still opens as an outline — that is how a human
   // hand-moves it. Naming the trash opens the trash: it is not a place you
@@ -620,7 +622,8 @@ export const shownOf = (at: Reading, request: PageRequest): Shown => {
   const outlines = outlinesAmong(faces)
   const named = address === null ? null : address.path
   const file = named === null
-    ? outlines.find((candidate) => !isPutAway(candidate))
+    ? outlines.find((candidate) => !isPutAway(candidate) && !candidate.startsWith("_olai/"))
+      ?? outlines.find((candidate) => !isPutAway(candidate))
     : outlines.includes(named)
     ? named
     : undefined

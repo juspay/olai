@@ -95,6 +95,8 @@ import {
   serviceTag,
   type ServiceKey,
 } from "@olai/effect-cordis"
+import { ConfigurationSource } from "./configuration.ts"
+export { ConfigurationSource } from "./configuration.ts"
 import { Deferred, Effect, Exit, Scope, Semaphore, Queue, Stream } from "effect"
 
 import { ownedKey, ownService, type OwnServices } from "./owned.ts"
@@ -609,8 +611,8 @@ export const Wakes = serviceTag<Wakes>("wakes")
  *
  * The engines are plugins now, and the three arguments for that are the same
  * three the tenants make. They share no release clock (the Claude adapter's pin
- * moved five times in a month and opencode's has never moved). `--plugins`
- * enables them one at a time, so `--plugins=opencode,pi` is a serve with no
+ * moved five times in a month and opencode's has never moved). the file’s row selection
+ * enables them one at a time, so a policy selecting only opencode, pi is a serve with no
  * Claude row, no probe of it, and no mark for it anywhere. And each brings its
  * own adapter pin, its own patches and its own install sentence into its own
  * directory, so nothing general spells an engine at all.
@@ -924,7 +926,7 @@ export const Search = serviceTag<Search>("search")
  * The store is built over two readings that may have nobody behind them: where
  * a write is RECORDED ({@link Ledger}) and what a query is ANSWERED BY
  * ({@link Search}). Neither can be a `needs` on the vault row — git needs the
- * vault, so requiring its ledger would be an activation cycle, and `--plugins`
+ * vault, so requiring its ledger would be an activation cycle, and the file’s row selection
  * composes serves with neither.
  *
  * It was a LOOKUP: `HostServices.current(Ledger)`, over the whole host, for a
@@ -976,7 +978,7 @@ export const VaultViews = serviceTag<VaultViews>("vault-views")
  *
  * A COMPONENT cannot do it either, for {@link VaultViews}' reason: a row that
  * reads `waiting` is reported as not running, and `/mcp` must keep answering
- * through a failed vault, a `--plugins` set that omits it, and the panel switch.
+ * through a failed vault and a provider stopped by its session switch.
  *
  * So this is the audit's other permitted answer — *a service whose documented
  * job includes handling the arrival and departure of its backing providers*. Its
@@ -1099,6 +1101,7 @@ export interface Offers extends OwnServices {
   readonly browser: (words: ReadonlyArray<string>) => Effect.Effect<void, never, Scope.Scope>
   /** Stand behind one door, for as long as the calling plugin is loaded. */
   readonly offer: {
+    (key: typeof ConfigurationSource, door: Provision<ConfigurationSource>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof VaultSettings, door: Provision<VaultSettings>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Ops, door: Provision<Ops>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Vault, door: Provision<Vault>): Effect.Effect<void, never, Scope.Scope>
@@ -1266,6 +1269,7 @@ export interface Ops {
 export const Ops = serviceTag<Ops>("ops")
 
 export const OFFERABLE = [
+  ConfigurationSource,
   VaultSettings,
   VaultViews,
   Ops,
@@ -1499,7 +1503,7 @@ export const openPlugins = (
      * WHAT IS TRUE INSTEAD is what the fibers already say: a plugin that names
      * `deliveries` with no row behind it is `waiting`, the reading names the tag
      * it is waiting on, and the preferences panel says on whose account. Under
-     * `--plugins=kolu` alone, kolu is waiting — the paper's rule, and its
+     * a policy selecting only kolu alone, kolu is waiting — the paper's rule, and its
      * accepted cost.
      */
 

@@ -56,7 +56,7 @@
  * judgement ABOUT kolu, and it has a package of its own now:
  * `olai-plugin-kolu`. It walks the vault for who OWNS a terminal
  * (`claimants.ts` — outline records, injected into the dial rather than known
- * by it) and for what `_olai/Kolu.olai` says (`config.ts`); it decides what an
+ * by it) and for what `_olai/Settings.olai` says (`config.ts`); it decides what an
  * absent kolu MEANS, in five English sentences, over the probe it reaches
  * through `@olai/kolu-client/detect` (`probe.ts`, which was `olai-plugin-chat`'s
  * until the plugin wall went up); and it owns the padi pill and the feed its
@@ -175,52 +175,6 @@ export type WatchPulse = typeof WatchPulse.Type
  *  cadence. The door answers `kolu` on its own, the quiet face of the
  *  fold: no recency value answers, so the header can't compute an age. */
 export const KOLU_UNPULSED: WatchPulse | null = null
-
-/**
- * THE DRAWER'S FOOT — WHICH FILE DECIDES THE WATCH, and nothing else.
- *
- * The drawer's last line is not an event: it is the door onto the outline
- * the watcher reads its knobs from. `file` is which served outline the
- * convention named — read off the served OUTLINE PATHS rather than the
- * nodes (`olai-plugin-kolu`'s `koluFileIn` — shallowest, ties by path),
- * so a config that parses to nothing keeps the door that opens it, and
- * the drawer's navigation is a plain open of a page that exists rather
- * than a second spelling of the convention in a browser that holds only
- * paths. `null` is the watcher on its DEFAULTS: no file decided anything,
- * so there is no config page to open and the drawer draws no foot at all.
- *
- * IT USED TO CARRY A MUTE LIST TOO — `{file, names}`, the titles of the
- * terminals `_olai/Kolu.olai`'s `mutes` node silenced, narrowed to the
- * ones the watcher's fold could actually say. The mutes went with the
- * second doorbell (2026-08-31), and the cell was RENAMED rather than
- * dropped: the wake FILTER FILE a person picks per conversation is the
- * silence control now, and two silence mechanisms aimed at one fleet is
- * one too many — a terminal no scoped file claims wakes nobody, which is
- * the whole of what a mute was for. What could not go with them is the
- * WRENCH: its door has no other source on this wire, and the duration
- * knobs it opens survive whole.
- *
- * SO IT IS ONE FIELD AND STAYS A STRUCT. A bare `NullOr(String)` cell
- * would say the same thing today and would have to be re-SHAPED the day a
- * second standing fact about the config joins it; a struct makes that an
- * added key rather than a changed member, which is the difference between
- * a decode a stale tab survives and one it does not.
- */
-export const KoluKnobs = Schema.Struct({
-  /** Which file decided the config — see above. */
-  file: Schema.NullOr(Schema.String),
-})
-export type KoluKnobs = typeof KoluKnobs.Type
-
-/** The watcher-on-defaults reading: no file decided anything. Minted once,
- *  the way `KOLU_UNDIALED` is: before any revision lands, and on every face
- *  whose vault walk is not wired. */
-export const NO_KNOBS: KoluKnobs = { file: null }
-
-/** Two readings that say the same thing about the config — the cell's
- *  `equals`: the vault walk re-derives on every keystroke, and a revision
- *  that did not move the deciding file must publish nothing. */
-export const sameKnobs = (a: KoluKnobs, b: KoluKnobs): boolean => a.file === b.file
 
 /** Two readings that say the same thing about the link — the member's `equals`,
  *  so a re-dial that found exactly what it found last time publishes nothing

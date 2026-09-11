@@ -1227,7 +1227,7 @@ test("concurrent ops all land, each re-derived from the set the last one left", 
  * A `markdown_create` returned success — a revision — over a ~2KB body, and
  * the file on disk was 0 bytes. The incident's own report adds two
  * circumstances: the create rode a parallel MCP batch beside a `files_delete`
- * of another document, and the serve runs `--commit=manual` with deploys in
+ * of another document, and the serve runs `commit: manual` with deploys in
  * the gap between a write and its commit.
  *
  * These tests are the honest reproduction attempts: each shape the incident

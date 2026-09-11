@@ -16,7 +16,7 @@
  * are offered here ({@link @olai/plugin-api}'s `Offers`). Every plugin that
  * names one is held `waiting` until this row mounts and unloads when it leaves;
  * that is the paper's rule and the ruling accepts its cost. Under
- * `--plugins=kolu` alone, kolu sits `waiting`, and the plugins panel says on
+ * a policy selecting only kolu alone, kolu sits `waiting`, and the plugins panel says on
  * whose account — the fiber's `PENDING` reading names the missing key. The
  * engines are `waiting` without chat too, which is correct: an engine plugin's
  * whole registration is an offer to seat a conversation, and there is nobody to
@@ -115,7 +115,8 @@ import { seatingIn } from "./seating.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
 import { assignSession, type Binding, startAgentSession } from "./server/binding.ts"
-import { idleMillis } from "./idle.ts"
+import { Config } from "./settings.ts"
+export { Config } from "./settings.ts"
 import { faultedIn, scopeThrough } from "./server/doorbell.ts"
 import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
@@ -188,15 +189,19 @@ const SEATS =
   "it is what seats a conversation on a node, and that is a person's gesture in the panel"
 
 export default definePlugin({
+  environment: [
+    {"key": "OLAI_AGENT_PATH", "secret": false, "says": "the directories containing agent executables"},
+  ],
   name,
   needs: [Bundle, Env, Kinds, LocalState, Offers, Ops, Surfaces, Tools, Vault, Wakes],
-  apply: Effect.gen(function*() {
+  config: Config,
+  apply: (settings) => Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against
     // each other by looking at one screen.
     const bundle = yield* Bundle
     const env = yield* Env
-    const nodeIdle = idleMillis(env.vars["OLAI_CHAT_IDLE_MS"])
+    const nodeIdle = settings["idle-ms"]
     const kindsDoor = yield* Kinds
     const localState = yield* openLocalState(yield* LocalState)
     const offers = yield* Offers
@@ -622,7 +627,7 @@ export default definePlugin({
           // rather than a second one: the panel draws this face out of one value
           // it already subscribes to, and a tab that has not heard yet holds
           // `CHAT_OFF` itself, whose `off` is `null` — "not told" rather than any
-          // of the three ways of being off.
+          // of the two reasons for having no agent.
           state: { store: inMemoryStore<ChatState>(CHAT_OFF) },
           sessionsRevision: { store: inMemoryStore<number>(0) },
           agents: { store: inMemoryStore<Agents>(NO_AGENT_ROSTER) },

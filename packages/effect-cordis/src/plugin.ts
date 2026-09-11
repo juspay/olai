@@ -177,8 +177,20 @@ export const detached: Effect.Effect<Detach, never, Scope.Scope> = Effect.gen(fu
  * promise. Running the schema here gives invalid config the same failed-row
  * reporting and cleanup as every other initialization failure.
  */
+export interface EnvironmentDeclaration {
+  readonly key: string
+  readonly secret: boolean
+  readonly says: string
+}
+
 export interface Plugin {
   readonly name: string
+  readonly environment?: ReadonlyArray<EnvironmentDeclaration>
+  /** Static declaration; decoded inside activation, never a live service. */
+  readonly config?: Schema.ConstraintDecoder<unknown, never>
+  /** Reapply by default. Live followers own a declared revision subscription;
+   * the root still patches enablement, but leaves activation config alone. */
+  readonly configUpdates?: "reapply" | "live"
   readonly inject: ReadonlyArray<string>
   readonly apply: (ctx: CordisContext, config?: unknown) => Promise<() => Promise<void>>
 }
@@ -202,13 +214,18 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
   spec: {
     readonly name: string
     readonly needs: Keys
-    readonly config?: Schema.Schema<Config>
+    readonly environment?: ReadonlyArray<EnvironmentDeclaration>
+    readonly config?: Schema.Schema<Config> & { readonly DecodingServices: never }
+    readonly configUpdates?: "reapply" | "live"
     readonly apply:
       | Effect.Effect<void, never, NeedsOf<Keys>>
       | ((config: Config) => Effect.Effect<void, never, NeedsOf<Keys>>)
   },
 ): Plugin => ({
   name: spec.name,
+  ...(spec.environment === undefined ? {} : { environment: spec.environment }),
+  ...(spec.config === undefined ? {} : { config: spec.config }),
+  ...(spec.configUpdates === undefined ? {} : { configUpdates: spec.configUpdates }),
   inject: spec.needs.map((key) => key.cordis),
   apply: async (ctx: CordisContext, config?: unknown) => {
     const opened = held(ctx)
@@ -246,8 +263,7 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
       // The schema has no external services (the same restriction as the old
       // Standard Schema adapter). A decode failure is a defect inside this
       // activation, so the row fails before its apply acquires any resources.
-      const decode = Schema.decodeUnknownSync as (schema: Schema.Schema<Config>) => (input: unknown) => Config
-      const value = spec.config === undefined ? (config ?? {}) as Config : decode(spec.config)(config ?? {})
+      const value = spec.config === undefined ? (config ?? {}) as Config : Schema.decodeUnknownSync(spec.config)(config ?? {})
       return Effect.isEffect(spec.apply) ? spec.apply : spec.apply(value)
     })
     const running = Effect.runForkWith(services)(work as Effect.Effect<void>)

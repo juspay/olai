@@ -125,7 +125,7 @@ export interface Popover {
  */
 const TABBABLE =
   'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), ' +
-  'textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+  'textarea:not(:disabled), summary, [tabindex]:not([tabindex="-1"])'
 
 /** THE ORDINARY ARM: this popover's own open state, shut, disposed with the
  *  component that made it. Written as a function rather than inline so the two
@@ -172,7 +172,9 @@ export const createPopover = (options: {
     ...(trigger === undefined ? [] : [trigger]),
     ...(panel === undefined
       ? []
-      : [...panel.querySelectorAll<HTMLElement>(TABBABLE)]),
+      // Closed sections contain controls in the DOM, but not in the tab
+      // cycle. Their headings and definition source disclosures remain reachable.
+      : [...panel.querySelectorAll<HTMLElement>(TABBABLE)].filter(el => el.getClientRects().length > 0)),
   ]
 
   /** Re-read where the trigger is. Cheap, and it has to happen again whenever

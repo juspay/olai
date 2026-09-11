@@ -5,17 +5,17 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * a fiber.
  *
  * `running: false` used to be the whole story a browser was told, and it covered
- * four different mornings: the flag left it out, the build leaves it out until
- * somebody asks, its `apply` failed, or it is still waiting on a service. Only
- * one of those is a fault, and only one of them is something a person can act on.
+ * different situations: file policy left it out, the build leaves it out until
+ * somebody asks, its `apply` failed, or it is still waiting on a service. A failed apply
+ * needs its fault explained; disabled and waiting rows need different remedies.
  * So the composition root sends a WORD beside the boolean, and this file is the
  * half of that word the LOADER can answer — `off`, `waiting`, `failed`,
  * `running` — against real fibers rather than against a description of them.
  *
  * ## What is deliberately NOT here
  *
- * `optIn`. Telling "the row's own default left it off" from "the flag left it
- * off" needs `--plugins`, which is the composition root's and not this package's
+ * `optIn`. Telling "the row's own default left it off" from "file policy left it
+ * off" needs the policy reading, which is the composition root's and not this package's
  * — the two are the SAME FIELD by the time the loader sees them, which is exactly
  * what makes the patch a patch. `@olai/server`'s `runtime.test.ts` holds that
  * split.

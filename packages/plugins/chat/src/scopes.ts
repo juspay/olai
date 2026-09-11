@@ -521,7 +521,7 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Scopes> =>
           let moved = false
           const next = before.map((row) => {
             // A ROW NOBODY CAN BE TOLD ABOUT IS LEFT ALONE ENTIRELY, mark and
-            // all. A serve running `--plugins` without this row's tenant can
+            // all. A serve running the file’s row selection without this row's tenant can
             // still SEE the file went — but nothing would say so, and marking it
             // would spend the one signal on a serve with no doorbell to lose:
             // turn that plugin back on and the row is already marked, so the

@@ -177,7 +177,7 @@ export interface PanelOptions {
    * NOTHING ELSE READS IT and nothing of it crosses the wire. What a person is
    * told about an engine this machine has NOT installed is that engine's own
    * face, hung in the tab's `engine.install` slot by its browser half —
-   * which is what makes `--plugins=opencode,pi` a panel with no Claude row on
+   * which is what makes a policy selecting only opencode, pi a panel with no Claude row on
    * any face, with nothing in core knowing why.
    *
    * MAY BE EMPTY: a serve whose engine rows are all disabled builds no chat at
@@ -309,7 +309,7 @@ export interface Panel {
    * compensated or withheld, and a spawned ACP child is a process olai owns
    * exclusively and can stop, so it is inside the boundary. And it is the
    * invariant the whole loader surface rests on: a row somebody switched off and
-   * a row the flag never named are ONE state. Under `--plugins=` without claude
+   * a row with `on: no` in `_olai/Settings.olai` are ONE state. Under a policy with all rows off without claude
    * there is no claude conversation, so a moment after switching claude off
    * there must not be one either — a panel still talking to it would be the
    * switch saying one thing and the product doing another.

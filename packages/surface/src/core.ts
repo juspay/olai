@@ -17,9 +17,8 @@ cells: {
      *
      * A CELL for the reason the two above it are: one value about the served
      * INSTANCE rather than about any file in it. It is the sharpest case of it
-     * on this spec — the flag is read once, at the composition root, so this
-     * flag is read once at the composition root and nothing on that side
-     * republishes it by itself.
+     * on this spec: the composition root combines policy readings with live
+     * registration state and republishes when either changes.
      *
      * IT NO LONGER MOVES AT MOST ONCE, and the `equals` below is what that
      * costs. A plugin is a fiber, so the roster is republished from the
@@ -29,10 +28,8 @@ cells: {
      * must not do any of that, and it is not a rare case — a reconnect
      * republishes. {@link sameRoster} argues it in full.
      *
-     * Wire-read-only, and the paragraph that used to stand here said it was
-     * more than the usual: *`--plugins` is CLI/nix ONLY, so there is no verb a
-     * browser could call*. There is one now — {@link plugins.set}, one group
-     * down — and this cell is read-only for the ORDINARY reason instead: the
+     * Read-only because the server owns the reading. The switch is a separate
+     * procedure with an acknowledgement or refusal. The
      * server is the only thing that knows what its fibers are doing, a flip is
      * an act with a refusal rather than an assignment, and what comes back from
      * pressing the switch is this cell moving. `git` is the same pairing one
@@ -60,7 +57,12 @@ cells: {
     }
 },
 procedures: {
-plugins: { set: {
+plugins: {
+      configure: {
+        input: Schema.Struct({ name: Schema.String, key: Schema.String, value: Schema.NullOr(Schema.String) }),
+        output: Schema.Struct({}), error: OpFailure,
+      },
+      set: {
         input: Schema.Struct({
           /** The plugin's `name` — the row's own word, walked out of the
            *  `plugins` cell. Never a label, never an index: {@link BuiltPlugin}

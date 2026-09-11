@@ -686,8 +686,8 @@ test("the claim declares the key it names, in a vault that said nothing", () => 
 test("A VAULT ROW WINS, and wins by SAYING SOMETHING ELSE as well as by agreeing", () => {
   // The precedence, in the direction that matters: a board that declares the
   // claimed key `path` has said what it means, and the plugin's default does not
-  // argue. A default that overruled the person would be a flag on the machine
-  // deciding what somebody's file holds.
+  // argue. The vault’s declaration determines the stored value; neither a
+  // plugin default nor its `on` policy may override that declaration.
   const said = new Map([["widget-sprocket", declaredAs("path")]])
   expect(withClaims(said, RUNNING).get("widget-sprocket")?.type).toEqual({ kind: "path" })
   // ...and agreeing changes nothing, which is the boring half and is what makes

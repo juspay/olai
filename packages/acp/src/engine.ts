@@ -57,19 +57,9 @@ export * from "./leg.ts"
  * derivation on demand. So a person who follows any documented path gets a
  * working chat panel and never has to know this variable exists.
  *
- * IT HAS TWO READERS AND THAT IS DELIBERATE, because it answers two questions
- * that a person setting it means at once:
- *
- *   - **`olai-plugin-claude` reads it as ITS ADAPTER.** Point it at something
- *     else and you are still telling olai to read that thing the way it reads
- *     Claude Code, which is what the override has always meant.
- *   - **`olai-plugin-chat` reads the EMPTY STRING as the whole off switch** — not
- *     "no Claude row", but no roster at all, nothing probed, the panel off. The
- *     empty value survives the wrapper's `${OLAI_ACP_AGENT-…}` (an empty value
- *     is still a value), which is what makes it the explicit way to say no.
- *
- * Spelled HERE rather than in either of them for this module's whole reason:
- * the plugin and core both need the word and neither may import the other.
+ * It names the adapter resource. An empty value makes that engine unavailable;
+ * it does not suppress the other engines. Chat enablement belongs to the vault.
+ * The static name lives here so consumers need not import another plugin.
  */
 export const AGENT_ENV = "OLAI_ACP_AGENT"
 
@@ -155,7 +145,7 @@ export type PromptChannel =
  * ONE ENGINE, AS ITS PLUGIN REGISTERS IT.
  *
  * NO `id`. The id is the FIBER'S WORD — the row's `id` in `olai.yml`, which is
- * the sibling key, the word `--plugins` takes, the address of its docs page and
+ * the sibling key, the settings namespace, the address of its docs page and
  * the stamp every other keyed service reads off the registry binding. A plugin
  * cannot spell another's, because there is no field here to spell one in.
  */

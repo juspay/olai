@@ -11,11 +11,13 @@
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
 import {
+  COMMIT_DEFAULT,
   COMMIT_MODES,
   GIT_OFF,
   type GitState,
   NOTHING_PENDING,
   type Pending,
+  PUSH_DEFAULT,
   PUSH_MODES,
   type Reading,
   type Writer,
@@ -31,7 +33,7 @@ import {
 } from "@olai/plugin-api/services"
 import { Duration, Effect, Schema, Stream, SubscriptionRef } from "effect"
 
-import { type Committing, fixedPolicy, make } from "./ledger/pending.ts"
+import { type Committing, make } from "./ledger/pending.ts"
 import { faces, name, surface } from "./wire.ts"
 /** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
  *  faces. They were entries in `@olai/ops`' one closed table until #546, which
@@ -46,11 +48,16 @@ type Ctx = SurfaceCtx<typeof surface.spec>
 
 const SWEEP = Duration.seconds(30)
 
-/** This row's `config:` — `--commit` / `--push` as given, omitted for a flag
- *  nobody typed. Defaults are folded in by {@link fixedPolicy}. */
+/** The policy declaration: defaults and panel prose live on each field. */
 export const Config = Schema.Struct({
-  commit: Schema.optionalKey(Schema.Literals(COMMIT_MODES)),
-  push: Schema.optionalKey(Schema.Literals(PUSH_MODES)),
+  commit: Schema.Literals(COMMIT_MODES).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(COMMIT_DEFAULT)),
+    Schema.annotate({ description: "when a write is recorded" }),
+  ),
+  push: Schema.Literals(PUSH_MODES).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(PUSH_DEFAULT)),
+    Schema.annotate({ description: "when recorded writes are pushed" }),
+  ),
 })
 export type Config = typeof Config.Type
 
@@ -71,15 +78,11 @@ export default definePlugin({
 
     let at: Reading | null = null
     let mine: Ctx | undefined
-    const policy = fixedPolicy({
-      commit: config.commit ?? null,
-      push: config.push ?? null,
-    })
     const settled = yield* SubscriptionRef.make(0)
     const commits: Committing = make({
       root: vault.served,
       at: Effect.sync(() => at),
-      policy,
+      policy: config,
       onSettled: () => {
         detach(SubscriptionRef.update(settled, (count) => count + 1).pipe(Effect.asVoid))
       },

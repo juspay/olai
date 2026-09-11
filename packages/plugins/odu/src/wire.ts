@@ -27,7 +27,7 @@ import { defineSurface } from "@kolu/surface/define"
 import { oduMembers } from "olai-plugin-odu/appliance/wire"
 
 /** The sibling key, the preferences row, the docs slug, and the word
- *  `--plugins` takes. Spelled once, here. */
+ *  the file’s row selection takes. Spelled once, here. */
 export const name = "odu"
 
 /** The one. `ci` keeps its word: what the cell holds is every CI run this

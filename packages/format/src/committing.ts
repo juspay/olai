@@ -102,20 +102,19 @@ export const RepoState = Schema.Union([
 export type RepoState = typeof RepoState.Type
 
 /**
- * How writes reach git — the values of `--commit`, and the one table of them.
+ * How writes reach git — the values of the `git.commit` property, and the one table of them.
  *
  * It lives on this floor rather than in `@olai/ops` because it TRAVELS now. The
  * mode used to be a fact the server kept to itself: `off` reached a browser as
  * {@link GitState}'s `off` status and the other two were indistinguishable from
- * out here. `vault-level-settings` made the flag a POLICY the client has to
- * draw — pinned, read-only, with the flag named — so the vocabulary is declared
+ * out here. The policy now travels on GitState, so the vocabulary is declared
  * once, on the floor the wire spec and the ops layer both already stand on,
  * which is the argument `RepoState` is re-exported above by.
  *
  * `manual` is the point of the whole thing: a write lands on disk and WAITS,
  * and something asks for a commit. `auto` is the SERVER's quiet-window loop —
  * what is waiting records itself once writes stop arriving for fifteen seconds,
- * whoever made them (`./window.ts`). `off` is `--no-commit`.
+ * whoever made them (`./window.ts`). `off` is `commit: off`.
  *
  * `auto` used to mean one commit per write, made inside the write gate, and
  * that is retired: a train of thought arrived as a dozen commits, and the
@@ -125,15 +124,13 @@ export type RepoState = typeof RepoState.Type
 export const COMMIT_MODES = ["off", "manual", "auto"] as const
 export type CommitMode = (typeof COMMIT_MODES)[number]
 
-/** What `--commit` means when nobody gave it — the default, spelled once, so
- *  "the flag was not given" and "the flag said manual" cannot come to disagree
- *  about what the server then does. */
+/** The schema default when the vault has no commit choice. */
 export const COMMIT_DEFAULT: CommitMode = "manual"
 
 /**
- * ... and the values of `--push`, which is the newer flag and has TWO.
+ * ... and the values of the `git.push` property, which has TWO modes.
  *
- * Deliberately not three. `--commit`'s `manual` and `off` are different facts
+ * Deliberately not three. the `git.commit` property's `manual` and `off` are different facts
  * about a directory — one waits for somebody to ask, the other says olai never
  * touches git here — and pushing has no such pair: a branch that is not sent on
  * its own is sent by the Push button, and there is no third thing to be. A
@@ -142,56 +139,12 @@ export const COMMIT_DEFAULT: CommitMode = "manual"
 export const PUSH_MODES = ["off", "auto"] as const
 export type PushMode = (typeof PUSH_MODES)[number]
 
-/** What `--push` means when nobody gave it — spelled once beside
+/** What the `git.push` property means when nobody gave it — spelled once beside
  *  {@link COMMIT_DEFAULT} and for the same reason: "nobody said" and "somebody
  *  said off" must not be able to come to disagree about what the server does. */
 export const PUSH_DEFAULT: PushMode = "off"
 
-/**
- * WHAT THE OPERATOR PINNED, and `null` for each half nobody pinned.
- *
- * The instance's policy is always read-only in every browser. A flag given on
- * the command line (or through the home-manager module, which passes the same
- * flags) is named under the row; an omitted flag is the built-in default.
- *
- * `null` is nobody having typed that flag, which is the built-in default
- * ({@link COMMIT_DEFAULT} / {@link PUSH_DEFAULT}) — not a live row.
- */
-export const GitPin = Schema.Struct({
-  /** The mode `--commit` was GIVEN, or `null` when it was not given at all. */
-  commit: Schema.NullOr(Schema.Literals(COMMIT_MODES)),
-  /** The mode `--push` was GIVEN, or `null` when it was not given at all. */
-  push: Schema.NullOr(Schema.Literals(PUSH_MODES)),
-})
-export type GitPin = typeof GitPin.Type
-
-/** Nothing pinned: what a server started with neither flag publishes, and what
- *  a page holds before it has heard anything. Both halves unsaid, which is
- *  what lets {@link policyOf} fill the built-in defaults. */
-export const NO_PIN: GitPin = { commit: null, push: null }
-
-/**
- * WHAT THIS SERVER ACTUALLY DOES about the two verbs — both halves, together,
- * because they are one policy about one directory.
- *
- * Two sources: the FLAG, because an operator who typed it stated a policy for
- * everybody; then the defaults, which are spelled in exactly one place each
- * ({@link COMMIT_DEFAULT}, {@link PUSH_DEFAULT}). There is no third source.
- */
-export const policyOf = (pin: GitPin): GitPolicy => ({
-  commit: pin.commit ?? COMMIT_DEFAULT,
-  push: pin.push ?? PUSH_DEFAULT,
-})
-
-/**
- * The policy in force, with no `null` left in it — what the server does, and
- * what the plugins panel draws under the git row.
- *
- * Its own shape beside {@link GitPin} rather than the same one narrowed,
- * because the two answer different questions and a reader holding one must not
- * be able to mistake it for the other: the pin says WHO DECIDED (and leaves a
- * half unsaid where nobody did), this says WHAT HAPPENS (and cannot).
- */
+/** Resolved policy for this activation, including schema defaults. */
 export const GitPolicy = Schema.Struct({
   commit: Schema.Literals(COMMIT_MODES),
   push: Schema.Literals(PUSH_MODES),
@@ -210,8 +163,8 @@ export const DEFAULT_POLICY: GitPolicy = {
  * header (`git-invisible`, #108) and for the agent that reads the same cell
  * over MCP.
  *
- * FLAT — a status, the words that go with it, what the operator pinned, what
- * the server is DOING, and what the loop last came to — because this value
+ * FLAT — a status, the words that go with it, the resolved policy, and what
+ * the loop last came to — because this value
  * TRAVELS:
  * the ops layer derives it from its own survey's `RepoState` (`gitOf`, which
  * owns the one-survey coherence argument), the surface declares it as the
@@ -228,33 +181,7 @@ export const GitState = Schema.Struct({
    *  reader gets rather than "something went wrong". `null` otherwise: a
    *  healthy repository is not quoting anything. */
   said: Schema.NullOr(Schema.String),
-  /**
-   * What the OPERATOR pinned — see {@link GitPin}.
-   *
-   * It rides HERE rather than on a cell of its own, and that is one channel
-   * rather than thrift: this cell is already "what git is for this directory",
-   * a `--no-commit` serve already reaches a browser through it as `off`, and
-   * the preferences panel that draws the pin is drawing the same server's
-   * answer about the same directory. A second cell would be a second thing to
-   * seed, a second thing to keep in step, and a second moment for a page to be
-   * holding one of them and not the other.
-   *
-   * It MOVES NEVER: the flags are read once, at boot. Riding a value that is
-   * recomputed on a timer costs nothing for the reason the status does not —
-   * {@link sameGit} is what keeps a republish that says nothing new quiet.
-   */
-  pinned: GitPin,
-  /**
-   * WHAT THIS SERVER DOES about the two verbs, with the flags and the
-   * built-in defaults already folded in ({@link policyOf}).
-   *
-   * The directory's own answer, so every tab draws the same one and a reload
-   * changes nothing. There is no runtime door.
-   *
-   * Beside {@link GitState.pinned} rather than instead of it, because the two
-   * are different questions: this says what happens, the pin says whether a
-   * flag named it or the built-in default did.
-   */
+  /** What this activation does about commit and push, including defaults. */
   policy: GitPolicy,
   /**
    * What git said when it last refused a PUSH, or `null` when the last one
@@ -286,7 +213,7 @@ export const GitState = Schema.Struct({
 })
 export type GitState = typeof GitState.Type
 
-/** What a page reads before the first frame arrives, and what a `--no-commit`
+/** What a page reads before the first frame arrives, and what a `commit: off`
  *  serve stays in — beside its type for the reason {@link NOTHING_PENDING} is
  *  beside `Pending` below. `off` is the right default twice over: it is the
  *  calmest of the four, so a page cannot flash "git error" at a healthy
@@ -297,7 +224,6 @@ export type GitState = typeof GitState.Type
 export const GIT_OFF: GitState = {
   status: "off",
   said: null,
-  pinned: NO_PIN,
   policy: DEFAULT_POLICY,
   pushSaid: null,
   paused: null,

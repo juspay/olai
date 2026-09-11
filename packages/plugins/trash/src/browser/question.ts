@@ -85,7 +85,7 @@ export const trashQuestion = (
  *     and the same commit door as every other write, so git holds them to
  *     precisely the extent git had already recorded them — and no further. It
  *     is phrased that way rather than as "git still has them" on purpose: a
- *     directory with no repository, one served `--no-commit`, or one whose
+ *     directory with no repository, one served `commit: off`, or one whose
  *     trash has been waiting uncommitted since the row was put away all have
  *     the same true answer under this wording and would be lied to by the
  *     shorter one. Nothing here reads the git state to decide — a claim that

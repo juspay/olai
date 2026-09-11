@@ -7,27 +7,26 @@
  * `SERVERS`: an `as const` array of statically imported server halves, which a
  * composition root filtered with `enabled(SERVERS, pin)` and then iterated,
  * calling `serve(services)` on each and keying the results by name. Six edits
- * per plugin across three arrays that had to agree in order, and a `--plugins`
+ * per plugin across three arrays that had to agree in order, and a policy selection
  * that was a `.filter` in a general package.
  *
  * What is here instead is `../olai.yml` — one row per plugin, `id` and the
  * MODULE the loader mounts — and a `disabled` patch over those rows. A plugin is
- * a fiber; `--plugins` is a patch; and "disabled means absent" holds at every
+ * a fiber; the file’s row selection is a patch; and "disabled means absent" holds at every
  * moment rather than only at boot, because a row that is off never mounts and a
  * plugin that is disposed unwinds every registration it made.
  *
  * ## Two readers of one file, and why that is not two lists
  *
  * The LOADER is one: it reads the file, applies the patch, and drives the entry
- * tree — which is what makes `--plugins` an overlay over rows rather than a
- * filter in code, and is the seam `--dump-config` and `olai plugin add` land on
- * later.
+ * tree — which is what makes the file’s row selection an overlay over rows rather than a
+ * filter in generic code.
  *
  * The other reader is `../generate.ts`, at BUILD time, which writes the rows out
  * as data (`./rows.ts`) for the one question that has to be answered before
  * anything is mounted: which modules this BUILD has. The vault's vocabulary
  * needs it — a declaration of `kolu-terminal` stays legal on a serve running
- * only odu, so a file's verdict does not depend on a flag it cannot see — and a
+ * only odu, so a file's verdict does not depend on which rows happen to be running — and a
  * disabled row is never imported by the loader, so its words have to be read
  * some other way. Two readings of one file, never two lists.
  *
@@ -46,8 +45,6 @@
  * door in this package keeps, in a third grammar.
  */
 
-import type { PluginPin } from "@olai/format"
-export type { PluginPin } from "@olai/format"
 import type { Host, PropKind, RowReport } from "@olai/plugin-api"
 import { definePlugin, kindWordOf, rowReport } from "@olai/plugin-api"
 // THE TWO REACHES PAST `@olai/plugin-api`, and the only ones in the tree, for
@@ -70,9 +67,9 @@ import { definePlugin, kindWordOf, rowReport } from "@olai/plugin-api"
 import { BundleModules } from "@olai/plugin-api/services"
 import { namedBy, offered, provide, settled } from "@olai/effect-cordis"
 
-export { offered, provide, settled } from "@olai/effect-cordis"
-import { flipRow, mountRows, rowConfigs } from "@olai/effect-cordis/loader"
-import { Effect, type Scope } from "effect"
+export { offered, provide, settled, serviceChanges } from "@olai/effect-cordis"
+import { flipRow, patchRow, mountRows, rowConfigs } from "@olai/effect-cordis/loader"
+import { Effect, Schema, type Scope } from "effect"
 
 import { BUNDLE_NAMES, ROWS } from "./rows.ts"
 
@@ -96,61 +93,15 @@ const BUNDLE = "../olai.yml"
  * door whose other job is to name plugins for a docs sweep and a tab.
  *
  * ONE SOURCE, still. The generator reads `olai.yml`; the loader reads
- * `olai.yml` itself at mount, which is what keeps `--plugins` a PATCH over rows
+ * `olai.yml` itself at mount, which is what keeps the file’s row selection a PATCH over rows
  * rather than a filter in code. What is gone is the second parse, not the second
  * reader.
  */
 export { BUNDLE_NAMES, type BundleRow, DEFAULT_BUNDLE_NAMES, ROWS } from "./rows.ts"
 
-/** WHAT BECAME OF ONE ROW, as the bridge reads it off the live registry — four
- *  states, and `off` says nothing about WHO turned a row off. The row's own
- *  default and the operator's flag are the same field by design
- *  ({@link pluginsPatch}), so the only thing that can tell them apart is whether
- *  a flag was given at all, which is the composition root's to hold. */
+/** Runtime state is independent of policy provenance. The roster joins this
+ * report to the shared configuration reading and build defaults. */
 export type { RowReport, RowState } from "@olai/plugin-api"
-
-/**
- * `--plugins`, AS A PATCH — the overlay an operator's flag writes over the rows.
- *
- * `omitted` is nobody having said, and it writes NO patch at all: the rows' own
- * `disabled` stands, which is the built-in default. That is also what keeps the
- * distinction between an omitted flag and one typed out loud — the preferences
- * row is drawn from it, and a patch that had already expanded `omitted` could not
- * tell a reader which of the two they were looking at.
- *
- * A flag that WAS given writes a `disabled` onto every row, set from whether the
- * flag named it. Both directions, deliberately: a name the flag gives turns a
- * row ON even where the file left it off, which is the whole of how an opt-in
- * plugin is opted into, and a name the flag omits turns a row off even where the
- * file left it on. `--plugins=` — somebody saying NONE out loud — is that with an
- * empty list, and disables every row.
- *
- * `--extra-plugins` and `--without-plugins` are the other encoding of the same
- * pin: each names only the rows it moves, so the file's answer stands for
- * everything else. They live on `delta`. Exact set is a different arm. The
- * type is the refusal; this function is not passed both.
- *
- * That is exactly the shape the include's own patch algorithm takes: `{ id,
- * …overrides }` copied onto the matching row. The flag refuses an unknown name
- * where a person types one, so a patch for a row that does not exist is not this
- * function's failure to report — the loader logs it and carries on, which is the
- * right arm for an overlay that outlived a build.
- */
-export const pluginsPatch = (
-  pin: PluginPin,
-): ReadonlyArray<{ readonly id: string; readonly disabled?: boolean }> => {
-  switch (pin.kind) {
-    case "omitted":
-      return []
-    case "exact":
-      return ROWS.map((row) => ({ id: row.id, disabled: !pin.names.includes(row.id) }))
-    case "delta":
-      return [
-        ...(pin.extra ?? []).map((id) => ({ id, disabled: false as const })),
-        ...(pin.without ?? []).map((id) => ({ id, disabled: true as const })),
-      ]
-  }
-}
 
 /**
  * WHAT EVERY BUILT PLUGIN TEACHES THE VAULT, running or not — the declarations a
@@ -159,8 +110,7 @@ export const pluginsPatch = (
  * Every row's module is imported, INCLUDING the ones this serve disabled, and
  * that is the point rather than a leak: a DECLARATION is refused against what the
  * binary was built with, so `{"type":"kolu-terminal"}` is a legal row on a
- * machine running only odu and a file's verdict does not depend on a flag it
- * cannot see. What a disabled plugin does not get is a fiber — no surface, no
+ * machine running only odu and a file's verdict does not depend on which rows happen to be running. What a disabled plugin does not get is a fiber — no surface, no
  * handler, no probe, no `admits` — and reading a word off a module is none of
  * those.
  *
@@ -250,9 +200,8 @@ export const rowsNaming = (host: Host, also: ReadonlyArray<string> = []): Readon
  * EACH ROW'S CONFIG, off the live entries — what a roster draws under the
  * row, as data, with core knowing none of the plugin's words.
  *
- * A LIVE READ: `--commit` / `--push` are a patch onto the git row's config
- * the way `--plugins` is a patch onto `disabled`, so what the panel shows
- * is what the loader is holding.
+ * The root patches config and enablement from the published revision. This
+ * reading is what the loader holds, distinct from the file’s desired values.
  */
 export const configsOf = (
   host: Host,
@@ -280,10 +229,10 @@ export const configsOf = (
  *
  * ## WHAT IT DOES NOT DO
  *
- * It writes nothing — not `olai.yml`, not a settings file, not anywhere. A flip
- * is the instance's for as long as the process runs, and the boot-time answer
- * stays the rows, the flag and nix. `@olai/effect-cordis`'s `flipRow` is where
- * that is kept true against a loader whose own instinct is to persist.
+ * This low-level operation writes no file. Durable management first uses
+ * the ordinary write door, then reconciles the resulting revision here.
+ * Infrastructure switches may spend it directly for a session-only change.
+ * `flipRow` prevents the loader from persisting its own second policy copy.
  *
  * And it says nothing about what came of it. A row that will not come back —
  * a module that now throws, an `apply` that dies on a socket that has gone —
@@ -301,7 +250,7 @@ export const setRow = (
   )
 
 /**
- * MOUNT THE BUNDLE ON `host` — the rows, patched by the flag, as fibers.
+ * MOUNT THE BUNDLE ON `host` — the rows, patched by profile and vault policy, as fibers.
  *
  * Returns once every row that is going to load has loaded AND APPLIED, so a
  * caller can read the kind and surface registries straight afterwards and get
@@ -340,31 +289,50 @@ export const setRow = (
  */
 export const mountBundle = (
   host: Host,
-  pin: PluginPin,
-  configs: ReadonlyArray<{ readonly id: string; readonly config: unknown }> = [],
+  patches: ReadonlyArray<{ readonly id: string; readonly disabled?: boolean; readonly config?: unknown }> = [],
   profile: string = "web",
+  prepare = false,
 ): Effect.Effect<void, never, Scope.Scope> => Effect.gen(function*() {
   yield* provide(host, BundleModules, () => ({
     read: Effect.promise(() => Promise.all(ROWS.map(async (row) => ({ name: row.id, exports: await importByName(row.name) })))),
   }))
+  // The schema supplies policy defaults to the current roster too. This is a
+  // static declaration read at composition, not a second source of settings.
+  const defaults = yield* Effect.promise(async () => Promise.all(ROWS.map(async (row) => {
+    const module = await importByName(row.name) as { default: { config?: Schema.ConstraintDecoder<unknown, never> } }
+    const schema = module.default.config
+    try { return schema === undefined ? [] : [{ id: row.id, config: Schema.decodeUnknownSync(schema)({}) }] }
+    catch { return [] } // Activation reports an invalid declaration as this row’s fault.
+  })))
   yield* Effect.flatMap(
     mountRows(host, {
       baseUrl: BASE_URL,
       path: BUNDLE,
-      patches: [...profilePatch(profile), ...pluginsPatch(pin), ...configs],
+      patches: [...profilePatch(profile), ...defaults.flat(), ...patches, ...(prepare ? profilePatch("test-minimal") : [])],
       resolve: importByName,
     }),
-    // EVERY ROW THIS BUILD HAS, and not only the ones the flag left on: a row
-    // the patch disabled never entered the registry, so it holds no inertia and
-    // costs the walk one `has` — while a list narrowed to the enabled ones would
-    // be a second reading of the flag beside {@link pluginsPatch}'s.
+    // Settle the entire catalogue: disabled entries have no inertia, while a
+    // dependency withdrawal can move a row outside the patch itself.
     () => settled(host, BUNDLE_NAMES),
   )
 })
 
 /** Profiles disable rows from the catalogue; they never insert a second list.
- * An explicit --plugins selection overrides those defaults for every row. */
+ * Published file choices subsequently patch these build defaults. */
 export const profilePatch = (profile: string) => profile === "web" ? [] : ROWS.map((row) => ({
   id: row.id,
   disabled: row.disabled === true || !row.profiles?.includes(profile),
 }))
+
+/** Apply one publication as a batch, then settle the resulting dependency graph. */
+export const patchBundleRows = (host: Host, patches: ReadonlyArray<{ readonly id: string; readonly disabled?: boolean; readonly config?: unknown }>) =>
+  Effect.gen(function*() {
+    const found: boolean[] = []
+    for (const { id, ...patch } of patches) found.push(yield* patchRow(host, id, patch))
+    yield* settled(host, BUNDLE_NAMES)
+    return found
+  })
+
+/** A single-row composition operation shares the same settlement boundary. */
+export const patchBundleRow = (host: Host, id: string, patch: { readonly disabled?: boolean; readonly config?: unknown }) =>
+  Effect.map(patchBundleRows(host, [{ id, ...patch }]), found => found[0] ?? false)

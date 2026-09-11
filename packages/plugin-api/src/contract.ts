@@ -167,7 +167,7 @@ export interface Probed {
  * ## Two vocabularies, and which question reads which
  *
  * The table core assembles out of these has two halves, and the distance
- * between them is what `--plugins` means one more time (`@olai/server`'s
+ * between them is what the file’s row selection means one more time (`@olai/server`'s
  * `propKinds.ts`). It used to be one function over two lists a composition root
  * held; it is two READINGS now, and the split is the phase rather than a
  * refactor — the ENABLED half is what the mounted fibers registered
@@ -700,8 +700,8 @@ export const kindWordOf = (plugin: string, kind: string): string => {
  * INTERFACE package — the one a plugin is written against — because everything
  * that composed a roster read them.
  *
- * Nothing calls either. `--plugins` is a `disabled` PATCH over rows now
- * (`@olai/bundle`'s `pluginsPatch`, applied by `@cordisjs/plugin-include` on
+ * Nothing calls either. the file’s row selection is a `disabled` PATCH over rows now
+ * (`@olai/bundle`'s the row patch, applied by `@cordisjs/plugin-include` on
  * the way in), so a plugin that is off is never loaded rather than filtered out
  * of a list — and the preferences row that needed `isEnabled` reads a state
  * word off the roster cell instead.

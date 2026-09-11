@@ -1,2 +1,2 @@
-/** The plugin word: bundle id, registry key, --plugins value and docs address. */
+/** The plugin word: bundle id, registry key, settings namespace and docs address. */
 export const name = "codex"

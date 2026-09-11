@@ -6,7 +6,7 @@
  * ## Why the arrow points that way
  *
  * They cannot be `needs` on this row: git needs the vault, so requiring its
- * ledger would be an activation cycle, and `--plugins` composes serves with
+ * ledger would be an activation cycle, and the file’s row selection composes serves with
  * neither provider at all.
  *
  * They cannot be COMPONENTS of this row either, and that one is worth writing

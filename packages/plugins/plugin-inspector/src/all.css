@@ -1,1 +1,50 @@
 @source "./";
+
+.plugins-grid-panel {
+  position: fixed; z-index: 50; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(880px, calc(100vw - 2rem), calc(100dvh - 2rem)); aspect-ratio: 1;
+  max-height: calc(100dvh - 2rem); display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden; border: 1px solid var(--color-rule); border-radius: 8px;
+  background: var(--color-panel); color: var(--color-ink); font-size: 13px;
+  box-shadow: 0 12px 40px #0003;
+}
+.plugins-grid-head, .plugins-grid-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; }
+.plugins-grid-head { border-bottom: 1px solid var(--color-rule); }
+.plugins-grid-foot { border-top: 1px solid var(--color-rule); font-size: 11px; color: var(--color-muted); flex-wrap: wrap; }
+.plugins-grid-body { padding: 6px 16px; overflow: auto; }
+.plugins-grid-columns { columns: 2; column-gap: 24px; }
+.plugins-grid-group { break-inside: avoid; border-bottom: 1px solid var(--color-rule); padding: 6px 0; }
+.plugins-grid-heading { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; padding: 4px 0; cursor: pointer; list-style: none; font-size: 11px; }
+.plugins-grid-heading::-webkit-details-marker { display: none; }
+.plugins-grid-row { display: grid; grid-template-columns: minmax(0, 96px) minmax(0, 1fr) 36px; gap: 0 10px; align-items: start; padding: 5px 0; min-height: 30px; }
+.plugins-grid-name { display: flex; min-width: 0; gap: 6px; align-items: baseline; padding-top: 3px; }
+.plugins-grid-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plugins-grid-name a { opacity: 0; font-size: 11px; color: var(--color-muted); }
+.plugins-grid-row:hover .plugins-grid-name a, .plugins-grid-row:focus-within .plugins-grid-name a { opacity: 1; }
+.plugins-grid-knobs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-width: 0; }
+.plugins-grid-row[data-off] .plugins-grid-knobs { opacity: .42; }
+.plugins-grid-row > [data-testid="plugin-switch"] { margin-top: 3px; justify-self: end; }
+.plugins-grid-extra { grid-column: 1 / -1; min-width: 0; }
+.prototype-switch[data-session]::before { content: ""; position: absolute; inset: -3px; border: 1px dashed var(--color-muted); border-radius: 14px; }
+.plugins-knob { display: inline-flex; flex-direction: column; min-width: 0; max-width: 100%; font-size: 12px; }
+.plugins-knob-line { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.plugins-knob-key { color: var(--color-muted); white-space: nowrap; }
+.plugins-knob-input { min-width: 0; max-width: 100%; border: 1px solid var(--color-rule); border-radius: 5px; background: color-mix(in srgb, var(--color-ink) 5%, var(--color-panel)); padding: 3px 7px; font: inherit; color: inherit; }
+.plugins-knob-input[aria-invalid="true"] { border-color: var(--color-alarm); background: color-mix(in srgb, var(--color-alarm) 10%, var(--color-panel)); }
+.plugins-knob-segments { display: inline-flex; flex-wrap: wrap; min-width: 0; border: 1px solid var(--color-rule); border-radius: 5px; overflow: hidden; }
+.plugins-knob-segments button { padding: 3px 7px; font: inherit; color: var(--color-muted); }
+.plugins-knob-segments button[aria-pressed="true"] { background: color-mix(in srgb, var(--color-done) 20%, var(--color-panel)); color: var(--color-ink); }
+.plugins-knob-source { color: var(--color-done); font-size: 9px; }
+.plugins-knob-reset { color: var(--color-muted); }
+.plugins-knob-problem { color: var(--color-alarm); font-size: 11px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.plugins-grid-env { color: var(--color-muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.plugins-grid-panel :is(button, input, select, summary, a):focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+@media (max-width: 700px) {
+  .plugins-grid-panel { width: calc(100vw - 2rem); aspect-ratio: auto; max-height: calc(100dvh - 2rem); }
+  .plugins-grid-columns { columns: 1; }
+  .plugins-grid-row { grid-template-columns: minmax(0, 80px) minmax(0, 1fr) 36px; gap: 0 8px; }
+  .plugins-grid-name a { opacity: 1; }
+}
+
+.plugins-knob-input[type="number"] { appearance: textfield; }
+.plugins-knob-input::-webkit-inner-spin-button, .plugins-knob-input::-webkit-outer-spin-button { appearance: none; margin: 0; }

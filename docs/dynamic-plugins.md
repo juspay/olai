@@ -2,7 +2,7 @@
 
 Everything else under `docs/plugins/` is a plugin olai was built with. This page is about the other kind: a plugin somebody writes **into the directory olai is serving**, usually a node agent, which olai compiles and mounts while it is running.
 
-A plugin like that is an ordinary row once it is up. It has the same five states on the plugins panel, the same containment when its `apply` throws, the same switch, and the same reach into the app as `kolu` or `journal` — a property kind, a chip on a row, a pane its press opens, a sibling on the wire. What differs is where it came from and that **a person has to say yes to it first**.
+A plugin like that is an ordinary row once it is up. It has the same seven states on the plugins panel, the same containment when its `apply` throws, the same switch, and the same reach into the app as `kolu` or `journal` — a property kind, a chip on a row, a pane its press opens, a sibling on the wire. What differs is where it came from and that **a person has to say yes to it first**.
 
 ## The shape of a definition
 
@@ -20,6 +20,26 @@ A swatch for hex colours          plugin: swatch
 - any other child is ordinary outline content — notes about the plugin, a to-do — and is passed over.
 
 Nothing about that needs a new write door. An agent writes a definition with `outlines_add`, `outlines_desc` and `outlines_prop`; and the `.olai` file the nodes live in is committed by the ledger like any other change. There is no `.ts` on the disk, because `.ts` is not a kind of file olai serves — the source is vault content, and it travels, versions and diffs like vault content.
+
+## Knobs on the definition
+
+A server half may expose a `Config` schema just like a built row. Give every field a decoding default and a description annotation, then pass it as `config` to `definePlugin`; `apply` receives the decoded object. Properties on the definition node supply its leaves, and children may supply schema sections. These values belong on this node, not a second namespace in the shared settings file. `plugin` and `approved` are reserved definition keys: declaring either in Config faults the row. `vault-plugins_inspect` describes this layout, and `vault-plugins_run` returns the current configuration values with their authors.
+
+```ts
+import { definePlugin } from "@olai/plugin-api"
+import { Effect, Schema } from "effect"
+const Config = Schema.Struct({
+  tone: Schema.String.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed("blue")),
+    Schema.annotate({ description: "the colour to draw" })),
+})
+export default definePlugin({
+  name: "swatch", needs: [], config: Config,
+  apply: (config) => Effect.logInfo(`swatch tone: ${config.tone}`),
+})
+```
+
+A definition’s schema-derived controls appear inline beside its name on the plugins panel. Descriptions are tooltips and a ● marks authored values; for a definition, the authored value lives on its own node. ↺ removes the property. The ↗ beside its name links to that definition. The browser’s `plugins.configure` validates before writing and refuses `plugin` and `approved` as configuration keys, preserving the definition’s identity and approval. A knob edit re-applies the row; setting an explicit value equal to its default changes authorship without restarting it. Invalid leaves use defaults, warn once, and show the file text and schema message beneath their controls; an invalid schema fails only that definition. Source approval hashes the server and browser source, so a knob edit keeps approval while a source edit requires approval of its new version. A plugin declaring live config updates retains its activation and can follow its own node through its declared vault service.
 
 ## What a half may import
 

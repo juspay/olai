@@ -258,27 +258,23 @@ Feature: Choosing an agent
 
   @no-agent @scratch:chat
   Scenario: With no agent at all, the panel says how to get one
-    # An empty roster shows install instructions rather than an empty list —
-    # the panel answers the question a person actually has, which is what to do
-    # about it. Reached the way somebody would reach it deliberately:
-    # `OLAI_ACP_AGENT` set to the empty string, which is the whole off switch
-    # rather than one missing row.
+    # No executable resources are available; enabled rows cannot supply an agent.
     Then the panel says there is no agent
     And the panel tells me how to install "opencode"
     And the panel explains how to configure one, naming "OLAI_ACP_AGENT"
-    # ...and it says WHICH of the three ways it got here rather than hedging
-    # across them. This one is the off switch, and the sentence is about that.
-    And the panel says the agent is switched off
+    # ...and it says which of the two reasons brought it here rather than hedging
+    # across them. Here no engine executable is installed.
+    And the panel says no engine is installed
     And there is nothing to type into
     # And the outlines are unaffected: serving a directory never depended on an
     # agent being installed.
     And the outline list is shown
 
-  @plugins:vault,chat,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins @scratch:chat
+  @rows:vault,chat,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins @scratch:chat
   Scenario: A serve that enabled no engine says THAT, rather than guessing
     # THE CASE THE FACE USED TO MISS ENTIRELY, and the commonest real one now
     # that every engine is a plugin: all four engine rows are ENABLED BY
-    # DEFAULT, so the way to end up with no agent is to name a `--plugins` list
+    # DEFAULT, so the way to end up with no agent is to author a row selection
     # without one in it.
     #
     # THE LIST NAMES `chat`, and that is the phase rather than noise: the panel
@@ -290,7 +286,7 @@ Feature: Choosing an agent
     # guess, a start that skipped the wrapper, cannot happen at all: every
     # documented way of starting olai bakes the pinned adapter in.
     #
-    # The server is the only end that can tell this apart from the other two —
+    # The server is the only end that can tell this apart from the other reason —
     # it holds the engine registry — so it sends which, and the panel says it.
     Then the panel says there is no agent
     And the panel says this serve enabled no agent engine

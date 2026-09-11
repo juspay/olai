@@ -1,33 +1,7 @@
+import { TESTID } from "./testids.ts"
 import { PLUGIN_PREF } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
-/**
- * WHAT THE SERVER'S PLUGIN POLICY DOES TO THE ROWS THAT READ IT.
- *
- * The rules are small and the reason they are a module at all is the reason the
- * git rows' are: a row's VALUE and the sentence about it are read off the same
- * cell, and asked separately a browser could be drawn a default whose line
- * quotes a flag nobody gave — a policy quietly not applying.
- *
- * There IS a write half now (`plugins.set`, the human's ruling of 2026-09-04),
- * and it did not come in here: what a press does is `./Panel.tsx`'s, and what
- * this module holds is the decision that press is drawn from —
- * {@link pluginSwitch} — which is a function of one row and one boolean and is
- * asked here with both built by hand.
- *
- * **THE SHAPE OF THE PANEL IS A CLAIM, and half these cases are about it.** A
- * serve running six plugins drew the same two paragraphs under all eight rows;
- * what replaced it is a name and a switch per row, a sentence only where the row
- * has one, and one line at the foot. Every one of those is asserted, including
- * the ABSENCES — a running row saying nothing is the whole of the fix, and an
- * absence nothing tests is an absence that comes back.
- *
- * **NO PLUGIN IS NAMED HERE EITHER.** The rosters below are built out of words
- * this file made up — `alpha`, `beta` — which is not a shortcut but the claim:
- * every one of these readings is a walk over what the cell carries, so a test
- * that had to spell a real plugin's name would be evidence that the panel does
- * too. It also means a third plugin, or a build with none, changes nothing
- * here.
- */
+
 
 import { NO_ROSTER, type BuiltPlugin, type PluginRoster } from "@olai/surface"
 import { expect, test } from "bun:test"
@@ -39,26 +13,21 @@ import {
   pluginConfirm,
   pluginGroups,
   pluginHint,
-  PLUGINS_SESSION_ONLY,
   pluginRows,
-  pluginsStarted,
+  rowCopy,
   pluginSwitch,
   THIS_VAULT,
 } from "./rows.ts"
 
 
-/** A build with two plugins, and whichever of them this case is about running.
- *  `pin` defaults to omitted, which is the ordinary serve. */
+
 const roster = (
   running: ReadonlyArray<string>,
-  names: ReadonlyArray<string> | null = null,
 ): PluginRoster => ({
   built: [
     { name: "alpha", running: running.includes("alpha") },
     { name: "beta", running: running.includes("beta") },
   ],
-  pinned: names,
-  pin: names === null ? { kind: "omitted" } : { kind: "exact", names },
 })
 
 /**
@@ -85,8 +54,6 @@ const row = (
     ...(missing === undefined ? {} : { missing }),
     ...(carrying === undefined ? {} : { carrying }),
   }],
-  pinned: null,
-  pin: { kind: "omitted" },
 })
 
 /** That row, for the readings that take one. */
@@ -95,7 +62,7 @@ const only = (sent: PluginRoster) => sent.built[0]!
 /**
  * A ROW PER PLUGIN THE BUILD HAS, not per plugin that is running — which is the
  * whole feature and the one thing a filter over the enabled ones could not do.
- * A plugin left out of `--plugins` is absent from every structure the server
+ * A plugin left out of the file’s row selection is absent from every structure the server
  * holds, so the row saying so is the only place its absence is visible at all.
  */
 test("every plugin the build has gets a row, running or not", () => {
@@ -110,7 +77,6 @@ test("every plugin the build has gets a row, running or not", () => {
 test("the rows come in the order the server sent them", () => {
   const sent: PluginRoster = {
     built: [{ name: "zulu", running: true }, { name: "alpha", running: true }],
-    pinned: null,
   }
   expect(pluginRows(sent).map((one) => one.name)).toEqual(["zulu", "alpha"])
 })
@@ -161,58 +127,32 @@ test("every arm core writes in full is one short line", () => {
     pluginConfirm(only(row("running", undefined, undefined, ["kolu"]))),
   ]
   for (const said of every) {
-    expect([said, said !== null && said.length < 100]).toEqual([said, true])
+    expect(said === null || said.length < 100).toBe(true)
   }
 })
 
-/**
- * THE FOUR ABSENCES ARE FOUR SENTENCES, and the boolean could only ever say
- * one of them.
- *
- * `running: false` covers the flag leaving it out, the BUILD leaving it out
- * until somebody asks, A PERSON SWITCHING IT OFF HERE, a start that died, and a
- * plugin still waiting on a service. All five cost exactly the same — total
- * absence — so the account of the cost is the same in each; what differs is the
- * WHY, which is the only thing a person can act on and the only thing the
- * boolean discarded.
- *
- * THE PRESS IS THE NEWEST OF THEM and is why the count moved from four. Absence
- * had two authors a serve could tell apart, the flag and the build; the switch
- * is a third, and until the serve learned to say so this row read `optIn` and
- * told a person who had just pressed the switch that the BUILD ships this off by
- * default, with a flag to go and type.
- */
-test("each absence says its own why, and they are five different whys", () => {
+
+test("only failed and waiting rows explain their absence", () => {
   const optIn = row("optIn")
   const failed = row("failed", "no socket at /run/nothing")
   const waiting = row("waiting")
   const off = row("off")
   const switched = row("switched")
 
-  expect(pluginHint(only(optIn))).toContain("by default")
-  expect(pluginHint(only(off))).toContain("was not asked for")
+  expect(pluginHint(only(optIn))).toBeNull()
+  expect(pluginHint(only(off))).toBeNull()
   expect(pluginHint(only(waiting))).toContain("waiting for something it needs")
   expect(pluginHint(only(failed))).toContain("Failed to start")
-  expect(pluginHint(only(switched))).toContain("Switched off here")
+  expect(pluginHint(only(switched))).toBeNull()
 
   const said = [optIn, off, waiting, failed, switched].map((sent) => pluginHint(only(sent)))
-  expect(new Set(said).size).toBe(5)
+  expect(new Set(said).size).toBe(3)
 })
 
-/**
- * ...AND THE PRESS IS THE ONE ABSENCE THAT UNDOES ITSELF, which is the whole of
- * what its sentence has to add.
- *
- * The other three all send a reader somewhere else — a flag to type, a build to
- * rebuild, a plugin to compose. This one is answered by the switch beside the
- * sentence, so naming a flag here would be telling somebody to restart the
- * server to undo a press they can undo by pressing again. What it owes instead
- * is the fact a reader might not have: it does not survive the serve.
- */
-test("a switched-off row names no flag, and says the press does not survive a restart", () => {
+
+test("a session-switched row has no prose and remains pressable", () => {
   const said = pluginHint(only(row("switched")))
-  expect(said).toContain("restart")
-  expect(said).not.toContain("--plugins")
+  expect(said).toBeNull()
   // ...and the switch beside it is still drawn and still pressable, because
   // pressing it is the undo.
   expect(pluginSwitch(only(row("switched")), false)).toEqual({ value: "off", frozen: false })
@@ -234,32 +174,9 @@ test("a failed row quotes what the plugin said, or says it said nothing", () => 
   expect(pluginHint(only(row("failed")))).toContain("gave no message")
 })
 
-/**
- * THE TWO ABSENT-AT-BOOT ARMS NAME THIS ROW'S OWN WORD, which is what keeps
- * them from being the repetition this panel just lost.
- *
- * The switch starts a plugin NOW; the flag is how it comes back after a
- * restart, and that is the one thing on this panel that outlives the process.
- * Both arms therefore name what to type — and because both spell the ROW's
- * name, no two of these lines are the same line, which is exactly the test the
- * shared clause failed.
- *
- * THEY ARE TWO ARMS AND NOT ONE. `optIn` is this build shipping the plugin off
- * until somebody asks, and it is only reachable under NO flag — so
- * `--plugins=alpha` is the whole of what to type. `off` is a flag that was
- * given and did not name this row, so what to type is this name ADDED to a list
- * the panel's foot is already quoting.
- */
-test("an absent row names its own word and what to type at boot", () => {
-  const optIn = pluginHint(only(row("optIn")))
-  expect(optIn).toContain("--plugins=alpha")
 
-  const off = pluginHint(only(row("off")))
-  expect(off).toContain("alpha")
-  expect(off).toContain("--plugins")
-  // ...and it does not quote a VALUE, which under a given flag would be a
-  // sentence telling somebody to turn every other plugin off.
-  expect(off).not.toContain("--plugins=")
+test("off, opt-in, switched and pending rows have no prose", () => {
+  for (const state of ["off", "optIn", "switched", "pending"]) expect(pluginHint(only(row(state)))).toBeNull()
 })
 
 /**
@@ -273,12 +190,12 @@ test("an absent row names its own word and what to type at boot", () => {
  * narrowing happens; this case is the panel's half of it.
  */
 test("a state this tab has never heard of falls back to the boolean", () => {
-  expect(pluginHint(only(row("hibernating")))).toContain("was not asked for")
+  expect(pluginHint(only(row("hibernating")))).toBeNull()
   // ...and a serve too old to send one at all is the same fallback, which is
   // exactly how this panel drew every row before the word existed.
   const old = roster(["alpha"])
   expect(pluginHint(old.built[0]!)).toBe(null)
-  expect(pluginHint(old.built[1]!)).toContain("was not asked for")
+  expect(pluginHint(old.built[1]!)).toBeNull()
 })
 
 /**
@@ -301,7 +218,7 @@ test("a plugin row is found by prefix, and cannot collide with a fixed row", () 
  * behind (`@olai/effect-cordis`'s `rowReport`) — and every wall between there
  * and here dropped it, so the panel said *waiting for something it needs* about
  * a serve whose whole answer was one word. It matters most in exactly the serve
- * the ruling created: `--plugins=kolu` composes no chat row, so `deliveries` has
+ * the ruling created: a policy selecting only kolu composes no chat row, so `deliveries` has
  * nobody behind it, and what a person needs told is that word and not that
  * something is wrong.
  *
@@ -382,7 +299,7 @@ test("a running row that carries nobody says nothing", () => {
 })
 
 /**
- * THE STRIP READS THE BOOLEAN, never the five-word state.
+ * THE STRIP READS THE BOOLEAN, independently of the detailed state.
  *
  * `running` is the field the two ends have always agreed on and the one every
  * mount licence is read from. A strip showing On for `waiting` — asked for, not
@@ -390,7 +307,7 @@ test("a running row that carries nobody says nothing", () => {
  * from the negation of. The WHY of an absence is the hint's job; the switch has
  * two words and answers the question it is asking.
  */
-test("the switch shows what is running, not which of five mornings it is having", () => {
+test("the switch shows what is running, independently of its absence reason", () => {
   expect(pluginSwitch(only(row("running")), false).value).toBe("on")
   for (const state of ["waiting", "failed", "optIn", "off"]) {
     expect([state, pluginSwitch(only(row(state)), false).value]).toEqual([state, "off"])
@@ -435,139 +352,14 @@ test("a press freezes only that row's strip, and does not move it", () => {
   expect(pluginSwitch(live, true).value).toBe("on")
 })
 
-/**
- * HOW THIS SERVE STARTED IS ONE LINE FOR THE PANEL, and used to be one per row.
- *
- * Under a given flag `pluginSetBy` answered the same string for every plugin —
- * the flag quoted in full, wrapped over three lines, eight times. The panel's
- * header called that an argument for having no panel-wide line, on the grounds
- * that every row already said it, which is a repetition noticed and then
- * defended. `pin` is one value for the serve; the sentence about it is one
- * sentence for the serve.
- *
- * WHETHER A ROW NAMES A FLAG and WHAT IT SAYS are still the same reading, which
- * is what the pairing was always for: the line is read off the same `pin`
- * the rows are, so the flag it quotes and the rows it sits under cannot come
- * from two different frames.
- */
-test("a given flag is quoted once, and an omitted one is the built-in default", () => {
-  const nobody = pluginsStarted(roster(["alpha", "beta"]))
-  expect(nobody).toContain("built-in default")
-  expect(nobody).not.toContain("--plugins=")
-  // ...and the flag is still NAMED where nobody gave it, because the reader who
-  // wants this changed needs the door even when there is no value to quote.
-  expect(nobody).toContain("--plugins")
 
-  const said = pluginsStarted(roster(["alpha"], ["alpha"]))
-  expect(said).toContain("--plugins=alpha")
-  expect(said).not.toContain("built-in default")
+test("session exceptions use the legend and never add row prose", () => {
+  const value = roster(["alpha"])
+  expect(rowCopy({ name: "alpha", running: true, switchPersistence: "session" }, value)).toBeNull()
+  expect(rowCopy({ name: "alpha", running: true, switchPersistence: "file" }, value)).toBeNull()
 })
 
-/** A list is spelled the way it is typed — comma-separated, no spaces — so the
- *  line is something a reader can hand to whoever runs the instance verbatim. */
-test("a multi-name flag is quoted as one word", () => {
-  expect(pluginsStarted(roster(["alpha", "beta"], ["alpha", "beta"])))
-    .toContain("--plugins=alpha,beta")
-})
 
-/**
- * `--plugins=` IS NOT THE SAME ANSWER AS SAYING NOTHING, and the rows cannot
- * tell them apart on their own: every strip reads Off either way. This line is
- * where the two are told apart, and it quotes the empty value as itself rather
- * than describing it — "no plugins" would name no flag a reader could hand to
- * whoever runs the instance.
- */
-test("an empty flag is somebody saying none, and says so as itself", () => {
-  const none = pluginsStarted(roster([], []))
-  expect(none).toContain("--plugins=")
-  expect(none).toContain("none")
-  expect(none).not.toContain("built-in default")
-})
-
-test("an extra-plugins row names the flag that turned it on, and still names who it carries", () => {
-  const extra = {
-    built: [{ name: "alpha", running: true, state: "running" }],
-    pinned: null,
-    pin: { kind: "delta" as const, extra: ["alpha"], without: null },
-  }
-  expect(pluginHint(extra.built[0]!, extra)).toBe(null)
-  const said = pluginHint(extra.built[0]!, extra, { optIn: true })
-  expect(said).toContain("--extra-plugins")
-  expect(said).not.toContain("--plugins=")
-  expect(pluginSwitch(extra.built[0]!, false).value).toBe("on")
-
-  const carrier = {
-    built: [{ name: "alpha", running: true, state: "running", carrying: ["kolu"] }],
-    pinned: null,
-    pin: { kind: "delta" as const, extra: ["alpha"], without: null },
-  }
-  expect(pluginHint(carrier.built[0]!, carrier, { optIn: true })).not.toContain("Turning it off")
-  expect(pluginConfirm(carrier.built[0]!)).toContain("Turning it off")
-})
-
-test("a without-plugins row names the flag that turned it off", () => {
-  const without = {
-    built: [{ name: "alpha", running: false, state: "optIn" }],
-    pinned: null,
-    pin: { kind: "delta" as const, extra: null, without: ["alpha"] },
-  }
-  const said = pluginHint(without.built[0]!, without)
-  expect(said).toContain("--without-plugins")
-  expect(said).not.toContain("by default")
-  expect(pluginSwitch(without.built[0]!, false).value).toBe("off")
-})
-
-test("the panel foot quotes extra and without the way they were typed", () => {
-  const extra = pluginsStarted({
-    built: [{ name: "alpha", running: true, state: "running" }],
-    pinned: null,
-    pin: { kind: "delta", extra: ["alpha"], without: null },
-  })
-  expect(extra).toContain("--extra-plugins=alpha")
-  expect(extra).not.toContain("built-in default")
-
-  const without = pluginsStarted({
-    built: [{ name: "alpha", running: false, state: "optIn" }],
-    pinned: null,
-    pin: { kind: "delta", extra: null, without: ["alpha"] },
-  })
-  expect(without).toContain("--without-plugins=alpha")
-
-  const both = pluginsStarted({
-    built: [
-      { name: "alpha", running: true, state: "running" },
-      { name: "beta", running: false, state: "optIn" },
-    ],
-    pinned: null,
-    pin: { kind: "delta", extra: ["alpha"], without: ["beta"] },
-  })
-  expect(both).toContain("--extra-plugins=alpha")
-  expect(both).toContain("--without-plugins=beta")
-})
-
-/**
- * ...AND IT SAYS HOW LONG A FLIP LASTS, which is the other half of the one
- * thing this panel owes a person before they close the tab.
- *
- * A change here is the running process's. A restart comes back to the flag or
- * the built-in defaults — which is the sentence beside it, in the same
- * paragraph, which is why they are one string.
- */
-test("the panel says once that a flip does not survive a restart", () => {
-  expect(PLUGINS_SESSION_ONLY).toContain("restart")
-  expect(PLUGINS_SESSION_ONLY).toContain("as long as this server runs")
-  expect(pluginsStarted(roster(["alpha"], ["alpha"]))).toContain(PLUGINS_SESSION_ONLY)
-})
-
-/**
- * NO ROW REPEATS THE PANEL'S LINE, which is the whole of what was wrong and
- * the thing that would come back first.
- *
- * Asserted over every state a row can be in, as an absence: the way this
- * regresses is one arm acquiring a clause about the flag or the restart because
- * it read well on that arm alone — which is exactly how eight identical
- * paragraphs happened the first time.
- */
 test("no row repeats what the panel says once", () => {
   const every = [
     pluginHint(only(row("running"))),
@@ -602,6 +394,11 @@ test("a row's config is pairs of the keys it carries, and nothing without one", 
   ])
 })
 
+test("a structured policy is readable instead of an object placeholder", () => {
+  expect(pluginConfig({ name: "alpha", running: true, config: { section: { interval: "1m" } } }))
+    .toEqual([["section", '{"interval":"1m"}']])
+})
+
 /**
  * A PLUGIN THE VAULT DEFINES IS NOT A YAML SECTION. It has no `section` in
  * `olai.yml` because it is not in `olai.yml`. Presence of `source` is the
@@ -632,8 +429,6 @@ test("vault-defined plugins are Defined here; pending ones are Needs you", () =>
       defined("delta", "pending"),
       { name: "beta", running: false, state: "failed", fault: "no" },
     ],
-    pinned: null,
-    pin: { kind: "omitted" },
   }
   const look = (name: string) =>
     name === "alpha" || name === "beta" ? { section: "Conversation" } : {}
@@ -645,21 +440,66 @@ test("vault-defined plugins are Defined here; pending ones are Needs you", () =>
   expect(groups[2]!.collapsed).toBe(false)
 })
 
-test("a quiet healthy group starts collapsed, and an all-optIn group is hidden", () => {
+test("a quiet healthy group starts collapsed, and opt-in rows remain reachable", () => {
   const sent: PluginRoster = {
     built: [
       { name: "alpha", running: true, state: "running" },
       { name: "beta", running: false, state: "optIn" },
     ],
-    pinned: null,
-    pin: { kind: "omitted" },
   }
   const look = (name: string) =>
     name === "alpha"
       ? { section: "Shell", quiet: true }
       : { section: "Fixtures", quiet: true, optIn: true }
   const groups = pluginGroups(sent, look)
-  expect(groups.map((group) => group.label)).toEqual(["Shell"])
+  expect(groups.map((group) => group.label)).toEqual(["Shell", "Fixtures"])
   expect(groups[0]!.collapsed).toBe(true)
   expect(groupCount(groups[0]!.rows)).toBe("1 on")
+})
+
+test("a file-authored off state and session exceptions have no row sentence", () => {
+  expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false }, { built: [], configurationFile: "_olai/Settings.olai" })).toBeNull()
+  for (const configurationAvailable of [false, true]) {
+    expect(rowCopy({ name: "alpha", running: true, switchPersistence: "session" }, { built: [], configurationAvailable })).toBeNull()
+  }
+})
+
+import { environmentVisible } from "./rows.ts"
+test("environment readings distinguish wrapper defaults from explicit store paths", () => {
+  const resource = { key: "EXECUTABLE", kind: "resource" as const, set: true, value: "/nix/store/operator/bin/tool", says: "the executable" }
+  expect(environmentVisible(resource)).toBe(true)
+  expect(environmentVisible({ ...resource, source: "wrapper" })).toBe(false)
+  expect(environmentVisible({ ...resource, set: false })).toBe(true)
+  expect(environmentVisible({ key: "TOKEN", kind: "secret", set: true, says: "credential" })).toBe(true)
+  expect(environmentVisible({ key: "TOKEN", kind: "secret", set: false, says: "credential" })).toBe(true)
+})
+
+
+test("inline knobs derive compact labels and widths without hiding defaults", async () => {
+  const { knobLabel, knobWidth, knobUnit, knobAuthored, enableLabel } = await import("./rows.ts")
+  expect(knobLabel("watch.held-for")).toBe("held")
+  expect(knobLabel("login-header")).toBe("login")
+  expect(knobUnit("idle-ms")).toBe("ms")
+  const value = { key: "login-header", value: "X-User", setBy: "default" as const, says: "" }
+  expect(knobWidth(value)).toBe("22ch")
+  expect(knobWidth({ ...value, key: "watch.nag" })).toBe("6ch")
+  expect(knobWidth({ ...value, control: { kind: "number", integer: true } })).toBe("9ch")
+  expect(knobAuthored(value)).toBe(false)
+  expect(knobAuthored({ ...value, setBy: "vault" })).toBe(true)
+  expect(knobAuthored({ ...value, problem: { raw: "bad", why: "refused" } })).toBe(false)
+  expect(enableLabel("example")).toBe("Enable example")
+})
+
+test("environment and old-serve readings have no editable control", async () => {
+  const { controlOf } = await import("./rows.ts")
+  expect(controlOf({ key: "TOKEN", kind: "secret", set: true, says: "credential" })).toBeUndefined()
+  expect(controlOf({ key: "EXECUTABLE", kind: "resource", set: true, value: "/bin/example", says: "executable" })).toBeUndefined()
+  expect(controlOf({ key: "old", value: "quiet", setBy: "default", says: "old serve" })).toBeUndefined()
+})
+
+
+test("inline controls replace summary and defaults identifiers", () => {
+  expect(Object.values(TESTID)).toContain("plugin-knob")
+  expect(Object.values(TESTID)).not.toContain("plugin-summary")
+  expect(Object.values(TESTID)).not.toContain("plugin-defaults")
 })

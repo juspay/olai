@@ -43,12 +43,12 @@ import { defineSurface } from "@kolu/surface/define"
 import { koluMembers } from "olai-plugin-kolu/appliance/wire"
 
 /** The sibling key, the preferences row, the docs slug, and the word
- *  `--plugins` takes. Spelled once, here — and because the sibling key IS the
+ *  the file’s row selection takes. Spelled once, here — and because the sibling key IS the
  *  wire prefix, the name and every tag it appears in cannot drift apart. */
 export const name = "kolu"
 
 /**
- * The seven, as a surface of their own.
+ * The six members, as a surface of their own.
  *
  * `link` was called `kolu`, and the rename went into `@olai/kolu-client` where
  * the member is declared rather than being papered over here: a cell named for
@@ -65,7 +65,6 @@ export const surface = defineSurface({
   cells: {
     link: koluMembers.cells.link,
     pulse: koluMembers.cells.pulse,
-    knobs: koluMembers.cells.knobs,
   },
   collections: {
     fleet: koluMembers.collections.fleet,
@@ -94,7 +93,7 @@ export const surface = defineSurface({
  * `"a.b"` cannot mean two things depending on whether `a` is a namespace or a
  * sibling.
  *
- * ALL SEVEN ARE THE BROWSER'S ALONE, and the reason is one sentence said seven
+ * ALL SIX ARE THE BROWSER'S ALONE, and the reason is one sentence said six
  * times: every member here is a READING OF SOMEBODY ELSE'S DAEMON, and an
  * agent that wants padi has padi's own MCP face. Re-serving the fleet through
  * olai would be a second door onto another tool's daemon with olai's
@@ -114,7 +113,6 @@ export const faces = {
   browser: {
     link: "resource",
     pulse: "resource",
-    knobs: "resource",
     fleet: "resource",
     events: "resource",
     terminal: "resource",

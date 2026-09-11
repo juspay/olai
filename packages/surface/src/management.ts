@@ -24,6 +24,7 @@ export interface BrowserManagement {
   readonly changing: () => boolean
   readonly look: (name: string) => PluginLook
   readonly set: (name: string, enabled: boolean) => Effect.Effect<unknown, unknown>
+  readonly configure: (name: string, key: string, value: string | null) => Effect.Effect<unknown, unknown>
   readonly retry: () => Promise<void>
   readonly requiresReload: (name: string) => boolean
   readonly reload: () => void

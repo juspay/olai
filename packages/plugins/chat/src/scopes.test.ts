@@ -377,7 +377,7 @@ describe("a pick its doorbell cannot watch", () => {
   })
 
   test("a tenant this serve did not compose leaves its row untouched, mark and all", async () => {
-    // The mark IS the saying: a serve running `--plugins` without this row's
+    // The mark IS the saying: a serve running the file’s row selection without this row's
     // tenant can still see the file went, but nothing would say so — and
     // marking it would spend the one signal on a serve with no doorbell to
     // lose. Turn that plugin back on and the row must still be tellable.

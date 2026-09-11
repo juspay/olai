@@ -4,7 +4,7 @@ Git is a plugin ([plugins/git.md](plugins/git.md)): one row in the build, on by 
 
 Git is how you see what olai did to your files — an audit trail, not sync and not undo. Writes land on disk and WAIT to be committed: from the pill in the app header (or, on a phone, from a banner directly below the header when there is something to record), or by the agent's own `git_commit` tool, which is the better one to use — it knows where a train of thought ended, so its message can say `olai: reconcile the roadmap with the #70–#81 merges` instead of describing edits. The server can also press that button for you when the writes stop arriving — [Auto-commit](#committing-on-its-own), below.
 
-**The two places that "not undo" is load-bearing are the emptied Trash and a deleted file** — one unit each of the two that destroy ([editing.md](editing.md)). Emptying the archive is a write like any other — the file is rewritten holding no records — and deleting a file is the same write with the rewrite step missing. So history holds them to exactly the extent it had already recorded them, and no further. A directory that is not a repository, or one served `--no-commit`, holds none of them. A directory whose file had been committed holds all of them — `git show HEAD:_olai/Trash.olai` reads a trashed row back, and the same door is the whole undo story of a deleted file. Olai will not do that for you: nothing in the app reads a commit onto disk.
+**The two places that "not undo" is load-bearing are the emptied Trash and a deleted file** — one unit each of the two that destroy ([editing.md](editing.md)). Emptying the archive is a write like any other — the file is rewritten holding no records — and deleting a file is the same write with the rewrite step missing. So history holds them to exactly the extent it had already recorded them, and no further. A directory that is not a repository, or one served `commit: off`, holds none of them. A directory whose file had been committed holds all of them — `git show HEAD:_olai/Trash.olai` reads a trashed row back, and the same door is the whole undo story of a deleted file. Olai will not do that for you: nothing in the app reads a commit onto disk.
 
 ## The pill
 
@@ -70,15 +70,15 @@ The agent has the same thing: its `commit` tool takes an optional `paths`, the r
 
 ## Committing on its own
 
-`--commit=auto`, off by default. On, what is waiting records itself when writes stop arriving for **fifteen seconds** — so a burst of typing, or a train of agent ops, is ONE commit rather than one per write. It presses the same verb the Commit button does, with the same message the panel would have suggested and the same full sweep of the repository; there is no second committer and no second kind of commit in the log.
+`commit: auto`, off by default. On, what is waiting records itself when writes stop arriving for **fifteen seconds** — so a burst of typing, or a train of agent ops, is ONE commit rather than one per write. It presses the same verb the Commit button does, with the same message the panel would have suggested and the same full sweep of the repository; there is no second committer and no second kind of commit in the log.
 
 The span is the point rather than a setting. It has to outlast the pauses inside one piece of work — reading a line back, moving between rows, waiting on an agent's next op — or the promise breaks and one thought arrives as three commits; and it has to be short enough that what lands is still something you remember doing.
 
 **Everything waiting counts, whoever wrote it.** The window watches what is PENDING, which is derived from git for the whole repository, so an agent writing over MCP restarts it, a `.md` you edited in vim joins the same commit, and what goes in is the same sweep the button makes. That is the whole of "all my changes end up in git".
 
-**It is the INSTANCE's, not this browser's.** `--commit` / `--push` are a patch onto the git row's config, the same in every browser, with no runtime door. `olai web --commit=auto` is that patch given on the command line ([running.md](running.md#the-git-policy)). A stopped loop starts again from **Resume** on the commit panel.
+**It is the directory’s policy, shared by every browser.** Set `commit` and `push` on the `git` node in `_olai/Settings.olai`; edits re-apply the git row through Cordis. Use the inline commit and push controls beside git on the plugins panel; the controls write that same node and show whether each value came from the file or the schema default ([running.md](running.md#the-git-policy)).
 
-It used to be this browser's, and everything wrong with that followed from the frame. A directory recorded only while somebody had a tab open; two browsers could each have the toggle on and race one work tree (one browser's tabs contended for a Web Lock, which said nothing about the other's); and `--commit=auto` was a *different* feature with the same name — one commit per write, made inside the write gate, never pushed. There is one window now, on the server, and one of it per served directory: one olai holds a directory, so there is nothing to elect.
+It used to be this browser's, and everything wrong with that followed from the frame. A directory recorded only while somebody had a tab open; two browsers could each have the toggle on and race one work tree (one browser's tabs contended for a Web Lock, which said nothing about the other's); and `commit: auto` was a *different* feature with the same name — one commit per write, made inside the write gate, never pushed. There is one window now, on the server, and one of it per served directory: one olai holds a directory, so there is nothing to elect.
 
 With Auto-push on beside it, the flurry is committed and then pushed and there is nothing left to press. With Auto-commit alone, the commits accumulate and the pill's `· N unpushed` says how many.
 
@@ -100,9 +100,9 @@ A repository that cannot take a commit *at all* — mid-merge, mid-rebase, a det
 
 One verb, and it is the only reason left to open a terminal for this: the current branch, to the upstream it already tracks. No remote to pick, no refspec, never a force. The panel offers it when there is something to send (`2 commits not on origin/master · Push`), and the same count is on the pill.
 
-The server can follow a commit with that same verb: *prefs → Git push*, Auto-push, off by default. It follows **every** commit olai makes in this directory, whichever door made it — the Commit button, an agent's `git_commit` tool, and the quiet window's own — because those are one verb and the policy is one fact about the directory. One network round trip per commit, which is affordable exactly because the window makes a burst of writes one commit.
+The server can follow a commit with that same verb: *the `git` node’s `push` property in `_olai/Settings.olai`*, Auto-push, off by default. It follows **every** commit olai makes in this directory, whichever door made it — the Commit button, an agent's `git_commit` tool, and the quiet window's own — because those are one verb and the policy is one fact about the directory. One network round trip per commit, which is affordable exactly because the window makes a burst of writes one commit.
 
-That is the second half of the row moving to the server, and it closes a real hole: Auto-push used to fire inside one tab's own commit callback, so a commit an agent made was never pushed, a commit a headless `--commit=auto` made was never pushed, and the unpushed count grew with nothing anywhere saying why.
+That is the second half of the row moving to the server, and it closes a real hole: Auto-push used to fire inside one tab's own commit callback, so a commit an agent made was never pushed, a commit a headless `commit: auto` made was never pushed, and the unpushed count grew with nothing anywhere saying why.
 
 A commit whose push fails is still a commit: git's words are remembered and drawn on the pill and in the panel, nothing is rolled back, and nothing is retried — the loop stops instead ([When it stops](#when-it-stops)).
 
@@ -112,12 +112,12 @@ The agent has this one too, as a `push` tool that takes nothing at all.
 
 ## Modes
 
-- `--commit=manual`, the default: writes wait, and committing is deliberate, as above.
-- `--commit=auto` IS [Auto-commit](#committing-on-its-own) — the same quiet window, given on the command line. What is waiting records itself once writes stop arriving for fifteen seconds, and it sweeps the whole repository.
+- `commit: manual`, the default: writes wait, and committing is deliberate, as above.
+- `commit: auto` IS [Auto-commit](#committing-on-its-own) — the same quiet window, authored in the settings file. What is waiting records itself once writes stop arriving for fifteen seconds, and it sweeps the whole repository.
   It used to be a second, differently-shaped feature with the same name: one commit per write, made inside the write gate, never pushed. **That is retired.** A train of thought arrived as a dozen commits, which is the thing manual mode was introduced to end, and there is no per-write commit left in olai.
-- `--commit=off` (or `--no-commit`) is for a directory whose history is somebody else's job. The pill says which of those two it is rather than vanishing, and nothing is ever `git init`ed on your behalf.
+- `commit: off` is for a directory whose history is somebody else's job. The pill says which of those two it is rather than vanishing, and nothing is ever `git init`ed on your behalf.
 
-The git row's `config:` in `olai.yml` is the built-in default (`commit: manual`, `push: off`) and the plugins panel always draws it. Giving `--commit` or `--push` is a patch onto that config; `--commit=auto` shows `commit auto` there. Omitting the flag leaves the file's values, still drawn. That is the instance's answer for a directory more than one person is looking at, and it is [running.md](running.md#the-git-policy)'s subject.
+The git row’s `Config` schema declares `commit: manual` and `push: off`. `olai.yml` supplies build enablement only. The panel draws both choices inline beside git. A ● marks values from the file, including explicit values equal to a default; ↺ removes that property. The ↗ beside the row name opens the underlying outline node.
 
 ## The audit view
 

@@ -45,9 +45,10 @@
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
 import { reportingRunEdge, surfaceCommands, surfaceHelp } from "@kolu/surface-cli"
 import { addressOf, printAddress } from "@olai/format"
-import { atLevel, toStdout } from "@olai/log"
-import { Effect, Layer } from "effect"
-import { Argument, Command, Flag } from "effect/unstable/cli"
+import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
+import { toStdout } from "@olai/log"
+import { Effect, Layer, Option } from "effect"
+import { Argument, CliConfig, Command, Flag, GlobalFlag } from "effect/unstable/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
@@ -56,8 +57,6 @@ import { dieWithParent } from "./dieWithParent.ts"
 import { AGENT_SIBLINGS } from "@olai/bundle/agent-face"
 import type { Tool } from "@olai/ops"
 import { remoteFrom } from "@olai/bundle/remote"
-import { gitFlags, gitPin } from "./gitPolicy.ts"
-import { pluginFlags, pluginPin } from "./pluginPolicy.ts"
 import { serve } from "./serve.ts"
 import { installSigtermGuard } from "@olai/sigterm"
 
@@ -65,17 +64,6 @@ import { installSigtermGuard } from "@olai/sigterm"
 const directory = Argument.directory("directory", { mustExist: true }).pipe(
   Argument.withDescription("the directory of outlines, read recursively"),
 )
-
-/** `--commit` / `--no-commit` / `--push` — `./gitPolicy.ts`, which owns the mode
- *  tables, the defaults it declines to apply, why `--no-commit` wins, and why
- *  the sentence names both doors this face actually has. */
-const webGit = gitFlags("web")
-
-/** `--plugins` — `./pluginPolicy.ts`, which owns the sentence, the default it
- *  declines to apply, and why enablement is a flag rather than an env var, a
- *  vault file or something remembered on disk. Only `web` takes it: `surface`
- *  is a CLIENT of a running server and runs no plugins of its own. */
-const webPlugins = pluginFlags()
 
 /** 0 is the OS's to pick. A fixed port is a deploy's explicit `--port` —
  *  7714 ("olai" on a phone keypad) is what the home-manager module passes.
@@ -94,27 +82,19 @@ const web = Command.make("web", {
     Flag.withDescription(
       "TCP port to listen on; 0 (the default) asks the OS for one",
     ),
-    Flag.withDefault(DEFAULT_PORT),
+    Flag.optional,
   ),
   host: Flag.string("host").pipe(
     Flag.withDescription(
       "interface to bind; loopback by default, because the surface is unauthenticated",
     ),
-    Flag.withDefault("127.0.0.1"),
+    Flag.optional,
   ),
-  ...webGit,
-  ...webPlugins,
 }, ({
-  commits,
   directory,
-  extraPlugins,
-  host,
-  noCommit,
-  plugins,
-  port,
+  host: requestedHost,
+  port: requestedPort,
   profile,
-  pushes,
-  withoutPlugins,
 }) =>
   Effect.gen(function*() {
     // The SIGTERM guard (@olai/sigterm): `web` is the server a stray pkill
@@ -123,14 +103,14 @@ const web = Command.make("web", {
     // the arm asks for (Bun's listener-armed disposition, a settled
     // parent) is true by the time ANY command handler runs.
     yield* Effect.promise(() => installSigtermGuard())
-    const pin = pluginPin(plugins, extraPlugins, withoutPlugins)
     const faulted = yield* serve({
       root: directory,
       profile,
-      port,
-      host,
-      pin: gitPin(commits, noCommit, pushes),
-      pluginPin: pin,
+      port: Option.getOrElse(requestedPort, () => DEFAULT_PORT),
+      host: Option.getOrElse(requestedHost, () => "127.0.0.1"),
+      addressAuthors: { host: Option.isSome(requestedHost) ? "flag" : "default",
+        port: Option.isSome(requestedPort) ? "flag" : "default" },
+
       clientDist: clientDist.pipe(Effect.provide(NodeServices.layer), Effect.orDie),
       allowedOrigins: allowedOrigins(),
     })
@@ -141,15 +121,8 @@ const web = Command.make("web", {
     // by a process that has already stopped answering, and a fault takes the
     // same road out rather than exiting from under those finalizers.
     yield* faulted
-  }).pipe(
-    // Innermost only when the env var is set (empty layer otherwise), so
-    // `olai web --log-level warn` still quiets Info, and a systemd
-    // `OLAI_LOG_LEVEL=debug` still raises it.
-    Effect.provide(atLevel()),
-  )).pipe(
-    Command.withDescription(
-      "serve a directory of outlines in the browser. OLAI_LOG_LEVEL (debug|info|warn|error) sets the minimum log level and wins when set; when unset, --log-level applies (default info)",
-    ),
+  })).pipe(
+    Command.withDescription(`serve a directory of outlines in the browser; policy lives in ${CONFIGURATION_FILE}`),
   )
 
 /**
@@ -424,7 +397,7 @@ dieWithParent()
 
 // The sink is stdout: a person watching a server looks there, and nothing else
 // in this process owns it. The LEVEL is provided on the `web` handler above:
-// OLAI_LOG_LEVEL when set, otherwise Effect's `--log-level` (default info).
+// The root-owned logger follows the olai node’s decoded configuration.
 NodeRuntime.runMain(
   Command.run(olai, { version: "0.1.0" }).pipe(
     // THE RUN EDGE `olai surface` NEEDS, in the one line the package exports it
@@ -447,7 +420,8 @@ NodeRuntime.runMain(
     // layerHttpServices carries the static file layer's (the file-response
     // platform and ETags).
     Effect.provide(
-      Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices, toStdout),
+      Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices, toStdout,
+        CliConfig.layer({ builtIns: GlobalFlag.BuiltIns.filter(flag => flag !== GlobalFlag.LogLevel) })),
     ),
   ),
   // The other HALF of the same recipe, and the host's to pass because it is

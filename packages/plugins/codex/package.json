@@ -1,6 +1,6 @@
 {
   "name": "olai-plugin-codex",
-  "//name": "UNSCOPED, like every engine plugin: the directory, bundle id, --plugins word and docs address are all `codex`.",
+  "//name": "UNSCOPED, like every engine plugin: the directory, bundle id, settings namespace and docs address are all `codex`.",
   "version": "0.1.0",
   "private": true,
   "type": "module",

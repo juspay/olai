@@ -6,22 +6,17 @@ What git *does* has its own page: [git.md](../git.md) is the feature. This page 
 
 ## What turns it on
 
-Nothing. It is on by default, like chat and the appliances. Two things take it away, and they answer two different questions.
+The `git` row is on by default. Set `on: no` on its top-level node in `_olai/Settings.olai`, or use its switch on `⧉`. The switch writes the same property and restart reads it again.
 
-`--plugins` decides what a serve **comes up with**:
-
+```jsonl
+{"id":"git","ord":"a0","title":"git","custom":{"on":"no"}}
 ```
-olai web ~/outlines                                  # the pill, as always
-olai web ~/outlines --plugins=vault,chat,kolu,odu,ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector          # writes land, recorded by nobody
-```
-
-The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag. Switched off at the panel, the pill leaves while you are watching, and `ops.commit` refuses in words.
 
 **Either way you are left with an outliner whose writes wait for nobody.** There is no pill, no `surface/git/` on the wire, and nobody to record a write — not a disabled version of any of them, an absent one.
 
 ## The config
 
-`--commit` and `--push` are a CLI patch onto this row's `config:`, the way `--plugins` is a patch onto `disabled`. The built-in default (`manual` / `off`) lives on the row in `olai.yml`, so the plugins panel always draws it; a flag overlays those values. Turning the plugin off is a different fact from `--commit=off`: off is "no provider mounted", so there is no pill and no tool; `--commit=off` with the row on is a mounted ledger that has been told not to record.
+The row's `Config` schema declares `commit` (`manual` by default) and `push` (`off` by default), with validation and descriptions. Properties on the `git` node supply values; the reader derives the panel's vault/default authors and the composition root re-applies edits. `olai.yml` carries no config block. `commit: off` keeps the ledger mounted but disables recording; `on: no` removes the provider and its UI and tools.
 
 See [running.md](../running.md#the-git-policy).
 

@@ -1,15 +1,7 @@
 Feature: A plugin is turned on and off while the serve runs
-  Until this phase, which plugins a serve ran was decided once, before anything
-  started: `--plugins` at the command line, the same flag from the nix module,
-  or the row's own default in `olai.yml`. The panel drew the answer and could
-  not move it — every row frozen, and a sentence under each one saying where the
-  decision actually lived.
-
-  The rulings that ended that (the human, 2026-09-04): the panel gets a SWITCH;
-  a flip is SESSION-ONLY and writes nothing; there is no CLI verb against a
-  running serve; `--dump-config` is dropped. So a restart still comes back to
-  the flag, the nix option and the rows, and what a person can do between two
-  restarts is turn one off and see everything that leaned on it follow.
+  A press writes on to the settings file and follows the reconciled roster.
+  The vault provider and configuration reader are session-only exceptions.
+  Other rows use a session switch while the reader is unavailable.
 
   THE REACTIVE HALF IS WHAT MAKES IT ONE VERB rather than a restart, and these
   two scenarios are where that is benched rather than argued. A plugin is a
@@ -56,8 +48,7 @@ Feature: A plugin is turned on and off while the serve runs
     # it under every row is how the panel became a column of the same sentence
     # eight times.
     Then the plugins panel says nothing more about "kolu"
-    # ...and where this serve was STARTED is the panel's line, said once.
-    And the plugins panel was started "lasts as long as this server runs"
+    And the plugin "kolu" is running
 
     When I switch the plugin "kolu" off
     # NOT A RELOAD. The sibling left the wire, the roster moved, the tab
@@ -67,6 +58,7 @@ Feature: A plugin is turned on and off while the serve runs
     # heard of kolu is already in: no door, no sentence about a missing one, and
     # nothing red anywhere, because nothing is wrong.
     Then "door-implement" wears no terminal door at all
+    And the plugin "kolu" is off without prose
     And there should be no page errors
     # ...AND NOTHING ELSE WENT QUIET WITH IT. The strongest thing this feature
     # can assert, and the one that is not about any particular plugin: the app
@@ -132,8 +124,8 @@ Feature: A plugin is turned on and off while the serve runs
     And no member of this page has gone silent
     And there should be no page errors
 
-  @scratch:lanes @plugins:vault,kolu,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
-  Scenario: A row the flag left out is switched on, and is served
+  @scratch:lanes @rows:vault,kolu,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  Scenario: A file-disabled row is switched on while the reader is absent
     # THE DIRECTION NOBODY WOULD GUESS IS AVAILABLE, and the one the transport
     # could not have done at all before sub-phase 8a — not by an oversight but
     # in principle. A row absent at boot has no tags in the group the listener
@@ -141,23 +133,25 @@ Feature: A plugin is turned on and off while the serve runs
     # live: that is why a façade over the handler record was declined and the
     # whole served set became accessors instead.
     #
-    # `--plugins=kolu,odu` is a serve with no conversation in it at all. The
+    # a policy selecting only kolu, odu is a serve with no conversation in it at all. The
     # tenants name chat's doors, so they come up `waiting` — which is the
     # doorbell feature's own scenario, and the state this one starts from.
     Given I open the outline "lanes.olai"
     Then the conversation is gone-from the header
     When I open the plugins panel
     Then the plugins panel says "kolu" is "Waiting for deliveries, session-start"
-    # ...and the panel says the row is off because a flag left it out, which is
+    # ...and the panel says the row is off because the file disabled it, which is
     # a different morning from a press and from the build's own default.
-    And the plugins panel says "chat" is "was not asked for"
+    And the plugin "chat" is off without prose
 
-    When I switch the plugin "chat" on
+    When I switch the plugin "settings" off
+    And I switch the plugin "chat" on
     # A ROW THAT WAS NEVER MOUNTED IN THIS PROCESS, arriving on a listener that
     # bound before it existed. The tenants come out of `waiting` because the
     # doors they named have arrived; the conversation's own chrome is drawn
     # because its members are on the wire and the tab's redial reached them.
     Then the plugins panel says nothing more about "kolu"
+    And every plugin enable switch has a session-only ring
     And the conversation is in the header
     # THE ASSERTION THAT WOULD HAVE BEEN RED WHATEVER ELSE PASSED. The rest of
     # this scenario can be satisfied by chrome that mounted off a roster frame;

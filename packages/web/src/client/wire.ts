@@ -396,6 +396,7 @@ await supplyManagement({
   reports: browserReports,
   changing: rosterChanging,
   set: (name, enabled) => olai.procedures.plugins.set({ name, enabled }),
+  configure: (name, key, value) => olai.procedures.plugins.configure({ name, key, value }),
   retry: retryBrowser,
   requiresReload: browserRequiresReload,
   reload: () => globalThis.location.reload(),

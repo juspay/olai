@@ -27,7 +27,7 @@
  * ## Every BUILT plugin, not every ENABLED one — and this is the ONE door
  * where that is still true
  *
- * `--plugins` is a decision the SERVE makes and a stylesheet is built once for
+ * the file’s row selection is a decision the SERVE makes and a stylesheet is built once for
  * the bundle, so a serve with a plugin switched off still ships its classes.
  * Everything else about a disabled plugin in the tab has stopped costing
  * anything at all — its code is its own chunk and the roster is what fetches

@@ -56,10 +56,8 @@ export const spawnFingerprint = (opts: {
   readonly codex?: boolean;
   readonly kolu: boolean;
   readonly git?: string;
-  /** The git POLICY this server was started with — `--commit` / `--push`, and
-   *  `null` for the flag nobody gave. Part of the key because a pinned server
-   *  draws every browser's preference panel differently, so a scenario about a
-   *  live toggle may not reuse one. */
+  /** Authored git policy belongs in the reuse key: scenarios with different
+   *  file properties must never share a server. */
   readonly pin?: { readonly commit?: string; readonly push?: string };
   /** The avatar URL template this server was started with, if any. Part of
    *  the key because a server that pictures people from a template answers
@@ -82,14 +80,14 @@ export const spawnFingerprint = (opts: {
    * unique per scenario by construction.
    */
   readonly padiSocket?: string;
-  /** WHICH INTEGRATIONS this server composed (`--plugins`), if the scenario
+  /** WHICH INTEGRATIONS this server composed (the file’s row selection), if the scenario
    *  said. Part of the key for the padi socket's reason one field up: a server
    *  running fewer plugins serves a different WIRE — the disabled one's members
    *  are not on it — so a scenario that wants the full set may not reuse one,
    *  and a scenario that wants one off may not be handed a server running it. */
   readonly plugins?: string;
-  readonly extraPlugins?: string;
-  readonly withoutPlugins?: string;
+  readonly rowsOn?: string;
+  readonly rowsOff?: string;
 }): string =>
 
   `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},opencode=${
@@ -97,7 +95,7 @@ export const spawnFingerprint = (opts: {
   },pi=${opts.pi ? 1 : 0},codex=${opts.codex ? 1 : 0},kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}` +
   `,commit=${opts.pin?.commit ?? "-"},push=${opts.pin?.push ?? "-"},avatar=${opts.avatar ?? "-"}` +
   `,padi=${opts.padiSocket ?? "-"},plugins=${opts.plugins ?? "-"}` +
-  `,extra=${opts.extraPlugins ?? "-"},without=${opts.withoutPlugins ?? "-"}`;
+  `,extra=${opts.rowsOn ?? "-"},without=${opts.rowsOff ?? "-"}`;
 
 /** Cucumber numbers workers from 0. Unset means this process is the only
  *  one — a serial run, or a unit test. Used to name the per-worker temp
@@ -170,18 +168,7 @@ export const isolateEnv = (
   fs.mkdirSync(cache, { recursive: true });
   fs.mkdirSync(state, { recursive: true });
   fs.mkdirSync(runtime, { recursive: true, mode: 0o700 });
-  // The identity family is taken off the HOST's copy, before the spawn's own
-  // extras go on: a developer whose shell exports the documented avatar
-  // template (`OLAI_IDENTITY_AVATAR_TEMPLATE='https://github.com/{login}.png'`)
-  // would otherwise hand it to EVERY spawned server, and the scenario that
-  // says a login with nothing behind it draws the silhouette would draw a
-  // GitHub avatar instead. What a server under test trusts, and pictures
-  // people with, is the scenario's (`@avatar-template`, and the headers a
-  // step injects) — never the laptop's.
   const host: NodeJS.ProcessEnv = { ...process.env };
-  for (const key of Object.keys(host)) {
-    if (key.startsWith("OLAI_IDENTITY_")) delete host[key];
-  }
   // WHERE PADI IS goes the same way and for the same reason, one variable over:
   // a developer running kolu would otherwise hand every spawned server their
   // own live padi, and the scenario that says a laptop without kolu draws

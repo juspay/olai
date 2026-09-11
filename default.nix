@@ -198,6 +198,7 @@ let
     makeWrapper ${pkgs.bun}/bin/bun $out/bin/olai \
       --add-flags "${base}/packages/server/src/main.ts" \
       --set OLAI_DIST_DIR "${olai-client}" \
+      --run 'export OLAI_WRAPPER_DEFAULTS=""; for key in OLAI_ACP_AGENT OLAI_ACP_CODEX OLAI_ACP_PI OLAI_ODU_BIN; do if [[ ! -v "$key" ]]; then export OLAI_WRAPPER_DEFAULTS="$OLAI_WRAPPER_DEFAULTS''${OLAI_WRAPPER_DEFAULTS:+,}$key"; fi; done' \
       --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp" \
       --set-default OLAI_ACP_CODEX "${codex-agent}/bin/codex-acp" \
       --set-default OLAI_ACP_PI "${acp-agent}/bin/pi-acp" \

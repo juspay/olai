@@ -15,7 +15,7 @@
  * way, not summarized: "so what survives is whatever git has already
  * recorded" is TRUE under every serve state, where the shorter "git's
  * history is all that holds it" lies to exactly the directories that need the
- * truth more (no repository, a `--no-commit` serve, a file that was never
+ * truth more (no repository, a `commit: off` serve, a file that was never
  * committed). A claim honest in every case needs no branch into the git
  * state — and a confirm branched off a repository cell it would have to
  * subscribe to would be a second reading of the repository beside the

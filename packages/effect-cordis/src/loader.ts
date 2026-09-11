@@ -186,10 +186,9 @@ const entriesOf = (host: Host): ReadonlyArray<Entry> =>
  * `EntryTree.update(id, …)` — the tree-level verb — calls `tree.write()`, and
  * the include's `write()` dumps the whole entry list back over `olai.yml`. That
  * is the loader's own answer for a settings page that OWNS its config file, and
- * it is the opposite of this phase's ruling: a flip is the instance's, for as
- * long as the process runs, and the boot-time answer stays the file, the flag
- * and nix. So this reaches the ENTRY and calls `entry.update`, which reconciles
- * without writing.
+ * this generic operation only reconciles the instance. Its caller owns durable
+ * policy and any file writes. Reaching the ENTRY and calling `entry.update`
+ * preserves that boundary instead of rewriting the build declaration.
  *
  * The other way a write can happen is subtler and is closed by ORDER rather than
  * by avoidance. Cordis tells the loader about every dispose, and the loader
@@ -244,20 +243,23 @@ const entriesOf = (host: Host): ReadonlyArray<Entry> =>
  * `./host.ts`'s `settled`, and `@olai/bundle` is where the two are one call —
  * exactly as they are for the mount.
  */
-export const flipRow = (host: Host, id: string, disabled: boolean): Effect.Effect<boolean> =>
+export const patchRow = (host: Host, id: string, patch: { readonly disabled?: boolean; readonly config?: unknown }, force = false): Effect.Effect<boolean> =>
   Effect.promise(async () => {
     const entry = entriesOf(host).find((one) => one.options.id === id)
     if (entry === undefined) return false
-    // CAUGHT BEFORE THE UPDATE, because the update is what disposes it and a
-    // disposed row is one nothing else can hand back.
-    const going = disabled ? entry.fiber : undefined
+    // Decoded structs arrive in schema key order, so serialization compares
+    // canonical policy values here rather than authored property order.
+    const changed = (patch.disabled !== undefined && patch.disabled !== (entry.options.disabled ?? false))
+      || (patch.config !== undefined && JSON.stringify(patch.config) !== JSON.stringify(entry.options.config))
+    if (!changed && !force) return true
+    const going = patch.disabled === true || patch.config !== undefined ? entry.fiber : undefined
     if (going !== undefined) interrupt(going)
-    await entry.update({ disabled })
-    for (let pass = 0; pass < PASSES && going?.inertia !== undefined; pass += 1) {
-      await going.inertia
-    }
+    await entry.update(patch)
+    for (let pass = 0; pass < PASSES && going?.inertia !== undefined; pass += 1) await going.inertia
     return true
   })
+
+export const flipRow = (host: Host, id: string, disabled: boolean): Effect.Effect<boolean> => patchRow(host, id, { disabled }, true)
 
 /** How many transitions this waits out before it stops waiting — `./host.ts`'s
  *  `PASSES` for the same reason, spelled here because the two are bounding

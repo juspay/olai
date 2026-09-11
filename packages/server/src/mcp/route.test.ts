@@ -288,6 +288,10 @@ test("tools/list and a resource read answer over the same POST", async () => {
     }).result?.tools ?? []
     expect(tools.map((tool) => tool.name)).toContain("outlines_done")
     expect(tools.map((tool) => tool.name)).toContain("outlines_index")
+    expect(tools.map((tool) => tool.name)).not.toContain("plugins_configure")
+    const configure = await post({ jsonrpc: "2.0", id: 99, method: "tools/call", params: { name: "plugins_configure", arguments: { name: "git", key: "commit", value: "auto" } } })
+    const refused = await configure.json() as { error?: unknown; result?: { isError?: boolean } }
+    expect(refused.error !== undefined || refused.result?.isError === true).toBe(true)
 
     const read = await post({
       jsonrpc: "2.0",
@@ -451,6 +455,7 @@ test("a node ticket can list and call the three plugin verbs", async () => {
       approved: "approved",
       server: "server.ts",
       browser: "browser.tsx",
+      config: { schema: "Config", properties: "properties on the definition node; child nodes hold schema sections", reserved: ["plugin", "approved"] },
     })
 
     // ...and the feedback loop, on a word this vault does not define: a refusal

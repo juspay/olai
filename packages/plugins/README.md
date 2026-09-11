@@ -12,8 +12,8 @@ else's software, which is the closest thing in this tree to a plugin written
 outside it, so it is named the way one would be.
 
 The population today is ELEVEN, in three kinds, and nothing in the system tells
-them apart — same shape, same doors, same five states in the preferences panel,
-same `--plugins` word:
+them apart — same shape, same doors, same seven states in the preferences panel,
+same the file’s row selection word:
 
 - **TENANTS** — olai's judgement about an appliance: `kolu`, `odu`,
   `xyne-spaces`. Each composes a sibling surface and draws faces on rows.
@@ -35,7 +35,7 @@ same `--plugins` word:
   contributes to a tab already travels on the chat cell, which is core's. One
   directory each because they share no release clock — the Claude adapter's pin
   moved five times in a month and opencode's has never moved — and because
-  `--plugins` then enables them one at a time.
+  the file’s row selection then enables them one at a time.
 
 **A TENANT HAS A `README.md` AND AN ENGINE DOES NOT**, which is a ruling rather than an omission. A tenant's README is olai's account of somebody else's appliance — five ways a padi can fail, which vault file is kolu's by convention — and there is nowhere else for that to live. An engine's account of itself is two things that already exist: its `docs.md` (the user page, symlinked into `docs/plugins/`), and [`@olai/acp`](../acp/README.md)'s `./engine` door, which is where the shape every engine fills in is argued once for all of them. A third telling per engine would be the same paragraph three times, drifting.
 

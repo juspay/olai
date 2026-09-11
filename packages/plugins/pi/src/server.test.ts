@@ -9,7 +9,7 @@
  * fail at every `session/new`.
  *
  * IT LIVES HERE and not in `olai-plugin-chat` because the row does: each engine's
- * probe is one plugin's fact now, and what is left in core is the off switch and
+ * probe is one plugin’s fact, and what is left in core is ordering and
  * the shape of the reading (`olai-plugin-chat`'s `agents/roster.test.ts`).
  */
 

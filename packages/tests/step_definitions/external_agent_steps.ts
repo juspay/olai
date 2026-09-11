@@ -783,3 +783,27 @@ When(
 When("the terminal agent commits as {string}", async function (this: OlaiWorld, message: string) {
   this.toolAnswer = await callTool(agentOf(this), "git_commit", { message });
 });
+
+When("the terminal agent sets property {string} on {string} to {string}", async function (this: OlaiWorld, key: string, id: string, value: string) {
+  this.toolAnswer = await tryTool(agentOf(this), "outlines_prop", { id, key, value });
+});
+Then("the terminal refusal says {string}", function (this: OlaiWorld, reason: string) {
+  assert.equal(this.toolAnswer?.isError, true);
+  assert.ok(JSON.stringify(structuredOf(this)).includes(reason), JSON.stringify(this.toolAnswer));
+});
+When("the terminal agent inspects definition configuration", async function (this: OlaiWorld) {
+  this.toolAnswer = await callTool(agentOf(this), "vault-plugins_inspect", {});
+});
+Then("the definition layout names its Config properties and reserved keys", function (this: OlaiWorld) {
+  const layout = structuredOf(this).layout as { config: { schema: string; properties: string; reserved: string[] } };
+  assert.equal(layout.config.schema, "Config");
+  assert.match(layout.config.properties, /properties on the definition node/);
+  assert.deepEqual(layout.config.reserved, ["plugin", "approved"]);
+});
+When("the terminal agent runs definition {string}", async function (this: OlaiWorld, name: string) {
+  this.toolAnswer = await callTool(agentOf(this), "vault-plugins_run", { name });
+});
+Then("the definition run reports {string} as {string} from {string}", function (this: OlaiWorld, key: string, value: string, setBy: string) {
+  const readings = structuredOf(this).configurationValues as Array<{ key: string; value: unknown; setBy: string }>;
+  assert.ok(readings.some(reading => reading.key === key && reading.value === value && reading.setBy === setBy), JSON.stringify(readings));
+});

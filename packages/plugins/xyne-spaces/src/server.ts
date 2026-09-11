@@ -33,7 +33,7 @@ import { Effect } from "effect"
 import { makeClient, originOf, type Dial } from "./client.ts"
 import {
   bindOf,
-  DEFAULT_TRIM,
+  Config,
   spacesConfigIn,
   Seating,
   type SpacesReading,
@@ -132,10 +132,17 @@ const linkFromEnv = (
  * with teardown beyond its registrations, and this is the first plugin to have
  * one.
  */
+export { Config } from "./config.ts"
+
 export default definePlugin({
+  environment: [
+    {"key": "OLAI_SPACES_URL", "secret": false, "says": "the Spaces server to reach"},
+    {"key": "OLAI_SPACES_TOKEN", "secret": true, "says": "the credential for Spaces"},
+  ],
   name,
   needs: [Seating, Clock, Deliveries, Env, LocalState, Surfaces, Vault, Watching],
-  apply: Effect.gen(function*() {
+  config: Config,
+  apply: (settings) => Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against each
     // other by looking at one screen.
@@ -162,7 +169,7 @@ export default definePlugin({
      *  person sees rather than a second one beside it. */
     const link = inMemoryStore(current)
     let linkCell: { set: (value: SpacesLink) => void } | undefined
-    let reading: SpacesReading = { binds: [], named: [], trim: DEFAULT_TRIM }
+    let reading: SpacesReading = { binds: [], named: [], trim: settings["reply-limit"] }
     const mirrors = new Map<string, Mirror>()
     let lastBound: { agent: string; session: string } | undefined
     let chain = Promise.resolve()
@@ -345,7 +352,7 @@ export default definePlugin({
      */
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
-        reading = spacesConfigIn(revision.value.derived, seating.in(revision.value.derived))
+        reading = spacesConfigIn(revision.value.derived, seating.in(revision.value.derived), settings["reply-limit"])
         if (!missingEnv) return
         if (reading.named.length > 0) run(deliverFault(sayUnconfigured(), "fault"))
         else if (current.status !== "absent") paint(env.link)

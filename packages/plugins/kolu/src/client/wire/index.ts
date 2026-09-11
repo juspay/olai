@@ -51,10 +51,7 @@ import {
   KOLU_UNDIALED,
   KOLU_UNPULSED,
   KoluEvent,
-  KoluKnobs,
   KoluLink,
-  NO_KNOBS,
-  sameKnobs,
   sameKolu,
   Snapshot,
   SnapshotRefused,
@@ -112,31 +109,6 @@ export const koluMembers = {
       default: KOLU_UNPULSED,
       verbs: ["get"],
     },
-    /**
-     * WHICH FILE DECIDES THE WATCH ({ ./kolu.ts}'s `KoluKnobs`): the page
-     * the events drawer's wrench opens, and the whole of what its foot
-     * reads.
-     *
-     * Re-answered on every vault revision, the way the `pins` cell one
-     * spec over is and for its reason: the reading is the convention's own
-     * walk over the SERVED paths, so a file that arrives, moves or is
-     * renamed moves the wrench on the frame the revision publishes.
-     * `equals` is what keeps that from costing anything: almost every
-     * revision has nothing new to say about which file decided.
-     *
-     * IT WAS `mutes` UNTIL THE SECOND DOORBELL and carried a mute list
-     * beside the file; see the schema's own block for why that half went
-     * and this half could not.
-     *
-     * Wire-read-only: the knobs are written by EDITING the vault's own
-     * config outline, never through this wire.
-     */
-    knobs: {
-      schema: KoluKnobs,
-      default: NO_KNOBS,
-      verbs: ["get"],
-      equals: sameKnobs,
-    },
   },
   collections: {
     /**
@@ -173,7 +145,7 @@ export const koluMembers = {
      * THE RECENT EVENTS — what the server-side watcher computed, as a ring of
      * the last ~200.
      *
-     * The knob set these events came from is `_olai/Kolu.olai` in the served
+     * The knob set these events came from is `_olai/Settings.olai` in the served
      * directory (the vault owner's, read live); what olai owns is the reading
      * and the math — the mirror's rows folded into transition/hold/nag. The
      * ring is ATTENTION ONLY — liveness is the `pulse` cell above, not a row

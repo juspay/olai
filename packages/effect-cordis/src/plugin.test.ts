@@ -490,21 +490,29 @@ test("a provider that unloads takes its dependents with it, and brings them back
 
 test("a plugin with Config is handed the decoded value, and invalid config fails with a sentence", async () => {
   let seen: unknown
+  const configSchema = Schema.Struct({
+    commit: Schema.Literals(["off", "manual", "auto"]).pipe(
+      Schema.withDecodingDefaultKey(Effect.succeed("manual" as const)),
+      Schema.annotate({ description: "when a write is recorded" }),
+    ),
+  })
   const plugin = definePlugin({
     name: "scribe",
     needs: [],
-    config: Schema.Struct({
-      commit: Schema.optionalKey(Schema.Literals(["off", "manual", "auto"])),
-    }),
+    config: configSchema,
+    configUpdates: "live",
     apply: (config) => Effect.sync(() => {
       seen = config
     }),
   })
+  expect(plugin.config).toBe(configSchema)
+  expect(plugin.configUpdates).toBe("live")
+  expect(seen).toBeUndefined()
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const host = yield* openHost
     yield* mountPlugin(host, plugin)
   })))
-  expect(seen).toEqual({})
+  expect(seen).toEqual({ commit: "manual" })
 
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const host = yield* openHost
@@ -518,6 +526,48 @@ test("a plugin with Config is handed the decoded value, and invalid config fails
     expect(seen).toEqual({ commit: "auto" })
   })))
 })
+
+test("secrets and machine paths arrive through a keyed provision, never config options", async () => {
+  const Resource = serviceTag<{ token: string; executable: string }>("resource")
+  const options: unknown[] = []
+  let consumer = ""
+  let received: unknown
+  const plugin = definePlugin({
+    name: "reader",
+    environment: [{ key: "TOKEN", secret: true, says: "credential" }, { key: "EXECUTABLE", secret: false, says: "machine path" }],
+    needs: [Resource],
+    config: Schema.Struct({
+      mode: Schema.String.pipe(
+        Schema.withDecodingDefaultKey(Effect.succeed("quiet")),
+        Schema.annotate({ description: "how much to report" }),
+      ),
+    }),
+    apply: (config) => Effect.gen(function*() {
+      received = { config, resource: yield* Resource }
+    }),
+  })
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const host = yield* openHost
+    yield* provide(host, Resource, (who) => {
+      consumer = who
+      return { token: "fixture-secret", executable: "/fixture/bin/tool" }
+    })
+    yield* mountPlugin(host, {
+      ...plugin,
+      apply: (ctx, config) => {
+        options.push(config)
+        return plugin.apply(ctx, config)
+      },
+    }, { config: { mode: "verbose" } })
+  })))
+  expect(consumer).toBe("reader")
+  expect(options).toEqual([{ mode: "verbose" }])
+  expect(JSON.stringify(plugin.environment)).not.toContain("fixture-secret")
+  expect(JSON.stringify(plugin.environment)).not.toContain("/fixture/bin/tool")
+  expect(received).toEqual({ config: { mode: "verbose" }, resource: { token: "fixture-secret", executable: "/fixture/bin/tool" } })
+  expect(Schema.decodeUnknownSync(plugin.config!)({})).toEqual({ mode: "quiet" })
+})
+
 
 
 for (const failure of ["provision", "initialization"]) {

@@ -4,11 +4,9 @@ The `vault` plugin owns the served directory: its exclusive lock, store watcher,
 write gate and revision publisher. It offers `Vault`, `Directory` and `Ops`.
 Core supplies `VaultSettings` after reading the bundle’s declared vocabulary.
 
-The row lives in `packages/bundle/olai.yml`, with `config: { format: olai }`.
-Every default server profile selects it. An explicit `--plugins` list selects
-only the plugins named: include `vault` to serve files. `--plugins=` opens no listener.
-An exact `--plugins=ws,web-app,mcp,ui-renderer,navigation,layout,outlines,markdown,files,sidebar,preferences,theme,plugin-inspector` set keeps the control plane available without
-a directory; reads and writes report that absence.
+The row lives in `packages/bundle/olai.yml`. Its `Config` schema declares the
+`format` field, its `olai` default and its description; YAML carries no config.
+Every server profile selects the vault. Its panel switch is session-only: turning it off keeps the transport control plane available while withdrawing the directory and the services that depend on it. Enabling it reopens the store and republishes the settings file. Other rows use durable `on` properties in `_olai/Settings.olai`.
 
 The plugins panel explains that switching this row off clears served files and
 stops dependent plugins. Accepted writes finish before the watcher and lock are

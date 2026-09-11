@@ -1,39 +1,34 @@
-Feature: Extra and without plugin flags
-  `--plugins` is still the exact set. `--extra-plugins` turns on a row the
-  build ships off, and `--without-plugins` turns off a row the build ships
-  on. The two compose with the default and with each other; the exact set
-  does not compose with either. The plugins panel names the flag that
-  decided each row.
+Feature: File policy chooses the rows that run
+  The scratch vault authors on: yes or on: no in _olai/Settings.olai.
+  The panel reads those choices and a switch edits the same file.
 
-  @scratch:lanes @extra-plugins:xyne-spaces
-  Scenario: Extra-plugins turns an opt-in row on, and the panel says why
+  @scratch:lanes @rows-on:xyne-spaces
+  Scenario: File policy turns an opt-in row on
     Given I open the outline "lanes.olai"
     When I open the plugins panel
-    Then the plugins panel says "xyne-spaces" is "--extra-plugins"
-    And the plugins panel was started "--extra-plugins=xyne-spaces"
+    Then file "_olai/Settings.olai" has namespace "xyne-spaces" setting "on" as "yes"
+    And the plugin "xyne-spaces" is running
     And the plugins panel says nothing more about "journal"
 
-  @scratch:lanes @without-plugins:journal
-  Scenario: Without-plugins turns a default row off, and the panel says which flag
+  @scratch:lanes @rows-off:journal
+  Scenario: File policy turns a default row off
     Given I open the outline "lanes.olai"
     When I open the plugins panel
-    Then the plugins panel says "journal" is "--without-plugins"
-    And the plugins panel was started "--without-plugins=journal"
+    Then the plugin "journal" is off without prose
 
-  @scratch:lanes @extra-plugins:xyne-spaces @without-plugins:journal
-  Scenario: Extra and without compose with each other
+  @scratch:lanes @rows-on:xyne-spaces @rows-off:journal
+  Scenario: Independent row choices compose
     Given I open the outline "lanes.olai"
     When I open the plugins panel
-    Then the plugins panel says "xyne-spaces" is "--extra-plugins"
-    And the plugins panel says "journal" is "--without-plugins"
-    And the plugins panel was started "--extra-plugins=xyne-spaces"
-    And the plugins panel was started "--without-plugins=journal"
+    Then file "_olai/Settings.olai" has namespace "xyne-spaces" setting "on" as "yes"
+    And the plugin "xyne-spaces" is running
+    And the plugin "journal" is off without prose
 
-  @scratch:good @without-plugins:mcp
-  Scenario: Without-plugins removes a transport while preserving browser control
+  @scratch:good @rows-off:mcp
+  Scenario: File policy removes a transport while preserving browser control
     When I open the app
     And I open the plugins panel
-    Then the plugins panel says "mcp" is "--without-plugins"
+    Then the plugin "mcp" is off without prose
     And the MCP transport answers with status 404
     And the browser build answers with status 200
     When I switch the plugin "mcp" on

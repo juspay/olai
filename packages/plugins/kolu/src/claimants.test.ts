@@ -93,7 +93,7 @@ test("...and the SHORT key is one vault row away — the user's key, the plugin'
 
 test("...and a serve that did not compose kolu is byte-identical to an undeclared key", () => {
   // ENABLEMENT IS THE ONLY SWITCH. The claim rides the ENABLED vocabulary, so a
-  // `--plugins=odu` serve has no kind, no claim, and therefore no declaration —
+  // a policy selecting only odu serve has no kind, no claim, and therefore no declaration —
   // which is exactly the state of a vault that never heard of kolu. Built ≠
   // enabled needed no new rule to say so, and this is the case that proves it.
   expect(

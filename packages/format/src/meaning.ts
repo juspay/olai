@@ -469,11 +469,11 @@ const declaredly = (
       // (`@olai/web`'s `live/seam.ts`).
       //
       // A kind NOBODY is answering for reads exactly as an undeclared key
-      // does, which is the sharper half: a `--plugins` that left the plugin out
+      // does, which is the sharper half: a file enablement choice that left the plugin out
       // must leave the vault in the state it was in before it ever heard of it
       // — the value is still a name, and a URL somebody wrote under a retired
       // kind still opens. Answering `null` here instead would make a door
-      // appear and disappear with a flag on the machine. It carries no word for
+      // appear and disappear with runtime enablement. It carries no word for
       // the same reason: an absent plugin licences no face, which is the same
       // absent state a machine that never had the tool is already in.
       //

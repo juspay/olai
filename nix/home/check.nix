@@ -70,12 +70,6 @@ let
   linux = evalFor { isLinux = true; isDarwin = false; } { };
   darwin = evalFor { isLinux = false; isDarwin = true; } { };
 
-  # The same module with a git policy set — the `vault-level-settings` half.
-  pinned = evalFor { isLinux = true; isDarwin = false; } {
-    commit = "auto";
-    push = "off";
-  };
-
   linuxService = linux.config.systemd.user.services.olai;
   darwinAgent = darwin.config.launchd.agents.olai;
   exe = lib.getExe fakeOlai;
@@ -101,106 +95,23 @@ let
     assert lib.hasInfix "/home/alice/outlines" execPlain;
     assert lib.hasInfix "--port 7714" execPlain;
     assert lib.hasInfix "--host 127.0.0.1" execPlain;
-    # NO GIT FLAG when neither option is set, and that is the whole default
-    # rather than a saving: giving `--commit` at all names that flag under the
-    # row, so a module that helpfully passed the mode olai would have defaulted
-    # to anyway would claim a flag nobody typed.
+    # Policy is authored in the vault, never in supervisor argv.
     assert !(lib.hasInfix "--commit" execPlain);
     assert !(lib.hasInfix "--push" execPlain);
-    # ...and NO PLUGIN FLAG either, for the identical reason one line up: an
-    # omitted `--plugins` applies the built-in default AND draws "the
-    # built-in default" under the preferences row, where a given one names the
-    # flag. A module that expanded the default into a list would claim one.
     assert !(lib.hasInfix "--plugins" execPlain);
     assert !(lib.hasInfix "--extra-plugins" execPlain);
     assert !(lib.hasInfix "--without-plugins" execPlain);
     assert linux.config.home.packages == [ fakeOlai ];
-    # No log-level env when the option is unset — info is olai's own default,
-    # and a module that helpfully passed it would still be an instance pin
-    # (docs/running.md), just a louder one.
+    # Logging policy also belongs in the vault.
     assert !(linuxService.Service ? Environment);
     # Darwin path must not fire on Linux.
     assert linux.config.launchd.agents == { };
     true;
 
-  # --- the git policy, when an operator states one ------------------------
-  execOf = evaluated: builtins.unsafeDiscardStringContext
-    evaluated.config.systemd.user.services.olai.Service.ExecStart;
-  pinnedExec = execOf pinned;
-  # Only committing pinned, to show the two options are independent: an
-  # operator who ruled on committing has not silently ruled on pushing.
-  commitOnlyExec = execOf
-    (evalFor { isLinux = true; isDarwin = false; } { commit = "off"; });
-  _pinned =
-    assert lib.hasInfix "--commit auto" pinnedExec;
-    assert lib.hasInfix "--push off" pinnedExec;
-    assert lib.hasInfix "--commit off" commitOnlyExec;
-    assert !(lib.hasInfix "--push" commitOnlyExec);
-    true;
-
-  # --- the plugin list, which has THREE arms and not two -------------------
-  # `null` is asserted above (no flag). The other two are what the preferences
-  # row has to be able to tell apart, and they are why the option is
-  # `nullOr (listOf str)` rather than a list with `[]` as its default: saying
-  # NONE out loud is a real, supported serve, and it is not the same answer as
-  # saying nothing.
-  oduOnly = execOf (evalFor { isLinux = true; isDarwin = false; } { plugins = [ "odu" ]; });
-  noPlugins = execOf (evalFor { isLinux = true; isDarwin = false; } { plugins = [ ]; });
-  bothPlugins = execOf
-    (evalFor { isLinux = true; isDarwin = false; } { plugins = [ "kolu" "odu" ]; });
-  _plugins =
-    assert lib.hasInfix "--plugins odu" oduOnly;
-    # An empty list reaches the CLI as an EMPTY VALUE — `--plugins ''` after
-    # escaping — which is the flag's own spelling for none. Dropping the flag
-    # instead would silently turn "run nothing" into "run everything".
-    assert lib.hasInfix "--plugins ''" noPlugins;
-    # A comma list, because the flag reads one value rather than repeating.
-    assert lib.hasInfix "--plugins kolu,odu" bothPlugins;
-    # Independent of the git policy, both ways round: an operator who ruled on
-    # plugins has not silently ruled on committing, and the pinned config above
-    # carries no plugin flag.
-    assert !(lib.hasInfix "--commit" oduOnly);
-    assert !(lib.hasInfix "--plugins" pinnedExec);
-    true;
-
-  extraOnly = execOf
-    (evalFor { isLinux = true; isDarwin = false; } { extraPlugins = [ "xyne-spaces" ]; });
-  withoutOnly = execOf
-    (evalFor { isLinux = true; isDarwin = false; } { withoutPlugins = [ "journal" ]; });
-  extraAndWithout = execOf (evalFor { isLinux = true; isDarwin = false; } {
-    extraPlugins = [ "xyne-spaces" ];
-    withoutPlugins = [ "journal" ];
-  });
-  pluginsBesideExtra = evalFor { isLinux = true; isDarwin = false; } {
-    plugins = [ "odu" ];
-    extraPlugins = [ "xyne-spaces" ];
-  };
-  extraBesideWithoutSame = evalFor { isLinux = true; isDarwin = false; } {
-    extraPlugins = [ "journal" ];
-    withoutPlugins = [ "journal" ];
-  };
-  _patches =
-    assert lib.hasInfix "--extra-plugins xyne-spaces" extraOnly;
-    assert !(lib.hasInfix "--plugins" extraOnly);
-    assert !(lib.hasInfix "--without-plugins" extraOnly);
-    assert lib.hasInfix "--without-plugins journal" withoutOnly;
-    assert !(lib.hasInfix "--plugins" withoutOnly);
-    assert !(lib.hasInfix "--extra-plugins" withoutOnly);
-    assert lib.hasInfix "--extra-plugins xyne-spaces" extraAndWithout;
-    assert lib.hasInfix "--without-plugins journal" extraAndWithout;
-    assert !(lib.hasInfix "--plugins" extraAndWithout);
-    assert builtins.length (failed pluginsBesideExtra) == 1;
-    assert builtins.length (failed extraBesideWithoutSame) == 1;
-    true;
-
-  # --- log level, when an operator raises it -------------------------------
-  loud = evalFor { isLinux = true; isDarwin = false; } { logLevel = "debug"; };
-  loudDarwin = evalFor { isLinux = false; isDarwin = true; } { logLevel = "debug"; };
-  _loud =
-    assert loud.config.systemd.user.services.olai.Service.Environment
-      == [ "OLAI_LOG_LEVEL=debug" ];
-    assert loudDarwin.config.launchd.agents.olai.config.EnvironmentVariables
-      == { OLAI_LOG_LEVEL = "debug"; };
+  # --- only bootstrap and environment options remain ---------------------
+  _removed =
+    assert builtins.attrNames linux.options.services.olai ==
+      [ "dataDir" "enable" "environmentFile" "host" "package" "port" ];
     true;
 
   # --- the environment agents inherit ------------------------------------
@@ -217,9 +128,7 @@ let
     assert withEnvFile.config.systemd.user.services.olai.Service.EnvironmentFile
       == "/home/alice/.config/olai/env";
     # Nothing else moved: the file is an addition to the unit, not a rewrite,
-    # and neither is the log level beside it.
     assert withEnvFile.config.systemd.user.services.olai.Service.Restart == "always";
-    assert !(loud.config.systemd.user.services.olai.Service ? EnvironmentFile);
     # ... and launchd, which has no such knob, REFUSES rather than dropping it.
     assert failed linux == [ ];
     assert failed darwin == [ ];
@@ -254,17 +163,11 @@ let
 in
 assert _linux;
 assert _darwin;
-assert _pinned;
-assert _plugins;
-assert _patches;
-assert _loud;
+assert _removed;
 assert _env;
 pkgs.runCommand "olai-hm-module-check" { } ''
   echo "services.olai module evaluates (linux systemd + darwin launchd)"
-  echo "  ... and the git policy options reach argv only when they are set"
-  echo "  ... and --plugins tells apart nobody-said, none, and a list"
-  echo "  ... and --extra-plugins / --without-plugins render, compose, and refuse --plugins beside them"
-  echo "  ... and the log level reaches both supervisors when it is raised"
+  echo "  ... and policy options are absent from both supervisors"
   echo "  ... and environmentFile reaches the unit on Linux, and is refused on Darwin"
   touch $out
 ''

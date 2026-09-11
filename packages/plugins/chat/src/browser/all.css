@@ -22,8 +22,8 @@
  *
  * ## AND THE BYTES ARE THE BUILD'S, not the serve's
  *
- * A serve run with `--plugins=` still ships these utilities, because a
- * stylesheet is built once for the bundle and `--plugins` is a decision the
+ * A serve run with a policy with all rows off still ships these utilities, because a
+ * stylesheet is built once for the bundle and the file’s row selection is a decision the
  * SERVE makes. That is the honest cost of compiled-in plugins and it is the same
  * one the wire already pays. What a serve leaves out is the CHUNK — the browser
  * fetches a plugin's code only for a name the roster gave it — so the panel is

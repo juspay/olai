@@ -1,3 +1,4 @@
+import { selectFixtureRows } from "@olai/bundle/testlib"
 /**
  * EVERY WRITE VARIANT IN THE BUNDLE HAS EXACTLY ONE OWNING ROW — every arm of
  * `WriteRequest` and every arm of `Edit`, claimed by exactly one plugin's
@@ -59,7 +60,7 @@ const variants = (ast: SchemaAST.AST, field: string) => arms(ast).flatMap(arm =>
 // providers. Its cold load shares the fleet with the browser shards.
 test("every canonical operation and edit intent has one declared capability owner", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "2026-09-05T00:00:00Z" })
-  yield* mountBundle(plugins.host, { kind: "exact", names: [] }, [])
+  yield* mountBundle(plugins.host, selectFixtureRows([]))
   const modules = yield* offered(plugins.host, BundleModules)!.read
   // `member` is a path into the row's own surface, not a wire tag — the header
   // says why. A row that owns neither member declares no entry and is skipped.

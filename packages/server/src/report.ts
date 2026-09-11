@@ -21,11 +21,11 @@
  *
  * The POLICY is the primitive's own — loud on every fault, silent on the
  * ordinary — and what differs is only the sink: these are `Effect.log*` lines,
- * so they carry the level `OLAI_LOG_LEVEL` filters on, the `root` annotation the
+ * so they carry the level the serve’s log-level policy filters on, the `root` annotation the
  * composition root set, and the `serve` span, and they leave by whichever
  * stream that subcommand chose. A `console.warn` would still reach a terminal;
- * it just would not be in the logfmt an e2e harness, a journal or an
- * `OLAI_LOG_LEVEL` is reading.
+ * it would bypass the configured log format and level that the harness and
+ * journal consume.
  */
 
 import type { SurfaceAppEvent } from "@kolu/surface-app/serve"

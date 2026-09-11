@@ -41,7 +41,7 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
     And I open the plugins panel
     # A DEFINITION IS A ROW AND NOT A FIBER until somebody decides — and the
     # source is on the panel because approving is reading.
-    Then the plugins panel says "morning-agenda" is "read the source below and approve it"
+    Then the plugin "morning-agenda" is off without prose
     # ...and only ONE half, because a plugin that draws nothing is a whole
     # plugin: `browser.tsx` is optional and this one has none.
     And the plugins panel shows only the server half of "morning-agenda"
@@ -54,8 +54,9 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
     When I close the plugins panel
     And I open the node menu of "gardener"
     And I choose "Start an agent session" from the node menu
-    And the agent panel is open
-    Then the panel header names the node agent "the gardener"
+    # Assert the session opened the panel; the Given step would open it itself.
+    Then the agent panel is already visible
+    And the panel header names the node agent "the gardener"
 
     # ...AND THE SENTENCE ARRIVES, in the lane a person's own words go out on,
     # wearing a face that is not theirs. Nobody pointed this doorbell at a file:

@@ -23,7 +23,7 @@ import {fileAccess} from "olai-plugin-vault/contract"
  * keeps the box — the panel's width and its open/closed preference, the
  * sidebar's region and heading shape, the menu's order and its dividers, the
  * palette's input and where a refusal is drawn — and this plugin brings the
- * words and the drawings. A serve run with `--plugins=` composes no chat row, so
+ * words and the drawings. A serve run with a policy with all rows off composes no chat row, so
  * this module is never fetched, and the tab draws the outliner alone with no
  * panel, no section, no door and no `>`.
  *

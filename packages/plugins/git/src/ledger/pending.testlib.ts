@@ -37,7 +37,7 @@ import type * as StoreModule from "@olai/store"
 import { type Counted, counting, forgetful } from "./committed.testlib.ts"
 import { remembering } from "./committed.ts"
 import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt } from "../git/fixtures.testlib.ts"
-import { type Committing, fixedPolicy, make } from "./pending.ts"
+import { type Committing, make } from "./pending.ts"
 
 type OutlineStore = StoreModule.Store<Reading, Verdict>
 
@@ -117,7 +117,7 @@ export const withArms = <A>(
       watch: false,
       settle: "10 millis",
     })
-    const policy = fixedPolicy({ commit: "manual", push: null })
+    const policy = { commit: "manual", push: "off" } as const
     const cachedSide = counting(remembering())
     const plainSide = counting(forgetful())
     const at = Effect.map(store.read("cheap"), (s) => s.snapshot?.value ?? null)

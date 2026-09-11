@@ -72,7 +72,7 @@ test("one row is the singular all the way through, and is still counted", () => 
 test("the promise is unconditional, because the claim it makes is true either way", () => {
   // "whatever git has ALREADY recorded" is deliberately the wording rather
   // than "git still has them": a directory with no repository, one served
-  // `--no-commit`, and one whose archive has been waiting uncommitted since
+  // `commit: off`, and one whose archive has been waiting uncommitted since
   // the row was put away are all told the truth by it — and none of them is
   // told that something is recoverable when it is not. Nothing here reads a
   // git state, so there is no second reading of the repository to keep in

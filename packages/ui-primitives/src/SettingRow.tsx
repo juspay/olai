@@ -46,7 +46,7 @@ import { TESTID } from "@olai/ui-primitives/testids.ts"
  *
  * `aria-describedby` stays keyed on the WORDS rather than on the freeze. A
  * reader tabbing onto a live plugin strip is owed *this serve started it with
- * `--plugins=kolu`* exactly as much as a reader tabbing onto a frozen git one
+ * a policy selecting only kolu* exactly as much as a reader tabbing onto a frozen git one
  * is owed who set it; what changed is only whether the control will move.
  */
 

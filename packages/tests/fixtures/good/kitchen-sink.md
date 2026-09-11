@@ -102,7 +102,7 @@ listening on http://127.0.0.1:7714
 A fence with a very long line in it, to see the horizontal scroll:
 
 ```sh
-just serve /some/directory/of/outlines --port 7714 --host 127.0.0.1 --no-commit && echo "that line is deliberately far too long to fit inside the column it was written into"
+just serve /some/directory/of/outlines --port 7714 --host 127.0.0.1 && echo "that line is deliberately far too long to fit inside the column it was written into"
 ```
 
 ## Tables

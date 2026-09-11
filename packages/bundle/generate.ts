@@ -4,7 +4,7 @@
  *
  * ## Why anything is generated at all
  *
- * The server mounts its rows by NAME, through the loader, so `--plugins` is a
+ * The server mounts its rows by NAME, through the loader, so the file’s row selection is a
  * patch over data and a plugin's presence is a runtime fact. The browser could
  * not do that: its bundle is built ahead of time and there is no loader in the
  * tab, so it kept COMPILED-IN LISTS — `WIRES` and `PLUGINS`, hand-written, held
@@ -58,8 +58,8 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const SRC = join(HERE, "src")
 
 /** One row. `disabled` is the row's own built-in default and rides into the
- *  emitted `ROWS`, because the composition root reads it to decide what an
- *  omitted `--plugins` runs. It reaches NONE of the other three files: what a
+ *  emitted `ROWS`, because the composition root uses it when
+ *  the file has no enablement choice for a row. It reaches NONE of the other three files: what a
  *  build HAS and what a serve RUNS are two questions, and the browser learns
  *  the second off the roster cell at runtime, which is the whole of why a
  *  disabled plugin's chunk is fetched by nobody rather than absent from the
@@ -72,7 +72,6 @@ interface Row {
   readonly switchHint?: string
   readonly section: string
   readonly quiet?: boolean
-  readonly config?: Readonly<Record<string, unknown>>
 }
 
 /** The rows, from the one file. It is read here rather than imported from
@@ -92,7 +91,7 @@ function readRows(): ReadonlyArray<Row> {
     if (one.switchHint !== undefined && typeof one.switchHint !== "string") throw new Error(`bundle: ${one.id} switchHint must be a sentence`)
     if (typeof one.section !== "string" || one.section.length === 0) throw new Error(`bundle: ${one.id} needs a \`section\` for the plugins panel`)
     if (one.quiet !== undefined && one.quiet !== true) throw new Error(`bundle: ${one.id} quiet must be true when present`)
-    const config = configOf(one.id, (row as { config?: unknown }).config)
+    if ("config" in one) throw new Error(`bundle: ${one.id} config belongs to its plugin schema, not olai.yml`)
     return {
       id: one.id,
       name: one.name,
@@ -101,7 +100,6 @@ function readRows(): ReadonlyArray<Row> {
       ...(one.profiles === undefined ? {} : { profiles: one.profiles }),
       ...(one.switchHint === undefined ? {} : { switchHint: one.switchHint }),
       ...(one.quiet === true ? { quiet: true } : {}),
-      ...(config === undefined ? {} : { config }),
     }
   })
 }
@@ -121,7 +119,7 @@ function readRows(): ReadonlyArray<Row> {
  * (`js/bad-code-sanitization`).
  *
  * The honest answer here is not a better escaper. A row's `id` is a plugin's
- * name — the sibling key, the word `--plugins` takes, the docs slug — and its
+ * name — the sibling key, the settings namespace, the docs slug — and its
  * `name` is a module specifier; neither has ever been anything but letters,
  * digits and a few separators, and a row carrying a line terminator is a
  * malformed row rather than an exotic one. So this REFUSES it, in the file that
@@ -133,25 +131,6 @@ function readRows(): ReadonlyArray<Row> {
  * what is forbidden always eventually is.
  */
 const WORDS = /^[@A-Za-z0-9._/-]+$/
-
-const configOf = (id: string, value: unknown): Readonly<Record<string, unknown>> | undefined => {
-  if (value === undefined) return undefined
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`bundle: ${id} config must be a map of keys to values`)
-  }
-  const config: Record<string, unknown> = {}
-  for (const [key, one] of Object.entries(value as Record<string, unknown>)) {
-    if (!WORDS.test(key)) throw new Error(`bundle: ${id} config key ${JSON.stringify(key)} is not a word`)
-    if (typeof one !== "string" && typeof one !== "boolean" && typeof one !== "number") {
-      throw new Error(`bundle: ${id} config.${key} must be a string, boolean or number`)
-    }
-    config[key] = one
-  }
-  return config
-}
-
-const configLiteral = (config: Readonly<Record<string, unknown>>): string =>
-  `{ ${Object.entries(config).map(([key, value]) => `${quoted(key)}: ${JSON.stringify(value)}`).join(", ")} }`
 
 const quoted = (word: string): string => {
   if (!WORDS.test(word)) {
@@ -199,7 +178,7 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
   // other job is to name plugins, and `@olai/tests` and the browser both open
   // it. Emitting them keeps the ONE SOURCE — this generator reads the same
   // file, and `@cordisjs/plugin-include` still reads it itself at mount, which
-  // is what makes `--plugins` a patch over rows rather than a filter in code.
+  // is what makes the file’s row selection a patch over rows rather than a filter in code.
   // SPELLED FIELD BY FIELD, through the same check the two doors below use.
   // `JSON.stringify(row)` emitted the whole object and was the last place a
   // row's own words reached this file without passing {@link quoted} — the
@@ -210,7 +189,7 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
     .map((row) =>
       `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${hasDoor(row, "./server") ? "" : ", browserOnly: true"}${
         row.disabled === true ? ", disabled: true" : ""
-      }${row.profiles === undefined ? "" : `, profiles: [${row.profiles.map(quoted).join(", ")}]`}${row.switchHint === undefined ? "" : `, switchHint: ${prose(row.switchHint)}`}${row.config === undefined ? "" : `, config: ${configLiteral(row.config)}`}, section: ${prose(row.section)}${row.quiet === true ? ", quiet: true" : ""} },`
+      }${row.profiles === undefined ? "" : `, profiles: [${row.profiles.map(quoted).join(", ")}]`}${row.switchHint === undefined ? "" : `, switchHint: ${prose(row.switchHint)}`}, section: ${prose(row.section)}${row.quiet === true ? ", quiet: true" : ""} },`
     )
     .join("\n")
   const entries = rows

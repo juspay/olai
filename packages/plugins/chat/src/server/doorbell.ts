@@ -129,7 +129,7 @@ export const faultedIn = (chat: Chat, world: World): Effect.Effect<void> =>
  *
  * ## TWO REFUSALS, one sentence, and the arms are different facts
  *
- * A BUILT plugin left out of `--plugins` is one of them — the roster still
+ * A BUILT plugin left out of the file’s row selection is one of them — the roster still
  * carries its row so preferences can say it is off, and a picker drawn from a
  * stale tab could still name it — so the refusal is about THIS SERVE rather than
  * about the build. The other is a plugin that IS composed and declares no wake,

@@ -40,7 +40,7 @@
  * ## It is DEBUG, and that is a decision rather than a default
  *
  * `PluginServices.say` is `Effect.logDebug` and the instance's default level is
- * `info`, so none of this is on until somebody sets `OLAI_LOG_LEVEL=debug`. A
+ * `info`, so none of this is on until somebody sets `log-level: debug` on the `olai` node. A
  * doorbell that narrated every event at `info` would be a running commentary on
  * a machine where nothing is wrong, and the one line that mattered would arrive
  * dressed as the ones a reader has learned to skip. What matters is that the

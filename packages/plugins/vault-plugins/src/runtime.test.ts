@@ -11,7 +11,7 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * because that is what the tab is handed.
  */
 
-import { TRASH_FILE } from "@olai/format"
+import { TRASH_FILE, type WriteRequest } from "@olai/format"
 import { readingOfVault } from "@olai/format/testlib/scope"
 import {
   Agents,
@@ -27,8 +27,8 @@ import type { BuiltPlugin } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 import { Effect, Option, Stream } from "effect"
 
-import { openDynamic } from "./runtime.ts"
-import { ALWAYS, versionOf } from "./source.ts"
+import { openDynamic, wordsOf } from "./runtime.ts"
+import { ALWAYS, definedIn, versionOf } from "./source.ts"
 
 /** A plugin that mounts and registers nothing — the smallest whole server half,
  *  and the shape a `plugins.inspect` answer tells an agent to write. */
@@ -57,6 +57,7 @@ const vault = (options: {
   readonly server?: string
   readonly browser?: string | null
   readonly approved?: string | null
+  readonly props?: Record<string, string>
   readonly word?: string
   /** Where the records sit — `plugins.olai` unless a case is moving them to
    *  the trash. */
@@ -66,7 +67,7 @@ const vault = (options: {
     ? { plugin: options.word ?? "swatch" }
     : { plugin: options.word ?? "swatch", approved: options.approved }
   const rows = [
-    `{"id":"p","ord":"a0","title":"A swatch","custom":${JSON.stringify(custom)}}`,
+    `{"id":"p","ord":"a0","title":"A swatch","custom":${JSON.stringify({ ...custom, ...options.props })}}`,
     `{"id":"s","ord":"a0","parent":"p","title":"server.ts","desc":${
       JSON.stringify(options.server ?? SERVER)
     }}`,
@@ -108,7 +109,7 @@ const bench = <A>(
       })
       // NO BUILT WORDS: this bench's build has no rows, so nothing is taken and
       // the definition may have any word it likes.
-      const dynamic = openDynamic({ mount: plugin => mountPlugin(plugins.host, plugin, { wait: false }) }, [])
+      const dynamic = openDynamic({ mount: (plugin, config) => mountPlugin(plugins.host, plugin, { wait: false, config }) }, [])
       return yield* use(
         dynamic,
         () => plugins.changes.pipe(
@@ -478,3 +479,71 @@ test("a dynamic initializer that waits forever can be stopped", async () => {
   }))
   expect(state).toBe("switched")
 })
+
+
+test("a definition receives its own schema knobs and edits preserve source approval", () => bench((dynamic, now) => Effect.gen(function*() {
+  const server = `import { definePlugin } from "@olai/plugin-api";
+    import { Effect, Schema } from "effect";
+    const Config = Schema.Struct({ tone: Schema.String.pipe(
+      Schema.withDecodingDefaultKey(Effect.succeed("blue")),
+      Schema.annotate({ description: "the swatch tone" })) });
+    export default definePlugin({ name: "swatch", needs: [], config: Config,
+      apply: (config) => config.tone === "blue" ? Effect.void : Effect.die(new Error("tone=" + config.tone)) });`
+  const approved = versionOf(server, null)
+  yield* dynamic.follow(vault({ server, approved }))
+  expect((yield* now())[0]).toMatchObject({ state: "running", configurationValues: [{ key: "tone", value: "blue", setBy: "default" }] })
+  yield* dynamic.follow(vault({ server, approved, props: { tone: "red" } }))
+  expect((yield* now())[0]).toMatchObject({ state: "failed", source: { approved: true, version: approved } })
+  expect((yield* now())[0]?.fault).toContain("tone=red")
+  yield* dynamic.follow(vault({ server, approved, props: { tone: "blue" } }))
+  expect((yield* now())[0]).toMatchObject({ state: "running", configurationValues: [{ key: "tone", value: "blue", setBy: "vault" }] })
+})))
+
+
+for (const key of ["plugin", "approved"]) {
+  test(`a definition cannot declare the reserved ${key} property as configuration`, () => bench((dynamic, now) => Effect.gen(function*() {
+    const server = `import { definePlugin } from "@olai/plugin-api";
+      import { Effect, Schema } from "effect";
+      export default definePlugin({ name: "swatch", needs: [],
+        config: Schema.Struct({ ${key}: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed(""))) }),
+        apply: () => Effect.void });`
+    yield* dynamic.follow(vault({ server, approved: ALWAYS }))
+    const row = (yield* now())[0]
+    expect(row?.state).toBe("failed")
+    expect(row?.fault).toContain(key)
+    expect(row?.fault).toContain("reserved")
+  })))
+}
+
+
+test("definition metadata preserves field boundaries across delimiter-like text", () => {
+  const base = definedIn(vault({}), [])[0]!
+  for (const separator of ["\n", "\\0"]) {
+    const before = { ...base, approved: `pending${separator}fragment`, fault: "tail" }
+    const after = { ...base, approved: "pending", fault: `fragment${separator}tail` }
+    expect(wordsOf([before])).not.toBe(wordsOf([after]))
+    expect(wordsOf([before])).toBe(wordsOf([{ ...before }]))
+  }
+})
+
+
+test("configure edits the definition node and refuses its reserved keys before writing", () => bench((_dynamic, _now, host) => Effect.gen(function*() {
+  const written: WriteRequest[] = []
+  const dynamic = openDynamic({ mount: (plugin, config) => mountPlugin(host, plugin, { wait: false, config }) }, [], request => Effect.sync(() => { written.push(request) }))
+  const server = `import { definePlugin } from "@olai/plugin-api"; import { Effect, Schema } from "effect";
+    export default definePlugin({ name: "swatch", needs: [], config: Schema.Struct({ on: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed("yes"))), tone: Schema.Literals(["blue", "red"]).pipe(Schema.withDecodingDefaultKey(Effect.succeed("blue")), Schema.annotate({ description: "the tone" })) }), apply: () => Effect.void });`
+  yield* dynamic.follow(vault({ server, approved: ALWAYS }))
+  expect(yield* Effect.orDie(dynamic.configure("swatch", "tone", "red"))).toBe(true)
+  expect(written).toEqual([{ op: "prop", id: "p", key: "tone", value: "red" }])
+  for (const key of ["plugin", "approved"]) {
+    const refused = yield* Effect.orDie(Effect.flip(dynamic.configure("swatch", key, "anything")))
+    expect(refused.message).toContain("reserved")
+  }
+  expect((yield* Effect.orDie(Effect.flip(dynamic.configure("swatch", "tone", "green")))).message).toContain("blue")
+  expect(written).toHaveLength(1)
+  yield* Effect.orDie(dynamic.configure("swatch", "tone", null))
+  expect(written[1]).toEqual({ op: "prop", id: "p", key: "tone", value: null })
+  // The enablement reservation belongs to the settings file, not definitions.
+  yield* Effect.orDie(dynamic.configure("swatch", "on", "no"))
+  expect(written[2]).toEqual({ op: "prop", id: "p", key: "on", value: "no" })
+})))

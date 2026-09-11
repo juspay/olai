@@ -40,7 +40,7 @@
  * serve` usually passes inbound `Tailscale-*` headers straight through.
  * The picture is the sharp edge, because it becomes an `<img src>` the
  * browser fetches: behind any other proxy, the unused names are emptied
- * (`OLAI_IDENTITY_PICTURE_HEADER=`) or stripped at the proxy, the same as
+ * (`picture-header: ""` on the identity node) or stripped at the proxy, the same as
  * the login already must be. Said beside the config in
  * [`docs/running.md`](../../../docs/running.md).
  *

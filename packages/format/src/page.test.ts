@@ -125,6 +125,13 @@ const roots = (shows: ReturnType<typeof readAt>): ReadonlyArray<string> =>
 
 // ── which page an address names ────────────────────────────────────────
 
+test("the front page prefers ordinary outlines while convention files remain addressable", () => {
+  const paths = ["_olai/Settings.olai", "house.olai"]
+  expect(readAt(HOME, paths)).toMatchObject({ kind: "outline", file: "house.olai" })
+  expect(readAt(at(paths[0]!), paths)).toMatchObject({ kind: "outline", file: paths[0] })
+  expect(readAt(HOME, [paths[0]!])).toMatchObject({ kind: "outline", file: paths[0] })
+})
+
 test("a bare `/` opens the first outline found", () => {
   const shows = readAt(HOME)
   expect(shows.kind === "outline" ? shows.file : undefined).toBe("garden.olai")

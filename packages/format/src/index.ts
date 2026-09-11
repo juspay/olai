@@ -786,19 +786,16 @@ export {
   CommitResult,
   DEFAULT_POLICY,
   GIT_OFF,
-  GitPin,
   GitPolicy,
   GitState,
   How,
   isPossible,
   isReady,
   LastCommit,
-  NO_PIN,
   NOTHING_PENDING,
   DirtyOutline,
   Other,
   Pending,
-  policyOf,
   PUSH_DEFAULT,
   PUSH_MODES,
   type PushMode,
@@ -811,11 +808,6 @@ export {
   Writer,
   Wrote,
 } from "./committing.ts"
-
-/** WHAT THE OPERATOR PINNED about plugins — {@link GitPin}'s sibling, on this
- *  floor because it travels the wire. The composition root produces it, the
- *  surface carries it, the tab draws it. */
-export { PluginPin, pluginPinOf } from "./pluginPin.ts"
 
 /** What a READ of the set asks and what it says back — see `./reading.ts`,
  *  which is `./committing.ts`'s argument applied to the vocabulary every query

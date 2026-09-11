@@ -19,7 +19,7 @@ test("a loader's owner drains children and catalogs, and retained loaders cannot
     const owner = definePlugin({ name: "owner", needs: [HostLoading], apply: Effect.gen(function*() {
       const loading = yield* HostLoading
       held = yield* loading.acquire
-      yield* loading.describe({ names: () => ["child"], rows: () => [], set: () => Effect.succeed(false) })
+      yield* loading.describe({ names: () => ["child"], rows: () => [], set: () => Effect.succeed(false), configure: () => Effect.succeed(false) })
       yield* held.mount(child)
     }) })
     const first = yield* mountPlugin(host, owner)

@@ -78,7 +78,6 @@ import {
   composed,
   type Derived,
   fileKind,
-  type GitPin,
   type GitPolicy,
   type GitState,
   type How,
@@ -91,7 +90,6 @@ import {
   type OutlineError,
   outlineNames,
   type Pending,
-  policyOf,
   QUIET_MS,
   type PushResult,
   type Reading,
@@ -144,11 +142,8 @@ export type { GitState }
  * THE FOUR THAT ARE NOT THE PROBE'S, and every one of them is here rather than
  * assembled by a caller so that "what git is doing" has exactly one derivation:
  *
- *   - `pinned` — what the operator typed, on every arm including the settled
- *     ones: a `--commit=off` serve is exactly a pinned policy, and a browser
- *     told "off" without being told who said so cannot draw the row.
- *   - `policy` — what this server DOES, which is the value the two preference
- *     rows now draw (they used to draw a preference stored in the browser).
+ *   - `pinned` and `policy` — the resolved policy in force. The historical
+ *     pinned wire name no longer distinguishes omitted flags from defaults.
  *   - `refused` — the last commit git said no to. #108's: a repository whose
  *     identity nobody set answers every probe happily and refuses every commit,
  *     so this OVERRIDES the probe's own status and reaches a reader as `error`.
@@ -159,12 +154,11 @@ export type { GitState }
  */
 const gitOf = (
   repo: RepoState,
-  policy: Policy,
+  policy: GitPolicy,
   settled: Settled,
 ): GitState => {
   const rest = {
-    pinned: policy.pin,
-    policy: policy.now(),
+    policy,
     pushSaid: settled.pushSaid,
     paused: settled.paused,
   }
@@ -278,23 +272,23 @@ export const whyOf = (
         case "off":
           return COMMITS_OFF
         case "manual":
-          return "waiting to be committed: writes accumulate under --commit=manual (the " +
+          return "waiting to be committed: writes accumulate under commit: manual (the " +
             `default) until ${commitDoor(writer)} asks for one`
         // The window, and it names nobody's door on purpose: under `auto` there
         // is nothing for this caller to press. What it is waiting for is the
         // DIRECTORY going quiet, which every other writer moves too.
         case "auto":
-          return `waiting to be committed: --commit=auto records everything waiting ` +
+          return `waiting to be committed: commit: auto records everything waiting ` +
             `once writes stop arriving for ${Math.round(QUIET_MS / 1000)} seconds`
       }
   }
 }
 
-/** The one sentence `--commit=off` gets, wherever it is reached from — the
+/** The one sentence `commit: off` gets, wherever it is reached from — the
  *  setting is one fact and two spellings of it is one place for them to
  *  drift. */
 const COMMITS_OFF =
-  "this directory is served with --commit=off, so writes are not committed"
+  "this directory is served with commit: off, so writes are not committed"
 
 /** What a busy repository IS, in words that read. Three of the four reasons are
  *  an operation in progress and take "mid-"; a detached HEAD is a place you are
@@ -355,8 +349,8 @@ export interface Options {
    * store that has never loaded already answered with.
    */
   readonly at: Effect.Effect<Reading | null>
-  /** WHAT THIS SERVER DOES about git, live — see {@link Policy}. */
-  readonly policy: Policy
+  /** Resolved configuration, owned by this activation. */
+  readonly policy: GitPolicy
   /**
    * Told whenever anything about git SETTLED — a commit by whichever door, a
    * push, a refusal of either, and the loop stopping or being started again.
@@ -393,36 +387,6 @@ export interface Options {
 }
 
 /**
- * WHAT THIS SERVER DOES ABOUT GIT, and who decided — the whole of
- * `git-policy-server-side` as this layer sees it.
- *
- * Two members rather than one, because they answer different questions and both
- * travel: `now()` is what the loop and the two verbs obey, `pin` is what a
- * browser is told so it can name a given flag (or the built-in default). The
- * policy is immutable after boot — flags plus defaults — so `now()` is a
- * function because that is the shape the loop already asks, not because it
- * moves.
- *
- * WHERE IT IS KEPT is deliberately not here. This layer is handed the answer;
- * the composition root builds it with {@link fixedPolicy}.
- */
-export interface Policy {
-  /** What the operator pinned — the flags as given, `null` for each one nobody
-   *  gave (`@olai/format`'s {@link GitPin}). */
-  readonly pin: GitPin
-  /** What the server does, with the pin and the built-in defaults already
-   *  folded in (`@olai/format`'s `policyOf`). */
-  readonly now: () => GitPolicy
-}
-
-/** A policy that cannot move: the flags and the defaults. What every
- *  composition hands in — the server itself, and every test here. */
-export const fixedPolicy = (pin: GitPin): Policy => ({
-  pin,
-  now: () => policyOf(pin),
-})
-
-/**
  * Everything git is asked to do, in one place — which is what makes the MODE
  * one module's business rather than two. `off` has nothing to say, `manual`
  * answers only when asked, and `auto` runs the quiet-window loop below; every
@@ -456,7 +420,7 @@ export interface Committing {
    * there is always one ({@link whyOf}).
    *
    * It is what is left of the per-write commit, and the difference is the whole
-   * of this feature: `--commit=auto` used to commit exactly the files one write
+   * of this feature: `commit: auto` used to commit exactly the files one write
    * produced, inside the write gate, so a train of thought arrived as a dozen
    * commits. Nothing commits a write any more — the loop below sweeps the
    * repository once the directory goes quiet — so what a write reports is what
@@ -604,7 +568,7 @@ interface Survey {
 const NO_FILES: ReadonlySet<string> = new Set()
 const NO_ERRORS: ReadonlyMap<string, ReadonlyArray<OutlineError>> = new Map()
 
-/** The survey for a directory nothing was asked about — `--commit=off`, a
+/** The survey for a directory nothing was asked about — `commit: off`, a
  *  directory that is not a work tree, a git that could not be asked. Spelled
  *  once, because three arms answer with it and a fourth field added to the
  *  survey must not be able to appear in two of them and not the third. */
@@ -633,7 +597,7 @@ export const make = (options: Options): Committing => {
   /** What this server DOES about commits, asked of the policy rather than
    *  derived once into a closed-over mode: the same accessor the loop already
    *  uses, so a third reader cannot come to a different answer. */
-  const mode = (): CommitMode => options.policy.now().commit
+  const mode = (): CommitMode => options.policy.commit
 
   /** Ops per writer since the last commit. A counter rather than the list of
    *  edits the design first drew: the panel says "chat-agent 3 · you 1", and
@@ -1008,7 +972,7 @@ export const make = (options: Options): Committing => {
       if (request.paths === undefined) counts.clear()
       options.onSettled?.()
 
-      // ... AND THE PUSH, which is what `--push=auto` now means: a settled
+      // ... AND THE PUSH, which is what `push: auto` now means: a settled
       // commit is shared, whichever door made it — the Commit button, the
       // agent's `commit` tool, or the quiet window. It used to fire in the
       // BROWSER, inside the success callback of one tab's own request, so a
@@ -1016,14 +980,14 @@ export const make = (options: Options): Committing => {
       // count grew with nothing saying why.
       //
       // ONE ROUND TRIP PER COMMIT, and that is the argument the old
-      // `--commit=auto` could not make: it committed every write, so pushing
+      // `commit: auto` could not make: it committed every write, so pushing
       // would have put a network call inside every keystroke. The window is
       // what makes this affordable.
       //
       // The push's own refusal is remembered and stops the loop ({@link sent}),
       // and the commit STANDS either way: nothing here is rolled back, and
       // nothing is retried.
-      if (options.policy.now().push === "auto") yield* push
+      if (options.policy.push === "auto") yield* push
 
       return {
         _tag: "Committed",
@@ -1114,7 +1078,7 @@ export const make = (options: Options): Committing => {
   /**
    * Why the write that just landed is not in the history — and nothing else.
    *
-   * What used to be here was the per-write commit: `--commit=auto` staged
+   * What used to be here was the per-write commit: `commit: auto` staged
    * exactly the files one write produced and committed them, inside the write
    * gate, on every op. It is RETIRED. It turned one train of thought into a
    * dozen commits, which is the thing manual mode was introduced to end, and
@@ -1227,7 +1191,7 @@ export const make = (options: Options): Committing => {
   )
 
   const catchUp: Effect.Effect<void> = Effect.gen(function*() {
-    if (options.policy.now().push !== "auto") return
+    if (options.policy.push !== "auto") return
     const looked = yield* survey
     if (looked.unpushed === null || looked.unpushed.commits === 0) return
     yield* push

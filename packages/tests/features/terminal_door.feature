@@ -90,16 +90,16 @@ Feature: The `terminal` property is a DOOR
     And "claimed-mine" wears no terminal door at all
     And there should be no page errors
 
-  @scratch:lanes @padi:lanes @plugins:vault,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  @scratch:lanes @padi:lanes @rows:vault,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that did not compose kolu is the machine that never had it
     # THE DISABLED STATE, and it is not the same picture as the one below. There
     # a padi is missing and the page says so, which is news. Here an operator
-    # ran `--plugins=odu`, and a page that complained about a daemon somebody
+    # ran a policy selecting only odu, and a page that complained about a daemon somebody
     # deliberately turned off would be reporting on a decision rather than on a
     # fact. So: no door, no pill, and nothing amber.
     #
     # The padi in this scenario is REAL and RUNNING — the `@padi:` tag beside
-    # the `@plugins:` one is deliberate. What is absent is absent because the
+    # the `@rows:` one is deliberate. What is absent is absent because the
     # SERVE did not compose the plugin, not because there was nothing to reach.
     #
     # `the connection is "live"` is the assertion the whole thing turns on. A

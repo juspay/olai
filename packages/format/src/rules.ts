@@ -403,7 +403,7 @@ export const reportDocs = (
  * `kinds` IS THE ONE THING THIS RULE ASKS THAT IS NOT A READING OF THE SET, and
  * it is the BUILT half of it that decides here ({@link ../typing.ts}'s
  * `KindVocabulary`): a `type` naming a kind this binary knows how to mean is a
- * legal declaration whether or not `--plugins` left that plugin out, where
+ * legal declaration whether or not the file’s row selection left that plugin out, where
  * `type: banana` is refused with every legal word named. The value side of the
  * same vocabulary is the ENABLED half and is asked one rule down — which is the
  * whole of what "a disabled plugin's kind validates as plain text" comes to.
