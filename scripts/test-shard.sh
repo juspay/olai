@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# bun's per-test default is 5s. On a loaded odu host (ekapkgs from-source
+# builds sharing the box) several tests land at 6–20s and fail as timeouts
+# while still passing. 30s is above the slowest estimate in `seconds` below.
+bun_timeout=(--timeout 30000)
+
 if [[ -z "${ODU_SHARD_INDEX+x}" && -z "${ODU_SHARD_TOTAL+x}" ]]; then
-  bun test
+  bun test "${bun_timeout[@]}"
   browser_paths=$(git ls-files '*.browsertest.ts')
   if [[ -n "$browser_paths" ]]; then
     mapfile -t browser_files <<< "$(printf '%s\n' "$browser_paths" | LC_ALL=C sort | sed 's|^|./|')"
-    bun test --conditions browser "${browser_files[@]}"
+    bun test "${bun_timeout[@]}" --conditions browser "${browser_files[@]}"
   fi
   exit
 fi
@@ -61,7 +66,8 @@ console.log(`test shard ${index + 1}/${total}: ${shard.files.length} files, esti
 for (const condition of [false, true]) {
   const selected = shard.files.filter(file => browser(file) === condition).sort()
   if (!selected.length) continue
-  const child = Bun.spawn([process.execPath, "test", ...(condition ? ["--conditions", "browser"] : []),
+  const child = Bun.spawn([process.execPath, "test", "--timeout", "30000",
+    ...(condition ? ["--conditions", "browser"] : []),
     ...selected.map(file => `./${file}`)], { stdout: "inherit", stderr: "inherit" })
   const status = await child.exited
   if (status) process.exit(status)
