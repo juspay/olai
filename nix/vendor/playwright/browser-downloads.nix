@@ -1,13 +1,13 @@
-{
-  name,
-  revision,
-  browserVersion ? "",
+{ name
+, revision
+, browserVersion ? ""
+,
 }:
 let
   cftUrl =
     path:
-    assert browserVersion != "";
-    "https://cdn.playwright.dev/builds/cft/${browserVersion}/${path}";
+      assert browserVersion != "";
+      "https://cdn.playwright.dev/builds/cft/${browserVersion}/${path}";
 
   registryUrl =
     browser: archive:
@@ -47,5 +47,4 @@ in
     aarch64-linux = mk (registryUrl "ffmpeg" "ffmpeg-linux-arm64.zip") false;
     aarch64-darwin = mk (registryUrl "ffmpeg" "ffmpeg-mac-arm64.zip") false;
   };
-}
-.${name}
+}.${name}

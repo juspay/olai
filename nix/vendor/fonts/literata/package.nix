@@ -1,8 +1,8 @@
-{
-  lib,
-  stdenvNoCC,
-  fetchzip,
-  installFonts,
+{ lib
+, stdenvNoCC
+, fetchzip
+, installFonts
+,
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "literata";

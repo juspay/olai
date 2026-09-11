@@ -1,8 +1,8 @@
-{
-  lib,
-  stdenvNoCC,
-  fetchFromGitHub,
-  installFonts,
+{ lib
+, stdenvNoCC
+, fetchFromGitHub
+, installFonts
+,
 }:
 
 stdenvNoCC.mkDerivation {

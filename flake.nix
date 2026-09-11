@@ -77,7 +77,8 @@
       devShells = eachSystem ({ pkgs, ... }:
         let
           default = import ./shell.nix { inherit pkgs; };
-        in {
+        in
+        {
           inherit default;
           e2e = default.overrideAttrs (_prev: {
             name = "olai-shell-e2e";
