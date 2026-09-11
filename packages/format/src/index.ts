@@ -172,7 +172,7 @@ export { claim, slugOf, slugsIn } from "./slug.ts"
  *  disagree about which lines a document has. A NOTE is not a file and does not
  *  spend it — a leading `---` in one is the thematic break markdown says it is
  *  (`./document.ts` argues both halves). */
-export { proseIn } from "./frontmatter.ts"
+export { proseIn, proseLineOffset } from "./frontmatter.ts"
 /** WHAT A `.csv` SAYS — its rows, squared off to the rectangle a table needs,
  *  and bounded. Exported
  *  because the BROWSER is the only thing that draws one: a `.csv`'s page is
@@ -241,6 +241,7 @@ export type { Split } from "./address.ts"
 export {
   Address,
   AtDocument,
+  AtOutline,
   AtHeading,
   AtNode,
   AtRow,
@@ -604,6 +605,8 @@ export {
    *  order. A body is text the way a note is, and a query that could only ask
    *  about records is the shape this arc replaced. */
   matchingDocuments,
+  matchingOutlines,
+  documentLineOf,
   /** WHICH OF A QUERY'S WORDS AN INDEX MAY NARROW BY, with the query's own
    *  and/or shape kept — the grammar's answer to a question only the thing
    *  holding the index can ask, so that thing does not have to read the groups
@@ -921,6 +924,8 @@ export {
 export {
   DEFAULT_SEARCH_LIMIT,
   DocumentHit,
+  OutlineHit,
+  isOutlineHit,
   isNodeHit,
   MatchedNode,
   NodeHit,

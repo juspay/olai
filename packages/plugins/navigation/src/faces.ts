@@ -43,4 +43,4 @@ export const { hold: holdRouteFaces, hung: routeFaces } = heldFaces()
 
 /** ...and THE PALETTE'S: the commands behind its prefixes and the rows other
  *  rows hang in it (`./palette/Palette.tsx`). */
-export const { hold: holdPaletteFaces, hung: paletteFaces } = heldFaces()
+export const { hold: holdPaletteFaces, hung: paletteFaces, only: paletteOnly } = heldFaces()

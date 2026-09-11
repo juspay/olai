@@ -407,7 +407,7 @@ describe("the notes a query asks for", () => {
       [["notes/bug.md", "# a bug\n\nthe prose lives here\n"]],
     )
     const [hit] = search(readingOf(set), { text: "bug", withDesc: true }, TODAY, NO_KINDS).hits
-      .filter((one) => one.at.kind === "document")
+      .filter((one) => one.at.kind === "document" && one.at.path === "notes/bug.md")
     expect(hit).toMatchObject({ at: { kind: "document", path: "notes/bug.md" } })
     expect(hit).not.toHaveProperty("desc")
   })
@@ -552,4 +552,25 @@ describe("a query is words and operators", () => {
     expect(answer.hits.filter(isNodeHit).map((hit) => hit.id)).toEqual(["book"])
     expect(answer.total).toBe(2)
   })
+})
+
+test("document landings count file lines including frontmatter and use the strongest body word", () => {
+  const vault = readingOf(setOf({}, [["landing.md", "---\nproject: garden\n---\n# Journal\n\nprefixedweak\n\nSTRONG word\n"]]))
+  const answer = search(vault, { text: "weak strong" }, TODAY, NO_KINDS)
+  expect(answer.hits[0]).toMatchObject({ matched: "body", line: 8 })
+  for (const text of ["journal", "landing.md", "prop:project=garden", "-is:done"]) {
+    expect(search(vault, { text }, TODAY, NO_KINDS).hits[0]).not.toHaveProperty("line")
+  }
+})
+
+test("uncapped category totals describe the requested kind before the hit cap", () => {
+  const vault = readingOf(setOf({ "orchid.olai": '{"id":"orchid-node","ord":"a0","title":"orchid"}' }, [["orchid.md", "# orchid"]]))
+  const all = search(vault, { text: "orchid", limit: 1 }, TODAY, NO_KINDS)
+  expect(all.hits).toHaveLength(1)
+  expect(all.total).toBe(3)
+  expect(all.totals).toEqual({ node: 1, file: 2 })
+  const files = search(vault, { text: "orchid", kind: "file", limit: 1 }, TODAY, NO_KINDS)
+  expect(files.hits).toHaveLength(1)
+  expect(files.total).toBe(2)
+  expect(files).not.toHaveProperty("totals")
 })

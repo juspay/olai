@@ -807,3 +807,13 @@ Then("the definition run reports {string} as {string} from {string}", function (
   const readings = structuredOf(this).configurationValues as Array<{ key: string; value: unknown; setBy: string }>;
   assert.ok(readings.some(reading => reading.key === key && reading.value === value && reading.setBy === setBy), JSON.stringify(readings));
 });
+
+When("the terminal agent searches for {string} with kind {string}", async function(this: OlaiWorld, text: string, kind: string) {
+  this.toolAnswer = await callTool(agentOf(this), "search_nodes", { text, kind });
+});
+
+Then("every terminal search hit is a node and includes {string}", function(this: OlaiWorld, id: string) {
+  const hits = structuredOf(this).hits as Array<{ at: { kind: string }; id?: string }>;
+  assert.ok(hits.some(hit => hit.id === id));
+  assert.ok(hits.every(hit => hit.at.kind === "node"));
+});

@@ -9,7 +9,7 @@ test("withdrawn search releases its query and disables takes; return opens a fre
       const generation = ++opens
       onCleanup(() => { closes++ })
       return {
-        hits: () => [], total: () => generation, failure: () => null,
+        hits: () => [], totals: () => undefined, total: () => generation, failure: () => null,
         refusals: () => [], answering: () => "cabinet",
         taking: act => act(),
       }
@@ -29,5 +29,27 @@ test("withdrawn search releases its query and disables takes; return opens a fre
     expect(found.failure()).toBeNull()
     dispose()
     expect(closes).toBe(2)
+  })
+})
+
+test("a consuming query follows a reactive kind and clears with its owner", () => {
+  let released = 0
+  createRoot(dispose => {
+    const [kind, setKind] = createSignal<"node" | "file" | undefined>(undefined)
+    const provider: SearchProvider = (_text, pick) => {
+      onCleanup(() => { released++ })
+      return {
+        hits: () => [], total: () => pick?.() === "node" ? 1 : 2,
+        totals: () => undefined, failure: () => null, refusals: () => [],
+        answering: () => "orchid", taking: act => act(),
+      }
+    }
+    const result = followReading(() => provider, () => "orchid", kind)
+    expect(result.total()).toBe(2)
+    setKind("node")
+    expect(result.total()).toBe(1)
+    expect(released).toBe(0)
+    dispose()
+    expect(released).toBe(1)
   })
 })

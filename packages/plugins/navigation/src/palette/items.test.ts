@@ -52,10 +52,7 @@ test("filter matches label and search haystack", () => {
   expect(filterItems("agent").map((i) => i.id)).toEqual(["panel-agent"])
 })
 
-/** A hit on a DOCUMENT is the same row with a different half of it filled in:
- *  its own face's title, the path it is at, and the glyph the sidebar draws
- *  that kind of file with. There is no place line invented for it — a document
- *  hangs under nothing, so the path IS where it is. */
+/** A document row names its own file and opens it. */
 test("a document hit becomes a row that opens the document", () => {
   const item = hitItem({
     at: { kind: "document", path: DocumentPath.make("notes/cabinets.md") },
@@ -63,8 +60,7 @@ test("a document hit becomes a row that opens the document", () => {
     matched: "body",
   }, atOnce)
   expect(item.label).toBe("Cabinets")
-  expect(item.place).toBe("notes/cabinets.md")
-  expect(item.of).toBe("document")
+  expect(item.place).toEqual({ file: "notes/cabinets.md" })
   // The face title renders like every title: markdown and `#tags` styled and
   // hued (`renderTitle`), and relative pictures resolve against the document's
   // own directory — the same contract a node's title has about its outline.
@@ -93,9 +89,8 @@ test("a search hit becomes a row that jumps to the node", () => {
   expect(item.action).toEqual({ kind: "route", route: atNode("hinges") })
 })
 
-test("the place reads NEAREST ancestor first, so a truncation keeps what situates the node", () => {
-  // `path` is outermost-first; a line ellipsized from the end would lose the
-  // immediate parent — the one crumb that answers "which `pick the hinges`?".
+test("the place separates the file and nearest ancestor from the middle", () => {
+  // Keep the root-first path while protecting the nearest ancestor.
   const item = hitItem(node({
     id: "hinges",
     title: "pick the hinges",
@@ -104,7 +99,7 @@ test("the place reads NEAREST ancestor first, so a truncation keeps what situate
     path: ["kitchen remodel #home", "install the cabinets"],
     matched: "title",
   }), atOnce)
-  expect(item.place).toBe("install the cabinets · kitchen remodel #home")
+  expect(item.place).toEqual({ file: "house.olai", middle: "kitchen remodel #home", nearest: "install the cabinets" })
 })
 
 test("a node at the top level is placed by its file", () => {
@@ -116,7 +111,7 @@ test("a node at the top level is placed by its file", () => {
     path: [],
     matched: "title",
   }), atOnce)
-  expect(top.place).toBe("errands.olai")
+  expect(top.place).toEqual({ file: "errands.olai" })
 })
 
 test("a line under a plugin's prefix carries the command that will run it", () => {

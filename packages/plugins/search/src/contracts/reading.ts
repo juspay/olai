@@ -22,7 +22,7 @@
 import { serviceTag } from "@olai/plugin-api/contracts"
 import { createKeyedRoot } from "@kolu/surface/solid"
 import type { Accessor } from "solid-js"
-import type { NodeHit, Refusal, SearchHit } from "@olai/format"
+import type { NodeHit, Refusal, SearchHit, SearchRequest, SearchAnswer } from "@olai/format"
 import type { Taking } from "@olai/web/client/settled.ts"
 export const LIMIT = 8
 export interface Search<H extends SearchHit = SearchHit> {
@@ -44,6 +44,7 @@ export interface Search<H extends SearchHit = SearchHit> {
    * waiting for.
    */
   readonly total: Accessor<number>
+  readonly totals: Accessor<SearchAnswer["totals"]>
   /** A refusal from the server, in its own words — `null` when there is none.
    *  Never silently dropped (`../run.ts` forbids a silent handler). */
   readonly failure: Accessor<string | null>
@@ -84,7 +85,8 @@ export interface Search<H extends SearchHit = SearchHit> {
   readonly taking: Taking
 }
 
-export type SearchProvider = (text: Accessor<string | null>, kind?: "node" | "document") => Search
+export type SearchKind = SearchRequest["kind"]
+export type SearchProvider = (text: Accessor<string | null>, kind?: Accessor<SearchKind>) => Search
 export const readings = serviceTag<SearchProvider>("search.readings")
 
 /** WHAT A CONSUMING PACKAGE BINDS ONCE — its own reading over the provider its
@@ -94,6 +96,7 @@ export const readings = serviceTag<SearchProvider>("search.readings")
 export interface NodeSearch {
   (text: Accessor<string | null>, kind: "node"): Search<NodeHit>
   (text: Accessor<string | null>): Search
+  (text: Accessor<string | null>, kind: Accessor<SearchKind>): Search
 }
 
 /** The consumer scope owns each acquired query, so provider replacement cannot
@@ -101,14 +104,15 @@ export interface NodeSearch {
 export function followReading(
   provider: Accessor<SearchProvider | undefined>,
   text: Accessor<string | null>,
-  kind?: "node" | "document",
+  kind?: "node" | Accessor<SearchKind>,
 ): Search {
-  const reading = createKeyedRoot(provider, value => value?.(text, kind))
+  const reading = createKeyedRoot(provider, value => value?.(text, typeof kind === "function" ? kind : () => kind))
   const absent = () => reading() === undefined && (text()?.trim().length ?? 0) >= 3
   const unavailable = "Search is unavailable: the search plugin is not running, so there is no matcher to look this up in."
   return {
     hits: () => reading()?.hits() ?? [],
     total: () => reading()?.total() ?? 0,
+    totals: () => reading()?.totals(),
     failure: () => reading()?.failure() ?? (absent() ? unavailable : null),
     refusals: () => reading()?.refusals() ?? (absent() ? [{ token: text()!.trim(), reason: unavailable }] : []),
     answering: () => reading()?.answering() ?? null,

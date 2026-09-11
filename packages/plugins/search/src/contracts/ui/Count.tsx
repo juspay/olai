@@ -41,9 +41,11 @@ export function SearchCount(props: {
   readonly of: Pick<Search, "hits" | "total">
   /** Where the line sits, and how it is boxed — the door's own. */
   readonly class?: string
+  readonly empty?: boolean
 }) {
   const said = () =>
-    countLine({ drawn: props.of.hits().length, total: props.of.total() })
+    countLine({ drawn: props.of.hits().length, total: props.of.total() }) ??
+    (props.empty && props.of.total() === 0 ? "0 matches" : undefined)
   return (
     <Show when={said()}>
       {(line) => (

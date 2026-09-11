@@ -1,7 +1,7 @@
 import type { AppCommand } from "olai-plugin-navigation/slots"
 /** Generic palette rows and prefix grammar. Feature providers own the words,
  * character, write behavior and continuation of every contributed prefix. */
-import type { BodyKind } from "@olai/format"
+import type { Place } from "olai-plugin-search/ui/place.ts"
 import type {Hung } from "@olai/plugin-api"
 import type { Edit } from "@olai/surface"
 import type { SearchHit } from "@olai/format"
@@ -82,22 +82,11 @@ export interface PaletteItem {
    * palette into a sideways scroll. A popover never scrolls sideways, so the
    * place gets a line of its own and both are ellipsized.
    */
-  readonly place?: string
+  readonly place?: Place | string
   /** The node's properties, on a THIRD line — matched ones first
    *  (`../search/props.ts`). Only a node row has any; a shell command has
    *  nothing to say about itself that its label does not already say. */
   readonly props?: ReadonlyArray<NodeProp>
-  /**
-   * WHICH KIND of served file this row opens, drawn as that kind's own glyph
-   * in front of the label (`../file/icons.tsx`) — the face the sidebar's tree
-   * has used since a `.md`, a `.olai` and a folder stopped being four
-   * characters of extension apart.
-   *
-   * Only a document row carries one (`../search/row.ts`). A command is not a
-   * file, and a node hit is a row INSIDE one — the file it lives in is already
-   * said, in words, on its place line.
-   */
-  readonly of?: BodyKind
   /**
    * The file a NODE hit is written in — so `../search/Result.tsx` can run
    * the same `renderTitle` a tree row does. Absent on commands and document
@@ -258,7 +247,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
  */
 export const hitItems = (search: Search): ReadonlyArray<PaletteItem> => {
   const taking = search.taking
-  return search.hits().map((hit) => hitItem(hit, taking))
+  return search.hits().map((hit) => hitItem(hit, taking, search.answering() ?? undefined))
 }
 
 export const hitItem = (
@@ -270,12 +259,12 @@ export const hitItem = (
    *  it; this stays exported for the tests, which are about what ONE hit
    *  becomes. */
   taking: Taking,
+  query?: string,
 ): PaletteItem => {
-  const row = hitRow(hit)
+  const row = hitRow(hit, query)
   return {
     id: `hit-${row.id}`,
     label: row.label,
-    ...(row.of === undefined ? {} : { of: row.of }),
     ...(row.from === undefined ? {} : { from: row.from }),
     place: row.place,
     props: row.props,

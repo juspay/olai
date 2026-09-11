@@ -84,7 +84,7 @@
 import type { SearchField } from "@olai/format"
 import type { NodeHit } from "@olai/format"
 
-import { nodePlace } from "olai-plugin-search/ui/place.ts"
+import { nodePlace, type Place } from "olai-plugin-search/ui/place.ts"
 
 /** One node the query means, ready to draw: what taking it WRITES, what a
  *  person READS to choose it, and where it sits. Flattened out of the hit
@@ -101,10 +101,9 @@ export interface NodeMatch {
    *  so the title renders the way every face draws a title: its `#tags` in
    *  their own hues, never as two extra characters of grey text. */
   readonly from: string
-  /** Where it sits — the ancestors nearest first, or the file for a node at the
-   *  top of one. `../search/place.ts`'s answer, which is what the ⌘K palette,
+  /** Where it sits — the file followed by its ancestors from the file down. `../search/place.ts`'s answer, which is what the ⌘K palette,
    *  the header box, the `((` widget and the edge panel all draw. */
-  readonly place: string
+  readonly place: Place
   /**
    * WHETHER THE ROW OWES AN EXPLANATION: the words were found in the node's
    * note and nowhere better.

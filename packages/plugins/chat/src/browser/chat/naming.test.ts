@@ -82,7 +82,8 @@ test("the node rows say what they write, then where they are", () => {
     // The `·` is the PLACE's and nothing else's: the id and the place are two
     // facts, and one glyph doing both jobs on one line leaves a reader working
     // out which dots are boundaries and which are ancestry.
-    hint: "@note-3 — notes",
+    hint: "@note-3",
+    place: { file: "house.olai", nearest: "notes" },
   })
 })
 
