@@ -20,6 +20,6 @@ test("the notification tag has one speller", () => {
   expect(spellers(/olai:due:/)).toEqual(["reminders/notice.ts"])
 })
 
-test("the daily record has no writer before the circuit is installed", () => {
-  expect(spellers(/olai\.reminders\.said/)).toEqual([])
+test("the daily record has one writer", () => {
+  expect(spellers(/olai\.reminders\.said/)).toEqual(["reminders/said.ts"])
 })

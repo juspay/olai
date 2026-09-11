@@ -1736,7 +1736,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    */
   const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = {
     // Consumer variables for the declared alerts channel.
-    "alerts": ["plugins/chat/src/browser.tsx", "plugins/chat/src/browser/chat/attention/attention.ts"],
+    "alerts": ["plugins/chat/src/browser.tsx", "plugins/chat/src/browser/chat/attention/attention.ts", "plugins/journal/src/browser.tsx", "plugins/journal/src/browser/reminders/ReminderRow.tsx", "plugins/journal/src/browser/reminders/circuit.ts"],
     // Generic configuration fields and service contracts share this word.
     "settings": [
       "plugin-api/src/configuration.ts",
@@ -1995,6 +1995,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/capture/src/Palette.tsx",
       "plugins/capture/src/browser.tsx",
       "plugins/files/src/browser.tsx",
+      "plugins/journal/src/browser.tsx",
       "plugins/layout/src/browser.tsx",
       "plugins/markdown/src/browser.tsx",
       "plugins/outlines/src/browser.tsx",
