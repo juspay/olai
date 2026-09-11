@@ -863,9 +863,21 @@ ci:
         *s) timeout_ms=$((${1%s} * 1000)) ;;
         *) timeout_ms=$1 ;;
       esac
-      nix run .#odu --accept-flake-config -- run \
-        --platform x86_64-linux --platform aarch64-darwin --no-wait
-      exec nix run .#odu --accept-flake-config -- wait --settle --timeout-ms "$timeout_ms"
+      odu=(nix run .#odu --accept-flake-config --)
+      wait_settle() { "${odu[@]}" wait --settle --timeout-ms "$timeout_ms"; }
+      # Linux can fan the check graph across six kolu hosts. petit is one
+      # aarch64-darwin box: the same fan-out drops odu-runner keep-alive
+      # (nix sqlite busy, load 60). Linux first, then Darwin recipes one
+      # at a time (`--no-deps` after install so odu does not re-fan).
+      "${odu[@]}" run --platform x86_64-linux --no-wait
+      wait_settle
+      "${odu[@]}" run install@aarch64-darwin --no-wait
+      wait_settle
+      for recipe in fmt-check bun-nix-fresh hm-module kolu-deps odu-deps \
+                    odu-surface cordis-deps nix typecheck test e2e; do
+        "${odu[@]}" run "${recipe}@aarch64-darwin" --no-deps --no-wait
+        wait_settle
+      done
     ' bash "$watch_timeout"
 
 # Format the *.nix files
