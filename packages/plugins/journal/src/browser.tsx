@@ -22,7 +22,7 @@ import { Effect } from "effect"
 import { AgendaPage } from "./browser/agenda/AgendaPage.tsx"
 import { DayPage } from "./browser/day/DayPage.tsx"
 import { AgendaEntry, CalendarSection, JournalRail } from "./browser/sidebar.tsx"
-import { agenda as agendaKind, day as dayKind, dayRoute } from "./browser/routes.ts"
+import { agenda as agendaKind, agendaRoute, day as dayKind, dayRoute } from "./browser/routes.ts"
 import { type JournalClient, holdJournalWire } from "./browser/wire.ts"
 import { name, surface } from "./wire.ts"
 
@@ -120,7 +120,10 @@ export const components = {
     yield* Effect.acquireRelease(Effect.sync(() => reminderState.hold(state)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       createEffect(() => {
-        if (!journalReady()) return
+        // Registration finishes before navigation publishes the route face.
+        // Leave a cold press with alerts until go can name the agenda; an
+        // unknown plugin route otherwise prints as the home address.
+        if (!journalReady() || !route.routes.face(agendaRoute)) return
         untrack(() => {
           const services = reminderServices.read()!
           const today = useToday()

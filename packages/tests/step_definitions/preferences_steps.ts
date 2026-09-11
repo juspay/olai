@@ -275,7 +275,7 @@ Then("the preferences panel opens downward, clear of the bar", async function (t
  * is the subtle half: pressing and carrying on races the render, and each row
  * having its own copy of that wait is how the third one gets it slightly wrong.
  */
-const pickChoice = async (
+export const pickChoice = async (
   page: Page,
   pref: string,
   value: string,

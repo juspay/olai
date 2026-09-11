@@ -34,7 +34,7 @@ import type { OlaiWorld } from "../support/world.ts";
 /** The message the notification worker posts to an open window when its banner
  *  is pressed, in the framework's own vocabulary (`@kolu/surface-app`'s
  *  `SW_MESSAGE_TYPE`) — and the payload olai puts in it
- *  (`client/notify.ts`'s `NotifyClick`).
+ *  (`alerts/contract`'s `NotifyClick`).
  *
  *  Spelled here rather than imported for one reason: it is the WIRE between a
  *  service worker and a page, and a scenario that imported both ends would be
@@ -253,14 +253,18 @@ When("the notification is pressed", async function (this: OlaiWorld) {
     "the notification worker to be controlling this page",
     POLL_TIMEOUT,
   );
-  await this.page.evaluate((type) => {
+  // Press the last banner this document actually raised. The daily tag names
+  // the due arm; all chat banners retain the ask arm and the same handshake.
+  const raised = await banners(this, 1);
+  const kind = raised.at(-1)!.tag.startsWith("olai:due:") ? "due" : "ask";
+  await this.page.evaluate(({ type, kind }) => {
     navigator.serviceWorker.dispatchEvent(
       new MessageEvent("message", {
-        data: { type, data: { kind: "ask" }, id: crypto.randomUUID() },
+        data: { type, data: { kind }, id: crypto.randomUUID() },
         source: navigator.serviceWorker.controller,
       }),
     );
-  }, PRESS_TYPE);
+  }, { type: PRESS_TYPE, kind });
 });
 
 Then("the panel is open at the question", async function (this: OlaiWorld) {
