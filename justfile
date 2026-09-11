@@ -848,17 +848,22 @@ _fast-remote leaf $watch_timeout:
 ci:
     #!/usr/bin/env bash
     set -euo pipefail
-    # `odu run` waits with its own short default, then reports
-    # `settled · incomplete` while e2e is still running (~3 min). Start
-    # detached and wait here, with the outer timeout from just `env()`
-    # (a bash `${ODU_CI_TIMEOUT}` inside nix develop is empty).
+    # `odu run` waits with its own short default (~3 min, `settled ·
+    # incomplete` with e2e still running). `--no-wait` starts it; `wait
+    # --settle --timeout-ms` is the blocking watch (`wait --settle` alone
+    # prints a snapshot and exits 2). just `env()` because nix develop
+    # drops `${ODU_CI_TIMEOUT}`.
     watch_timeout="{{ env('ODU_CI_TIMEOUT', '15m') }}"
     exec {{ nix_shell }} bash -c '
       set -euo pipefail
+      case $1 in
+        *h) timeout_ms=$((${1%h} * 3600 * 1000)) ;;
+        *m) timeout_ms=$((${1%m} * 60 * 1000)) ;;
+        *s) timeout_ms=$((${1%s} * 1000)) ;;
+        *) timeout_ms=$1 ;;
+      esac
       nix run .#odu --accept-flake-config -- run --platform x86_64-linux --no-wait
-      exec timeout --foreground --signal=INT --kill-after=30s \
-        "$1" \
-        nix run .#odu --accept-flake-config -- wait --settle
+      exec nix run .#odu --accept-flake-config -- wait --settle --timeout-ms "$timeout_ms"
     ' bash "$watch_timeout"
 
 # Format the *.nix files
