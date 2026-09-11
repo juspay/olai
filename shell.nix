@@ -23,7 +23,9 @@ let
     jq # scripts/check-hydrated-deps.sh — the one thing that reads a pin's JSON
     nixpkgs-fmt
     nodejs.v24
-    npins
+    # npins is not here: ekapkgs' npins 0.5.1 builds snix from git.snix.dev,
+    # which 504s and takes every `nix develop` CI recipe with it. `just
+    # update-pins` expects npins on the caller's PATH.
   ];
 in
 pkgs.mkDevShell {

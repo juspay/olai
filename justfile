@@ -909,7 +909,9 @@ bun-nix-fresh:
 # own formatter's style, so normalize it here — same rule as bun.nix, and
 # the reason fmt-check needs no exception list. `just check` then names
 # anything the new kolu revision expects that this repo has not moved with
-# it.
+# it. npins is on the caller's PATH, not the default shell (ekapkgs npins
+# currently rebuilds snix).
 [doc("Update npins dependencies and format the generated Nix file")]
 update-pins:
-    {{ nix_shell }} sh -c 'npins update && nixpkgs-fmt npins/default.nix'
+    npins update
+    {{ nix_shell }} nixpkgs-fmt npins/default.nix
