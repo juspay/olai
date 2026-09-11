@@ -21,6 +21,10 @@ its withdrawal clears that mark. Chat is the badge's only claimant: it counts
 questions. Its `attention` component names `alerts.channel`, so removing this row
 leaves the panel, forms and header toggle standing, while attention waits and
 nothing rings. Removing preferences or theme does not stop notification delivery.
+Journal names the same service on its `reminders` component. Without it,
+reminders wait and their preference row leaves, while calendar, day and agenda
+remain available. The channel's read-only `tabWaiting` accessor lets its own
+tab-attention component follow the badge fallback through the declared service.
 
 The channel subscribes to the framework once and dispatches through
 `onPress(kind, handler)`, with one claimant per kind. A duplicate claim names
