@@ -848,13 +848,18 @@ _fast-remote leaf $watch_timeout:
 ci:
     #!/usr/bin/env bash
     set -euo pipefail
-    # `env()` is interpolated here, before `nix develop`. A bash
-    # `${ODU_CI_TIMEOUT:-15m}` inside the shell is empty: develop does not
-    # keep the outer environment, so the watch always fell back to 15m and
-    # SIGINT'd a still-running coordinator (`settled · incomplete`).
-    exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
-      "{{ env('ODU_CI_TIMEOUT', '15m') }}" \
-      nix run .#odu --accept-flake-config -- run --platform x86_64-linux
+    # `odu run` waits with its own short default, then reports
+    # `settled · incomplete` while e2e is still running (~3 min). Start
+    # detached and wait here, with the outer timeout from just `env()`
+    # (a bash `${ODU_CI_TIMEOUT}` inside nix develop is empty).
+    watch_timeout="{{ env('ODU_CI_TIMEOUT', '15m') }}"
+    exec {{ nix_shell }} bash -c '
+      set -euo pipefail
+      nix run .#odu --accept-flake-config -- run --platform x86_64-linux --no-wait
+      exec timeout --foreground --signal=INT --kill-after=30s \
+        "$1" \
+        nix run .#odu --accept-flake-config -- wait --settle
+    ' bash "$watch_timeout"
 
 # Format the *.nix files
 [doc("Format repository Nix files")]
