@@ -50,7 +50,15 @@ if (dir === undefined || dir === "") {
 // claim about the pinned binary, and a developer's `~/.nix-profile/bin/odu`
 // answering it instead would be the probe's own founding complaint (a machine
 // deciding a question the build is supposed to).
-const found = await Effect.runPromise(Effect.scoped(probing({ PATH: dir })))
+const probeOnce = () => Effect.runPromise(Effect.scoped(probing({ PATH: dir })))
+
+// `probing` waits 5s (cohort to kolu). On a loaded odu host that is not
+// enough for `odu mcp` to answer initialize+tools/list, and this leg then
+// fails while the same store path answered on a quieter run.
+let found = await probeOnce()
+for (let i = 0; i < 2 && found.missing?.why.includes("did not answer within"); i++) {
+  found = await probeOnce()
+}
 
 if (found.missing !== null) {
   console.error(`check-odu-surface: the pinned \`${ODU_COMMAND}\` does not answer this olai's probe`)
