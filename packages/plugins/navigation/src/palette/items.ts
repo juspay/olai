@@ -247,7 +247,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
  */
 export const hitItems = (search: Search): ReadonlyArray<PaletteItem> => {
   const taking = search.taking
-  return search.hits().map((hit) => hitItem(hit, taking))
+  return search.hits().map((hit) => hitItem(hit, taking, search.answering() ?? undefined))
 }
 
 export const hitItem = (
@@ -259,8 +259,9 @@ export const hitItem = (
    *  it; this stays exported for the tests, which are about what ONE hit
    *  becomes. */
   taking: Taking,
+  query?: string,
 ): PaletteItem => {
-  const row = hitRow(hit)
+  const row = hitRow(hit, query)
   return {
     id: `hit-${row.id}`,
     label: row.label,

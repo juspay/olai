@@ -1,3 +1,5 @@
+import { lineAt } from "olai-plugin-navigation/routes"
+import { panesOf } from "olai-plugin-navigation/workspace"
 import { TESTID as IDS_MARKDOWN } from "olai-plugin-markdown/testids"
 import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 /**
@@ -34,13 +36,14 @@ import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
  * picture's opens nothing at all, and neither had to be declared here.
  */
 
-import { type BodyKind, proseIn } from "@olai/format"
+import { today } from "../clock.ts"
+import { type BodyKind, proseIn, proseLineOffset, needlesFrom } from "@olai/format"
 import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
 
 import { markdownReady } from "@olai/markdown-ui/chunk.ts"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { landingId, outlineOf } from "@olai/markdown-ui/render.ts"
-import { useHere, useLanding } from "olai-plugin-navigation/routing"
+import { useHere, useLanding, useRouter } from "olai-plugin-navigation/routing"
 
 import { BodyRefused } from "./BodyRefused.tsx"
 import { Csv } from "./Csv.tsx"
@@ -220,17 +223,37 @@ function Rendered(props: Reading) {
   // rule about landings — the preview pane spends its own at the moment it
   // points a frame, because for a `.html` the pointing IS the act.
   const landing = useLanding(() => props.file)
+  const router = useRouter()
+  const sourceLine = () => lineAt(landing.at())
+  const lineDrawing = createMemo(() => {
+    const line = sourceLine()
+    const entry = served()
+    if (line === undefined || !isServed(entry)) return undefined
+    const route = panesOf(router.workspace())[here()]?.route
+    const query = route?.kind === "at" ? route.filter ?? "" : ""
+    return { line: line - proseLineOffset(entry.text), needles: needlesFrom(query, today()) }
+  })
   createEffect(() => {
     const at = landing.owed()
     if (at === undefined || !markdownReady()) return
     const id = landingId(text(), props.file, at)
+    const line = sourceLine()
+    const entry = served()
+    if (!isServed(entry)) return
     const frame = requestAnimationFrame(() => {
       // Two panes of the SAME file mint the same heading ids. Look
       // under THIS pane's root, not the first copy in document order.
       const root = document.querySelector(
         `[data-testid="${IDS_NAVIGATION.pane}"][data-pane="${String(here())}"]`,
       )
-      const heading = root?.querySelector(`#${CSS.escape(id)}`) ?? null
+      if (line !== undefined && line > entry.text.split("\n").length) {
+        root?.scrollTo({ top: 0 })
+        landing.landed(at)
+        return
+      }
+      const heading = line === undefined
+        ? root?.querySelector(`#${CSS.escape(id)}`) ?? null
+        : root?.querySelector('[data-search-landing="true"]') ?? null
       if (heading === null) return
       heading.scrollIntoView({ block: "start" })
       landing.landed(at)
@@ -253,6 +276,7 @@ function Rendered(props: Reading) {
         <Toc file={props.file} headings={headings()} />
         <Markdown
           source={text()}
+          landing={lineDrawing()}
           from={props.file}
           testid={IDS_MARKDOWN.documentBody}
         />
