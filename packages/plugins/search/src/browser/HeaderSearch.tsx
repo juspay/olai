@@ -304,7 +304,7 @@ export function HeaderSearch() {
                     <li>
                       <Result
                         label={item().label}
-                        of={item().of}
+
                         from={item().from}
                         needles={needles()}
                         place={item().place}

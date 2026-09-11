@@ -1,3 +1,4 @@
+import type { Place } from "olai-plugin-search/ui/place.ts"
 /**
  * WHAT AN `@` OFFERS: the directory's files, and the directory's nodes, in one
  * list of eight.
@@ -94,9 +95,9 @@ export interface Offer {
    *  hues (`./CompletionMenu.tsx`). Absent for a file row: a path is a path,
    *  not prose. */
   readonly from?: string
-  /** Where it sits, and — for a node — the id the row writes, first, because a
-   *  truncated line loses its end and the id is the only always-unique half. */
+  /** A file's directory, or a node's written id and match explanation. */
   readonly hint: string
+  readonly place?: Place
 }
 
 /**
@@ -138,29 +139,14 @@ export const offers = (
       label: node.label,
       from: node.from,
       hint: hintFor(node),
+      place: node.place,
     })),
   ]
 }
 
-/**
- * What a node row says beside its title: the id it writes, why it is here when
- * that is not visible, and where it sits.
- *
- * THE `·` IS THE PLACE'S ALONE. `../search/place.ts` joins ancestor crumbs with
- * it — the same line four other search surfaces draw — so a hint that also used
- * it between its own parts would be one glyph doing two jobs on one line, with
- * a reader left to work out which dots are boundaries and which are ancestry.
- * The parts are separated the way a sentence separates them: the aside in
- * brackets, the place after a dash.
- *
- * THE ID FIRST, because it is what the row writes into the message and it is
- * what tells two nodes of one title in one place apart when even the place
- * cannot. (What it does not survive is a long TITLE: the row truncates as one
- * line, so a title that fills it takes the hint with it. That is the row shape
- * this list has for every kind of row, and buying a second one for this half
- * would cost the thing the list is — one shortlist, one shape, one cursor.)
- */
+/** The written id and optional note explanation stay beside the title.
+ * The file and ancestors use the shared second line. */
 const hintFor = (node: NodeMatch): string => {
   const why = node.note ? " (in the note)" : ""
-  return `@${node.id}${why} — ${node.place}`
+  return `@${node.id}${why}`
 }

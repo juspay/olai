@@ -358,6 +358,7 @@ export function Composer(props: {
           label: offer.label,
           from: offer.from,
           hint: offer.hint,
+          place: offer.place,
           section: offer.section,
           // WHICH ANSWER THE ROW CAME FROM, carried on the row so a KEY cannot
           // spend one of a word the reader has typed past
