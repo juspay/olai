@@ -65,3 +65,16 @@ test("a throwing pending handler leaves no stranded claim", () => {
   stage.emit({ kind: "ask" }); expect(count).toBe(1)
   stage.channel.dispose()
 })
+
+for (const order of [["ask", "due"], ["due", "ask"]] as const) {
+  test(`two consumers receive their own kind, with ${order[0]} claimed first`, () => {
+    const stage = setup({ kind: "due" })
+    const seen: string[] = []
+    const stops = order.map(kind => stage.channel.onPress(kind, value => seen.push(`${kind}:${value.kind}`)))
+    expect(seen).toEqual(["due:due"])
+    stage.emit({ kind: "ask" }); stage.emit({ kind: "due" })
+    expect(seen).toEqual(["due:due", "ask:ask", "due:due"])
+    expect(stage.subscriptions()).toBe(1)
+    stops.forEach(stop => stop()); stage.channel.dispose()
+  })
+}

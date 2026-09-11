@@ -52,6 +52,7 @@ test("a permission query resolving after withdrawal attaches no listener", async
 
 test("a click envelope of ours is read", () => {
   expect(notifyClick({ kind: "ask" })).toEqual({ kind: "ask" })
+  expect(notifyClick({ kind: "due" })).toEqual({ kind: "due" })
 })
 
 test("anything that is not one of ours is dropped", () => {

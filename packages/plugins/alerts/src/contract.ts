@@ -5,9 +5,8 @@ import type { Accessor } from "solid-js"
  * What a press asks this app for — the payload the worker relays back, from a
  * notification that may be older than the tab reading it.
  *
- * ONE ARM today: the chat's, meaning "the agent is waiting on me, take me
- * there". It is a `kind`-discriminated union rather than a bare string because
- * the second arm is what the shape is for, and because {@link notifyClick} has
+ * TWO ARMS: chat asks for the waiting question; journal asks for the agenda.
+ * This is a `kind`-discriminated union because the validator has
  * to be able to refuse a pre-upgrade envelope — or the `{}` a degraded worker
  * substitutes — rather than mis-route it.
  *
@@ -15,9 +14,7 @@ import type { Accessor } from "solid-js"
  * is "take me to it", and what "it" is is a fact the app has when the press
  * lands and the notification did not necessarily have when it was raised.
  */
-export interface NotifyClick {
-  readonly kind: "ask"
-}
+export type NotifyClick = { readonly kind: "ask" } | { readonly kind: "due" }
 
 /** A notification, as the seam takes it. */
 export interface Notice {

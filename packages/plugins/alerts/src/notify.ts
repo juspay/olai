@@ -27,7 +27,8 @@ import type { Consent, Notice, NotifyClick } from "./contract.ts"
  *  or malformed payload is dropped loudly rather than routed. */
 export const notifyClick = (data: unknown): NotifyClick | undefined => {
   if (typeof data !== "object" || data === null) return undefined
-  return (data as { kind?: unknown }).kind === "ask" ? { kind: "ask" } : undefined
+  const kind = (data as { kind?: unknown }).kind
+  return kind === "ask" || kind === "due" ? { kind } : undefined
 }
 
 const asked = (): Consent => typeof Notification === "undefined" ? "unsupported" : Notification.permission

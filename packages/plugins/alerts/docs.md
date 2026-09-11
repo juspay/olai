@@ -28,7 +28,8 @@ both handlers and installs nothing. An unclaimed press is held, newest per kind,
 until a claimant arrives; delivered presses are forgotten, and withdrawal drops
 all held presses. Chat cannot consume another kind’s click.
 
-The click contract carries `{ kind: "ask" }`, meaning open the current question.
+The click contract carries `{ kind: "ask" }`, meaning open the current question,
+and `{ kind: "due" }`, meaning open today’s agenda. Each goes only to its kind’s claimant.
 The framework owns worker delivery and the durable click handshake; this row
 owns the page's listener. The app must be running to alert. A closed app hears
 nothing. Sound requires an earlier pointer or keyboard gesture in this page;

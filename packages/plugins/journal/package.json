@@ -33,7 +33,8 @@
     "olai-plugin-layout": "workspace:*",
     "@olai/ops": "workspace:*",
     "@olai/store": "workspace:*",
-    "olai-plugin-vault": "workspace:*"
+    "olai-plugin-vault": "workspace:*",
+    "olai-plugin-alerts": "workspace:*"
   },
   "devDependencies": {
     "@effect/platform-node": "4.0.0-rc.112",

@@ -417,6 +417,7 @@
         "@olai/web": "workspace:*",
         "@solid-primitives/keyed": "^1.5.3",
         "effect": "4.0.0-rc.112",
+        "olai-plugin-alerts": "workspace:*",
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-markdown": "workspace:*",
         "olai-plugin-navigation": "workspace:*",
