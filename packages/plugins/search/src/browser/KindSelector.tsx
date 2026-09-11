@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js"
+import { For } from "solid-js"
 import { FILE_KINDS } from "@olai/format"
 import type { Search } from "../contracts/reading.ts"
 import type { Kind, KindPick } from "../contracts/box.ts"
@@ -27,7 +27,7 @@ export function KindSelector(props: { readonly state: KindPick; readonly search:
       aria-label={choice.label} tabIndex={-1}
       class={`rounded px-3 py-1 text-xs ${props.state.pick() === choice.value ? "bg-rule text-ink" : "text-muted hover:bg-rule/60"}`}
       onMouseDown={event => event.preventDefault()} onClick={() => props.state.set(choice.value)}>
-      {choice.label}{" "}<Show when={count(choice.value) !== undefined}><span class="ml-2 font-mono text-[0.6875rem]">{count(choice.value)}</span></Show>
+      {choice.label}{" "}<span hidden={count(choice.value) === undefined} class="ml-2 font-mono text-[0.6875rem]">{count(choice.value)}</span>
     </button>}</For>
   </div>
 }

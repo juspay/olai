@@ -324,7 +324,8 @@ The pick lasts for this browser session, is shared by both listing boxes, and
 survives a wire reconnect. Page load or a search-plugin rebuild resets it to All.
 It is not a vault preference. When All is selected, the answer's optional
 `totals: { node, file }` supplies both category counts. After picking one kind,
-only its count is known. Refusals and the count line remain visible, including
+only its count is known. Count elements stay mounted between queries, with
+unknown numbers hidden, preserving the panel's DOM and pointer position. Refusals and the count line remain visible, including
 `0 matches` for Files with `is:done`. A capped list still says `8 of 20 matches`;
 narrow it with the box or selector. There is no results page or larger limit.
 
