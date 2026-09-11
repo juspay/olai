@@ -178,7 +178,7 @@ export function Shortlist(props: {
    * block down: the four lines of a row each want it, and `<Index>` re-runs a
    * binding rather than the row around it.
    */
-  const rows = createMemo(() => hits().map(hitRow))
+  const rows = createMemo(() => hits().map(hit => hitRow(hit)))
 
   /** The row at `index`. `<Index>` walks the same list this is built from, so
    *  there is always one; the `!` is that, said. */
@@ -340,7 +340,7 @@ export function Shortlist(props: {
             >
               <Result
                 label={row(index).label}
-                of={row(index).of}
+
                 place={row(index).place}
                 props={row(index).props}
                 active={index === cursor.at()}

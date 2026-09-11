@@ -43,9 +43,10 @@
  * caller. What is left here is exactly what a QUERY adds to it.
  */
 
+import { fileKind } from "./kinds.ts"
 import { Schema } from "effect"
 
-import { AtDocument, AtNode, NodeId } from "./address.ts"
+import { AtDocument, AtOutline, AtNode, NodeId } from "./address.ts"
 import { Face } from "./document.ts"
 import { DOCUMENT_FIELDS, DURATION_TEACHING, Refusal, SEARCH_FIELDS } from "./filter.ts"
 import { RegularNode } from "./node.ts"
@@ -145,7 +146,10 @@ export type NodeHit = typeof NodeHit.Type
  * belongs with whatever draws it rather than riding in ahead of a caller.
  */
 export const DocumentHit = Schema.Struct({
-  at: AtDocument,
+  at: AtDocument.check(Schema.makeFilter(at => fileKind(at.path) !== "outline", { expected: "a non-outline file" })),
+  /** The 1-based file line of the strongest body word match. Absent for
+   * title/path/tag/operator matches and files whose body is not kept. */
+  line: Schema.optionalKey(Schema.Int),
   /** What the document is called: its own face's title, so this row, the
    *  palette, `markdown_index` and the page's own heading say one name. */
   title: Schema.String,
@@ -182,7 +186,17 @@ export type DocumentHit = typeof DocumentHit.Type
  * `isOutline` are, named once rather than spelled as a field test wherever a
  * door only draws one kind.
  */
-export const SearchHit = Schema.Union([NodeHit, DocumentHit])
+/** A file-name match on an outline; its contents and properties are not searched here. */
+export const OutlineHit = Schema.Struct({
+  at: AtOutline,
+  title: Schema.String,
+  matched: Schema.optionalKey(Schema.Literals(["title", "path"])),
+})
+export type OutlineHit = typeof OutlineHit.Type
+export const isOutlineHit = (hit: SearchHit): hit is OutlineHit =>
+  hit.at.kind === "document" && fileKind(hit.at.path) === "outline"
+
+export const SearchHit = Schema.Union([NodeHit, DocumentHit, OutlineHit])
 export type SearchHit = typeof SearchHit.Type
 
 /** Whether a hit is on a record. The doors that only ever wanted a node — the
@@ -195,6 +209,8 @@ export const SearchAnswer = Schema.Struct({
   /** How many nodes matched in all. `hits` is capped; this is not, so "twelve
    *  of ninety" is sayable. */
   total: Schema.Int,
+  /** Uncapped totals by category, present when no kind was requested. */
+  totals: Schema.optionalKey(Schema.Struct({ node: Schema.Int, file: Schema.Int })),
   /** What the grammar could not read, in its own words — a known operator with
    *  an unknown value (`is:open`). ABSENT for every query it could read.
    *
@@ -326,9 +342,9 @@ export const SearchRequest = Schema.Struct({
    * Absent is both, which is what every reading door wants.
    */
   kind: Schema.optionalKey(
-    Schema.Literals(["node", "document"]).annotate({
+    Schema.Literals(["node", "document", "outline", "file"]).annotate({
       description:
-        "Only records (`node`) or only documents (`document`). Both when it is not given.",
+        "Only records (`node`), non-outline files (`document`), outlines (`outline`), or all files (`file`). All kinds when omitted.",
     }),
   ),
 })

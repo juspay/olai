@@ -43,7 +43,7 @@
 import { createMemo, Show } from "solid-js"
 
 import { markdownFailure, markdownReady, markdownWaiting } from "./chunk.ts"
-import { renderMarkdown, renderStreaming } from "./render.ts"
+import { renderMarkdown, renderStreaming, renderLineLanding } from "./render.ts"
 import { escapeHtml } from "./tags.ts"
 import { busyMark, waitingMark } from "./waiting.ts"
 
@@ -56,6 +56,7 @@ export function Markdown(props: {
    *  prefix of a growing answer is a string that will never be asked for
    *  again. See ./render.ts. */
   readonly live?: boolean
+  readonly landing?: { readonly line: number; readonly needles: ReadonlyArray<string> }
 }) {
   // `markdownReady()` both answers and asks — reading it here is what starts
   // the fetch, and what re-runs this memo when the file lands.
@@ -63,7 +64,9 @@ export function Markdown(props: {
     markdownReady()
       ? props.live === true
         ? renderStreaming(props.source, props.from)
-        : renderMarkdown(props.source, props.from)
+        : props.landing !== undefined
+          ? renderLineLanding(props.source, props.from, props.landing.line, props.landing.needles)
+          : renderMarkdown(props.source, props.from)
       : undefined
   )
   /** Is this block still WAITING on the renderer — the arrival's own answer

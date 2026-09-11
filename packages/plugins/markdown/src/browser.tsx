@@ -24,6 +24,7 @@ import { holdHistory, useHistory } from "./browser/history.ts"
 import { holdLocations } from "./browser/locations.ts"
 import { holdServed } from "./browser/vault.ts"
 import { holdOpens } from "./browser/links.ts"
+import { holdClocks } from "./browser/clock.ts"
 import { holdRouting } from "./browser/routing.ts"
 import { shell as appShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./browser/shell.ts"
@@ -101,6 +102,8 @@ export const components = {
   }) }),
   content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks, fileLinks], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots
+    const clocks = yield* Clocks
+    yield* Effect.acquireRelease(Effect.sync(() => holdClocks(clocks)), stop => Effect.sync(stop))
     // The walks a document's property run makes over other rows' locations,
     // from the renderer this component already names (`./browser/locations.ts`).
     yield* Effect.acquireRelease(Effect.sync(() => holdLocations(slots.read)), stop => Effect.sync(stop))

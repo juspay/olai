@@ -1,3 +1,5 @@
+import { boxFace } from "./faces.ts"
+import type {} from "../contracts/box.ts"
 import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 /**
  * The header's search box — the second door to the one search reading.
@@ -121,7 +123,8 @@ export function HeaderSearch() {
    *  each of them could stop keeping on its own. */
   const asked = () => (caret() ? query() : null)
 
-  const nodes = createSearch(asked)
+  const below = () => boxFace("search.box.below")?.face
+  const nodes = createSearch(asked, () => below()?.pick())
   /**
    * The rows, minted from the hits — ONE BLOCK, because there is one reading.
    *
@@ -147,7 +150,7 @@ export function HeaderSearch() {
   // separate slots).
   const showing = () =>
     caret() &&
-    (items().length > 0 || nodes.failure() !== null || nodes.refusals().length > 0)
+    (nodes.answering() !== null || below() !== undefined || items().length > 0 || nodes.failure() !== null || nodes.refusals().length > 0)
 
   /** Where the panel goes. Re-measured while it is up, because the bar is
    *  sticky over a document that scrolls under it. */
@@ -214,7 +217,12 @@ export function HeaderSearch() {
           // answer MEANS is this box's — `dismiss` empties it and gives the
           // caret back to the page.
           onKeyDown={(event) => {
-            const action = listKey(event)
+            const action = listKey(event, true)
+            if (action === "cycle") {
+              const face = below()
+              if (face !== undefined) { event.preventDefault(); event.stopPropagation(); face.cycle() }
+              return
+            }
             if (action === null) return
             event.preventDefault()
             if (action === "next") cursor.step(1)
@@ -269,6 +277,7 @@ export function HeaderSearch() {
               // afternoon before the shared answer was used.
               style={styleOf(box_())}
             >
+              <Show when={below()}>{face => face().body({ search: nodes })}</Show>
               <Show when={nodes.failure()}>
                 {(err) => (
                   <SaidLine
@@ -304,7 +313,7 @@ export function HeaderSearch() {
                     <li>
                       <Result
                         label={item().label}
-                        of={item().of}
+
                         from={item().from}
                         needles={needles()}
                         place={item().place}
@@ -325,6 +334,7 @@ export function HeaderSearch() {
                   there was (`@olai/web`'s `search/count.ts`). */}
               <SearchCount
                 of={nodes}
+                empty={nodes.answering() !== null}
                 class="m-0 border-t border-rule/40 px-3 py-1.5 font-mono text-xs text-muted"
               />
             </div>

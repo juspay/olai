@@ -217,7 +217,7 @@ A phrase spanning two rendered pieces of a title — across a `**bold**`, across
 | `/d/<date>`, `/today` | every row that did not match, and an outline heading left with none | the matches — and their ancestry, which was never a row |
 | `/agenda` | the same, per day of the spine; a day left with nothing leaves the line, and the silences either side of it close up into one longer wait | the matches, under the days that still hold one — and no line at all when none do |
 | `/trash` | the same as a tree, per archive; an archive left with nothing goes | the matches, their subtrees, and the scaffold that says where the pile came from |
-| `/<file>.md` | — no box, and no `?q=` in the address | — |
+| `/<file>.md` | — no filter box; a body search hit may carry `?q=<query>` and `#L<line>` to open and highlight its matching source block | — |
 
 **A day and the agenda keep no context, and that is not a shortcut.** Their rows are flat and every one already arrives with the crumb that says what it is about, which is what those pages are FOR. So "matches keep their ancestors" is true of every row before a query touches it, and what is left after one is exactly what matched.
 
@@ -243,7 +243,7 @@ The design, and the alternatives that lost, is [brainstorming/filter-in-place.md
 
 ## What a result row looks like
 
-Two lines, and a third for a node that has properties. The title first, on its own full-width line, cut with an ellipsis if it is long. Underneath, smaller and quieter, where the node lives — written **nearest ancestor first**, because a line that has to be shortened loses its end, and the nearest ancestor is the crumb that answers "which `pick the hinges`?". A node at the top level of its file names the file instead.
+Two lines, and a third for a node that has properties. The title first, on its own full-width line, cut with an ellipsis if it is long. The second line starts with the file path for every result, with no glyph: the extension names the kind. A nested node follows it with ancestors **from the file down** (`Home.olai · Kitchen · Cabinets`); a top-level node shows the file alone. Separate spans keep the file and nearest ancestor visible while the middle truncates. The nearest ancestor has a width cap so a long title cannot starve the file. Tags in crumbs keep their pills. The palette, header, pickers, `((` widget and chat `@` list share this drawing.
 
 **Then the node's properties**, as `key value` pairs — the key in the mono face, the value in the reading face, which is how the drawer under a node's note draws one ([editing.md](editing.md)). A property should look like a property wherever it is drawn. What is not borrowed from the drawer is its two-column grid: that costs a line per property, and a panel showing eight rows cannot spend one. So the pairs run inline on one line that ellipsizes like the other two, and a node with six properties is exactly as tall as a node with one. A node carrying none draws no third line at all — the drawer's own rule on a row, for the drawer's own reason.
 
@@ -269,7 +269,7 @@ The panels under a row are deliberately not part of that. They cap at eight as w
 
 **A filter selects nodes, never documents** — it narrows rows of a page, and the one page made of prose is the one page with no filter on it. The two doors below are where the other half of the directory is found.
 
-**The two doors that list hits also list DOCUMENTS** — every `.md` the directory serves, and every file it only shows: a saved `.html`, a `.csv`, a picture, a `.pdf`. Type into the `⌘K` palette or the header box and a file whose name you are spelling is a row, drawn with the same glyph the sidebar's tree gives it, with the folder it sits in on the line underneath; Enter opens its page. It sits with the node hits rather than in a block of its own: one search answers with both kinds, ranked together, so a document is a hit like any other and typing a word that is in a document's PROSE finds it here exactly as it does in a node's note. (It WAS a separate block, matched in your own tab off the served list, while a search could not see a document at all.)
+**The two doors that list hits also list DOCUMENTS** — every `.md` the directory serves, and every file it only shows: a saved `.html`, a `.csv`, a picture, a `.pdf`. Type into the `⌘K` palette or the header box and a file whose name you are spelling is a row, with its file path on the line underneath; Enter opens its page. It sits with the node hits rather than in a block of its own: one search answers with both kinds, ranked together, so a document is a hit like any other and typing a word that is in a document's PROSE finds it here exactly as it does in a node's note. (It WAS a separate block, matched in your own tab off the served list, while a search could not see a document at all.)
 
 **They are matched on four things, and they line up with a record's one for one**: what the file is CALLED, its PATH, its tags, and its PROSE. `pal` finds `notes/palette.md` because that is what the file is called; `notes/` finds everything under that folder; a word that is in a `.md` and in no title anywhere finds it too. The kinds olai only SHOWS are the exception, and by construction — the directory keeps their names and not their bodies, so each is found by what it is called and by nothing inside it. Finding a note by what it MEANS is still the parked item above, and this is deliberately not half of it: this is the same case-folded substring the rest of the grammar is.
 
@@ -282,3 +282,60 @@ The panels under a row are deliberately not part of that. They cap at eight as w
 Searching by MEANING — "the first page load is too heavy" finding a note that never uses those words — is parked rather than shipped. The implementation that was written for it needed a model server (Ollama) running on the reader's machine, and olai requires no dependency outside Nix itself. It returns when it can be nix-native.
 
 Open palette and header searches follow vault changes without another keystroke. Removed matches leave the shortlist, new matches arrive, and counts update with the same answer. Search is still performed on the server; closing or clearing the query ends its subscription.
+
+A body match on a markdown document carries an optional 1-based **file line**
+through the search answer, including to `search_nodes`. Opening it from the
+palette or header sets `?q=<query>#L<line>` and scrolls to the rendered block
+containing that source line (including the individual item in a long list), highlighting the query's words there. The address
+is shareable; Back returns to the page searched from. Blank lines and opening
+fence markers land on the preceding block. A line past the end opens at the top
+without an error. Title, path, tag and operator matches have no line and open
+at the top as before. Files whose bodies are not kept never carry a line.
+
+The markdown page owns its landing and highlight. It reads only address data;
+it acquires no search service. Leaving the page cancels its pending animation
+frame and removes its drawing. The hit's line is pure data produced after the
+cap inside the existing search reading.
+
+An outline's **own name and path** now match too: `Home` finds `Home.olai`,
+ranked on the same scale as document names and node titles. Its second line is
+its file path and Enter opens the outline. The whole-file address grammar
+already names outlines, so outline hits retain `{ kind: "document", path }`
+as their address; the `OutlineHit` schema restricts that path to an outline.
+No new route or live registration is introduced.
+
+The outline arm reads only name and path. It reads no body, tags, properties,
+marks or dates. Operators select no outlines and their negations pass through;
+scoped searches select none. Files under `_olai/` never appear as outline hits.
+At every search door, including `search_nodes`, `kind: node` selects records,
+`kind: document` retains its existing non-outline-file meaning, `kind: outline`
+selects outline files, and `kind: file` selects documents and outlines together.
+All arms are ranked and capped together when kind is absent. File kinds remain
+the static core table; the existing search reading owns the answer.
+
+The palette and header have an **All / Nodes / Files** selector under the box.
+Files includes outlines, markdown, saved HTML, CSV, images and PDFs. The pick
+sets the request's `kind` before ranking is capped; it never filters an already
+capped answer. Tab cycles the segments while the caret is in either listing
+box. The node-only edge/move pickers, mirror completion and chat list have no
+selector.
+
+The pick lasts for this browser session, is shared by both listing boxes, and
+survives a wire reconnect. Page load or a search-plugin rebuild resets it to All.
+It is not a vault preference. When All is selected, the answer's optional
+`totals: { node, file }` supplies both category counts. After picking one kind,
+only its count is known. Count elements stay mounted between queries, with
+unknown numbers hidden, preserving the panel's DOM and pointer position. Refusals and the count line remain visible, including
+`0 matches` for Files with `is:done`. A capped list still says `8 of 20 matches`;
+narrow it with the box or selector. There is no results page or larger limit.
+
+Search's `kind` component owns one activation-local signal and offers it as
+`search.kind`. The `selector` integration declares that service and contributes
+its face into `search.box.below`, a location owned by the search header
+contribution. Both listing boxes read the optional face through their declared
+renderer faces. With the face absent, they ask with no kind and draw no control;
+neither box requires `search.kind` to become ready. Revocation withdraws the
+face before closing its signal. Every acquisition is scoped, and replacing a
+query or kind closes the preceding subscription before opening its replacement.
+A stale answer cannot authorize Enter for a new kind.
+Document landing highlights read the declared renderer clock for relative-date queries; the content activation releases that clock hold with its faces.

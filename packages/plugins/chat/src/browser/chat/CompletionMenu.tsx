@@ -20,6 +20,8 @@
  * same thing for the times a hand is already there.
  */
 
+import type { Place } from "olai-plugin-search/ui/place.ts"
+import { PlaceLine } from "olai-plugin-search/ui/PlaceLine.tsx"
 import { createEffect, createMemo, Index, on, onCleanup, onMount, Show } from "solid-js"
 
 import { listKey } from "@olai/web/client/keys.ts"
@@ -59,6 +61,7 @@ export interface MenuRow {
    */
   readonly from?: string
   readonly hint?: string
+  readonly place?: Place
   /**
    * WHICH BLOCK this row belongs to, if the list has more than one kind of row
    * in it — `files` and `nodes` under an `@` ({@link ./naming.ts}), nothing at
@@ -314,6 +317,7 @@ export function CompletionMenu(props: {
                     when the row is copied or read aloud, and `ml-2` is neither. */}
                 <RowLabel row={row()} />{" "}
                 <span class="ml-1 text-muted">{row().hint}</span>
+                {" "}<Show when={row().place}>{place => <PlaceLine place={place()} />}</Show>
               </button>
             </li>
           </>
