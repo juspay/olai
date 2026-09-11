@@ -562,3 +562,15 @@ test("document landings count file lines including frontmatter and use the stron
     expect(search(vault, { text }, TODAY, NO_KINDS).hits[0]).not.toHaveProperty("line")
   }
 })
+
+test("uncapped category totals describe the requested kind before the hit cap", () => {
+  const vault = readingOf(setOf({ "orchid.olai": '{"id":"orchid-node","ord":"a0","title":"orchid"}' }, [["orchid.md", "# orchid"]]))
+  const all = search(vault, { text: "orchid", limit: 1 }, TODAY, NO_KINDS)
+  expect(all.hits).toHaveLength(1)
+  expect(all.total).toBe(3)
+  expect(all.totals).toEqual({ node: 1, file: 2 })
+  const files = search(vault, { text: "orchid", kind: "file", limit: 1 }, TODAY, NO_KINDS)
+  expect(files.hits).toHaveLength(1)
+  expect(files.total).toBe(2)
+  expect(files).not.toHaveProperty("totals")
+})

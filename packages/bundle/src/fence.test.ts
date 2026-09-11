@@ -2148,6 +2148,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/outlines/src/browser/page.ts",
       "plugins/outlines/src/projection.ts",
       "plugins/outlines/src/tools.ts",
+      "plugins/search/src/browser/KindSelector.tsx",
       "plugins/search/src/table.bench.ts",
       "plugins/search/src/table.ts",
       "plugins/sidebar/src/Sidebar.tsx",

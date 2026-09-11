@@ -519,3 +519,9 @@ test("every list key is written down for a person too", () => {
   const actions: ReadonlyArray<ListAction> = ["next", "prev", "take", "dismiss"]
   expect(actions.filter((action) => said.has(action))).toEqual([...actions])
 })
+
+test("Tab belongs to a listing box only when that caller opts in", () => {
+  const event = { key: "Tab", altKey: false, ctrlKey: false, metaKey: false, shiftKey: false } as KeyboardEvent
+  expect(listKey(event)).toBeNull()
+  expect(listKey(event, true)).toBe("cycle")
+})

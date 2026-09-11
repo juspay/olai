@@ -31,7 +31,7 @@ const MIN_LENGTH = 3
  *  was still using. Fewer than the tool's
  *  twelve: each of these is a shortlist over a page a reader is standing on
  *  (a modal, a box in the header, a panel under a row), not a report. */
-import { LIMIT, type Search } from "../../contracts/reading.ts"
+import { LIMIT, type Search, type SearchKind } from "../../contracts/reading.ts"
 
 
 /**
@@ -47,13 +47,14 @@ export function createSearch(
    *  server-side: a door that filtered afterwards would run short exactly when
    *  a query matched enough documents to fill it (`@olai/format`'s
    *  `SearchRequest`). Absent is both, which is what a reading door wants. */
-  kind?: "node" | "document",
+  kind?: Accessor<SearchKind>,
 ): Search {
-  const wanted = createMemo(() => {
+  type Question = { readonly query: string; readonly kind: SearchKind }
+  const wanted = createMemo<Question | null>(() => {
     const query = text()?.trim() ?? ""
-    return query.length >= MIN_LENGTH ? query : null
-  })
-  const [asked, setAsked] = createSignal<string | null>(null)
+    return query.length >= MIN_LENGTH ? { query, kind: kind?.() } : null
+  }, null, { equals: (a, b) => a?.query === b?.query && a?.kind === b?.kind })
+  const [asked, setAsked] = createSignal<Question | null>(null)
   const settle = debounce(setAsked, SETTLE_MS)
   onCleanup(() => settle.clear())
   createEffect(() => {
@@ -68,27 +69,28 @@ export function createSearch(
   // hook resets a reactive input in an effect; a memo can otherwise observe
   // the new query alongside the old value before that effect runs, relabeling
   // retained rows and briefly authorizing Enter on the wrong node.
-  const reading = createKeyedRoot(asked, (query) => ({
-    query,
-    answer: client().streams.searchResults.use(() => query === null ? null : {
-      text: query, limit: LIMIT, ...(kind === undefined ? {} : { kind }),
+  const reading = createKeyedRoot(asked, (question) => ({
+    question,
+    answer: client().streams.searchResults.use(() => question === null ? null : {
+      text: question.query, limit: LIMIT, ...(question.kind === undefined ? {} : { kind: question.kind }),
     }),
   }))
   // Hold the prior query's rows during a new request, but never across closing
   // the search or a refused subscription. The label gates keyboard result gestures.
-  const held = createMemo<{ query: string; value: SearchAnswer } | undefined>((previous) => {
-    const { query, answer } = reading()
-    if (wanted() === null || query === null || answer.error() !== undefined) return undefined
+  const held = createMemo<{ question: Question; value: SearchAnswer } | undefined>((previous) => {
+    const { question, answer } = reading()
+    if (wanted() === null || question === null || answer.error() !== undefined) return undefined
     const value = answer()
-    return value === undefined ? previous : { query, value }
+    return value === undefined ? previous : { question, value }
   }, undefined)
   const answering = () => {
     const got = held()
-    return got !== undefined && got.query === wanted() ? got.query : null
+    return got !== undefined && got.question.query === wanted()?.query && got.question.kind === wanted()?.kind ? got.question.query : null
   }
   return {
     hits: () => held()?.value.hits ?? [],
     total: () => held()?.value.total ?? 0,
+    totals: () => held()?.value.totals,
     failure: () => reading().answer.error()?.message ?? null,
     refusals: () => held()?.value.refusals ?? [],
     answering,
