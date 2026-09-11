@@ -1,4 +1,3 @@
-import type { Place } from "olai-plugin-search/ui/place.ts"
 /**
  * WHAT AN `@` OFFERS: the directory's files, and the directory's nodes, in one
  * list of eight.
@@ -56,6 +55,7 @@ import type { Place } from "olai-plugin-search/ui/place.ts"
  * using. What it CANNOT do is move a file row somebody is already on.
  */
 
+import type { Place } from "olai-plugin-search/ui/place.ts"
 import type { NodeHit } from "@olai/format"
 
 import { dirOf, folded, matchFiles, nameOf } from "@olai/web/client/file/matching.ts"

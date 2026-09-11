@@ -1,4 +1,3 @@
-import { fileKind } from "./kinds.ts"
 /**
  * What a search ASKS and what one hit SAYS.
  *
@@ -44,6 +43,7 @@ import { fileKind } from "./kinds.ts"
  * caller. What is left here is exactly what a QUERY adds to it.
  */
 
+import { fileKind } from "./kinds.ts"
 import { Schema } from "effect"
 
 import { AtDocument, AtOutline, AtNode, NodeId } from "./address.ts"

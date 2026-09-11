@@ -2,7 +2,7 @@
 
 Status: **approved by the human, 2026-09-10.** Brief for the implementer. Written 2026-09-10 on the `search-improvements` branch, after reading `docs/search.md`, `packages/format/src/filter.ts`, `packages/format/src/searching.ts`, `packages/plugins/search/src/matcher.ts` and the row components under `packages/plugins/search/src/contracts/ui/`. The companion artifact ("Search Says What It Found") shows the same four items as pictures.
 
-Four items, approved as written here. Each is a separate PR, landed in the order below. Nothing here changes what a query SELECTS. The differential tests (`table.test.ts`, `matcher.index.test.ts`, the scope harness) must keep passing untouched; if one has to change, the item has drifted and should stop.
+Four items, approved as written here. They are four commits in ONE PR, in the order below, each commit carrying its own e2e. The PR is opened as a draft; the orchestrator runs CI; the human merges. Nothing is merged by an agent. Nothing here changes what a query SELECTS. The differential tests (`table.test.ts`, `matcher.index.test.ts`, the scope harness) must keep passing untouched; if one has to change, the item has drifted and should stop.
 
 Rulings from the human, 2026-09-10, that shaped this version:
 - The second line of every row names the file, then the path from the file down. No glyph, no filename column, no kind word, no excerpt. The extension is the kind.
@@ -13,10 +13,10 @@ Rulings from the human, 2026-09-10, that shaped this version:
 ## Ground rules that hold for every item
 
 - **One declaration.** Every new field on a hit is declared once in `@olai/format`'s `searching.ts`, produced by `matcher.ts`, carried by `@olai/surface`, drawn by the row, and read by `search_nodes`. Never a browser-side re-derivation of something the server already knows.
-- **Cordis.** See "Cordis obligations" at the end. The one-line version: every new live value has a named owner whose departure ends it, crosses a package boundary only as a declared service or a field of one, and is released in the same activation that acquired it. A serve without `olai-plugin-search` still answers every door with the `NO_SEARCH` refusal. Each PR description names the ownership boundaries it adds or moves.
+- **Cordis.** See "Cordis obligations" at the end. The one-line version: every new live value has a named owner whose departure ends it, crosses a package boundary only as a declared service or a field of one, and is released in the same activation that acquired it. A serve without `olai-plugin-search` still answers every door with the `NO_SEARCH` refusal. The PR description names the ownership boundaries it adds or moves.
 - **Absence is the format's rule.** A new optional field is omitted, never `null` or empty, when there is nothing to say.
 - **Docs in the same PR.** `docs/search.md` sections "What a result row looks like", "Documents, by name" and the door list. `docs/e2e-coverage.md`'s "Search and filtering" row. Only touch `website/` if a screenshot of the palette there is now wrong.
-- **E2E first.** Each item lists the scenarios it must add under `packages/tests/features/`. Run `just e2e-fast-remote` on the working tree before opening the PR, and `just ci` after pushing.
+- **E2E first.** Each item lists the scenarios it must add under `packages/tests/features/`. Run `just e2e-fast-remote` on the working tree before opening the one PR as a draft; the orchestrator runs CI; the human merges.
 
 ## 1. The place line names the file, then the path
 
@@ -43,7 +43,7 @@ Rulings from the human, 2026-09-10, that shaped this version:
 3. The header box and the move picker draw the same line.
 4. Phone width: the same, through the palette.
 
-## 2. A document hit lands on the match
+## 2. A document hit opens on the match
 
 **Problem.** A node hit carries `file:line` and opens on the node. A body match on a long `.md` opens the page at the top with no idea where the word was.
 
@@ -65,7 +65,7 @@ Produced in `matcher.ts` after the cap, so only the drawn hits pay for it, found
 
 **Row.** `row.ts` builds the route from `hit.at.path` and `hit.line`. A document hit with no `line` opens at the top exactly as today.
 
-**E2E.** New `document_hit_lands.feature`:
+**E2E.** New `document_hit_opens.feature`:
 1. A 200-line `.md` with the word at line 140: Enter on the hit opens the page scrolled so that block is in the viewport, with the word lit.
 2. Back returns to the page you searched from.
 3. A stale link (`#L999`) opens the top with no error.
@@ -112,20 +112,20 @@ An outline is matched on two fields only, its name and its path, with `FIELD_WEI
 
 **E2E.** New `search_kind_selector.feature`: pick Nodes and a document that would rank first disappears while the count changes; the pick survives closing and reopening the palette; Tab cycles; a plugin rebuild resets it to All; the phone palette shows the control; `Files` with `is:done` shows zero and no empty panel.
 
-## Order and sizing
+## Commit order and sizing
 
-| item | touches | size |
+| commit | touches | size |
 |---|---|---|
 | 1 place line names the file | place, row, Result, palette items, docs | S |
-| 2 land on match | format (`line`), matcher, navigation routes, markdown page, row | M |
+| 2 open on match | format (`line`), matcher, navigation routes, markdown page, row | M |
 | 3 outline hits | format (new arm), matcher, table tests, row | M |
 | 4 kind selector | search plugin browser, contracts/reading, searching (totals), palette, header | M |
 
-Item 1 goes first because it is small and every later mockup assumes the place line.
+Commit 1 comes first because it is small and every later mockup assumes the place line. All four commits are in the one PR.
 
 ## Cordis obligations
 
-`docs/architecture/cordis.md` is the rule; this section is that rule applied to these four items. For each: who owns the new value or work, who may depend on it, what leaves when the owner leaves, and what a consumer sees while the owner is absent. A reviewer should be able to check every row of these tables against the PR.
+`docs/architecture/cordis.md` is the rule; this section is that rule applied to these four items. For each: who owns the new value or work, who may depend on it, what leaves when the owner leaves, and what a consumer sees while the owner is absent. A reviewer should be able to check every row of these tables against the one PR.
 
 ### The existing shape, which nothing here may weaken
 
@@ -152,7 +152,7 @@ Answer: no, and the plan deliberately does not introduce one.
 |---|---|---|---|---|---|
 | 1 place line | none; read off `hit.file`, `hit.path` and `hit.at.path`, which the answer already carries | the search reading (unchanged) | rides the hit through `search.readings` | leaves with the answer | not applicable |
 | 2 `line` on a document hit | none live; a pure field derived per answer inside the matcher | the search reading (unchanged) | rides the hit | leaves with the answer | the row opens the file at the top |
-| 2 land on match | the scroll-and-light of a document page on arrival | the MARKDOWN PAGE's activation, not the search plugin | the page reads the address (`#L` and `?q=`) it was given; it acquires nothing from search | the page's own `onCleanup` removes the highlight and any scroll observer | a `#L` fragment with no page code to read it is inert; the file opens at the top |
+| 2 open on match | the scroll-and-light of a document page on arrival | the MARKDOWN PAGE's activation, not the search plugin | the page reads the address (`#L` and `?q=`) it was given; it acquires nothing from search | the page's own `onCleanup` removes the highlight and any scroll observer | a `#L` fragment with no page code to read it is inert; the file opens at the top |
 | 3 outline hits | none live; a third matcher arm | the search reading | as item 1 | as item 1 | as item 1 |
 | 4 kind pick | the session's current kind, one signal | a NEW component of `olai-plugin-search`'s browser activation, `kind`, offered as `search.kind` (`{ pick: Accessor<Kind>, set }`) | a face the component contributes into `search.box.below`, a location the search plugin owns and both boxes draw | the signal is disposed with the component; the face is withdrawn through the location's own release; the boxes go on asking with no kind | the selector is not drawn and the box asks with no kind, which is today's behaviour |
 | 4 per-kind totals | none live; an optional `totals` field on `SearchAnswer` | the server matcher | rides the answer | with the answer | the segment draws no number |
@@ -167,7 +167,7 @@ Answer: no, and the plan deliberately does not introduce one.
 6. **Reconnection.** The reading already re-asks an open query when the wire returns. The kind pick is browser state that survives a reconnect unchanged (it never left the tab), so after the wire comes back the boxes ask with the same kind. A plugin REBUILD disposes the `kind` component, so the pick resets to All; that is stated in the docs, and item 4's e2e asserts it rather than assuming the old value.
 7. **Two apps, two picks.** `holdReading` is per browser app. The kind signal is created inside the activation, once per app, never at module level, so two mounted apps do not share a hand position.
 8. **Static imports stay static.** `olai-plugin-navigation/routes`' `atFile` gaining a fragment is a pure function change. `@olai/format`'s `kinds.ts` is an inert lookup. Neither becomes a lifecycle dependency by being imported.
-9. **Say what moved.** Each PR description lists the new component (`kind`), the new service key (`search.kind`) and the new location (`search.box.below`), with their owner and their absence behaviour, in the words of these tables.
+9. **Say what moved.** The PR description lists the new component (`kind`), the new service key (`search.kind`) and the new location (`search.box.below`), with their owner and their absence behaviour, in the words of these tables.
 
 ## Out of scope, ruled by the human
 

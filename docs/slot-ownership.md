@@ -9,6 +9,7 @@ The permanent plugin API defines generic location references and registration op
 | Layout | `app.panel`, `app.header`, `app.banner`, `app.viewer`, `app.mount` |
 | Sidebar | `sidebar.entry`, `sidebar.section` |
 | Chat | `delivery.mark`, `engine.install` |
+| Search | `search.box.below` |
 
 Typed consumers import the owner's `/slots` door. Owner descriptors become child declarations of the entry that consumes them. Declaring the static contract does not activate a location or create storage.
 

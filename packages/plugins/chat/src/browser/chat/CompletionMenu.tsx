@@ -1,5 +1,3 @@
-import type { Place } from "olai-plugin-search/ui/place.ts"
-import { PlaceLine } from "olai-plugin-search/ui/PlaceLine.tsx"
 /**
  * The completion over the message box — one list for both of the things the
  * composer completes.
@@ -22,6 +20,8 @@ import { PlaceLine } from "olai-plugin-search/ui/PlaceLine.tsx"
  * same thing for the times a hand is already there.
  */
 
+import type { Place } from "olai-plugin-search/ui/place.ts"
+import { PlaceLine } from "olai-plugin-search/ui/PlaceLine.tsx"
 import { createEffect, createMemo, Index, on, onCleanup, onMount, Show } from "solid-js"
 
 import { listKey } from "@olai/web/client/keys.ts"

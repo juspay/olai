@@ -1,5 +1,3 @@
-import { styleTags } from "./tags.ts"
-import type { Element } from "hast"
 /**
  * Markdown, rendered.
  *
@@ -42,6 +40,8 @@ import type { Element } from "hast"
  * path entirely.
  */
 
+import { styleTags } from "./tags.ts"
+import type { Element } from "hast"
 import type { Root } from "hast"
 
 import { pipelineNow } from "./chunk.ts"

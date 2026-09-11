@@ -1,4 +1,3 @@
-import type { Outline } from "./document.ts"
 /**
  * What a query MEANS — the one matcher, and the two SHAPES its callers want.
  *
@@ -41,6 +40,7 @@ import type { Outline } from "./document.ts"
  * https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-in-place.md.
  */
 
+import type { Outline } from "./document.ts"
 import { Schema } from "effect"
 
 import {
