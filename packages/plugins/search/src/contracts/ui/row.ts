@@ -1,4 +1,4 @@
-import { isNodeHit, printAddress, type SearchHit } from "@olai/format"
+import { isNodeHit, isOutlineHit, printAddress, type SearchHit } from "@olai/format"
 
 import type { NodeProp } from "olai-plugin-search/ui/props.ts"
 import { documentProps, nodeProps } from "olai-plugin-search/ui/props.ts"
@@ -42,6 +42,10 @@ export const hitRow = (hit: SearchHit, query?: string): HitRow => {
       props: nodeProps(hit),
       route: atNode(hit.id),
     }
+  }
+  if (isOutlineHit(hit)) return {
+    id: printAddress(hit.at), label: hit.title, from: hit.at.path,
+    place: { file: hit.at.path }, props: [], route: atFile(hit.at.path),
   }
   const path = hit.at.path
   return {

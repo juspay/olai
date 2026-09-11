@@ -23,6 +23,7 @@ import {
   type KindVocabulary,
   matching,
   matchingDocuments,
+  matchingOutlines,
   documentLineOf,
   NodeId,
   nothing,
@@ -157,24 +158,32 @@ export const search = (
   // ASKED FOR, and the request is where that lives: a door picking a record to
   // point at cannot take a document, and one filtering the answer itself would
   // run short exactly when a query matched enough documents to fill the cap.
-  const nodes = query.kind === "document"
+  const nodes = query.kind !== undefined && query.kind !== "node"
     ? []
     : matching(at.derived, filter, scope, narrowed?.nodes)
   // The other arm of the set, asked the same question. A document answers
   // `prop:` out of its frontmatter and nothing else — a mark, a date and a
   // record's field select none of them, which is `matchingDocuments`' own rule
   // and the honest answer rather than a hole.
-  const documents = query.kind === "node"
+  const documents = query.kind === "node" || query.kind === "outline"
     ? []
     : matchingDocuments(bodiedIn(at.set), filter, scope, narrowed?.documents)
+  const outlines = query.kind === "node" || query.kind === "document" ? [] : matchingOutlines(
+    at.set.documents.filter(d => d.kind === "outline"), filter, scope,
+  )
   const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
   // Read ONCE for the answer rather than per hit: it is a fact about the
   // question, and this same request is what a browser's boxes send on every
   // settled keystroke.
   const wantsNotes = query.withDesc === true
-  const hits = rankedTogether(at.derived, nodes, documents)
+  const hits = rankedTogether(at.derived, nodes, documents, outlines)
     .slice(0, limit)
     .map((selected): SearchHit => {
+      if (selected.kind === "outline") return {
+        at: { kind: "document", path: selected.at.path },
+        title: selected.at.title,
+        ...(selected.match.field === null ? {} : { matched: selected.match.field }),
+      }
       if (selected.kind === "document") {
         // Through `heldCustom` for `@olai/ops`' `carriedOf`'s reason, which is not
         // only the pruning: it puts the keys in the FILE's canonical order
@@ -243,5 +252,5 @@ export const search = (
 
   // The TOTAL is what matched, never what was kept, so "twelve of ninety" is
   // sayable — the one number that has to be read off the uncapped lists.
-  return { hits, total: nodes.length + documents.length }
+  return { hits, total: nodes.length + documents.length + outlines.length }
 }

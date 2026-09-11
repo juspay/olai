@@ -157,6 +157,13 @@ export const AtDocument = Schema.Struct({
 })
 export type AtDocument = typeof AtDocument.Type
 
+/** An outline already has the grammar's whole-file address. Narrow its path
+ * for search without introducing a second spelling for that same address. */
+export const AtOutline = AtDocument.check(Schema.makeFilter(
+  (at) => claimedKind(at.path) === "outline", { expected: "a whole outline file" },
+))
+export type AtOutline = typeof AtOutline.Type
+
 /** One node, by its id and nothing else — the location-free half of the
  *  grammar. */
 export const AtNode = Schema.Struct({
