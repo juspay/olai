@@ -1,3 +1,4 @@
+import { useAgents } from "../agents/answered.tsx"
 /**
  * The chat panel: open dock (or mobile bottom sheet), or minimized signal.
  *
@@ -92,12 +93,16 @@ import { Transcript } from "./Transcript.tsx"
 import { Unopened } from "./Unopened.tsx"
 
 export function Panel() {
+  const agents = useAgents()
   return (
     <>
       <Show when={panelOpen()}>
-        <Show when={desktop()} fallback={<MobileSheet />}>
-          <DesktopDock />
-        </Show>
+        <Show when={agents.openChat()} keyed>{to => {
+          const chat = createChat(to)
+          return <Show when={desktop()} fallback={<MobileSheet chat={chat} />}>
+            <DesktopDock chat={chat} />
+          </Show>
+        }}</Show>
       </Show>
       <Minimized />
     </>
@@ -115,7 +120,7 @@ export function Panel() {
  * the same reason it always was: the mark is already an icon.
  */
 export function Toggle() {
-  const state = createChatState()
+  const state = useAgents().conversation
   const working = () => state().status === "thinking"
   /** A turn stopped on a question. Its own bit on the permanent chrome,
    *  because this is the one state a shut panel must not swallow: an agent
@@ -425,8 +430,8 @@ function Body(props: { readonly chat: Chat }) {
   )
 }
 
-function DesktopDock() {
-  const chat = createChat()
+function DesktopDock(props: { readonly chat: Chat }) {
+  const chat = props.chat
 
   return (
     <aside
@@ -452,8 +457,8 @@ function DesktopDock() {
  * handle between them (or tap to cycle). Scrim dismiss → minimized strip.
  * Host starts below the header so chrome stays tappable.
  */
-function MobileSheet() {
-  const chat = createChat()
+function MobileSheet(props: { readonly chat: Chat }) {
+  const chat = props.chat
   const [dragPct, setDragPct] = createSignal<number | null>(null)
   /** The box the sheet's percentage height is a percentage OF: it starts under
    *  the bar and ends at the bottom of the viewport. Measured rather than

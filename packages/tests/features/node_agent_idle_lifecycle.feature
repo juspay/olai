@@ -1,5 +1,5 @@
 @scratch:chat @node-idle-fast
-Feature: Node agent idle timers preserve foreground work and durable conversations
+Feature: Node agent idle timers preserve read conversations and durable conversations
   Background:
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
@@ -10,10 +10,11 @@ Feature: Node agent idle timers preserve foreground work and durable conversatio
     When I remember this conversation as "cabinet"
     And I mark the page
 
-  Scenario: An idle background node sleeps and resumes the same transcript, and writes still reach the vault
+  Scenario: A folded idle node sleeps and resumes the same transcript, and writes still reach the vault
     When I ask the agent "before idle eviction"
     Then the agent has answered "before idle eviction" exactly once
-    When I open the node menu of "order"
+    When I fold node agent "install"
+    And I open the node menu of "order"
     And I choose "Start an agent session" from the node menu
     Then the panel header names the node agent "order the new cabinets"
     And the agent panel is open
@@ -38,6 +39,7 @@ Feature: Node agent idle timers preserve foreground work and durable conversatio
     When I ask the agent "askstrict"
     Then the chat shows a question
     When I type "answer after idle deadlines" into the question's "note" box
+    And I fold node agent "install"
     And I open the node menu of "order"
     And I choose "Start an agent session" from the node menu
     Then the panel header names the node agent "order the new cabinets"
@@ -50,7 +52,8 @@ Feature: Node agent idle timers preserve foreground work and durable conversatio
     And I answer the question
     Then the agent is idle
     And the agent's answer mentions "answer after idle deadlines"
-    When I press the agent "order"
+    When I fold node agent "install"
+    And I press the agent "order"
     Then the panel header names the node agent "order the new cabinets"
     And the agent "install" stands "asleep"
     When I press the agent "install"
@@ -63,7 +66,8 @@ Feature: Node agent idle timers preserve foreground work and durable conversatio
     When I ask the agent "watch"
     Then the agent is idle
     And the strip says "kolu fleet watch" is running
-    When I open the node menu of "order"
+    When I fold node agent "install"
+    And I open the node menu of "order"
     And I choose "Start an agent session" from the node menu
     Then the panel header names the node agent "order the new cabinets"
     And the agent panel is open
@@ -74,7 +78,8 @@ Feature: Node agent idle timers preserve foreground work and durable conversatio
     When the agent is released
     Then the chat says nothing is running in the background
     And the chat says that task ended "failed"
-    When I press the agent "order"
+    When I fold node agent "install"
+    And I press the agent "order"
     Then the agent "install" stands "asleep"
     When I press the agent "install"
     Then the panel is in the remembered conversation "cabinet"

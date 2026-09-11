@@ -1,3 +1,5 @@
+import { selectConversation } from "./selection.ts"
+import { agentIn } from "olai-plugin-chat/wire"
 import type { AppCommand } from "olai-plugin-navigation/slots"
 import type { RowAction } from "olai-plugin-outlines/slots"
 /**
@@ -146,6 +148,7 @@ export const rowVerbs = (node: string, roster: Roster, state: ReturnType<typeof 
           chatWire().procedures.conversation.startAgentSession({ node, agent: engine.id }),
         )
         if (Result.isFailure(outcome)) return outcome.failure.message
+        selectConversation(outcome.success)
         setPanelOpen(true)
       },
     })
@@ -176,13 +179,17 @@ export const createAskCommand = (state: ReturnType<typeof createChatState>): App
   said: "ask the agent",
   placeholder: "ask the agent…",
   run: async (line) => {
+    const current = state()
+    const agent = agentIn(current)
+    if (agent === null || current.session === null) return "open a node agent first"
+    const conv = { agent: agent.id, session: current.session.id }
     const context = releaseArmed()
     // THROUGH THE APP'S ONE EDGE — see the note on the menu verb above. It is
     // also what turns a refusal into a VALUE rather than a rejection:
     // `runAsync` answers a `Result`, so there is no throw here to catch and no
     // way for one of the three exits to escape unread.
     const outcome = await runAsync(
-      chatWire().procedures.conversation.send({ scope: state().uploadScope, text: line, context }),
+      chatWire().procedures.conversation.send({ conv, scope: state().uploadScope, text: line, context }),
     )
     setPanelOpen(true)
     if (Result.isSuccess(outcome)) return null

@@ -37,6 +37,7 @@
 import { type OpFailure, sessionValue, UsageFailure } from "@olai/format"
 import { Effect } from "effect"
 
+import type { Conversing } from "../sessions.ts"
 import type { Chat } from "../scoped.ts"
 
 /** WHAT A BINDING NEEDS BESIDES THE PANEL — the roster's reading of the node,
@@ -89,20 +90,15 @@ export const startAgentSession = (
   chat: Chat,
   binding: Binding,
   input: { readonly node: string; readonly agent: string },
-): Effect.Effect<void, OpFailure> =>
+): Effect.Effect<Conversing, OpFailure> =>
   Effect.gen(function*() {
     const was = binding.boundAt(input.node)
-    yield* chat.startAgentSession(input.node, input.agent)
-    const now = chat.state().session
-    if (now === null) {
-      return yield* new UsageFailure({
-        reason: `${input.agent} opened no conversation to bind to this node`,
-      })
+    const now = yield* chat.startAgentSession(input.node, input.agent)
+    yield* binding.write(input.node, sessionValue(now.agent, now.session))
+    if (was?.session != null && was.session !== now.session) {
+      yield* chat.replaced({ agent: was.engine, session: was.session }, now.session)
     }
-    yield* binding.write(input.node, sessionValue(input.agent, now.id))
-    if (was?.session != null && was.session !== now.id) {
-      yield* chat.replaced({ agent: was.engine, session: was.session }, now.id)
-    }
+    return now
   })
 
 /**

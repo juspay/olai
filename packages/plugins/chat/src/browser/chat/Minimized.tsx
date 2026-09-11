@@ -1,3 +1,4 @@
+import { useAgents } from "../agents/answered.tsx"
 /**
  * Minimized chat — the other of the two states (open dock/sheet vs this).
  *
@@ -17,7 +18,7 @@ import { lastAgentPreview, previewText } from "./last.ts"
 import { createChatState } from "./state.ts"
 
 export function Minimized() {
-  const state = createChatState()
+  const state = useAgents().conversation
   const working = () => state().status === "thinking"
   const show = () => !panelOpen()
   const onDesktop = () => desktop()

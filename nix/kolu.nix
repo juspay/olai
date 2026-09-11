@@ -59,9 +59,18 @@
 let
   npins = import ../npins;
 
+  # Conversation reads need keyed delta collections on the ordinary surface
+  # registration path. Keep the primitive in its owning wire package; both
+  # hydration and production builds consume this same patched source.
+  koluSource = pkgs.applyPatches {
+    name = "kolu-keyed-collections";
+    src = npins.kolu;
+    patches = [ ./kolu-keyed-collections.patch ];
+  };
+
   consumer = import "${npins.kolu}/nix/consumer.nix" {
     inherit pkgs;
-    src = npins.kolu;
+    src = koluSource;
 
     # THE SEEDS — what olai's own source imports by name. Read the two tiers
     # rather than the list: `@kolu/surface*` is the FRAMEWORK olai's app is

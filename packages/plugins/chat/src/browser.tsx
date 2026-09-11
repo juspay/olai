@@ -71,7 +71,7 @@ import { AgentDoor } from "./browser/agents/Door.tsx"
 import { Agents } from "./browser/agents/Agents.tsx"
 import { AgentsProvider, createAgents } from "./browser/agents/answered.tsx"
 import { createAskCommand, rowVerbs } from "./browser/verbs.tsx"
-import { createChatState } from "./browser/chat/state.ts"
+import { holdSelection } from "./browser/selection.ts"
 import { trackCamera } from "./browser/chat/camera.ts"
 import { Panel, Toggle } from "./browser/chat/Panel.tsx"
 import { holdFaces } from "./browser/faces.ts"
@@ -121,10 +121,11 @@ export default definePlugin({
     // reader of — for THIS activation, cleared by identity when it stops.
     yield* holdFaces(faces)
     const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
-      const conversation = createChatState()
-      return {dispose, conversation, agents: createAgents(conversation)}
+      const agents = createAgents()
+      return { dispose, conversation: agents.conversation, agents }
     })), state => Effect.sync(state.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdConversation(state.conversation)), stop => Effect.sync(stop))
+    yield* Effect.acquireRelease(Effect.sync(() => holdSelection(state.agents.select)), stop => Effect.sync(stop))
     yield* (yield* Offers).own("state", () => state)
 
 

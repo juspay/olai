@@ -37,15 +37,17 @@
  * closure and asserts it rather than trusting this paragraph.
  */
 
-import { defineSurface } from "@kolu/surface/define"
+import { collection } from "@kolu/surface"
+import { Conversing } from "./wire/session.ts"
+import { collectionDeltasSchema, defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 
 import { Agents, NO_AGENT_ROSTER, sameAgentRoster } from "./wire/agents.ts"
 import {
   AskAnswer,
+  AgentChoice,
   AttachChunk,
   Attached,
-  CHAT_OFF,
   ChatEntry,
   ChatFailure,
   ChatState,
@@ -59,6 +61,8 @@ import {
  *  the file’s row selection takes. Spelled once, here — and because the sibling key IS the
  *  wire prefix, the name and every tag it appears in cannot drift apart. */
 export const name = "chat"
+export const transcriptRows = collection({ name: "transcript", keySchema: Schema.String, schema: ChatEntry })
+export const sayingRows = collection({ name: "saying", keySchema: Schema.String, schema: Saying })
 
 /**
  * THE FOUR MEMBERS AND THE FOURTEEN VERBS, as a surface of their own.
@@ -73,26 +77,7 @@ export const surface = defineSurface({
   cells: {
     /** Completed node-session replacements invalidate every tab's history. */
     sessionsRevision: { schema: Schema.Number, default: 0, verbs: ["get"] },
-    state: {
-      schema: ChatState,
-      default: CHAT_OFF,
-      verbs: ["get"],
-      /** A COMMAND AND A TOOL SERVER ARE EACH THEIR `name` — the two arrays
-       *  this cell carries, and both spell their identity the same way
-       *  (`./wire/members.ts`'s `Command.name` and `ChatServer.name`, required and
-       *  non-nullable).
-       *
-       *  This cell has no `equals`, and it moves for reasons that have nothing
-       *  to do with either list: a turn going `idle → thinking`, a `usage`
-       *  update per report, an `asking` count. Every one of those frames used
-       *  to replace every command and every server row — so
-       *  `chat/Roster.tsx`'s `<For each={servers()}>`, which is keyed by
-       *  reference, rebuilt the panel a reader was in the middle of reading,
-       *  mid-turn, on every token report. The roster is drawn on EVERY
-       *  conversation now rather than only on a broken one, so what that key
-       *  buys has gone from rare to permanent. */
-      arrayKey: "name",
-    },
+    engines: { schema: Schema.Array(AgentChoice), default: [], verbs: ["get"], arrayKey: "id" },
     agents: {
       schema: Agents,
       default: NO_AGENT_ROSTER,
@@ -108,42 +93,10 @@ export const surface = defineSurface({
       arrayKey: "id",
     },
   },
-  collections: {
-    /** The conversation. `deltas` is the whole point — see {@link ./wire/members.ts}:
-     *  one subscription carries both the history a late joiner needs and the
-     *  frames a live tab is watching. Read-only on the wire: a transcript is
-     *  something that HAPPENED, and the only way to add to it is to prompt. */
-    transcript: {
-      keySchema: Schema.String,
-      schema: ChatEntry,
-      verbs: ["keys", "get", "deltas"],
-    },
-    /**
-     * THE ROW THAT IS STILL BEING SAID, in pieces — the transcript's second
-     * member and the reason a streaming answer costs the wire the answer
-     * ({@link ./wire/members.ts}'s `Saying`, which argues the whole thing).
-     *
-     * A SECOND MEMBER rather than a second delivery of the first, and the
-     * argument is the one the header above makes about events: the two carry
-     * different facts. `transcript` carries ROWS, whole, and answers a late
-     * joiner with the conversation; this carries the PIECES of the one row
-     * still growing, which nobody needs a history of — a reader that missed
-     * them has the text in the row. So the expensive promise is kept once, by
-     * the member that has to keep it, and the cheap frames are cheap.
-     *
-     * `deltas` and nothing else. There is no key here anybody looks up: a
-     * piece is found by the row it names, off the frames as they arrive, and
-     * `keys`/`get` would be two verbs offered to nobody. Read-only on the
-     * wire for `transcript`'s reason, one step sharper — this is not even
-     * something that happened, it is how something that is happening is
-     * being delivered.
-     */
-    saying: {
-      keySchema: Schema.String,
-      schema: Saying,
-      verbs: ["deltas"],
-    },
-
+  streams: {
+    state: { inputSchema: Conversing, outputSchema: ChatState, arrayKey: "name" },
+    transcript: { inputSchema: Conversing, outputSchema: collectionDeltasSchema(Schema.String, ChatEntry) },
+    saying: { inputSchema: Conversing, outputSchema: collectionDeltasSchema(Schema.String, Saying) },
   },
   procedures: {
     conversation: {
@@ -152,6 +105,7 @@ export const surface = defineSurface({
        *  open tab stays in step and a slow turn does not hold a call open. */
       send: {
         input: Schema.Struct({
+          conv: Conversing,
           scope: Schema.NullOr(Schema.String),
           text: Schema.String,
           /**
@@ -222,7 +176,7 @@ export const surface = defineSurface({
        * able to produce.
        */
       resend: {
-        input: Schema.Struct({ scope: Schema.NullOr(Schema.String), id: Schema.String }),
+        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String), id: Schema.String }),
         error: ChatFailure,
       },
       /** One chunk of a picture, into the conversation's tmp directory.
@@ -235,7 +189,7 @@ export const surface = defineSurface({
        *  questions — `attach` says where the bytes landed, `send` says a turn
        *  was accepted — and a file is N calls to one send. */
       attach: {
-        input: AttachChunk,
+        input: Schema.Struct({ ...AttachChunk.fields, conv: Conversing }),
         output: Attached,
         error: ChatFailure,
       },
@@ -243,7 +197,7 @@ export const surface = defineSurface({
        *  Legal while the agent is still booting — the cancel is remembered
        *  and sent with the prompt. An outdated tab cannot cancel another node. */
       cancel: {
-        input: Schema.Struct({ scope: Schema.NullOr(Schema.String) }),
+        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
       setSetting: {
@@ -266,6 +220,7 @@ export const surface = defineSurface({
        *  does not have, which is what a tab open across a restart can send. */
       newSession: {
         input: Schema.Struct({ agent: Schema.String }),
+        output: Conversing,
         error: ChatFailure,
       },
       /**
@@ -305,6 +260,7 @@ export const surface = defineSurface({
           /** ... and the engine to open it with, off that node's property. */
           agent: Schema.String,
         }),
+        output: Conversing,
         error: ChatFailure,
       },
       /**
@@ -364,6 +320,7 @@ export const surface = defineSurface({
        *  fresh. */
       chooseAgent: {
         input: Schema.Struct({ agent: Schema.String }),
+        output: Conversing,
         error: ChatFailure,
       },
       /** Move to one of the stored conversations. The transcript is replaced by
@@ -388,7 +345,7 @@ export const surface = defineSurface({
        *  the way it keeps the prompt behind an undelivered message. Refuses
        *  when there is nothing waiting to be opened again. */
       reopen: {
-        input: Schema.Struct({ scope: Schema.NullOr(Schema.String) }),
+        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
       /** EVERY installed agent's stored conversations for this directory,
@@ -408,6 +365,7 @@ export const surface = defineSurface({
        *  which is why both are verbs rather than a write to the transcript. */
       answer: {
         input: Schema.Struct({
+          conv: Conversing,
           id: Schema.String,
           answers: Schema.Array(AskAnswer),
         }),
@@ -416,7 +374,7 @@ export const surface = defineSurface({
       /** Dismiss one, honestly: the agent is told a person declined to answer,
        *  and never handed an answer nobody gave. */
       decline: {
-        input: Schema.Struct({ id: Schema.String }),
+        input: Schema.Struct({ conv: Conversing, id: Schema.String }),
         error: ChatFailure,
       },
       /**
@@ -505,6 +463,7 @@ export const faces = {
   browser: {
     sessionsRevision: "resource",
     state: "resource",
+    engines: "resource",
     agents: "resource",
     transcript: "resource",
     saying: "resource",

@@ -101,6 +101,7 @@ import {
 } from "solid-js"
 
 import {
+  CHAT_OFF, type ChatState, type Conversing,
   type AgentChoice,
   agentIn,
   type Listed,
@@ -108,6 +109,7 @@ import {
   type SessionInfo,
   type Unreachable,
 } from "olai-plugin-chat/wire"
+import { panelOpen } from "../shell.ts"
 import { createChatState } from "../chat/state.ts"
 import { run } from "@olai/web/client/run.ts"
 import { type Chatting, chatKey, claimedIn, unassignedIn } from "../../lineage.ts"
@@ -159,6 +161,8 @@ export interface Roster {
    *  list that marks the row a reader is already looking at costs no second
    *  subscription. */
   readonly openChat: Accessor<Chatting | null>
+  readonly conversation: Accessor<ChatState>
+  readonly select: (to: Conversing) => void
   /** Ask the agents again — what a person opening the list gets, because a
    *  conversation started in a terminal a moment ago should be in it. Called
    *  on the press, and by the provider itself when a settled turn lands the
@@ -170,27 +174,30 @@ export interface Roster {
 
 const AgentsContext = createContext<Roster>()
 
-export function createAgents(chat = createChatState()): Roster {
+export function createAgents(): Roster {
+  const engineCell = chatWire().cells.engines.use()
+  const cell = chatWire().cells.agents.use()
+  const rows = createMemo(() => cell.value() ?? NO_AGENT_ROSTER)
+  const byNode = createMemo(() => new Map(rows().map(row => [row.id, row])))
+  const [picked, setPicked] = createSignal<{ readonly to: Conversing; readonly node: string | null } | null>(null)
+  const select = (to: Conversing) => setPicked({ to,
+    node: rows().find(row => row.engine === to.agent && row.session === to.session)?.id ?? null,
+  })
+  const openChat = createMemo((): Conversing | null => {
+    const choice = picked()
+    if (choice === null) return null
+    if (choice.node === null) return choice.to
+    const row = byNode().get(choice.node)
+    return row?.session == null ? null : { agent: row.engine, session: row.session }
+  }, null, { equals: (left, right) => left?.agent === right?.agent && left?.session === right?.session })
+  const reading = createMemo(() => {
+    const to = openChat()
+    return to === null || !panelOpen() ? () => ({ ...CHAT_OFF, roster: engineCell.value() ?? [] }) : createChatState(to)
+  })
+  const chat = () => reading()()
   let active = true
   onCleanup(() => { active = false })
-  const cell = chatWire().cells.agents.use()
-  // THE CHAT CELL AND NOT THE PANEL. `createChatState` subscribes the small
-  // cell and deliberately not the transcript (`../chat/state.ts`) — a roster
-  // that folded the conversation to paint three dots would be paying the
-  // panel's whole cost for the panel's chrome.
-  const rows = createMemo(() => cell.value() ?? NO_AGENT_ROSTER)
-  const byNode = createMemo(() => new Map(rows().map((row) => [row.id, row])))
-  // OFF THE SAME FRAME, and a memo rather than a read at each asker so that a
-  // chat frame which moved a dot does not re-run the menu's catalog: the list
-  // is replaced whole per frame and is the same array on nearly all of them.
-  const engines = createMemo(() => chat().roster)
-  /** ... and which conversation it is IN, as the pair — see {@link Roster.openChat}. */
-  const openChat = createMemo((): Chatting | null => {
-    const state = chat()
-    const agent = agentIn(state)
-    const session = state.session
-    return agent === null || session === null ? null : { agent: agent.id, session: session.id }
-  })
+  const engines = createMemo(() => engineCell.value() ?? [])
 
   /**
    * WHAT EVERY INSTALLED AGENT HAS STORED HERE, as this tab last heard it.
@@ -337,7 +344,7 @@ export function createAgents(chat = createChatState()): Roster {
     return listed === null ? [] : unassignedIn(listed.sessions, cell.value() ?? NO_AGENT_ROSTER)
   })
 
-  return { rows, at: node => byNode().get(node), engines, unassigned, chats,
+  return { conversation: chat, select, rows, at: node => byNode().get(node), engines, unassigned, chats,
     unreachable, openChat, chatsRefusal, askChats }
 }
 

@@ -1,3 +1,4 @@
+import { UsageFailure } from "@olai/format"
 /**
  * THE TWO GESTURES THAT BIND A NODE TO A CONVERSATION — the orders, and the one
  * refusal.
@@ -78,7 +79,12 @@ const chatOpening = (opens: ReadonlyArray<string>): {
     resend: () => elsewhere,
     cancel: elsewhere,
     newSession: () => Effect.sync(() => void (at += 1)),
-    startAgentSession: () => Effect.sync(() => void (at += 1)),
+    startAgentSession: (_node: string, agent: string) => Effect.gen(function*() {
+      at += 1
+      const session = opens[at]
+      if (session === undefined || session === null) return yield* new UsageFailure({ reason: `${agent} opened no conversation to bind to this node` })
+      return { agent, session }
+    }),
     chooseAgent: () => elsewhere,
     loadSession: () => elsewhere,
     reopen: elsewhere,

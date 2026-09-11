@@ -10,7 +10,7 @@
 import type { NodeAgent } from "@olai/format"
 import { collector } from "@olai/log/testlib"
 import { afterEach, beforeEach, expect, test } from "bun:test"
-import { Effect, References } from "effect"
+import { Effect, Exit, References, Scope } from "effect"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -83,6 +83,9 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     { id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
   ]
   const released: Array<string> = []
+  const alphaTab = Scope.makeUnsafe()
+  const firstTab = Scope.makeUnsafe()
+  const secondTab = Scope.makeUnsafe()
   const chat = await run(make({
     // THE BENCH'S OWN RUNTIME, said out loud. `Options.fork` has no default —
     // one would have to be `Effect.runFork`, which is the unowned default
@@ -129,16 +132,34 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     nodes = nodes.map((node) => node.id === "two" ? { ...node, session: twoSession ?? null } : node)
     chat.reread()
 
-    await run(chat.loadSession("alpha", oneSession ?? ""))
-    await run(chat.send("wait:350", [], []))
+    const alphaStates: Array<string | undefined> = []
+    await run(chat.reading({ agent: "alpha", session: oneSession! }, {
+      state: state => { alphaStates.push(state.session?.id) }, transcript: () => {},
+    }).pipe(Effect.provideService(Scope.Scope, alphaTab)))
+    await run(chat.inConversation({ agent: "alpha", session: oneSession! }, undefined,
+      panel => panel.send("wait:350", [], [])))
     await until("the first node to work", () => chat.live().get("one")?.status === "thinking")
 
+    const observed: Array<string> = []
+    const observe = () => ({
+      state: (state: ReturnType<typeof chat.state>) => observed.push(state.session?.id ?? ""),
+      transcript: () => {},
+    })
+    await run(chat.reading({ agent: "beta", session: twoSession! }, observe()).pipe(
+      Effect.provideService(Scope.Scope, firstTab),
+    ))
+    await run(chat.reading({ agent: "beta", session: twoSession! }, observe()).pipe(
+      Effect.provideService(Scope.Scope, secondTab),
+    ))
+    await run(Scope.close(firstTab, Exit.void))
     await run(chat.loadSession("beta", twoSession ?? ""))
     await run(chat.send("wait:350", [], []))
     await until("both node scopes to work", () =>
       chat.live().get("one")?.status === "thinking"
       && chat.live().get("two")?.status === "thinking")
 
+    expect(alphaStates.every(session => session === oneSession)).toBe(true)
+    await run(Scope.close(alphaTab, Exit.void))
     await until("the background scope to reap", () =>
       !chat.live().has("one") && released.length === 1)
     const afterReap = [...released]
@@ -153,7 +174,13 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     await until("the sleeping scope to wake and finish", () => chat.live().get("one")?.status === "idle")
     expect(chat.state().bound).toBe("two")
     expect(chat.live().has("two")).toBe(true)
+    expect(observed.every(session => session === twoSession)).toBe(true)
+    await run(Scope.close(secondTab, Exit.void))
+    await until("the last reading to release the idle scope", () => !chat.live().has("two"))
   } finally {
+    await run(Scope.close(alphaTab, Exit.void))
+    await run(Scope.close(firstTab, Exit.void))
+    await run(Scope.close(secondTab, Exit.void))
     await run(chat.stop)
   }
 

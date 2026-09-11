@@ -13,6 +13,7 @@ Feature: A node history count follows session creation in another tab
     And I mark the page
     And I open the session picker
     And I open another browser tab
+    And I press the agent "install"
     Then the panel header names the node agent "install the cabinets"
     And the agent panel is open
     When I open the session picker

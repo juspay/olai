@@ -48,7 +48,7 @@ import { run } from "@olai/web/client/run.ts"
 import { createSaying, type Saying } from "@olai/web/client/saying.ts"
 import type { Row } from "./roster.ts"
 import { hideUnassigned } from "./showing.ts"
-import { chatWire } from "../wire.ts"
+import { selectConversation } from "../selection.ts"
 
 /** WHERE A NODE AGENT LIVES — the outline it is written in, at its own row.
  *
@@ -114,10 +114,7 @@ export const createFocus = (): Focus => {
     // `run` HAS NO OVERLOAD WITHOUT A FAILURE HANDLER, deliberately
     // (`../run.ts`), and a press that swallowed one would be a press that
     // silently did nothing.
-    run(
-      chatWire().procedures.conversation.loadSession({ agent: agent.engine, id: session }),
-      (failure) => saying.say({ tone: "alarm", text: failure.message, kind: failure._tag }),
-    )
+    selectConversation({ agent: agent.engine, session })
   }
 
   return {

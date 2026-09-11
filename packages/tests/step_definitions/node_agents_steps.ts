@@ -706,3 +706,9 @@ When("I give the conversation to the offered node titled {string}", async functi
 Then("the unassigned list waits for the assignment to finish", async function (this: OlaiWorld) {
   await this.waitUntil(() => this.page.locator(DONE).isDisabled(), "the list to wait for the session handoff");
 });
+
+When("I fold node agent {string}", async function (this: OlaiWorld, node: string) {
+  const standing = this.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", node)}`);
+  await this.press(standing);
+  await this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", node)}`).waitFor({ state: "detached" });
+});

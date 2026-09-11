@@ -44,10 +44,11 @@
  * click is a DOM event, and the boundary between them belongs somewhere named.
  */
 
-import { type Attached, CHAT_OFF, type ChatEntry, type ChatState } from "olai-plugin-chat/wire"
+import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
 import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
+import { selectConversation } from "../selection.ts"
 import { chatWire } from "../wire.ts"
 
 import { type Call, run, runAsync } from "@olai/web/client/run.ts"
@@ -230,26 +231,25 @@ export interface Chat {
  * message is a module snapshot in `last.ts`, written only while the open panel
  * is mounted — never a second transcript subscription.
  */
-export const createChatState = (): Accessor<ChatState> => {
-  const cell = chatWire().cells.state.use()
+export const createChatState = (conv: Conversing): Accessor<ChatState> => {
+  const cell = chatWire().streams.state.use(() => conv)
   // The cell always has a value: the spec declares a default, and the framework
   // seeds the subscription with it — so `off` is what a page reads before the
   // first frame, which is exactly what it should read.
-  return () => cell.value() ?? CHAT_OFF
+  return () => cell() ?? CHAT_OFF
 }
 
 // A procedure can settle after the drawer that started it was remounted. Its
 // refusal belongs to this tab's gesture, not to that discarded panel instance.
-const [refused, setRefused] = createSignal<OpFailure | null>(null)
-
-export const createChat = (): Chat => {
-  const served = createChatState()
-  const transcript = chatWire().collections.transcript.use()
+export const createChat = (conv: Conversing): Chat => {
+  const [refused, setRefused] = createSignal<OpFailure | null>(null)
+  const served = createChatState(conv)
+  const transcript = chatWire().streams.transcript.useCollection(conv, transcriptRows)
   // THE ROW STILL BEING SAID, in pieces. A second subscription rather than a
   // second delivery of the first, and the reason a streaming answer costs the
   // socket the answer rather than three hundred copies of its prefixes
   // ({@link ./growing.ts}).
-  const said = createTail(chatWire().collections.saying.use().fold)
+  const said = createTail(chatWire().streams.saying.useCollection(conv, sayingRows).fold)
 
   /**
    * THE ROW STILL BEING SAID, joined — computed ONCE per frame however many
@@ -417,6 +417,7 @@ export const createChat = (): Chat => {
       try {
         setRefused(null)
         const outcome = await runAsync(chatWire().procedures.conversation.send({
+          conv,
           scope: state().uploadScope,
           text,
           attachments,
@@ -446,7 +447,7 @@ export const createChat = (): Chat => {
         const asked = state().uploadScope
         if (asked === null) return resolve({ _tag: "gone" })
         run(
-          attaching(file, (chunk) => chatWire().procedures.conversation.attach({ ...chunk, uploadScope: asked })),
+          attaching(file, (chunk) => chatWire().procedures.conversation.attach({ ...chunk, conv, uploadScope: asked })),
           (failure) => resolve({ _tag: "refused", failure }),
           (stored) => {
             if (state().uploadScope !== asked) return resolve({ _tag: "gone" })
@@ -458,24 +459,24 @@ export const createChat = (): Chat => {
           },
         )
       }),
-    resend: (id) => verb(chatWire().procedures.conversation.resend({ scope: state().uploadScope, id })),
+    resend: (id) => verb(chatWire().procedures.conversation.resend({ conv, scope: state().uploadScope, id })),
     setSetting: (agent, session, config, value, done) => verb(chatWire().procedures.conversation.setSetting({ agent, session, config, value }), done),
     setModel: (agent, session, value, done) => verb(chatWire().procedures.conversation.setModel({ agent, session, value }), done),
-    cancel: () => verb(chatWire().procedures.conversation.cancel({ scope: state().uploadScope })),
+    cancel: () => verb(chatWire().procedures.conversation.cancel({ conv, scope: state().uploadScope })),
     // The three doors that OPEN a conversation, and the fourth that reopens
     // a refused one. Each says so from the click ({@link opens}).
-    newSession: (agent) => opens(chatWire().procedures.conversation.newSession({ agent })),
-    chooseAgent: (agent) => opens(chatWire().procedures.conversation.chooseAgent({ agent })),
-    loadSession: (agent, id) => opens(chatWire().procedures.conversation.loadSession({ agent, id })),
+    newSession: (agent) => run(chatWire().procedures.conversation.newSession({ agent }), setRefused, selectConversation),
+    chooseAgent: (agent) => run(chatWire().procedures.conversation.chooseAgent({ agent }), setRefused, selectConversation),
+    loadSession: (agent, session) => selectConversation({ agent, session }),
     // An ordinary verb, and deliberately not one of the four above: pointing a
     // doorbell at a file opens nothing, so the panel has nothing to say from
     // the click — what it did shows up as the strip's own row changing, which
     // is where somebody who just picked a file is already looking.
     scope: (agent, session, plugin, file) =>
       verb(chatWire().procedures.conversation.scope({ agent, session, plugin, file })),
-    reopen: () => opens(chatWire().procedures.conversation.reopen({ scope: state().uploadScope })),
+    reopen: () => opens(chatWire().procedures.conversation.reopen({ conv, scope: state().uploadScope })),
     answer: (id, answers, done) =>
-      verb(chatWire().procedures.conversation.answer({ id, answers }), done),
-    decline: (id, done) => verb(chatWire().procedures.conversation.decline({ id }), done),
+      verb(chatWire().procedures.conversation.answer({ conv, id, answers }), done),
+    decline: (id, done) => verb(chatWire().procedures.conversation.decline({ conv, id }), done),
   }
 }
