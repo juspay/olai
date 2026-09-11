@@ -41,7 +41,7 @@
  * differ only in the direction of the count: three questions in the one chat,
  * never three chats. Making it read the other way would take a fact this app
  * does not have on the wire, which the roadmap item's own scope note rules
- * out. Said in the same words in `docs/chat.md` and `docs/architecture.md`.
+ * out. Said in the same words in `docs/chat.md` and `docs/architecture/overview.md`.
  *
  * A browser that refuses to badge is warned about on the console, once, and
  * never throws: this is the third of three ways a person is told, and the

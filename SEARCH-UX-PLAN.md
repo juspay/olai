@@ -15,7 +15,7 @@ Rulings from the human, 2026-09-10, that shaped this version:
 - **One declaration.** Every new field on a hit is declared once in `@olai/format`'s `searching.ts`, produced by `matcher.ts`, carried by `@olai/surface`, drawn by the row, and read by `search_nodes`. Never a browser-side re-derivation of something the server already knows.
 - **Cordis.** See "Cordis obligations" at the end. The one-line version: every new live value has a named owner whose departure ends it, crosses a package boundary only as a declared service or a field of one, and is released in the same activation that acquired it. A serve without `olai-plugin-search` still answers every door with the `NO_SEARCH` refusal. The PR description names the ownership boundaries it adds or moves.
 - **Absence is the format's rule.** A new optional field is omitted, never `null` or empty, when there is nothing to say.
-- **Docs in the same PR.** `docs/search.md` sections "What a result row looks like", "Documents, by name" and the door list. `docs/e2e-coverage.md`'s "Search and filtering" row. Only touch `website/` if a screenshot of the palette there is now wrong.
+- **Docs in the same PR.** `docs/search.md` sections "What a result row looks like", "Documents, by name" and the door list. `docs/architecture/e2e-coverage.md`'s "Search and filtering" row. Only touch `website/` if a screenshot of the palette there is now wrong.
 - **E2E first.** Each item lists the scenarios it must add under `packages/tests/features/`. Run `just e2e-fast-remote` on the working tree before opening the one PR as a draft; the orchestrator runs CI; the human merges.
 
 ## 1. The place line names the file, then the path

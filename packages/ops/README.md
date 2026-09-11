@@ -299,7 +299,7 @@ A refused write still comes back as an `isError` result carrying its structured 
 
 ## Layering
 
-Depends on `@olai/format` and `@olai/store`. `@olai/surface` is deliberately absent, and it stayed absent when the browser became a writer: the keystroke → op resolution lives one layer up (`@olai/server`), because putting it here would mean this package importing the wire's vocabulary — and `@olai/web` inheriting `@olai/store` through it. [docs/architecture.md](../../docs/architecture.md) has the reasoning.
+Depends on `@olai/format` and `@olai/store`. `@olai/surface` is deliberately absent, and it stayed absent when the browser became a writer: the keystroke → op resolution lives one layer up (`@olai/server`), because putting it here would mean this package importing the wire's vocabulary — and `@olai/web` inheriting `@olai/store` through it. [docs/architecture/overview.md](../../docs/architecture/overview.md) has the reasoning.
 
 ## Running
 

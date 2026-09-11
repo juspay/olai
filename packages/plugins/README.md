@@ -56,4 +56,4 @@ read off two independent sources — the roster, and a `readdir` of this directo
 red test. `scripts/prove-fence.sh`'s mutation 13 is that claim's falsifier.
 
 The whole checklist for adding one is
-[docs/internal/plugin-system.md §9](../../docs/internal/plugin-system.md).
+[docs/architecture/plugin-system.md §9](../../docs/architecture/plugin-system.md).

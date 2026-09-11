@@ -1,7 +1,7 @@
 /**
  * @olai/format — the outline format, and the only place it is enforced.
  *
- * The package is the bottom of the layering (docs/architecture.md): it knows
+ * The package is the bottom of the layering (docs/architecture/overview.md): it knows
  * about records, files and rules, and nothing about disks, servers or
  * browsers. Everything above it — the store's codec, the server, the web
  * client — reads the format through this one surface.

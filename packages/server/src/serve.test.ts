@@ -336,7 +336,7 @@ test("/sw.js is the notification worker, and it caches nothing", async () => {
     expect(source).not.toContain("registration.unregister")
     // ... and the half that keeps "live or nothing" true: it registers no
     // `fetch` handler at all, so it can never answer a navigation out of a
-    // cache (docs/architecture.md).
+    // cache (docs/architecture/overview.md).
     expect(source).not.toMatch(/addEventListener\(\s*["']fetch["']/)
   })
 })
