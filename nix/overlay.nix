@@ -7,6 +7,14 @@ let
   callFont = path: final.callPackage path { };
 in
 {
+  # GHA macos-latest-xlarge: libuv 1.52 `checkPhase` fails
+  # `udp_multicast_interface` / `udp_multicast_ttl` (status is not
+  # 0 / ENETUNREACH / EPERM). corepkgs default is doCheck false; this
+  # derivation still runs tests. Drop when the pin skips them.
+  libuv = prev.libuv.overrideAttrs (_: {
+    doCheck = false;
+  });
+
   playwright-driver = final.callPackage ./vendor/playwright { };
 
   literata = callFont ./vendor/fonts/literata/package.nix;
