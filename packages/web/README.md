@@ -80,4 +80,4 @@ by the browser entry point.
 Use `just ci` for the integrated checks. Browser acceptance covers independent
 content selections, alternate layout and non-notebook fixtures, plugin
 withdrawal/restoration, and failed module recovery; see
-[the plugin system](../../docs/internal/plugin-system.md) and [the browser suite](../tests/README.md).
+[the plugin system](../../docs/architecture/plugin-system.md) and [the browser suite](../tests/README.md).

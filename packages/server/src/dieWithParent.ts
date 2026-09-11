@@ -75,7 +75,7 @@
  * tomorrow — and it has already changed once, from #355's shape to this one,
  * without the composition root's call site (`dieWithParent()`) changing at
  * all. It is not `packages/child`'s: that package's README and
- * `docs/architecture.md` both put the orphan sweep explicitly OUT of it. It is
+ * `docs/architecture/overview.md` both put the orphan sweep explicitly OUT of it. It is
  * not `@olai/sigterm`'s either — that package is the RECEIVE side, deciding
  * which TERMs to honor, where this is the composition root deciding who may
  * make the kernel send one.

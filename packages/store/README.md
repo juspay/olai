@@ -90,7 +90,7 @@ The look and the read are not the same strength and are not meant to be. The loo
 
 ## Layering
 
-Depends on no workspace sibling, on purpose (see above). `@olai/ops` is what joins it to `@olai/format` — it owns the codec and everything that writes through this gate — and `server` composes the two. [docs/architecture.md](../../docs/architecture.md) has the reasoning.
+Depends on no workspace sibling, on purpose (see above). `@olai/ops` is what joins it to `@olai/format` — it owns the codec and everything that writes through this gate — and `server` composes the two. [docs/architecture/overview.md](../../docs/architecture/overview.md) has the reasoning.
 
 ## Running
 

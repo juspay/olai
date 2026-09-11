@@ -121,4 +121,4 @@ child.stderr.on("data", (chunk: string) => say(Effect.logDebug(chunk.trimEnd()))
 
 ## Layering
 
-Depends on `effect` and nothing else, at the bottom beside `format` and `store` ([docs/architecture.md](../../docs/architecture.md)). Everything above logs, so a workspace sibling here would put a package between a caller and the ability to say what it is doing.
+Depends on `effect` and nothing else, at the bottom beside `format` and `store` ([docs/architecture/overview.md](../../docs/architecture/overview.md)). Everything above logs, so a workspace sibling here would put a package between a caller and the ability to say what it is doing.

@@ -12,7 +12,7 @@
  *
  * LOCAL, because the reader is. The stamp is an instant an agent recorded, not
  * one of the format's own dates — those are text this codebase deliberately
- * never parses (`docs/architecture.md`, Dates) and this is not one of them.
+ * never parses (`docs/architecture/overview.md`, Dates) and this is not one of them.
  *
  * Pure, and no clock: unlike the commit pill's `agoOf` this says nothing
  * relative to now, so it never goes stale and never needs a timer. A phrase

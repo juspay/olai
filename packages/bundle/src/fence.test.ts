@@ -2339,7 +2339,7 @@ describe("a module another package can open holds no live value", () => {
     // one connection object for the life of the tab, redialled on a roster
     // change, with the sibling clients mutated in place. Phase 1 established
     // the contract by reading the pinned sources and proved it with
-    // `filter_live_recovery.feature`; `docs/internal/plugin-system.md` §6
+    // `filter_live_recovery.feature`; `docs/architecture/plugin-system.md` §6
     // writes it down. It is a DECLARED broker whose readers name `Wired`, which
     // is exactly the distinction the audit's §5 draws — not a module variable
     // standing in for a service nobody declared.

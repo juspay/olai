@@ -122,7 +122,7 @@
  * same half above, and gone at the next flatten.
  *
  * IT KNOWS NOTHING ABOUT OUTLINES, and it lives here anyway: this package is
- * the floor of the tree (`docs/architecture.md`), so the lowest honest home for
+ * the floor of the tree (`docs/architecture/overview.md`), so the lowest honest home for
  * a structure with one consumer in it is beside that consumer. Population one
  * is the reason it is not somewhere shared yet rather than an argument that it
  * never should be — a second caller, here or in kolu, is what would move it,

@@ -1,63 +1,95 @@
 # olai docs
 
-- [running.md](running.md) — how to serve a directory: `olai web` and its flags, one olai per directory, the home-manager module, the vault policy shared by every browser looking at it, the HTTP MCP face at `/mcp` — which is also what `olai surface` speaks, so a terminal is a client of it rather than a door of its own — quick capture, and who is looking behind a reverse proxy.
-- [editing.md](editing.md) — changing an outline by hand: the keys, dragging a row, picking several at once, what a draft is, how ⌘Z takes an edit back, what the sidebar leaves out and the two doors under it, pinning a page to the sidebar, and writing a document.
-- [search.md](search.md) — one query language, five doors: what matches, the operators (`is:`, `has:`, `date:`, the two stamps `created:` / `changed:`, `prop:`, and `-` to negate), the `"quoted phrase"` and the `OR` that compose them, what a result row shows, and the filter that narrows a page in place — every page that draws nodes, and what narrowing means on each.
-- [git.md](git.md) — the git integration: commit modes, committing on its own, the pill, and the audit view.
-- [chat.md](chat.md) — the chat agent: which agents olai finds and how a conversation is bound to one, ACP and the shipped-adapter overrides (`OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI`), the node tools, pictures, being told when the agent is waiting on you, what a conversation wakes on, and kolu and odu.
-- [live-properties.md](live-properties.md) — the one seam both integrations hang off: a property whose value is a name and whose face updates on its own, the DECLARATION in `_olai/Properties.olai` that turns one on rather than the key's name, the two shapes a face takes (a block that owns a row, a chip beside the value), what a live face is allowed to be, and what a property whose plugin is switched off is.
-- [format.md](format.md) — the file format and its rules: the record shapes, the fields, status, references (`see`, `@<id>` in prose, and what a zoomed node reads backwards), days, the pinned shelf (`Pins.olai`, and why a pin is an address rather than a field), which files a served directory is made of (`.olai`, `.md`, and the four kinds olai only shows — `.html`, `.csv`, the picture suffixes, `.pdf`), and merge safety.
-- [architecture.md](architecture.md) — how the packages fit, and the reasoning behind the layering.
-- [architecture/cordis.md](architecture/cordis.md) — declared dependencies, resource ownership, safe removal and replacement, and the lessons behind Olai’s Cordis architecture.
-- [internal/plugin-system.md](internal/plugin-system.md) — a tour of the plugin system for people working on olai: what a plugin is, the vocabulary (probes, kinds, dressings, faces, the roster, the doorbell a plugin speaks into a conversation through), the three doors and why there are three, how core and a plugin share one wire, and the path a declaration takes to become a face on a row.
+olai serves a directory of outlines and Markdown files as a web app that people and coding agents edit together. These pages explain how to use it. The public site, [olai.kolu.dev](https://olai.kolu.dev), is the pitch.
+
+## Using olai
+
+| Page | What it covers |
+| --- | --- |
+| [running.md](running.md) | Serving a directory: `olai web` and its flags, the home-manager module, vault policy, the MCP endpoint at `/mcp`, quick capture, and identity behind a reverse proxy. |
+| [editing.md](editing.md) | Editing an outline by hand: keys, drag and drop, multi-select, drafts, undo, the sidebar, pinning, and writing a document. |
+| [search.md](search.md) | The query language and its operators (`is:`, `has:`, `date:`, `created:`, `changed:`, `prop:`, `-`, quoted phrases, `OR`), what a result row shows, and the in-page filter. |
+| [git.md](git.md) | The git integration: commit modes, automatic commits, the status pill, and the audit view. |
+| [chat.md](chat.md) | The chat agent: which agents olai finds, binding a conversation to a node, ACP adapter overrides, node tools, pictures, and how a conversation wakes. |
+| [live-properties.md](live-properties.md) | Properties whose value updates on its own, how a plugin turns one on, and the two shapes a live face takes. |
+| [format.md](format.md) | The file format: record shapes, fields, status, references, days, the pinned shelf, which file types are served, and merge safety. |
+| [dynamic-plugins.md](dynamic-plugins.md) | Writing a plugin into the served directory itself: the definition shape, allowed imports, approval, and worked examples. |
 
 ## Plugins
 
-Olai is a bundle of plugins, run on [Cordis](https://github.com/cordiverse/cordis) ([arXiv:2608.25512](https://arxiv.org/abs/2608.25512)). The public site’s [Plugins section](https://olai.kolu.dev/#plugins) is the pitch: what a plugin is, which ones ship, that you can switch one off, that an agent can write one, and how to pick what runs. The pages below are how.
+Olai is a bundle of plugins running on [Cordis](https://github.com/cordiverse/cordis) ([arXiv:2608.25512](https://arxiv.org/abs/2608.25512)). Each plugin documents itself in its own package. The pages below are symlinks onto each plugin's `docs.md`, and `packages/tests/plugin_docs.test.ts` checks that every plugin has a page listed here.
 
-Each plugin documents itself, in its own package, and this list is the door to it. A page here is a symlink onto the plugin's own `docs.md`, so what is served and what sits beside the code are one file rather than two that can drift; `packages/tests/plugin_docs.test.ts` holds every line below to a page that is actually there.
+### Engines
 
-Four of the pages below are **engines** — [claude](plugins/claude.md), [codex](plugins/codex.md), [opencode](plugins/opencode.md) and [pi](plugins/pi.md), the ACP agents the chat panel can seat, one plugin each, enabled by default. What a conversation IS, for all of them, is [chat.md](chat.md); those four are what is only true of one wire.
+The four ACP agents the chat panel can run. What a conversation is, for all of them, is in [chat.md](chat.md).
 
-- [plugins/ws.md](plugins/ws.md) — the browser websocket, with scoped registration on the shared listener.
-- [plugins/mcp.md](plugins/mcp.md) — the MCP protocol server, its activation lifetime and session tickets.
-- [plugins/web-app.md](plugins/web-app.md) — the browser build, served independently of websocket and MCP registrations.
-- [plugins/vault.md](plugins/vault.md) — the directory, write gate, lock lifetime and format config as a normal bundle plugin.
-- [plugins/chat.md](plugins/chat.md) — the conversation as a row: what switching it off leaves (an outliner, and every engine, doorbell and mirror `waiting` on a door it names), the `chat-agent-session` kind and the one declaration row that keeps it on a column of your own name, the seats the shell reserves and the two slots chat is the reader of, and why the MCP face did not move.
-- [plugins/journal.md](plugins/journal.md) — the calendar, day page and agenda as one default plugin: its three routes, four browser-only readings, narrow daily-note mint, and exactly what disappears when the row is omitted.
-- [plugins/claude.md](plugins/claude.md) — Claude Code, the engine olai ships: the pinned adapter every documented start bakes in, the two meanings of `OLAI_ACP_AGENT`, the `_meta` corner its subagent lanes and tool names are read out of, the `mcp__server__tool` spelling the auto-allow rule turns on, the forwarded `init` that says which model a turn runs on and which servers it reached, the alias table its picker needs, and the two patches its pin carries.
-- [plugins/codex.md](plugins/codex.md) — Codex, the other self-contained engine olai ships: the pinned official adapter and CLI, `OLAI_ACP_CODEX`, its advertised steering outcomes, its explicit full-access policy and visible mode-selection failures, and why unknown MCP identity and subagent parentage are not guessed.
-- [plugins/opencode.md](plugins/opencode.md) — opencode, the engine olai finds: the PATH probe and the `--cwd` its session list actually hears, why olai's PATH is not your shell's, the tool name at the head of a call id, the `<server>_<tool>` spelling, and the three things this wire does not have — a bypass mode, an interruption, and any attribution for a fan-out.
-- [plugins/pi.md](plugins/pi.md) — pi, the engine that is both halves: a pinned `pi-acp` named by `OLAI_ACP_PI` plus a `pi` on the search path, either one missing being no row at all; the queued mid-turn message it announces, the startup banner the panel drops so a silent turn still reads as silent, the bridge the pin's own patch loads so olai's tools reach pi at all, and what that costs at the permission round trip.
-- [plugins/kolu.md](plugins/kolu.md) — the kolu integration: what olai does with a padi when one is running (the Dock row a `terminal` property draws, and the live read-only pane it opens), what it says when there is none, the header readout's three states, the events feed and the watch knobs behind it, the doorbell that wakes a scoped conversation when a claimed terminal goes quiet, the chat panel's `kolu mcp`, and which slice of the Orchestrator this is.
-- [plugins/odu.md](plugins/odu.md) — CI on the board: the chip a `worktree` wears while odu is running in that checkout, the run matrix it opens, what a settled run leaves behind, the two facts on the board that turn it on, the doorbell that wakes a scoped conversation when a claimed run goes red or settles, the chat panel's `odu mcp`, and what the watching costs.
-- [plugins/settings.md](plugins/settings.md) — vault policy: one Settings.olai file, schema defaults and a live reader whose publications the serve applies to rows.
-- [plugins/xyne-spaces.md](plugins/xyne-spaces.md) — the fleet in team chat: doorbell digests and trimmed orchestrator replies mirrored into a bound Xyne Spaces channel, a live working signal while a turn runs, watch-only (nothing comes back), env-held secrets and a `xyne-channel` property on the node agent.
-- [plugins/git.md](plugins/git.md) — the ledger as a row: what switching it off leaves (writes land, recorded by nobody, no pill), the vault policy (`commit` / `push`), and the sibling cells an agent reads.
-- [plugins/search.md](plugins/search.md) — the matcher as a row: what switching it off leaves (the grammar, the tool and every box still there, and every query answered with the reason), why it composes nothing on the wire, the bar's `lead` seat, and why the filter over a page is not on this row.
-- [plugins/ui-renderer.md](plugins/ui-renderer.md) — the browser-only Solid renderer, scope-owned locations, waiting contributions, conflict diagnostics and activation reporting.
-- [plugins/layout.md](plugins/layout.md) — the initial root contribution, its independence from server capabilities and the remaining Phase 18 extraction boundary.
-- [plugins/sidebar.md](plugins/sidebar.md) — the directory column and rail, their owned extension locations, and independent removal while content stays open.
-- [plugins/preferences.md](plugins/preferences.md) — the preferences UI and its owned extension location, independent of the state providers behind its controls.
-- [plugins/plugin-inspector.md](plugins/plugin-inspector.md) — switches, activation reports and retry UI over host-management services.
-- [plugins/theme.md](plugins/theme.md) — scoped appearance state, storage following, metadata cleanup, and its independent preferences integration.
-- [plugins/identity.md](plugins/identity.md) — who is looking as a row: what switching it off leaves (every request nobody, no chip, no `captured-by`), how the vault declares trusted header names, why the row composes nothing on the wire, and how an open tab follows reactivation.
-- [plugins/navigation.md](plugins/navigation.md) — addresses, history, pane focus and the command palette, independent of the layout.
-- [plugins/outlines.md](plugins/outlines.md) — outline pages, node editing, contextual commands and scoped property renderers.
-- [plugins/markdown.md](plugins/markdown.md) — document editing, frontmatter, headings and metadata without the outline renderer.
-- [plugins/files.md](plugins/files.md) — file browsing and creation controls, independent of vault file access.
-- [plugins/pins.md](plugins/pins.md) — the pinned shelf, ordering and contextual pin commands with independent activation.
-- [plugins/capture.md](plugins/capture.md) — inbox capture and its contributed palette prefix.
-- [plugins/trash.md](plugins/trash.md) — trash browsing, restoration and emptying.
-- [plugins/vault-plugins.md](plugins/vault-plugins.md) — discovery, approval and scoped activation of definitions in the vault.
-- [plugins/test-layout.md](plugins/test-layout.md) — an opt-in maintained layout fixture using the public navigation outlet.
-- [plugins/test-counter.md](plugins/test-counter.md) — an opt-in non-notebook fixture proving the host runs without a vault.
-- [dynamic-plugins.md](dynamic-plugins.md) — the other kind of plugin: one somebody writes INTO the served directory, as a node with a `plugin` property and its two halves in child notes, which olai compiles and mounts while it runs. What a half may import and what it may not, why the approval is a property on the plugin's own node and names a version, the three tools an agent gets and the two verbs it does not, and why the code runs with the server's authority.
+| Page | What it covers |
+| --- | --- |
+| [plugins/claude.md](plugins/claude.md) | Claude Code: the pinned adapter, `OLAI_ACP_AGENT`, subagent lanes, tool naming, and the model and server readout. |
+| [plugins/codex.md](plugins/codex.md) | Codex: the pinned adapter and CLI, `OLAI_ACP_CODEX`, full-access policy, and visible mode-selection failures. |
+| [plugins/opencode.md](plugins/opencode.md) | opencode: the PATH probe, `--cwd`, tool naming, and the three things this wire lacks. |
+| [plugins/pi.md](plugins/pi.md) | pi: `OLAI_ACP_PI`, the queued mid-turn message, and the bridge that gives pi olai's tools. |
 
-The development docs — the roadmap in the format itself, the decisions and why the alternatives lost, and the root-cause analyses — live in the orchestrator's own vault, [juspay/oss.olai](https://github.com/juspay/oss.olai), under its `olai/` folder:
+### Server and transport
 
-- [olai/roadmap/](https://github.com/juspay/oss.olai/tree/main/projects/olai/roadmap) — the plan, in the format itself.
-- [olai/brainstorming/](https://github.com/juspay/oss.olai/tree/main/projects/olai/brainstorming) — the decisions, and why the alternatives lost.
-- [olai/RCA/](https://github.com/juspay/oss.olai/tree/main/projects/olai/RCA) — root-cause analyses of things that went wrong.
+| Page | What it covers |
+| --- | --- |
+| [plugins/ws.md](plugins/ws.md) | The websocket the browser talks to the server over, registered on the shared listener. |
+| [plugins/mcp.md](plugins/mcp.md) | The MCP server, its activation lifetime, and session tickets. |
+| [plugins/web-app.md](plugins/web-app.md) | Serving the compiled browser app, independently of the websocket and MCP plugins. |
+| [plugins/vault.md](plugins/vault.md) | The directory, write gate, lock, and format config. |
+| [plugins/settings.md](plugins/settings.md) | Vault policy from one `Settings.olai` file. |
+| [plugins/identity.md](plugins/identity.md) | Who is looking: trusted header names and the `captured-by` chip. |
+| [plugins/git.md](plugins/git.md) | The commit ledger and its `commit` / `push` policy. |
+| [plugins/search.md](plugins/search.md) | The query matcher, and what still works when it is switched off. |
+| [plugins/vault-plugins.md](plugins/vault-plugins.md) | Discovery, approval, and activation of plugins defined in the vault. |
 
-The public site, [olai.kolu.dev](https://olai.kolu.dev), is the pitch; these pages are how to use it.
+### Integrations
+
+| Page | What it covers |
+| --- | --- |
+| [plugins/chat.md](plugins/chat.md) | The conversation as a row, the `chat-agent-session` kind, and the seats it reserves. |
+| [plugins/kolu.md](plugins/kolu.md) | Terminals from kolu: the Dock row, the live pane, the events feed, and the doorbell. |
+| [plugins/odu.md](plugins/odu.md) | CI from odu: the worktree chip, the run matrix, and the doorbell. |
+| [plugins/xyne-spaces.md](plugins/xyne-spaces.md) | Mirroring doorbell digests into a Xyne Spaces channel. |
+| [plugins/journal.md](plugins/journal.md) | The calendar, the day page, and the agenda of dated tasks. |
+
+### Browser UI
+
+| Page | What it covers |
+| --- | --- |
+| [plugins/ui-renderer.md](plugins/ui-renderer.md) | The Solid renderer and scope-owned extension locations. |
+| [plugins/layout.md](plugins/layout.md) | The root page layout: panels, header, banner, and viewer slots. |
+| [plugins/navigation.md](plugins/navigation.md) | Addresses, history, pane focus, and the command palette. |
+| [plugins/sidebar.md](plugins/sidebar.md) | The directory column and the rail beside it, and their extension slots. |
+| [plugins/outlines.md](plugins/outlines.md) | Outline pages, node editing, and contextual commands. |
+| [plugins/markdown.md](plugins/markdown.md) | Document editing, frontmatter, and headings. |
+| [plugins/files.md](plugins/files.md) | Browsing the served directory and creating new files from the UI. |
+| [plugins/pins.md](plugins/pins.md) | The pinned shelf in the sidebar: ordering and the pin commands. |
+| [plugins/capture.md](plugins/capture.md) | Quick capture into the inbox, and its command palette prefix. |
+| [plugins/trash.md](plugins/trash.md) | Browsing trashed nodes, restoring them, and emptying the trash. |
+| [plugins/preferences.md](plugins/preferences.md) | The preferences panel and the slot other plugins add controls to. |
+| [plugins/theme.md](plugins/theme.md) | Light and dark appearance, stored per browser and exposed in preferences. |
+| [plugins/plugin-inspector.md](plugins/plugin-inspector.md) | Plugin switches, activation reports, and retry. |
+
+### Test fixtures
+
+| Page | What it covers |
+| --- | --- |
+| [plugins/test-layout.md](plugins/test-layout.md) | An alternate shell using the public navigation outlet. |
+| [plugins/test-counter.md](plugins/test-counter.md) | A minimal plugin proving the host runs with no vault at all. |
+
+## For people working on olai
+
+Everything under `architecture/` is for developers.
+
+| Page | What it covers |
+| --- | --- |
+| [architecture/overview.md](architecture/overview.md) | How the packages fit together and why they are layered that way. |
+| [architecture/cordis.md](architecture/cordis.md) | The Cordis rules: declared dependencies, resource ownership, and safe removal. |
+| [architecture/plugin-system.md](architecture/plugin-system.md) | How plugins work: vocabulary, the three import doors, the shared websocket, and how a property gets its face. |
+| [architecture/slot-ownership.md](architecture/slot-ownership.md) | Which capability owns each extension location, and the registration lifecycle. |
+| [architecture/e2e-coverage.md](architecture/e2e-coverage.md) | Which user workflows the browser suite covers, and the gaps found. |
+| [architecture/e2e-economy.md](architecture/e2e-economy.md) | What the e2e suite consolidated, what overlap stayed, and the recorded cost. |
+
+Roadmap, decisions, and root-cause analyses live in the orchestrator's own vault, [juspay/oss.olai](https://github.com/juspay/oss.olai), under [olai/roadmap](https://github.com/juspay/oss.olai/tree/main/projects/olai/roadmap), [olai/brainstorming](https://github.com/juspay/oss.olai/tree/main/projects/olai/brainstorming), and [olai/RCA](https://github.com/juspay/oss.olai/tree/main/projects/olai/RCA).

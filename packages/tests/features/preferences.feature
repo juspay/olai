@@ -5,7 +5,7 @@ Feature: One place to set how this browser reads
   you press the control, and the panel answers "what did I just do" in the same
   gesture. The shape is kolu's settings popover; the backing store is
   deliberately not, because olai's preferences are client-local
-  (`docs/architecture.md`). Nothing here is a cell, nothing crosses a wire, and
+  (`docs/architecture/overview.md`). Nothing here is a cell, nothing crosses a wire, and
   nothing is committed.
 
   There is ONE door. The theme pill used to sit in the bar beside this trigger,

@@ -135,7 +135,7 @@ The reader asked to read their outlines, not to own port 7714. Every other liste
 
 ## Layering
 
-Depends on `acp`, `bundle`, `edit-intents`, `format`, `log`, `ops`, `plugin-api`, `plugin-build`, `sigterm`, `state`, `store` and `surface`, strictly downward. Nothing depends on this. No production source here imports a plugin implementation; the plugin packages in `devDependencies` are test-only contracts and fixtures. [docs/architecture.md](../../docs/architecture.md) has the reasoning — including what `listener.ts` kept when the sequence it used to spell out went upstream to `@kolu/surface-app`.
+Depends on `acp`, `bundle`, `edit-intents`, `format`, `log`, `ops`, `plugin-api`, `plugin-build`, `sigterm`, `state`, `store` and `surface`, strictly downward. Nothing depends on this. No production source here imports a plugin implementation; the plugin packages in `devDependencies` are test-only contracts and fixtures. [docs/architecture/overview.md](../../docs/architecture/overview.md) has the reasoning — including what `listener.ts` kept when the sequence it used to spell out went upstream to `@kolu/surface-app`.
 
 ## Running
 
