@@ -42,6 +42,25 @@ interface Row {
   readonly section: string
   readonly disabled: boolean
   readonly profiles: ReadonlyArray<string>
+  /** The first paragraph of `docs/plugins/<id>.md`, or `null` when there is none. */
+  readonly description: string | null
+  readonly doc: string | null
+}
+
+/** What a row is for, in the words its doc page opens with: the first
+ *  paragraph after the title, markdown links flattened to their text. */
+const describe = (id: string): { description: string | null; doc: string | null } => {
+  const doc = path.join("docs", "plugins", `${id}.md`)
+  if (!existsSync(path.join(ROOT, doc))) return { description: null, doc: null }
+  const lines = readFileSync(path.join(ROOT, doc), "utf8").split("\n")
+  const paragraph: Array<string> = []
+  for (const line of lines) {
+    if (line.startsWith("#")) continue
+    if (line.trim() === "") { if (paragraph.length > 0) break; continue }
+    paragraph.push(line.trim())
+  }
+  const text = paragraph.join(" ").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+  return { description: text === "" ? null : text, doc }
 }
 
 const rowsOf = (): ReadonlyArray<Row> => {
@@ -53,6 +72,7 @@ const rowsOf = (): ReadonlyArray<Row> => {
     section: String(row.section ?? ""),
     disabled: row.disabled === true,
     profiles: Array.isArray(row.profiles) ? row.profiles.map(String) : [],
+    ...describe(String(row.id)),
   }))
 }
 
@@ -382,6 +402,7 @@ const PAGE = /* html */ `<!doctype html>
   #side a { color: inherit; cursor: pointer; text-decoration: underline dotted; }
   #side .bad { color: #c53030; }
   #side .actions { margin: 8px 0; }
+  #side .about { margin: 8px 0 4px; }
   button { font: inherit; padding: 2px 8px; border: 1px solid var(--rule); border-radius: 4px; background: #fff; cursor: pointer; }
   .chip { display: inline-block; padding: 1px 6px; border: 1px solid var(--rule); border-radius: 10px; background: #f3f3f0; margin-right: 4px; }
   .chip a { cursor: pointer; color: var(--muted); }
@@ -556,6 +577,7 @@ const PAGE = /* html */ `<!doctype html>
     const owned = data.keys.filter((k) => k.owner === id)
     side.innerHTML = '<h2>' + esc(r.id) + (r.disabled ? ' <span class="muted">(disabled)</span>' : "") + '</h2>' +
       '<div class="muted">' + esc(r.name) + ' · ' + esc(r.section) + (r.profiles.length ? ' · profiles: ' + esc(r.profiles.join(", ")) : "") + '</div>' +
+      (r.description ? '<p class="about">' + esc(r.description) + ' <span class="muted">(' + esc(r.doc) + ')</span></p>' : '<p class="about muted">no docs/plugins page</p>') +
       '<div class="actions"><button data-focus="' + esc(id) + '">' + (focus === id ? "unfocus" : "focus") + '</button> <button data-hide="' + esc(id) + '">hide</button></div>' +
       '<h3>owns</h3>' + (owned.length ? '<ul>' + owned.map((k) => '<li><code>' + esc(k.name) + '</code> <span class="muted">' + k.kind + ' · by ' + k.ownerBy + '</span></li>').join("") + '</ul>' : '<p class="muted">no service key or location of its own</p>') +
       halfHtml("server", r.server) + halfHtml("browser", r.browser)
