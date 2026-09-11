@@ -17,14 +17,14 @@
       "type": "Git",
       "repository": {
         "type": "GitHub",
-        "owner": "srid",
+        "owner": "ekala-project",
         "repo": "ekapkgs"
       },
-      "branch": "add-olai-tools",
+      "branch": "master",
       "submodules": false,
-      "revision": "5aae695edfa4bb89465ee4ca927e3f5fba976915",
-      "url": "https://github.com/srid/ekapkgs/archive/5aae695edfa4bb89465ee4ca927e3f5fba976915.tar.gz",
-      "hash": "sha256-ECcPCjoDsNhANbn3kHYuKumLXelk7hbdMm71qWbXhz0="
+      "revision": "e1252ca5ae7d4d35fa3cd1d7d2a7d842298d59e2",
+      "url": "https://github.com/ekala-project/ekapkgs/archive/e1252ca5ae7d4d35fa3cd1d7d2a7d842298d59e2.tar.gz",
+      "hash": "sha256-AeH2edfOTISToIEr8n+18reILmmrvrbuWM43nibFmKY="
     },
     "kolu": {
       "type": "Git",

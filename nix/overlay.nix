@@ -1,7 +1,7 @@
 # Packages ekapkgs does not yet ship. Drop each overlay as the pin grows
 # the attribute. Hosted typefaces are vendored here (ekapkgs#5 may not
 # merge). Node is `pkgs.nodejs.v24`. Playwright is a FOD. ripgrep, npins
-# and nixpkgs-fmt come from the ekapkgs pin (ekapkgs#8).
+# and nixpkgs-fmt come from the ekapkgs pin.
 final: prev:
 let
   callFont = path: final.callPackage path { };
