@@ -2,6 +2,11 @@
 # intended API (EEP 0001) but is not on Darwin-capable master yet; mkDevShell's
 # inner constructor is mkDerivation, so env vars are derivation attrs rather
 # than nixpkgs mkShell's `env = { }`. `nix develop` is the entry.
+#
+# corepkgs defaults `__structuredAttrs = true`. mkDevShell is mkDerivation and
+# maps `packages` to `buildInputs`; `nix develop -c` then leaves those bins off
+# PATH (`just install` sees host bun, then `npm: command not found`). Classic
+# attrs plus shellHook PATH until corepkgs#155 toDevShell is on Darwin master.
 { pkgs }:
 let
   kolu = import ./nix/kolu.nix { inherit pkgs; };
@@ -11,9 +16,19 @@ let
   olaiFonts = import ./packages/fonts { inherit pkgs; };
   koluMark = import ./packages/plugins/kolu { inherit pkgs; };
   oduMark = import ./packages/plugins/odu { inherit pkgs; };
+  tools = with pkgs; [
+    bun
+    coreutils # bounded remote CI (`timeout` in e2e-fast-remote)
+    just
+    jq # scripts/check-hydrated-deps.sh — the one thing that reads a pin's JSON
+    nixpkgs-fmt
+    nodejs.v24
+    npins
+  ];
 in
 pkgs.mkDevShell {
   name = "olai-shell";
+  __structuredAttrs = false;
 
   # The @kolu/* sources, as the argv the hydrate script takes, and kolu's own
   # answer for the versions the dependency check asserts against. Both are read
@@ -119,13 +134,9 @@ pkgs.mkDevShell {
   # where the pinned bun reads the tree and a missing reader is not a thing that
   # can happen. Nothing in `scripts/` shells out to a searcher any more, so
   # there is nothing here to declare.
-  packages = with pkgs; [
-    bun
-    coreutils # bounded remote CI (`timeout` in e2e-fast-remote)
-    just
-    jq # scripts/check-hydrated-deps.sh — the one thing that reads a pin's JSON
-    nixpkgs-fmt
-    nodejs.v24
-    npins
-  ];
+  packages = tools;
+
+  shellHook = ''
+    export PATH="${pkgs.lib.makeBinPath tools}:$PATH"
+  '';
 }
