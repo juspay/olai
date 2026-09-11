@@ -840,11 +840,12 @@ _fast-remote leaf $watch_timeout:
       "$watch_timeout" \
       nix run .#odu --accept-flake-config -- run {{ leaf }} --platform x86_64-linux --no-strict
 
-# Full CI on the Linux fleet, through this tree's pinned Odu. This deliberately
-# keeps Odu's strict defaults: it snapshots clean, pushed HEAD and posts the
-# stable logical recipe contexts to GitHub. Shard workers and their duplicated
-# prerequisites remain visible in Odu without becoming GitHub contexts.
-[doc("Run full CI on the remote Linux fleet")]
+# Full CI on the Linux fleet and petit (aarch64-darwin), through this tree's
+# pinned Odu. This deliberately keeps Odu's strict defaults: it snapshots
+# clean, pushed HEAD and posts the stable logical recipe contexts to GitHub.
+# Shard workers and their duplicated prerequisites remain visible in Odu
+# without becoming GitHub contexts.
+[doc("Run full CI on the remote Linux fleet and petit Darwin")]
 ci:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -862,7 +863,8 @@ ci:
         *s) timeout_ms=$((${1%s} * 1000)) ;;
         *) timeout_ms=$1 ;;
       esac
-      nix run .#odu --accept-flake-config -- run --platform x86_64-linux --no-wait
+      nix run .#odu --accept-flake-config -- run \
+        --platform x86_64-linux --platform aarch64-darwin --no-wait
       exec nix run .#odu --accept-flake-config -- wait --settle --timeout-ms "$timeout_ms"
     ' bash "$watch_timeout"
 
