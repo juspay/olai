@@ -1230,6 +1230,10 @@ stable files through a generated catalog.
 
 ## See also
 
+- `just cordis-graph` — every row's two halves, their components, needs, offers
+  and location contributions, read off the sources and served as a clickable
+  graph. An edge from A to B means a component of A needs a service or location
+  B owns; the side panel names which, per component.
 - [`packages/bundle/README.md`](../../packages/bundle/README.md) — the same
   subject at implementation depth.
 - [architecture.md](overview.md) — how every package fits, plugins included.

@@ -217,7 +217,7 @@ The application shell is itself built from plugins:
 
 A shorter implementation is better only if the same things still own the same resources for the same lifetimes.
 
-Before accepting a refactor, list which owners, dependencies and lifetimes change, then re-check optional availability, cleanup order, single-owner claims and reconnection behavior.
+Before accepting a refactor, list which owners, dependencies and lifetimes change, then re-check optional availability, cleanup order, single-owner claims and reconnection behavior. `just cordis-graph` draws the current graph of rows, needs and owners from the sources, so the before and after can be compared by eye.
 
 | Change | Effect on ownership |
 | --- | --- |
