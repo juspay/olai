@@ -30,7 +30,7 @@
  */
 
 import type { ChatState } from "olai-plugin-chat/wire"
-import type { Notice } from "../../notify.ts"
+import type { Notice } from "olai-plugin-alerts/contract"
 import type { Asked } from "./asked.ts"
 import { previewText } from "../last.ts"
 

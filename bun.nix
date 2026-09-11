@@ -7631,6 +7631,7 @@
       hasInstallScript = false;
     };
   };
+  "olai-plugin-alerts" = copyPathToStore ./packages/plugins/alerts;
   "olai-plugin-capture" = copyPathToStore ./packages/plugins/capture;
   "olai-plugin-chat" = copyPathToStore ./packages/plugins/chat;
   "olai-plugin-claude" = copyPathToStore ./packages/plugins/claude;

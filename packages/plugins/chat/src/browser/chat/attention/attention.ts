@@ -1,3 +1,5 @@
+/** Mounted by chat’s attention component, which owns the circuit and names
+ * alerts.channel. The conversation survives the channel’s absence. */
 /**
  * The circuit: the chat cell on one side, a chime, a banner and a badge on the
  * other, and {@link ./alarm.ts}'s two-line rule in between.
@@ -23,7 +25,7 @@
  * the ask ROW and only then moves the cell — and when the panel is shut there
  * is no snapshot at all, which the banner says rather than guesses.
  *
- * MOUNTED FROM `../Panel.tsx`, which is drawn open or minimized and never
+ * Originally MOUNTED FROM `../Panel.tsx`, which is drawn open or minimized and never
  * absent, so this lives as long as the app does. Deliberately not in
  * `main.tsx` beside the document-lifetime followers: it is a reader of a
  * SUBSCRIPTION, and the panel is what owns the panel's subscriptions.
@@ -45,12 +47,9 @@ import { type Accessor, createEffect, onCleanup, untrack } from "solid-js"
 
 import type { ChatState } from "olai-plugin-chat/wire"
 import { calledApp } from "../../deployment.ts"
-import { notify, onNotifyPress } from "../../notify.ts"
-import { useAlerts } from "../../alerts.ts"
+import { useChannel } from "../../channel.ts"
 import { type Awaiting, alarmFor } from "./alarm.ts"
 import { askPending } from "./asked.ts"
-import { createBadge } from "./badge.ts"
-import { createChime } from "./chime.ts"
 import { noticeOf } from "./notice.ts"
 import { reveal } from "./reveal.ts"
 import { createWatching } from "./watching.ts"
@@ -61,21 +60,16 @@ import { createWatching } from "./watching.ts"
  */
 export const createAttention = (state: Accessor<ChatState>): void => {
   const watching = createWatching()
-  const alerts = useAlerts()
-  const wear = createBadge(alerts.setTabWaiting)
+  const alerts = useChannel()
+  const { wear, notify, onPress: onNotifyPress } = alerts
   onCleanup(() => wear(0))
-
-  // The first gesture this page gets opens the audio context — the platform's
-  // rule, not ours ({@link ./chime.ts}).
-  const sound = createChime()
-  onCleanup(sound.dispose)
 
   // A press of a banner is not a render, so it is routed here rather than in a
   // component: `reveal` opens the panel and leaves the question for the
   // transcript to take up when it mounts ({@link ./reveal.ts}). It covers the
   // cold start too — a press that had to OPEN this window carries its payload
   // in the URL, and the seam hands it over at startup.
-  onCleanup(onNotifyPress(() => reveal()))
+  onCleanup(onNotifyPress("ask", reveal))
 
   // A FOLD over the readings, which is what this is: the effect is handed the
   // last one it took and answers with this one, so "did something ARRIVE" can
@@ -86,13 +80,9 @@ export const createAttention = (state: Accessor<ChatState>): void => {
     const now = state()
     const here: Awaiting = { count: now.asking, watched: watching() }
     const alarm = alarmFor(was, here)
-    // Alerts off is off for all three devices, and the icon is put BACK rather
-    // than left wearing the last count: a preference switched off has to be
-    // able to clear what it was doing.
-    const on = alerts.alertsOn()
-    wear(on ? alarm.badge : 0)
-    if (on && alarm.alert) {
-      if (alerts.alertSoundOn()) sound.chime()
+    wear(alarm.badge)
+    if (alarm.alert) {
+      alerts.chime()
       // UNTRACKED, and both halves of that matter. The words are taken NOW
       // rather than on the far side of the permission round trip, because what
       // a notification is ABOUT must not be re-read after it was raised. And

@@ -66,10 +66,12 @@ test("policy defaults belong to schemas; no YAML row carries config", () => {
   for (const row of ROWS) expect(row).not.toHaveProperty("config")
 })
 
-test("the chat row is on by default, and reads first", () => {
+test("alerts precedes its consumers, and chat is on by default", () => {
   expect(DEFAULT_BUNDLE_NAMES).toContain("chat")
   expect(ROWS.find((row) => row.id === "chat")?.disabled).toBeUndefined()
-  expect(ROWS[0]?.id).toBe("chat")
+  expect(ROWS[0]?.id).toBe("alerts")
+  expect(DEFAULT_BUNDLE_NAMES).toContain("alerts")
+  expect(ROWS.find(row => row.id === "alerts")?.browserOnly).toBe(true)
   // ...and an omitted flag leaves it that way, which is the other half: the
   // default is what a person gets by typing nothing.
 })

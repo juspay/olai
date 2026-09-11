@@ -1,3 +1,5 @@
+/** Moved from chat when journal became a second consumer. The alerts row
+ * owns the channel; consumers acquire alerts.channel on their components. */
 /**
  * The mark that STAYS: the app's icon says the agent is waiting on you, and it
  * goes on saying it until you look.

@@ -68,6 +68,7 @@ The four ACP agents the chat panel can run. What a conversation is, for all of t
 | [plugins/pins.md](plugins/pins.md) | The pinned shelf in the sidebar: ordering and the pin commands. |
 | [plugins/capture.md](plugins/capture.md) | Quick capture into the inbox, and its command palette prefix. |
 | [plugins/trash.md](plugins/trash.md) | Browsing trashed nodes, restoring them, and emptying the trash. |
+| [plugins/alerts.md](plugins/alerts.md) | Notification permission, sound and badges owned by a tab-only channel row. |
 | [plugins/preferences.md](plugins/preferences.md) | The preferences panel and the slot other plugins add controls to. |
 | [plugins/theme.md](plugins/theme.md) | Light and dark appearance, stored per browser and exposed in preferences. |
 | [plugins/plugin-inspector.md](plugins/plugin-inspector.md) | Plugin switches, activation reports, and retry. |

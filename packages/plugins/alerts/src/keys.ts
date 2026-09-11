@@ -1,3 +1,5 @@
+/** Moved from chat when journal became a second consumer. The alerts row
+ * owns the channel; consumers acquire alerts.channel on their components. */
 /** Persisted key compatibility for the browser test surface. Runtime state and
  * observers belong to chat's independently scoped alert provider. */
 export const ALERTS_KEY = "olai.alerts"

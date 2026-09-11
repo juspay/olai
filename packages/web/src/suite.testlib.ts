@@ -116,7 +116,7 @@ export { BROWSER_MODULES_ID } from "@olai/plugin-api/mount"
 //   - `Making`, `MAKING_DOCUMENT` and `MAKING_OUTLINE` are
 //     `olai-plugin-files/making`'s — what a minting door is called is the
 //     door's;
-//   - `ALERT_SOUND_KEY` and `ALERTS_KEY` are `olai-plugin-chat/alert-keys`' —
+//   - `ALERT_SOUND_KEY` and `ALERTS_KEY` are `olai-plugin-alerts/keys`' —
 //     the panel stores them, so the panel names them;
 //   - `SIDEBAR_WIDTH_KEY` is `olai-plugin-layout/preferences`' — the chrome
 //     that draws the sidebar is the chrome that remembers its width;

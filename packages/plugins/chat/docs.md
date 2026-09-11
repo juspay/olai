@@ -61,7 +61,6 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 | `outline.row.door` | `outlines` — where under a property run a door is drawn | the agent's row, drawn only where there is one |
 | `outline.row.action` | `outlines` — the menu's order and its dividers | *Ask agent*, and one *Start an agent session* per installed engine |
 | `app.command` | `navigation` — the palette's box, its prefix strip, where a refusal is drawn | `>`, and what it sends |
-| `preferences.sections` | `preferences` — the panel and the shape of a row | the alert controls |
 
 Two slots go the other way — chat is the *reader*. An engine plugin hangs its install sentence on `engine.install` and any plugin hangs the mark its delivered sentences wear on `delivery.mark`; the panel draws both, and composes no word of either.
 
@@ -90,11 +89,12 @@ The second is the one to reach for by habit. The first is a deployment's word, o
 
 The browser activation owns one agent roster and conversation reading. Its panel, header, sidebar and row-door contributions provide that same roster only to their own children; row commands close over the scoped reading. Chat no longer wraps the application to provide state, so switching it off leaves surviving outline and document editor instances intact. Agent-list callbacks from a departed activation cannot trigger another lookup.
 
-Notification permission state and service-worker click listeners belong to the
-chat alerts provider. Withdrawal detaches permission observers and prevents a
-pending permission request from delivering an old notification; reactivation
-reads the browser's current permission. Each mounted attention circuit also
-owns its first-gesture listeners and audio context, closing them when it leaves.
+Chat's `attention` component names `alerts.channel` and owns the conversation
+fold, watching listeners, cross-tab beat and question press subscription. It
+releases them and clears its badge claim when it leaves. The [alerts row](alerts.md)
+owns permission, notification listeners, preferences, audio and badge devices.
+With that row absent, attention waits; the conversation, forms and header toggle
+continue to work.
 
 Session settings close and remain disabled while a send is awaiting acceptance,
 including before the server's working-state update arrives. The pending count

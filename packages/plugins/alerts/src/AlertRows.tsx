@@ -1,12 +1,14 @@
-import { TESTID } from "olai-plugin-chat/testids"
+/** Moved from chat when journal became a second consumer. The alerts row
+ * owns the channel; consumers acquire alerts.channel on their components. */
+import { TESTID } from "./testids.ts"
 /** Chat owns both controls; preferences only supplies their location. */
 import { Show } from "solid-js"
-import { askToNotify, notifyConsent } from "./notify.ts"
+import type { Channel } from "./contract.ts"
 import { Row } from "@olai/ui-primitives/SettingRow.tsx"
 import { Segmented } from "@olai/ui-primitives/Segmented.tsx"
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 
-import { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } from "./alerts.ts"
+
 
 /** Off / On, for both alert rows — being told, and being told AUDIBLY. One
  *  constant because they are the same pair and a second name for it is a
@@ -16,7 +18,8 @@ const ALERT_CHOICES = [
   { value: "on", label: "On" },
 ] as const
 
-export function AlertRows() {
+export function AlertRows(props: { readonly channel: Channel }) {
+  const { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } = props.channel
   return <>
       {/* THE AGENT'S TWO ROWS, and they are here for the same test the
           reader's rows meet: "tell me when the agent stops on me" is a claim
@@ -28,7 +31,7 @@ export function AlertRows() {
           make turning the chime off cost the banner too. Sound is drawn under
           Alerts and reads as its second half; with alerts off it is frozen
           rather than hidden, so what it would be is still on screen. */}
-      <Row label="Alerts" pref="alerts" hint={alertsHint()} under={<AllowNotify />}>
+      <Row label="Alerts" pref="alerts" hint={alertsHint(props.channel)} under={<AllowNotify channel={props.channel} />}>
         <Segmented
           choices={ALERT_CHOICES}
           value={alertsOn() ? "on" : "off"}
@@ -36,7 +39,7 @@ export function AlertRows() {
         />
       </Row>
 
-      <Row label="Alert sound" pref="alert-sound" hint={soundHint()}>
+      <Row label="Alert sound" pref="alert-sound" hint={soundHint(props.channel)}>
         <Segmented
           choices={ALERT_CHOICES}
           value={alertSoundOn() ? "on" : "off"}
@@ -66,7 +69,8 @@ export function AlertRows() {
  * that has neither granted nor refused. A button offering to ask a question
  * that has been answered is a control with nothing to do.
  */
-function AllowNotify() {
+function AllowNotify(props: { readonly channel: Channel }) {
+  const { alertsOn, consent: notifyConsent, ask: askToNotify } = props.channel
   return (
     <Show when={alertsOn() && notifyConsent() === "default"}>
       <button
@@ -84,7 +88,7 @@ function AllowNotify() {
   )
 }
 
-const alertsHint = (): string => {
+const alertsHint = ({ alertsOn, consent: notifyConsent }: Channel): string => {
   if (!alertsOn()) {
     return "A question from the agent arrives silently. The header button still " +
       "shows it."
@@ -106,7 +110,7 @@ const alertsHint = (): string => {
 /** What the sound row in force means — and, with alerts off, why it is inert
  *  rather than absent: the choice is still on screen, it just has nothing to
  *  be about. */
-const soundHint = (): string => {
+const soundHint = ({ alertsOn, alertSoundOn }: Channel): string => {
   if (!alertsOn()) return "Alerts are off, so nothing will sound."
   return alertSoundOn()
     ? "A short chime with each notification. The first plays only after you " +

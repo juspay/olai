@@ -1,3 +1,5 @@
+/** Moved from chat when journal became a second consumer. The alerts row
+ * owns the channel; consumers acquire alerts.channel on their components. */
 /**
  * One short chime — two notes, a third of a second, and no file.
  *

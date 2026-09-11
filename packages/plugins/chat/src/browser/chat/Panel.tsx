@@ -70,7 +70,6 @@ import { LAYER, WITHIN } from "@olai/web/client/layer.ts"
 import { TESTID } from "../../testids.ts"
 import { ICON_BUTTON } from "@olai/web/client/readout.ts"
 import { createAsked } from "./attention/asked.ts"
-import { createAttention } from "./attention/attention.ts"
 import { Choose } from "./Choose.tsx"
 import { Composer } from "./Composer.tsx"
 import { DropTarget } from "./DropTarget.tsx"
@@ -98,7 +97,6 @@ export function Panel() {
   // arriving behind a minimized panel is the case it exists for, and a circuit
   // inside the open dock would go quiet exactly then. It costs the cheap chat
   // cell and no transcript (`./attention/attention.ts`).
-  createAttention(createChatState())
   return (
     <>
       <Show when={panelOpen()}>

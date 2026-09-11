@@ -452,7 +452,7 @@ That counts ANOTHER TAB of the same olai, too. Two tabs are two documents and on
 
 **A turn merely FINISHING is silent, on purpose.** An agent that has finished will still have finished in five minutes; a chime for every turn is a chime people switch off, and it would take the one that matters with it.
 
-Two rows in **preferences** decide all of this — **Alerts**, and **Alert sound** beneath it — and both start ON. They are two rows rather than one because they are two questions: turning the chime off in a quiet office should not also cost you the notification. Turning Alerts off silences all three, and puts the icon back.
+Two rows owned by the **alerts** plugin in **preferences** decide all of this — **Alerts**, and **Alert sound** beneath it — and both start ON. They are two rows rather than one because they are two questions: turning the chime off in a quiet office should not also cost you the notification. Turning Alerts off silences all three, and puts the icon back.
 
 The notification is the one part that needs the browser's permission. olai asks for it the first time it actually has something to tell you, which is when the question in the prompt is about something real; if your browser only allows that prompt after a click, the Alerts row carries an **Allow notifications** button. Refuse it and the chime and the icon mark go on working — neither needs permission.
 

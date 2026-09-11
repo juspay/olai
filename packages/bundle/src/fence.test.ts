@@ -747,7 +747,7 @@ describe("only the registry knows a plugin's name", () => {
       "tests/step_definitions/identity_steps.ts: olai-plugin-identity/who",
       "tests/step_definitions/new_file_steps.ts: olai-plugin-files/making",
       "tests/step_definitions/panel_steps.ts: olai-plugin-layout/preferences",
-      "tests/step_definitions/preferences_steps.ts: olai-plugin-chat/alert-keys",
+      "tests/step_definitions/preferences_steps.ts: olai-plugin-alerts/keys",
       "tests/step_definitions/preferences_steps.ts: olai-plugin-outlines/testlib",
       "tests/support/hooks.ts: olai-plugin-kolu/appliance/testlib",
       "tests/support/world.ts: olai-plugin-chat/testlib",
@@ -1735,13 +1735,14 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * claim can fail in are not symmetric.
    */
   const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = {
+    // Consumer variables for the declared alerts channel.
+    "alerts": ["plugins/chat/src/browser.tsx", "plugins/chat/src/browser/chat/attention/attention.ts"],
     // Generic configuration fields and service contracts share this word.
     "settings": [
       "plugin-api/src/configuration.ts",
       "plugin-api/src/services.ts",
       "plugins/chat/src/agent.ts",
       "plugins/chat/src/agents/settings.ts",
-      "plugins/chat/src/browser/alerts.ts",
       "plugins/chat/src/browser/chat/Header.tsx",
       "plugins/chat/src/browser/chat/Model.tsx",
       "plugins/chat/src/chat.ts",
