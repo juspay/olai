@@ -840,13 +840,12 @@ _fast-remote leaf $watch_timeout:
       "$watch_timeout" \
       nix run .#odu --accept-flake-config -- run {{ leaf }} --platform x86_64-linux --no-strict
 
-# Full CI on the Linux fleet and petit (aarch64-darwin), through this tree's
-# pinned Odu. This deliberately keeps Odu's strict defaults: it snapshots
-# clean, pushed HEAD and posts the stable logical recipe contexts to GitHub.
-# Shard workers and their duplicated prerequisites remain visible in Odu
-# without becoming GitHub contexts.
-[doc("Run full CI on the remote Linux fleet and petit Darwin")]
-ci:
+# Full CI through this tree's pinned Odu. One `odu run`. Default is the
+# Linux fleet; `just ci macos` adds petit (`aarch64-darwin`) on the same
+# run. Strict defaults: snapshot clean pushed HEAD, post logical recipe
+# contexts to GitHub. Shard workers stay in Odu, not as GitHub contexts.
+[doc("Run full CI (Linux fleet; `just ci macos` also petit Darwin)")]
+ci extra="":
     #!/usr/bin/env bash
     set -euo pipefail
     # `odu run` waits with its own short default (~3 min, `settled ·
@@ -855,6 +854,7 @@ ci:
     # prints a snapshot and exits 2). just `env()` because nix develop
     # drops `${ODU_CI_TIMEOUT}`.
     watch_timeout="{{ env('ODU_CI_TIMEOUT', '15m') }}"
+    extra="{{ extra }}"
     exec {{ nix_shell }} bash -c '
       set -euo pipefail
       case $1 in
@@ -863,23 +863,17 @@ ci:
         *s) timeout_ms=$((${1%s} * 1000)) ;;
         *) timeout_ms=$1 ;;
       esac
-      odu=(nix run .#odu --accept-flake-config --)
-      wait_settle() { "${odu[@]}" wait --settle --timeout-ms "$timeout_ms"; }
-      # Linux can fan the check graph across six kolu hosts. petit is one
-      # aarch64-darwin box: the same fan-out drops odu-runner keep-alive
-      # (nix sqlite busy, load 60). Linux first, then one Darwin recipe
-      # (plus its just deps) per run.
-      "${odu[@]}" run --platform x86_64-linux --no-wait
-      wait_settle
-      # Each Darwin recipe is its own run so petit is not fanned. Do NOT
-      # pass --no-deps: typecheck/test/e2e need `install` in the same
-      # worktree (`tsc: command not found` otherwise).
-      for recipe in fmt-check bun-nix-fresh hm-module kolu-deps odu-deps \
-                    odu-surface cordis-deps nix typecheck test e2e; do
-        "${odu[@]}" run "${recipe}@aarch64-darwin" --no-wait
-        wait_settle
-      done
-    ' bash "$watch_timeout"
+      extra=$2
+      platforms=(--platform x86_64-linux)
+      if [[ "$extra" == macos ]]; then
+        platforms+=(--platform aarch64-darwin)
+      elif [[ -n "$extra" ]]; then
+        echo "just ci: unknown extra '$extra' (only macos)" >&2
+        exit 2
+      fi
+      nix run .#odu --accept-flake-config -- run "${platforms[@]}" --no-wait
+      exec nix run .#odu --accept-flake-config -- wait --settle --timeout-ms "$timeout_ms"
+    ' bash "$watch_timeout" "$extra"
 
 # Format the *.nix files
 [doc("Format repository Nix files")]
