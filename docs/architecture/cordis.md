@@ -1,348 +1,249 @@
 # Cordis in Olai: dependencies, ownership and removal
 
-Olai should let a plugin stop or be replaced without leaving its work running,
-using a departed service, or disturbing unrelated plugins. Cordis provides the
-composition model; Olai's Effect bridge, services and plugin implementations
-must make that promise real. This guide expands the Cordis adherence rule in
-[CLAUDE.md](../../CLAUDE.md), also exposed through the `AGENTS.md` symlink.
+A plugin must be able to stop or be replaced without leaving work running, without using a service that has already left, and without disturbing unrelated plugins.
 
-This guide explains the architecture established through [PR #554](https://github.com/juspay/olai/pull/554)
-and [PR #557](https://github.com/juspay/olai/pull/557), including the mistakes
-caught during review. It describes the merged design, not a claim of formal
-verification or a plan for future routing and layout changes.
+- Expands the Cordis adherence rule in [CLAUDE.md](../../CLAUDE.md), also exposed through the `AGENTS.md` symlink.
+- Describes the merged design of [PR #554](https://github.com/juspay/olai/pull/554) and [PR #557](https://github.com/juspay/olai/pull/557), including mistakes caught in review.
+- Not a claim of formal verification, and not a plan for future routing or layout changes.
 
-- [The principle, in ordinary terms](#the-principle-in-ordinary-terms)
-- [Imports are not live dependencies](#imports-are-not-live-dependencies)
-- [Choose the owner before the helper](#choose-the-owner-before-the-helper)
-- [Optional features need an explicit design](#optional-features-need-an-explicit-design)
-- [Stopping is a protocol](#stopping-is-a-protocol)
-- [Acquisition and external effects](#acquisition-and-external-effects)
-- [Browser state and reconnection](#browser-state-and-reconnection)
-- [Refactors, enforcement and evidence](#refactors-enforcement-and-evidence)
+Sections: [principle](#the-principle) · [imports](#imports-are-not-live-dependencies) · [owners](#choose-the-owner-before-the-helper) · [optional features](#optional-features) · [stopping](#stopping-is-a-protocol) · [acquisition](#acquisition-and-external-effects) · [browser state](#browser-state-and-reconnection) · [refactors](#refactors-enforcement-and-evidence)
 
-## The principle, in ordinary terms
+## The principle
 
-The [Cordis paper](https://arxiv.org/abs/2608.25512) separates two concerns:
-**spatial composability**, declaring and reactively managing dependencies, and
-**temporal composability**, undoing a component's effects when it leaves.
-An effect registers a change and its inverse; a coeffect describes what a
-component needs from its context. Together they explain when a component may
-run and what must happen when it stops.
+The [Cordis paper](https://arxiv.org/abs/2608.25512) splits composition into two questions: what a component needs to start, and what must be undone when it stops.
 
-In Olai, imagine chat using outline references. Chat's reference integration
-needs the outline-reference service. If outlines leaves, that integration
-stops and releases its reading. Chat's unrelated conversations need not stop.
-When the service returns, the integration acquires the new value.
-
-The useful question is therefore not just “is this code in a plugin?” It is:
-**who owns this value or work, who depends on it, and what happens when either
-side leaves?**
-
-Some vocabulary used in the code:
-
-| Term | Meaning in Olai |
+| Concept | Plain meaning |
 | --- | --- |
-| Plugin row | A selectable bundle entry, potentially containing several components. |
-| Component | A separately activated integration with its own declared needs. |
-| Activation | One run of that component, with its acquired values and cleanup. A restart creates a new one. |
-| Service | A named capability supplied by an owner and acquired through declared dependencies. |
-| Scope | The lifetime that records cleanup and joins its owned work. |
-| Contract door | A public package export permitted for other packages to import. Export permission alone does not establish ownership. |
-| Broker | An owned service whose contract deliberately handles changing availability behind it. |
+| Spatial composability | Declaring what a component needs, and starting or stopping it as those things appear and disappear. |
+| Temporal composability | Undoing a component's changes when it stops. |
+| Effect | A change plus the function that reverses it, registered together. |
+| Coeffect | Something the component needs from its surroundings in order to run. |
 
-The layers have different jobs:
+Worked example. Chat can show references to outline items, and that part of chat needs the outline-reference service. When outlines stops, chat's reference feature stops and drops the value it held, while chat's normal conversations keep running because they never needed outlines. When outlines starts again, the reference feature starts again and takes the new value.
+
+So the question is not "is this code inside a plugin?" It is: who owns this value or this running work, who depends on it, and what happens when either side stops?
+
+Words used here and in the code:
+
+| Term | Plain meaning |
+| --- | --- |
+| Plugin row | One selectable entry in the bundle, such as "vault". It may contain several components. |
+| Component | One independently started part of a row, with its own list of things it needs. |
+| Activation | One run of a component, holding the values it acquired and their cleanup. Restarting makes a new activation. |
+| Service | A named capability one plugin supplies and others receive by declaring they need it, such as `vault.files`. |
+| Scope | A lifetime object. Cleanup is registered on it; closing it runs that cleanup and waits for the work it owns. |
+| Acquire | Take hold of a value for a stated lifetime and arrange its release in the same step. |
+| Owner | The thing whose departure should end a resource or a piece of work, such as an activation or an open pane. |
+| Helper | Shared code that is not an owner: a factory, a registry, or a holder that stores a value for a component. |
+| Contract door | A public package subpath others may import, such as `olai-plugin-vault/file-state`. Being importable is not owning. |
+| Broker | A service that stays available while the things behind it come and go, and states what happens when they are absent or replaced. |
+| Face | A piece of UI a plugin contributes to a named place in the app. |
+| Location | A named place in the UI where contributions mount, such as `app.banner`. Also called a slot. |
+| Withdrawal | Removing a contribution from a location and releasing everything it acquired. |
 
 | Layer | Responsibility |
 | --- | --- |
-| [Cordis](https://github.com/cordiverse/cordis) | Dependency resolution, readiness and reactive component activation. |
-| [Effect bridge](../../packages/effect-cordis/README.md) | Olai's scoped initialization, interruption, dispatch and teardown coordination. |
-| [Plugin API](../../packages/plugin-api/README.md) | Olai's capability contracts and composition interfaces. |
-| Bundle and hosts | Select implementations and provide host-owned capabilities. |
-| Plugins | Implement features, declare their needs and supply correct cleanup. |
+| [Cordis](https://github.com/cordiverse/cordis) | Resolves dependencies, decides readiness, starts and stops components as dependencies change. |
+| [Effect bridge](../../packages/effect-cordis/README.md) | Olai's glue to Effect: scoped startup, interruption, dispatch, teardown ordering. |
+| [Plugin API](../../packages/plugin-api/README.md) | The capability contracts and composition interfaces plugins program against. |
+| Bundle and hosts | Pick which implementations run, and supply host-owned capabilities. |
+| Plugins | Implement features, declare what they need, provide correct cleanup. |
 
-A recorded cleanup action is not proof that it correctly reverses the change.
-Neither Cordis nor the bridge can establish that arbitrary application writes
-are safe to interleave. Those remain obligations of the implementation.
+Registering a cleanup function does not prove it reverses the change. Neither Cordis nor the bridge can decide whether two pieces of application code are safe to interleave. Both stay the implementer's job.
 
 ## Imports are not live dependencies
 
-A plugin may import another plugin's **static contract**. For example:
+Importing a module from another plugin gives you its code. It does not give you that plugin's current state and does not keep it running.
 
 ```ts
 import type { Directory } from "olai-plugin-vault/file-state"
 ```
 
-This describes a value; it neither obtains the current directory nor keeps the
-vault alive. Pure functions, service keys and inert lookup tables can also be
-valid imports. A runtime import is not automatically a lifecycle dependency.
+| Import | Verdict | Why |
+| --- | --- | --- |
+| Types and other static contracts | Safe | They describe a value's shape. Importing one fetches nothing and keeps nothing alive. |
+| Pure functions, service keys, inert lookup tables | Safe | No live activation state sits behind them. |
+| A module-level variable holding the current directory | Not safe | A consumer could read one activation's state without declaring it needs the vault. |
+| Adding a separate "ready" service to compensate | Not safe | Cordis must hand over the capability itself, not just announce it exists. |
+| Moving a shared mutable table into a utility package | Not safe | Changing where state lives does not give it an owner. |
+| Importing browser composition internals to see what others mounted | Not safe | Contributions are read through the declared `Faces` or renderer services. |
 
-By contrast, exporting a module variable containing the current directory
-would let consumers read an activation's state without declaring that they
-need its owner. A separate “ready” service does not repair this: Cordis must
-mediate access to the actual capability, not merely its announcement.
+Rules:
 
-Olai's pattern is to declare `vault.files`, receive its value in the consuming
-activation, and release any retained reference with that activation. See
-[capture's browser integration](../../packages/plugins/capture/src/browser.tsx)
-and the [vault contract](../../packages/plugins/vault/src/contract.ts).
-
-This rule applies across **package boundaries**, including general packages
-such as `@olai/web`; it is not confined to plugin-to-plugin imports. Moving a
-shared mutable table into a utility package does not give it an owner.
-
-Likewise, consumers read contributions through declared `Faces` or renderer
-services. They do not import private browser composition machinery to discover
-what other plugins mounted. `Faces` reads contributions in bundle order, with
-the rank supplied once by the host, so consumers agree on that order. Package
-exports restrict access, while declared services establish the lifetime
-relationship.
+- Declare `vault.files`, receive its value inside the consuming activation, drop the reference when that activation ends. See [capture's browser integration](../../packages/plugins/capture/src/browser.tsx) and the [vault contract](../../packages/plugins/vault/src/contract.ts).
+- This applies at every package boundary, including general packages such as `@olai/web`, not only plugin-to-plugin imports.
+- `Faces` returns contributions in bundle order. The host supplies the rank once, so every consumer sees the same order.
+- Package exports control who may import; declared services control who stays alive for whom. Only the second is a lifetime relationship.
 
 ## Choose the owner before the helper
 
-The owner is the entity whose departure should end the resource or work. It
-might be a host, plugin activation, integration component, node session,
-rendered pane or individual operation. The broadest available scope is often
-the wrong one: a terminal observer should end when its pane closes, not merely
-when its entire plugin eventually stops.
+Decide whose departure should end a resource, then build the shared helper around that decision.
 
-Two examples distinguish reusable implementation from shared live state:
+- An owner can be a host, an activation, one component, a node session, an open pane, or a single operation.
+- The widest available lifetime is usually wrong. A terminal observer should end when its pane closes, not when the plugin stops much later.
 
-- Each browser app receives its own `Edits` registry. Two apps must not route
-  edits through one module-global table. See [the browser host](../../packages/plugin-api/src/browser.ts).
-- Each vault setup creates its own optional ledger/search table through
-  `openViews()`. Starting a second host must not replace the first host's
-  providers. See [VaultViews](../../packages/plugins/vault/src/views.ts).
+| Case | Rule | Example |
+| --- | --- | --- |
+| Reusable implementation | A factory may cross a package boundary if each caller gets its own independent state. | [heldWrites](../../packages/web/src/client/writes.ts), [heldFiles](../../packages/plugins/vault/src/browser/state.ts) |
+| Per-app state | Each browser app gets its own `Edits` registry. Two apps must not route edits through one module-level table. | [browser host](../../packages/plugin-api/src/browser.ts) |
+| Per-setup state | Each vault setup builds its own optional ledger and search tables with `openViews()`. A second host must not overwrite the first host's providers. | [VaultViews](../../packages/plugins/vault/src/views.ts) |
 
-A factory can safely cross a package boundary while allocating independent
-state for each caller. The shared [heldWrites](../../packages/web/src/client/writes.ts)
-and [heldFiles](../../packages/plugins/vault/src/browser/state.ts) factories
-replace duplicated algorithms; their private consumers still create separate
-holders. Neither factory locates a service on the caller's behalf.
+Holders, meaning small objects that store an acquired service for a component:
 
-The consumer keeps its own hold on the service it acquired; it does not reach
-into a provider-owned holder. A holder is a convenience for reaching that
-value, not an alternative to declaring the dependency. Its release must
-remove **its own installation**, without clearing a later installation. Olai's
-[heldService](../../packages/ui-primitives/src/held.ts) uses a fresh token per
-hold: comparing service values alone is insufficient when two activations can
-hold the same object.
+- Those factories remove duplicated code only. Each private consumer still creates its own holder, and no factory looks up a service for the caller.
+- A consumer stores what it acquired in its own holder. It never reads a holder belonging to the provider.
+- A holder is a convenient place to keep a value, not a substitute for declaring that you need the service.
+- Releasing a holder must remove only the value that hold installed, never a later one. [heldService](../../packages/ui-primitives/src/held.ts) stores a fresh token per hold, because two activations can hold the same object and comparing values cannot tell them apart.
+- Tokens still do not let two independent consumers share one holder. Navigation's renderer and palette stop at different times, so each needs its own `heldFaces` holder; sharing one would leave the survivor with no value even though cleanup ran correctly. See [navigation's holders](../../packages/plugins/navigation/src/faces.ts).
 
-Tokens also do not make one slot suitable for two independent consumers.
-Navigation's renderer and palette needed separate `heldFaces` holders because
-they stop independently. Correct cleanup of one shared slot could still leave
-the surviving consumer with nothing. See [navigation's holders](../../packages/plugins/navigation/src/faces.ts).
+## Optional features
 
-## Optional features need an explicit design
+When a feature is optional, pick one of three designs instead of adding every reachable service to a row's mandatory `needs`.
 
-Adding every reachable service to a row's mandatory `needs` is not the goal.
-The vault must work without git; MCP must work without a vault. Three designs
-cover different relationships:
+The vault must work when git is absent. MCP must work when the vault is absent.
 
 | Relationship | Design |
 | --- | --- |
-| An integration cannot run without a service | Declare it on that component. Keep independent work outside that component. |
-| Optional providers can register into their consumer | Give the consumer an owned registration service, as with `VaultViews`. |
-| The consumer must stay available while backing providers change | Use a narrow, declared broker with explicit absence and replacement behavior, as with `Served` or `Wired`. |
+| An integration cannot run without a service | Declare it on that component. Put work that does not need it in a different component. |
+| Optional providers add themselves to their consumer | Give the consumer a registration service it owns, as `VaultViews` does. |
+| The consumer must stay usable while the things behind it change | Use a narrow declared broker that states its absence and replacement behavior, as `Served` and `Wired` do. |
 
-When a row must remain useful without an integration, a separate component
-can express that integration. When the row itself must keep operating with
-optional backing providers, use registration or a broker rather than making
-those providers mandatory.
+- If a row must stay useful without an integration, put that integration in its own component so the rest can start without it.
+- If the row must keep running while optional providers come and go, use registration or a broker, not mandatory needs.
+- A general service locator hides the real dependency graph even when the locator is declared. A broker is acceptable because it exposes one specific capability and owns the policy for when that capability is missing. A locator renamed to `current(anyKey)` is not a broker.
+- Splitting into components is not a mechanical fix. Olai folds component status into the row's report, so a component waiting forever for an optional provider changes the row's reported readiness and what clients load.
+- `VaultViews` registration keeps the vault from waiting on git or search, which already depend on the vault. MCP cannot reverse its dependency, so it uses the narrow [`Served` contract](../../packages/plugin-api/src/services.ts).
 
-An unrestricted service locator hides the real graph, even if the locator
-itself is declared. A broker earns its boundary by exposing a specific
-capability and owning its availability policy; it is not a renamed
-`current(anyKey)` escape hatch.
+How many owners a registry key may have:
 
-Components are not a mechanical solution either. Olai folds component status
-into row reports. A component waiting forever for an optional provider can
-change the row's reported readiness and what clients load. `VaultViews`
-registration avoids making the vault wait for git or search, both of which
-already depend on the vault. MCP's narrow [`Served` contract](../../packages/plugin-api/src/services.ts)
-handles the case where that dependency cannot simply be reversed.
-
-Registries also need a cardinality policy. A key with one owner must refuse a
-second claimant; a bus or multi-contributor location intentionally permits
-several. For exclusive claims, **check and install all entries in one
-indivisible operation**. In Olai's in-process Effect registries, this is one
-synchronous body. An uninterruptible region is not a lock: it prevents
-cancellation, not every scheduler yield between separate steps.
-
-A refused multi-key claim installs nothing. Its cleanup must not remove the
-winner's entries. These are ownership guarantees, not just error-message
-preferences. `Edits` and `VaultViews` implement them at the write point.
+- A single-owner key must refuse a second claimant. A bus or multi-contributor location is meant to accept several.
+- For single-owner claims, check the keys and install all of them in one indivisible step: one synchronous function body in Olai's in-process Effect registries.
+- An uninterruptible region is not a lock. It stops cancellation, but the scheduler can still run other fibers between two separate steps.
+- A refused multi-key claim must install nothing, and its cleanup must not delete the winner's entries. This is about who owns what, not about nicer error messages. `Edits` and `VaultViews` enforce it where the write happens.
 
 ## Stopping is a protocol
 
-Removing a listener from a registry does not prevent a dispatcher from calling
-an old snapshot. Catching the resulting exception is too late: a handler may
-already have acted on a released resource without throwing.
+Taking a listener out of a registry does not stop a dispatcher that already copied the old listener list.
 
-Olai's [activation lifecycle](../../packages/effect-cordis/src/lifecycle.ts)
-and [dispatch gate](../../packages/effect-cordis/src/gate.ts) coordinate stopping:
+Catching the resulting error is too late, because a handler can act on a released resource and return normally. The [activation lifecycle](../../packages/effect-cordis/src/lifecycle.ts) and [dispatch gate](../../packages/effect-cordis/src/gate.ts) stop things in a fixed order. A gate is a per-activation switch that admits or refuses new handler calls; cutting a call means interrupting the fiber running it.
 
-1. Shut every gate of the departing activation synchronously, so no new
-   invocation can start through an old snapshot.
-2. Start cutting its running invocations before awaiting service revocation.
-3. Revoke its offers and join dependent cleanup while its resources still exist.
-4. Await invocation completion before closing the resource scope, including on
-   the exceptional path out of revocation.
+1. Close every gate of the departing activation synchronously, so no new call starts through an old listener list.
+2. Begin cutting the calls already running, before waiting for services to be revoked.
+3. Revoke its services and wait for dependent cleanup, while its resources still exist.
+4. Wait for running calls to finish before closing the resource scope, including when revocation fails.
 
-Two behaviors of the pinned engine explain why the bridge owns this sequence:
-it unloads its disposer set concurrently, and its provision disposer awaits
-dependent cleanup. An ordinary resource finalizer beside that disposer would
-therefore not be ordered after dependents. Starting the cut before awaiting
-revocation matters too: a dependent's finalizer may be waiting for that handler.
-Waiting for the dependent first would prevent the action that lets it finish.
+Why the bridge owns this order rather than leaving it to Effect:
 
-Several details are necessary to make this ordering true:
+- The pinned Cordis engine runs its disposers concurrently, and its provision disposer waits for dependent cleanup, so a plain resource finalizer registered beside that disposer would not run after the dependents.
+- A dependent's cleanup may be waiting for the very handler being cut, so waiting for the dependent first would block the action that lets it finish.
 
-- **Cut the invocation, not the publisher.** Each gated call has its own fiber,
-  with the publisher's services. Stopping one listener must not cancel the
-  publisher or unrelated recipients.
-- **Join completion, not just an interruption signal.** A handler body's
-  finalizer can finish before its child fibers unwind. Gate bookkeeping uses
-  fiber exit, not merely the body's finalizer, as completion.
-- **Enroll before execution.** A fork can run a synchronous prefix before
-  returning its handle. The gate records the invocation before starting it and
-  protects the handoff to the waiting continuation against interruption and
-  failure.
-- **Respect both lifetimes.** A registration belongs to its activation and its
-  own scope. Closing a child scope withdraws its registration while the plugin
-  remains active. Concurrent owners join the same cut; a second disposal must
-  not mistake “already started” for “finished.” Ended registrations are pruned.
-- **Keep downstream work independent.** Waterfall continuation runs through the
-  dispatcher, outside the departing link's fiber. Cutting that link must
-  neither dispatch the rest twice nor interrupt another plugin's work.
+Details the order depends on:
 
-A timeout that logs and releases resources under a still-running handler is
-not safe shutdown. Olai waits for uninterruptible invocations to unwind and
-reports a slow cut. This gives no finite shutdown bound for code that refuses
-to finish. A handler may request disposal of its own plugin: that path must
-cut and unwind the invocation before releasing the plugin's resources, without
-deadlocking. This is a property of the complete disposer path, not of a gate
-considered alone.
+| Rule | Reason |
+| --- | --- |
+| Cut the call, not the publisher | Each gated call runs in its own fiber using the publisher's services. Stopping one listener must not cancel the publisher or other recipients. |
+| Wait for fiber exit, not an interrupt signal | A handler's own finalizer can complete while its child fibers are still unwinding, so the gate treats fiber exit as completion. |
+| Record the call before starting it | A fork can run synchronous code before returning a handle. The gate registers the call first and protects the handoff to the waiting continuation against interruption and failure. |
+| Honour both lifetimes | A registration belongs to its activation and to its own scope. Closing a child scope removes it while the plugin keeps running. Two owners disposing at once join the same cut, and the second must not read "already started" as "finished". Finished registrations are pruned. |
+| Keep later work independent | Waterfall continuation runs through the dispatcher, outside the fiber of the link being cut, so cutting a link neither dispatches the rest twice nor interrupts another plugin's work. |
 
-The activation stage provides the ordering above; an ordinary child or bare
-scope still has its own finalizer ordering. Registering a gate in a scope does
-not magically order all resources acquired later in that scope before it.
+Limits:
+
+- Logging a timeout and releasing resources under a still-running handler is not safe shutdown. Olai waits for uninterruptible calls to unwind and reports a slow cut, so there is no finite shutdown bound for code that never finishes.
+- A handler may ask for its own plugin to be disposed. That path must cut and unwind the call before releasing the plugin's resources, without deadlocking. It is a property of the whole disposer path, not of the gate alone.
+- Only the activation stage gives this ordering. A plain child or bare scope keeps ordinary finalizer ordering, and putting a gate in a scope does not make resources acquired later in that scope close before it.
 
 ## Acquisition and external effects
 
-Cleanup must be secured as part of acquiring a resource. If a promise finishes
-creating an adapter after its waiting fiber has been interrupted, the value can
-otherwise be abandoned before a disposer is installed. Use an acquisition
-protocol that either prevents that handoff gap or explicitly releases a late
-result. Stopping an Effect waiting on a promise does not itself cancel the
-underlying operation or close its result. MCP's [adapter acquisition](../../packages/plugins/mcp/src/endpoint.ts)
-brackets acquisition and release with `Effect.acquireRelease`; cancellation
-during acquisition waits for the adapter and then closes it.
+Arrange a resource's release in the same step that obtains it, so an interruption cannot leave it with no owner.
 
-The same issue appears in UI code. Register disposal synchronously, before
-awaiting a dynamic import. After loading, check whether the owner still exists
-before allocating. Release partial allocations if construction throws, and own
-observers, timers and deferred callbacks as well as the visible widget.
-[LivePane](../../packages/plugins/kolu/src/appliance/props/LivePane.tsx) is the
-concrete terminal example. Outlines' [overlay owner](../../packages/plugins/outlines/src/browser/overlay.ts)
-likewise owns the DOM container its menus use; drawing a frame does not make
-layout the owner of every overlay.
+- If a promise finishes building an adapter after the waiting fiber was interrupted, the adapter exists but no disposer was registered, so nothing closes it.
+- Use an acquisition that closes that gap or explicitly releases a late result. Interrupting an Effect waiting on a promise does not cancel the underlying operation or close what it produces.
+- MCP's [adapter acquisition](../../packages/plugins/mcp/src/endpoint.ts) wraps creation and release in `Effect.acquireRelease`; cancellation during acquisition waits for the adapter, then closes it.
 
-Background work needs an owner too. The bridge's `detached` helper enters
-Effect from an external callback under the plugin's services and scope. Work
-belonging to a shorter-lived session needs that session's cancellation/join
-policy. A manually retained timer is not a leak merely because it uses a fork
-API, provided its owner tracks it and cancels or joins it on stop.
+The same problem appears in UI code:
 
-Shutdown must join or refuse **every operation capable of acquiring more
-resources**, including ones started after boot. Waiting for startup alone, then
-snapshotting a node map, can miss a later session acquisition. See [chat's node
-operations](../../packages/plugins/chat/src/scoped.ts) and [chat-owned work](../../packages/plugins/chat/src/chat.ts).
+- Register disposal synchronously, before awaiting a dynamic import.
+- After the import resolves, check the owner still exists before allocating.
+- If construction throws partway, release what was already allocated.
+- Own observers, timers and deferred callbacks, not only the visible widget. See [LivePane](../../packages/plugins/kolu/src/appliance/props/LivePane.tsx).
+- Outlines owns the DOM container its menus render into, via its [overlay owner](../../packages/plugins/outlines/src/browser/overlay.ts). Layout draws the frame around the page, which does not make it the owner of overlays other plugins open inside it.
 
-Durable actions require outcome-aware recovery rather than a literal undo of
-everything a plugin ever did. Disabling an editor does not erase the user's
-saved edits. During a git commit, however, Olai's temporary staging must not
-remain accidentally after cancellation. Recovery must distinguish “commit did
-not happen” from “commit happened but its result was not observed,” and account
-for concurrent external changes. Effect success alone is insufficient when a
-normal return value can describe failure. The [git operation](../../packages/plugins/git/src/git/git.ts)
-contains the staging and outcome-reconciliation policy; the same principle
-applies to subprocesses and remote writes.
+Background work needs an owner too:
+
+- The bridge's `detached` helper lets an external callback enter Effect under the plugin's services and scope.
+- Work belonging to a shorter-lived session must follow that session's rules for cancelling or joining it.
+- Keeping a timer handle by hand is not a leak just because a fork API created it, as long as its owner tracks it and cancels or joins it on stop.
+- Shutdown must join or refuse every operation that can still acquire resources, including ones started long after boot. Waiting only for startup and then snapshotting the node map misses a session that acquires something afterwards. See [chat's node operations](../../packages/plugins/chat/src/scoped.ts) and [chat-owned work](../../packages/plugins/chat/src/chat.ts).
+
+Actions with lasting external results need recovery based on what happened, not a blanket undo:
+
+- Disabling an editor must not erase edits the user already saved.
+- Olai's temporary git staging must not be left behind when a commit is cancelled.
+- Recovery must tell "the commit did not happen" apart from "the commit happened but we never saw the result", and allow for changes made outside Olai meanwhile.
+- A successful Effect is not enough when the returned value can itself report failure. The [git operation](../../packages/plugins/git/src/git/git.ts) holds the staging and reconciliation policy; subprocesses and remote writes need the same treatment.
 
 ## Browser state and reconnection
 
-In Olai's renderer, only the `root` location is permanent within the renderer
-lifetime. A contribution belongs to its caller; its `activate` function acquires
-location-dependent resources in a separate scope, and its child locations exist
-only while that entry is active. Withdrawal drains dependents before releasing
-the owner's resources. The root location's permanence does not make its
-contributed layout permanent. See [location ownership](../internal/plugin-system.md#locations-and-compatibility).
+In the renderer, `root` is the only location that lasts as long as the renderer itself.
 
-Service absence is a state the UI must handle. A released holder must stop
-returning the old service; rendering must also respect when that service can
-be used. Git's banner exposed the difference: clearing a component's reading
-could mount a fresh face after its row-owned wire had withdrawn. Its faces now
-draw behind the activation's availability gate. Correct cleanup alone does not
-make every reactive mount order safe.
+- A contribution belongs to the code that added it, and its `activate` function acquires location-dependent resources in a separate scope.
+- Locations declared under that contribution exist only while it is active. Withdrawing it drains everything mounted below before releasing its own resources.
+- `root` lasting forever does not mean the layout contributed into `root` lasts forever. See [location ownership](slot-ownership.md).
 
-A stable service may legitimately manage a changing connection. Olai's
-[`Wired` service](../../packages/plugin-api/src/browser.ts), backed by the
-[redial loop](../../packages/web/src/client/wire.ts), lets surviving consumers
-retain their client when their loaded module is unchanged. The connection and
-client table retain identity; departing client keys are removed and calls to
-departed capabilities are refused.
+The UI must handle a service being absent:
 
-Subscriptions **return rather than remaining uninterrupted**: superseding the
-connection fails open subscriptions with a transport error. They resubscribe
-and take a fresh snapshot, with a roughly one-second `pending` gap under the
-current retry policy. A healthy connection readout alone does not establish
-that a value has resumed updating. This is not a guarantee of delivery of every
-event during the gap, nor a reason to restart every browser plugin. See the
-[reconnection contract](../internal/plugin-system.md) for the precise behavior.
+- Once released, a holder must stop returning the old service, and rendering must also check whether the service may still be used.
+- Git's banner showed why both are needed: clearing the component's stored value could still mount a fresh face after the row-owned wire had withdrawn. Its faces now render behind the activation's availability gate.
+- Correct cleanup alone does not make every reactive mount order safe.
 
-When evaluating such a broker, follow the actual subscription and call path.
-An extra cache or blanket restart is not a repair until the existing contract
-has been shown insufficient. Phase 1's reconnection work verified the contract;
-it did not establish a defect requiring a new architecture.
+One stable service can manage a connection that keeps changing:
 
-The shell is itself plugin-owned application behavior. Navigation owns
-addresses, history and its page outlet; layout consumes navigation and renderer
-services to arrange the application; content plugins supply their pages. Shell
-integration belongs on the component that needs the shell, so changing layout
-does not unnecessarily stop a feature's independent work. This is the current
-boundary, not a mandate for one plugin per face or for any particular tabs,
-panes or mobile design. See [navigation](../plugins/navigation.md) and
-[layout](../plugins/layout.md).
+- [`Wired`](../../packages/plugin-api/src/browser.ts), backed by the [redial loop](../../packages/web/src/client/wire.ts), lets consumers that survive a reconnect keep their client when the module they loaded is unchanged.
+- The connection object and client table keep their identity. Clients for departed capabilities are removed, and calls to those capabilities are refused.
+- Subscriptions do not survive a reconnect. Replacing the connection fails every open subscription with a transport error; the client resubscribes and takes a fresh snapshot, leaving a roughly one-second `pending` gap under the current retry policy.
+- A connection reporting healthy is not evidence that a value resumed updating. Events during the gap are not guaranteed to be delivered, and the gap is not a reason to restart every browser plugin. See the [reconnection contract](plugin-system.md#6-the-wire-one-root-n-siblings).
+- To evaluate such a broker, trace the real subscription and call path. Adding a cache or restarting everything is not a fix until the existing contract is shown insufficient. Phase 1's reconnection work confirmed the contract; it found no defect needing a new architecture.
+
+The application shell is itself built from plugins:
+
+- Navigation owns addresses, history and the outlet pages render into. See [navigation](../plugins/navigation.md).
+- Layout consumes navigation and renderer services to arrange the application. See [layout](../plugins/layout.md).
+- Content plugins supply the pages.
+- Code that integrates with the shell belongs on the component that needs the shell, so changing layout does not stop a feature's unrelated work.
+- This is where the boundary sits today, not a rule that each face needs its own plugin, nor a commitment to particular tabs, panes or mobile designs.
 
 ## Refactors, enforcement and evidence
 
-A shorter implementation is an improvement only if it preserves its ownership
-relationships. Before accepting a refactor, identify which owners, dependencies
-and lifetimes change. Check optional availability, cleanup order, atomic claims
-and reconnection behavior. Extracting a factory can preserve them; extracting
-a singleton or merging holders with different lifetimes can erase them.
+A shorter implementation is better only if the same things still own the same resources for the same lifetimes.
 
-The dependency fence supports this discipline by checking package access and
-known forms of live state behind public contracts, including aliases and
-implementation reached through re-exports. It must distinguish module-owned
-state from genuinely local bindings and mutable activation state from inert
-data. `const` and a `ReadonlyMap` annotation do not establish those facts.
+Before accepting a refactor, list which owners, dependencies and lifetimes change, then re-check optional availability, cleanup order, single-owner claims and reconnection behavior.
 
-The fence is not a proof about arbitrary JavaScript. An allowed broker or cache
-needs a concrete ownership argument, not an exception added merely to keep a
-migration small. Conversely, a syntactic ban on every class, closure, `Map` or
-module-level value would reject legitimate contracts without proving safety.
+| Change | Effect on ownership |
+| --- | --- |
+| Extracting a factory that gives each caller its own state | Preserved. |
+| Extracting a singleton | Lost: the state now outlives every caller. |
+| Merging holders with different lifetimes | Lost: one consumer's release affects the other. |
 
-Evidence should establish the promised outcome: a stopped handler cannot act,
-a departed consumer cannot clear its replacement, two hosts remain isolated,
-and unrelated work survives provider replacement. A passing suite is not proof
-of those properties; source inspection and reproductions must address the
-ownership claim itself. A preferred helper, source-count check or forced
-refactor is a technique, not the architectural requirement.
+The dependency fence is a static check over imports. It:
 
-Finally, Olai's initialization cancellation and teardown coordination are
-Effect-backed adaptations, not guarantees borrowed wholesale from the paper.
-The bridge depends on pinned Cordis behavior, including provision-disposer
-handoff and duplicate-owner error wording. Its [assumption inventory](../../packages/effect-cordis/README.md#where-the-pins-instability-lives)
-and [pin configuration](../../nix/cordis.nix) distinguish these dependencies and
-their limits. Keep that inventory current when the bridge or upstream pin
-changes; do not spread private runtime assumptions into feature plugins.
+- Checks which packages may import which, and looks for known forms of live state exposed behind public contracts, including aliases and implementations reached through re-exports.
+- Must tell module-owned state from ordinary local bindings, and mutable activation state from inert data. Writing `const` or annotating a `ReadonlyMap` does not establish either.
+- Cannot prove things about arbitrary JavaScript. A broker or cache it allows needs a written ownership argument, not an exception added to keep a migration small.
+- Would be wrong in the other direction too: banning every class, closure, `Map` or module-level value would reject valid contracts without proving anything safe.
+
+Evidence must demonstrate the promised outcome:
+
+- A handler that has been stopped cannot act.
+- A departed consumer cannot clear the value its replacement installed.
+- Two hosts stay isolated.
+- Work that did not depend on a provider survives that provider being replaced.
+
+A passing test suite establishes none of those on its own. Source inspection and reproductions must address the ownership claim itself. Preferring a helper, counting sources or forcing a refactor are techniques, not the requirement.
+
+Assumptions pinned to the current Cordis version:
+
+- Olai's startup cancellation and teardown ordering are adaptations built on Effect, not guarantees taken directly from the paper.
+- The bridge relies on specific pinned behavior, including how the provision disposer hands over and the exact wording of the duplicate-owner error.
+- The [assumption inventory](../../packages/effect-cordis/README.md#where-the-pins-instability-lives) and [pin configuration](../../nix/cordis.nix) record these dependencies and their limits.
+- Update the inventory when the bridge or upstream pin changes, and keep these private runtime assumptions out of feature plugins.

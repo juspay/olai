@@ -3,7 +3,7 @@
  *
  * {@link ./errors.ts} is what a loaded set says about itself — every finding
  * pinned to a `file:line`, produced by the validator. This is the other half of
- * docs/architecture.md's Errors section: the four KINDS a write refuses with,
+ * docs/architecture/overview.md's Errors section: the four KINDS a write refuses with,
  * as schemas, so a refusal travels the wire, an MCP tool result and a chat
  * frame as itself rather than as a sentence somebody has to parse back.
  *

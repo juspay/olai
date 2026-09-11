@@ -3,7 +3,7 @@ import { TESTID } from "olai-plugin-preferences/testids"
  * What this browser is set to, in one place.
  *
  * Nearly everything on it is CLIENT-LOCAL and that is the panel's subject
- * (`docs/architecture.md`): a pick is stored in this browser, carried to the
+ * (`docs/architecture/overview.md`): a pick is stored in this browser, carried to the
  * other tabs of it by the `storage` event, and never sent — so two machines
  * reading the same outlines are entitled to disagree, and the served directory
  * neither knows nor cares. That is the deliberate difference from kolu's

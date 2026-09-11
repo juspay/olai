@@ -44,7 +44,7 @@
 # What the pin is depended on FOR, which does not move with every bump:
 #   * PR #2228 — a redial retains the connection and every surviving client,
 #     replacing only the wire underneath. `packages/web/src/client/wire.ts` and
-#     `docs/internal/plugin-system.md`'s reconnection contract both rest on it.
+#     `docs/architecture/plugin-system.md`'s reconnection contract both rest on it.
 #     https://github.com/juspay/kolu/pull/2228
 #   * PR #2234 — a rooted bundle, so each sibling's own spec and resource map go
 #     in under its own key and `reroster` re-composes the whole bundle on a

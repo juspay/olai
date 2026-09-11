@@ -459,7 +459,7 @@ hm-module:
 #     the id-map clone the overlay replaced
 #     (`packages/format/src/patch.bench.ts`). It is the harness slice 3
 #     measured its order-of-magnitude figure with and did not commit, which is
-#     why architecture.md called that number one this tree could not reproduce,
+#     why docs/architecture/overview.md called that number one this tree could not reproduce,
 #     and the third arm is there so the overlay's own before/after is printed
 #     rather than quoted;
 #   - the MATCHER, timed with the fold it keeps per record against without it —

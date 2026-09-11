@@ -94,7 +94,7 @@ export function Shortlist(props: {
    * It was `createSearch` called in the body, which resolved the matcher out of
    * a generic host lookup: a shared contract closure acquiring a provider
    * resource, which is the thing a contract may not do
-   * (`docs/internal/plugin-system.md`'s §18) and which declared no dependency
+   * (`docs/architecture/plugin-system.md`'s §18) and which declared no dependency
    * anywhere. The three doors that draw this list each hold the matcher through
    * a component of their own now, and hand their own binding down.
    *

@@ -40,7 +40,7 @@ format catalogue and schema; a different storage implementation can stand behind
 `Directory`. This plugin does not implement Org or migrate files.
 
 See [running olai](../running.md) for profiles and configuration, and
-[the plugin system](../internal/plugin-system.md) for lifecycle ordering.
+[the plugin system](../architecture/plugin-system.md) for lifecycle ordering.
 
 The browser entry supplies `vault.files`: one activation-owned directory/head
 reading and static membership accessors. Content providers consume this file
