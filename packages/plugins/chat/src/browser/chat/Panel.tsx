@@ -92,11 +92,6 @@ import { Transcript } from "./Transcript.tsx"
 import { Unopened } from "./Unopened.tsx"
 
 export function Panel() {
-  // WHETHER A PERSON IS TOLD the agent has stopped on them, and it is out here
-  // — outside the `Show` — because that is the whole point of it: a question
-  // arriving behind a minimized panel is the case it exists for, and a circuit
-  // inside the open dock would go quiet exactly then. It costs the cheap chat
-  // cell and no transcript (`./attention/attention.ts`).
   return (
     <>
       <Show when={panelOpen()}>

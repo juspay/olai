@@ -1,7 +1,9 @@
-/** Moved from chat when journal became a second consumer. The alerts row
- * owns the channel; consumers acquire alerts.channel on their components. */
+/**
+ * The alerts row owns both controls; preferences supplies their location.
+ * Moved from chat when journal became a second consumer of the channel;
+ * both consumers acquire alerts.channel on their components.
+ */
 import { TESTID } from "./testids.ts"
-/** Chat owns both controls; preferences only supplies their location. */
 import { Show } from "solid-js"
 import type { Channel } from "./contract.ts"
 import { Row } from "@olai/ui-primitives/SettingRow.tsx"
@@ -21,16 +23,9 @@ const ALERT_CHOICES = [
 export function AlertRows(props: { readonly channel: Channel }) {
   const { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } = props.channel
   return <>
-      {/* THE AGENT'S TWO ROWS, and they are here for the same test the
-          reader's rows meet: "tell me when the agent stops on me" is a claim
-          about the reader, and the panel it is about has nowhere to hang a
-          switch — it is a drawer that is shut in exactly the case this
-          setting is for. Two rows and
-          not one strip of three, because they are two independent facts:
-          being told and being told AUDIBLY, and folding them together would
-          make turning the chime off cost the banner too. Sound is drawn under
-          Alerts and reads as its second half; with alerts off it is frozen
-          rather than hidden, so what it would be is still on screen. */}
+      {/* Two independent choices shared by chat and journal: being told and
+          being told audibly. Turning the chime off keeps the banner. Sound
+          sits under Alerts and is frozen, rather than hidden, with Alerts off. */}
       <Row label="Alerts" pref="alerts" hint={alertsHint(props.channel)} under={<AllowNotify channel={props.channel} />}>
         <Segmented
           choices={ALERT_CHOICES}
@@ -58,7 +53,7 @@ export function AlertRows(props: { readonly channel: Channel }) {
  *
  * Alerts are on by default (ruled), so there is no "first enable" press for
  * the browser's own prompt to ride. The banner asks for itself the first time
- * it is actually wanted (`../notify.ts`) — which is the moment
+ * it is actually wanted (`./notify.ts`) — which is the moment
  * the prompt's sentence is about something happening — but Firefox and Safari
  * both REFUSE a prompt raised from a background event, and a person who was
  * away when the question arrived is exactly the person that rule is about. So
@@ -75,7 +70,7 @@ function AllowNotify(props: { readonly channel: Channel }) {
     <Show when={alertsOn() && notifyConsent() === "default"}>
       <button
         type="button"
-        // `mt-2` here rather than on a wrapper in `./Row.tsx`: the slot is
+        // `mt-2` here rather than on a wrapper in `@olai/ui-primitives/SettingRow.tsx`: the slot is
         // rendered bare, so a row whose button is not showing draws nothing at
         // all — see there.
         class={`${TARGET} mt-2 rounded-full border border-rule px-3 text-xs text-ink hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1`}

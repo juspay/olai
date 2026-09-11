@@ -27,7 +27,7 @@ export interface Notice {
   readonly data: NotifyClick
 }
 
-/** Notification permission and delivery belong to one chat activation. */
+/** Notification permission and delivery belong to one alerts channel activation. */
 export type Consent = NotificationPermission | "unsupported"
 
 export interface Channel {

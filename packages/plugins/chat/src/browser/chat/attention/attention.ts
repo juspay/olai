@@ -1,5 +1,3 @@
-/** Mounted by chat’s attention component, which owns the circuit and names
- * alerts.channel. The conversation survives the channel’s absence. */
 /**
  * The circuit: the chat cell on one side, a chime, a banner and a badge on the
  * other, and {@link ./alarm.ts}'s two-line rule in between.
@@ -7,7 +5,7 @@
  * THE TRIGGER IS THE CELL, and that is the roadmap item's scope note read
  * literally: `ChatState.asking` is how many of the agent's questions are still
  * waiting on a person, and the SERVER counts it off the very rows the panel
- * draws as forms (`../../../../plugins/chat/src/chat.ts`) — the pending question, the
+ * draws as forms (`../../../chat.ts`) — the pending question, the
  * permission prompt, the plan approval, all of them, and nothing that is not
  * one. There is no new wire signal here and nothing derived in the browser:
  * the fact was already on the cell, drawn as the header toggle's
@@ -25,17 +23,17 @@
  * the ask ROW and only then moves the cell — and when the panel is shut there
  * is no snapshot at all, which the banner says rather than guesses.
  *
- * Originally MOUNTED FROM `../Panel.tsx`, which is drawn open or minimized and never
- * absent, so this lives as long as the app does. Deliberately not in
- * `main.tsx` beside the document-lifetime followers: it is a reader of a
- * SUBSCRIPTION, and the panel is what owns the panel's subscriptions.
+ * Mounted by chat's `attention` component (`../../../browser.tsx`), which
+ * names `alerts.channel` and owns this circuit while the channel and the
+ * row's conversation are available. Minimizing the panel leaves it running;
+ * withdrawing the component stops it without stopping the conversation.
  *
  * THREE DEVICES, THREE INDEPENDENCES, which is why they are three modules with
  * one `if` each rather than one "notify" call: the chime needs only that the
- * page has been touched at some point ({@link ./chime.ts}), the badge needs
- * nothing at all ({@link ./badge.ts}), and only the banner needs the OS's
- * consent (`../../notify.ts`, the origin's one seam) — which the ruling says
- * must not take the other two down with it when it is refused.
+ * page has been touched at some point (`../../../../../alerts/src/chime.ts`),
+ * the badge needs nothing at all (`../../../../../alerts/src/badge.ts`), and
+ * only the banner needs the OS's consent (`../../../../../alerts/src/notify.ts`,
+ * the origin's one seam). Refusing consent must not take the other two down.
  *
  * WHAT IS NOT HERE is a turn ending. Turn-complete is deliberately silent
  * (ruled): an agent that finished will still be finished in five minutes, and
@@ -55,7 +53,7 @@ import { reveal } from "./reveal.ts"
 import { createWatching } from "./watching.ts"
 
 /**
- * Watch the conversation for as long as this app is up, and say so when it
+ * Watch the conversation for this attention activation, and say so when it
  * stops on a person who is not looking.
  */
 export const createAttention = (state: Accessor<ChatState>): void => {
@@ -68,7 +66,7 @@ export const createAttention = (state: Accessor<ChatState>): void => {
   // component: `reveal` opens the panel and leaves the question for the
   // transcript to take up when it mounts ({@link ./reveal.ts}). It covers the
   // cold start too — a press that had to OPEN this window carries its payload
-  // in the URL, and the seam hands it over at startup.
+  // in the URL, and alerts holds it until this component claims "ask".
   onCleanup(onNotifyPress("ask", reveal))
 
   // A FOLD over the readings, which is what this is: the effect is handed the
@@ -90,7 +88,7 @@ export const createAttention = (state: Accessor<ChatState>): void => {
       // open panel's snapshot are things this fold has no business waking for
       // — a session being retitled would otherwise re-run the whole reading.
       // The UN-tracked read takes the deployment's word as it stands NOW
-      // (`../../named.ts`) too: a banner deserves the name the OS labels it
+      // (`../../deployment.ts`) too: a banner deserves the name the OS labels it
       // with, and — as with the conversation's own title — one it got after
       // the banner is no longer this banner's business.
       const notice = untrack(() => noticeOf(now, askPending(), calledApp()))

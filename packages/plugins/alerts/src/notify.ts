@@ -1,21 +1,16 @@
-/** Moved from chat when journal became a second consumer. The alerts row
- * owns the channel; consumers acquire alerts.channel on their components. */
-/** Chat owns notification permission state and observers. Each activation reads
- * current permission; disposal removes click/permission listeners and prevents
- * delayed permission responses from delivering a departed activation's notice.
- * The framework owns the service-worker delivery and click handshake. */
-
 /**
- * ## IT LIVES WITH ITS ONE ROW NOW
+ * The alerts row owns notification permission state and the single framework
+ * click listener. Each channel activation reads current permission; disposal
+ * removes listeners and prevents delayed permission responses from delivering
+ * a departed activation's notice. The framework owns service-worker delivery
+ * and the durable click handshake.
  *
- * This module was `@olai/web`'s `client/notify.ts` — a general door carrying a
- * module-scope holder and a `read()` that threw — and every reader of it is in
- * this package: the alert rows ask for consent, the attention rule raises a
- * notice, and this row's own activation is what starts and stops the
- * permission listener. A live value on a general package's door with one row
- * behind it is the Cordis audit's §12 whether or not a second row ever opened
- * it, and the honest fix for a helper nobody else uses is to put it behind the
- * wall of the row that owns it.
+ * This seam moved from `@olai/web`'s `client/notify.ts` into chat in #557,
+ * because chat was then its only consumer. Journal became a second consumer,
+ * so the seam now belongs to the alerts row. Chat's attention component and
+ * journal's reminders component acquire `alerts.channel`; neither reads this
+ * provider's module state. The channel dispatches presses by kind and holds
+ * an unclaimed press until its consumer arrives within this activation.
  */
 import { createSignal } from "solid-js"
 import { createPresses } from "./presses.ts"

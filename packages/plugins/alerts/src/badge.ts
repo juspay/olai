@@ -1,6 +1,7 @@
-/** Moved from chat when journal became a second consumer. The alerts row
- * owns the channel; consumers acquire alerts.channel on their components. */
 /**
+ * Moved from chat when journal became a second consumer. The alerts row
+ * owns the channel; consumers acquire alerts.channel on their components.
+ *
  * The mark that STAYS: the app's icon says the agent is waiting on you, and it
  * goes on saying it until you look.
  *
@@ -8,8 +9,8 @@
  * exist. A notification is gone the moment the OS decides it is — swiped,
  * timed out, cleared with forty others — and what it was about is still true.
  * So the badge is recomputed from the reading rather than dismissed
- * ({@link ./alarm.ts}), and the ruling is explicit that it clears when the
- * human focuses the pane and not when the banner is dismissed.
+ * (`../../chat/src/browser/chat/attention/alarm.ts`), and the ruling is explicit
+ * that it clears when the human focuses the pane, not when the banner is dismissed.
  *
  * TWO CHANNELS, and which one is not a fallback chain but a fact about where
  * the page is running (the ruling: the App Badging API on the installed PWA
@@ -21,7 +22,7 @@
  *     for.
  *   - **anything else** — a plain tab, or an install on a browser without the
  *     API: the tab itself carries a mark, in its name and on its icon
- *     (`../../theme/chrome.ts`, which owns both halves of that).
+ *     (`../../theme/src/chrome.ts`, which owns both halves of that).
  *
  * Never both. `setAppBadge` in a tab is ignored by every browser that
  * implements it, so a page that also wrote the title would be a page whose
@@ -31,7 +32,7 @@
  * "which one is this" is asserted rather than watched for.
  *
  * The count reaches the app badge and not the tab, deliberately: a badge is a
- * number by contract, and a tab wears a MARK (`../../theme/chrome.ts`, which
+ * number by contract, and a tab wears a MARK (`../../theme/src/chrome.ts`, which
  * owns both halves of what a tab is). The count that matters is one gesture
  * away in either case, because looking is what clears this.
  *
@@ -46,13 +47,12 @@
  * out. Said in the same words in `docs/chat.md` and `docs/architecture/overview.md`.
  *
  * A browser that refuses to badge is warned about on the console, once, and
- * never throws: this is the third of three ways a person is told, and the
- * first two have already happened by the time it runs.
+ * never throws: a badging refusal must not prevent the notification or chime.
  *
  * `@kolu/surface-app`'s own `setAttention` does this job and is deliberately
  * NOT used, which is worth writing down rather than leaving as an unremarked
  * parallel: it is reachable only through `SurfaceAppProvider`, which this root
- * does not ride (`../../main.tsx`), and it writes BOTH channels
+ * does not ride (`../../../web/src/client/main.tsx`), and it writes BOTH channels
  * unconditionally where the ruling here is one or the other. What IS taken
  * from the framework is the predicate — see {@link installed}.
  */
@@ -106,7 +106,7 @@ const installed = (): boolean => {
 }
 
 /** Its own key, so a badging refusal cannot be silenced by an unrelated one
- *  and cannot silence one — `../../grumble.ts`. */
+ *  and cannot silence one — `@olai/web/client/grumble.ts`. */
 const noBadge = (cause: unknown): void => {
   grumble(
     "app-badge",
@@ -118,7 +118,7 @@ const noBadge = (cause: unknown): void => {
 /** What the icon is wearing. The caller hands this a number on every reading
  *  of the conversation — including every focus and blur — so a count that has
  *  not moved must not be a platform call. The tab channel has the same guard
- *  one layer down (`../../theme/chrome.ts`); this is the app channel's half. */
+ *  one layer down (`../../theme/src/chrome.ts`); this is the app channel's half. */
 let worn = -1
 
 /** Carry `count` questions on the icon, or clear it with `0`. */

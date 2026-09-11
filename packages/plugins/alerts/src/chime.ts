@@ -1,6 +1,7 @@
-/** Moved from chat when journal became a second consumer. The alerts row
- * owns the channel; consumers acquire alerts.channel on their components. */
 /**
+ * Moved from chat when journal became a second consumer. The alerts row
+ * owns the channel; consumers acquire alerts.channel on their components.
+ *
  * One short chime — two notes, a third of a second, and no file.
  *
  * SYNTHESISED rather than shipped, and that is a dependency decision as much as
@@ -16,18 +17,19 @@
  * done about that from here except to take the FIRST gesture there is —
  * whatever it was for — and open the context on it. By the time an agent is
  * waiting on an answer, somebody has pressed something to start the
- * conversation, so in practice the context is open long before it is needed.
+ * conversation, so that context is usually open already. A reminder can
+ * arrive at boot before any gesture; its sound is skipped and never replayed.
  *
  * A tab that has never been touched and is chimed at anyway says so on the
- * console, once, and does not throw — `../../grumble.ts`, which is where that
- * whole argument lives. Nothing the reader asked for failed, the banner and
- * the badge both still landed, and a strip over somebody's outline saying
- * their browser would not make a noise is worse than the silence it reports.
+ * console, once, and does not throw — `@olai/web/client/grumble.ts` is where
+ * that argument lives. Notification delivery and chat's badge are independent
+ * of sound; a strip over somebody's outline saying their browser would not
+ * make a noise is worse than the silence it reports.
  */
 
 import { grumble } from "@olai/web/client/grumble.ts"
 
-/** Audio and first-gesture listeners belong to one mounted attention owner. */
+/** Audio and first-gesture listeners belong to one alerts channel activation. */
 export const createChime = (target: EventTarget = window, open: () => AudioContext = () => new AudioContext()) => {
 let audio: AudioContext | undefined
 let active = true
@@ -82,7 +84,7 @@ const APART = 0.1
 const PEAK = 0.12
 
 /** Ring, once. Never throws: a caller is telling somebody something, and the
- *  chime is the least of the three ways it says it. */
+ *  notification can still be delivered when sound is unavailable. */
 const chime = (): void => {
   if (!active) return
   const ctx = audio

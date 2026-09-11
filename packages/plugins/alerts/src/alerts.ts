@@ -1,8 +1,11 @@
-/** Moved from chat when journal became a second consumer. The alerts row
- * owns the channel; consumers acquire alerts.channel on their components. */
-/** Fresh browser preferences per chat activation. The provider has no shell or
- * preferences dependency; its UI integration can wait without stopping alerts.
- * Withdrawals detach storage listeners and invalidate retained setters. */
+/**
+ * Moved from chat when journal became a second consumer. The alerts row
+ * owns the channel; consumers acquire alerts.channel on their components.
+ *
+ * Fresh browser preferences per alerts channel activation. The provider has no
+ * shell or preferences dependency; its UI integration can wait without stopping
+ * alerts. Withdrawals detach storage listeners and invalidate retained setters.
+ */
 import { createSignal } from "solid-js"
 import { Effect } from "effect"
 import { boolCodec, createPreference } from "@olai/web/client/preference.ts"

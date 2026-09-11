@@ -13,7 +13,8 @@ const coldPresses = new WeakMap<OlaiWorld, string>();
 const reminders = `${PREFS_ROW}${attr("data-pref", "reminders")}`;
 
 When("I click the page", async function (this: OlaiWorld) {
-  await this.page.locator("body").click({ position: { x: 1, y: 1 } });
+  // The main region's padding supplies a real gesture away from header links.
+  await this.page.getByRole("main").click({ position: { x: 8, y: 8 } });
 });
 
 Then("the notification is tagged for today", async function (this: OlaiWorld) {
