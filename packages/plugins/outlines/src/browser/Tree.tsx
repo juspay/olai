@@ -694,6 +694,7 @@ function Branch(props: {
           <Match when={shown()}>
             {(shows) => (
               <NodeLine
+                node={shows().node.id}
                 title={shows().node.title}
                 from={shows().file}
                 status={props.row.status}

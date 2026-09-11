@@ -51,6 +51,7 @@ import type { Occasion, Status } from "@olai/format"
 import { type JSX, Show } from "solid-js"
 
 import { DateBadge } from "./DateBadge.tsx"
+import { PluginAsides } from "./Asides.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { RepeatBadge } from "./RepeatBadge.tsx"
 
@@ -65,6 +66,7 @@ import { ROW_TITLE, SECTION_TITLE } from "@olai/ui-primitives/touch.ts"
 export const TITLE_OPEN = "olai-title-open"
 
 export function NodeLine(props: {
+  readonly node: string
   readonly title: string
   /** Outline the title is written in — handed to {@link NodeTitle} for the
    *  markdown pipeline's relative-picture resolution. */
@@ -156,6 +158,7 @@ export function NodeLine(props: {
             is more of this" — and the facts follow it. */}
         {props.mark}
         {props.aside}
+        <PluginAsides node={props.node} />
         {/* THE DATE RIDES HERE TOO, and it did not always: it was a sibling
             outside this cell, which with a `flex-1` title meant the right edge
             of the pane. That was tolerable while the column stopped at a

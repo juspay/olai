@@ -59,6 +59,10 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 | `app.header` | `layout` — where in the bar cluster a readout sits | the toggle, and what it says about a waiting question |
 | `sidebar.section` | `sidebar` — the region and its place above the shelf | the agents roster |
 | `outline.row.door` | `outlines` — where under a property run a door is drawn | the agent's row, drawn only where there is one |
+| `outline.row.aside` | `outlines` — beside progress, before the date on rows and zoomed titles | the agent standing or start gesture (reserved for the outline conversation UI) |
+| `outline.row.fold` | `outlines` — under the door, before the note on ordinary rows | the unfolded conversation (reserved) |
+| `outline.page.head` | `outlines` — under the title, above the zoomed property drawer | the agent line (reserved) |
+| `outline.page.foot` | `outlines` — after the children on the zoomed page | the conversation and composer (reserved) |
 | `outline.row.action` | `outlines` — the menu's order and its dividers | *Ask agent*, and one *Start an agent session* per installed engine |
 | `app.command` | `navigation` — the palette's box, its prefix strip, where a refusal is drawn | `>`, and what it sends |
 

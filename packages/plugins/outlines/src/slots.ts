@@ -70,8 +70,15 @@ export type PropPane = (context: BlockContext) => JSX.Element
 
 export type PropBlock = (context: BlockContext) => JSX.Element
 
+/** A contribution about one node, owned by the row or page drawing it. */
+export type NodeFace = (props: { readonly node: string }) => JSX.Element
+
 declare module "@olai/plugin-api/slots" {
   interface SlotDefinitions {
+    "outline.row.aside": SlotDefinition<NodeFace, "nothing">
+    "outline.row.fold": SlotDefinition<NodeFace, "nothing">
+    "outline.page.head": SlotDefinition<NodeFace, "nothing">
+    "outline.page.foot": SlotDefinition<NodeFace, "nothing">
     "outline.row.chip": SlotDefinition<PropChip, "kind">
     "outline.row.pane": SlotDefinition<PropPane, "kind">
     "outline.row.block": SlotDefinition<PropBlock, "kind">
@@ -81,6 +88,10 @@ declare module "@olai/plugin-api/slots" {
 }
 
 export const slotContracts = {
+  "outline.row.aside": slotContract<NodeFace>("outline.row.aside", "nothing"),
+  "outline.row.fold": slotContract<NodeFace>("outline.row.fold", "nothing"),
+  "outline.page.head": slotContract<NodeFace>("outline.page.head", "nothing"),
+  "outline.page.foot": slotContract<NodeFace>("outline.page.foot", "nothing"),
   "outline.row.chip": slotContract<PropChip>("outline.row.chip","kind"),
   "outline.row.pane": slotContract<PropPane>("outline.row.pane","kind"),
   "outline.row.block": slotContract<PropBlock>("outline.row.block","kind"),

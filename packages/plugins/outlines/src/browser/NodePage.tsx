@@ -36,6 +36,8 @@ import { StartLine } from "./edit/StartLine.tsx"
 import { useNarrowed } from "./filter/narrowed.tsx"
 import { only } from "@olai/web/client/narrow.ts"
 import { NodeBody } from "./NodeBody.tsx"
+import { PluginAsides } from "./Asides.tsx"
+import { PluginPageHead, PluginPageFoot } from "./PageFaces.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { NotFound } from "./NotFound.tsx"
 import { ProgressBadge } from "@olai/web/client/ProgressBadge.tsx"
@@ -131,6 +133,7 @@ function Zoom(props: {
             <Show when={props.zoomed.progress}>
               {(progress) => <ProgressBadge progress={progress()} />}
             </Show>
+            <PluginAsides node={props.zoomed.shows.node.id} />
             <Show when={props.zoomed.shows.node.date}>
               {(date) => (
                 <DateBadge
@@ -147,6 +150,8 @@ function Zoom(props: {
               {(repeat) => <RepeatBadge repeat={repeat()} />}
             </Show>
           </div>
+
+          <PluginPageHead node={props.zoomed.shows.node.id} />
 
           {/* What the node is waiting on, named in full and above its note:
               a page whose subject cannot start yet should say so before it
@@ -222,6 +227,7 @@ function Zoom(props: {
       >
         <Tree rows={props.rows} />
       </Show>
+      <PluginPageFoot node={props.zoomed.shows.node.id} />
     </Editable>
   )
 }

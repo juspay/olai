@@ -135,6 +135,7 @@ export function DatedRow(props: {
             whole set, so each pill says something rather than doing something
             (`../RepeatBadge.tsx`'s `data-picks`, `../DateBadge.tsx`'s). */}
         <NodeLine
+          node={node().id}
           title={node().title}
           from={props.dated.shows.file}
           status={props.dated.status}

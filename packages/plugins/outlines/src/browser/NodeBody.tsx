@@ -76,6 +76,7 @@ import { customOf, docOf, type LocatedRegular } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
 import { PluginDoors } from "./Doors.tsx"
+import { PluginFolds } from "./Folds.tsx"
 import { documentReferences } from "../index.ts"
 import { readLocation } from "./locations.ts"
 import { For } from "solid-js"
@@ -198,6 +199,7 @@ export function NodeBody(props: {
               declared). Each answers NOTHING on nearly every row, and what that
               costs is a map read in a table the plugin subscribes to once. */}
           <PluginDoors node={props.shows.node.id} />
+          <PluginFolds node={props.shows.node.id} />
 
           {/* CLOSED: one clamped dim line under the title, which is either the
               top of the note (`Cozy`) or the window a filter found this row
