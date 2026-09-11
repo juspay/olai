@@ -867,15 +867,16 @@ ci:
       wait_settle() { "${odu[@]}" wait --settle --timeout-ms "$timeout_ms"; }
       # Linux can fan the check graph across six kolu hosts. petit is one
       # aarch64-darwin box: the same fan-out drops odu-runner keep-alive
-      # (nix sqlite busy, load 60). Linux first, then Darwin recipes one
-      # at a time (`--no-deps` after install so odu does not re-fan).
+      # (nix sqlite busy, load 60). Linux first, then one Darwin recipe
+      # (plus its just deps) per run.
       "${odu[@]}" run --platform x86_64-linux --no-wait
       wait_settle
-      "${odu[@]}" run install@aarch64-darwin --no-wait
-      wait_settle
+      # Each Darwin recipe is its own run so petit is not fanned. Do NOT
+      # pass --no-deps: typecheck/test/e2e need `install` in the same
+      # worktree (`tsc: command not found` otherwise).
       for recipe in fmt-check bun-nix-fresh hm-module kolu-deps odu-deps \
                     odu-surface cordis-deps nix typecheck test e2e; do
-        "${odu[@]}" run "${recipe}@aarch64-darwin" --no-deps --no-wait
+        "${odu[@]}" run "${recipe}@aarch64-darwin" --no-wait
         wait_settle
       done
     ' bash "$watch_timeout"
