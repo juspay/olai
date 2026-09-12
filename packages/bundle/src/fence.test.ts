@@ -1852,6 +1852,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugin-build/src/bind.ts",
       "plugins/capture/src/Palette.tsx",
       "plugins/chat/src/agents/roster.ts",
+      "plugins/chat/src/browser/agents/AgentPalette.ts", // PaletteItem.search is the navigation contract's text haystack
       "plugins/chat/src/browser/chat/completion.ts",
       "plugins/chat/src/testids.ts",
       "plugins/journal/src/browser.tsx",
@@ -1995,6 +1996,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/capture/src/Palette.tsx",
       "plugins/capture/src/browser.tsx",
       "plugins/chat/src/browser.tsx",
+      "plugins/chat/src/browser/agents/AgentPalette.ts", // the declared navigation reading and its unavailable sentence
       "plugins/chat/src/browser/navigation.ts",
       "plugins/chat/src/browser/verbs.tsx",
       "plugins/files/src/browser.tsx",

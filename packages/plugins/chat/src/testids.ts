@@ -84,6 +84,8 @@ export const TESTID = {
    *  `prop:agent-session`. Drawn only when the directory has a node agent, on the
    *  shelf's rule exactly: an empty roster is nothing at all rather than an
    *  empty box, so its presence is the fact a scenario asserts. */
+  agentNeedsYou: "chat-agent-needs-you",
+  agentNeedRow: "chat-agent-need-row",
   agentRoster: "agent-roster",
   /** One node agent on it. `data-agent` is the NODE's own id and
    *  `data-standing` is how it stands — the two facts a scenario needs, and

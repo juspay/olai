@@ -22,8 +22,8 @@ import { Effect } from "effect"
 
 import { Standing } from "./browser/agents/Standing.tsx"
 import { createFolding, holdFolding } from "./browser/agents/folding.ts"
-import { Agents } from "./browser/agents/Agents.tsx"
-import { AgentsProvider, createAgents } from "./browser/agents/answered.tsx"
+import { NeedsYou, Recent } from "./browser/agents/Agents.tsx"
+import { AgentsProvider, createAgents, useAgents } from "./browser/agents/answered.tsx"
 import { createAskCommand, rowVerbs } from "./browser/verbs.tsx"
 import { trackCamera } from "./browser/chat/camera.ts"
 import { Fold } from "./browser/agents/Fold.tsx"
@@ -31,7 +31,9 @@ import { PageHead, PageFoot } from "./browser/agents/Page.tsx"
 import { browserState as outlineBrowser } from "olai-plugin-outlines/contract"
 import { holdPages } from "./browser/pages.ts"
 import { createAgentReadings, holdAgentReadings } from "./browser/agents/reading.ts"
-import { navigation as navigationService } from "olai-plugin-navigation/contract"
+import { rendererSlots } from "olai-plugin-ui-renderer/contract"
+import { createAgentPalette } from "./browser/agents/AgentPalette.ts"
+import { navigation as navigationService, paletteAdapters } from "olai-plugin-navigation/contract"
 import { holdNavigation } from "./browser/navigation.ts"
 import { holdFaces } from "./browser/faces.ts"
 import { readings } from "olai-plugin-search/reading"
@@ -57,11 +59,11 @@ import { name } from "./wire.ts"
 /** THE SIDEBAR'S HEADING, in this plugin's words. Core keeps the region, the
  *  heading's type and the column's height budget; what a plugin brings is what
  *  it is called and what is under it. */
-const SECTION = "Agents"
+const SECTION = "Recent"
 
 export default definePlugin({
   name,
-  needs: [Faces, Slots, Wired, Offers, fileAccess, Clocks],
+  needs: [Faces, Slots, Wired, Offers, fileAccess, Clocks, rendererSlots],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
     const faces = yield* Faces
@@ -95,8 +97,17 @@ export default definePlugin({
     // this activation. Page faces consume them too; claiming them twice would
     // refuse the activation. Reverse cleanup removes the page before that owner.
     yield* slots.register("outline.page.foot", props => <AgentsProvider value={state.agents}><PageFoot {...props} /></AgentsProvider>)
-    // THE ROSTER SECTION, under the app's own sidebar regions.
-    yield* slots.register("sidebar.section", { said: SECTION, body: () => <AgentsProvider value={state.agents}><Agents /></AgentsProvider> })
+    yield* slots.register("sidebar.section", { said: "Needs you", body: () => <AgentsProvider value={state.agents}><NeedsYou /></AgentsProvider> })
+    yield* slots.register("sidebar.section", { said: SECTION, body: () => <AgentsProvider value={state.agents}><Recent /></AgentsProvider> })
+    const palette = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+      let value!: ReturnType<typeof createAgentPalette>
+      createComponent(AgentsProvider, { value: state.agents, get children() {
+        value = createAgentPalette(useAgents())
+        return null
+      } })
+      return { value, dispose }
+    })), owner => Effect.sync(owner.dispose))
+    yield* (yield* rendererSlots).contribute(paletteAdapters, palette.value)
     // The aside reads the activation roster once per row; only opening a fold
     // acquires a conversation. Unbound rows offer a start gesture.
     yield* slots.register("outline.row.placement", SESSION_KIND, { inRows: false })
@@ -114,7 +125,7 @@ import { speaker } from "./browser/viewer.ts"
 import { alertsChannel } from "olai-plugin-alerts/contract"
 import { holdChannel } from "./browser/channel.ts"
 import { createAttention } from "./browser/chat/attention/attention.ts"
-import { createEffect, createRoot, untrack } from "solid-js"
+import { createComponent, createEffect, createRoot, untrack } from "solid-js"
 export const components = {
   /** What this deployment is called, DECLARED — a component of its own so a
    *  notification is raised with the bare word rather than not at all when the

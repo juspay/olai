@@ -88,9 +88,12 @@ Feature: Typing @ in the chat completes a file of the directory
     # each one growing arrows of its own.
     When I type "read @" into the chat
     Then the completion offers "finishes.md"
+    And the active chat completion is "_olai/Settings.olai"
     When I press "ArrowDown" in the chat
-    And I press "ArrowDown" in the chat
-    And I accept the completion
+    Then the active chat completion is "_olai/Trash.olai"
+    When I press "ArrowDown" in the chat
+    Then the active chat completion is "finishes.md"
+    When I accept the completion
     # The two convention files sort first; two arrows reach the document.
     Then the chat input reads "read @finishes.md "
 

@@ -62,6 +62,7 @@
 import type { Conversing, LiveSession, Overheard } from "olai-plugin-chat"
 import {
   declarationsOf,
+  isRegular,
   type Derived,
   keysDeclaredAs,
   nearestAtOrAbove,
@@ -206,7 +207,11 @@ export const roster = (): Roster => {
     key: () => keys[0] ?? SESSION_TYPE,
     keys: () => keys,
     nearestAt: nearest,
-    rowsWith: (overheard, live) => joined(held, overheard, live),
+    rowsWith: (overheard, live) => joined(held, overheard, live).map(row => {
+      const located = reading?.byId.get(row.id)
+      const changed = located !== undefined && isRegular(located) ? located.node.changed : undefined
+      return changed === undefined ? row : { ...row, changed }
+    }),
   }
 }
 

@@ -57,6 +57,8 @@ export type AgentStanding = typeof AgentStanding.Type
  */
 export const NodeAgentRow = Schema.Struct({
   ...NodeAgent.fields,
+  /** The vault edit stamp, for activity ordering before this machine hears a turn. */
+  changed: Schema.optionalKey(Schema.String),
   /** Session lifecycle is per node, so it travels on the row rather than being
    * inferred from whichever conversation the foreground panel happens to show. */
   standing: AgentStanding,

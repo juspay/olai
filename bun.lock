@@ -298,6 +298,7 @@
         "olai-plugin-navigation": "workspace:*",
         "olai-plugin-outlines": "workspace:*",
         "olai-plugin-search": "workspace:*",
+        "olai-plugin-ui-renderer": "workspace:*",
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
         "zod": "^4.0.0",

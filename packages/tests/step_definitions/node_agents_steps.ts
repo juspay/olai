@@ -770,7 +770,7 @@ Then("all bound node agents are asleep", async function (this: OlaiWorld) {
 /** Filed ids are minted; bind a scenario name after finding the actual row. */
 When("I open the filed conversation {string} as node {string}", async function (this: OlaiWorld, title: string, name: string) {
   await this.showSidebar();
-  const row = this.page.locator(`${ROSTER} ${ROW}${attr("title", `${title} — claude:`, "^=")}`);
+  const row = this.page.locator(`${ROSTER} ${ROW}${attr("title", title)}${attr("data-engine", "claude")}`);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const id = await row.getAttribute("data-agent");
   assert.ok(id);
@@ -818,7 +818,7 @@ When("a terminal stores a conversation titled {string}", function (this: OlaiWor
 
 When("I open the filed {string} conversation {string} as node {string}", async function (this: OlaiWorld, engine: string, title: string, name: string) {
   await this.showSidebar();
-  const row = this.page.locator(`${ROSTER} ${ROW}${attr("title", `${title} — ${engine}:`, "^=")}`);
+  const row = this.page.locator(`${ROSTER} ${ROW}${attr("title", title)}${attr("data-engine", engine)}`);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const id = await row.getAttribute("data-agent");
   assert.ok(id);
@@ -840,7 +840,7 @@ Then("the filed node {string} has no message count in its note", async function 
 When("I open the {string} conversation for delivery", async function (this: OlaiWorld, kind: string) {
   await this.showSidebar();
   const row = kind === "node-bound" ? rowFor(this, "door-live")
-    : this.page.locator(`${ROSTER} ${ROW}${attr("title", "the last conversation — claude:", "^=")}`);
+    : this.page.locator(`${ROSTER} ${ROW}${attr("title", "the last conversation")}${attr("data-engine", "claude")}`);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   this.activeAgent = await row.getAttribute("data-agent");
   await this.press(row);

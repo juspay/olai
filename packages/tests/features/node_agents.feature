@@ -78,13 +78,10 @@ Feature: A node with an `agent-session` property IS an agent
     And the aside on "door-live" reads "needs you"
 
   @scratch:good
-  Scenario: A directory with no node agent has no section at all
-    # Not an empty box, not a heading, not a hint — the shelf's own rule, and
-    # here it is also the column's budget: a section drawn on every serve would
-    # spend a line of a one-screen column on every directory to say nothing
-    # about most of them.
+  Scenario: A directory with no node agent has no Needs you rows
     Given I open the outline "garden.olai"
-    Then the agents roster is not drawn
+    Then Needs you is absent
+    And the agents roster holds 0 agents
 
   # ── the gesture that binds one ────────────────────────────────────────
 
@@ -541,7 +538,7 @@ Feature: A node with an `agent-session` property IS an agent
     When I open the fold history
     Then the panel offers a fresh session, saying "memory is the subtree"
 
-  @corpus:lanes
+  @scratch:lanes
   Scenario: An unbound agent's sidebar press navigates, and says nothing
     Given I open the outline "backlog.olai"
     Then the agent "door-live" stands "asleep"

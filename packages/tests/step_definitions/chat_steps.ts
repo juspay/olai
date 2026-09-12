@@ -3885,3 +3885,7 @@ When("I send the recovered draft again", async function (this: OlaiWorld) {
   const button = this.chat(CHAT_SEND);
   await button.filter({ hasText: "send again" }).click();
 });
+
+Then("the active chat completion is {string}", async function(this: OlaiWorld, value: string) {
+  await this.waitUntil(async () => await this.chat(`${CHAT_COMPLETION_ROW}[data-active="true"]`).getAttribute("data-value") === value, `the completion cursor to name ${value}`);
+});

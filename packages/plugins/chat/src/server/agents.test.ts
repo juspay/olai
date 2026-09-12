@@ -242,3 +242,12 @@ test("a board whose bindings sit on a column nothing declares keeps no node agen
   expect(carrier.nodes()).toEqual([])
   expect(carrier.keys()).toEqual([SESSION_TYPE])
 })
+
+test("the wire roster carries the current vault edit stamp for agents not yet heard", () => {
+  const carrier = roster()
+  const seen = (changed: string) => derive(recordsOf(setOf({ "one.olai": JSON.stringify({ id: "one", ord: "a0", title: "One", changed, custom: { "chat-agent-session": "engine" } }) })))
+  carrier.seen(seen("2026-01-01T00:00:00Z"))
+  expect(carrier.rowsWith([])[0]?.changed).toBe("2026-01-01T00:00:00Z")
+  carrier.seen(seen("2026-02-01T00:00:00Z"))
+  expect(carrier.rowsWith([])[0]?.changed).toBe("2026-02-01T00:00:00Z")
+})
