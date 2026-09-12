@@ -37,7 +37,7 @@ export function NeedsYou() {
   </Show>
 }
 
-export function Recent() {
+export function Chats() {
   const agents = useAgents()
   const focus = createFocus()
   const router = useRouter()
@@ -49,7 +49,7 @@ export function Recent() {
       || (route.kind === "at" && route.address?.kind === "node" && route.address.id === row.id)
   }
   return <section class={REGION} data-testid={TESTID.agentRoster}>
-    <h2 class={REGION_LABEL}>Recent</h2>
+    <h2 class={REGION_LABEL}>Chats</h2>
     <ul class="m-0 list-none p-0"><NewChat /><Key each={rows()} by="id">{row => <li>
       <button type="button" class={`${ENTRY_SHAPE} w-full gap-2 text-left`} data-testid={TESTID.agentRow}
         data-agent={row().id} data-engine={row().engine} data-standing={row().standing} aria-current={current(row()) ? "page" : undefined}

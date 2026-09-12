@@ -1,7 +1,7 @@
 # The conversation
 
 Chat contributes conversations to outline rows and zoomed node pages, plus the
-standing/start aside, Needs you and Recent, an Agents palette adapter, and the
+standing/start aside, Needs you and Chats, an Agents palette adapter, and the
 Ask agent and `>` gestures. These faces arrive with chat's plugin row and leave
 with it. [chat.md](../chat.md) describes the workflows; this page describes their
 ownership.
@@ -59,7 +59,7 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 
 | Seat | Owner and placement | Chat contribution |
 | --- | --- | --- |
-| `sidebar.section` | sidebar's regions | Needs you and Recent; each Recent row puts its standing dot before its age |
+| `sidebar.section` | sidebar's regions | Needs you and Chats; each Chats row puts its standing dot before its age |
 | `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
 | `outline.row.aside` | outlines, beside progress before the date | standing or hover/focus start pill |
 | `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |

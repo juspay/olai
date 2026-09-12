@@ -21,7 +21,7 @@ import { Effect } from "effect"
 
 import { Standing } from "./browser/agents/Standing.tsx"
 import { createFolding, holdFolding } from "./browser/agents/folding.ts"
-import { NeedsYou, Recent } from "./browser/agents/Agents.tsx"
+import { NeedsYou, Chats } from "./browser/agents/Agents.tsx"
 import { AgentsProvider, createAgents, useAgents } from "./browser/agents/answered.tsx"
 import { createAskCommand, rowVerbs } from "./browser/verbs.tsx"
 import { trackCamera } from "./browser/chat/camera.ts"
@@ -58,7 +58,7 @@ import { name } from "./wire.ts"
 /** THE SIDEBAR'S HEADING, in this plugin's words. Core keeps the region, the
  *  heading's type and the column's height budget; what a plugin brings is what
  *  it is called and what is under it. */
-const SECTION = "Recent"
+const SECTION = "Chats"
 
 export default definePlugin({
   name,
@@ -97,7 +97,7 @@ export default definePlugin({
     // refuse the activation. Reverse cleanup removes the page before that owner.
     yield* slots.register("outline.page.foot", props => <AgentsProvider value={state.agents}><PageFoot {...props} /></AgentsProvider>)
     yield* slots.register("sidebar.section", { said: "Needs you", body: () => <AgentsProvider value={state.agents}><NeedsYou /></AgentsProvider> })
-    yield* slots.register("sidebar.section", { said: SECTION, body: () => <AgentsProvider value={state.agents}><Recent /></AgentsProvider> })
+    yield* slots.register("sidebar.section", { said: SECTION, body: () => <AgentsProvider value={state.agents}><Chats /></AgentsProvider> })
     const palette = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       let value!: ReturnType<typeof createAgentPalette>
       createComponent(AgentsProvider, { value: state.agents, get children() {

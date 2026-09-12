@@ -78,7 +78,7 @@ Screenshots: [session settings](images/acp/acp-session-settings.png), [execution
 ## Which conversation you come back to
 
 Server boot opens no conversation. Reload folds every outline conversation;
-Recent and the palette lead back to its node. A zoomed node page reads the
+Chats and the palette lead back to its node. A zoomed node page reads the
 conversation named by its property. Ongoing work and derived wakes can keep a
 session live independently of browser readers.
 
@@ -633,11 +633,11 @@ starts its agent and delivers the draft to that conversation. The subtree
 remains visible throughout. A bound node instead uses **fresh start** to replace
 its conversation.
 
-### Needs you, Recent, and the palette
+### Needs you, Chats, and the palette
 
 **Needs you** lists agents waiting for answers before agents that are not
 running, newest activity first within each group. A row shows its question count
-or **not running**. The region disappears when empty. **Recent** lists every
+or **not running**. The region disappears when empty. **Chats** lists every
 standing, capped at ten: last-heard activity first, then nodes without speech by
 their vault edit time. These rows show an engine mark, title, and standing dot immediately before the
 age. The dot uses the same standing colors and working animation as the outline
@@ -646,11 +646,11 @@ names its standing for assistive technology. An agent may appear in both regions
 
 Pressing either row navigates to the node in its outline and unfolds it; an
 unbound agent navigates only. The open row is marked current. Search **Agents**
-or a title in the palette to reach every agent, including those beyond Recent's
+or a title in the palette to reach every agent, including those beyond the Chats
 cap. Palette rows name their standing and use the same navigation rule. Both
 regions and the palette contribution withdraw with chat.
 
-The **new chat** row heads Recent and the Agents palette. It ensures `Chats` in
+The **new chat** row heads Chats and the Agents palette. It ensures `Chats` in
 the Inbox, mints a child titled **new conversation**, then starts its chosen
 engine and unfolds that child. With one engine it starts immediately; several
 offer engine names, in the sidebar menu or as palette rows. Both faces share one

@@ -9,11 +9,12 @@ const needs = selector(PLUGIN_TESTID.agentNeedsYou);
 const row = selector(PLUGIN_TESTID.agentRow);
 const need = selector(PLUGIN_TESTID.agentNeedRow);
 Given("the sidebar has eleven agents with dated vault edits", function(this: OlaiWorld) {
-  this.writeServed("recent.olai", Array.from({ length: 11 }, (_, i) => JSON.stringify({ id: `recent-${i}`, ord: `a${i.toString(36)}`, title: `Recent agent ${i}`, changed: `2026-01-${String(i + 1).padStart(2, "0")}T00:00:00Z`, custom: { "chat-agent-session": i === 1 ? "claude" : `claude:fake-session-${i + 1}` } })).join("\n") + "\n");
+  this.writeServed("recent.olai", Array.from({ length: 11 }, (_, i) => JSON.stringify({ id: `recent-${i}`, ord: `a${i.toString(36)}`, title: `Chats agent ${i}`, changed: `2026-01-${String(i + 1).padStart(2, "0")}T00:00:00Z`, custom: { "chat-agent-session": i === 1 ? "claude" : `claude:fake-session-${i + 1}` } })).join("\n") + "\n");
 });
-Then("Recent lists {string}", async function(this: OlaiWorld, ids: string) {
+Then("Chats lists {string}", async function(this: OlaiWorld, ids: string) {
   await this.showSidebar();
-  await this.waitUntil(async () => (await this.page.locator(`${recent} ${row}`).evaluateAll(elements => elements.map(el => el.getAttribute("data-agent")))).join(" ") === ids, "Recent to be in activity order");
+  await this.page.locator(recent).getByRole("heading", { name: "Chats", exact: true }).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => (await this.page.locator(`${recent} ${row}`).evaluateAll(elements => elements.map(el => el.getAttribute("data-agent")))).join(" ") === ids, "Chats to be in activity order");
 });
 Then("Needs you lists {string}", async function(this: OlaiWorld, ids: string) {
   await this.showSidebar();
@@ -21,7 +22,7 @@ Then("Needs you lists {string}", async function(this: OlaiWorld, ids: string) {
 });
 Then("Needs you is absent", async function(this: OlaiWorld) { await this.page.locator(needs).waitFor({ state: "detached", timeout: POLL_TIMEOUT }); });
 Then("the agent sidebar regions are absent", async function(this: OlaiWorld) { await this.waitUntil(async () => await this.page.locator(`${needs}, ${recent}`).count() === 0, "both agent regions to withdraw"); });
-Then("the Recent row {string} draws the {string} dot before its age", async function(this: OlaiWorld, id: string, standing: string) {
+Then("the Chats row {string} draws the {string} dot before its age", async function(this: OlaiWorld, id: string, standing: string) {
   await this.showSidebar();
   const entry = this.page.locator(`${recent} ${row}${attr("data-agent", this.nodeId(id))}`);
   const dot = entry.getByRole("img", { name: standing, exact: true });
@@ -52,6 +53,6 @@ When("I pick the Agents palette row {string}", async function(this: OlaiWorld, i
   this.activeAgent = id;
   await this.page.locator(`${PALETTE_ITEM}${attr("data-id", `agent-${this.nodeId(id)}`)}`).click();
 });
-Then("the Recent row {string} is current", async function(this: OlaiWorld, id: string) {
+Then("the Chats row {string} is current", async function(this: OlaiWorld, id: string) {
   await this.waitUntil(async () => await this.page.locator(`${recent} ${row}${attr("data-agent", this.nodeId(id))}`).getAttribute("aria-current") === "page", "the opened agent to be the current row");
 });

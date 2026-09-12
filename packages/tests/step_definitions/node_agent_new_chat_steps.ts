@@ -5,7 +5,7 @@ import { selector } from "@olai/web/testlib";
 import { attr, PALETTE_ITEM, POLL_TIMEOUT, HYDRATION_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 const fresh = selector(PLUGIN_TESTID.chatNew);
-When("I press new chat in Recent", async function(this: OlaiWorld) {
+When("I press new chat in Chats", async function(this: OlaiWorld) {
   await this.showSidebar();
   await this.press(this.page.locator(fresh));
 });
@@ -38,11 +38,11 @@ Then("the new Inbox conversation is unfolded as {string} with engine {string}", 
 Then("new chat says {string}", async function(this: OlaiWorld, message: string) {
   await this.page.locator(selector(PLUGIN_TESTID.agentRoster)).getByText(message, { exact: true }).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
-Then("new chat in Recent is starting", async function(this: OlaiWorld) {
+Then("new chat in Chats is starting", async function(this: OlaiWorld) {
   await this.waitUntil(async () => await this.page.locator(fresh).getAttribute("aria-busy") === "true", "creation to stay pending");
   assert.ok(await this.page.locator(fresh).isDisabled());
 });
-Then("new chat in Recent is unavailable", async function(this: OlaiWorld) {
+Then("new chat in Chats is unavailable", async function(this: OlaiWorld) {
   await this.showSidebar();
   await this.waitUntil(async () => await this.page.locator(fresh).isDisabled(), "no engine to disable creation");
 });

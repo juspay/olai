@@ -1,8 +1,8 @@
 @scratch:chat
 Feature: A new chat has an Inbox node from its first message
-  Scenario Outline: Recent starts and unfolds a new conversation on <screen>
+  Scenario Outline: Chats starts and unfolds a new conversation on <screen>
     Given I open the outline "house.olai"
-    When I press new chat in Recent
+    When I press new chat in Chats
     Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
     And the Inbox has 1 filed conversations
     When I ask the agent "done hinges"
@@ -30,15 +30,15 @@ Feature: A new chat has an Inbox node from its first message
     And there should be no page errors
 
   @codex
-  Scenario Outline: Recent offers the same engine menu as the aside on <screen>
+  Scenario Outline: Chats offers the same engine menu as the aside on <screen>
     Given I open the outline "house.olai"
-    When I press new chat in Recent
+    When I press new chat in Chats
     Then the agent engine menu offers "Claude Code"
     And the agent engine menu offers "Codex"
     When I choose new chat engine "Codex"
     Then the new Inbox conversation is unfolded as "new-chat" with engine "codex"
-    When I ask the agent "chosen in Recent"
-    Then the agent has answered "chosen in Recent" exactly once
+    When I ask the agent "chosen in Chats"
+    Then the agent has answered "chosen in Chats" exactly once
 
     Examples:
       | screen  |
@@ -69,20 +69,20 @@ Feature: A new chat has an Inbox node from its first message
     When I open the plugins panel
     And I switch the plugin "capture" off
     And I press "Escape"
-    And I press new chat in Recent
+    And I press new chat in Chats
     Then new chat says "the Inbox is unavailable; no conversation was created"
     And the Inbox contains no chat children
     When I open the plugins panel
     And I switch the plugin "capture" on
     And I press "Escape"
-    And I press new chat in Recent
+    And I press new chat in Chats
     Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
 
   Scenario: A held creation cannot be spent twice across the two faces
     Given I open the outline "house.olai"
     When the next agent boot will hang
-    And I press new chat in Recent
-    Then new chat in Recent is starting
+    And I press new chat in Chats
+    Then new chat in Chats is starting
     When I press the palette shortcut
     And I type "Agents" into the palette
     And I pick new chat in the Agents palette
@@ -95,7 +95,7 @@ Feature: A new chat has an Inbox node from its first message
   @no-agent
   Scenario: Without an engine neither face creates a conversation
     Given I open the outline "house.olai"
-    Then new chat in Recent is unavailable
+    Then new chat in Chats is unavailable
     When I press the palette shortcut
     And I type "Agents" into the palette
     And I pick new chat in the Agents palette
@@ -105,7 +105,7 @@ Feature: A new chat has an Inbox node from its first message
   Scenario: A refused start leaves its plain node available for retry
     Given I open the outline "house.olai"
     When the agent refuses to new a conversation
-    And I press new chat in Recent
+    And I press new chat in Chats
     Then the refused new chat leaves a plain Inbox node as "new-chat"
     And no agent fold is open
     When the agent will new a conversation again
@@ -125,7 +125,7 @@ Feature: A new chat has an Inbox node from its first message
     And I ask the agent "askstrict"
     Then the chat shows a question
     When I type "kept while another node starts" into the question's "note" box
-    And I press new chat in Recent
+    And I press new chat in Chats
     Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
     And the panel has a different conversation from "waiting"
     And the agent "install" stands "needs-you"
