@@ -11,32 +11,34 @@ Feature: A stale fresh-session action cannot create a chat for a removed node
     When I open the node menu of "removed-agent"
     And I choose "Start an agent session" from the node menu
     Then the panel header names the node agent "Temporary node agent"
-    And the agent panel is open
+    And the node agent's fold is ready
     When I ask the agent "before removal"
     Then the agent has answered "before removal" exactly once
     When I remember this conversation as "before removal"
     And I remember the served bytes of "removed-agent.olai"
-    And I open the session picker
+    And I open the fold history
     And I hold incoming updates to the original browser tab
     And I remove the served file "removed-agent.olai"
     And I open another browser tab
-    Then the agent panel is open
-    And the panel is in the remembered conversation "before removal"
+    Then no agent fold is open
     When I use the original browser tab
     And I start a fresh session
     And I release incoming updates to the original browser tab
-    Then the panel is in the remembered conversation "before removal"
-    And the agent has answered "before removal" exactly once
+    Then no agent fold is open
     When I restore the remembered served bytes of "removed-agent.olai"
+    And I open the outline "removed-agent.olai"
+    And I unfold node agent "removed-agent"
     Then the panel header names the node agent "Temporary node agent"
-    When I open the session picker
+    And the panel is in the remembered conversation "before removal"
+    And the agent has answered "before removal" exactly once
+    When I open the fold history
     Then the node session control counts 1 conversations
-    And the roster offers no unassigned chats
+    And the Unassigned row and list are absent
     When I start a fresh session
     Then the panel has a different conversation from "before removal"
     When I ask the agent "after restoring the node"
     Then the agent has answered "after restoring the node" exactly once
-    When I open the session picker
+    When I open the fold history
     Then the panel says this agent has had 1 past session
     When I open the past session "before removal"
     Then the panel is in the remembered conversation "before removal"

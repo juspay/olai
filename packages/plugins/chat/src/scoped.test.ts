@@ -10,7 +10,7 @@
 import type { NodeAgent } from "@olai/format"
 import { collector } from "@olai/log/testlib"
 import { afterEach, beforeEach, expect, test } from "bun:test"
-import { Effect, References } from "effect"
+import { Effect, Exit, References, Scope } from "effect"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -18,8 +18,9 @@ import { join } from "node:path"
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
 import { ephemeralLocalState } from "./local.ts"
-import { forLocalState } from "./memory.ts"
+import { volatile } from "./memory.ts"
 import { make } from "./scoped.ts"
+import { forLocalState as sessionsIn } from "./sessions.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { makePanel } from "./chat.ts"
 
@@ -83,6 +84,9 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     { id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
   ]
   const released: Array<string> = []
+  const alphaTab = Scope.makeUnsafe()
+  const firstTab = Scope.makeUnsafe()
+  const secondTab = Scope.makeUnsafe()
   const chat = await run(make({
     // THE BENCH'S OWN RUNTIME, said out loud. `Options.fork` has no default —
     // one would have to be `Effect.runFork`, which is the unowned default
@@ -129,16 +133,34 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     nodes = nodes.map((node) => node.id === "two" ? { ...node, session: twoSession ?? null } : node)
     chat.reread()
 
-    await run(chat.loadSession("alpha", oneSession ?? ""))
-    await run(chat.send("wait:350", [], []))
+    const alphaStates: Array<string | undefined> = []
+    await run(chat.reading({ agent: "alpha", session: oneSession! }, {
+      state: state => { alphaStates.push(state.session?.id) }, transcript: () => {},
+    }).pipe(Effect.provideService(Scope.Scope, alphaTab)))
+    await run(chat.inConversation({ agent: "alpha", session: oneSession! }, undefined,
+      panel => panel.send("wait:350", [], [])))
     await until("the first node to work", () => chat.live().get("one")?.status === "thinking")
 
+    const observed: Array<string> = []
+    const observe = () => ({
+      state: (state: ReturnType<typeof chat.state>) => observed.push(state.session?.id ?? ""),
+      transcript: () => {},
+    })
+    await run(chat.reading({ agent: "beta", session: twoSession! }, observe()).pipe(
+      Effect.provideService(Scope.Scope, firstTab),
+    ))
+    await run(chat.reading({ agent: "beta", session: twoSession! }, observe()).pipe(
+      Effect.provideService(Scope.Scope, secondTab),
+    ))
+    await run(Scope.close(firstTab, Exit.void))
     await run(chat.loadSession("beta", twoSession ?? ""))
     await run(chat.send("wait:350", [], []))
     await until("both node scopes to work", () =>
       chat.live().get("one")?.status === "thinking"
       && chat.live().get("two")?.status === "thinking")
 
+    expect(alphaStates.every(session => session === oneSession)).toBe(true)
+    await run(Scope.close(alphaTab, Exit.void))
     await until("the background scope to reap", () =>
       !chat.live().has("one") && released.length === 1)
     const afterReap = [...released]
@@ -153,7 +175,23 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     await until("the sleeping scope to wake and finish", () => chat.live().get("one")?.status === "idle")
     expect(chat.state().bound).toBe("two")
     expect(chat.live().has("two")).toBe(true)
+    // A delayed action from an expired lifetime cannot reopen its old pair
+    // through the current node scope, even if its binding is still visible.
+    const currentScope = chat.state().uploadScope
+    const stale = await run(Effect.result(chat.inConversation(
+      { agent: "beta", session: "expired-conversation" }, "expired-upload-scope",
+      () => Effect.die("a stale action must never run"),
+    )))
+    expect(stale._tag).toBe("Failure")
+    expect(chat.state().session?.id).toBe(twoSession)
+    expect(chat.state().uploadScope).toBe(currentScope)
+    expect(observed.every(session => session === twoSession)).toBe(true)
+    await run(Scope.close(secondTab, Exit.void))
+    await until("the last reading to release the idle scope", () => !chat.live().has("two"))
   } finally {
+    await run(Scope.close(alphaTab, Exit.void))
+    await run(Scope.close(firstTab, Exit.void))
+    await run(Scope.close(secondTab, Exit.void))
     await run(chat.stop)
   }
 
@@ -162,8 +200,9 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     && line.annotations.reason === "idle eviction" && line.annotations.node === "one")).toBe(true)
 }, 20_000)
 
-test("boot routes a remembered node session before spawning any panel", async () => {
+test("boot opens no conversation, even with an old remembered session", async () => {
   let probes = 0
+  let roster = [installed("alpha")]
   const remembered: NodeAgent = {
     id: "one",
     file: "Work.olai",
@@ -176,7 +215,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
   // seeded between construction and start, and the scheduler must read that
   // live value when it routes remembered memory.
   let nodes: ReadonlyArray<NodeAgent> = []
-  const memory = forLocalState(ephemeralLocalState(), "alpha")
+  const memory = volatile()
   await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
 
   const { layer, said } = collector()
@@ -188,8 +227,8 @@ test("boot routes a remembered node session before spawning any panel", async ()
   const logged = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(under(effect))
   const chat = await logged(make({
     fork: (work) => Effect.runFork(under(work)),
-    roster: () => [installed("alpha")],
-    engines: () => ["alpha"],
+    roster: () => roster,
+    engines: () => roster.map(row => row.id),
     cwd,
     memory,
     probes: () => Effect.succeed([{
@@ -215,11 +254,36 @@ test("boot routes a remembered node session before spawning any panel", async ()
 
   try {
     await logged(chat.start)
-    await until("the remembered node session to load", () =>
-      chat.state().bound === "one" && chat.state().status === "idle")
-    expect(said.filter((line) => line.message.includes("chat agent ready"))).toHaveLength(1)
-    expect(said.filter((line) => line.message.includes("conversation opened"))).toHaveLength(1)
-    expect(probes).toBe(1)
+    expect(chat.live().size).toBe(0)
+    expect(chat.state().session).toBeNull()
+    expect(said.filter((line) => line.message.includes("chat agent ready"))).toHaveLength(0)
+    expect(said.filter((line) => line.message.includes("conversation opened"))).toHaveLength(0)
+    expect(probes).toBe(0)
+    const tab = Scope.makeUnsafe()
+    const states: Array<string> = []
+    try {
+      await logged(chat.reading({ agent: "alpha", session: "remembered" }, {
+        state: state => { states.push(state.status) }, transcript: () => {},
+      }).pipe(Effect.provideService(Scope.Scope, tab)))
+      expect(states).toContain("booting")
+      expect(states.at(-1)).toBe("idle")
+      roster = []
+      await logged(chat.enginesMoved)
+      expect(states.at(-1)).toBe("off")
+      roster = [installed("alpha")]
+      await logged(chat.enginesMoved)
+      expect(states.at(-1)).toBe("idle")
+      expect(said.filter(line => line.message.includes("conversation opened"))).toHaveLength(2)
+      await logged(Scope.close(tab, Exit.void))
+      roster = []
+      await logged(chat.enginesMoved)
+      roster = [installed("alpha")]
+      await logged(chat.enginesMoved)
+      // Capability arrival without a reader must not open the stored chat.
+      expect(said.filter(line => line.message.includes("conversation opened"))).toHaveLength(2)
+    } finally {
+      await logged(Scope.close(tab, Exit.void))
+    }
   } finally {
     await logged(chat.stop)
   }
@@ -241,7 +305,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
  * roster still names, a ticket minted and never released, and a subprocess
  * that was told it was ready and never told to go.
  */
-test("a shutdown that lands mid-boot leaves no scope, no ticket and no process", async () => {
+test("a shutdown during an explicit opening leaves no scope, no ticket and no process", async () => {
   const { run, fork, said } = logging()
   const node: NodeAgent = {
     id: "one",
@@ -254,7 +318,7 @@ test("a shutdown that lands mid-boot leaves no scope, no ticket and no process",
   // REMEMBERED, so the boot goes straight for the node scope rather than
   // through a root session first — the longest walk, and the one with a
   // credential and a subprocess in the middle of it.
-  const memory = forLocalState(ephemeralLocalState(), "alpha")
+  const memory = volatile()
   await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
   const minted: Array<string> = []
   const released: Array<string> = []
@@ -289,8 +353,10 @@ test("a shutdown that lands mid-boot leaves no scope, no ticket and no process",
   }))
 
   await run(chat.start)
+  const opening = run(chat.loadSession("alpha", "remembered"))
   await minting.promise
   await run(chat.stop)
+  await opening.catch(() => {})
   // Long enough for a boot that outlived the stop to have reached its
   // `session/load` and registered a slot.
   await run(Effect.sleep("1500 millis"))
@@ -323,7 +389,7 @@ test("a shutdown that lands mid-boot leaves no scope, no ticket and no process",
  * here rather than left for a reader to discover, because a case that cannot
  * fail is coverage and not evidence, and the two are not the same thing.
  */
-for (const path of ["a session started at a node", "a relocation"] as const) {
+for (const path of ["a session started at a node"] as const) {
 test(`a shutdown that lands mid-acquisition during ${path} leaves nothing behind`, async () => {
   const { run, fork, said } = logging()
   const node: NodeAgent = {
@@ -365,20 +431,7 @@ test(`a shutdown that lands mid-acquisition during ${path} leaves nothing behind
   // the root first and waits for the boot to be done with it — which is what
   // makes the acquisition under test unambiguously not the boot's. The other
   // path takes no boot at all.
-  if (path === "a relocation") {
-    await run(chat.start)
-    await until("the root conversation to open", () =>
-      chat.state().session !== null && chat.state().status === "idle")
-  }
-  const seating = run(Effect.catch(
-    path === "a session started at a node"
-      ? chat.startAgentSession(node.id, "alpha")
-      : chat.assignedTo(node.id, {
-        agent: "alpha",
-        session: chat.state().session?.id ?? "",
-      }),
-    () => Effect.void,
-  ))
+  const seating = run(Effect.catch(chat.startAgentSession(node.id, "alpha"), () => Effect.void))
   await minting.promise
   await run(chat.stop)
   await seating
@@ -394,59 +447,6 @@ test(`a shutdown that lands mid-acquisition during ${path} leaves nothing behind
 }, 30_000)
 }
 
-test("boot moves a newly identified node session into its scope", async () => {
-  const { run, fork, said } = logging()
-  const node: NodeAgent = {
-    id: "one",
-    file: "Work.olai",
-    title: "one",
-    engine: "alpha",
-    // The fixture returns this id from `session/new`. With no remembered
-    // memory the scheduler cannot know that until the root boot answers.
-    session: "sess-1",
-    memory: 2,
-  }
-  const released: Array<string> = []
-  const chat = await run(make({
-    fork,
-    roster: () => [installed("alpha")],
-    engines: () => ["alpha"],
-    cwd,
-    tools: () => null,
-    nodeAt: (id) => id === node.id ? node : null,
-    seatableAt: (id) => id === node.id,
-    nodes: () => [node],
-    wake: () => ACTIVATION,
-    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
-    agentAt: ({ agent, session }) =>
-      node.engine === agent && node.session === session ? node : null,
-    ticket: (held) => ({ bearer: `ticket-${held}`, release: () => released.push(held) }),
-    onState: () => {},
-    onTranscript: () => {},
-  }))
-
-  try {
-    await run(chat.start)
-    await until("the newly identified session to enter its node scope", () =>
-      chat.state().bound === "one" && chat.live().get("one")?.status === "idle")
-  } finally {
-    await run(chat.stop)
-  }
-
-  expect(released).toEqual(["one"])
-  const handoff = said.find(line => line.message.includes("moving conversation into node scope"))
-  expect(handoff?.annotations.node).toBe("one")
-  const exits = said.filter(line => line.message.includes("chat agent exited"))
-  expect(exits.map(line => line.annotations.reason)).toEqual(["node scope handoff", "shutdown"])
-  expect(exits[0]?.annotations.session).toBe("sess-1")
-  expect(exits[0]?.annotations.expected).toBe(true)
-  const ready = said.filter(line => line.message.includes("chat agent ready"))
-  expect(ready).toHaveLength(2)
-  expect(ready[0]?.annotations.pid).toBe(exits[0]?.annotations.pid)
-  expect(ready[1]?.annotations.pid).not.toBe(ready[0]?.annotations.pid)
-  expect(ready[1]?.annotations.node).toBe("one")
-  expect(ready[1]?.annotations.purpose).toBe("conversation")
-})
 
 test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wake", async () => {
   const { run, fork, said } = logging()
@@ -636,3 +636,45 @@ test("node wake picks are off by default, independent, durable and clear the liv
     await run(chat.stop)
   }
 }, 25_000)
+
+
+test("filing clears old manual wakes and trash releases a running node", async () => {
+  let present = true
+  let released = false
+  const node: NodeAgent = { id: "filed", file: "Inbox.olai", title: "filed", engine: "alpha", session: "stored", memory: 1 }
+  const local = ephemeralLocalState()
+  const scoping = await run(scopesIn(local))
+  const overheard = await run(sessionsIn(local))
+  const chat = await run(make({
+    fork: Effect.runFork, roster: () => [installed("alpha")], engines: () => ["alpha"], cwd,
+    tools: () => null, nodeAt: () => present ? node : null, seatableAt: () => present,
+    nodes: () => present ? [node] : [], wake: () => ACTIVATION,
+    nearestAt: () => present ? node.id : null, agentAt: () => present ? node : null,
+    ticket: () => ({ bearer: "filed-ticket", release: () => { released = true } }),
+    scoping, overheard, onState: () => {}, onTranscript: () => {},
+  }))
+  const scope = Scope.makeUnsafe()
+  try {
+    const to = { agent: "alpha", session: "stored" }
+    await run(chat.scope(to, "kolu", "Inbox.olai"))
+    expect(chat.doorFor("kolu").scopes()).toHaveLength(1)
+    await run(overheard.assign(to)) // A record filed by the previous build.
+    await run(chat.start)
+    expect(chat.doorFor("kolu").scopes()).toHaveLength(0)
+    await run(chat.reading(to, { state: () => {}, transcript: () => {} }).pipe(Effect.provideService(Scope.Scope, scope)))
+    expect(chat.live().size).toBe(1)
+    await run(chat.scope(to, "kolu", "Inbox.olai"))
+    expect((await run(sessionsIn(local))).at(to)?.wakesCleared).toBe(true)
+    await run(chat.start)
+    const recipient = chat.doorFor("kolu").scopes()[0]!
+    present = false
+    chat.reread()
+    await until("the trashed agent credential to be released", () => released)
+    expect(chat.live().size).toBe(0)
+    expect(chat.doorFor("kolu").scopes()).toHaveLength(0)
+    expect(recipient.current()).toBe(false)
+  } finally {
+    await run(Scope.close(scope, Exit.void))
+    await run(chat.stop)
+  }
+})

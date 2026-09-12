@@ -1,8 +1,9 @@
 @scratch:chat
 Feature: Dismissed chat completions stay attached to their draft
   Scenario: Rebuilding the chat preserves a dismissed name and Enter sends the literal text
-    Given I open the app
-    And the agent panel is open
+    Given I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     And I mark the page
     When I type "discuss @finishes" into the chat
     Then the completion offers "finishes.md"
@@ -28,13 +29,14 @@ Feature: Dismissed chat completions stay attached to their draft
     And there should be no page errors
 
   Scenario: Closing the panel retains dismissal while another token can still complete
-    Given I open the app
-    And the agent panel is open
+    Given I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I type "discuss @finishes" into the chat
     Then the completion offers "finishes.md"
     When I press "Escape" in the chat
-    And I close the agent panel
-    And the agent panel is open
+    And I close the agent fold
+    And the node agent's fold is ready
     Then the chat input reads "discuss @finishes"
     And no completion is open
     When I type "discuss @finishes and @cab" into the chat
@@ -50,14 +52,14 @@ Feature: Dismissed chat completions stay attached to their draft
     When I open the node menu of "install"
     And I choose "Start an agent session" from the node menu
     Then the panel header names the node agent "install the cabinets"
-    And the agent panel is open
+    And the node agent's fold is ready
     When I type "discuss @finishes" into the chat
     Then the completion offers "finishes.md"
     When I press "Escape" in the chat
     And I open the node menu of "order"
     And I choose "Start an agent session" from the node menu
     Then the panel header names the node agent "order the new cabinets"
-    And the agent panel is open
+    And the node agent's fold is ready
     When I type "discuss @finishes" into the chat
     Then the completion offers "finishes.md"
     When I press the agent "install"

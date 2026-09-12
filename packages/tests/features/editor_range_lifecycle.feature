@@ -10,7 +10,7 @@ Feature: A rebuilt editor preserves the selected text before a structural key
     And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the conversation is gone-from the header
+    Then chat controls are gone-from the outline
     And the selected text in the line is "the"
     When I press "Enter"
     Then "house.olai" holds a node titled "choose "
@@ -28,7 +28,7 @@ Feature: A rebuilt editor preserves the selected text before a structural key
     And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the conversation is gone-from the header
+    Then chat controls are gone-from the outline
     And the selected text in the line is "the"
     When I type "brass"
     And I click away from the editor
@@ -71,7 +71,7 @@ Feature: A rebuilt editor preserves the selected text before a structural key
     And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the conversation is gone-from the header
+    Then chat controls are gone-from the outline
     And the note retains the backward selection "the"
     When I type "brass"
     And I click away from the editor
@@ -104,7 +104,7 @@ Feature: A rebuilt editor preserves the selected text before a structural key
     And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the conversation is gone-from the header
+    Then chat controls are gone-from the outline
     When I type "even "
     And I click away from the editor
     Then "note-caret.olai" holds a node whose note ends "choose the handles and even more"

@@ -6,8 +6,9 @@ Feature: Codex subagents and background terminals are visible
   Background:
     Given I open the app
     And I show the done nodes
-    And the agent panel is open
-    When I choose the agent "codex"
+    And I open the outline "house.olai"
+    And I open the "codex" agent on node "kitchen"
+    And the node agent's fold is ready
 
   Scenario: Subagent tools have their own door and never merge with root tools
     When I ask the agent "native agents"
@@ -89,9 +90,8 @@ Feature: Codex subagents and background terminals are visible
 
   @agent-stored
   Scenario: Loading a stored conversation restores child work and an active terminal
-    When I open the unassigned chats
-    And I pick the conversation "an older conversation" under the agent "codex"
-    Then the conversation is titled "an older conversation"
+    When I open the filed "codex" conversation "an older conversation" as node "filed-chat"
+    Then the opened conversation carries the title "an older conversation"
     And the call that spawned it offers a door to 2 calls, as "explore the outline"
     And the strip says "watch files" is running
     When the agent is released
@@ -100,11 +100,11 @@ Feature: Codex subagents and background terminals are visible
 
   @agent-stored
   Scenario: Activity from a conversation left behind cannot populate the new one
-    When I open the unassigned chats
-    And I pick the conversation "an older conversation" under the agent "codex"
+    When I open the filed "codex" conversation "an older conversation" as node "filed-chat"
     Then the strip says "watch files" is running
-    When I start a new conversation
-    And I choose the agent "codex"
+    When I open the outline "house.olai"
+    And I open the "codex" agent on node "order"
+    And the node agent's fold is ready
     And the agent is released
     And I ask the agent "hello"
     Then the agent's answer mentions "hello"

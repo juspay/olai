@@ -162,6 +162,8 @@ export interface Overheard extends Conversing {
    * taught its migration contract is never taught a second one.
    */
   readonly assigned?: boolean
+  /** Inherited manual wakes were cleared when this conversation was filed. */
+  readonly wakesCleared?: true
   /** The conversation that REPLACED this one, where olai made the replacement —
    *  a session id, with this row's own agent. Absent for every conversation
    *  nothing has replaced, and for a `/clear` the adapter already reports. */
@@ -202,7 +204,7 @@ export interface Sessions {
    * A no-op for one already marked, for {@link teach}'s reason: the row already
    * says what this would write, and a chat is assigned once.
    */
-  readonly assign: (to: Conversing) => Effect.Effect<void, MemoryFailure>
+  readonly assign: (to: Conversing, wakesCleared?: true) => Effect.Effect<void, MemoryFailure>
   /**
    * ... and write down that OLAI replaced this conversation with another —
    * said by the gesture that re-points a bound node at a fresh session.
@@ -274,6 +276,7 @@ const read = (held: Record<string, unknown>): ReadonlyArray<Overheard> => {
       session,
       ...(one["taught"] === true ? { taught: true } : {}),
       ...(one["assigned"] === true ? { assigned: true } : {}),
+      ...(one["wakesCleared"] === true ? { wakesCleared: true as const } : {}),
       ...supersededIn(one["superseded"]),
       ...saidIn(one["said"]),
     })
@@ -362,10 +365,11 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
       at: (to) => rows.find((row) => sameChat(row, to)),
       teach: (to) =>
         write(to, (row) => (row?.taught === true ? undefined : { ...row, ...to, taught: true })),
-      assign: (to) =>
+      assign: (to, wakesCleared) =>
         write(
           to,
-          (row) => (row?.assigned === true ? undefined : { ...row, ...to, assigned: true }),
+          (row) => (row?.assigned === true && (wakesCleared !== true || row.wakesCleared === true)
+            ? undefined : { ...row, ...to, assigned: true, ...(wakesCleared === true ? { wakesCleared: true as const } : {}) }),
         ),
       supersede: (to, by) =>
         write(

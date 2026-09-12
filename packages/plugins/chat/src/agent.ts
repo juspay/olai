@@ -120,6 +120,7 @@ import { Activity } from "./activity.ts"
 import { nativeActivity } from "@olai/acp"
 import { sameDirectory } from "./directory.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
+import type { Models } from "./models.ts"
 import type { MemorySnapshot, Memory, MemoryFailure } from "./memory.ts"
 import { streamOver } from "./pipes.ts"
 import { handedIn, missingIn, type Probe, probed, type StdioServer } from "./probes.ts"
@@ -293,6 +294,7 @@ export interface Options {
    *  this directory and the next ({@link ./memory.ts}). Handed in rather than
    *  built here for the reason the tool server is: this module is the one that
    *  speaks ACP, and where a machine keeps its state is not a protocol fact. */
+  readonly models?: Models
   readonly memory: Memory
   readonly onEvent: (event: AgentEvent) => void
 }
@@ -1217,6 +1219,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           try: () =>
             startChild(options.command, [...options.args], {
               cwd: options.cwd,
+              processGroup: true,
               // The row's extra env OVER olai's own: the child wants
               // everything this process has PLUS what its adapter was told
               // (a `pi` the probe found on a search path this process's PATH
@@ -1527,12 +1530,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // Read INTO the mirror before anything is opened, because entering a
         // conversation writes the mirror back out ({@link entered}) — a recall
         // discarded here would be this boot forgetting what it had just read.
-        held = yield* recalled
-        const wanted = adopt(rememberedHere(), stored)
+        if (options.models === undefined) held = yield* recalled
+        const wanted = adopt(options.models === undefined ? rememberedHere() : null, stored)
         if (wanted !== undefined) {
           // The model goes with the conversation it was written down for. Adopt
           // the FALLBACK — the remembered one is gone — and there is nothing
           // remembered about the one we opened instead.
+          yield* readChoice(wanted.id)
           yield* load(at, wanted.id, wanted.title, modelFor(wanted.id))
           return
         }
@@ -1602,6 +1606,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  and a note about a different one leaves this boot with nothing
      *  remembered — which is the ordinary "adopt the newest" path, in an agent
      *  this panel has just been asked to talk to. */
+    const readChoice = (session: string): Effect.Effect<void> => Effect.gen(function*() {
+      if (options.models === undefined) return
+      const model = yield* said(options.models.read({ agent: options.id, session }),
+        why => `the model chosen for this conversation could not be read: ${why}`)
+      held = { agent: options.id, session, model }
+    })
+
     const rememberedHere = (): string | null =>
       held?.agent === options.id ? held.session : null
 
@@ -1616,7 +1627,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // are two writes to one file, arriving from a boot fiber and a protocol
         // callback. Unordered, the older of them can land last and the next
         // boot reads a memory that was true a moment before it was written.
-        yield* remembering.withPermit(Effect.asVoid(said(options.memory.remember(next), cost)))
+        yield* remembering.withPermit(Effect.asVoid(said(
+          options.models === undefined ? options.memory.remember(next)
+            : next.model === null ? Effect.void : options.models.write(next, next.model), cost)))
       })
 
     /**
@@ -2272,16 +2285,17 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       stopped = true
       const alongside = [...beside]
       beside.clear()
-      await Promise.all(alongside.map((fiber) => Effect.runPromise(Fiber.interrupt(fiber))))
       const at = live
       if (at !== null) requestedStops.set(at.child, { reason, session: activeSession })
       live = null
       leaving()
       activeSession = null
-      await terminalCleanup
-      if (at === null) return
-      at.connection.close()
-      await at.child.stop()
+      // Close the protocol and process before joining requests waiting on it.
+      if (at !== null) at.connection.close()
+      await Promise.all([
+        at?.child.stop(), terminalCleanup,
+        ...alongside.map((fiber) => Effect.runPromise(Fiber.interrupt(fiber))),
+      ])
     })
 
     const setSetting = (session: string, config: string, value: string | boolean) =>
@@ -2342,6 +2356,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // conversation carries nothing, because nothing here is a fact
             // about that one. The memory is one conversation deep, like the id
             // beside it.
+            yield* readChoice(id)
             yield* load(at, id, wanted?.title ?? null, modelFor(id))
           })
         ),

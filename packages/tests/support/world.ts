@@ -1915,6 +1915,7 @@ export class OlaiWorld extends World {
    *  noted it — `null` until one does, so comparing is a sentence about
    *  noted-and-now, never about a zero the scenario forgot to set. */
   notedListAsks: number | null = null;
+  notedAgentStarts: number | null = null;
 
   /** Wait for a double `requestAnimationFrame`.
    *
@@ -2174,15 +2175,41 @@ export class OlaiWorld extends World {
    *  so this never needs a scope — except inside a mirror, where the target's
    *  subtree is rendered a second time, or inside a split, where a second pane
    *  may draw the same file; those steps scope explicitly ({@link pane}). */
+  /** Scenario names for ids minted by ordinary UI/server writes. */
+  /** The conversation explicitly selected by this scenario's last node gesture.
+   * Multiple folds may remain open; chat assertions never choose the first. */
+  private readonly activeAgents = new WeakMap<Page, string>();
+  private readonly menuNodes = new WeakMap<Page, string>();
+  get activeAgent(): string | null { return this.activeAgents.get(this.page) ?? null; }
+  set activeAgent(node: string | null) { if (node === null) this.activeAgents.delete(this.page); else this.activeAgents.set(this.page, node); }
+  get menuNode(): string | null { return this.menuNodes.get(this.page) ?? null; }
+  set menuNode(node: string | null) { if (node === null) this.menuNodes.delete(this.page); else this.menuNodes.set(this.page, node); }
+  chatSelector(control: string): string {
+    assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
+    return `:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))} :is(${control})`;
+  }
+  chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.page.locator(this.chatSelector(control), options); }
+  /** Settings live in the fold's agent line or the zoomed page's head. */
+  chatLine(): Locator {
+    assert.ok(this.activeAgent, "select a node agent before addressing its agent line");
+    return this.page.locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
+  }
+  chatRoot(): Locator {
+    assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
+    return this.page.locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
+  }
+  readonly nodeNames = new Map<string, string>();
+  nodeId(name: string): string { return this.nodeNames.get(name) ?? name; }
+
   node(id: string): Locator {
-    return this.page.locator(nodeSelector(id));
+    return this.page.locator(nodeSelector(this.nodeId(id)));
   }
 
   /** The same node, only if it is on screen. `:visible` because dropping a row
    *  and hiding it are both legitimate ways to hide something, and they read
    *  the same to the person looking at the page. */
   visibleNode(id: string): Locator {
-    return this.page.locator(`${nodeSelector(id)}:visible`);
+    return this.page.locator(`${nodeSelector(this.nodeId(id))}:visible`);
   }
 
   /** The trail above a zoomed node, crumb by crumb, in order. */
@@ -2674,7 +2701,7 @@ export class OlaiWorld extends World {
     expected: string,
   ): Promise<void> {
     await this.expectAttribute(
-      nodeSelector(id),
+      nodeSelector(this.nodeId(id)),
       attribute,
       expected,
       `node "${id}"`,

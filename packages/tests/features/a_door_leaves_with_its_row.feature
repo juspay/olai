@@ -17,36 +17,28 @@ Feature: A reading leaves with the row that offered it, and comes back
   looking at. Each scenario switches ONE row and asserts about a different row's
   page.
 
-  # §2 and §12: `outlines.references`, which used to be a Solid signal at module
-  # scope in the outline's own contract door, read across the wall by the chat
-  # panel with nothing declared anywhere.
-  #
-  # A code span in the agent's prose is pressable exactly when the loaded set
-  # declares what it says, and WHO ANSWERS THAT is the outline row. So the mark
-  # on a message already on screen is the reading, and it retracts and returns
-  # with its provider — while the transcript, the composer and the arming are
-  # the panel's own and do not move at all.
-  @scratch:chat
-  Scenario: The transcript stops naming nodes when the outline leaves, and names them again
-    Given I open the outline "house.olai"
+  @scratch:chat @node-idle-fast
+  Scenario: Withdrawing outlines disposes its folds and restoring it restores the readings
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
     And I mark the page
-    And the agent panel is open
-    When I open the node menu of "hinges"
-    And I choose "Ask agent" from the node menu
-    Then the composer is armed with "hinges"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "done order"
-    Then the agent's answer names the node "order"
+    Then the agent is idle
+    And the agent's answer names the node "order"
     When I open the plugins panel
     And I switch the plugin "outlines" off
     And I close the plugins panel
-    # The message is where it was and says what it said. What is gone is the
-    # one thing the outline was answering.
-    Then the agent's answer says "done."
-    But the agent's answer does not make "order" a reference
+    Then no agent fold is open
+    And the agent "kitchen" stands "asleep"
     When I open the plugins panel
     And I switch the plugin "outlines" on
     And I close the plugins panel
+    And the node agent's fold is ready
     Then the agent's answer names the node "order"
+    When I ask the agent "after the outline returned"
+    Then the agent has answered "after the outline returned" exactly once
     And the page has not reloaded
     And there should be no page errors
 

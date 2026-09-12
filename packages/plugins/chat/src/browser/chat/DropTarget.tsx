@@ -69,13 +69,9 @@ export function DropTarget(props: {
 
   return (
     <div
-      // Phone half-sheet: when the strips above leave this shorter than the
-      // composer, this is the hatch a finger (and Playwright) uses to reach
-      // the box. Desktop never needs it — the transcript is the scroller
-      // (`./Transcript.tsx`, `min-h-0`), and an outer overflow here is what
-      // made a long turn scroll the composer away with the rows. `md:` is
-      // the same 48rem the dock/sheet split uses (`../layout/media.ts`).
-      class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain md:overflow-hidden"
+      // Only the transcript scrolls inside a fold. The composer and its
+      // completion must be able to extend over the strips above it.
+      class="relative flex min-h-0 min-w-0 flex-1 flex-col"
       onDragEnter={(event) => {
         if (carrying(event)) setDepth((inside) => inside + 1)
       }}

@@ -55,8 +55,9 @@ Feature: The renderer and layout are browser rows
     And there should be no page errors
 
   Scenario: Layout refits its columns when a desktop window narrows
-    When I open the app
-    And I open the agent panel again
+    When I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     And the desktop window narrows to 900 pixels
     Then layout reserves at least 280 pixels for content
     And there should be no page errors

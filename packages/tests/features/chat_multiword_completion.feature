@@ -6,8 +6,9 @@ Feature: Naming a node by its multi-word title in the composer
       {"id":"odu-watch","ord":"a0","title":"Odu watcher scope"}
       {"id":"odu-build","ord":"a1","title":"Odu build scope"}
       """
-    And I open the app
-    And the agent panel is open
+    And I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
 
   Scenario: Spaces keep narrowing the title and the accepted node reaches the agent
     When I type "context @odu" into the chat
@@ -20,6 +21,8 @@ Feature: Naming a node by its multi-word title in the composer
     And the completion does not offer "odu-build"
     And no chat completion is selected
     When I press "ArrowDown" in the chat
+    Then the selected chat completion is "odu-watch"
+    When the chat box reports its unchanged caret
     Then the selected chat completion is "odu-watch"
     When I accept the completion
     Then the chat input reads "context @odu-watch "
@@ -44,8 +47,8 @@ Feature: Naming a node by its multi-word title in the composer
     When I type "discuss @odu watcher scope" into the chat
     Then the completion offers "odu-watch"
     When I press "Escape" in the chat
-    And I close the agent panel
-    And the agent panel is open
+    And I close the agent fold
+    And the node agent's fold is ready
     Then the chat input reads "discuss @odu watcher scope"
     And no completion is open
     When I type "discuss @odu watcher scope and @odu build scope" into the chat

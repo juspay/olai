@@ -73,6 +73,7 @@
 import { announced, wrapped, type CallToolResult } from "olai-plugin-pi/testlib";
 import { existsSync, realpathSync, rmSync } from "node:fs";
 
+import { commandLine } from "../command.ts";
 import { readMessages } from "../../support/ndjson.ts";
 import { emitter, MARKER, released, speaking } from "../../support/scripted.ts";
 
@@ -159,7 +160,7 @@ const info = (running: boolean, queueDepth: number): void => {
 // ── turns ──────────────────────────────────────────────────────────────
 
 const turn = async (text: string): Promise<string> => {
-  const said = text.trim();
+  const said = commandLine(text);
 
   if (said === "slow") {
     // The bash call as the real one announces it: `pending`, a terminal

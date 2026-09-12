@@ -16,21 +16,21 @@
 
 import { expect, test } from "bun:test"
 
-import { askPending, createAsked } from "./asked.ts"
+import { createAsked } from "./asked.ts"
 import { agentRow as agent, askRow as ask, live } from "../live.testlib.ts"
 
 test("the snapshot is the waiting question", () => {
   const chat = live(createAsked)
   chat.add("a", agent(1, "let me check"))
   chat.add("b", ask(2, "ask:1", "Which timber for the doors?"))
-  expect(askPending()).toEqual({ id: "ask:1", text: "Which timber for the doors?" })
+  expect(chat.value()).toEqual({ id: "ask:1", text: "Which timber for the doors?" })
   chat.stop()
 })
 
 test("a conversation with nothing waiting has no snapshot", () => {
   const chat = live(createAsked)
   chat.add("a", agent(1, "a ladder"))
-  expect(askPending()).toBeUndefined()
+  expect(chat.value()).toBeUndefined()
   chat.stop()
 })
 
@@ -38,7 +38,7 @@ test("the newest waiting question is the one a person is looking at", () => {
   const chat = live(createAsked)
   chat.add("a", ask(1, "ask:1", "Which timber?"))
   chat.add("b", ask(2, "ask:2", "How many doors?"))
-  expect(askPending()?.id).toBe("ask:2")
+  expect(chat.value()?.id).toBe("ask:2")
   chat.stop()
 })
 
@@ -46,9 +46,9 @@ test("answering the question empties the snapshot", () => {
   // The read that has to be tracked: the key never moves, and the outcome does.
   const chat = live(createAsked)
   chat.add("b", ask(2, "ask:1", "Which timber?"))
-  expect(askPending()?.id).toBe("ask:1")
+  expect(chat.value()?.id).toBe("ask:1")
   chat.token("b", ask(2, "ask:1", "Which timber?", true))
-  expect(askPending()).toBeUndefined()
+  expect(chat.value()).toBeUndefined()
   chat.stop()
 })
 
@@ -57,7 +57,7 @@ test("answering the newest falls back to the one still waiting under it", () => 
   chat.add("a", ask(1, "ask:1", "Which timber?"))
   chat.add("b", ask(2, "ask:2", "How many doors?"))
   chat.token("b", ask(2, "ask:2", "How many doors?", true))
-  expect(askPending()?.id).toBe("ask:1")
+  expect(chat.value()?.id).toBe("ask:1")
   chat.stop()
 })
 
@@ -70,16 +70,19 @@ test("a token on prose costs no read at all", () => {
   const before = chat.reads()
   for (let n = 0; n < 10; n += 1) chat.token("p3", agent(3, `line 3 revised ${n}`))
   expect(chat.reads()).toBe(before)
-  expect(askPending()?.id).toBe("ask:1")
+  expect(chat.value()?.id).toBe("ask:1")
   chat.stop()
 })
 
-test("the panel closing empties the snapshot", () => {
-  // The fallback is deliberate: a question remembered from the last time the
-  // panel was open would be a notification about something else.
+test("two conversations own independent pending questions", () => {
   const chat = live(createAsked)
-  chat.add("b", ask(2, "ask:1", "Which timber?"))
-  expect(askPending()?.id).toBe("ask:1")
+  const other = live(createAsked)
+  chat.add("q", ask(1, "ask:1", "Which timber?"))
+  other.add("q", ask(1, "ask:2", "How many doors?"))
+  expect(chat.value()?.id).toBe("ask:1")
+  expect(other.value()?.id).toBe("ask:2")
   chat.stop()
-  expect(askPending()).toBeUndefined()
+  other.token("q", ask(1, "ask:2", "How many doors?", true))
+  expect(other.value()).toBeUndefined()
+  other.stop()
 })

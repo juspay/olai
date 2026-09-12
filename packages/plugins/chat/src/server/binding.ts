@@ -34,9 +34,10 @@
  * on and two tabs can be looking at one node.
  */
 
-import { type OpFailure, sessionValue, UsageFailure } from "@olai/format"
+import { type OpFailure, sessionValue } from "@olai/format"
 import { Effect } from "effect"
 
+import type { Conversing } from "../sessions.ts"
 import type { Chat } from "../scoped.ts"
 
 /** WHAT A BINDING NEEDS BESIDES THE PANEL — the roster's reading of the node,
@@ -89,51 +90,13 @@ export const startAgentSession = (
   chat: Chat,
   binding: Binding,
   input: { readonly node: string; readonly agent: string },
-): Effect.Effect<void, OpFailure> =>
+): Effect.Effect<Conversing, OpFailure> =>
   Effect.gen(function*() {
     const was = binding.boundAt(input.node)
-    yield* chat.startAgentSession(input.node, input.agent)
-    const now = chat.state().session
-    if (now === null) {
-      return yield* new UsageFailure({
-        reason: `${input.agent} opened no conversation to bind to this node`,
-      })
+    const now = yield* chat.startAgentSession(input.node, input.agent)
+    yield* binding.write(input.node, sessionValue(now.agent, now.session))
+    if (was?.session != null && was.session !== now.session) {
+      yield* chat.replaced({ agent: was.engine, session: was.session }, now.session)
     }
-    yield* binding.write(input.node, sessionValue(input.agent, now.id))
-    if (was?.session != null && was.session !== now.id) {
-      yield* chat.replaced({ agent: was.engine, session: was.session }, now.id)
-    }
-  })
-
-/**
- * A CONVERSATION THAT ALREADY EXISTS, GIVEN A NODE — the migration gesture.
- *
- * THE VALUE IS WRITTEN WHOLE — engine and session — so a node that named another
- * engine is re-pointed rather than left naming one engine and another's
- * conversation.
- *
- * The mark goes AFTER the write and never refuses: the assignment has landed,
- * and a mark that could not be written costs the migration contract rather than
- * the binding.
- */
-export const assignSession = (
-  chat: Chat,
-  binding: Binding,
-  input: {
-    readonly node: string
-    readonly agent: string
-    readonly session: string
-  },
-): Effect.Effect<void, OpFailure> =>
-  Effect.gen(function*() {
-    const held = binding.boundAt(input.node)
-    if (held?.session != null) {
-      return yield* new UsageFailure({
-        reason: `“${held.title}” is already talking through a conversation — `
-          + `one agent, one current session. Give it a fresh session from the panel, `
-          + `or take the session off its \`${binding.key()}\` property first.`,
-      })
-    }
-    yield* binding.write(input.node, sessionValue(input.agent, input.session))
-    yield* chat.assignedTo(input.node, { agent: input.agent, session: input.session })
+    return now
   })

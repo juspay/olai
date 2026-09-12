@@ -41,7 +41,7 @@ import type { OlaiWorld } from "../support/world.ts";
 /** One line of the drawer on one node, by KEY — never by position, so a
  *  scenario says which fact it is reading. */
 const line = (world: OlaiWorld, id: string, key: string) =>
-  world.page.locator(`${nodeSelector(id)} ${PROP}${attr("data-key", key)}`);
+  world.page.locator(`${nodeSelector(world.nodeId(id))} ${PROP}${attr("data-key", key)}`);
 
 /** WAITED FOR rather than read once, and that is not politeness: nothing here
  *  is echoed, so a chip says what the file says — which means a write made one
@@ -290,7 +290,7 @@ When(
  */
 const half = (world: OlaiWorld, id: string, key: string, system: boolean) =>
   world.page.locator(
-    `${nodeSelector(id)} ${PROP}${attr("data-key", key)}${
+    `${nodeSelector(world.nodeId(id))} ${PROP}${attr("data-key", key)}${
       system ? attr("data-system", "true") : ":not([data-system])"
     }`,
   );
@@ -568,3 +568,12 @@ Then(
     );
   },
 );
+
+Then("the vault node {string} has property {string} holding {string}", async function(this: OlaiWorld, name: string, key: string, value: string) {
+  const file = await this.node(name).getAttribute("data-file");
+  assert.ok(file);
+  await this.waitUntil(async () => {
+    const node = this.servedNodes(file).find(row => row.id === this.nodeId(name));
+    return (node?.custom as Record<string, unknown> | undefined)?.[key] === value;
+  }, `the stored property ${key} on ${name} to equal ${value}`);
+});

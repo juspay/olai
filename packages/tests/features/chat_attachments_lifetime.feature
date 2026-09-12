@@ -5,22 +5,24 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
   conversation must not inherit files whose server-side lifetime has ended.
 
   Background:
-    Given I open the app
-    And the agent panel is open
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
 
   Scenario: Closing the drawer preserves a file until it is sent
     When I pick "Type 04-C.pdf" with the attach button
     Then the composer is holding "Type_04-C.pdf", showing how big it is
     When I type "what is this" into the chat
-    And I close the agent panel
-    And the agent panel is open
+    And I close the agent fold
+    And the node agent's fold is ready
     Then the composer is holding "Type_04-C.pdf", showing how big it is
     And the chat input reads "what is this"
     When I send the chat message
     Then the agent's answer mentions "read 69 bytes from Type_04-C.pdf"
     And the composer is holding nothing
-    When I close the agent panel
-    And the agent panel is open
+    When I close the agent fold
+    And the node agent's fold is ready
     Then the composer is holding nothing
 
   Scenario: An unrelated plugin change preserves multiple attachments
@@ -29,7 +31,7 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
     When I open the plugins panel
     And I switch the plugin "journal" off
     And I close the plugins panel
-    And the agent panel is open
+    And the node agent's fold is ready
     Then the composer is holding "Type_04-C.pdf, notes.txt" in that order
     When I ask the agent "what are these"
     Then the agent's answer mentions "read 69 bytes from Type_04-C.pdf"
@@ -39,11 +41,11 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
   Scenario: A new conversation cannot send the previous conversation's attachments
     When I paste a picture called "old.png" into the chat
     Then the composer is holding the picture "old.png"
-    When I start a new conversation
+    When I start a fresh session
     Then the chat is empty
     And the composer is holding nothing
-    When I close the agent panel
-    And the agent panel is open
+    When I close the agent fold
+    And the node agent's fold is ready
     Then the composer is holding nothing
     When I ask the agent "a new conversation"
     Then the agent's answer mentions "you said: a new conversation"
@@ -53,8 +55,8 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
     When reading the next attachment file is held
     And I drop "notes.txt" on the chat panel
     Then the attachment file is still being read
-    When I close the agent panel
-    And the agent panel is open
+    When I close the agent fold
+    And the node agent's fold is ready
     And the attachment file read finishes
     Then the composer is holding "notes.txt", showing how big it is
     When I ask the agent "read the delayed attachment"
@@ -65,8 +67,11 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
     When reading the next attachment file is held
     And I drop "notes.txt" on the chat panel
     Then the attachment file is still being read
-    When I start a new conversation
-    Then the chat is empty
+    When I remember this conversation as "before fresh"
+    And I start a fresh session
+    Then the panel has a different conversation from "before fresh"
+    And the node agent's fold is ready
+    And the chat is empty
     When the attachment file read finishes
     And I ask the agent "a conversation without the old file"
     Then the agent's answer mentions "you said: a conversation without the old file"
@@ -74,6 +79,8 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
 
   @agent-stored
   Scenario: Restarting chat clears uploads even when it restores the same stored conversation
+    When I ask the agent "store this conversation before restarting"
+    Then the agent is idle
     When I remember this conversation as "stored"
     And I drop "notes.txt" on the chat panel
     Then the composer is holding "notes.txt", showing how big it is
@@ -81,7 +88,7 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
     And I switch the plugin "chat" off
     And I switch the plugin "chat" on
     And I close the plugins panel
-    And the agent panel is open
+    And the node agent's fold is ready
     Then the panel is in the remembered conversation "stored"
     And the composer is holding nothing
     When I ask the agent "after chat restarted"
@@ -119,8 +126,8 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
     When I drop "Type 04-C.pdf, notes.txt" on the chat panel
     Then the composer is holding "Type_04-C.pdf, notes.txt" in that order
     When I remove the pending attachment "Type_04-C.pdf"
-    And I close the agent panel
-    And the agent panel is open
+    And I close the agent fold
+    And the node agent's fold is ready
     Then the composer is holding "notes.txt" in that order
     When I ask the agent "read only the remaining file"
     Then the agent's answer mentions "read 5 bytes from notes.txt"
@@ -137,8 +144,8 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
     Then the composer is holding "notes.txt" in that order
     When I ask the agent "read the retry attachment"
     Then the chat shows my message "read the retry attachment" as "refused"
-    When I close the agent panel
-    And I reopen the agent panel during a turn
+    When I close the agent fold
+    And I reopen the agent fold during a turn
     Then the composer is holding nothing
     When the agent is released
     Then the agent is idle

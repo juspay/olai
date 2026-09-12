@@ -8,7 +8,9 @@ Feature: Web action errors stay with the web action
   Background:
     Given I open the outline "house.olai"
     And I show the done nodes
-    And the agent panel is open
+    And I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "hello"
     Then the agent's answer mentions "you said: hello"
     And the chat shows no refusal

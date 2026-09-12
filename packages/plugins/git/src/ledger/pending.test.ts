@@ -1666,3 +1666,13 @@ test("the git reading carries the decoded policy, including push defaults", () =
   withRepo({ "house.olai": HOUSE }, fixture => Effect.gen(function*() {
     const { git } = yield* fixture.ops.status
   })))
+
+test("filer writes retain their own writer in pending edits and the commit ledger", async () => {
+  await withRepo({ "house.olai": HOUSE }, fixture => Effect.gen(function*() {
+    yield* Effect.orDie(fixture.ops.run({ op: "add", parent: "kitchen", title: "filed conversation" }, "filer"))
+    yield* fixture.refresh
+    expect((yield* fixture.ops.pending).wrote).toEqual([{ writer: "filer", ops: 1 }])
+    yield* fixture.ops.commit({}, "filer")
+    expect(fixture.git("log", "-1", "--format=%(trailers:key=X-Olai-Writer,valueonly)").trim()).toBe("filer")
+  }))
+})

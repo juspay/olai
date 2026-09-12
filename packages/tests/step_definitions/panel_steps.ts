@@ -165,39 +165,35 @@ Then("the sidebar width survived the reload", async function (this: OlaiWorld) {
 // ── chat minimize / pill ───────────────────────────────────────────────
 
 When("I minimize the agent panel", async function (this: OlaiWorld) {
-  const toggle = this.page.locator(CHAT_TOGGLE);
+  const toggle = this.chat(CHAT_TOGGLE);
   await toggle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  if (await this.page.locator(CHAT_PANEL).isVisible()) {
+  if (await this.chat(CHAT_PANEL).isVisible()) {
     await toggle.click();
   }
-  await this.page
-    .locator(CHAT_PANEL)
+  await this.chat(CHAT_PANEL)
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
 Then("the agent panel is minimized", async function (this: OlaiWorld) {
   assert.strictEqual(
-    await this.page.locator(CHAT_PANEL).isVisible(),
+    await this.chat(CHAT_PANEL).isVisible(),
     false,
     "the agent panel is still open — minimize should leave only the pill/strip",
   );
 });
 
 Then("the chat pill is showing", async function (this: OlaiWorld) {
-  await this.page
-    .locator(CHAT_PILL)
+  await this.chat(CHAT_PILL)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
 Then("the chat strip is showing", async function (this: OlaiWorld) {
-  await this.page
-    .locator(CHAT_STRIP)
+  await this.chat(CHAT_STRIP)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
 Then("the chat pill is busy", async function (this: OlaiWorld) {
-  await this.expectAttribute(
-    CHAT_PILL,
+  await this.expectAttribute(this.chatSelector(CHAT_PILL),
     "data-busy",
     "true",
     "the chat pill",
@@ -208,7 +204,7 @@ Then("the chat pill is busy", async function (this: OlaiWorld) {
 Then(
   "the chat pill shows the last agent message",
   async function (this: OlaiWorld) {
-    const text = this.page.locator(CHAT_PILL_TEXT);
+    const text = this.chat(CHAT_PILL_TEXT);
     await text.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await this.waitUntil(
       async () => {
@@ -225,7 +221,7 @@ When("I wait for the agent to go idle", async function (this: OlaiWorld) {
   // Open briefly if needed so the cell can settle; the pill also tracks busy.
   await this.waitUntil(
     async () => {
-      const busy = await this.page.locator(CHAT_PILL).getAttribute("data-busy");
+      const busy = await this.chat(CHAT_PILL).getAttribute("data-busy");
       return busy === "false" || busy === null;
     },
     "the agent to finish so the pill stops pulsing",
@@ -543,11 +539,10 @@ When("I tap the directory scrim", async function (this: OlaiWorld) {
 });
 
 Then("the chat sheet sits under the header", async function (this: OlaiWorld) {
-  await this.page
-    .locator(CHAT_SHEET)
+  await this.chat(CHAT_SHEET)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   const header = await this.box(this.page.locator(APP_HEADER), "header");
-  const sheet = await this.box(this.page.locator(CHAT_SHEET), "chat sheet host");
+  const sheet = await this.box(this.chat(CHAT_SHEET), "chat sheet host");
   assert.ok(
     sheet.y >= header.y + header.height - 1,
     `chat sheet host starts at y=${Math.round(sheet.y)}, covering the header (bottom ${Math.round(header.y + header.height)})`,
@@ -557,8 +552,7 @@ Then("the chat sheet sits under the header", async function (this: OlaiWorld) {
 Then(
   "the chat sheet is at snap {string}",
   async function (this: OlaiWorld, snap: string) {
-    await this.expectAttribute(
-      CHAT_PANEL,
+    await this.expectAttribute(this.chatSelector(CHAT_PANEL),
       "data-snap",
       snap,
       "the chat sheet snap",
@@ -568,7 +562,7 @@ Then(
 );
 
 When("I drag the chat sheet handle up", async function (this: OlaiWorld) {
-  const handle = this.page.locator(CHAT_SHEET_HANDLE);
+  const handle = this.chat(CHAT_SHEET_HANDLE);
   await handle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   const box = await handle.boundingBox();
   assert.ok(box !== null);
@@ -583,7 +577,7 @@ When("I drag the chat sheet handle up", async function (this: OlaiWorld) {
 });
 
 When("I drag the chat sheet handle down", async function (this: OlaiWorld) {
-  const handle = this.page.locator(CHAT_SHEET_HANDLE);
+  const handle = this.chat(CHAT_SHEET_HANDLE);
   await handle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   const box = await handle.boundingBox();
   assert.ok(box !== null);
@@ -602,8 +596,8 @@ When("I tap the chat sheet scrim", async function (this: OlaiWorld) {
   // The scrim is `inset-0` behind the sheet, so a tap on its own box lands
   // on the transcript. Aim at the dim above the sheet, the way a thumb
   // actually puts a half-open sheet away.
-  const host = await this.box(this.page.locator(CHAT_SHEET), "the chat sheet host");
-  const sheet = await this.box(this.page.locator(CHAT_PANEL), "the chat sheet");
+  const host = await this.box(this.chat(CHAT_SHEET), "the chat sheet host");
+  const sheet = await this.box(this.chat(CHAT_PANEL), "the chat sheet");
   const gap = sheet.y - host.y;
   assert.ok(
     gap > 8,
@@ -611,7 +605,6 @@ When("I tap the chat sheet scrim", async function (this: OlaiWorld) {
       "scrim is covered, so drag it to half first",
   );
   await this.page.mouse.click(host.x + host.width / 2, host.y + gap / 2);
-  await this.page
-    .locator(CHAT_PANEL)
+  await this.chat(CHAT_PANEL)
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });

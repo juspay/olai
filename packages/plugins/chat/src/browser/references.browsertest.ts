@@ -28,6 +28,7 @@ test("the panel's references retract on departure and acquire fresh scoped reade
     },
     showNode: () => (_id: string) => {},
     failure: () => null,
+    focused: () => null,
   })
   const first = holdReferences(implementation())
   createRoot(dispose => {

@@ -1,6 +1,9 @@
 /** Session facts supplied by an ACP agent, independent of their controls. */
 import { Schema } from "effect"
 
+export const Conversing = Schema.Struct({ agent: Schema.String, session: Schema.String })
+export type Conversing = typeof Conversing.Type
+
 const SettingInfo = { id: Schema.String, name: Schema.String, description: Schema.String }
 export const SessionSetting = Schema.Union([
   Schema.Struct({ ...SettingInfo, type: Schema.Literal("select"), currentValue: Schema.String,

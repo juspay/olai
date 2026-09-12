@@ -1,8 +1,9 @@
 Feature: Confirming composed text does not invoke application shortcuts
   @scratch:chat
   Scenario: Confirming a chat word leaves it unsent until a later Enter
-    Given I open the app
-    And the agent panel is open
+    Given I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I type "discuss " into the chat
     And I confirm the IME text "日本語" in the focused field
     Then the chat input reads "discuss 日本語"

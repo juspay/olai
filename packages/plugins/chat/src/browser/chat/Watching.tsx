@@ -67,10 +67,11 @@ import { For, Show } from "solid-js"
 import { TESTID } from "../../testids.ts"
 import { createNow, outFor } from "./elapsed.ts"
 import { LIVE_DOT } from "./live.ts"
-import { isPreviewing, togglePreview } from "./previewing.ts"
+import { useConversationUI } from "./ui.tsx"
 import type { Chat } from "./state.ts"
 
 export function Watching(props: { readonly chat: Chat }) {
+  const { isPreviewing, togglePreview } = useConversationUI().previewing
   const out = () => props.chat.state().watching
   return (
     <Show when={out().length > 0}>
@@ -86,6 +87,7 @@ export function Watching(props: { readonly chat: Chat }) {
  * drawn on every conversation is a timer running on every conversation.
  */
 function Strip(props: { readonly chat: Chat }) {
+  const { isPreviewing, togglePreview } = useConversationUI().previewing
   const out = () => props.chat.state().watching
   const now = createNow(() => true)
   return (

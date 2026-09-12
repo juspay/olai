@@ -75,7 +75,7 @@
 import { customOf, docOf, type LocatedRegular } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
-import { PluginDoors } from "./Doors.tsx"
+import { PluginFolds } from "./Folds.tsx"
 import { documentReferences } from "../index.ts"
 import { readLocation } from "./locations.ts"
 import { For } from "solid-js"
@@ -83,12 +83,15 @@ import { excerptOf } from "./note/excerpt.ts"
 import { NoteLine } from "./note/Line.tsx"
 import { measuredAt, plainLine } from "./note/preview.ts"
 import { Note } from "./Note.tsx"
+import { useLicences } from "./reading.tsx"
+import { dressed } from "./faces.ts"
 import { customEntries, drawerEntries } from "olai-plugin-outlines/property-values"
 import { PropsDrawer, type SetProp } from "./props/PropsDrawer.tsx"
 import { EdgeRefs } from "./edges/EdgeRefs.tsx"
 import { ROW_NOTE } from "@olai/ui-primitives/touch.ts"
 
 export function NodeBody(props: {
+  readonly record?: string
   /** The record being shown — for a mirror, the node it stands for, which is
    *  also the file its note's pictures and its `doc` are relative to. */
   readonly shows: LocatedRegular
@@ -139,6 +142,7 @@ export function NodeBody(props: {
   readonly addingProp?: boolean
   readonly onAddingPropEnd?: () => void
 }) {
+  const licences = useLicences()
   const zoomed = () => props.zoomed === true
   const open = () => props.expanded === true
   /**
@@ -183,7 +187,10 @@ export function NodeBody(props: {
               (`drawerEntries`). Above the clamped note line, because these are
               the node's facts and that line is the start of its story. */}
           <PropsDrawer
-            entries={customEntries(customOf(props.shows.node))}
+            entries={customEntries(customOf(props.shows.node), {
+              kind: (key, value) => licences()(props.shows.file, key, value),
+              at: kind => dressed("outline.row.placement").get(kind),
+            })}
             from={props.shows.file}
             onSet={props.onProp}
             adding={props.addingProp}
@@ -197,7 +204,7 @@ export function NodeBody(props: {
               kind (`@olai/plugin-api`'s slot table argues it where the slot is
               declared). Each answers NOTHING on nearly every row, and what that
               costs is a map read in a table the plugin subscribes to once. */}
-          <PluginDoors node={props.shows.node.id} />
+          <PluginFolds node={props.shows.node.id} record={props.record} />
 
           {/* CLOSED: one clamped dim line under the title, which is either the
               top of the note (`Cozy`) or the window a filter found this row
@@ -296,7 +303,6 @@ export function NodeBody(props: {
       />
       {/* ... and on the node's OWN page too, under the same facts: a page about
           one node is the page its agent's door most belongs on. */}
-      <PluginDoors node={props.shows.node.id} />
       <Show when={props.shows.node.desc}>
         {(desc) => (
           <Note

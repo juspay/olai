@@ -53,6 +53,7 @@ import {
   verbatim,
   waitingIn,
   WHO,
+  wroteOf,
   willRecord,
 } from "./said.ts"
 import { Others } from "./Others.tsx"
@@ -188,7 +189,7 @@ export function Panel(props: {
       <Show when={pending().wrote.length > 0}>
         <p class="text-xs text-muted" data-testid={TESTID.commitWriters}>
           {pending().wrote.map((wrote, at) =>
-            `${at > 0 ? " · " : ""}${WHO[wrote.writer] ?? wrote.writer} ${wrote.ops}`
+            `${at > 0 ? " · " : ""}${wroteOf(wrote.writer, wrote.ops)}`
           ).join("")}
         </p>
       </Show>

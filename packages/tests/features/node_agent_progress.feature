@@ -5,14 +5,14 @@ Feature: Node-agent progress follows its conversation across node switches
     And I open the outline "house.olai"
     When I open the node menu of "install"
     And I choose "Start an agent session" from the node menu
-    And the agent panel is open
+    And the node agent's fold is ready
 
   Scenario: A background node keeps its plan while the selected node has none
     When I ask the agent "execution-plan"
     Then the execution plan contains "Inspect the outline" as "in_progress"
     When I open the node menu of "order"
     And I choose "Start an agent session" from the node menu
-    And the agent panel is open
+    And the node agent's fold is ready
     Then there is no execution plan
     When I ask the agent "settings"
     Then the agent's answer mentions "reasoning=medium"
@@ -25,13 +25,12 @@ Feature: Node-agent progress follows its conversation across node switches
     And the execution plan contains "Verify the changes" as "completed"
     And the execution plan omits "Old next step"
     When I press the agent "order"
-    And the agent panel is open
+    And the node agent's fold is ready
     Then there is no execution plan
     When I press the agent "install"
-    And the agent panel is open
+    And the node agent's fold is ready
     Then the execution plan contains "Verify the changes" as "completed"
     When I remember this conversation as "planned"
-    And I open the session picker
     And I start a fresh session
     Then the panel has a different conversation from "planned"
     And there is no execution plan
@@ -43,7 +42,7 @@ Feature: Node-agent progress follows its conversation across node switches
     And terminal output contains "Running"
     When I open the node menu of "order"
     And I choose "Start an agent session" from the node menu
-    And the agent panel is open
+    And the node agent's fold is ready
     Then there is no terminal output
     When I ask the agent "terminal truncate"
     Then the agent is idle
@@ -59,7 +58,7 @@ Feature: Node-agent progress follows its conversation across node switches
     Then the agent is idle
     And terminal output contains "SIGTERM"
     When I press the agent "order"
-    And the agent panel is open
+    And the node agent's fold is ready
     Then terminal output contains "éEND"
     And terminal output contains "Exit 7"
     And terminal output omits "SIGTERM"

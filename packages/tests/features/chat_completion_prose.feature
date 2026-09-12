@@ -5,8 +5,9 @@ Feature: Enter preserves prose that happens to match a node's note
       """
       {"id":"review-hinges","ord":"a0","title":"Review hinges","done":"2026-08-03","desc":"alex and we can look at the hinges and decide what to do about the doors and then"}
       """
-    And I open the app
-    And the agent panel is open
+    And I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
 
   Scenario Outline: A matching note does not turn Enter into replacement of literal prose
     When I type "<message>" into the chat
@@ -56,8 +57,8 @@ Feature: Enter preserves prose that happens to match a node's note
     Then the completion offers "review-hinges"
     When I press "ArrowDown" in the chat
     Then the selected chat completion is "review-hinges"
-    When I close the agent panel
-    And the agent panel is open
+    When I close the agent fold
+    And the node agent's fold is ready
     Then the completion offers "review-hinges"
     And no chat completion is selected
     When I press "Enter" in the chat

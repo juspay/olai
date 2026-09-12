@@ -104,6 +104,7 @@ When(
     if (box === null) {
       throw new Error(`the title of ${JSON.stringify(id)} has no box`);
     }
+    const truncated = await title.evaluate(element => element.scrollWidth > element.clientWidth);
     const tagged = (await title.locator(TAG).count()) > 0;
     if (tagged) {
       const line = title.locator("xpath=..");
@@ -130,6 +131,9 @@ When(
       .locator(TITLE_EDITOR)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // An ellipsis hides the title's end. This gesture means editing at the
+    // end; the separate near-start step tests the pointer's caret placement.
+    if (truncated) await this.page.locator(TITLE_EDITOR).first().press("ControlOrMeta+End");
   },
 );
 

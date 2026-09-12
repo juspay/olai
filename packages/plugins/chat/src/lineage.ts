@@ -137,7 +137,7 @@ export const successorIn = (
 
 /**
  * EVERY CONVERSATION SOME NODE CLAIMS — the current sessions and their chains,
- * as the keys {@link unassignedIn} tests against.
+ * as conversation keys.
  *
  * Exported for the one reader that wants the set rather than the difference:
  * nothing yet, and it is exported because it is the half worth asserting on its
@@ -157,20 +157,4 @@ export const claimedIn = (
     }
   }
   return claimed
-}
-
-/**
- * ... AND THE CONVERSATIONS NOBODY CLAIMS, in the order the listing answers,
- * which is newest first across every installed agent.
- *
- * This is the whole of what **Unassigned** holds. It may never empty, and that
- * is the design's own note rather than a state to fix: a chat that is nobody's
- * agent goes on working exactly as it always did.
- */
-export const unassignedIn = (
-  sessions: ReadonlyArray<SessionInfo>,
-  agents: Agents,
-): ReadonlyArray<SessionInfo> => {
-  const claimed = claimedIn(sessions, agents)
-  return sessions.filter((row) => !claimed.has(chatKey(row.agent, row.id)))
 }

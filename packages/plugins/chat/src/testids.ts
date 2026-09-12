@@ -69,11 +69,23 @@
  */
 
 export const TESTID = {
+  agentStart: "agent-start",
+  agentEngineMenu: "agent-engine-menu",
+  agentStanding: "agent-standing",
+  agentFold: "agent-fold",
+  agentPageHead: "agent-page-head",
+  agentPageFoot: "agent-page-foot",
+  agentPlainComposer: "agent-plain-composer",
+  agentPlainInput: "agent-plain-input",
+  agentPlainEngine: "agent-plain-engine",
+  agentPlainSend: "agent-plain-send",
   // ── the sidebar's agents roster, and the door on an agent's row ───────
   /** The AGENTS section of the sidebar — the roster, which is the query
    *  `prop:agent-session`. Drawn only when the directory has a node agent, on the
    *  shelf's rule exactly: an empty roster is nothing at all rather than an
    *  empty box, so its presence is the fact a scenario asserts. */
+  agentNeedsYou: "chat-agent-needs-you",
+  agentNeedRow: "chat-agent-need-row",
   agentRoster: "agent-roster",
   /** One node agent on it. `data-agent` is the NODE's own id and
    *  `data-standing` is how it stands — the two facts a scenario needs, and
@@ -232,7 +244,7 @@ export const TESTID = {
   /** The header's SESSIONS pill: this node agent's own conversations, and the
    *  fresh one that ends the current one. Drawn only where the panel's
    *  conversation belongs to a node agent — the `chats` list that stood here
-   *  retired into the sidebar's story (`./browser/chat/NodeSessions.tsx`). */
+   *  retired into the sidebar's story (`./browser/agents/History.tsx`). */
   chatSessions: "chat-sessions",
   /** ... and the list it opens. */
   chatSessionList: "chat-session-list",

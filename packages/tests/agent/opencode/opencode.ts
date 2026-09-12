@@ -97,6 +97,7 @@
 import { announced, wrapped, type CallToolResult } from "olai-plugin-opencode/testlib";
 import { existsSync, rmSync } from "node:fs";
 
+import { commandLine } from "../command.ts";
 import { readMessages } from "../../support/ndjson.ts";
 import { emitter, MARKER, released, speaking } from "../../support/scripted.ts";
 
@@ -260,7 +261,7 @@ const askPermission = async (toolCallId: string, title: string): Promise<unknown
 // ── turns ──────────────────────────────────────────────────────────────
 
 const turn = async (text: string): Promise<string> => {
-  const said = text.trim();
+  const said = commandLine(text);
 
   if (said.startsWith("context ")) {
     const node = said.slice("context ".length).trim();
@@ -465,7 +466,11 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return;
 
     case "session/load": {
-      if (holdingOpen()) await released(cwd);
+      const heldLoad = `${cwd}/${MARKER.holdLoad}`;
+      if (existsSync(heldLoad)) {
+        rmSync(heldLoad, { force: true });
+        await released(cwd);
+      } else if (holdingOpen()) await released(cwd);
       openSession(String(params["sessionId"]), params);
       // A replay: collapsed final frames, and the person's own words as chunks.
       notify("session/update", {

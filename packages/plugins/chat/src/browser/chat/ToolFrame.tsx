@@ -81,7 +81,8 @@ import { TESTID } from "../../testids.ts"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { armedOf, endedOf, watchOf } from "./background.ts"
 import { Diff } from "./Diff.tsx"
-import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
+import { diffKey } from "./folds.ts"
+import { useConversationUI } from "./ui.tsx"
 import { OutlineDiff } from "./OutlineDiff.tsx"
 import { useElapsed } from "./elapsing.tsx"
 import { whoOf } from "./spawn.ts"
@@ -140,6 +141,7 @@ function Saying(props: { readonly said: string; readonly tall: boolean }) {
 }
 
 export function ToolFrame(props: { readonly entry: ToolEntry }) {
+  const { isUnfolded, toggleFold } = useConversationUI().folds
   const replyFace = createMemo(() => {
     const face = faceOf(props.entry.row)
     const reply = props.entry.reply

@@ -6,7 +6,9 @@ Feature: An open chat completion follows changes to its node targets
       {"id":"old-target","ord":"a0","title":"orchid original task"}
       """
     And I open the app
-    And the agent panel is open
+    And I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I type "context @orchid" into the chat
     Then the completion offers "old-target"
     When I rewrite "live-nodes.olai" as:
@@ -29,7 +31,9 @@ Feature: An open chat completion follows changes to its node targets
       {"id":"old-target","ord":"a0","title":"orchid original task"}
       """
     And I open the app
-    And the agent panel is open
+    And I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I type "context @orchid" into the chat
     Then the completion offers "old-target"
     When I type "draft without a completion" into the chat

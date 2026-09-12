@@ -42,6 +42,7 @@ export interface Declared {
   readonly told: (id: string) => string | null | undefined
 }
 export interface References {
+  readonly focused: Accessor<string | null>
   readonly declare: (failure?: (message: string, ids: ReadonlyArray<string>) => void) => Declared
   readonly showNode: () => (id: string) => void
   readonly failure: Accessor<string | null>

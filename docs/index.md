@@ -15,6 +15,7 @@ olai serves a directory of outlines and Markdown files as a web app that people 
 | [format.md](format.md) | The file format: record shapes, fields, status, references, days, the pinned shelf, which file types are served, and merge safety. |
 | [dynamic-plugins.md](dynamic-plugins.md) | Writing a plugin into the served directory itself: the definition shape, allowed imports, approval, and worked examples. |
 
+
 ## Plugins
 
 Olai is a bundle of plugins running on [Cordis](https://github.com/cordiverse/cordis) ([arXiv:2608.25512](https://arxiv.org/abs/2608.25512)). Each plugin documents itself in its own package. The pages below are symlinks onto each plugin's `docs.md`, and `packages/tests/plugin_docs.test.ts` checks that every plugin has a page listed here.

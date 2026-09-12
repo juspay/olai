@@ -10,7 +10,8 @@
 
 import { describe, expect, test } from "bun:test"
 
-import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
+import { createFolds, diffKey } from "./folds.ts"
+const { isUnfolded, toggleFold } = createFolds()
 
 describe("what the reader has opened", () => {
   test("nothing is open until it is asked for, and a second press shuts it", () => {

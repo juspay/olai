@@ -2,7 +2,7 @@
 import { createEffect, createSignal, For, Show } from "solid-js"
 import { agentIn } from "olai-plugin-chat/wire"
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
-import { WITHIN } from "@olai/web/client/layer.ts"
+import { LAYER } from "@olai/web/client/layer.ts"
 import { TESTID } from "../../testids.ts"
 import type { SessionSetting } from "olai-plugin-chat/wire"
 import type { Chat } from "./state.ts"
@@ -39,7 +39,7 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
       </button>
       <Show when={picker.open()}>
         <ul ref={picker.setList} aria-label="Models"
-          class={`absolute inset-x-3 top-full ${WITHIN.pop} mt-1 max-h-80 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}>
+          class={`absolute inset-x-3 top-full ${LAYER.page} mt-1 max-h-80 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}>
           <For each={state().models}>
             {(model) => (
               <li>

@@ -129,7 +129,7 @@ import { createSearch } from "../search.ts"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { useServed } from "../vault.ts"
 import { TESTID } from "../../testids.ts"
-import { armedNodes, disarmNode, releaseArmed, restoreArmed } from "./armed.ts"
+import { useConversationUI } from "./ui.tsx"
 import { Attachments } from "./Attachments.tsx"
 import {
   type Completing,
@@ -158,15 +158,16 @@ export function Composer(props: {
    *  panel is where a drop is caught and this row is where the chips go. */
   readonly holding: Holding
 }) {
+  const { armedNodes, disarmNode, releaseArmed, restoreArmed } = useConversationUI().armed
   // Keep words, caret, chosen @ handles and the dismissed token together across remounts.
   // `taken` grants node context only while its word remains in the draft.
-  const { draft, setDraft, taken, setTaken, caret, setCaret, dismissed, setDismissed, recover } = createMessageDraft(() => {
+  const { draft, setDraft, taken, setTaken, caret, setCaret, dismissed, setDismissed, recover, retry, setRetry } = createMessageDraft(() => {
     const state = props.chat.state()
     const agent = agentIn(state)
     return agent === null || state.session === null
       ? null
       : JSON.stringify([agent.id, state.session.id])
-  })
+  }, props.chat.ui.messages)
   /** Opened by the BUTTON rather than by typing a slash — the difference is
    *  only which prefix the list is filtered by. */
   const [asked, setAsked] = createSignal(false)
@@ -450,6 +451,7 @@ export function Composer(props: {
     // that was refused.
     const held = releaseArmed()
     const recoverDraft = recover()
+    setRetry(false)
     setTaken(new Set<string>())
     setDraft("")
     // The caret goes with the words: an empty box's caret is at its start, and
@@ -951,11 +953,7 @@ export function Composer(props: {
           data-testid={TESTID.chatSend}
           onClick={() => void send()}
         >
-          {/* ALWAYS "send", because that is always what it does — one verb,
-              busy or idle. It used to read "queue" while a turn ran, back when
-              the panel really did hold the message; the AGENT holds it now, the
-              row says so, and what this button does never changes. */}
-          send
+          {retry() && draft().trim() ? "send again" : "send"}
         </button>
       </div>
     </div>

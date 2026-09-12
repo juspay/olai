@@ -72,9 +72,8 @@ Feature: The ⌘K palette writes
     And I press "Enter"
     Then the command palette is open
     And "house.olai" holds a node marked doing titled "kitchen remodel #home"
-    # …and the arrows are the way in: down lands on the first row, which is the
-    # first thing this node can take.
-    When I press "ArrowDown"
+    # The arrows select a named op among all current plugin contributions.
+    When I move the palette cursor to "Mark todo"
     And I press "Enter"
     Then "house.olai" holds a node marked todo titled "kitchen remodel #home"
 

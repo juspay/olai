@@ -257,7 +257,18 @@ export const Clock = serviceTag<Clock>("clock")
  * so one plugin throwing on a revision cannot take the later ones down with it
  * — nor the owned fiber that published it.
  */
+/** One scoped owner publishes the Inbox convention; absence never waits on a plugin.
+ * The vault owns the registry, while the registering scope owns its entry. */
+export interface InboxRegistry {
+  readonly current: () => string | null
+  readonly register: (file: string | null) => Effect.Effect<
+    (file: string | null) => Effect.Effect<void>, never, Scope.Scope>
+  readonly changed: (handler: (file: string | null) => Effect.Effect<void>) =>
+    Effect.Effect<void, never, Scope.Scope>
+}
+
 export interface Vault {
+  readonly inbox: InboxRegistry
   /** The directory, resolved — what every path answer downstream is relative
    *  to. */
   readonly served: string
@@ -332,9 +343,40 @@ export const vaultEvents = (served: string) => {
   let latest: unknown | null = null
   const revisions = broadcast<unknown>("a vault revision")
   const quieted = broadcast<void>("the vault going quiet")
+  const inboxChanges = broadcast<string | null>("the Inbox path changing")
+  const inboxGate = Semaphore.makeUnsafe(1)
+  let inbox: { readonly owner: symbol; file: string | null } | null = null
+  const inboxFor = (plugin: string): InboxRegistry => ({
+    current: () => inbox?.file ?? null,
+    register: (file) => Effect.gen(function*() {
+      const owner = Symbol(plugin)
+      yield* Effect.acquireRelease(
+        inboxGate.withPermit(Effect.gen(function*() {
+          if (inbox !== null) return yield* Effect.die(new Error("The Inbox already has an owner"))
+          inbox = { owner, file }
+          yield* inboxChanges.tell(file)
+        })),
+        () => inboxGate.withPermit(Effect.gen(function*() {
+          if (inbox?.owner !== owner) return
+          inbox = null
+          yield* inboxChanges.tell(null)
+        })),
+      )
+      return (next: string | null) => inboxGate.withPermit(Effect.gen(function*() {
+        if (inbox?.owner !== owner || inbox.file === next) return
+        inbox.file = next
+        yield* inboxChanges.tell(next)
+      }))
+    }),
+    changed: (handler) => inboxGate.withPermit(Effect.gen(function*() {
+      yield* inboxChanges.listen(plugin)(handler)
+      yield* contained(plugin, "the Inbox path", Effect.suspend(() => handler(inbox?.file ?? null)))
+    })),
+  })
   return {
     door: (plugin: string): Vault => ({
       served,
+      inbox: inboxFor(plugin),
       revision: ((handler: (snapshot: unknown) => Effect.Effect<void>) => delivery.withPermit(Effect.gen(function*() {
         yield* revisions.listen(plugin)(handler)
         if (latest !== null) {

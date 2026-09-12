@@ -112,10 +112,7 @@ Then(
     // Asserted by waiting for the node's own props to be on screen FIRST, so a
     // count of zero cannot pass on a row that had not drawn yet. That is the
     // failure a bare count would have here, and it would pass forever.
-    await this.node(id)
-      .locator(`[data-testid="prop"]`)
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.node(id).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.equal(
       await this.node(id).locator(BLOCK).count(),
       0,

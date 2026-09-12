@@ -13,7 +13,8 @@
 
 import { describe, expect, test } from "bun:test"
 
-import { armedNodes, armNode, disarmNode, releaseArmed, restoreArmed } from "./armed.ts"
+import { createArmed } from "./armed.ts"
+const { armedNodes, armNode, disarmNode, releaseArmed, restoreArmed } = createArmed()
 
 /** The module is one signal, so every test leaves it as it found it. */
 const empty = (): void => {

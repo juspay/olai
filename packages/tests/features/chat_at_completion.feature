@@ -17,9 +17,10 @@ Feature: Typing @ in the chat completes a file of the directory
   something a scenario can read rather than assume.
 
   Background:
-    Given I open the app
+    Given I open the outline "house.olai"
     And I mark the page
-    And the agent panel is open
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
 
   @scratch:chat
   Scenario: An @ offers the directory, and taking a row writes the path
@@ -80,6 +81,7 @@ Feature: Typing @ in the chat completes a file of the directory
     And the caret in the chat box is at 18
 
   @scratch:chat
+  @review-menu
   Scenario: The arrows walk it, and Enter takes the row they are on
     # The keys are the list's while it is up — the same cursor the ⌘K palette
     # and the row editor's widgets walk (`client/search/cursor.ts`), which is
@@ -87,9 +89,14 @@ Feature: Typing @ in the chat completes a file of the directory
     # each one growing arrows of its own.
     When I type "read @" into the chat
     Then the completion offers "finishes.md"
+    And the active chat completion is "_olai/Settings.olai"
     When I press "ArrowDown" in the chat
-    And I press "ArrowDown" in the chat
-    And I accept the completion
+    # A delayed select notification from typing/focusing must not undo Down.
+    And the chat box reports its unchanged caret
+    Then the active chat completion is "_olai/Trash.olai"
+    When I press "ArrowDown" in the chat
+    Then the active chat completion is "finishes.md"
+    When I accept the completion
     # The two convention files sort first; two arrows reach the document.
     Then the chat input reads "read @finishes.md "
 

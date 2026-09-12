@@ -18,7 +18,7 @@ Feature: File kinds follow their claiming rows
     Then the plugin "outline-olai" has a session-only switch ring
     When I switch the plugin "outline-olai" off
     Then every plugin enable switch has a session-only ring
-    And the conversation is gone-from the header
+    And the agent sidebar regions are absent
     And the configured outline row refuses a mint without writing
     When I close the plugins panel
     Then no outline file is listed
@@ -34,7 +34,7 @@ Feature: File kinds follow their claiming rows
     Then the file-kind page says "the outline-olai row is off"
     When I open the plugins panel
     And I switch the plugin "outline-olai" on
-    Then the conversation is gone-from the header
+    Then the agent sidebar regions are absent
     When I close the plugins panel
     And I navigate within the tab to "/house.olai"
     Then the node "handles" is shown

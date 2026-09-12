@@ -221,6 +221,7 @@ export const writeVerbs = (
    *  because it is a second reading, and one of them no longer comes from the
    *  browser's copy of anything. */
   shelf: Shelf,
+  placement?: Parameters<typeof customEntries>[1],
 ): ReadonlyArray<Verb> => {
   const verbs: Array<Verb> = []
   // The node this subject draws: the mark it carries, the date it has. A
@@ -372,7 +373,7 @@ export const writeVerbs = (
     // here: each has a verb of its own — the mark section above, `Change
     // date…`, the two edge verbs below — and `outlines_prop` refuses every one of
     // them by name.
-    if (customEntries(customOf(shown.node)).length === 0) {
+    if (customEntries(customOf(shown.node), placement).length === 0) {
       verbs.push({
         id: "prop-add",
         label: "Add property…",
