@@ -910,3 +910,10 @@ test("MCP display reads this adapter's announcement and completion", () => {
   expect(CLAUDE.replyIn({ stdout: "foreign tool" })).toBeUndefined()
   expect(CLAUDE.replyIn(wrapped({ content: [{ type: "text", text: "permission denied" }], isError: true }).rawOutput)).toBeUndefined()
 })
+
+test("the first text block is the reply, and only a record is a reply", () => {
+  expect(CLAUDE.replyIn([{ type: "text", text: "[]" }])).toBeUndefined()
+  expect(CLAUDE.replyIn([{ type: "text", text: "refused" }, { type: "text", text: "{}" }])).toBeUndefined()
+  expect(CLAUDE.replyIn({ structuredContent: { file: "one.olai" } })).toBeUndefined()
+  expect(CLAUDE.mcpCall({ name: "bash", title: "mcp__olai__outlines_done" }, ["olai"])).toBeNull()
+})

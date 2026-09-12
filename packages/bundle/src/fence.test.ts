@@ -744,6 +744,8 @@ describe("only the registry knows a plugin's name", () => {
     tests: [
       "tests/agent/fake-acp-agent.ts: olai-plugin-claude/testlib",
       "tests/agent/fake-acp-agent.ts: olai-plugin-codex/testlib",
+      "tests/agent/opencode/opencode.ts: olai-plugin-opencode/testlib",
+      "tests/agent/pi/pi-acp.ts: olai-plugin-pi/testlib",
       "tests/step_definitions/chat_steps.ts: olai-plugin-chat/testlib",
       "tests/step_definitions/editing_steps.ts: olai-plugin-outlines/testlib",
       "tests/step_definitions/identity_steps.ts: olai-plugin-identity/who",

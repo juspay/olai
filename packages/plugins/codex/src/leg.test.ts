@@ -93,3 +93,9 @@ test("MCP display reads this adapter's announcement and completion", () => {
   expect(CODEX.replyIn({ stdout: "foreign tool" })).toBeUndefined()
   expect(CODEX.replyIn(wrapped({ content: [{ type: "text", text: "permission denied" }], isError: true }).rawOutput)).toBeUndefined()
 })
+
+test("dotted titles alone never identify an MCP call", () => {
+  expect(CODEX.mcpCall({ title: "mcp.olai.outlines_done" }, ["olai"])).toBeNull()
+  expect(CODEX.mcpCall({ _meta: { is_mcp_tool_call: true }, rawInput: { server: "olai", tool: 7 } }, ["olai"])).toBeNull()
+  expect(CODEX.replyIn({ result: { structuredContent: [] } })).toBeUndefined()
+})

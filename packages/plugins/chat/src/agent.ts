@@ -837,12 +837,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             status: activity?.status(id, update.status ?? undefined) ?? update.status ?? undefined,
             detail: detailOf(update.rawInput, ours === null ? update.rawOutput : undefined),
             progress: progressOf(update.content),
-            // The two vocabularies for what a call CHANGED, and a call is at
-            // most one of them: a direct file edit sends diff blocks, and a
-            // write through the ops layer answers with a reply olai wrote
-            // itself. Both are read structurally — `undefined` is "this report
-            // said nothing about that", which is the protocol's own rule for
-            // every other field here.
+            // Direct file changes remain protocol diff blocks.
             diffs: diffsOf(update.content, options.cwd),
             locations: locationsOf(update.locations, options.cwd),
             // ... and WHO made the call, out of the same `_meta` the name came

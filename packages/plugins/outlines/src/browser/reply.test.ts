@@ -28,10 +28,7 @@ describe("what an olai write says for itself", () => {
   })
 
   test("the node's ID rides along, which is what makes the row a reference", () => {
-    // The reply has always carried it (`Applied.id`); until it crossed the wire
-    // the panel could say WHICH node a write was about and still have nothing
-    // to point at. A reply that names none says the same words and does not
-    // point, rather than pointing at an empty string.
+    // Missing or mistyped IDs fail the write contract; an empty ID is plain text.
     const { id: _id, ...anonymous } = MARKED
     expect(wroteIn(result(anonymous))).toBeUndefined()
     expect(wroteIn(result({ ...MARKED, id: 7 }))).toBeUndefined()

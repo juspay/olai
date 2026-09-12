@@ -164,3 +164,10 @@ test("MCP display reads this adapter's announcement and completion", () => {
   expect(OPENCODE.replyIn({ stdout: "foreign tool" })).toBeUndefined()
   expect(OPENCODE.replyIn(wrapped({ content: [{ type: "text", text: "permission denied" }], isError: true }).rawOutput)).toBeUndefined()
 })
+
+test("display tolerates output-only adapters and rejects malformed output", () => {
+  expect(OPENCODE.replyIn({ output: JSON.stringify({ structuredContent: { file: "one.olai" } }) })).toEqual({ file: "one.olai" })
+  expect(OPENCODE.replyIn({ output: "refused" })).toBeUndefined()
+  expect(OPENCODE.replyIn({ metadata: { structuredContent: [] }, output: "[]" })).toBeUndefined()
+  expect(OPENCODE.mcpCall({ name: "bash", title: "olai_outlines_done" }, ["olai"])).toBeNull()
+})

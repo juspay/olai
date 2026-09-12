@@ -4,7 +4,7 @@
  *
  * This is the half of `chat-edit-diffs` that is NOT an outline. An olai write
  * shows up in the tree in front of you and is reported here as a node-level
- * story ({@link ./Wrote.tsx}); a direct edit to a `.md` or a source file shows
+ * story (the owning plugin’s `tool.reply` face); a direct edit to a `.md` or a source file shows
  * up nowhere at all, so until this drew, the answer to "what did it change" was
  * a terminal.
  *

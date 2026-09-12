@@ -7,11 +7,8 @@
  * whose `_meta.piAcp.startupInfo` is the exact text the adapter then doubles
  * as one ordinary chunk.
  *
- * THE SUBJECT THAT MATTERS IS THE FLOOR, here even more than in the other
- * legs' files: on this wire olai's own tools DO NOT EXIST (pi-acp wires no
- * `mcpServers` through to pi), so the allow half of the fail-safe has nothing
- * to match and the near-miss table the other agents keep is one fact — never —
- * said a few ways.
+ * The bridge reaches pi with real MCP tools. Display reads their declared
+ * spelling; approval still belongs to pi’s settings outside ACP.
  */
 
 import { describe, expect, test } from "bun:test"
@@ -145,4 +142,11 @@ test("MCP display reads this adapter's announcement and completion", () => {
   expect(PI.replyIn("permission denied")).toBeUndefined()
   expect(PI.replyIn({ stdout: "foreign tool" })).toBeUndefined()
   expect(PI.replyIn(wrapped({ content: [{ type: "text", text: "permission denied" }], isError: true }).rawOutput)).toBeUndefined()
+})
+
+test("display accepts structuredContent fallback without granting approval", () => {
+  expect(PI.replyIn({ structuredContent: { file: "one.olai" } })).toEqual({ file: "one.olai" })
+  expect(PI.replyIn({ details: [] })).toBeUndefined()
+  expect(PI.mcpCall({ name: "olai_" }, ["olai"])).toBeNull()
+  expect(PI.mcpCall({ name: "elsewhere_olai_outlines_done" }, ["olai"])).toBeNull()
 })
