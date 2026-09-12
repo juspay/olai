@@ -34,7 +34,7 @@
  * on and two tabs can be looking at one node.
  */
 
-import { type OpFailure, sessionValue, UsageFailure } from "@olai/format"
+import { type OpFailure, sessionValue } from "@olai/format"
 import { Effect } from "effect"
 
 import type { Conversing } from "../sessions.ts"
@@ -99,37 +99,4 @@ export const startAgentSession = (
       yield* chat.replaced({ agent: was.engine, session: was.session }, now.session)
     }
     return now
-  })
-
-/**
- * A CONVERSATION THAT ALREADY EXISTS, GIVEN A NODE — the migration gesture.
- *
- * THE VALUE IS WRITTEN WHOLE — engine and session — so a node that named another
- * engine is re-pointed rather than left naming one engine and another's
- * conversation.
- *
- * The mark goes AFTER the write and never refuses: the assignment has landed,
- * and a mark that could not be written costs the migration contract rather than
- * the binding.
- */
-export const assignSession = (
-  chat: Chat,
-  binding: Binding,
-  input: {
-    readonly node: string
-    readonly agent: string
-    readonly session: string
-  },
-): Effect.Effect<void, OpFailure> =>
-  Effect.gen(function*() {
-    const held = binding.boundAt(input.node)
-    if (held?.session != null) {
-      return yield* new UsageFailure({
-        reason: `“${held.title}” is already talking through a conversation — `
-          + `one agent, one current session. Give it a fresh session from the panel, `
-          + `or take the session off its \`${binding.key()}\` property first.`,
-      })
-    }
-    yield* binding.write(input.node, sessionValue(input.agent, input.session))
-    yield* chat.assignedTo(input.node, { agent: input.agent, session: input.session })
   })

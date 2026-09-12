@@ -17,7 +17,7 @@ import { surface, faces } from "./surface.ts"
 import { tools } from "./tools.ts"
 import { name } from "./name.ts"
 export { name } from "./name.ts"
-import { NO_INBOX, inboxHeldIn, conventionServed, inboxIn, type Convention } from "@olai/format"
+import { INBOX, mintedInto, NO_INBOX, inboxHeldIn, conventionServed, inboxIn, type Convention } from "@olai/format"
 
 export default definePlugin({
   name, needs: [Directory, Ops, Vault, Surfaces],
@@ -28,14 +28,17 @@ export default definePlugin({
     let ctx: SurfaceRuntime<typeof surface.spec>["ctx"] | undefined
     const value = inMemoryStore(NO_INBOX)
     const publish = (next: typeof NO_INBOX) => ctx ? ctx.cells.inbox.set(next) : value.set(next)
+    const publishInbox = yield* vault.inbox.register(null)
     let file: Convention | undefined
-    yield* vault.revision<Snapshot<Reading>>(snapshot => Effect.sync(() => {
+    yield* vault.revision<Snapshot<Reading>>(snapshot => Effect.gen(function*() {
       file = conventionServed(inboxIn, snapshot.value.set, snapshot, file)
       publish(inboxHeldIn(snapshot.value.derived, file.file))
+      yield* publishInbox(file.file ?? mintedInto(INBOX))
     }))
-    yield* vault.unloaded(Effect.sync(() => {
+    yield* vault.unloaded(Effect.gen(function*() {
       publish(NO_INBOX)
       file = undefined
+      yield* publishInbox(null)
     }))
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       cells: {

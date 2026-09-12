@@ -23,7 +23,7 @@ Feature: A node history count follows session creation in another tab
     And I use the original browser tab
     Then the panel is in the remembered conversation "second"
     And the node session control counts 2 conversations
-    And the roster offers no unassigned chats
+    And the Unassigned row and list are absent
     When I open the session picker
     Then the panel says this agent has had 1 past session
     And the past sessions hold "first session in live history"

@@ -55,8 +55,6 @@ import { useAgents } from "../agents/answered.tsx"
 import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from "solid-js"
 
 import type { AgentChoice } from "olai-plugin-chat/wire"
-import { hideUnassigned, showingUnassigned } from "../agents/showing.ts"
-import { Unassigned } from "../agents/Unassigned.tsx"
 import type { ChatSnap } from "olai-plugin-layout/preferences"
 import {
   desktop,
@@ -205,7 +203,7 @@ function Face(props: { readonly chat: Chat }) {
   // OWN TWO go in as arguments rather than being tested beside the answer in
   // the JSX below, which is where half of this precedence used to live.
   const face = () =>
-    faceOf(props.chat.state(), { unassigned: showingUnassigned(), asking: asking() })
+    faceOf(props.chat.state(), { asking: asking() })
   /**
    * A person pressed `+ new` and is being asked which agent — THIS TAB'S, and
    * deliberately not the server's.
@@ -263,7 +261,6 @@ function Face(props: { readonly chat: Chat }) {
     // signal, so a list still showing would answer `unassigned` here and hide
     // the one arm this button must not step on — the SERVER's own question,
     // which is answered with a different verb.
-    hideUnassigned()
     // A panel that is already asking has nothing for this button to add: the
     // question is up, and the answer to it opens a conversation.
     if (face().kind === "choose") return
@@ -338,9 +335,6 @@ function Face(props: { readonly chat: Chat }) {
         {/* THE CHATS NOBODY CLAIMS, where somebody pressed the roster's last
             row ({@link ../agents/Unassigned.tsx}) — where it sits in the
             precedence, and why, is {@link ./face.ts}'s. */}
-        <Match when={face().kind === "unassigned"}>
-          <Unassigned chat={props.chat} />
-        </Match>
         <Match when={refused()}>
           {(unopened) => <Unopened chat={props.chat} unopened={unopened()} />}
         </Match>

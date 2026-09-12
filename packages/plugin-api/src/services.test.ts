@@ -1145,3 +1145,28 @@ test("a synchronous replay failure cannot prevent later subscribers or publicati
     yield* events.published("second")
     expect(seen).toEqual(["first", "second"])
   }))))
+
+test("the vault Inbox registry reads absence, owns updates, and withdraws with its provider", () =>
+  Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const vault = vaultEvents("/tmp")
+    const reader = vault.door("chat").inbox
+    const seen: Array<string | null> = []
+    expect(reader.current()).toBeNull()
+    yield* reader.changed(file => Effect.sync(() => { seen.push(file) }))
+    const release = yield* Deferred.make<void>()
+    const registered = yield* Deferred.make<void>()
+    const provider = yield* Effect.forkScoped(Effect.scoped(Effect.gen(function*() {
+      const update = yield* vault.door("capture").inbox.register("Inbox.olai")
+      yield* update("notes/Inbox.olai")
+      yield* Deferred.succeed(registered, undefined)
+      yield* Deferred.await(release)
+    })))
+    yield* Deferred.await(registered)
+    expect(reader.current()).toBe("notes/Inbox.olai")
+    yield* Deferred.succeed(release, undefined)
+    yield* Fiber.join(provider)
+    expect(reader.current()).toBeNull()
+    expect(seen).toEqual([null, "Inbox.olai", "notes/Inbox.olai", null])
+    yield* Effect.scoped(vault.door("capture-again").inbox.register("Inbox.olai"))
+    expect(reader.current()).toBeNull()
+  }))))

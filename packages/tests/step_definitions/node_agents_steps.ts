@@ -20,6 +20,7 @@
  */
 
 import assert from "node:assert/strict";
+import { sessionStore } from "../agent/session-store.ts";
 import { Then, When } from "@cucumber/cucumber";
 
 import { selector } from "@olai/web/testlib";
@@ -47,11 +48,11 @@ const CHAT_INPUT = selector(PLUGIN_TESTID.chatInput);
 
 /** One roster row, by the node it is about. */
 const rowFor = (world: OlaiWorld, node: string) =>
-  world.page.locator(`${ROSTER} ${ROW}${attr("data-agent", node)}`);
+  world.page.locator(`${ROSTER} ${ROW}${attr("data-agent", world.nodeId(node))}`);
 
 /** ... and one door, by the same id — which is the point of them sharing it. */
 const doorFor = (world: OlaiWorld, node: string) =>
-  world.page.locator(`${DOOR}${attr("data-agent", node)}`);
+  world.page.locator(`${DOOR}${attr("data-agent", world.nodeId(node))}`);
 
 Then(
   "the agents roster lists {string}",
@@ -692,7 +693,7 @@ Then("the node session control counts {int} conversations", async function (this
 
 Then("the agent {string} remains {string} across two idle deadlines", async function (this: OlaiWorld, node: string, standing: string) {
   assert.ok(this.fastNodeIdle, "this observation requires @node-idle-fast");
-  const row = this.page.locator(`${ROW}${attr("data-agent", node)}`);
+  const row = this.page.locator(`${ROW}${attr("data-agent", this.nodeId(node))}`);
   const until = Date.now() + FAST_NODE_IDLE_MS * 2;
   do {
     assert.equal(await row.getAttribute("data-standing"), standing);
@@ -708,15 +709,15 @@ Then("the unassigned list waits for the assignment to finish", async function (t
 });
 
 When("I fold node agent {string}", async function (this: OlaiWorld, node: string) {
-  const standing = this.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", node)}`);
+  const standing = this.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", this.nodeId(node))}`);
   await this.press(standing);
-  await this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", node)}`).waitFor({ state: "detached" });
+  await this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", this.nodeId(node))}`).waitFor({ state: "detached" });
 });
 
 const asideFor = (world: OlaiWorld, node: string) =>
-  world.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", node)}`);
+  world.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", world.nodeId(node))}`);
 const startFor = (world: OlaiWorld, node: string) =>
-  world.page.locator(`${selector(PLUGIN_TESTID.agentStart)}${attr("data-agent", node)}`);
+  world.page.locator(`${selector(PLUGIN_TESTID.agentStart)}${attr("data-agent", world.nodeId(node))}`);
 Then("the aside on {string} stands {string}", async function (this: OlaiWorld, node: string, standing: string) {
   await this.waitUntil(async () => await asideFor(this, node).getAttribute("data-standing") === standing, "the aside standing to arrive");
 });
@@ -740,7 +741,7 @@ Then("the agent start pill on {string} is absent", async function (this: OlaiWor
   await startFor(this, node).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
 });
 Then("node agent {string} is unfolded", async function (this: OlaiWorld, node: string) {
-  await this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", node)}`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", this.nodeId(node))}`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 Then("the agent engine menu offers {string}", async function (this: OlaiWorld, engine: string) {
   await this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu)).getByRole("menuitem", { name: engine, exact: true }).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -761,4 +762,80 @@ Then("all bound node agents are asleep", async function (this: OlaiWorld) {
       rows.map(row => row.getAttribute("data-standing")).filter(value => value !== "unbound"));
     return standings.length > 0 && standings.every(value => value === "asleep");
   }, "every bound node agent to remain asleep before a conversation is opened");
+});
+
+/** Filed ids are minted; bind a scenario name after finding the actual row. */
+When("I open the filed conversation {string} as node {string}", async function (this: OlaiWorld, title: string, name: string) {
+  await this.showSidebar();
+  const row = this.page.locator(`${ROSTER} ${ROW}${attr("title", `${title} — claude:`, "^=")}`);
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const id = await row.getAttribute("data-agent");
+  assert.ok(id);
+  this.nodeNames.set(name, id);
+  await this.press(row);
+});
+
+Then("the Inbox has {int} filed conversations", async function (this: OlaiWorld, count: number) {
+  await this.waitUntil(async () => {
+    const records = this.servedNodesSoFar("_olai/Inbox.olai");
+    return records.filter(node => node.parent === "chats").length === count;
+  }, `the Inbox to hold ${count} filed conversations`);
+  const records = this.servedNodes("_olai/Inbox.olai");
+  assert.equal(records.filter(node => node.id === "chats").length, 1);
+  assert.equal(records.find(node => node.id === "chats")?.parent, undefined);
+  for (const node of records.filter(node => node.parent === "chats")) {
+    const custom = node.custom as Record<string, unknown>;
+    assert.ok(Object.values(custom).some(value => typeof value === "string" && value.includes(":")));
+  }
+});
+
+Then("the node {string} keeps the session {string} in file {string}", async function (this: OlaiWorld, name: string, session: string, file: string) {
+  await this.waitUntil(async () => {
+    const node = this.servedNodesSoFar(file).find(node => node.id === this.nodeId(name));
+    return node !== undefined && Object.values(node.custom as Record<string, unknown>).includes(session);
+  }, `${name} to keep ${session} in ${file}`);
+});
+
+Then("the Unassigned row and list are absent", async function (this: OlaiWorld) {
+  await this.showSidebar();
+  assert.equal(await this.page.getByRole("button", { name: /^Unassigned/ }).count(), 0);
+  assert.equal(await this.page.locator(selector(PLUGIN_TESTID.unassignedPanel)).count(), 0);
+});
+
+Then("the filer's boot run has settled", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => this.serverLog.text.includes("filer: full run complete"), "the filer's boot listing and writes to finish");
+});
+
+When("a terminal stores a conversation titled {string}", function (this: OlaiWorld, title: string) {
+  const store = sessionStore(this.scratch());
+  assert.ok(store.enabled, "the scenario must enable distinct disk sessions");
+  store.prompt(store.newId(), title);
+});
+
+When("I open the filed {string} conversation {string} as node {string}", async function (this: OlaiWorld, engine: string, title: string, name: string) {
+  await this.showSidebar();
+  const row = this.page.locator(`${ROSTER} ${ROW}${attr("title", `${title} — ${engine}:`, "^=")}`);
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const id = await row.getAttribute("data-agent");
+  assert.ok(id);
+  this.nodeNames.set(name, id);
+  await this.press(row);
+});
+
+Then("the filed node {string} has a note containing {string}", async function (this: OlaiWorld, name: string, words: string) {
+  const node = this.servedNodes("_olai/Inbox.olai").find(node => node.id === this.nodeId(name));
+  assert.ok(typeof node?.desc === "string" && node.desc.includes(words));
+});
+Then("the filed node {string} has no message count in its note", async function (this: OlaiWorld, name: string) {
+  const node = this.servedNodes("_olai/Inbox.olai").find(node => node.id === this.nodeId(name));
+  assert.ok(node);
+  assert.ok(!/\d+ messages?/.test(String(node.desc ?? "")));
+});
+
+When("I open the {string} conversation for delivery", async function (this: OlaiWorld, kind: string) {
+  await this.showSidebar();
+  const row = kind === "node-bound" ? rowFor(this, "door-live")
+    : this.page.locator(`${ROSTER} ${ROW}${attr("title", "the last conversation — claude:", "^=")}`);
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.press(row);
 });

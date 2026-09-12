@@ -175,27 +175,8 @@ describe("the question about which agent", () => {
  * them — which is exactly where a precedence stops being assertable.
  */
 describe("the two bodies this tab decides", () => {
-  const SHOWING: Showing = { unassigned: true, asking: false }
-
-  test("the unassigned list is the body when this tab asked for it", () => {
-    expect(drawn(LIVE, SHOWING)).toEqual({ kind: "unassigned" })
-  })
-
-  test("no agent outranks it — there are no conversations to list", () => {
-    expect(drawn(CHAT_OFF, SHOWING)).toEqual({ kind: "no-agent", off: null })
-  })
-
-  test("... and it outranks every face that is about a CONVERSATION", () => {
-    // Somebody who pressed *Unassigned* asked for that and nothing else: a
-    // refusal, or the question of which agent to open a new chat with, would be
-    // answering a question nobody asked.
-    expect(drawn({ ...LIVE, unopened: REFUSED }, SHOWING)).toEqual({ kind: "unassigned" })
-    expect(drawn({ ...LIVE, talking: { kind: "asking" } }, SHOWING))
-      .toEqual({ kind: "unassigned" })
-  })
-
   test("`+ new` asking in this tab is the question, and says who asked", () => {
-    expect(drawn(LIVE, { unassigned: false, asking: true }))
+    expect(drawn(LIVE, { asking: true }))
       .toEqual({ kind: "choose", asked: "tab" })
   })
 
@@ -204,7 +185,7 @@ describe("the two bodies this tab decides", () => {
     // asking would answer the boot's question with the wrong verb — minting a
     // fresh conversation where the panel was about to come back to the one this
     // directory was in.
-    expect(drawn({ ...LIVE, talking: { kind: "asking" } }, { unassigned: false, asking: true }))
+    expect(drawn({ ...LIVE, talking: { kind: "asking" } }, { asking: true }))
       .toEqual({ kind: "choose", asked: "server" })
   })
 
@@ -219,7 +200,7 @@ describe("the two bodies this tab decides", () => {
     // With ONE engine installed it was invisible: `+ new` opens at once there
     // and never raises the question, so the dead control needed two engines and
     // a refused open to meet.
-    expect(drawn({ ...LIVE, unopened: REFUSED }, { unassigned: false, asking: true }))
+    expect(drawn({ ...LIVE, unopened: REFUSED }, { asking: true }))
       .toEqual({ kind: "choose", asked: "tab" })
   })
 })

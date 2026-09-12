@@ -33,6 +33,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   Scenario Outline: The <chat> conversation hears its selected board without moving my draft
     Given I open the outline "lanes.olai"
     And the agent panel is open
+    And I open the "<chat>" conversation for delivery
     # The default, and it is a ruling rather than an oversight: nobody is opted
     # in by a serve, so the control is drawn saying so.
     Then this conversation's "kolu" wake is on nothing
@@ -80,7 +81,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     @agent-stored
     Examples:
       | chat       |
-      | unassigned |
+      | filed      |
 
   @scratch:lanes @rows:vault,kolu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that composed no chat row says which door kolu is waiting behind

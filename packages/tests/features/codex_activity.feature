@@ -89,8 +89,9 @@ Feature: Codex subagents and background terminals are visible
 
   @agent-stored
   Scenario: Loading a stored conversation restores child work and an active terminal
-    When I open the unassigned chats
-    And I pick the conversation "an older conversation" under the agent "codex"
+    When I open the filed "codex" conversation "the last conversation" as node "filed-chat"
+    And I open the session picker
+    And I open the past session "an older conversation"
     Then the conversation is titled "an older conversation"
     And the call that spawned it offers a door to 2 calls, as "explore the outline"
     And the strip says "watch files" is running
@@ -100,8 +101,9 @@ Feature: Codex subagents and background terminals are visible
 
   @agent-stored
   Scenario: Activity from a conversation left behind cannot populate the new one
-    When I open the unassigned chats
-    And I pick the conversation "an older conversation" under the agent "codex"
+    When I open the filed "codex" conversation "the last conversation" as node "filed-chat"
+    And I open the session picker
+    And I open the past session "an older conversation"
     Then the strip says "watch files" is running
     When I start a new conversation
     And I choose the agent "codex"

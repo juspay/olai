@@ -25,7 +25,7 @@ import { Effect } from "effect"
 import { CHAT_OFF } from "../wire/members.ts"
 import { SESSION_TYPE } from "../kinds.ts"
 import type { Chat } from "../scoped.ts"
-import { assignSession, type Binding, startAgentSession } from "./binding.ts"
+import { type Binding, startAgentSession } from "./binding.ts"
 
 /** Every member no gesture here reaches. A DEATH rather than a refusal: a case
  *  that called one would be asking about something this module does not own,
@@ -116,58 +116,6 @@ const binding = (
     write: (node, value) => Effect.sync(() => void wrote.push({ node, value })),
   }
 }
-
-/**
- * ASSIGNING A CHAT is one property and one mark, in that order.
- *
- * The order is the guarantee: the property IS the assignment, so a mark written
- * before a write that then failed would be a session believing it had been
- * assigned to a node that never claimed it. And the mark is what the session is
- * taught by on its next message — the distillation order rather than the
- * standing law — which is the whole reason this is a verb at all rather than an
- * `edit.apply` from a browser.
- */
-test("a chat assigned to a bare node lands as one property, and is marked as having arrived that way", async () => {
-  const it = chatOpening([])
-  const at = binding(null)
-  await Effect.runPromise(
-    assignSession(it.chat, at, { node: "a", agent: "claude", session: "fake-stored-new" }),
-  )
-  // THE ENGINE AND THE SESSION AS ONE VALUE: a property naming one engine and
-  // another engine's conversation would be a node agent nobody could open.
-  expect(at.wrote).toEqual([{ node: "a", value: "claude:fake-stored-new" }])
-  expect(it.assigned).toEqual([{ node: "a", agent: "claude", session: "fake-stored-new" }])
-})
-
-/**
- * ... AND A NODE ALREADY TALKING THROUGH ONE REFUSES, in a plain sentence.
- *
- * One agent, one current session. The browser dims such a node where somebody
- * can see it before pressing, which is a courtesy; THIS is the check, because a
- * tab decides against the frame it was drawn on and two tabs can be looking at
- * one node.
- *
- * The negative beside it is the half that matters: nothing was written, and
- * nothing was marked. A refusal that had already rewritten the property would be
- * the one outcome a person cannot undo by pressing anything.
- */
-test("a node already talking through a conversation refuses, and nothing is written", async () => {
-  const it = chatOpening([])
-  const at = binding({ engine: "claude", session: "fake-session-1", title: "a" })
-  const said = await Effect.runPromise(
-    Effect.flip(
-      assignSession(it.chat, at, { node: "a", agent: "claude", session: "fake-stored-new" }),
-    ),
-  )
-  expect(said.reason).toContain("already talking through a conversation")
-  expect(said.reason).toContain("one agent, one current session")
-  // ...and it names the column the board actually keeps the binding in, which
-  // is the roster's answer rather than a constant: "take the session off its
-  // `…` property" is only actionable if the key is the one in the file.
-  expect(said.reason).toContain(`\`${SESSION_TYPE}\``)
-  expect(at.wrote).toEqual([])
-  expect(it.assigned).toEqual([])
-})
 
 /**
  * A FRESH SESSION records what it replaced, so the conversation it replaced is

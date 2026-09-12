@@ -47,7 +47,6 @@ import { useRouter } from "olai-plugin-navigation/routing"
 import { run } from "@olai/web/client/run.ts"
 import { createSaying, type Saying } from "@olai/web/client/saying.ts"
 import type { Row } from "./roster.ts"
-import { hideUnassigned } from "./showing.ts"
 import { selectConversation } from "../selection.ts"
 
 /** WHERE A NODE AGENT LIVES — the outline it is written in, at its own row.
@@ -106,7 +105,6 @@ export const createFocus = (): Focus => {
     // showing it ({@link ./showing.ts}): pressing an agent is asking for that
     // agent's conversation, and a list left up over it would be a press that
     // looked like it did nothing.
-    hideUnassigned()
     // BOTH HALVES, because a session id means nothing to the wrong agent: the
     // row carries the engine the property named beside the session it named,
     // and the pair is what opens one.

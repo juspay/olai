@@ -75,7 +75,10 @@ A server boot opens no conversation. Stored chats stay asleep until a tab reads 
 
 The old which-conversation note under `~/.local/state/olai/` (or `XDG_STATE_HOME`) is no longer read or written. Old notes are ignored and remain subject to generic state pruning. Model choices now use a separate store keyed by engine and session. The model store keeps the thirty-two most recently touched choices and is read when that conversation is opened. The separate `heard/` bookkeeping and wake preferences remain.
 
-**Where the stored conversations are.** They are in the sidebar, not in the header: the panel's own list of them was retired when migration gave the column two better doors onto the same set. A conversation some node agent claims is reached by [pressing that agent](#the-agents-roster); one no node claims is a row of [Unassigned](#unassigned), which is the same list — every installed agent's, grouped under whose they are — with the gesture that gives one a home. A row there says how many messages its conversation holds (the transcript's own count — tool traffic in both directions counts too, so 2913 messages is not 2913 of your sentences: it is the same kind of answer file size used to be, honest about *that* it knows the size), when it was last touched to the minute, and — for Claude conversations — when a `/clear` left it behind, **which conversation replaced it**. That last one the agent never wrote down, so it is inference rather than a reported fact: a conversation that begins with `/clear` replaces the one last touched at that moment, and when two share that moment, or none is there, the row says nothing rather than guesses. The minute stays beside it for the same reason as ever — two rows of one name can share a story too — and the count for the one question neither answers: how big each side of a `/clear` got. Picking one loads it for this visit.
+**Where the stored conversations are.** Unclaimed conversation heads are
+[filed into the Inbox](#filing-stored-conversations-into-the-inbox). Open one by
+pressing its node agent in the sidebar. Its session picker lists its history,
+including the message counts and last-touched minutes the engine supplies.
 
 **Picking another agent's conversation switches the panel to that agent**, exactly as `+ new` would: a session id belongs to one agent and means nothing to the other, so opening one is a change of both. The panel shows one conversation at a time; node sessions can keep running in their own processes while another conversation is shown. The listing includes every installed harness's stored conversations.
 
@@ -650,7 +653,7 @@ Last writer wins, visibly, in a file, through the ops layer — rather than sile
 
 **A node that has gone is not on the roster.** Trash the node, or take the property off it, and the row disappears rather than becoming a door onto a record that is not there.
 
-**Two things stay on the machine**, and both are bookkeeping rather than configuration: what olai **overheard** each conversation do — that it has been taught its contract (below), that it was **assigned** to a node rather than opened for one, what olai itself **replaced** it with, and the last line it was **heard** to say. Nothing configures any of them, nothing else can reconstruct them, and a board written to on every turn would be a board committed on every turn. They live beside [the which-conversation note](#which-conversation-you-come-back-to), under `~/.local/state/olai/heard/` (or wherever `XDG_STATE_HOME` points), keyed by the agent and session they are about, capped at thirty-two conversations with the least recently overheard dropped — the same cap the doorbell picks keep, and what an eviction costs is one contract taught a second time.
+**Two things stay on the machine**, and both are bookkeeping rather than configuration: what olai **overheard** each conversation do — that it has been taught its contract (below), that it was **assigned** to a node rather than opened for one, what olai itself **replaced** it with, and the last line it was **heard** to say. Nothing configures any of them, nothing else can reconstruct them, and a board written to on every turn would be a board committed on every turn. They live beside [the model choices](#which-conversation-you-come-back-to), under `~/.local/state/olai/heard/` (or wherever `XDG_STATE_HOME` points), keyed by the agent and session they are about, capped at thirty-two conversations with the least recently overheard dropped — the same cap the doorbell picks keep, and what an eviction costs is one contract taught a second time.
 
 ### An agent-associated session is taught what it is
 
@@ -668,32 +671,52 @@ Honest limits. The notice and the mark go together, and only where the message t
 
 Migration is **association, not conversion**. Nothing moves on disk, no transcript is copied anywhere, and the session file stays exactly where its agent keeps it. What a press writes is one property on one node — and from that frame the conversation is that node agent's current session, with its context intact. A home, not an abandonment.
 
-### Unassigned
+### Filing stored conversations into the Inbox
 
-**The Agents section ends with an *Unassigned* row**, counting every conversation in this directory that no node agent claims — [the whole stored list](#which-conversation-you-come-back-to) minus what the roster already has: the conversation each node's `chat-agent-session` names, and the conversations behind it (below).
+The chat server files unclaimed stored conversations automatically. Capture owns
+an Inbox-path entry in the vault's scoped registry. Chat reads that registry
+without depending on capture: an absent entry disables filing, logs the absence,
+and leaves chat available. An entry appearing starts a full run; withdrawal
+cancels filing. There is no polling clock.
 
-- **it draws only where there is something to say.** A directory whose chats all belong to a node ends the section at its agents; a directory with neither draws no section at all. An agent that could not be *asked* what it has stored is something to say, so the row draws for that too — with its reason in the list rather than a count on the row.
-- **...and it draws even with no node agent at all**, which is where a person migrating actually starts. A doorway that appeared only once you had made your first node agent by hand would be a doorway nobody finds.
-- **the count is asked when the tab loads**, off the same question the picker asks — which can mean starting an agent that is not running, so it is never asked on a clock. It is asked again when a turn settles into a conversation the last answer does not name and no node claims — the ask a row that is not drawn yet can never take — once per such conversation: a listing that can never name it (an agent without `sessionCapabilities.list`) will not be probed on every turn for the life of the tab, and anything surer than one probe is the press. It is also asked when the row is opened, because a `claude --resume` in a terminal a moment ago should be in the list. A conversation worked in from somewhere no tab can see (that terminal, with no other tab's turn to notice it) is the shape no event carries: the row answers it on the next press, as it always has.
-- **it may never empty**, and that is the design rather than a state to fix. A chat that is nobody's agent goes on working exactly as it always did.
+A full run asks every installed engine after discovery at boot and after each
+session revision. Engines already running answer live; the others are started,
+asked, and stopped using the existing listing lifetime. After a node-agent turn
+settles, a narrow run asks only that engine, through its running process. It
+starts no subprocess and asks no other engine. Thus a conversation created in a
+terminal appears after the next settled node-agent turn on that engine. A refused
+listing is logged with the engine's reason and retried on the next run.
 
-### assign to node…
+The filer first ensures a top-level `Chats` node in the Inbox, matched by its
+reserved id `chats`, in its own Ops write. It then writes one node per unclaimed
+conversation head, newest first, using one independent Ops write per row. A
+refused Chats write stops that run; a refused row leaves the others intact and
+retries alone next time. Each row rechecks claims, including trash and history,
+so retries and interruptions do not duplicate successful writes. Moving or
+renaming a filed node preserves its identity, and trashing one never resurrects
+it. The Unassigned list and `assignSession` have been retired; use **Move to…** to
+put a filed node where it belongs.
 
-**Opening it lists those conversations in the panel** — grouped by whose they are, each saying how big it is and when it was last touched, exactly as the picker draws them. Pressing a title opens it, because the honest first question about a chat from three weeks ago is *which one is this*. Under it is **assign to node…**, which opens the same node search the [edge panel and the move picker](search.md) use: type words, take a row.
+The node's title is the stored title, falling back to the session id. Its note
+contains the available message count and last-touched minute; absent components
+are omitted, and neither present means no note. Its `chat-agent-session` property
+always carries the engine and session. `/clear` predecessors belong to the head's
+history and receive no separate nodes. Filed rows are asleep at boot, including
+the newest; opening one reads its existing conversation. Its first sent message
+carries the assigned-session contract, asking it to distil its history into the
+subtree.
 
-```
-(no property)               →  chat-agent-session: claude:0f3c…
-agent-session: grok         →  agent-session: claude:0f3c8d21-…
-```
-
-- **the engine comes from the chat**, and the value is written whole. A session id means nothing to the wrong agent, so a node that named a *different* engine is re-pointed rather than half-rewritten — a property naming one engine and another engine's conversation would be a node agent nobody could open.
-- **a bare node is offered**, so this is how a node agent comes into being as much as it is how one gets a session — the same ruling [*start an agent session*](#starting-a-session) keeps.
-- **a node already talking through a conversation refuses**, in a plain sentence: one agent, one current session. It is dimmed in the search where you can see it before pressing, and refused again by the server, because a browser judges against the frame it was drawn on. To replace a live session, use *fresh session* below.
-- **the row leaves the list on the frame the property lands.** Nothing is re-asked: what is unassigned is the listing minus what the roster claims, and the roster is live.
+These are ordinary Ops writes under the **filer** writer, with their own Commit
+panel and ledger label. `auto` still means commits only. A large initial filing
+is a burst of independent writes; git's cadence may gather it into one large
+commit or several. A second machine files that machine's stored sessions; nodes
+from the first machine retain the existing missing-session refusal there. A
+filed agent moved inside another agent's subtree becomes part of the outer
+agent's memory; both agents remain usable.
 
 ### Its past sessions come with it
 
-**Assigning a chat claims the `/clear` chain behind it.** The picker already knows which conversation replaced which — olai's pinned adapter says so on the row that was left behind — so the conversations behind the one you assigned are that agent's **past sessions** from day one, rather than a list that starts empty and fills as you clear. They are named in the panel header's **sessions (n)**, which is that agent's own history: *past sessions (n)*, pressable like any other stored conversation. And because they are claimed, they leave *Unassigned* in the same press.
+**Filing a chat claims the `/clear` chain behind it.** The picker already knows which conversation replaced which — olai's pinned adapter says so on the row that was left behind — so the conversations behind the one you assigned are that agent's **past sessions** from day one, rather than a list that starts empty and fills as you clear. They are named in the panel header's **sessions (n)**, which is that agent's own history: *past sessions (n)*, pressable like any other stored conversation. Because they are claimed, the filer creates no additional rows for them.
 
 ### fresh session
 

@@ -3947,3 +3947,18 @@ When("I return to the parent agent {string}", async function (this: OlaiWorld, n
 Then("the agent panel is already visible", async function(this: OlaiWorld) {
   await this.page.locator(CHAT_PANEL).waitFor({ state: "visible" })
 })
+
+When("the agent starts so far are counted", function (this: OlaiWorld) {
+  this.notedAgentStarts = this.serverLog.text.split("chat agent ready").length - 1;
+});
+Then("no further agent process has started", function (this: OlaiWorld) {
+  assert.notEqual(this.notedAgentStarts, null);
+  assert.equal(this.serverLog.text.split("chat agent ready").length - 1, this.notedAgentStarts);
+});
+Then("the list-asks have grown", async function (this: OlaiWorld) {
+  assert.notEqual(this.notedListAsks, null);
+  await this.waitUntil(async () => listAsks(this.scratch()) > this.notedListAsks!, "the running engine to answer a new listing request");
+});
+Then("the filer log names {string} with {string}", async function (this: OlaiWorld, engine: string, why: string) {
+  await this.waitUntil(async () => this.serverLog.text.includes(`filer: ${engine}: ${why}`), "the filer's engine refusal to be logged");
+});

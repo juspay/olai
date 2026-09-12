@@ -78,7 +78,6 @@ import { agentIn } from "olai-plugin-chat/wire"
 import type { SessionInfo } from "olai-plugin-chat/wire"
 import { useAgents } from "../agents/answered.tsx"
 import { pastOf, successorIn } from "../../lineage.ts"
-import { hideUnassigned } from "../agents/showing.ts"
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
 import { QUIET_PILL } from "@olai/web/client/pill.ts"
@@ -184,8 +183,7 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
                   data-session-id={session()}
                   onClick={() => {
                     picker.shut()
-                    hideUnassigned()
-                    props.chat.loadSession(props.agent.engine, session())
+                                    props.chat.loadSession(props.agent.engine, session())
                   }}
                 >
                   current session
@@ -213,8 +211,7 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
                       picker.shut()
                       // Opening a conversation is asking to be IN it, wherever
                       // the press was made (`../agents/showing.ts`).
-                      hideUnassigned()
-                      props.chat.loadSession(session.agent, session.id)
+                                        props.chat.loadSession(session.agent, session.id)
                     }}
                   />
                 </li>

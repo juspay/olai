@@ -84,18 +84,20 @@ Feature: Chat remains usable as the plugin runtime changes
   Scenario: Unsent drafts stay with their conversation across drawer and session changes
     Given I open the app
     And the agent panel is open
+    When I open the filed conversation "the last conversation" as node "filed-chat"
     Then the conversation is titled "the last conversation"
     When I type "only for the last conversation" into the chat
     And I close the agent panel
     And the agent panel is open
     Then the chat input reads "only for the last conversation"
-    When I open the unassigned chats
-    And I pick the conversation "an older conversation"
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the session picker
+    And I open the past session "an older conversation"
     Then the conversation is titled "an older conversation"
     And the chat input reads ""
     When I type "only for the older conversation" into the chat
-    And I open the unassigned chats
-    And I pick the conversation "the last conversation"
+    And I open the session picker
+    And I return to the node agent's current session
     Then the chat input reads "only for the last conversation"
     When I send the chat message
     Then the agent's answer mentions "you said: only for the last conversation"

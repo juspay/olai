@@ -401,52 +401,31 @@ Feature: Choosing an agent
     And the chat shows my message "hello" exactly once
 
   @opencode @agent-stored @scratch:chat
-  Scenario: The unassigned list is every agent's, grouped by who they are with
-    # One agent at a time is true of the PROCESS and was never true of the
-    # history. The list used to be asked of whichever agent the panel happened
-    # to be talking to, so a single opencode chat took every Claude
-    # conversation in this directory off the screen — and the way back to one
-    # was to start a new Claude chat purely so the list would name them again.
-    When I choose the agent "opencode"
+  Scenario: Every engine's stored conversations are filed with their engine identity
+    Then the filer's boot run has settled
+    And the Inbox has 2 filed conversations
+    When I open the filed "opencode" conversation "an opencode conversation" as node "opencode-chat"
     Then the header names the agent "opencode"
-    When I open the unassigned chats
-    # BOTH, from a panel talking to one of them. The other was started to
-    # answer the question and stopped again — a listing is a question, not a
-    # visit.
-    Then the unassigned list shows "an opencode conversation" under the agent "opencode"
-    And the unassigned list shows "an older conversation" under the agent "claude"
-    And the unassigned list is grouped under the agent "claude"
-    And the unassigned list is grouped under the agent "opencode"
+    When I open the filed conversation "the last conversation" as node "claude-chat"
+    Then the header names the agent "claude"
+    When I open the session picker
+    Then the past sessions hold "an older conversation"
 
   @opencode @agent-stored @scratch:chat
-  Scenario: A row says how big its conversation is, and which conversation replaced it
-    # `/clear` ends one conversation and starts another under a shared title,
-    # and ACP's SessionInfo answers four fields and stops — so the list used
-    # to answer "which of these two is the live one" with nothing. What the
-    # fixture carries is the pinned adapter's own answer (the patch olai
-    # ships, `packages/plugins/claude/acp/patches/session-list-info.patch`): the count per row, and
-    # on the OLDER of the pair, which conversation replaced it.
-    When I choose the agent "claude"
-    And I open the unassigned chats
-    Then the row for "the last conversation" says it has one message
-    And the row for "an older conversation" says it has 47 messages
+  Scenario: Filed notes and history retain the listing's counts and lineage
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    Then the filed node "filed-chat" has a note containing "1 messages"
+    When I open the session picker
+    Then the row for "an older conversation" says it has 47 messages
     And the row for "an older conversation" was superseded by "the last conversation"
-    And the row for "the last conversation" was not superseded
-    # ... while an agent whose list carries no corner says nothing — never a
-    # zero standing in for a reading nobody did.
-    And the row for "an opencode conversation" shows no message count
+    When I open the filed "opencode" conversation "an opencode conversation" as node "opencode-chat"
+    Then the filed node "opencode-chat" has no message count in its note
 
   @opencode @agent-stored @scratch:chat
-  Scenario: A superseded line that names a conversation the list no longer knows
-    # The successor may have been deleted since the stamp was earned: the row
-    # then carries a link with nothing at its end, and a link a reader cannot
-    # click at must not draw — the adapter's "no second claimant" refusals
-    # are the same posture one level down. The COUNT stays: it IS what the
-    # transcript said, and while it does, the named-half of the sentence
-    # alone goes.
-    When I choose the agent "claude"
+  Scenario: History retains its count when the listed successor disappears
+    When I open the filed conversation "the last conversation" as node "filed-chat"
     And the conversation "fake-stored-new" is gone from the agent
-    And I open the unassigned chats
+    And I open the session picker
     Then the row for "an older conversation" says it has 47 messages
     And the row for "an older conversation" was not superseded
 
@@ -458,36 +437,28 @@ Feature: Choosing an agent
     # conversation — the same change + new makes, through the same door.
     When I choose the agent "opencode"
     Then the header names the agent "opencode"
-    When I open the unassigned chats
-    And I pick the conversation "an older conversation"
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the session picker
+    And I open the past session "an older conversation"
     Then the header names the agent "claude"
     And the conversation is titled "an older conversation"
     And the chat input takes typing
 
   @agent-stored @scratch:chat
-  Scenario: One agent on the machine is not a heading over the whole list
-    # The picker's own rule, read at the other door: a heading naming the one
-    # agent there is says what the panel's header already says, over every row
-    # in the list.
-    When I open the unassigned chats
-    Then the unassigned list lists "an older conversation"
-    And the unassigned list has no headings
+  Scenario: A single engine's filed node owns its history
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the session picker
+    Then the past sessions hold "an older conversation"
+    And the Unassigned row and list are absent
 
   @opencode @agent-stored @scratch:chat
-  Scenario: One agent that cannot be asked does not take the other's conversations
-    # The two halves of the same rule, now that the list spans more than one
-    # agent. An absent list drawn as "no stored conversations" is a claim about
-    # somebody's disk standing in for never having reached them — the picker's
-    # oldest bug — and a broken agent that took the WHOLE list down with it
-    # would be the bug this fan-out exists to fix, one agent along.
-    When I choose the agent "claude"
+  Scenario: An engine's refused listing leaves other engines' filed rows usable
+    When I open the filed conversation "the last conversation" as node "filed-chat"
     And I ask the agent "lose"
-    And I open the unassigned chats
-    # Named, in its own words, as ONE agent's trouble.
-    Then the list says "claude" could not be asked, with "the conversation store is unreadable"
-    # ... and the other agent's are still there, which is the half a refusal
-    # about the whole call would have taken away.
-    And the unassigned list shows "an opencode conversation" under the agent "opencode"
+    Then the filer log names "claude" with "the conversation store is unreadable"
+    When I open the filed "opencode" conversation "an opencode conversation" as node "opencode-chat"
+    Then the header names the agent "opencode"
+    And the chat input takes typing
 
   @pi @scratch:chat
   Scenario: pi on the machine is something the picker offers
@@ -572,17 +543,14 @@ Feature: Choosing an agent
     And the agent is idle
 
   @pi @agent-stored @scratch:chat
-  Scenario: The unassigned list groups pi conversations under pi, carrying no counts
-    # What the spike found: pi-acp's `session/list` honours the request's cwd
-    # exactly and answers the protocol's four fields and nothing more — the
-    # `_meta` of the answer is an empty OBJECT at response level, never a
-    # corner on a row — so a pi row says nothing a claude row does: no count,
-    # no "superseded by". Nothing drawn is not a zero.
-    When I choose the agent "pi"
-    And I open the unassigned chats
-    Then the unassigned list shows "a pi conversation" under the agent "pi"
-    And the unassigned list shows "an older conversation" under the agent "claude"
-    And the row for "a pi conversation" shows no message count
+  Scenario: A filed pi conversation carries no invented message count
+    Then the filer's boot run has settled
+    And the Inbox has 2 filed conversations
+    When I open the filed "pi" conversation "a pi conversation" as node "pi-chat"
+    Then the filed node "pi-chat" has no message count in its note
+    And the header names the agent "pi"
+    When I open the filed conversation "the last conversation" as node "claude-chat"
+    Then the header names the agent "claude"
 
   @pi @agent-stored @scratch:chat
   Scenario: Reopening a stored pi conversation talks to pi

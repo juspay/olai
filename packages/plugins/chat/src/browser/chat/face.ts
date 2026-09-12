@@ -37,7 +37,6 @@ import type { ChatState, OffBecause, Unopened } from "olai-plugin-chat/wire"
 export interface Showing {
   /** The chats no node agent claims, opened from the roster's last row
    *  (`../agents/showing.ts`). */
-  readonly unassigned: boolean
   /** ... and `+ new` having asked which agent, in this tab. */
   readonly asking: boolean
 }
@@ -56,7 +55,6 @@ export type Face =
   /** The conversations no node claims, and the gesture that gives one a node
    *  (`../agents/Unassigned.tsx`). Not a conversation at all, which is why it
    *  outranks every face below it: somebody asked for this and nothing else. */
-  | { readonly kind: "unassigned" }
   /** The agent is running and would not open a conversation. */
   | { readonly kind: "unopened"; readonly unopened: Unopened }
   /**
@@ -138,7 +136,6 @@ export type Face =
  */
 export const faceOf = (state: ChatState, showing: Showing): Face => {
   if (state.status === "off") return { kind: "no-agent", off: state.off }
-  if (showing.unassigned) return { kind: "unassigned" }
   if (state.talking?.kind === "asking") return { kind: "choose", asked: "server" }
   if (showing.asking) return { kind: "choose", asked: "tab" }
   const unopened = state.unopened
@@ -149,4 +146,4 @@ export const faceOf = (state: ChatState, showing: Showing): Face => {
 /** What a panel showing neither of this tab's own bodies is looking at — the
  *  ordinary case, and the value every reading that is only about the cell
  *  passes. */
-export const NOTHING_SHOWN: Showing = { unassigned: false, asking: false }
+export const NOTHING_SHOWN: Showing = { asking: false }

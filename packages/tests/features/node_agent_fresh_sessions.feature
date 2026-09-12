@@ -146,31 +146,32 @@ Feature: Fresh node sessions have distinct identities and durable history
     When the agent is released
     Then the panel is in the remembered conversation "current"
 
-  Scenario: A new unassigned chat opened from a node has its own tools and leaves the node session intact
+  Scenario: A second node agent opened from a node has its own tools and leaves the node session intact
     When I show the done nodes
-    And I start a new conversation
+    And I open the node menu of "chase-tiler"
+    And I choose "Start an agent session" from the node menu
     Then the panel has a different conversation from "first"
-    And the panel offers no sessions of its own
-    When I remember this conversation as "unassigned"
+    And the panel header names the node agent "chase the supplier"
+    When I remember this conversation as "second-node"
     And I ask the agent "done order"
     Then node "order" is done
     When I press the agent "install"
     Then the panel is in the remembered conversation "first"
     And the panel header names the node agent "install the cabinets"
-    When I open the unassigned chats
-    And I pick the conversation "done order"
-    Then the panel is in the remembered conversation "unassigned"
+    When I press the agent "chase-tiler"
+    Then the panel is in the remembered conversation "second-node"
     And there should be no page errors
 
-  Scenario: A new unassigned chat can open while the node agent waits for an answer
+  Scenario: A second node agent can open while the node agent waits for an answer
     When I ask the agent "ask"
     Then the chat shows a question
-    When I start a new conversation
+    When I open the node menu of "chase-tiler"
+    And I choose "Start an agent session" from the node menu
     Then the panel has a different conversation from "first"
-    And the panel offers no sessions of its own
+    And the panel header names the node agent "chase the supplier"
     And the agent "install" stands "needs-you"
-    When I ask the agent "unassigned alongside a question"
-    Then the agent's answer mentions "you said: unassigned alongside a question"
+    When I ask the agent "another node alongside a question"
+    Then the agent's answer mentions "you said: another node alongside a question"
     And the agent "install" stands "needs-you"
     When I press the agent "install"
     Then the panel is in the working conversation "first"
@@ -179,7 +180,7 @@ Feature: Fresh node sessions have distinct identities and durable history
     Then the agent is idle
     And there should be no page errors
 
-  Scenario: A new unassigned chat from history leaves both node conversations in place
+  Scenario: A second node agent from history leaves both node conversations in place
     When I show the done nodes
     And I open the session picker
     And I start a fresh session
@@ -190,9 +191,10 @@ Feature: Fresh node sessions have distinct identities and durable history
     And I open the session picker
     And I open the past session "cabinet first session"
     Then the panel is in the remembered conversation "first"
-    When I start a new conversation
+    When I open the node menu of "chase-tiler"
+    And I choose "Start an agent session" from the node menu
     Then the panel has a different conversation from "first"
-    And the panel offers no sessions of its own
+    And the panel header names the node agent "chase the supplier"
     When I ask the agent "done order"
     Then node "order" is done
     When I press the agent "install"
@@ -201,3 +203,20 @@ Feature: Fresh node sessions have distinct identities and durable history
     And I open the past session "cabinet first session"
     Then the panel is in the remembered conversation "first"
     And there should be no page errors
+
+  Scenario: A settled historical turn also discovers a terminal conversation
+    When I open the session picker
+    And I start a fresh session
+    And I ask the agent "cabinet current session"
+    And the agent is idle
+    And I open the session picker
+    And I open the past session "cabinet first session"
+    And a terminal stores a conversation titled "terminal while reading history"
+    And the listing counter is armed
+    And the list-asks so far are counted
+    And the agent starts so far are counted
+    And I ask the agent "continue the old conversation"
+    And the agent is idle
+    Then the list-asks have grown
+    And the Inbox has 1 filed conversations
+    And no further agent process has started

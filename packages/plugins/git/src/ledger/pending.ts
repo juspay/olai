@@ -320,6 +320,7 @@ const busy = (reason: Reason): string =>
 export const commitDoor = (writer: Writer): string => {
   switch (writer) {
     case "web":
+    case "filer":
     // `auto` is the quiet-window loop, which writes no FILE — it only ever
     // makes commits — so no write is ever attributed to it and this arm is
     // unreachable by construction. It is spelled rather than defaulted for the

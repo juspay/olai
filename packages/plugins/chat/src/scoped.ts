@@ -21,12 +21,13 @@ import { BusyFailure, type NodeAgent, type NodeAgents, UsageFailure } from "@ola
 import type { OpFailure } from "@olai/format"
 import { Deferred, Duration, Effect, Exit, Fiber, Scope, Semaphore } from "effect"
 
-import type { StopReason } from "./agent.ts"
+import { AgentGone, type StopReason } from "./agent.ts"
 import type { Panel, PanelOptions, WakeScope } from "./chat.ts"
 import { makePanel } from "./chat.ts"
 import * as Memory from "./memory.ts"
 import type { Conversing } from "./sessions.ts"
 import type { Change } from "./transcript.ts"
+import { succeeded } from "./succession.ts"
 import { pastOf } from "./lineage.ts"
 import { agentIn, type Listed } from "olai-plugin-chat/wire"
 
@@ -51,6 +52,7 @@ export interface LiveSession {
 /** The public chat is the scheduler over panels, with every acquired node
  * scope exposed for the server's roster projection. */
 export interface Chat extends Panel {
+  readonly sessionsFor: (agent: string) => Effect.Effect<Listed>
   /** A reader owns its hold until its Effect scope closes. */
   readonly reading: (to: Conversing, observer: ReadingObserver) => Effect.Effect<Panel, OpFailure, Scope.Scope>
   /** Apply a browser gesture only to the conversation it was drawn for. */
@@ -74,7 +76,7 @@ export interface ReadingObserver {
  * a node pool; there is no optional field that changes which lifecycle `make`
  * constructs. */
 export interface Options extends PanelOptions {
-  readonly onConversationState?: (state: ReturnType<Panel["state"]>, entries: ReturnType<Panel["entries"]>) => void
+  readonly onConversationState?: (state: ReturnType<Panel["state"]>, entries: ReturnType<Panel["entries"]>, node: string | null) => void
   readonly onConversationTranscript?: (state: ReturnType<Panel["state"]>, change: Change) => void
   /** Current user-controlled wake activation, read through its Cordis service.
    * Absent for delivery-only plugins, which use node-derived recipients. */
@@ -190,12 +192,37 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       readonly slot: NodeSlot
     }
 
+    // The lease is acquired under the same gate as eviction. A listing may
+    // borrow an existing slot, but it must never acquire a new node process.
+    const nodeSessions: Panel["liveSessions"] = (agent) => {
+      const slot = [...nodes.values()].find(one => one.panel.liveSessions(agent) !== null)
+      if (slot === undefined) return null
+      return Effect.acquireUseRelease(
+        gate.withPermit(Effect.gen(function*() {
+          if (stopped || ![...nodes.values()].includes(slot)) return yield* new AgentGone({
+            gone: "unreachable", why: "the running node agent stopped before its listing" })
+          slot.uses += 1
+          inFlight += 1
+          return slot
+        })),
+        held => held.panel.liveSessions(agent) ?? Effect.fail(new AgentGone({
+          gone: "unreachable", why: "the node agent changed engines before its listing" })),
+        held => Effect.sync(() => {
+          held.uses -= 1
+          inFlight -= 1
+          armIdle(held)
+          if (inFlight === 0 && quiet !== undefined) Deferred.doneUnsafe(quiet, Effect.void)
+        }),
+      )
+    }
+
     const rootPanel = () => Effect.gen(function*() {
       let panel!: Panel
       panel = yield* makePanel({
         ...panelOptions,
+        runningSessions: nodeSessions,
         onState: (state) => {
-          options.onConversationState?.(state, panel.entries())
+          options.onConversationState?.(state, panel.entries(), null)
           for (const reader of listeners(state) ?? []) reader.state(state)
           if (active?.kind === "root" && active.panel === panel) {
             panelOptions.onState(state)
@@ -402,7 +429,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               onState: (state) => {
                 if (slot.state.status !== state.status) slot.since = new Date().toISOString()
                 slot.state = state
-                options.onConversationState?.(state, slot.panel.entries())
+                options.onConversationState?.(state, slot.panel.entries(), slot.node)
                 slot.touched = Date.now()
                 if (
                   (state.status === "idle" || state.status === "gone")
@@ -913,6 +940,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         )
       }),
       reopen: foreground((panel) => panel.reopen),
+      liveSessions: (agent) => nodeSessions(agent) ?? root.liveSessions(agent),
+      sessionsFor: (agent) => Effect.suspend(() => {
+        const live = nodeSessions(agent)
+        if (live === null) return Effect.succeed({ sessions: [], unreachable: [{ agent,
+          why: "the settled node agent is no longer running" }] })
+        return Effect.match(live, {
+          onFailure: gone => ({ sessions: [], unreachable: [{ agent, why: gone.why }] }),
+          onSuccess: rows => succeeded({ sessions: rows.map(row => ({ ...row, agent })), unreachable: [] },
+            panelOptions.overheard?.rows() ?? []),
+        })
+      }),
       sessions: listSessions,
       answer: (id, answers) => foreground((panel) => panel.answer(id, answers)),
       doorFor: scopedDoor,

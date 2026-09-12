@@ -104,6 +104,8 @@ import { Deferred, Duration, Effect } from "effect"
 
 import type { Conversing } from "./sessions.ts"
 import { forLocalState as modelsIn } from "./models.ts"
+import type { Ops as WriteGate } from "@olai/ops"
+import { makeFiler } from "./server/filer.ts"
 import { readings } from "./server/readings.ts"
 import type { Change } from "./transcript.ts"
 import * as Chat from "./scoped.ts"
@@ -115,7 +117,7 @@ import { forLocalState as sessionsIn } from "./sessions.ts"
 import { seatingIn } from "./seating.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
-import { assignSession, type Binding, startAgentSession } from "./server/binding.ts"
+import { type Binding, startAgentSession } from "./server/binding.ts"
 import { Config } from "./settings.ts"
 export { Config } from "./settings.ts"
 import { faultedIn, scopeThrough } from "./server/doorbell.ts"
@@ -344,6 +346,7 @@ export default definePlugin({
     const streams = yield* readings(Deferred.await(ready))
     /** This sibling's own write face, the moment the runtime has minted it. */
     let mine: Ctx | null = null
+    let filer: { readonly full: Effect.Effect<void>; readonly settled: (agent: string) => Effect.Effect<void> } | null = null
     let sessionsRevision = 0
 
     /** THE VAULT'S HALF OF THE AGENTS ROSTER, held across revisions: which node
@@ -405,7 +408,7 @@ export default definePlugin({
      */
     const ring = yield* detached
 
-    const publishState = (state: ChatState, entries: ReadonlyMap<string, ChatEntry>): void => {
+    const publishState = (state: ChatState, entries: ReadonlyMap<string, ChatEntry>, node: string | null): void => {
       mine?.cells.engines.set(state.roster)
       // ... AND THE ROSTER WITH IT, because this is the one door every chat
       // frame comes through and the bindings move behind exactly these frames:
@@ -431,6 +434,7 @@ export default definePlugin({
         }
         if (lastStatus === "thinking" && state.status !== "thinking") {
           ring(seen({ kind: "turn", ...who, status: "done" }))
+          if (filer !== null && node !== null) ring(filer.settled(who.agent))
           const produced = [...entries.values()]
             .filter((entry): entry is Extract<ChatEntry, { kind: "agent" }> =>
               entry.kind === "agent" && entry.seq > agentSeqAtTurn
@@ -550,11 +554,11 @@ export default definePlugin({
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>
         withChat((open) => startAgentSession(open, binding, input)).pipe(
           // Publish after both the binding and its history link are written.
-          Effect.tap(() => Effect.sync(() => mine?.cells.sessionsRevision.set(++sessionsRevision))),
+          Effect.tap(() => Effect.gen(function*() {
+            mine?.cells.sessionsRevision.set(++sessionsRevision)
+            if (filer !== null) yield* filer.full
+          })),
         ),
-      assignSession: (
-        { input }: { input: { node: string; agent: string; session: string } },
-      ) => withChat((open) => assignSession(open, binding, input)),
       chooseAgent: ({ input }: { input: { agent: string } }) =>
         withChat((open) => Effect.andThen(open.chooseAgent(input.agent), () => openedConversation(open))),
       loadSession: ({ input }: { input: { agent: string; id: string } }) =>
@@ -787,6 +791,16 @@ export default definePlugin({
       yield* Deferred.succeed(ready, chat)
       yield* Effect.addFinalizer(() => chat === null ? Effect.void : chat.stop)
       yield* chat.start
+      const gate = ops.gate as WriteGate
+      filer = yield* makeFiler({
+        read: gate.read,
+        write: request => gate.run(request, "filer"),
+        key: nodeAgents.key,
+        current: vault.inbox.current,
+        assigned: chat.assigned,
+        log: line => Effect.logInfo(line),
+      }, vault.inbox, { all: chat.sessions, one: chat.sessionsFor })
+      yield* Effect.addFinalizer(() => Effect.sync(() => { filer = null }))
       yield* Effect.annotateLogs(Effect.logDebug("chat agent commands"), {
         agents: installed.map((row) => `${row.id}=${row.adapter.command}`).join(" "),
         mcp: address.url,

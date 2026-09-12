@@ -294,20 +294,6 @@ export const surface = defineSurface({
        * transcript. Refuses whatever the ops layer refuses besides — a record
        * that is gone, a file that would not take the write.
        */
-      assignSession: {
-        input: Schema.Struct({
-          /** The node that is about to claim the conversation — the id a
-           *  search hit or a roster row answers with. */
-          node: Schema.String,
-          /** WHOSE conversation it is: one of {@link ChatState.roster}'s ids,
-           *  off the row in the list ({@link SessionInfo}). */
-          agent: Schema.String,
-          /** ... and WHICH conversation, by the id that agent stores it
-           *  under. */
-          session: Schema.String,
-        }),
-        error: ChatFailure,
-      },
       /** Answer the question the panel is asking ({@link ChatState.talking}'s
        *  `asking` arm):
        *  THIS agent, now open the conversation you would have opened.
@@ -475,7 +461,6 @@ export const faces = {
     "conversation.setSetting": "tool",
     "conversation.newSession": "tool",
     "conversation.startAgentSession": "tool",
-    "conversation.assignSession": "tool",
     "conversation.chooseAgent": "tool",
     "conversation.loadSession": "tool",
     "conversation.reopen": "tool",

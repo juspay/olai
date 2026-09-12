@@ -1900,6 +1900,7 @@ export class OlaiWorld extends World {
    *  noted it — `null` until one does, so comparing is a sentence about
    *  noted-and-now, never about a zero the scenario forgot to set. */
   notedListAsks: number | null = null;
+  notedAgentStarts: number | null = null;
 
   /** Wait for a double `requestAnimationFrame`.
    *
@@ -2159,15 +2160,19 @@ export class OlaiWorld extends World {
    *  so this never needs a scope — except inside a mirror, where the target's
    *  subtree is rendered a second time, or inside a split, where a second pane
    *  may draw the same file; those steps scope explicitly ({@link pane}). */
+  /** Scenario names for ids minted by ordinary UI/server writes. */
+  readonly nodeNames = new Map<string, string>();
+  nodeId(name: string): string { return this.nodeNames.get(name) ?? name; }
+
   node(id: string): Locator {
-    return this.page.locator(nodeSelector(id));
+    return this.page.locator(nodeSelector(this.nodeId(id)));
   }
 
   /** The same node, only if it is on screen. `:visible` because dropping a row
    *  and hiding it are both legitimate ways to hide something, and they read
    *  the same to the person looking at the page. */
   visibleNode(id: string): Locator {
-    return this.page.locator(`${nodeSelector(id)}:visible`);
+    return this.page.locator(`${nodeSelector(this.nodeId(id))}:visible`);
   }
 
   /** The trail above a zoomed node, crumb by crumb, in order. */
@@ -2659,7 +2664,7 @@ export class OlaiWorld extends World {
     expected: string,
   ): Promise<void> {
     await this.expectAttribute(
-      nodeSelector(id),
+      nodeSelector(this.nodeId(id)),
       attribute,
       expected,
       `node "${id}"`,

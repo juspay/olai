@@ -112,7 +112,7 @@ import {
 import { panelOpen } from "../shell.ts"
 import { createChatState } from "../chat/state.ts"
 import { run } from "@olai/web/client/run.ts"
-import { type Chatting, chatKey, claimedIn, unassignedIn } from "../../lineage.ts"
+import { type Chatting } from "../../lineage.ts"
 import type { Row } from "./roster.ts"
 import { chatWire } from "../wire.ts"
 
@@ -136,7 +136,6 @@ export interface Roster {
    * a directory whose chats are all assigned. Those are three ways to draw the
    * same nothing, which is what the row does with them.
    */
-  readonly unassigned: Accessor<ReadonlyArray<SessionInfo>>
   /**
    * ... AND THE WHOLE ANSWER THE LISTING GAVE, for the readers that need more
    * of it than the difference: which agents COULD NOT BE ASKED and what they
@@ -274,77 +273,14 @@ export function createAgents(): Roster {
     if (previous !== undefined && previous !== revision) askChats()
   })
 
-  // ... AND THE OTHER EVENT THAT CAN MAKE THAT ANSWER STALE. A conversation
-  // this tab (or a sibling — the cell is the server's, so every tab sees the
-  // turn) just worked in is a file the listing has not seen, and a SETTLED
-  // TURN is when that is true: not the mount ask, which can land before the
-  // first transcript exists, and never a clock, which the header rules out.
-  //
-  // The previous status is a LOCAL and not `on`'s: a deferred `on` never
-  // recalls the first transition's before-value, and a tab that MOUNTED
-  // mid-turn — somebody worked in a sibling — is exactly the tab standing on
-  // the settle it would have dropped.
-  let wasThinking = chat().status === "thinking"
-  // THE SETTLED-TURN PROBES THIS TAB HAS PAID, by conversation key. That is
-  // the bound on the trigger: one probe is as much as a listing that CAN name
-  // the conversation needs, and as much as one that cannot will ever get —
-  // its answer is asked for again on the press and nowhere else. Never
-  // cleared: a conversation the answer names fails the named-check before it
-  // reaches the set, so what remains in it is precisely the conversations the
-  // answer can never name — the ones that must not probe twice.
-  const probed = new Set<string>()
-  //
-  // The GATE, and not the turn, is the frugality: re-ask only when the last
-  // answer names neither the conversation nor a node claiming it — which is
-  // true of a conversation nobody has listed yet and of nothing else. A
-  // conversation the answer already names pays nothing per turn, and that is
-  // every directory once its listing has landed. NO ANSWER YET — the mount ask
-  // still out, or refused — reads as NOT NAMED, and the ask below coalesces
-  // behind the one in flight if there is one: that settle is queued, never
-  // dropped.
-  createEffect(() => {
-    const now = chat().status === "thinking"
-    const settledTurn = wasThinking && !now
-    wasThinking = now
-    if (!settledTurn) return
-    const pair = openChat()
-    if (pair === null) return
-    const listed = chats()
-    if (listed !== null) {
-      // NAMED before CLAIMED: the answer naming the conversation is the
-      // ordinary case, and the claim walk pays a chain per roster agent over
-      // the whole listing to reach the same stop.
-      if (
-        listed.sessions.some((row) => row.agent === pair.agent && row.id === pair.session)
-      ) {
-        return
-      }
-      if (
-        claimedIn(listed.sessions, cell.value() ?? NO_AGENT_ROSTER).has(
-          chatKey(pair.agent, pair.session),
-        )
-      ) {
-        return
-      }
-    }
-    const key = chatKey(pair.agent, pair.session)
-    if (probed.has(key)) return
-    probed.add(key)
-    askChats()
-  })
-
   /** The answer's own arm, read once here — see {@link Roster.unreachable}. */
   const unreachable = createMemo((): ReadonlyArray<Unreachable> => chats()?.unreachable ?? [])
 
   /** ... minus what the roster claims ({@link ./lineage.ts}), which is a
    *  reading of the CELL and so is live: the frame an assignment lands on is
    *  the frame that row leaves this list. */
-  const unassigned = createMemo(() => {
-    const listed = chats()
-    return listed === null ? [] : unassignedIn(listed.sessions, cell.value() ?? NO_AGENT_ROSTER)
-  })
 
-  return { conversation: chat, select, rows, at: node => byNode().get(node), engines, unassigned, chats,
+  return { conversation: chat, select, rows, at: node => byNode().get(node), engines, chats,
     unreachable, openChat, chatsRefusal, askChats }
 }
 

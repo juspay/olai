@@ -31,7 +31,7 @@ Feature: A stale fresh-session action cannot create a chat for a removed node
     Then the panel header names the node agent "Temporary node agent"
     When I open the session picker
     Then the node session control counts 1 conversations
-    And the roster offers no unassigned chats
+    And the Unassigned row and list are absent
     When I start a fresh session
     Then the panel has a different conversation from "before removal"
     When I ask the agent "after restoring the node"

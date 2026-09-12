@@ -258,7 +258,9 @@ export const sameGit: (a: GitState, b: GitState) => boolean = Schema
  *  writers olai has is a statement about olai. The plumbing hands back the
  *  trailer it read, verbatim, and the ledger classifies it against this list.
  *
- *  THERE ARE FOUR, and there were five. `capture` was the bespoke
+ *  THERE ARE FIVE. `filer` records the server filing conversations into the
+ *  Inbox; it also records the node minted by `newChat`. The other four
+ *  retain their existing meanings. Previously, `capture` was the bespoke
  *  `POST /capture` door and went with it; a `cli` replaced it for one commit,
  *  for a terminal on a unix socket of its own, and went when that socket did.
  *  Neither is here, because the trailer is written and never parsed back: a
@@ -278,7 +280,7 @@ export const sameGit: (a: GitState, b: GitState) => boolean = Schema
  *  identity that door has rides the captured node itself, as a property
  *  (`@olai/format`'s `inbox.ts`, which the `capture` tool composes through).
  *
- *  `auto` is the fifth and is the only one that never writes a FILE: it is the
+ *  `auto` is the only one that never writes a FILE: it is the
  *  server's own quiet-window loop, which makes commits and nothing else
  *  (`./window.ts`, run by `@olai/ops`). It is here rather than reusing `web` because that
  *  would be a lie a headless serve tells in every commit it makes — there is no
@@ -289,6 +291,7 @@ export const Writer = Schema.Literals([
   "mcp",
   "web",
   "auto",
+  "filer",
 ])
 export type Writer = typeof Writer.Type
 

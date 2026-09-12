@@ -102,7 +102,7 @@ import type { Installed } from "./agents/roster.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
 import * as Deliveries from "./deliveries.ts"
-import type { AgentEvent } from "./events.ts"
+import type { AgentEvent, Stored } from "./events.ts"
 import { lastSaid } from "./heard.ts"
 import * as Listings from "./listings.ts"
 import type { Models } from "./models.ts"
@@ -131,6 +131,8 @@ export interface WakeScope {
 /** Everything one conversation needs. Pooling, eviction and per-node
  * credentials belong to the scheduler above this constructor. */
 export interface PanelOptions {
+  /** A scheduler may lend an already-running engine for a directory listing. */
+  readonly runningSessions?: (agent: string) => Effect.Effect<ReadonlyArray<Stored>, AcpAgent.AgentGone> | null
   /**
    * Which agents this machine has, already detected
    * ({@link ./agents/roster.ts}). Detecting them is the caller's move — it is
@@ -454,6 +456,7 @@ export interface Panel {
    *  refuses, because the answer is PARTIAL rather than absent when one agent
    *  is broken: its conversations are missing and it is named, and the other's
    *  are still on the screen. */
+  readonly liveSessions: (agent: string) => Effect.Effect<ReadonlyArray<Stored>, AcpAgent.AgentGone> | null
   readonly sessions: Effect.Effect<Listed>
   /** Answer the question `id`, or — with `null` — decline it. Both refuse if
    *  that question has stopped waiting, which is a thing two open tabs can
@@ -2026,7 +2029,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       roster: options.roster,
       running: (row) => {
         const at = talking
-        return at !== null && at.row.id === row.id ? at.agent.sessions : null
+        return at !== null && at.row.id === row.id ? at.agent.sessions : options.runningSessions?.(row.id) ?? null
       },
       // UNDER {@link binding}, the permit that says one agent is bound at a
       // time — because this is the other place a subprocess is started, and a
@@ -2060,6 +2063,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // whose list this panel is changing.
             return { stored: yield* at.agent.sessions, keep: false }
           }
+          const borrowed = options.runningSessions?.(row.id)
+          if (borrowed != null) return { stored: yield* borrowed, keep: false }
           const probe = yield* spawn(row, () => {}, "session list")
           // STOPPED whichever way the question went, INTERRUPTION included. A
           // probe left running is the same stray process one line up, arrived
@@ -3368,6 +3373,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // a listing comes through, so the migration list, the panel's *past
       // sessions* and the picker's own superseded line cannot come to disagree
       // about which conversations a node agent has had.
+      liveSessions: (agent) => talking !== null && talking.row.id === agent ? talking.agent.sessions : null,
       sessions: Effect.map(
         listings.all,
         (listed) => succeeded(listed, options.overheard?.rows() ?? []),

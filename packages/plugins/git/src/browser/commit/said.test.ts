@@ -20,6 +20,8 @@ import { GIT_OFF, type GitState } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import {
+  wroteOf,
+  WHO,
   AUTO_PAUSED,
   AUTO_STOPPED,
   because,
@@ -549,4 +551,11 @@ test("the panel promises to record only what there is to record", () => {
     }),
     windowed,
   )).toBe(false)
+})
+
+test("filing names its own writer and counts writes, including the Chats root", () => {
+  expect(WHO.filer).toBe("olai filed conversations into the Inbox")
+  expect(wroteOf("filer", 1)).toBe("olai filed into the Inbox · 1 write")
+  expect(wroteOf("filer", 3)).toBe("olai filed into the Inbox · 3 writes")
+  expect(WHO.auto).toBe("auto-commit")
 })
