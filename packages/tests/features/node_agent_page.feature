@@ -125,6 +125,10 @@ Feature: A node's page holds its memory and conversation
     When I ask for a tall page answer
     Then the agent is idle
     And pane 1 has one agent page scroller with pinned head and send
+    When I resize the split window to 1600 by 600
+    Then the split workspace stays within the window
+    When I resize the split window to 1600 by 1000
+    Then the split workspace stays within the window
     When I scroll pane 1 to the bottom
     And I ask the agent "hold"
     Then pane 1 follows new agent text at the bottom
@@ -138,6 +142,7 @@ Feature: A node's page holds its memory and conversation
     Then the agent's work shows 2 calls
     And the page's agent shelf uses the pane scroll
     And pane 1 has one agent page scroller with pinned head and send
+    And the split workspace stays within the window
 
   @node-idle-fast
   Scenario: Rebuilding chat releases an open fold and its reading

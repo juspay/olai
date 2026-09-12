@@ -167,3 +167,26 @@ When("I scroll pane {int} to the bottom", async function(this: OlaiWorld, index:
     await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
   })
 })
+
+When("I resize the split window to {int} by {int}", async function(this: OlaiWorld, width: number, height: number) {
+  await this.page.setViewportSize({ width, height })
+})
+
+Then("the split workspace stays within the window", async function(this: OlaiWorld) {
+  const geometry = await this.page.evaluate(() => {
+    window.scrollTo(0, document.documentElement.scrollHeight)
+    return { top: window.scrollY, height: document.documentElement.scrollHeight, viewport: window.innerHeight }
+  })
+  assert.equal(geometry.top, 0, JSON.stringify(geometry))
+  assert.ok(geometry.height <= geometry.viewport + 1, JSON.stringify(geometry))
+  for (const index of [0, 1]) {
+    const box = await this.pane(index).evaluate(root => {
+      let host = root.parentElement
+      while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
+      const rect = host?.getBoundingClientRect()
+      return rect && { top: rect.top, bottom: rect.bottom }
+    })
+    assert.ok(box && box.top >= 0 && Math.abs(box.bottom - geometry.viewport) <= 1,
+      `pane ${index} left empty space beneath it: ${JSON.stringify(box)}`)
+  }
+})

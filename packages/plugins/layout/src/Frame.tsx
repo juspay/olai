@@ -115,6 +115,9 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                     class="relative md:grid"
                     classList={{
                       [SHELL_SPLIT]: split(),
+                      // Split columns own scrolling. In particular, sticky
+                      // children after a resize must not extend document overflow.
+                      "md:overflow-clip": split(),
                       "md:grid-cols-[var(--width-sidebar)_1fr]": props.slots.read(sidebar).length > 0,
                       [SHELL_LONE]: !split(),
                     }}
