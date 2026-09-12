@@ -149,7 +149,7 @@ export const meantAt = (claims: Claims, of: string, typed: string): Meant => {
   // AS TYPED where completing would erase the refusal — the section above.
   if (carried === null) {
     const last = name.slice(name.lastIndexOf("/") + 1)
-    return { file: NOT_A_NAME.has(last) || last.lastIndexOf(".") > 0 && /\.[^.]+$/.test(last) ? name : `${name}${ext}` }
+    return { file: NOT_A_NAME.has(last) ? name : `${name}${ext}` }
   }
   // HOW MANY CHARACTERS COME OFF is the registry's own answer and not a
   // `lastIndexOf` here: `bareOf` is the rule `stemOf` is made of, with the

@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE FIXTURE THE BENCHES QUOTE NUMBERS ABOUT, asserted to hold the shapes
  * those numbers are supposed to be about.
@@ -21,7 +20,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * THEY RUN, so a fixture that quietly stops producing one fails a test rather
  * than a paragraph.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { agendaOf, owedIn } from "./agenda.ts"

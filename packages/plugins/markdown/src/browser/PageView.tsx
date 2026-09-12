@@ -1,8 +1,8 @@
+/** A document route reads only document metadata/body. Outline absence does not
+ * create an outline page subscription, editor context, filter or drag register. */
 import { servedDirectory } from "./vault.ts"
 import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
-/** A document route reads only document metadata/body. Outline absence does not
- * create an outline page subscription, editor context, filter or drag register. */
 import { createMemo, Match, Show, Switch } from "solid-js"
 import { nameOf } from "./routing.ts"
 import { Empty } from "@olai/web/client/Empty.tsx"
@@ -27,8 +27,8 @@ export function MarkdownPageView() {
   const here = useHere()
   const follow = useFollow()
   const route = () => panesOf(router.workspace())[here()]!.route
-  const file = () => documentFile(servedDirectory()!.claims(), route())
-  const request = createMemo<DocumentPageRequest | null>(() => documentRequest(servedDirectory()!.claims(), route()), null, {
+  const file = () => (() => { const claims = servedDirectory()?.claims(); return claims === undefined ? undefined : documentFile(claims, route()) })()
+  const request = createMemo<DocumentPageRequest | null>(() => (() => { const claims = servedDirectory()?.claims(); return claims === undefined ? null : documentRequest(claims, route()) })(), null, {
     equals: (a,b) => a === null || b === null ? a === b : samePageRequest(a,b),
   })
   const reading = client().streams.documentPage.use(request)

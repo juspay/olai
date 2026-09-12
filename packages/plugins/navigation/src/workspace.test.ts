@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE PANES, as a value — how many there are, which one is focused, what a
  * navigation does to the others, and the one URL the whole arrangement is
@@ -9,7 +8,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * package names a plugin, and the boot package spelled this one twice for a
  * claim it does not own.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import type { Route } from "./routes.ts"

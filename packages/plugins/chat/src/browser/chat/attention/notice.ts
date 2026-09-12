@@ -53,7 +53,7 @@ const UNNAMED = "olai"
  * there are no words at all.
  *
  * `openingLine` and NOT `firstLine`, which `@olai/format` already exports and
- * this client already draws documents with (`document/DocRef.tsx`): that one
+ * this client already draws documents with (`olai-plugin-markdown`’s `document/DocRef.tsx`): that one
  * strips frontmatter and heading marks and answers `""`, so two of the name in
  * one client is a name a reader resolves wrongly.
  *

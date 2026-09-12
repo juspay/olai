@@ -1,4 +1,3 @@
-import type { OutlineFormat } from "@olai/format"
 /**
  * Phase one of the codec: one file's bytes into located records.
  *
@@ -20,11 +19,10 @@ import type { OutlineFormat } from "@olai/format"
  * the one that failed to parse. Syntax first, then meaning; the alternative is
  * a screen of cascading errors with one real cause.
  */
-
+import type { OutlineFormat } from "@olai/format"
 import { isIsoInstant, type Claims } from "@olai/format"
 import { Result, Schema } from "effect"
 import * as SchemaIssue from "effect/SchemaIssue"
-
 import { type Outline, outlineDocument } from "@olai/format"
 import type { OutlineError } from "@olai/format"
 import {
@@ -37,6 +35,10 @@ import {
   RegularNode,
 } from "@olai/format"
 import { canonicalRepeat, REPEAT_GRAMMAR } from "@olai/format"
+import { nothing, heldCustom } from "@olai/format"
+import { type Custom, type CustomValue, customKeys } from "@olai/format"
+
+
 
 const options = {
   // Every issue, not the first: a record with three wrong fields should cost
@@ -227,24 +229,6 @@ const checkRecord = ({ file, line, node }: Located): ReadonlyArray<OutlineError>
   return errors
 }
 
-/**
- * ISO dates are validated by hand rather than parsed into a date type, because
- * the stored text is written back verbatim: a date-only `2026-08-10` that
- * round-tripped through an instant would come back as a datetime, and the
- * format's stability rests on writers reproducing what they read. So the check
- * is shape plus calendar reality — `2026-02-30` matches the shape and is still
- * not a day.
- *
- * EXPORTED, though the rest of this file's spellings are not (`./index.ts`'s
- * closing paragraph: "the id regex, the edge-field list, the path resolver are
- * not contract"). This one is, and the difference is that a second reader has
- * appeared with the same question and no field to ask it about. A `date` field
- * is checked here and drawn as a badge; a CUSTOM key holding `2026-08-31` is a
- * date the format gives no meaning to and a drawer still wants to wear the
- * badge for (`@olai/web`'s `props/door.ts`). Two answers to "is this text a
- * date" would be a value the validator refuses on one field and a view calls a
- * date on another — so there is one, and it is the one the validator spends.
- */
 
 /** An INSTANT with its clock, as a SHAPE — `started`'s requirement ON TOP of
  *  `isIsoInstant`'s: minutes at least, a zone spelled out or `Z`. Shape alone
@@ -278,7 +262,6 @@ const fieldMessage = (
   return `\`${field}\`: ${message.toLowerCase()}`
 }
 
-import { nothing, heldCustom } from "@olai/format"
 /**
  * Records back to bytes — the other half of {@link ./parse.ts}, and the only
  * place in olai that writes the format.
@@ -321,7 +304,6 @@ import { nothing, heldCustom } from "@olai/format"
  * search for and no thing to write.
  */
 
-import { type Custom, type CustomValue, customKeys } from "@olai/format"
 
 /**
  * Which fields a record must carry WHATEVER it holds — docs/format.md's
@@ -373,24 +355,6 @@ const ORDER = [
   "custom",
 ] as const
 
-/**
- * Is this value NOTHING?
- *
- * `undefined` is how the schema spells absent, and `null`, `[]` and `""` are
- * the three ways a writer can accidentally spell it as something. All four say
- * the same thing about the node — it has no note, no edges, no date — and
- * docs/format.md's Writing section requires one spelling of that on disk:
- * "absent fields are omitted, never `null` or `[]`".
- *
- * That is not tidiness. Two files that mean the same thing must not differ
- * byte-for-byte, because the format's whole bet is that a line-based git merge
- * is safe — and `{"after":[]}` versus no `after` is a conflict about nothing.
- *
- * Exported INSIDE the package because `has:` in the query grammar
- * (./filter.ts) asks the same question from the other end — "does this record
- * carry a note at all" — and a second answer to it would let a `desc` of `""`
- * be a note to search for and no note to write.
- */
 
 
 /**
@@ -421,38 +385,6 @@ export const serializeNode = (node: Node): string => {
   return JSON.stringify(record)
 }
 
-/**
- * The `custom` map a record actually HOLDS: canonical key order, and no key
- * holding nothing.
- *
- * EMPTY for a record that holds none, which is `./custom.ts`'s `customOf`
- * convention and not a second one — and it means this function answers only
- * what the map holds, leaving "does that amount to anything" to {@link nothing}
- * above, which already says an empty map is nothing. A caller asks the two in
- * sequence; neither answers the other's question.
- *
- * The one field whose VALUE has an inside, so the two rules above it — one
- * spelling of absence, one spelling of a record — have to be applied one level
- * in as well. A key holding `""` says exactly what a key that is not there
- * says, and a map that came back from JSON in whatever order somebody's editor
- * left it would make two equal files differ byte for byte.
- *
- * EXPORTED, alongside {@link nothing} and for the same reason its header gives.
- * That one is on the package's surface because `has:` (./filter.ts) asks the
- * same question from the other end, and a second answer to it would let a
- * `desc` of `""` be a note to search for and no note to write. This is that
- * sentence one map in, with a third end now asking: `@olai/ops` hands a node's
- * map back on every hit and every read, and it was answering the map RAW — so a
- * node carrying `{"custom":{"pr":""}}` reported `custom: {"pr": ""}` on a hit
- * while `prop:pr`, which asks `nothing` of each value, correctly found nothing.
- * One node, one query language, two answers. A read hands back what the file
- * would hold by asking the module that decides what the file holds, rather than
- * by carrying its own copy of the rule.
- *
- * Pruning happens BEFORE that test, which is the order that matters: a map
- * whose every key held nothing comes back `{}` here, so `nothing` calls it
- * nothing, and it reaches neither disk as `{"custom":{}}` nor an answer as one.
- */
 
 /**
  * A whole outline file: one record per line, exactly one trailing newline.

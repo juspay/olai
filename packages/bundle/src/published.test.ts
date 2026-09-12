@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The projection from one published revision to what the wire holds.
  *
@@ -9,7 +8,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * document's TEXT is in that document's own entry and nowhere else: not on the
  * manifest, not in an outline's slice, so nothing carries the corpus.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import {
   assemble,
   type Document,

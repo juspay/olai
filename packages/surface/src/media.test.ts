@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The traversal guard, on its own.
  *
@@ -6,7 +5,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * only test is a browser opening a page is a guard nobody has tried to get
  * past. These are the ways past it that a URL can spell.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { pictureOf } from "@olai/format"
 import { expect, test } from "bun:test"
 
@@ -14,7 +13,7 @@ import { mediaHref, mediaPath, mediaTarget } from "./media.ts"
 
 test("a file under the root is what the route names", () => {
   expect(mediaTarget(TEST_CLAIMS, "/media/shot.png")).toBe("shot.png")
-  expect(mediaTarget(TEST_CLAIMS, "/media/notes/art/shot.JPEG")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/notes/art/shot.JPEG")).toBe("notes/art/shot.JPEG")
   // The query and the fragment are not part of the name — which is also what
   // makes the preview frame's own visit counter (`Hypertext.tsx`) invisible
   // here: it names no file and reaches no guard.

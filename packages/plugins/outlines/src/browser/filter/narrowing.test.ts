@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The order of the two prunings, the counts that make it legible, and the four
  * shapes a page can be.
@@ -29,7 +28,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * file: nothing answered yet, an answer to the query before, and a query the
  * grammar refused (which is never asked at all).
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import {
   agendaOf,
   type Agenda,

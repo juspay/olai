@@ -1,3 +1,16 @@
+/** One corpus, standing in for a directory: marks, dates, notes, edges, tags,
+ *  a repeat rule, a mirror, an archive beside it — and a chain of `after`
+ *  edges that crosses a file, so blockedness has something to be derived from.
+ *  Every assertion below is about this.
+ *
+ *  THE STAMPS ARE ON SOME RECORDS AND NOT OTHERS, deliberately, because that
+ *  is the directory the stamp operators actually meet: they arrived after the
+ *  format did, so `kitchen`, `demo`, `garden` and `herbs` are nodes written
+ *  before they existed and carry none. Nothing invents a past for them, and
+ *  the pair of tests that says so is the honesty rule those two operators are
+ *  held to. `install` carries a `created` with no `changed` beside it, which
+ *  is the record saying nothing has been written to it since it was captured.
+ *  Instants, not days, so the cut to a day is exercised rather than assumed. */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -20,20 +33,6 @@ import {
 import { nodesOfFiles, seeded } from "./fixtures.testlib.ts"
 import { declarationsOf, NO_KINDS } from "./typing.ts"
 import { isMirror, isPutAway } from "./node.ts"
-
-/** One corpus, standing in for a directory: marks, dates, notes, edges, tags,
- *  a repeat rule, a mirror, an archive beside it — and a chain of `after`
- *  edges that crosses a file, so blockedness has something to be derived from.
- *  Every assertion below is about this.
- *
- *  THE STAMPS ARE ON SOME RECORDS AND NOT OTHERS, deliberately, because that
- *  is the directory the stamp operators actually meet: they arrived after the
- *  format did, so `kitchen`, `demo`, `garden` and `herbs` are nodes written
- *  before they existed and carry none. Nothing invents a past for them, and
- *  the pair of tests that says so is the honesty rule those two operators are
- *  held to. `install` carries a `created` with no `changed` beside it, which
- *  is the record saying nothing has been written to it since it was captured.
- *  Instants, not days, so the cut to a day is exercised rather than assumed. */
 const CORPUS = {
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,

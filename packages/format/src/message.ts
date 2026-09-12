@@ -1,4 +1,3 @@
-import type { Claims } from "./kinds.ts"
 /**
  * What a commit nobody wrote a message for says.
  *
@@ -32,7 +31,7 @@ import type { Claims } from "./kinds.ts"
  * ops layer's is how a commit is MADE: the trailer, the prefixing, the
  * subprocess.
  */
-
+import type { Claims } from "./kinds.ts"
 import { biggestOf, type NodeChange, type Sort } from "./changes.ts"
 import type { Other } from "./committing.ts"
 import { stemOf } from "./kinds.ts"

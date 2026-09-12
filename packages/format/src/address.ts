@@ -57,14 +57,10 @@
  * somebody typed. What tells them apart is the DOCUMENT: an outline has nodes
  * and no headings, a body has headings and no nodes, and which of the two a
  * path is, is the registry's answer and not a guess ({@link fileKind}). So the
- * kind of an element is read off the file it is in, which is also why
- * {@link DocumentPath} insists on a suffix the registry claims: a path with no
- * kind is a path this grammar cannot finish reading.
- *
- * That insistence is what lets the browser spell a content URL as `/` plus an
- * address with no prefix at all: every document names a file, every file
- * carries a suffix, and a computed page (`/today`, `/agenda`) spells none — so
- * the two vocabularies cannot collide (`@olai/web`'s `routes.ts`).
+ * kind of an element is read off the file's current claim. DocumentPath only
+ * checks relative-path structure; claimedOf and outlineAt admit membership
+ * where a Claims table is held. A brand says what the caller claims, not what
+ * the directory holds.
  *
  * ## Total, both ways
  *
@@ -87,34 +83,8 @@ import { Schema } from "effect"
 
 import { type Claims, fileKind, holdsBody } from "./kinds.ts"
 
-/**
- * A path that names a file the directory SERVES — `Tasks.olai`,
- * `notes/README.md`, relative to the served root.
- *
- * The rule is the registry's ({@link fileKind}): a suffix no kind claims is not
- * a document, so `notes` and `photo.tiff` are not paths this grammar can name —
- * while `photo.png` is one, since the day a picture became a kind with a page
- * of its own. The rule did not move; the table under it did.
- * That is not tidiness — it is the fact the whole grammar rests on, since the
- * suffix is what says whether a `#` after it is a heading or a node, and what
- * keeps an address apart from a computed page that spells no file.
- *
- * WHERE THAT RULE LIVES is {@link claimedKind}, and it is spent TWICE — as a
- * check on this schema, so a decoded path is judged by it, and as
- * {@link addressOf}'s guard, so a minted one is judged by the same sentence.
- * Both, rather than either, and PR 2 is what made it both: effect's `brand` is
- * NOMINAL — it narrows the type and adds no runtime check — so while the only
- * addresses in the process were minted in the browser's hot path (a URL per
- * drawn row) and read back by one parser, the guard was the whole rule and the
- * schema was a promise about where a value came from. An `Address` DECODES off
- * a wire now (a search hit carries one, `./searching.ts`), and a decode that
- * did not ask this question would be a path the grammar cannot finish reading,
- * arriving as one it can.
- *
- * The CONSTRUCTION side still does not go through the parser, and that is
- * unchanged and deliberate: `make` would run the check a second time for a
- * verdict {@link addressOf} has already reached, once per printed URL.
- */
+/** A structurally valid root-relative file path. This schema carries no
+ * suffix table; claimedOf and outlineAt admit paths against current Claims. */
 export const DocumentPath = Schema.String.check(
   Schema.makeFilter((path: string) => relativePath(path), {
     expected: "a non-empty relative path with no parent segments",

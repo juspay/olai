@@ -1,6 +1,3 @@
-import { selectFixtureRows } from "@olai/bundle/testlib"
-import { VaultBoot } from "olai-plugin-vault/boot"
-import { CONTENT_ROWS, runtimeFor } from "../capabilities.testlib.ts"
 /**
  * The read face against a real directory, over a real MCP client.
  *
@@ -28,7 +25,9 @@ import { CONTENT_ROWS, runtimeFor } from "../capabilities.testlib.ts"
  * "probe NOW, and do not return until the result has been published" — so the
  * subscription test is a sequence and not a race.
  */
-
+import { selectFixtureRows } from "@olai/bundle/testlib"
+import { VaultBoot } from "olai-plugin-vault/boot"
+import { CONTENT_ROWS, runtimeFor } from "../capabilities.testlib.ts"
 import { runtimePaths } from "../runtime-paths.ts"
 import { type Store, type Ops } from "@olai/ops"
 import { mountBundle, provide, offered, settled } from "@olai/bundle/bundle"
@@ -389,18 +388,9 @@ test("a saved page is absent from markdown's document resources", async () => {
 }, 30_000)
 
 
-test("the vault reads an unkept text body on demand and refuses kept and unclaimed paths", async () => {
-  await withFace(async ({ client, root }) => {
-    const read = async (path: string) => {
-      const result = await client.callTool({ name: "vault_bodies_get", arguments: { path } })
-      expect(result.isError).not.toBe(true)
-      const content = result.content as ReadonlyArray<{ text: string }>
-      return JSON.parse(content[0]!.text)
-    }
-    expect(await read("saved.html")).toEqual({ text: SAVED, refused: false })
-    fs.writeFileSync(path.join(root, "saved.html"), "changed at the next read")
-    expect(await read("saved.html")).toEqual({ text: "changed at the next read", refused: false })
-    expect(await read("manual.md")).toEqual({ text: null, refused: true })
-    expect(await read("unclaimed.txt")).toEqual({ text: null, refused: true })
+test("the agent has no unkept-body read tool", async () => {
+  await withFace(async ({ client }) => {
+    const tools = await client.listTools()
+    expect(tools.tools.some(tool => tool.name === "vault_bodies_get")).toBe(false)
   })
 }, 30_000)

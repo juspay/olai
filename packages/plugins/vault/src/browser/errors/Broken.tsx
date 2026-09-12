@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-vault/testids"
 /**
  * ONE BROKEN OUTLINE, in that outline's own place — and its errors are all it
  * shows.
@@ -21,7 +20,7 @@ import { TESTID } from "olai-plugin-vault/testids"
  * No grouping heading: the file is named by the sidebar entry that is currently
  * selected, and repeating it here would be the same fact twice on one screen.
  */
-
+import { TESTID } from "olai-plugin-vault/testids"
 import { type BrokenFile, stageOf } from "@olai/format"
 
 import { PAGE_TITLE } from "@olai/web/client/look.ts"

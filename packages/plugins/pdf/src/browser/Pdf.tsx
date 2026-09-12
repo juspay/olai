@@ -1,5 +1,3 @@
-import { useHead } from "./vault.ts"
-import { TESTID } from "olai-plugin-pdf/testids"
 /**
  * A served `.pdf`, drawn — the browser's own viewer, pointed at the file's own
  * URL on the media route.
@@ -45,7 +43,8 @@ import { TESTID } from "olai-plugin-pdf/testids"
  *
  * NO EDIT, for `./Hypertext.tsx`'s reason (./faces.tsx's `edits: false`).
  */
-
+import { useHead } from "./vault.ts"
+import { TESTID } from "olai-plugin-pdf/testids"
 import { mediaHref } from "@olai/surface"
 
 

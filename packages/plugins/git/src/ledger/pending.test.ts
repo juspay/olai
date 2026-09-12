@@ -1,5 +1,3 @@
-import { parsers } from "./parser.testlib.ts"
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The manual commit path, against a real repository and a real store.
  *
@@ -19,7 +17,8 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  *     git's index;
  *   - that push says what git said, whichever way it went.
  */
-
+import { parsers } from "./parser.testlib.ts"
+import { TEST_CLAIMS } from "@olai/ops/testlib"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -169,7 +168,7 @@ const withRepo = <A>(
       ...(options.quiet === undefined ? {} : { quiet: options.quiet }),
     })
     const ops: GitOps = {
-      ...Ops.make({claims: { current: TEST_CLAIMS }, format: "olai",
+      ...Ops.make({claims: { current: TEST_CLAIMS }, format: "outline-olai",
         store,
         root: served,
         ledger: {

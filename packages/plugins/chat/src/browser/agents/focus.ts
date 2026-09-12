@@ -1,5 +1,3 @@
-import type { Claims } from "@olai/format"
-import { servedDirectory } from "../vault.ts"
 /**
  * PRESSING A NODE AGENT — what the roster row does, what the door does, and the
  * one difference between them.
@@ -42,7 +40,8 @@ import { servedDirectory } from "../vault.ts"
  * node's row is the case where there IS no half — the reader is already there
  * — so it draws no press at all (`./Door.tsx`).
  */
-
+import type { Claims } from "@olai/format"
+import { servedDirectory } from "../vault.ts"
 import { setPanelOpen } from "../shell.ts"
 import { atElement, type Route } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
@@ -126,7 +125,8 @@ export const createFocus = (): Focus => {
     said: saying.said,
     open,
     press: (agent) => {
-      router.go(rowOf(servedDirectory()!.claims(), agent))
+      const claims = servedDirectory()?.claims()
+      if (claims !== undefined) router.go(rowOf(claims, agent))
       open(agent)
     },
   }

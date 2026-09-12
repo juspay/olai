@@ -1,6 +1,6 @@
+/** Body-only document rendering, used by providers such as the journal. */
 import { servedDirectory } from "./vault.ts"
 import { TESTID } from "olai-plugin-markdown/testids"
-/** Body-only document rendering, used by providers such as the journal. */
 import { proseIn } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"

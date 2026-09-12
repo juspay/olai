@@ -45,3 +45,5 @@ The public contracts expose page rendering and title locations for integrations
 such as trash. Integrations consume those locations instead of importing outline
 implementation modules. The browser owns its undo history, editor state and
 palette command adapter for the lifetime of its activation.
+
+Outlines draws every claimed file whose `holds` value is `nodes`, through one glyph and one page contribution. It does not select a format row by name.

@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The box that narrows the page, and what it has to say about the result.
  *
@@ -45,7 +44,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * The value lives in the ADDRESS (`../routes.ts`), not here — so a narrowed
  * page is a link, and Back leaves the filter rather than un-typing it.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { Show } from "solid-js"
 
 import type { Asked } from "./asking.ts"

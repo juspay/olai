@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The two jobs one walk does, held apart.
  *
@@ -18,7 +17,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * words light everywhere, the pills do not. ./plain.test.ts is next door and
  * is about something else — the fast path, which refuses every title here.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { installPipeline } from "./chunk.ts"

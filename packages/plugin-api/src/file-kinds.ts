@@ -1,6 +1,5 @@
-import type { Claim } from "@olai/format"
-
 /** Inert keys shared by the two reader-owned locations. */
+import type { Claim } from "@olai/format"
 export type FileKindKey = { readonly kind: string } | { readonly holds: Claim["holds"] }
 export const fileKindKey = (by: FileKindKey): string => "kind" in by ? `kind:${by.kind}` : `holds:${by.holds}`
 

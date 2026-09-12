@@ -1,5 +1,3 @@
-import type { Claims } from "@olai/format"
-import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * A node's `doc`, wherever that node is drawn.
  *
@@ -30,7 +28,8 @@ import { TESTID } from "olai-plugin-markdown/testids"
  * exactly the size of the node title above it. The document's OWN page is the
  * other case and keeps the full scale — there is no title over it there.
  */
-
+import type { Claims } from "@olai/format"
+import { TESTID } from "olai-plugin-markdown/testids"
 import { firstLine, proseIn } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 

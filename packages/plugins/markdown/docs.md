@@ -32,7 +32,4 @@ editing available. Re-enabling it reads the current files with fresh editor stat
 Existing browser history remains available for the returning content provider.
 
 Its body collection contains only its own claimed Markdown files. The four
-read-only body rows retain a declared `markdown.browser-state` dependency for
-the existing document metadata stream and referrers; they receive body bytes
-from the vault. Shared page chrome is an inert helper handed those declared
-services, not a second client holder.
+read-only body rows obtain their metadata through the vault’s file surface and `vault.files`; this row’s live state is used only by Markdown.

@@ -1,7 +1,3 @@
-import { Schema } from "effect"
-import type { AppPage } from "olai-plugin-navigation/slots"
-import type { AppRoute } from "olai-plugin-navigation/slots"
-import type { AppRouteClaim } from "olai-plugin-navigation/slots"
 /**
  * What a URL means, and nothing else.
  *
@@ -130,7 +126,10 @@ import type { AppRouteClaim } from "olai-plugin-navigation/slots"
  * cannot be read names nothing, and the address means what an unrecognised one
  * means.
  */
-
+import { Schema } from "effect"
+import type { AppPage } from "olai-plugin-navigation/slots"
+import type { AppRoute } from "olai-plugin-navigation/slots"
+import type { AppRouteClaim } from "olai-plugin-navigation/slots"
 import {
 type Address,
 type Claims,
@@ -770,9 +769,9 @@ export const narrowedToIn = (table: Claims | undefined, pages: MountedPages, rou
   return { ...route, filter: filter.trim() === "" ? undefined : filter }
 }
 
-/** What a page is narrowed BY, for the one component that draws it and the
- *  memo that parses it. Read off the route for the reason `fileNamed` is: the
- *  route is what an address decodes to, and a copy beside it could differ. */
+/** The filter text carried by the URL's structural value. Printing preserves
+ * it without a live table; consumers use filterOfIn to admit narrowing against
+ * the current claim and mounted page. */
 export const filterOfPlain = (route: PlainRoute): string =>
   route.filter ?? ""
 

@@ -21,11 +21,11 @@ Then("the file-kind page says {string}", async function(this: OlaiWorld, text: s
 })
 Then("the Inbox and Pins entries explain the configured row is off", async function(this: OlaiWorld) {
   await this.showSidebar()
-  await this.page.getByText("Inbox: the olai row is off.", { exact: true }).waitFor({ state: "visible" })
-  await this.page.getByText("Pins: the olai row is off.", { exact: true }).waitFor({ state: "visible" })
+  await this.page.getByText("Inbox: the outline-olai row is off.", { exact: true }).waitFor({ state: "visible" })
+  await this.page.getByText("Pins: the outline-olai row is off.", { exact: true }).waitFor({ state: "visible" })
 })
 Then("no outline file is listed", async function(this: OlaiWorld) {
-  await this.waitUntil(async () => await this.page.locator(rowsOfKind("olai")).count() === 0, "outline claim withdrawal")
+  await this.waitUntil(async () => await this.page.locator(rowsOfKind("outline-olai")).count() === 0, "outline claim withdrawal")
 })
 Then("no PDF file is listed", async function(this: OlaiWorld) {
   await this.waitUntil(async () => await this.page.locator(rowsOfKind("pdf")).count() === 0, "PDF claim withdrawal")
@@ -47,16 +47,16 @@ Then("the configured outline row refuses a mint without writing", async function
   const before = readdirSync(this.scratch(), { recursive: true }).sort()
   const result = await tool(this, "files_create", { file: "must-not-be-created.olai" })
   assert.equal(result.isError, true)
-  assert.ok(JSON.stringify(result).includes("the olai row is off"), JSON.stringify(result))
+  assert.ok(JSON.stringify(result).includes("the outline-olai row is off, so no outline can be created"), JSON.stringify(result))
   assert.deepEqual(readdirSync(this.scratch(), { recursive: true }).sort(), before)
 })
 Then("the settings report the format reader's ignored durable switch", async function(this: OlaiWorld) {
-  await this.waitUntil(async () => this.serverLog.text.includes("olai.on is ignored") && this.serverLog.text.includes("session-only"), "reader-owner warning")
+  await this.waitUntil(async () => this.serverLog.text.includes("outline-olai.on is ignored") && this.serverLog.text.includes("session-only"), "reader-owner warning")
 })
 Then("the unclaimed file {string} is absent and refused by the outline tool", async function(this: OlaiWorld, file: string) {
   const result = await tool(this, "outlines_subtree", { file })
   assert.equal(result.isError, true)
-  assert.ok(JSON.stringify(result).includes("no row claims"), JSON.stringify(result))
+  assert.ok(JSON.stringify(result).includes(`\`${file}\` is not a file this directory serves: no row claims \`${file.slice(file.lastIndexOf("."))}\``), JSON.stringify(result))
   const index = await tool(this, "outlines_index", {})
   assert.equal(JSON.stringify(index).includes(file), false)
   assert.equal(await this.page.getByTestId(TESTID.sidebarFiles).locator(attr("data-file", file)).count(), 0)
@@ -93,4 +93,31 @@ Then("the held file {string} has the plain-file fallback", async function(this: 
   const link = this.page.getByTestId(TESTID.fileLink).filter({ has: this.page.getByTestId(TESTID.fileGlyph) }).and(this.page.locator(attr("data-file", file)))
   await link.waitFor({ state: "visible" })
   assert.equal(await link.getByTestId(TESTID.fileGlyph).locator("svg").count(), 1)
+})
+
+/** A fresh subscription to the public browser surface, not the rendered tree. */
+Then("fresh heads {word} {string}", async function(this: OlaiWorld, membership: string, file: string) {
+  await this.waitUntil(async () => {
+    const paths = await this.page.evaluate(() => new Promise<string[]>((resolve, reject) => {
+      const url = new URL("/rpc/ws", location.href); url.protocol = location.protocol === "https:" ? "wss:" : "ws:"
+      const socket = new WebSocket(url)
+      const timer = setTimeout(() => { socket.close(); reject(new Error("heads snapshot timed out")) }, 5000)
+      socket.onopen = () => socket.send(JSON.stringify({ _tag: "Request", id: "file-kinds-heads", tag: "surface/vault/heads/deltas", payload: null, headers: [] }) + "\n")
+      socket.onmessage = async event => {
+        const data = event.data instanceof Blob ? await event.data.text() : String(event.data)
+        for (const line of data.split("\n").filter(Boolean)) {
+          const frame = JSON.parse(line)
+          if (frame._tag === "Exit" || frame._tag === "Defect") {
+            clearTimeout(timer); socket.close(); reject(new Error(`heads refused: ${line}`)); return
+          }
+          for (const value of frame.values ?? []) {
+            if (value.kind !== "snapshot") continue
+            clearTimeout(timer); socket.close(); resolve(value.entries.map((entry: [string, unknown]) => entry[0]))
+          }
+        }
+      }
+      socket.onerror = () => { clearTimeout(timer); socket.close(); reject(new Error("heads socket failed")) }
+    }))
+    return paths.includes(file) === (membership === "include")
+  }, `fresh heads ${membership} ${file}`)
 })

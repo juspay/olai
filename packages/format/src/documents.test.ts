@@ -1,3 +1,6 @@
+/** The one node of a one-line fixture, located in `file`. */
+
+import { claims, servingOf } from "./index.ts"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -16,8 +19,6 @@ import {
   retargetRelative,
 } from "./documents.ts"
 import { nodesOf } from "./fixtures.testlib.ts"
-
-/** The one node of a one-line fixture, located in `file`. */
 const nodeOf = (line: string, file: string) => {
   const [located] = nodesOf(`${line}\n`, file)
   if (located === undefined) throw new Error("the fixture parsed to no nodes")
@@ -225,9 +226,9 @@ test("a relative link to a picture, a csv or a pdf is one too", () => {
 // one: `.svg` is a document that can script, so a `![](…)` may not name one
 // even though the picture kind claims it and gives it a page. The set's own
 // files are not pictures either.
-test("only exactly claimed picture suffixes are pictures", () => {
+test("picture references are case-folded within current image claims", () => {
   expect(isPicture(TEST_CLAIMS, "a/shot.png")).toBe(true)
-  expect(isPicture(TEST_CLAIMS, "a/SHOT.JPEG")).toBe(false)
+  expect(isPicture(TEST_CLAIMS, "a/SHOT.JPEG")).toBe(true)
   expect(isPicture(TEST_CLAIMS, "a/logo.svg")).toBe(false)
   expect(isPicture(TEST_CLAIMS, "a/plan.olai")).toBe(false)
   expect(isPicture(TEST_CLAIMS, "a/notes.md")).toBe(false)
@@ -323,4 +324,20 @@ test("an emoji is four UTF-8 bytes, not two UTF-16 units", () => {
   expect("👋".length).toBe(2)
   expect(bytesOf("👋")).toBe(4)
   expect(bytesOf("hello 👋🔥\n")).not.toBe("hello 👋🔥\n".length)
+})
+
+test("media admits case-folded picture references only while their claim stands", () => {
+  expect(isAsset(TEST_CLAIMS, "art/SHOT.PNG")).toBe(true)
+  const withoutPictures = claims([...TEST_CLAIMS.byKind.values()].filter(claim => !claim.picture))
+  expect(isAsset(withoutPictures, "art/SHOT.PNG")).toBe(false)
+})
+
+test("serving policy follows claim data instead of a suffix or MIME roster", () => {
+  const table = claims([
+    { kind: "framed", exts: [".preview"], holds: "text", kept: false, fetched: true, noun: "page", article: "a", serving: "sealed-frame" },
+    { kind: "drawing", exts: [".drawing"], holds: "bytes", kept: false, fetched: true, noun: "image", article: "an", picture: true, inert: [".drawing"] },
+  ])
+  expect(servingOf(table, "a.preview")).toEqual({ sealed: true, inert: false })
+  expect(servingOf(table, "a.drawing")).toEqual({ sealed: false, inert: true })
+  expect(servingOf(table, "a.html")).toEqual({ sealed: false, inert: false })
 })

@@ -1,5 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
-const PICTURE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".bmp", ".ico"]
 /**
  * The GATE, on its own — what olai will accept and what it says when it will
  * not.
@@ -14,6 +12,8 @@ const PICTURE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", "
  * hands an agent, and the sentence a refused person reads.
  */
 
+import { TEST_CLAIMS } from "@olai/format/testlib"
+const PICTURE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".bmp", ".ico"]
 import { isPicture } from "@olai/format"
 import { FRAME_CHUNK_BYTES } from "@kolu/surface/frame-chunking"
 import { expect, test } from "bun:test"
@@ -23,6 +23,7 @@ import {
   attachmentRejection,
   DOCUMENT_EXTENSIONS,
   isAttachable,
+  isAttachmentPicture,
   MAX_ATTACHMENT_BYTES,
 } from "./attach.ts"
 
@@ -80,4 +81,13 @@ test("what may be ATTACHED and what may be PAINTED are two lists that meet once"
   // Every picture is attachable; the reverse is what is new.
   for (const extension of PICTURE_EXTENSIONS) expect(isAttachable(`shot${extension}`)).toBe(true)
   expect(ATTACHMENT_EXTENSIONS).toEqual([...PICTURE_EXTENSIONS, ...DOCUMENT_EXTENSIONS])
+})
+
+
+test("picture attachments use the filename even when the blob has no MIME type", () => {
+  const file = new File([new Uint8Array([1, 2, 3])], "shot.PNG")
+  expect(file.type).toBe("")
+  expect(isAttachmentPicture(file.name)).toBe(true)
+  expect(isAttachmentPicture("logo.svg")).toBe(false)
+  expect(isAttachmentPicture("report.pdf")).toBe(false)
 })

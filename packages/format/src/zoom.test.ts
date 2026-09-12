@@ -1,3 +1,6 @@
+/** The page's crumbs as a plain list of ids — a breadcrumb trail is an order,
+ *  and the order is the whole of what these tests are about. */
+
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -10,9 +13,6 @@ const zoomOf = (contents: string, id: string): Zoomed =>
 
 const zoomOfFiles = (files: Record<string, string>, id: string): Zoomed =>
   zoom(derive(TEST_CLAIMS, nodesOfFiles(files)), id)
-
-/** The page's crumbs as a plain list of ids — a breadcrumb trail is an order,
- *  and the order is the whole of what these tests are about. */
 const crumbs = (zoomed: Zoomed): ReadonlyArray<string> =>
   zoomed.kind === "node" ? zoomed.trail.map((crumb) => crumb.node.id) : []
 

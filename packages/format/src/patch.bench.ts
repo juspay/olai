@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What ONE EDIT costs the view: patched against rebuilt, on a vault-sized
  * directory.
@@ -72,7 +71,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * and {@link lever} prints the edit it happened at rather than leaving a reader
  * to work out whether it ever did.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import {
   byCorpus,
   derive,

@@ -1,4 +1,3 @@
-import { servedDirectory } from "../vault.ts"
 /**
  * What an olai write did, in the transcript — a line, never a diff.
  *
@@ -19,7 +18,7 @@ import { servedDirectory } from "../vault.ts"
  * person who asked an agent for something deserves what a person who pressed a
  * key already gets.
  */
-
+import { servedDirectory } from "../vault.ts"
 import type { Wrote as Written } from "olai-plugin-chat/wire"
 import { Show } from "solid-js"
 

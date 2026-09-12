@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-hypertext/testids"
 /**
  * A served `.html`, drawn — and, since the ruling of 2026-08-16, RUNNING.
  *
@@ -101,7 +100,7 @@ import { TESTID } from "olai-plugin-hypertext/testids"
  * That is the registry's `edits: false` (./faces.tsx) rather than a `Show` in
  * this file, so the two kinds of page answer the question in one place.
  */
-
+import { TESTID } from "olai-plugin-hypertext/testids"
 import { heard, mediaHref } from "@olai/surface"
 import {
   createEffect,

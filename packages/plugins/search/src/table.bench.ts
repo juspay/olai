@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT A DIRECTORY SEARCH COSTS, walked against indexed — and what keeping the
  * index costs the write that has to keep it.
@@ -43,9 +42,9 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * and reports the index as saving nothing where it saves the most. Size it with
  * OLAI_BENCH_FILES / OLAI_BENCH_RECORDS / OLAI_BENCH_DOCS.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { assemble, bodiedDocument, bodiedIn, type Document, documentHayOf, hayOf, isMirror, matching, matchingDocuments, narrowableBy, nodesIn, parseFilter, reading, type Reading, type RegularNode, type Verdict, verdictOf } from "@olai/format"
-import { parseOutline } from "olai-plugin-olai/format"
+import { parseOutline } from "olai-plugin-outline-olai/format"
 import {
   alternating,
   median,

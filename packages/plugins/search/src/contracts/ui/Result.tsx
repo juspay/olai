@@ -1,4 +1,3 @@
-import type { Claims } from "@olai/format"
 /**
  * One result row, wherever search is drawn.
  *
@@ -77,7 +76,7 @@ import type { Claims } from "@olai/format"
  * rule on a row, for the drawer's own reason: a tree of titles must not double
  * in height to say something nobody asked to see.
  */
-
+import type { Claims } from "@olai/format"
 import { createMemo, For, Show } from "solid-js"
 
 import { renderTitle, sameDrawing } from "@olai/markdown-ui/title.ts"

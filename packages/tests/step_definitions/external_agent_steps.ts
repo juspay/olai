@@ -661,32 +661,17 @@ Then(
 
 // ── what it may READ ───────────────────────────────────────────────────
 
-/** An unkept text body is read through the vault's owned request door. */
-When(
-  "the terminal agent reads the file {string}",
-  async function (this: OlaiWorld, file: string) {
-    let refusal = "nothing was said";
-    await this.waitUntil(async () => {
-      const answered = await agentOf(this).call("tools/call", {
-        name: "vault_bodies_get", arguments: { path: file },
-      });
-      if (answered.error !== undefined) {
-        refusal = answered.error.message;
-        return false;
-      }
-      const content = (answered.result?.["content"] ?? []) as ReadonlyArray<{ readonly text?: string }>;
-      const text = content[0]?.text;
-      if (text === undefined || answered.result?.["isError"] === true) {
-        refusal = text ?? "no body answer";
-        return false;
-      }
-      const body = JSON.parse(text) as { text: string | null; refused: boolean };
-      if (body.refused || body.text === null) return false;
-      this.resourceRead = body.text;
-      return true;
-    }, `${file} to be readable through vault_bodies_get (last refusal: ${refusal})`);
-  },
-);
+/** Fetched bodies have no agent read door. */
+When("the terminal agent asks to read the fetched file {string}", async function(this: OlaiWorld, file: string) {
+  const answer = await agentOf(this).call("tools/call", { name: "markdown_read", arguments: { file } });
+  this.resourceRead = JSON.stringify(answer);
+  assert.ok(answer.error !== undefined || answer.result?.["isError"] === true);
+  const listed = await agentOf(this).call("tools/list", {});
+  assert.equal(JSON.stringify(listed).includes("vault_bodies_get"), false);
+});
+Then("the terminal agent cannot read a fetched body", function(this: OlaiWorld) {
+  assert.ok(this.resourceRead?.includes("error") || this.resourceRead?.includes("isError"));
+});
 
 Then(
   "the terminal agent was handed {string}",

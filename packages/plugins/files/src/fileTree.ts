@@ -1,4 +1,3 @@
-import type { Claims } from "@olai/format"
 /**
  * The served directory as a TREE rather than flat lists.
  *
@@ -19,7 +18,7 @@ import type { Claims } from "@olai/format"
  * this walk mints fresh objects every time, and `<For>` would compare them by
  * reference and rebuild the whole sidebar on one membership change.
  */
-
+import type { Claims } from "@olai/format"
 import { fileKind, stemOf } from "@olai/format"
 
 /** One row of the tree. A directory carries its own root-relative path so

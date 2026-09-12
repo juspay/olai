@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT A DOCUMENT'S PAGE COSTS PER WRITE — the walk against the index, on a
  * directory with links all through it.
@@ -45,7 +44,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * OLAI_BENCH_OUTLINES / OLAI_BENCH_BODIES / OLAI_BENCH_RECORDS /
  * OLAI_BENCH_PAGES / OLAI_BENCH_EDITS.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { addressOf } from "./address.ts"
 import { referrersTo } from "./backlinks.ts"
 import { alternating, median, runtimeSaid, seeded, timed, timesSaid } from "./fixtures.testlib.ts"

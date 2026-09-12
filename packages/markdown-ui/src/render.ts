@@ -1,4 +1,3 @@
-import type { Claims } from "@olai/format"
 /**
  * Markdown, rendered.
  *
@@ -40,7 +39,7 @@ import type { Claims } from "@olai/format"
  * without waiting for anything, which is what keeps a tree of rows off this
  * path entirely.
  */
-
+import type { Claims } from "@olai/format"
 import { styleTags } from "./tags.ts"
 import type { Element } from "hast"
 import type { Root } from "hast"
@@ -206,7 +205,7 @@ export const sourceText = (source: string): string =>
  * A STRING rather than a lookup, so it is honest about what it does not know:
  * whether the page has that heading at all is a question for the DOM, and the
  * caller that asks is the one that can also decide what to do when the answer
- * is no (`../document/faces.tsx` stays where it is, which is what a browser
+ * is no (the per-kind page contributions stays where it is, which is what a browser
  * does with a fragment naming nothing).
  */
 export const landingId = (source: string, from: string, at: string): string =>

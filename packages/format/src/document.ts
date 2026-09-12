@@ -17,7 +17,7 @@
  * ```
  * data Document = Outline  Face [Node]
  *              | Markdown Face Text Bytes [Slug]
- *              | Unkept    UnkeptKind Face
+ *              | Unkept    unkept claim Face
  * ```
  *
  * A sum of products, no nullable fields, no downcasting. Every arm carries the
@@ -278,7 +278,7 @@ export type Markdown = typeof Markdown.Type
  * that rule is about; what four separate structs would add is four identical
  * declarations of `{ kind, ...Face.fields }` and three more members for every
  * union decode to walk. The tags are read off {@link ./kinds.ts}'s
- * `UnkeptKind`, so this arm cannot come to name a kind the table does not
+ * `unkept claim`, so this arm cannot come to name a kind the table does not
  * claim, or miss one it does.
  */
 export const Unkept = Schema.Struct({

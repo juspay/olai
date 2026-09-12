@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/bundle/testids"
 /**
  * The client's own faults: what a reader sees when olai, rather than an
  * outline, is what is wrong.
@@ -15,7 +14,7 @@ import { TESTID } from "@olai/bundle/testids"
  * tests provider startup, not the rendering boundary. The marker confines the
  * injection to the header, leaving dependency initialization and the card alone.
  */
-
+import { TESTID } from "@olai/bundle/testids"
 import * as assert from "node:assert";
 
 import { Given, Then, When } from "@cucumber/cucumber";

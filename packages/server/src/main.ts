@@ -1,4 +1,3 @@
-import { DocumentPath, NodeId, type Address } from "@olai/format"
 /**
  * `olai web <dir>` — the binary.
  *
@@ -42,7 +41,7 @@ import { DocumentPath, NodeId, type Address } from "@olai/format"
  * below fires on the guard's own reraise, which is by construction: an
  * honored TERM reads exactly like today in a journal.
  */
-
+import { DocumentPath, NodeId, type Address } from "@olai/format"
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
 import { reportingRunEdge, surfaceCommands, surfaceHelp } from "@kolu/surface-cli"
 import { addressOf, printAddress } from "@olai/format"

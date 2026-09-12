@@ -1,4 +1,3 @@
-import { ClaimData } from "./kinds.ts"
 /**
  * What a READ of the set asks, and what it says back.
  *
@@ -71,7 +70,7 @@ import { ClaimData } from "./kinds.ts"
  * what it must not become is a licence to read the sentence above loosely for
  * the next field somebody proposes.
  */
-
+import { ClaimData } from "./kinds.ts"
 import { Schema } from "effect"
 
 import { Way } from "./backlinks.ts"

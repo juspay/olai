@@ -1,4 +1,3 @@
-import { selectFixtureRows } from "@olai/bundle/testlib"
 /**
  * EACH ROW'S FACE, AS THAT ROW'S EXACT SET — and, over a real socket, the
  * property the whole arrangement exists for.
@@ -41,7 +40,7 @@ import { selectFixtureRows } from "@olai/bundle/testlib"
  * because it is a property of the adapter's verb choice. That fence lives where
  * a real server can be read: `./mcp/face.test.ts`.
  */
-
+import { selectFixtureRows } from "@olai/bundle/testlib"
 import { createSurfaceSocket } from "@kolu/surface-app/connect"
 import { composeSurfaceContracts, scopeSiblingTag, type Surface, type SurfaceSpec } from "@kolu/surface/define"
 import { exposeFace } from "@kolu/surface/expose"
@@ -498,11 +497,8 @@ test("nothing else is published, and the set is exact", () => {
     "surface://collections/markdown/documents/{id}",
     "surface://collections/outlines/outlines/{id}",
   ])
-  // Unkept text is requested one path at a time from its vault owner.
-  // It is not an eagerly populated collection or a corpus-shaped resource.
-  expect(tools).toEqual([expect.objectContaining({
-    name: "vault_bodies_get", sibling: "vault", ns: "bodies", verb: "get", mutates: false,
-  })])
+  // Fresh body bytes are browser-only; the agent has no such tool.
+  expect(tools).toEqual([])
   // `manifest` is the member the cost rule was written about, and it is not on
   // this contract at all. It used to be `NullOr({ documents: Array({file,
   // text}) })` — publishing it would have shipped every document body on every

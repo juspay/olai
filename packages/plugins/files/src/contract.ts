@@ -1,8 +1,9 @@
+/** Each content provider owns its creation interaction; files renders only
+ * capabilities which are currently registered. */
+
 import { location,serviceTag } from "@olai/plugin-api/contracts"
 import type { JSX } from "solid-js"
 export const name = "files"
-/** Each content provider owns its creation interaction; files renders only
- * capabilities which are currently registered. */
 export const fileTypes = location<{readonly Create: () => JSX.Element}>("files.types")
 export const fileState = serviceTag<FileControls>("files.state")
 

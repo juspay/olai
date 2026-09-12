@@ -195,7 +195,7 @@ import { ours } from "./press.ts"
  * embedder rationed heights by kind, one of each per width, to keep a page sized
  * in `vh` off its own ladder. It ranks nothing now. The ladder is refused by
  * arithmetic over consecutive readings rather than by counting them
- * (`@olai/web`'s `document/echo.ts`, where the whole argument is), and a
+ * (`olai-plugin-hypertext`'s `browser/echo.ts`, where the whole argument is), and a
  * receiver that treats the two alike does not want to be told which it has. So
  * every reading this measure posts — the one taken as the document parses, the
  * ones the observer delivers as it reflows, and the one taken at `load` — is the
@@ -438,7 +438,7 @@ const LANDED = "olai:page-landed:"
  * tell "the page grew because its pictures landed" from "the page grew because
  * I made the frame taller and I am measured in `vh`", so it was told. It works
  * the difference out for itself now, from the readings themselves
- * (`@olai/web`'s `document/echo.ts`).
+ * (`olai-plugin-hypertext`'s `browser/echo.ts`).
  *
  * It earns different things in the two branches below, which is why it is
  * registered outside them. Where there is no `ResizeObserver` it is the ONLY

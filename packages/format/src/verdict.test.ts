@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE VERDICT'S OWN SUITE — and the differential that says what a load does
  * with a finding.
@@ -24,7 +23,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * whole subject is WHICH KIND of breakage a set has. What this needs is a set
  * that validates, and then one breakage of a known class put into it.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 

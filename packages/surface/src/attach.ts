@@ -110,3 +110,6 @@ export const attachmentRejection = (name: string, bytes: number): string | null 
   }
   return null
 }
+
+/** Filename-based previews use the same picture policy as attachment admission. */
+export const isAttachmentPicture = (path: string): boolean => PICTURE_EXTENSIONS.some(ext => path.toLowerCase().endsWith(ext))

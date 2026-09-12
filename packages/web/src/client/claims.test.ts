@@ -306,7 +306,7 @@ test("a row's line is marked in exactly the module that reads it and the tree th
 // SAME FILE apart, which is a view this app can draw and therefore a place its
 // identifiers stop being unique. A `Row.key` is a chain from the roots of ITS
 // page (the two row gestures measure through one door, `drag/lines.ts`), and the
-// two element landings scroll under their own pane's root (`document/faces.tsx`
+// two element landings scroll under their own pane's root (`the per-kind page contributions`
 // for the heading, `OutlinePage.tsx` for the row). A sixth file spelling it is
 // a new reader, which is a new answer to "which page is this in".
 test("a pane's index is drawn by the workspace and read where two panes must be told apart", () => {

@@ -1,11 +1,3 @@
-import { selectFixtureRows } from "@olai/bundle/testlib"
-import { VaultBoot } from "olai-plugin-vault/boot"
-import { CONTENT_ROWS } from "./capabilities.testlib.ts"
-import { TestClock } from "effect/testing"
-import { runtimePaths } from "./runtime-paths.ts"
-import { mountBundle, offered as door, provide, settled } from "@olai/bundle/bundle"
-import { openPlugins as openHostPlugins, Directory, Ops as OpsDoor } from "@olai/plugin-api/services"
-import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * One runtime, several faces, several writers — the rebinding, as a fence.
  *
@@ -25,7 +17,14 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * replaces are the ones that record a writer, and every other handler in the
  * record is the same value it was.
  */
-
+import { selectFixtureRows } from "@olai/bundle/testlib"
+import { VaultBoot } from "olai-plugin-vault/boot"
+import { CONTENT_ROWS } from "./capabilities.testlib.ts"
+import { TestClock } from "effect/testing"
+import { runtimePaths } from "./runtime-paths.ts"
+import { mountBundle, offered as door, provide, settled } from "@olai/bundle/bundle"
+import { openPlugins as openHostPlugins, Directory, Ops as OpsDoor } from "@olai/plugin-api/services"
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import {
   type Ops,
   type Store as OutlineStore,
@@ -300,7 +299,7 @@ test("a face served under another writer differs by exactly the members that rec
  * which takes the first frame and leaves), and the process does not go on
  * holding it.
  */
-test("opening a `.html` reads its body onto that key, and nothing holds it", () =>
+test("a fetched body is refused by the browser body procedure", () =>
   withRuntime(
     { "a.olai": OUTLINE, "report.html": "<h1>Cabinet quote</h1>\n" },
     ({ wired, store }) =>
@@ -308,7 +307,7 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
         const get = wired.bound.handlers["surface/vault/bodies/get"]
         if (!get) throw new Error("the vault has no body procedure")
         expect(yield* (get({ path: "report.html" }) as Effect.Effect<unknown>))
-          .toEqual({ text: "<h1>Cabinet quote</h1>\n", refused: false })
+          .toEqual({ text: null, refused: true })
 
         // …and the projection is where it was: a path, and no bytes. This is the
         // assertion the whole change is for.
@@ -323,7 +322,7 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
         expect([...keys]).toEqual([[]])
         const set = yield* Effect.map(store.read("cheap"), (aged) => aged.snapshot)
         expect(set?.value.set.documents.map((one) => [String(one.path), one.kind]))
-          .toEqual([["a.olai", "olai"], ["report.html", "hypertext"]])
+          .toEqual([["a.olai", "outline-olai"], ["report.html", "hypertext"]])
       }),
   ))
 
@@ -380,17 +379,17 @@ test("a reader watching a head is told the file moved, and no body is read", () 
  */
 test("a file a reader is holding is re-read for them when it moves", () =>
   withRuntime(
-    { "a.olai": OUTLINE, "report.html": "<h1>Before</h1>\n" },
+    { "a.olai": OUTLINE, "report.csv": "<h1>Before</h1>\n" },
     ({ wired, store, root, reads }) =>
       Effect.gen(function*() {
-        const open = yield* opening(wired.bound, "report.html")
+        const open = yield* opening(wired.bound, "report.csv")
         expect(yield* open.take).toEqual({
           rev: 1,
           text: "<h1>Before</h1>\n",
           refused: false,
         })
 
-        fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
+        fs.writeFileSync(path.join(root, "report.csv"), "<h1>After</h1>\n")
         yield* store.refresh("cheap")
 
         expect(yield* open.take).toEqual({
@@ -398,7 +397,7 @@ test("a file a reader is holding is re-read for them when it moves", () =>
           text: "<h1>After</h1>\n",
           refused: false,
         })
-        expect(reads).toEqual(["report.html", "report.html"])
+        expect(reads).toEqual(["report.csv", "report.csv"])
       }),
   ))
 
@@ -415,10 +414,10 @@ test("a file a reader is holding is re-read for them when it moves", () =>
  */
 test("a file whose reader has gone is not re-read on a later revision", () =>
   withRuntime(
-    { "a.olai": OUTLINE, "report.html": "<h1>Before</h1>\n" },
+    { "a.olai": OUTLINE, "report.csv": "<h1>Before</h1>\n" },
     ({ wired, store, root, reads }) =>
       Effect.gen(function*() {
-        const open = yield* opening(wired.bound, "report.html")
+        const open = yield* opening(wired.bound, "report.csv")
         expect(yield* open.take).toEqual({
           rev: 1,
           text: "<h1>Before</h1>\n",
@@ -431,9 +430,9 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
 
         const heads = wired.bound.handlers["surface/vault/heads/get"]
         if (heads === undefined) throw new Error("the heads collection has no `get`")
-        const moved = yield* watching(heads({ key: "report.html" }) as Stream.Stream<Head>)
+        const moved = yield* watching(heads({ key: "report.csv" }) as Stream.Stream<Head>)
         yield* moved.take
-        fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
+        fs.writeFileSync(path.join(root, "report.csv"), "<h1>After</h1>\n")
         yield* store.refresh("cheap")
         yield* moved.take
 
@@ -442,12 +441,12 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
         // The write and the cheap refresh can land as one revision or two, so
         // the number is not the claim — the body is, and that there were only
         // the two reads a holder asked for.
-        const again = yield* opening(wired.bound, "report.html")
+        const again = yield* opening(wired.bound, "report.csv")
         const body = yield* again.take
         expect(body.text).toBe("<h1>After</h1>\n")
         expect(body.refused).toBe(false)
         expect(body.rev).toBeGreaterThanOrEqual(2)
-        expect(reads).toEqual(["report.html", "report.html"])
+        expect(reads).toEqual(["report.csv", "report.csv"])
       }),
   ))
 
@@ -464,12 +463,12 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
 test("a reader holding a key across a file's birth is handed the body", () =>
   withRuntime({ "a.olai": OUTLINE }, ({ wired, store, root, attached }) =>
     Effect.gen(function*() {
-      const open = yield* opening(wired.bound, "report.html")
+      const open = yield* opening(wired.bound, "report.csv")
       // A scoped sibling handler can yield before its subscription attaches.
       // Wait for the actual snapshot read before creating the absent key.
-      expect(yield* attached).toBe("report.html")
+      expect(yield* attached).toBe("report.csv")
 
-      fs.writeFileSync(path.join(root, "report.html"), "<h1>Born</h1>\n")
+      fs.writeFileSync(path.join(root, "report.csv"), "<h1>Born</h1>\n")
       yield* store.refresh("cheap")
 
       // The new head prompts one procedure read, whose only frame is the body.
@@ -633,7 +632,7 @@ test("a revision that changes no pin sends no frame", () =>
     {
       "a.olai": OUTLINE,
       "_olai/Pins.olai": `{"id":"p","ord":"a0","title":"/#a"}\n`,
-      "report.html": "<h1>Before</h1>\n",
+      "report.csv": "<h1>Before</h1>\n",
     },
     ({ wired, store, root }) =>
       Effect.gen(function*() {
@@ -645,7 +644,7 @@ test("a revision that changes no pin sends no frame", () =>
         ])
 
         // A revision the shelf has nothing to say about: another file's bytes.
-        fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
+        fs.writeFileSync(path.join(root, "report.csv"), "<h1>After</h1>\n")
         yield* store.refresh("cheap")
         // …and one it does: the pinned node, retitled where it lives.
         fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"b"}\n`)

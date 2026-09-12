@@ -1,3 +1,6 @@
+/** The four arms, spelled out — through the schemas' own constructors, since
+ *  the halves of an address are branded and a test that cast around them would
+ *  be reading a different type from the one the app holds. */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -14,10 +17,6 @@ import {
   printAddress,
   Slug,
 } from "./address.ts"
-
-/** The four arms, spelled out — through the schemas' own constructors, since
- *  the halves of an address are branded and a test that cast around them would
- *  be reading a different type from the one the app holds. */
 const document = (path: string): Address => ({
   kind: "document",
   path: DocumentPath.make(path),

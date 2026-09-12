@@ -1,4 +1,3 @@
-import type { Claims } from "./kinds.ts"
 /**
  * THE SHELF, READ OFF THE SET — the rows of `Pins.olai` and what the directory
  * says each one points at.
@@ -36,7 +35,7 @@ import type { Claims } from "./kinds.ts"
  * pure over the address itself and were never a reading of the set; the name
  * this file answers is the only one that was.
  */
-
+import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
 import { addressWritten, parseAddress, splitAddress } from "./address.ts"

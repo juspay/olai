@@ -1,5 +1,3 @@
-import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
-import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
 /**
  * One whole outline: the roots of a file, expanded.
  *
@@ -18,7 +16,8 @@ import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
  * places on the way: the reveal (`./settings/done.ts`), spent for the visit
  * and never stored.
  */
-
+import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
+import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
 import { type Row, shownRecord } from "@olai/format"
 import { createEffect, createSignal, onCleanup, Show } from "solid-js"
 
@@ -62,7 +61,7 @@ export function OutlinePage(props: {
   /**
    * LAND at the row the address named, once there is a page to land in — the
    * outline's half of the act the markdown face performs for headings
-   * (`./document/faces.tsx`), with the same rules in the same order:
+   * (the per-kind page contributions), with the same rules in the same order:
    *
    *   - an EFFECT rather than a call, because the rows arrive on their own
    *     schedule: the reading can sit a revision behind the navigation that
@@ -293,7 +292,7 @@ export function OutlinePage(props: {
       //
       // An id is a string somebody typed one day: `CSS.escape`, because a
       // quote in it would be a selector that throws, and a throw inside the
-      // frame is a landing this pane will never spend. (`document/faces.tsx`'s
+      // frame is a landing this pane will never spend. (`the per-kind page contributions`'s
       // heading half does exactly this, on the same argument.)
       const row = root.querySelector(
         `[data-testid="${IDS_OUTLINES.node}"][data-node-id="${CSS.escape(last.at.node.id)}"]`,
@@ -308,7 +307,7 @@ export function OutlinePage(props: {
   return (
     <>
       {/* WHAT THE LANDING COULD NOT DO, above the tree it could not land in —
-          the same placement rule `./document/Hypertext.tsx` states for its
+          the same placement rule `olai-plugin-hypertext`’s `browser/Hypertext.tsx` states for its
           refused click: the reader's eyes are on the page the address just
           opened, so the line sits at the top of it, where the row they were
           promised would have been — and OUTSIDE `Editable`'s sweep surface

@@ -1,5 +1,7 @@
-import { type Address, fileKind } from "@olai/format"
 /** Dispatch file pages by the current claim, then ordinary content routes. */
+
+import { unclaimedFileMessage } from "@olai/format"
+import { type Address, fileKind } from "@olai/format"
 import { content, pages } from "./index.ts"
 import { useHere, useRouter } from "./routing.tsx"
 import { panesOf } from "./workspace.ts"
@@ -31,7 +33,7 @@ export function PageView() {
   const missing = () => {
     const path = address()?.path ?? ""
     const kind = claim()
-    if (kind === undefined) return `The directory holds nothing by the name ${path}. No row claims \`${/\.[^./]+$/.exec(path)?.[0] ?? "(no suffix)"}\`.`
+    if (kind === undefined) return unclaimedFileMessage(path)
     return directory()?.paths().includes(path)
       ? `The browser page for files claimed by the ${kind.kind} row is unavailable.`
       : `No ${kind.noun} named ${path} under the served directory.`

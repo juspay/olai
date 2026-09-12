@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE ROSTER, READ OFF THE SET — the query `prop:<the declared key>`, the rules
  * about which rows it answers with, and the colon that splits one value in two.
@@ -26,7 +25,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * is held here is that the reading follows the DECLARATION rather than any
  * particular string, which is the two cases at the bottom of this file.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { agentsIn, memoryOf, NO_AGENTS, sameAgents, sessionIn, sessionValue } from "./agents.ts"

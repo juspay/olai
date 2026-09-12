@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/markdown-ui/testids.ts"
 /**
  * The pass that runs after the sanitiser: what the page is allowed to point at.
  *
@@ -45,7 +44,7 @@ import { TESTID } from "@olai/markdown-ui/testids.ts"
  * A second walk to collect them would be a second walk over the same tree
  * asking a question this one already has the answer to.
  */
-
+import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { type Claims, addressOf, printAddress, bodiedOf, pictureOf } from "@olai/format"
 import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"

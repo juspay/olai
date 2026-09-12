@@ -1,7 +1,3 @@
-import type { Claims } from "@olai/format"
-import { boxFace } from "./faces.ts"
-import type {} from "../contracts/box.ts"
-import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 /**
  * The header's search box — the second door to the one search reading.
  *
@@ -57,7 +53,10 @@ import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
  * (`@olai/web`'s `search/Result.tsx` `mousedown` guard) so the press lands
  * before the blur.
  */
-
+import type { Claims } from "@olai/format"
+import { boxFace } from "./faces.ts"
+import type {} from "../contracts/box.ts"
+import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 import { needlesFrom } from "@olai/format"
 import { createEffect, createMemo, createSignal, Index, onCleanup, Show } from "solid-js"
 import { Portal } from "solid-js/web"

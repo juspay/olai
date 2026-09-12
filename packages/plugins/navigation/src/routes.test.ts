@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE BIJECTION — every address this app can SPELL, read back to the route it
  * was written from, and the grammar's refusals beside it.
@@ -9,7 +8,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * the boot package's list is empty now. The shared vocabulary it reads came
  * with it (`./routes.testlib.ts`).
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { atElement, atFile, atNode, lineFragment, lineAt, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"

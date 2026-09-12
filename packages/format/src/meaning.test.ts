@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT A DECLARED VALUE NAMES — the arm the vault answers, and the one place
  * the gate and the display are held against each other.
@@ -10,7 +9,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * a fact on the key's own row, and the two arms of the consult cannot answer
  * one value two ways.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { addressOf } from "./address.ts"

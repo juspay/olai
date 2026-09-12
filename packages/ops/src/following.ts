@@ -1,4 +1,3 @@
-import { encoded } from "./encode.ts"
 /**
  * The set as it reads AFTER a plan — what makes a batch a fold rather than a
  * second planner.
@@ -86,7 +85,7 @@ import { encoded } from "./encode.ts"
  * order, which is what makes a bad batch fail at an INDEX rather than as one
  * illegible report about a file nobody wrote.
  */
-
+import { encoded } from "./encode.ts"
 import {
   bodiedDocument,
   type Document,

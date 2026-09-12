@@ -1,6 +1,3 @@
-import type { Claims, PageReading } from "@olai/format"
-import type { Accessor } from "solid-js"
-import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * WHAT POINTS AT THIS DOCUMENT, under its heading — the reverse reading a
  * `.md` could not have.
@@ -38,7 +35,9 @@ import { TESTID } from "olai-plugin-markdown/testids"
  * above its own first line. The rows are not built while it is shut, which the
  * element alone does not give.
  */
-
+import type { Claims, PageReading } from "@olai/format"
+import type { Accessor } from "solid-js"
+import { TESTID } from "olai-plugin-markdown/testids"
 import type { Referrer } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Show } from "solid-js"

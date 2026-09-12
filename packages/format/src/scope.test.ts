@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * `file:` AND `under:` NARROW THE WALK, and select exactly what the walk they
  * replaced selected.
@@ -28,14 +27,14 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  *     Derived.children}) and the walk it is held to reads only `byId`, so a
  *     stale child list is a divergence this file sees and nothing else would.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import type { Derived } from "./derive.ts"
 import { matching, parseFilter } from "./filter.ts"
 import { isMirror } from "./node.ts"
-import { parseOutline } from "olai-plugin-olai/format"
+import { parseOutline } from "./fixtures.testlib.ts"
 import {
   type Ask,
   asksOver,
@@ -279,7 +278,7 @@ test("the real vault agrees at every scope", () => {
 const REAL: ReadonlyArray<string> = [
   "the",
   "index",
-  "olai",
+  "outline-olai",
   "search",
   `"the human"`,
   "index OR search",

@@ -1,5 +1,3 @@
-import { claims, outlineDocument, type Claims, type OutlineFormat } from "@olai/format"
-import { Result } from "effect"
 /**
  * An outline the agent rewrote by hand, read as nodes.
  *
@@ -8,10 +6,11 @@ import { Result } from "effect"
  * reader gets is the node-level story in the vocabulary the Commit panel
  * already uses.
  */
-
+import { claims, outlineDocument, type Claims, type OutlineFormat } from "@olai/format"
+import { Result } from "effect"
 import { describe, expect, test } from "bun:test"
 
-import { TEST_CLAIMS } from "@olai/format/testlib"
+import { TEST_CLAIMS } from "@olai/ops/testlib"
 import { outlineDiffOf } from "./outline-diff.ts"
 
 const OUTLINE = [

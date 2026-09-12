@@ -32,8 +32,8 @@
  *      **AND WITHOUT FRONTMATTER, deliberately.** A `---` block at the top of a
  *      `.md` is that FILE's own record and is kept off its page — but it is
  *      taken off by the caller that knows its source is a whole file
- *      (`@olai/format`'s `proseIn`, spent by `../document/faces.tsx`,
- *      `../document/DocRef.tsx` and `../day/DayNote.tsx`), never here.
+ *      (`@olai/format`'s `proseIn`, spent by the per-kind page contributions,
+ *      `olai-plugin-markdown`’s `document/DocRef.tsx` and `olai-plugin-journal`’s `olai-plugin-journal`’s day note), never here.
  *      `remark-frontmatter` in this pipeline was tried and is wrong for the
  *      reason the header above gives: this is ONE pipeline for every piece of
  *      markdown the app draws, and a plugin here changes the dialect for all

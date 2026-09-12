@@ -4,7 +4,7 @@ import { Effect, Schema } from "effect"
 
 export const Config = Schema.Struct({
   format: Schema.String.pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed("olai" as const)),
+    Schema.withDecodingDefaultKey(Effect.succeed("outline-olai" as const)),
     Schema.annotate({ description: "the file-kind row used to create new outlines" }),
   ),
 })

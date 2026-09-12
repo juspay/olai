@@ -1,4 +1,3 @@
-import type { Claims } from "./kinds.ts"
 /**
  * Everything the format computes rather than stores.
  *
@@ -32,7 +31,7 @@ import type { Claims } from "./kinds.ts"
  * optimisation held to it, and every rule it needs it calls here rather than
  * spelling again.
  */
-
+import type { Claims } from "./kinds.ts"
 import { Order, Schema } from "effect"
 
 import { Tag } from "./address.ts"

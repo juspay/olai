@@ -1,5 +1,3 @@
-import { servedDirectory } from "../vault.ts"
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The panel that WRITES a node's edges — one relation at a time, in place under
  * the row (or under the heading, on a node's own page).
@@ -66,7 +64,8 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * rule this app does not have, and hiding it in a browser is not the same as
  * the file being unable to say it.
  */
-
+import { servedDirectory } from "../vault.ts"
+import { TESTID } from "olai-plugin-outlines/testids"
 import type { Signal } from "solid-js"
 import type { RegularNode } from "@olai/format"
 import type { Edit } from "@olai/surface"

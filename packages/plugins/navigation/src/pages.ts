@@ -1,5 +1,3 @@
-import type { Directory } from "olai-plugin-vault/file-state"
-import type { Claims } from "@olai/format"
 /**
  * THE ROUTES THE MOUNTED PLUGINS CLAIM — this row's own table, and PRIVATE to
  * this package.
@@ -28,6 +26,8 @@ import type { Claims } from "@olai/format"
  * `navigation.state`, and a consumer that has one is a consumer this row is
  * mounted for.
  */
+import type { Directory } from "olai-plugin-vault/file-state"
+import type { Claims } from "@olai/format"
 import { heldService } from "@olai/ui-primitives/held.ts"
 
 import { type MountedPages, NO_PAGES, type Routing, routingOver } from "./routes.ts"

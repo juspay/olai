@@ -1,4 +1,3 @@
-import { servedDirectory } from "../vault.ts"
 /**
  * The nodes a message is about, as chips — in the composer before it is sent,
  * and on the message afterwards.
@@ -16,7 +15,7 @@ import { servedDirectory } from "../vault.ts"
  * shows you the row you armed — the answer to "is this the right node" being
  * the node itself, rather than a longer label.
  */
-
+import { servedDirectory } from "../vault.ts"
 import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 

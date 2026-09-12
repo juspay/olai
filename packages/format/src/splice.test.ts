@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE SPLICE AGAINST THE REBUILD IT REPLACED.
  *
@@ -51,7 +50,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * would agree with itself in the easy middle and say nothing. The floors below
  * are what say those corners were in the run.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { type Corpus, corpusOf, deltaOf, editOf } from "./corpora.testlib.ts"

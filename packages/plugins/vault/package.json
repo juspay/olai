@@ -41,8 +41,7 @@
     "olai-plugin-layout": "workspace:*",
     "@olai/edit-intents": "workspace:*",
     "@olai/ui-primitives": "workspace:*",
-    "olai-plugin-navigation": "workspace:*",
-    "mime": "4.1.0"
+    "olai-plugin-navigation": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"

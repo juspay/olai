@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT VALIDATION COSTS A WRITE — the whole-corpus rules against the narrowed
  * ones, and what the soak cost in between.
@@ -66,7 +65,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * one carries — at zero. Size it with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
  * OLAI_BENCH_EDITS / OLAI_BENCH_DOCS.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, type Derived } from "./derive.ts"
 import {
   median,

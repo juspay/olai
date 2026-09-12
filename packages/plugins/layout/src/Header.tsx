@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-layout/testids"
 /**
  * The app's own chrome: a slim bar above every column.
  *
@@ -97,7 +96,7 @@ import { TESTID } from "olai-plugin-layout/testids"
  * (`settings/`) portals to the body the way the commit panel and a tip already
  * did. A 3rem box is not somewhere a panel can hang out of.
  */
-
+import { TESTID } from "olai-plugin-layout/testids"
 import { Show } from "solid-js"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"

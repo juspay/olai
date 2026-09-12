@@ -271,6 +271,7 @@ export {
   firstLine,
   isAsset,
   isPicture,
+  servingOf,
   /** The path in this directory a relative reference names, whatever kind of
    *  file it is — the same arithmetic and refusals as the two above with no
    *  suffix allowlist at the end, for the caller that can ask the directory
@@ -1238,3 +1239,5 @@ export { isMarkdown } from "./document.ts"
 export { ClaimData, FileKind } from "./kinds.ts"
 
 export { outlineCalled } from "./node.ts"
+
+export { noClaimFor, unclaimedFileMessage } from "./kinds.ts"

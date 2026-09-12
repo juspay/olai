@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/bundle/testids"
 /**
  * THE PINNED SHELF: the column's own short list, and the file underneath it.
  *
@@ -13,7 +12,7 @@ import { TESTID } from "@olai/bundle/testids"
  * `_olai/Pins.olai` is what the shelf reads back, and a step that normalised one
  * would be a step that could pass over a shelf drawing something else.
  */
-
+import { TESTID } from "@olai/bundle/testids"
 import assert from "node:assert/strict";
 
 import { DataTable, Given, Then, When } from "@cucumber/cucumber";

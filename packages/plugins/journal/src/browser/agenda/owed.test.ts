@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The directory's mark, over readings of a real set — `owedOf(agendaOf(…))`
  * rather than a hand-built pair of numbers, so a change to what the page
@@ -15,7 +14,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * What that reading answers over a real snapshot is pinned beside it in
  * `../../readings.test.ts`.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { agendaOf, derive, owedOf } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"

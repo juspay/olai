@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * Which of the agent's backticks are node references.
  *
@@ -17,7 +16,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * (`features/node_context.feature`): a click is a page moving under a reader,
  * and that is not a thing a value can say.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, nodeNamed } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"

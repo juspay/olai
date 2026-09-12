@@ -1,4 +1,3 @@
-import { servedDirectory } from "../vault.ts"
 /**
  * What is waiting, in olai's words — and the two verbs that deal with it.
  *
@@ -38,7 +37,7 @@ import { servedDirectory } from "../vault.ts"
  * change is called, which is what keeps the panel's vocabulary and the commit
  * log's from being kept in step by hand.
  */
-
+import { servedDirectory } from "../vault.ts"
 import { isReady } from "@olai/format"
 import { Show } from "solid-js"
 

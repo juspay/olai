@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What an agent READS of a set — values in, values out, no disk and no
  * protocol, the same bargain {@link ./plan.test.ts} makes about writes.
@@ -9,7 +8,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * through a real MCP client; this is where the shapes are pinned, because a
  * field dropped from a search hit would fail nothing over there.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import {
   bytesOf,
   type Derived,
@@ -1199,7 +1198,7 @@ describe("a document listing's sizes are a recompute from the body", () => {
     agree(set)
     const made = planned(set, { op: "doc", file: "note.md", text: next })
     const folded = succeeded(
-      folding(scoping(readingOf(set), steady(), NO_KINDS, "olai"))(made),
+      folding(scoping(readingOf(set), steady(), NO_KINDS, "outline-olai"))(made),
       "`markdown_write` to apply",
     )
     agree(folded.set)

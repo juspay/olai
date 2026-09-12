@@ -1,4 +1,3 @@
-import { SessionSetting, PlanStep, TerminalView } from "./session.ts"
 /**
  * Chat, on the wire.
  *
@@ -48,7 +47,7 @@ import { SessionSetting, PlanStep, TerminalView } from "./session.ts"
  * always agree, and a send that failed never leaves a message on screen that
  * was never sent.
  */
-
+import { SessionSetting, PlanStep, TerminalView } from "./session.ts"
 import {
   AskAnswer,
   AskChoice,
@@ -1673,7 +1672,7 @@ export const Wake = Schema.Struct({
    *     somebody set. It is not in the served set at all.
    *   - `unwatchable` — the file is right there, and its KIND is not one this
    *     plugin's doorbell can derive anything from (`./plugins.ts`'s
-   *     `BuiltPlugin.wake.kinds`). A `.md` under a wake that reads nodes is the
+   *     `BuiltPlugin.wake.walks`). A `.md` under a wake that reads nodes is the
    *     case this arm was added for: the picker used to offer one.
    *
    * CORE'S OWN VOCABULARY, and the one place around this feature where that is

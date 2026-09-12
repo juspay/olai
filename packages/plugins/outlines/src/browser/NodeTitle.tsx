@@ -1,4 +1,3 @@
-import { servedDirectory } from "./vault.ts"
 /**
  * A title, printed.
  *
@@ -47,7 +46,7 @@ import { servedDirectory } from "./vault.ts"
  * itself is the link, so the press that edits is anywhere else on the line;
  * `../Tree.tsx`'s `clickTitle` is what keeps those two presses apart.
  */
-
+import { servedDirectory } from "./vault.ts"
 import { createMemo, Show } from "solid-js"
 
 import { shownIn } from "olai-plugin-navigation/address/address.ts"

@@ -1,4 +1,3 @@
-import { mintExt, type Claims } from "./kinds.ts"
 /**
  * THE INBOX CONVENTION, read both ways: what a capture BECOMES, and how full
  * the file is afterwards.
@@ -44,7 +43,7 @@ import { mintExt, type Claims } from "./kinds.ts"
  * because the door has to say how full the file is while somebody is
  * somewhere else.
  */
-
+import { mintExt, type Claims } from "./kinds.ts"
 import { Result, Schema } from "effect"
 
 import { type Derived, nodesOf, unfinishedWork } from "./derive.ts"

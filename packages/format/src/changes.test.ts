@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * Two readings in, node-level changes out. Values only — there is no git
  * anywhere near this file, which is the whole reason the comparison lives in
@@ -10,7 +9,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * appeared and a `done` that was taken off are the same FIELD and opposite
  * events, so the field list alone was never enough.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 
 import { biggestOf, changesOf, type Records } from "./changes.ts"

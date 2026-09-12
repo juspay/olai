@@ -8,7 +8,7 @@ test("only claimed unkept text reaches the disk, and text is read anew per reque
   let text = "a,b"
   const reads: string[] = []
   const body = yield* openBodyReader(path => Effect.sync(() => { reads.push(path); return text }), () => TEST_CLAIMS)
-  for (const path of ["notes.md", "a.olai", "a.png", "a.pdf", "a.txt", "../a.csv"]) {
+  for (const path of ["a.html", "notes.md", "a.olai", "a.png", "a.pdf", "a.txt", "../a.csv"]) {
     expect(yield* body(path)).toEqual({ text: null, refused: true })
   }
   expect(reads).toEqual([])

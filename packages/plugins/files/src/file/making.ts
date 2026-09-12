@@ -1,5 +1,3 @@
-import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
-import { TESTID } from "olai-plugin-files/testids"
 /**
  * The two files a person can start from the sidebar, as values: what each door
  * is called, and the names a browser test finds it by.
@@ -16,11 +14,8 @@ import { TESTID } from "olai-plugin-files/testids"
  * asked for, and a rename to serve a refactor in this package would be a break
  * in the other one for nothing.
  */
-
-
-
-
-
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "olai-plugin-files/testids"
 export interface Making {
   /** Which kind of file this door mints — the tree's own glyph, so a row that
    *  makes an outline looks like the outlines above it. */
@@ -60,8 +55,8 @@ export const MAKING_OUTLINE = (row: string): Making => ({
   },
 })
 
-export const MAKING_DOCUMENT: Making = {
-  of: "markdown",
+export const MAKING_DOCUMENT = (row: string): Making => ({
+  of: row,
   label: "+ New document",
   placeholder: "notes/idea",
   aria:
@@ -71,4 +66,4 @@ export const MAKING_DOCUMENT: Making = {
     path: TESTID.newDocumentPath,
     said: TESTID.newDocumentSaid,
   },
-}
+})

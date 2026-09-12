@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT ONE PUBLISHED REVISION COSTS — the maps it builds and the keys it writes
  * into them, before and after `perf-published-maps`, both arms in one run.
@@ -54,7 +53,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  *
  * Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { bodyKind,  type Reading } from "@olai/format"
 import { median, runtimeSaid, timed, vaultOf } from "@olai/format/testlib"
 import type { Snapshot } from "@olai/store"
@@ -71,7 +70,7 @@ import {
 
 /** The suffix a new file is minted with, read off the REGISTRY rather than
  *  written out — see the note on the two lists below. */
-const OUTLINE = TEST_CLAIMS.byKind.get("olai")!.exts[0]
+const OUTLINE = TEST_CLAIMS.byKind.get("outline-olai")!.exts[0]
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1200)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 20)

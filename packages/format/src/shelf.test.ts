@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE SHELF, READ OFF THE SET.
  *
@@ -9,7 +8,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * (`@olai/web`'s `address/address.test.ts`, and `pins/target.test.ts` for the
  * agreement between the two sides).
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { derive } from "./derive.ts"

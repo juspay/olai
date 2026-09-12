@@ -1,4 +1,3 @@
-import type { Router } from "./routing.tsx"
 /**
  * The address bar, as a signal — and the one component allowed to change it.
  *
@@ -18,7 +17,7 @@ import type { Router } from "./routing.tsx"
  * a tree of a thousand rows does not thread a navigate callback through every
  * one of them.
  */
-
+import type { Router } from "./routing.tsx"
 import {
 batch,
 createEffect,
@@ -176,7 +175,7 @@ export const createRouter = (): Router => {
       // replaced in the one-pane router. A split's columns are the
       // scrollports (`SHELL_SPLIT`, `./pane/Panes.tsx`); the window cannot
       // move there, and a `.html` preview's landing scrolls the column
-      // itself (`./document/Hypertext.tsx`). Sending the window to the top
+      // itself (`olai-plugin-hypertext`’s `browser/Hypertext.tsx`). Sending the window to the top
       // is the lone-page kindness it always was.
       scroll.toTop()
     }

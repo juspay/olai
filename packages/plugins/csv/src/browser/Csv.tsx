@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-csv/testids"
 /**
  * A served `.csv`, drawn — a header row and the rows under it, as a table, and
  * the honest sentence about the rows that would not fit.
@@ -11,15 +10,15 @@ import { TESTID } from "olai-plugin-csv/testids"
  * through an op nobody has written — would be a page that looks like it holds
  * your changes. So there is no editor, no create verb, and `markdown_write`
  * refuses the file if anything asks (`@olai/ops`). That is the registry's
- * `edits: false` (./faces.tsx) rather than a `Show` in this file.
+ * `edits: false` (../browser.tsx) rather than a `Show` in this file.
  *
  * IT ASKS FOR THE BODY, unlike the `.html` face next door, and the difference
  * between them is the whole of what `holds` means. A saved page is fetched by
  * the frame that draws it, over HTTP, because the browser is what interprets it
- * (`./Hypertext.tsx`). A `.csv` is interpreted HERE — `@olai/format`'s `csvRows`
+ * (the hypertext row's iframe). A `.csv` is interpreted HERE — `@olai/format`'s `csvRows`
  * is what turns the text into rows — so the text has to arrive, and it arrives
- * the way a document's body does: one key of the documents collection, read for
- * whoever is holding it open and kept by nobody (`@olai/server`'s `bodies.ts`).
+ * through `vault.files.body`, read for whoever is holding it open and kept by
+ * nobody (the vault's `server/bodies.ts`).
  * One read of the disk, at the revision the rest of the page is at, and a file
  * rewritten under an open page redraws it.
  *
@@ -49,7 +48,7 @@ import { TESTID } from "olai-plugin-csv/testids"
  * hundred-megabyte export in a vault it is the READ that has to learn about
  * ranges, for every bodied kind at once.
  */
-
+import { TESTID } from "olai-plugin-csv/testids"
 import { csvTable } from "@olai/format"
 import { createEffect, createSignal, onCleanup, createMemo, For, Show } from "solid-js"
 
@@ -61,12 +60,10 @@ import { Effect } from "effect"
 import type { Body } from "olai-plugin-vault/surface"
 import { servedDirectory } from "./vault.ts"
 
-/** The file, and nothing else — ./faces.tsx's `Reading`, spelled here rather
- *  than imported for the reason ./Hypertext.tsx spells its own: the table
- *  imports this component, so a type taken back out of it would be a cycle
- *  between a registry and one of its entries. */
+/** The file, and nothing else — ../browser.tsx’s page props, spelled here rather
+ *  than imported from the page contribution that imports this component. */
 export function Csv(props: { readonly file: string }) {
-  // THE BODY, asked for by the face that draws from it — the rule ./faces.tsx
+  // THE BODY, asked for by the face that draws from it — the rule ../browser.tsx
   // states: a face asks the wire for what it needs, so what a kind costs this
   // tab is a fact about that kind's own component.
   const [served, setServed] = createSignal<Body>()

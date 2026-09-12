@@ -1,15 +1,15 @@
-import { selectFixtureRows } from "@olai/bundle/testlib"
 /** Real capability rows over an explicitly supplied test vault. Store fault
  * injection stays below the rows; their handlers and subscriptions are real. */
+import { selectFixtureRows } from "@olai/bundle/testlib"
 import { mountBundle, provide, settled } from "@olai/bundle/bundle"
-import { openPlugins, Directory, FileKinds, Ops, Vault, VaultViews, vaultEvents, opsEvents, mountPlugin, rowReport, openLoading } from "@olai/plugin-api/services"
+import { openPlugins, Directory, FileKinds, VaultSettings, Ops, Vault, VaultViews, vaultEvents, opsEvents, mountPlugin, rowReport, openLoading } from "@olai/plugin-api/services"
 import type { Plugins } from "@olai/plugin-api/services"
 import type { Ops as Gate, Store } from "@olai/ops"
 import { Deferred, Effect, Stream } from "effect"
 import { fileAccess, openViews, OutlineRow } from "olai-plugin-vault/testlib"
 import type { PluginRuntime } from "./runtime.ts"
 
-export const CONTENT_ROWS = ["olai", "hypertext", "csv", "image", "pdf", "outlines", "markdown", "files", "pins", "capture", "trash"] as const
+export const CONTENT_ROWS = ["outline-olai", "hypertext", "csv", "image", "pdf", "outlines", "markdown", "files", "pins", "capture", "trash"] as const
 export const runtimeFor = (plugins: Plugins, built: ReadonlyArray<string>, onChange = {run: () => {}}) => Effect.gen(function*() {
   const reports = yield* rowReport(plugins.host,built)
   return {
@@ -53,7 +53,11 @@ export const capabilitiesOver = (store: Store, gate: Gate, root: string, options
   yield* provide(plugins.host, VaultViews, () => ({ ledger: () => Effect.void, search: () => Effect.void }))
   const views = openViews()
   yield* provide(plugins.host, FileKinds, views.fileKinds.provision)
-  yield* provide(plugins.host, OutlineRow, () => "olai")
+  yield* provide(plugins.host, VaultSettings, () => ({
+    root, runtime: null, kinds: null, ledger: views.ledger, search: views.search,
+    claims: { get current() { return views.fileKinds.current() } },
+  }))
+  yield* provide(plugins.host, OutlineRow, () => "outline-olai")
   yield* provide(plugins.host, Vault, events.door)
   yield* mountPlugin(plugins.host,fileAccess)
   yield* mountBundle(plugins.host,selectFixtureRows(rows),"surface")

@@ -1,3 +1,8 @@
+/** What the store hands over: one decoded file per path, each either decoded
+ *  or failed. A `Map` rather than a record because that is the shape the codec
+ *  seam passes — and its ORDER is deliberately not the answer: `documents` is
+ *  documented as every served file in path order, and `assemble` puts them in
+ *  it rather than trusting whoever built the map to have done so. */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
@@ -13,12 +18,6 @@ import { byPath } from "./paths.ts"
 import { apart, assemble, documentAt, markdownIn, outlinePaths } from "./set.ts"
 
 type Decoded = Result.Result<Document, Verdict>
-
-/** What the store hands over: one decoded file per path, each either decoded
- *  or failed. A `Map` rather than a record because that is the shape the codec
- *  seam passes — and its ORDER is deliberately not the answer: `documents` is
- *  documented as every served file in path order, and `assemble` puts them in
- *  it rather than trusting whoever built the map to have done so. */
 const decoded = (files: Record<string, Decoded>): ReadonlyMap<string, Decoded> =>
   new Map(Object.entries(files))
 
@@ -60,7 +59,7 @@ test("assemble collects every decoded file as the document it is", () => {
   }))
 
   expect(paths(set)).toEqual(["home.olai", "notes/cabinets.md", "work.olai"])
-  expect(set.documents.map((one) => one.kind)).toEqual(["olai", "markdown", "olai"])
+  expect(set.documents.map((one) => one.kind)).toEqual(["outline-olai", "markdown", "outline-olai"])
   expect(outlinePaths(set)).toEqual(["home.olai", "work.olai"])
   expect(spelled(markdownIn(set).map((one) => one.path))).toEqual(["notes/cabinets.md"])
   expect(markdownIn(set).map((one) => one.body)).toEqual(["# Cabinets\n"])

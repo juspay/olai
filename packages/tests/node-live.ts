@@ -1,4 +1,3 @@
-import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 /**
  * NODE AGENTS, against the PINNED ADAPTER — `panel-live.ts`'s other half.
  *
@@ -36,6 +35,7 @@ import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
  *   bash node-live.sh                  # …or, against a server you started:
  *   BASE=http://127.0.0.1:PORT VAULT=/path/to/vault bun node-live.ts
  */
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 import { chromium } from "playwright"
 
 import { selector } from "@olai/web/testlib"

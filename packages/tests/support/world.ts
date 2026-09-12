@@ -1,5 +1,3 @@
-import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
-import { TESTID } from "@olai/bundle/testids"
 /**
  * The Cucumber World: one instance per scenario, holding the Playwright page
  * and the handful of locators every feature reaches for.
@@ -17,7 +15,8 @@ import { TESTID } from "@olai/bundle/testids"
  * thirty seconds later as a bare timeout. Imported, the same rename is a
  * type error before the browser ever starts.
  */
-
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "@olai/bundle/testids"
 import * as assert from "node:assert";
 import { execFileSync, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
@@ -61,7 +60,7 @@ import { TESTID as KIND_CSV } from "olai-plugin-csv/testids";
 import { TESTID as KIND_IMAGE } from "olai-plugin-image/testids";
 import { TESTID as KIND_PDF } from "olai-plugin-pdf/testids";
 const ROW_TESTID = {
-  olai: KIND_OUTLINES.outlineLink, markdown: KIND_MARKDOWN.documentLink,
+  "outline-olai": KIND_OUTLINES.outlineLink, markdown: KIND_MARKDOWN.documentLink,
   hypertext: KIND_HYPERTEXT.hypertextLink, csv: KIND_CSV.csvLink,
   image: KIND_IMAGE.imageLink, pdf: KIND_PDF.pdfLink,
 };

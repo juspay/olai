@@ -51,7 +51,8 @@ function AgendaFace(props: {
   readonly today: string
 }) {
   const drawn = () => only(props.drawn, "agenda")?.agenda
-  return <Show when={servedDirectory()?.outlineRow() === undefined || servedDirectory()!.claims().byKind.has(servedDirectory()!.outlineRow()!)} fallback={<section><h1>Agenda</h1><p>the {servedDirectory()?.outlineRow()} row is off.</p></section>}>{drawn() === undefined ? null : <AgendaPage agenda={drawn()!} today={props.page.date} />}</Show>
+  const present = () => { const directory = servedDirectory(), row = directory?.outlineRow(); return row === undefined || directory?.claims().byKind.has(row) === true }
+  return <Show when={present()} fallback={<section><h1>Agenda</h1><p>the {servedDirectory()?.outlineRow()} row is off.</p></section>}>{drawn() === undefined ? null : <AgendaPage agenda={drawn()!} today={props.page.date} />}</Show>
 }
 
 export default definePlugin({

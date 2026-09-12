@@ -1,8 +1,3 @@
-import { TipFloor } from "@olai/web/client/Tip.tsx"
-import { TESTID as LAYOUT_TESTID } from "./testids.ts"
-import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
-import { For } from "solid-js"
-import { contentStatus,overlays,sidebar } from "./index.ts"
 /**
  * The whole app: a header of the app's own chrome, a sidebar of the directory,
  * and one or more panes, each a full page.
@@ -23,7 +18,11 @@ import { contentStatus,overlays,sidebar } from "./index.ts"
  * pane. What each PANE shows is a subscription of its own
  * (`./reading.tsx`), asked of the address that pane is drawing.
  */
-
+import { TipFloor } from "@olai/web/client/Tip.tsx"
+import { TESTID as LAYOUT_TESTID } from "./testids.ts"
+import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
+import { For } from "solid-js"
+import { contentStatus,overlays,sidebar } from "./index.ts"
 import {
 createEffect,
 createSignal,

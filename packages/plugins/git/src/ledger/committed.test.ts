@@ -1,4 +1,3 @@
-import { parsers } from "./parser.testlib.ts"
 /**
  * THE CACHE'S OWN CONTRACT, against a repository made of a Map.
  *
@@ -13,7 +12,7 @@ import { parsers } from "./parser.testlib.ts"
  * object syntax names, and writing it that way is what makes the test read as
  * the claim: a commit's copy of a file is a key, and a key does not change.
  */
-
+import { parsers } from "./parser.testlib.ts"
 import type { Shown } from "../git/git.ts"
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
@@ -275,7 +274,7 @@ test("one unanswerable file does not stop the rest of the round being remembered
  * keyed only by commit/path would return the departed format's reading. */
 test("committed copies use the path's format and retire when its Claims snapshot changes", async () => {
   const { claims, parserFor } = await import("@olai/format")
-  const { TEST_CLAIMS } = await import("@olai/format/testlib")
+  const { TEST_CLAIMS } = await import("@olai/ops/testlib")
   const original = [...TEST_CLAIMS.byKind.values()].find(claim => claim.holds === "nodes")!
   const table = (prefix: string) => claims([{ ...original, kind: "alternate", exts: [".alternate"], format: {
     serialize: original.format!.serialize,

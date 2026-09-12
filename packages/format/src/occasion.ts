@@ -1,4 +1,3 @@
-import type { Claims } from "./kinds.ts"
 /**
  * WHICH of a node's fields put it on a day, and WHICH day that is.
  *
@@ -36,7 +35,7 @@ import type { Claims } from "./kinds.ts"
  * `./derive.ts`, which folds {@link dateInto} over a set — so there is nowhere
  * for a second answer to "what puts a node on a day" to come from.
  */
-
+import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
 import {

@@ -1,3 +1,6 @@
+/** Markdown owns body subscriptions, document drafts and edit history. Its
+ * provider is independent of outlines and of presentation; content and file
+ * creation integrations wait only for the actual locations they consume. */
 import { fileKindKey } from "@olai/plugin-api/file-kinds"
 import { fileKinds } from "olai-plugin-files/contract"
 import { pages } from "olai-plugin-navigation/contract"
@@ -7,13 +10,9 @@ import { Edits, Wired } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
 import { dispatch } from "./surface.ts"
 import { holdEdits, writeEdit } from "./browser/writes.ts"
-import { fileKind } from "@olai/format"
 import type {} from "olai-plugin-layout/slots"
 import { UndoSaid } from "@olai/edit-history/UndoSaid.tsx"
 import {Clocks} from "@olai/plugin-api"
-/** Markdown owns body subscriptions, document drafts and edit history. Its
- * provider is independent of outlines and of presentation; content and file
- * creation integrations wait only for the actual locations they consume. */
 import { definePlugin, Offers, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { createRoot, createMemo, createEffect, on } from "solid-js"

@@ -1,4 +1,3 @@
-import { codecFor } from "@olai/ops"
 /**
  * The vault is the lifetime of a served directory: its exclusive claim, store,
  * write gate and revision publisher are acquired and released by this row.
@@ -39,6 +38,7 @@ import { codecFor } from "@olai/ops"
  * revision after a newer one. These are registrations and lifetimes we can undo;
  * a write already accepted is an emission and must finish, not be rolled back.
  */
+import { codecFor } from "@olai/ops"
 import { definePlugin } from "@olai/plugin-api"
 import { Directory, Kinds, Offers, Ops, opsEvents, Vault, VaultSettings, vaultEvents } from "@olai/plugin-api/services"
 import { make as makeOps, type VaultSettings as Settings } from "@olai/ops"

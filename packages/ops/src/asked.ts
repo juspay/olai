@@ -1,5 +1,3 @@
-import { isMarkdown } from "@olai/format"
-import type { Claims } from "@olai/format"
 /**
  * WHAT A PLANNER ASKS OF THE SET — the questions, asked once, as a value.
  *
@@ -42,7 +40,8 @@ import type { Claims } from "@olai/format"
  * been retired by that node; what was really being paid twice was the broken
  * map, and that is held.
  */
-
+import { isMarkdown } from "@olai/format"
+import type { Claims } from "@olai/format"
 import {
   brokenBy,
   type Document,

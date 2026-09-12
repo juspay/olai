@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE TWO COUNTS, OFF THE INDEX AND OFF THE WALK, AFTER EVERY REAL WRITE.
  *
@@ -36,7 +35,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * for (the caller's value verbatim, instant and all). A single fixed today
  * would walk past both.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -221,7 +220,7 @@ test("every write leaves the counted door answering what the corpus walk does", 
 
   return Effect.gen(function*() {
     const store = yield* StoreModule.make({ root, codec, watch: false, settle: "10 millis" })
-    const ops = make({claims: { current: TEST_CLAIMS }, format: "olai",
+    const ops = make({claims: { current: TEST_CLAIMS }, format: "outline-olai",
       store,
       root,
       context: steady(),

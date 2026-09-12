@@ -502,14 +502,14 @@ The plugins panel includes a **vault** switch. Turning it off clears the served 
 
 If another olai holds the directory, this process still serves its panel and MCP endpoint: the vault row is **failed**, with the lock holder's sentence, and vault-backed tools and resources leave the MCP catalog; direct calls to absent capabilities are refused. After the other owner stops, turn the failed vault row off and on to retry. A root that is not a directory likewise fails only the vault row.
 
-The vault row’s `Config` schema declares `format` with default `olai`. The bundle selects the row without a config block:
+The vault row’s `Config` schema declares `format` with default `outline-olai`. The bundle selects the row without a config block:
 
 ```yaml
 - id: vault
   name: olai-plugin-vault/server
 ```
 
-The plugins panel derives its inline format control from that schema. `format` names the row used to mint new outlines, default `olai`; it is not a codec enum. If that row is absent, the directory stays readable and creating an outline refuses with the row's name before writing. Existing files are read through whichever live row claims their suffix. The write gate is created and released with the vault row; without that row, there is no gate.
+The plugins panel derives its inline format control from that schema. `format` names the row used to mint new outlines, default `outline-olai`; it is not a codec enum. If that row is absent, the directory stays readable and creating an outline refuses with the row's name before writing. Existing files are read through whichever live row claims their suffix. The write gate is created and released with the vault row; without that row, there is no gate.
 
 ### Browser shell selection
 

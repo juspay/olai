@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The ops layer against a real directory: the planner, the write gate and the
  * file system, joined the way the server joins them.
@@ -15,14 +14,14 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * got better on the way: they now run through a real MCP client rather than
  * through a dispatch function.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
 import { admits, bodyOf, implicatedBy, isMirror, isRegular, markdownIn, type OutlineError, type OutlineSet, NO_KINDS, outlinePaths, verdictOf, type OpFailure, type WriteRequest as Request, type WriteResult as Applied } from "@olai/format"
-import { parseOutline } from "olai-plugin-olai/format"
+import { parseOutline } from "olai-plugin-outline-olai/format"
 import { recordsOf } from "@olai/format/testlib"
 import * as Store from "@olai/store"
 import { replaceBehindTheStamps } from "@olai/store/testlib"
@@ -93,7 +92,7 @@ const withOps = <A>(
   return Effect.gen(function*() {
     const store = yield* Store.make({ root, codec, watch: false, settle: "10 millis" })
     const refusals: Array<string> = []
-    const ops = Ops.make({claims: { current: TEST_CLAIMS }, format: "olai",
+    const ops = Ops.make({claims: { current: TEST_CLAIMS }, format: "outline-olai",
       store,
       root,
       // The planner's own fixture context by default — ids from `n1`, one fixed
@@ -164,7 +163,7 @@ test("the shown kinds join the set as paths; a `.md` brings its text", () =>
         const set = yield* fixture.set()
         expect(set.documents.map((one) => [String(one.path), one.kind, bodyOf(one)]))
           .toEqual([
-            ["house.olai", "olai", null],
+            ["house.olai", "outline-olai", null],
             ["notes.md", "markdown", "# cabinets\n"],
             ["q3.pdf", "pdf", null],
             ["report.html", "hypertext", null],
@@ -247,7 +246,7 @@ test("PIN (idle): idle does not complete while a run is in the gate", () => {
           Effect.andThen(Deferred.await(hold), store.commit(write)),
         ),
     }
-    const ops = Ops.make({claims: { current: TEST_CLAIMS }, format: "olai",
+    const ops = Ops.make({claims: { current: TEST_CLAIMS }, format: "outline-olai",
       store: gated,
       root,
       context: steady(),
@@ -1303,7 +1302,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
               return outcome
             }),
         }
-        const ops = Ops.make({claims: { current: TEST_CLAIMS }, format: "olai",
+        const ops = Ops.make({claims: { current: TEST_CLAIMS }, format: "outline-olai",
           store: wrapped,
           root,
           context: steady(),
@@ -1374,7 +1373,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
                 return outcome
               }),
           }
-          const ops = Ops.make({claims: { current: TEST_CLAIMS }, format: "olai",
+          const ops = Ops.make({claims: { current: TEST_CLAIMS }, format: "outline-olai",
             store: wrapped,
             root,
             context: steady(),
@@ -1469,7 +1468,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
           watch: false,
           settle: "10 millis",
         })
-        return yield* use(Ops.make({claims: { current: TEST_CLAIMS }, format: "olai",
+        return yield* use(Ops.make({claims: { current: TEST_CLAIMS }, format: "outline-olai",
           store,
           root,
           context: steady(),
@@ -2313,3 +2312,16 @@ test("a foreign parent darkens the child's file, and the parent's stays writable
         expect(refused._tag).toBe("NotFoundFailure")
       }),
   ))
+
+test("claims mismatch spends the bounded retry budget even if refresh publishes nothing", () =>
+  withOps({ "a.olai": '{"id":"n","ord":"a0","title":"before"}\n' }, fixture => Effect.gen(function*() {
+    let refreshes = 0
+    const ops = Ops.make({
+      claims: { current: { ...TEST_CLAIMS } }, format: "outline-olai", root: fixture.root,
+      store: { ...fixture.store, refresh: freshness => { refreshes++; return fixture.store.refresh(freshness) } },
+    })
+    const result = yield* Effect.result(ops.run({ op: "title", id: "n", title: "after" }, "mcp"))
+    expect(Result.isFailure(result)).toBe(true)
+    expect(refreshes).toBe(5)
+    expect(fixture.read("a.olai")).toContain("before")
+  })))

@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The things the move-to picker will not do, and the words it says about each —
  * plus the ANSWER the wire carries them on.
@@ -25,7 +24,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * for is the format's own: a `Map` of parents would be a second answer to what
  * "inside" means, in the one test that exists to hold this file to the first.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { derive } from "./derive.ts"

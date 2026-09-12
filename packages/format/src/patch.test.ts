@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The patcher against its oracle.
  *
@@ -43,7 +42,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * answer with the fallback taken off — is what the property test calls, and a
  * decline is counted rather than tolerated.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import {

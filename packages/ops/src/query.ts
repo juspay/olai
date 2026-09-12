@@ -1,4 +1,3 @@
-import { type Claims, claimedOf } from "@olai/format"
 /**
  * Reading the set, as an agent is allowed to read it.
  *
@@ -28,7 +27,7 @@ import { type Claims, claimedOf } from "@olai/format"
  * reason: they are the part worth testing, and neither a disk nor a protocol
  * has any bearing on the answer.
  */
-
+import { type Claims, claimedOf } from "@olai/format"
 import {
   ancestorTitles,
   backlinksOf,

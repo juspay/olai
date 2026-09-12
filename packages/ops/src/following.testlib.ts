@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE FOLD AS IT STOOD — the reference arm `./following.equivalence.test.ts`
  * holds the carried one to.
@@ -26,9 +25,9 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  *
  * Not a suite: `bun test` collects only `*.test.ts`.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import { apart, assemble, bodiedDocument, type Document, type OutlineError, reading, type SetDelta, type Verdict } from "@olai/format"
-import { parseOutline, serializeOutline } from "olai-plugin-olai/format"
+import { parseOutline, serializeOutline } from "olai-plugin-outline-olai/format"
 import { Result } from "effect"
 
 import { askedOf } from "./asked.ts"

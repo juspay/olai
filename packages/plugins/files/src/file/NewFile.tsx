@@ -1,4 +1,3 @@
-import { servedDirectory } from "../vault.ts"
 /**
  * The sidebar's way to a file that does not exist yet — ONE box, for both kinds
  * of file the directory holds.
@@ -36,7 +35,7 @@ import { servedDirectory } from "../vault.ts"
  * outline opens its page, where the first row is already offered. Both answer
  * the same way: the refusal to draw, or `null` for a write that landed.
  */
-
+import { servedDirectory } from "../vault.ts"
 import { createSignal,Show } from "solid-js"
 
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
@@ -86,7 +85,9 @@ export function NewFile(props: {
     // THREE THINGS the box does with what is in it, and which of them is
     // `./completing.ts`'s answer rather than a reading of its own: an empty box
     // is not a refusal to draw — nobody has asked for anything yet.
-    const meant = meantAt(servedDirectory()!.claims(), props.making.of, path())
+    const claims = servedDirectory()?.claims()
+    if (claims === undefined) return
+    const meant = meantAt(claims, props.making.of, path())
     if (meant === null) return
     // ONE LINE draws both sentences, and that is the point of drawing the box's
     // own one here rather than beside it: which layer refused a path is not a

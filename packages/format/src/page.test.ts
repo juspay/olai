@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT A PAGE SHOWS — the reading, and the PARITY that lets it be trusted.
  *
@@ -24,7 +23,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/surface-mcp-positions.md). So every reading below is encoded, put through
  * JSON, decoded, and compared with what went in.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Schema } from "effect"
 
@@ -161,7 +160,7 @@ test("a row address opens the outline that holds it", () => {
 test("a row of an outline the directory does not hold is a nothing that names it", () => {
   expect(readAt(at("shed.olai", "kitchen"))).toEqual({
     kind: "nothing",
-    sought: "olai",
+    sought: "outline-olai",
     requested: "shed.olai",
   })
 })
@@ -171,14 +170,14 @@ test("a row of an outline the directory does not hold is a nothing that names it
 test("an outline the directory does not have is a nothing that names it", () => {
   expect(readAt(at("shed.olai"))).toEqual({
     kind: "nothing",
-    sought: "olai",
+    sought: "outline-olai",
     requested: "shed.olai",
   })
 })
 
 test("a directory with no outlines at all is the other nothing", () => {
-  const nothing = { kind: "nothing", sought: "", requested: null } as const
-  expect(pageOf(readingAt(SET, []), at("shed.olai")).shows).toEqual({ kind: "nothing", sought: "olai", requested: "shed.olai" })
+  const nothing = { kind: "nothing", sought: "outline-olai", requested: null } as const
+  expect(pageOf(readingAt(SET, []), at("shed.olai")).shows).toEqual({ kind: "nothing", sought: "outline-olai", requested: "shed.olai" })
   expect(pageOf(readingAt(SET, []), HOME).shows).toEqual(nothing)
 })
 

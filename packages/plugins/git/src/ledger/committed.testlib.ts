@@ -1,4 +1,3 @@
-import type { Ops } from "@olai/ops"
 /**
  * THE COMMITTED SIDE AS IT WAS, kept in the tree so the cache can be checked
  * against it — and a counting wrapper, so what the cache actually SAVES is a
@@ -29,7 +28,7 @@ import type { Ops } from "@olai/ops"
  *
  * Not a suite: `bun test` collects only `*.test.ts`.
  */
-
+import type { Ops } from "@olai/ops"
 import { Effect } from "effect"
 
 import { type Asking, type Committed, taken } from "./committed.ts"

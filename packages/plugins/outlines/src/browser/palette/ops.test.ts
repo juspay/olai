@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What the palette may write, and about which node.
  *
@@ -9,7 +8,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * question of its own to ask carries it rather than sending on the first
  * press.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, zoom } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"

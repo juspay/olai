@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What a query costs THE MATCHER on a large vault — a WORD, with and without
  * the fold it keeps per record, and a DATE CLAUSE, which touches none of that
@@ -41,7 +40,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * case — and all of them STAMPED, which is what gives the date arm something to
  * compare against.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, type Derived } from "./derive.ts"
 import { matching, parseFilter } from "./filter.ts"
 import { median, timed } from "./fixtures.testlib.ts"

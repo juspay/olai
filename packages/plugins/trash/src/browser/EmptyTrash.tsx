@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-trash/testids"
 /**
  * The Trash's one destructive verb, and the question in front of it.
  *
@@ -37,7 +36,7 @@ import { TESTID } from "olai-plugin-trash/testids"
  * parse — comes back in the ops layer's own words and lands in the line below,
  * verbatim, like every other refusal a person meets in this app.
  */
-
+import { TESTID } from "olai-plugin-trash/testids"
 import { Match,Show,Switch } from "solid-js"
 
 import { createConfirming } from "@olai/web/client/confirming.ts"

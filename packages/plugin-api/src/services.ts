@@ -316,6 +316,7 @@ export const Directory = serviceTag<Directory>("directory")
 /** Core supplies these after mounting declarations. Floor-specific values are
  * opaque here; the provider checks them against @olai/ops’s typed half. */
 export interface VaultSettings {
+  readonly claims: unknown
   readonly runtime: unknown
   readonly root: string
   readonly kinds: unknown
@@ -1787,6 +1788,12 @@ export interface FileClaim {
   readonly holds: "nodes" | "text" | "bytes"
   readonly kept: boolean
   readonly fetched: boolean
+  /** The vault wraps fetched pages in its sealed iframe document. */
+  readonly serving?: "sealed-frame"
+  /** Case-folded picture references may be served and drawn inline. */
+  readonly picture?: boolean
+  /** Claimed suffixes served with inert headers and excluded from inline pictures. */
+  readonly inert?: readonly string[]
   readonly noun: string
   readonly article: "a" | "an"
   readonly format?: import("@olai/format").OutlineFormat

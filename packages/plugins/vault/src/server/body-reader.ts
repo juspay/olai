@@ -20,7 +20,7 @@ export const openBodyReader = (
     const claims = current()
     if (claimedOf(claims, path) === null) return false
     const claim = claims.byKind.get(fileKind(claims, path)!)!
-    return claim.holds === "text" && !claim.kept
+    return claim.holds === "text" && !claim.kept && !claim.fetched
   }
   const publish = (path: string, body: Body) => {
     const answer = admitted(path) ? body : refused

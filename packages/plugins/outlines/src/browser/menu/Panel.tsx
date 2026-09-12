@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * What is INSIDE the open panel: the list, or the question one verb asks first
  * (`./Confirm.tsx`).
@@ -16,7 +15,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * behaves. That is the seam the primitive drew: the two used to be one file
  * and had no reason left to be.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import { createSignal, For, onCleanup, Show } from "solid-js"
 

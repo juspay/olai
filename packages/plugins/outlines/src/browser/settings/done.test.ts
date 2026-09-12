@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The shape this browser keeps done-visibility in, as a pure question: what
  * the default is, what a page's out-vote does to it, and what a page makes of
@@ -14,7 +13,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * call them. The e2e feature is what says a pick survives a reload and
  * crosses tabs.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, rowsOf, zoom } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"

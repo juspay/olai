@@ -1,6 +1,3 @@
-import { claims } from "@olai/format"
-import { TEST_CLAIMS } from "@olai/format/testlib"
-import { TESTID } from "@olai/markdown-ui/testids.ts"
 /**
  * What the pipeline promises, as HTML.
  *
@@ -20,7 +17,9 @@ import { TESTID } from "@olai/markdown-ui/testids.ts"
  * about a page, and is answered in the browser suite
  * (`packages/tests/features/markdown_arrives.feature`).
  */
-
+import { claims } from "@olai/format"
+import { TEST_CLAIMS } from "@olai/format/testlib"
+import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { expect, test } from "bun:test"
 
 import { installPipeline } from "./chunk.ts"

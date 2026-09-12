@@ -1,5 +1,3 @@
-import type { Effect } from "effect"
-
 /**
  * THE SHAPES BOTH HALVES OF A PLUGIN SHARE — what a probe answers, what a kind
  * is, what a doorbell may do, and the three fields that ARE a plugin's identity.
@@ -25,7 +23,7 @@ import type { Effect } from "effect"
  * This package names no plugin, which is the whole of what makes the arrow
  * one-way.
  */
-
+import type { Effect } from "effect"
 /**
  * AN MCP SERVER TO SPAWN, in olai's terms — `olai-plugin-chat` renders it into what
  * ACP wants, the same way it does olai's own.

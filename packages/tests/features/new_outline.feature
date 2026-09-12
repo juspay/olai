@@ -103,9 +103,9 @@ Feature: Starting a new outline from the sidebar
     Then the new outline box is gone
     And the outline list does not link to "plans/next.olai"
 
-  Scenario: An unclaimed suffix reaches the planner without being completed away
-    When I create the outline "notes.txt" from the sidebar
-    Then the outline creation is refused saying "`notes.txt` is not a file this directory serves: no row claims `.txt`"
-    And the new outline box still holds "notes.txt"
-    And the outline list does not link to "notes.txt"
+  Scenario: Dots in a name are kept when the box adds its outline suffix
+    When I create the outline "notes.v2" from the sidebar
+    Then the address is "/notes.v2.olai"
+    And the outline list links to "notes.v2.olai"
+    And the page has not reloaded
     And there should be no page errors

@@ -1,4 +1,3 @@
-import type { Claims } from "@olai/format"
 /**
  * A BOX AND THE NODES IT FINDS — the whole of "search the set, walk the
  * answers, take one", as one thing.
@@ -50,7 +49,7 @@ import type { Claims } from "@olai/format"
  * a bundle of everything a list can be, which is the shape `RowPanel.tsx`
  * refused in the other direction.
  */
-
+import type { Claims } from "@olai/format"
 import type { Signal } from "solid-js"
 import type { NodeHit } from "@olai/format"
 import { type Accessor, createMemo, createSignal, Index, onMount, Show } from "solid-js"

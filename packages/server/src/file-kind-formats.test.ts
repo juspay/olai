@@ -34,6 +34,7 @@ test("every registered outline format preserves generated records and canonical 
   const titles = ["plain", "quoted \"title\"", "café 日本語", "#tag", "a\\b", "one\ntwo"]
   for (const claim of formats) {
     const format = claim.format!
+    const covered = new Set<string>()
     for (let sample = 0; sample < 160; sample++) {
       const nodes: Node[] = []
       const count = next() % 12
@@ -43,17 +44,22 @@ test("every registered outline format preserves generated records and canonical 
         else nodes.push({ id, ord, title: titles[next() % titles.length]!,
           ...(i > 0 && next() % 2 ? { parent: "record-0" } : {}),
           ...(next() % 2 ? { desc: "first line\n\nsecond line" } : {}),
-          ...(next() % 2 ? { date: "2026-09-12" } : {}),
+          date: "2026-09-12",
+          ...(([{ done: true }, { cancelled: true }, { doing: true }, { todo: true }, {}] as const)[sample % 5]!),
+          started: "2026-09-12T08:00:00Z", worked: sample,
+          repeat: "every day", doc: "notes.md", after: ["record-0"], blocks: ["record-0"], see: ["record-0"],
+          created: "2026-09-12T08:00:00Z", changed: "2026-09-12T09:00:00Z",
           ...(next() % 2 ? { custom: { sample: String(sample) } } : {}),
         })
       }
+      for (const node of nodes) for (const key of Object.keys(node)) covered.add(key)
       const path = `round-trip${claim.exts[0]}`
       const bytes = format.serialize(nodes)
       const decoded = format.parse(path, bytes, table)
-      expect(Result.isSuccess(decoded)).toBe(true)
       if (Result.isFailure(decoded)) throw new Error(`${claim.kind}: ${JSON.stringify(decoded.failure)}`)
       expect(decoded.success.nodes.map(located => located.node)).toEqual(nodes)
       expect(format.serialize(decoded.success.nodes.map(located => located.node))).toBe(bytes)
     }
+    expect([...covered].sort()).toEqual(["id", "parent", "ord", "title", "mirror", "done", "cancelled", "doing", "todo", "started", "worked", "date", "repeat", "desc", "doc", "after", "blocks", "see", "created", "changed", "custom"].sort())
   }
 }))), 30000)

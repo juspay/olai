@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE SET A BATCH LEAVES, SPLICED AND ASSEMBLED, AT EVERY OP.
  *
@@ -34,7 +33,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * reference arm building new ones each time. So it is asserted as `toBe`, which
  * is the claim itself rather than a proxy for it.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import { expect, test } from "bun:test"
 import { NO_KINDS, outlinesIn } from "@olai/format"
 import { Result } from "effect"
@@ -59,7 +58,7 @@ const start = (): Scope =>
       ),
     ),
     steady(),
-    NO_KINDS, "olai"
+    NO_KINDS, "outline-olai"
   )
 
 /** A set as DATA, for comparison: the documents in path order and the broken

@@ -1,5 +1,5 @@
-import type { Claims } from "@olai/format"
 /** The shared place drawing, including chat and title completions. */
+import type { Claims } from "@olai/format"
 import { Show } from "solid-js"
 import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"

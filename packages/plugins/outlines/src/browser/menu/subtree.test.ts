@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What the menu puts on the clipboard when it copies a subtree.
  *
@@ -11,7 +10,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * asserted where it is produced — `@olai/format`'s `derive.test.ts`, including
  * the case that decides the split: hiding what is done must not shrink it.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, rowsOf, type Row } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"

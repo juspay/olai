@@ -1,4 +1,3 @@
-import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
 /** Pure readings of the roster, independent of this tab's mounted controls.
  * The panel walks the build: no plugin names or configuration keys belong here.
  * Enablement is visible in the switch. Only failures and waits add a reason;
@@ -7,7 +6,7 @@ import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/co
  * Drafts and pending requests belong to the mounted controls, while section
  * state belongs to the inspector activation. Neither is another policy store.
  */
-
+import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
 import type { RowReport } from "@olai/plugin-api"
 import type { BuiltPlugin, PluginRoster } from "@olai/surface"
 import { pluginState } from "@olai/surface"

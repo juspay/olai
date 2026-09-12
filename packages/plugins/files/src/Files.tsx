@@ -1,3 +1,9 @@
+/** A DOOR at the foot of the column: Trash. It is not a row of the tree above
+ *  it — it opens a file that tree does not draw — and the quiet ink is what
+ *  says so, since a door drawn in the list's own ink would read as one more
+ *  file. Inbox used to sit here; it moved up beside Agenda (human,
+ *  2026-08-20). */
+
 import { TESTID } from "olai-plugin-files/testids"
 import { type BrokenFile, fileKind, inboxIn, inOlaiDir, isTrashed, stemOf } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
@@ -30,12 +36,6 @@ import { vaultEntries } from "olai-plugin-sidebar/contract"
 import { fileTypes } from "./contract.ts"
 
 const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP}`
-
-/** A DOOR at the foot of the column: Trash. It is not a row of the tree above
- *  it — it opens a file that tree does not draw — and the quiet ink is what
- *  says so, since a door drawn in the list's own ink would read as one more
- *  file. Inbox used to sit here; it moved up beside Agenda (human,
- *  2026-08-20). */
 const DOOR = `${ENTRY} text-paper/65`
 
 /** A directory row: folds, does not navigate. Same SHAPE and ink as a file —
@@ -84,12 +84,10 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // preference: the outlines olai named for itself do not sit among the
   // reader's own — the column's FOOT is their home (the vault group below),
   // the way the Trash has always had its own there.
-  const tree = createMemo(() =>
-    fileTree(
-      servedDirectory()!.claims(),
-      served().filter((file) => !isTrashed(servedDirectory()!.claims(), file) && !inOlaiDir(file)),
-    ),
-  )
+  const tree = createMemo(() => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? [] : fileTree(claims, served().filter(file => !isTrashed(claims, file) && !inOlaiDir(file)))
+  })
 
   // THE VAULT'S OWN FILES — the `_olai/` outlines, every one the directory
   // holds except the archive (which the `isTrashed` rule above already
@@ -97,9 +95,10 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // same list the tree reads is the `inboxIn` argument one memo down: no
   // records are walked here, and path-only membership equality (`./served.tsx`)
   // is what keeps this answer from minting on a frame.
-  const vault = createMemo(() =>
-    served().filter((file) => !isTrashed(servedDirectory()!.claims(), file) && inOlaiDir(file))
-  )
+  const vault = createMemo(() => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? [] : served().filter(file => !isTrashed(claims, file) && inOlaiDir(file))
+  })
 
   // WHICH FILE THE INBOX IS, read off the same resolver the server captures
   // through (`@olai/format`'s `inboxIn`) — never a path this column composes,
@@ -117,7 +116,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // PATHS, and a browser holds every one of those already: it is the same list
   // the tree above is built from, and one more pass over it is not a vault
   // walk.
-  const inbox = createMemo(() => inboxIn(servedDirectory()!.claims(), served()))
+  const inbox = createMemo(() => (() => { const claims = servedDirectory()?.claims(); return claims === undefined ? undefined : inboxIn(claims, served()) })())
 
   // Folding a folder is remembered, and the write drops folders that are not in
   // the directory any more (./fold/folders.ts). Which those are is read off the
@@ -129,7 +128,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   const view: TreeView = {
     isActive,
     get broken() {
-      return servedDirectory()!.broken()
+      return (servedDirectory()?.broken() ?? new Map())
     },
     expanded: openFolders,
     openAncestry,
@@ -197,7 +196,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
                       <VaultFile
                         file={file()}
                         isActive={isActive}
-                        broken={servedDirectory()!.broken()}
+                        broken={(servedDirectory()?.broken() ?? new Map())}
                       />
                     )}
                   </Key>
@@ -300,7 +299,7 @@ function VaultFile(props: {
       broken={unreadable()}
       title={props.file}
     >
-      <FileAnatomy of={of()} name={stemOf(servedDirectory()!.claims(), props.file)} broken={unreadable()} />
+      <FileAnatomy of={of()} name={(() => { const claims = servedDirectory()?.claims(); return claims === undefined ? props.file : stemOf(claims, props.file) })()} broken={unreadable()} />
     </DoorRow>
   )
 }

@@ -1,4 +1,3 @@
-import type { Claims } from "./kinds.ts"
 /**
  * A BY-NAME ANSWER, HELD WITH THE PATH SET IT DESCRIBES — and re-read only for
  * the paths a revision actually moved.
@@ -88,7 +87,7 @@ import type { Claims } from "./kinds.ts"
  * wide direction, and a document EDITED does not, which is the case this lane
  * is about.
  */
-
+import type { Claims } from "./kinds.ts"
 import type { Derived } from "./derive.ts"
 import { documentAt, type OutlineSet, outlinePaths } from "./set.ts"
 

@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What a piecemeal commit is going to name — the one piece of the panel that is
  * an argument rather than a layout.
@@ -16,7 +15,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  *     server composes with — so unticking a file rewrites the suggestion and
  *     the two faces cannot word one commit differently.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import type { Pending } from "@olai/format"
 import { NOTHING_PENDING } from "@olai/format"
 import { expect, test } from "bun:test"

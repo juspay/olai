@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE ONE CLAIM THIS PACKAGE MAKES, tested the only way it can be: the same
  * question, asked twice.
@@ -26,10 +25,10 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * over the same generator, because the two are the same kind of claim — a fast
  * answer that is exactly the slow one.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { assemble, type Bodied, bodiedDocument, bodiedIn, bodyKind, type Document, isMirror, type Located, matching, matchingDocuments, nodesIn, parseFilter, reading, type Reading, type Scope, type Verdict, verdictOf } from "@olai/format"
-import { parseOutline } from "olai-plugin-olai/format"
+import { parseOutline } from "olai-plugin-outline-olai/format"
 import { seeded, vaultOf } from "@olai/format/testlib"
 import { Result } from "effect"
 

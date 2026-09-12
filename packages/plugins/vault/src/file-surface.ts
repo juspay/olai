@@ -2,7 +2,7 @@
  * The descriptor imports are inert schemas; loading this contract acquires no
  * runtime state. Stable root tags preserve clients without moving ownership
  * back into the host. */
-import { ClaimData, DocumentPath, NodeChange, NOTHING_WRONG, Verdict } from "@olai/format"
+import { ClaimData, DocumentPath, DocumentPageRequest, FiledPageReading, NodeChange, NOTHING_WRONG, Verdict } from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 import { Head, Manifest } from "./wire.ts"
@@ -20,6 +20,7 @@ export const FileKindsState = Schema.Struct({
 export type FileKindsState = typeof FileKindsState.Type
 const sameSet = (a: Manifest, b: Manifest): boolean => (a === null) === (b === null)
 export const surface = defineSurface({
+streams: { bodyPage: { inputSchema: DocumentPageRequest, outputSchema: FiledPageReading, arrayKey: "key" } },
 procedures: {
   bodies: { get: { input: Schema.Struct({ path: DocumentPath }), output: Body } },
   files: { outlineDiff: {
@@ -145,7 +146,6 @@ collections: {
  * the KEY SET and hands a body one at a time.
  */
 export const resources = {
-  "bodies.get": { tool: { mutates: false } },
   // What is wrong across the set right now — and NOT how current the set is,
   // which is a different fact and lives on a read's own vintage. A CELL, and
   // eligible, because per-file breakage does not come through it: that rides
@@ -156,6 +156,7 @@ export const resources = {
 
 export const faces = {
   browser: {
+    bodyPage: "resource",
     "files.outlineDiff": { tool: { mutates: false } },
     "bodies.get": { tool: { mutates: false } },
     "file-kinds": "resource",
@@ -206,7 +207,6 @@ export const faces = {
     heads: "resource",
   },
   agent: {
-    "bodies.get": { tool: { mutates: false } },
     // ...AND THE OTHER HALF OF THE MEMBER ABOVE.
     //
     // A CELL, and eligible, because per-file breakage does NOT come through it

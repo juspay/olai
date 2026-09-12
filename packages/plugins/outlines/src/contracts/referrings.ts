@@ -1,5 +1,3 @@
-import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The two WAYS a record can refer to this node, as values: what each row is
  * called on screen, and what it is called to the browser tests.
@@ -22,7 +20,8 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * PURE, and no component — `relation.ts`'s rule, for its reason: what a row is
  * called has to be decidable somewhere a test can ask without a browser.
  */
-
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "olai-plugin-outlines/testids"
 import { type Way, WAYS } from "@olai/format"
 
 

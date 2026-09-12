@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * Which verbs a row offers, and what each of them sends.
  *
@@ -8,7 +7,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * Over rows the format itself walked, so "what does a mirror offer" is
  * answered against a real expansion.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, rowsOf, type Row } from "@olai/format"
 import { NO_PINS, type Shelf } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"

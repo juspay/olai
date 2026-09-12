@@ -1,4 +1,3 @@
-import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 /**
  * The PANEL, against a live conversation with the PINNED ADAPTER — the fifth
  * driver here, and the one a PIN BUMP is not finished without.
@@ -28,6 +27,7 @@ import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
  *   bash panel-live.sh                 # …or, against a server you started:
  *   BASE=http://127.0.0.1:PORT bun panel-live.ts
  */
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 import { chromium } from "playwright"
 
 import { selector } from "@olai/web/testlib"

@@ -1,5 +1,3 @@
-const OUTLINE_EXT = mintExt(TEST_CLAIMS, "olai")!
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT THE TWO SIDEBAR READINGS COST PER PUBLISHED REVISION, before and after
  * `perf-filename-conventions` — both arms in one run, on one vault, on the
@@ -45,6 +43,8 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * timed never happens.
  */
 
+const OUTLINE_EXT = mintExt(TEST_CLAIMS, [...TEST_CLAIMS.byKind.values()].find(claim => claim.holds === "nodes")!.kind)!
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { Result } from "effect"
 
 import {

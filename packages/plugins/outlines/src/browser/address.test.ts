@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT COUNTS AS AN ADDRESS, and what the page it names is CALLED.
  *
@@ -9,7 +8,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * the BIJECTION (`../routes.ts`), which is why a title that merely begins with
  * a slash reads as text.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { addressOf } from "@olai/format"

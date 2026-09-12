@@ -54,7 +54,7 @@
     "@olai/store": "workspace:*",
     "@types/node": "^22.0.0",
     "olai-plugin-layout": "workspace:*",
-    "olai-plugin-olai": "workspace:*"
+    "olai-plugin-outline-olai": "workspace:*"
   },
   "olai": {
     "contracts": [

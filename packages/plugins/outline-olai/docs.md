@@ -1,6 +1,6 @@
-# Olai
+# Outline Olai
 
-Olai claims the `.olai` outline format and owns its pure JSONL parser and canonical writer. It draws nothing: Outlines contributes one glyph and tree page for every claim holding nodes.
+The `outline-olai` row claims the `.olai` outline format and owns its pure JSONL parser and canonical writer. It draws nothing: Outlines contributes one glyph and tree page for every claim holding nodes.
 
 A format receives the file path, contents and the caller's Claims snapshot. It never reads the live registry. The vault's codec, write gate and outline-diff procedure choose the format and pass the same snapshot used for their decision.
 

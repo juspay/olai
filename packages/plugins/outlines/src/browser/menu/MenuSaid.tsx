@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The line beside the `•••`: what the last verb had to say (`./picking.ts`).
  *
@@ -23,7 +22,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * reason; the measure below is what "beside the •••" costs once the line has
  * left the cell.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { createEffect, createSignal, onCleanup, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 

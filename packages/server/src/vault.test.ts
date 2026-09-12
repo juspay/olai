@@ -17,7 +17,7 @@ const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
 const opening = (root: string, options: { readonly format?: string; readonly ledger?: Ledger } = {}) => Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "" })
   yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
-  yield* mountBundle(plugins.host, [...selectFixtureRows(["vault", "olai"]), ...(options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }])], "test-minimal")
+  yield* mountBundle(plugins.host, [...selectFixtureRows(["vault", "outline-olai"]), ...(options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }])], "test-minimal")
   /**
    * A LEDGER ARRIVES THE WAY GIT'S DOES — registered through `VaultViews` by a
    * row that named it — rather than provided over the host's head. The vault
@@ -50,7 +50,7 @@ test("headless vault reports its missing HTTP component while file access leaves
   const firstGate = offered(plugins.host, OpsDoor)?.gate as Ops
   const first = store()
   expect(first).toBeDefined()
-  expect(configsOf(plugins.host).get("vault")).toEqual({ format: "olai" })
+  expect(configsOf(plugins.host).get("vault")).toEqual({ format: "outline-olai" })
   const report = yield* reportBundle(plugins.host, ["vault", "ws", "mcp", "web-app"])
   expect(report.get("vault")).toEqual({ state: "waiting", missing: ["transport-surface"] })
   for (const name of ["ws", "mcp", "web-app"]) expect(report.get(name)?.state).toBe("off")

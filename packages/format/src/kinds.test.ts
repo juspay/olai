@@ -1,17 +1,15 @@
-import mime from "mime/lite"
+/** The table as pairs, with the keys still narrowed to what they are — plain
+ *  `Object.entries` widens them to `string`, which would turn every sweep below
+ *  into an assertion about strings rather than about the kinds. */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { bodyKind, fileKind, isFetched, textKind, unkept, mintExt } from "./kinds.ts"
 import { inboxIn } from "./node.ts"
-
-/** The table as pairs, with the keys still narrowed to what they are — plain
- *  `Object.entries` widens them to `string`, which would turn every sweep below
- *  into an assertion about strings rather than about the kinds. */
 const ENTRIES = [...TEST_CLAIMS.byKind.entries()]
-const OUTLINE_EXT = mintExt(TEST_CLAIMS, "olai")!
+const OUTLINE_EXT = mintExt(TEST_CLAIMS, "outline-olai")!
 const DOCUMENT_EXT = mintExt(TEST_CLAIMS, "markdown")!
-const SVG_EXT = TEST_CLAIMS.byKind.get("image")!.exts.find(ext => mime.getType(ext) === "image/svg+xml")!
+const SVG_EXT = TEST_CLAIMS.byKind.get("image")!.inert![0]!
 
 
 // What belongs to a served set is a statement about the FORMAT, not about
@@ -21,8 +19,8 @@ const SVG_EXT = TEST_CLAIMS.byKind.get("image")!.exts.find(ext => mime.getType(e
 // an answer, not a failure. The suffix is matched exactly as the registry
 // writes it, so a near miss is a miss.
 test("a served file is one of the registry's kinds, or none of the set's business", () => {
-  expect(fileKind(TEST_CLAIMS, "plan.olai")).toBe("olai")
-  expect(fileKind(TEST_CLAIMS, "sub/dir/plan.olai")).toBe("olai")
+  expect(fileKind(TEST_CLAIMS, "plan.olai")).toBe("outline-olai")
+  expect(fileKind(TEST_CLAIMS, "sub/dir/plan.olai")).toBe("outline-olai")
   expect(fileKind(TEST_CLAIMS, "notes/cabinets.md")).toBe("markdown")
   expect(fileKind(TEST_CLAIMS, "data/sales.csv")).toBe("csv")
   expect(fileKind(TEST_CLAIMS, "reports/q3.pdf")).toBe("pdf")
@@ -40,7 +38,7 @@ test("a served file is one of the registry's kinds, or none of the set's busines
       "README",
       "plan.json",
       "notes.md.txt",
-      "olai",
+      "outline-olai",
       ".md.bak",
       "a.OLAI",
       "IMG_1234.JPG",
@@ -182,11 +180,11 @@ test("the shown kinds are the ones the set holds the path of and not the content
 // the one direction a type checker cannot see. Read as the STRINGS a refusal
 // message and a minted path will carry, because that is what a caller sees.
 test("the minting constants are the suffixes the walk claims", () => {
-  expect(fileKind(TEST_CLAIMS, `a${OUTLINE_EXT}`)).toBe("olai")
+  expect(fileKind(TEST_CLAIMS, `a${OUTLINE_EXT}`)).toBe("outline-olai")
   expect(fileKind(TEST_CLAIMS, `a${DOCUMENT_EXT}`)).toBe("markdown")
   // The third spelled constant is the one a SECOND rule has to name and not
   // one anything mints: markdown may point at a picture and deliberately not
-  // at this one (`./documents.ts`'s `PICTURE_EXTENSIONS`).
+  // at this one (`./documents.ts`’s `isPicture`).
   expect(fileKind(TEST_CLAIMS, `a${SVG_EXT}`)).toBe("image")
 })
 

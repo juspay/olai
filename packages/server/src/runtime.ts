@@ -1,11 +1,9 @@
-import { configurationUnavailable } from "@olai/plugin-api/configuration"
 /** The host composes scoped capability surfaces and publishes management.
  * Domain providers keep their own handlers, sources and compatibility tags.
  * A provider's disappearance revokes retained handlers through Surface's own
  * mount generation; unrelated sources and handler identities remain stable.
  */
-
-
+import { configurationUnavailable } from "@olai/plugin-api/configuration"
 import { NotFoundFailure, UsageFailure, type OpFailure } from "@olai/format"
 import { type BuiltPlugin, NO_ROSTER, type PluginRoster, type PluginState, type Who } from "@olai/surface/host"
 import type { SurfaceSpec } from "@kolu/surface/define"

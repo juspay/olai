@@ -1,4 +1,4 @@
-const OUTLINE_EXT = mintExt(TEST_CLAIMS, "olai")!
+const OUTLINE_EXT = mintExt(TEST_CLAIMS, "outline-olai")!
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -100,8 +100,8 @@ test("mints combine the convention stem with the configured format suffix", () =
   expect(OLAI_DIR).toBe("_olai")
   expect(mintedInto(`${PINS}${OUTLINE_EXT}`)).toBe("_olai/Pins.olai")
   expect(mintedInto(`${INBOX}${OUTLINE_EXT}`)).toBe("_olai/Inbox.olai")
-  expect(TRASH_FILE(TEST_CLAIMS, "olai")).toBe("_olai/Trash.olai")
-  expect(isTrashed(TEST_CLAIMS, TRASH_FILE(TEST_CLAIMS, "olai")!)).toBe(true)
+  expect(TRASH_FILE(TEST_CLAIMS, "outline-olai")).toBe("_olai/Trash.olai")
+  expect(isTrashed(TEST_CLAIMS, TRASH_FILE(TEST_CLAIMS, "outline-olai")!)).toBe(true)
   expect(isTrashed(TEST_CLAIMS, "Trash.olai")).toBe(false)
   expect(isTrashed(TEST_CLAIMS, "Archive.olai")).toBe(false)
 })
@@ -113,7 +113,7 @@ test("mints combine the convention stem with the configured format suffix", () =
 test("a file olai named for itself is one under _olai/, exactly", () => {
   expect(inOlaiDir(mintedInto(PINS))).toBe(true)
   expect(inOlaiDir(mintedInto(INBOX))).toBe(true)
-  expect(inOlaiDir(TRASH_FILE(TEST_CLAIMS, "olai")!)).toBe(true)
+  expect(inOlaiDir(TRASH_FILE(TEST_CLAIMS, "outline-olai")!)).toBe(true)
   expect(inOlaiDir("house.olai")).toBe(false)
   expect(inOlaiDir("notes/palette.md")).toBe(false)
   // The mint is at the ROOT, so a `_olai` a person made under a folder of
@@ -133,7 +133,7 @@ test("a leftover Archive.olai is dormant by basename, and is not the trash", () 
   expect(isLeftoverArchive("archive.olai")).toBe(false)
   expect(isLeftoverArchive("Archive.olai.bak")).toBe(false)
   expect(isLeftoverArchive("notes/archive.olai")).toBe(false)
-  expect(isLeftoverArchive(TRASH_FILE(TEST_CLAIMS, "olai")!)).toBe(false)
+  expect(isLeftoverArchive(TRASH_FILE(TEST_CLAIMS, "outline-olai")!)).toBe(false)
   expect(isLeftoverArchive("house.olai")).toBe(false)
   expect(isTrashed(TEST_CLAIMS, "Archive.olai")).toBe(false)
 })

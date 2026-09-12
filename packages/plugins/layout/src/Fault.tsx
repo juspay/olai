@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-layout/testids"
 /**
  * The fourth way to say what is wrong, and the only one that is not about the
  * files: THIS APP'S OWN CODE threw while drawing the page.
@@ -33,7 +32,7 @@ import { TESTID } from "olai-plugin-layout/testids"
  * what ./NotFound.tsx already does with the sidebar: a dead end is not a reason
  * to strand somebody.
  */
-
+import { TESTID } from "olai-plugin-layout/testids"
 import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
 
 import { Lede } from "@olai/web/client/errors/Lede.tsx"

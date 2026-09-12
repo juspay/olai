@@ -1,4 +1,3 @@
-import type { Claims } from "./kinds.ts"
 /**
  * WHICH OF THIS PAGE'S NODES THE QUERY SELECTS — the reading beside the page's
  * own, and the whole of what a filter box is answered with.
@@ -47,7 +46,7 @@ import type { Claims } from "./kinds.ts"
  * what counts as a ROW of a page is a fact about the page, so this reading is
  * handed them rather than walking the arms a second time.
  */
-
+import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
 import type { Derived, Row } from "./derive.ts"

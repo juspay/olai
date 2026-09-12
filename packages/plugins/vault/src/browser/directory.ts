@@ -134,6 +134,7 @@
  * kept.
  */
 
+import { fileKind } from "@olai/format"
 import { claims as makeClaims, type Claims, type BrokenFile } from "@olai/format"
 import type { FileKindsState } from "../file-surface.ts"
 import type { Head, Manifest } from "../wire.ts"
@@ -473,14 +474,14 @@ export const createDirectory = (
   // fold's own requirement: `./App.tsx` calls this inside the app's root, and
   // the registration is dropped by that owner's `onCleanup`.
   const held = entries.fold(SERVED_FILES)
-  const claims = createMemo(() => makeClaims(fileKinds()?.claims ?? []))
+  const claims = createMemo(() => {
+    try { return makeClaims(fileKinds()?.claims ?? []) }
+    catch { return makeClaims([]) }
+  })
   return {
     claims,
     outlineRow: () => fileKinds()?.outlineRow,
-    kindOf: path => {
-      for (const [ext, kind] of claims().byExt) if (path.endsWith(ext)) return kind
-      return null
-    },
+    kindOf: path => fileKind(claims(), path),
     // THE ONE PLACE THE TWO SOURCES ARE READ TOGETHER, which is the whole
     // reason the cell is handed in here rather than read by the shell: they are
     // two members on two channels, either can arrive first, and only a reader

@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT ONE WRITE INTO A READING COSTS IN RECORDS READ — and that it costs the
  * same ANSWER.
@@ -32,12 +31,12 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * decision the code delegates. It is a walk, and a walk is measured by asking
  * the things it walks over.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { type Document, isOutline, type Outline, outlineDocument } from "./document.ts"
-import { parseOutline } from "olai-plugin-olai/format"
+import { parseOutline } from "./fixtures.testlib.ts"
 import { assemble, type OutlineSet, withDocuments } from "./set.ts"
 import { following, type Reading, reading } from "./validate.ts"
 

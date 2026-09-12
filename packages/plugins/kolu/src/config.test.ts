@@ -1,14 +1,13 @@
+/**
+ * The configurations. One node per record, properties under `custom`
+ * (the outline codec maps `-- foo: bar` to that).
+ */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { DEFAULT_WATCH } from "olai-plugin-kolu/appliance"
 import { readingOf, setOf as vaultSet, nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { configurationFileIn } from "@olai/plugin-api/configuration"
 import { watchConfigIn, watchReadingIn } from "./config.ts"
-
-/**
- * The configurations. One node per record, properties under `custom`
- * (the outline codec maps `-- foo: bar` to that).
- */
 const rec = (
   title: string,
   fields: Record<string, string>,

@@ -1,4 +1,3 @@
-import { mintExt } from "@olai/format"
 /**
  * What a keyboard — or a menu entry — MEANT, in terms of ops.
  *
@@ -53,7 +52,7 @@ import { mintExt } from "@olai/format"
  * newer revision, and a placement whose anchor genuinely went away comes back
  * as a refusal naming it rather than as a guess.
  */
-
+import { mintExt } from "@olai/format"
 import {
   captureInto,
   customOf as customOfNode,
@@ -500,9 +499,12 @@ const emptyTrashRequest = (
   edit: Extract<Edit, { verb: "emptyTrash" }>,
 ): Resolved => {
   const piles = outlinePaths(at.set).filter(
-    (file) => isTrashed(at.claims, file) && nodesOf(at.derived, file).length > 0,
+    (file) => isTrashed(at.claims, file),
   )
-  if (piles.length === 0) {
+  if (piles.length > 1) {
+    return Result.fail(refusal(`ambiguous-convention: more than one Trash file: ${piles.join(", ")}`))
+  }
+  if (piles.length === 0 || nodesOf(at.derived, piles[0]!).length === 0) {
     return Result.fail(refusal("the Trash is empty, so there is nothing to delete"))
   }
   return Result.succeed({

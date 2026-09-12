@@ -1,4 +1,3 @@
-import { servedDirectory } from "../vault.ts"
 /**
  * THE CHATS NOBODY HAS GIVEN A NODE — the panel's body, opened from the
  * roster's last row, and the one place a conversation is assigned to a node.
@@ -74,7 +73,7 @@ import { servedDirectory } from "../vault.ts"
  * already keeps one gesture over: the press WRITES the property, so this is how
  * a node agent comes into being as much as it is how one gets a session.
  */
-
+import { servedDirectory } from "../vault.ts"
 import { createMemo, createSignal, For, Show } from "solid-js"
 import { chatWire } from "../wire.ts"
 

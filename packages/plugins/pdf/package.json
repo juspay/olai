@@ -16,9 +16,7 @@
   "dependencies": {
     "@olai/plugin-api": "workspace:*",
     "effect": "4.0.0-rc.112",
-    "@olai/format": "workspace:*",
     "@olai/surface": "workspace:*",
-    "@olai/web": "workspace:*",
     "@olai/ui-primitives": "workspace:*",
     "olai-plugin-files": "workspace:*",
     "olai-plugin-navigation": "workspace:*",

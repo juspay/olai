@@ -1,4 +1,3 @@
-import { serialized } from "./encode.ts"
 /**
  * The ops layer: the one way anything writes an outline.
  *
@@ -21,7 +20,7 @@ import { serialized } from "./encode.ts"
  * its structured detail, and a retry that keeps colliding comes back as `busy`
  * rather than as silence.
  */
-
+import { serialized } from "./encode.ts"
 import {
   admits,
   blamed,
@@ -604,6 +603,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         }
 
         if (snapshot.value.claims !== options.claims.current) {
+          races += 1
           yield* Effect.mapError(store.refresh("verified"), failure => new ValidationFailure({ reason: failure.message, verdict: NOTHING_WRONG }))
           continue
         }

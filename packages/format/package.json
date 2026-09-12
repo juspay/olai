@@ -17,17 +17,10 @@
   "//dependencies": "The bottom of the layering (docs/architecture/overview.md): nothing here can reach a disk, a server or a browser. RepoState / Reason / How live HERE because they travel the wire \u2014 the ledger plugin produces them, the surface carries them, the browser draws them \u2014 and a browser must never pull a subprocess into its bundle. fastest-levenshtein is the did-you-mean distance \u2014 a focused, dependency-free library rather than eighteen lines of textbook matrix arithmetic we would then own.",
   "dependencies": {
     "effect": "4.0.0-rc.112",
-    "fastest-levenshtein": "^1.0.16",
-    "mime": "4.1.0"
+    "fastest-levenshtein": "^1.0.16"
   },
   "//devDependencies": "`yaml` is TEST-ONLY and nothing here imports it but src/frontmatter.library.test.ts, which holds this package's frontmatter value subset against the real parser \u2014 for every line: we agree, we refuse together, or we are narrower for a reason src/frontmatter.ts's header argues by name. It is deliberately NOT in the module. Putting it there was tried and measured: +10.6 KB brotli on the client's eager bundle (this package is bundled into the browser), for a parse the browser never runs, since a face is built at the decode and its props travel the wire. Same shape as @olai/web's remark-frontmatter, which fences the other half of the same rule \u2014 where the block ENDS \u2014 and also ships nowhere.",
   "devDependencies": {
-    "yaml": "^2.9.0",
-    "olai-plugin-olai": "workspace:*",
-    "olai-plugin-markdown": "workspace:*",
-    "olai-plugin-hypertext": "workspace:*",
-    "olai-plugin-csv": "workspace:*",
-    "olai-plugin-image": "workspace:*",
-    "olai-plugin-pdf": "workspace:*"
+    "yaml": "^2.9.0"
   }
 }

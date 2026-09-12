@@ -165,7 +165,7 @@ export const noSuchDocument = (
   instead: string,
 ): OpFailure => {
   const paths = markdownIn(set).map((entry) => entry.path)
-  if (claimedOf(claims, file) === null) return unclaimedPath(claims, file, paths)
+  if (claimedOf(claims, file) === null) return unclaimedPath(file, paths)
   const near = didYouMean(file, paths)
   return new NotFoundFailure({
     reason: near === ""
@@ -196,7 +196,7 @@ export const noSuchDocument = (
  */
 const noSuchOutline = (asked: Asked, file: string): OpFailure => {
   const outlines = asked.outlines
-  if (claimedOf(asked.claims, file) === null) return unclaimedPath(asked.claims, file, outlines)
+  if (claimedOf(asked.claims, file) === null) return unclaimedPath(file, outlines)
   const near = didYouMean(file, outlines)
   return new NotFoundFailure({
     reason: near === ""
@@ -237,7 +237,7 @@ export const outlineAt = (
   file: string,
 ): Result.Result<Outline, OpFailure> => {
   const path = claimedOf(asked.claims, file)
-  if (path === null) return Result.fail(unclaimedPath(asked.claims, file, asked.outlines))
+  if (path === null) return Result.fail(unclaimedPath(file, asked.outlines))
   if (admittedOutline(asked.claims, { kind: "document", path }) === null) {
     const claim = asked.claims.byKind.get(fileKind(asked.claims, file)!)!
     return Result.fail(new NotFoundFailure({ named: file, reason: `\`${file}\` is ${claim.article} ${claim.noun}; this verb takes an outline` }))
@@ -295,9 +295,9 @@ export const notLoaded = (
   })
 
 /** A bare unclaimed path cannot identify a disabled owner. */
-export const unclaimedPath = (_claims: Claims, file: string, neighbors: ReadonlyArray<string>): OpFailure => {
+export const unclaimedPath = (file: string, neighbors: ReadonlyArray<string>): OpFailure => {
   const name = file.slice(file.lastIndexOf("/") + 1)
   const dot = name.lastIndexOf(".")
-  const suffix = dot < 0 ? "(no suffix)" : name.slice(dot)
-  return new NotFoundFailure({ named: file, reason: `\`${file}\` is not a file this directory serves: no row claims \`${suffix}\`${didYouMean(file, neighbors)}` })
+  const suffix = dot < 0 ? "a path without a suffix" : `\`${name.slice(dot)}\``
+  return new NotFoundFailure({ named: file, reason: `\`${file}\` is not a file this directory serves: no row claims ${suffix}${didYouMean(file, neighbors)}` })
 }

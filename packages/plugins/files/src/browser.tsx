@@ -1,3 +1,5 @@
+/** Directory membership and folder preferences belong to files, independently
+ * of sidebar presentation. Content providers register creation controls. */
 import { holdKindDrawings } from "./glyphs.tsx"
 import { Edits, Wired } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
@@ -9,8 +11,6 @@ import { shell as appShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./shell.ts"
 import { DeleteFile } from "./file/DeleteFile.tsx"
 import { clearNewFileMemory,NewFile } from "./file/NewFile.tsx"
-/** Directory membership and folder preferences belong to files, independently
- * of sidebar presentation. Content providers register creation controls. */
 import { definePlugin,Offers } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { navigation } from "olai-plugin-navigation/contract"

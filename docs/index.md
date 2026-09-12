@@ -77,7 +77,7 @@ The four ACP agents the chat panel can run. What a conversation is, for all of t
 
 | Page | What it covers |
 | --- | --- |
-| [plugins/olai.md](plugins/olai.md) | Outline file claims, parsing, and canonical writing. |
+| [plugins/outline-olai.md](plugins/outline-olai.md) | Outline file claims, parsing, and canonical writing. |
 | [plugins/hypertext.md](plugins/hypertext.md) | Saved HTML page claims and sealed previews. |
 | [plugins/csv.md](plugins/csv.md) | Table file claims and reading tabular content. |
 | [plugins/image.md](plugins/image.md) | Picture file claims and media access. |

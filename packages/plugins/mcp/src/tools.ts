@@ -1,4 +1,3 @@
-import { claims } from "@olai/format"
 /**
  * The ops layer's tool table, projected onto `@kolu/surface-mcp`'s vocabulary.
  *
@@ -44,7 +43,7 @@ import { claims } from "@olai/format"
  *     2026-08-25 a running server answered `outlines_read` normally with week-old
  *     truth for half an hour; what was missing was not a tool, it was this.
  */
-
+import { claims } from "@olai/format"
 import {
   type CommitRequest,
   type CommitResult,

@@ -1,3 +1,6 @@
+/** The reading of `byFile`, under a name the fixture builder below has not
+   *  already taken — that one turns TEXT into records, this one asks a
+   *  derivation what one file holds. */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -8,9 +11,6 @@ import {
   countedChildren,
   derive,
   type Derived,
-  /** The reading of `byFile`, under a name the fixture builder below has not
-   *  already taken — that one turns TEXT into records, this one asks a
-   *  derivation what one file holds. */
   nodesOf as recordsOf,
   type Progress,
   progressOf,

@@ -1,5 +1,3 @@
-import { servedDirectory } from "../vault.ts"
-import { Terminals } from "./Terminals.tsx"
 /**
  * A tool call: one line, foldable.
  *
@@ -72,7 +70,8 @@ import { Terminals } from "./Terminals.tsx"
  * regardless — and a fold that shuts under the reader is exactly what somebody
  * unfolded it to avoid.
  */
-
+import { servedDirectory } from "../vault.ts"
+import { Terminals } from "./Terminals.tsx"
 import { fileKind } from "@olai/format"
 import type { ToolEntry, ToolStatus } from "olai-plugin-chat/wire"
 import { Key } from "@solid-primitives/keyed"

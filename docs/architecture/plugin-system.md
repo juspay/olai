@@ -970,6 +970,8 @@ Every claim on this page is a test. If you break one, the failure names the file
 A plugin can provide a service of its own, and another plugin can declare that it
 needs it, with no core edit in between.
 
+The vault also offers `vault.outline-row`, the configured mint row id, to server consumers. It is owned by the vault configuration activation; the browser receives the same id in the file-kinds cell. Non-Markdown page metadata (`bodyPage`: head, revision and referrers) travels through `vault.files`, independently of Markdown's own `documentPage` stream. `bodies.get` is browser-only and refuses kept or fetched files. Claims carry the serving policy: hypertext declares `serving: "sealed-frame"`; image declares `picture` and its per-suffix `inert` policy. The media handler consumes those declarations, never a MIME-to-kind lookup.
+
 ### The mechanism (12b)
 
 | Fact | Detail |
@@ -1114,7 +1116,7 @@ The vault is an ordinary plugin row, not a host facility.
 | Consumers | capability providers acquire `Directory` and `Ops` through their declared needs; `makeOps` runs inside the vault row after the store is acquired |
 | The write gate | owns its caches and accepted-write count; its finalizer rejects fresh calls and drains accepted writes before releasing the watcher and lock. A server without the vault has no domain gate. Domain surface handlers leave with their providers, while permanent management stays available |
 | Boundary | vault owns file-access projection and publishes revisions to dependents. Content providers register their own readings and operations through `Surfaces`; the host routes those declarations without importing the store or a domain projection. Machine-local facilities arrive through generic host services, runtime path configuration is passed to the vault capability, and the provider owns lock-file sweeping and resource release |
-| Config | the row's `Config` schema declares `format` with default `olai`, and `olai.yml` selects the row without a `config:` block. The codec table is where another format would be added; Org is not implemented. The Effect bridge decodes row config before user `apply`, inside the same contained activation as every other initializer, avoiding the pinned Cordis constructor-validation path that could leave an invalid row pending and reject an unobserved loader promise |
+| Config | the row's `Config` schema declares `format` with default `outline-olai`, and `olai.yml` selects the row without a `config:` block. Further formats register their own claims and codecs through `vault.file-kinds`; there is no codec catalogue. The Effect bridge decodes row config before user `apply`, inside the same contained activation as every other initializer, avoiding the pinned Cordis constructor-validation path that could leave an invalid row pending and reject an unobserved loader promise |
 | Failure and disabling | the switch stays available and explains its cost: disabling clears served collections and removes vault-defined plugins, while transports remain. A lock conflict or non-directory root lands as a failed row carrying its own failure sentence, so the panel can retry once the cause is fixed. `runtime.test.ts` opens the test-minimal profile and reads its store through `Directory` |
 
 ### Transport plugins and profiles

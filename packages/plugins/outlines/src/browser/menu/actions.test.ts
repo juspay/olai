@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What RUNNING a menu entry answers with — which is a question about one line
  * of `./actions.ts` and about a bug that has already shipped once.
@@ -27,7 +26,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * fiber still running while later tests in this file — and every later file
  * in bun's one shared process — run.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, rowsOf, type Row } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { NO_PINS } from "@olai/format"

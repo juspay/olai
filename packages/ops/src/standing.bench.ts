@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT ONE WRITE COSTS THE SERVER WITH TABS OPEN — the three standing views,
  * timed at one, three and ten subscribers on one question.
@@ -37,7 +36,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * OLAI_BENCH_FILES / OLAI_BENCH_RECORDS, like the four legs that share the
  * other vault.
  */
-
+import { TEST_CLAIMS } from "@olai/ops/testlib"
 import { addressOf, NO_KINDS, type PageRequest, type Reading } from "@olai/format"
 import { median, timed } from "@olai/format/testlib"
 

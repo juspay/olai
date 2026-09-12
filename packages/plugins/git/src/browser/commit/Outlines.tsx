@@ -1,4 +1,3 @@
-import { servedDirectory } from "../vault.ts"
 /**
  * The outlines, one group per file: what changed in each, node by node.
  *
@@ -21,7 +20,7 @@ import { servedDirectory } from "../vault.ts"
  * beside a departure in the other list: it is one thing that happened, one
  * tick, and one commit that carries both halves.
  */
-
+import { servedDirectory } from "../vault.ts"
 import type { DirtyOutline, NodeChange } from "@olai/format"
 import { For, Show } from "solid-js"
 

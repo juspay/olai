@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE DIFFERENTIAL: one op corpus, two publishing paths, and a fake subscriber
  * that reports every way the frames it was handed differ.
@@ -65,7 +64,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * Nothing here has tests of its own — it is a helper module, not a suite, and
  * `bun test` collects only `*.test.ts`.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import {
   assemble,
   bodiedIn,
@@ -1083,7 +1082,7 @@ const bornAt = (random: () => number, at: number): string => {
  *  kind a path is: `@olai/format`'s `kinds.ts` is the one place that says what
  *  a file of the set is called, and a corpus that spelled one would be a second
  *  answer to it (`@olai/tests`' `kinds.test.ts` sweeps for exactly that). */
-const OUTLINE = TEST_CLAIMS.byKind.get("olai")!.exts[0]
+const OUTLINE = TEST_CLAIMS.byKind.get("outline-olai")!.exts[0]
 const MARKDOWN = TEST_CLAIMS.byKind.get("markdown")!.exts[0]
 
 /** `count` of them, spread across the list rather than taken off the front. */

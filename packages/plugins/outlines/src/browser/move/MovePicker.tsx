@@ -1,5 +1,3 @@
-import { servedDirectory } from "../vault.ts"
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The move-to picker: search every outline for a new parent, and put this row
  * under the one you choose — with everything hanging off it.
@@ -54,7 +52,8 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * lands verbatim under the row (`./moving.tsx` owns the line, because it
  * outlives the panel a landed write closes).
  */
-
+import { servedDirectory } from "../vault.ts"
+import { TESTID } from "olai-plugin-outlines/testids"
 import type { Edit } from "@olai/surface"
 import type { Accessor, Signal } from "solid-js"
 

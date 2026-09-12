@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE DIFFERENTIAL: one verdict, two ways of reaching it, replayed over
  * sequences of edits.
@@ -77,7 +76,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * green suite that means nothing, so the comparator is a function of two lists
  * and `./incremental.test.ts` hands it differences directly.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { Result } from "effect"
 
 import type { Document } from "./document.ts"

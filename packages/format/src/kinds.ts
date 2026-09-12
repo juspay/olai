@@ -8,6 +8,12 @@ export interface Claim {
   readonly holds: "nodes" | "text" | "bytes"
   readonly kept: boolean
   readonly fetched: boolean
+  /** The vault wraps fetched pages in its sealed iframe document. */
+  readonly serving?: "sealed-frame"
+  /** Case-folded picture references may be served and drawn inline. */
+  readonly picture?: boolean
+  /** Claimed suffixes served with inert headers and excluded from inline pictures. */
+  readonly inert?: readonly string[]
   readonly noun: string
   readonly article: "a" | "an"
   readonly format?: OutlineFormat
@@ -20,6 +26,9 @@ export const ClaimData = Schema.Struct({
   holds: Schema.Literals(["nodes", "text", "bytes"]),
   kept: Schema.Boolean, fetched: Schema.Boolean, noun: Schema.String,
   article: Schema.Literals(["a", "an"]),
+  serving: Schema.optionalKey(Schema.Literal("sealed-frame")),
+  picture: Schema.optionalKey(Schema.Boolean),
+  inert: Schema.optionalKey(Schema.Array(Schema.String)),
 })
 export const FileKind = Schema.String
 
@@ -48,7 +57,7 @@ export const claims = (list: Iterable<Claim>): Claims => {
       }
       byExt.set(ext, claim.kind)
     }
-    byKind.set(claim.kind, Object.freeze({ ...claim, exts: Object.freeze([...claim.exts]) as Claim["exts"] }))
+    byKind.set(claim.kind, Object.freeze({ ...claim, ...(claim.inert === undefined ? {} : { inert: Object.freeze([...claim.inert]) }), exts: Object.freeze([...claim.exts]) as Claim["exts"] }))
   }
   return Object.freeze({ byKind, byExt })
 }
@@ -80,3 +89,10 @@ export const unkept = (claims: Claims, path: string): boolean => claimOf(claims,
 export const isFetched = (claims: Claims, path: string): boolean => claimOf(claims, path)?.fetched === true
 export const mintExt = (claims: Claims, kind: string): string | null => claims.byKind.get(kind)?.exts[0] ?? null
 export const parserFor = (claims: Claims, path: string): OutlineFormat | null => claimOf(claims, path)?.format ?? null
+
+/** An unclaimed path cannot name an absent row. */
+export const noClaimFor = (path: string): string => {
+  const suffix = /\.[^./]+$/.exec(path)?.[0]
+  return suffix === undefined ? "No row claims a path without a suffix." : `No row claims \`${suffix}\`.`
+}
+export const unclaimedFileMessage = (path: string): string => `The directory holds nothing by the name ${path}. ${noClaimFor(path)}`

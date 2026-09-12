@@ -1,6 +1,3 @@
-const INBOX = `_olai/${INBOX_STEM}.olai`
-import { Result } from "effect"
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE INBOX CONVENTION, both readings of it.
  *
@@ -27,6 +24,9 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * file the door names, not a deeper one that still holds records.
  */
 
+const INBOX = `_olai/${INBOX_STEM}.olai`
+import { Result } from "effect"
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { readingOf, setOf } from "./fixtures.testlib.ts"
@@ -185,7 +185,7 @@ const WHOLE: Capturing = {
 }
 
 test("every field reaches the `add` — with the minted todo — when the directory already has an inbox", () => {
-  expect(Result.getOrThrow(captureInto(TEST_CLAIMS, "olai", outlinePaths(setOf({ "house.olai": HOUSE, [INBOX]: "" })), WHOLE)))
+  expect(Result.getOrThrow(captureInto(TEST_CLAIMS, "outline-olai", outlinePaths(setOf({ "house.olai": HOUSE, [INBOX]: "" })), WHOLE)))
     .toEqual({ op: "add", file: INBOX, ...WHOLE, mark: "todo" })
 })
 
@@ -193,7 +193,7 @@ test("…and the identical fields reach the seed of the inbox it mints", () => {
   // The same value, so the two arms cannot drift: a `create`'s seed IS an
   // `add`'s capture (./writing.ts), which is what makes one resolution serve
   // both doors.
-  expect(Result.getOrThrow(captureInto(TEST_CLAIMS, "olai", outlinePaths(setOf({ "house.olai": HOUSE })), WHOLE)))
+  expect(Result.getOrThrow(captureInto(TEST_CLAIMS, "outline-olai", outlinePaths(setOf({ "house.olai": HOUSE })), WHOLE)))
     .toEqual({ op: "create", file: INBOX, seed: { ...WHOLE, mark: "todo" } })
 })
 

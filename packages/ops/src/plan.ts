@@ -1,6 +1,3 @@
-import { outlineCalled, TRASH } from "@olai/format"
-import { claimedOf, outlineAt as admitOutline } from "@olai/format"
-import { unclaimedPath } from "./refusals.ts"
 /**
  * A request plus a snapshot, into the whole files that write would produce.
  *
@@ -26,7 +23,9 @@ import { unclaimedPath } from "./refusals.ts"
  * — an id nobody declares, an undo of a mark that is not there — and lets the
  * validator speak for everything else, in its own words, with `file:line`.
  */
-
+import { outlineCalled, TRASH } from "@olai/format"
+import { claimedOf, outlineAt as admitOutline } from "@olai/format"
+import { unclaimedPath } from "./refusals.ts"
 import {
   ancestorsOf,
   BATCH_AT_MOST,
@@ -3571,7 +3570,7 @@ const planCreate = (
   if (claim.holds !== "nodes") return Result.fail(new UsageFailure({ reason: `the ${scope.outlineRow} row does not hold outlines` }))
   if (creatable(request.file, "") === null) return Result.fail(new UsageFailure({ reason: `\`${request.file}\` is not a relative file path under the served directory (no absolute path, no \`..\`, no \`.\`, and no directory the serve's walk prunes).` }))
   const path = claimedOf(scope.claims, request.file)
-  if (path === null) return Result.fail(unclaimedPath(scope.claims, request.file, scope.asked.outlines))
+  if (path === null) return Result.fail(unclaimedPath(request.file, scope.asked.outlines))
   if (admitOutline(scope.claims, { kind: "document", path }) === null) {
     const actual = scope.claims.byKind.get(fileKind(scope.claims, path)!)!
     return Result.fail(new UsageFailure({ reason: `\`${path}\` is ${actual.article} ${actual.noun}; this verb takes an outline` }))
@@ -4357,7 +4356,7 @@ const planEmpty = (
     return Result.fail(
       new UsageFailure({
         reason:
-          `\`${file}\` is not the trash, and \`trash_empty\` empties \`${TRASH_FILE(scope.claims, scope.outlineRow) ?? "Trash"}\` ` +
+          `\`${file}\` is not the trash, and \`trash_empty\` empties \`${TRASH_FILE(scope.claims, scope.outlineRow) ?? TRASH}\` ` +
           `— the one file \`outlines_trash\` writes. Nothing here deletes out of a ` +
           `live outline; \`outlines_trash\` is how a node leaves one.`,
       }),
@@ -5430,7 +5429,7 @@ const planUnmirror = (
  * turned up in. So a `.html` is not found here, and the sentence a caller gets
  * is the one below, naming `markdown_create` and the nearest document. That is
  * the whole of why the page for one has no Edit control (`@olai/web`'s
- * `document/faces.tsx`): the affordance would be a door onto this refusal.
+ * `the per-kind page contributions`): the affordance would be a door onto this refusal.
  *
  * TWO refusals are its own:
  *
@@ -5511,7 +5510,7 @@ const planCreateDocument = (
 ): Planned => {
   if (!scope.claims.byKind.has("markdown")) return Result.fail(new UsageFailure({ reason: "the markdown row is off, so no document can be created" }))
   if (creatable(request.file, "") === null) return Result.fail(new UsageFailure({ reason: `\`${request.file}\` is not a relative file path under the served directory (no absolute path, no \`..\`, no \`.\`, and no directory the serve's walk prunes).` }))
-  if (claimedOf(scope.claims, request.file) === null) return Result.fail(unclaimedPath(scope.claims, request.file, [...scope.asked.serves]))
+  if (claimedOf(scope.claims, request.file) === null) return Result.fail(unclaimedPath(request.file, [...scope.asked.serves]))
   const file = documentPath(scope.claims, request.file)
   if (file === null) {
     return Result.fail(
@@ -5929,6 +5928,6 @@ export const VERBS: ReadonlyArray<Request["op"]> = Object.keys(PLANNERS) as Read
 
 export const plan = (scope: Scope, request: Request): Planned => {
   if (request.op !== "create" && request.op !== "create-doc" && "file" in request && typeof request.file === "string"
-    && claimedOf(scope.claims, request.file) === null) return Result.fail(unclaimedPath(scope.claims, request.file, [...scope.asked.serves]))
+    && claimedOf(scope.claims, request.file) === null) return Result.fail(unclaimedPath(request.file, [...scope.asked.serves]))
   return (PLANNERS[request.op] as (scope: Scope, request: Request) => Planned)(scope, request)
 }

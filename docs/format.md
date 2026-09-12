@@ -512,7 +512,7 @@ There is deliberately **no rule about a mark and the children under it**, and th
 
 ## Errors
 
-Every error names its location: `file:line` of the bad record (one node per line — the line is the whole story). Errors carry a kind — `usage`, `validation`, `not-found`, `busy` — surfaced as MCP tool errors and HTTP codes, with structured detail (e.g. a `validation` refusal carries the validator's own verdict as data, not prose). There were five: `derived` refused a write that would have stored a computed status, and went when derivation did.
+Every error names its location: `file:line` of the bad record (the record’s first line; a format may span more than one). Errors carry a kind — `usage`, `validation`, `not-found`, `busy` — surfaced as MCP tool errors and HTTP codes, with structured detail (e.g. a `validation` refusal carries the validator's own verdict as data, not prose). There were five: `derived` refused a write that would have stored a computed status, and went when derivation did.
 
 **The judgement itself is shaped data.** A refused write answers with a **verdict**, not a list of rows: the rows are in it and travel whole, and the questions consumers used to re-derive from them are answered at the socket instead. A LOAD no longer refuses at all, so the same rows reach a reader on the FILES they broke — one entry per broken file, which is what the sidebar marks, what that file's page draws, and what any summary counts.
 
@@ -531,13 +531,13 @@ Writers emit canonical field order, literal UTF-8 (no `\uXXXX` escaping beyond J
 
 **There is one writer, and callers do not assemble bytes.** A writer is handed the records of a whole file and hands back the whole file, so every separator — the newline between two records, the one at the end, the absence of a blank line — has exactly one owner. That is not tidiness: a caller that built its own bytes once produced two records glued onto one line, out of a write that every layer above believed had succeeded, and the file that came out was one no reader could parse. The shape is what makes it unrepresentable, and there is a test that says so.
 
-**Absent has one spelling, and the writer is what enforces it.** An optional field holding nothing — `undefined`, `null`, `[]` or `""` — is not written, so `{"after":[]}` cannot reach a file however a writer arrived at it. Two files that mean the same thing must not differ byte for byte: the format's whole bet is that a line-based git merge is safe, and a conflict over `after: []` against no `after` is a conflict about nothing. A REQUIRED field is written whatever it holds, and the asymmetry is deliberate — dropping one produces a line the reader rejects outright, which is worse than handing an odd value to the validator that is about to see it anyway.
+**Absent has one spelling, and the writer is what enforces it.** An optional field holding nothing — `undefined`, `null`, `[]` or `""` — is not written, so `{"after":[]}` cannot reach a file however a writer arrived at it. Two files that mean the same thing must not differ byte for byte: the outline-olai format's merge bet is that a line-based git merge is safe, and a conflict over `after: []` against no `after` is a conflict about nothing. A REQUIRED field is written whatever it holds, and the asymmetry is deliberate — dropping one produces a line the reader rejects outright, which is worse than handing an odd value to the validator that is about to see it anyway.
 
 **A record is one line by construction**, not by care: a `desc`'s embedded newlines are escaped by JSON itself, which is the whole reason the format is JSONL rather than indented JSON.
 
 **Sibling order is an insert, not a renumbering.** `ord` is a fractional index over base62, so a node placed between two neighbours mints a key that sorts between them and touches neither — a one-line diff, which is what keeps line-based git merges worth having. The one case with no answer is arithmetic rather than a gap: nothing sorts between `x` and `x0`, because every string above `x` begins with `x` and the least of those IS `x0`. The writer renumbers that row rather than guessing.
 
-Because each node is one line with a stable id, plain line-based git merges are safe; a merge driver keyed by node id can be added later if concurrent-edit conflicts become painful.
+For outline-olai, each node is one line with a stable id, so plain line-based git merges are safe; a merge driver keyed by node id can be added later if concurrent-edit conflicts become painful.
 
 ## Relation to the Racket reference (PR #54 on `master-racket`)
 
@@ -564,3 +564,5 @@ An outline address keeps the `kind: "document"` address discriminator;
 `outlineAt` admits it only when the current claim holds nodes. A format's
 `parse(file, contents, claims)` receives the caller's snapshot and never
 consults the registry itself.
+
+A root-level `Pins.olai` is no longer the shelf. Move convention files directly into `_olai/`; only that directory participates in Inbox, Pins, Trash and Properties resolution. Each outline format states its own serialization and merge guarantees; the JSONL guarantees above belong to `outline-olai`.

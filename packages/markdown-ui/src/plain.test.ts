@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The fast path is only allowed to be fast if it is also RIGHT.
  *
@@ -18,7 +17,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * markdown can do to a line, which is the same list ./plain.ts is written
  * against.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { installPipeline } from "./chunk.ts"

@@ -1,6 +1,3 @@
-import { useHead } from "./vault.ts"
-import { servedDirectory } from "./vault.ts"
-import { TESTID } from "olai-plugin-image/testids"
 /**
  * A served picture, drawn — one `<img>`, pointed at the file's own URL on the
  * media route.
@@ -35,7 +32,9 @@ import { TESTID } from "olai-plugin-image/testids"
  * nothing else, so a control here would be a door onto a refusal. That is
  * `edits: false` in the registry of faces (./faces.tsx).
  */
-
+import { useHead } from "./vault.ts"
+import { servedDirectory } from "./vault.ts"
+import { TESTID } from "olai-plugin-image/testids"
 import { stemOf } from "@olai/format"
 
 
@@ -54,7 +53,7 @@ export function Image(props: { readonly file: string }) {
          heading of this page, and a screen reader reading it twice is the
          page saying the same thing in two voices. Not empty either — a
          picture that IS the page is never decoration. */
-      alt={stemOf(servedDirectory()!.claims(), props.file)}
+      alt={(() => { const claims = servedDirectory()?.claims(); return claims === undefined ? props.file : stemOf(claims, props.file) })()}
       class="block h-auto max-w-full rounded border border-rule"
       data-testid={TESTID.imageView}
       data-file={props.file}

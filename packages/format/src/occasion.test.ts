@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE INDEX AGAINST THE WALK IT REPLACED.
  *
@@ -67,7 +66,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * day and unfinished, so a generator that could not fool the first walk cannot
  * fool the second either.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { type Agenda, type AgendaDay, agendaOf, owedIn, owedNow, owedOf } from "./agenda.ts"

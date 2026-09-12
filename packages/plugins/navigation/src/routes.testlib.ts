@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE ROUTE VOCABULARY, shared — every address the app can SPELL, as the
  * routes they read back to, the day either reader asks.
@@ -14,8 +13,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * the grammar's (`./routes.ts`'s `NAMED` table is deliberately module-private,
  * so this file is the vocabulary's one shared spelling) — and the file-kind
  * block below is not even a hand list: it enumerates `@olai/format`'s
- * `FILE_KINDS`, so a suffix the registry claims the day it is claimed is a row
- * here the same day.
+ * literal `TEST_CLAIMS`, so every suffix in that fixture table has a row here.
  *
  * IT IS A DECLARED DOOR (`./routes.testlib.ts` in this manifest's `exports` and
  * `olai.contracts`), and that is the second reader's doing rather than a
@@ -26,9 +24,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * STATIC door. Undeclared, the same import would be red in that file's
  * "plugins consume other plugins only through static contract doors".
  */
-
-
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import {
   atElement,
   atFile,

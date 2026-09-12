@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE STANDING VIEWS, ONE CLAIM AT A TIME.
  *
@@ -16,7 +15,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * pre-check that quietly stopped noticing marks would fail a sentence rather
  * than a statistic.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import { expect, test } from "bun:test"
 
 import {

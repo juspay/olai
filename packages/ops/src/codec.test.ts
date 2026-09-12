@@ -1,5 +1,3 @@
-import { claims } from "@olai/format"
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The seam, in the one way it can be got wrong.
  *
@@ -14,7 +12,8 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * So each test validates the same set twice, once building on the last verdict
  * and once from nothing, and asserts the two are the same reading.
  */
-
+import { claims } from "@olai/format"
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import type { Document, OutlineError, Reading } from "@olai/format"
 import {
   markdownIn,

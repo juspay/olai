@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * Why a row is drawn, as the three things a filtered page says about it.
  *
@@ -19,7 +18,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * The fixed-query note in `./narrowing.test.ts` applies unchanged: there is no
  * DOM under `bun test`, so each case builds its own reading.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, litBy, parseFilter, rowsOf, type Shown } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"

@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * TYPED PROPERTIES, at the floor: what a vault declares, what a value has to
  * be, and the two spellings that get normalised into one.
@@ -10,7 +9,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * once in `./typing.ts` and worn twice, so it is proved once here rather than
  * twice at the doors.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { derive } from "./derive.ts"

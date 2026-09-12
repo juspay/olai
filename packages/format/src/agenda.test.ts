@@ -1,3 +1,6 @@
+/** The day every fixture below is read on. Fixed, because a derivation that
+ *  read a clock would be a derivation whose tests expire — and because "before,
+ *  on, after" is the whole of what these three sections are about. */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -20,10 +23,6 @@ import { derive, type Derived } from "./derive.ts"
 import { matching, parseFilter } from "./filter.ts"
 import { nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import { type Located, type RegularNode } from "./node.ts"
-
-/** The day every fixture below is read on. Fixed, because a derivation that
- *  read a clock would be a derivation whose tests expire — and because "before,
- *  on, after" is the whole of what these three sections are about. */
 const TODAY = "2026-08-12"
 
 /**

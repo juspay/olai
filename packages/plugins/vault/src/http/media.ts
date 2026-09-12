@@ -56,8 +56,7 @@
  * placed there, in a tree they are already serving whole.
  */
 
-import { type Claims } from "@olai/format"
-import mime from "mime/lite"
+import { servingOf, type Claims } from "@olai/format"
 import {
   MEDIA_PREFIX,
   mediaTarget,
@@ -103,7 +102,7 @@ export const mediaLayer = (root: string, table: () => Claims) =>
             const target = mediaTarget(claims, request.url)
             if (target === null) return missing
 
-            if (mime.getType(target) === "text/html") {
+            if (servingOf(claims, target).sealed) {
               return yield* page(disk, root, target, request.headers["host"] ?? "", [...claims.byExt.keys()])
             }
 
@@ -123,7 +122,7 @@ export const mediaLayer = (root: string, table: () => Claims) =>
               Effect.map((response) =>
                 HttpServerResponse.setHeaders(
                   response,
-                  response.headers["content-type"]?.startsWith("image/svg+xml") ? INERT : NOSNIFF,
+                  servingOf(claims, target).inert ? INERT : NOSNIFF,
                 )
               ),
               // The engine's own misses come back as failures; they are this
@@ -194,9 +193,7 @@ const INERT = {
 const served = (target: string): string =>
   `/${target.split("/").map(encodeURIComponent).join("/")}`
 
-/** The seal's prefix as the bytes it is, encoded ONCE rather than per request:
- *  it is a constant, and a preview of a megabyte file should not pay for
- *  re-encoding half a kilobyte of ours. */
+/** Encode this request's current claim suffixes into the seal prefix. */
 const prefix = (extensions: ReadonlyArray<string>) => new TextEncoder().encode(SEAL(extensions))
 
 /** The refused page's own bytes, encoded once for the same reason: it is a

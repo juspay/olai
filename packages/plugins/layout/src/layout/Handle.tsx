@@ -1,5 +1,3 @@
-import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
-import { TESTID } from "olai-plugin-layout/testids"
 /**
  * The drag handle between a panel and the page.
  *
@@ -11,7 +9,8 @@ import { TESTID } from "olai-plugin-layout/testids"
  * Keyboard users reset widths from the palette ("Reset panel widths"); this
  * control is pointer-only.
  */
-
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "olai-plugin-layout/testids"
 import { onCleanup } from "solid-js"
 
 import { WITHIN } from "@olai/web/client/layer.ts"

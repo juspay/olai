@@ -1,6 +1,6 @@
-import type { AppCommand } from "olai-plugin-navigation/slots"
 /** Generic palette rows and prefix grammar. Feature providers own the words,
  * character, write behavior and continuation of every contributed prefix. */
+import type { AppCommand } from "olai-plugin-navigation/slots"
 import type { Place } from "olai-plugin-search/ui/place.ts"
 import type {Hung } from "@olai/plugin-api"
 import type { Edit } from "@olai/surface"

@@ -1,10 +1,9 @@
-import { useDocumentReading } from "../reading.tsx"
-import { servedDirectory } from "../vault.ts"
-import { TESTID } from "olai-plugin-markdown/testids"
 /** Markdown's page and editor. The path keys its draft; leaving another
  * capability does not dispose it. Properties and referrers use the metadata
  * reading, while the editor holds the current body as its write baseline. */
-
+import { useDocumentReading } from "../reading.tsx"
+import { servedDirectory } from "../vault.ts"
+import { TESTID } from "olai-plugin-markdown/testids"
 import { bodyKind, type Custom } from "@olai/format"
 import { createMemo, onCleanup, Show } from "solid-js"
 

@@ -1,4 +1,3 @@
-import { isMarkdown } from "./document.ts"
 /**
  * What a query MEANS — the one matcher, and the two SHAPES its callers want.
  *
@@ -40,7 +39,7 @@ import { isMarkdown } from "./document.ts"
  * The design, with the alternatives that lost, is
  * https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-in-place.md.
  */
-
+import { isMarkdown } from "./document.ts"
 import type { Outline } from "./document.ts"
 import { Schema } from "effect"
 

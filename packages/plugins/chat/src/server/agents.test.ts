@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE ROSTER, ASSEMBLED — what the join does with two halves that can disagree,
  * and which KEY the vault half is read from.
@@ -19,7 +18,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * node agents at all — a claimed key declared something else, and a column
  * nothing declares.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import type { Overheard } from "olai-plugin-chat"

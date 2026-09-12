@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * A SCOPE AND AN INDEX NARROW THE SAME SEARCH, and must select the same
  * records.
@@ -25,7 +24,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * all night and pass, so the counters below insist on asks that went through a
  * candidate list AND asks that did not.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import {
   asksOver,
   decodedVault,
@@ -35,7 +34,7 @@ import {
   TANGLED,
 } from "@olai/format/testlib/scope"
 import { assemble, nodesIn, reading, verdictOf } from "@olai/format"
-import { parseOutline } from "olai-plugin-olai/format"
+import { parseOutline } from "olai-plugin-outline-olai/format"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 

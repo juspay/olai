@@ -1,4 +1,4 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import { expect, test } from "bun:test"
 import { NodeServices } from "@effect/platform-node"
 import { Effect, Queue, Stream, Schema } from "effect"
@@ -20,7 +20,7 @@ test("Markdown owns live frontmatter and missing-file metadata with outlines abs
   writeFileSync(join(root,"other.md"),"Another document\n")
   writeFileSync(file,"---\nagent: first\n---\nHello\n")
   const store = yield* Store.make({root,codec:codecFor(NO_KINDS, { current: TEST_CLAIMS }),watch:false,settle:"10 millis"})
-  const ops = makeOps({claims: { current: TEST_CLAIMS }, format: "olai", store,root})
+  const ops = makeOps({claims: { current: TEST_CLAIMS }, format: "outline-olai", store,root})
   yield* Effect.addFinalizer(() => ops.close)
   const plugins = yield* capabilitiesOver(store,ops,root,{rows:["markdown"]})
   const wired = yield* bind({plugins,hostname:"test",startedAt:""})

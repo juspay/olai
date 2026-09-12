@@ -1,5 +1,3 @@
-import { mintExt } from "./kinds.ts"
-import type { Claims } from "./kinds.ts"
 /**
  * The set, read by day.
  *
@@ -58,7 +56,8 @@ import type { Claims } from "./kinds.ts"
  * `2026-08-10` put through one comes back a datetime, and a calendar has no
  * business being the first place in the codebase that risks it.
  */
-
+import { mintExt } from "./kinds.ts"
+import type { Claims } from "./kinds.ts"
 import { Order, Schema } from "effect"
 
 import { dayAt, type Derived, Situated, situate } from "./derive.ts"

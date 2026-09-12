@@ -592,3 +592,16 @@ test("retiring the wire and republishing claims replaces the directory's kind re
   expect(previous.byKind.has("returned")).toBe(false)
   directory.stop()
 })
+
+test("an overlapping claims frame degrades to empty and a later frame reconnects", () => {
+  const directory = live()
+  const first = { kind: "first", exts: [".drawing"] as const, holds: "bytes" as const, kept: false, fetched: true, noun: "drawing", article: "a" as const }
+  directory.publishClaims({ claims: [first], outlineRow: "configured" })
+  expect(directory.kindOf("a.drawing")).toBe("first")
+  directory.publishClaims({ claims: [first, { ...first, kind: "overlap" }], outlineRow: "configured" })
+  expect(directory.claims().byKind.size).toBe(0)
+  expect(directory.kindOf("a.drawing")).toBeNull()
+  directory.publishClaims({ claims: [first], outlineRow: "configured" })
+  expect(directory.kindOf("a.drawing")).toBe("first")
+  directory.stop()
+})

@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The ⏱ chip at a row's far hand: how long the work TOOK, or how long it has
  * been GOING — the face deliberately concise, the HOVER telling the whole
@@ -56,7 +55,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * (`../../NodeLine.tsx` says whose filler that is). Nothing here picks anything —
  * a chip that opened a box would be a verb, and the span is a readout.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { type RegularNode, storedMarker, tookOf } from "@olai/format"
 import { Match, Switch } from "solid-js"
 

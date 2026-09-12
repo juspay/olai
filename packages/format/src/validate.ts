@@ -1,4 +1,3 @@
-import type { Claims } from "./kinds.ts"
 /**
  * Phase two of the codec: the one whole-set validator.
  *
@@ -83,7 +82,7 @@ import type { Claims } from "./kinds.ts"
  * validator asks the same functions about fewer of them — which is the whole of
  * what {@link ./incremental.ts} is.
  */
-
+import type { Claims } from "./kinds.ts"
 import { Result } from "effect"
 
 import { derive, type Derived } from "./derive.ts"

@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * A `.html` in the vault: the row, the page, and the seal around the file.
  *
@@ -15,7 +14,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * deliberately asserted after a step that has already seen the preview draw —
  * an empty storage is trivially true of a page that never loaded.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";

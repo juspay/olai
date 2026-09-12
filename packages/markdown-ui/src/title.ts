@@ -1,4 +1,3 @@
-import type { Claims } from "@olai/format"
 /**
  * A node's title, as safe HTML.
  *
@@ -51,7 +50,7 @@ import type { Claims } from "@olai/format"
  * is the "show what you wrote" fallback, and marking it up is exactly what it
  * is refusing to do.
  */
-
+import type { Claims } from "@olai/format"
 import type { Element, ElementContent, Root, RootContent, Text } from "hast"
 
 import { NO_NEEDLES } from "@olai/markdown-ui/lit.ts"

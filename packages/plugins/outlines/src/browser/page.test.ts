@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The two ends of the page seam that are still the browser's: the QUESTION a
  * route turns into, and the reading folded into the shape a filter narrows.
@@ -10,7 +9,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * `page.test.ts`, over the same shape of fixture, beside the parity that says
  * the answer equals what a browser would have derived.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { addressOf } from "@olai/format"
 import type { Agenda, Row, Shown } from "@olai/format"
 import { expect, test } from "bun:test"

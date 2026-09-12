@@ -1,3 +1,6 @@
+/** Outlines owns editor history, selection/drag registers, page readings and
+ * browser preferences. These resources live in the provider activation, before
+ * and independently of any layout. Content and settings are separate consumers. */
 import { fileKindKey } from "@olai/plugin-api/file-kinds"
 import { fileKinds } from "olai-plugin-files/contract"
 import { pages } from "olai-plugin-navigation/contract"
@@ -11,9 +14,6 @@ import { holdEdits, writeEdit } from "./browser/writes.ts"
 import { slotContracts } from "./slots.ts"
 import { fileKind } from "@olai/format"
 import {Clocks} from "@olai/plugin-api"
-/** Outlines owns editor history, selection/drag registers, page readings and
- * browser preferences. These resources live in the provider activation, before
- * and independently of any layout. Content and settings are separate consumers. */
 import { definePlugin, Faces, Offers } from "@olai/plugin-api"
 import { holdFaces } from "./browser/faces.ts"
 import { holdLocations } from "./browser/locations.ts"

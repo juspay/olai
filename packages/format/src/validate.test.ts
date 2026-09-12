@@ -1,3 +1,15 @@
+/**
+ * THE REPORT a set produces — the rows a reader is shown, in presentation
+ * order.
+ *
+ * A validation no longer REFUSES over any of these: since the per-file ruling
+ * it answers with the directory, published with the broken files' content
+ * withheld, and the rows ride on those files ({@link findingsIn} reads them
+ * back). So the assertions below are unchanged — they were always about the
+ * report — and what changed is the door they come through. The DEGRADATION
+ * itself is asserted separately, below, where the sets are small enough to name
+ * which file went dark.
+ */
 import { DocumentPath } from "./address.ts"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
@@ -27,19 +39,6 @@ import {
 } from "./set.ts"
 import type { ContributedKind, KindVocabulary } from "./typing.ts"
 import { following, type Previous, type Reading, reading, validate } from "./validate.ts"
-
-/**
- * THE REPORT a set produces — the rows a reader is shown, in presentation
- * order.
- *
- * A validation no longer REFUSES over any of these: since the per-file ruling
- * it answers with the directory, published with the broken files' content
- * withheld, and the rows ride on those files ({@link findingsIn} reads them
- * back). So the assertions below are unchanged — they were always about the
- * report — and what changed is the door they come through. The DEGRADATION
- * itself is asserted separately, below, where the sets are small enough to name
- * which file went dark.
- */
 const errorsOf = (
   files: Record<string, string>,
   documents: ReadonlyArray<string> = [],

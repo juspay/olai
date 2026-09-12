@@ -31,7 +31,7 @@ export function FileRail() { const router = useRouter(); return <>
         onClick={() => setSidebarOpen(true)}
       >
         {/* And the tree's document glyph, for the same reason. */}
-        <Glyph of="markdown" size={ICON} />
+        <Glyph of={[...(servedDirectory()?.claims().byKind.values() ?? [])].find(claim => claim.holds === "text" && claim.kept)?.kind ?? ""} size={ICON} />
       </RailButton>
 
 </> }

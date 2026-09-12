@@ -213,7 +213,7 @@ export const paragraphsIn = (tools: ReadonlyArray<Tool>, name: string): number =
  * nothing to say about it.
  */
 export const gaveOf = (search: Search, tools: ReadonlyArray<Tool>, row: string) => {
-  const door = asking(Effect.sync(() => ({ ...at(), outlineRow: "olai" })), steady().now, NO_KINDS, search)
+  const door = asking(Effect.sync(() => ({ ...at(), outlineRow: "outline-olai" })), steady().now, NO_KINDS, search)
   const gave = new Map<string, ReadonlyArray<Record<string, unknown>>>()
   for (const tool of readsOf(tools)) {
     if (tool.kind !== "read") continue

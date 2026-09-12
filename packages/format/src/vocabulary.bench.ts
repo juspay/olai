@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What the tag completion costs per derivation: the index read against the
  * corpus walks it replaced.
@@ -51,7 +50,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * shallow copy of the view is a new key over the same indexes, which is exactly
  * what a server is left holding when one file changes.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import {
   derive,
   type Derived,

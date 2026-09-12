@@ -1,4 +1,3 @@
-import mime from "mime/lite"
 /**
  * Documents: the `.md` files a served directory holds, what a node's `doc`
  * points at, and what a document is allowed to point at in turn.
@@ -34,7 +33,6 @@ import mime from "mime/lite"
  *     as a `doc` and as a picture, asked about the third thing markdown can
  *     point at: another file of this directory that has a page.
  */
-
 import { type Address, addressOf, printAddress } from "./address.ts"
 import { proseIn } from "./frontmatter.ts"
 import { bodyKind, type Claims, isFetched } from "./kinds.ts"
@@ -247,6 +245,15 @@ export const pathedOf = (from: string, href: string): string | null =>
  *  treat as part of a file name. */
 const SCHEME = /^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|\/\/)/
 
+/** Whether a path ends in one of these suffixes, case-folded — the matching
+ *  RULE, held once for the two lists below it. Case-folding, exact suffix, no
+ *  dot boundary: two allowlists answering the same shape of question should not
+ *  be two chances to refine one of them and not the other. */
+const suffixed = (path: string, extensions: ReadonlyArray<string>): boolean => {
+  const lower = path.toLowerCase()
+  return extensions.some((extension) => lower.endsWith(extension))
+}
+
 /**
  * The extensions a picture MARKDOWN MAY NAME.
  *
@@ -270,19 +277,17 @@ const SCHEME = /^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|\/\/)/
  */
 
 
-/** Whether a path ends in one of these suffixes, case-folded — the matching
- *  RULE, held once for the two lists below it. Case-folding, exact suffix, no
- *  dot boundary: two allowlists answering the same shape of question should not
- *  be two chances to refine one of them and not the other. */
-const suffixed = (path: string, extensions: ReadonlyArray<string>): boolean => {
+export const isPicture = (claims: Claims, path: string): boolean => {
   const lower = path.toLowerCase()
-  return extensions.some((extension) => lower.endsWith(extension))
+  return [...claims.byKind.values()].some(claim => claim.picture === true &&
+    suffixed(lower, claim.exts) && !suffixed(lower, claim.inert ?? []))
 }
 
-export const isPicture = (claims: Claims, path: string): boolean => {
-  if (!isFetched(claims, path)) return false
-  const type = mime.getType(path)
-  return type !== null && type.startsWith("image/") && type !== "image/svg+xml"
+/** Serving policy comes from the current claim, including case-folded images. */
+export const servingOf = (claims: Claims, path: string): { sealed: boolean; inert: boolean } => {
+  const claim = [...claims.byKind.values()].find(claim =>
+    claim.exts.some(ext => path.endsWith(ext) || (claim.picture === true && path.toLowerCase().endsWith(ext))))
+  return { sealed: claim?.serving === "sealed-frame", inert: suffixed(path, claim?.inert ?? []) }
 }
 
 /**
@@ -357,7 +362,7 @@ const ASSET_EXTENSIONS: ReadonlyArray<string> = [
  * there was a picture kind — and a document naming one has always drawn it.
  */
 export const isAsset = (claims: Claims, path: string): boolean =>
-  isFetched(claims, path) || suffixed(path, ASSET_EXTENSIONS)
+  isFetched(claims, path) || isPicture(claims, path) || suffixed(path, ASSET_EXTENSIONS)
 
 /**
  * A document, in one line: its first line with anything on it, heading marks

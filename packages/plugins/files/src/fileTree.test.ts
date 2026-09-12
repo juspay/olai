@@ -17,14 +17,14 @@ test("a flat directory is one list of files, outlines and documents mixed", () =
       key: "file:garden.olai",
       name: "garden",
       file: "garden.olai",
-      of: "olai",
+      of: "outline-olai",
     },
     {
       kind: "file",
       key: "file:house.olai",
       name: "house",
       file: "house.olai",
-      of: "olai",
+      of: "outline-olai",
     },
   ])
 })
@@ -41,7 +41,7 @@ test("a row's kind is read off its name, and an unclaimed path is not a row", ()
       key: "file:a.olai",
       name: "a",
       file: "a.olai",
-      of: "olai",
+      of: "outline-olai",
     },
     {
       kind: "file",
@@ -67,7 +67,7 @@ test("a nested path becomes a directory node with the stem as the leaf", () => {
       key: "file:house.olai",
       name: "house",
       file: "house.olai",
-      of: "olai",
+      of: "outline-olai",
     },
     {
       kind: "dir",
@@ -110,7 +110,7 @@ test("a directory mixes outlines and documents under one node", () => {
           key: "file:Daily/2026-08.olai",
           name: "2026-08",
           file: "Daily/2026-08.olai",
-          of: "olai",
+          of: "outline-olai",
         },
         {
           kind: "file",
@@ -133,7 +133,7 @@ test("a directory mixes outlines and documents under one node", () => {
       key: "file:house.olai",
       name: "house",
       file: "house.olai",
-      of: "olai",
+      of: "outline-olai",
     },
   ])
 })
@@ -157,7 +157,7 @@ test("depth is preserved: a chain of directories is a chain of dir nodes", () =>
               key: "file:a/b/c.olai",
               name: "c",
               file: "a/b/c.olai",
-              of: "olai",
+              of: "outline-olai",
             },
           ],
         },
@@ -183,7 +183,7 @@ test("children sort by name, dirs and files together", () => {
       key: "file:house.olai",
       name: "house",
       file: "house.olai",
-      of: "olai",
+      of: "outline-olai",
     },
     {
       kind: "dir",
@@ -196,7 +196,7 @@ test("children sort by name, dirs and files together", () => {
           key: "file:notes/inner.olai",
           name: "inner",
           file: "notes/inner.olai",
-          of: "olai",
+          of: "outline-olai",
         },
       ],
     },

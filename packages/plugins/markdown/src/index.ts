@@ -1,10 +1,3 @@
-import { serviceTag } from "@olai/plugin-api/contracts"
-export { name } from "./name.ts"
-
-import type { Undo } from "@olai/edit-history/undoing.ts"
-import type { Client } from "./client.ts"
-import type { Documents } from "./browser/document/documents.tsx"
-
 /**
  * WHAT THIS ROW OWNS IN A TAB — the state a consumer that names
  * {@link browserState} is handed.
@@ -20,6 +13,12 @@ import type { Documents } from "./browser/document/documents.tsx"
  * names the shapes without pulling a line of the row's implementation onto
  * anybody's graph.
  */
+import { serviceTag } from "@olai/plugin-api/contracts"
+export { name } from "./name.ts"
+
+import type { Undo } from "@olai/edit-history/undoing.ts"
+import type { Client } from "./client.ts"
+import type { Documents } from "./browser/document/documents.tsx"
 export interface MarkdownBrowser {
   /** This row's sibling client, on whichever wire is current. */
   readonly client: () => Client

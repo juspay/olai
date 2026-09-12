@@ -1,7 +1,6 @@
 /** Shared read-only page chrome. Every live value is handed in by the page
  * component that declared it; this module owns no client or directory holder. */
 import { createMemo, Show, Switch, Match, type JSX } from "solid-js"
-import type { MarkdownBrowser } from "../index.ts"
 import type { Directory } from "olai-plugin-vault/file-state"
 import type { Navigation } from "olai-plugin-navigation/contract"
 import { useHere, useFollow } from "olai-plugin-navigation/routing"
@@ -17,7 +16,6 @@ import { documentRequest } from "olai-plugin-markdown/document-route"
 import { Referrers } from "olai-plugin-markdown/referrers"
 
 export function BodyPage(props: {
-  readonly browser: MarkdownBrowser
   readonly directory: Directory
   readonly navigation: Navigation
   readonly Body: (props: { readonly file: string }) => JSX.Element
@@ -27,10 +25,10 @@ export function BodyPage(props: {
   const request = createMemo<DocumentPageRequest | null>(() => documentRequest(props.directory.claims(), route()), null, {
     equals: (a, b) => a === null || b === null ? a === b : samePageRequest(a, b),
   })
-  const reading = props.browser.client().streams.documentPage.use(request)
+  const reading = props.directory.bodyPage(request)
   const page = createMemo<PageReading | undefined>(previous => reading() ?? previous)
   const file = () => request()?.address.path
-  props.navigation.report(here, () => ({ file: file(), title: file(), history: props.browser.history }))
+  props.navigation.report(here, () => ({ file: file(), title: file() }))
   return <main class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 pb-16 ${CLEARANCE} md:px-10 md:py-10`}
     data-testid={NAV.pane} data-pane={String(here())}
     data-pane-focused={here() === props.navigation.workspace().focus ? "true" : undefined}

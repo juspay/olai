@@ -80,8 +80,8 @@
         "olai-plugin-mcp": "workspace:*",
         "olai-plugin-navigation": "workspace:*",
         "olai-plugin-odu": "workspace:*",
-        "olai-plugin-olai": "workspace:*",
         "olai-plugin-opencode": "workspace:*",
+        "olai-plugin-outline-olai": "workspace:*",
         "olai-plugin-outlines": "workspace:*",
         "olai-plugin-pdf": "workspace:*",
         "olai-plugin-pi": "workspace:*",
@@ -153,15 +153,8 @@
       "dependencies": {
         "effect": "4.0.0-rc.112",
         "fastest-levenshtein": "^1.0.16",
-        "mime": "4.1.0",
       },
       "devDependencies": {
-        "olai-plugin-csv": "workspace:*",
-        "olai-plugin-hypertext": "workspace:*",
-        "olai-plugin-image": "workspace:*",
-        "olai-plugin-markdown": "workspace:*",
-        "olai-plugin-olai": "workspace:*",
-        "olai-plugin-pdf": "workspace:*",
         "yaml": "^2.9.0",
       },
     },
@@ -214,7 +207,7 @@
         "@effect/platform-node": "4.0.0-rc.112",
         "@olai/log": "workspace:*",
         "@types/node": "^22.0.0",
-        "olai-plugin-olai": "workspace:*",
+        "olai-plugin-outline-olai": "workspace:*",
       },
     },
     "packages/plugin-api": {
@@ -355,7 +348,6 @@
       "dependencies": {
         "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
-        "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "@olai/web": "workspace:*",
         "effect": "4.0.0-rc.112",
@@ -421,7 +413,6 @@
       "name": "olai-plugin-hypertext",
       "version": "0.1.0",
       "dependencies": {
-        "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
@@ -459,9 +450,7 @@
       "dependencies": {
         "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
-        "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
-        "@olai/web": "workspace:*",
         "effect": "4.0.0-rc.112",
         "olai-plugin-files": "workspace:*",
         "olai-plugin-markdown": "workspace:*",
@@ -500,6 +489,7 @@
         "@olai/ops": "workspace:*",
         "@olai/store": "workspace:*",
         "@types/node": "^22.0.0",
+        "olai-plugin-outline-olai": "workspace:*",
         "olai-plugin-sidebar": "workspace:*",
       },
     },
@@ -622,15 +612,6 @@
         "olai-plugin-outlines": "workspace:*",
       },
     },
-    "packages/plugins/olai": {
-      "name": "olai-plugin-olai",
-      "version": "0.1.0",
-      "dependencies": {
-        "@olai/format": "workspace:*",
-        "@olai/plugin-api": "workspace:*",
-        "effect": "4.0.0-rc.112",
-      },
-    },
     "packages/plugins/opencode": {
       "name": "olai-plugin-opencode",
       "version": "0.1.0",
@@ -644,6 +625,15 @@
       "devDependencies": {
         "@agentclientprotocol/sdk": "^1.3.0",
         "olai-plugin-chat": "workspace:*",
+      },
+    },
+    "packages/plugins/outline-olai": {
+      "name": "olai-plugin-outline-olai",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/format": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0-rc.112",
       },
     },
     "packages/plugins/outlines": {
@@ -681,11 +671,9 @@
       "name": "olai-plugin-pdf",
       "version": "0.1.0",
       "dependencies": {
-        "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
-        "@olai/web": "workspace:*",
         "effect": "4.0.0-rc.112",
         "olai-plugin-files": "workspace:*",
         "olai-plugin-markdown": "workspace:*",
@@ -785,7 +773,7 @@
         "@olai/store": "workspace:*",
         "@types/node": "^22.0.0",
         "olai-plugin-layout": "workspace:*",
-        "olai-plugin-olai": "workspace:*",
+        "olai-plugin-outline-olai": "workspace:*",
       },
     },
     "packages/plugins/settings": {
@@ -900,7 +888,6 @@
         "@olai/ui-primitives": "workspace:*",
         "@olai/web": "workspace:*",
         "effect": "4.0.0-rc.112",
-        "mime": "4.1.0",
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-navigation": "workspace:*",
         "olai-plugin-ui-renderer": "workspace:*",
@@ -991,6 +978,7 @@
         "olai-plugin-identity": "workspace:*",
         "olai-plugin-markdown": "workspace:*",
         "olai-plugin-mcp": "workspace:*",
+        "olai-plugin-outline-olai": "workspace:*",
         "olai-plugin-vault": "workspace:*",
         "olai-plugin-web-app": "workspace:*",
       },
@@ -1934,9 +1922,9 @@
 
     "olai-plugin-odu": ["olai-plugin-odu@workspace:packages/plugins/odu"],
 
-    "olai-plugin-olai": ["olai-plugin-olai@workspace:packages/plugins/olai"],
-
     "olai-plugin-opencode": ["olai-plugin-opencode@workspace:packages/plugins/opencode"],
+
+    "olai-plugin-outline-olai": ["olai-plugin-outline-olai@workspace:packages/plugins/outline-olai"],
 
     "olai-plugin-outlines": ["olai-plugin-outlines@workspace:packages/plugins/outlines"],
 

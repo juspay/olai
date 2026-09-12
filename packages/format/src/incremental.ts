@@ -1,4 +1,3 @@
-import type { Claims } from "./kinds.ts"
 /**
  * THE SAME VERDICT, REACHED FROM WHAT MOVED — the validator narrowed to the
  * records an edit could have changed.
@@ -99,7 +98,7 @@ import type { Claims } from "./kinds.ts"
  * proportional to the directory except the two arms it declines to narrow — the
  * cycle walks, when the graph moved — and `./validate.bench.ts` prints both.
  */
-
+import type { Claims } from "./kinds.ts"
 import { byCorpus, type Derived } from "./derive.ts"
 import { isMarkdown } from "./document.ts"
 import type { OutlineError } from "./errors.ts"

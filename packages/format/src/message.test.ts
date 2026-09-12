@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The words a commit gets when nobody wrote any.
  *
@@ -7,7 +6,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * system will ever notice if it degrades: an ugly subject line commits exactly
  * as well as a good one.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 
 import type { NodeChange } from "./changes.ts"

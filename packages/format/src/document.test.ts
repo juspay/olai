@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The two readings the face made possible, held to their rules.
  *
@@ -8,7 +7,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * reach cheaply, which is what this file is for; `packages/tests` proves the
  * same two reach a screen.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { addressOf, printAddress } from "./address.ts"

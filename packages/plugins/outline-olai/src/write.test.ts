@@ -2,9 +2,9 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { MirrorNode, type Node, RegularNode } from "./node.ts"
-import { parseOutline } from "olai-plugin-olai/format"
-import { serializeNode, serializeOutline } from "olai-plugin-olai/format"
+import { MirrorNode, type Node, RegularNode } from "@olai/format"
+import { parseOutline } from "olai-plugin-outline-olai/format"
+import { serializeNode, serializeOutline } from "olai-plugin-outline-olai/format"
 
 const regular = (fields: Partial<RegularNode>): RegularNode => ({
   id: "n",

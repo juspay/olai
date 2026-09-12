@@ -13,6 +13,8 @@ const sources = tracked(import.meta.filename)
 /** These answer what an agent may receive, independently of what the vault
  * serves. The fake agent is a third-party peer; the steps provide its bytes. */
 const independent = new Set([
+  // Literal leaf fixtures deliberately import no row or codec.
+  "packages/format/src/claims.testlib.ts",
   "packages/surface/src/attach.ts",
   "packages/surface/src/attach.test.ts",
   "packages/plugins/chat/src/attachments.test.ts",

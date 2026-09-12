@@ -1,5 +1,3 @@
-import { parsers } from "./parser.testlib.ts"
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * BOTH ARMS OVER ONE REPOSITORY, which is what an equivalence about the
  * committed side needs to be asked of.
@@ -23,7 +21,8 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  *
  * Not a suite: `bun test` collects only `*.test.ts`.
  */
-
+import { parsers } from "./parser.testlib.ts"
+import { TEST_CLAIMS } from "@olai/ops/testlib"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"

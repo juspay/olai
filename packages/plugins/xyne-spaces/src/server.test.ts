@@ -1,4 +1,3 @@
-import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * The server half, driven through a fake Spaces and a fake watching bus —
  * never the human's live instance.
@@ -17,7 +16,7 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * subscription and every mirror, and `unloaded` means the STORE has never
  * published, not that this plugin is going away.
  */
-
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"

@@ -162,7 +162,7 @@ import { nothing } from "./write.ts"
  * AND THE BROWSER SPENDS IT TOO, which is why it is exported from the package
  * (`./index.ts`): the three faces that draw a whole file strip the block with
  * this call before the markdown pipeline ever sees it (`@olai/web`'s
- * `document/faces.tsx`, `document/DocRef.tsx`, `day/DayNote.tsx`). So the page
+ * `the per-kind page contributions`, `olai-plugin-markdown`’s `document/DocRef.tsx`, `olai-plugin-journal`’s day note). So the page
  * and the face cannot disagree about which lines a document has — they are the
  * same function, rather than two rules held together by a test.
  *

@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE LINKS INDEX ≡ THE WALK IT REPLACED — over generated corpora and over this
  * repository's own `docs/`.
@@ -33,7 +32,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * enough to write down. This file holds two implementations to one answer and
  * has no opinion about what the answer is.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 

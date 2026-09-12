@@ -1,5 +1,3 @@
-const INBOX = `_olai/${INBOX_STEM}.olai`
-const PINS = `_olai/${PINS_STEM}.olai`
 /**
  * What a keystroke turns into.
  *
@@ -20,6 +18,8 @@ const PINS = `_olai/${PINS_STEM}.olai`
  * wrong is answerable here too, without a browser to press ⌘Z in.
  */
 
+const INBOX = `_olai/${INBOX_STEM}.olai`
+const PINS = `_olai/${PINS_STEM}.olai`
 import {
   INBOX as INBOX_STEM,
   mintedInto,
@@ -52,7 +52,7 @@ const reading = (set: OutlineSet = setOf({ "house.olai": HOUSE })): Reading =>
 /** The request, or a refusal quoted well enough to fix the test without a
  *  debugger. */
 const asked = (edit: Edit, at: Reading = reading()): Request => {
-  const outcome = requestFor({ ...at, outlineRow: "olai" }, edit)
+  const outcome = requestFor({ ...at, outlineRow: "outline-olai" }, edit)
   if (Result.isFailure(outcome)) {
     throw new Error(
       `expected \`${edit.verb}\` to resolve, and it refused: ` +
@@ -63,7 +63,7 @@ const asked = (edit: Edit, at: Reading = reading()): Request => {
 }
 
 const refused = (edit: Edit, at: Reading = reading()): OpFailure => {
-  const outcome = requestFor({ ...at, outlineRow: "olai" }, edit)
+  const outcome = requestFor({ ...at, outlineRow: "outline-olai" }, edit)
   if (Result.isSuccess(outcome)) {
     throw new Error(`expected \`${edit.verb}\` to be refused, and it resolved`)
   }
@@ -1346,4 +1346,12 @@ test("nothing takes a minted outline back either", () => {
 test("nothing takes an emptied trash back, and it says so by answering nothing", () => {
   const at = reading(setOf({ "house.olai": HOUSE, "_olai/Trash.olai": ARCHIVED }))
   expect(inverse({ verb: "emptyTrash" }, "_olai/Trash.olai", at)).toEqual([])
+})
+
+test("emptying refuses two Trash convention files even when one is empty", () => {
+  const at = reading(setOf({ "_olai/Trash.olai": ARCHIVED, "_olai/TRASH.olai": "" }))
+  const failure = refused({ verb: "emptyTrash" }, at)
+  expect(failure.message).toContain("ambiguous-convention")
+  expect(failure.message).toContain("_olai/Trash.olai")
+  expect(failure.message).toContain("_olai/TRASH.olai")
 })

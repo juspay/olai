@@ -1,4 +1,3 @@
-import { claim } from "./claim.ts"
 /**
  * THE BODIES, SERVED — this row's half of a revision, and the one collection in
  * olai whose values do not all travel.
@@ -45,6 +44,7 @@ import { claim } from "./claim.ts"
  * an MCP adapter gives a `surface://` address to (`documents`), which needs the
  * member's KIND and so cannot be read off a tag set.
  */
+import { claim } from "./claim.ts"
 import { definePlugin, Directory, FileKinds, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
 import type { Ops as Gate, Store } from "@olai/ops"
 import { Effect } from "effect"
@@ -118,7 +118,13 @@ export default definePlugin({
        *  `onStreamReadError` above rather than tearing the fiber down — one
        *  reader's bad address must not withdraw the row from everyone. */
       streams: { documentPage: {
-        read: input => Effect.runPromise(Effect.map(gate.page(input), value => value as FiledPageReading)),
+        read: input => {
+          if (!claim.exts.some(ext => input.address.path.endsWith(ext))) return Promise.reject(new Error("this page requires this row's claimed Markdown file"))
+          return Effect.runPromise(Effect.map(gate.page(input), value => {
+          if (value.shows.kind !== "document" && value.shows.kind !== "nothing") throw new Error("this page requires a claimed body file")
+          return value as FiledPageReading
+        }))
+        },
         install: (_input, onEvent) => revisions.consume({onEvent, onError: () => {}}),
         isEqual: samePageReading,
       } },

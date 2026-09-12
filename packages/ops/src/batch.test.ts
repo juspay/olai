@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The three verbs that make one write out of several: an enriched capture,
  * `apply` and `update`.
@@ -14,9 +13,9 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * over it is too. What only holds against a real disk (one revision, a refused
  * batch leaving the file untouched) is {@link ./ops.test.ts}'s.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import { ApplyRequest, BATCH_AT_MOST, type BatchedRequest, byPath, derive, nodesOf, type OutlineSet, outlinePaths, WriteRequest, type WriteRequest as Request } from "@olai/format"
-import { serializeOutline } from "olai-plugin-olai/format"
+import { serializeOutline } from "olai-plugin-outline-olai/format"
 import { recordsOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"

@@ -1,9 +1,8 @@
+/** One vault setup's table. The provision receives the caller's row binding
+ * from Cordis; callers cannot supply or replace their owner identity. */
 import { claims, type Claims } from "@olai/format"
 import type { FileKinds, FileClaim } from "@olai/plugin-api/services"
 import { Effect, Queue, Stream } from "effect"
-
-/** One vault setup's table. The provision receives the caller's row binding
- * from Cordis; callers cannot supply or replace their owner identity. */
 export const openFileKinds = () => {
   let current = claims([])
   const owners = new Map<string, object>()
@@ -29,7 +28,9 @@ export const openFileKinds = () => {
         // Construct before publishing: all keys are checked in this synchronous
         // step, and a refused acquisition changes nothing and owns no cleanup.
         const entry = { ...claim, kind: owner }
-        const next = claims([...current.byKind.values(), entry])
+        let next: Claims
+        try { next = claims([...current.byKind.values(), entry]) }
+        catch (error) { throw new Error(`olai-plugin-vault: a second row registered an overlapping file claim: ${String(error)}`) }
         const installed = {}
         owners.set(owner, installed)
         current = next

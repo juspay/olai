@@ -1,4 +1,3 @@
-import type { Claims } from "@olai/format"
 /**
  * The page a route asks for, and what the answer put on the screen.
  *
@@ -19,7 +18,7 @@ import type { Claims } from "@olai/format"
  * its own routes directly in `PageView`, so core never has to learn their page
  * vocabulary.
  */
-
+import type { Claims } from "@olai/format"
 import type {
   Agenda,
   DayGroup,
@@ -83,7 +82,7 @@ export const requestFor = (route: Route): FiledPageRequest | null => {
  * than an address. That caller is the `.html` preview: a reader clicks a link
  * inside somebody's saved page, the seal hands the path out, and the app has to
  * decide both whether it holds that file and which of its two page shapes the
- * file is (`../document/Hypertext.tsx`).
+ * file is (`olai-plugin-hypertext`’s `browser/Hypertext.tsx`).
  *
  * ASKED OF THE PATHS, which is what a browser still holds of the directory: one
  * head per served file, no records and no bodies (`@olai/surface`'s `heads`).

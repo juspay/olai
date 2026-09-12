@@ -250,7 +250,7 @@ export type Aim =
  * from a dead link, in EITHER direction — which is the review's ruling on
  * the symmetric half of the silence this contract closed.
  *
- * The id IS quoted — unlike `../document/Hypertext.tsx`'s dropped click,
+ * The id IS quoted — unlike `olai-plugin-hypertext`’s `browser/Hypertext.tsx`'s dropped click,
  * which may not echo a string grown inside somebody else's frame: a fragment
  * is text the reader's own address bar is already showing, in the same
  * register `../NotFound.tsx` quotes the id of a dead permalink in, and a said

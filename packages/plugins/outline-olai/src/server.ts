@@ -2,7 +2,7 @@ import { claim } from "./claim.ts"
 import { definePlugin, FileKinds } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
-export const name = "olai"
+export const name = "outline-olai"
 export default definePlugin({
   name, needs: [FileKinds],
   apply: Effect.gen(function*() {

@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What an edge field NAMES, as the two surfaces that draw it read it: the
  * targets, their titles, and how many of them there are.
@@ -11,7 +10,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * (PR #202, and `../NodeRefs.tsx`). The set semantics are the WRITE layer's
  * already, so the reading agrees with it here rather than deciding anything.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, nodeNamed } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"

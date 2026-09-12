@@ -1,3 +1,6 @@
+/** The host a served page was asked for on — the only thing the policy is
+ *  built out of, and the value a request's `Host` header carries. */
+
 import { TEST_CLAIMS } from "@olai/format/testlib"
 const FILE_EXTS = [...TEST_CLAIMS.byExt.keys()]
 const SEAL = seal(FILE_EXTS)
@@ -6,9 +9,6 @@ import { expect, test } from "bun:test"
 import { mediaHref } from "./media.ts"
 import { ours, type Press } from "./press.ts"
 import { BODY_REFUSED, heard, REFUSED_MARKUP, SEAL as seal, sealPolicy } from "./seal.ts"
-
-/** The host a served page was asked for on — the only thing the policy is
- *  built out of, and the value a request's `Host` header carries. */
 const HOST = "127.0.0.1:4173"
 
 /** The policy that host gets, read back the way a browser reads it: every
@@ -275,7 +275,7 @@ test("a refused page says so, and only the refusal is the refusal", () => {
 // ONE READING, and the frame's height arrives as it. There used to be a second
 // prefix for the reading taken at `load`, because the embedder rationed heights
 // by kind; it works the ladder out from the readings themselves now
-// (`@olai/web`'s `document/echo.ts`), so what the measure says at `load` and
+// (`olai-plugin-hypertext`'s `browser/echo.ts`), so what the measure says at `load` and
 // what it says as the page reflows are the same sentence.
 test("the frame's height message is the one the parser recognises", () => {
   expect(heard(`${HEIGHT}640`)).toEqual({ kind: "reading", height: 640 })
@@ -640,7 +640,7 @@ test("a frame that is resized says where the anchor is now, unasked", () => {
   // says no height came with it. A height from here is the `vh` ladder — the
   // frame just got taller and a page measured against it would answer with its
   // new box, standing the same distance above it as before, which is the report
-  // the receiver refuses as saying nothing (`@olai/web`'s `document/echo.ts`).
+  // the receiver refuses as saying nothing (`olai-plugin-hypertext`'s `browser/echo.ts`).
   // Not posting it at all is the cheaper half of the same answer.
   expect(said.map(heard)).toEqual([{ kind: "landed", top: 1195 }])
 })

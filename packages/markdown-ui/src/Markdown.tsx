@@ -1,4 +1,3 @@
-import type { Claims } from "@olai/format"
 /**
  * Markdown from a file, on the page — a note, a document, or the agent.
  *
@@ -40,7 +39,7 @@ import type { Claims } from "@olai/format"
  * document whose renderer never came would otherwise be a page of source with
  * no explanation.
  */
-
+import type { Claims } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
 import { markdownFailure, markdownReady, markdownWaiting } from "./chunk.ts"

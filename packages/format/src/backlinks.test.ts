@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What refers to a node — the reading, and the four rulings inside it.
  *
@@ -6,7 +5,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * asserted here is the meaning laid over them: which of the things a record can
  * do counts as a reference, which ids a node answers to, and who is left out.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { backlinksOf } from "./backlinks.ts"

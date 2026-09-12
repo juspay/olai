@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The tag vocabulary of a set, and which of it a prefix means.
  *
@@ -11,7 +10,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * until `vault-in-browser`'s PR 2), unchanged in what it asserts: the rules are
  * the same rules, asked one package down where both faces can call them.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { derive, type Derived, tagText } from "./derive.ts"

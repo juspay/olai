@@ -1,5 +1,3 @@
-const OUTLINE_EXT = mintExt(TEST_CLAIMS, "olai")!
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * TWO RULES for taking a served file's suffix off, and the ONE they became —
  * held side by side, so the merge is a table a reader can check rather than a
@@ -48,6 +46,8 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * exactly the moment the claim matters.
  */
 
+const OUTLINE_EXT = mintExt(TEST_CLAIMS, "outline-olai")!
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 
 import type { NodeChange } from "./changes.ts"

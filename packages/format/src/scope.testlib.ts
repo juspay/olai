@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE DIFFERENTIAL: one scoped question, two implementations, and every way
  * they differ named.
@@ -30,7 +29,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * Nothing here has tests of its own — it is a helper module, not a suite, and
  * `bun test` collects only `*.test.ts`.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
@@ -50,7 +49,7 @@ import {
 import { seeded } from "./fixtures.testlib.ts"
 import { bodyKind, fileKind, unkept } from "./kinds.ts"
 import { isMirror, type LocatedRegular } from "./node.ts"
-import { parseOutline } from "olai-plugin-olai/format"
+import { parseOutline } from "./fixtures.testlib.ts"
 import { assemble } from "./set.ts"
 import { reading, type Reading } from "./validate.ts"
 

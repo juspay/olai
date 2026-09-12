@@ -1,12 +1,12 @@
+/** History and focus activate without layout or renderer. A separate renderer
+ * integration owns content registrations; layout withdrawal leaves history and
+ * the focused location alive. Each reactivation creates fresh subscriptions. */
 import {Clocks} from "@olai/plugin-api"
 import { createGhost } from "@olai/web/client/ghost.ts"
 import { protectComposition } from "@olai/web/client/composition.ts"
 import { followKeys, KEYS_SETTLING, quiescence } from "@olai/web/client/quiescence.ts"
 import { fileAccess } from "olai-plugin-vault/contract"
 import { atElement } from "./routes.ts"
-/** History and focus activate without layout or renderer. A separate renderer
- * integration owns content registrations; layout withdrawal leaves history and
- * the focused location alive. Each reactivation creates fresh subscriptions. */
 import type { FileLink } from "@olai/plugin-api"
 import { definePlugin,Faces,Offers } from "@olai/plugin-api"
 import { holdPaletteFaces, holdRouteFaces, routeFaces } from "./faces.ts"

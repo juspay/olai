@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE TWO SIDES OF ONE TITLE, held against each other — and the exact shape of
  * the relation between them, which is NOT equality.
@@ -32,7 +31,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * a PIN's, so the claim is this row's — and `@olai/bundle`'s `fence.test.ts`
  * now reads an empty list where `@olai/web` used to name this package.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { pinTargetIn } from "@olai/format"
 import { expect, test } from "bun:test"
 

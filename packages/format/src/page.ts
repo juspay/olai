@@ -1,4 +1,3 @@
-import type { Claims } from "./kinds.ts"
 /**
  * WHAT ONE PAGE SHOWS — the reading a browser is handed, in place of the vault
  * it used to walk.
@@ -89,7 +88,7 @@ import type { Claims } from "./kinds.ts"
  * rules that decided either, so nothing up there can re-derive an answer and
  * disagree.
  */
-
+import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
 import { Address } from "./address.ts"
@@ -345,11 +344,8 @@ export const FiledPageReading = PageReading.check(
   ),
 ) as typeof PageReading & { readonly Type: FiledPageReading }
 
-/** A BODIED file's address and nothing else — what `markdown` narrows
- *  {@link FiledPageRequest} down to for its own member, because a metadata
- *  reading of a `.olai` is a question about a file that has no body to read.
- *  {@link bodyKind} is the one place that decides which kinds those are, so
- *  this filter asks it rather than listing extensions a second time. */
+/** A file-address request shape. Schemas have no claims; the stream's
+ * server owner admits a body path against its current reading. */
 export type DocumentPageRequest = {
   readonly kind: "at"
   readonly address: Extract<NonNullable<Extract<PageRequest, { readonly kind: "at" }>["address"]>, { readonly kind: "document" }>
@@ -598,10 +594,9 @@ export const shownOf = (at: Reading, request: PageRequest): Shown => {
     if (face === undefined) {
       // The kind the reader ASKED FOR, off the name the address spelled — so
       // "no such document" and "no such saved page" send them to two different
-      // places. `?? "document"` is unreachable (a suffix the registry claims is
-      // what makes a path an address at all) and is kept honest rather than
-      // asserted away.
-      return { kind: "nothing", sought: bodyKind(at.claims, file) ?? "", requested: file }
+      // places. The empty string means the path has no current claim; there
+      // is then no absent owner's name to invent.
+      return { kind: "nothing", sought: fileKind(at.claims, file) ?? "", requested: file }
     }
     return {
       kind: "document",
@@ -631,7 +626,7 @@ export const shownOf = (at: Reading, request: PageRequest): Shown => {
   if (file === undefined) {
     return {
       kind: "nothing",
-      sought: named === null ? "" : fileKind(at.claims, named) ?? "",
+      sought: named === null ? [...at.claims.byKind.values()].find(claim => claim.holds === "nodes")?.kind ?? "" : fileKind(at.claims, named) ?? "",
       requested: named,
     }
   }

@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE LINKS INDEX, HELD TO THE WALK IT REPLACED — the reference arm, the
  * corpora that move links, and the addresses to ask about.
@@ -34,7 +33,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * Nothing here has tests of its own — it is a helper module, not a suite, and
  * `bun test` collects only `*.test.ts`.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { type Address, addressOf } from "./address.ts"
 import { type Referrer } from "./backlinks.ts"
 import type { Derived } from "./derive.ts"

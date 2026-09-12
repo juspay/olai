@@ -1,17 +1,17 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
-import { expect, test } from "bun:test"
-import { Result } from "effect"
-
-import type { OutlineError } from "./errors.ts"
-import { FIXTURE_FILE, outlineOf } from "./fixtures.testlib.ts"
-import { parseOutline } from "olai-plugin-olai/format"
-import { serializeOutline } from "olai-plugin-olai/format"
-
 /** The errors of a line-level failure. Written as a helper so every test below
  *  reads as "this text, these errors" and nothing else. The other half — "this
  *  text parses" — is `outlineOf`, which every other file in this package uses
  *  to build its fixtures, so the acceptances here are the same function they
  *  are all standing on. */
+import { TEST_CLAIMS } from "@olai/format/testlib"
+import { expect, test } from "bun:test"
+import { Result } from "effect"
+
+import type { OutlineError } from "@olai/format"
+import { FIXTURE_FILE } from "@olai/format/testlib"
+const outlineOf = (text: string, file = FIXTURE_FILE) => Result.getOrThrow(parseOutline(file, text, TEST_CLAIMS))
+import { parseOutline } from "olai-plugin-outline-olai/format"
+import { serializeOutline } from "olai-plugin-outline-olai/format"
 const errorsOf = (
   contents: string,
   file = FIXTURE_FILE,

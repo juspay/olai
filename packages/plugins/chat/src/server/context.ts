@@ -1,4 +1,3 @@
-import { isTrashed } from "@olai/format"
 /**
  * What the composer was ARMED with, resolved against the set.
  *
@@ -37,7 +36,7 @@ import { isTrashed } from "@olai/format"
  * is a question about the set, so it is answerable with a value and testable
  * without a server, an agent or a socket.
  */
-
+import { isTrashed } from "@olai/format"
 import {
   isMirror,
   type LocatedRegular,

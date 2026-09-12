@@ -233,8 +233,38 @@ export const BuiltPlugin = Schema.Struct({
     /** What this plugin's held sentences are called, in both numbers. Core has
      *  the count and supplies no word for what is being counted. */
     waiting: Schema.Struct({ one: Schema.String, many: Schema.String }),
-    /** Absent on an older serve: no file is offered. Unknown values also
-     * narrow to nothing without taking the whole roster down. */
+    /**
+     * WHICH CONTENT SHAPES OF SERVED FILE THIS DOORBELL CAN BE POINTED AT —
+     * the claim's `holds` value, travelling as data.
+     *
+     * The one member of this struct that is not prose, and the only thing on
+     * the wire that narrows the picker. A plugin derives its watched set out of
+     * a file, so which files it can derive anything AT ALL from is the plugin's
+     * fact and nobody else's: kolu reads the claims on a file's un-done nodes,
+     * and a `.md` has none, so a conversation scoped to one watched the empty
+     * set for ever while the heartbeat went on reporting a live watcher. The
+     * picker offered it anyway, because core had nothing to filter by.
+     *
+     * The browser compares this against each served file claim's `holds`
+     * value (`chat/scopable.ts`) — each end reads its own claims,
+     * rather than a suffix spelled at the picker.
+     *
+     * A PLAIN STRING rather than a closed schema of content shapes: the
+     * roster's decoded shape is what a browser's whole plugin mount hangs off,
+     * so a serve carrying a word this build's registry does not know must
+     * narrow a list rather than fail a decode. An unknown word matches no file,
+     * which is a picker that offers nothing — visible, local, and nothing else
+     * on the page goes down with it.
+     *
+     * AND OPTIONAL FOR THE SAME REASON `wake` ITSELF IS, which is the whole of
+     * why it is not simply required inside a struct that is already optional. A
+     * tab left open across a downgrade is talking to a serve that declared no
+     * walks at all, and a missing key there is a DECODE failure of the roster —
+     * which takes every plugin's mount down, not this picker's. Absent narrows
+     * to nothing instead: the strip draws, the list opens, and it offers no
+     * file, which says *this control cannot be used by this tab* and cannot
+     * quietly hand somebody the scope that started all this.
+     */
     walks: Schema.optionalKey(Schema.String),
   })),
   /**

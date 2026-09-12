@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The planner, op by op.
  *
@@ -9,8 +8,10 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * says a multi-record write can never glue a line.
  */
 
+import { parseOutline } from "olai-plugin-outline-olai/format"
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import { admits, blockersOf, datedOn, derive, type Node, markdownIn, nodesOf, type OpFailure, type OutlineSet, type RegularNode, NO_KINDS, outlinePaths, pinTargetIn, shelfOf, standingBefore, validate, AddRequest, type WriteRequest as Request } from "@olai/format"
-import { serializeOutline } from "olai-plugin-olai/format"
+import { serializeOutline } from "olai-plugin-outline-olai/format"
 import { findingsIn, recordsOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 import { Result, Schema } from "effect"
@@ -78,6 +79,10 @@ const performed = (set: OutlineSet, result: Plan): OutlineSet => {
   for (const file of result.files) {
     texts[file.file] = serializeOutline(file.nodes)
   }
+  for (const [file, text] of Object.entries(texts)) {
+    const decoded = parseOutline(file, text, TEST_CLAIMS)
+    if (Result.isFailure(decoded)) throw new Error(decoded.failure.map(error => error.message).join("\n"))
+  }
   return setOf(texts, markdownIn(set).map((one) => [one.path, one.body] as const))
 }
 
@@ -93,7 +98,7 @@ const at = (set: OutlineSet, now: string, request: Request): OutlineSet =>
   performed(
     set,
     succeeded(
-      plan(scoping(readingOf(set), { mint: () => "n1", now: () => now }, NO_KINDS, "olai"), request),
+      plan(scoping(readingOf(set), { mint: () => "n1", now: () => now }, NO_KINDS, "outline-olai"), request),
       `\`${request.op}\` to plan`,
     ),
   )

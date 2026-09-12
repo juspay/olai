@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * A BY-NAME ANSWER CARRIED ACROSS REVISIONS, held to the walk it replaces.
  *
@@ -35,7 +34,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * through), and one that re-walks every revision — the first three caught by
  * the answers, the last by the count.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 

@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE TAPE'S OWN RULES, asked directly rather than through the five readings
  * that spend them.
@@ -20,7 +19,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * The last case is the other one — a genuinely patched view, where the carrying
  * the whole feature rests on is what answers.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { Result } from "effect"

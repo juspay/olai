@@ -1,3 +1,6 @@
+/** The search provider owns live query subscriptions as well as its header.
+ * Other features consume its scoped reading location; they retain their own
+ * editing and navigation when the provider is absent. */
 import { holdServed, servedDirectory } from "./browser/vault.ts"
 import { fileAccess } from "olai-plugin-vault/contract"
 import { createRoot, createSignal } from "solid-js"
@@ -9,9 +12,6 @@ import { Wired } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
 import type { BarSeat } from "olai-plugin-layout/slots"
 import type { Hung } from "@olai/plugin-api"
-/** The search provider owns live query subscriptions as well as its header.
- * Other features consume its scoped reading location; they retain their own
- * editing and navigation when the provider is absent. */
 import { definePlugin, Offers, Slots, Faces, slotLocation } from "@olai/plugin-api"
 import { Effect } from "effect"
 

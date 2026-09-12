@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT ONE FILE WRITTEN INTO A SET COSTS — and that it costs the same ANSWER.
  *
@@ -26,7 +25,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  *     itself writes down; it is still the whole directory, per op, for a write
  *     that touched one file.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, mock, test } from "bun:test"
 import { Result } from "effect"
 
@@ -48,7 +47,7 @@ mock.module("./paths.ts", () => ({
 
 const { apart, assemble, outlinePaths, withDocuments } = await import("./set.ts")
 const { bodiedDocument, outlineDocument } = await import("./document.ts")
-const { parseOutline } = await import("olai-plugin-olai/format")
+const { parseOutline } = await import("./fixtures.testlib.ts")
 const { verdictOf } = await import("./verdict.ts")
 
 /** A directory with the shapes an ORDER can go wrong at: nested paths, a file

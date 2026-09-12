@@ -1,4 +1,3 @@
-import type { Claims } from "./kinds.ts"
 /**
  * What a search ASKS and what one hit SAYS.
  *
@@ -43,7 +42,7 @@ import type { Claims } from "./kinds.ts"
  * vocabulary is where it belongs, and this one imports it like any other
  * caller. What is left here is exactly what a QUERY adds to it.
  */
-
+import type { Claims } from "./kinds.ts"
 import { fileKind } from "./kinds.ts"
 import { Schema } from "effect"
 

@@ -1,3 +1,5 @@
+/** Two outlines with dates spread over three months, which is what makes the
+ *  month boundaries above and below testable rather than assumed. */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -14,9 +16,6 @@ import {
 import { derive, type Derived } from "./derive.ts"
 import { dayOf, monthOf } from "./occasion.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
-
-/** Two outlines with dates spread over three months, which is what makes the
- *  month boundaries above and below testable rather than assumed. */
 const SET = derive(TEST_CLAIMS,
   nodesOfFiles({
     "work.olai": [

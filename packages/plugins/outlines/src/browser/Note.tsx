@@ -1,5 +1,3 @@
-import { servedDirectory } from "./vault.ts"
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * A node's note, as full markdown.
  *
@@ -20,11 +18,12 @@ import { TESTID } from "olai-plugin-outlines/testids"
  *
  * The class is named for that POSITION and not for the note, because a note is
  * not the only body in it: an attached document under a zoomed node
- * (`document/DocRef.tsx`) and an agent's reply in the drawer (`chat/Entry.tsx`)
+ * (`olai-plugin-markdown`’s `document/DocRef.tsx`) and an agent's reply in the drawer (`chat/Entry.tsx`)
  * say the same thing about themselves. A document on its OWN page is the one
  * that is a page, which is why the rule cannot live on `.olai-md`.
  */
-
+import { servedDirectory } from "./vault.ts"
+import { TESTID } from "olai-plugin-outlines/testids"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 
 

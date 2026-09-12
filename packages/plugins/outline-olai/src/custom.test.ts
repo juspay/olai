@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The two orders a `custom` map has, and the difference between them.
  *
@@ -9,14 +8,14 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * claim worth pinning: the file's own order survives the parse, so a view that
  * does not sort is a view showing what was written.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { customKeys, customOf, customOrder, withCustom } from "./custom.ts"
-import { isMirror } from "./node.ts"
-import { parseOutline } from "olai-plugin-olai/format"
-import { serializeNode } from "olai-plugin-olai/format"
+import { customKeys, customOf, customOrder, withCustom } from "@olai/format"
+import { isMirror } from "@olai/format"
+import { parseOutline } from "olai-plugin-outline-olai/format"
+import { serializeNode } from "olai-plugin-outline-olai/format"
 
 /** A map built in an order no sort would produce. */
 const LANE = withCustom(

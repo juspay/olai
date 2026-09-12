@@ -1,5 +1,3 @@
-import type { Claims } from "./kinds.ts"
-import { conventionCalled, TRASH, INBOX, PINS } from "./node.ts"
 /**
  * THE WHOLE-SET RULES, each written over THE RECORDS IT IS ASKED ABOUT.
  *
@@ -33,8 +31,8 @@ import { conventionCalled, TRASH, INBOX, PINS } from "./node.ts"
  * insides, published to exactly one module above them and to the tests that
  * hold the two arms to one answer.
  */
-
-
+import type { Claims } from "./kinds.ts"
+import { conventionCalled, TRASH, INBOX, PINS } from "./node.ts"
 import { type Derived, drawnFrom } from "./derive.ts"
 import { resolveRelative } from "./documents.ts"
 import {

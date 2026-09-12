@@ -1,4 +1,3 @@
-import { claimedOf } from "./address.ts"
 /**
  * The loaded set: what one served directory amounts to once it is read and
  * found valid.
@@ -27,7 +26,7 @@ import { claimedOf } from "./address.ts"
  * and the client renders those verbatim and derives everything else with the
  * same functions the validator used ({@link ./derive.ts}).
  */
-
+import { claimedOf } from "./address.ts"
 import { Result, Schema } from "effect"
 
 import {

@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The line that says where a dragged row would land.
  *
@@ -26,7 +25,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * may be the other one, so the choosing is `./Aiming.tsx`'s and what is left
  * here is one line drawn one way.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { Portal } from "solid-js/web"
 
 import { LAYER } from "@olai/web/client/layer.ts"

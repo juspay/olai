@@ -1,5 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
-import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
 /**
  * The tool surface, through a real MCP client.
  *
@@ -27,7 +25,8 @@ import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
  * harnesses in `packages/tests` read every tool answer that way too, and this is
  * the unit-level fence under them.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
+import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import {
@@ -152,7 +151,7 @@ const withTools = <A>(
       settle: "10 millis",
     })
     const refusals: Array<string> = []
-    const ops = makeOps({claims: { current: TEST_CLAIMS }, format: "olai",
+    const ops = makeOps({claims: { current: TEST_CLAIMS }, format: "outline-olai",
       store,
       root,
       // The ops layer's own fixture context — deterministic ids and one fixed
@@ -356,7 +355,6 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       // byte either: what they read and write is this SERVE's roster, not the
       // disk.
       "capture_add",
-      "file-access_bodies_get",
       "files_create",
       "files_delete",
       "git_commit",
@@ -397,7 +395,7 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "vault-plugins_stop",
     ])
 
-    expect(tools.find(tool => tool.name === "file-access_bodies_get")?.annotations?.readOnlyHint).toBe(true)
+    expect(tools.find(tool => tool.name === "file-access_bodies_get")).toBeUndefined()
 
     // The discriminator the tool NAME already decides is not a field the agent
     // has to fill in. Subtracted from the SCHEMA now rather than from the

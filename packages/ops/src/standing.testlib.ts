@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE DIFFERENTIAL: one op corpus, two wirings, and a room full of tabs.
  *
@@ -68,9 +67,9 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * Nothing here has tests of its own — it is a helper module, not a suite, and
  * `bun test` collects only `*.test.ts`.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import { addressOf, bodiedDocument, bodyKind, type BrokenFile, type Document, type KindVocabulary, type MovingRequest, type NarrowingRequest, NO_KINDS, type OutlineError, type PageRequest, type Reading, stillHolds, taping, type Verdict, verdictOf } from "@olai/format"
-import { parseOutline } from "olai-plugin-olai/format"
+import { parseOutline } from "olai-plugin-outline-olai/format"
 import { seeded } from "@olai/format/testlib"
 import { Result } from "effect"
 

@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT A FILTER SELECTS ON A PAGE — and the PARITY that lets it be trusted.
  *
@@ -23,7 +22,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * put through JSON, decoded, compared. A field dropped by an encoder is not
  * hypothetical (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/surface-mcp-positions.md).
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Schema } from "effect"
 import { NO_KINDS } from "./typing.ts"

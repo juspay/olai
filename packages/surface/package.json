@@ -14,7 +14,7 @@
     "./host": "./src/host.ts",
     "./dispatch": "./src/dispatch.ts"
   },
-  "//exports": "SEVEN DOORS, and the root is the smallest of them. `.` is what core serves with no row at all plus the protocol constants both ends spell; the members every row fills, and the vocabulary they are declared with, live in the rows (`olai-plugin-outlines/wire`, `olai-plugin-markdown/wire`, `olai-plugin-vault/wire`) and on the floor (@olai/format). `./host` is the same spec object under the name an adapter reaches for, so nothing reconstructs an equivalent one on a separate identity. `./client` builds a typed face from a supplied surface and dispatch and has no fixed application spec. `./management` is the browser-side service tag for the roster, the reports and the switch. `./dispatch` is the two write ENVELOPES six rows co-own — one spelling, because composition refuses dispatch co-owners whose ASTs differ. `./projection` is the slicing rule three rows call and none owns. `./testlib` is not product: it is the AST walk that holds a member`s `arrayKey` declaration honest, published for the reason `@olai/format`s own testlib is — a member`s key is a claim about the schema THAT MEMBER carries, and members are declared in the package that owns them, so the claim has to be holdable where the member is. The alternative was every plugin growing its own copy of a fifty-line schema walk, which is a second opinion about the very thing under test.",
+  "//exports": "SEVEN DOORS, and the root is the smallest of them. `.` is what core serves with no row at all plus the protocol constants both ends spell; the members every row fills, and the vocabulary they are declared with, live in the rows (`olai-plugin-outlines/wire`, `olai-plugin-markdown/wire`, `olai-plugin-vault/wire`) and on the floor (@olai/format). `./host` is the same spec object under the name an adapter reaches for, so nothing reconstructs an equivalent one on a separate identity. `./client` builds a typed face from a supplied surface and dispatch and has no fixed application spec. `./management` is the browser-side service tag for the roster, the reports and the switch. `./dispatch` is the two write ENVELOPES six rows co-own \u2014 one spelling, because composition refuses dispatch co-owners whose ASTs differ. `./projection` is the slicing rule three rows call and none owns. `./testlib` is not product: it is the AST walk that holds a member`s `arrayKey` declaration honest, published for the reason `@olai/format`s own testlib is \u2014 a member`s key is a claim about the schema THAT MEMBER carries, and members are declared in the package that owns them, so the claim has to be holdable where the member is. The alternative was every plugin growing its own copy of a fifty-line schema walk, which is a second opinion about the very thing under test.",
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
@@ -24,5 +24,6 @@
     "effect": "4.0.0-rc.112",
     "@olai/plugin-api": "workspace:*",
     "@olai/store": "workspace:*"
-  }
+  },
+  "devDependencies": {}
 }

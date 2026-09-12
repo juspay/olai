@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT A SCOPED QUERY COSTS, before and after `perf-filter-scope` — both arms
  * in one run, on one corpus, on the reader's own machine.
@@ -39,7 +38,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * its root, a small subtree deep inside one, and — as the control — no scope at
  * all, which is the same walk before and after and had better report as one.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, type Derived } from "./derive.ts"
 import { matching, parseFilter, type Scope } from "./filter.ts"
 import { median, timed } from "./fixtures.testlib.ts"

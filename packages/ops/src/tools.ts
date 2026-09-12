@@ -1,5 +1,3 @@
-import { askedOf } from "./asked.ts"
-import { outlineAt } from "./refusals.ts"
 /**
  * THE GRAMMAR A TOOL IS BUILT IN — the four kinds, what each of them CARRIES,
  * and the doors they reach. Not the list: that left.
@@ -58,7 +56,8 @@ import { outlineAt } from "./refusals.ts"
  * package publishes as a harness ({@link ./tools.testlib.ts}) and every row
  * with a read runs over its own table.
  */
-
+import { askedOf } from "./asked.ts"
+import { outlineAt } from "./refusals.ts"
 import { Effect, Result, Schema } from "effect"
 
 import {

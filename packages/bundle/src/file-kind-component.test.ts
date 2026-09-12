@@ -1,3 +1,5 @@
+/** Mount the real component with no navigation provider. Its declaration must
+ * remain alive even when the location's owning Files container withdraws. */
 import { expect, test } from "bun:test"
 import { Effect, Exit, Scope } from "effect"
 import { openTestPlugins } from "@olai/plugin-api/testlib"
@@ -6,9 +8,6 @@ import { provide, settled } from "@olai/effect-cordis"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { fileKinds } from "olai-plugin-files/contract"
 import { glyphComponent } from "olai-plugin-pdf/testlib"
-
-/** Mount the real component with no navigation provider. Its declaration must
- * remain alive even when the location's owning Files container withdraws. */
 test("the PDF glyph component stays mounted without navigation and reconnects its waiting contribution", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const plugins = yield* openTestPlugins({ vars: {}, now: () => "", served: "/" })
   const slots = yield* locations()

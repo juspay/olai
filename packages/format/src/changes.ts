@@ -1,4 +1,3 @@
-import type { Claims } from "./kinds.ts"
 /**
  * Two readings of the same outlines, in olai's words.
  *
@@ -21,7 +20,7 @@ import type { Claims } from "./kinds.ts"
  * done", the commit body says `done:`. One classification, two tables, neither
  * of them here.
  */
-
+import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
 import type { Custom } from "./custom.ts"

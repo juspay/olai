@@ -12,7 +12,7 @@ The *set* is the files under the served directory that olai treats as content. L
 
 | claiming row | suffix | how it travels |
 |---|---|---|
-| olai | `.olai` | text, inside the snapshot |
+| outline-olai | `.olai` | text, inside the snapshot |
 | markdown | `.md` | text, inside the snapshot |
 | hypertext | `.html` | path only |
 | csv | `.csv` | path only |
@@ -20,7 +20,7 @@ The *set* is the files under the served directory that olai treats as content. L
 | pdf | `.pdf` | path only |
 
 - Outlines and documents are content, so their text rides the snapshot. The other four are large files nothing in the set reads, so only paths travel; bytes are read when somebody opens one, or fetched by the reader's browser from `/media/`. Anything else under the directory (a `README`, a `.json`, a source file) is not in the set.
-- Viewers key their media URL to the file revision. A deleted file keeps its last URL until the missing-file page replaces it; a restored file gets a new revision and reloads. CSV bodies and HTML previews follow the same path.
+- Viewers key their media URL to the file revision. A deleted file keeps its last URL until the missing-file page replaces it; a restored file gets a new revision and reloads. CSV reloads its body through the vault’s browser service; HTML reloads its sealed preview through `/media/`.
 - There is one entry point and one vocabulary; only the transport and the reach differ. `olai web <dir> [--port] [--host]` serves the browser over a websocket, on loopback by default. `/mcp` on that same listener serves HTTP MCP clients, such as an agent in a terminal.
 - `olai surface <verb>` is a terminal client of `/mcp`. `@kolu/surface-cli` projects the surface as argv exactly as `@kolu/surface-mcp` projects it as tools. It opens no directory; it dials the running server.
 - So one process writes the files, and one function judges every write: the write gate, described below. Editing a file or running `git pull` updates the open page without a reload.

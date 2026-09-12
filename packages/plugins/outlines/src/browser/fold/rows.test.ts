@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What a row folds BY — which is the whole of the 2026-08-13 ruling, as a
  * question about values: the node rather than the place, the node a row SHOWS
@@ -9,7 +8,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * answers are only interesting when a mirror is involved and a mirror is
  * exactly what a hand-built row would get to declare for itself.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, rowsOf, rowsUnder, type Row } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"

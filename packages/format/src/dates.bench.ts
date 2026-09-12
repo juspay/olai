@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What a day reading costs per revision: the index read against the corpus
  * walks it replaced.
@@ -70,7 +69,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * `./vocabulary.bench.ts` next door: nothing memoises a day reading per
  * derivation, so asking one view twice costs what asking a new one costs.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { type Agenda, agendaOf, type Owed, owedNow, owedOf } from "./agenda.ts"
 import { datedAnswer, datedIn, datedOn, type DayGroup } from "./dates.ts"
 import { derive, type Derived, owingOn } from "./derive.ts"

@@ -1,4 +1,3 @@
-import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE SAME CLAIM AS `./table.test.ts`, made where the writes are real.
  *
@@ -27,7 +26,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
  * paths must agree about is `./table.ts`; what is varied here is what
  * happened to the directory in between.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -190,7 +189,7 @@ test("every write leaves the indexed door answering what the corpus walk does", 
     // THE ROW'S DOOR, exactly as `./server.ts` offers it — one table, and the
     // reading handed in per ask rather than read on this side.
     const index = open()
-    const ops = makeOps({claims: { current: TEST_CLAIMS }, format: "olai",
+    const ops = makeOps({claims: { current: TEST_CLAIMS }, format: "outline-olai",
       store,
       root,
       context: steady(),

@@ -1,4 +1,3 @@
-import type { Claims } from "@olai/format"
 /**
  * `/media/…` — the one address in this app that is not a surface member.
  *
@@ -40,7 +39,7 @@ import type { Claims } from "@olai/format"
  * keeps `hrefOf` and `routeOf` together: they are one bijection, and the test
  * that round-trips them is what says so.
  */
-
+import type { Claims } from "@olai/format"
 import { isAsset } from "@olai/format"
 
 export const MEDIA_PREFIX = "/media/"

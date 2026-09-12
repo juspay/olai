@@ -237,8 +237,8 @@
   browser: olai-plugin-vault-plugins/browser
   profiles: [surface]
 
-- id: olai
-  name: olai-plugin-olai/server
+- id: outline-olai
+  name: olai-plugin-outline-olai/server
   section: Files
   quiet: true
   profiles: [surface, test-minimal]

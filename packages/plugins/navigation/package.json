@@ -22,7 +22,7 @@
     "./address/Face.tsx": "./src/address/Face.tsx",
     "./routes.testlib.ts": "./src/routes.testlib.ts"
   },
-  "//routes.testlib": "The route VOCABULARY, and a door rather than a file another package reaches around for. It is the table both readings of one grammar are asked of — this row's bijection (src/routes.test.ts) and outlines' delegation (its browser/address.test.ts) — and it was @olai/web's `client/routes.testlib.ts` until this row owned the grammar, which made a general package spell a plugin to build it. A plugin may reach another plugin ONLY through a static contract door, benches included, so the second reader is why this is listed in `olai.contracts` too: undeclared, that import is red in @olai/bundle's fence.test.ts under \"plugins consume other plugins only through static contract doors\". It carries data and no runtime, which is what lets it be a door at all.",
+  "//routes.testlib": "The route VOCABULARY, and a door rather than a file another package reaches around for. It is the table both readings of one grammar are asked of \u2014 this row's bijection (src/routes.test.ts) and outlines' delegation (its browser/address.test.ts) \u2014 and it was @olai/web's `client/routes.testlib.ts` until this row owned the grammar, which made a general package spell a plugin to build it. A plugin may reach another plugin ONLY through a static contract door, benches included, so the second reader is why this is listed in `olai.contracts` too: undeclared, that import is red in @olai/bundle's fence.test.ts under \"plugins consume other plugins only through static contract doors\". It carries data and no runtime, which is what lets it be a door at all.",
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
@@ -58,5 +58,6 @@
       "./address/Face.tsx",
       "./routes.testlib.ts"
     ]
-  }
+  },
+  "devDependencies": {}
 }
