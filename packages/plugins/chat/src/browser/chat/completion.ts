@@ -77,6 +77,11 @@ export type Completing =
    *  completes is a name for something ({@link ./naming.ts}). */
   | { readonly kind: "name"; readonly from: number; readonly query: string }
 
+/** A space makes a name query ambiguous with prose. Enter then needs an
+ *  explicit selection; Tab and clicks remain direct completion gestures. */
+export const requiresSelection = (found: Completing | null): boolean =>
+  found?.kind === "name" && found.query.includes(" ")
+
 /** Spaces no longer bound a query, so cap even a pasted sentence before it
  *  reaches either matcher. This bounds work, not intent: the menu separately
  *  requires a selection before Enter can replace a spaced query. */

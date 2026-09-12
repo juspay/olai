@@ -63,3 +63,31 @@ Feature: Enter preserves prose that happens to match a node's note
     When I press "Enter" in the chat
     Then the chat shows my message "look at @Review hinges"
     And there should be no page errors
+
+  Scenario: Moving to another occurrence of the same query clears selection
+    When I type "compare @Review hinges and @Review hinges" into the chat
+    Then the completion offers "review-hinges"
+    When I press "ArrowDown" in the chat
+    Then the selected chat completion is "review-hinges"
+    When I put the caret after "compare @Review hinges" in the chat
+    Then the completion offers "review-hinges"
+    And no chat completion is selected
+    When I press "Enter" in the chat
+    Then the chat shows my message "compare @Review hinges and @Review hinges"
+    And there should be no page errors
+
+  Scenario: A live replacement at the selected position does not inherit selection
+    When I type "look at @Review hinges" into the chat
+    Then the completion offers "review-hinges"
+    When I press "ArrowDown" in the chat
+    Then the selected chat completion is "review-hinges"
+    When I rewrite "prose.olai" as:
+      """
+      {"id":"replacement-hinges","ord":"a0","title":"Review hinges"}
+      """
+    Then the completion offers "replacement-hinges"
+    And the completion does not offer "review-hinges"
+    And no chat completion is selected
+    When I press "Enter" in the chat
+    Then the chat shows my message "look at @Review hinges"
+    And there should be no page errors

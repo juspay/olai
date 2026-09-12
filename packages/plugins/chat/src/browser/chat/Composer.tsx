@@ -623,13 +623,8 @@ export function Composer(props: {
     <div class="relative shrink-0 p-2">
       <Show when={open()}>
         <CompletionMenu
-          kind={found()?.kind ?? "command"}
+          completing={found()}
           rows={rows()}
-          // What is being asked, so the list starts at the top when it changes
-          // — the kind as well as the query, since `/` and `@` can both be
-          // armed with nothing typed after them and those are two questions.
-          asking={`${found()?.kind ?? ""}:${found()?.query ?? ""}`}
-          explicitSelection={found()?.kind === "name" && (found()?.query.includes(" ") ?? false)}
           asked={nodesNamed.answering() ?? undefined}
           within={() => input}
           onDismiss={dismiss}
