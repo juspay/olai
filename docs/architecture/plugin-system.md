@@ -911,7 +911,8 @@ appliance olai has a judgement about. Smaller shape, same rules.
   the list, the order — and neither crosses the wire, so a row selection naming
   other engines draws a panel with nothing of yours in it. Chat also owns
   `tool.reply`: outlines supplies `{ fileOf, story }` through that slot,
-  registered after its resources so the face withdraws first. Display ownership
+  registered after its resources so the face withdraws first. The face owns
+  its interactions; the slot does not require chat to supply node navigation. Display ownership
   comes from the optional MCP catalogue through `Tools`, resolved per call.
 - Put the install sentence in a `src/install.ts` your browser half opens: a
   `NotHere` (`@olai/plugin-api`) whose `why` is a whole sentence core composes no

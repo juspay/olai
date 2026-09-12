@@ -1,3 +1,4 @@
+import { useShowNode } from "./focus.ts"
 import { writeIn } from "./reply.ts"
 export { fileOf } from "./reply.ts"
 import { servedDirectory } from "./vault.ts"
@@ -8,9 +9,10 @@ import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { TESTID } from "../testids.ts"
 
-export function story(input: { reply: unknown; show: (id: string) => void }) {
+export function story(input: { reply: unknown }) {
   const wrote = writeIn(input.reply)
   if (wrote === undefined) return null
+  const show = useShowNode()
   const props = { wrote }
   /** A write that changed no record has no honest word for what it did, and
    *  this is what it says instead — the one case the table cannot cover. */
@@ -49,7 +51,7 @@ export function story(input: { reply: unknown; show: (id: string) => void }) {
           }
         >
           {(id) => (
-            <button type="button" class="min-w-0 truncate text-accent hover:underline" data-testid={TESTID.outlinesStoryRef} data-node-ref={id()} onClick={event => { event.stopPropagation(); input.show(id()) }}>
+            <button type="button" class="min-w-0 truncate text-accent hover:underline" data-testid={TESTID.outlinesStoryRef} data-node-ref={id()} onClick={event => { event.stopPropagation(); show(id()) }}>
               <TitleHtml
                 drawing={renderTitle(servedDirectory()?.claims(), props.wrote.title, props.wrote.file ?? "", {
                   links: false,

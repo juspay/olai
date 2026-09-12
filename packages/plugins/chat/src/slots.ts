@@ -20,8 +20,8 @@ export const slotContracts = {
   "engine.install": slotContract<NotHere>("engine.install","plugin"),
 } as const
 
-/** The owning plugin draws its reply; chat keeps the frame and navigation. */
+/** The owning plugin draws its reply; chat keeps the frame; the face owns its interactions. */
 export interface ToolReplyFace {
   readonly fileOf: (reply: Json) => string | null
-  readonly story: (props: { reply: Json; show: (id: string) => void }) => JSX.Element | null
+  readonly story: (props: { reply: Json }) => JSX.Element | null
 }

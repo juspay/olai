@@ -86,7 +86,6 @@ import { OutlineDiff } from "./OutlineDiff.tsx"
 import { useElapsed } from "./elapsing.tsx"
 import { whoOf } from "./spawn.ts"
 import { faceOf } from "../marks.ts"
-import { useShowNode } from "../references.ts"
 
 /**
  * What a status LOOKS and SOUNDS like, one row per word.
@@ -141,16 +140,15 @@ function Saying(props: { readonly said: string; readonly tall: boolean }) {
 }
 
 export function ToolFrame(props: { readonly entry: ToolEntry }) {
-  /** How long this call has been running, or `null` when there is nothing to
-   *  say. Reached for rather than handed down ({@link ./elapsing.tsx}), the
-   *  same way this frame reaches for its own fold. */
-  const show = useShowNode()
   const replyFace = createMemo(() => {
     const face = faceOf(props.entry.row)
     const reply = props.entry.reply
     return face === undefined || reply === undefined ? { file: null, story: null }
-      : { file: face.fileOf(reply), story: face.story({ reply, show }) }
+      : { file: face.fileOf(reply), story: face.story({ reply }) }
   })
+  /** How long this call has been running, or `null` when there is nothing to
+   *  say. Reached for rather than handed down ({@link ./elapsing.tsx}), the
+   *  same way this frame reaches for its own fold. */
   const elapsed = useElapsed()
   const open = () => isUnfolded(props.entry.id)
   const status = () => props.entry.status
