@@ -1,4 +1,4 @@
-import { writeIn, fileOf } from "./reply.ts"
+import { writeIn } from "./reply.ts"
 export { fileOf } from "./reply.ts"
 import { servedDirectory } from "./vault.ts"
 import { Show } from "solid-js"

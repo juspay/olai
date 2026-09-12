@@ -999,7 +999,6 @@ const useTool = async (
       toolCallId,
       ...toolWire.announced("olai", name, args),
       status: "in_progress",
-      rawInput: args,
     },
   })
 
