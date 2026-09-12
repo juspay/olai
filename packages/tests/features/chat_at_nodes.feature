@@ -197,7 +197,7 @@ Feature: Typing @ in the chat completes a node of the directory
     Then the agent's answer says "tiles is the node titled the tiles nobody liked, and it was put away"
 
   @scratch:chat
-  Scenario: The grammar is the grammar — one token of it, anyway
+  Scenario: The same search grammar works across spaces
     # `@` names one node; ⌘K searches. What fits in a word works, because the
     # query is read by the same parser every other door uses.
     When I type "look at @is:done" into the chat
@@ -205,12 +205,11 @@ Feature: Typing @ in the chat completes a node of the directory
     And the completion does not offer "install"
     When I type "look at @#home" into the chat
     Then the completion offers "kitchen"
-    # ...and ONE token is the whole of it, which is the fence rather than a
-    # shortcoming: a trigger that took the space would be a completion eating
-    # the rest of the sentence on the chance the next word was meant for it. So
-    # the space closes the list, and what needs one is the palette's question.
     When I type "look at @is:done " into the chat
-    Then no completion is open
+    Then the completion offers "demo"
+    When I type "look at @is:done demo" into the chat
+    Then the completion offers "demo"
+    And the completion does not offer "install"
 
   @scratch:chat
   Scenario: A file still wins the first row, and Enter still takes it

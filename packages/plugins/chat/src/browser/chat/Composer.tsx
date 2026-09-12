@@ -284,7 +284,7 @@ export function Composer(props: {
 
   // A DISMISSAL LASTS AS LONG AS THE THING IT WAS ABOUT. Escape shuts the list
   // over the word being typed and keeps it shut while that word goes on being
-  // typed — but the moment nothing is armed at all (a space typed, the `@`
+  // typed — but the moment nothing is armed at all (a newline typed, the `@`
   // backspaced away, the caret moved out of the word) the memory goes with it.
   // Without this the token is only the KIND and the OFFSET, so a second `@`
   // typed where the first one was would come up already dismissed — a list
@@ -382,6 +382,7 @@ export function Composer(props: {
             if (offer.kind === "node") {
               setTaken((already) => new Set(already).add(offer.value))
             }
+            setDismissed(tokenOf(completing))
             rewrite(completed(draft(), completing, offer.value, caret()))
           },
         }))

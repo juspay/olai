@@ -34,15 +34,8 @@
  * SEARCHES — and it is the matcher's own answer rather than a cap this file
  * invented.
  *
- * ## ONE TOKEN, because a completion may not swallow the sentence
- *
- * The `@` query ends at whitespace (`./completion.ts`), and that fence does not
- * move for the grammar's sake. A query with spaces in it would be a completion
- * eating the rest of somebody's message on the chance that the next word was
- * meant for it — the exact failure that file's "what ends a trigger" section
- * exists to prevent. So what fits in one token works (`is:blocked`, `#home`,
- * `prop:pr`, a word) and what needs a space does not (`"kitchen remodel"`,
- * `a OR b`). The box for those is the one with no sentence around it.
+ * Multi-word titles and search expressions pass through unchanged. The
+ * composer owns the query boundary and closes an accepted or dismissed offer.
  *
  * An EMPTY query offers no node at all, and a query of one or two characters
  * offers none either — the floor every door onto the one search shares
