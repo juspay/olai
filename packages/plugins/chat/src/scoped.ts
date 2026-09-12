@@ -25,7 +25,6 @@ import type { StopReason } from "./agent.ts"
 import type { Panel, PanelOptions, WakeScope } from "./chat.ts"
 import { makePanel } from "./chat.ts"
 import * as Memory from "./memory.ts"
-import { ephemeralLocalState } from "./local.ts"
 import type { Conversing } from "./sessions.ts"
 import type { Change } from "./transcript.ts"
 import { pastOf } from "./lineage.ts"
@@ -167,7 +166,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       ...givenPanelOptions
     } = options
     const memory = givenPanelOptions.memory
-      ?? Memory.forLocalState(ephemeralLocalState(), givenPanelOptions.engines()[0] ?? "")
+      ?? Memory.volatile()
     const panelOptions: PanelOptions = { ...givenPanelOptions, memory }
     const gate = yield* Semaphore.make(1)
     const nodes = new Map<string, NodeSlot>()
@@ -630,54 +629,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const relocationFailed = (where: string, failure: OpFailure): Effect.Effect<void> =>
       Effect.logWarning(`${where} could not enter its node scope: ${failure.message}`)
 
-    /** THE BOOT, AS A HANDLE. Detached is not the same word as unowned, and it
-     *  was both. `stopWithReason` interrupts this, and interrupting AWAITS, so
-     *  whatever the boot did manage to register is in `nodes` before the
-     *  shutdown reads that map. */
-    let booting: Fiber.Fiber<void> | null = null
-
-    const boot = Effect.gen(function*() {
-      const recalled = yield* Effect.result(memory.recall)
-      if (recalled._tag === "Failure" || recalled.success === null) {
-        yield* root.start
-        yield* Effect.catch(relocateRoot(undefined, true), (failure) => relocationFailed("the booted session", failure))
-        return
-      }
-      const held = recalled.success
-      const place = yield* locate(held)
-      if (place === null) {
-        yield* root.start
-        yield* Effect.catch(relocateRoot(undefined, true), (failure) => relocationFailed("the booted session", failure))
-        return
-      }
-      if (place.history) {
-        yield* Effect.catch(
-          working(place.node.id, held, ({ slot }) =>
-            Effect.gen(function*() {
-              activate(slot)
-              yield* slot.panel.loadSession(held.agent, held.session)
-            })),
-          (failure) => relocationFailed("the remembered node history", failure),
-        )
-        return
-      }
-      yield* Effect.catch(
-        Effect.asVoid(ensureNode(
-          place.node.id,
-          (panel) => panel.loadSession(held.agent, held.session),
-          true,
-        )),
-        (failure) => relocationFailed("the remembered node agent", failure),
-      )
-    })
-
-    /** THROUGH THE SAME SEAM as everything else this scheduler starts, which is
-     *  what `Detach.held` is for and what the boot was hand-rolling beside it:
-     *  the plugin's runtime, the plugin's scope, and the handle
-     *  {@link stopWithReason} joins. It stays a fork rather than an await —
-     *  nobody calling `start` should wait for a session to be recalled and a
-     *  panel acquired — and that was never the part that was missing. */
-    const start = Effect.sync(() => { booting = fork(boot) })
+    /** Discovery is available at boot; opening belongs to a reader or a wake. */
+    const start = root.enginesMoved
 
     const discardPending = (left: ReadonlyArray<{
       readonly agent: string; readonly session: string; readonly plugin: string
@@ -771,9 +724,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const stopWithReason = (reason: StopReason) => Effect.gen(function*() {
       stopped = true
       pending.clear()
-      const boot = booting
-      booting = null
-      if (boot !== null) yield* Fiber.interrupt(boot)
       // ...AND EVERY OTHER NODE OPERATION, joined rather than raced. `stopped`
       // is already set, so nothing new starts; what is still in flight finishes
       // its acquisition and its use, and is therefore in the map the last line

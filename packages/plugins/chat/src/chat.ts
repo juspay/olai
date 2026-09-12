@@ -105,6 +105,7 @@ import * as Deliveries from "./deliveries.ts"
 import type { AgentEvent } from "./events.ts"
 import { lastSaid } from "./heard.ts"
 import * as Listings from "./listings.ts"
+import type { Models } from "./models.ts"
 import * as Memory from "./memory.ts"
 import { ephemeralLocalState } from "./local.ts"
 import { annotated } from "./prompt.ts"
@@ -199,6 +200,7 @@ export interface PanelOptions {
   /** This directory's remembered conversation. The scheduler supplies one
    * shared instance so it can route boot before any panel starts; a standalone
    * panel builds the ordinary state-home implementation itself. */
+  readonly models?: Models
   readonly memory?: Memory.Memory
   /** The internal MCP server to hand the session, or nothing yet. A THUNK,
    *  because its address is not known until the listener has bound and the
@@ -902,7 +904,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     // build with no engine rows is a note that resolves to nothing, which is a
     // chat that was never built.
     const memory = options.memory
-      ?? Memory.forLocalState(ephemeralLocalState(), options.engines()[0] ?? "")
+      ?? Memory.volatile()
     const tell = yield* Effect.annotateLogs(emitter, { surface: "chat" })
 
     /** One agent, built from the roster row that named it. The handler is
@@ -921,6 +923,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         tools: options.tools,
         probes: options.probes,
         memory,
+        models: options.models,
         onEvent,
       }).pipe(Effect.annotateLogs({ ...logContext, purpose }))
 
@@ -1051,7 +1054,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     let state: ChatState = {
       ...CHAT_OFF,
       uploadScope: files.scope(),
-      status: "booting",
+      status: "idle",
+      talking: { kind: "asking" },
       roster: options.roster().map(said),
     }
     /** The agent this panel is talking to and the row it came from, or `null`

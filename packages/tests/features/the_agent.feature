@@ -19,6 +19,7 @@ Feature: Talking to the agent
     And I show the done nodes
     And I mark the page
     And the agent panel is open
+    And I choose the agent "claude"
 
   @scratch:chat
   Scenario: The agent checks something off and the tree follows
@@ -936,6 +937,7 @@ Feature: Talking to the agent
     And the server starts again on the same port
     And I open the app
     And the agent panel is open
+    And I choose the agent "claude"
     Then the conversation is titled "the last conversation"
     And the panel header names the model "Fake Sonnet"
     # ... and it is the AGENT that is on it, not a label the panel drew from its
@@ -989,6 +991,7 @@ Feature: Talking to the agent
     And the server starts again on the same port
     And I open the app
     And the agent panel is open
+    And I choose the agent "claude"
     Then the conversation is titled "the last conversation"
     And the chat eventually shows "could not be put back"
     # The agent's own answer, still named — the conversation is open and usable
@@ -1000,6 +1003,7 @@ Feature: Talking to the agent
     And the server starts again on the same port
     And I open the app
     And the agent panel is open
+    And I choose the agent "claude"
     Then the chat eventually shows "could not be put back"
 
   @scratch:chat
@@ -1993,6 +1997,7 @@ Feature: Talking to the agent
     And the server starts again on the same port
     And I open the app
     And the agent panel is open
+    And I choose the agent "claude"
     Then the conversation is titled "the last conversation"
     And the panel header names the model "Fake Two"
     When I ask the agent "hello"

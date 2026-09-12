@@ -58,6 +58,7 @@ for (const waitForReply of [false,true]) test(`assignment ${waitForReply ? "repl
   let assignment: Promise<void> | undefined
   try {
     await run(chat.start)
+    await run(chat.chooseAgent("opencode"))
     await ready
     const session = chat.state().session!.id
     assignment = run(assignSession(chat,{

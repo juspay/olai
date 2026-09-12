@@ -753,3 +753,12 @@ When("I type the binding for remembered conversation {string} into the property 
   await editor.fill(`claude:${id}`);
   await editor.press("Enter");
 });
+
+Then("all bound node agents are asleep", async function (this: OlaiWorld) {
+  await this.showSidebar();
+  await this.waitUntil(async () => {
+    const standings = await this.page.locator(`${ROSTER} ${ROW}`).evaluateAll(rows =>
+      rows.map(row => row.getAttribute("data-standing")).filter(value => value !== "unbound"));
+    return standings.length > 0 && standings.every(value => value === "asleep");
+  }, "every bound node agent to remain asleep before a conversation is opened");
+});

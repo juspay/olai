@@ -103,6 +103,7 @@ import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
 import { Deferred, Duration, Effect } from "effect"
 
 import type { Conversing } from "./sessions.ts"
+import { forLocalState as modelsIn } from "./models.ts"
 import { readings } from "./server/readings.ts"
 import type { Change } from "./transcript.ts"
 import * as Chat from "./scoped.ts"
@@ -111,7 +112,6 @@ import { detecting } from "./agents/roster.ts"
 import { openLocalState } from "./local.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
-import { forLocalState as memoryIn } from "./memory.ts"
 import { seatingIn } from "./seating.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
@@ -746,7 +746,7 @@ export default definePlugin({
               ask: one.ask,
             }))
           ),
-        memory: memoryIn(localState, mounted()[0]?.id ?? ""),
+        models: modelsIn(localState),
         scoping: yield* scopesIn(localState),
         wake: (plugin) => wakes.current().get(plugin),
         overheard: yield* sessionsIn(localState),

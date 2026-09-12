@@ -18,7 +18,7 @@ import { join } from "node:path"
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
 import { ephemeralLocalState } from "./local.ts"
-import { forLocalState } from "./memory.ts"
+import { volatile } from "./memory.ts"
 import { make } from "./scoped.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { makePanel } from "./chat.ts"
@@ -189,7 +189,7 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     && line.annotations.reason === "idle eviction" && line.annotations.node === "one")).toBe(true)
 }, 20_000)
 
-test("boot routes a remembered node session before spawning any panel", async () => {
+test("boot opens no conversation, even with an old remembered session", async () => {
   let probes = 0
   const remembered: NodeAgent = {
     id: "one",
@@ -203,7 +203,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
   // seeded between construction and start, and the scheduler must read that
   // live value when it routes remembered memory.
   let nodes: ReadonlyArray<NodeAgent> = []
-  const memory = forLocalState(ephemeralLocalState(), "alpha")
+  const memory = volatile()
   await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
 
   const { layer, said } = collector()
@@ -242,11 +242,11 @@ test("boot routes a remembered node session before spawning any panel", async ()
 
   try {
     await logged(chat.start)
-    await until("the remembered node session to load", () =>
-      chat.state().bound === "one" && chat.state().status === "idle")
-    expect(said.filter((line) => line.message.includes("chat agent ready"))).toHaveLength(1)
-    expect(said.filter((line) => line.message.includes("conversation opened"))).toHaveLength(1)
-    expect(probes).toBe(1)
+    expect(chat.live().size).toBe(0)
+    expect(chat.state().session).toBeNull()
+    expect(said.filter((line) => line.message.includes("chat agent ready"))).toHaveLength(0)
+    expect(said.filter((line) => line.message.includes("conversation opened"))).toHaveLength(0)
+    expect(probes).toBe(0)
   } finally {
     await logged(chat.stop)
   }
@@ -268,7 +268,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
  * roster still names, a ticket minted and never released, and a subprocess
  * that was told it was ready and never told to go.
  */
-test("a shutdown that lands mid-boot leaves no scope, no ticket and no process", async () => {
+test("a shutdown during an explicit opening leaves no scope, no ticket and no process", async () => {
   const { run, fork, said } = logging()
   const node: NodeAgent = {
     id: "one",
@@ -281,7 +281,7 @@ test("a shutdown that lands mid-boot leaves no scope, no ticket and no process",
   // REMEMBERED, so the boot goes straight for the node scope rather than
   // through a root session first — the longest walk, and the one with a
   // credential and a subprocess in the middle of it.
-  const memory = forLocalState(ephemeralLocalState(), "alpha")
+  const memory = volatile()
   await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
   const minted: Array<string> = []
   const released: Array<string> = []
@@ -316,8 +316,10 @@ test("a shutdown that lands mid-boot leaves no scope, no ticket and no process",
   }))
 
   await run(chat.start)
+  const opening = run(chat.loadSession("alpha", "remembered"))
   await minting.promise
   await run(chat.stop)
+  await opening.catch(() => {})
   // Long enough for a boot that outlived the stop to have reached its
   // `session/load` and registered a slot.
   await run(Effect.sleep("1500 millis"))
@@ -394,6 +396,7 @@ test(`a shutdown that lands mid-acquisition during ${path} leaves nothing behind
   // path takes no boot at all.
   if (path === "a relocation") {
     await run(chat.start)
+    await run(chat.chooseAgent("alpha"))
     await until("the root conversation to open", () =>
       chat.state().session !== null && chat.state().status === "idle")
   }
@@ -421,7 +424,7 @@ test(`a shutdown that lands mid-acquisition during ${path} leaves nothing behind
 }, 30_000)
 }
 
-test("boot moves a newly identified node session into its scope", async () => {
+test("an explicit engine choice moves a newly identified node session into its scope", async () => {
   const { run, fork, said } = logging()
   const node: NodeAgent = {
     id: "one",
@@ -454,6 +457,8 @@ test("boot moves a newly identified node session into its scope", async () => {
 
   try {
     await run(chat.start)
+    await run(chat.chooseAgent("alpha"))
+    chat.reread()
     await until("the newly identified session to enter its node scope", () =>
       chat.state().bound === "one" && chat.live().get("one")?.status === "idle")
   } finally {
