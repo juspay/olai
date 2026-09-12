@@ -148,6 +148,7 @@ interface VaultRevision {
   readonly value: {
     readonly set: Parameters<typeof documentAt>[0]
     readonly derived: Reading["derived"]
+    readonly claims: Reading["claims"]
   }
 }
 
@@ -693,6 +694,7 @@ export default definePlugin({
       if (open === null) return
       ring(Effect.flatMap(rings, (declared) =>
         faultedIn(open, {
+          claims: snapshot.value.claims,
           served: (file) => documentAt(snapshot.value.set, file) !== undefined,
           declared,
         })))

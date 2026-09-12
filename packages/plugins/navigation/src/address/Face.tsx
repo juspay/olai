@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-navigation/testids"
 /**
  * AN ADDRESS, DRAWN AS THE PAGE IT NAMES — the one face, wherever a title
  * turns out to be one.
@@ -64,7 +63,7 @@ import { TESTID } from "olai-plugin-navigation/testids"
  * whether the name it just handed over is a name somebody wrote or one the
  * address answered for itself.
  */
-
+import { TESTID } from "olai-plugin-navigation/testids"
 import { Show } from "solid-js"
 
 import type { Route } from "olai-plugin-navigation/routes"

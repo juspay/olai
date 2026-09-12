@@ -5,7 +5,7 @@
  * There is exactly one such place and it is a strange one: a `.html` preview,
  * where a reader clicks a link inside somebody else's saved page and the seal
  * hands the path out over `postMessage` (`@olai/surface`'s `seal.ts`,
- * `../document/Hypertext.tsx`). Everywhere else in this client a link is
+ * `olai-plugin-hypertext`’s `browser/Hypertext.tsx`). Everywhere else in this client a link is
  * already a `Route` by the time anything looks at it — a `<Link>` is drawn from
  * one, and a link in rendered markdown is parsed into one by `./routes.ts`'s
  * `routeIn`. A path is the shape that arrives when the thing that produced it
@@ -13,8 +13,8 @@
  *
  * A CONTEXT rather than a prop, for the reason documents and the router are
  * contexts: the asker is a component several levels down a page it does not
- * own, and threading an answer through `./document/DocumentPage.tsx` and the
- * face table (`./document/faces.tsx`) would make every kind's signature a
+ * own, and threading an answer through the page shell and the
+ * face table (the per-kind page contributions) would make every kind's signature a
  * function of what one of them needs.
  *
  * THE ANSWER RATHER THAN THE LISTS is what travels, and that is the decision

@@ -280,6 +280,7 @@ test("every declaration names a field its own schema carries, and no other membe
     "markdown.streams.documentPage → key",
     "outlines.streams.page → key",
     "pins.cells.pins → id",
+    "vault.streams.bodyPage → key",
   ])
   for (const one of declaring) {
     const found = keyings(one.value, one.arrayKey as string)

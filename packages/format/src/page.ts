@@ -88,7 +88,7 @@
  * rules that decided either, so nothing up there can re-derive an answer and
  * disagree.
  */
-
+import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
 import { Address } from "./address.ts"
@@ -344,18 +344,15 @@ export const FiledPageReading = PageReading.check(
   ),
 ) as typeof PageReading & { readonly Type: FiledPageReading }
 
-/** A BODIED file's address and nothing else — what `markdown` narrows
- *  {@link FiledPageRequest} down to for its own member, because a metadata
- *  reading of a `.olai` is a question about a file that has no body to read.
- *  {@link bodyKind} is the one place that decides which kinds those are, so
- *  this filter asks it rather than listing extensions a second time. */
+/** A file-address request shape. Schemas have no claims; the stream's
+ * server owner admits a body path against its current reading. */
 export type DocumentPageRequest = {
   readonly kind: "at"
   readonly address: Extract<NonNullable<Extract<PageRequest, { readonly kind: "at" }>["address"]>, { readonly kind: "document" }>
 }
 export const DocumentPageRequest = FiledPageRequest.check(Schema.makeFilter(request => {
   if (request.kind !== "at" || request.address?.kind !== "document") return false
-  return bodyKind(request.address.path) !== null
+  return true
 })) as typeof FiledPageRequest & { readonly Type: DocumentPageRequest }
 
 /**
@@ -411,7 +408,7 @@ export const samePageRequest: (a: PageRequest, b: PageRequest) => boolean = Sche
  * one the directory was assembled from.
  */
 export const pageOf = (
-  at: Reading,
+  at: Reading & { readonly outlineRow?: string },
   request: PageRequest,
   kinds: KindVocabulary = NO_KINDS,
 ): PageReading => {
@@ -498,7 +495,7 @@ const answersFor = (
     // compared face by face, so a record edit does not move them
     // ({@link ./tape.ts}). What this page then depends on is the declarations
     // file's own records, which is exactly what its answers depend on.
-    declarations: declarationsIn(at.derived, propertiesIn(served), kinds),
+    declarations: declarationsIn(at.derived, propertiesIn(at.claims, served), kinds),
     // ...AND WHAT THE WORDS IN IT MEAN, which is the one fact in this value
     // that is not a reading of the set at all: which kinds a plugin taught
     // this vault is the composition root's to say, and it is handed the whole
@@ -544,14 +541,14 @@ const answersFor = (
 /** The OUTLINES' paths, in path order — what the trash reads and what the front
  *  page picks its first file from. A narrowing of the one list rather than a
  *  list beside it: asking says which files are being left out. */
-const outlinesAmong = (faces: ReadonlyArray<Face>): ReadonlyArray<string> =>
-  faces.filter((face) => fileKind(face.path) === "outline").map((face) => face.path)
+const outlinesAmong = (claims: Claims, faces: ReadonlyArray<Face>): ReadonlyArray<string> =>
+  faces.filter((face) => claims.byKind.get(fileKind(claims, face.path) ?? "")?.holds === "nodes").map((face) => face.path)
 
 /** WHAT THE ADDRESS PUTS ON THE SCREEN, without the names table beside it —
  *  {@link pageOf} minus its second half. Exported for the one caller that wants
  *  the rows and nothing else: the page's NARROWING (`./narrowing.ts`), which
  *  matches over the records this page draws and resolves no id at all. */
-export const shownOf = (at: Reading, request: PageRequest): Shown => {
+export const shownOf = (at: Reading & { readonly outlineRow?: string }, request: PageRequest): Shown => {
   const { derived } = at
   const faces = at.set.documents
   // THE PAGES THE APP CLAIMED BY NAME FIRST, and then the address — the same
@@ -570,7 +567,7 @@ export const shownOf = (at: Reading, request: PageRequest): Shown => {
       // A day's note is found by the NAME of a file rather than by anything in
       // the set, which is why this arm reads the directory for something other
       // than existence.
-      notes: dailyNotesOn(faces.map((face) => face.path), request.date),
+      notes: dailyNotesOn(at.claims, faces.map((face) => face.path), request.date),
     }
   }
 
@@ -591,16 +588,15 @@ export const shownOf = (at: Reading, request: PageRequest): Shown => {
     }
   }
 
-  if (address !== null && (address.kind === "heading" || bodyKind(address.path) !== null)) {
+  if (address !== null && (address.kind === "heading" || bodyKind(at.claims, address.path) !== null)) {
     const file = address.path
     const face = faces.find((one) => one.path === file)
     if (face === undefined) {
       // The kind the reader ASKED FOR, off the name the address spelled — so
       // "no such document" and "no such saved page" send them to two different
-      // places. `?? "document"` is unreachable (a suffix the registry claims is
-      // what makes a path an address at all) and is kept honest rather than
-      // asserted away.
-      return { kind: "nothing", sought: bodyKind(file) ?? "document", requested: file }
+      // places. The empty string means the path has no current claim; there
+      // is then no absent owner's name to invent.
+      return { kind: "nothing", sought: fileKind(at.claims, file) ?? "", requested: file }
     }
     return {
       kind: "document",
@@ -619,22 +615,22 @@ export const shownOf = (at: Reading, request: PageRequest): Shown => {
   // page. A named leftover still opens as an outline — that is how a human
   // hand-moves it. Naming the trash opens the trash: it is not a place you
   // edit, so the address a sidebar used to link goes where the entry went.
-  const outlines = outlinesAmong(faces)
+  const outlines = outlinesAmong(derived.claims, faces)
   const named = address === null ? null : address.path
   const file = named === null
-    ? outlines.find((candidate) => !isPutAway(candidate) && !candidate.startsWith("_olai/"))
-      ?? outlines.find((candidate) => !isPutAway(candidate))
+    ? outlines.find((candidate) => !isPutAway(at.claims, candidate) && !candidate.startsWith("_olai/"))
+      ?? outlines.find((candidate) => !isPutAway(at.claims, candidate))
     : outlines.includes(named)
     ? named
     : undefined
   if (file === undefined) {
     return {
       kind: "nothing",
-      sought: "outline",
-      requested: outlines.length === 0 ? null : named,
+      sought: named === null ? at.outlineRow ?? "" : fileKind(at.claims, named) ?? "",
+      requested: named,
     }
   }
-  if (isTrashed(file)) return trashOf(derived, faces)
+  if (isTrashed(at.claims, file)) return trashOf(derived, faces)
   const unreadable = at.set.broken.find((one) => one.file === file)
   return unreadable === undefined
     ? { kind: "outline", file, rows: rowsOf(derived, file) }
@@ -646,7 +642,7 @@ export const shownOf = (at: Reading, request: PageRequest): Shown => {
  *  would take. One spelling for the route and for an archive's own address, so
  *  the two doors cannot show two different trashes. */
 const trashOf = (derived: Derived, faces: ReadonlyArray<Face>): Shown => {
-  const files = outlinesAmong(faces).filter(isTrashed)
+  const files = outlinesAmong(derived.claims, faces).filter(file => isTrashed(derived.claims, file))
   return {
     kind: "trash",
     files,
@@ -718,7 +714,7 @@ const namesFor = (
   for (const node of drawnIn(shows)) {
     for (const id of node.node.see ?? []) wanted.add(id)
     for (const id of node.node.after ?? []) wanted.add(id)
-    const written = pinTargetIn(node.node.title)
+    const written = pinTargetIn(derived.claims, node.node.title)
     if (written !== undefined) wanted.add(written)
     for (const value of Object.values(customOf(node.node))) {
       for (const one of typeof value === "string" ? [value] : value) {

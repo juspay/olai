@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { definePlugin, mountPlugin, openPlugins, Offers, Deliveries } from "@olai/plugin-api/services"
 import { deliveryProvision } from "./server/deliveries.ts"
 import { afterEach, beforeEach, expect, test } from "bun:test"
@@ -27,7 +28,7 @@ afterEach(() => { rmSync(cwd, { recursive: true, force: true }) })
 const TO = { agent: "alpha", session: "one-session" }
 const NODE: NodeAgent = { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: TO.session, memory: 2 }
 const WAKE: Wake = {
-  subject: "activity", from: "files", waiting: { one: "one", many: "many" }, kinds: ["outline"],
+  subject: "activity", from: "files", waiting: { one: "one", many: "many" }, walks: "nodes",
   faults: { gone: "obsolete missing-file warning", unwatchable: "wrong kind" },
 }
 const bench = async (options: {
@@ -77,7 +78,7 @@ for (const replacement of [null, "Other.olai", "Work.olai"]) {
       try {
         await run(it.chat.scope(TO, "kolu", "Work.olai"))
         const delivery = fault
-          ? run(faultedIn(it.chat, { served: () => false, declared: new Map([["kolu", WAKE]]) }))
+          ? run(faultedIn(it.chat, { claims: TEST_CLAIMS, served: () => false, declared: new Map([["kolu", WAKE]]) }))
           : run(it.chat.doorFor("kolu").deliver(it.recipient(), () => "obsolete wake"))
         await run(Deferred.await(it.entered))
         await run(it.chat.scope(TO, "kolu", replacement))
@@ -264,7 +265,7 @@ test("a wake declaration leaving and returning revokes a queued missing-file war
     await run(it.chat.loadSession(TO.agent, TO.session))
     await run(it.chat.scope(TO, "kolu", "Work.olai"))
     await run(it.chat.send("wait:5000", [], []))
-    await run(faultedIn(it.chat, { served: () => false, declared: new Map([["kolu", WAKE]]) }))
+    await run(faultedIn(it.chat, { claims: TEST_CLAIMS, served: () => false, declared: new Map([["kolu", WAKE]]) }))
     expect(it.chat.state().wake[0]?.waiting).toBe(1)
     activation = undefined
     activation = { ...WAKE }

@@ -1,4 +1,3 @@
-import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * THE KIND VOCABULARY, ASSEMBLED — the composition, the two halves, and the
  * collision that must not be silent.
@@ -25,7 +24,7 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * **And a collision is a throw naming both plugins.** Prefixing makes one
  * unreachable; the count is what makes that a fact rather than a belief.
  */
-
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import { KIND_SEPARATOR, kindWordOf, type PropKind } from "@olai/plugin-api"
 import { definePlugin, Kinds, mountPlugin, standing } from "@olai/plugin-api/services"
 import { expect, test } from "bun:test"

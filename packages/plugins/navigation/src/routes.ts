@@ -1,6 +1,3 @@
-import type { AppPage } from "olai-plugin-navigation/slots"
-import type { AppRoute } from "olai-plugin-navigation/slots"
-import type { AppRouteClaim } from "olai-plugin-navigation/slots"
 /**
  * What a URL means, and nothing else.
  *
@@ -129,9 +126,15 @@ import type { AppRouteClaim } from "olai-plugin-navigation/slots"
  * cannot be read names nothing, and the address means what an unrecognised one
  * means.
  */
-
+import { Schema } from "effect"
+import type { AppPage } from "olai-plugin-navigation/slots"
+import type { AppRoute } from "olai-plugin-navigation/slots"
+import type { AppRouteClaim } from "olai-plugin-navigation/slots"
 import {
 type Address,
+type Claims,
+DocumentPath,
+NodeId,
 addressOf,
 fileKind,
 type PageReading,
@@ -488,10 +491,7 @@ const atAddress = (address: Address | null): PlainRoute => ({ kind: "at", addres
 /** The page a served FILE opens — an outline drawn as a tree, a body drawn
  *  whole, and which of those is nobody's decision here (`./page.ts` asks the
  *  registry when it picks the page). */
-export const atFile = (file: string, fragment?: string, query?: string): PlainRoute => ({
-  ...atAddress(addressOf(file, fragment ?? null)),
-  ...(fragment !== undefined && lineAt(fragment) !== undefined && query?.trim() ? { filter: query } : {}),
-})
+export const atFile = (file: string): PlainRoute => atAddress({ kind: "document", path: DocumentPath.make(file) })
 
 /** The source-line fragment grammar, shared by result routes and document pages. */
 export const lineFragment = (line: number): string => `L${line}`
@@ -508,12 +508,12 @@ const sourceLanding = (route: PlainRoute): boolean => {
 
 /** One node's page, by the id that is the whole of its address: bare, global,
  *  and right about where the node lives after every move short of a delete. */
-export const atNode = (id: string): PlainRoute => atAddress(addressOf(null, id))
+export const atNode = (id: string): PlainRoute => atAddress({ kind: "node", id: NodeId.make(id) })
 
 /** A place INSIDE a file — a heading of a body, or a node of an outline, which
  *  is the grammar's own reading of what a `#` after a path means. */
-export const atElement = (file: string, element: string | null): PlainRoute =>
-  atAddress(addressOf(file, element))
+export const atElement = (table: Claims, file: string, element: string | null): PlainRoute =>
+  atAddress(addressOf(table, file, element))
 
 /**
  * The URL a route is at: a PLACE, and what it is NARROWED by.
@@ -550,9 +550,9 @@ export const hrefOfPlain = (route: PlainRoute): string => {
  * a replacement provider's page is a different route rather than the same one
  * (`samePageIn`'s third case).
  */
-export const hrefOfIn = (pages: MountedPages, route: Route): string => {
+export const hrefOfIn = (table: Claims | undefined, pages: MountedPages, route: Route): string => {
   if (route.kind !== "plugin") return hrefOfPlain(route)
-  return (routeFaceIn(pages, route)?.route.href(route.value) ?? HOME) + narrowing(filterOfIn(pages, route))
+  return (routeFaceIn(pages, route)?.route.href(route.value) ?? HOME) + narrowing(filterOfIn(table, pages, route))
 }
 
 /** The `?q=…` a filtered page wears — and nothing at all for an unfiltered
@@ -634,8 +634,8 @@ export const fileNamed = (route: Route): string | undefined => {
  * front of it (`#md-1a2b-beds`): that is an anchor inside the page being read,
  * and an app address always starts with a slash.
  */
-export const routeInIn = (pages: MountedPages, href: string): Route | null =>
-  href.startsWith("/") ? routeNamedIn(pages, splitAddress(href)) : null
+export const routeInIn = (table: Claims | undefined, pages: MountedPages, href: string): Route | null =>
+  href.startsWith("/") ? routeNamedIn(table, pages, splitAddress(href)) : null
 
 /**
  * Anything this does not recognise is the default outline: an unknown path is
@@ -651,9 +651,9 @@ export const routeInIn = (pages: MountedPages, href: string): Route | null =>
  * answers the front page — one grammar, read once, with the KINDNESS added
  * here rather than baked into it.
  */
-export const routeOfIn = (pages: MountedPages, address: string): Route => {
+export const routeOfIn = (table: Claims | undefined, pages: MountedPages, address: string): Route => {
   const parts = splitAddress(address)
-  const named = routeNamedIn(pages, parts)
+  const named = routeNamedIn(table, pages, parts)
   if (named !== null) return named
   /** What an address this does not recognise means, and — since {@link spelled}
    *  — what one it cannot READ means too. The kindness is the same either way:
@@ -677,7 +677,7 @@ export const routeOfIn = (pages: MountedPages, address: string): Route => {
  * those paths do not silently become vault-file addresses. Claims are checked
  * against every other computed-page claim before one is read.
  */
-const routeNamedIn = (pages: MountedPages, parts: Split): Route | null => {
+const routeNamedIn = (table: Claims | undefined, pages: MountedPages, parts: Split): Route | null => {
   const { pathname, search, fragment } = parts
   const narrowed = narrowedBy(search)
 
@@ -700,17 +700,23 @@ const routeNamedIn = (pages: MountedPages, parts: Split): Route | null => {
   // is a page of this app and not a fallback, so a link may be written to it.
   if (pathname === HOME && fragment === undefined) return { ...HOME_ROUTE, ...narrowed }
 
-  const named = parseAddress(
+  const named = table === undefined ? null : parseAddress(
+    table,
     pathname.slice(HOME.length) + (fragment === undefined ? "" : `#${fragment}`),
   )
-  if (named === null) return null
+  if (named === null) {
+    let path: string
+    try { path = decodeURIComponent(pathname.slice(HOME.length)) } catch { return null }
+    const name = path.slice(path.lastIndexOf("/") + 1)
+    return /\.[^./]+$/.test(name) && Schema.is(DocumentPath)(path) ? atFile(path) : null
+  }
   // WHICH PAGE it opens is not decided here and is not stored: an address is a
   // place, and what is drawn at that place is the suffix's answer, asked once
   // where the page is picked (`./page.ts`). That is the whole of the arm
   // collapse — an address and a sidebar click cannot open two different pages
   // for one file, because neither of them says which page.
   const route = atAddress(named)
-  return narrowablePlain(route) || sourceLanding(route) ? { ...route, ...narrowed } : route
+  return narrowablePlain(table, route) || sourceLanding(route) ? { ...route, ...narrowed } : route
 }
 
 /**
@@ -736,19 +742,19 @@ const routeNamedIn = (pages: MountedPages, parts: Split): Route | null => {
  * replaces it is that nothing can build a document route with a filter without
  * going through {@link narrowedToIn}, which asks this.
  */
-export const narrowablePlain = (route: PlainRoute): boolean => {
+export const narrowablePlain = (table: Claims | undefined, route: PlainRoute): boolean => {
   const address = addressNamed(route)
   return address === null || address.kind === "node" ||
-    fileKind(address.path) === "outline"
+    table !== undefined && table.byKind.get(fileKind(table, address.path) ?? "")?.holds === "nodes"
 }
 
 /** ...and the same question about a route that may be a plugin's, where the
  *  answer is the TENANT'S own declaration and a departed tenant narrows
  *  nothing. */
-export const narrowableIn = (pages: MountedPages, route: Route): boolean =>
+export const narrowableIn = (table: Claims | undefined, pages: MountedPages, route: Route): boolean =>
   route.kind === "plugin"
     ? routeFaceIn(pages, route)?.route.narrowable ?? false
-    : narrowablePlain(route)
+    : narrowablePlain(table, route)
 
 /**
  * The same page, narrowed — or not, when `filter` is blank.
@@ -758,20 +764,20 @@ export const narrowableIn = (pages: MountedPages, route: Route): boolean =>
  * mint an address {@link hrefOfIn} silently drops and {@link routeOfIn} never
  * returns.
  */
-export const narrowedToIn = (pages: MountedPages, route: Route, filter: string): Route => {
-  if (!narrowableIn(pages, route)) return route
+export const narrowedToIn = (table: Claims | undefined, pages: MountedPages, route: Route, filter: string): Route => {
+  if (!narrowableIn(table, pages, route)) return route
   return { ...route, filter: filter.trim() === "" ? undefined : filter }
 }
 
-/** What a page is narrowed BY, for the one component that draws it and the
- *  memo that parses it. Read off the route for the reason `fileNamed` is: the
- *  route is what an address decodes to, and a copy beside it could differ. */
+/** The filter text carried by the URL's structural value. Printing preserves
+ * it without a live table; consumers use filterOfIn to admit narrowing against
+ * the current claim and mounted page. */
 export const filterOfPlain = (route: PlainRoute): string =>
-  (narrowablePlain(route) ? route.filter : undefined) ?? ""
+  route.filter ?? ""
 
 /** ...and the same reading of a route that may be a plugin's. */
-export const filterOfIn = (pages: MountedPages, route: Route): string =>
-  (narrowableIn(pages, route) ? route.filter : undefined) ?? ""
+export const filterOfIn = (table: Claims | undefined, pages: MountedPages, route: Route): string =>
+  (narrowableIn(table, pages, route) ? route.filter : undefined) ?? ""
 
 /**
  * The same PAGE, whatever it is narrowed by.
@@ -783,10 +789,10 @@ export const filterOfIn = (pages: MountedPages, route: Route): string =>
  * bijection rather than field by field, so it cannot go stale against a route
  * arm added later.
  */
-export const samePageIn = (pages: MountedPages, a: Route, b: Route): boolean =>
+export const samePageIn = (table: Claims | undefined, pages: MountedPages, a: Route, b: Route): boolean =>
   a.kind === b.kind
   && (a.kind !== "plugin" || b.kind !== "plugin" || a.source === b.source)
-  && hrefOfIn(pages, narrowedToIn(pages, a, "")) === hrefOfIn(pages, narrowedToIn(pages, b, ""))
+  && hrefOfIn(table, pages, narrowedToIn(table, pages, a, "")) === hrefOfIn(table, pages, narrowedToIn(table, pages, b, ""))
 
 /**
  * THE FOUR OPERATIONS THAT READ THE ROSTER, BOUND — what `Navigation` carries
@@ -821,13 +827,13 @@ export interface Routing {
   readonly samePage: (a: Route, b: Route) => boolean
 }
 
-export const routingOver = (pages: () => MountedPages): Routing => ({
+export const routingOver = (claims: () => Claims | undefined, pages: () => MountedPages): Routing => ({
   face: (route) => routeFaceIn(pages(), route),
-  narrowable: (route) => narrowableIn(pages(), route),
-  narrowedTo: (route, filter) => narrowedToIn(pages(), route, filter),
-  filterOf: (route) => filterOfIn(pages(), route),
-  href: (route) => hrefOfIn(pages(), route),
-  routeIn: (href) => routeInIn(pages(), href),
-  routeOf: (address) => routeOfIn(pages(), address),
-  samePage: (a, b) => samePageIn(pages(), a, b),
+  narrowable: (route) => narrowableIn(claims(), pages(), route),
+  narrowedTo: (route, filter) => narrowedToIn(claims(), pages(), route, filter),
+  filterOf: (route) => filterOfIn(claims(), pages(), route),
+  href: (route) => hrefOfIn(claims(), pages(), route),
+  routeIn: (href) => routeInIn(claims(), pages(), href),
+  routeOf: (address) => routeOfIn(claims(), pages(), address),
+  samePage: (a, b) => samePageIn(claims(), pages(), a, b),
 })

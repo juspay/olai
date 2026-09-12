@@ -20,7 +20,7 @@
  * beside a departure in the other list: it is one thing that happened, one
  * tick, and one commit that carries both halves.
  */
-
+import { servedDirectory } from "../vault.ts"
 import type { DirtyOutline, NodeChange } from "@olai/format"
 import { For, Show } from "solid-js"
 
@@ -103,7 +103,7 @@ export function Outlines(props: {
                       naming an address is spelled as written (the
                       `../search/row.ts` contract). */}
                   <span class="min-w-0 truncate">
-                    <TitleHtml drawing={renderTitle(change.title, change.file)} />
+                    <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file)} />
                   </span>
                   <span class="ml-auto shrink-0 text-xs text-muted">
                     {SAID[change.sort]}

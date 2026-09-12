@@ -1,7 +1,3 @@
-import type { FileLink } from "@olai/plugin-api"
-import { createSignal } from "solid-js"
-import type { HeldOpen } from "@olai/web/client/popover.ts"
-
 /** Approval history belongs to this inspector activation, independently of
  * its rendered door. An unrelated provider or shell replacement must not
  * silently approve a source version the reader has not acknowledged.
@@ -9,6 +5,9 @@ import type { HeldOpen } from "@olai/web/client/popover.ts"
  * Which groups this reader has opened lives here too: a switch rebuilds the
  * shell the panel is drawn in, and a walk that folded back up on that
  * remount would be the same unusable panel the live roster already was. */
+import type { FileLink } from "@olai/plugin-api"
+import { createSignal } from "solid-js"
+import type { HeldOpen } from "@olai/web/client/popover.ts"
 export const createInspectorState = () => {
   const [open, setOpen] = createSignal(false)
   const [read, setRead] = createSignal<ReadonlyMap<string, string>>(new Map())

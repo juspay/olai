@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/bundle/testids"
 /**
  * The FILE's own delete — `document_editing.feature`'s fourth milestone, and
  * `trash_steps.ts`'s shape said once more at file size.
@@ -9,7 +8,7 @@ import { TESTID } from "@olai/bundle/testids"
  * the same reason the trash's steps are written this way: a control that
  * cannot be taken back is pressed once too often to read its label.
  */
-
+import { TESTID } from "@olai/bundle/testids"
 import { Then, When } from "@cucumber/cucumber"
 import * as assert from "node:assert"
 import { selector } from "@olai/web/testlib"

@@ -19,7 +19,7 @@
  * mid-sentence: ↑/↓ walk, Enter and Tab accept, Escape closes. A click does the
  * same thing for the times a hand is already there.
  */
-
+import { servedDirectory } from "../vault.ts"
 import type { Place } from "olai-plugin-search/ui/place.ts"
 import { PlaceLine } from "olai-plugin-search/ui/PlaceLine.tsx"
 import { createEffect, createMemo, Index, on, onCleanup, onMount, Show } from "solid-js"
@@ -100,7 +100,7 @@ function RowLabel(props: { readonly row: MenuRow }) {
     () =>
       props.row.from === undefined
         ? undefined
-        : renderTitle(props.row.label, props.row.from, {
+        : renderTitle(servedDirectory()?.claims(), props.row.label, props.row.from, {
           // The row is a <button>: nested anchors are invalid markup, so a
           // markdown link in a title is unwrapped the way a search row's is.
           links: false,
@@ -317,7 +317,7 @@ export function CompletionMenu(props: {
                     when the row is copied or read aloud, and `ml-2` is neither. */}
                 <RowLabel row={row()} />{" "}
                 <span class="ml-1 text-muted">{row().hint}</span>
-                {" "}<Show when={row().place}>{place => <PlaceLine place={place()} />}</Show>
+                {" "}<Show when={row().place}>{place => <PlaceLine claims={servedDirectory()?.claims()} place={place()} />}</Show>
               </button>
             </li>
           </>

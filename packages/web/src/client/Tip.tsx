@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/ui-primitives/testids.ts"
 /**
  * A hover tip, drawn by this app rather than by the platform.
  *
@@ -30,7 +29,7 @@ import { TESTID } from "@olai/ui-primitives/testids.ts"
  * Where it lands is `./tip.ts`, measured after it draws because a tip's width
  * is a fact about the text and the window rather than one we can be told.
  */
-
+import { TESTID } from "@olai/ui-primitives/testids.ts"
 import { createContext, useContext, createEffect, createSignal, type JSX, onCleanup, onMount, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 

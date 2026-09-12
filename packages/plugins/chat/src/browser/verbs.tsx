@@ -1,5 +1,3 @@
-import type { AppCommand } from "olai-plugin-navigation/slots"
-import type { RowAction } from "olai-plugin-outlines/slots"
 /**
  * THE TWO VERBS ON A ROW'S `•••`, AND THE PALETTE'S `>` — chat's contributions
  * to two places in the app that used to spell it themselves.
@@ -40,8 +38,8 @@ import type { RowAction } from "olai-plugin-outlines/slots"
  * `app.panel` slot hands over — so this reaches for it through the shell door
  * like any other face that draws inside the app.
  */
-
-
+import type { AppCommand } from "olai-plugin-navigation/slots"
+import type { RowAction } from "olai-plugin-outlines/slots"
 import { setPanelOpen } from "./shell.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { Result } from "effect"

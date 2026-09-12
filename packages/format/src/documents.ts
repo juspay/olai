@@ -33,10 +33,9 @@
  *     as a `doc` and as a picture, asked about the third thing markdown can
  *     point at: another file of this directory that has a page.
  */
-
 import { type Address, addressOf, printAddress } from "./address.ts"
 import { proseIn } from "./frontmatter.ts"
-import { bodyKind, FILE_KINDS, isFetched, SVG_EXT } from "./kinds.ts"
+import { bodyKind, type Claims, isFetched } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
 import { headingText } from "./slug.ts"
 
@@ -125,9 +124,9 @@ export const retargetRelative = (fromFile: string, toFile: string, rel: string):
  * is reading, and an address off the allowlist is a way of drawing something
  * that is not a file in this directory.
  */
-export const pictureOf = (from: string, src: string): string | null => {
+export const pictureOf = (claims: Claims, from: string, src: string): string | null => {
   const resolved = relativeTo(from, src)
-  return resolved !== null && isPicture(resolved) ? resolved : null
+  return resolved !== null && isPicture(claims, resolved) ? resolved : null
 }
 
 /**
@@ -210,9 +209,9 @@ const decodedSegment = (segment: string): string | null => {
  * was found, and a link to a file that is not there is answered by the screen
  * that says so rather than by a link that silently was not one.
  */
-export const bodiedOf = (from: string, href: string): string | null => {
+export const bodiedOf = (claims: Claims, from: string, href: string): string | null => {
   const resolved = relativeTo(from, href)
-  return resolved !== null && bodyKind(resolved) !== null ? resolved : null
+  return resolved !== null && bodyKind(claims, resolved) !== null ? resolved : null
 }
 
 /**
@@ -246,30 +245,6 @@ export const pathedOf = (from: string, href: string): string | null =>
  *  treat as part of a file name. */
 const SCHEME = /^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|\/\/)/
 
-/**
- * The extensions a picture MARKDOWN MAY NAME.
- *
- * READ OFF THE REGISTRY, minus one, and that subtraction is the whole of what
- * this list still decides. A picture used to be the one thing under the served
- * directory that was neither an outline nor a document — nothing loaded one,
- * nothing validated one, and one existed only as the target of a relative
- * `![](…)` — so this was a closed allowlist typed out here. A picture is a
- * KIND now (`./kinds.ts`): it is in the set, it is in the sidebar, and it has a
- * page. Two hand-kept lists of the same suffixes would be two chances to add
- * `.heic` to one of them, and the way that reads is a file the sidebar draws
- * and a document cannot point at, or the reverse.
- *
- * WHAT IS SUBTRACTED IS `.svg`, and that is the ruling this list exists to keep
- * (`@olai/surface`'s `attach.ts` keeps the same one for what may be handed to
- * an agent): an SVG is a document that can script, and markdown pointing at one
- * is this app promising to draw a file it has not read. That the kind claims
- * `.svg` is not the same permission — a picture's PAGE draws it in an `<img>`,
- * which is the element that will not run it, and the response it is fetched
- * with says so too (`@olai/server`'s `media.ts`).
- */
-export const PICTURE_EXTENSIONS: ReadonlyArray<string> = FILE_KINDS.image.exts
-  .filter((ext) => ext !== SVG_EXT)
-
 /** Whether a path ends in one of these suffixes, case-folded — the matching
  *  RULE, held once for the two lists below it. Case-folding, exact suffix, no
  *  dot boundary: two allowlists answering the same shape of question should not
@@ -279,7 +254,39 @@ const suffixed = (path: string, extensions: ReadonlyArray<string>): boolean => {
   return extensions.some((extension) => lower.endsWith(extension))
 }
 
-export const isPicture = (path: string): boolean => suffixed(path, PICTURE_EXTENSIONS)
+/**
+ * Whether Markdown may draw this path as an inline picture.
+ *
+ * READ OFF THE CLAIMS: `picture` admits the case-folded suffix, and `inert`
+ * excludes suffixes that must not become inline pictures. A picture used to
+ * be the one thing under the served directory that was neither an outline nor a document — nothing loaded one,
+ * nothing validated one, and one existed only as the target of a relative
+ * `![](…)` — so this was a closed allowlist typed out here. A picture is a
+ * KIND now (`./kinds.ts`): it is in the set, it is in the sidebar, and it has a
+ * page. Two hand-kept lists of the same suffixes would be two chances to add
+ * `.heic` to one of them, and the way that reads is a file the sidebar draws
+ * and a document cannot point at, or the reverse.
+ *
+ * The image row declares `.svg` inert, preserving the ruling
+ * (`@olai/surface`'s `attach.ts` keeps the same one for what may be handed to
+ * an agent): an SVG is a document that can script, and markdown pointing at one
+ * is this app promising to draw a file it has not read. That the kind claims
+ * `.svg` is not the same permission — a picture's PAGE draws it in an `<img>`,
+ * which is the element that will not run it, and the response it is fetched
+ * with says so too (the vault's `http/media.ts`).
+ */
+export const isPicture = (claims: Claims, path: string): boolean => {
+  const lower = path.toLowerCase()
+  return [...claims.byKind.values()].some(claim => claim.picture === true &&
+    suffixed(lower, claim.exts) && !suffixed(lower, claim.inert ?? []))
+}
+
+/** Serving policy comes from the current claim, including case-folded images. */
+export const servingOf = (claims: Claims, path: string): { sealed: boolean; inert: boolean } => {
+  const claim = [...claims.byKind.values()].find(claim =>
+    claim.exts.some(ext => path.endsWith(ext) || (claim.picture === true && path.toLowerCase().endsWith(ext))))
+  return { sealed: claim?.serving === "sealed-frame", inert: suffixed(path, claim?.inert ?? []) }
+}
 
 /**
  * The extensions a PAGE may fetch, beyond the pictures above — the parts a
@@ -308,15 +315,15 @@ export const isPicture = (path: string): boolean => suffixed(path, PICTURE_EXTEN
  * is one of the picture kind's suffixes, so {@link isAsset} admits it below,
  * and what stops a previewed page pulling one into a frame and running it is
  * the response that answers it rather than a suffix withheld here
- * (`@olai/server`'s `media.ts` sandboxes an SVG's own response). Withholding
+ * (the vault's `http/media.ts` sandboxes an SVG's own response). Withholding
  * it here would also have withheld it from the `<img>` a picture's PAGE draws,
  * which is the one thing the ruling never meant to stop.
  *
  * The kinds a browser fetches are NOT here either: which suffixes those are is
  * `./kinds.ts`'s single answer, and {@link isAsset} asks it there.
  *
- * Module-private, unlike {@link PICTURE_EXTENSIONS} beside it, because nothing
- * outside needs the LIST — the route asks {@link isAsset} a question and gets a
+ * This companion-asset list is module-private because nothing outside needs
+ * the LIST — the route asks {@link isAsset} a question and gets a
  * yes or a no. A second exported list would be a second thing to keep in step
  * for no reader.
  */
@@ -352,8 +359,8 @@ const ASSET_EXTENSIONS: ReadonlyArray<string> = [
  * file no kind claims, while {@link isPicture} has case-folded since before
  * there was a picture kind — and a document naming one has always drawn it.
  */
-export const isAsset = (path: string): boolean =>
-  isFetched(path) || isPicture(path) || suffixed(path, ASSET_EXTENSIONS)
+export const isAsset = (claims: Claims, path: string): boolean =>
+  isFetched(claims, path) || isPicture(claims, path) || suffixed(path, ASSET_EXTENSIONS)
 
 /**
  * A document, in one line: its first line with anything on it, heading marks
@@ -482,14 +489,14 @@ export const bytesOf = (text: string): number => UTF8.encode(text).length
  * NEVER TWICE, and the container says so: a note that links the same document
  * three times points at it once. What reads this wants the EDGES.
  */
-export const linksIn = (from: string, text: string): ReadonlyArray<Address> => {
+export const linksIn = (claims: Claims, from: string, text: string): ReadonlyArray<Address> => {
   // The cheap negative first: nearly every note in a directory holds no link
   // at all, and this is asked of every record and every body of the set.
   if (!text.includes("](")) return NO_LINKS
   let found: Array<Address> | undefined
   let seen: Set<string> | undefined
   for (const href of writtenLinks(text)) {
-    const address = linkTo(from, href)
+    const address = linkTo(claims, from, href)
     if (address === null) continue
     const written = printAddress(address)
     if ((seen ??= new Set()).has(written)) continue
@@ -635,32 +642,32 @@ const NO_LINKS: ReadonlyArray<Address> = []
  * carrying no prose and no edge fields; what it shows is the node's, and the
  * node is where the reference is written.
  */
-export const recordLinks = (located: Located): ReadonlyArray<Address> => {
-  const attached = pathAddress(docOf(located))
+export const recordLinks = (claims: Claims, located: Located): ReadonlyArray<Address> => {
+  const attached = pathAddress(claims, docOf(located))
   if (isMirror(located.node)) return attached === null ? NO_LINKS : [attached]
   const found: Array<Address> = attached === null ? [] : [attached]
   for (const id of located.node.see ?? []) {
-    const address = addressOf(null, id)
+    const address = addressOf(claims, null, id)
     if (address !== null) found.push(address)
   }
-  found.push(...linksIn(located.file, located.node.title))
+  found.push(...linksIn(claims, located.file, located.node.title))
   if (located.node.desc !== undefined) {
-    found.push(...linksIn(located.file, located.node.desc))
+    found.push(...linksIn(claims, located.file, located.node.desc))
   }
   return found
 }
 
 /** A whole-document address, for a path that may be absent — `doc` is the one
  *  field of a record that names a file, and most records name none. */
-const pathAddress = (path: string | undefined): Address | null =>
-  path === undefined ? null : addressOf(path, null)
+const pathAddress = (claims: Claims, path: string | undefined): Address | null =>
+  path === undefined ? null : addressOf(claims, path, null)
 
 /** What one written link names, or `null` — the grammar's three arms, told
  *  apart by where the `#` is. */
-const linkTo = (from: string, href: string): Address | null => {
+const linkTo = (claims: Claims, from: string, href: string): Address | null => {
   const cut = href.indexOf("#")
-  if (cut === 0) return addressOf(null, href.slice(1))
+  if (cut === 0) return addressOf(claims, null, href.slice(1))
   const path = cut === -1 ? href : href.slice(0, cut)
-  const resolved = bodiedOf(from, path)
-  return resolved === null ? null : addressOf(resolved, cut === -1 ? null : href.slice(cut + 1))
+  const resolved = bodiedOf(claims, from, path)
+  return resolved === null ? null : addressOf(claims, resolved, cut === -1 ? null : href.slice(cut + 1))
 }

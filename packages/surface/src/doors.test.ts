@@ -84,6 +84,7 @@ const DOORS: Readonly<Record<string, { readonly module: object; readonly names: 
       "chunkUrl",
       "heard",
       "isAttachable",
+      "isAttachmentPicture",
       "mediaHref",
       "mediaTarget",
       "ours",

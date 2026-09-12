@@ -1,7 +1,3 @@
-import { CONFIGURATION_FILE, configurationUnavailable, configurationBroken, type EnvironmentReading } from "@olai/plugin-api/configuration"
-import { approveDefinition } from "./approval.ts"
-import { TESTID } from "olai-plugin-plugin-inspector/testids"
-import { pluginPref } from "olai-plugin-plugin-inspector/testids"
 /**
  * WHAT THIS INSTANCE IS RUNNING — one row per plugin the build has, and the
  * panel is its own now rather than a section at the foot of preferences.
@@ -86,7 +82,10 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * state belong to the inspector, so navigation withdrawal drops the links
  * without forgetting what this reader opened.
  */
-
+import { CONFIGURATION_FILE, configurationUnavailable, configurationBroken, type EnvironmentReading } from "@olai/plugin-api/configuration"
+import { approveDefinition } from "./approval.ts"
+import { TESTID } from "olai-plugin-plugin-inspector/testids"
+import { pluginPref } from "olai-plugin-plugin-inspector/testids"
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js"
 
 import {

@@ -1,3 +1,9 @@
+/** What the store hands over: one decoded file per path, each either decoded
+ *  or failed. A `Map` rather than a record because that is the shape the codec
+ *  seam passes — and its ORDER is deliberately not the answer: `documents` is
+ *  documented as every served file in path order, and `assemble` puts them in
+ *  it rather than trusting whoever built the map to have done so. */
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
@@ -12,12 +18,6 @@ import { byPath } from "./paths.ts"
 import { apart, assemble, documentAt, markdownIn, outlinePaths } from "./set.ts"
 
 type Decoded = Result.Result<Document, Verdict>
-
-/** What the store hands over: one decoded file per path, each either decoded
- *  or failed. A `Map` rather than a record because that is the shape the codec
- *  seam passes — and its ORDER is deliberately not the answer: `documents` is
- *  documented as every served file in path order, and `assemble` puts them in
- *  it rather than trusting whoever built the map to have done so. */
 const decoded = (files: Record<string, Decoded>): ReadonlyMap<string, Decoded> =>
   new Map(Object.entries(files))
 
@@ -26,7 +26,7 @@ const outline = (file: string, contents: string): Decoded =>
 
 /** A `.md`: found, served, and carrying its text. */
 const document = (file: string, text: string): Decoded =>
-  Result.succeed(bodiedDocument(file, text))
+  Result.succeed(bodiedDocument(TEST_CLAIMS, file, text))
 
 const unreadable = (file: string, contents: string): Decoded =>
   Result.fail(verdictOf(failureOf(contents, file)))
@@ -49,7 +49,7 @@ const spelled = (values: ReadonlyArray<string>): ReadonlyArray<string> => [...va
 // is was decided by its NAME long before this, and the arm is that answer
 // carried on the value rather than a second reading of it.
 test("assemble collects every decoded file as the document it is", () => {
-  const set = assemble(decoded({
+  const set = assemble(TEST_CLAIMS, decoded({
     "home.olai": outline("home.olai", `{"id":"kitchen","ord":"a","title":"kitchen"}\n`),
     "notes/cabinets.md": document("notes/cabinets.md", "# Cabinets\n"),
     "work.olai": outline(
@@ -59,7 +59,7 @@ test("assemble collects every decoded file as the document it is", () => {
   }))
 
   expect(paths(set)).toEqual(["home.olai", "notes/cabinets.md", "work.olai"])
-  expect(set.documents.map((one) => one.kind)).toEqual(["outline", "document", "outline"])
+  expect(set.documents.map((one) => one.kind)).toEqual(["outline-olai", "markdown", "outline-olai"])
   expect(outlinePaths(set)).toEqual(["home.olai", "work.olai"])
   expect(spelled(markdownIn(set).map((one) => one.path))).toEqual(["notes/cabinets.md"])
   expect(markdownIn(set).map((one) => one.body)).toEqual(["# Cabinets\n"])
@@ -76,7 +76,7 @@ test("assemble collects every decoded file as the document it is", () => {
 // the elements it can be addressed by — none of it a field on disk, all of it
 // total, none of it something a consumer can forget to derive.
 test("a markdown document carries a face", () => {
-  const set = assemble(decoded({
+  const set = assemble(TEST_CLAIMS, decoded({
     "notes/plan.md": document(
       "notes/plan.md",
       [
@@ -113,7 +113,7 @@ test("a markdown document carries a face", () => {
 // what makes "who points at this document" a question with one answer for both
 // kinds (`./backlinks.ts`).
 test("an outline carries a face read off its records", () => {
-  const set = assemble(decoded({
+  const set = assemble(TEST_CLAIMS, decoded({
     "home.olai": outline(
       "home.olai",
       [
@@ -141,8 +141,8 @@ test("an outline carries a face read off its records", () => {
 // `kept: false` showing through rather than a claim that a saved page points
 // nowhere: nothing here has read it.
 test("hypertext is a face and no body", () => {
-  const set = assemble(decoded({
-    "saved.html": Result.succeed(bodiedDocument("saved.html", null)),
+  const set = assemble(TEST_CLAIMS, decoded({
+    "saved.html": Result.succeed(bodiedDocument(TEST_CLAIMS, "saved.html", null)),
   }))
   const saved = set.documents[0]!
   expect(saved.kind).toBe("hypertext")
@@ -161,7 +161,7 @@ test("hypertext is a face and no body", () => {
 // the `house.olai` it sorts before, which `outlines_index` answers with and a
 // search tie breaks on.
 test("documents come out in path order, whatever order the map holds", () => {
-  const set = assemble(decoded({
+  const set = assemble(TEST_CLAIMS, decoded({
     "zeta.olai": outline("zeta.olai", `{"id":"z","ord":"a","title":"z"}`),
     "notes/zebra.md": document("notes/zebra.md", "z\n"),
     "_olai/Trash.olai": outline("_olai/Trash.olai", `{"id":"arch","ord":"a","title":"arch"}`),
@@ -199,7 +199,7 @@ test("a directory sorts where descending into it would put it", () => {
   // Everything that is not the separator is code point order, unchanged.
   expect(["b.olai", "A.olai", "a.olai"].sort(byPath)).toEqual(["A.olai", "a.olai", "b.olai"])
 
-  const set = assemble(decoded({
+  const set = assemble(TEST_CLAIMS, decoded({
     "wing.olai": outline("wing.olai", `{"id":"wing","ord":"a","title":"wing"}`),
     "wing/kitchen.olai": outline(
       "wing/kitchen.olai",
@@ -214,7 +214,7 @@ test("a directory sorts where descending into it would put it", () => {
 // proves it: an empty `.olai` is a file of the set the sidebar shows and a file
 // a writer may append to, not a file that is missing.
 test("an outline holding no nodes is still one of the set's documents", () => {
-  const set = assemble(decoded({
+  const set = assemble(TEST_CLAIMS, decoded({
     "empty.olai": outline("empty.olai", ``),
     "a.olai": outline("a.olai", `{"id":"a","ord":"a","title":"a"}`),
   }))
@@ -228,7 +228,7 @@ test("an outline holding no nodes is still one of the set's documents", () => {
 // always there, so the browser renders "no outlines here" from the same shape
 // it renders everything else from.
 test("nothing decoded assembles to an empty set", () => {
-  expect(assemble(decoded({}))).toEqual({ documents: [], broken: [] })
+  expect(assemble(TEST_CLAIMS, decoded({}))).toEqual({ documents: [], broken: [] })
 })
 
 // A file that did not parse is still a file that was FOUND. It keeps its place
@@ -236,7 +236,7 @@ test("nothing decoded assembles to an empty set", () => {
 // errors, which is what lets the view put them where that outline would have
 // been instead of blanking the page.
 test("a file that did not decode keeps its place and carries its errors", () => {
-  const set = assemble(decoded({
+  const set = assemble(TEST_CLAIMS, decoded({
     "good.olai": outline("good.olai", `{"id":"a","ord":"a","title":"a"}`),
     "bad.olai": unreadable("bad.olai", `{"id":"b","ord":"a",title:"b"}`),
   }))
@@ -252,7 +252,7 @@ test("a file that did not decode keeps its place and carries its errors", () => 
 // document with no text, so the sidebar lists it and a write refuses to
 // re-emit it from a body nobody read.
 test("an unreadable document holds its place with an empty body", () => {
-  const set = assemble(decoded({
+  const set = assemble(TEST_CLAIMS, decoded({
     "notes/lost.md": Result.fail(verdictOf([
       { file: "notes/lost.md", line: 0, code: "unreadable-directory", message: "gone" },
     ] as ReadonlyArray<OutlineError>)),
@@ -281,7 +281,7 @@ test("an unreadable document holds its place with an empty body", () => {
  * other, over a set that carries one of each kind.
  */
 test("a set taken apart and assembled again is the set it was", () => {
-  const set = assemble(decoded({
+  const set = assemble(TEST_CLAIMS, decoded({
     "home.olai": outline(
       "home.olai",
       [
@@ -292,16 +292,16 @@ test("a set taken apart and assembled again is the set it was", () => {
     ),
     "empty.olai": outline("empty.olai", ""),
     "notes/cabinets.md": document("notes/cabinets.md", "# Cabinets\n"),
-    "saved.html": Result.succeed(bodiedDocument("saved.html", null)),
+    "saved.html": Result.succeed(bodiedDocument(TEST_CLAIMS, "saved.html", null)),
     "bad.olai": unreadable("bad.olai", `{"id":"b","ord":"a",title:"b"}`),
   }))
 
-  expect(assemble(apart(set))).toEqual(set)
+  expect(assemble(TEST_CLAIMS, apart(set))).toEqual(set)
   // The records come back as the SAME objects, not as copies that compare
   // equal: the validator's duplicate-id rule is an identity test, so a set
   // rebuilt out of clones would make every record look like a duplicate of
   // itself.
-  expect(recordsOf(assemble(apart(set)))[0]).toBe(recordsOf(set)[0])
+  expect(recordsOf(assemble(TEST_CLAIMS, apart(set)))[0]).toBe(recordsOf(set)[0])
 })
 
 // The pair the two halves of `model-indices` slice 4 and `olai-batch-verbs`
@@ -313,7 +313,7 @@ test("a set taken apart and assembled again is the set it was", () => {
 // pass every other case here and fail exactly this one, silently, by handing
 // the batch fold a set in an order no load produces.
 test("the inverse holds for the pair path order exists to settle", () => {
-  const set = assemble(decoded({
+  const set = assemble(TEST_CLAIMS, decoded({
     "wing.olai": outline("wing.olai", `{"id":"wing","ord":"a","title":"wing"}`),
     "wing/kitchen.olai": outline(
       "wing/kitchen.olai",
@@ -322,8 +322,8 @@ test("the inverse holds for the pair path order exists to settle", () => {
     "wing/notes.md": document("wing/notes.md", "n\n"),
   }))
   expect(outlinePaths(set)).toEqual(["wing/kitchen.olai", "wing.olai"])
-  expect(assemble(apart(set))).toEqual(set)
-  expect(outlinePaths(assemble(apart(set)))).toEqual(["wing/kitchen.olai", "wing.olai"])
+  expect(assemble(TEST_CLAIMS, apart(set))).toEqual(set)
+  expect(outlinePaths(assemble(TEST_CLAIMS, apart(set)))).toEqual(["wing/kitchen.olai", "wing.olai"])
 })
 
 // ── the point lookup, against the walk it replaced ──────────────────────
@@ -358,7 +358,7 @@ test("a file found by search is the file a walk finds", () => {
   for (const path of ["notes.md", "wing/notes.md", "a/b/notes.md", "art/handle.png"]) {
     files[path] = document(path, "n\n")
   }
-  const set = assemble(decoded(files))
+  const set = assemble(TEST_CLAIMS, decoded(files))
   const walked = (path: string): Document | undefined =>
     set.documents.find((document) => document.path === path)
 

@@ -2,16 +2,16 @@
 
 The `vault` plugin owns the served directory: its exclusive lock, store watcher,
 write gate and revision publisher. It offers `Vault`, `Directory` and `Ops`.
-Core supplies `VaultSettings` after reading the bundle’s declared vocabulary.
+Its setup activation supplies `VaultSettings` and owns the scoped `vault.file-kinds` registry.
 
 The row lives in `packages/bundle/olai.yml`. Its `Config` schema declares the
-`format` field, its `olai` default and its description; YAML carries no config.
-Every server profile selects the vault. Its panel switch is session-only: turning it off keeps the transport control plane available while withdrawing the directory and the services that depend on it. Enabling it reopens the store and republishes the settings file. Other rows use durable `on` properties in `_olai/Settings.olai`.
+`format` field, its `outline-olai` default and its description; YAML carries no config.
+Every server profile selects the vault. Its panel switch is session-only: turning it off keeps the transport control plane available while withdrawing the directory and the services that depend on it. Enabling it reopens the store and republishes the settings file. Rows that do not own the settings reading use durable `on` properties in `_olai/Settings.olai`. The settings row and the row claiming that file’s suffix share the session-only exception.
 
 The plugins panel explains that switching this row off clears served files and
 stops dependent plugins. Accepted writes finish before the watcher and lock are
 released. Turning it on opens a fresh store and gate over the same directory.
-A lock conflict, invalid format or non-directory path fails this row while the
+A lock conflict or non-directory path fails this row while the
 transports remain available for diagnosis and retry.
 
 Where a write is RECORDED and what a query is ANSWERED BY are two optional
@@ -35,9 +35,7 @@ of module variables, which is private to this package and owned by nobody: one
 process opening two hosts had one pair between them, so the second serve's git
 row answered the first serve's writes.
 
-Only the `olai` format is supported. A future Org codec belongs in this plugin’s
-format catalogue and schema; a different storage implementation can stand behind
-`Directory`. This plugin does not implement Org or migrate files.
+The `outline-olai` row provides the current outline format. Further formats register their own claims and pure codecs with `vault.file-kinds`; the vault has no format catalogue and performs no migration.
 
 See [running olai](../running.md) for profiles and configuration, and
 [the plugin system](../architecture/plugin-system.md) for lifecycle ordering.
@@ -66,3 +64,22 @@ adapter treats Effect's queue-end sentinel during cancellation as normal
 subscription teardown, while retaining genuine publisher failures. Repeated
 withdrawal therefore keeps the management runtime alive and reactivation
 creates a fresh subscription.
+
+File claims are atomic and owned by the registering fiber. The registry stamps
+the row id; a second claim by that row or overlapping suffixes refuse without
+installing anything. Withdrawal releases only that registration and triggers a
+reprobe. Each published Reading carries the Claims snapshot that validated it.
+The codec reads the current table per call and unclaimed files are not cached
+as served files.
+
+`format` is the row id used when minting outlines, default `outline-olai`. An absent
+configured row leaves the vault readable and refuses the mint before writing.
+`vault.files` carries live claims, the configured `outlineRow`, kind lookup,
+fresh unkept-text body reads and outline diffs through the vault's own wire.
+Media admission and HTML sealing use the current claims per request.
+
+Non-Markdown pages subscribe to the vault's `bodyPage` stream through
+`vault.files.bodyPage` for their head, revision and referrers. Markdown owns its
+separate `.md` page stream, so disabling it leaves the other body pages usable.
+`vault.files.body` is a browser-only fresh read for unkept text that is not
+fetched; saved HTML stays on the sealed media route and is not an agent tool.

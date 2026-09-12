@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/bundle/testids"
 /**
  * The preferences panel: the one door in the header, the rows behind it, and
  * the promise every one of them makes — that a pick is this browser's and
@@ -14,7 +13,8 @@ import { TESTID } from "@olai/bundle/testids"
  * `showPreferences` is exported because the theme steps need it too — the chips
  * are a row of this panel now, so every theming scenario opens this first.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
+import { TESTID } from "@olai/bundle/testids"
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 import type { Page, Locator } from "playwright";
@@ -318,7 +318,7 @@ const outlineNamedBy = (href: string | null): string | undefined => {
     /^\//,
     "",
   );
-  return fileKind(path) === "outline" ? path : undefined;
+  return TEST_CLAIMS.byKind.get(fileKind(TEST_CLAIMS, path) ?? "")?.holds === "nodes" ? path : undefined;
 };
 
 /** The flip of the ADDRESSED page, not a held previous one.

@@ -58,5 +58,6 @@
       "./address/Face.tsx",
       "./routes.testlib.ts"
     ]
-  }
+  },
+  "devDependencies": {}
 }

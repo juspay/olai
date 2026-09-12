@@ -1,5 +1,3 @@
-import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The two edges a node carries, as values: what each is called on screen, and
  * the {@link Edit} that adds or drops one target.
@@ -20,7 +18,8 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * carries none, by the format — so every caller passes the shown node's id, the
  * same one a mark and a date are written on.
  */
-
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "olai-plugin-outlines/testids"
 import type { Edit } from "@olai/surface"
 
 

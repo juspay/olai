@@ -1,4 +1,3 @@
-import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 /**
  * THE MIGRATION GESTURE and a REAL EDIT, against the pinned adapter — the
  * third of these drivers, and the one that covers the path the other two leave.
@@ -28,6 +27,7 @@ import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
  *   bash assign-live.sh                # …or, against a server you started:
  *   BASE=http://127.0.0.1:PORT VAULT=/path/to/vault bun assign-live.ts
  */
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 import { chromium } from "playwright"
 
 import { selector } from "@olai/web/testlib"

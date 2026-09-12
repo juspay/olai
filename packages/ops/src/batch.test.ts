@@ -13,20 +13,9 @@
  * over it is too. What only holds against a real disk (one revision, a refused
  * batch leaving the file untouched) is {@link ./ops.test.ts}'s.
  */
-
-import {
-  ApplyRequest,
-  BATCH_AT_MOST,
-  type BatchedRequest,
-  byPath,
-  derive,
-  nodesOf,
-  type OutlineSet,
-  outlinePaths,
-  serializeOutline,
-  WriteRequest,
-  type WriteRequest as Request,
-} from "@olai/format"
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
+import { ApplyRequest, BATCH_AT_MOST, type BatchedRequest, byPath, derive, nodesOf, type OutlineSet, outlinePaths, WriteRequest, type WriteRequest as Request } from "@olai/format"
+import { serializeOutline } from "olai-plugin-outline-olai/format"
 import { recordsOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
@@ -57,7 +46,7 @@ const after = (set: OutlineSet, request: Request): OutlineSet => {
     outlinePaths(set).map((file) => [
       file,
       serializeOutline(
-        nodesOf(derive(recordsOf(set)), file).map((located) => located.node),
+        nodesOf(derive(TEST_CLAIMS, recordsOf(set)), file).map((located) => located.node),
       ),
     ]),
   )

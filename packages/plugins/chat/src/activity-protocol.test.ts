@@ -1,9 +1,8 @@
+/** Exercise the actual SDK dispatcher: these events otherwise fail its union
+ * validation before an ordinary session/update callback can receive them. */
 import { expect, test } from "bun:test"
 import { client, methods, type Stream } from "@agentclientprotocol/sdk"
 import { nativeActivity, type ActivityNotification } from "@olai/acp"
-
-/** Exercise the actual SDK dispatcher: these events otherwise fail its union
- * validation before an ordinary session/update callback can receive them. */
 const deliver = async (updates: unknown[]) => {
   const events: ActivityNotification[] = []
   const ordinary: unknown[] = []

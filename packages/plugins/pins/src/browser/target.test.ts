@@ -31,7 +31,7 @@
  * a PIN's, so the claim is this row's — and `@olai/bundle`'s `fence.test.ts`
  * now reads an empty list where `@olai/web` used to name this package.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { pinTargetIn } from "@olai/format"
 import { expect, test } from "bun:test"
 
@@ -91,7 +91,7 @@ test("where the app's own parser reads a node, the server read the same node", (
   for (const title of TITLES) {
     const named = nodeIn(title)
     if (named === undefined) continue
-    expect([title, pinTargetIn(title)]).toEqual([title, named])
+    expect([title, pinTargetIn(TEST_CLAIMS, title)]).toEqual([title, named])
   }
 })
 

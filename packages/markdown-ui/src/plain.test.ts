@@ -17,7 +17,7 @@
  * markdown can do to a line, which is the same list ./plain.ts is written
  * against.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { installPipeline } from "./chunk.ts"
@@ -45,7 +45,7 @@ const viaPipeline = (
   title: string,
   needles: ReadonlyArray<string> = [],
 ): string => {
-  const tree = renderToTree(title, NOTE, "inline")
+  const tree = renderToTree(TEST_CLAIMS, title, NOTE, "inline")
   styleTags(tree, needles)
   return hastToHtml(tree)
 }

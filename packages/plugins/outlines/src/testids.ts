@@ -1,6 +1,9 @@
 /** Stable DOM identifiers owned by this renderer. Shared consumers import
  * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
+  outlineLink: "outline-link",
+
+
   outlinesStory: "outlines-story",
   outlinesNudge: "outlines-nudge",
   outlinesStoryRef: "outlines-story-ref",

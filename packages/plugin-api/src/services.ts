@@ -316,6 +316,7 @@ export const Directory = serviceTag<Directory>("directory")
 /** Core supplies these after mounting declarations. Floor-specific values are
  * opaque here; the provider checks them against @olai/ops’s typed half. */
 export interface VaultSettings {
+  readonly claims: unknown
   readonly runtime: unknown
   readonly root: string
   readonly kinds: unknown
@@ -1787,3 +1788,17 @@ export const SERVICE_KEYS: ReadonlyArray<string> = SERVICES.map((one) => one.cor
 export type { SlotKey } from "./slots.ts"
 
 export { HostLoading, openLoading, type Catalog, type OwnedLoader } from "./loading.ts"
+
+/** Rows supply policy and (for nodes) a pure parser, never the identity stamped
+ * by the registry. The policy is the same inert contract format and wire readers use. */
+export type FileClaim = Omit<import("@olai/format").Claim, "kind">
+export type ComposedClaim = import("@olai/format").Claim
+
+/** Owned by vault setup. Each row may acquire one claim for its scope. A
+ * conflicting kind or overlapping suffix defects without installing anything. */
+export interface FileKinds {
+  readonly current: () => ReadonlyMap<string, ComposedClaim>
+  readonly changes: Stream.Stream<void>
+  readonly register: (claim: FileClaim) => Effect.Effect<void, never, Scope.Scope>
+}
+export const FileKinds = serviceTag<FileKinds>("vault.file-kinds")

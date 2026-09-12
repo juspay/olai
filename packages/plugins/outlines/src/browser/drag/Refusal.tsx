@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The face a pane wears when the row over it cannot land there.
  *
@@ -30,7 +29,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * column's own overflow — a face clipped by the column it is about would be no
  * face at all.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { Portal } from "solid-js/web"
 
 import { Refused } from "@olai/web/client/Refused.tsx"

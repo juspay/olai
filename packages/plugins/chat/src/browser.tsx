@@ -1,10 +1,3 @@
-import type {} from "olai-plugin-layout/slots"
-import type {} from "olai-plugin-navigation/slots"
-import type {} from "olai-plugin-outlines/slots"
-import type {} from "olai-plugin-sidebar/slots"
-import { slotContracts } from "./slots.ts"
-import {Clocks} from "@olai/plugin-api"
-import {fileAccess} from "olai-plugin-vault/contract"
 /**
  * CHAT'S BROWSER HALF — the right panel, the sidebar's agents section, the door
  * on an agent row, the two verbs on a row's `•••`, and the palette's `>`.
@@ -63,7 +56,13 @@ import {fileAccess} from "olai-plugin-vault/contract"
  * same tables, with each registering plugin's word beside its face and no way to
  * write one.
  */
-
+import type {} from "olai-plugin-layout/slots"
+import type {} from "olai-plugin-navigation/slots"
+import type {} from "olai-plugin-outlines/slots"
+import type {} from "olai-plugin-sidebar/slots"
+import { slotContracts } from "./slots.ts"
+import {Clocks} from "@olai/plugin-api"
+import {fileAccess} from "olai-plugin-vault/contract"
 import { definePlugin, Faces, Slots, Wired, Offers } from "@olai/plugin-api"
 import { Effect } from "effect"
 

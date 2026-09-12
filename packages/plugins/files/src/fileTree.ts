@@ -18,8 +18,8 @@
  * this walk mints fresh objects every time, and `<For>` would compare them by
  * reference and rebuild the whole sidebar on one membership change.
  */
-
-import { type FileKind,fileKind,stemOf } from "@olai/format"
+import type { Claims } from "@olai/format"
+import { fileKind, stemOf } from "@olai/format"
 
 /** One row of the tree. A directory carries its own root-relative path so
  *  collapse state can key on it without re-walking parents; a file carries
@@ -47,18 +47,18 @@ export type FileRow =
       /** Which kind of served file it is — the format's own answer, read off
        *  the name (`@olai/format`'s registry) rather than carried in from
        *  whichever list this path arrived on. */
-      readonly of: FileKind
+      readonly of: string
     }
 
 /** Mutable under construction; frozen into `FileRow` on the way out. */
 interface Building {
   readonly dirs: Map<string, Building>
-  readonly files: Map<string, { readonly file: string; readonly of: FileKind }>
+  readonly files: Map<string, { readonly file: string; readonly of: string }>
 }
 
 const empty = (): Building => ({ dirs: new Map(), files: new Map() })
 
-const put = (root: Building, file: string, of: FileKind): void => {
+const put = (root: Building, file: string, of: string): void => {
   const segments = file.split("/")
   let at = root
   for (let i = 0; i < segments.length - 1; i++) {
@@ -76,7 +76,7 @@ const put = (root: Building, file: string, of: FileKind): void => {
 
 /** Children of one directory, sorted by name — dirs and files together, so
  *  `a/` sits where `a` sorts among the files beside it. */
-const freeze = (node: Building, prefix: string): ReadonlyArray<FileRow> => {
+const freeze = (claims: Claims, node: Building, prefix: string): ReadonlyArray<FileRow> => {
   const rows: FileRow[] = []
   for (const [name, child] of node.dirs) {
     const path = prefix === "" ? name : `${prefix}/${name}`
@@ -85,14 +85,14 @@ const freeze = (node: Building, prefix: string): ReadonlyArray<FileRow> => {
       key: `dir:${path}`,
       name,
       path,
-      children: freeze(child, path),
+      children: freeze(claims, child, path),
     })
   }
   for (const [, entry] of node.files) {
     rows.push({
       kind: "file",
       key: `file:${entry.file}`,
-      name: stemOf(entry.file),
+      name: stemOf(claims, entry.file),
       file: entry.file,
       of: entry.of,
     })
@@ -128,13 +128,13 @@ const sortKey = (row: FileRow): string =>
  * from the same registry, and a tree row with no kind would have no glyph and
  * nowhere to link.
  */
-export const fileTree = (files: Iterable<string>): ReadonlyArray<FileRow> => {
+export const fileTree = (claims: Claims, files: Iterable<string>): ReadonlyArray<FileRow> => {
   const root = empty()
   for (const file of files) {
-    const of = fileKind(file)
+    const of = fileKind(claims, file)
     if (of !== null) put(root, file, of)
   }
-  return freeze(root, "")
+  return freeze(claims, root, "")
 }
 
 /** Every directory the tree draws, by root-relative path.

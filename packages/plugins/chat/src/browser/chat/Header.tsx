@@ -69,7 +69,7 @@
  * (`./NodeSessions.tsx`): the list hangs from this header's box, so a 20rem
  * list hung from a pill cannot run off the left of a phone sheet.
  */
-
+import { servedDirectory } from "../vault.ts"
 import { createMemo, Show } from "solid-js"
 
 import { memoryOf } from "@olai/format"
@@ -145,7 +145,7 @@ export function Header(props: {
         >
           {(agent) => (
             <Link
-              route={rowOf(agent())}
+              route={(() => { const claims = servedDirectory()?.claims(); return claims === undefined ? { kind: "at", address: null } as const : rowOf(claims, agent()) })()}
               class="block truncate text-sm font-semibold text-accent decoration-dotted underline-offset-2 hover:underline"
               testid={TESTID.chatNode}
               title={`${agent().title} — memory: this subtree (${memoryOf(agent())})`}

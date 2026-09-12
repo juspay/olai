@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * A permalink that no longer names a page.
  *
@@ -11,7 +10,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  *
  * The sidebar stays. A dead link is not a reason to strand someone.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import type { Zoomed } from "@olai/format"
 import { Match, Switch } from "solid-js"
 

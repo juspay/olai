@@ -20,7 +20,7 @@ Feature: A held pin drag never reorders a different pin
 
   Scenario: Removing the pin above the carried pin cancels the old drop
     When I hold the pin "/#demo" above "/#order"
-    And I rewrite "Pins.olai" as:
+    And I rewrite "_olai/Pins.olai" as:
       """
       {"id":"p1","ord":"a1","title":"/#demo"}
       {"id":"p2","ord":"a2","title":"/agenda"}
@@ -48,9 +48,9 @@ Feature: A held pin drag never reorders a different pin
     And there should be no page errors
 
   Scenario: Removing the carried pin cancels its drop and restoration permits a new reorder
-    When I remember the served bytes of "Pins.olai"
+    When I remember the served bytes of "_olai/Pins.olai"
     And I hold the pin "/#demo" above "/#order"
-    And I rewrite "Pins.olai" as:
+    And I rewrite "_olai/Pins.olai" as:
       """
       {"id":"p0","ord":"a0","title":"/#order"}
       {"id":"p2","ord":"a2","title":"/agenda"}
@@ -59,7 +59,7 @@ Feature: A held pin drag never reorders a different pin
     And no pin drop line is shown
     When I let go
     Then the pinned shelf reads "/#order /agenda"
-    When I restore the remembered served bytes of "Pins.olai"
+    When I restore the remembered served bytes of "_olai/Pins.olai"
     Then the pinned shelf reads "/#order /#demo /agenda"
     When I drag the pin "/#demo" above "/#order"
     Then the pinned shelf reads "/#demo /#order /agenda"
@@ -69,7 +69,7 @@ Feature: A held pin drag never reorders a different pin
 
   Scenario: External reordering cancels old geometry even when all pins remain
     When I hold the pin "/agenda" above "/#order"
-    And I rewrite "Pins.olai" as:
+    And I rewrite "_olai/Pins.olai" as:
       """
       {"id":"p1","ord":"a0","title":"/#demo"}
       {"id":"p0","ord":"a1","title":"/#order"}

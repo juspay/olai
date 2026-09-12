@@ -1,7 +1,7 @@
+/** An outline's roots, or a zoomed node's children — one shape, because a
+   *  file is the widest zoom there is. */
 import type { Agenda, DayGroup, Row, TrashGroup } from "@olai/format"
 export type Drawn =
-  /** An outline's roots, or a zoomed node's children — one shape, because a
-   *  file is the widest zoom there is. */
   | { readonly kind: "tree"; readonly rows: ReadonlyArray<Row> }
   /** A day's dated nodes AND the note somebody wrote on it, because both are
    *  on the screen and a filter takes one of them away (`filter/narrowing.ts`

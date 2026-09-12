@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-layout/testids"
 /**
  * The quiet chip that says how long the olai server has been up.
  *
@@ -13,7 +12,7 @@ import { TESTID } from "olai-plugin-layout/testids"
  * is in a visually-hidden span (and on the tip, for a pointer) so it
  * is not hover-only.
  */
-
+import { TESTID } from "olai-plugin-layout/testids"
 import { Show } from "solid-js"
 
 import { LAYER } from "@olai/web/client/layer.ts"

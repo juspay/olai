@@ -41,6 +41,7 @@
  * there is no sentence here for core to reach for on its behalf.
  */
 
+import type { Claims } from "@olai/format"
 import type { Wake } from "@olai/plugin-api/services"
 import { watchable } from "@olai/surface"
 import { Effect } from "effect"
@@ -50,6 +51,7 @@ import type { Chat } from "../scoped.ts"
 /** What a walk needs about the world — the two readings this module does not
  *  take for itself, so a bench can hand it both. */
 export interface World {
+  readonly claims: Claims
   /** Is this file still one the directory serves? */
   readonly served: (file: string) => boolean
   /** ...and what each ringing plugin declared, keyed by its name. */
@@ -93,9 +95,9 @@ export const faultedIn = (chat: Chat, world: World): Effect.Effect<void> =>
         // wire member's own reading, shared rather than spelled here because
         // these two are the ends that must agree: a serve judging by a rule of
         // its own would fault on a pick the browser had just offered.
-        const kinds = world.declared.get(plugin)?.kinds
-        if (kinds === undefined) return null
-        return watchable(kinds, file) ? null : "unwatchable"
+        const wake = world.declared.get(plugin)
+        if (wake === undefined) return null
+        return watchable(world.claims, wake, file) ? null : "unwatchable"
       },
       (plugin) => world.declared.has(plugin),
     ),

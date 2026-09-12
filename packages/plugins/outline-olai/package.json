@@ -1,0 +1,27 @@
+{
+  "name": "olai-plugin-outline-olai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./server": "./src/server.ts",
+    "./format": "./src/format.ts",
+    "./claim": "./src/claim.ts",
+    "./testlib": "./src/claims.testlib.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "@olai/format": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./format",
+      "./claim",
+      "./testlib"
+    ]
+  }
+}

@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * A document, being written: the page's edit mode.
  *
@@ -32,7 +31,7 @@ import { TESTID } from "olai-plugin-markdown/testids"
  * appears the moment the served text stops matching what this editor read —
  * so save-time is never the first anyone hears of a conflict.
  */
-
+import { TESTID } from "olai-plugin-markdown/testids"
 import { createMemo, onMount, Show } from "solid-js"
 
 import { useHistory } from "../history.ts"

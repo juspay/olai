@@ -50,7 +50,7 @@
  * would agree with itself in the easy middle and say nothing. The floors below
  * are what say those corners were in the run.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { type Corpus, corpusOf, deltaOf, editOf } from "./corpora.testlib.ts"
@@ -346,7 +346,7 @@ const shortly = (members: ReadonlyArray<string>): string => {
  * optimisation but a requirement).
  */
 const viewOf = (corpus: Corpus): Derived =>
-  derive(recordsOf(assemble(
+  derive(TEST_CLAIMS, recordsOf(assemble(TEST_CLAIMS,
     new Map(Object.entries(corpus).map(([file, text]) => [file, decoded(file, text)])),
   )))
 
@@ -389,7 +389,7 @@ const generated = (): ReadonlyArray<Case> => {
 const REAL = ((): Corpus => {
   const outlines: Corpus = {}
   for (const [file, text] of vaultAt(pinnedVault())) {
-    if (fileKind(file) === "outline") outlines[file] = text
+    if (TEST_CLAIMS.byKind.get(fileKind(TEST_CLAIMS, file) ?? "")?.holds === "nodes") outlines[file] = text
   }
   return outlines
 })()

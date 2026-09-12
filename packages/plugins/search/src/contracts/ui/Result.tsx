@@ -76,7 +76,7 @@
  * rule on a row, for the drawer's own reason: a tree of titles must not double
  * in height to say something nobody asked to see.
  */
-
+import type { Claims } from "@olai/format"
 import { createMemo, For, Show } from "solid-js"
 
 import { renderTitle, sameDrawing } from "@olai/markdown-ui/title.ts"
@@ -111,6 +111,7 @@ export interface RowTestids {
 
 
 export function Result(props: {
+  readonly claims: Claims | undefined;
   readonly label: string
   /** A chord or a word, inline at the right of the first line. */
   readonly hint?: string
@@ -148,7 +149,7 @@ export function Result(props: {
     () => {
       const from = props.from
       if (from === undefined) return undefined
-      return renderTitle(props.label, from, {
+      return renderTitle(props.claims, props.label, from, {
         needles: props.needles,
         links: false,
       })
@@ -222,8 +223,8 @@ export function Result(props: {
       <Show when={props.place}>
         {place => {
           const parts = () => { const value = place(); return typeof value === "string" ? undefined : value }
-          return <Show when={parts()} fallback={<span class="w-full min-w-0 truncate font-mono text-[0.6875rem] text-muted" data-testid={props.testids.place}><TitleHtml drawing={renderTitle(String(place()), "", { links: false })} /></span>}>
-            {value => <PlaceLine place={value()} testid={props.testids.place} />}
+          return <Show when={parts()} fallback={<span class="w-full min-w-0 truncate font-mono text-[0.6875rem] text-muted" data-testid={props.testids.place}><TitleHtml drawing={renderTitle(props.claims, String(place()), "", { links: false })} /></span>}>
+            {value => <PlaceLine claims={props.claims} place={value()} testid={props.testids.place} />}
           </Show>
         }}
       </Show>

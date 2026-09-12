@@ -1,3 +1,7 @@
+/** The one node of a one-line fixture, located in `file`. */
+
+import { claims, servingOf } from "./index.ts"
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { printAddress } from "./address.ts"
@@ -15,8 +19,6 @@ import {
   retargetRelative,
 } from "./documents.ts"
 import { nodesOf } from "./fixtures.testlib.ts"
-
-/** The one node of a one-line fixture, located in `file`. */
 const nodeOf = (line: string, file: string) => {
   const [located] = nodesOf(`${line}\n`, file)
   if (located === undefined) throw new Error("the fixture parsed to no nodes")
@@ -72,12 +74,12 @@ test("a mirror attaches no document of its own", () => {
 // A picture is a file beside the text that names it, resolved the same way a
 // `doc` is.
 test("a relative picture resolves beside the file that names it", () => {
-  expect(pictureOf("docs/notes.md", "art/shot.png")).toBe("docs/art/shot.png")
-  expect(pictureOf("docs/notes.md", "./shot.png")).toBe("docs/shot.png")
+  expect(pictureOf(TEST_CLAIMS, "docs/notes.md", "art/shot.png")).toBe("docs/art/shot.png")
+  expect(pictureOf(TEST_CLAIMS, "docs/notes.md", "./shot.png")).toBe("docs/shot.png")
   // Clamped, not escaped: a shared picture folder beside the documents is a
   // real arrangement, and the answer is under the root by construction.
-  expect(pictureOf("docs/deep/notes.md", "../art/shot.png")).toBe("docs/art/shot.png")
-  expect(pictureOf("notes.md", "../../art/shot.png")).toBe("art/shot.png")
+  expect(pictureOf(TEST_CLAIMS, "docs/deep/notes.md", "../art/shot.png")).toBe("docs/art/shot.png")
+  expect(pictureOf(TEST_CLAIMS, "notes.md", "../../art/shot.png")).toBe("art/shot.png")
 })
 
 // Everything a page must not fetch, and everything it cannot draw. A remote
@@ -96,7 +98,7 @@ test("only a relative picture is drawn at all", () => {
     "notes.md",
     "logo.svg",
   ]) {
-    expect(pictureOf("docs/notes.md", src)).toBeNull()
+    expect(pictureOf(TEST_CLAIMS, "docs/notes.md", src)).toBeNull()
   }
 })
 
@@ -104,37 +106,37 @@ test("only a relative picture is drawn at all", () => {
 // itself, and it lands beside the file that WROTE it — the same arithmetic a
 // `doc` and a picture already use, which is why they are one resolver.
 test("a relative link to a document resolves beside the file that names it", () => {
-  expect(bodiedOf("Daily/2026/08/2026-08-12.md", "../../../projects/deck.md"))
+  expect(bodiedOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md", "../../../projects/deck.md"))
     .toBe("projects/deck.md")
-  expect(bodiedOf("notes/palette.md", "finishes.md")).toBe("notes/finishes.md")
-  expect(bodiedOf("notes/palette.md", "./finishes.md")).toBe("notes/finishes.md")
+  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "finishes.md")).toBe("notes/finishes.md")
+  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "./finishes.md")).toBe("notes/finishes.md")
   // A note is written in an OUTLINE, and a link in one resolves the same way.
-  expect(bodiedOf("house.olai", "finishes.md")).toBe("finishes.md")
+  expect(bodiedOf(TEST_CLAIMS, "house.olai", "finishes.md")).toBe("finishes.md")
 })
 
 // A space in the filename is still a filename. The arithmetic is the same as
 // a name without one: join onto the writer, clamp `..`, and a `.md` is a
 // document.
 test("a relative link to a document whose name has spaces resolves beside the file that names it", () => {
-  expect(bodiedOf("Daily/2026/08/2026-08-12.md", "../../../the brief.md"))
+  expect(bodiedOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md", "../../../the brief.md"))
     .toBe("the brief.md")
-  expect(bodiedOf("notes/palette.md", "the brief.md")).toBe("notes/the brief.md")
-  expect(bodiedOf("notes/palette.md", "./the brief.md")).toBe("notes/the brief.md")
-  expect(bodiedOf("house.olai", "the brief.md")).toBe("the brief.md")
+  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "the brief.md")).toBe("notes/the brief.md")
+  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "./the brief.md")).toBe("notes/the brief.md")
+  expect(bodiedOf(TEST_CLAIMS, "house.olai", "the brief.md")).toBe("the brief.md")
 })
 
 // Markdown's portable spelling of a space in a destination is `%20`. A vault
 // that encoded the name is still pointing at the file, not at a file whose
 // name contains the percent sign.
 test("a percent-encoded space in a document link names the file, not the encoding", () => {
-  expect(bodiedOf("notes/palette.md", "the%20brief.md")).toBe("notes/the brief.md")
-  expect(bodiedOf("house.olai", "the%20brief.md")).toBe("the brief.md")
-  expect(bodiedOf("Daily/2026/08/2026-08-12.md", "../../../the%20brief.md"))
+  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "the%20brief.md")).toBe("notes/the brief.md")
+  expect(bodiedOf(TEST_CLAIMS, "house.olai", "the%20brief.md")).toBe("the brief.md")
+  expect(bodiedOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md", "../../../the%20brief.md"))
     .toBe("the brief.md")
 })
 
 const named = (from: string, prose: string) =>
-  linksIn(from, prose).map(printAddress)
+  linksIn(TEST_CLAIMS, from, prose).map(printAddress)
 
 // Markdown's portable spelling of a space in a destination is `%20`. The
 // scan has to decode it, or the address it prints encodes the percent again.
@@ -204,7 +206,7 @@ test("only a relative link to a file with a page is a document link", () => {
     "the%ZZ.md",
     "%2Fsecret.md",
   ]) {
-    expect(bodiedOf("notes/palette.md", href)).toBeNull()
+    expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", href)).toBeNull()
   }
 })
 
@@ -215,22 +217,22 @@ test("only a relative link to a file with a page is a document link", () => {
 // became a link olai can follow, and the picture's page is what it opens.
 // Nothing here widened: the registry did, and this read it.
 test("a relative link to a picture, a csv or a pdf is one too", () => {
-  expect(bodiedOf("notes/palette.md", "../art/handle.png")).toBe("art/handle.png")
-  expect(bodiedOf("notes/palette.md", "sales.csv")).toBe("notes/sales.csv")
-  expect(bodiedOf("notes/palette.md", "../q3.pdf")).toBe("q3.pdf")
+  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "../art/handle.png")).toBe("art/handle.png")
+  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "sales.csv")).toBe("notes/sales.csv")
+  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "../q3.pdf")).toBe("q3.pdf")
 })
 
 // The suffixes MARKDOWN may name, which is the registry's picture kind minus
 // one: `.svg` is a document that can script, so a `![](…)` may not name one
 // even though the picture kind claims it and gives it a page. The set's own
 // files are not pictures either.
-test("only picture extensions are pictures, case-insensitively", () => {
-  expect(isPicture("a/shot.png")).toBe(true)
-  expect(isPicture("a/SHOT.JPEG")).toBe(true)
-  expect(isPicture("a/logo.svg")).toBe(false)
-  expect(isPicture("a/plan.olai")).toBe(false)
-  expect(isPicture("a/notes.md")).toBe(false)
-  expect(isPicture("png")).toBe(false)
+test("picture references are case-folded within current image claims", () => {
+  expect(isPicture(TEST_CLAIMS, "a/shot.png")).toBe(true)
+  expect(isPicture(TEST_CLAIMS, "a/SHOT.JPEG")).toBe(true)
+  expect(isPicture(TEST_CLAIMS, "a/logo.svg")).toBe(false)
+  expect(isPicture(TEST_CLAIMS, "a/plan.olai")).toBe(false)
+  expect(isPicture(TEST_CLAIMS, "a/notes.md")).toBe(false)
+  expect(isPicture(TEST_CLAIMS, "png")).toBe(false)
 })
 
 // The other allowlist, one step wider, and the difference between the two is
@@ -245,19 +247,19 @@ test("only picture extensions are pictures, case-insensitively", () => {
 // page reads the text off the wire, so raw bytes over this route would be a
 // second way to read a file that already has one.
 test("a page, a picture, a pdf and the parts a page draws with are assets", () => {
-  expect(isAsset("notes/report.html")).toBe(true)
-  expect(isAsset("a/shot.png")).toBe(true)
-  expect(isAsset("a/logo.svg")).toBe(true)
-  expect(isAsset("a/q3.pdf")).toBe(true)
-  expect(isAsset("a/page.CSS")).toBe(true)
-  expect(isAsset("a/chart.js")).toBe(true)
-  expect(isAsset("a/chart.mjs")).toBe(true)
-  expect(isAsset("a/text.woff2")).toBe(true)
-  expect(isAsset("a/sales.csv")).toBe(false)
-  expect(isAsset("a/notes.md")).toBe(false)
-  expect(isAsset("a/plan.olai")).toBe(false)
-  expect(isAsset("a/data.json")).toBe(false)
-  expect(isAsset("js")).toBe(false)
+  expect(isAsset(TEST_CLAIMS, "notes/report.html")).toBe(true)
+  expect(isAsset(TEST_CLAIMS, "a/shot.png")).toBe(true)
+  expect(isAsset(TEST_CLAIMS, "a/logo.svg")).toBe(true)
+  expect(isAsset(TEST_CLAIMS, "a/q3.pdf")).toBe(true)
+  expect(isAsset(TEST_CLAIMS, "a/page.CSS")).toBe(true)
+  expect(isAsset(TEST_CLAIMS, "a/chart.js")).toBe(true)
+  expect(isAsset(TEST_CLAIMS, "a/chart.mjs")).toBe(true)
+  expect(isAsset(TEST_CLAIMS, "a/text.woff2")).toBe(true)
+  expect(isAsset(TEST_CLAIMS, "a/sales.csv")).toBe(false)
+  expect(isAsset(TEST_CLAIMS, "a/notes.md")).toBe(false)
+  expect(isAsset(TEST_CLAIMS, "a/plan.olai")).toBe(false)
+  expect(isAsset(TEST_CLAIMS, "a/data.json")).toBe(false)
+  expect(isAsset(TEST_CLAIMS, "js")).toBe(false)
 })
 
 // ── the line a document is named by ────────────────────────────────────
@@ -322,4 +324,20 @@ test("an emoji is four UTF-8 bytes, not two UTF-16 units", () => {
   expect("👋".length).toBe(2)
   expect(bytesOf("👋")).toBe(4)
   expect(bytesOf("hello 👋🔥\n")).not.toBe("hello 👋🔥\n".length)
+})
+
+test("media admits case-folded picture references only while their claim stands", () => {
+  expect(isAsset(TEST_CLAIMS, "art/SHOT.PNG")).toBe(true)
+  const withoutPictures = claims([...TEST_CLAIMS.byKind.values()].filter(claim => !claim.picture))
+  expect(isAsset(withoutPictures, "art/SHOT.PNG")).toBe(false)
+})
+
+test("serving policy follows claim data instead of a suffix or MIME roster", () => {
+  const table = claims([
+    { kind: "framed", exts: [".preview"], holds: "text", kept: false, fetched: true, noun: "page", article: "a", serving: "sealed-frame" },
+    { kind: "drawing", exts: [".drawing"], holds: "bytes", kept: false, fetched: true, noun: "image", article: "an", picture: true, inert: [".drawing"] },
+  ])
+  expect(servingOf(table, "a.preview")).toEqual({ sealed: true, inert: false })
+  expect(servingOf(table, "a.drawing")).toEqual({ sealed: false, inert: true })
+  expect(servingOf(table, "a.html")).toEqual({ sealed: false, inert: false })
 })

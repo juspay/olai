@@ -10,7 +10,7 @@
  * (PR #202, and `../NodeRefs.tsx`). The set semantics are the WRITE layer's
  * already, so the reading agrees with it here rather than deciding anything.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, nodeNamed } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
@@ -30,7 +30,7 @@ const HOUSE = [
 
 const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`
 
-const derived = derive(recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
+const derived = derive(TEST_CLAIMS, recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
 
 /**
  * THE NAMES a page carrying these rows would have been sent with — every id

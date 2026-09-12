@@ -73,6 +73,16 @@ The four ACP agents the chat panel can run. What a conversation is, for all of t
 | [plugins/theme.md](plugins/theme.md) | Light and dark appearance, stored per browser and exposed in preferences. |
 | [plugins/plugin-inspector.md](plugins/plugin-inspector.md) | Plugin switches, activation reports, and retry. |
 
+### File kinds
+
+| Page | What it covers |
+| --- | --- |
+| [plugins/outline-olai.md](plugins/outline-olai.md) | Outline file claims, parsing, and canonical writing. |
+| [plugins/hypertext.md](plugins/hypertext.md) | Saved HTML page claims and sealed previews. |
+| [plugins/csv.md](plugins/csv.md) | Table file claims and reading tabular content. |
+| [plugins/image.md](plugins/image.md) | Picture file claims and media access. |
+| [plugins/pdf.md](plugins/pdf.md) | PDF file claims, browser viewing, and media access. |
+
 ### Test fixtures
 
 | Page | What it covers |

@@ -1,4 +1,3 @@
-import type {} from "olai-plugin-layout/slots"
 /**
  * GIT'S BROWSER HALF — the pill, the phone banner, and the commit panel.
  *
@@ -6,7 +5,9 @@ import type {} from "olai-plugin-layout/slots"
  * registrations now. A serve that does not name this row never fetches this
  * chunk, and the tab draws no pill.
  */
-
+import { fileAccess } from "olai-plugin-vault/contract"
+import { holdServed } from "./browser/vault.ts"
+import type {} from "olai-plugin-layout/slots"
 import { definePlugin, Slots, Wired } from "@olai/plugin-api"
 import { desktop, holdShell } from "./browser/shell.ts"
 import { shell as appShell } from "olai-plugin-layout/contract"
@@ -21,8 +22,10 @@ import { name } from "./wire.ts"
 
 export default definePlugin({
   name,
-  needs: [Slots, Wired],
+  needs: [Slots, Wired, fileAccess],
   apply: Effect.gen(function*() {
+    const files = yield* fileAccess
+    yield* Effect.acquireRelease(Effect.sync(() => holdServed(files)), stop => Effect.sync(stop))
     const slots = yield* Slots
     const wired = yield* Wired
     yield* holdGitWire(() => wired.client() as GitClient)

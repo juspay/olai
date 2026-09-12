@@ -800,7 +800,7 @@ export default definePlugin({
      */
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
-        file = conventionServed(configurationFileIn, revision.value.set, revision, file)
+        file = conventionServed(revision.value.derived.claims, configurationFileIn, revision.value.set, revision, file)
         declaring = declarationsOf(revision.value.derived, ownKinds)
         // ...AND THE READING ITSELF, held for the doorbell. It is the same pointer
         // the two walks above are about, kept because the doorbell's walk runs on

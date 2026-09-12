@@ -9,17 +9,20 @@
  * real ticket would carry and asserts what the rule does with it, which is
  * all this file was ever about.
  */
+
+import { readingOf, setOf, steady } from "./fixtures.testlib.ts"
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import {
   NO_KINDS,
   type OutlineSet,
   type WriteRequest as Request,
 } from "@olai/format"
-import { readingOf } from "@olai/format/testlib"
+
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { barred, doorRefusal } from "./door.ts"
-import { setOf, steady } from "./fixtures.testlib.ts"
+
 import { plan, scoping } from "./plan.ts"
 
 const vault = (): OutlineSet => setOf({
@@ -53,7 +56,7 @@ const forbidden = new Map([[SEATING, SAYS_SEATS], [APPROVAL, SAYS_APPROVES]])
 
 const asked = (request: Request, keys: ReadonlyMap<string, string> = forbidden) => {
   const at = readingOf(vault())
-  const planned = plan(scoping(at, steady(), NO_KINDS), request)
+  const planned = plan(scoping(at, steady(), NO_KINDS, "outline-olai"), request)
   if (Result.isFailure(planned)) throw new Error(planned.failure.message)
   return barred(keys, at.derived, planned.success)
 }
@@ -138,7 +141,7 @@ describe("file-scoped agent reservation", () => {
         ...(value === undefined ? {} : { custom: { on: value } }) }),
       "notes.olai": '{"id":"notes","ord":"a0","title":"notes"}',
     }))
-    const result = plan(scoping(at, steady(), NO_KINDS), request)
+    const result = plan(scoping(at, steady(), NO_KINDS, "outline-olai"), request)
     if (Result.isFailure(result)) throw new Error(result.failure.message)
     return barred(keys, at.derived, result.success, at.set.documents.map(one => one.path))
   }

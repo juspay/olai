@@ -7,7 +7,7 @@
  * Over rows the format itself walked, so "what does a mirror offer" is
  * answered against a real expansion.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, rowsOf, type Row } from "@olai/format"
 import { NO_PINS, type Shelf } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
@@ -36,7 +36,7 @@ const GARDEN = [
   `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`,
 ].join("\n")
 
-const derived = derive(
+const derived = derive(TEST_CLAIMS,
   recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })),
 )
 const rows = rowsOf(derived, "house.olai")
@@ -236,7 +236,7 @@ test("the repeat entry sends nothing on its own", () => {
 })
 
 test("a repeating row says CHANGE, and gains the entry that stops it", () => {
-  const repeating = derive(
+  const repeating = derive(TEST_CLAIMS,
     recordsOf(setOf({
       "house.olai": HOUSE.replace(
         `"title":"order the cabinets","date":"2026-08-10"`,
@@ -411,4 +411,3 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
 // catalog no longer takes. What stays here is that core spells none of it: the
 // two label lists above are the whole of what a row offers, and neither has an
 // agent verb in it.
-

@@ -1,4 +1,3 @@
-import type { Router } from "./routing.tsx"
 /**
  * The address bar, as a signal — and the one component allowed to change it.
  *
@@ -18,7 +17,7 @@ import type { Router } from "./routing.tsx"
  * a tree of a thousand rows does not thread a navigate callback through every
  * one of them.
  */
-
+import type { Router } from "./routing.tsx"
 import {
 batch,
 createEffect,
@@ -87,6 +86,8 @@ const here = (): string =>
 export const createRouter = (): Router => {
   const first = workspaceOf(routing, here())
   const [workspace, setWorkspace] = createSignal<Workspace>(first)
+  const [landings, setLandings] = createSignal<Landings>(landingsOf(first))
+
   // A newly available plugin can claim the address already in the bar (for
   // example, Back into a disabled journal followed by enabling journal).
   // Reinterpret those routes when the claim table changes without navigating
@@ -95,6 +96,7 @@ export const createRouter = (): Router => {
     const parsed = workspaceOf(routing, here())
     const current = untrack(workspace)
     let next = current
+    let arrivals = untrack(landings)
     const previous = panesOf(current)
     for (const [index, pane] of panesOf(parsed).entries()) {
       const before = previous[index]?.route
@@ -103,11 +105,13 @@ export const createRouter = (): Router => {
         && (before.kind !== "plugin" || pane.route.kind !== "plugin"
           || before.source === pane.route.source)) continue
       next = navigateIn(next, index, pane.route)
+      arrivals = marked(arrivals, index, landingOf(pane.route))
     }
-    if (next !== current) setWorkspace({ ...next, focus: current.focus })
+    if (next !== current) batch(() => {
+      setLandings(arrivals)
+      setWorkspace({ ...next, focus: current.focus })
+    })
   })
-
-  const [landings, setLandings] = createSignal<Landings>(landingsOf(first))
 
   // THE NAME OF THE ENTRY UNDER THE READER, kept turn and turn about — the
   // one question a popstate cannot answer from its payload alone: did the
@@ -171,7 +175,7 @@ export const createRouter = (): Router => {
       // replaced in the one-pane router. A split's columns are the
       // scrollports (`SHELL_SPLIT`, `./pane/Panes.tsx`); the window cannot
       // move there, and a `.html` preview's landing scrolls the column
-      // itself (`./document/Hypertext.tsx`). Sending the window to the top
+      // itself (`olai-plugin-hypertext`’s `browser/Hypertext.tsx`). Sending the window to the top
       // is the lone-page kindness it always was.
       scroll.toTop()
     }

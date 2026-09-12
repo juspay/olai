@@ -66,13 +66,13 @@
  * here.
  */
 
-export { parseOutline } from "./parse.ts"
+export { isIsoInstant } from "./parse.ts"
 /** Whether a string is a DATE in this format's sense — a day, or an instant on
  *  one. The rule the validator runs on `date`, `done` and the stamps, on the
  *  surface because a view now asks it of text the format gives no meaning to
  *  (a custom key holding `2026-08-31`), and two answers to it would be a value
  *  refused as a field and called a date as a property. */
-export { isIsoInstant } from "./parse.ts"
+
 export { validate } from "./validate.ts"
 /** What a validated set IS: the files that were found, and the one derivation
  *  they were judged against. It is `validate`'s answer rather than a shape
@@ -215,21 +215,14 @@ export type { SetDelta } from "./patch.ts"
 export {
   bareOf,
   bodyKind,
-  DOCUMENT_EXT,
-  FILE_EXTS,
-  FILE_KINDS,
   fileKind,
   holdsBody,
   holdsText,
   isFetched,
-  OUTLINE_EXT,
-  UNKEPT_KINDS,
   stemOf,
-  SVG_EXT,
   textKind,
   unkept,
 } from "./kinds.ts"
-export type { BodyKind, FileKind, NodeKind, TextKind, UnkeptKind } from "./kinds.ts"
 export type { Split } from "./address.ts"
 /** WHAT A PLACE IS CALLED — `[document]#[element]`, the one grammar every
  *  feature that has to name something trades in
@@ -278,12 +271,12 @@ export {
   firstLine,
   isAsset,
   isPicture,
+  servingOf,
   /** The path in this directory a relative reference names, whatever kind of
    *  file it is — the same arithmetic and refusals as the two above with no
    *  suffix allowlist at the end, for the caller that can ask the directory
    *  itself whether it serves the answer. */
   pathedOf,
-  PICTURE_EXTENSIONS,
   pictureOf,
   retargetRelative,
 } from "./documents.ts"
@@ -351,7 +344,8 @@ export {
   shadowFor,
   targetsOf,
 } from "./node.ts"
-export type { LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
+export { MirrorNode, RegularNode } from "./node.ts"
+export type { LocatedRegular, Node } from "./node.ts"
 /** A mark that ends the wait, as a type — the narrowing `settles` above hands
  *  back, so a consumer can hold one without re-spelling the pair. */
 export type { Settled } from "./node.ts"
@@ -972,7 +966,7 @@ export { ordBetween } from "./ord.ts"
  *  for them from the answer's, so a field left out of a hit is a field left out
  *  of the line on disk, decided once. A reader carrying its own copy answered a
  *  property `prop:` says the node does not carry. */
-export { heldCustom, nothing, serializeOutline } from "./write.ts"
+export { heldCustom, nothing } from "./write.ts"
 
 export {
   BusyFailure,
@@ -1233,3 +1227,17 @@ export {
   sameMoving,
   sameMovingRequest,
 } from "./moving.ts"
+
+export { claims, type Claim, type Claims } from "./kinds.ts"
+export type { OutlineFormat } from "./format.ts"
+
+export { mintExt, parserFor } from "./kinds.ts"
+export { claimedOf, outlineAt } from "./address.ts"
+export { ID_SHAPE } from "./node.ts"
+export { isMarkdown } from "./document.ts"
+
+export { ClaimData, FileKind } from "./kinds.ts"
+
+export { outlineCalled } from "./node.ts"
+
+export { noClaimFor, unclaimedFileMessage } from "./kinds.ts"

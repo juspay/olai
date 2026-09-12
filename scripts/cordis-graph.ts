@@ -609,10 +609,10 @@ if (import.meta.main) {
         try {
           return Response.json(graph())
         } catch (error) {
-          // The stack goes to the terminal that started this; the page gets
-          // the sentence.
+          // Keep exception details in the terminal; the HTTP response must
+          // not expose paths or stack information embedded in an error.
           console.error(error)
-          return new Response(error instanceof Error ? error.message : String(error), { status: 500 })
+          return new Response("Could not build the Cordis graph. See the server terminal for details.", { status: 500 })
         }
       }
       return new Response(PAGE, { headers: { "content-type": "text/html; charset=utf-8" } })

@@ -76,7 +76,7 @@ export { App, appName } from "./app.ts"
  *  mints this from policy and the registry, and the plugins panel is
  *  the only thing that reads it.
  *
- *  `watchable` is the one reading of a row's `wake.kinds`, and it is exported
+ *  `watchable` is the one reading of a row's `wake.walks`, and it is exported
  *  because the two ends that ask it — the browser's picker and the serve's
  *  per-revision fault — must agree and cannot see each other. `pluginState` is
  *  the same arrangement one field over: the composition root writes the word
@@ -150,3 +150,5 @@ export {
   isAttachable,
   MAX_ATTACHMENT_BYTES,
 } from "./attach.ts"
+
+export { isAttachmentPicture } from "./attach.ts"

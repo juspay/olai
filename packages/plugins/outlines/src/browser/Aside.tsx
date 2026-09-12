@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * What rides inline after a title, dim, and nothing else does.
  *
@@ -17,7 +16,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * and argues why it is a comparison rather than a blanket rule. Here, in the one
  * place both values meet, is the only place that decision can be made at all.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { Match, Show, Switch } from "solid-js"
 
 import { foldSays } from "@olai/web/client/hidden.ts"

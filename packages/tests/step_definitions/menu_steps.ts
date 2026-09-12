@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/bundle/testids"
 /**
  * The `•••` menu: opening it, what it offers, what it asks, and what it said.
  *
@@ -23,7 +22,7 @@ import { TESTID } from "@olai/bundle/testids"
  * remark from a write that landed — and a scenario that could not tell them
  * apart would pass on a client that alarmed about a nudge.
  */
-
+import { TESTID } from "@olai/bundle/testids"
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 

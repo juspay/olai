@@ -8,27 +8,10 @@
  * says a multi-record write can never glue a line.
  */
 
-import {
-  admits,
-  blockersOf,
-  datedOn,
-  derive,
-  type Node,
-  markdownIn,
-  nodesOf,
-  type OpFailure,
-  type OutlineSet,
-  type RegularNode,
-  NO_KINDS,
-  outlinePaths,
-  pinTargetIn,
-  serializeOutline,
-  shelfOf,
-  standingBefore,
-  validate,
-  AddRequest,
-  type WriteRequest as Request,
-} from "@olai/format"
+import { parseOutline } from "olai-plugin-outline-olai/format"
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
+import { admits, blockersOf, datedOn, derive, type Node, markdownIn, nodesOf, type OpFailure, type OutlineSet, type RegularNode, NO_KINDS, outlinePaths, pinTargetIn, shelfOf, standingBefore, validate, AddRequest, type WriteRequest as Request } from "@olai/format"
+import { serializeOutline } from "olai-plugin-outline-olai/format"
 import { findingsIn, recordsOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 import { Result, Schema } from "effect"
@@ -72,7 +55,7 @@ const after = (set: OutlineSet, request: Request): OutlineSet =>
  *  found withheld, which is where a finding lives now that none of them refuses
  *  a load (`@olai/format`'s `validate`, and the per-file ruling). */
 const judged = (set: OutlineSet): OutlineSet => {
-  const verdict = validate(set)
+  const verdict = validate(TEST_CLAIMS, set)
   if (Result.isFailure(verdict)) throw new Error("a validation answers with a set")
   return verdict.success.set
 }
@@ -90,11 +73,15 @@ const performed = (set: OutlineSet, result: Plan): OutlineSet => {
   const texts = Object.fromEntries(
     outlinePaths(set).map((file) => [
       file,
-      serializeOutline(nodesOf(derive(recordsOf(set)), file).map((located) => located.node)),
+      serializeOutline(nodesOf(derive(TEST_CLAIMS, recordsOf(set)), file).map((located) => located.node)),
     ]),
   )
   for (const file of result.files) {
     texts[file.file] = serializeOutline(file.nodes)
+  }
+  for (const [file, text] of Object.entries(texts)) {
+    const decoded = parseOutline(file, text, TEST_CLAIMS)
+    if (Result.isFailure(decoded)) throw new Error(decoded.failure.map(error => error.message).join("\n"))
   }
   return setOf(texts, markdownIn(set).map((one) => [one.path, one.body] as const))
 }
@@ -111,7 +98,7 @@ const at = (set: OutlineSet, now: string, request: Request): OutlineSet =>
   performed(
     set,
     succeeded(
-      plan(scoping(readingOf(set), { mint: () => "n1", now: () => now }, NO_KINDS), request),
+      plan(scoping(readingOf(set), { mint: () => "n1", now: () => now }, NO_KINDS, "outline-olai"), request),
       `\`${request.op}\` to plan`,
     ),
   )
@@ -170,7 +157,7 @@ describe("add", () => {
     )
     for (const id of ["demo", "order", "install"]) {
       expect(record(nodes, id).ord).toBe(
-        (derive(recordsOf(before)).byId.get(id)?.node as RegularNode).ord,
+        (derive(TEST_CLAIMS, recordsOf(before)).byId.get(id)?.node as RegularNode).ord,
       )
     }
   })
@@ -590,7 +577,7 @@ describe("done and doing", () => {
   // both: the mark comes off, the bank stands, because the work did happen.
   test("settling banks the round it closed, and un-marking keeps the `started` and the bank", () => {
     const read = (set: OutlineSet): RegularNode =>
-      nodesOf(derive(recordsOf(set)), "house.olai")
+      nodesOf(derive(TEST_CLAIMS, recordsOf(set)), "house.olai")
         .map((located) => located.node)
         .find((node) => node.id === "order") as RegularNode
     const doing = after(house(), { op: "doing", id: "order" })
@@ -621,7 +608,7 @@ describe("done and doing", () => {
   // work — the one rule the chip and the answer share.
   test("a todo→done jump stores no `started`, and banks none", () => {
     const once = after(house(), { op: "done", id: "order" })
-    const node = nodesOf(derive(recordsOf(once)), "house.olai")
+    const node = nodesOf(derive(TEST_CLAIMS, recordsOf(once)), "house.olai")
       .map((located) => located.node)
       .find((one) => one.id === "order") as RegularNode
     expect(node.started).toBeUndefined()
@@ -635,7 +622,7 @@ describe("done and doing", () => {
   // chip must not count, eight minutes of second round.
   test("every settle banks its round, a re-start stamps fresh, and the pause is nobody's", () => {
     const read = (set: OutlineSet): RegularNode =>
-      nodesOf(derive(recordsOf(set)), "house.olai")
+      nodesOf(derive(TEST_CLAIMS, recordsOf(set)), "house.olai")
         .map((located) => located.node)
         .find((node) => node.id === "order") as RegularNode
     // The first round: 09:00 to 09:10 is 600 banked seconds.
@@ -671,7 +658,7 @@ describe("done and doing", () => {
   // undo, another settle, the answer unchanged.
   test("settle → undo → settle mints nothing again: the stamp is buried, the bank stands", () => {
     const read = (set: OutlineSet): RegularNode =>
-      nodesOf(derive(recordsOf(set)), "house.olai")
+      nodesOf(derive(TEST_CLAIMS, recordsOf(set)), "house.olai")
         .map((located) => located.node)
         .find((node) => node.id === "order") as RegularNode
     let set = at(house(), "2026-08-29T09:00:00-04:00", { op: "doing", id: "order" })
@@ -692,7 +679,7 @@ describe("done and doing", () => {
   // sentence: a settle banks what a live `doing` opened and nothing else.
   test("…and the `todo` detour mints nothing: back on the queue, called off, the bank stands", () => {
     const read = (set: OutlineSet): RegularNode =>
-      nodesOf(derive(recordsOf(set)), "house.olai")
+      nodesOf(derive(TEST_CLAIMS, recordsOf(set)), "house.olai")
         .map((located) => located.node)
         .find((node) => node.id === "order") as RegularNode
     let set = at(house(), "2026-08-29T09:00:00-04:00", { op: "doing", id: "order" })
@@ -711,7 +698,7 @@ describe("done and doing", () => {
   // an ordinary jump, and nothing was ever buried live.
   test("undo of a `doing` banks the round at the peel — the later settle is a jump", () => {
     const read = (set: OutlineSet): RegularNode =>
-      nodesOf(derive(recordsOf(set)), "house.olai")
+      nodesOf(derive(TEST_CLAIMS, recordsOf(set)), "house.olai")
         .map((located) => located.node)
         .find((node) => node.id === "order") as RegularNode
     let set = at(house(), "2026-08-29T10:00:00-04:00", { op: "doing", id: "order" })
@@ -725,7 +712,7 @@ describe("done and doing", () => {
 
   test("queueing mid-round banks at the peel — and re-queuing's gap is nobody's work", () => {
     const read = (set: OutlineSet): RegularNode =>
-      nodesOf(derive(recordsOf(set)), "house.olai")
+      nodesOf(derive(TEST_CLAIMS, recordsOf(set)), "house.olai")
         .map((located) => located.node)
         .find((node) => node.id === "order") as RegularNode
     let set = at(house(), "2026-08-29T10:00:00-04:00", { op: "doing", id: "order" })
@@ -743,7 +730,7 @@ describe("done and doing", () => {
   // queue-gap never.
   test("queued, re-opened, settled: the bank says 1800 + 300 and nothing of the queue's wait", () => {
     const read = (set: OutlineSet): RegularNode =>
-      nodesOf(derive(recordsOf(set)), "house.olai")
+      nodesOf(derive(TEST_CLAIMS, recordsOf(set)), "house.olai")
         .map((located) => located.node)
         .find((node) => node.id === "order") as RegularNode
     let set = at(house(), "2026-08-29T10:00:00-04:00", { op: "doing", id: "order" })
@@ -759,7 +746,7 @@ describe("done and doing", () => {
   test("calling it off banks the round too", () => {
     let set = at(house(), "2026-08-29T09:00:00-04:00", { op: "doing", id: "order" })
     set = at(set, "2026-08-29T09:41:00-04:00", { op: "cancelled", id: "order" })
-    const ended = nodesOf(derive(recordsOf(set)), "house.olai")
+    const ended = nodesOf(derive(TEST_CLAIMS, recordsOf(set)), "house.olai")
       .map((located) => located.node)
       .find((node) => node.id === "order") as RegularNode
     expect(ended).toMatchObject({ cancelled: "2026-08-29T09:41:00-04:00", worked: 2460 })
@@ -1284,7 +1271,7 @@ describe("starting what is blocked", () => {
     // The edge the write just added IS what the gate would have refused, had
     // this been a start — so the two verbs are looking at one graph.
     expect(
-      standingBefore(derive(recordsOf(setOf({ "house.olai": serializeOutline(fileOf(result, "house.olai")) }))), "install")
+      standingBefore(derive(TEST_CLAIMS, recordsOf(setOf({ "house.olai": serializeOutline(fileOf(result, "house.olai")) }))), "install")
         .map((one) => one.at.node.id),
     ).toEqual(["order"])
   })
@@ -1323,7 +1310,7 @@ describe("starting what is blocked", () => {
     // Said the other way, over the derivation the gate reads: born `doing`,
     // waiting on nothing, however unfinished the row it was anchored after.
     expect(
-      standingBefore(derive(recordsOf(setOf({ "house.olai": serializeOutline(nodes) }))), "n1"),
+      standingBefore(derive(TEST_CLAIMS, recordsOf(setOf({ "house.olai": serializeOutline(nodes) }))), "n1"),
     ).toEqual([])
   })
 
@@ -2153,12 +2140,12 @@ describe("repeat", () => {
     const undone = after(once, { op: "done", id: "bins", undo: true })
     // The occurrence the completion made is still there — it is owed whatever
     // anybody says about the one before it.
-    expect(nodesOf(derive(recordsOf(undone)), "chores.olai").length).toBe(4)
+    expect(nodesOf(derive(TEST_CLAIMS, recordsOf(undone)), "chores.olai").length).toBe(4)
 
     const again = planned(undone, { op: "done", id: "bins" })
     expect(again.captured).toBeUndefined()
     expect(again.summary).toBe("done: put the bins out")
-    expect(nodesOf(derive(recordsOf(after(undone, { op: "done", id: "bins" }))), "chores.olai").length)
+    expect(nodesOf(derive(TEST_CLAIMS, recordsOf(after(undone, { op: "done", id: "bins" }))), "chores.olai").length)
       .toBe(4)
   })
 
@@ -2841,7 +2828,7 @@ const crossing = (): OutlineSet =>
  *  ops layer asks it. Flattened to strings so two readings of two sets compare
  *  by value rather than by identity. */
 const namersOf = (set: OutlineSet, id: string): ReadonlyArray<string> =>
-  (derive(recordsOf(set)).namedBy.get(id) ?? [])
+  (derive(TEST_CLAIMS, recordsOf(set)).namedBy.get(id) ?? [])
     .flatMap((naming) => naming.fields.map((field) => `${naming.at.node.id}.${field}`))
     .slice()
     .sort()
@@ -2920,7 +2907,7 @@ describe("move across outlines", () => {
     // typed `node` property this vault declares — which is a reference
     // `namedBy` does not carry, and the one an id-changing recreation would
     // strand without a word.
-    const verdict = validate(now)
+    const verdict = validate(TEST_CLAIMS, now)
     if (Result.isFailure(verdict)) {
       throw new Error(
         `the set is invalid after the move: ${
@@ -2959,7 +2946,7 @@ describe("move across outlines", () => {
     const before = crossing()
     const now = after(before, { op: "move", id: "install", parent: "garden" })
 
-    const shelf = (set: OutlineSet) => shelfOf(derive(recordsOf(set)))
+    const shelf = (set: OutlineSet) => shelfOf(derive(TEST_CLAIMS, recordsOf(set)))
     const was = shelf(before)
     // Pinned, so a corpus that stopped aiming at the subtree cannot make the
     // equality below pass over two rows that address nothing.
@@ -2977,7 +2964,7 @@ describe("move across outlines", () => {
     // grammar makes and the shelf merely spends: both spellings name the id,
     // and neither is re-written by the move.
     for (const title of ["/#install", "/house.olai#install"]) {
-      expect(pinTargetIn(title)).toBe("install")
+      expect(pinTargetIn(TEST_CLAIMS, title)).toBe("install")
     }
   })
 
@@ -2995,7 +2982,7 @@ describe("move across outlines", () => {
   test("a dated node that crossed files is still on its day, under the new outline", () => {
     const before = crossing()
     const now = after(before, { op: "move", id: "install", parent: "garden" })
-    const day = (set: OutlineSet) => datedOn(derive(recordsOf(set)), "2026-08-20")
+    const day = (set: OutlineSet) => datedOn(derive(TEST_CLAIMS, recordsOf(set)), "2026-08-20")
 
     const was = day(before)
     expect(was).toHaveLength(1)
@@ -3029,7 +3016,7 @@ describe("move across outlines", () => {
     // became work, which is the write side's (`outlines_doing`'s gate). A
     // differential over the second alone would have passed on an unmarked node
     // by saying nothing about either.
-    const derived = (set: OutlineSet) => derive(recordsOf(set))
+    const derived = (set: OutlineSet) => derive(TEST_CLAIMS, recordsOf(set))
     const ids = (rows: ReadonlyArray<{ at: { node: { id: string } } }>) =>
       rows.map((one) => one.at.node.id).slice().sort()
     const before = crossing()
@@ -3162,7 +3149,7 @@ describe("move across outlines", () => {
       "house.olai": `{"id":"install","ord":"a0","title":"install","doc":"finishes.md"}`,
       "notes/garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}`,
     }, ["finishes.md"])
-    expect(Result.isSuccess(validate(after(withField, { op: "move", id: "install", parent: "garden" }))))
+    expect(Result.isSuccess(validate(TEST_CLAIMS, after(withField, { op: "move", id: "install", parent: "garden" }))))
       .toBe(true)
   })
 
@@ -3208,8 +3195,8 @@ describe("move across outlines", () => {
     // variants are still children of `roster` — in another file, under another
     // parent, and still exactly what `variantsOf` walks.
     const now = after(ROSTERED(), { op: "move", id: "roster", parent: "elsewhere" })
-    expect(Result.isSuccess(validate(now))).toBe(true)
-    const derived = derive(recordsOf(now))
+    expect(Result.isSuccess(validate(TEST_CLAIMS, now))).toBe(true)
+    const derived = derive(TEST_CLAIMS, recordsOf(now))
     expect(derived.byId.get("claude")?.file).toBe("lanes.olai")
     expect(derived.byId.get("claude")?.node.parent).toBe("roster")
   })
@@ -3495,7 +3482,7 @@ describe("create", () => {
 
   test("a non-`.olai` name is refused", () => {
     expect(refused(house(), { op: "create", file: "notes.md" })._tag).toBe("UsageFailure")
-    expect(refused(house(), { op: "create", file: "notes" })._tag).toBe("UsageFailure")
+    expect(refused(house(), { op: "create", file: "notes" })._tag).toBe("NotFoundFailure")
   })
 
   test("an outline the directory already holds is refused rather than overwritten", () => {
@@ -3793,7 +3780,7 @@ describe("merge", () => {
         return rest as Node
       }))
     expect(unstamped(fileOf(back, "house.olai")))
-      .toBe(unstamped(nodesOf(derive(recordsOf(before)), "house.olai").map((at) => at.node)))
+      .toBe(unstamped(nodesOf(derive(TEST_CLAIMS, recordsOf(before)), "house.olai").map((at) => at.node)))
     expect(record(fileOf(back, "house.olai"), "order").changed).toBe(STAMP)
   })
 })
@@ -4077,7 +4064,7 @@ describe("unarchive", () => {
    */
   /** One archive's records, read off the set the plan produced. */
   const archived = (set: OutlineSet): ReadonlyArray<Node> =>
-    nodesOf(derive(recordsOf(set)), "_olai/Trash.olai").map((located) => located.node)
+    nodesOf(derive(TEST_CLAIMS, recordsOf(set)), "_olai/Trash.olai").map((located) => located.node)
 
   test("the signpost the archive minted above a node is not restorable", () => {
     const set = after(house(), { op: "trash", id: "order" })
@@ -4196,7 +4183,7 @@ describe("empty", () => {
     const set = filled()
     // What is being deleted, counted off the set the plan is judged against:
     // two subtrees plus the one scaffold title they share.
-    expect(nodesOf(derive(recordsOf(set)), "_olai/Trash.olai")).toHaveLength(4)
+    expect(nodesOf(derive(TEST_CLAIMS, recordsOf(set)), "_olai/Trash.olai")).toHaveLength(4)
 
     const result = planned(set, { op: "empty", file: "_olai/Trash.olai" })
     expect(fileOf(result, "_olai/Trash.olai")).toEqual([])
@@ -4217,7 +4204,7 @@ describe("empty", () => {
       after(house(), { op: "trash", id: "order" }),
       { op: "untrash", id: "order" },
     )
-    expect(nodesOf(derive(recordsOf(set)), "_olai/Trash.olai")).toEqual([])
+    expect(nodesOf(derive(TEST_CLAIMS, recordsOf(set)), "_olai/Trash.olai")).toEqual([])
     const failure = refused(set, { op: "empty", file: "_olai/Trash.olai" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("already empty")
@@ -5002,10 +4989,10 @@ describe("documents", () => {
   })
 
   test("create judges the path the way every minted path is judged", () => {
-    for (const path of ["/etc/notes.md", "../up.md", "a/./b.md", "notes.txt", ""]) {
+    for (const path of ["/etc/notes.md", "../up.md", "a/./b.md", ""]) {
       const failure = refused(vault(), { op: "create-doc", file: path })
       expect(failure._tag).toBe("UsageFailure")
-      expect(failure.message).toContain("is not a relative `.md` path")
+      expect(failure.message).toContain("is not a relative file path")
     }
   })
 
@@ -5128,7 +5115,7 @@ describe("delete", () => {
     // NAMED BY KIND, which is the registry's own word (`hypertext`) — the
     // one thing the sentence must never offer is a DIFFERENT file, so what it
     // says instead is whose this one is.
-    expect(failure.message).toContain("is a hypertext")
+    expect(failure.message).toContain("is a page")
     expect(failure.message).toContain("whatever put it there")
     // …and AN when the word begins with one: `image` is the vowel-led kind.
     expect(refused(set, { op: "delete", file: "art/shot.png" }).message).toContain("is an image")
@@ -5751,7 +5738,7 @@ describe("typed properties", () => {
       props: { type: "doc" },
     })
     expect(record(fileOf(plan, "_olai/Properties.olai"), "n1").custom).toEqual({ type: "doc" })
-    expect(Result.isSuccess(validate(after(held, {
+    expect(Result.isSuccess(validate(TEST_CLAIMS, after(held, {
       op: "add",
       file: "_olai/Properties.olai",
       title: "brainstorm",
@@ -6200,7 +6187,7 @@ describe("typed properties, further", () => {
       title: "a fresh lane",
       props: { dispatched: "2026-8-30", pr: "  194  ", merge: "human" },
     })
-    expect(Result.isSuccess(validate(born))).toBe(true)
+    expect(Result.isSuccess(validate(TEST_CLAIMS, born))).toBe(true)
     expect(customOf(born, "fresh")).toEqual({
       dispatched: "2026-08-30",
       pr: "194",
@@ -6212,13 +6199,13 @@ describe("typed properties, further", () => {
       id: "fresh",
       props: { dispatched: "2026-08-31T09:00:00-04:00" },
     })
-    expect(Result.isSuccess(validate(edited))).toBe(true)
+    expect(Result.isSuccess(validate(TEST_CLAIMS, edited))).toBe(true)
     // ...COPIED, which carries approved values and can invent none...
     const copied = after(edited, { op: "duplicate", id: "fresh" })
-    expect(Result.isSuccess(validate(copied))).toBe(true)
+    expect(Result.isSuccess(validate(TEST_CLAIMS, copied))).toBe(true)
     // ...and REMOVED, which is not a value and is never fenced.
     const cleared = after(copied, { op: "prop", id: "fresh", key: "pr", value: null })
-    expect(Result.isSuccess(validate(cleared))).toBe(true)
+    expect(Result.isSuccess(validate(TEST_CLAIMS, cleared))).toBe(true)
     expect(customOf(cleared, "fresh")["pr"]).toBeUndefined()
   })
 })
@@ -6240,7 +6227,7 @@ test("a pin rename precondition is rechecked when the row leaves the active shel
   const moved: ReadonlyArray<Record<string, string>> = [
     { "_olai/Pins.olai": "", "_olai/Trash.olai": JSON.stringify(pin) },
     { "_olai/Pins.olai": JSON.stringify({ id: "folder", ord: "a0", title: "folder" }) + "\n" + JSON.stringify({ ...pin, parent: "folder" }) },
-    { "_olai/Pins.olai": JSON.stringify(pin), "Pins.olai": JSON.stringify({ id: "other", ord: "a0", title: "/garden.olai" }) },
+    { "_olai/Pins.olai": JSON.stringify(pin), "_olai/pins.olai": JSON.stringify({ id: "other", ord: "a0", title: "/garden.olai" }) },
   ]
   for (const files of moved) {
     expect(refused(setOf(files), request).message).toContain("no longer pinned")

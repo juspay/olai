@@ -1,6 +1,4 @@
 import type { Advertised } from "@olai/plugin-api/services"
-import { Terminals } from "./terminals.ts"
-import { terminalMetaIn } from "@olai/acp"
 /**
  * The ACP client: one subprocess, one protocol, no browser.
  *
@@ -67,7 +65,8 @@ import { terminalMetaIn } from "@olai/acp"
  * structured question — it has to guess, or write the question into prose and
  * hope.
  */
-
+import { Terminals } from "./terminals.ts"
+import { terminalMetaIn } from "@olai/acp"
 import { type Child, start as startChild } from "@olai/child"
 
 import {

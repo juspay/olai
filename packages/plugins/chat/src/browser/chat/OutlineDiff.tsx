@@ -27,7 +27,8 @@ import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { TESTID } from "../../testids.ts"
 import { isUnfolded, toggleFold } from "./folds.ts"
-import { outlineDiffOf } from "./outline.ts"
+import { servedDirectory } from "../vault.ts"
+import { createOutlineDiff } from "./outline.ts"
 
 /** How many node rows a trimmed outline change shows. The text diff's number,
  *  because it is the same promise about the same panel. */
@@ -43,15 +44,15 @@ export function OutlineDiff(props: {
   readonly id: string
   readonly diff: FileDiff
 }) {
-  const read = createMemo(() => outlineDiffOf(props.diff))
+  const { read, line } = createOutlineDiff(servedDirectory, () => props.diff)
   const changes = createMemo(() => {
     const answer = read()
-    return answer._tag === "Changes" ? answer.changes : []
+    return answer?._tag === "Changes" ? answer.changes : []
   })
   /** Which side would not parse, or `null` when both did. */
   const unreadable = createMemo(() => {
     const answer = read()
-    return answer._tag === "Unreadable" ? answer.side : null
+    return answer?._tag === "Unreadable" ? answer.side : null
   })
   const open = createMemo(() => isUnfolded(props.id))
   const more = () => Math.max(0, changes().length - TRIMMED)
@@ -73,6 +74,11 @@ export function OutlineDiff(props: {
         </Show>
       </p>
 
+      <Show when={read() !== undefined} fallback={
+        <p class="px-2 py-1 text-xs text-muted" data-testid={TESTID.chatOutlineUnreadable}>
+          {line()}
+        </p>
+      }>
       <Show
         when={unreadable() === null}
         fallback={
@@ -115,7 +121,7 @@ export function OutlineDiff(props: {
                       that names an address is spelled as written here, the
                       same contract a search row keeps (`../search/row.ts`). */}
                   <span class="min-w-0 truncate text-ink">
-                    <TitleHtml drawing={renderTitle(change.title, change.file)} />
+                    <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file)} />
                   </span>
                   <span class="ml-auto shrink-0 text-muted">{SAID[change.sort]}</span>
                 </li>
@@ -125,6 +131,7 @@ export function OutlineDiff(props: {
         </Show>
       </Show>
 
+      </Show>
       <Show when={more() > 0}>
         <button
           type="button"

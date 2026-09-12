@@ -970,6 +970,8 @@ Every claim on this page is a test. If you break one, the failure names the file
 A plugin can provide a service of its own, and another plugin can declare that it
 needs it, with no core edit in between.
 
+The vault also offers `vault.outline-row`, the configured mint row id, to server consumers. It is owned by the vault configuration activation; the browser receives the same id in the file-kinds cell. Non-Markdown page metadata (`bodyPage`: head, revision and referrers) travels through `vault.files`, independently of Markdown's own `documentPage` stream. `bodies.get` is browser-only and refuses kept or fetched files. Claims carry the serving policy: hypertext declares `serving: "sealed-frame"`; image declares `picture` and its per-suffix `inert` policy. The media handler consumes those declarations, never a MIME-to-kind lookup.
+
 ### The mechanism (12b)
 
 | Fact | Detail |
@@ -1018,6 +1020,55 @@ in [plugins the vault defines](../dynamic-plugins.md#a-worked-example-the-mornin
 compiled from that page by `olai-plugin-vault-plugins`' `worked.test.ts`.
 
 ---
+
+### File-kind ownership
+
+`vault.file-kinds` is minted in vault setup, before the store opens. A row
+registers one atomic claim; the registry stamps its fiber binding as `kind`.
+All suffix collisions are checked before publication. Failure installs nothing,
+and cleanup withdraws only the departing owner's claim. Revalidation brings
+new claims into the set and removes withdrawn claims; published readings retain
+the immutable Claims value used for validation. Claim policy fields are defined
+once by the inert `ClaimData` schema; the server claim adds its parser, and the
+registration input omits the registry-owned id. Cleanup tokens remain separate
+from snapshots, because snapshot construction copies claims.
+
+The browser consumes the vault's `file-kinds` cell, containing serializable
+claims and `outlineRow`. Reconnection resubscribes for a fresh snapshot.
+`files.kinds` and `navigation.pages` belong to their readers and accept scoped
+contributions keyed by row id or by `holds`, with the row id taking priority.
+Glyph and page are independent components. Outlines contributes both once for
+`holds: "nodes"`; a format row requires no browser half. A body page declares
+every live service its moved face reads. Their static helpers own no registry.
+Glyph contribution lists are derived under the sidebar activation, once per
+location change, and released with it; individual glyph lookups do not copy the
+list. Page contribution lists likewise change with the location rather than
+with the selected address.
+
+
+The file-kind lifecycle is checked at these boundaries:
+
+| Guarantee | Enforcement | Evidence |
+|---|---|---|
+| The registry stamps the owner | vault `file-kinds.ts`, provision bound to the registering fiber | vault `file-kinds.test.ts`: forged kind ignored |
+| A refused claim installs nothing | synchronous construction before publication | same test: nine-suffix loser and winner cleanup |
+| Departed claims remove files and media access | registration finalizer and vault revalidation | `file_kinds.feature`: PDF off/on |
+| A later probe cannot keep a withdrawn claim | codec reads the table per call | ops `codec.test.ts`: withdrawal between probes |
+| A Reading retains its validating table | immutable Claims on Reading | ops `codec.test.ts`: old snapshot unchanged |
+| Formats cannot fetch their own registry | pure three-argument parse | bundle `fence.test.ts`: format has no FileKinds access |
+| Git and chat use the selected format | Ops parser door and vault outlineDiff | git `committed.test.ts`, bundle import fence |
+| An absent vault leaves an unreadable diff | scoped browser request and cancellation | chat `outline-diff.browsertest.ts` |
+| Reconnect takes fresh claims | file-kinds cell and directory memo | vault `directory.browsertest.ts`, offline scenario in `file_kinds.feature` |
+| Glyph and page degrade independently | separate row components | bundle `file-kind-component.test.ts`, Files/Navigation scenarios |
+| Withdrawing a location releases its acquisitions | scoped contributions | bundle `file-kind-locations.test.ts` |
+| An absent mint row writes nothing | planner refuses before staging | mint scenario in `file_kinds.feature` |
+| Callers receive no implicit Claims table | required codec argument, test-only empty table | typecheck and suffix sweep |
+| Two hosts own separate tables | table created inside vault setup | server `vault.test.ts`: two hosts, separate claims |
+| Only claiming rows spell suffix literals | census of server registrations | tests `kinds.test.ts` |
+
+The registry-driven generated-record round trip in server
+`file-kind-formats.test.ts` discovers every registering row; future formats
+inherit record identity and canonical-byte checks.
 
 ## Phase 18: shell and content capabilities
 
@@ -1072,7 +1123,7 @@ The vault is an ordinary plugin row, not a host facility.
 | Consumers | capability providers acquire `Directory` and `Ops` through their declared needs; `makeOps` runs inside the vault row after the store is acquired |
 | The write gate | owns its caches and accepted-write count; its finalizer rejects fresh calls and drains accepted writes before releasing the watcher and lock. A server without the vault has no domain gate. Domain surface handlers leave with their providers, while permanent management stays available |
 | Boundary | vault owns file-access projection and publishes revisions to dependents. Content providers register their own readings and operations through `Surfaces`; the host routes those declarations without importing the store or a domain projection. Machine-local facilities arrive through generic host services, runtime path configuration is passed to the vault capability, and the provider owns lock-file sweeping and resource release |
-| Config | the row's `Config` schema declares `format` with default `olai`, and `olai.yml` selects the row without a `config:` block. The codec table is where another format would be added; Org is not implemented. The Effect bridge decodes row config before user `apply`, inside the same contained activation as every other initializer, avoiding the pinned Cordis constructor-validation path that could leave an invalid row pending and reject an unobserved loader promise |
+| Config | the row's `Config` schema declares `format` with default `outline-olai`, and `olai.yml` selects the row without a `config:` block. Further formats register their own claims and codecs through `vault.file-kinds`; there is no codec catalogue. The Effect bridge decodes row config before user `apply`, inside the same contained activation as every other initializer, avoiding the pinned Cordis constructor-validation path that could leave an invalid row pending and reject an unobserved loader promise |
 | Failure and disabling | the switch stays available and explains its cost: disabling clears served collections and removes vault-defined plugins, while transports remain. A lock conflict or non-directory root lands as a failed row carrying its own failure sentence, so the panel can retry once the cause is fixed. `runtime.test.ts` opens the test-minimal profile and reads its store through `Directory` |
 
 ### Transport plugins and profiles

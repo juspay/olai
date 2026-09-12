@@ -164,7 +164,6 @@
  * somebody who needed one embed to work.
  */
 
-import { FILE_EXTS } from "@olai/format"
 
 import { mediaPath, MEDIA_PREFIX } from "./media.ts"
 import { ours } from "./press.ts"
@@ -196,7 +195,7 @@ import { ours } from "./press.ts"
  * embedder rationed heights by kind, one of each per width, to keep a page sized
  * in `vh` off its own ladder. It ranks nothing now. The ladder is refused by
  * arithmetic over consecutive readings rather than by counting them
- * (`@olai/web`'s `document/echo.ts`, where the whole argument is), and a
+ * (`olai-plugin-hypertext`'s `browser/echo.ts`, where the whole argument is), and a
  * receiver that treats the two alike does not want to be told which it has. So
  * every reading this measure posts — the one taken as the document parses, the
  * ones the observer delivers as it reflows, and the one taken at `load` — is the
@@ -439,7 +438,7 @@ const LANDED = "olai:page-landed:"
  * tell "the page grew because its pictures landed" from "the page grew because
  * I made the frame taller and I am measured in `vh`", so it was told. It works
  * the difference out for itself now, from the readings themselves
- * (`@olai/web`'s `document/echo.ts`).
+ * (`olai-plugin-hypertext`'s `browser/echo.ts`).
  *
  * It earns different things in the two branches below, which is why it is
  * registered outside them. Where there is no `ResizeObserver` it is the ONLY
@@ -533,15 +532,12 @@ const MEASURE = `(function () {
  *     it walks the frame off and comes home, which is the behaviour that was
  *     already there and is deliberately untouched. WHAT HOLDS IT: the two
  *     walk-off scenarios;
- *   - a file olai has a PAGE for, by suffix ({@link FILE_EXTS} — every kind the
- *     registry claims: a `.html`, a `.md`, and an outline beside them). WHICH
- *     page is not asked here and could not be: a `.md` and a `.html` are drawn as
- *     bodies and an outline as a tree, and the app routes the path to
- *     whichever list holds it. Everything else under the route is a part a page
- *     draws ITSELF with — a picture, a stylesheet, a font — and a link to one is
- *     a link to a file, which the frame goes on following exactly as it did.
- *     WHAT HOLDS IT: the suffix list is asserted against the registry, and a
- *     link at a `.png` is followed by the frame in a scenario of its own;
+ *   - a suffix supplied to `seal` by the vault from its current Claims.
+ *     The app chooses the corresponding page; this click handler only hands
+ *     the address back. Other assets, such as stylesheets and fonts, remain
+ *     ordinary links inside the preview rather than app navigation targets.
+ *     WHAT HOLDS IT: the supplied suffix list is asserted in `seal.test.ts`,
+ *     and `html_previews.feature` opens relative links in the app;
  *   - NO IN-PAGE ANCHOR. `#top` is a jump inside the document the reader is
  *     already looking at, and there is nothing for the app to do with one: the
  *     frame keeps it, because a page scrolling itself is not a navigation.
@@ -571,8 +567,8 @@ const MEASURE = `(function () {
  * SVG, whose `href` is an `SVGAnimatedString` — and it falls out as a link this
  * does not claim.
  */
-const FOLLOW = `(function () {
-  var pages = ${JSON.stringify(FILE_EXTS)}
+const FOLLOW = (extensions: ReadonlyArray<string>) => `(function () {
+  var pages = ${JSON.stringify(extensions)}
   var ours = ${ours.toString()}
   addEventListener("click", function (event) {
     if (!ours(event)) return
@@ -642,9 +638,9 @@ const FOLLOW = `(function () {
  * reason: this prefix would push a file's charset declaration past the 1024
  * bytes a parser looks in. Both are named where they are done.
  */
-export const SEAL = `<!doctype html>` +
+export const SEAL = (extensions: ReadonlyArray<string>) => `<!doctype html>` +
   `<meta name="color-scheme" content="light">` +
-  `<script>${MEASURE};${FOLLOW}</script>`
+  `<script>${MEASURE};${FOLLOW(extensions)}</script>`
 
 /**
  * The one place a sealed page may fetch from, as a CSP source — or NOTHING,

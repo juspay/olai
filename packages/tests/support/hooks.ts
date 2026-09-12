@@ -1,4 +1,3 @@
-import { writeFixturePolicy } from "@olai/bundle/testlib"
 /**
  * Lifecycle: one browser for the whole run, one server per fixture corpus, one
  * fresh context and page per scenario.
@@ -40,7 +39,7 @@ import { writeFixturePolicy } from "@olai/bundle/testlib"
  * should have been doing anyway — before this, a scenario that wrote where it
  * should not have was writing into the repository's tracked fixtures.
  */
-
+import { writeFixturePolicy } from "@olai/bundle/testlib"
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import type { EventEmitter } from "node:events";
 import * as fs from "node:fs";

@@ -26,7 +26,7 @@
  * fiber still running while later tests in this file — and every later file
  * in bun's one shared process — run.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, rowsOf, type Row } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { NO_PINS } from "@olai/format"
@@ -48,7 +48,7 @@ const HOUSE = [
   `{"id":"echo","ord":"a2","mirror":"install"}`,
 ].join("\n")
 
-const derived = derive(recordsOf(setOf({ "house.olai": HOUSE })))
+const derived = derive(TEST_CLAIMS, recordsOf(setOf({ "house.olai": HOUSE })))
 
 const row = (id: string): Row => {
   const found = flatten(rowsOf(derived, "house.olai"), new Set())

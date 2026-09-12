@@ -27,14 +27,14 @@
  *     Derived.children}) and the walk it is held to reads only `byId`, so a
  *     stale child list is a divergence this file sees and nothing else would.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import type { Derived } from "./derive.ts"
 import { matching, parseFilter } from "./filter.ts"
 import { isMirror } from "./node.ts"
-import { parseOutline } from "./parse.ts"
+import { parseOutline } from "./fixtures.testlib.ts"
 import {
   type Ask,
   asksOver,
@@ -278,7 +278,7 @@ test("the real vault agrees at every scope", () => {
 const REAL: ReadonlyArray<string> = [
   "the",
   "index",
-  "olai",
+  "outline-olai",
   "search",
   `"the human"`,
   "index OR search",
@@ -337,7 +337,7 @@ const REAL: ReadonlyArray<string> = [
 test("a write leaves the narrowing answering what the walk does", () => {
   const vault = new Map(deepVaultOf({ files: 12, records: 18, seed: 20260825 }))
   const decoded = decodedVault(vault)
-  let read = reading(assemble(decoded))
+  let read = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded))
   const asks = asksOver(read.derived, QUERIES, { files: 6, roots: 10 })
   holds(differential(read, asks, NOW), { hits: 60, narrowing: 20 })
 
@@ -379,10 +379,10 @@ test("a write leaves the narrowing answering what the walk does", () => {
     // the previous round's corpus with itself, and it would pass.
     if (edited === text) throw new Error(`the edit to ${file} changed nothing`)
     vault.set(file, edited)
-    decoded.set(file, Result.mapError(parseOutline(file, edited), verdictOf))
+    decoded.set(file, Result.mapError(parseOutline(file, edited, TEST_CLAIMS), verdictOf))
   }
   const requeried = (changed: ReadonlyArray<string>, removed: ReadonlyArray<string>): void => {
-    read = reading(assemble(decoded), {
+    read = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded), {
       read,
       delta: {
         upserts: changed.map((file) => [file, { nodes: nodesIn(decoded.get(file)) }] as const),

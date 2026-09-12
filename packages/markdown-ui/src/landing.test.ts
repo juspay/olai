@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { installPipeline } from "./chunk.ts"
 import * as pipeline from "./pipeline.ts"
@@ -6,7 +7,7 @@ import { renderLineLanding } from "./render.ts"
 installPipeline(pipeline)
 
 test("source landings light a phrase across tags and code with the existing walk", () => {
-  const html = renderLineLanding("# Top\n\nFind #garden and `code` here.\n\nOther garden.", "a.md", 3, ["garden", "code"])
+  const html = renderLineLanding(TEST_CLAIMS, "# Top\n\nFind #garden and `code` here.\n\nOther garden.", "a.md", 3, ["garden", "code"])
   expect(html).toContain('data-search-landing="true"')
   expect(html).toContain('data-tag="#garden"')
   expect(html.match(/<mark /g)).toHaveLength(2)
@@ -15,15 +16,15 @@ test("source landings light a phrase across tags and code with the existing walk
 test("blank lines and opening fence markers land on the previous rendered block", () => {
   const source = "First paragraph.\n\n```text\ncode here\n```\n"
   for (const line of [2, 3]) {
-    const html = renderLineLanding(source, "a.md", line, ["first"])
+    const html = renderLineLanding(TEST_CLAIMS, source, "a.md", line, ["first"])
     expect(html).toContain('<p data-search-landing="true">')
   }
-  expect(renderLineLanding(source, "a.md", 999, ["first"])).not.toContain("data-search-landing")
-  expect(renderLineLanding(source, "a.md", 0, ["first"])).not.toContain("data-search-landing")
+  expect(renderLineLanding(TEST_CLAIMS, source, "a.md", 999, ["first"])).not.toContain("data-search-landing")
+  expect(renderLineLanding(TEST_CLAIMS, source, "a.md", 0, ["first"])).not.toContain("data-search-landing")
 })
 
 test("a line inside a long list lands on its item rather than the whole list", () => {
-  const html = renderLineLanding("- First\n- Second\n- Target word\n- Last", "a.md", 3, ["target"])
+  const html = renderLineLanding(TEST_CLAIMS, "- First\n- Second\n- Target word\n- Last", "a.md", 3, ["target"])
   expect(html).toContain('<li data-search-landing="true">')
   expect(html).not.toContain('<ul data-search-landing="true">')
 })

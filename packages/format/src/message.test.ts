@@ -6,7 +6,7 @@
  * system will ever notice if it degrades: an ugly subject line commits exactly
  * as well as a good one.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 
 import type { NodeChange } from "./changes.ts"
@@ -24,7 +24,7 @@ const change = (over: Partial<NodeChange>): NodeChange => ({
 
 describe("a composed message", () => {
   test("names the biggest change in the subject and lists the rest", () => {
-    const message = composed([
+    const message = composed(TEST_CLAIMS, [
       change({ id: "outlines-collection", title: "Outlines as a collection", sort: "done" }),
       change({ id: "notes", title: "Notes: one state, same line", sort: "noted" }),
       change({ id: "kolu", title: "Kolu integration", sort: "created" }),
@@ -37,10 +37,10 @@ describe("a composed message", () => {
   })
 
   test("says which outline only when there is one of them", () => {
-    expect(composed([change({ sort: "done" })]).split("\n")[0])
+    expect(composed(TEST_CLAIMS, [change({ sort: "done" })]).split("\n")[0])
       .toBe("olai: 1 edit to roadmap — a node done")
     expect(
-      composed([change({ sort: "done" }), change({ file: "other.olai", id: "y" })])
+      composed(TEST_CLAIMS, [change({ sort: "done" }), change({ file: "other.olai", id: "y" })])
         .split("\n")[0],
     ).toBe("olai: 2 edits — a node done")
   })
@@ -49,15 +49,15 @@ describe("a composed message", () => {
   // which beside a real reparenting op read as a structural change that never
   // happened.
   test("a date says it is a date, and a move says it is a move", () => {
-    expect(composed([change({ sort: "scheduled", title: "pay the bill" })]))
+    expect(composed(TEST_CLAIMS, [change({ sort: "scheduled", title: "pay the bill" })]))
       .toContain("date: pay the bill")
-    expect(composed([change({ sort: "moved", title: "pay the bill" })]))
+    expect(composed(TEST_CLAIMS, [change({ sort: "moved", title: "pay the bill" })]))
       .toContain("move: pay the bill")
   })
 
   test("a long list stops listing and says how much it left out", () => {
     const many = Array.from({ length: 25 }, (_, at) => change({ id: `n${at}` }))
-    const body = composed(many).split("\n")
+    const body = composed(TEST_CLAIMS, many).split("\n")
     expect(body.filter((line) => line.startsWith("note:"))).toHaveLength(20)
     expect(body).toContain("… and 5 more")
   })
@@ -78,7 +78,7 @@ describe("a message that also carries other files", () => {
   ): Other => ({ path, how, from })
 
   test("the subject counts them beside the biggest node change", () => {
-    const message = composed(
+    const message = composed(TEST_CLAIMS,
       [change({ title: "Outlines as a collection", sort: "done" })],
       [other("README.md"), other("notes/todo.md", "untracked")],
     )
@@ -102,7 +102,7 @@ describe("a message that also carries other files", () => {
    * travelled together — was the log agreeing with the wrong half of the panel.
    */
   test("a renamed file names the side it came from", () => {
-    const message = composed([], [other("Kept.olai", "renamed", "Reading.md")])
+    const message = composed(TEST_CLAIMS, [], [other("Kept.olai", "renamed", "Reading.md")])
     expect(message).toContain("renamed: Reading.md → Kept.olai")
     expect(message).not.toContain("deleted: Reading.md")
     // The subject still names the file as it is NOW: what the commit recorded
@@ -111,7 +111,7 @@ describe("a message that also carries other files", () => {
   })
 
   test("one other file is singular", () => {
-    expect(composed([change({ sort: "done" })], [other("README.md")]).split("\n")[0])
+    expect(composed(TEST_CLAIMS, [change({ sort: "done" })], [other("README.md")]).split("\n")[0])
       .toEndWith("· 1 other file")
   })
 
@@ -120,12 +120,12 @@ describe("a message that also carries other files", () => {
    *  what this used to say) would be a lie about a commit that recorded two
    *  files. */
   test("files with no node changes still name themselves", () => {
-    const message = composed([], [other("README.md"), other("docs/design.md")])
+    const message = composed(TEST_CLAIMS, [], [other("README.md"), other("docs/design.md")])
     expect(message.split("\n")[0]).toBe("olai: 2 files — README.md and 1 more")
     expect(message).toContain("modified: README.md")
     expect(message).toContain("modified: docs/design.md")
 
-    expect(composed([], [other("README.md")]).split("\n")[0])
+    expect(composed(TEST_CLAIMS, [], [other("README.md")]).split("\n")[0])
       .toBe("olai: 1 file — README.md")
   })
 
@@ -134,14 +134,14 @@ describe("a message that also carries other files", () => {
   test("each list stops on its own", () => {
     const many = Array.from({ length: 25 }, (_, at) => change({ id: `n${at}` }))
     const files = Array.from({ length: 25 }, (_, at) => other(`f${at}.md`))
-    const body = composed(many, files).split("\n")
+    const body = composed(TEST_CLAIMS, many, files).split("\n")
     expect(body.filter((line) => line.startsWith("note:"))).toHaveLength(20)
     expect(body.filter((line) => line.startsWith("modified:"))).toHaveLength(20)
     expect(body.filter((line) => line === "… and 5 more")).toHaveLength(2)
   })
 
   test("nothing at all is still nothing", () => {
-    expect(composed([], [])).toBe("olai: nothing")
+    expect(composed(TEST_CLAIMS, [], [])).toBe("olai: nothing")
   })
 })
 
@@ -158,7 +158,7 @@ describe("a message that also carries other files", () => {
  * afterwards, which is exactly what the `capture:`/`done:` convention is for.
  */
 test("the subject names the node's title, so a minted id never reaches the log", () => {
-  const message = composed([
+  const message = composed(TEST_CLAIMS, [
     change({ id: "1vax4izq", title: "measure the alcove", sort: "created" }),
   ])
   const subject = message.split("\n")[0] ?? ""

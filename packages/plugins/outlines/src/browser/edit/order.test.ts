@@ -1,11 +1,3 @@
-import type { Row } from "@olai/format"
-import type { Anchor } from "@olai/surface"
-import { expect, test } from "bun:test"
-
-import { emptyPending } from "./draft.ts"
-import { flatten, neighbour, reanchored, seated, wired } from "./order.ts"
-import type { Wire } from "./order.ts"
-
 /** A row, as far as this walk is concerned: the place it sits in, the node it
  *  shows, and its children. Built by hand rather than derived from a fixture
  *  set — what is under test is the walk over a shape, and `@olai/format` has
@@ -14,6 +6,13 @@ import type { Wire } from "./order.ts"
  *  Both identities are here because the walk uses both, and the difference is
  *  the point: a fold is asked of the NODE (`../fold/rows.ts`), and where the
  *  caret is standing is a PLACE. */
+import type { Row } from "@olai/format"
+import type { Anchor } from "@olai/surface"
+import { expect, test } from "bun:test"
+
+import { emptyPending } from "./draft.ts"
+import { flatten, neighbour, reanchored, seated, wired } from "./order.ts"
+import type { Wire } from "./order.ts"
 const row = (id: string, key: string, children: ReadonlyArray<Row> = []): Row =>
   ({
     kind: "node",

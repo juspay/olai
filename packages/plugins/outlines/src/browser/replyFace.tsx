@@ -1,5 +1,6 @@
 import { writeIn, fileOf } from "./reply.ts"
 export { fileOf } from "./reply.ts"
+import { servedDirectory } from "./vault.ts"
 import { Show } from "solid-js"
 
 import { GLYPH, SAID } from "../contracts/changes.ts"
@@ -40,7 +41,7 @@ export function story(input: { reply: unknown; show: (id: string) => void }) {
           fallback={
             <span class="min-w-0 truncate text-ink">
               <TitleHtml
-                drawing={renderTitle(props.wrote.title, props.wrote.file ?? "", {
+                drawing={renderTitle(servedDirectory()?.claims(), props.wrote.title, props.wrote.file ?? "", {
                   links: false,
                 })}
               />
@@ -50,7 +51,7 @@ export function story(input: { reply: unknown; show: (id: string) => void }) {
           {(id) => (
             <button type="button" class="min-w-0 truncate text-accent hover:underline" data-testid={TESTID.outlinesStoryRef} data-node-ref={id()} onClick={event => { event.stopPropagation(); input.show(id()) }}>
               <TitleHtml
-                drawing={renderTitle(props.wrote.title, props.wrote.file ?? "", {
+                drawing={renderTitle(servedDirectory()?.claims(), props.wrote.title, props.wrote.file ?? "", {
                   links: false,
                 })}
               />

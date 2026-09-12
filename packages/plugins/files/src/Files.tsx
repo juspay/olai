@@ -1,5 +1,11 @@
+/** A DOOR at the foot of the column: Trash. It is not a row of the tree above
+ *  it — it opens a file that tree does not draw — and the quiet ink is what
+ *  says so, since a door drawn in the list's own ink would read as one more
+ *  file. Inbox used to sit here; it moved up beside Agenda (human,
+ *  2026-08-20). */
+
 import { TESTID } from "olai-plugin-files/testids"
-import { type BrokenFile,type FileKind,fileKind,inboxIn,inOlaiDir,isTrashed,stemOf } from "@olai/format"
+import { type BrokenFile, fileKind, inboxIn, inOlaiDir, isTrashed, stemOf } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
 createMemo,
@@ -14,8 +20,8 @@ import { servedDirectory } from "./vault.ts"
 
 
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
-import { Glyph } from "olai-plugin-files/icons"
-import { ROW_TESTID } from "olai-plugin-files/kinds"
+import { Glyph } from "./glyphs.tsx"
+import { drawingOf } from "./drawings.ts"
 import { ancestorDirs,dirsIn,type FileRow,fileTree } from "olai-plugin-files/fileTree.ts"
 import { openFolders,toggleFolder } from "olai-plugin-files/fold/folders.ts"
 
@@ -30,12 +36,6 @@ import { vaultEntries } from "olai-plugin-sidebar/contract"
 import { fileTypes } from "./contract.ts"
 
 const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP}`
-
-/** A DOOR at the foot of the column: Trash. It is not a row of the tree above
- *  it — it opens a file that tree does not draw — and the quiet ink is what
- *  says so, since a door drawn in the list's own ink would read as one more
- *  file. Inbox used to sit here; it moved up beside Agenda (human,
- *  2026-08-20). */
 const DOOR = `${ENTRY} text-paper/65`
 
 /** A directory row: folds, does not navigate. Same SHAPE and ink as a file —
@@ -43,6 +43,8 @@ const DOOR = `${ENTRY} text-paper/65`
  *  files was two lists. Current-page wash is a file's, and a button does not
  *  carry it. */
 const DIR = `${ENTRY_SHAPE} ${ROW_GAP}`
+
+const NO_BROKEN: ReadonlyMap<string, BrokenFile> = new Map()
 
 interface TreeView {
   readonly isActive: (file: string) => boolean
@@ -84,11 +86,10 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // preference: the outlines olai named for itself do not sit among the
   // reader's own — the column's FOOT is their home (the vault group below),
   // the way the Trash has always had its own there.
-  const tree = createMemo(() =>
-    fileTree(
-      served().filter((file) => !isTrashed(file) && !inOlaiDir(file)),
-    ),
-  )
+  const tree = createMemo(() => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? [] : fileTree(claims, served().filter(file => !isTrashed(claims, file) && !inOlaiDir(file)))
+  })
 
   // THE VAULT'S OWN FILES — the `_olai/` outlines, every one the directory
   // holds except the archive (which the `isTrashed` rule above already
@@ -96,9 +97,10 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // same list the tree reads is the `inboxIn` argument one memo down: no
   // records are walked here, and path-only membership equality (`./served.tsx`)
   // is what keeps this answer from minting on a frame.
-  const vault = createMemo(() =>
-    served().filter((file) => !isTrashed(file) && inOlaiDir(file))
-  )
+  const vault = createMemo(() => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? [] : served().filter(file => !isTrashed(claims, file) && inOlaiDir(file))
+  })
 
   // WHICH FILE THE INBOX IS, read off the same resolver the server captures
   // through (`@olai/format`'s `inboxIn`) — never a path this column composes,
@@ -116,7 +118,10 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // PATHS, and a browser holds every one of those already: it is the same list
   // the tree above is built from, and one more pass over it is not a vault
   // walk.
-  const inbox = createMemo(() => inboxIn(served()))
+  const inbox = createMemo(() => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? undefined : inboxIn(claims, served())
+  })
 
   // Folding a folder is remembered, and the write drops folders that are not in
   // the directory any more (./fold/folders.ts). Which those are is read off the
@@ -128,7 +133,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   const view: TreeView = {
     isActive,
     get broken() {
-      return servedDirectory()!.broken()
+      return (servedDirectory()?.broken() ?? NO_BROKEN)
     },
     expanded: openFolders,
     openAncestry,
@@ -196,7 +201,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
                       <VaultFile
                         file={file()}
                         isActive={isActive}
-                        broken={servedDirectory()!.broken()}
+                        broken={(servedDirectory()?.broken() ?? NO_BROKEN)}
                       />
                     )}
                   </Key>
@@ -239,7 +244,7 @@ function DoorRow(props: {
  *  agreeing about one anatomy is not two lists that remembered the same
  *  four elements by luck, it is one. */
 function FileAnatomy(props: {
-  readonly of: FileKind | null | undefined
+  readonly of: string | null | undefined
   readonly name: string
   readonly broken: boolean
 }) {
@@ -289,8 +294,12 @@ function VaultFile(props: {
   readonly isActive: (file: string) => boolean
   readonly broken: ReadonlyMap<string, BrokenFile>
 }) {
-  const of = fileKind(props.file)
-  const unreadable = () => of === "outline" && props.broken.has(props.file)
+  const name = () => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? props.file : stemOf(claims, props.file)
+  }
+  const of = () => servedDirectory()?.kindOf(props.file) ?? null
+  const unreadable = () => servedDirectory()?.claims().byKind.get(of() ?? "")?.holds === "nodes" && props.broken.has(props.file)
   return (
     <DoorRow
       route={atFile(props.file)}
@@ -299,7 +308,7 @@ function VaultFile(props: {
       broken={unreadable()}
       title={props.file}
     >
-      <FileAnatomy of={of} name={stemOf(props.file)} broken={unreadable()} />
+      <FileAnatomy of={of()} name={name()} broken={unreadable()} />
     </DoorRow>
   )
 }
@@ -434,22 +443,22 @@ function File(props: {
   // Only the ⚠ is asked of the kind here, and it is not one of `./file/kinds.ts`
   // answers: a file that could not be READ is a fact about this row's file, and
   // only an outline's unreadability costs the reader a tree.
-  const outline = props.row.of === "outline"
+  const outline = () => servedDirectory()?.claims().byKind.get(props.row.of)?.holds === "nodes"
 
   return (
     <li class="mb-0.5">
       <Link
         route={atFile(props.row.file)}
         class={ENTRY}
-        testid={ROW_TESTID[props.row.of]}
+        testid={drawingOf(props.row.of)?.testid ?? TESTID.fileLink}
         current={props.view.isActive(props.row.file)}
-        broken={outline && props.view.broken.has(props.row.file)}
+        broken={outline() && props.view.broken.has(props.row.file)}
         title={props.row.file}
       >
         <FileAnatomy
           of={props.row.of}
           name={props.row.name}
-          broken={outline && props.view.broken.has(props.row.file)}
+          broken={outline() && props.view.broken.has(props.row.file)}
         />
       </Link>
     </li>

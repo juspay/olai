@@ -44,7 +44,7 @@
  * OLAI_BENCH_OUTLINES / OLAI_BENCH_BODIES / OLAI_BENCH_RECORDS /
  * OLAI_BENCH_PAGES / OLAI_BENCH_EDITS.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { addressOf } from "./address.ts"
 import { referrersTo } from "./backlinks.ts"
 import { alternating, median, runtimeSaid, seeded, timed, timesSaid } from "./fixtures.testlib.ts"
@@ -90,12 +90,12 @@ const readings: Array<{ readonly set: OutlineSet; readonly at: Reading }> = []
     for (const [file, text] of revision) if (held.get(file) !== text) moved.set(file, text)
     for (const [file, one] of decodedVault(moved)) decoded.set(file, one)
     held = revision
-    const set = assemble(decoded)
+    const set = assemble(TEST_CLAIMS, decoded)
     // Through the format's own door, so the index a revision carries is the one
     // production carries. The DELTA is not offered: this leg times the two
     // index arms directly below, and a reading built here only has to be a real
     // one to time them against.
-    previous = reading(set)
+    previous = reading(TEST_CLAIMS, set)
     readings.push({ set, at: previous })
   }
 }
@@ -110,12 +110,12 @@ const bodies = documentsAmong(first.set.documents.map((one) => one.path))
 const open = bodies
   .filter((_, which) => which % Math.max(1, Math.floor(bodies.length / PAGES)) === 0)
   .slice(0, PAGES)
-  .map((path) => addressOf(path, null)!)
+  .map((path) => addressOf(TEST_CLAIMS, path, null)!)
 
 /** …and a page NOTHING points at, which is most pages in most directories: a
  *  `.md` the vault does not hold, asked for by name. The scan still opens every
  *  file to find that out. */
-const unpointed = addressOf("nobody-points-here.md", null)!
+const unpointed = addressOf(TEST_CLAIMS, "nobody-points-here.md", null)!
 
 // ── the arms ───────────────────────────────────────────────────────────
 
@@ -169,7 +169,7 @@ const carried = pairs.filter((pair) =>
  *  here. A directory whose pages have a handful of referrers each sees the
  *  `unpointed` row; one whose every page has dozens sees the `read` row. */
 const density = bodies
-  .map((path) => referrersTo(addressOf(path, null)!, first.at.pointing, first.at.derived).length)
+  .map((path) => referrersTo(addressOf(TEST_CLAIMS, path, null)!, first.at.pointing, first.at.derived).length)
   .sort((one, other) => one - other)
 
 console.log(

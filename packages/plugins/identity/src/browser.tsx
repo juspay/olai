@@ -1,4 +1,3 @@
-import type {} from "olai-plugin-layout/slots"
 /**
  * IDENTITY'S BROWSER HALF — one face, in the app's last seat.
  *
@@ -30,7 +29,7 @@ import type {} from "olai-plugin-layout/slots"
  * thing, which is what makes the absence readable rather than a chip stuck
  * on `asking`.
  */
-
+import type {} from "olai-plugin-layout/slots"
 import { definePlugin, Offers, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
 

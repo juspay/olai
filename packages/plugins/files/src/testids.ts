@@ -1,19 +1,14 @@
 /** Stable DOM identifiers owned by this renderer. Shared consumers import
  * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
+  fileLink: "file-link",
   railOutlines: "rail-outlines",
   railDocs: "rail-docs",
   sidebarFiles: "sidebar-files",
   outlineList: "outline-list",
-  outlineLink: "outline-link",
   fileDir: "file-dir",
   fileDirToggle: "file-dir-toggle",
   fileGlyph: "file-glyph",
-  documentLink: "document-link",
-  hypertextLink: "hypertext-link",
-  csvLink: "csv-link",
-  imageLink: "image-link",
-  pdfLink: "pdf-link",
   newDocument: "new-document",
   newDocumentPath: "new-document-path",
   newDocumentSaid: "new-document-said",

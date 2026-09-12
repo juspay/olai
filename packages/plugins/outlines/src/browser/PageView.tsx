@@ -1,8 +1,3 @@
-import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
-import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
-import { shownIn } from "olai-plugin-navigation/address/address.ts"
-import { nameOf } from "./routing.ts"
-import { useUndo } from "./edit/undoing.ts"
 /**
  * ONE pane's page: the same chrome a lone view has always drawn.
  *
@@ -14,7 +9,11 @@ import { useUndo } from "./edit/undoing.ts"
  * Dismissal and completion stay where they were: each composer, each
  * editor, each pane. Nothing here shares a stack with its neighbour.
  */
-
+import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
+import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
+import { shownIn } from "olai-plugin-navigation/address/address.ts"
+import { nameOf } from "./routing.ts"
+import { useUndo } from "./edit/undoing.ts"
 import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { parseFilter, samePageRequest } from "@olai/format"

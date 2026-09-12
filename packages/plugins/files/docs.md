@@ -14,3 +14,9 @@ minting box.
 Content providers contribute creation controls through `files.types`. Removing
 a content provider removes its control. The tree and vault group live in files,
 while capture, pins and trash provide their own sidebar contributions.
+
+`files.kinds` holds scoped glyph, noun, article and test-id contributions keyed
+by a claiming row id or by `holds`. Lookup prefers the row id, then `holds`.
+Outlines draws every node-holding format; body rows draw their own glyphs.
+A claimed file whose browser contribution is absent gets the plain-file glyph
+and its server claim's noun. A withdrawn server claim leaves no tree row.

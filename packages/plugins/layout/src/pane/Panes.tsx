@@ -1,5 +1,3 @@
-import { TESTID } from "olai-plugin-layout/testids"
-import type {Navigation} from "olai-plugin-navigation/contract"
 /**
  * The pane list, as a row of pages or a strip of tabs.
  *
@@ -13,7 +11,8 @@ import type {Navigation} from "olai-plugin-navigation/contract"
  * One pane is a plain page: no header, no ring, no rail. Closing the
  * second-to-last returns to that.
  */
-
+import { TESTID } from "olai-plugin-layout/testids"
+import type {Navigation} from "olai-plugin-navigation/contract"
 import { createSignal,For,Index,onCleanup,Show } from "solid-js"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"

@@ -125,7 +125,7 @@ test("profiles select only catalogue rows and preserve build defaults", () => {
     const patches = profilePatch(profile)
     expect(patches.every(patch => BUNDLE_NAMES.includes(patch.id))).toBe(true)
     const on = ROWS.filter(row => !(patches.find(patch => patch.id === row.id)?.disabled ?? row.disabled)).map(row => row.id)
-    expect<ReadonlyArray<string>>(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "settings", "mcp", "outlines", "markdown", "files", "pins", "capture", "trash", "vault-plugins"] : ["vault", "settings"])
+    expect<ReadonlyArray<string>>(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "settings", "mcp", "outlines", "files", "pins", "capture", "trash", "vault-plugins", "outline-olai", "markdown", "hypertext", "csv", "image", "pdf"] : ["vault", "settings", "outline-olai"])
   }
 })
 
@@ -151,4 +151,9 @@ test("maintained fixtures require an explicit selection and never select each ot
       expect(enabled("layout")).toBe(profile === "web")
     }
   }
+})
+
+test("the outline format row's switch explains its withdrawal consequences", () => {
+  const row = ROWS.find(row => row.id === "outline-olai")
+  expect(row?.switchHint).toBe("Disabling this row unclaims outlines and prevents creating them; trash, inbox, pins and agenda become unavailable, and settings reading withdraws until it returns.")
 })

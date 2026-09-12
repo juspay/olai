@@ -1,11 +1,10 @@
-import { expect, test } from "bun:test"
-
-import { type Placed, planDrop } from "./plan.ts"
-
 /** A drawn row, as the drop planner sees one: 20px tall, indented 32px a
  *  level, its line running from x=100 (at depth 0) to x=600. The numbers are a
  *  screen's, so the tests read as "the pointer is here" rather than as
  *  arithmetic. */
+import { expect, test } from "bun:test"
+
+import { type Placed, planDrop } from "./plan.ts"
 const placed = (
   key: string,
   parent: string | null,

@@ -23,8 +23,8 @@
 import { Schema } from "effect"
 
 import { Custom } from "./custom.ts"
-import { OUTLINE_EXT } from "./kinds.ts"
-import { basenameOf, byPath } from "./paths.ts"
+import { type Claims, fileKind, stemOf, mintExt } from "./kinds.ts"
+import { basenameOf } from "./paths.ts"
 
 /** `true`, or the ISO date/datetime the state was reached at. */
 const Marker = Schema.Union([Schema.Literal(true), Schema.String])
@@ -597,7 +597,7 @@ export const targetsOf = (
  *  Two spellings would be two answers about the same file — and the
  *  commit-message reader makes that permanent, since a subject cannot be
  *  corrected after the fact. */
-export const TRASH = `Trash${OUTLINE_EXT}`
+export const TRASH = "Trash"
 
 /** The NAME a quick capture's outline is found by — named the way a person
  *  would name it, because an inbox nobody has created is a promise a surface
@@ -608,8 +608,8 @@ export const TRASH = `Trash${OUTLINE_EXT}`
  *  as the shelf's is: `_olai/Inbox.olai`, beside the shelf and the trash
  *  (human, 2026-08-20, reversing that of 2026-08-19 which kept it at the root).
  *  Nothing about the reading moved with it — {@link inboxIn} goes on finding
- *  whichever outline is CALLED this, wherever it sits. */
-export const INBOX = `Inbox${OUTLINE_EXT}`
+ *  whichever outline is CALLED this, directly under `_olai/`, with ambiguity refusing a winner. */
+export const INBOX = "Inbox"
 
 /**
  * The directory's inbox, or `undefined` when it has none.
@@ -624,12 +624,11 @@ export const INBOX = `Inbox${OUTLINE_EXT}`
  * HOW that file is found is {@link outlineCalled}'s, and it is that function
  * rather than a walk here because the shelf below is found the same way. WHERE
  * one is minted when there is none is {@link mintedInto}'s, and the two
- * questions stay apart: a directory already keeping `Inbox.olai` at its root,
- * or `notes/inbox.olai`, goes on capturing into the file it has, and nothing
- * migrates.
+ * questions stay apart: only a node-holding file directly under `_olai/`
+ * participates. A file elsewhere remains ordinary content; nothing migrates.
  */
-export const inboxIn = (files: Iterable<string>): string | undefined =>
-  outlineCalled(files, INBOX)
+export const inboxIn = (claims: Claims, files: Iterable<string>): string | undefined =>
+  outlineCalled(claims, files, INBOX)
 
 /**
  * The outline the PINNED SHELF is — every pin the directory holds, one node
@@ -649,12 +648,12 @@ export const inboxIn = (files: Iterable<string>): string | undefined =>
  *
  * WHERE ONE IS MINTED is {@link mintedInto}'s and not this constant's, and the
  * two questions are deliberately apart: this is the NAME a directory's shelf is
- * found by, wherever it sits, and a directory that already keeps a `Pins.olai`
- * at its root goes on using it. What olai CREATES, when there is none, is
+ * found by directly under `_olai/`; two matches refuse a winner. A root-level
+ * `Pins.olai` is ordinary content. What olai CREATES, when there is none, is
  * `_olai/Pins.olai` — a file olai made rather than one a person did, so it
  * goes where those go (human, 2026-08-19).
  */
-export const PINS = `Pins${OUTLINE_EXT}`
+export const PINS = "Pins"
 
 /**
  * The outline a directory DECLARES ITS PROPERTY TYPES in — one node per key,
@@ -674,7 +673,7 @@ export const PINS = `Pins${OUTLINE_EXT}`
  * starts in — typing is opt-in per key ({@link ./typing.ts}) — so the mint has
  * nothing to make.
  */
-export const PROPERTIES = `Properties${OUTLINE_EXT}`
+export const PROPERTIES = "Properties"
 
 /**
  * THE DIRECTORY OLAI MINTS ITS OWN FILES INTO.
@@ -691,12 +690,10 @@ export const PROPERTIES = `Properties${OUTLINE_EXT}`
  * one would never be read back. An underscore is an ordinary directory that
  * sorts to the top and reads as machine-owned to a person looking at `ls`.
  *
- * IT IS A MINT AND NOT A HOME, which is the whole distinction this file keeps
- * between the two questions a convention asks. {@link pinsIn} and
- * {@link inboxIn} go on finding whichever outline is CALLED `Pins.olai` or
- * `Inbox.olai`, wherever it sits — a directory that already keeps one at the
- * root, or under `notes/`, keeps using the file it has and nothing moves. This
- * says only where olai puts one when the directory has none.
+ * BOTH THE MINT DIRECTORY AND THE CONVENTION HOME. Inbox, Pins, Trash and
+ * Properties resolve only directly here, by stem and a node-holding claim.
+ * Two matches yield no winner and the validator reports ambiguous-convention.
+ * Files outside this directory remain ordinary content; nothing migrates.
  */
 export const OLAI_DIR = "_olai"
 
@@ -749,19 +746,22 @@ export const mintedInto = (name: string): string => `${OLAI_DIR}/${name}`
 /**
  * THE one trash. Minted here, found here, written here. Not "whichever
  * outline is called `Trash.olai`" — {@link pinsIn} and {@link inboxIn} still
- * find by name wherever the file sits; the trash is one file at one path,
+ * find by stem directly under `_olai/`; the trash uses the same rule,
  * because a node put away from any outline has to have one place to go, and
  * an entry in that file records which outline it came from so untrash can
  * put it back.
  *
- * Exact path, not a basename walk: `_olai/trash.olai` is a different file
- * and an ordinary outline. The mint always writes {@link TRASH}.
+ * The stem match is case-insensitive and only admits node-holding claims.
+ * Two matching paths are ambiguous; no destructive operation chooses one.
+ * A mint uses {@link TRASH} and the configured format's first suffix.
  */
-export const TRASH_FILE = mintedInto(TRASH)
+export const TRASH_FILE = (claims: Claims, kind: string): string | null => {
+  const ext = mintExt(claims, kind)
+  return ext === null ? null : mintedInto(`${TRASH}${ext}`)
+}
 
-/** Whether `file` is the one trash — asked once per file per probe, compared
- *  against a constant so the hot path allocates nothing. */
-export const isTrashed = (file: string): boolean => file === TRASH_FILE
+/** Whether this claimed file has the Trash stem directly under `_olai/`. */
+export const isTrashed = (claims: Claims, file: string): boolean => conventionCalled(claims, file, TRASH)
 
 /**
  * Leftover per-directory `Archive.olai`: parsed as an outline so a human can
@@ -793,100 +793,38 @@ export const isLeftoverArchive = (file: string): boolean =>
  *
  * Asked the way its two halves are: once per FILE per probe, never per record.
  */
-export const isPutAway = (file: string): boolean =>
-  isTrashed(file) || isLeftoverArchive(file)
+export const isPutAway = (claims: Claims, file: string): boolean =>
+  isTrashed(claims, file) || isLeftoverArchive(file)
 
 /** The directory's shelf, or `undefined` when it has none — {@link inboxIn}'s
  *  question one convention over, answered by the same walk so that one
  *  directory cannot have two answers depending on who asked. */
-export const pinsIn = (files: Iterable<string>): string | undefined =>
-  outlineCalled(files, PINS)
+export const pinsIn = (claims: Claims, files: Iterable<string>): string | undefined =>
+  outlineCalled(claims, files, PINS)
 
 /** The directory's property declarations, or `undefined` when it has none —
  *  {@link pinsIn}'s question one convention over, answered by the same walk for
  *  the same reason: one directory, one answer, whoever asked. A vault with no
  *  such file declares no key, and every key in it is text. */
-export const propertiesIn = (files: Iterable<string>): string | undefined =>
-  outlineCalled(files, PROPERTIES)
+export const propertiesIn = (claims: Claims, files: Iterable<string>): string | undefined =>
+  outlineCalled(claims, files, PROPERTIES)
 
-/**
- * The one outline a directory CALLS by a given name, or `undefined`.
- *
- * Two conventions are read this way — the inbox a capture lands in, the shelf a
- * pin lands on — and they became one function the moment there were two of
- * them: the rule is not "where the inbox is", it is "how this format finds the
- * file a directory named", and a second copy of it would be two directories'
- * worth of behaviour under one sentence in docs/format.md.
- *
- * The file is whichever outline is CALLED that, wherever it sits, so a
- * directory that already keeps its inbox under `notes/` captures into the file
- * it has rather than growing a second one at the root. Case-insensitively,
- * because it is a name a person typed and `inbox.olai` is the same intention.
- *
- * SHALLOWEST WINS, then path order — one answer, and a stable one, for the
- * directory that somehow holds two. "First in path order" would let a file
- * three directories down claim the capture from the obvious one beside it.
- * PATH ORDER is the set's own ({@link ./paths.ts}), rather than a compare
- * spelled here: there is one answer in this package to "which file comes
- * first", and a second one would be a directory whose inbox depended on who
- * was asking. It is asked as a running minimum ({@link nearerOf}) rather than
- * as a sort, which is also what makes the answer independent of the ORDER the
- * files arrive in — a caller may hand over a list, a map's keys or a set, and
- * a directory that holds two still has one answer.
- *
- * ITERABLE and not a list, for that last reason and for one more: the two
- * readers that ask this of a derivation were spelling it
- * `propertiesIn([...derived.byFile.keys()])`, which is a copy of every served
- * path built to be walked once and dropped ({@link ./rules.ts},
- * {@link ./typing.ts}, once per write each).
- */
-const outlineCalled = (
-  files: Iterable<string>,
-  name: string,
-): string | undefined => {
-  const called = name.toLowerCase()
+/** Only registered node-holding files immediately inside the convention directory qualify. */
+export const conventionCalled = (claims: Claims, file: string, stem: string): boolean => {
+  const kind = fileKind(claims, file)
+  return kind !== null && claims.byKind.get(kind)?.holds === "nodes"
+    && file.slice(0, file.lastIndexOf("/")) === OLAI_DIR
+    && stemOf(claims, file).toLowerCase() === stem.toLowerCase()
+}
+
+/** Conventions are matched by stem inside _olai. A second distinct path is
+ * ambiguous; repeated observations of the same path still name one file. */
+export const outlineCalled = (claims: Claims, files: Iterable<string>, stem: string): string | undefined => {
   let held: string | undefined
   for (const file of files) {
-    if (basenameOf(file).toLowerCase() !== called) continue
-    held = held === undefined ? file : nearerOf(held, file)
+    if (!conventionCalled(claims, file, stem)) continue
+    if (held !== undefined && held !== file) return undefined
+    held = file
   }
   return held
 }
-
-/**
- * Of two files a directory calls the same thing, the one a convention MEANS —
- * {@link outlineCalled}'s tie rule as a comparison of two, which is what makes
- * the walk above a running minimum rather than a filtered list that is then
- * sorted.
- *
- * The rule is unchanged and reads the same way: shallowest wins, then path
- * order. What changed is that the walk no longer ALLOCATES — a list of the
- * matches, a sort over it, and (in {@link depthOf}) an array of segments per
- * comparison — for an answer that is one string. The walk is over every served
- * file, and {@link ./conventions.ts} is what stopped it being run per revision;
- * what it spends per file is worth spelling out for the times it does run.
- *
- * A TIE IS UNREACHABLE and is therefore not a case of its own: two paths of
- * equal depth that compare equal under {@link byPath} are the same string, and
- * a directory does not serve one file twice. `held` is kept when they tie,
- * which is what the stable sort answered as well.
- */
-const nearerOf = (held: string, file: string): string => {
-  const deeper = depthOf(file) - depthOf(held)
-  return deeper < 0 || (deeper === 0 && byPath(file, held) < 0) ? file : held
-}
-
-/** How many segments deep a path sits — COUNTED rather than split, so a
- *  comparison of two files allocates nothing. `a.olai` is 1 and
- *  `wing/a.olai` is 2, which is `split("/").length` exactly. */
-const depthOf = (file: string): number => {
-  let depth = 1
-  for (let at = 0; at < file.length; at++) {
-    if (file.charCodeAt(at) === SEPARATOR) depth++
-  }
-  return depth
-}
-
-/** `/` as {@link depthOf} counts it — the one character a path is made of
- *  segments by, and the same one {@link ./paths.ts} sorts first. */
-const SEPARATOR = "/".charCodeAt(0)

@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * WHAT POINTS AT THIS DOCUMENT, under its heading — the reverse reading a
  * `.md` could not have.
@@ -36,7 +35,9 @@ import { TESTID } from "olai-plugin-markdown/testids"
  * above its own first line. The rows are not built while it is shut, which the
  * element alone does not give.
  */
-
+import type { Claims, PageReading } from "@olai/format"
+import type { Accessor } from "solid-js"
+import { TESTID } from "olai-plugin-markdown/testids"
 import type { Referrer } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Show } from "solid-js"
@@ -44,9 +45,7 @@ import { createMemo, createSignal, Show } from "solid-js"
 import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { only } from "@olai/web/client/narrow.ts"
-import { useDocumentReading } from "../reading.tsx"
 import { atFile, atNode, type Route } from "olai-plugin-navigation/routes"
-import { hrefOf } from "../routing.ts"
 
 
 export function Referrers(props: {
@@ -54,8 +53,11 @@ export function Referrers(props: {
    *  a lookup: who points here rides on the page's own reading, which is a
    *  reading OF this file. */
   readonly file: string
+  readonly reading: Accessor<PageReading | undefined>
+  readonly claims: Claims | undefined
+  readonly href: (route: Route) => string
 }) {
-  const reading = useDocumentReading()
+  const reading = props.reading
   const found = createMemo(() => {
     const shows = reading()?.shows
     // A page whose reading has not arrived draws no section rather than
@@ -69,7 +71,7 @@ export function Referrers(props: {
   // the second.
   return (
     <Show when={found().length > 0 ? props.file : undefined} keyed>
-      <Section found={found()} />
+      <Section found={found()} claims={props.claims} href={props.href} />
     </Show>
   )
 }
@@ -79,7 +81,7 @@ export function Referrers(props: {
  * signal one level up would outlive the keyed block and carry one document's
  * answer onto the next, which is what the key is for.
  */
-function Section(props: { readonly found: ReadonlyArray<Referrer> }) {
+function Section(props: { readonly found: ReadonlyArray<Referrer>; readonly claims: Claims | undefined; readonly href: (route: Route) => string }) {
   const [open, setOpen] = createSignal(false)
   /** The referrers as the ROWS they draw — the arm decided once per row rather
    *  than once per fact the arm decides (see {@link rowOf}). */
@@ -112,14 +114,14 @@ function Section(props: { readonly found: ReadonlyArray<Referrer> }) {
                 <a
                   class="text-sm text-accent no-underline hover:underline"
                   data-testid={TESTID.documentReferrer}
-                  href={hrefOf(row().opens)}
+                  href={props.href(row().opens)}
                 >
                   {/* A referrer's title is rendered like every other
                       title: its `#tags` are styled and hued
                       (`../markdown/title.ts`) — inside the anchor, so its
                       links stay unwrapped (`links` false). */}
                   <TitleHtml
-                    drawing={renderTitle(row().calls, row().callsFrom, { links: false })}
+                    drawing={renderTitle(props.claims, row().calls, row().callsFrom, { links: false })}
                   />
                 </a>
                 {/* WHERE it was written, muted beside it — a title in a list of

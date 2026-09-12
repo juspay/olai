@@ -9,7 +9,7 @@
  * once in `./typing.ts` and worn twice, so it is proved once here rather than
  * twice at the doors.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { derive } from "./derive.ts"
@@ -74,7 +74,7 @@ const FILES = {
   ].join("\n"),
 }
 
-const derived = derive(nodesOfFiles(FILES))
+const derived = derive(TEST_CLAIMS, nodesOfFiles(FILES))
 
 /** The `.md` files this directory serves — what a `doc` value may resolve to.
  *  Written as a set rather than assembled through `setOf`, because the check
@@ -109,7 +109,7 @@ const stored = (key: string, value: string): string =>
 // ── what a vault declares ──────────────────────────────────────────────
 
 test("a directory with no Properties.olai declares nothing, and every key is text", () => {
-  const bare = derive(nodesOfFiles({ "a.olai": `{"id":"one","ord":"a0","title":"one"}` }))
+  const bare = derive(TEST_CLAIMS, nodesOfFiles({ "a.olai": `{"id":"one","ord":"a0","title":"one"}` }))
   expect(declarationsOf(bare, NO_KINDS)).toEqual(NO_TYPING)
   expect(
     wrongValue(
@@ -159,8 +159,8 @@ test("the variants are IDS, and a title is not one", () => {
 })
 
 test("two readings of one vault DECLARE the same thing, and a moved declaration does not", () => {
-  expect(sameTyping(typed.declarations, declarationsOf(derive(nodesOfFiles(FILES)), NO_KINDS))).toBe(true)
-  const moved = derive(nodesOfFiles({
+  expect(sameTyping(typed.declarations, declarationsOf(derive(TEST_CLAIMS, nodesOfFiles(FILES)), NO_KINDS))).toBe(true)
+  const moved = derive(TEST_CLAIMS, nodesOfFiles({
     ...FILES,
     "_olai/Properties.olai": FILES["_olai/Properties.olai"]
       .replace(`"type":"date"`, `"type":"int"`),
@@ -238,7 +238,7 @@ test("a DANGLING ref value is flagged the way a dangling edge is — with a did-
   // The roster node is deleted while a lane still names it. The value goes
   // stale exactly as an `after` edge does, and the sentence offers the nearest
   // thing that still exists.
-  const without = derive(nodesOfFiles({
+  const without = derive(TEST_CLAIMS, nodesOfFiles({
     ...FILES,
     "orchestrator/agents.olai": FILES["orchestrator/agents.olai"]
       .split("\n")
@@ -374,7 +374,7 @@ test("the bootstrap table is the words a declaration says about itself", () => {
 })
 
 test("a bad type is refused naming the legal kinds and each one's shape", () => {
-  const bent = derive(nodesOfFiles({
+  const bent = derive(TEST_CLAIMS, nodesOfFiles({
     "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"took","custom":{"type":"took"}}`,
   }))
   const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set(), NO_KINDS)?.said
@@ -390,7 +390,7 @@ test("a bad type is refused naming the legal kinds and each one's shape", () => 
 })
 
 test("unfitHeld names every existing value that would not fit a newly declared key", () => {
-  const derived = derive(nodesOfFiles({
+  const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "_olai/Properties.olai":
       `{"id":"prop-brief","ord":"a0","title":"brainstorm","custom":{"type":"doc"}}`,
     "lanes.olai": [
@@ -422,7 +422,7 @@ test("unfitHeld names every existing value that would not fit a newly declared k
 })
 
 test("unfitHeld keeps a list's members beside the joined display string", () => {
-  const derived = derive(nodesOfFiles({
+  const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "_olai/Properties.olai": [
       `{"id":"prop-merge","ord":"a0","title":"merge","custom":{"type":"ref"}}`,
       `{"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}`,
@@ -445,7 +445,7 @@ test("unfitHeld keeps a list's members beside the joined display string", () => 
 })
 
 test("a declaration missing its type is refused naming the same vocabulary", () => {
-  const bent = derive(nodesOfFiles({
+  const bent = derive(TEST_CLAIMS, nodesOfFiles({
     "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"musts"}`,
   }))
   const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set(), NO_KINDS)?.said
@@ -456,7 +456,7 @@ test("a declaration missing its type is refused naming the same vocabulary", () 
 })
 
 test("a vault cannot declare `type`, `under` or `base` — the recursion stops in the table", () => {
-  const claiming = derive(nodesOfFiles({
+  const claiming = derive(TEST_CLAIMS, nodesOfFiles({
     ...FILES,
     "_olai/Properties.olai": `${FILES["_olai/Properties.olai"]}\n` +
       `{"id":"prop-type","ord":"a8","title":"type","custom":{"type":"int"}}\n` +
@@ -471,7 +471,7 @@ test("a declaration the reading cannot make is skipped rather than guessed at", 
   // (`./validate.test.ts`); what matters here is that NONE of them makes the
   // key half-typed, which would refuse every value of it in a file nobody
   // edited.
-  const bent = derive(nodesOfFiles({
+  const bent = derive(TEST_CLAIMS, nodesOfFiles({
     "_olai/Properties.olai": [
       `{"id":"p-1","ord":"a0","title":"nokind"}`,
       `{"id":"p-2","ord":"a1","title":"unknown","custom":{"type":"colour"}}`,
@@ -499,7 +499,7 @@ test("a declaration the reading cannot make is skipped rather than guessed at", 
 })
 
 test("a contributed kind nobody answers for judges no value, and is still reported", () => {
-  const bent = derive(nodesOfFiles({
+  const bent = derive(TEST_CLAIMS, nodesOfFiles({
     "_olai/Properties.olai":
       `{"id":"p","ord":"a0","title":"unknown","custom":{"type":"colour"}}`,
     "a.olai": `{"id":"one","ord":"a0","title":"one","custom":{"unknown":"anything at all"}}`,
@@ -527,7 +527,7 @@ test("a kind this build knows is a legal declaration, and holds its values to th
     ]]),
     enabled: new Map<string, ContributedKind>(),
   }
-  const bent = derive(nodesOfFiles({
+  const bent = derive(TEST_CLAIMS, nodesOfFiles({
     "_olai/Properties.olai":
       `{"id":"p","ord":"a0","title":"pty","custom":{"type":"sprocket"}}`,
     "a.olai": `{"id":"one","ord":"a0","title":"one","custom":{"pty":"a uuid, and a remark"}}`,
@@ -550,7 +550,7 @@ test("a kind this build knows is a legal declaration, and holds its values to th
 
 test("sameTyping tells one contributed word from another, so a retype re-asks every value", () => {
   const of = (word: string) =>
-    declarationsOf(derive(nodesOfFiles({
+    declarationsOf(derive(TEST_CLAIMS, nodesOfFiles({
       "_olai/Properties.olai":
         `{"id":"p","ord":"a0","title":"pty","custom":{"type":"${word}"}}`,
     })), NO_KINDS)
@@ -569,7 +569,7 @@ test("a MIRROR cannot be where a ref's variants live", () => {
   // variant list, and then refuse every value of that key with "nothing is
   // declared under it YET" — a sentence about the wrong problem, in a file
   // nobody was looking at. It is refused where the mistake is made now.
-  const bent = derive(nodesOfFiles({
+  const bent = derive(TEST_CLAIMS, nodesOfFiles({
     ...FILES,
     "_olai/Properties.olai":
       `{"id":"p","ord":"a0","title":"agent","custom":{"type":"ref","under":"a-mirror"}}`,
@@ -590,7 +590,7 @@ test("a ref's variants are capped in the sentence, and the did-you-mean is not",
     { length: 30 },
     (_, at) => `{"id":"agent-${at}","parent":"roster","ord":"a${at}","title":"agent ${at}"}`,
   )
-  const big = derive(nodesOfFiles({
+  const big = derive(TEST_CLAIMS, nodesOfFiles({
     "_olai/Properties.olai":
       `{"id":"p","ord":"a0","title":"agent","custom":{"type":"ref","under":"roster"}}`,
     "r.olai": [`{"id":"roster","ord":"a0","title":"the agents"}`, ...many].join("\n"),
@@ -621,7 +621,7 @@ test("the declarations are read in LINE order, which is the order a duplicate is
   // Two claims on one key whose `ord` disagrees with their line order. The
   // reading keeps the EARLIER LINE and the rule reports the later one, so a
   // vault is never told to fix the very line its values are checked against.
-  const crossed = derive(nodesOfFiles({
+  const crossed = derive(TEST_CLAIMS, nodesOfFiles({
     "_olai/Properties.olai": [
       `{"id":"p-first","ord":"a9","title":"pr","custom":{"type":"int"}}`,
       `{"id":"p-second","ord":"a0","title":"pr","custom":{"type":"date"}}`,
@@ -631,7 +631,7 @@ test("the declarations are read in LINE order, which is the order a duplicate is
 })
 
 test("a key declared twice differing only in case is one key declared twice", () => {
-  const twice = derive(nodesOfFiles({
+  const twice = derive(TEST_CLAIMS, nodesOfFiles({
     "_olai/Properties.olai": [
       `{"id":"p1","ord":"a0","title":"merge","custom":{"type":"ref"}}`,
       `{"id":"p2","ord":"a1","title":"Merge","custom":{"type":"date"}}`,

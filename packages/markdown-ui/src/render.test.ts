@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/markdown-ui/testids.ts"
 /**
  * What the pipeline promises, as HTML.
  *
@@ -18,7 +17,9 @@ import { TESTID } from "@olai/markdown-ui/testids.ts"
  * about a page, and is answered in the browser suite
  * (`packages/tests/features/markdown_arrives.feature`).
  */
-
+import { claims } from "@olai/format"
+import { TEST_CLAIMS } from "@olai/format/testlib"
+import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { expect, test } from "bun:test"
 
 import { installPipeline } from "./chunk.ts"
@@ -38,7 +39,7 @@ installPipeline(pipeline)
 const NOTE = "house.olai"
 
 test("a fenced block is highlighted, in classes rather than colours", () => {
-  const html = renderMarkdown("```ts\nconst a = 1\n```\n", NOTE)
+  const html = renderMarkdown(TEST_CLAIMS, "```ts\nconst a = 1\n```\n", NOTE)
   expect(html).toContain(`<code class="hljs language-ts">`)
   expect(html).toContain(`<span class="hljs-keyword">const</span>`)
 })
@@ -48,7 +49,7 @@ test("a fenced block is highlighted, in classes rather than colours", () => {
 // is a `ts` fence, which is IN that common set, so a `languages` option that
 // stopped spreading it fails there first.
 test("a nix fence is highlighted", () => {
-  const html = renderMarkdown("```nix\npkgs.mkShell { name = \"olai\"; }\n```\n", NOTE)
+  const html = renderMarkdown(TEST_CLAIMS, "```nix\npkgs.mkShell { name = \"olai\"; }\n```\n", NOTE)
   expect(html).toContain(`<code class="hljs language-nix">`)
   expect(html).toContain(`<span class="hljs-string">"olai"</span>`)
 })
@@ -56,7 +57,7 @@ test("a nix fence is highlighted", () => {
 // An unknown language is not an error and not a reason to lose the block: it
 // is drawn as what it is, plain text.
 test("a fence in a language nobody registered is left alone", () => {
-  const html = renderMarkdown("```klingon\nnuqneH\n```\n", NOTE)
+  const html = renderMarkdown(TEST_CLAIMS, "```klingon\nnuqneH\n```\n", NOTE)
   expect(html).toContain("nuqneH")
   expect(html).not.toContain("hljs-")
 })
@@ -65,14 +66,14 @@ test("a fence in a language nobody registered is left alone", () => {
 // The browser suite is what sees that the checkbox replaced the marker; this
 // pins that the pipeline still emitted the inputs.
 test("a task list is checkboxes, and a plain item beside them is still a bullet", () => {
-  const html = renderMarkdown("- [x] done\n- [ ] not\n- plain\n", NOTE)
+  const html = renderMarkdown(TEST_CLAIMS, "- [x] done\n- [ ] not\n- plain\n", NOTE)
   expect(html).toContain(`<input type="checkbox" checked disabled>`)
   expect(html).toContain(`<input type="checkbox" disabled>`)
   expect(html).toContain("<li>plain</li>")
 })
 
 test("a footnote is a link to a note at the end", () => {
-  const html = renderMarkdown("Cabinets[^1]\n\n[^1]: Walnut.\n", NOTE)
+  const html = renderMarkdown(TEST_CLAIMS, "Cabinets[^1]\n\n[^1]: Walnut.\n", NOTE)
   expect(html).toContain("Walnut.")
   expect(html).toContain(`class="footnotes"`)
   // The link and the note it names agree, which is the whole of a footnote.
@@ -87,10 +88,10 @@ test("a footnote is a link to a note at the end", () => {
 // break under the reader's cursor.
 test("footnote ids belong to the block, not to the parser", () => {
   const source = "Cabinets[^1]\n\n[^1]: Walnut.\n"
-  const one = renderMarkdown(source, "house.olai")
-  const other = renderMarkdown(source, "garden.olai")
+  const one = renderMarkdown(TEST_CLAIMS, source, "house.olai")
+  const other = renderMarkdown(TEST_CLAIMS, source, "garden.olai")
   expect(one).not.toEqual(other)
-  expect(renderMarkdown(source, "house.olai")).toEqual(one)
+  expect(renderMarkdown(TEST_CLAIMS, source, "house.olai")).toEqual(one)
   // Nothing is left with the parser's own bare `fn-1`.
   expect(one).not.toContain(`id="fn-1"`)
   expect(one).toMatch(/id="md-[a-z0-9]+-fn-1"/)
@@ -99,9 +100,9 @@ test("footnote ids belong to the block, not to the parser", () => {
 // A relative picture is a file in the served directory, resolved beside the
 // text that named it and fetched from the one route that serves them.
 test("a relative picture points at the media route", () => {
-  expect(renderMarkdown("![a](art/shot.png)", "notes/plan.md"))
+  expect(renderMarkdown(TEST_CLAIMS, "![a](art/shot.png)", "notes/plan.md"))
     .toContain(`src="/media/notes/art/shot.png"`)
-  expect(renderMarkdown("![a](../shot.png)", "notes/plan.md"))
+  expect(renderMarkdown(TEST_CLAIMS, "![a](../shot.png)", "notes/plan.md"))
     .toContain(`src="/media/shot.png"`)
 })
 
@@ -110,10 +111,10 @@ test("a relative picture points at the media route", () => {
 // not a file in this directory.
 test("a picture this app will not fetch is not drawn", () => {
   for (const src of ["https://example.com/a.png", "data:image/png;base64,AA", "/a.png"]) {
-    expect(renderMarkdown(`![a](${src})`, NOTE)).not.toContain("<img")
+    expect(renderMarkdown(TEST_CLAIMS, `![a](${src})`, NOTE)).not.toContain("<img")
   }
   // Not a picture, so not an image either, whatever the route would say.
-  expect(renderMarkdown("![a](notes.md)", NOTE)).not.toContain("<img")
+  expect(renderMarkdown(TEST_CLAIMS, "![a](notes.md)", NOTE)).not.toContain("<img")
 })
 
 // ...and it SAYS so where the picture would have been. Not drawing it is the
@@ -123,7 +124,7 @@ test("a picture this app will not fetch is not drawn", () => {
 // not this module's: it points at `/media/…`, and the browser's own broken
 // image is what says so. What this module can see, it now says.)
 test("a picture that is not drawn says so, and names what it was", () => {
-  const html = renderMarkdown("![a](shot.pngg)", NOTE)
+  const html = renderMarkdown(TEST_CLAIMS, "![a](shot.pngg)", NOTE)
   expect(html).toContain(`data-testid="${TESTID.undrawnPicture}"`)
   expect(html).toContain("this picture could not be drawn: shot.pngg")
 })
@@ -132,7 +133,7 @@ test("a picture that is not drawn says so, and names what it was", () => {
 // that is the string a reader has to go and fix.
 test("every refused picture names the src that was written", () => {
   for (const src of ["https://example.com/a.png", "/a.png", "logo.svg", "notes.md"]) {
-    expect(renderMarkdown(`![a](${src})`, NOTE))
+    expect(renderMarkdown(TEST_CLAIMS, `![a](${src})`, NOTE))
       .toContain(`this picture could not be drawn: ${src}`)
   }
 })
@@ -144,7 +145,7 @@ test("every refused picture names the src that was written", () => {
 // so — which is the whole point — in the one sentence that is true of both.
 test("a picture whose address never reached us still says so", () => {
   for (const src of ["data:image/png;base64,AA", ""]) {
-    const html = renderMarkdown(`![a](${src})`, NOTE)
+    const html = renderMarkdown(TEST_CLAIMS, `![a](${src})`, NOTE)
     expect(html).toContain(`data-testid="${TESTID.undrawnPicture}"`)
     expect(html).toContain("its address was empty, or not one this page may fetch")
   }
@@ -160,9 +161,9 @@ test("a picture whose address never reached us still says so", () => {
 // this app's document route.
 
 test("a relative link to a document points at that document's page", () => {
-  expect(renderMarkdown("[the deck](../projects/deck.md)", "Daily/2026-08-12.md"))
+  expect(renderMarkdown(TEST_CLAIMS, "[the deck](../projects/deck.md)", "Daily/2026-08-12.md"))
     .toContain(`href="/projects/deck.md"`)
-  expect(renderMarkdown("[palette](notes/palette.md)", "finishes.md"))
+  expect(renderMarkdown(TEST_CLAIMS, "[palette](notes/palette.md)", "finishes.md"))
     .toContain(`href="/notes/palette.md"`)
 })
 
@@ -171,16 +172,16 @@ test("a relative link to a document points at that document's page", () => {
 // is the one that used to be wrong.
 test("a link in a note resolves beside the note, not beside the page", () => {
   const source = "[palette](palette.md)"
-  expect(renderMarkdown(source, "notes/2026-08-12.md"))
+  expect(renderMarkdown(TEST_CLAIMS, source, "notes/2026-08-12.md"))
     .toContain(`href="/notes/palette.md"`)
   // The same link written in an OUTLINE resolves beside the outline.
-  expect(renderMarkdown(source, "house.olai")).toContain(`href="/palette.md"`)
+  expect(renderMarkdown(TEST_CLAIMS, source, "house.olai")).toContain(`href="/palette.md"`)
 })
 
 // A fragment is two questions — which file, and where in it — so the path is
 // resolved and the anchor is carried through exactly as written.
 test("a document link keeps the fragment it was written with", () => {
-  expect(renderMarkdown("[beds](garden.md#beds)", NOTE))
+  expect(renderMarkdown(TEST_CLAIMS, "[beds](garden.md#beds)", NOTE))
     .toContain(`href="/garden.md#beds"`)
 })
 
@@ -189,23 +190,23 @@ test("a document link keeps the fragment it was written with", () => {
 // address is printed.
 
 test("a percent-encoded link to a spaced name points at that document's page", () => {
-  expect(renderMarkdown("[the brief](the%20brief.md)", "finishes.md"))
+  expect(renderMarkdown(TEST_CLAIMS, "[the brief](the%20brief.md)", "finishes.md"))
     .toContain(`href="/the%20brief.md"`)
-  expect(renderMarkdown("[the brief](../the%20brief.md)", "notes/palette.md"))
+  expect(renderMarkdown(TEST_CLAIMS, "[the brief](../the%20brief.md)", "notes/palette.md"))
     .toContain(`href="/the%20brief.md"`)
-  expect(renderMarkdown("[scope](the%20brief.md#scope)", NOTE))
+  expect(renderMarkdown(TEST_CLAIMS, "[scope](the%20brief.md#scope)", NOTE))
     .toContain(`href="/the%20brief.md#scope"`)
 })
 
 test("an angle-bracketed link to a spaced name points at that document's page", () => {
-  expect(renderMarkdown("[the brief](<the brief.md>)", "finishes.md"))
+  expect(renderMarkdown(TEST_CLAIMS, "[the brief](<the brief.md>)", "finishes.md"))
     .toContain(`href="/the%20brief.md"`)
-  expect(renderMarkdown("[scope](<the brief.md#scope>)", NOTE))
+  expect(renderMarkdown(TEST_CLAIMS, "[scope](<the brief.md#scope>)", NOTE))
     .toContain(`href="/the%20brief.md#scope"`)
 })
 
 test("a raw-space link to a spaced name points at that document's page", () => {
-  expect(renderMarkdown("[the brief](the brief.md)", "finishes.md"))
+  expect(renderMarkdown(TEST_CLAIMS, "[the brief](the brief.md)", "finishes.md"))
     .toContain(`href="/the%20brief.md"`)
 })
 
@@ -213,11 +214,11 @@ test("a raw-space link to a spaced name points at that document's page", () => {
 // nothing refused: this pass narrows one shape of link and leaves the rest of
 // the reader's markdown alone.
 test("a link that is not a relative document is left exactly as written", () => {
-  expect(renderMarkdown("[a](https://example.com/x.md)", NOTE))
+  expect(renderMarkdown(TEST_CLAIMS, "[a](https://example.com/x.md)", NOTE))
     .toContain(`href="https://example.com/x.md"`)
-  expect(renderMarkdown("[a](/finishes.md)", NOTE)).toContain(`href="/finishes.md"`)
-  expect(renderMarkdown("[a](notes/rows.tsv)", NOTE)).toContain(`href="notes/rows.tsv"`)
-  expect(renderMarkdown("[a](house.olai)", NOTE)).toContain(`href="house.olai"`)
+  expect(renderMarkdown(TEST_CLAIMS, "[a](/finishes.md)", NOTE)).toContain(`href="/finishes.md"`)
+  expect(renderMarkdown(TEST_CLAIMS, "[a](notes/rows.tsv)", NOTE)).toContain(`href="notes/rows.tsv"`)
+  expect(renderMarkdown(TEST_CLAIMS, "[a](house.olai)", NOTE)).toContain(`href="house.olai"`)
 })
 
 // A PICTURE IS A PAGE NOW, so a link to one is rewritten like a link to a
@@ -226,8 +227,8 @@ test("a link that is not a relative document is left exactly as written", () => 
 // resolves through markdown's own picture rule and still becomes a `/media/`
 // URL, which is the distinction this pair holds.
 test("a relative link to a picture opens that picture's page", () => {
-  expect(renderMarkdown("[a](art/handle.png)", NOTE)).toContain(`href="/art/handle.png"`)
-  expect(renderMarkdown("![a](art/handle.png)", NOTE))
+  expect(renderMarkdown(TEST_CLAIMS, "[a](art/handle.png)", NOTE)).toContain(`href="/art/handle.png"`)
+  expect(renderMarkdown(TEST_CLAIMS, "![a](art/handle.png)", NOTE))
     .toContain(`src="/media/art/handle.png"`)
 })
 
@@ -237,7 +238,7 @@ test("a relative link to a picture opens that picture's page", () => {
 // that just became a page address is not treated as something that leaves the app.
 test("an external http(s) link opens in a new tab", () => {
   for (const href of ["https://example.com/x.md", "http://example.com/x.md"]) {
-    const html = renderMarkdown(`[a](${href})`, NOTE)
+    const html = renderMarkdown(TEST_CLAIMS, `[a](${href})`, NOTE)
     expect(html).toContain(`href="${href}"`)
     expect(html).toContain(`target="_blank"`)
     expect(html).toContain(`rel="noopener noreferrer"`)
@@ -245,14 +246,14 @@ test("an external http(s) link opens in a new tab", () => {
 })
 
 test("a document link is not sent to a new tab", () => {
-  const html = renderMarkdown("[the deck](../projects/deck.md)", "Daily/2026-08-12.md")
+  const html = renderMarkdown(TEST_CLAIMS, "[the deck](../projects/deck.md)", "Daily/2026-08-12.md")
   expect(html).toContain(`href="/projects/deck.md"`)
   expect(html).not.toContain("target=")
   expect(html).not.toContain("rel=")
 })
 
 test("a fragment-only link is not sent to a new tab", () => {
-  const html = renderMarkdown("[up](#top)\n\n# top\n", NOTE)
+  const html = renderMarkdown(TEST_CLAIMS, "[up](#top)\n\n# top\n", NOTE)
   expect(html).toMatch(/href="#md-[a-z0-9]+-top"/)
   expect(html).not.toContain("target=")
   expect(html).not.toContain("rel=")
@@ -262,7 +263,7 @@ test("a fragment-only link is not sent to a new tab", () => {
 // the BLOCK's own business and is minted into this block's namespace, which is
 // what keeps a footnote pointing at its own note.
 test("a fragment-only link is still minted, not routed", () => {
-  const html = renderMarkdown("[up](#top)\n\n# top\n", NOTE)
+  const html = renderMarkdown(TEST_CLAIMS, "[up](#top)\n\n# top\n", NOTE)
   expect(html).toMatch(/href="#md-[a-z0-9]+-top"/)
   expect(html).not.toContain("/projects/")
 })
@@ -273,7 +274,7 @@ test("a fragment-only link is still minted, not routed", () => {
 // here is that it comes out the other side: an id, a href that names it, and
 // a label a screen reader can use.
 test("a heading carries an id and a link to it", () => {
-  const html = renderMarkdown("## The sync loop\n", NOTE)
+  const html = renderMarkdown(TEST_CLAIMS, "## The sync loop\n", NOTE)
   const id = /<h2 id="([^"]+)"/.exec(html)?.[1]
   expect(id).toMatch(/^md-[a-z0-9]+-the-sync-loop$/)
   expect(html).toContain(`href="#${id}"`)
@@ -288,16 +289,16 @@ test("a heading carries an id and a link to it", () => {
 // that the namespace is the BLOCK's.)
 test("heading ids belong to the block, not to the parser", () => {
   const source = "## Shape\n"
-  expect(renderMarkdown(source, "house.olai")).not
-    .toEqual(renderMarkdown(source, "garden.olai"))
+  expect(renderMarkdown(TEST_CLAIMS, source, "house.olai")).not
+    .toEqual(renderMarkdown(TEST_CLAIMS, source, "garden.olai"))
 })
 
 // The contents is derived from the RENDERING, so what it points at is what is
 // on the page — the whole reason it is not parsed out of the source again.
 test("the outline names the ids the page carries", () => {
   const source = "# Top\n\n## The `sync` loop\n\n### Deeper\n"
-  const html = renderMarkdown(source, NOTE)
-  const headings = outlineOf(source, NOTE)
+  const html = renderMarkdown(TEST_CLAIMS, source, NOTE)
+  const headings = outlineOf(TEST_CLAIMS, source, NOTE)
 
   expect(headings.map((heading) => [heading.depth, heading.text]))
     .toEqual([[1, "Top"], [2, "The sync loop"], [3, "Deeper"]])
@@ -307,7 +308,7 @@ test("the outline names the ids the page carries", () => {
 // The anchor is a CHILD of the heading, so the naive reading puts a hash on
 // the end of every line of the contents.
 test("the anchor is not part of the heading's text", () => {
-  expect(outlineOf("## Shape\n", NOTE).map((heading) => heading.text)).toEqual(["Shape"])
+  expect(outlineOf(TEST_CLAIMS, "## Shape\n", NOTE).map((heading) => heading.text)).toEqual(["Shape"])
 })
 
 // ONE RUN between the two entry points, which is the whole reason a contents
@@ -323,25 +324,25 @@ test("the outline and the body are one run, not two", () => {
   const source = "# Top\n\n## Shape\n\n### Deeper\n"
   const from = "one-run.md"
 
-  const first = outlineOf(source, from)
-  renderMarkdown(source, from)
-  expect(outlineOf(source, from)).toBe(first)
+  const first = outlineOf(TEST_CLAIMS, source, from)
+  renderMarkdown(TEST_CLAIMS, source, from)
+  expect(outlineOf(TEST_CLAIMS, source, from)).toBe(first)
 
   // …and the other way round, since the page may ask in either order.
   const other = "other.md"
-  renderMarkdown(source, other)
-  expect(outlineOf(source, other)).toBe(outlineOf(source, other))
+  renderMarkdown(TEST_CLAIMS, source, other)
+  expect(outlineOf(TEST_CLAIMS, source, other)).toBe(outlineOf(TEST_CLAIMS, source, other))
 })
 
 // Nothing to choose between, and nothing to point at: neither is a contents.
 test("a document with no headings has no outline", () => {
-  expect(outlineOf("Just a paragraph.\n", NOTE)).toEqual([])
+  expect(outlineOf(TEST_CLAIMS, "Just a paragraph.\n", NOTE)).toEqual([])
 })
 
 // The reason it is safe to hand this to `innerHTML`. These files are written
 // by people, by agents and by git merges.
 test("a script is not markdown", () => {
-  const html = renderMarkdown(
+  const html = renderMarkdown(TEST_CLAIMS,
     `<script>alert(1)</script>\n\n[x](javascript:alert(1))\n`,
     NOTE,
   )
@@ -368,18 +369,18 @@ test("a script is not markdown", () => {
  */
 test("a captured mail's message: link survives, in a note and in a title", () => {
   const href = "message://%3Cabc123@mail.example%3E"
-  expect(renderMarkdown(`the thread about cabinets\n\n<${href}>\n`, NOTE))
+  expect(renderMarkdown(TEST_CLAIMS, `the thread about cabinets\n\n<${href}>\n`, NOTE))
     .toContain(`href="${href}"`)
-  expect(renderInlineMarkdown(`[the thread](${href})`, NOTE)).toContain(`href="${href}"`)
+  expect(renderInlineMarkdown(TEST_CLAIMS, `[the thread](${href})`, NOTE)).toContain(`href="${href}"`)
   // …and the sibling attribute did NOT come with it: nothing may FETCH one.
-  expect(renderMarkdown(`![x](${href})\n`, NOTE)).not.toContain(`src="${href}"`)
+  expect(renderMarkdown(TEST_CLAIMS, `![x](${href})\n`, NOTE)).not.toContain(`src="${href}"`)
 })
 
 // ── inline (titles) ────────────────────────────────────────────────────
 
 // Racket parity: a title is phrasing — bold, links, code — never a block.
 test("inline markdown keeps bold, code and links", () => {
-  const html = renderInlineMarkdown(
+  const html = renderInlineMarkdown(TEST_CLAIMS,
     "**bold** and `code` and [a](https://example.com)",
     NOTE,
   )
@@ -397,24 +398,24 @@ test("inline markdown keeps bold, code and links", () => {
 // stay; boxes do not.
 test("inline markdown unwraps blocks rather than drawing them", () => {
   // A heading: the `#` is markdown syntax, so the words remain without an h1.
-  const heading = renderInlineMarkdown("# not a heading", NOTE)
+  const heading = renderInlineMarkdown(TEST_CLAIMS, "# not a heading", NOTE)
   expect(heading).toContain("not a heading")
   expect(heading).not.toMatch(/<h[1-6]/)
 
   // A list: the item text stays, the list box does not.
-  const list = renderInlineMarkdown("- nor a list", NOTE)
+  const list = renderInlineMarkdown(TEST_CLAIMS, "- nor a list", NOTE)
   expect(list).toContain("nor a list")
   expect(list).not.toContain("<ul")
   expect(list).not.toContain("<li")
 
   // A fence: the code stays as phrasing `<code>`, never a `<pre>` block.
-  const fence = renderInlineMarkdown("```\nstill words\n```", NOTE)
+  const fence = renderInlineMarkdown(TEST_CLAIMS, "```\nstill words\n```", NOTE)
   expect(fence).toContain("still words")
   expect(fence).not.toContain("<pre")
   expect(fence).toContain("<code")
 
   // Two paragraphs become one run of phrasing, with a space between.
-  const paras = renderInlineMarkdown("foo\n\nbar", NOTE)
+  const paras = renderInlineMarkdown(TEST_CLAIMS, "foo\n\nbar", NOTE)
   expect(paras).toContain("foo")
   expect(paras).toContain("bar")
   expect(paras).not.toContain("<p")
@@ -423,7 +424,7 @@ test("inline markdown unwraps blocks rather than drawing them", () => {
 
 // Same sanitiser: a title is not a place a script may appear either.
 test("inline markdown is sanitised the same way", () => {
-  const html = renderInlineMarkdown(
+  const html = renderInlineMarkdown(TEST_CLAIMS,
     `<script>alert(1)</script> and [x](javascript:alert(1))`,
     NOTE,
   )
@@ -435,8 +436,8 @@ test("inline markdown is sanitised the same way", () => {
 // Markdown.tsx switches path the instant streaming ends.
 test("streaming and final share a footnote id namespace", () => {
   const source = "Cabinets[^1]\n\n[^1]: Walnut.\n"
-  const streamed = renderStreaming(source, NOTE)
-  const final = renderMarkdown(source, NOTE)
+  const streamed = renderStreaming(TEST_CLAIMS, source, NOTE)
+  const final = renderMarkdown(TEST_CLAIMS, source, NOTE)
   const id = /id="(md-[^"]+)"/.exec(final)?.[1]
   expect(id).toBeDefined()
   expect(streamed).toContain(`id="${id}"`)
@@ -454,7 +455,7 @@ test("streaming and final share a footnote id namespace", () => {
  * about. What the page does with the third rung is a question about a page:
  * `packages/tests/features/markdown_arrives.feature`. */
 const titleHtml = (title: string, from: string, options?: TitleRender): string =>
-  renderTitle(title, from, options).html
+  renderTitle(TEST_CLAIMS, title, from, options).html
 
 // Tags are styled AFTER markdown, so a tag inside a construct does not split
 // the construct across two parser runs.
@@ -641,4 +642,18 @@ test("a picture in a title falls back to the escaped source", () => {
   const html = titleHtml("shot ![a](art/shot.png)", NOTE)
   expect(html).toBe("shot ![a](art/shot.png)")
   expect(html).not.toContain("<img")
+})
+
+
+test("a rendering cache belongs to its Claims snapshot, including withdrawal and return", () => {
+  const source = "![shot](shot.png) [notes](notes.md)"
+  const without = claims([...TEST_CLAIMS.byKind.values()].filter(claim => claim.kind !== "image" && claim.kind !== "markdown"))
+  const before = renderMarkdown(TEST_CLAIMS, source, "Work.olai")
+  expect(before).toContain('/media/shot.png')
+  expect(before).toContain('href="/notes.md"')
+  const off = renderMarkdown(without, source, "Work.olai")
+  expect(off).not.toContain('/media/shot.png')
+  expect(off).not.toContain('href="/notes.md"')
+  expect(renderMarkdown(undefined, source, "Work.olai")).toBe(off)
+  expect(renderMarkdown(TEST_CLAIMS, source, "Work.olai")).toBe(before)
 })

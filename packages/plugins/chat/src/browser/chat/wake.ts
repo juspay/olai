@@ -92,7 +92,7 @@ export interface Ringer {
    * and a component that reached back into the roster for one of them would be a
    * second join, in a file whose job is to draw.
    */
-  readonly kinds: ReadonlyArray<string>
+  readonly walks: string | undefined
   /** The file a person picked, root-relative and `/`-spelled — or `null`, which
    *  is the doorbell OFF and is what a fresh conversation reads. */
   readonly file: string | null
@@ -170,7 +170,7 @@ export const ringersOf = (
       // possible at all). An empty list matches no path, so the picker opens
       // and offers nothing — where a missing filter would offer everything,
       // which is the defect.
-      kinds: wake.kinds ?? [],
+      walks: wake.walks,
       file: mine?.file ?? null,
       waiting,
       // OFF IS NOT BROKEN. A row with no pick behind it carries `null`,
