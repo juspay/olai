@@ -2307,7 +2307,7 @@ When(
   async function (this: OlaiWorld, prefix: string) {
     const box = this.chat(CHAT_INPUT);
     await box.focus();
-    await box.evaluate((element, wanted) => {
+    await box.evaluate(async (element, wanted) => {
       const field = element as HTMLTextAreaElement;
       const at = field.value.indexOf(wanted);
       if (at === -1) {
@@ -2317,7 +2317,14 @@ When(
           }`,
         );
       }
-      field.setSelectionRange(at + wanted.length, at + wanted.length);
+      const caret = at + wanted.length;
+      if (field.selectionStart === caret && field.selectionEnd === caret) return;
+      // Native select is queued. A second move before it arrives can hide the
+      // first position from the composer (and skip clearing its dismissal).
+      await new Promise<void>(resolve => {
+        field.addEventListener("select", () => resolve(), { once: true });
+        field.setSelectionRange(caret, caret);
+      });
     }, prefix);
   },
 );
