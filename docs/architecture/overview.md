@@ -230,7 +230,7 @@ A pane is a route: the same page (an outline, a zoom, a day, the agenda, the tra
 
 - The workspace is a **layout tree**: a leaf (one route) or a split (an axis and children with fractions, where `0` is collapsed). Today's product writes only a lone leaf or a one-level row.
 - That row serializes as the flat `/s/<encoded-route>/…` list (`?w=` fractions, `?f=` focus), so every existing link stays. Axis and nesting have room in the codec (`?a=`, `?t=`) and are not written yet. Reload restores the layout, Back walks it, and sharing the URL shares the workspace.
-- Desktop splits contain overflow at the workspace frame: each column scrolls independently, and resizing or reaching a pane’s end cannot scroll the window or expose space beneath the panes. A lone page retains document scrolling.
+- Desktop splits contain overflow at the workspace frame: each column’s title and close control stay above its independent content scroller, and resizing or reaching a pane’s end cannot scroll the window or expose space beneath the panes. A lone page retains document scrolling.
 - Exactly one pane is focused, with a visible ring when there are two or more. Keyboard shortcuts, the palette and filter typing act on that pane.
 - A plain click navigates the pane the link was in. Alt+click opens the target in the pane to the right, reusing one already there; Alt+Shift+click forces a new one. No rule targets "leftmost".
 - Closing the second-to-last pane returns to a plain page. Below a minimum width a pane collapses to a labelled rail, and collapse and close are different verbs. On a narrow screen the list is a tab strip over one column.

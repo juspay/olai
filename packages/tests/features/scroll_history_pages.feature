@@ -52,3 +52,13 @@ Feature: Browser history restores positions across outline and document renderin
     Then "scroll-history.olai" holds a node titled "edited after shorter history"
     And the page has not reloaded
     And there should be no page errors
+
+  @pane-title
+  Scenario: A split outline keeps its title while its middle scrolls independently
+    Given I open the outline "scroll-history.olai"
+    When I alt-click the zoom of "scroll-row-0"
+    Then there are 2 panes
+    When I scroll pane 0 to its middle
+    Then pane 0 keeps its title "scroll-history.olai" above its scroller
+    And pane 1 keeps its title "scroll-row-0" above its scroller
+    And the split workspace stays within the window
