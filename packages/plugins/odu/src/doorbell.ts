@@ -23,7 +23,7 @@
  *
  * ## THE CLAIMABLE SET IS THE CHIP'S OWN LICENCE
  *
- * The values are the `odu-worktree`s of the file's UN-DONE nodes, mirrors
+ * The values are the `odu-run`s of the file's UN-DONE nodes, mirrors
  * resolving to their targets — the same derivation the chip already licenses
  * ({@link ./worktrees.ts} runs the whole-vault sibling walk for the probe):
  * the DECLARATION is found by kind and never by a key's spelling, so a board
@@ -99,11 +99,11 @@ import {
   textDeclaredAs,
   unfinished,
 } from "@olai/format"
-import { durableLogPath, type RunNotice } from "olai-plugin-odu/appliance"
+import { type RunNotice } from "olai-plugin-odu/appliance"
 import { type CiRun, identityOf, type RunTally, tallyOf, verdictOf } from "olai-plugin-odu/appliance/wire"
 import { nodeRef } from "@olai/plugin-kit/ref"
 
-import { WORKTREE_TYPE } from "./kinds.ts"
+import { RUN_TYPE } from "./kinds.ts"
 import { name } from "./wire.ts"
 
 /**
@@ -115,7 +115,7 @@ import { name } from "./wire.ts"
  * there is nothing left to resolve against a live roster.
  */
 export interface Claim {
-  /** The `odu-worktree` value, verbatim. */
+  /** The `odu-run` value, verbatim. */
   readonly value: string
   /** The OWNING NODE's title — the word a person calls the lane by. Blank
    *  where the node has none, which the sentence draws around. */
@@ -132,7 +132,7 @@ export interface Claim {
 }
 
 /**
- * EVERY CLAIM ONE FILTER FILE MAKES — the `odu-worktree` values reachable
+ * EVERY CLAIM ONE FILTER FILE MAKES — the `odu-run` values reachable
  * from its un-done records.
  *
  * Mirrors resolve to their targets with `follow`, and the walk descends from
@@ -153,7 +153,7 @@ export const claimedIn = (
   derived: Derived,
   file: string,
 ): ReadonlyArray<Claim> => {
-  if (!declaresKind(declarations, WORKTREE_TYPE)) return []
+  if (!declaresKind(declarations, RUN_TYPE)) return []
   const inside = derived.byFile.get(file)
   if (inside === undefined) return []
   const claims: Array<Claim> = []
@@ -165,7 +165,7 @@ export const claimedIn = (
   const descend = (at: LocatedRegular): void => {
     if (reached.has(at.node.id)) return
     reached.add(at.node.id)
-    const said = textDeclaredAs(declarations, at.node, WORKTREE_TYPE)
+    const said = textDeclaredAs(declarations, at.node, RUN_TYPE)
     if (said !== undefined && said.trim() !== "" && !seen.has(said) && unfinished(derived.status.get(at.node.id))) {
       seen.add(said)
       claims.push({ value: said, node: at.node.id, title: at.node.title, file: at.file })
@@ -245,11 +245,15 @@ const essenceOf = (
     }.`
   }
   const tally = tallyOf(notice.run.cells)
-  const verdict = verdictOf(tally)
+  const verdict = verdictOf(notice.run)
   const tail = countsOf(tally, false)
-  if (verdict === "ok") return `${cap(laneOf(claim))}'s CI came out green ${on}${tail}.`
-  if (verdict === "red") return `${cap(laneOf(claim))}'s CI came out red ${on}${tail}.`
-  return `${cap(laneOf(claim))}'s CI ended without deciding ${on}${tail}.`
+  if (notice.run.state === "owner_lost") {
+    return `${cap(laneOf(claim))}'s CI owner lost ${on}${tail}.`
+  }
+  if (verdict === "passed") return `${cap(laneOf(claim))}'s CI came out passed ${on}${tail}.`
+  if (verdict === "failed") return `${cap(laneOf(claim))}'s CI came out failed ${on}${tail}.`
+  if (verdict === "incomplete") return `${cap(laneOf(claim))}'s CI came out incomplete ${on}${tail}.`
+  return `${cap(laneOf(claim))}'s CI came out incomplete ${on}${tail}.`
 }
 
 const cap = (sentence: string): string => sentence.slice(0, 1).toUpperCase() + sentence.slice(1)
@@ -258,16 +262,14 @@ const cap = (sentence: string): string => sentence.slice(0, 1).toUpperCase() + s
  * THE FAILED RECIPES, one line each with where each one's log lives — the
  * settle kind's payload for a red verdict: the recipes are the cells still
  * red on the last frame, with odu's own status word kept beside them, and
- * the path is {@link durableLogPath}'s — a sentence never names a file that
- * could not exist, so a cell with no honest path omits it rather than
- * inventing one.
+ * the log is the cell's `logKey` and `odu logs --run <id> <node>`.
  */
 const failedLines = (run: CiRun): ReadonlyArray<string> =>
   run.cells.filter((cell) => cell.red).map((cell) => {
-    const path = durableLogPath(run, cell)
-    return path === null
-      ? `— \`${cell.id}\`: ${cell.status}.`
-      : `— \`${cell.id}\`: ${cell.status} — the log is at ${path}.`
+    const log = cell.logKey === ""
+      ? `odu logs --run ${run.id} ${cell.id}`
+      : `log \`${cell.logKey}\`; odu logs --run ${run.id} ${cell.id}`
+    return `— \`${cell.id}\`: ${cell.status} — ${log}.`
   })
 
 /**
@@ -328,7 +330,7 @@ export function bodyFor(
   if (notice.kind === "first-red") {
     lines.push(
       "",
-      `The run is \`${which}\`, live in ${run.at}. ${cap(laneOf(claim))} claims it — the un-done row ${nodeRef(claim.node)} of ${claim.file} names its checkout — and \`${notice.cell.id}\` (${notice.cell.name} on ${notice.cell.platform}) is the first of its nodes to go red.`,
+      `The run is \`${which}\` (\`${run.id}\`), live in ${run.repoRoot === "" ? "an unknown checkout" : run.repoRoot}. ${cap(laneOf(claim))} claims it — the un-done row ${nodeRef(claim.node)} of ${claim.file} names this run — and \`${notice.cell.id}\` (${notice.cell.name} on ${notice.cell.platform}) is the first of its nodes to go red.`,
       "",
       `This lands once per hold. Each settlement of the run — a lingering rerun's included — follows with its own account: the verdict, the final counts, and the log path of every failed recipe. Clearing the file on this conversation's wake control stops both.`,
     )
@@ -336,7 +338,7 @@ export function bodyFor(
   }
   lines.push(
     "",
-    `The run is \`${which}\`, settled in ${run.at}.${claimLine(claim)}`,
+    `The run is \`${which}\` (\`${run.id}\`), settled in ${run.repoRoot === "" ? "an unknown checkout" : run.repoRoot}.${claimLine(claim)}`,
   )
   if (printed.red > 0) lines.push("", ...failedLines(run))
   const reran = reranLines(notice)
@@ -352,20 +354,19 @@ export function bodyFor(
  *  body carries inside its own second paragraph, broken out so both say it
  *  once. */
 const claimLine = (claim: Claim): string =>
-  ` ${cap(laneOf(claim))} claims it — the un-done row ${nodeRef(claim.node)} of ${claim.file} names its checkout.`
+  ` ${cap(laneOf(claim))} claims it — the un-done row ${nodeRef(claim.node)} of ${claim.file} names this run.`
 
 /** The slot an undelivered body is filed under — per KIND AND PER RUN, so two
  *  sequential settles of one lane through one busy turn are two subjects.
  *  Two settlements of ONE run share it by design — see the header.
  *  `identityOf` degenerates to the bare name only for a run odu never stamped. */
 export const coalesceOf = (notice: RunNotice): string =>
-  `${name}:${notice.kind}:${identityOf(notice.run)}`
+  `${name}:${notice.kind}:${notice.run.id}`
 
 /** What a delivery-time re-derivation asks of the row list, and nothing
  *  else — kept as its own tiny type so `server.ts`'s thunk reads as what it
  *  is. Deprecatable the day `CiRun` grows an epoch of its own. */
-export const sameRun = (a: CiRun, b: CiRun): boolean =>
-  a.name === b.name && a.sha7 === b.sha7 && a.seq === b.seq
+export const sameRun = (a: CiRun, b: CiRun): boolean => a.id === b.id
 
 /** The counts a first-red body should say NOW: the live row's own where the
  *  row is still this run's, else the notice's snapshot — an account of the

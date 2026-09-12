@@ -1,0 +1,29 @@
+{
+  "protocolVersion": "1.3",
+  "runs": {
+    "m1kb0e11-2c8d": {
+      "row": {
+        "runId": "m1kb0e11-2c8d",
+        "repo": "juspay/olai",
+        "repoRoot": "/tmp/olai/.worktrees/a",
+        "branch": "master",
+        "sha": "8f8fe56aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "dirty": false,
+        "seq": 1,
+        "pipeline": "ci",
+        "createdAt": 1,
+        "state": "settled",
+        "settled": true,
+        "passed": true,
+        "outcome": "passed",
+        "actionable": false,
+        "unresolvedFailures": 0,
+        "scope": { "selectors": [], "platforms": [], "noDeps": false },
+        "reportingDebt": 0,
+        "endpoint": null,
+        "parentRunId": null,
+        "cursor": "m1kb0e11-2c8d@1"
+      }
+    }
+  }
+}

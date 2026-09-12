@@ -1836,6 +1836,9 @@ export class OlaiWorld extends World {
    *  scenario, never shared: a fleet is a world, and two scenarios sharing one
    *  would be two scenarios sharing a fixture they can both see. */
   padi: LivePadi | undefined = undefined;
+  /** `@odu-service:<fleet>`: which fixture this scenario's fake odu serves. */
+  oduFleet: string | undefined = undefined;
+  odu: import("olai-plugin-odu/appliance/testlib").LiveOdu | undefined = undefined;
   /** `@opencode`: this scenario's machine HAS opencode, so its server's roster
    *  is two agents and the panel asks which one a conversation is with. Every
    *  other scenario's agent search path is empty — see `hooks.ts`. */

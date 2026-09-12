@@ -1,14 +1,14 @@
-# The vendored TypeScript source olai consumes from odu — ONE package, and it
-# is deliberately not a closure walk.
+# The vendored TypeScript source olai consumes from odu — three packages, and
+# still not a closure walk.
 #
 # `nix/kolu.nix` next door asks kolu's own `consumer.nix` to expand a seed list
 # into thirty-two members, because kolu IS olai's framework: the surface, the
 # Dock row, the terminal vocabulary, six packages deep. odu is not that. What
-# olai wants from odu is the half of it a CLIENT of a live run holds
-# (`@odu/run-client` — juspay/odu#94), whose whole declared closure is
-# `effect`, and whose `@kolu/surface` import resolves against the sources kolu
-# already hydrated one file over. One directory, copied; no expansion to ask
-# for, and nothing for a seed list to compute.
+# olai wants from odu is the half of it a CLIENT of the per-user service holds
+# (`@odu/service-client`, which reads `@odu/run-history` and `@odu/run-client`).
+# Their declared npm closure is `effect`, and their `@kolu/surface` /
+# `@kolu/surface-app` imports resolve against the sources kolu already hydrated
+# one file over. Three directories, copied; no expansion to ask for.
 #
 # The pin tracks odu's master, at the exact revision recorded in
 # npins/sources.json. `just update-pins` advances it with the other pins.
@@ -65,19 +65,31 @@ let
   npins = import ../npins;
 in
 {
-  # The one (src, dest) pair, in the shape `hydrate-kolu-packages.sh` takes.
-  # `@odu/run-client` rather than a slug of odu's own: the name in the manifest
-  # is the name an import writes, and a consumer inventing its own would be one
-  # more thing to keep in step.
-  hydrateArgs = "${npins.odu}/packages/run-client @odu/run-client";
+  # Three (src, dest) pairs, in the shape `hydrate-kolu-packages.sh` takes.
+  # The names in the manifests are the names an import writes.
+  hydrateArgs =
+    "${npins.odu}/packages/run-client @odu/run-client "
+    + "${npins.odu}/packages/run-history @odu/run-history "
+    + "${npins.odu}/packages/service-client @odu/service-client";
 
-  # The pinned package's own manifest, for `scripts/check-hydrated-deps.sh` — it
-  # asserts olai's root against what odu DECLARES rather than against a second
-  # copy of the list, which is the difference between a version constraint that
-  # is checked and one that is hoped. Read out of the store path so the answer
-  # is the pin's, not a transcription of it.
-  externals = builtins.fromJSON
-    (builtins.readFile "${npins.odu}/packages/run-client/package.json");
+  # The pinned packages' npm externals, for `scripts/check-hydrated-deps.sh` —
+  # the UNION of what the three declare, minus workspace `@odu/*` arrows that
+  # resolve to the other two hydrated directories rather than to the registry.
+  # Read out of the store path so the answer is the pin's, not a transcription.
+  externals =
+    let
+      manifestOf = dir:
+        builtins.fromJSON
+          (builtins.readFile "${npins.odu}/packages/${dir}/package.json");
+      npmOf = dir:
+        let
+          deps = (manifestOf dir).dependencies or { };
+          names = builtins.filter (n: builtins.match "@odu/.*" n == null)
+            (builtins.attrNames deps);
+        in
+          builtins.listToAttrs (map (n: { name = n; value = deps.${n}; }) names);
+    in
+      (npmOf "run-client") // (npmOf "run-history") // (npmOf "service-client");
 
   # The revision this tree consumes, so a report can name it without anybody
   # reading JSON. Same fact `npins/sources.json` holds; exposed because the

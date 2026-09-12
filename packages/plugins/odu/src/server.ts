@@ -63,14 +63,14 @@ import {
   type PropDeclarations,
 } from "@olai/format"
 import { Effect } from "effect"
-import { type DialRun, oduHalf, type RunNotice } from "olai-plugin-odu/appliance"
+import { type DialService, oduHalf, type RunNotice } from "olai-plugin-odu/appliance"
 
+import { boardedIn } from "./boarded.ts"
 import { bodyFor, claimedIn, claimingIn, coalesceOf, countsFor } from "./doorbell.ts"
 import { probing } from "./probe.ts"
 import { wake } from "./wake.ts"
 import { kinds as ours, ownKinds } from "./kinds.ts"
 import { faces, name, surface } from "./wire.ts"
-import { worktreesIn } from "./worktrees.ts"
 
 /** The kinds this plugin teaches a vault, reached on this door — see
  *  {@link ./kinds.ts} for the word, and `@olai/plugin-api`'s `services.ts` for why
@@ -266,6 +266,7 @@ export default definePlugin({
      */
     const ring = (notice: RunNotice): Effect.Effect<void> =>
       Effect.gen(function*() {
+        yield* Effect.logDebug(`odu doorbell derived kind=${notice.kind} run=${notice.run.id}`)
         const at = derived
         if (at === undefined) return
         const perFile = new Map<string, ReturnType<typeof claimingIn>>()
@@ -299,18 +300,13 @@ export default definePlugin({
     const half = oduHalf<Derived>({
       options: {
         env: env.vars,
-        served: vault.served,
         // The one narrowing in this package, and kolu's `dial` line one appliance
-        // over: a fake coordinator on a real unix socket is how the watch is
+        // over: a fake service over a real websocket is how the watch is
         // exercised without a CI run on the machine running the suite, and core
         // carries it opaque because typing it would mean knowing what odu is.
-        dial: env.dial as DialRun | undefined,
+        dial: env.dial as DialService | undefined,
       },
-      // THE VAULT WALK, passed in, and this package is now where both sides of it
-      // live: which keys this vault DECLARES a `worktree`, and which nodes carry
-      // one, are readings of outline records — things the package that dials odu
-      // must not learn. What crosses is the worktree's strings per node.
-      worktrees: worktreesIn,
+      boarded: boardedIn,
       // THE DOORBELL'S TAP, and the same boundary kolu's `rang` keeps one
       // appliance over: what crosses is the watch's own frozen notice, and what
       // this side does with it — join it against the `worktree` values a scoped

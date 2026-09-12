@@ -31,12 +31,11 @@ pkgs.mkShell {
     # a version constraint that is checked and one that is hoped.
     OLAI_KOLU_EXTERNALS = builtins.toJSON kolu.externals;
 
-    # ODU'S ONE PACKAGE, the same two ways: the argv for the copier (kolu's
+    # ODU'S THREE PACKAGES, the same two ways: the argv for the copier (kolu's
     # script — `nix/odu.nix` says why there is not a second one), and the
-    # pinned manifest `scripts/check-hydrated-deps.sh` asserts olai's root
-    # against. It is a WHOLE package.json where kolu's is a merged map, and the
-    # script reads both shapes rather than the justfile normalising one of them
-    # with a jq filter: one pin, one variable, one thing to look at.
+    # union of npm externals `scripts/check-hydrated-deps.sh` asserts olai's
+    # root against. Workspace `@odu/*` arrows stay out of that union: they
+    # resolve to the other hydrated directories.
     # A separate variable rather than a longer `OLAI_KOLU_HYDRATE`, because the
     # two pins move independently — a single argv would hide which half a
     # `just update-pins` had walked forward, and which half a `just check`

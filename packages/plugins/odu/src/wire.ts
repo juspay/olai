@@ -36,6 +36,7 @@ export const name = "odu"
 export const surface = defineSurface({
   cells: {
     ci: oduMembers.cells.ci,
+    service: oduMembers.cells.service,
   },
 })
 
@@ -56,5 +57,6 @@ export const surface = defineSurface({
 export const faces = {
   browser: {
     ci: "resource",
+    service: "resource",
   },
 } as const

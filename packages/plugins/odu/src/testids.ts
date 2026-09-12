@@ -32,9 +32,11 @@ export const TESTID = {
    *  and it is spelled `data-state` rather than the `data-tone` a chip with four
    *  inks would reach for first, because that second name is the app's claimed
    *  contract for a said-line's MOOD and two vocabularies may not share it
-   *  (`@olai/web`'s `claims.test.ts` sweeps for exactly that). `data-worktree` is
-   *  the board's own value, which is what the chip joined on. */
+   *  (`@olai/web`'s `claims.test.ts` sweeps for exactly that). `data-run` is
+   *  the boarded run id, which is what the chip joined on. */
   ciChip: "ci-chip",
+  /** THE HEADER READOUT — `connected` / `absent` / `skew`. */
+  odu: "odu",
   /** THE RUN MATRIX the chip opens — nodes, durations, ok/red/errored, in the
    *  run's own scheduling order (`./browser/RunMatrix.tsx`). Present only while
    *  open; one per run, because the drawer holds one open pane per run the way

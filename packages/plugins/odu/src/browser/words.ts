@@ -100,7 +100,9 @@ const whatOf = (
   now: number,
   ticking: Ticking,
 ): string => {
-  if (!run.live) return verdict ?? "ended"
+  if (run.state === "unknown") return "unknown run"
+  if (run.state === "owner_lost") return "owner lost"
+  if (!run.live) return verdict ?? "incomplete"
   const running = runningIn(run)
   if (running !== undefined) {
     // A node marked running with no `startedAt` is a frame that arrived
@@ -126,8 +128,8 @@ const whatOf = (
  *  tally's own question (it goes red EARLY, on the first red node); ok ink
  *  is the verdict's own answer, not a second folding of it. */
 const toneOf = (run: CiRun, tally: RunTally, verdict: string | null): CiTone => {
-  if (tally.red > 0) return "red"
-  if (verdict === "ok") return "ok"
+  if (tally.red > 0 || verdict === "failed") return "red"
+  if (verdict === "passed") return "ok"
   if (!run.live) return "quiet"
   return "going"
 }
@@ -143,12 +145,15 @@ const toneOf = (run: CiRun, tally: RunTally, verdict: string | null): CiTone => 
 const titleOf = (run: CiRun): string => {
   const which = identityOf(run)
   const lanes = run.lanes.length === 0 ? "" : ` · ${run.lanes.join(" ")}`
-  // Prose rather than a word, and deliberately: `@olai/web`'s connection
-  // readout owns a closed set that includes the obvious one-word spelling, and
-  // a second vocabulary uttering it is exactly the ambiguity `claims.test.ts`
-  // sweeps for. What a reader needs here is the sentence anyway.
-  const state = run.live ? "the run is up" : "the socket is gone; this is the last reading"
-  return `${which}${lanes} · ${state} · ${run.at}`
+  const where = run.repoRoot === "" ? "checkout unknown" : run.repoRoot
+  const state = run.state === "unknown"
+    ? "unknown run"
+    : run.live
+    ? "the run is up"
+    : run.state === "owner_lost"
+    ? "owner lost"
+    : "settled"
+  return `${which} · ${run.id}${lanes} · ${state} · ${where}`
 }
 
 /**
@@ -181,7 +186,7 @@ export const wordsFor = (
   ticking: Ticking,
 ): CiWords => {
   const tally = tallyOf(run.cells)
-  const verdict = verdictOf(tally)
+  const verdict = verdictOf(run)
   const count = countOf(tally)
   return {
     text: `ci · ${whatOf(run, verdict, now, ticking)}${

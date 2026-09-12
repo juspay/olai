@@ -253,7 +253,7 @@ export const sameAgents: (a: NodeAgents, b: NodeAgents) => boolean = Schema
  * declares no such key — every vault on a serve running no chat, and every vault
  * that has declared the key something else — pays one walk of its declarations
  * rather than one per record, and allocates nothing. That is
- * `olai-plugin-kolu`'s `claimantsIn` and `olai-plugin-odu`'s `worktreesIn`
+ * `olai-plugin-kolu`'s `claimantsIn` and `olai-plugin-odu`'s `boardedIn`
  * arrangement, one property over and deliberately the same shape.
  *
  * A WHOLE-SET WALK, deliberately and measured against the alternative: there is

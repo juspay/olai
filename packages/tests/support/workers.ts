@@ -80,6 +80,8 @@ export const spawnFingerprint = (opts: {
    * unique per scenario by construction.
    */
   readonly padiSocket?: string;
+  /** WHICH ODU SERVICE this server was pointed at (`@odu-service:<fleet>`). */
+  readonly oduOrigin?: string;
   /** WHICH INTEGRATIONS this server composed (the file’s row selection), if the scenario
    *  said. Part of the key for the padi socket's reason one field up: a server
    *  running fewer plugins serves a different WIRE — the disabled one's members
@@ -94,7 +96,7 @@ export const spawnFingerprint = (opts: {
     opts.opencode ? 1 : 0
   },pi=${opts.pi ? 1 : 0},codex=${opts.codex ? 1 : 0},kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}` +
   `,commit=${opts.pin?.commit ?? "-"},push=${opts.pin?.push ?? "-"},avatar=${opts.avatar ?? "-"}` +
-  `,padi=${opts.padiSocket ?? "-"},plugins=${opts.plugins ?? "-"}` +
+  `,padi=${opts.padiSocket ?? "-"},odu=${opts.oduOrigin ?? "-"},plugins=${opts.plugins ?? "-"}` +
   `,extra=${opts.rowsOn ?? "-"},without=${opts.rowsOff ?? "-"}`;
 
 /** Cucumber numbers workers from 0. Unset means this process is the only
@@ -177,6 +179,7 @@ export const isolateEnv = (
   // spelling also deleted the socket a `@padi:` scenario had just spawned, so
   // the tag could not work at all.
   delete host.PADI_SOCKET;
+  delete host.ODU_WEB_ORIGIN;
   // WHICH ODU goes the same way, one variable over: the packaged wrapper reads
   // `OLAI_ODU_BIN` first (default.nix), so a developer mid-test of their own
   // odu would otherwise point EVERY spawned server at it — which odu answers

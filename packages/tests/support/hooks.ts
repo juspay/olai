@@ -57,6 +57,7 @@ import type { Browser } from "playwright";
 import { ALERTS, recordAlerts } from "./alerts.ts";
 import { BROWSER_ARGS } from "./browser.ts";
 import { type LivePadi, startPadi } from "olai-plugin-kolu/appliance/testlib";
+import { type LiveOdu, startOduService } from "olai-plugin-odu/appliance/testlib";
 import { ILLEGIBLE_PX, PAINTS, recordPaints, WAITING } from "./paints.ts";
 import {
   alreadyShared,
@@ -329,6 +330,9 @@ const KOLU_TAG = "@kolu";
  * point somewhere.
  */
 const PADI_TAG = /^@padi:([\w-]+)$/;
+
+/** `@odu-service:<fleet>`: this scenario's server dials a fake odu service. */
+const ODU_SERVICE_TAG = /^@odu-service:([\w-]+)$/;
 
 /** `@opencode`: this scenario's machine HAS opencode, so its server's roster is
  *  two agents and the panel asks which one a conversation is with. Untagged,
@@ -686,6 +690,7 @@ interface Spawn {
    *  nothing there, and reports `absent` — the state a laptop without kolu is
    *  in, and the one the hollow chip is drawn from. */
   readonly padiSocket?: string;
+  readonly oduOrigin?: string;
   /** `true` puts a fake `opencode` on the agent search path, so this server's
    *  roster is two agents. Otherwise that path is EMPTY and the roster is the
    *  scripted agent alone — see {@link FAKE_OPENCODE_DIR}. */
@@ -795,6 +800,9 @@ const startServerChild = async (
         ...(spawnOptions.padiSocket === undefined
           ? {}
           : { PADI_SOCKET: spawnOptions.padiSocket }),
+        ...(spawnOptions.oduOrigin === undefined
+          ? {}
+          : { ODU_WEB_ORIGIN: spawnOptions.oduOrigin }),
         // The avatar template, when the scenario asked for one (`AVATAR_TAG`).
         // Passed only where it was asked for: the variable being SET at all is
         // what puts the second rung of the picture ladder in play.
@@ -1330,6 +1338,9 @@ Before(
     this.padiFleet = scenario.pickle.tags
       .map((tag) => PADI_TAG.exec(tag.name)?.[1])
       .find((fleet): fleet is string => fleet !== undefined);
+    this.oduFleet = scenario.pickle.tags
+      .map((tag) => ODU_SERVICE_TAG.exec(tag.name)?.[1])
+      .find((fleet): fleet is string => fleet !== undefined);
     this.hasOpencode = scenario.pickle.tags.some(
       (tag) => tag.name === OPENCODE_TAG,
     );
@@ -1458,6 +1469,17 @@ Before(
       this.padi = await startPadi(this.padiFleet);
     }
 
+    if (this.oduFleet !== undefined) {
+      if (!writes) {
+        throw new Error(
+          `@odu-service:${this.oduFleet} points a server at an odu of its own, so the ` +
+            "scenario must own that server: tag it @scratch:<corpus> rather than " +
+            "@corpus:<corpus>.",
+        );
+      }
+      this.odu = await startOduService(this.oduFleet);
+    }
+
     if (writes) {
       const spawnOptions = {
         stored: this.storedSessions,
@@ -1468,6 +1490,7 @@ Before(
         codex: this.hasCodex,
         kolu: this.hasKolu,
         ...(this.padi === undefined ? {} : { padiSocket: this.padi.socket }),
+        ...(this.odu === undefined ? {} : { oduOrigin: this.odu.origin }),
         ...(this.avatarTemplate === undefined
           ? {}
           : { avatar: this.avatarTemplate }),
@@ -1655,6 +1678,8 @@ After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenari
   // already down.
   this.padi?.stop();
   this.padi = undefined;
+  this.odu?.stop();
+  this.odu = undefined;
 
   // A feature-shared scratch outlives the scenario: After drains in-flight
   // writes (a blur-on-close, a last key still staging), puts the fixture

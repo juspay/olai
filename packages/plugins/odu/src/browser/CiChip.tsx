@@ -114,7 +114,7 @@ export function CiChip(context: ChipContext) {
               class={`${CHIP} ${TONE[said().tone]}`}
               data-testid={TESTID.ciChip}
               data-state={said().tone}
-              data-worktree={context.entry.value}
+              data-run={context.entry.value}
               title={said().title}
             >
               {said().text}
@@ -127,7 +127,7 @@ export function CiChip(context: ChipContext) {
               class={`${CHIP} ${TONE[said().tone]} cursor-pointer`}
               data-testid={TESTID.ciChip}
               data-state={said().tone}
-              data-worktree={context.entry.value}
+              data-run={context.entry.value}
               data-open={context.opened ? "yes" : "no"}
               title={`${said().title} — press for the run matrix`}
               onClick={(event) => {

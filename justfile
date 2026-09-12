@@ -65,8 +65,9 @@ check: typecheck test e2e kolu-deps odu-deps odu-surface cordis-deps fmt-check n
 # under `set -u`). It is a whole argv — nix/kolu.nix derives it from one list
 # — so the expansion is deliberately unquoted.
 #
-# `@odu/run-client` rides the SAME script on a second line — one copier, two
-# pins (nix/odu.nix says why odu brings no script of its own). Cordis is a
+# `@odu/run-client`, `@odu/run-history` and `@odu/service-client` ride the SAME
+# script on a second line — one copier, two pins (nix/odu.nix says why odu
+# brings no script of its own). Cordis is a
 # third pin on a third line, four packages out of one repository
 # (nix/cordis.nix). Separate invocations rather than one concatenated argv so
 # a failure names which pin it was hydrating.
@@ -213,15 +214,16 @@ test: install
 kolu-deps:
     {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh kolu "$OLAI_KOLU_EXTERNALS"'
 
-# The same three questions about odu's one hydrated package, asked by the same
-# script. It gets two assertions it never had — every workspace manifest, and
-# the root `overrides` block — which is not a widening for its own sake:
-# `@odu/run-client` declares `effect` at this tree's pinned version, and an
-# override is how bun SILENTLY REWRITES one, so an unchecked one there makes
-# every manifest's honesty cosmetic in exactly the way it already did for kolu.
+# The same three questions about odu's hydrated packages, asked by the same
+# script. `OLAI_ODU_MANIFEST` is the union of `@odu/run-client`,
+# `@odu/run-history` and `@odu/service-client` npm externals (workspace
+# `@odu/*` arrows resolve to the other hydrated directories). `@odu/run-client`
+# declares `effect` at this tree's pinned version, and an override is how bun
+# SILENTLY REWRITES one, so an unchecked one there makes every manifest's
+# honesty cosmetic in exactly the way it already did for kolu.
 [doc("Check dependency versions against the odu pin")]
 odu-deps:
-    {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh @odu/run-client "$OLAI_ODU_MANIFEST"'
+    {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh @odu "$OLAI_ODU_MANIFEST"'
 
 # The OTHER half of the same pin, asked of the BINARY rather than the manifest:
 # does the pinned `odu` still answer the tool surface a conversation is handed?

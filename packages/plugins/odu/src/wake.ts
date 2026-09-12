@@ -10,7 +10,7 @@
  * the doorbell IS. The counter is a count of held bodies, and each body is
  * `CI event`: the honest name for what one of them is ABOUT.
  *
- * `walks: "nodes"` is the non-prose member: odu filters by `odu-worktree`
+ * `walks: "nodes"` is the non-prose member: odu filters by `odu-run`
  * values on unfinished nodes. Both the serve and the picker compare that
  * predicate with their own current claims. Row ids do not decide whether a
  * file holds records, and a missing claim offers no watched file.
@@ -64,7 +64,7 @@ export const wake = {
     ].join("\n"),
     /**
      * ... and THE FILE IS THERE AND HAS NOTHING ODU CAN READ: it holds no
-     * nodes, and the claimed set is the un-done NODES' `odu-worktree` values,
+     * nodes, and the claimed set is the un-done NODES' `odu-run` values,
      * so nothing in it can ever claim a run. Reachable only from a pick made
      * before the picker filtered, a tab left open from an older serve, or a
      * record edited by hand — so it is nobody's mistake to be scolded for,

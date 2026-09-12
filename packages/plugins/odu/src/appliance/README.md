@@ -1,8 +1,8 @@
 # olai-plugin-odu/appliance — how olai reaches odu
 
-One package holds the sweep, the dial, the hold over a live run, and the projection into olai's own vocabulary. What leaves is [`@olai/surface`](../../../../surface/README.md)'s shapes — a `CiRun`, a `RunCell` — so a change to odu's contract is a change **here** and stops.
+One package holds the link to odu's per-user service, the board and stream holds, and the projection into olai's own vocabulary. What leaves is [`@olai/surface`](../../../../surface/README.md)'s shapes — a `CiRun`, a `RunCell`, an `OduLink` — so a change to odu's contract is a change **here** and stops.
 
-**Olai watches CI and never runs it.** [odu](https://github.com/juspay/odu) is the harness; what olai does is *read* the run a checkout is living through and put it where the fact already is — beside the `worktree` property that named the checkout. This package is the whole of that reading, and this phase is read-only in every direction: no launch, no rerun, no cancel, no classification, and no write to the vault.
+**Olai watches CI and never runs it.** [odu](https://github.com/juspay/odu) is the harness; what olai does is *read* the run a lane named by `odu-run` and put it beside that value. This package is the whole of that reading, and this phase is read-only in every direction: no launch, no rerun, no cancel, no classification, and no write to the vault.
 
 ## What it is for, today
 
