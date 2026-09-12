@@ -90,9 +90,9 @@ export type AgentEvent =
      *  panel can no longer draw. */
     readonly diffs: ReadonlyArray<FileDiff> | undefined
     /** Display name, owner and opaque JSON reply for the owning plugin’s face. */
-    readonly called?: string | undefined
-    readonly row?: string | undefined
-    readonly reply?: Json | undefined
+    readonly called: string | undefined
+    readonly row: string | undefined
+    readonly reply: Json | undefined
     /** Where it is working: the follow-along file locations. */
     readonly locations: ReadonlyArray<string> | undefined
     /**

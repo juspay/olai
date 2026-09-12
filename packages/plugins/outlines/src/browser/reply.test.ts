@@ -28,10 +28,10 @@ describe("what an olai write says for itself", () => {
   })
 
   test("the node's ID rides along, which is what makes the row a reference", () => {
-    // Missing or mistyped IDs fail the write contract; an empty ID is plain text.
+    // Missing or mistyped IDs leave the story as plain text.
     const { id: _id, ...anonymous } = MARKED
-    expect(wroteIn(result(anonymous))).toBeUndefined()
-    expect(wroteIn(result({ ...MARKED, id: 7 }))).toBeUndefined()
+    expect(wroteIn(result(anonymous))?.id).toBeNull()
+    expect(wroteIn(result({ ...MARKED, id: 7 }))?.id).toBeNull()
   })
 
   test("a nudge rides along, because advice on a write that landed is news", () => {
@@ -54,7 +54,8 @@ describe("what an olai write says for itself", () => {
     // Checked against the format's own list rather than cast: a word the panel
     // has no phrase for would ride the wire and draw a blank where the story
     // goes.
-    expect(wroteIn(result({ ...MARKED, sort: "vandalised" }))).toBeUndefined()
+    expect(wroteIn(result({ ...MARKED, sort: "vandalised" }))?.sort).toBeNull()
+    expect(wroteIn({ did: "outlines_done", title: "order" })).toEqual({ id: null, title: "order", sort: null, file: null, nudge: null })
   })
 
   test("anything that is not one of our replies draws nothing", () => {

@@ -1,4 +1,3 @@
-import type { Advertised } from "@olai/plugin-api/services"
 /**
  * The ACP client: one subprocess, one protocol, no browser.
  *
@@ -65,6 +64,8 @@ import type { Advertised } from "@olai/plugin-api/services"
  * structured question — it has to guess, or write the question into prose and
  * hope.
  */
+import type { Advertised } from "@olai/plugin-api/services"
+
 import { Terminals } from "./terminals.ts"
 import { terminalMetaIn } from "@olai/acp"
 import { type Child, start as startChild } from "@olai/child"
@@ -584,7 +585,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  because a call id is only ever looked up inside the session that minted
      *  it. */
     const calls = new Calls(options.leg)
-    const mcpFrames = new Map<string, import("@olai/acp/engine").MCPFrame>()
 
     /** The conversation is over — replaced, reloaded, or dead. Everything keyed
      *  to it goes: the questions nobody is going to answer now, what was said
@@ -602,7 +602,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       terminalTools.clear()
       questions.withdrawAll()
       calls.forget()
-      mcpFrames.clear()
       activity?.clear(closed)
       forgetModel()
       // ... and the doubled-prologue arm along with the rest: it names a chunk
@@ -777,7 +776,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 detail: undefined,
                 progress: undefined,
                 diffs: undefined,
-                
+                called: undefined, row: undefined, reply: undefined,
                 locations: undefined,
                 parent: undefined,
                 spawned: undefined,
@@ -809,18 +808,17 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // ({@link ./calls.ts}).
           calls.heard(update.toolCallId, update._meta, notification.sessionId)
           // Recognition belongs to the leg; ownership belongs to the live catalogue.
-          const previous = mcpFrames.get(id)
-          const frame = {
-            title: update.title ?? previous?.title,
-            rawInput: update.rawInput ?? previous?.rawInput,
-            _meta: update._meta ?? previous?._meta,
+          const recognized = options.leg.mcpCall({
+            title: update.title,
+            rawInput: update.rawInput,
+            _meta: update._meta,
             name: calls.about(update.toolCallId, notification.sessionId).name,
-          }
-          mcpFrames.set(id, frame)
-          const call = options.leg.mcpCall(frame, given)
+          }, given)
+          calls.recognized(update.toolCallId, recognized, notification.sessionId)
+          const call = calls.about(update.toolCallId, notification.sessionId).mcp ?? null
           const ours = call === null ? null : options.advertised?.(call.server, call.tool) ?? null
           const decoded = ours === null ? undefined : options.leg.replyIn(update.rawOutput)
-          const reply = decoded !== undefined && Schema.is(Json)(decoded) ? decoded : undefined
+          const reply = decoded !== undefined && isJson(decoded) ? decoded : undefined
 
           emit({
             _tag: "tool",
@@ -2697,3 +2695,5 @@ export const mcpServersOf = (
     env: Object.entries(one.env).map(([name, value]) => ({ name, value })),
   })),
 ]
+
+const isJson = Schema.is(Json)

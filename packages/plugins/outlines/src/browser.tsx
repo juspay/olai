@@ -1,7 +1,9 @@
-import { fileOf, story } from "./browser/replyFace.tsx"
 /** Outlines owns editor history, selection/drag registers, page readings and
  * browser preferences. These resources live in the provider activation, before
  * and independently of any layout. Content and settings are separate consumers. */
+import type {} from "olai-plugin-chat/slots"
+import { fileOf, story } from "./browser/replyFace.tsx"
+
 import { fileKindKey } from "@olai/plugin-api/file-kinds"
 import { fileKinds } from "olai-plugin-files/contract"
 import { pages } from "olai-plugin-navigation/contract"
@@ -89,7 +91,6 @@ import { reachable } from "@olai/web/client/connection/reaching.ts"
  * row stops (`./contracts/references.ts`).
  */
 export default definePlugin({ name, needs: [Wired, Offers, Edits, Slots], apply: Effect.gen(function*() {
-  yield* (yield* Slots).register("tool.reply", { fileOf, story })
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
   // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through
@@ -121,6 +122,7 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits, Slots], apply:
   const offers = yield* Offers
   yield* offers.own("browser-state", () => state.value)
   yield* offers.own("references", () => state.value.references)
+  yield* (yield* Slots).register("tool.reply", { fileOf, story })
 }) })
 
 import { documentProperties } from "./browser/document-properties.tsx"

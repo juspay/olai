@@ -1,4 +1,3 @@
-import type { Advertised } from "@olai/plugin-api/services"
 /**
  * One conversation, and the surface it is served through.
  *
@@ -89,6 +88,8 @@ import type { Advertised } from "@olai/plugin-api/services"
  *     landed — so the whole path from browser to agent stays a string, and the
  *     one place that knows otherwise is the module that owns that directory.
  */
+import type { Advertised } from "@olai/plugin-api/services"
+
 
 import { type AgentChoice, type Attached, type AttachChunk, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type Talking } from "olai-plugin-chat/wire"
 import { type OpFailure } from "@olai/format"

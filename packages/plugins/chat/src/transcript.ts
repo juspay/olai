@@ -980,7 +980,10 @@ export class Transcript {
     const named = this.#named.has(key)
     if (move.title !== undefined) this.#named.add(key)
     const called = (named ? undefined : move.called) ?? held?.called
-    const text = (named ? undefined : move.title) ?? held?.text ?? id
+    // Ownership can arrive later; replace the raw label once without moving
+    // the original engine spelling or subsequent friendly titles.
+    const firstOwner = held?.row === undefined && move.row !== undefined
+    const text = (named && !firstOwner ? undefined : move.title) ?? held?.text ?? id
     // THE TOOL ARM, named — so the comparison below is between two values of
     // one kind rather than two of a six-armed union, and a field that belongs
     // to somebody else's row is a type error here rather than a key silently

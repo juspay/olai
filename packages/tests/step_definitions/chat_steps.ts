@@ -90,7 +90,7 @@ import {
   CHAT_MODEL,
   CHAT_NEW,
   CHAT_NO_AGENT,
-  CHAT_NUDGE,
+  OUTLINES_NUDGE,
   CHAT_OUTLINE_CHANGE,
   CHAT_QUEUED,
   CHAT_QUEUES,
@@ -139,7 +139,8 @@ import {
   CHAT_USAGE,
   CHAT_WAITING,
   CHAT_WORKING,
-  CHAT_WROTE,
+  OUTLINES_STORY,
+  CHAT_TOOL_TEXT,
   CHAT_TOOL_FILE,
   CHAT_TOOL_CALLED,
   CHAT_TOOL_REPLY,
@@ -1626,7 +1627,7 @@ Then(
   async function (this: OlaiWorld, said: string) {
     // The commit panel's own words for the same event, which is the parity
     // this is really about: one classification, two places it is read.
-    const wrote = this.page.locator(CHAT_WROTE).first();
+    const wrote = this.page.locator(OUTLINES_STORY).first();
     await wrote.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const shown = oneLine(await wrote.innerText());
     assert.ok(
@@ -1675,7 +1676,7 @@ Then(
     // What the rollup noticed about a write that LANDED — advice, never a
     // reason anything failed. A person who asked an agent for something is
     // owed the aside a person who pressed a key already gets.
-    const nudge = this.page.locator(CHAT_NUDGE).first();
+    const nudge = this.page.locator(OUTLINES_NUDGE).first();
     await nudge.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const shown = oneLine(await nudge.innerText());
     assert.ok(
@@ -3959,7 +3960,7 @@ Then("the tool call says which outline it touched", async function (this: OlaiWo
 Then("the tool call is called {string} underneath", async function (this: OlaiWorld, called: string) {
   const tool = heldTool(this);
   assert.equal(await tool.locator(CHAT_TOOL_CALLED).innerText(), called);
-  assert.equal(await tool.locator(CHAT_TOOL_FOLD).locator("span[title]").getAttribute("title"), called);
+  assert.equal(await tool.locator(CHAT_TOOL_TEXT).getAttribute("title"), called);
 });
 Then("the tool call's reply is shown once", async function (this: OlaiWorld) {
   const tool = heldTool(this);
@@ -3971,8 +3972,14 @@ Then("the tool call's reply is shown once", async function (this: OlaiWorld) {
   assert.ok(!input.includes(reply.summary ?? reply.file), "reply leaked into the input detail");
 });
 Then("the chat shows no story under the call", async function (this: OlaiWorld) {
-  assert.equal(await heldTool(this).locator(CHAT_WROTE).count(), 0);
+  assert.equal(await heldTool(this).locator(OUTLINES_STORY).count(), 0);
 });
 Then("the tool call shows no outline", async function (this: OlaiWorld) {
   assert.equal(await heldTool(this).locator(CHAT_TOOL_FILE).count(), 0);
+});
+
+Then("the foreign tool reply remains ordinary detail", async function (this: OlaiWorld) {
+  const tool = heldTool(this);
+  assert.equal(await tool.locator(CHAT_TOOL_REPLY).count(), 0);
+  assert.match(await tool.locator(CHAT_TOOL_DETAIL).innerText(), /foreign write-shaped reply/);
 });

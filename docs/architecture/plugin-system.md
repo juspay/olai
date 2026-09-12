@@ -88,6 +88,7 @@ export default definePlugin({
     yield* slots.register("outline.row.chip", WORKTREE_KIND, CiChip)
     yield* slots.register("outline.row.pane", WORKTREE_KIND, RunMatrix)
     yield* slots.register("delivery.mark", OduMark)
+    // Outlines similarly registers tool.reply: { fileOf, story }, owned by chat.
     yield* slots.register("app.mount", (props) => /* one subscription per tab */)
   }),
 })
@@ -908,7 +909,10 @@ appliance olai has a judgement about. Smaller shape, same rules.
   machine has no agent at all (`engine.install`, which takes a `NotHere` value
   rather than a drawing). Core keeps the shape of each — the sixteen-unit box,
   the list, the order — and neither crosses the wire, so a row selection naming
-  other engines draws a panel with nothing of yours in it.
+  other engines draws a panel with nothing of yours in it. Chat also owns
+  `tool.reply`: outlines supplies `{ fileOf, story }` through that slot,
+  registered after its resources so the face withdraws first. Display ownership
+  comes from the optional MCP catalogue through `Tools`, resolved per call.
 - Put the install sentence in a `src/install.ts` your browser half opens: a
   `NotHere` (`@olai/plugin-api`) whose `why` is a whole sentence core composes no
   clause of.
@@ -1292,5 +1296,3 @@ stable files through a generated catalog.
 - [slot-ownership.md](slot-ownership.md) — renderer location owners.
 - [live-properties.md](../live-properties.md) — the user-facing half of §8.
 - [running.md](../running.md) — row selection as an operator sees it.
-
-Chat also declares `tool.reply` beside `delivery.mark`: an owning plugin supplies a reply face while chat owns the row frame. Outlines registers its story without depending on chat's activation. The optional MCP catalogue is carried deliberately through the existing `Tools` broker, resolved per call; no cached provider survives withdrawal.

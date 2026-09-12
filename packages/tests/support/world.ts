@@ -1088,6 +1088,12 @@ export const CHAT_NEW = selector(PLUGIN_TESTID.chatNew);
 export const CHAT_ENTRY_STREAMING =
   `${selector(PLUGIN_TESTID.chatEntry)}[data-kind="agent"][data-streaming="true"]`;
 export const CHAT_TOOL = selector(PLUGIN_TESTID.chatTool);
+
+export const CHAT_TOOL_FILE = selector(PLUGIN_TESTID.chatToolFile);
+export const CHAT_TOOL_CALLED = selector(PLUGIN_TESTID.chatToolCalled);
+export const CHAT_TOOL_REPLY = selector(PLUGIN_TESTID.chatToolReply);
+
+export const CHAT_TOOL_TEXT = selector(PLUGIN_TESTID.chatToolText);
 export const CHAT_TOOL_FOLD = selector(PLUGIN_TESTID.chatToolFold);
 export const CHAT_TOOL_DETAIL = selector(PLUGIN_TESTID.chatToolDetail);
 export const CHAT_TOOL_PROGRESS = selector(PLUGIN_TESTID.chatToolProgress);
@@ -1133,8 +1139,8 @@ export const CHAT_DIFF_EXPAND = selector(PLUGIN_TESTID.chatDiffExpand);
 export const CHAT_DIFF_WHOLESALE = selector(PLUGIN_TESTID.chatDiffWholesale);
 export const CHAT_OUTLINE_DIFF = selector(PLUGIN_TESTID.chatOutlineDiff);
 export const CHAT_OUTLINE_CHANGE = selector(PLUGIN_TESTID.chatOutlineChange);
-export const CHAT_WROTE = selector(PLUGIN_TESTID.outlinesStory);
-export const CHAT_NUDGE = selector(PLUGIN_TESTID.outlinesNudge);
+export const OUTLINES_STORY = selector(PLUGIN_TESTID.outlinesStory);
+export const OUTLINES_NUDGE = selector(PLUGIN_TESTID.outlinesNudge);
 export const CHAT_REFUSAL = selector(PLUGIN_TESTID.chatRefusal);
 export const CHAT_USAGE = selector(PLUGIN_TESTID.chatUsage);
 export const CHAT_TROUBLE = selector(PLUGIN_TESTID.chatTrouble);
@@ -3101,7 +3107,3 @@ export class OlaiWorld extends World {
 }
 
 setWorldConstructor(OlaiWorld);
-
-export const CHAT_TOOL_FILE = selector(PLUGIN_TESTID.chatToolFile);
-export const CHAT_TOOL_CALLED = selector(PLUGIN_TESTID.chatToolCalled);
-export const CHAT_TOOL_REPLY = selector(PLUGIN_TESTID.chatToolReply);

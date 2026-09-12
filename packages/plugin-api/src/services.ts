@@ -1152,6 +1152,9 @@ export interface ToolServer {
   readonly token: string
 }
 
+/** Static display contract; the catalogue provider owns the live lookup. */
+export interface Advertised { readonly title: string; readonly owner: string }
+
 /**
  * THE VAULT'S OWN MCP TOOL SERVER, once the listener has bound.
  *
@@ -1173,8 +1176,6 @@ export interface ToolServer {
  * becomes an Effect dependency that a reader can see rather than a comment
  * guarded by a loud throw.
  */
-/** Static display contract; the catalogue provider owns the live lookup. */
-export interface Advertised { readonly title: string; readonly owner: string }
 export interface Tools {
   /** Deliberately carried by Tools rather than a second optional broker.
    * Null means no catalogue is serving, or the server/tool is not ours.
@@ -1446,11 +1447,12 @@ export interface PluginsConfig {
    * OPTIONAL, and absent means NO CREDENTIAL EVER — the headless faces and
    * every bench, which have no MCP face to mint against.
    */
-  readonly advertisedFor?: Tools["advertised"]
   readonly ticketFor?: (
     forbidden: () => ReadonlyArray<Forbidden>,
     writer: string,
   ) => MintedTicket | null
+  /** Optional live display lookup; absence means no tool is recognized as ours. */
+  readonly advertisedFor?: Tools["advertised"]
   /**
    * WHERE EACH PLUGIN SITS IN THE BUILD'S LIST OF ROWS — see {@link Bundle}.
    *

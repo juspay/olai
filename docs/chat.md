@@ -272,7 +272,7 @@ If the lookup itself fails, the panel says so at the end of the conversation —
 
 A tool call is one folded line, and what the call CHANGED is not folded away — the arguments are what was asked for, and this is what happened to your files. There are two kinds of change and the panel draws them differently, because they are different things.
 
-**Olai's own calls use the advertised tool title**, with the outline beside it: “Mark done · house.olai”. The first title stays fixed while the call runs. The engine's spelling remains on hover and at the head of the fold. The fold shows the input JSON once and the reply JSON once. Other tools keep their adapter's announced title and ordinary detail.
+**A tool's name stays fixed at its first titled frame** while input and output live in its fold. Olai's own calls use the advertised tool title, with the outline beside it: “Mark done” and “house.olai”. If ownership is first recognized on a later frame, that friendly title replaces the raw name once. The engine's original spelling remains on hover and at the head of the fold. The fold shows input JSON once and reply JSON once. Other tools keep their adapter's announced title and ordinary detail.
 
 The owning plugin hangs its story in chat's `tool.reply` slot, just as a plugin hangs a doorbell mark in `delivery.mark`. Outlines supplies the file and, for a write, the change glyph, clickable node title, classification and optional nudge. Reads show the file without a write story. If the MCP catalogue is absent, calls keep their raw title; if the owning face is absent, no story is drawn.
 

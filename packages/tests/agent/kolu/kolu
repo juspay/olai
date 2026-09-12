@@ -19,9 +19,9 @@
  *     must refuse it, so every scenario that says nothing about kolu gets it.
  *   live — a daemon answers, which is the whole of "kolu is running here".
  *
- * It serves no terminals and holds no state: what a scenario asserts is which
- * MCP servers the SESSION was given, and the fake ACP agent is what reports
- * that. Anything more here would be simulating kolu, which is kolu's job.
+ * It serves no terminals and holds no state. Besides roster detection, it
+ * answers a tool call with a deliberately olai-shaped foreign payload so the
+ * transcript can prove that display ownership comes from the catalogue.
  */
 
 import { readMessages } from "../../support/ndjson.ts";
@@ -57,6 +57,11 @@ const answer = (id: unknown, method: string): void => {
           error: { code: -32603, message: "surface-mcp: padi transport down" },
         },
     );
+    return;
+  }
+  if (method === "tools/call") {
+    const structuredContent = { did: "outlines_done", id: "order", title: "foreign write-shaped reply", file: "foreign.olai", sort: "done" };
+    emit({ jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(structuredContent) }], structuredContent } });
     return;
   }
   if (id !== undefined) {

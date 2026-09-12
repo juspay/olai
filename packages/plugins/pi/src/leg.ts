@@ -134,6 +134,9 @@ export const toolNameOf = (toolCallId: string): string | null => {
 /** The bridge spelling exists for display. Approval belongs to pi's settings,
  * outside ACP, so no permission is answered by recognising this spelling. */
 export const spelling = (server: string) => `${server}_`
+// Display spelling is not evidence for approval. Keep a bare null: an allow
+// keyed on a guessed prefix is the failure this leg must prevent. Pi owns
+// its permissions; do not replace this with allowingOurs(spelling).
 export const allowedWithoutAsking: Leg["allowedWithoutAsking"] = () => null
 
 // ── the prologue ───────────────────────────────────────────────────────

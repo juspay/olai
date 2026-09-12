@@ -326,10 +326,14 @@ Feature: An agent olai did not start
     And the page has not reloaded
     And there should be no page errors
 
+  @kolu
   Scenario: A foreign tool keeps its adapter title without an outline story
     Given the agent panel is open
-    When I ask the agent "external elsewhere outlines_done {}"
+    When I ask the agent "external kolu outlines_done {}"
     Then the agent is idle
-    And the chat shows a tool call named "elsewhere — outlines_done"
+    And the chat shows a tool call named "mcp__kolu__outlines_done"
     And the tool call shows no outline
     And the chat shows no story under the call
+    And the agent's answer mentions "foreign write-shaped reply"
+    When I unfold the tool call
+    Then the foreign tool reply remains ordinary detail

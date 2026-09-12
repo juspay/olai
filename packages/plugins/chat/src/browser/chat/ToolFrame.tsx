@@ -228,7 +228,8 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
           {look().mark}
         </span>
         <span class="sr-only">{look().said}</span>
-        <span class="min-w-0 flex-1 truncate" title={props.entry.called !== props.entry.text ? props.entry.called : undefined}>{props.entry.text}</span>
+        <span class="min-w-0 flex-1 truncate" data-testid={TESTID.chatToolText}
+          title={props.entry.called !== props.entry.text ? props.entry.called : undefined}>{props.entry.text}</span>
         {/* WHO WAS SENT, on the line, from the moment the spawn is announced —
             which is a good while before the agent has done anything to draw a
             lane out of ({@link ./spawn.ts}). It shares the slot a call's

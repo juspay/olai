@@ -1,5 +1,3 @@
-import { Json } from "../json.ts"
-export { Json } from "../json.ts"
 /**
  * Chat, on the wire.
  *
@@ -49,6 +47,9 @@ export { Json } from "../json.ts"
  * always agree, and a send that failed never leaves a message on screen that
  * was never sent.
  */
+import { Json } from "../json.ts"
+export { Json } from "../json.ts"
+
 import { SessionSetting, PlanStep, TerminalView } from "./session.ts"
 import {
   AskAnswer,

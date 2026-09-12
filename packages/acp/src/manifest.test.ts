@@ -195,9 +195,9 @@ describe("the manifest", () => {
   })
 
   test("the protocol enters the tree here, in the chat, and in an engine's bench", () => {
-    // IT WAS TWO PACKAGES, and the third and fourth are the engines phase: an
-    // engine is a PLUGIN now, and two of them stage a `PermissionOption` in
-    // their own benches to assert the one rule a leg may never widen. Their
+    // IT WAS TWO PACKAGES; the other four are the engines: an
+    // engine is a PLUGIN now. Their fixtures stage SDK payloads and their
+    // benches assert the one rule a leg may never widen. Their
     // production sources name none of the SDK's types — `@olai/acp/engine`
     // carries the ones a leg's signatures need — which is why this list can
     // still be written down rather than becoming "every plugin".

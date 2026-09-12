@@ -115,8 +115,9 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
      * departed MCP provider leaves no old issuer installed (`@olai/bundle`'s
      * `inputs.ts`).
      */
-    let readAdvertised: ReturnType<typeof advertisedFor> | undefined;
     let issueTicket: ReturnType<typeof ticketsFor> | undefined;
+    // Resolve display ownership after composition; absence means no catalogue.
+    let readAdvertised: ReturnType<typeof advertisedFor> | undefined;
     const served = resolve(options.root);
     yield* Effect.annotateLogsScoped({ root: served });
     const say = yield* emitter;
@@ -157,7 +158,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
         vars: options.vars ?? process.env,
         now: () => new Date().toISOString(),
         tools: toolsReady,
-        advertisedFor: (server, tool) => readAdvertised?.(server, tool) ?? null,
+      advertisedFor: (server, tool) => readAdvertised?.(server, tool) ?? null,
       ticketFor: (...args) => issueTicket?.(...args) ?? null,
         rank: bundleRank,
         localStateFor: (plugin) => localStateFor(plugin, served, (line) => say(Effect.logWarning(line))),

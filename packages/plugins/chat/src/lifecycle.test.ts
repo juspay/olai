@@ -444,13 +444,13 @@ test("an absent catalogue leaves raw titles and never reads the reply", async ()
   } finally { await Effect.runPromise(agent.stop) }
 })
 
-test("completion uses remembered identity while the catalogue stays live", async () => {
+test.each([false, true])("completion uses remembered identity with late catalogue=%s", async (late) => {
   const events: import("./events.ts").AgentEvent[] = []
   let lookups = 0
   const agent = await Effect.runPromise(make({ ...options(),
     leg: { ...QUEUES, mcpCall: frame => frame.title === "engine_tool" && frame.rawInput !== undefined ? { server: "ours", tool: "read" } : null,
       replyIn: raw => raw as Record<string, unknown> },
-    advertised: () => { lookups++; return { title: "Read a node", owner: "notes" } },
+    advertised: () => { lookups++; return late && lookups === 1 ? null : { title: "Read a node", owner: "notes" } },
     onEvent: event => events.push(event),
   }))
   try {
@@ -458,7 +458,8 @@ test("completion uses remembered identity while the catalogue stays live", async
     await Effect.runPromise(agent.prompt("display-tool"))
     const frames = events.filter(event => event._tag === "tool")
     expect(lookups).toBe(2)
-    expect(frames[0]?.title).toBe("Read a node")
+    expect(frames[0]?.title).toBe(late ? "engine_tool" : "Read a node")
+    expect(frames[1]?.title).toBe("Read a node")
     expect(frames[0]?.called).toBe("engine_tool")
     expect(frames[1]?.reply).toEqual({ file: "one.olai", title: "one" })
     expect(frames[1]?.detail).toBeUndefined()

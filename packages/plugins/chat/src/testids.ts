@@ -567,6 +567,7 @@ export const TESTID = {
    *  top of the old file rather than an edit. */
   chatDiffWholesale: "chat-diff-wholesale",
   /** The owning reply's file, adapter spelling and single-copy JSON fold. */
+  chatToolText: "chat-tool-text",
   chatToolFile: "chat-tool-file",
   chatToolCalled: "chat-tool-called",
   chatToolReply: "chat-tool-reply",

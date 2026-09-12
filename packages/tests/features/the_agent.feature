@@ -2034,6 +2034,7 @@ Feature: Talking to the agent
     When I ask the agent "done order"
     Then the chat shows a tool call named "Mark done"
     And the tool call says which outline it touched
+    And the tool call says where it is working
     And the chat says the write "marked done"
     When I press the node "order" in the write
     Then the node "order" is focused
@@ -2050,3 +2051,14 @@ Feature: Talking to the agent
     And the chat shows a tool call named "Read a node"
     And the tool call says which outline it touched
     And the chat shows no story under the call
+
+  @scratch:chat
+  Scenario: Late MCP recognition relabels the call and preserves its first spelling
+    When I ask the agent "late-done order"
+    Then the agent is idle
+    And the chat shows a tool call named "Mark done"
+    And the tool call says which outline it touched
+    And the chat says the write "marked done"
+    When I unfold the tool call
+    Then the tool call is called "pending MCP call" underneath
+    And the tool call's reply is shown once

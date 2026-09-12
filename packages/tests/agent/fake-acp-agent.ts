@@ -945,7 +945,7 @@ const useExternal = async (
     update: {
       sessionUpdate: "tool_call",
       toolCallId,
-      title: `${server} — ${name}`,
+      ...toolWire.announced(server, name, args),
       status: "in_progress",
       rawInput: args,
     },
@@ -953,7 +953,7 @@ const useExternal = async (
   const sayOutcome = (status: "completed" | "failed", output: unknown): void =>
     notify("session/update", {
       sessionId,
-      update: { sessionUpdate: "tool_call_update", toolCallId, status, rawOutput: output },
+      update: { sessionUpdate: "tool_call_update", toolCallId, status, ...toolWire.wrapped(output as claudeTool.CallToolResult) },
     })
   const server_ = await externalOf(server)
   if (server_ === null) {
@@ -990,6 +990,7 @@ const completed = (toolCallId: string): void => {
 const useTool = async (
   name: string,
   args: Record<string, unknown>,
+  late = false,
 ): Promise<Record<string, unknown>> => {
   const toolCallId = `call-${++nextMcpId}`
   notify("session/update", {
@@ -997,7 +998,8 @@ const useTool = async (
     update: {
       sessionUpdate: "tool_call",
       toolCallId,
-      ...toolWire.announced("olai", name, args),
+      ...(late ? { title: "pending MCP call", rawInput: args } : toolWire.announced("olai", name, args)),
+      locations: [{ path: `${cwd}/house.olai`, line: 12 }],
       status: "in_progress",
     },
   })
@@ -1009,6 +1011,7 @@ const useTool = async (
     update: {
       sessionUpdate: "tool_call_update",
       toolCallId,
+      ...(late ? toolWire.announced("olai", name, args) : {}),
       status: failed ? "failed" : "completed",
       ...toolWire.wrapped(result as unknown as claudeTool.CallToolResult),
     },
@@ -2583,8 +2586,8 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
-  if (verb === "done") {
-    await useTool("outlines_done", { id: argument })
+  if (verb === "done" || verb === "late-done") {
+    await useTool("outlines_done", { id: argument }, verb === "late-done")
     say(`marked \`${argument}\` done.`)
     reply(id, { stopReason: "end_turn" })
     return
