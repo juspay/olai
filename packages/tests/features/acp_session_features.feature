@@ -5,6 +5,8 @@ Feature: Agent session controls and progress
     And I open the outline "house.olai"
     And I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
+    And I follow the agent's open-page link
+    And the node page conversation is ready for "kitchen"
 
   Scenario: Advertised select and boolean settings reach the agent
     When I open the session settings
@@ -107,7 +109,7 @@ Feature: Agent session controls and progress
     When I ask the agent "execution-plan"
     Then the execution plan contains "Inspect the outline" as "in_progress"
     When I reload the page
-    And I unfold node agent "kitchen"
+    And the node page conversation is ready for "kitchen"
     Then the agent is working
     Then the execution plan contains "Inspect the outline" as "in_progress"
     When the agent is released
@@ -115,7 +117,7 @@ Feature: Agent session controls and progress
     When I ask the agent "terminal live"
     Then terminal output contains "stdout ready"
     When I reload the page
-    And I unfold node agent "kitchen"
+    And the node page conversation is ready for "kitchen"
     Then the agent is working
     Then terminal output contains "stdout ready"
     When the agent is released

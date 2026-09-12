@@ -3112,7 +3112,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // ... AND WHOSE CONVERSATION IT WAS, which is the way OUT of this face
         // and used to be dropped exactly here. A node agent's *fresh session*
         // is drawn only where the header knows the node
-        // ({@link ./browser/chat/NodeSessions.tsx}), the node is `bound`, and
+        // ({@link ./browser/agents/History.tsx}), the node is `bound`, and
         // `bound` was written only where a conversation OPENED — so the one
         // face that needs the way out was the one face with no node on it. The
         // gesture is unchanged and so is its warning: what changes is that it

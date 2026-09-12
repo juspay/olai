@@ -244,7 +244,7 @@ export const TESTID = {
   /** The header's SESSIONS pill: this node agent's own conversations, and the
    *  fresh one that ends the current one. Drawn only where the panel's
    *  conversation belongs to a node agent — the `chats` list that stood here
-   *  retired into the sidebar's story (`./browser/chat/NodeSessions.tsx`). */
+   *  retired into the sidebar's story (`./browser/agents/History.tsx`). */
   chatSessions: "chat-sessions",
   /** ... and the list it opens. */
   chatSessionList: "chat-session-list",

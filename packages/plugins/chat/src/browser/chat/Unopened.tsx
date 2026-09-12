@@ -1,38 +1,6 @@
-/**
- * What the panel says when the agent is RUNNING and would not open a
- * conversation.
- *
- * The third of the panel's bodies ({@link ./face.ts}), and the one that is
- * about a live agent. {@link ./NoAgent.tsx} is a capability that is switched
- * off — nothing was attempted, so nothing was refused. This one had an answer:
- * something was asked for, the agent said no, and it is still there to be asked
- * again.
- *
- * Three arguments about how it is drawn, and each is a thing it deliberately is
- * not:
- *
- *   - **it is not the header's business.** The header goes on naming the model
- *     and saying *ready*, because that is true: the process is up and it just
- *     spoke. Reporting the refusal up there — which is what saying *not
- *     running* amounted to — makes a reader go looking for a dead agent that is
- *     not dead.
- *   - **it is not a banner over an empty transcript.** There is no transcript:
- *     no conversation was opened, so there is nothing to scroll and nothing to
- *     type into. A line of `trouble` above an empty pane with a live composer
- *     under it invites somebody to send a message that has nowhere to go. The
- *     body IS the explanation.
- *   - **it is not a dead end.** The one thing that can change the state is
- *     asking again, so the button is here rather than somewhere a reader has to
- *     find — and it asks for the SAME thing that was refused, which is the
- *     server's to remember and not this component's to reconstruct
- *     (`../../../../plugins/chat/src/chat.ts`'s `reopen`).
- *
- * The agent's own words are the feature. "The conversation could not be opened"
- * is the sentence every one of these failures shares and the one that never
- * helped anybody; what a reader can act on is that this agent does not keep
- * conversations, or that the session id it was asked for is one it has never
- * heard of.
- */
+/** An opening refusal belongs to the requested conversation. Show the
+ * engine's reason and retry that same attempt; no composer is available until
+ * the session opens. Missing engine capability is drawn by NoAgent instead. */
 
 import type { Unopened as Refused } from "olai-plugin-chat/wire"
 import { Show } from "solid-js"

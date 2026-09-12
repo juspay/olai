@@ -1,31 +1,6 @@
-/**
- * The question the agent is waiting on, as the OPEN panel last saw it.
- *
- * Deliberately NOT a transcript subscription of its own — the same arrangement
- * `../last.ts` makes for the minimized pill, and for the same reason: the open
- * panel owns the transcript collection (`../Panel.tsx`), and a shut panel that
- * took every streaming frame to keep a banner's second line warm would undo
- * the whole invariant. So this is a module snapshot the open conversation
- * writes, and the banner reads.
- *
- * IT IS CLEARED WHEN THE PANEL CLOSES, which is the difference from the pill's
- * snapshot and is not a detail. A stale last message under a pill reads as
- * "the last thing I saw", which is what a pill is; a stale QUESTION in a system
- * notification reads as the question that just arrived, and would be a banner
- * about something that was answered ten minutes ago. So `onCleanup` empties it
- * and the banner falls back to naming the conversation
- * ({@link ./notice.ts}) — which is the honest sentence for a panel that was
- * not watching.
- *
- * The COUNT is never taken from here. That comes off the chat cell
- * (`ChatState.asking`), which the server counts from these very rows and which
- * every tab has whether its panel is open or not; this is only the words.
- *
- * WHAT IT READS is `../newest.ts`, which owns the reactivity lesson both this
- * and the pill's snapshot were written against
- * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §4.4) — and the one
- * departure this makes from it is argued at the pick below.
- */
+/** Derive the newest unanswered question from this conversation's owned
+ * transcript reading. The notification's question text follows this reader;
+ * the server roster owns counts and current-session standing. */
 
 import { type Accessor } from "solid-js"
 

@@ -1,93 +1,7 @@
-/**
- * THE AGENTS ROSTER AS THIS TAB HAS IT — one subscription, and a context over
- * the server's answer.
- *
- * `../pins/answered.tsx`'s arrangement, for its reasons, and they hold harder
- * here. The readers are scattered and none of them is near the other: the
- * sidebar's section draws the whole roster, EVERY ROW of a thousand-row outline
- * asks whether its node is on it (the door), and the panel's header asks what
- * the node it is bound to is called. Threading one accessor through all of that
- * would make every component's signature a function of what one descendant
- * needs.
- *
- * The DOOR is drawn for every node in the outline and answers nothing for
- * nearly all of them. Subscribing there would mean a thousand subscriptions on
- * a big board for three agents' worth of answer. Subscribe once here and hand
- * every leaf an accessor. Standing is already on each row: several node scopes
- * may be live, so the foreground chat cell cannot derive that answer.
- *
- * ## Two readings, because two questions are asked
- *
- * {@link Roster.rows} is the list, in the order the vault answers — what the
- * sidebar draws. {@link Roster.at} is one node's row — what a door and the
- * panel's header ask, both of which hold a node id and want nothing else. The
- * lookup is a MAP built with the list rather than a scan per asker, for the
- * reason `../doors.ts` builds one: the askers are per drawn row and the answer
- * is per frame.
- *
- * ## And a third that is not a reading of the roster at all
- *
- * {@link Roster.engines} is WHICH AGENTS THIS MACHINE HAS, which is a different
- * question from which nodes are node agents — and it is here for a reason that
- * is entirely about where the subscription is. It is a field of the chat cell
- * this provider is already holding, and its one reader is the `•••` menu's
- * *start an agent session* on a BARE node, which has to pick an engine because
- * the node names none (`../menu/verbs.ts`). A second `createChatState` behind
- * the menu would be the per-row subscription this whole module exists to
- * refuse, arriving from the other side.
- *
- * ## ... and a fourth: THE CHATS NO NODE CLAIMS
- *
- * Migration needs the OTHER list — what every installed agent has stored here
- * — and that one is not a cell at all. It is a question, asked of the agents
- * themselves, which can mean starting one that is not running
- * (`olai-plugin-chat`'s `listings.ts` owns what that costs and how long an answer is
- * worth keeping). So it is asked ONCE when this provider mounts, and the
- * difference is derived live: **what is unassigned is the listing minus what
- * the roster claims** ({@link ./lineage.ts}), and the roster is a cell. That
- * arrangement is what makes the count on the sidebar honest without a second
- * round trip — assign a chat and the property lands, the cell moves, and the
- * row it left drops out of the list on that frame.
- *
- * ASKED ONCE PER TAB rather than per frame, and never on a clock: the answer
- * changes when somebody works in this directory — a `claude --resume` in a
- * terminal — so the list is re-asked when a person OPENS it
- * ({@link Roster.askChats}), which is the same bargain the list this replaced
- * made on every open. And there is a THIRD ask, because the second one can be
- * unreachable: the row the press refreshes draws only on a non-empty answer,
- * so in a fresh vault — or any tab that mounted before its first conversation
- * existed — OPENING can never fire. The event the empty answer cannot survive
- * is a SETTLED TURN: the conversation that just ran is a file the listing has
- * not seen, so when the last answer names neither it nor a node claiming it,
- * the ask goes out again there. ONCE per conversation, never per turn: a
- * listing that CAN name it has been asked, and one that cannot — an agent
- * without `sessionCapabilities.list`, or a `cwd` the directory rule rejects —
- * never will, so re-asking on every settle would pay the spawn bill this
- * file's ask-once rule exists to refuse, on a trigger nothing on screen ever
- * shows. The tab remembers instead (`probed` below), and anything surer than
- * one probe is the press. A conversation the answer already names pays
- * nothing per turn, which is the ordinary state of every directory this is
- * asked about — the same rule the cache keeps one layer down: nothing is
- * re-asked about what the answer already says.
- *
- * WHAT COULD NOT BE ASKED IS KEPT, in both of its sizes. One agent that could
- * not answer is a row of the answer ({@link Roster.unreachable}) and the whole
- * ask not landing is {@link Roster.chatsRefusal} — and neither empties the last
- * list this tab had. Both are drawn where the conversations are, because *we
- * did not get to look* and *there is nothing here* are different answers and
- * this list is now the only place either can be said. The sidebar's ROW is the
- * one reader that says less: it counts chats, and a count is not a sentence, so
- * it draws for an unreachable agent without pretending to number one.
- *
- * BEFORE THE FIRST FRAME the roster is empty, which is the same thing a
- * directory with no `agent-session` property anywhere says and the same thing it draws:
- * nothing. There is no third state to give anybody — an empty sidebar and a
- * sidebar that has not heard look identical.
- *
- * WHAT A DEAD WIRE DRAWS is the last answer that arrived, which is what the
- * connection pill already promises for everything else on screen, and the
- * reader is looking at it through the offline overlay.
- */
+/** One activation-owned roster supplies every outline face, sidebar region and
+ * palette adapter. Row lookups, engine choices and stored history share it.
+ * Stored listings refresh at activation/session revisions and explicit history
+ * opening; settled-turn filing is owned by the server. */
 
 import {
   type Accessor,
@@ -101,68 +15,25 @@ import {
 } from "solid-js"
 
 import {
-  CHAT_OFF, type ChatState, type Conversing,
   type AgentChoice,
-  agentIn,
   type Listed,
   NO_AGENT_ROSTER,
-  type SessionInfo,
   type Unreachable,
 } from "olai-plugin-chat/wire"
 import { run } from "@olai/web/client/run.ts"
-import { type Chatting } from "../../lineage.ts"
 import type { Row } from "./roster.ts"
 import { chatWire } from "../wire.ts"
 
-/** The roster as this tab has it: the list, one node's row, and the chats
- *  nobody has given a node yet. */
+/** The shared roster, installed engines and stored history answer. */
 export interface Roster {
   readonly rows: Accessor<ReadonlyArray<Row>>
-  /** This node's row, or `undefined` for a node that is not a node agent —
-   *  which is every other row of every outline. */
   readonly at: (node: string) => Row | undefined
-  /** WHICH AGENTS THIS MACHINE HAS, in the order the panel's picker draws them
-   *  — see the header for why this rides here. Empty before the first frame,
-   *  and on a serve with no ACP agent at all, which are the same two cases
-   *  every other reading here has. */
   readonly engines: Accessor<ReadonlyArray<AgentChoice>>
-  /**
-   * THE CONVERSATIONS NO NODE CLAIMS, newest first across every installed
-   * agent — what **Unassigned** holds and counts.
-   *
-   * Empty before the listing has answered, on a serve that refused it, and on
-   * a directory whose chats are all assigned. Those are three ways to draw the
-   * same nothing, which is what the row does with them.
-   */
-  /**
-   * ... AND THE WHOLE ANSWER THE LISTING GAVE, for the readers that need more
-   * of it than the difference: which agents COULD NOT BE ASKED and what they
-   * said about it, and the links that make one conversation another's history.
-   *
-   * `null` until an answer has arrived, which is a list nobody can draw yet
-   * rather than an empty one.
-   */
+  /** Null until the first listing; a refused refresh keeps the last answer. */
   readonly chats: Accessor<Listed | null>
-  /** WHICH AGENTS COULD NOT BE ASKED what they have stored, and why — that
-   *  answer's own arm, read off it here rather than at each face, because two
-   *  faces draw it: the row that says there is something to look at, and the
-   *  list that names them. Empty before an answer and where every agent
-   *  answered. */
   readonly unreachable: Accessor<ReadonlyArray<Unreachable>>
-  /** ... and why the last ask did not land at all — a dropped socket, a server
-   *  that went — as opposed to one agent that could not be asked, which is a
-   *  row of the answer above. `null` when the last ask landed. */
   readonly chatsRefusal: Accessor<string | null>
-  /** WHICH CONVERSATION THE PANEL IS IN, as the pair that names one — `null`
-   *  when it is in none. Off the chat cell this provider already holds, so a
-   *  list that marks the row a reader is already looking at costs no second
-   *  subscription. */
-  /** Ask the agents again — what a person opening the list gets, because a
-   *  conversation started in a terminal a moment ago should be in it. Called
-   *  on the press, and by the provider itself when a settled turn lands the
-   *  panel in a conversation the last answer does not name and no node claims
-   *  — the ask a row that is not drawn yet can never take, once per such
-   *  conversation (see the header); past that the press is the only ask. */
+  /** Refresh on an explicit history opening or a completed session revision. */
   readonly askChats: () => void
 }
 
@@ -211,7 +82,7 @@ export function createAgents(): Roster {
     // COALESCED, not stacked: while one ask is in flight a second says nothing
     // the settle will not say fresher — and the settle RE-FIRES when anything
     // queued, because the queue is how an event that raced an in-flight ask
-    // (the first turn ending inside the mount ask's round trip, say) still
+    // (a session revision during the mount ask, for example) still
     // gets its answer rather than a window nobody re-opens.
     if (asking) {
       held = true
@@ -255,9 +126,6 @@ export function createAgents(): Roster {
   /** The answer's own arm, read once here — see {@link Roster.unreachable}. */
   const unreachable = createMemo((): ReadonlyArray<Unreachable> => chats()?.unreachable ?? [])
 
-  /** ... minus what the roster claims ({@link ./lineage.ts}), which is a
-   *  reading of the CELL and so is live: the frame an assignment lands on is
-   *  the frame that row leaves this list. */
 
   return { rows, at: node => byNode().get(node), engines, chats,
     unreachable, chatsRefusal, askChats }

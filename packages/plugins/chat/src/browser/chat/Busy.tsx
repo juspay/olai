@@ -58,7 +58,7 @@ const saying = (doing: Doing): string => {
   return doing.agent === null ? "working…" : `${doing.agent} is working…`
 }
 
-/** The strip. Drawn between the transcript and the box (`./Panel.tsx`). */
+/** The strip. Drawn between the transcript and the box (`../agents/Fold.tsx`). */
 export function Busy(props: { readonly chat: Chat }) {
   const doing = () => {
     const busy = busyIn(props.chat.state())

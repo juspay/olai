@@ -305,7 +305,7 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
    * again.
    *
    * THIS TAB'S, deliberately, like the picker's own question one level up
-   * (`./Panel.tsx`): it is a person part-way through a gesture. A second tab
+   * (`../agents/Fold.tsx`): it is a person part-way through a gesture. A second tab
    * has no business being told this one clicked something, and the moment the
    * server has an opinion the server's is what everyone sees.
    *

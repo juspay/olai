@@ -1,21 +1,7 @@
-/**
- * NODE AGENTS AS EFFECT SCOPES.
- *
- * `chat.ts` is one conversation's state machine. This module is the scheduler
- * above it: one acquired panel per node, a foreground pointer for the browser,
- * and routing by durable node id for wakes. Closing a node scope releases the
- * panel, which stops its ACP process, turns, probes, attachments and delivery
- * inbox in one finalizer.
- *
- * ...AND STOPPING THE SCHEDULER STOPS THE BOOT TOO, which is the half that was
- * missing. The boot is forked and detached on purpose — nobody calling `start`
- * should wait for a session to be recalled and a panel to be acquired — but
- * detached is not the same word as unowned, and it was both: a shutdown could
- * close every slot it could see while the boot was still walking towards one it
- * had not registered yet, leaving a minted credential and a live ACP process
- * with nothing left that could release either. `stopWithReason` holds the
- * handle and joins it, in that order.
- */
+/** Node agents as Effect scopes. Readings, ongoing work and derived wakes
+ * hold node conversations live; the scheduler owns capacity and idle reaping.
+ * Each scope releases its ACP process, turns, probes, attachments and delivery
+ * inbox together. Shutdown joins the owned boot and closes every live scope. */
 
 import { BusyFailure, type NodeAgent, type NodeAgents, UsageFailure } from "@olai/format"
 import type { OpFailure } from "@olai/format"

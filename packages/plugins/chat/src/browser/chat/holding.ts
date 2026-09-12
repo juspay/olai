@@ -6,7 +6,7 @@
  * and the strip are no longer in the same component. A file dragged at this
  * panel is aimed at the CONVERSATION, so the drop target is the panel's whole
  * body ({@link ./DropTarget.tsx}) — and the chips it lands in are a two-line
- * strip at the bottom of it. One owner above both: `Panel.tsx` makes this and
+ * strip at the bottom of it. One owner above both: the conversation component makes this and
  * hands it to each.
  *
  * Four gestures arrive here and there is deliberately one way through: paste

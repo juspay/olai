@@ -3780,8 +3780,8 @@ When("I reopen the agent fold during a turn", async function (this: OlaiWorld) {
 });
 
 When("I choose the chat model {string}", async function (this: OlaiWorld, name: string) {
-  await this.chatRoot().getByRole("button", { name: "Change model", exact: true }).click();
-  await this.chatRoot().getByRole("list", { name: "Models", exact: true })
+  await this.chatLine().getByRole("button", { name: "Change model", exact: true }).click();
+  await this.chatLine().getByRole("list", { name: "Models", exact: true })
     .getByRole("button", { name, exact: true }).click();
 });
 
@@ -3790,25 +3790,25 @@ Given("the agent refuses model changes", async function (this: OlaiWorld) {
 });
 
 Then("the model picker is disabled", async function (this: OlaiWorld) {
-  assert.strictEqual(await this.chatRoot().getByRole("button", { name: "Change model", exact: true }).isDisabled(), true);
+  assert.strictEqual(await this.chatLine().getByRole("button", { name: "Change model", exact: true }).isDisabled(), true);
 });
 
 When("I open the session settings", async function (this: OlaiWorld) {
-  await this.chatRoot().getByRole("button", { name: "Change model", exact: true }).click();
+  await this.chatLine().getByRole("button", { name: "Change model", exact: true }).click();
 });
 When("I set session setting {string} to {string}", async function (this: OlaiWorld, name: string, value: string) {
-  await this.chatRoot().getByRole("combobox", { name, exact: true }).selectOption(value);
-  await this.waitUntil(async () => await this.chatRoot().getByRole("combobox", { name, exact: true }).inputValue() === value, "setting accepted", HYDRATION_TIMEOUT);
+  await this.chatLine().getByRole("combobox", { name, exact: true }).selectOption(value);
+  await this.waitUntil(async () => await this.chatLine().getByRole("combobox", { name, exact: true }).inputValue() === value, "setting accepted", HYDRATION_TIMEOUT);
 });
 When("I enable fast mode", async function (this: OlaiWorld) {
-  await this.chatRoot().getByRole("checkbox", { name: "Fast mode", exact: true }).click();
-  await this.waitUntil(async () => this.chatRoot().getByRole("checkbox", { name: "Fast mode", exact: true }).isChecked(), "fast mode accepted", HYDRATION_TIMEOUT);
+  await this.chatLine().getByRole("checkbox", { name: "Fast mode", exact: true }).click();
+  await this.waitUntil(async () => this.chatLine().getByRole("checkbox", { name: "Fast mode", exact: true }).isChecked(), "fast mode accepted", HYDRATION_TIMEOUT);
 });
 Then("session setting {string} is {string}", async function (this: OlaiWorld, name: string, value: string) {
-  await this.waitUntil(async () => await this.chatRoot().getByRole("combobox", { name, exact: true }).inputValue() === value, "confirmed setting", HYDRATION_TIMEOUT);
+  await this.waitUntil(async () => await this.chatLine().getByRole("combobox", { name, exact: true }).inputValue() === value, "confirmed setting", HYDRATION_TIMEOUT);
 });
 When("I attempt session setting {string} to {string}", async function (this: OlaiWorld, name: string, value: string) {
-  await this.chatRoot().getByRole("combobox", { name, exact: true }).selectOption(value);
+  await this.chatLine().getByRole("combobox", { name, exact: true }).selectOption(value);
 });
 Then("the execution plan contains {string} as {string}", async function (this: OlaiWorld, text: string, status: string) {
   await this.chatRoot().getByLabel("Execution plan", { exact: true }).locator(`li${attr("data-status", status)}`).filter({ hasText: text }).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });

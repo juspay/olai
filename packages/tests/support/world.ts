@@ -2174,6 +2174,11 @@ export class OlaiWorld extends World {
     return `:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))} :is(${control})`;
   }
   chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.page.locator(this.chatSelector(control), options); }
+  /** Settings live in the fold's agent line or the zoomed page's head. */
+  chatLine(): Locator {
+    assert.ok(this.activeAgent, "select a node agent before addressing its agent line");
+    return this.page.locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
+  }
   chatRoot(): Locator {
     assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
     return this.page.locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))}`);

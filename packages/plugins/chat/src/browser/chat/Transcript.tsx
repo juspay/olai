@@ -42,7 +42,7 @@
  * this feature forced. The shelf draws tool rows too; every tool row asks for
  * the elapsed reading in its own body; and that lookup THROWS outside the
  * provider. So the provider went up, to the panel that mounts the strip, the
- * shelf and this pane ({@link ./Panel.tsx}) — which is also what
+ * shelf and this pane ({@link ../agents/Fold.tsx}) — which is also what
  * {@link ./elapsing.tsx} always claimed it was: ONE clock for the panel. Two
  * providers would be two timers and two subscriptions to a chat cell that moves
  * several times a turn.

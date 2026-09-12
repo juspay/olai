@@ -703,6 +703,15 @@ hm-module:
 # own paragraph gives; the referrers have four sizes of their own, named in
 # their row.
 
+# The plugin rows as a graph you can click: every row's server and browser
+# half, the components each declares, what they need, what they offer and
+# where they contribute, read off the sources by the TypeScript parser and
+# served on one page. `/graph.json` is recomputed per request, so edit a
+# plugin and reload.
+[doc("Serve an interactive graph of plugin rows, their needs, offers and locations")]
+cordis-graph port="4949": install
+    {{ nix_shell }} bun scripts/cordis-graph.ts {{ port }}
+
 [doc("Run performance benchmarks")]
 bench: install
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
