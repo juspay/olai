@@ -176,3 +176,33 @@ Feature: A node agent's conversation unfolds in the outline
     Then node agent "install" is unfolded
     When I use the fold on node "install"
     Then the composer is armed with "hinges"
+
+
+  @review-menu
+  Scenario: A mirror opens independently from its agent's original row
+    Given I rewrite "mirrored.olai" as:
+      """
+      {"id":"original","title":"Original","ord":"a0"}
+      {"id":"copy","mirror":"original","ord":"a1"}
+      """
+    And I open the outline "mirrored.olai"
+    When I open the "claude" agent on node "original"
+    And the node agent's fold is ready
+    Then only outline record "original" has an agent fold
+    When I press the standing on outline record "copy"
+    Then both outline records "original" and "copy" have an agent fold
+    When I press the standing on outline record "copy"
+    Then only outline record "original" has an agent fold
+
+  @review-menu
+  Scenario: A binding-only row can still add a property
+    Given I open the outline "house.olai"
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And I close the agent fold
+    And I open the node menu of "install"
+    Then the node menu offers "Add property…"
+    When I choose "Add property…" from the node menu
+    And I write the property "review-note" holding "kept" on "install"
+    Then the node "install" shows the property "review-note" holding "kept"
+    And "house.olai" holds the node "install" with "review-note" set to "kept"

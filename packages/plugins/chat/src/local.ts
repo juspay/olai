@@ -3,7 +3,7 @@
  *
  * Core gives this row one {@link LocalState} door, already keyed by the row's
  * name and served directory. Chat keeps model choices, wake picks and heard records in
- * it. The legacy memory section is carried unchanged for older versions; chat no longer reads it. A writer
+ * it. Chat does not read the legacy conversation-selection note. A writer
  * replaces one section under one permit and carries the others, so a model
  * choice cannot erase a doorbell pick or an overheard line.
  */

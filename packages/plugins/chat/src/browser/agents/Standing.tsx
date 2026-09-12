@@ -15,7 +15,7 @@ import { LOOK, type Row } from "./roster.ts"
 import { fold, unfold, unfolded } from "./folding.ts"
 const EngineMenu = lazy(() => import("./EngineMenu.tsx"))
 
-export function Standing(props: { readonly node: string }) {
+export function Standing(props: { readonly node: string; readonly record?: string }) {
   const roster = useAgents()
   const saying = createSaying()
   const [starting, setStarting] = createSignal(false)
@@ -27,7 +27,7 @@ export function Standing(props: { readonly node: string }) {
     saying.say(undefined)
     try {
       const result = await runAsync(chatWire().procedures.conversation.startAgentSession({ node: props.node, agent }))
-      if (result._tag === "Success") unfold(props.node)
+      if (result._tag === "Success") unfold(props.record ?? props.node)
       else saying.say({ tone: "alarm", text: result.failure.message, kind: result.failure._tag })
     } finally { setStarting(false) }
   }
@@ -42,7 +42,7 @@ export function Standing(props: { readonly node: string }) {
             if (roster.engines().length === 1 && only !== undefined) void start(only.id)
             else setMenu(event.currentTarget)
           }}><AgentMark id={roster.engines()[0]?.id ?? ""} />start an agent</button>
-      }>{agent => <AgentStanding row={agent()} />}</Show>
+      }>{agent => <AgentStanding row={agent()} record={props.record} />}</Show>
       <Show when={menu()}>{anchor => <EngineMenu anchor={anchor()} engines={roster.engines()}
         close={() => setMenu(null)} pick={agent => void start(agent)} />}</Show>
       <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.agentRefused} class="text-xs" />}</Show>
@@ -50,7 +50,7 @@ export function Standing(props: { readonly node: string }) {
   </Show>
 }
 
-function AgentStanding(props: { readonly row: Row }) {
+function AgentStanding(props: { readonly row: Row; readonly record?: string }) {
   const busy = () => props.row.standing === "working" || props.row.standing === "waking"
   const now = createNow(busy)
   const age = createAgeClock()
@@ -59,8 +59,8 @@ function AgentStanding(props: { readonly row: Row }) {
     classList={{ "text-doing": props.row.standing === "needs-you" }}
     disabled={props.row.session === null} title={look().detail}
     data-testid={TESTID.agentStanding} data-agent={props.row.id} data-standing={props.row.standing}
-    aria-expanded={props.row.session === null ? undefined : unfolded(props.row.id)}
-    onClick={event => { event.stopPropagation(); unfolded(props.row.id) ? fold(props.row.id) : unfold(props.row.id) }}>
+    aria-expanded={props.row.session === null ? undefined : unfolded(props.record ?? props.row.id)}
+    onClick={event => { event.stopPropagation(); unfolded(props.record ?? props.row.id) ? fold(props.record ?? props.row.id) : unfold(props.record ?? props.row.id) }}>
     <AgentMark id={props.row.engine} /><span class={`${DOT} ${look().dot}`} aria-hidden="true" />
     {look().label}
     <Show when={busy() && props.row.since}>{since => <span class="font-mono"> · {outFor(since(), now())}</span>}</Show>

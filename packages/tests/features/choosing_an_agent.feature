@@ -504,7 +504,8 @@ Feature: Choosing a node agent's engine
 
   @opencode @scratch:chat
   Scenario: OpenCode's olai write has its title, outline, clickable story and one reply
-    When I choose the agent "opencode"
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "done order"
     Then the chat shows a tool call named "Mark done"
     And the tool call says which outline it touched
@@ -517,7 +518,8 @@ Feature: Choosing a node agent's engine
 
   @opencode @scratch:chat
   Scenario: OpenCode's olai read has a title and outline with no write story
-    When I choose the agent "opencode"
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "context order"
     Then the chat shows a completed tool call
     And the chat shows a tool call named "Read a node"
@@ -526,7 +528,8 @@ Feature: Choosing a node agent's engine
 
   @pi @scratch:chat
   Scenario: Pi's olai write has its title, outline, clickable story and one reply
-    When I choose the agent "pi"
+    When I open the "pi" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "mcp done order"
     Then the chat shows a tool call named "Mark done"
     And the tool call says which outline it touched
@@ -539,7 +542,8 @@ Feature: Choosing a node agent's engine
 
   @pi @scratch:chat
   Scenario: Pi's olai read has a title and outline with no write story
-    When I choose the agent "pi"
+    When I open the "pi" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "mcp read title order"
     Then the chat shows a completed tool call
     And the chat shows a tool call named "Read a node"

@@ -411,3 +411,15 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
 // catalog no longer takes. What stays here is that core spells none of it: the
 // two label lists above are the whole of what a row offers, and neither has an
 // agent verb in it.
+
+test("a binding-only row keeps Add property when its chip is drawer-only", () => {
+  const at = derive(TEST_CLAIMS, recordsOf(setOf({ "binding.olai":
+    '{"id":"bound","title":"Bound","ord":"a0","custom":{"session":"engine:session"}}',
+  })))
+  const found = flatten(rowsOf(at, "binding.olai"), new Set())[0]!
+  const subject = subjectOfRow(found)
+  expect(writeVerbs(routes, subject, found.under, NO_PINS).map(one => one.label)).not.toContain("Add property…")
+  expect(writeVerbs(routes, subject, found.under, NO_PINS, {
+    kind: () => "binding", at: () => ({ inRows: false }),
+  }).map(one => one.label)).toContain("Add property…")
+})

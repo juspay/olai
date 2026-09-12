@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 import { UsageFailure, type OpFailure, type Reading, type WriteRequest } from "@olai/format"
-import { CHATS, ensureChats } from "./filer.ts"
+import { ensureChats } from "./filer.ts"
 
 export interface NewChat {
   readonly current: () => string | null
@@ -13,9 +13,9 @@ export interface NewChat {
 export const newChat = (owner: NewChat, agent: string): Effect.Effect<string, OpFailure> => Effect.gen(function*() {
   const file = owner.current()
   if (file === null) return yield* new UsageFailure({ reason: "the Inbox is unavailable; no conversation was created" })
-  yield* ensureChats(owner, file)
+  const parent = yield* ensureChats(owner, file)
   if (owner.current() !== file) return yield* new UsageFailure({ reason: "the Inbox changed; no conversation was created" })
-  const node = yield* owner.write({ op: "add", parent: CHATS, title: "new conversation" })
+  const node = yield* owner.write({ op: "add", parent, title: "new conversation" })
   yield* owner.start(node.id, agent)
   return node.id
 })

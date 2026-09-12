@@ -79,3 +79,46 @@ Then("the page has fresh start above its fold history", async function(this: Ola
   assert.equal(await this.chat(selector(PLUGIN_TESTID.chatSessionList)).count(), 0);
   assert.ok(!(await history.innerText()).includes("sessions ("));
 });
+
+
+Then("pane {int} has one agent page scroller with pinned head and send", async function(this: OlaiWorld, index: number) {
+  const pane = this.pane(index)
+  await this.waitUntil(async () => pane.evaluate((root, ids) => {
+    let ancestor = root.parentElement
+    while (ancestor && !/auto|scroll/.test(getComputedStyle(ancestor).overflowY)) ancestor = ancestor.parentElement
+    const scrolling = [ancestor, ...root.querySelectorAll<HTMLElement>("*")].filter((el): el is HTMLElement => el !== null).filter(el =>
+      /auto|scroll/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 1)
+    if (scrolling.length !== 1) return false
+    const host = scrolling[0]!
+    const viewport = host.getBoundingClientRect()
+    const title = root.querySelector(ids.head)?.getBoundingClientRect()
+    const send = root.querySelector(ids.send)?.getBoundingClientRect()
+    return title !== undefined && send !== undefined && title.top >= viewport.top - 1
+      && title.bottom <= viewport.bottom && send.top >= viewport.top && send.bottom <= viewport.bottom + 1
+  }, { head, send: CHAT_SEND }), "the pane's single scroll and pinned conversation controls", HYDRATION_TIMEOUT)
+})
+When("I scroll pane {int} back to its memory", async function(this: OlaiWorld, index: number) {
+  await this.pane(index).evaluate(root => {
+    let host = root.parentElement
+    while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
+    assertScroll(host ?? undefined)
+    function assertScroll(host: HTMLElement | undefined) { if (host === undefined) throw new Error("no pane scroller"); host.scrollTop = 0 }
+  })
+})
+Then("the agent page memory is visible below its pinned head", async function(this: OlaiWorld) {
+  const title = await this.page.locator(head).boundingBox()
+  const memory = await this.node("hinges").last().boundingBox()
+  assert.ok(title && memory && memory.y >= title.y + title.height && memory.y < this.viewport().height)
+})
+
+
+Then("pane {int} stays on its memory while the agent streams", async function(this: OlaiWorld, index: number) {
+  const before = await this.chat(CHAT_TRANSCRIPT).innerText()
+  await this.waitUntil(async () => (await this.chat(CHAT_TRANSCRIPT).innerText()).length > before.length, "more streamed prose")
+  const top = await this.pane(index).evaluate(root => {
+    let host = root.parentElement
+    while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
+    return host?.scrollTop
+  })
+  assert.equal(top, 0, "streaming moved the pane away from memory")
+})

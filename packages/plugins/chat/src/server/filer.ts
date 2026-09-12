@@ -2,7 +2,7 @@
  * The caller owns scheduling; every row rechecks the vault, including trash. */
 import type { InboxRegistry } from "@olai/plugin-api/services"
 import { Deferred, Effect, Queue, type Scope } from "effect"
-import { declarationsOf, isRegular, outlinePaths, sessionIn, sessionValue, textDeclaredAs,
+import { declarationsOf, isRegular, seatableIn, outlinePaths, sessionIn, sessionValue, textDeclaredAs,
   type OpFailure, type Reading, type WriteRequest as Request } from "@olai/format"
 import type { Listed, SessionInfo } from "olai-plugin-chat/wire"
 import { pastOf, chatKey } from "../lineage.ts"
@@ -11,6 +11,7 @@ import { whenOf } from "../when.ts"
 import { SESSION_TYPE } from "../binding.ts"
 
 export interface Filing {
+  readonly exclusive: <A, E, R>(work: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
   readonly read: Effect.Effect<Reading, OpFailure>
   readonly write: (request: Request) => Effect.Effect<unknown, OpFailure>
   readonly key: () => string
@@ -36,17 +37,23 @@ export const claimed = (reading: Reading, sessions: ReadonlyArray<SessionInfo>):
   return keys
 }
 
-export const ensureChats = (filing: Pick<Filing, "read" | "write">, file: string): Effect.Effect<void, OpFailure> => Effect.gen(function*() {
+/** Reuse a moved live Chats container. A trashed or occupied id is kept intact;
+ * a numbered reserved id gives subsequent runs the same new live container. */
+export const ensureChats = (filing: Pick<Filing, "read" | "write">, file: string): Effect.Effect<string, OpFailure> => Effect.gen(function*() {
   const reading = yield* filing.read
-  const existing = reading.derived.byId.get(CHATS)
-  if (existing !== undefined && existing.file === file) return
-  // A reserved id elsewhere is deliberately left to the ordinary validator.
+  let id = CHATS
+  for (let suffix = 1; reading.derived.byId.has(id); suffix++) {
+    const existing = reading.derived.byId.get(id)!
+    if (isRegular(existing) && seatableIn(reading.derived, id)) return id
+    id = `${CHATS}-${suffix}`
+  }
   yield* filing.write(outlinePaths(reading.set).includes(file)
-    ? { op: "add", file, id: CHATS, title: "Chats" }
-    : { op: "create", file, seed: { id: CHATS, title: "Chats" } })
+    ? { op: "add", file, id, title: "Chats" }
+    : { op: "create", file, seed: { id, title: "Chats" } })
+  return id
 })
 
-export const fileListed = (filing: Filing, file: string, listed: Listed): Effect.Effect<void> => Effect.gen(function*() {
+export const fileListed = (filing: Filing, file: string, listed: Listed): Effect.Effect<void> => filing.exclusive(Effect.gen(function*() {
   for (const row of listed.unreachable) yield* filing.log(`filer: ${row.agent}: ${row.why}`)
   if (filing.current() !== file) return
   const heads = listed.sessions.filter(row => row.supersededBy === null
@@ -62,14 +69,16 @@ export const fileListed = (filing: Filing, file: string, listed: Listed): Effect
     const outcome = yield* Effect.result(Effect.gen(function*() {
       const reading = yield* filing.read
       if (claimed(reading, listed.sessions).has(chatKey(row.agent, row.id))) return
-      yield* filing.write({ op: "add", parent: CHATS, title: row.title ?? row.id,
+      yield* Effect.uninterruptibleMask(restore => Effect.gen(function*() {
+      yield* restore(filing.write({ op: "add", parent: ensured.success, title: row.title ?? row.id,
         ...noteOf(row),
-        props: { [filing.key()]: sessionValue(row.agent, row.id) } })
+        props: { [filing.key()]: sessionValue(row.agent, row.id) } }))
       yield* filing.assigned({ agent: row.agent, session: row.id })
+      }))
     }))
     if (outcome._tag === "Failure") yield* filing.log(`filer: ${row.agent}/${row.id}: ${outcome.failure.message}`)
   }
-})
+}))
 
 export const noteOf = (row: Pick<SessionInfo, "messageCount" | "updatedAt">): { readonly desc?: string } => {
   const minute = whenOf(row.updatedAt)

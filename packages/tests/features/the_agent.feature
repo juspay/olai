@@ -2130,6 +2130,8 @@ Feature: Talking to a node agent
 
   @scratch:chat
   Scenario: Claude's olai write has its title, outline, clickable story and one reply
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "done order"
     Then the chat shows a tool call named "Mark done"
     And the tool call says which outline it touched
@@ -2143,6 +2145,8 @@ Feature: Talking to a node agent
 
   @scratch:chat
   Scenario: Claude's olai read has a title and outline with no write story
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I open the node menu of "order"
     And I choose "Ask agent" from the node menu
     And I ask the agent "context"
@@ -2153,6 +2157,8 @@ Feature: Talking to a node agent
 
   @scratch:chat
   Scenario: Late MCP recognition relabels the call and preserves its first spelling
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "late-done order"
     Then the chat shows a completed tool call
     And the agent is idle

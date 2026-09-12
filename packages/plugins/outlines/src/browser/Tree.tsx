@@ -1,3 +1,5 @@
+import { useLicences } from "./reading.tsx"
+import { dressed } from "./faces.ts"
 /**
  * One outline, drawn.
  *
@@ -621,6 +623,8 @@ function Branch(props: {
           <NodeMenu
             door={menu}
             actions={nodeMenuActions({
+              placement: { kind: (key, value) => useLicences()()(shown()?.file ?? props.row.at.file, key, value),
+                at: kind => dressed("outline.row.placement").get(kind) },
               routes,
               row: props.row,
               pins: pins(),
@@ -701,6 +705,7 @@ function Branch(props: {
           <Match when={shown()}>
             {(shows) => (
               <NodeLine
+                record={props.row.at.node.id}
                 node={shows().node.id}
                 title={shows().node.title}
                 from={shows().file}
@@ -838,6 +843,7 @@ function Branch(props: {
               when={typing("desc")}
               fallback={
                 <NodeBody
+                  record={props.row.at.node.id}
                   shows={shows()}
                   expanded={note.expanded()}
                   // The one line that says why a row with nothing of the query

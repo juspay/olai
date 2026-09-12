@@ -1,3 +1,4 @@
+import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { ConversationUIProvider } from "../chat/ui.tsx"
 import { createAsked } from "../chat/attention/asked.ts"
@@ -22,13 +23,13 @@ import { createHolding } from "../chat/holding.ts"
 import { ElapsedProvider } from "../chat/elapsing.tsx"
 import { Unopened } from "../chat/Unopened.tsx"
 
-export function Fold(props: { readonly node: string }) {
+export function Fold(props: { readonly node: string; readonly record?: string }) {
   const agents = useAgents()
   const conversation = createMemo(() => {
     const agent = agents.at(props.node)
     return agent?.session == null ? null : agentReadings()?.visiting(props.node) ?? { agent: agent.engine, session: agent.session }
   }, null, { equals: (a, b) => a?.agent === b?.agent && a?.session === b?.session })
-  return <Show when={unfolded(props.node)}><Show when={conversation()} keyed>{conv => {
+  return <Show when={unfolded(props.record ?? props.node)}><Show when={conversation()} keyed>{conv => {
     const chat = createChat(conv, { ui: agentReadings()?.ui(conv), visit: to => agentReadings()?.visit(props.node, to) })
     readAgent(props.node, chat)
     const question = createAsked(chat)
@@ -50,7 +51,7 @@ export function Conversation(props: { readonly chat: Chat; readonly unbounded?: 
       <History chat={props.chat} node={props.node} />
       <Show when={props.chat.state().unopened} fallback={<DropTarget onFiles={files => void holding.take(files)}>
         <Preview chat={props.chat} /><Transcript chat={props.chat} unbounded={props.unbounded} />
-        <div class={props.unbounded ? `sticky bottom-0 z-10 bg-paper ${CLEARANCE}` : "contents"}>
+        <div class={props.unbounded ? `sticky bottom-0 ${LAYER.row} bg-paper ${CLEARANCE}` : "contents"}>
           <Busy chat={props.chat} /><Composer chat={props.chat} holding={holding} />
         </div>
       </DropTarget>}>{unopened => <Unopened chat={props.chat} unopened={unopened()} />}</Show>

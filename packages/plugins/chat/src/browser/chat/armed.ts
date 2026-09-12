@@ -1,32 +1,5 @@
-/**
- * The nodes the composer is ARMED with: what "Ask agent" on a row put there.
- *
- * A MODULE rather than a prop or a context, because the two ends of this
- * gesture are nowhere near each other in the tree — the door is a row's `•••`
- * in the main pane (`../menu/actions.ts`) and the strip is at the bottom of the
- * chat panel (`./Composer.tsx`), with the whole app between them. It is the
- * same shape the folds (`../fold/memory.ts`) and the panel widths
- * (`../layout/prefs.ts`) already have, and the alternative — threading a
- * setter down through App, the page, the tree and every row — would make every
- * component's signature a function of what one descendant needs.
- *
- * IDS ONLY, and that is the whole value. What the chip DRAWS is read out of the
- * live set beside it, and what the send carries is the id — so nothing here is
- * a copy of a title that can go stale, and a row armed and then retitled by
- * anybody arrives at the agent under the name it has now.
- *
- * It is this TAB's, like the draft in the box beside it: two tabs typing at
- * once should not fight over one composer, and arming is part of typing. It is
- * deliberately not remembered across a reload either — an armed node is the
- * message you are in the middle of writing, not a preference.
- *
- * The strip beside it ({@link ./holding.ts}) has the same four verbs and one
- * more rule, and the difference is what each of them REFERS to: an attachment
- * names a file in the conversation's own tmp directory, so leaving the
- * conversation throws it away and the chip has to go with it. A node names a
- * row in the directory, which no conversation owns — so an armed node survives
- * a new conversation, and the two are not one abstraction with a flag.
- */
+/** Per-conversation armed state, created by the conversation UI owner.
+ * It survives folding within this tab activation and leaves with that owner. */
 
 import { type Accessor, createSignal } from "solid-js"
 

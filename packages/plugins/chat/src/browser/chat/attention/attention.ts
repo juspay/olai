@@ -4,12 +4,13 @@ import { agentReadings } from "../../agents/reading.ts"
 import { useChannel } from "../../channel.ts"
 import { createReveal } from "./reveal.ts"
 import { noticeOf } from "./notice.ts"
-import { createWatching } from "./watching.ts"
+import { createWatchings } from "./watching.ts"
 import { alarmFor, type Awaiting } from "./alarm.ts"
 import type { Row } from "../../agents/roster.ts"
 
 /** One circuit per node, all owned by the attention activation. */
 export const createAttention = (router: Router): void => {
+  const createWatching = createWatchings()
   const alerts = useChannel()
   const reveal = createReveal(router)
   onCleanup(alerts.onPress("ask", reveal))

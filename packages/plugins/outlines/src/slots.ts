@@ -71,7 +71,7 @@ export type PropPane = (context: BlockContext) => JSX.Element
 export type PropBlock = (context: BlockContext) => JSX.Element
 
 /** A contribution about one node, owned by the row or page drawing it. */
-export type NodeFace = (props: { readonly node: string }) => JSX.Element
+export type NodeFace = (props: { readonly node: string; readonly record?: string }) => JSX.Element
 
 declare module "@olai/plugin-api/slots" {
   interface SlotDefinitions {

@@ -101,7 +101,7 @@ import {
 } from "@olai/plugin-api/services"
 import type { Engine, Registering } from "@olai/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
-import { Deferred, Duration, Effect } from "effect"
+import { Deferred, Duration, Effect, Semaphore } from "effect"
 
 import type { Conversing } from "./sessions.ts"
 import { forLocalState as modelsIn } from "./models.ts"
@@ -492,6 +492,7 @@ export default definePlugin({
      *  ({@link ./kinds.ts}), so it moves with a revision, and the first key that
      *  carrier names is the one a writer should prefer — a vault's own migration
      *  row over the word this kind claims. */
+    const bindingPermit = yield* Semaphore.make(1)
     const binding: Binding = {
       boundAt: (node) => nodeAgents.nodeAt(node),
       key: () => nodeAgents.key(),
@@ -546,10 +547,10 @@ export default definePlugin({
       newChat: ({ input }: { input: { agent: string } }) =>
         withChat(open => {
           const gate = ops.gate as WriteGate
-          return newChat({ current: vault.inbox.current, read: gate.read,
+          return bindingPermit.withPermit(newChat({ current: vault.inbox.current, read: gate.read,
             write: request => gate.run(request, "filer"),
             start: (node, agent) => startAgentSession(open, binding, { node, agent }),
-          }, input.agent)
+          }, input.agent))
         }).pipe(Effect.tap(() => Effect.gen(function*() {
           mine?.cells.sessionsRevision.set(++sessionsRevision)
           if (filer !== null) yield* filer.full
@@ -562,7 +563,7 @@ export default definePlugin({
         return node === null ? null : { node: node.id, file: node.file, agent: node.engine, session: node.session }
       }),
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>
-        withChat((open) => startAgentSession(open, binding, input)).pipe(
+        withChat((open) => bindingPermit.withPermit(startAgentSession(open, binding, input))).pipe(
           // Publish after both the binding and its history link are written.
           Effect.tap(() => Effect.gen(function*() {
             mine?.cells.sessionsRevision.set(++sessionsRevision)
@@ -570,7 +571,7 @@ export default definePlugin({
           })),
         ),
       reopen: ({ input }: { input: { conv: Conversing; scope: string | null } }) =>
-        withChat((open) => open.inConversation(input.conv, input.scope ?? undefined, (panel) => panel.reopen)),
+        withChat((open) => open.inConversation(input.conv, input.scope ?? undefined, (panel) => panel.state().unopened === null ? Effect.void : panel.reopen)),
       sessions: () => withChat((open) => open.sessions),
       answer: ({ input }: { input: { conv: Conversing; id: string; answers: Parameters<Chat.Chat["answer"]>[1] } }) =>
         withChat((open) => open.inConversation(input.conv, undefined, panel => panel.answer(input.id, input.answers))),
@@ -727,6 +728,15 @@ export default definePlugin({
       })
 
       chat = yield* Chat.make({
+        onConversationClosed: state => {
+          const who = whoOf(state)
+          if (who === null) return
+          turns.delete(JSON.stringify([who.agent, who.session]))
+          for (const key of deliveredIds) {
+            const [agent, session] = JSON.parse(key) as [string, string, string]
+            if (agent === who.agent && session === who.session) deliveredIds.delete(key)
+          }
+        },
         // BOTH HALVES OF THE TABLE, READ WHEN ASKED. What this hands over is the
         // reading rather than an answer, so a row switched off at the panel
         // leaves the picker and one switched on enters it — see
@@ -800,6 +810,7 @@ export default definePlugin({
       yield* chat.start
       const gate = ops.gate as WriteGate
       filer = yield* makeFiler({
+        exclusive: work => bindingPermit.withPermit(work),
         read: gate.read,
         write: request => gate.run(request, "filer"),
         key: nodeAgents.key,

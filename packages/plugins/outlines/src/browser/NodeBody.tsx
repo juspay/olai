@@ -91,6 +91,7 @@ import { EdgeRefs } from "./edges/EdgeRefs.tsx"
 import { ROW_NOTE } from "@olai/ui-primitives/touch.ts"
 
 export function NodeBody(props: {
+  readonly record?: string
   /** The record being shown — for a mirror, the node it stands for, which is
    *  also the file its note's pictures and its `doc` are relative to. */
   readonly shows: LocatedRegular
@@ -203,7 +204,7 @@ export function NodeBody(props: {
               kind (`@olai/plugin-api`'s slot table argues it where the slot is
               declared). Each answers NOTHING on nearly every row, and what that
               costs is a map read in a table the plugin subscribes to once. */}
-          <PluginFolds node={props.shows.node.id} />
+          <PluginFolds node={props.shows.node.id} record={props.record} />
 
           {/* CLOSED: one clamped dim line under the title, which is either the
               top of the note (`Cozy`) or the window a filter found this row

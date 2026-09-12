@@ -158,3 +158,16 @@ its parent releases its live agent scope. Agent cleanup closes the protocol and
 stops the whole child process group, escalating when it ignores termination,
 before joining pending requests. Opening a ninth held agent reports the capacity
 refusal in its conversation, with an explicit retry.
+
+
+Attention multiplexes watched-node identities over one activation-owned browser
+channel and one set of visibility listeners. Closing that activation releases
+all listeners and heartbeat claims. Fold openness is keyed by the outline
+record, so a mirror and its target open independently; their conversations
+still share the server reading keyed by engine and session.
+
+Filing and new-session binding share a server-owned permit. A live Chats
+container is reused wherever it was moved or renamed. A trashed or non-regular
+reserved record stays untouched; the next free `chats-N` id becomes the live
+container, reused by retries and new chat. Each completed filing write records
+assignment before cancellation can pass its completion boundary.

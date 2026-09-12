@@ -1,16 +1,5 @@
-/**
- * What has been filled into a question that has not been submitted yet.
- *
- * MODULE-SCOPED, for the reason the folds are ({@link ./folds.ts}): the panel is
- * rebuilt from nothing whenever the drawer is closed and opened, and a draft
- * kept in the form's own `createSignal` comes back empty. A half-answered
- * question is the worst possible thing to lose that way — the turn is stopped
- * on it, so the only way forward is to type it all again.
- *
- * Keyed by the ask's globally unique row id and the field's key, flat, with a separator no key
- * can contain. Nothing is stored and nothing is sent: a draft belongs to a
- * reading, and the moment it is submitted the answer on the row is the truth.
- */
+/** Per-conversation drafts state, created by the conversation UI owner.
+ * It survives folding within this tab activation and leaves with that owner. */
 
 import { createSignal } from "solid-js"
 

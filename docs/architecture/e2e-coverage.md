@@ -190,3 +190,12 @@ The engine fixtures and browser workflows check MCP display ownership and payloa
 - Regression proof: temporarily removing Claude's reply reader made both established write-story scenarios fail while their writes succeeded; restoring it restored the stories.
 
 Open: live model output is not exercised; executable fakes share payload fixtures with engine unit tests.
+
+
+PR 582 review regressions cover independent original/mirror folds, a binding-only
+row's Add property affordance, and plugin withdrawal with an open reading.
+The split agent page scenario checks the single pane scroller, pinned head and
+send control, memory revealed by scrolling up, and continued streaming without
+moving that reading position. Scheduler tests cover capacity refusals, fresh
+binding versus filing serialization, clearing inherited wakes, trash cleanup,
+and process-group termination with escalation.

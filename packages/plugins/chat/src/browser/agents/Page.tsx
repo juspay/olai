@@ -1,3 +1,4 @@
+import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { memoryOf, UsageFailure } from "@olai/format"
 import { Result } from "effect"
@@ -136,7 +137,7 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   }
   const send = () => { const id = engine(); if (id !== undefined) void props.page.start(id) }
   return <Show when={metadata()}>{node =>
-    <div class={`sticky bottom-0 z-10 rounded border border-dashed border-rule bg-paper p-3 ${CLEARANCE}`} data-testid={TESTID.agentPlainComposer}>
+    <div class={`sticky bottom-0 ${LAYER.row} rounded border border-dashed border-rule bg-paper p-3 ${CLEARANCE}`} data-testid={TESTID.agentPlainComposer}>
       <Show when={agents.engines().some(one => one.id === engine())} fallback={<p class="m-0 text-xs text-muted">No agent engine is available.</p>}>
         <textarea class="min-h-20 w-full resize-y bg-transparent text-sm outline-none" data-testid={TESTID.agentPlainInput}
           aria-label={`ask about ${node().title}`} placeholder={`ask about ${node().title}…`}

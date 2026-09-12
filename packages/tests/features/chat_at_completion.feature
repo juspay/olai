@@ -81,6 +81,7 @@ Feature: Typing @ in the chat completes a file of the directory
     And the caret in the chat box is at 18
 
   @scratch:chat
+  @review-menu
   Scenario: The arrows walk it, and Enter takes the row they are on
     # The keys are the list's while it is up — the same cursor the ⌘K palette
     # and the row editor's widgets walk (`client/search/cursor.ts`), which is

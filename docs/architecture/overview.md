@@ -136,7 +136,7 @@ web/src/build.ts          assembles the bundle
 - Keys are declared in `web/src/client/keys.ts` in two layers that never overlap: global chords on the window (⌘K, ⌘\, ⌘J, ⌘Z, ⌘⇧Z) and the row editor's bare keys (`Enter`, `Tab`, arrows) matched on the editor element. Collisions are a unit test. Touch targets are 44px except the tree gutter, which takes that in height only (`ui-primitives/src/touch.ts`); the page publishes `--visible-h` and `--visible-bottom` from `visualViewport`.
 - **Installable, never offline.** The manifest is assembled by the server through kolu's manifest layer, naming SVG, 192/512 PNG, maskable 512 and `apple-touch-icon` files shipped verbatim at the dist root, outside the hashed `/_olai/assets/`; the tab icon follows the palette once the bundle is up (`plugins/theme/src/chrome.ts`).
 - This origin serves one service worker, the framework's fetch-less notification worker (`serviceWorker: "notify"`). It caches nothing, so a cached shell showing stale outlines is impossible; it exists for `registration.showNotification`, the only notification path that works in `standalone` mode. On activate it purges any legacy cache and reloads that worker's windows.
-- Below 48rem the sidebar becomes a drawer, chat becomes a bottom sheet, and connection and git become banners; on desktop the sidebar collapses to a ~3rem icon rail and both it and the chat dock drag-resize.
+- Below 48rem the sidebar becomes a drawer, connection and git become banners, and agent conversations remain in row folds or zoomed pages. On desktop the sidebar collapses to a ~3rem icon rail and drag-resizes.
 
 ### Journal, agenda and search
 

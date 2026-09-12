@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { Effect, Fiber, Deferred } from "effect"
+import { Effect, Fiber, Deferred, Semaphore } from "effect"
 import { UsageFailure, type WriteRequest } from "@olai/format"
 import { TEST_CLAIMS, readingOf, setOf, planning } from "@olai/ops/testlib"
 import type { SessionInfo, Listed } from "olai-plugin-chat/wire"
@@ -17,6 +17,7 @@ const fixture = (files: Record<string, string> = {}) => {
   const assigned: string[] = []
   let refuse: (request: WriteRequest) => boolean = () => false
   const filing: Filing = {
+    exclusive: work => work,
     read: Effect.sync(() => readingOf(setOf(texts))),
     current: () => "Inbox.olai", key: () => "chat-agent-session",
     log: line => Effect.sync(() => { logs.push(line) }),
@@ -166,3 +167,50 @@ test("settled turns request only their engine, never another full listing", () =
   expect(full).toBe(1)
   expect(engines).toEqual(["claude"])
 }))))
+
+
+test("a moved Chats is reused and a trashed Chats gets a stable fresh container", async () => {
+  const moved = fixture({ "Elsewhere.olai": '{"id":"chats","title":"Renamed","ord":"a0"}' })
+  await Effect.runPromise(fileListed(moved.filing, "Inbox.olai", listed(row("moved"))))
+  expect(moved.writes).toHaveLength(1)
+  expect(moved.writes[0]).toMatchObject({ parent: "chats" })
+  const trash = fixture({ "_olai/Trash.olai": '{"id":"chats","title":"Chats","ord":"a0"}' })
+  await Effect.runPromise(fileListed(trash.filing, "Inbox.olai", listed(row("first"))))
+  await Effect.runPromise(fileListed(trash.filing, "Inbox.olai", listed(row("first"), row("second"))))
+  expect(trash.writes).toHaveLength(3)
+  expect(trash.writes[1]).toMatchObject({ parent: "chats-1" })
+  expect(trash.writes[2]).toMatchObject({ parent: "chats-1" })
+  expect(trash.texts["_olai/Trash.olai"]).toContain('"id":"chats"')
+})
+
+
+test("filing waits for a new session's binding before checking claims", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+  const it = fixture()
+  const permit = yield* Semaphore.make(1)
+  const opened = yield* Deferred.make<void>()
+  const bind = yield* Deferred.make<void>()
+  const creating = yield* Effect.forkScoped(permit.withPermit(Effect.gen(function*() {
+    yield* Deferred.succeed(opened, undefined)
+    yield* Deferred.await(bind)
+    it.texts["Work.olai"] = '{"id":"original","title":"Original","ord":"a0","custom":{"chat-agent-session":"claude:new"}}'
+  })))
+  yield* Deferred.await(opened)
+  const filing = yield* Effect.forkScoped(fileListed({ ...it.filing,
+    exclusive: work => permit.withPermit(work),
+  }, "Inbox.olai", listed(row("new"))))
+  yield* Deferred.succeed(bind, undefined)
+  yield* Fiber.join(creating)
+  yield* Fiber.join(filing)
+  expect(it.writes).toHaveLength(0)
+}))))
+
+test("a mirror occupying the reserved id is not used as the filing parent", async () => {
+  const it = fixture({ "Work.olai": [
+    '{"id":"source","title":"Source","ord":"a0"}',
+    '{"id":"chats","mirror":"source","ord":"a1"}',
+  ].join("\n") })
+  await Effect.runPromise(fileListed(it.filing, "Inbox.olai", listed(row("first"))))
+  expect(it.writes[0]).toMatchObject({ op: "create", seed: { id: "chats-1" } })
+  expect(it.writes[1]).toMatchObject({ parent: "chats-1" })
+  expect(it.texts["Work.olai"]).toContain('"mirror":"source"')
+})

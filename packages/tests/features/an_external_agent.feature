@@ -328,7 +328,9 @@ Feature: An agent olai did not start
 
   @kolu
   Scenario: A foreign tool keeps its adapter title without an outline story
-    Given the agent panel is open
+    Given I open the outline "house.olai"
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "external kolu outlines_done {}"
     Then the agent is idle
     And the chat shows a tool call named "mcp__kolu__outlines_done"

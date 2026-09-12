@@ -6,7 +6,7 @@ import { attr, NODE_MENU, NODE_MENU_ITEM, NODE_MENU_PANEL, POLL_TIMEOUT, HYDRATI
 import type { OlaiWorld } from "../support/world.ts";
 
 const fold = (world: OlaiWorld, node: string) => world.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", world.nodeId(node))}`);
-const standing = (world: OlaiWorld, node: string) => world.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", world.nodeId(node))}`);
+const standing = (world: OlaiWorld, node: string) => world.node(node).locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", world.nodeId(node))}`);
 
 export const openFold = async (world: OlaiWorld, node: string) => {
   world.activeAgent = node;
@@ -26,12 +26,12 @@ export const openFold = async (world: OlaiWorld, node: string) => {
 Given("I open the {string} agent on node {string}", async function(this: OlaiWorld, engine: string, node: string) {
   this.activeAgent = node;
   const bound = standing(this, node);
-  await this.waitUntil(async () => await bound.count() > 0 || await this.page.locator(`${selector(PLUGIN_TESTID.agentStart)}${attr("data-agent", this.nodeId(node))}`).count() > 0, "the node's agent controls to arrive", HYDRATION_TIMEOUT);
+  await this.waitUntil(async () => await bound.count() > 0 || await this.node(node).locator(`${selector(PLUGIN_TESTID.agentStart)}${attr("data-agent", this.nodeId(node))}`).count() > 0, "the node's agent controls to arrive", HYDRATION_TIMEOUT);
   if (await bound.count() > 0 && await bound.getAttribute("data-standing") !== "unbound") {
     await openFold(this, node);
     return;
   }
-  const pill = this.page.locator(`${selector(PLUGIN_TESTID.agentStart)}${attr("data-agent", this.nodeId(node))}`);
+  const pill = this.node(node).locator(`${selector(PLUGIN_TESTID.agentStart)}${attr("data-agent", this.nodeId(node))}`);
   if (await pill.count()) {
     await this.press(pill);
     const menu = this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu));
@@ -79,3 +79,16 @@ Then("the palette refuses with {string} and retains {string}", async function(th
   await this.waitUntil(async () => (await error.textContent()) === message, "the palette's refusal");
   assert.equal(await this.page.locator(selector(PLUGIN_TESTID.paletteInput)).inputValue(), input);
 });
+
+
+When("I press the standing on outline record {string}", async function(this: OlaiWorld, record: string) {
+  await this.node(record).locator(selector(PLUGIN_TESTID.agentStanding)).click()
+})
+Then("only outline record {string} has an agent fold", async function(this: OlaiWorld, record: string) {
+  assert.equal(await this.page.locator(selector(PLUGIN_TESTID.agentFold)).count(), 1)
+  assert.equal(await this.node(record).locator(selector(PLUGIN_TESTID.agentFold)).count(), 1)
+})
+Then("both outline records {string} and {string} have an agent fold", async function(this: OlaiWorld, one: string, two: string) {
+  for (const record of [one, two]) await this.node(record).locator(selector(PLUGIN_TESTID.agentFold)).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  assert.equal(await this.page.locator(selector(PLUGIN_TESTID.agentFold)).count(), 2)
+})

@@ -1,4 +1,4 @@
-@scratch:chat
+@agent-review @scratch:chat
 Feature: A node's page holds its memory and conversation
   Scenario: Opening the page keeps the fold's draft and puts memory before conversation
     Given I open the outline "house.olai"
@@ -114,3 +114,35 @@ Feature: A node's page holds its memory and conversation
     Examples:
       | screen |
       | phone  |
+
+
+  Scenario: A split agent page pins its head and composer around one scroll
+    Given I open the outline "house.olai"
+    When I alt-click the zoom of "install"
+    And I send "hello" from the plain node composer
+    Then the node page conversation is ready for "install"
+    When I ask for a tall page answer
+    Then the agent is idle
+    And pane 1 has one agent page scroller with pinned head and send
+    When I ask the agent "hold"
+    And I scroll pane 1 back to its memory
+    Then the agent page memory is visible below its pinned head
+    And pane 1 stays on its memory while the agent streams
+    When the agent is released
+    Then the agent is idle
+
+  @node-idle-fast
+  Scenario: Rebuilding chat releases an open fold and its reading
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And I ask the agent "keep this conversation"
+    Then the agent is idle
+    When I open the plugins panel
+    And I switch the plugin "chat" off
+    Then no agent fold is open
+    When I switch the plugin "chat" on
+    And I press "Escape"
+    Then the agent "install" stands "asleep"
+    And no agent fold is open
