@@ -91,6 +91,8 @@ Feature: Typing @ in the chat completes a file of the directory
     Then the completion offers "finishes.md"
     And the active chat completion is "_olai/Settings.olai"
     When I press "ArrowDown" in the chat
+    # A delayed select notification from typing/focusing must not undo Down.
+    And the chat box reports its unchanged caret
     Then the active chat completion is "_olai/Trash.olai"
     When I press "ArrowDown" in the chat
     Then the active chat completion is "finishes.md"

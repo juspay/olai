@@ -3926,3 +3926,7 @@ Then("the foreign tool reply remains ordinary detail", async function (this: Ola
   assert.equal(await tool.locator(CHAT_TOOL_REPLY).count(), 0);
   assert.match(await tool.locator(CHAT_TOOL_DETAIL).innerText(), /foreign write-shaped reply/);
 });
+
+When("the chat box reports its unchanged caret", async function(this: OlaiWorld) {
+  await this.chat(CHAT_INPUT).evaluate(field => field.dispatchEvent(new Event("select", { bubbles: true })))
+})
