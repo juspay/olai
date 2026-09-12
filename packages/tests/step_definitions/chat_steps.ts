@@ -2307,7 +2307,7 @@ When(
   async function (this: OlaiWorld, prefix: string) {
     const box = this.chat(CHAT_INPUT);
     await box.focus();
-    await box.evaluate((element, wanted) => {
+    await box.evaluate(async (element, wanted) => {
       const field = element as HTMLTextAreaElement;
       const at = field.value.indexOf(wanted);
       if (at === -1) {
@@ -2317,7 +2317,14 @@ When(
           }`,
         );
       }
-      field.setSelectionRange(at + wanted.length, at + wanted.length);
+      const caret = at + wanted.length;
+      if (field.selectionStart === caret && field.selectionEnd === caret) return;
+      // Native select is queued. A second move before it arrives can hide the
+      // first position from the composer (and skip clearing its dismissal).
+      await new Promise<void>(resolve => {
+        field.addEventListener("select", () => resolve(), { once: true });
+        field.setSelectionRange(caret, caret);
+      });
     }, prefix);
   },
 );
@@ -3927,6 +3934,18 @@ Then("the foreign tool reply remains ordinary detail", async function (this: Ola
   assert.match(await tool.locator(CHAT_TOOL_DETAIL).innerText(), /foreign write-shaped reply/);
 });
 
+
+Then("no chat completion is selected", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => await this.chat(`${CHAT_COMPLETION_ROW}[data-active="true"]`).count() === 0,
+    "the chat completion to have no selected row",
+  );
+});
+
+Then("the selected chat completion is {string}", async function (this: OlaiWorld, value: string) {
+  await this.chat(`${CHAT_COMPLETION_ROW}${attr("data-value", value)}[data-active="true"]`)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
 When("the chat box reports its unchanged caret", async function(this: OlaiWorld) {
   await this.chat(CHAT_INPUT).evaluate(field => field.dispatchEvent(new Event("select", { bubbles: true })))
 })

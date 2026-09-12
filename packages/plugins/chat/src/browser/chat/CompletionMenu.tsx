@@ -16,19 +16,21 @@
  * ({@link ./Composer.tsx}).
  *
  * Keyboard first, because the whole point is not reaching for the mouse
- * mid-sentence: ↑/↓ walk, Enter and Tab accept, Escape closes. A click does the
- * same thing for the times a hand is already there.
+ * mid-sentence: ↑/↓ select and walk, Enter takes a selected row, Tab completes,
+ * Escape closes. Spaced name queries start unselected so Enter sends prose.
+ * A click takes the row under the pointer.
  */
 import { servedDirectory } from "../vault.ts"
 import type { Place } from "olai-plugin-search/ui/place.ts"
 import { PlaceLine } from "olai-plugin-search/ui/PlaceLine.tsx"
-import { createEffect, createMemo, Index, on, onCleanup, onMount, Show } from "solid-js"
+import { createMemo, Index, onCleanup, onMount, Show } from "solid-js"
 
 import { listKey } from "@olai/web/client/keys.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
 import { renderTitle, sameDrawing } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
-import { createCursor } from "@olai/ui-primitives/cursor.ts"
+import { type Completing, requiresSelection } from "./completion.ts"
+import { createCompletionSelection } from "./selection.ts"
 import { spend, type Taking } from "@olai/web/client/settled.ts"
 import { TESTID } from "../../testids.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
@@ -124,21 +126,8 @@ function RowLabel(props: { readonly row: MenuRow }) {
 }
 
 export function CompletionMenu(props: {
-  /** WHICH list this is, as a fact in the markup rather than as a guess from
-   *  what is in it — the contract `../complete/Completions.tsx` keeps about
-   *  its own three widgets, kept here for the two. */
-  readonly kind: "command" | "name"
+  readonly completing: Completing | null
   readonly rows: ReadonlyArray<MenuRow>
-  /** WHAT IS BEING ASKED — the armed kind and its query, as one string. The
-   *  cursor goes back to the top when it changes, because a keystroke means a
-   *  different question and the answer to the last one is not where somebody's
-   *  eye is. It matters more here than it reads: the file rows are three
-   *  buckets deep (`../file/matching.ts`), so a query that gains a character can
-   *  REORDER them under a walked index, and Enter would take a row the arrows
-   *  never landed on. Keyed on the question rather than on the rows, so
-   *  walking the list does not reset it and a directory frame arriving does
-   *  not either — `../complete/completing.tsx`'s rule, kept. */
-  readonly asking: string
   /**
    * WHICH QUERY the NODE half answers, when this is a name list — the same
    * `data-asked` every other search door publishes. Absent while the files
@@ -165,19 +154,7 @@ export function CompletionMenu(props: {
   readonly within: () => HTMLElement | undefined
   readonly onDismiss: () => void
 }) {
-  // WHICH row Enter takes — the one cursor every shortlist in this client
-  // shares (`../search/cursor.ts`), so the arrows mean the same thing here, in
-  // the ⌘K palette, in the header's box and in the row editor's completions.
-  // It also keeps the cursor on a row that EXISTS when the list changes
-  // underneath, which this menu had no answer for at all.
-  const cursor = createCursor(() => props.rows.length)
-
-  // A NEW QUESTION STARTS AT THE TOP — see `asking`.
-  // `asking` is a prop getter over the shared draft. A late select/focus
-  // notification can invalidate it without changing the query; `on` alone
-  // still runs its callback then, undoing the reader's last arrow press.
-  const asking = createMemo(() => props.asking)
-  createEffect(on(asking, cursor.top))
+  const selection = createCompletionSelection(() => props.completing, () => props.rows)
 
   /**
    * This list on the client's one dismissal stack (`../topmost.ts`).
@@ -210,8 +187,8 @@ export function CompletionMenu(props: {
     event.stopPropagation()
   }
 
-  const accept = (event: KeyboardEvent) => {
-    const chosen = props.rows[cursor.at()]
+  const accept = (event: KeyboardEvent, at: number | null) => {
+    const chosen = at === null ? undefined : props.rows[at]
     if (chosen === undefined) return
     // CLAIMED FIRST, and whether it spends anything is the next question: a
     // list is on screen under the caret, and an `Enter` falling through to the
@@ -239,20 +216,20 @@ export function CompletionMenu(props: {
     // take it before that panel is even asked.
     if (!topmost()) return
     if (event.key === "Tab") {
-      accept(event)
+      accept(event, selection.suggested())
       return
     }
     const action = listKey(event)
     if (action === null) return
     if (action === "next") {
       take(event)
-      cursor.step(1)
+      selection.step(1)
     }
     if (action === "prev") {
       take(event)
-      cursor.step(-1)
+      selection.step(-1)
     }
-    if (action === "take") accept(event)
+    if (action === "take") accept(event, selection.selected())
     if (action === "dismiss") {
       take(event)
       props.onDismiss()
@@ -274,7 +251,7 @@ export function CompletionMenu(props: {
     <ul
       class={`absolute bottom-full left-2 right-2 ${WITHIN.pop} mb-1 max-h-64 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
       data-testid={TESTID.chatCompletion}
-      data-kind={props.kind}
+      data-kind={props.completing?.kind}
       data-asked={props.asked}
     >
       {/* `<Index>` rather than `<For>`, which is `../search/Shortlist.tsx`'s
@@ -308,11 +285,11 @@ export function CompletionMenu(props: {
               <button
                 type="button"
                 class={`block w-full truncate rounded px-2 py-1 text-left text-xs ${
-                  index === cursor.at() ? "bg-rule" : ""
+                  index === selection.selected() ? "bg-rule" : ""
                 }`}
                 data-testid={TESTID.chatCompletionRow}
                 data-value={row().value}
-                data-active={index === cursor.at()}
+                data-active={index === selection.selected()}
                 // THE ROW, not its position: see {@link MenuRow.take}.
                 onClick={() => row().take()}
               >
@@ -327,6 +304,11 @@ export function CompletionMenu(props: {
           </>
         )}
       </Index>
+      <Show when={requiresSelection(props.completing)}>
+        <li class="px-2 py-1 text-xs text-muted">
+          {selection.selected() !== null ? "Enter completes" : "↑/↓ select · Tab completes · Enter sends"}
+        </li>
+      </Show>
     </ul>
   )
 }
