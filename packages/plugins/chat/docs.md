@@ -171,3 +171,8 @@ container is reused wherever it was moved or renamed. A trashed or non-regular
 reserved record stays untouched; the next free `chats-N` id becomes the live
 container, reused by retries and new chat. Each completed filing write records
 assignment before cancellation can pass its completion boundary.
+
+Already-filed conversations from older builds have their inherited wake picks
+cleared once at startup. A marker in chat's existing local heard record prevents
+later restarts from clearing deliberate new wake choices. A failed cleanup is
+logged and retried, without starting an engine.

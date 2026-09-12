@@ -20,6 +20,7 @@ import type { Installed } from "./agents/roster.ts"
 import { ephemeralLocalState } from "./local.ts"
 import { volatile } from "./memory.ts"
 import { make } from "./scoped.ts"
+import { forLocalState as sessionsIn } from "./sessions.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { makePanel } from "./chat.ts"
 
@@ -641,25 +642,30 @@ test("filing clears old manual wakes and trash releases a running node", async (
   let present = true
   let released = false
   const node: NodeAgent = { id: "filed", file: "Inbox.olai", title: "filed", engine: "alpha", session: "stored", memory: 1 }
-  const scoping = await run(scopesIn(ephemeralLocalState()))
+  const local = ephemeralLocalState()
+  const scoping = await run(scopesIn(local))
+  const overheard = await run(sessionsIn(local))
   const chat = await run(make({
     fork: Effect.runFork, roster: () => [installed("alpha")], engines: () => ["alpha"], cwd,
     tools: () => null, nodeAt: () => present ? node : null, seatableAt: () => present,
     nodes: () => present ? [node] : [], wake: () => ACTIVATION,
     nearestAt: () => present ? node.id : null, agentAt: () => present ? node : null,
     ticket: () => ({ bearer: "filed-ticket", release: () => { released = true } }),
-    scoping, onState: () => {}, onTranscript: () => {},
+    scoping, overheard, onState: () => {}, onTranscript: () => {},
   }))
   const scope = Scope.makeUnsafe()
   try {
     const to = { agent: "alpha", session: "stored" }
     await run(chat.scope(to, "kolu", "Inbox.olai"))
     expect(chat.doorFor("kolu").scopes()).toHaveLength(1)
-    await run(chat.assigned(to))
+    await run(overheard.assign(to)) // A record filed by the previous build.
+    await run(chat.start)
     expect(chat.doorFor("kolu").scopes()).toHaveLength(0)
     await run(chat.reading(to, { state: () => {}, transcript: () => {} }).pipe(Effect.provideService(Scope.Scope, scope)))
     expect(chat.live().size).toBe(1)
     await run(chat.scope(to, "kolu", "Inbox.olai"))
+    expect((await run(sessionsIn(local))).at(to)?.wakesCleared).toBe(true)
+    await run(chat.start)
     const recipient = chat.doorFor("kolu").scopes()[0]!
     present = false
     chat.reread()

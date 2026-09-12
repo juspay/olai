@@ -606,7 +606,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       Effect.suspend(() => use(panelOf()))
 
     /** Discovery is available at boot; opening belongs to a reader or a wake. */
-    const start = root.enginesMoved
+    const start = Effect.gen(function*() {
+      // Repair conversations filed by builds which retained their inherited
+      // wakes. The durable marker preserves deliberate picks after this pass.
+      for (const row of root.overheard()) {
+        if (row.assigned === true && row.wakesCleared !== true) yield* root.assigned(row)
+      }
+      yield* root.enginesMoved
+    })
 
     const discardPending = (left: ReadonlyArray<{
       readonly agent: string; readonly session: string; readonly plugin: string

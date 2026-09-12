@@ -3292,13 +3292,15 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // already been answered, logging what it could not write rather than
       // taking the gesture away from somebody ({@link ./sessions.ts}).
       assigned: (to) => Effect.gen(function*() {
+        if (options.overheard?.at(to)?.wakesCleared === true) return
         // Filing gives a conversation a new, asleep home. Old manual wake
         // picks are not authority to wake that new node (or its trash).
         for (const row of options.scoping?.rows() ?? []) {
           if (row.agent !== to.agent || row.session !== to.session) continue
-          yield* Effect.catch(options.scoping!.set(to, row.plugin, null), failure => Effect.logWarning(failure.message))
+          const cleared = yield* Effect.result(options.scoping!.set(to, row.plugin, null))
+          if (cleared._tag === "Failure") { yield* Effect.logWarning(cleared.failure.message); return }
         }
-        yield* noting(options.overheard?.assign(to), assignLost)
+        yield* noting(options.overheard?.assign(to, true), assignLost)
       }),
       replaced: (to, by) => noting(options.overheard?.supersede(to, by), replaceLost),
       // THE SET'S ANSWER, ASKED AGAIN. `move` is what publishes, and it is
