@@ -15,6 +15,8 @@ const sources = tracked(import.meta.filename)
 const independent = new Set([
   // Literal leaf fixtures deliberately import no row or codec.
   "packages/format/src/claims.testlib.ts",
+  // Ops owns literal membership for its codec tests; only parsing comes from a row.
+  "packages/ops/src/claims.testlib.ts",
   "packages/surface/src/attach.ts",
   "packages/surface/src/attach.test.ts",
   "packages/plugins/chat/src/attachments.test.ts",

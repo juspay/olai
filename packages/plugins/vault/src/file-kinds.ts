@@ -30,7 +30,7 @@ export const openFileKinds = () => {
         const entry = { ...claim, kind: owner }
         let next: Claims
         try { next = claims([...current.byKind.values(), entry]) }
-        catch (error) { throw new Error(`olai-plugin-vault: a second row registered an overlapping file claim: ${String(error)}`) }
+        catch (error) { throw new Error(`olai-plugin-vault: a second row registered an overlapping file claim (${owner}): ${String(error)}`) }
         const installed = {}
         owners.set(owner, installed)
         current = next

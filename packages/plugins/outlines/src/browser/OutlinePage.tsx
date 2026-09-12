@@ -61,7 +61,7 @@ export function OutlinePage(props: {
   /**
    * LAND at the row the address named, once there is a page to land in — the
    * outline's half of the act the markdown face performs for headings
-   * (the per-kind page contributions), with the same rules in the same order:
+   * (`olai-plugin-markdown`’s `browser/document/Rendered.tsx`), with the same rules in the same order:
    *
    *   - an EFFECT rather than a call, because the rows arrive on their own
    *     schedule: the reading can sit a revision behind the navigation that
@@ -292,8 +292,8 @@ export function OutlinePage(props: {
       //
       // An id is a string somebody typed one day: `CSS.escape`, because a
       // quote in it would be a selector that throws, and a throw inside the
-      // frame is a landing this pane will never spend. (`the per-kind page contributions`'s
-      // heading half does exactly this, on the same argument.)
+      // frame is a landing this pane will never spend. Markdown's heading
+      // landing uses the same escaping rule.
       const row = root.querySelector(
         `[data-testid="${IDS_OUTLINES.node}"][data-node-id="${CSS.escape(last.at.node.id)}"]`,
       )

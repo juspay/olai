@@ -44,6 +44,8 @@ const DOOR = `${ENTRY} text-paper/65`
  *  carry it. */
 const DIR = `${ENTRY_SHAPE} ${ROW_GAP}`
 
+const NO_BROKEN: ReadonlyMap<string, BrokenFile> = new Map()
+
 interface TreeView {
   readonly isActive: (file: string) => boolean
   readonly broken: ReadonlyMap<string, BrokenFile>
@@ -116,7 +118,10 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // PATHS, and a browser holds every one of those already: it is the same list
   // the tree above is built from, and one more pass over it is not a vault
   // walk.
-  const inbox = createMemo(() => (() => { const claims = servedDirectory()?.claims(); return claims === undefined ? undefined : inboxIn(claims, served()) })())
+  const inbox = createMemo(() => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? undefined : inboxIn(claims, served())
+  })
 
   // Folding a folder is remembered, and the write drops folders that are not in
   // the directory any more (./fold/folders.ts). Which those are is read off the
@@ -128,7 +133,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   const view: TreeView = {
     isActive,
     get broken() {
-      return (servedDirectory()?.broken() ?? new Map())
+      return (servedDirectory()?.broken() ?? NO_BROKEN)
     },
     expanded: openFolders,
     openAncestry,
@@ -196,7 +201,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
                       <VaultFile
                         file={file()}
                         isActive={isActive}
-                        broken={(servedDirectory()?.broken() ?? new Map())}
+                        broken={(servedDirectory()?.broken() ?? NO_BROKEN)}
                       />
                     )}
                   </Key>
@@ -289,6 +294,10 @@ function VaultFile(props: {
   readonly isActive: (file: string) => boolean
   readonly broken: ReadonlyMap<string, BrokenFile>
 }) {
+  const name = () => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? props.file : stemOf(claims, props.file)
+  }
   const of = () => servedDirectory()?.kindOf(props.file) ?? null
   const unreadable = () => servedDirectory()?.claims().byKind.get(of() ?? "")?.holds === "nodes" && props.broken.has(props.file)
   return (
@@ -299,7 +308,7 @@ function VaultFile(props: {
       broken={unreadable()}
       title={props.file}
     >
-      <FileAnatomy of={of()} name={(() => { const claims = servedDirectory()?.claims(); return claims === undefined ? props.file : stemOf(claims, props.file) })()} broken={unreadable()} />
+      <FileAnatomy of={of()} name={name()} broken={unreadable()} />
     </DoorRow>
   )
 }

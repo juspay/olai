@@ -95,7 +95,8 @@ const readingAt = (
   derived: Derived,
   faces: ReadonlyArray<Face>,
   broken: ReadonlyArray<BrokenFile> = READABLE,
-): Reading => ({
+): Reading & { readonly outlineRow: string } => ({
+  outlineRow: "outline-olai",
   claims: TEST_CLAIMS,
   set: { documents: faces, broken } as unknown as OutlineSet,
   derived,
@@ -522,4 +523,10 @@ test("a filed page reading is what those requests are answered in, and a day is 
   expect(admits(pageOf(readingAt(SET, facesOf(FILES)), { kind: "trash" }))).toBe(true)
   expect(admits(pageOf(readingAt(SET, facesOf(FILES)), { kind: "day", date: "2026-09-06" })))
     .toBe(false)
+})
+
+
+test("an empty home names the configured outline row, even when another row claims nodes", () => {
+  expect(pageOf({ ...readingAt(SET, []), outlineRow: "outline-org" }, HOME).shows)
+    .toEqual({ kind: "nothing", sought: "outline-org", requested: null })
 })

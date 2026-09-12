@@ -408,7 +408,7 @@ export const samePageRequest: (a: PageRequest, b: PageRequest) => boolean = Sche
  * one the directory was assembled from.
  */
 export const pageOf = (
-  at: Reading,
+  at: Reading & { readonly outlineRow?: string },
   request: PageRequest,
   kinds: KindVocabulary = NO_KINDS,
 ): PageReading => {
@@ -548,7 +548,7 @@ const outlinesAmong = (claims: Claims, faces: ReadonlyArray<Face>): ReadonlyArra
  *  {@link pageOf} minus its second half. Exported for the one caller that wants
  *  the rows and nothing else: the page's NARROWING (`./narrowing.ts`), which
  *  matches over the records this page draws and resolves no id at all. */
-export const shownOf = (at: Reading, request: PageRequest): Shown => {
+export const shownOf = (at: Reading & { readonly outlineRow?: string }, request: PageRequest): Shown => {
   const { derived } = at
   const faces = at.set.documents
   // THE PAGES THE APP CLAIMED BY NAME FIRST, and then the address — the same
@@ -626,7 +626,7 @@ export const shownOf = (at: Reading, request: PageRequest): Shown => {
   if (file === undefined) {
     return {
       kind: "nothing",
-      sought: named === null ? [...at.claims.byKind.values()].find(claim => claim.holds === "nodes")?.kind ?? "" : fileKind(at.claims, named) ?? "",
+      sought: named === null ? at.outlineRow ?? "" : fileKind(at.claims, named) ?? "",
       requested: named,
     }
   }

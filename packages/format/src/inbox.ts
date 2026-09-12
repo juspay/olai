@@ -91,9 +91,9 @@ export const sameInboxHeld: (a: InboxHeld, b: InboxHeld) => boolean =
  * THE FILE is found the way the capture is (`inboxIn` over
  * {@link outlinePaths}), not over `derived.byFile`. `byFile` is a grouping of
  * parsed records: an empty outline and a torn one have no entry, so a
- * shallowest empty `Inbox.olai` beside a populated `_olai/Inbox.olai` would
- * send the door and every future capture to the empty file and the count to
- * the deeper one. The set's paths are the list capture already walks.
+ * matching empty or torn inbox must still participate in convention lookup.
+ * Two matches directly under `_olai/` have no winner, even when only one
+ * holds records. The set's paths are the list capture already walks.
  *
  * THE NUMBER is the one law over that file (`./inbox.ts`'s header): the
  * regular records carrying an unfinished mark, at any depth. There is no

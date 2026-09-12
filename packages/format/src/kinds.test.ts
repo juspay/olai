@@ -1,6 +1,7 @@
 /** The table as pairs, with the keys still narrowed to what they are — plain
  *  `Object.entries` widens them to `string`, which would turn every sweep below
  *  into an assertion about strings rather than about the kinds. */
+import { noClaimFor, unclaimedFileMessage } from "./kinds.ts"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -194,4 +195,11 @@ test("the minting constants are the suffixes the walk claims", () => {
 // `kept` over the bodied kinds, and asserted as the answer.
 test("the shown kinds are the bodied ones the set keeps no content of", () => {
   expect([...TEST_CLAIMS.byKind.values()].filter(claim => !claim.kept).map(claim => claim.kind).sort()).toEqual(["csv", "hypertext", "image", "pdf"])
+})
+
+
+test("unclaimed suffix wording never takes a dotted directory as a file suffix", () => {
+  expect(noClaimFor("dir.d/name")).toBe("no row claims a path without a suffix")
+  expect(noClaimFor("dir.d/name.org")).toBe("no row claims `.org`")
+  expect(unclaimedFileMessage("dir.d/name.org")).toBe("The directory holds nothing by the name dir.d/name.org. No row claims `.org`.")
 })

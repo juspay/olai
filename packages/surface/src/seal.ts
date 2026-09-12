@@ -532,15 +532,12 @@ const MEASURE = `(function () {
  *     it walks the frame off and comes home, which is the behaviour that was
  *     already there and is deliberately untouched. WHAT HOLDS IT: the two
  *     walk-off scenarios;
- *   - a file olai has a PAGE for, by suffix ({@link FILE_EXTS} — every kind the
- *     registry claims: a `.html`, a `.md`, and an outline beside them). WHICH
- *     page is not asked here and could not be: a `.md` and a `.html` are drawn as
- *     bodies and an outline as a tree, and the app routes the path to
- *     whichever list holds it. Everything else under the route is a part a page
- *     draws ITSELF with — a picture, a stylesheet, a font — and a link to one is
- *     a link to a file, which the frame goes on following exactly as it did.
- *     WHAT HOLDS IT: the suffix list is asserted against the registry, and a
- *     link at a `.png` is followed by the frame in a scenario of its own;
+ *   - a suffix supplied to `seal` by the vault from its current Claims.
+ *     The app chooses the corresponding page; this click handler only hands
+ *     the address back. Other assets, such as stylesheets and fonts, remain
+ *     ordinary links inside the preview rather than app navigation targets.
+ *     WHAT HOLDS IT: the supplied suffix list is asserted in `seal.test.ts`,
+ *     and `html_previews.feature` opens relative links in the app;
  *   - NO IN-PAGE ANCHOR. `#top` is a jump inside the document the reader is
  *     already looking at, and there is nothing for the app to do with one: the
  *     frame keeps it, because a page scrolling itself is not a navigation.

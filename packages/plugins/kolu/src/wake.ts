@@ -36,13 +36,10 @@
  * alive — the exact confusion the heartbeat exists to prevent, handed over by
  * the control. So kolu names the kind it can read and core offers no other.
  *
- * ONE ENTRY, and it will stay one until something in this package can derive a
- * claim out of prose. It is spelled as `@olai/format`'s own word rather than as
- * `.olai`, because a suffix is a string two packages can disagree about and a
- * KIND is the registry's single answer — and it is bounded to the kinds that
- * HOLD RECORDS rather than to every kind there is, because `document` is a word
- * the registry claims and a file this doorbell can no more walk than a picture
- * ({@link KINDS} argues it, and {@link ./wake.test.ts} holds it).
+ * ONE CONTENT SHAPE: `walks: "nodes"`. The serve and picker ask that
+ * predicate of their own current claims. A format row id is not a content
+ * shape, and a new row holding nodes needs no change to this declaration.
+ * {@link ./wake.test.ts} checks the production declaration.
  *
  * ## ...AND THE MESSAGES, which are not pieces of a control
  *
@@ -118,7 +115,7 @@ export const wake = {
    *  fresh derivation of everything standing, so calling them "messages"
    *  would promise five messages where one will arrive. */
   waiting: { one: "fleet event waiting", many: "fleet events waiting" },
-  /** WHICH FILES THIS MAY BE POINTED AT — see the header, and {@link KINDS}
+  /** WHICH FILES THIS MAY BE POINTED AT — see the header, and the `walks` predicate
    *  for why the word rather than the suffix. */
   walks: "nodes" as const,
   /**

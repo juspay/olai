@@ -476,7 +476,10 @@ export const createDirectory = (
   const held = entries.fold(SERVED_FILES)
   const claims = createMemo(() => {
     try { return makeClaims(fileKinds()?.claims ?? []) }
-    catch { return makeClaims([]) }
+    catch (error) {
+      console.warn("olai: invalid file-kind claims frame; using no claims", error)
+      return makeClaims([])
+    }
   })
   return {
     claims,

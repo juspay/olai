@@ -5428,8 +5428,8 @@ const planUnmirror = (
  * named for, asked of the format's registry rather than of which list the path
  * turned up in. So a `.html` is not found here, and the sentence a caller gets
  * is the one below, naming `markdown_create` and the nearest document. That is
- * the whole of why the page for one has no Edit control (`@olai/web`'s
- * `the per-kind page contributions`): the affordance would be a door onto this refusal.
+ * why its kind row's page offers no Edit control: that affordance would
+ * lead to this refusal.
  *
  * TWO refusals are its own:
  *

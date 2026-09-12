@@ -17,7 +17,7 @@
  * ```
  * data Document = Outline  Face [Node]
  *              | Markdown Face Text Bytes [Slug]
- *              | Unkept    unkept claim Face
+ *              | Unkept   Kind Holds Face
  * ```
  *
  * A sum of products, no nullable fields, no downcasting. Every arm carries the
@@ -271,15 +271,10 @@ export type Markdown = typeof Markdown.Type
  * the bodied files `unkept` answers `true` for — and it is the fact the arm's
  * emptiness comes from.
  *
- * ONE ARM AND FOUR TAGS, which is the shape this gained with the viewers and
- * the one place the sum's arm-per-kind rule is worth reading twice. The
- * discriminant is still the KIND and still the registry's own answer — a `.csv`
- * says `csv` — so no file is filed under another kind's name, which is what
- * that rule is about; what four separate structs would add is four identical
- * declarations of `{ kind, ...Face.fields }` and three more members for every
- * union decode to walk. The tags are read off {@link ./kinds.ts}'s
- * `unkept claim`, so this arm cannot come to name a kind the table does not
- * claim, or miss one it does.
+ * ONE ARM FOR UNKEPT CONTENT. `kind` carries the registered row id and
+ * `holds` distinguishes text from bytes. This schema checks structure only;
+ * `unkept(claims, path)` in `kinds.ts` asks the current table whether a path
+ * belongs here. A new unkept row needs no member added to this schema.
  */
 export const Unkept = Schema.Struct({
   kind: Schema.String,
@@ -289,7 +284,7 @@ export const Unkept = Schema.Struct({
 })
 export type Unkept = typeof Unkept.Type
 
-/** The three shapes a served file can be, across the six kinds there are. */
+/** The three content shapes, independent of the registered kind ids. */
 export const Document = Schema.Union([Outline, Markdown, Unkept])
 export type Document = typeof Document.Type
 

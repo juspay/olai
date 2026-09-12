@@ -166,6 +166,7 @@ Feature: File kinds follow their claiming rows
     And I mark the page
     When I open the plugins panel
     And I switch the plugin "markdown" off
+    Then the plugin "markdown" is off without prose
     And I close the plugins panel
     And I navigate within the tab to "/reports/q3.pdf"
     Then the pdf drawn is "reports/q3.pdf"

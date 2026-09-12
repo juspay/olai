@@ -27,6 +27,7 @@
  * to look things up rather than a thing two callers share.
  */
 
+import { noClaimFor } from "@olai/format"
 import {
   bodyKind,
   type Claims,
@@ -296,8 +297,5 @@ export const notLoaded = (
 
 /** A bare unclaimed path cannot identify a disabled owner. */
 export const unclaimedPath = (file: string, neighbors: ReadonlyArray<string>): OpFailure => {
-  const name = file.slice(file.lastIndexOf("/") + 1)
-  const dot = name.lastIndexOf(".")
-  const suffix = dot < 0 ? "a path without a suffix" : `\`${name.slice(dot)}\``
-  return new NotFoundFailure({ named: file, reason: `\`${file}\` is not a file this directory serves: no row claims ${suffix}${didYouMean(file, neighbors)}` })
+  return new NotFoundFailure({ named: file, reason: `\`${file}\` is not a file this directory serves: ${noClaimFor(file)}${didYouMean(file, neighbors)}` })
 }

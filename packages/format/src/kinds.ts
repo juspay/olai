@@ -93,6 +93,6 @@ export const parserFor = (claims: Claims, path: string): OutlineFormat | null =>
 /** An unclaimed path cannot name an absent row. */
 export const noClaimFor = (path: string): string => {
   const suffix = /\.[^./]+$/.exec(path)?.[0]
-  return suffix === undefined ? "No row claims a path without a suffix." : `No row claims \`${suffix}\`.`
+  return suffix === undefined ? "no row claims a path without a suffix" : `no row claims \`${suffix}\``
 }
-export const unclaimedFileMessage = (path: string): string => `The directory holds nothing by the name ${path}. ${noClaimFor(path)}`
+export const unclaimedFileMessage = (path: string): string => `The directory holds nothing by the name ${path}. ${noClaimFor(path).replace(/^n/, "N")}.`

@@ -67,7 +67,7 @@
  * Nothing here has tests of its own — it is a helper module, not a suite, and
  * `bun test` collects only `*.test.ts`.
  */
-import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
+import { TEST_CLAIMS } from "./claims.testlib.ts"
 import { addressOf, bodiedDocument, bodyKind, type BrokenFile, type Document, type KindVocabulary, type MovingRequest, type NarrowingRequest, NO_KINDS, type OutlineError, type PageRequest, type Reading, stillHolds, taping, type Verdict, verdictOf } from "@olai/format"
 import { parseOutline } from "olai-plugin-outline-olai/format"
 import { seeded } from "@olai/format/testlib"

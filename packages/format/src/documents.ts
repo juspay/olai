@@ -255,11 +255,11 @@ const suffixed = (path: string, extensions: ReadonlyArray<string>): boolean => {
 }
 
 /**
- * The extensions a picture MARKDOWN MAY NAME.
+ * Whether Markdown may draw this path as an inline picture.
  *
- * READ OFF THE REGISTRY, minus one, and that subtraction is the whole of what
- * this list still decides. A picture used to be the one thing under the served
- * directory that was neither an outline nor a document — nothing loaded one,
+ * READ OFF THE CLAIMS: `picture` admits the case-folded suffix, and `inert`
+ * excludes suffixes that must not become inline pictures. A picture used to
+ * be the one thing under the served directory that was neither an outline nor a document — nothing loaded one,
  * nothing validated one, and one existed only as the target of a relative
  * `![](…)` — so this was a closed allowlist typed out here. A picture is a
  * KIND now (`./kinds.ts`): it is in the set, it is in the sidebar, and it has a
@@ -267,16 +267,14 @@ const suffixed = (path: string, extensions: ReadonlyArray<string>): boolean => {
  * `.heic` to one of them, and the way that reads is a file the sidebar draws
  * and a document cannot point at, or the reverse.
  *
- * WHAT IS SUBTRACTED IS `.svg`, and that is the ruling this list exists to keep
+ * The image row declares `.svg` inert, preserving the ruling
  * (`@olai/surface`'s `attach.ts` keeps the same one for what may be handed to
  * an agent): an SVG is a document that can script, and markdown pointing at one
  * is this app promising to draw a file it has not read. That the kind claims
  * `.svg` is not the same permission — a picture's PAGE draws it in an `<img>`,
  * which is the element that will not run it, and the response it is fetched
- * with says so too (`@olai/server`'s `media.ts`).
+ * with says so too (the vault's `http/media.ts`).
  */
-
-
 export const isPicture = (claims: Claims, path: string): boolean => {
   const lower = path.toLowerCase()
   return [...claims.byKind.values()].some(claim => claim.picture === true &&
@@ -317,7 +315,7 @@ export const servingOf = (claims: Claims, path: string): { sealed: boolean; iner
  * is one of the picture kind's suffixes, so {@link isAsset} admits it below,
  * and what stops a previewed page pulling one into a frame and running it is
  * the response that answers it rather than a suffix withheld here
- * (`@olai/server`'s `media.ts` sandboxes an SVG's own response). Withholding
+ * (the vault's `http/media.ts` sandboxes an SVG's own response). Withholding
  * it here would also have withheld it from the `<img>` a picture's PAGE draws,
  * which is the one thing the ruling never meant to stop.
  *

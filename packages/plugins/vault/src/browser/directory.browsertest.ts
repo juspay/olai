@@ -36,7 +36,7 @@
  * keeps the two runs apart.
  */
 
-import { expect, test } from "bun:test"
+import { expect, test, spyOn } from "bun:test"
 import { type Accessor, createRoot, createSignal, untrack } from "solid-js"
 
 import type { FileKindsState } from "../file-surface.ts"
@@ -598,7 +598,12 @@ test("an overlapping claims frame degrades to empty and a later frame reconnects
   const first = { kind: "first", exts: [".drawing"] as const, holds: "bytes" as const, kept: false, fetched: true, noun: "drawing", article: "a" as const }
   directory.publishClaims({ claims: [first], outlineRow: "configured" })
   expect(directory.kindOf("a.drawing")).toBe("first")
-  directory.publishClaims({ claims: [first, { ...first, kind: "overlap" }], outlineRow: "configured" })
+  const logged = spyOn(console, "warn").mockImplementation(() => {})
+  try {
+    directory.publishClaims({ claims: [first, { ...first, kind: "overlap" }], outlineRow: "configured" })
+    expect(directory.claims().byKind.size).toBe(0)
+    expect(logged).toHaveBeenCalledTimes(1)
+  } finally { logged.mockRestore() }
   expect(directory.claims().byKind.size).toBe(0)
   expect(directory.kindOf("a.drawing")).toBeNull()
   directory.publishClaims({ claims: [first], outlineRow: "configured" })

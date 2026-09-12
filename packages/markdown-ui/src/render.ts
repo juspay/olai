@@ -205,7 +205,7 @@ export const sourceText = (source: string): string =>
  * A STRING rather than a lookup, so it is honest about what it does not know:
  * whether the page has that heading at all is a question for the DOM, and the
  * caller that asks is the one that can also decide what to do when the answer
- * is no (the per-kind page contributions stays where it is, which is what a browser
+ * is no (the current kind row’s page stays mounted, which is what a browser
  * does with a fragment naming nothing).
  */
 export const landingId = (source: string, from: string, at: string): string =>

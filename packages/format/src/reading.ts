@@ -275,8 +275,8 @@ export type OutlineAnswer = typeof OutlineAnswer.Type
  * names.
  *
  * IN PATH ORDER, which is the set's own ({@link ./set.ts}'s `assemble`) — the
- * inbox convention reads it (shallowest first, then path order), so the order
- * is part of the answer rather than an accident of the walk.
+ * browser presents that order. Convention selection separately checks stems
+ * directly under `_olai/` and refuses ambiguity; order never breaks a tie.
  */
 export const PathsAnswer = Schema.Struct({
   claims: Schema.Array(ClaimData),

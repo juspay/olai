@@ -25,7 +25,7 @@
  *
  * Not a suite: `bun test` collects only `*.test.ts`.
  */
-import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
+import { TEST_CLAIMS } from "./claims.testlib.ts"
 import { apart, assemble, bodiedDocument, type Document, type OutlineError, reading, type SetDelta, type Verdict } from "@olai/format"
 import { parseOutline, serializeOutline } from "olai-plugin-outline-olai/format"
 import { Result } from "effect"

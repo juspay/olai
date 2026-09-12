@@ -397,18 +397,14 @@ export interface Ops extends Asking {
   readonly read: Effect.Effect<Reading & { readonly outlineRow: string }, OpFailure>
 }
 
-/** How many LOST RACES one write survives before it gives up. Each is a fresh
- *  read and a fresh plan overtaken by another writer; something that has lost
- *  five in a row is not losing a race, it is contending with a writer that
- *  never stops.
+/** How many invalidated write attempts one request survives. A stale commit
+ *  means another writer overtook its plan; a changed Claims snapshot means
+ *  the membership used to plan is no longer current. Both spend this budget,
+ *  though a claims swap need not involve another writer.
  *
- *  IT COUNTS LOST RACES AND NOTHING ELSE, which is what makes the sentence
- *  above true of the code rather than of a comment: the counter moves at the
- *  ONE site that observes a race ({@link Store.commit}'s `StaleWrite`), so a
- *  round a repair begins again costs it nothing and there is no refund to
- *  remember at either of {@link REPAIRS}' doors. The loop is bounded by
- *  `ROUNDS + REPAIRS` iterations: every `continue` in it either counts a race
- *  here or spends the repair budget, which no round can give back. */
+ *  Repairs spend their separate budget. Every `continue` either counts an
+ *  invalidated attempt here or spends a repair, so the loop remains bounded
+ *  by `ROUNDS + REPAIRS` iterations. */
 const ROUNDS = 5
 
 /** How many TIMES one write may heal the set a REFUSAL was reached against

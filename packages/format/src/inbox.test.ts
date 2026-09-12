@@ -20,8 +20,9 @@
  * clause (a placement is not a node), and the two halves of the convention
  * meeting (a capture lands already counted, because its row was born `todo`).
  * Which FILE the count is asked of is found by name over the SET's paths —
- * the same list capture walks — so an empty or torn shallowest file is the
- * file the door names, not a deeper one that still holds records.
+ * the same list capture walks — so an empty or torn convention file is the
+ * file the door names; a second matching path is ambiguous even if only
+ * one of them holds records.
  */
 
 const INBOX = `_olai/${INBOX_STEM}.olai`

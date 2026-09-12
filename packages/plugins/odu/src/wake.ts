@@ -10,14 +10,10 @@
  * the doorbell IS. The counter is a count of held bodies, and each body is
  * `CI event`: the honest name for what one of them is ABOUT.
  *
- * The KINDS are the one member here a person never reads, and kolu's own
- * `./wake.test.ts` argues the whole of why the annotation is `NodeKind` and
- * not `FileKind`: a scope is a filter, and what odu filters BY is the
- * `odu-worktree` values on a file's un-done NODES ({@link ./doorbell.ts}), so
- * a file that holds no nodes claims nobody, for ever. `FileKind` would type-
- * check a `document` green and hand back the exact defect this member exists
- * to retire; `./wake.test.ts` holds the annotation hard, against the PRODUCTION
- * SLOT rather than a union restated in the test.
+ * `walks: "nodes"` is the non-prose member: odu filters by `odu-worktree`
+ * values on unfinished nodes. Both the serve and the picker compare that
+ * predicate with their own current claims. Row ids do not decide whether a
+ * file holds records, and a missing claim offers no watched file.
  *
  * The FAULTS are a sentence per WAY this doorbell can stop watching — `gone`
  * for the file that stops being served, `unwatchable` for the file that is

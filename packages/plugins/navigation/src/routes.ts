@@ -708,7 +708,7 @@ const routeNamedIn = (table: Claims | undefined, pages: MountedPages, parts: Spl
     let path: string
     try { path = decodeURIComponent(pathname.slice(HOME.length)) } catch { return null }
     const name = path.slice(path.lastIndexOf("/") + 1)
-    return /\.[^.]+$/.test(name) && Schema.is(DocumentPath)(path) ? atFile(path) : null
+    return /\.[^./]+$/.test(name) && Schema.is(DocumentPath)(path) ? atFile(path) : null
   }
   // WHICH PAGE it opens is not decided here and is not stored: an address is a
   // place, and what is drawn at that place is the suffix's answer, asked once

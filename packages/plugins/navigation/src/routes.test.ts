@@ -214,6 +214,7 @@ test("an outline in a subdirectory keeps its slashes", () => {
 test("unclaimed files retain their path; non-file routes fall back to home", () => {
   expect(routeOf("/")).toEqual(HOME_ROUTE)
   expect(routeOf("/somewhere/else")).toEqual(HOME_ROUTE)
+  expect(routeOf("/dir.d/name")).toEqual(HOME_ROUTE)
   expect(routeOf("/notes.txt")).toEqual(atFile("notes.txt"))
 })
 

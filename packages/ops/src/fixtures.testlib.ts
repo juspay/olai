@@ -13,8 +13,8 @@
  *
  * Not a suite: `bun test` collects only `*.test.ts`.
  */
-export { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
-import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
+export { TEST_CLAIMS } from "./claims.testlib.ts"
+import { TEST_CLAIMS } from "./claims.testlib.ts"
 import {
   type Node,
   NO_KINDS,

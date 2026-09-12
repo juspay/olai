@@ -328,7 +328,7 @@ const OPEN = ((): string => {
 
 /**
  * WHICH FILES THE HANDLER CLAIMS A CLICK ON, read the same way: the list is
- * interpolated from the registry (`@olai/format`'s `FILE_EXTS`), and this is
+ * interpolated from the suffixes supplied to `seal` (the literal test claims here), and this is
  * what says it still is. A `.html` written out over there would pass every
  * other test in this file and quietly stop following the table the day a fourth
  * kind of bodied file is added — which is the exact failure the repository's own
