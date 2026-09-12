@@ -953,7 +953,7 @@ const useExternal = async (
   const sayOutcome = (status: "completed" | "failed", output: unknown): void =>
     notify("session/update", {
       sessionId,
-      update: { sessionUpdate: "tool_call_update", toolCallId, status, ...toolWire.wrapped(output as claudeTool.CallToolResult) },
+      update: { sessionUpdate: "tool_call_update", toolCallId, status, rawOutput: output },
     })
   const server_ = await externalOf(server)
   if (server_ === null) {
@@ -965,7 +965,7 @@ const useExternal = async (
     const blocks = result["content"] as ReadonlyArray<{ type?: string; text?: string }> | undefined
     const said = blocks?.find((block) => block?.type === "text")?.text
       ?? JSON.stringify(result["structuredContent"] ?? result)
-    sayOutcome(result["isError"] === true ? "failed" : "completed", result)
+    sayOutcome(result["isError"] === true ? "failed" : "completed", toolWire.wrapped(result as unknown as claudeTool.CallToolResult).rawOutput)
     return said
   } catch (thrown) {
     sayOutcome("failed", { error: String(thrown) })

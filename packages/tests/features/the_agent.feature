@@ -2055,7 +2055,8 @@ Feature: Talking to the agent
   @scratch:chat
   Scenario: Late MCP recognition relabels the call and preserves its first spelling
     When I ask the agent "late-done order"
-    Then the agent is idle
+    Then the chat shows a completed tool call
+    And the agent is idle
     And the chat shows a tool call named "Mark done"
     And the tool call says which outline it touched
     And the chat says the write "marked done"
