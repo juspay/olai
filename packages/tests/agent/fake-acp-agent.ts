@@ -1,4 +1,7 @@
 #!/usr/bin/env bun
+import * as claudeTool from "olai-plugin-claude/testlib"
+import * as codexTool from "olai-plugin-codex/testlib"
+const toolWire = process.env.OLAI_FAKE_CODEX === "yes" ? codexTool : claudeTool
 import { nativeActivity } from "./native-activity.ts"
 /**
  * A scripted ACP agent, for driving the chat loop without a language model.
@@ -942,7 +945,7 @@ const useExternal = async (
     update: {
       sessionUpdate: "tool_call",
       toolCallId,
-      title: `${server} — ${name}`,
+      ...toolWire.announced(server, name, args),
       status: "in_progress",
       rawInput: args,
     },
@@ -962,7 +965,7 @@ const useExternal = async (
     const blocks = result["content"] as ReadonlyArray<{ type?: string; text?: string }> | undefined
     const said = blocks?.find((block) => block?.type === "text")?.text
       ?? JSON.stringify(result["structuredContent"] ?? result)
-    sayOutcome(result["isError"] === true ? "failed" : "completed", result)
+    sayOutcome(result["isError"] === true ? "failed" : "completed", toolWire.wrapped(result as unknown as claudeTool.CallToolResult).rawOutput)
     return said
   } catch (thrown) {
     sayOutcome("failed", { error: String(thrown) })
@@ -987,6 +990,7 @@ const completed = (toolCallId: string): void => {
 const useTool = async (
   name: string,
   args: Record<string, unknown>,
+  late = false,
 ): Promise<Record<string, unknown>> => {
   const toolCallId = `call-${++nextMcpId}`
   notify("session/update", {
@@ -994,9 +998,9 @@ const useTool = async (
     update: {
       sessionUpdate: "tool_call",
       toolCallId,
-      title: `${name}`,
+      ...(late ? { title: "pending MCP call", rawInput: args } : toolWire.announced("olai", name, args)),
+      locations: [{ path: `${cwd}/house.olai`, line: 12 }],
       status: "in_progress",
-      rawInput: args,
     },
   })
 
@@ -1007,8 +1011,9 @@ const useTool = async (
     update: {
       sessionUpdate: "tool_call_update",
       toolCallId,
+      ...(late ? toolWire.announced("olai", name, args) : {}),
       status: failed ? "failed" : "completed",
-      rawOutput: result,
+      ...toolWire.wrapped(result as unknown as claudeTool.CallToolResult),
     },
   })
   return result
@@ -2581,8 +2586,8 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
-  if (verb === "done") {
-    await useTool("outlines_done", { id: argument })
+  if (verb === "done" || verb === "late-done") {
+    await useTool("outlines_done", { id: argument }, verb === "late-done")
     say(`marked \`${argument}\` done.`)
     reply(id, { stopReason: "end_turn" })
     return

@@ -64,6 +64,8 @@
  * structured question — it has to guess, or write the question into prose and
  * hope.
  */
+import type { Advertised } from "@olai/plugin-api/services"
+
 import { Terminals } from "./terminals.ts"
 import { terminalMetaIn } from "@olai/acp"
 import { type Child, start as startChild } from "@olai/child"
@@ -107,7 +109,7 @@ import { emitter, reasonOf } from "@olai/log"
 import type { ChatServer } from "olai-plugin-chat/wire"
 import type { Reported } from "@olai/acp/engine"
 import type { AskAnswer } from "@olai/acp/wire"
-import { Clock, Data, type Duration, Effect, Fiber, References, Semaphore } from "effect"
+import { Clock, Schema, Data, type Duration, Effect, Fiber, References, Semaphore } from "effect"
 
 import type { Leg, Meta, ModelReading } from "@olai/acp/engine"
 import { acceptsSetting, settingsIn } from "./agents/settings.ts"
@@ -124,7 +126,7 @@ import { streamOver } from "./pipes.ts"
 import { handedIn, missingIn, type Probe, probed, type StdioServer } from "./probes.ts"
 import * as Questions from "./questions.ts"
 import { movedBy, rosterOf } from "./servers.ts"
-import { wroteIn } from "./wrote.ts"
+import { Json } from "./json.ts"
 
 /** An MCP server to hand a session, in olai's terms. {@link mcpServersOf}
  *  renders it into what the protocol wants. */
@@ -286,6 +288,7 @@ export interface Options {
    * `beforeEach` to stop one, which is a test reaching into the process to
    * silence a dependency it could not name.
    */
+  readonly advertised?: (server: string, tool: string) => Advertised | null
   readonly probes?: () => Effect.Effect<ReadonlyArray<Probe>>
   /** Where "which conversation is the panel's" is kept between one serve of
    *  this directory and the next ({@link ./memory.ts}). Handed in rather than
@@ -775,7 +778,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 detail: undefined,
                 progress: undefined,
                 diffs: undefined,
-                wrote: undefined,
+                called: undefined, row: undefined, reply: undefined,
                 locations: undefined,
                 parent: undefined,
                 spawned: undefined,
@@ -806,26 +809,36 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // handlers above need and what neither question they answer carries
           // ({@link ./calls.ts}).
           calls.heard(update.toolCallId, update._meta, notification.sessionId)
+          // Recognition belongs to the leg; ownership belongs to the live catalogue.
+          const recognized = options.leg.mcpCall({
+            title: update.title,
+            rawInput: update.rawInput,
+            _meta: update._meta,
+            name: calls.about(update.toolCallId, notification.sessionId).name,
+          }, given)
+          calls.recognized(update.toolCallId, recognized, notification.sessionId)
+          const call = calls.about(update.toolCallId, notification.sessionId).mcp ?? null
+          const ours = call === null ? null : options.advertised?.(call.server, call.tool) ?? null
+          const decoded = ours === null ? undefined : options.leg.replyIn(update.rawOutput)
+          const reply = decoded !== undefined && isJson(decoded) ? decoded : undefined
+
           emit({
             _tag: "tool",
             id,
-            title: update.title ?? undefined,
+            title: ours?.title ?? update.title ?? undefined,
+            called: update.title ?? undefined,
+            row: ours?.owner,
+            reply,
             // NO CAST. The protocol's four words and the panel's are the same
             // four, and this is the one seam that says so: a fifth status on
             // either side stops compiling HERE, where a person can decide what
             // the panel should do with it, rather than riding a cast onto a row
             // whose look-up table has no entry for it.
             status: activity?.status(id, update.status ?? undefined) ?? update.status ?? undefined,
-            detail: detailOf(update.rawInput, update.rawOutput),
+            detail: detailOf(update.rawInput, ours === null ? update.rawOutput : undefined),
             progress: progressOf(update.content),
-            // The two vocabularies for what a call CHANGED, and a call is at
-            // most one of them: a direct file edit sends diff blocks, and a
-            // write through the ops layer answers with a reply olai wrote
-            // itself. Both are read structurally — `undefined` is "this report
-            // said nothing about that", which is the protocol's own rule for
-            // every other field here.
+            // Direct file changes remain protocol diff blocks.
             diffs: diffsOf(update.content, options.cwd),
-            wrote: wroteIn(update.rawOutput),
             locations: locationsOf(update.locations, options.cwd),
             // ... and WHO made the call, out of the same `_meta` the name came
             // from. A subagent's frames arrive on this one feed with nothing
@@ -2697,3 +2710,5 @@ export const mcpServersOf = (
     env: Object.entries(one.env).map(([name, value]) => ({ name, value })),
   })),
 ]
+
+const isJson = Schema.is(Json)

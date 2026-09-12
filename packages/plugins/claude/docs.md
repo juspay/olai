@@ -40,3 +40,5 @@ A version bump makes the patches FAIL rather than silently drop the behaviour, w
 It comes with olai: every documented way of starting it bakes the pinned adapter in, so there is nothing to install for this row.
 
 The panel distinguishes an unavailable executable from a serve with no enabled engine. An empty adapter path affects this row only; turn the chat row off in the settings file to remove the conversation.
+
+Its declared MCP prefix is `mcp__<server>__`; for display only, the leg parses JSON from a raw-output string or the first text block in a content array. The pinned adapter forwards the SDK’s `tool_result.content` unchanged; real sessions commonly use the string form, which the executable test fixture also emits. Prose refusals have no structured reply.

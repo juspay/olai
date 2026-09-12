@@ -53,7 +53,8 @@
     "olai-plugin-markdown": "workspace:*",
     "olai-plugin-pins": "workspace:*",
     "olai-plugin-trash": "workspace:*",
-    "olai-plugin-search": "workspace:*"
+    "olai-plugin-search": "workspace:*",
+    "olai-plugin-chat": "workspace:*"
   },
   "olai": {
     "contracts": [

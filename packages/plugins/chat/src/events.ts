@@ -14,7 +14,7 @@
  * the caller that asked is the one waiting.
  */
 
-import type { SessionSetting, PlanStep, TerminalView, Armed, ChatServer, Spawned, ToolStatus, Wrote } from "olai-plugin-chat/wire"
+import type { SessionSetting, PlanStep, TerminalView, Armed, ChatServer, Spawned, ToolStatus, Json } from "olai-plugin-chat/wire"
 import type { AskField, AskOutcome, FileDiff, Usage } from "@olai/acp/wire"
 /** A slash command the agent offers. */
 export interface Command {
@@ -89,10 +89,10 @@ export type AgentEvent =
      *  `progress`, because a change flattened into a sentence is a change a
      *  panel can no longer draw. */
     readonly diffs: ReadonlyArray<FileDiff> | undefined
-    /** ... and what it WROTE through the ops layer, which is never a diff: the
-     *  node-level story the format's own vocabulary already has
-     *  ({@link ./wrote.ts}). */
-    readonly wrote: Wrote | undefined
+    /** Display name, owner and opaque JSON reply for the owning plugin’s face. */
+    readonly called: string | undefined
+    readonly row: string | undefined
+    readonly reply: Json | undefined
     /** Where it is working: the follow-along file locations. */
     readonly locations: ReadonlyArray<string> | undefined
     /**

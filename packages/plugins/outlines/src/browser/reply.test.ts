@@ -1,24 +1,9 @@
-/**
- * The write story, over values.
- *
- * The payloads are the ops layer's own replies as an MCP result carries them —
- * `structuredContent` holding `Applied` plus the `did` the projection adds. The
- * near misses are the point, the way they are in {@link ./interpret.test.ts}: a
- * result from some other server, a refusal, a reply whose `sort` is a word this
- * codebase does not have. Every one of them must draw NOTHING rather than a
- * half-story, because the alternative to a story here is a folded blob of JSON
- * that was always there.
- */
-
 import { describe, expect, test } from "bun:test"
 
-import { wroteIn } from "./wrote.ts"
+import { writeIn as wroteIn, fileOf } from "./reply.ts"
 
 /** A tool result as the MCP call answers with one. */
-const result = (structured: unknown) => ({
-  content: [{ type: "text", text: "…" }],
-  structuredContent: structured,
-})
+const result = (structured: unknown) => structured
 
 const MARKED = {
   did: "outlines_done",
@@ -43,10 +28,7 @@ describe("what an olai write says for itself", () => {
   })
 
   test("the node's ID rides along, which is what makes the row a reference", () => {
-    // The reply has always carried it (`Applied.id`); until it crossed the wire
-    // the panel could say WHICH node a write was about and still have nothing
-    // to point at. A reply that names none says the same words and does not
-    // point, rather than pointing at an empty string.
+    // Missing or mistyped IDs leave the story as plain text.
     const { id: _id, ...anonymous } = MARKED
     expect(wroteIn(result(anonymous))?.id).toBeNull()
     expect(wroteIn(result({ ...MARKED, id: 7 }))?.id).toBeNull()
@@ -73,6 +55,7 @@ describe("what an olai write says for itself", () => {
     // has no phrase for would ride the wire and draw a blank where the story
     // goes.
     expect(wroteIn(result({ ...MARKED, sort: "vandalised" }))?.sort).toBeNull()
+    expect(wroteIn({ did: "outlines_done", title: "order" })).toEqual({ id: null, title: "order", sort: null, file: null, nudge: null })
   })
 
   test("anything that is not one of our replies draws nothing", () => {
@@ -83,4 +66,11 @@ describe("what an olai write says for itself", () => {
     expect(wroteIn(null)).toBeUndefined()
     expect(wroteIn("done")).toBeUndefined()
   })
+})
+
+test("files are top-level reply facts, including reads and projected roots", () => {
+  expect(fileOf({ file: "Finance.olai" })).toBe("Finance.olai")
+  for (const reply of [null, {}, { file: "" }, { file: 7 }, { nodes: [] }]) expect(fileOf(reply)).toBeNull()
+  expect(wroteIn({ file: "Finance.olai", title: "read" })).toBeUndefined()
+  expect(wroteIn({ ...MARKED, id: "" })?.id).toBeNull()
 })

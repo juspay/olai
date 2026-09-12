@@ -109,4 +109,4 @@ Feature: What git is doing is on screen, in ONE indicator
     Then the chat shows a completed tool call
     And node "mint" is done
     When I unfold the tool call
-    Then the tool call's detail says "dubious ownership"
+    Then the tool call's reply says "dubious ownership"

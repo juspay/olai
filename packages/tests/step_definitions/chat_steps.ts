@@ -91,7 +91,7 @@ import {
   CHAT_MODEL,
   CHAT_NEW,
   CHAT_NO_AGENT,
-  CHAT_NUDGE,
+  OUTLINES_NUDGE,
   CHAT_OUTLINE_CHANGE,
   CHAT_QUEUED,
   CHAT_QUEUES,
@@ -140,7 +140,11 @@ import {
   CHAT_USAGE,
   CHAT_WAITING,
   CHAT_WORKING,
-  CHAT_WROTE,
+  OUTLINES_STORY,
+  CHAT_TOOL_TEXT,
+  CHAT_TOOL_FILE,
+  CHAT_TOOL_CALLED,
+  CHAT_TOOL_REPLY,
   expectBefore,
   HYDRATION_TIMEOUT,
   NODE_TITLE,
@@ -1250,19 +1254,19 @@ Then("the tool call's detail is shown", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/** What the RESULT said, as the reader gets it. The detail block is the call's
- *  arguments and its answer as the agent reported them, so this is the one
+/** What the RESULT said, as the reader gets it. The reply block carries
+ *  the answer once, separate from the input, so this is the one
  *  assertion that follows a field of an op's reply all the way from the ops
  *  layer to a person's screen. */
 Then(
-  "the tool call's detail says {string}",
+  "the tool call's reply says {string}",
   async function (this: OlaiWorld, said: string) {
-    const detail = heldTool(this).locator(CHAT_TOOL_DETAIL);
+    const detail = heldTool(this).locator(CHAT_TOOL_REPLY);
     await detail.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const shown = oneLine(await detail.innerText());
     assert.ok(
       shown.includes(said),
-      `the tool call's detail does not mention "${said}"; it says: ${shown}`,
+      `the tool call's reply does not mention "${said}"; it says: ${shown}`,
     );
   },
 );
@@ -1572,7 +1576,7 @@ Then(
   async function (this: OlaiWorld, said: string) {
     // The commit panel's own words for the same event, which is the parity
     // this is really about: one classification, two places it is read.
-    const wrote = this.chat(CHAT_WROTE).first();
+    const wrote = this.chat(OUTLINES_STORY).first();
     await wrote.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const shown = oneLine(await wrote.innerText());
     assert.ok(
@@ -1619,7 +1623,7 @@ Then(
     // What the rollup noticed about a write that LANDED — advice, never a
     // reason anything failed. A person who asked an agent for something is
     // owed the aside a person who pressed a key already gets.
-    const nudge = this.chat(CHAT_NUDGE).first();
+    const nudge = this.chat(OUTLINES_NUDGE).first();
     await nudge.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const shown = oneLine(await nudge.innerText());
     assert.ok(
@@ -3889,4 +3893,36 @@ When("I send the recovered draft again", async function (this: OlaiWorld) {
 
 Then("the active chat completion is {string}", async function(this: OlaiWorld, value: string) {
   await this.waitUntil(async () => await this.chat(`${CHAT_COMPLETION_ROW}[data-active="true"]`).getAttribute("data-value") === value, `the completion cursor to name ${value}`);
+});
+
+Then("the tool call says which outline it touched", async function (this: OlaiWorld) {
+  const file = heldTool(this).locator(CHAT_TOOL_FILE);
+  await file.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.equal(await file.innerText(), "house.olai");
+});
+Then("the tool call is called {string} underneath", async function (this: OlaiWorld, called: string) {
+  const tool = heldTool(this);
+  assert.equal(await tool.locator(CHAT_TOOL_CALLED).innerText(), called);
+  assert.equal(await tool.locator(CHAT_TOOL_TEXT).getAttribute("title"), called);
+});
+Then("the tool call's reply is shown once", async function (this: OlaiWorld) {
+  const tool = heldTool(this);
+  assert.equal(await tool.locator(CHAT_TOOL_REPLY).count(), 1);
+  assert.equal(await tool.locator(CHAT_TOOL_PROGRESS).count(), 0);
+  const reply = JSON.parse(await tool.locator(CHAT_TOOL_REPLY).innerText());
+  assert.equal(reply.file, "house.olai");
+  const input = await tool.locator(CHAT_TOOL_DETAIL).innerText();
+  assert.ok(!input.includes(reply.summary ?? reply.file), "reply leaked into the input detail");
+});
+Then("the chat shows no story under the call", async function (this: OlaiWorld) {
+  assert.equal(await heldTool(this).locator(OUTLINES_STORY).count(), 0);
+});
+Then("the tool call shows no outline", async function (this: OlaiWorld) {
+  assert.equal(await heldTool(this).locator(CHAT_TOOL_FILE).count(), 0);
+});
+
+Then("the foreign tool reply remains ordinary detail", async function (this: OlaiWorld) {
+  const tool = heldTool(this);
+  assert.equal(await tool.locator(CHAT_TOOL_REPLY).count(), 0);
+  assert.match(await tool.locator(CHAT_TOOL_DETAIL).innerText(), /foreign write-shaped reply/);
 });

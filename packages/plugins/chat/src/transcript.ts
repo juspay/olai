@@ -55,7 +55,7 @@
 import { isDeepStrictEqual } from "node:util"
 
 import { isRunningStatus, isTaskOut, sentToDo } from "olai-plugin-chat/wire"
-import type { Armed, ChatEntry, Delivery, Saying, Spawned, ToolEntry, TerminalView, ToolStatus, Wrote } from "olai-plugin-chat/wire"
+import type { Armed, ChatEntry, Delivery, Saying, Spawned, ToolEntry, TerminalView, ToolStatus, Json } from "olai-plugin-chat/wire"
 import type { OpFailure } from "@olai/format"
 import type { AskField, AskOutcome, FileDiff } from "@olai/acp/wire"
 export interface Change {
@@ -824,7 +824,9 @@ export class Transcript {
       readonly terminals?: readonly TerminalView[] | undefined
       readonly progress?: string | undefined
       readonly diffs?: ReadonlyArray<FileDiff> | undefined
-      readonly wrote?: Wrote | undefined
+      readonly called?: string | undefined
+      readonly row?: string | undefined
+      readonly reply?: Json | undefined
       readonly locations?: ReadonlyArray<string> | undefined
       readonly parent?: string | undefined
       readonly spawned?: Spawned | undefined
@@ -908,7 +910,8 @@ export class Transcript {
     // carries only a status, and a row that read that as "no diffs now" would
     // drop the change at the moment the call finished.
     const diffs = move.diffs ?? held?.diffs
-    const wrote = move.wrote ?? held?.wrote
+    const row = move.row ?? held?.row
+    const reply = move.reply ?? held?.reply
     const locations = move.locations ?? held?.locations
     // WHICH agent made this call, stored as THIS COLLECTION'S OWN KEY rather
     // than as the id it arrived as. A row is what a reader of this field wants
@@ -976,7 +979,11 @@ export class Transcript {
     // renamed by the next frame that carried a different one.
     const named = this.#named.has(key)
     if (move.title !== undefined) this.#named.add(key)
-    const text = (named ? undefined : move.title) ?? held?.text ?? id
+    const called = (named ? undefined : move.called) ?? held?.called
+    // Ownership can arrive later; replace the raw label once without moving
+    // the original engine spelling or subsequent friendly titles.
+    const firstOwner = held?.row === undefined && move.row !== undefined
+    const text = (named && !firstOwner ? undefined : move.title) ?? held?.text ?? id
     // THE TOOL ARM, named — so the comparison below is between two values of
     // one kind rather than two of a six-armed union, and a field that belongs
     // to somebody else's row is a type error here rather than a key silently
@@ -989,7 +996,9 @@ export class Transcript {
       ...(terminals === undefined ? {} : { terminals }),
       ...(progress === undefined ? {} : { progress }),
       ...(diffs === undefined ? {} : { diffs }),
-      ...(wrote === undefined ? {} : { wrote }),
+      ...(called === undefined ? {} : { called }),
+      ...(row === undefined ? {} : { row }),
+      ...(reply === undefined ? {} : { reply }),
       ...(locations === undefined ? {} : { locations }),
       ...(parent === undefined ? {} : { parent }),
       ...(spawned === undefined ? {} : { spawned }),

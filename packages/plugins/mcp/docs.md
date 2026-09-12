@@ -46,3 +46,7 @@ A retained client, including the delayed next write of a multi-step tool, then
 receives the same reaped-conversation refusal. A provider returning with fresh
 handlers cannot revive that credential; writes accepted before release remain
 on disk.
+
+## Tool display catalogue
+
+The activation offers `mcp.catalogue`, an optional `advertised(server, tool)` lookup returning the served title and owning plugin name. The activation supplies the endpoint’s server identity; the lookup imports no HTTP implementation. It walks the live agent rows on every call, using the same scoped name as tool serving; it keeps no cache or subscription. Other servers and absent tools answer `null`. The bundle resolves the offer per call through `Tools.advertised`, so MCP and chat remain independently optional and withdrawal or replacement takes effect immediately.

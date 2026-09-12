@@ -10,7 +10,7 @@ The permanent plugin API defines only the generic location reference type and th
 | Navigation | `app.route`, `app.keys`, `app.command`, `app.palette` |
 | Layout | `app.panel`, `app.header`, `app.banner`, `app.viewer`, `app.mount` |
 | Sidebar | `sidebar.entry`, `sidebar.section` |
-| Chat | `delivery.mark`, `engine.install` |
+| Chat | `delivery.mark`, `tool.reply`, `engine.install` |
 | Search | `search.box.below` |
 
 ## Declaring and registering

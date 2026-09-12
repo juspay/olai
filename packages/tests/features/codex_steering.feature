@@ -69,3 +69,23 @@ Feature: Messages sent while Codex works steer its current turn
     And the agent is idle
     And node "order" is not done
     And the panel does not say it is busy
+
+  Scenario: Codex's olai write has its title, outline, clickable story and one reply
+    When I ask the agent "done order"
+    Then the chat shows a tool call named "Mark done"
+    And the tool call says which outline it touched
+    And the chat says the write "marked done"
+    When I press the node "order" in the write
+    Then the node "order" is focused
+    When I unfold the tool call
+    Then the tool call is called "mcp.olai.outlines_done" underneath
+    And the tool call's reply is shown once
+
+  Scenario: Codex's olai read has a title and outline with no write story
+    When I open the node menu of "order"
+    And I choose "Ask agent" from the node menu
+    And I ask the agent "context"
+    Then the chat shows a completed tool call
+    And the chat shows a tool call named "Read a node"
+    And the tool call says which outline it touched
+    And the chat shows no story under the call

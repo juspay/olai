@@ -89,7 +89,7 @@ export default definePlugin({
 
     yield* Effect.acquireRelease(Effect.sync(trackCamera), stop => Effect.sync(stop))
     yield* slots.register("outline.row.fold", props => <AgentsProvider value={state.agents}><Fold {...props} /></AgentsProvider>, {
-      children: [slotContracts["delivery.mark"], slotContracts["engine.install"]],
+      children: [slotContracts["tool.reply"], slotContracts["delivery.mark"], slotContracts["engine.install"]],
     })
     yield* slots.register("outline.page.head", props => <AgentsProvider value={state.agents}><PageHead {...props} /></AgentsProvider>)
     // The fold registration above owns the shared conversation locations for

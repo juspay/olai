@@ -742,6 +742,10 @@ describe("only the registry knows a plugin's name", () => {
    */
   const TESTLIB_IMPORTS: Readonly<Record<string, ReadonlyArray<string>>> = {
     tests: [
+      "tests/agent/fake-acp-agent.ts: olai-plugin-claude/testlib",
+      "tests/agent/fake-acp-agent.ts: olai-plugin-codex/testlib",
+      "tests/agent/opencode/opencode.ts: olai-plugin-opencode/testlib",
+      "tests/agent/pi/pi-acp.ts: olai-plugin-pi/testlib",
       "tests/step_definitions/chat_steps.ts: olai-plugin-chat/testlib",
       "tests/step_definitions/editing_steps.ts: olai-plugin-outlines/testlib",
       "tests/step_definitions/identity_steps.ts: olai-plugin-identity/who",
@@ -800,7 +804,7 @@ describe("only the registry knows a plugin's name", () => {
    *  the `workspace:*` line left behind is a package still standing on the wrong
    *  side of the wall, and that is precisely what its seven rows had become. */
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    tests: ["olai-plugin-chat", "olai-plugin-identity", "olai-plugin-kolu", "olai-plugin-outlines"],
+    tests: ["olai-plugin-chat", "olai-plugin-claude", "olai-plugin-codex", "olai-plugin-identity", "olai-plugin-kolu", "olai-plugin-opencode", "olai-plugin-outlines", "olai-plugin-pi"],
     server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-mcp", "olai-plugin-vault", "olai-plugin-web-app"],
   }
 
@@ -1934,15 +1938,20 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "xyne-spaces": [],
     "ws": [],
     "mcp": [
+      "acp/src/leg.ts",
       "format/src/committing.ts",
       "plugins/chat/src/agent.ts",
+      "plugins/chat/src/calls.ts",
       "plugins/chat/src/fixtures/lifecycle-agent.ts",
       "plugins/chat/src/server.ts",
       "plugins/claude/src/leg.ts",
       "plugins/codex/src/leg.ts",
+      "plugins/codex/src/testlib.ts",
       "plugins/git/src/browser/commit/said.ts",
       "plugins/git/src/ledger/pending.ts",
       "plugins/odu/src/probe.ts",
+      "plugins/opencode/src/leg.ts",
+      "plugins/pi/src/leg.ts",
       "server/src/dial.ts",
       "server/src/main.ts",
       "server/src/mcpClient.ts",

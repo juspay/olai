@@ -433,7 +433,7 @@ Feature: Choosing a node agent's engine
     # away from the real servers.
     And I ask the agent "mcp read title install"
     Then the chat shows a completed tool call
-    And the chat eventually shows "the node's title is install"
+    And the chat eventually shows "install the cabinets"
 
   @pi @scratch:chat
   Scenario: A message sent mid-turn to pi queues, with no interruption to offer
@@ -501,3 +501,47 @@ Feature: Choosing a node agent's engine
     And terminal output contains "Exit 0"
     And terminal output contains "pi command started"
     And terminal output contains "(no output)"
+
+  @opencode @scratch:chat
+  Scenario: OpenCode's olai write has its title, outline, clickable story and one reply
+    When I choose the agent "opencode"
+    When I ask the agent "done order"
+    Then the chat shows a tool call named "Mark done"
+    And the tool call says which outline it touched
+    And the chat says the write "marked done"
+    When I press the node "order" in the write
+    Then the node "order" is focused
+    When I unfold the tool call
+    Then the tool call is called "olai_outlines_done" underneath
+    And the tool call's reply is shown once
+
+  @opencode @scratch:chat
+  Scenario: OpenCode's olai read has a title and outline with no write story
+    When I choose the agent "opencode"
+    When I ask the agent "context order"
+    Then the chat shows a completed tool call
+    And the chat shows a tool call named "Read a node"
+    And the tool call says which outline it touched
+    And the chat shows no story under the call
+
+  @pi @scratch:chat
+  Scenario: Pi's olai write has its title, outline, clickable story and one reply
+    When I choose the agent "pi"
+    When I ask the agent "mcp done order"
+    Then the chat shows a tool call named "Mark done"
+    And the tool call says which outline it touched
+    And the chat says the write "marked done"
+    When I press the node "order" in the write
+    Then the node "order" is focused
+    When I unfold the tool call
+    Then the tool call is called "olai: outlines_done" underneath
+    And the tool call's reply is shown once
+
+  @pi @scratch:chat
+  Scenario: Pi's olai read has a title and outline with no write story
+    When I choose the agent "pi"
+    When I ask the agent "mcp read title order"
+    Then the chat shows a completed tool call
+    And the chat shows a tool call named "Read a node"
+    And the tool call says which outline it touched
+    And the chat shows no story under the call

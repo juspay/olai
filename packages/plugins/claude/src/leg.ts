@@ -39,6 +39,7 @@
 
 import {
   allowingOurs,
+  mcpCallBy,
   type Background,
   type Leg,
   type ListedFacts,
@@ -91,7 +92,8 @@ export const BYPASS_MODE = "bypassPermissions"
  * @param given the MCP servers this conversation was handed, by name
  * @param options the request's own options, in the agent's own order
  */
-export const allowedWithoutAsking = allowingOurs((server) => `mcp__${server}__`)
+export const spelling = (server: string) => `mcp__${server}__`
+export const allowedWithoutAsking = allowingOurs(spelling)
 
 // ── which tool a call is ───────────────────────────────────────────────
 
@@ -758,6 +760,9 @@ const initIn = (params: unknown): { readonly [key: string]: unknown } | undefine
  * ONE that could be wrong, since a Claude call id is an opaque `toolu_…`.
  */
 export const CLAUDE: Leg = {
+  spelling,
+  mcpCall: mcpCallBy(spelling),
+  replyIn,
   toolNameIn,
   // Nothing: a Claude call id is an opaque `toolu_…` and says nothing about
   // the tool. Reading it would answer for a call nothing has named, which is
@@ -791,4 +796,18 @@ export const CLAUDE: Leg = {
   // The alias tiers and the picker id, which are this adapter's two bets
   // about models and used to sit in a leg-neutral file ({@link ./models.ts}).
   models: MODELS,
+}
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
+}
+
+export function replyIn(rawOutput: unknown): Record<string, unknown> | undefined {
+  // The SDK emits tool_result.content as either a string or content blocks;
+  // the pinned ACP adapter forwards that value unchanged as rawOutput.
+  const text = typeof rawOutput === "string" ? rawOutput
+    : Array.isArray(rawOutput) ? rawOutput.find(block => record(block)?.["type"] === "text")?.text
+    : undefined
+  if (typeof text !== "string") return undefined
+  try { return record(JSON.parse(text)) } catch { return undefined }
 }

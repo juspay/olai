@@ -3,6 +3,10 @@
 export const TESTID = {
   outlineLink: "outline-link",
 
+
+  outlinesStory: "outlines-story",
+  outlinesNudge: "outlines-nudge",
+  outlinesStoryRef: "outlines-story-ref",
   outlineTree: "outline-tree",
   node: "node",
   nodeTitle: "node-title",

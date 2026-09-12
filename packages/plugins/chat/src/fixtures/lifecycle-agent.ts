@@ -65,6 +65,13 @@ process.stdin.on("data", (chunk: string) => {
           respond(message.id, { stopReason: "end_turn" })
           continue
         }
+        if (text === "display-tool") {
+          const update = (frame: unknown) => write({ jsonrpc: "2.0", method: "session/update", params: { sessionId: "sess-1", update: frame } })
+          update({ sessionUpdate: "tool_call", toolCallId: "display-1", title: "engine_tool", rawInput: { id: "one" }, status: "in_progress" })
+          update({ sessionUpdate: "tool_call_update", toolCallId: "display-1", rawOutput: { file: "one.olai", title: "one" }, status: "completed" })
+          respond(message.id, { stopReason: "end_turn" })
+          continue
+        }
         if (text === "fail") {
           process.stderr.write("lifecycle-agent: json-rpc boom\n")
           refuse(message.id, "the model said no")
