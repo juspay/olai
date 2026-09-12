@@ -521,15 +521,15 @@ export function Composer(props: {
    * what the chip is read from anyway.
    */
   const rewrite = (next: Written) => {
-    if (input !== undefined) {
-      input.value = next.text
-      input.setSelectionRange(next.caret, next.caret)
-      input.focus()
-    }
-    // Batched for the reason the box's own `onInput` is: the two signals the
-    // list is a function of are being moved together, and two writes would ask
-    // the directory and the set the same question twice.
+    // Focus reads the caret into the shared draft too. Keep it in this batch:
+    // otherwise that notification can reapply the OLD text between the DOM
+    // rewrite and setDraft, moving a mid-sentence caret to the end.
     batch(() => {
+      if (input !== undefined) {
+        input.value = next.text
+        input.setSelectionRange(next.caret, next.caret)
+        input.focus()
+      }
       setDraft(next.text)
       setCaret(next.caret)
     })
