@@ -143,7 +143,11 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
   const scrolled = () => {
     const host = scrollPane()
     if (host === undefined) return
-    if (Number.isFinite(assignedTop) && Math.abs(host.scrollTop - assignedTop) < 1) {
+    // Browser anchoring can move the scroll forward before ResizeObserver
+    // sees new rows. While following, that forward move is not a reader
+    // scrolling away. An upward move still releases following immediately.
+    if (Number.isFinite(assignedTop) && (Math.abs(host.scrollTop - assignedTop) < 1
+      || (following && host.scrollTop > assignedTop))) {
       if (following && !atBottom()) jump()
       return
     }

@@ -1,12 +1,11 @@
 import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { ConversationUIProvider } from "../chat/ui.tsx"
-import { createAsked } from "../chat/attention/asked.ts"
-import { createEffect, createMemo, Show } from "solid-js"
-import { agentReadings, readAgent } from "./reading.ts"
+import { Show } from "solid-js"
+import { createNodeConversation } from "./conversation.ts"
 import { useAgents } from "./answered.tsx"
 import { unfolded } from "./folding.ts"
-import { createChat, type Chat } from "../chat/state.ts"
+import { type Chat } from "../chat/state.ts"
 import { TESTID } from "../../testids.ts"
 import { History } from "./History.tsx"
 import { AgentLine } from "./AgentLine.tsx"
@@ -25,20 +24,15 @@ import { Unopened } from "../chat/Unopened.tsx"
 
 export function Fold(props: { readonly node: string; readonly record?: string }) {
   const agents = useAgents()
-  const conversation = createMemo(() => {
-    const agent = agents.at(props.node)
-    return agent?.session == null ? null : agentReadings()?.visiting(props.node) ?? { agent: agent.engine, session: agent.session }
-  }, null, { equals: (a, b) => a?.agent === b?.agent && a?.session === b?.session })
-  return <Show when={unfolded(props.record ?? props.node)}><Show when={conversation()} keyed>{conv => {
-    const chat = createChat(conv, { ui: agentReadings()?.ui(conv), visit: to => agentReadings()?.visit(props.node, to) })
-    readAgent(props.node, chat)
-    const question = createAsked(chat)
-    createEffect(() => chat.ui.question[1](question()))
-    return <ConversationUIProvider value={chat.ui}><section class="my-2 rounded border border-rule bg-panel" data-testid={TESTID.agentFold} data-agent={props.node} aria-label={agents.at(props.node)?.title}>
+  return <Show when={unfolded(props.record ?? props.node)}>{_open => {
+    const { chat: conversation } = createNodeConversation(() => props.node)
+    return <Show when={conversation()} keyed>{chat =>
+    <ConversationUIProvider value={chat.ui}><section class="my-2 rounded border border-rule bg-panel" data-testid={TESTID.agentFold} data-agent={props.node} aria-label={agents.at(props.node)?.title}>
       <AgentLine chat={chat} node={props.node} />
       <Conversation chat={chat} node={props.node} />
     </section></ConversationUIProvider>
-  }}</Show></Show>
+    }</Show>
+  }}</Show>
 }
 
 export function Conversation(props: { readonly chat: Chat; readonly unbounded?: boolean; readonly node: string }) {
@@ -50,7 +44,7 @@ export function Conversation(props: { readonly chat: Chat; readonly unbounded?: 
       <Plan chat={props.chat} /><Roster chat={props.chat} /><Watching chat={props.chat} /><Wake chat={props.chat} />
       <History chat={props.chat} node={props.node} />
       <Show when={props.chat.state().unopened} fallback={<DropTarget onFiles={files => void holding.take(files)}>
-        <Preview chat={props.chat} /><Transcript chat={props.chat} unbounded={props.unbounded} />
+        <Preview chat={props.chat} unbounded={props.unbounded} /><Transcript chat={props.chat} unbounded={props.unbounded} />
         <div class={props.unbounded ? `sticky bottom-0 ${LAYER.row} bg-paper ${CLEARANCE}` : "contents"}>
           <Busy chat={props.chat} /><Composer chat={props.chat} holding={holding} />
         </div>

@@ -62,3 +62,16 @@ test("a refused write starts nothing; a refused start preserves the minted node"
   expect(it.events).toEqual(["create", "create", "add", "start:claude"])
   expect(readingOf(setOf(it.texts)).derived.nodes.some(row => isRegular(row) && row.node.title === "new conversation")).toBe(true)
 })
+
+test("new chat seats against the committed reading while its display projection still lags", async () => {
+  const it = fixture()
+  const earlier = await Effect.runPromise(it.owner.read)
+  let started = false
+  const owner: NewChat = { ...it.owner, start: (node, _engine, committed) => Effect.sync(() => {
+    expect(earlier.derived.byId.has(node)).toBe(false)
+    expect(committed.derived.byId.has(node)).toBe(true)
+    started = true
+  }) }
+  await Effect.runPromise(newChat(owner, "claude"))
+  expect(started).toBe(true)
+})

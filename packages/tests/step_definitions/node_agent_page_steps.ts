@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import assert from "node:assert/strict";
 import { Given, Then, When } from "@cucumber/cucumber";
 import { PLUGIN_TESTID } from "@olai/bundle/testids";
@@ -68,6 +70,12 @@ Then("the plain node composer has no available engine", async function(this: Ola
 });
 
 Then("the page has fresh start above its fold history", async function(this: OlaiWorld) {
+  // Compare document order at the top; a pinned head can overlap history
+  // that has already scrolled away while following the newest answer.
+  await this.page.evaluate(async () => {
+    window.scrollTo(0, 0)
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+  })
   const fresh = this.chat(selector(PLUGIN_TESTID.chatFreshSession));
   const history = this.chat(selector(PLUGIN_TESTID.chatSessions));
   assert.equal((await fresh.innerText()).trim(), "fresh start");
@@ -121,4 +129,41 @@ Then("pane {int} stays on its memory while the agent streams", async function(th
     return host?.scrollTop
   })
   assert.equal(top, 0, "streaming moved the pane away from memory")
+})
+
+Then("pane {int} follows new agent text at the bottom", async function(this: OlaiWorld, index: number) {
+  const before = await this.chat(CHAT_TRANSCRIPT).innerText()
+  await this.waitUntil(async () => {
+    if ((await this.chat(CHAT_TRANSCRIPT).innerText()).length <= before.length) return false
+    return this.pane(index).evaluate(root => {
+      let host = root.parentElement
+      while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
+      return host !== null && host.scrollHeight - host.scrollTop - host.clientHeight < 2
+    })
+  }, "new streamed text to remain at the pane bottom")
+})
+
+Then("the held agent process has exited", async function(this: OlaiWorld) {
+  const pid = Number(readFileSync(join(this.scratch(), ".agent-held-pid"), "utf8"))
+  assert.ok(Number.isInteger(pid) && pid > 0)
+  await this.waitUntil(async () => {
+    try { process.kill(pid, 0); return false }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") return true; throw error }
+  }, "the trashed node's working process to exit")
+})
+
+Then("the page's agent shelf uses the pane scroll", async function(this: OlaiWorld) {
+  const shelf = this.chat(selector(PLUGIN_TESTID.chatPreview))
+  assert.equal(await shelf.evaluate(root => [...root.querySelectorAll("*")].some(el =>
+    /auto|scroll/.test(getComputedStyle(el).overflowY))), false)
+})
+
+When("I scroll pane {int} to the bottom", async function(this: OlaiWorld, index: number) {
+  await this.pane(index).evaluate(async root => {
+    let host = root.parentElement
+    while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
+    if (host === null) throw new Error("no pane scroller")
+    host.scrollTop = host.scrollHeight
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+  })
 })

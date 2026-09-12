@@ -176,3 +176,16 @@ Already-filed conversations from older builds have their inherited wake picks
 cleared once at startup. A marker in chat's existing local heard record prevents
 later restarts from clearing deliberate new wake choices. A failed cleanup is
 logged and retried, without starting an engine.
+
+
+The page and inline fold use the same owner-scoped `createNodeConversation`
+hook for history resolution, reading acquisition, and question tracking. Page
+opening drafts and fold visibility stay with their respective owners. The
+sidebar and palette compose their presentation with the same focus action;
+route selection cannot drift from returning to the current session and unfolding.
+The subagent shelf inherits page scroll mode, so it adds no scroller to a node
+page; inline shelves retain a bounded scroll.
+
+New-chat creation refreshes the roster from Ops’ committed reading before
+seating the new node: the revision notification used for display can still be
+queued after the write returns.

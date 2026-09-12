@@ -1,11 +1,9 @@
-import { servedDirectory } from "../vault.ts"
 import { createEffect, createSignal } from "solid-js"
 import type { PaletteAdapter, PaletteItem } from "olai-plugin-navigation/contract"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { navigation, palette } from "../navigation.ts"
 import { agentReadings } from "./reading.ts"
-import { rowOf } from "./focus.ts"
-import { unfold } from "./folding.ts"
+import { focusAgent } from "./focus.ts"
 import { byActivity } from "./activity-order.ts"
 import { LOOK } from "./roster.ts"
 import type { Roster } from "./answered.tsx"
@@ -38,11 +36,7 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
       action: { kind: "run", run: async () => {
         const nav = navigation()
         if (nav === undefined) return { keepOpen: true, said: { tone: "alarm", text: "navigation is unavailable" } }
-        const claims = servedDirectory()?.claims()
-        if (claims === undefined) return { keepOpen: true, said: { tone: "alarm", text: "the vault is unavailable" } }
-        nav.go(rowOf(claims, row))
-        agentReadings()?.visit(row.id)
-        if (row.session !== null) unfold(row.id)
+        if (!focusAgent(route => nav.go(route), row)) return { keepOpen: true, said: { tone: "alarm", text: "the vault is unavailable" } }
         return {}
       } },
     }))]

@@ -115,6 +115,7 @@ Feature: A new chat has an Inbox node from its first message
     Then the agent has answered "retry on its own node" exactly once
     And the Inbox has 1 filed conversations
 
+  @new-chat-review
   Scenario: New chat leaves another node's pending question and draft intact
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"

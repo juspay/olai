@@ -7,14 +7,14 @@ import { usePane } from "olai-plugin-navigation/pane"
 import { runAsync } from "@olai/web/client/run.ts"
 import { TESTID } from "../../testids.ts"
 import type { Conversing } from "../../sessions.ts"
-import { createChat, type Chat } from "../chat/state.ts"
-import { createAsked } from "../chat/attention/asked.ts"
+import { type Chat } from "../chat/state.ts"
 import { ConversationUIProvider } from "../chat/ui.tsx"
 import { keepMessage } from "../chat/message-draft.ts"
 import { pageReadings } from "../pages.ts"
 import { chatWire } from "../wire.ts"
 import { useAgents } from "./answered.tsx"
-import { agentReadings, readAgent } from "./reading.ts"
+import { agentReadings } from "./reading.ts"
+import { createNodeConversation } from "./conversation.ts"
 import { AgentLine } from "./AgentLine.tsx"
 import { Conversation } from "./Fold.tsx"
 
@@ -32,24 +32,11 @@ const same = (a: Conversing | null | undefined, b: Conversing | null | undefined
 /** The opening gesture belongs to the page, so replacing its plain composer
  * with the conversation cannot dispose the message waiting for that open. */
 function createPageSession(node: string): PageSession {
-  const agents = useAgents()
   const reading = agentReadings()!
   let alive = true
   const waits = new Set<() => void>()
   onCleanup(() => { alive = false; for (const stop of [...waits]) stop() })
-  const pair = createMemo(() => {
-    const agent = agents.at(node)
-    return agent?.session == null ? null : reading.visiting(node) ?? { agent: agent.engine, session: agent.session }
-  }, null, { equals: same })
-  const chat = createMemo(() => {
-    const to = pair()
-    if (to === null) return null
-    const value = createChat(to, { ui: reading.ui(to), visit: to => reading.visit(node, to) })
-    readAgent(node, value)
-    const question = createAsked(value)
-    createEffect(() => value.ui.question[1](question()))
-    return value
-  })
+  const { pair, chat } = createNodeConversation(() => node)
   const [draft, setDraft] = createSignal("")
   const [starting, setStarting] = createSignal(false)
   const [failure, setFailure] = createSignal<string | null>(null)
@@ -59,9 +46,9 @@ function createPageSession(node: string): PageSession {
       const stop = () => { waits.delete(stop); dispose(); resolve(null) }
       waits.add(stop)
       createEffect(() => {
-        const now = pair()
-        if (now === null) return
         const value = chat()
+        if (value === null) return
+        const now = pair()
         waits.delete(stop)
         dispose()
         resolve(same(now, to) ? value : null)

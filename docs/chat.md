@@ -262,7 +262,7 @@ A node row reads its **title**, and beside it the **id it writes** and where it 
 - if one *does* match something you did not mean, **Escape** puts the list away and leaves the word alone — nothing is ever rewritten that you did not choose;
 - and typing a word that happens to be an id **arms nothing**. Only a row you took off the list puts a node on your message; the panel reads back its own words and never yours.
 
-A dismissed completion stays dismissed with that conversation’s draft when the panel is closed, another node chat is selected, or the plugin runtime rebuilds. Returning to the draft preserves Enter as Send. A different token or a new message can offer completions again.
+A dismissed completion stays dismissed with that conversation’s draft when its fold is closed, another node’s conversation is opened, or the plugin runtime rebuilds. Returning to the draft preserves Enter as Send. A different token or a new message can offer completions again.
 
 While the list is up the keys are the list's: ↑/↓ walk it — through both blocks, one cursor — Enter or Tab take the row, Escape closes it. A click does the same for a hand already on the mouse. It is the same box the `/` commands use, because it is the same gesture.
 
@@ -390,7 +390,7 @@ That report is how an async agent comes back, too. The harness injects the compl
 │ ↳ 7 calls
 ```
 
-**Under it, the rail says the agent is working and the door says how much it has done.** Press the door and that agent's calls open in a shelf above the conversation — the same rows, behind the same rail, with the same folds, the same diffs and the same clocks they would have had in the column. It is the same drawing moved, never a summary of it.
+**Under it, the rail says the agent is working and the door says how much it has done.** Press the door and that agent's calls open in a shelf above the conversation — the same rows, behind the same rail, with the same folds, the same diffs and the same clocks they would have had in the column. It is the same drawing moved, never a summary of it. On a node page the shelf grows in the pane’s single scroll; in an inline fold it keeps its own bounded scroll.
 
 The door is drawn only once there is something behind it. An agent that has just been sent out has made no calls yet — its first act is to read its instructions, which produces nothing — and the rail above already says the true thing about that stretch. An agent that finished having called nothing has its whole answer in the row's own fold.
 
@@ -554,6 +554,8 @@ An agent's report never overrules the probe. If this host's `kolu` would not ans
 **For odu the rule is one notch stricter: the build itself says odu should be here.** A packaged olai — `nix run`, the packaged binary, the home-manager unit — carries the pinned `odu` on the server's PATH (`just serve` answers the same question from the tree; [running.md](running.md) has the one knob, `OLAI_ODU_BIN`), so a serve that resolves none IS an absence the panel draws: no `odu` is on the PATH this server was started with, with the build's promise beside it and no path beside the name — nothing was resolved, so there is nothing to name. There is no quiet case to mistake it for, and that is the point of the rule: a machine that runs all its odu through `nix run github:juspay/odu` installs nothing anywhere persistent, which is exactly how a serve started outside the build used to have no CI verbs *and nothing on screen saying why* — the one production shape this arm exists to name.
 
 ## What this conversation wakes on
+
+Manual wake picks only run for conversations currently bound to a live node. A pick on an unbound or trashed conversation is ignored; bind and arm the node to resume automatic wakes.
 
 **A plugin can put a message into this conversation, and you decide which one it may put it into.** Under the roster and the strip of what is running is a third line — one per plugin that has something to watch — saying what the wake would be about and which file you pointed it at:
 

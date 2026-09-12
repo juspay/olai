@@ -549,7 +549,13 @@ export default definePlugin({
           const gate = ops.gate as WriteGate
           return bindingPermit.withPermit(newChat({ current: vault.inbox.current, read: gate.read,
             write: request => gate.run(request, "filer"),
-            start: (node, agent) => startAgentSession(open, binding, { node, agent }),
+            start: (node, agent, committed) => Effect.gen(function*() {
+              // Ops has committed the new node, but revision delivery may still
+              // be queued. Seat against that committed reading, not the earlier
+              // roster used to paint the sidebar.
+              nodeAgents.seen(committed.derived)
+              return yield* startAgentSession(open, binding, { node, agent })
+            }),
           }, input.agent))
         }).pipe(Effect.tap(() => Effect.gen(function*() {
           mine?.cells.sessionsRevision.set(++sessionsRevision)

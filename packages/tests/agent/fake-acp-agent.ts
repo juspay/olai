@@ -199,7 +199,7 @@ import { nativeActivity } from "./native-activity.ts"
  */
 
 import { spawn } from "node:child_process"
-import { appendFileSync, existsSync, readFileSync, rmSync, statSync } from "node:fs"
+import { appendFileSync, writeFileSync, existsSync, readFileSync, rmSync, statSync } from "node:fs"
 import { createHash } from "node:crypto"
 import { basename, join } from "node:path"
 
@@ -1719,6 +1719,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
 
   if (verb === "hold") {
+    writeFileSync(`${cwd}/.agent-held-pid`, String(process.pid))
     const toolCallId = `call-${++nextMcpId}`
     notify("session/update", {
       sessionId,

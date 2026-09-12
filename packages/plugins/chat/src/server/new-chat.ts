@@ -6,7 +6,7 @@ export interface NewChat {
   readonly current: () => string | null
   readonly read: Effect.Effect<Reading, OpFailure>
   readonly write: (request: WriteRequest) => Effect.Effect<{ readonly id: string }, OpFailure>
-  readonly start: (node: string, agent: string) => Effect.Effect<unknown, OpFailure>
+  readonly start: (node: string, agent: string, committed: Reading) => Effect.Effect<unknown, OpFailure>
 }
 /** Three ordinary acts: ensure Chats, mint a child, then start its session.
  * A refused start leaves the minted plain node available for another gesture. */
@@ -16,6 +16,7 @@ export const newChat = (owner: NewChat, agent: string): Effect.Effect<string, Op
   const parent = yield* ensureChats(owner, file)
   if (owner.current() !== file) return yield* new UsageFailure({ reason: "the Inbox changed; no conversation was created" })
   const node = yield* owner.write({ op: "add", parent, title: "new conversation" })
-  yield* owner.start(node.id, agent)
+  // The display projection can lag the write acknowledgement.
+  yield* owner.start(node.id, agent, yield* owner.read)
   return node.id
 })

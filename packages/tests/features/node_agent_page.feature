@@ -116,6 +116,7 @@ Feature: A node's page holds its memory and conversation
       | phone  |
 
 
+  @scroll-review
   Scenario: A split agent page pins its head and composer around one scroll
     Given I open the outline "house.olai"
     When I alt-click the zoom of "install"
@@ -124,12 +125,19 @@ Feature: A node's page holds its memory and conversation
     When I ask for a tall page answer
     Then the agent is idle
     And pane 1 has one agent page scroller with pinned head and send
-    When I ask the agent "hold"
-    And I scroll pane 1 back to its memory
+    When I scroll pane 1 to the bottom
+    And I ask the agent "hold"
+    Then pane 1 follows new agent text at the bottom
+    When I scroll pane 1 back to its memory
     Then the agent page memory is visible below its pinned head
     And pane 1 stays on its memory while the agent streams
     When the agent is released
     Then the agent is idle
+    When I ask the agent "subagent"
+    And I open the agent's work from the transcript
+    Then the agent's work shows 2 calls
+    And the page's agent shelf uses the pane scroll
+    And pane 1 has one agent page scroller with pinned head and send
 
   @node-idle-fast
   Scenario: Rebuilding chat releases an open fold and its reading
@@ -146,3 +154,17 @@ Feature: A node's page holds its memory and conversation
     And I press "Escape"
     Then the agent "install" stands "asleep"
     And no agent fold is open
+
+
+  Scenario: Trashing a working agent stops its process and removes its standing
+    Given I open the outline "house.olai"
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And I ask the agent "hold"
+    Then the agent "install" stands "working"
+    When I open the node menu of "install"
+    And I choose "Move to Trash" from the node menu
+    And I choose "Move to Trash" from the node menu
+    Then the agents roster holds 0 agents
+    And no agent fold is open
+    And the held agent process has exited
