@@ -85,7 +85,7 @@
 
 import { Schema } from "effect"
 
-import { type FileKind, fileKind, holdsBody } from "./kinds.ts"
+import { type Claims, fileKind, holdsBody } from "./kinds.ts"
 
 /**
  * A path that names a file the directory SERVES — `Tasks.olai`,
@@ -116,8 +116,8 @@ import { type FileKind, fileKind, holdsBody } from "./kinds.ts"
  * verdict {@link addressOf} has already reached, once per printed URL.
  */
 export const DocumentPath = Schema.String.check(
-  Schema.makeFilter((path: string) => claimedKind(path) !== null, {
-    expected: "a relative path to a file some kind of the registry claims",
+  Schema.makeFilter((path: string) => relativePath(path), {
+    expected: "a non-empty relative path with no parent segments",
   }),
 ).pipe(Schema.brand("DocumentPath"))
 export type DocumentPath = typeof DocumentPath.Type
@@ -159,9 +159,7 @@ export type AtDocument = typeof AtDocument.Type
 
 /** An outline already has the grammar's whole-file address. Narrow its path
  * for search without introducing a second spelling for that same address. */
-export const AtOutline = AtDocument.check(Schema.makeFilter(
-  (at) => claimedKind(at.path) === "outline", { expected: "a whole outline file" },
-))
+export const AtOutline = AtDocument
 export type AtOutline = typeof AtOutline.Type
 
 /** One node, by its id and nothing else — the location-free half of the
@@ -232,6 +230,7 @@ const slug = (text: string): Slug => text as Slug
  * document with nothing after the `#`, which names the document.
  */
 export const addressOf = (
+  claims: Claims,
   document: string | null,
   element: string | null,
 ): Address | null => {
@@ -239,7 +238,7 @@ export const addressOf = (
   if (document === null || document === "") {
     return named === null ? null : { kind: "node", id: nodeId(named) }
   }
-  const kind = claimedKind(document)
+  const kind = claimedKind(claims, document)
   if (kind === null) return null
   const path = documentPath(document)
   if (named === null) return { kind: "document", path }
@@ -252,7 +251,7 @@ export const addressOf = (
   // read, and an address into one landing on nothing is what a `.md` whose
   // heading was renamed already does — where reading them as NODE addresses
   // would be the grammar claiming a vault's pictures hold records.
-  return holdsBody(kind)
+  return holdsBody(claims, kind)
     ? { kind: "heading", path, slug: slug(named) }
     : { kind: "row", path, id: nodeId(named) }
 }
@@ -306,12 +305,12 @@ export const printAddress = (address: Address): string => {
  * drawn with no fragment at all. An unreadable PATH is different, and has to
  * be — there is nothing left to name.
  */
-export const parseAddress = (text: string): Address | null => {
+export const parseAddress = (claims: Claims, text: string): Address | null => {
   const cut = text.indexOf("#")
   const document = cut === -1 ? text : text.slice(0, cut)
   const element = cut === -1 ? "" : spelled(text.slice(cut + 1))
   const path = readPath(document)
-  return path === null ? null : addressOf(path, element)
+  return path === null ? null : addressOf(claims, path, element)
 }
 
 /**
@@ -488,12 +487,20 @@ const escaped = (address: string): string =>
  * as a URL on ANOTHER HOST, and an address that can leave the site is not an
  * address this may mint.
  */
-const claimedKind = (path: string): FileKind | null =>
-  path.split("/").every((segment) =>
-      segment !== "" && segment !== "." && segment !== ".."
-    )
-    ? fileKind(path)
-    : null
+const relativePath = (path: string): boolean =>
+  !path.includes("\\") && path.split("/").every(segment => segment !== "" && segment !== "." && segment !== "..")
+
+const claimedKind = (claims: Claims, path: string): string | null =>
+  relativePath(path) ? fileKind(claims, path) : null
+
+/** Admit membership only where the caller holds the table. */
+export const claimedOf = (claims: Claims, path: string): DocumentPath | null =>
+  claimedKind(claims, path) === null ? null : documentPath(path)
+
+export const outlineAt = (claims: Claims, at: AtDocument): AtOutline | null => {
+  const kind = claimedKind(claims, at.path)
+  return kind !== null && claims.byKind.get(kind)?.holds === "nodes" ? at : null
+}
 
 /**
  * Encoded per segment, so a path with a directory in it stays readable rather

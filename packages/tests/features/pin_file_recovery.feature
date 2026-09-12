@@ -38,9 +38,9 @@ Feature: Sidebar pins remain useful when their files disappear and return
     And I open the outline "house.olai"
     And I mark the page
     Then the pinned shelf holds "/#order"
-    When I remove the served file "Pins.olai"
+    When I remove the served file "_olai/Pins.olai"
     Then the pinned shelf is not drawn
-    When I rewrite "Pins.olai" as:
+    When I rewrite "_olai/Pins.olai" as:
       """
       {"id":"restored-pin","ord":"a0","title":"[Restored garden](/garden.olai)"}
       """

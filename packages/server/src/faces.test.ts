@@ -220,12 +220,12 @@ const under = (
 
 // ── each row's face, as that row's exact set ────────────────────────────
 
-test("every row this build composes is standing, so the claims below are about something", async () => {
+test("every surface-bearing row this fixture composes is standing", async () => {
   await withRows(async ({ rows }) => {
-    // The list is the fixture's, and it is asserted because every case below is
+    // Claim-only rows have no wire surface. The surface list is asserted because every case below is
     // a `for` over what actually mounted: a row that quietly failed to settle
     // would make its own claims vacuous rather than red.
-    expect(rows.map((row) => row.name).sort()).toEqual([...ROWS].sort())
+    expect(rows.map((row) => row.name).sort()).toEqual(["vault", "vault-plugins", "search", "outlines", "markdown", "files", "pins", "capture", "trash"].sort())
   })
 })
 
@@ -498,9 +498,11 @@ test("nothing else is published, and the set is exact", () => {
     "surface://collections/markdown/documents/{id}",
     "surface://collections/outlines/outlines/{id}",
   ])
-  // No procedure is published as a resource: the call-shaped half of this face
-  // arrives separately, as the rows' own bespoke tools.
-  expect(tools).toEqual([])
+  // Unkept text is requested one path at a time from its vault owner.
+  // It is not an eagerly populated collection or a corpus-shaped resource.
+  expect(tools).toEqual([expect.objectContaining({
+    name: "vault_bodies_get", sibling: "vault", ns: "bodies", verb: "get", mutates: false,
+  })])
   // `manifest` is the member the cost rule was written about, and it is not on
   // this contract at all. It used to be `NullOr({ documents: Array({file,
   // text}) })` — publishing it would have shipped every document body on every

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT THE PLANNER SAID, RECORDED BEFORE ITS SHAPE CHANGED — the gate the
  * `perf-batch-assemble` decomplect is held to.
@@ -59,7 +60,8 @@ import { createHash } from "node:crypto"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
-import { NO_KINDS, serializeOutline } from "@olai/format"
+import { NO_KINDS } from "@olai/format"
+import { serializeOutline } from "olai-plugin-olai/format"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
@@ -140,7 +142,7 @@ const run = (): ReadonlyArray<{ readonly what: string; readonly said: unknown }>
   // is scoped against the reading it is really judged against rather than
   // against a carried context this file is not the test of
   // (`./following.equivalence.test.ts` is).
-  let at = scoping(reading(), context, NO_KINDS)
+  let at = scoping(reading(), context, NO_KINDS, "olai")
   const said: Array<{ readonly what: string; readonly said: unknown }> = []
   for (const step of SCRIPT) {
     const made = plan(at, step.op)
@@ -164,7 +166,7 @@ const run = (): ReadonlyArray<{ readonly what: string; readonly said: unknown }>
         false,
       ])
     }
-    at = scoping(reading(), context, NO_KINDS)
+    at = scoping(reading(), context, NO_KINDS, "olai")
   }
   return said
 }

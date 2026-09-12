@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 /**
  * The sidebar's way to an outline that does not exist yet.
  *
@@ -40,7 +41,7 @@ export function NewOutline() {
 
   return (
     <NewFile
-      making={MAKING_OUTLINE}
+      making={MAKING_OUTLINE(servedDirectory()!.outlineRow()!)}
       create={async (file) => {
         const started = router.workspace()
         const outcome = await applied({ verb: "outlineNew", file }, undo.record)

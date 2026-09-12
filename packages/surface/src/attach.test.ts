@@ -1,3 +1,5 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
+const PICTURE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".bmp", ".ico"]
 /**
  * The GATE, on its own — what olai will accept and what it says when it will
  * not.
@@ -12,7 +14,7 @@
  * hands an agent, and the sentence a refused person reads.
  */
 
-import { isPicture, PICTURE_EXTENSIONS } from "@olai/format"
+import { isPicture } from "@olai/format"
 import { FRAME_CHUNK_BYTES } from "@kolu/surface/frame-chunking"
 import { expect, test } from "bun:test"
 
@@ -33,7 +35,7 @@ test("the cap on a file is a different number from the size of a frame", () => {
 })
 
 test("the gate takes what can be looked at AND what can be read", () => {
-  // Pictures, as before — the format package's own allowlist, and case is not
+  // Pictures accepted by the agent attachment policy, and case is not
   // part of the question.
   expect(attachmentRejection("shot.png", 1024)).toBeNull()
   expect(attachmentRejection("shot.PNG", 1024)).toBeNull()
@@ -72,8 +74,8 @@ test("the gate names the two ways an attachment is refused", () => {
 test("what may be ATTACHED and what may be PAINTED are two lists that meet once", () => {
   // The widening must not have reached `@olai/format`: a relative `![](x.pdf)`
   // in a note is still not a picture, and `/media` still guards the same set.
-  expect(isPicture("Type 04-C.pdf")).toBe(false)
-  expect(isPicture("notes.txt")).toBe(false)
+  expect(isPicture(TEST_CLAIMS, "Type 04-C.pdf")).toBe(false)
+  expect(isPicture(TEST_CLAIMS, "notes.txt")).toBe(false)
   expect(isAttachable("Type 04-C.pdf")).toBe(true)
   // Every picture is attachable; the reverse is what is new.
   for (const extension of PICTURE_EXTENSIONS) expect(isAttachable(`shot${extension}`)).toBe(true)

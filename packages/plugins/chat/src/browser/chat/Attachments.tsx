@@ -20,7 +20,7 @@
  * pending one can be taken back off, which is `onRemove`.
  */
 
-import { isPicture } from "@olai/format"
+const isPicture = (blob: Blob): boolean => blob.type.startsWith("image/") && blob.type !== "image/svg+xml"
 import { createMemo, For, onCleanup, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
@@ -54,7 +54,7 @@ function Attachment(props: {
    *  `<img>` cannot draw. */
   const source = createMemo<string | undefined>(() => {
     const blob = previewOf(props.name)
-    if (blob === undefined || !isPicture(props.name)) return undefined
+    if (blob === undefined || !isPicture(blob)) return undefined
     const url = URL.createObjectURL(blob)
     onCleanup(() => URL.revokeObjectURL(url))
     return url
@@ -64,7 +64,7 @@ function Attachment(props: {
    *  (the thumbnail is the answer) and for a file this tab never held. */
   const size = () => {
     const blob = previewOf(props.name)
-    if (blob === undefined || isPicture(props.name)) return undefined
+    if (blob === undefined || isPicture(blob)) return undefined
     return sizeText(blob.size)
   }
 

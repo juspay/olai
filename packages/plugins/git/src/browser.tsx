@@ -1,3 +1,5 @@
+import { fileAccess } from "olai-plugin-vault/contract"
+import { holdServed } from "./browser/vault.ts"
 import type {} from "olai-plugin-layout/slots"
 /**
  * GIT'S BROWSER HALF — the pill, the phone banner, and the commit panel.
@@ -21,8 +23,10 @@ import { name } from "./wire.ts"
 
 export default definePlugin({
   name,
-  needs: [Slots, Wired],
+  needs: [Slots, Wired, fileAccess],
   apply: Effect.gen(function*() {
+    const files = yield* fileAccess
+    yield* Effect.acquireRelease(Effect.sync(() => holdServed(files)), stop => Effect.sync(stop))
     const slots = yield* Slots
     const wired = yield* Wired
     yield* holdGitWire(() => wired.client() as GitClient)

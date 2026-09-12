@@ -109,7 +109,7 @@ import { TESTID } from "olai-plugin-files/testids"
  * `../Sidebar.tsx`'s `ENTRY_SHAPE` is split in two to avoid.
  */
 
-import type { FileKind } from "@olai/format"
+
 import type { JSX } from "solid-js"
 
 
@@ -122,7 +122,7 @@ import type { JSX } from "solid-js"
  *  column is collapsed, and neither of those is a row. Exported for the sweep
  *  that says every registered kind has a drawing (../file/kinds.test.ts) — the
  *  tree passes a `FileRow`'s own `of`, the rail passes the literal it means. */
-export type DirectoryKind = FileKind | "folder"
+export type DirectoryKind = string | "folder"
 
 /** One kind, drawn: the box it is drawn in and the shape drawn in it, in one
  *  place because they are one drawing. Held apart — a `viewBox` chosen by one
@@ -148,8 +148,8 @@ export const GLYPHS: Record<DirectoryKind, Drawn> = {
   // Wider than tall, as a folder is. The TREE cell below is this aspect, so
   // the square that used to wrap every glyph cannot letterbox it.
   folder: { box: "0 0 18 16", shape: FolderPaths },
-  document: { box: "0 0 16 16", shape: DocumentPaths },
-  outline: { box: "0 0 16 16", shape: OutlinePaths },
+  markdown: { box: "0 0 16 16", shape: DocumentPaths },
+  olai: { box: "0 0 16 16", shape: OutlinePaths },
   hypertext: { box: "0 0 16 16", shape: HypertextPaths },
   csv: { box: "0 0 16 16", shape: CsvPaths },
   image: { box: "0 0 16 16", shape: ImagePaths },
@@ -176,7 +176,7 @@ const TREE_CELL = "h-3.5 w-[calc(0.875rem*18/16)]"
  *  Same drawing, two rooms. The default is the tree's, because that is where
  *  all but the rail's two are drawn. */
 export function Glyph(props: { readonly of: DirectoryKind; readonly size?: string }) {
-  const glyph = (): Drawn => GLYPHS[props.of]
+  const glyph = (): Drawn => GLYPHS[props.of] ?? GLYPHS["markdown"]!
 
   return (
     <svg

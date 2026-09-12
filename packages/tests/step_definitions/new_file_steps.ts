@@ -41,7 +41,7 @@ import type { OlaiWorld } from "../support/world.ts";
  *  scenario naming a third kind of file is a scenario about something that
  *  does not exist. */
 const making = (kind: string): Making => {
-  if (kind === "outline") return MAKING_OUTLINE;
+  if (kind === "outline") return MAKING_OUTLINE("olai");
   if (kind === "document") return MAKING_DOCUMENT;
   throw new Error(`there is no sidebar door for a new ${kind}`);
 };

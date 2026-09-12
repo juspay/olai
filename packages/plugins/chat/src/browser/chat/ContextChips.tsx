@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 /**
  * The nodes a message is about, as chips — in the composer before it is sent,
  * and on the message afterwards.
@@ -68,7 +69,7 @@ export function ContextChips(props: {
                     to resolve an address against either. `links` false
                     because the Reference is a <button>. */}
                 <TitleHtml
-                  drawing={renderTitle(node().title, "", { links: false })}
+                  drawing={renderTitle(servedDirectory()?.claims(), node().title, "", { links: false })}
                 />
               </Reference>
               <Show when={props.onRemove}>

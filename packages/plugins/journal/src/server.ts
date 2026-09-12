@@ -121,9 +121,11 @@ export default definePlugin({
               if (!isDay(input.date)) return yield* Effect.fail(noDay(input.date))
               const at = yield* reading
               const file = dailyNotePathFor(
+                at.claims,
                 markdownIn(at.set).map((document) => document.path),
                 input.date,
               )
+              if (file === null) return yield* Effect.fail(new UsageFailure({reason: "the markdown row is off, so no document can be created"}))
               return yield* Effect.as(
                 Effect.mapError(ops.document(file), (failure) => failure as OpFailure),
                 { file },

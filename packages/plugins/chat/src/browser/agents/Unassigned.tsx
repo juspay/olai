@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 /**
  * THE CHATS NOBODY HAS GIVEN A NODE — the panel's body, opened from the
  * roster's last row, and the one place a conversation is assigned to a node.
@@ -412,6 +413,7 @@ function Chat(props: {
           }}
         >
           <Shortlist
+        claims={servedDirectory()?.claims()}
             nodes={createSearch}
             label="which node? — its subtree becomes this conversation's memory"
             testids={ASSIGN_LIST}

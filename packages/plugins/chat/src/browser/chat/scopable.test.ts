@@ -21,14 +21,14 @@
  * `scopable` is core's curation on top of it, and it is this directory's own.
  */
 
-import { FILE_KINDS } from "@olai/format"
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { watchable } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
 import { scopable } from "./scopable.ts"
 
 /** What kolu declares, and the only list any of this is asked with today. */
-const OUTLINES: ReadonlyArray<string> = ["outline"]
+const OUTLINES = { walks: "nodes" }
 
 /**
  * A served directory with one file of every kind the registry claims, one it
@@ -57,8 +57,8 @@ const SERVED: ReadonlyArray<string> = [
   "old/Archive.olai",
 ]
 
-const offered = (kinds: ReadonlyArray<string> = OUTLINES): ReadonlyArray<string> =>
-  SERVED.filter((path) => scopable(kinds, path))
+const offered = (wake: { readonly walks?: string } = OUTLINES): ReadonlyArray<string> =>
+  SERVED.filter((path) => scopable(TEST_CLAIMS, wake, path))
 
 describe("the picker offers only what the doorbell could watch", () => {
   test("the reader's own outlines, and nothing else in the directory", () => {
@@ -70,28 +70,28 @@ describe("the picker offers only what the doorbell could watch", () => {
     // It has no nodes, so a conversation scoped to it watches nothing for ever
     // while the heartbeat reports a live watcher.
     expect(offered()).not.toContain("2026-09-01.md")
-    expect(watchable(OUTLINES, "2026-09-01.md")).toBe(false)
+    expect(watchable(TEST_CLAIMS, OUTLINES, "2026-09-01.md")).toBe(false)
   })
 
   test("nor is any other bodied kind the registry claims", () => {
     for (const path of ["saved.html", "rows.csv", "shot.png", "paper.pdf"]) {
-      expect(watchable(OUTLINES, path)).toBe(false)
+      expect(watchable(TEST_CLAIMS, OUTLINES, path)).toBe(false)
     }
   })
 
   test("nor a file no kind claims at all", () => {
     // It is in no plugin's list because it is in no list: `fileKind` answers
     // `null` and there is no arm for it to fall through.
-    expect(watchable(OUTLINES, "README")).toBe(false)
+    expect(watchable(TEST_CLAIMS, OUTLINES, "README")).toBe(false)
   })
 
   test("the KIND decides and the suffix does not — every kind the registry has", () => {
     // A doorbell declaring some other kind is offered that kind's files, which
     // is what makes this the plugin's ruling rather than a hard-coded `.olai`.
-    for (const [kind, claim] of Object.entries(FILE_KINDS)) {
+    for (const claim of TEST_CLAIMS.byKind.values()) {
       const path = `held/one${claim.exts[0]}`
-      expect(watchable([kind], path)).toBe(true)
-      expect(watchable(OUTLINES, path)).toBe(kind === "outline")
+      expect(watchable(TEST_CLAIMS, { walks: claim.holds }, path)).toBe(true)
+      expect(watchable(TEST_CLAIMS, OUTLINES, path)).toBe(claim.holds === "nodes")
     }
   })
 
@@ -99,8 +99,14 @@ describe("the picker offers only what the doorbell could watch", () => {
     // The wire carries plain words, so a serve ahead of this browser can name a
     // kind it has never heard of. The list narrows to nothing, which is visible
     // and local; a decode that failed would take every plugin's mount with it.
-    expect(offered(["hologram"])).toEqual([])
+    expect(offered({ walks: "hologram" })).toEqual([])
   })
+})
+
+test("a prose walker offers no outlines", () => {
+  expect(offered({ walks: "text" })).toEqual(["2026-09-01.md", "notes/plan.md", "saved.html", "rows.csv"])
+  expect(watchable(TEST_CLAIMS, { walks: "text" }, "lanes.olai")).toBe(false)
+  expect(offered({})).toEqual([])
 })
 
 describe("what is not offered, though it is an outline", () => {
@@ -131,7 +137,7 @@ describe("what is not offered, though it is an outline", () => {
     // Not offered is a curation of a list; the fault a stored pick is judged by
     // is the kind rule alone. A conversation already scoped to the trash goes
     // on deriving exactly what it always derived and is told nothing.
-    expect(watchable(OUTLINES, "_olai/Trash.olai")).toBe(true)
-    expect(watchable(OUTLINES, "_olai/Pins.olai")).toBe(true)
+    expect(watchable(TEST_CLAIMS, OUTLINES, "_olai/Trash.olai")).toBe(true)
+    expect(watchable(TEST_CLAIMS, OUTLINES, "_olai/Pins.olai")).toBe(true)
   })
 })

@@ -68,7 +68,7 @@ Feature: Starting a new outline from the sidebar
     # disagree with the one an agent meets. What it names is the COMPLETED
     # path, which is the file that was actually asked for.
     When I create the outline "../escape.olai" from the sidebar
-    Then the outline creation is refused saying "is not a relative `.olai` path"
+    Then the outline creation is refused saying "is not a relative file path"
     When I create the outline "../escape" from the sidebar
     Then the outline creation is refused saying "`../escape.olai` is not a relative"
 
@@ -78,11 +78,11 @@ Feature: Starting a new outline from the sidebar
     # `..`". The completion declines those, and the paragraph goes on naming
     # what was actually typed.
     When I create the outline ".." from the sidebar
-    Then the outline creation is refused saying "`..` is not a relative `.olai` path"
+    Then the outline creation is refused saying "`..` is not a relative file path"
     When I create the outline "." from the sidebar
-    Then the outline creation is refused saying "`.` is not a relative `.olai` path"
+    Then the outline creation is refused saying "`.` is not a relative file path"
     When I create the outline "notes/" from the sidebar
-    Then the outline creation is refused saying "`notes/` is not a relative `.olai` path"
+    Then the outline creation is refused saying "`notes/` is not a relative file path"
     And the outline list does not link to "...olai"
 
   Scenario: A name carrying the other kind's suffix is the box's own refusal
@@ -102,3 +102,10 @@ Feature: Starting a new outline from the sidebar
     And I press "Escape"
     Then the new outline box is gone
     And the outline list does not link to "plans/next.olai"
+
+  Scenario: An unclaimed suffix reaches the planner without being completed away
+    When I create the outline "notes.txt" from the sidebar
+    Then the outline creation is refused saying "`notes.txt` is not a file this directory serves: no row claims `.txt`"
+    And the new outline box still holds "notes.txt"
+    And the outline list does not link to "notes.txt"
+    And there should be no page errors

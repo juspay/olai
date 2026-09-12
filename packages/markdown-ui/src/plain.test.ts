@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The fast path is only allowed to be fast if it is also RIGHT.
  *
@@ -45,7 +46,7 @@ const viaPipeline = (
   title: string,
   needles: ReadonlyArray<string> = [],
 ): string => {
-  const tree = renderToTree(title, NOTE, "inline")
+  const tree = renderToTree(TEST_CLAIMS, title, NOTE, "inline")
   styleTags(tree, needles)
   return hastToHtml(tree)
 }

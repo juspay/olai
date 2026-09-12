@@ -1,3 +1,4 @@
+import { DocumentPath, NodeId, type Address } from "@olai/format"
 /**
  * `olai web <dir>` — the binary.
  *
@@ -277,7 +278,11 @@ const wrote = (out: unknown): string => {
  *  arm of that grammar is. */
 const rowAt = (said: { readonly file?: string; readonly id?: string; readonly url?: string }): string | null => {
   if (said.url === undefined || said.id === undefined) return null
-  const address = addressOf(said.file ?? null, said.id)
+  const address: Address = said.file === undefined
+    ? { kind: "node", id: NodeId.make(said.id) }
+    : said.id === said.file
+      ? { kind: "document", path: DocumentPath.make(said.file) }
+      : { kind: "row", path: DocumentPath.make(said.file), id: NodeId.make(said.id) }
   if (address === null) return null
   try {
     return new URL(`/${printAddress(address)}`, said.url).toString()

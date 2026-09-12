@@ -1,3 +1,4 @@
+import type { Claims } from "@olai/format"
 /**
  * The page a route asks for, and what the answer put on the screen.
  *
@@ -101,10 +102,11 @@ export const requestFor = (route: Route): FiledPageRequest | null => {
  * path could make was a zoom.
  */
 export const opensAt = (
+  claims: Claims,
   paths: ReadonlyArray<string>,
   path: string,
   at?: string,
-): Route | undefined => paths.includes(path) ? atElement(path, at ?? null) : undefined
+): Route | undefined => paths.includes(path) ? atElement(claims, path, at ?? null) : undefined
 
 /** The file the open page belongs to — the sidebar entry to light up. A zoomed
  *  node belongs to the file its CANONICAL record is in, whichever file the

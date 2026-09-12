@@ -1,3 +1,4 @@
+import type { Claims } from "@olai/format"
 /**
  * `/media/…` — the one address in this app that is not a surface member.
  *
@@ -130,7 +131,7 @@ export const mediaPath = (url: string): string | null => {
  * else — an `.svg` excluded — because that is a rule about what markdown
  * MEANS, while this is a rule about what a browser may ask this server for.
  */
-export const mediaTarget = (url: string): string | null => {
+export const mediaTarget = (claims: Claims, url: string): string | null => {
   const file = mediaPath(url)
-  return file !== null && isAsset(file) ? file : null
+  return file !== null && isAsset(claims, file) ? file : null
 }

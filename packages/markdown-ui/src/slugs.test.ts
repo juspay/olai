@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE TWO READINGS OF A HEADING, held to each other.
  *
@@ -42,7 +43,7 @@ const FROM = "notes.md"
  */
 const drawn = (body: string): ReadonlyArray<string> => {
   const namespace = landingId(body, FROM, "")
-  return [...renderMarkdown(body, FROM).matchAll(/<h[1-6] id="([^"]*)"/g)].map((one) =>
+  return [...renderMarkdown(TEST_CLAIMS, body, FROM).matchAll(/<h[1-6] id="([^"]*)"/g)].map((one) =>
     (one[1] as string).slice(namespace.length)
   )
 }
@@ -115,13 +116,13 @@ test("frontmatter is a heading to neither reading", () => {
   expect(drawn(proseIn(body))).toEqual(slugsIn(body).map(String))
   expect(drawn(proseIn(body))).toEqual(["the-plan", "next-steps"])
   // …and the block is not on the page at all — no rule, no phantom heading.
-  const html = renderMarkdown(proseIn(body), FROM)
+  const html = renderMarkdown(TEST_CLAIMS, proseIn(body), FROM)
   expect(html).not.toContain("<hr")
   expect(html).not.toContain("title: The kitchen plan")
   // The pipeline HAS NOT LEARNED about the block, which is the other half:
   // handed the whole body — as a note's own text is handed to it — it draws
   // the thematic break and the setext heading markdown says are there.
-  expect(renderMarkdown(body, FROM)).toContain("<hr")
+  expect(renderMarkdown(TEST_CLAIMS, body, FROM)).toContain("<hr")
 })
 
 /**
@@ -134,7 +135,7 @@ test("an unclosed fence is a thematic break to both readings", () => {
   const body = ["---", "title: x", "", "# Real", "", "## Also"].join("\n")
   expect(drawn(proseIn(body))).toEqual(slugsIn(body).map(String))
   expect(drawn(proseIn(body))).toEqual(["real", "also"])
-  expect(renderMarkdown(proseIn(body), FROM)).toContain("<hr")
+  expect(renderMarkdown(TEST_CLAIMS, proseIn(body), FROM)).toContain("<hr")
 })
 
 /** A setext heading — underlined rather than hashed — is a heading to both. */

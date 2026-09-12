@@ -1,3 +1,4 @@
+import type { Claims } from "@olai/format"
 import { boxFace } from "./faces.ts"
 import type {} from "../contracts/box.ts"
 import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
@@ -91,7 +92,7 @@ const HEADER_ROW: RowTestids = {
   prop: TESTID.headerSearchItemProp,
 }
 
-export function HeaderSearch() {
+export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
   /**
    * WHERE A PRESS GOES, or `null` on the two screens with no router beneath the
    * bar — the error report and the waiting page.
@@ -312,6 +313,7 @@ export function HeaderSearch() {
                   {(item, index) => (
                     <li>
                       <Result
+                        claims={props.claims}
                         label={item().label}
 
                         from={item().from}

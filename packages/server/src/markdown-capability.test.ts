@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { NodeServices } from "@effect/platform-node"
 import { Effect, Queue, Stream, Schema } from "effect"
@@ -18,8 +19,8 @@ test("Markdown owns live frontmatter and missing-file metadata with outlines abs
   const file = join(root,"notes.md")
   writeFileSync(join(root,"other.md"),"Another document\n")
   writeFileSync(file,"---\nagent: first\n---\nHello\n")
-  const store = yield* Store.make({root,codec:codecFor(NO_KINDS),watch:false,settle:"10 millis"})
-  const ops = makeOps({store,root})
+  const store = yield* Store.make({root,codec:codecFor(NO_KINDS, { current: TEST_CLAIMS }),watch:false,settle:"10 millis"})
+  const ops = makeOps({claims: { current: TEST_CLAIMS }, format: "olai", store,root})
   yield* Effect.addFinalizer(() => ops.close)
   const plugins = yield* capabilitiesOver(store,ops,root,{rows:["markdown"]})
   const wired = yield* bind({plugins,hostname:"test",startedAt:""})
@@ -35,7 +36,7 @@ test("Markdown owns live frontmatter and missing-file metadata with outlines abs
   expect(wired.bound.handlers["surface/outlines/page/get"]).toBeUndefined()
   expect(wired.bound.handlers["surface/outlines/outlines/get"]).toBeUndefined()
   const get = wired.bound.handlers["surface/markdown/documentPage/get"]!
-  const request = {kind:"at",address:addressOf("notes.md", null)}
+  const request = {kind:"at",address:addressOf(TEST_CLAIMS, "notes.md", null)}
   const stream = get(request) as Stream.Stream<FiledPageReading>
   const frames = yield* Queue.unbounded<FiledPageReading>()
   yield* Effect.forkScoped(Stream.runForEach(stream, frame => Queue.offer(frames,frame)))
@@ -48,14 +49,14 @@ test("Markdown owns live frontmatter and missing-file metadata with outlines abs
   unlinkSync(file)
   yield* store.refresh("verified")
   const missing = yield* Queue.take(frames)
-  expect(missing).toMatchObject({shows:{kind:"nothing",sought:"document",requested:"notes.md"}})
+  expect(missing).toMatchObject({shows:{kind:"nothing",sought:"markdown",requested:"notes.md"}})
 }).pipe(Effect.scoped,Effect.provide(NodeServices.layer),Effect.runPromise))
 
-test("Markdown metadata refuses outline and node addresses", () => {
+test("Markdown metadata schema admits file shapes and refuses node addresses", () => {
   const accepts = Schema.is(DocumentPageRequest)
-  expect(accepts({kind:"at",address:addressOf("notes.md",null)})).toBe(true)
-  expect(accepts({kind:"at",address:addressOf("house.olai",null)})).toBe(false)
-  expect(accepts({kind:"at",address:addressOf(null,"node")})).toBe(false)
+  expect(accepts({kind:"at",address:addressOf(TEST_CLAIMS, "notes.md",null)})).toBe(true)
+  expect(accepts({kind:"at",address:addressOf(TEST_CLAIMS, "house.olai",null)})).toBe(true)
+  expect(accepts({kind:"at",address:addressOf(TEST_CLAIMS, null,"node")})).toBe(false)
   expect(accepts({kind:"at",address:null})).toBe(false)
   expect(accepts({kind:"trash"})).toBe(false)
 })

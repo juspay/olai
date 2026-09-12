@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The fixtures the ops tests are written against.
  *
@@ -69,7 +70,7 @@ export const steady = (): Context => {
 export const planning = (
   set: OutlineSet,
   request: WriteRequest,
-): Result.Result<Plan, OpFailure> => plan(scoping(readingOf(set), steady(), NO_KINDS), request)
+): Result.Result<Plan, OpFailure> => plan(scoping(readingOf(set), steady(), NO_KINDS, "olai"), request)
 
 /**
  * A `Result` this layer produced, unwrapped — and the DIAGNOSTIC, which is the

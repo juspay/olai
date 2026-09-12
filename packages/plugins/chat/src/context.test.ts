@@ -56,17 +56,17 @@ describe("the line a node arrives on", () => {
   // any other. What it must not do is arrive reading like live work: no tool
   // refuses a write into an archive, so the line says which it is.
   test("a node that was put away says so, after where it sits", () => {
-    expect(lineFor({ ...ORDER, file: "_olai/Trash.olai", line: 1 }))
+    expect(lineFor({ ...ORDER, file: "_olai/Trash.olai", trashed: true, line: 1 }))
       .toBe(
         "Node in context: `order` — order the new cabinets (_olai/Trash.olai:1; under kitchen remodel; trashed)",
       )
   })
 
   test("...and every other node says nothing at all about it", () => {
-    // The question is asked of the FILE, so there is no second field to
-    // disagree with it: a node in `house.olai` cannot be marked away.
+    // The server judged the file against its reading; the prompt carries
+    // that result without consulting a different claims snapshot.
     expect(lineFor(ORDER)).not.toContain("trashed")
-    expect(lineFor({ ...ORDER, file: "_olai/Trash.olai" })).toContain("; trashed")
+    expect(lineFor({ ...ORDER, file: "_olai/Trash.olai", trashed: true })).toContain("; trashed")
   })
 })
 

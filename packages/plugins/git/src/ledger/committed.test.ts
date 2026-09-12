@@ -1,3 +1,4 @@
+import { parsers } from "./parser.testlib.ts"
 /**
  * THE CACHE'S OWN CONTRACT, against a repository made of a Map.
  *
@@ -76,7 +77,7 @@ const OBJECTS = {
 
 test("the commit is named in the question, so the answer belongs to that commit", async () => {
   const repo = fake(OBJECTS, "sha-one")
-  const committed = remembering()
+  const committed = remembering(parsers)
 
   const first = await Effect.runPromise(committed.at(repo.git, ["a.olai"]))
   expect(titles(first.get("a.olai"))).toEqual(["as one had it"])
@@ -86,7 +87,7 @@ test("the commit is named in the question, so the answer belongs to that commit"
 
 test("a second ask at the same commit reads nothing but which commit it is", async () => {
   const repo = fake(OBJECTS, "sha-one")
-  const committed = remembering()
+  const committed = remembering(parsers)
 
   await Effect.runPromise(committed.at(repo.git, ["a.olai", "b.olai"]))
   repo.forget()
@@ -98,7 +99,7 @@ test("a second ask at the same commit reads nothing but which commit it is", asy
 
 test("a commit landing is a new generation, not a stale answer", async () => {
   const repo = fake(OBJECTS, "sha-one")
-  const committed = remembering()
+  const committed = remembering(parsers)
 
   await Effect.runPromise(committed.at(repo.git, ["a.olai", "b.olai"]))
   repo.moveTo("sha-two")
@@ -116,7 +117,7 @@ test("a commit landing is a new generation, not a stale answer", async () => {
  *  bounds this thing, and paying a read for the walk back is what it costs. */
 test("landing back on a commit already seen reads it again, and correctly", async () => {
   const repo = fake(OBJECTS, "sha-one")
-  const committed = remembering()
+  const committed = remembering(parsers)
 
   await Effect.runPromise(committed.at(repo.git, ["a.olai"]))
   repo.moveTo("sha-two")
@@ -131,7 +132,7 @@ test("landing back on a commit already seen reads it again, and correctly", asyn
 
 test("a path asked for twice in one revision is one question", async () => {
   const repo = fake(OBJECTS, "sha-one")
-  const committed = remembering()
+  const committed = remembering(parsers)
 
   const answer = await Effect.runPromise(committed.at(repo.git, ["a.olai", "a.olai"]))
 
@@ -145,7 +146,7 @@ test("a path asked for twice in one revision is one question", async () => {
  *  exactly the files a new vault is made of. */
 test("a file the commit does not have is Absent, and is not asked about twice", async () => {
   const repo = fake(OBJECTS, "sha-one")
-  const committed = remembering()
+  const committed = remembering(parsers)
 
   const first = await Effect.runPromise(committed.at(repo.git, ["new.olai"]))
   expect(first.get("new.olai")).toEqual({ _tag: "Absent" })
@@ -159,7 +160,7 @@ test("a file the commit does not have is Absent, and is not asked about twice", 
  *  would have said every node in it is new. */
 test("a committed copy that does not parse is Unparsed, and is remembered as that", async () => {
   const repo = fake(OBJECTS, "sha-one")
-  const committed = remembering()
+  const committed = remembering(parsers)
 
   const first = await Effect.runPromise(committed.at(repo.git, ["broken.olai"]))
   expect(first.get("broken.olai")).toEqual({ _tag: "Unparsed" })
@@ -174,7 +175,7 @@ test("a committed copy that does not parse is Unparsed, and is remembered as tha
  *  puts a subprocess back into that path. */
 test("no dirty outlines is no question at all — not even which commit", async () => {
   const repo = fake(OBJECTS, "sha-one")
-  const committed = remembering()
+  const committed = remembering(parsers)
 
   expect((await Effect.runPromise(committed.at(repo.git, []))).size).toBe(0)
   expect(repo.asked()).toEqual([])
@@ -185,7 +186,7 @@ test("no dirty outlines is no question at all — not even which commit", async 
  *  which is what a directory with no history is. */
 test("no commit means no copies, asked for in one question", async () => {
   const repo = fake(OBJECTS, null)
-  const committed = remembering()
+  const committed = remembering(parsers)
 
   const answer = await Effect.runPromise(committed.at(repo.git, ["a.olai", "b.olai"]))
 
@@ -199,7 +200,7 @@ test("no commit means no copies, asked for in one question", async () => {
  *  arrive the moment there is one. */
 test("the first commit is a generation like any other", async () => {
   const repo = fake(OBJECTS, null)
-  const committed = remembering()
+  const committed = remembering(parsers)
 
   await Effect.runPromise(committed.at(repo.git, ["a.olai"]))
   repo.moveTo("sha-one")
@@ -230,7 +231,7 @@ test("the first commit is a generation like any other", async () => {
  */
 test("a show git could not answer is not remembered, and is asked again", async () => {
   const repo = fake(OBJECTS, "sha-one")
-  const committed = remembering()
+  const committed = remembering(parsers)
 
   repo.refusing("fatal: git show did not finish within 10000ms")
   const bitten = await Effect.runPromise(committed.at(repo.git, ["a.olai"]))
@@ -254,7 +255,7 @@ test("a show git could not answer is not remembered, and is asked again", async 
  *  poisoned by one file nobody could read. */
 test("one unanswerable file does not stop the rest of the round being remembered", async () => {
   const repo = fake({ ...OBJECTS, "sha-one:c.olai": node("c", "c as one had it") }, "sha-one")
-  const committed = remembering()
+  const committed = remembering(parsers)
 
   await Effect.runPromise(committed.at(repo.git, ["a.olai"]))
   repo.refusing("fatal: git show did not finish within 10000ms")

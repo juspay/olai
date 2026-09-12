@@ -1040,6 +1040,10 @@ export function Hypertext(props: { readonly file: string }) {
   // which is what a walk-off already does and what the budget above bounds.
   createEffect(
     on(() => [rev(), landing.at()] as const, ([now, at]) => {
+      // The head can withdraw before the page reading replaces this frame.
+      // Absence is not a new revision to fetch: keep the last loaded document
+      // for that gap, as the image/PDF pointing helper does.
+      if (now === undefined) return
       // A LANDING GONE IS NOT A PLACE TO BE, so it is not a reason to fetch the
       // file again. The slug goes to nothing when this pane leaves the page and
       // when Back takes the fragment off the address, and neither is somewhere

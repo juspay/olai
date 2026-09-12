@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE LINKS INDEX, HELD TO THE WALK IT REPLACED — the reference arm, the
  * corpora that move links, and the addresses to ask about.
@@ -74,7 +75,7 @@ export const scannedReferrers = (
   }
   const found: Array<Referrer> = []
   for (const face of faces) {
-    if (face.path === here || isPutAway(face.path)) continue
+    if (face.path === here || isPutAway(TEST_CLAIMS, face.path)) continue
     if (!face.links.some(points)) continue
     const records = derived.byFile.get(face.path)
     if (records === undefined) {
@@ -83,7 +84,7 @@ export const scannedReferrers = (
     }
     for (const located of records) {
       if (!isRegular(located)) continue
-      if (!recordLinks(located).some(points)) continue
+      if (!recordLinks(TEST_CLAIMS, located).some(points)) continue
       found.push({ face, at: located })
     }
   }
@@ -117,20 +118,20 @@ export const addressesIn = (set: OutlineSet): ReadonlyArray<Address> => {
     if (address !== null) found.push(address)
   }
   for (const document of set.documents) {
-    add(addressOf(document.path, null))
-    if (document.kind === "document") {
-      for (const slug of document.headings) add(addressOf(document.path, slug))
+    add(addressOf(TEST_CLAIMS, document.path, null))
+    if (document.holds === "text" && document.kept) {
+      for (const slug of document.headings) add(addressOf(TEST_CLAIMS, document.path, slug))
     }
-    if (document.kind === "outline") {
+    if (document.holds === "nodes") {
       for (const located of document.nodes) {
-        add(addressOf("", located.node.id))
-        add(addressOf(document.path, located.node.id))
+        add(addressOf(TEST_CLAIMS, "", located.node.id))
+        add(addressOf(TEST_CLAIMS, document.path, located.node.id))
       }
     }
   }
-  add(addressOf("nowhere.md", null))
-  add(addressOf("nowhere.md", "gone"))
-  add(addressOf("", "nobody-claims-this"))
+  add(addressOf(TEST_CLAIMS, "nowhere.md", null))
+  add(addressOf(TEST_CLAIMS, "nowhere.md", "gone"))
+  add(addressOf(TEST_CLAIMS, "", "nobody-claims-this"))
   return found
 }
 
@@ -152,11 +153,11 @@ export const sampledAddresses = (
 /** Which files a corpus holds as OUTLINES — the half a rename has to keep
  *  spelled the way the registry spells it. */
 export const outlinesAmong = (paths: Iterable<string>): ReadonlyArray<string> =>
-  [...paths].filter((path) => fileKind(path) === "outline")
+  [...paths].filter((path) => TEST_CLAIMS.byKind.get(fileKind(TEST_CLAIMS, path) ?? "")?.holds === "nodes")
 
 /** …and its complement over the kinds that hold a body. */
 export const documentsAmong = (paths: Iterable<string>): ReadonlyArray<string> =>
-  [...paths].filter((path) => fileKind(path) === "document")
+  [...paths].filter((path) => fileKind(TEST_CLAIMS, path) === "markdown")
 
 
 // ── the corpora, and the edits that move a link ────────────────────────
@@ -458,10 +459,10 @@ const renamed = (
   vault: Map<string, string>,
   away: Map<string, string>,
 ): void => {
-  const there = [...vault.keys()].filter((file) => !isPutAway(file))
+  const there = [...vault.keys()].filter((file) => !isPutAway(TEST_CLAIMS, file))
   if (there.length === 0) return
   const from = pick(random, there)
-  const to = fileKind(from) === "outline"
+  const to = TEST_CLAIMS.byKind.get(fileKind(TEST_CLAIMS, from) ?? "")?.holds === "nodes"
     ? `renamed${away.size}.olai`
     : `renamed${away.size}.md`
   if (vault.has(to)) return

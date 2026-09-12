@@ -1,3 +1,5 @@
+import { parsers } from "./parser.testlib.ts"
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The manual commit path, against a real repository and a real store.
  *
@@ -40,7 +42,7 @@ type OutlineStore = StoreModule.Store<Reading, Verdict>
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
  *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -159,6 +161,7 @@ const withRepo = <A>(
       push: options.pushes ?? "off",
     } as const
     const ledger = makeLedger({
+      ops: parsers,
       at: Effect.map(store.read("cheap"), (s) => s.snapshot?.value ?? null),
       root: served,
       policy,
@@ -166,7 +169,7 @@ const withRepo = <A>(
       ...(options.quiet === undefined ? {} : { quiet: options.quiet }),
     })
     const ops: GitOps = {
-      ...Ops.make({
+      ...Ops.make({claims: { current: TEST_CLAIMS }, format: "olai",
         store,
         root: served,
         ledger: {
@@ -598,8 +601,8 @@ describe("a rename staged by hand", () => {
             file: "Kept.olai",
             id: "kept",
             title: "Kept for later",
-            fields: ["file"],
-            sort: "moved",
+            fields: [],
+            sort: "created",
           },
         ])
       })))
@@ -774,19 +777,19 @@ describe("a served subdirectory reports on the whole repository", () => {
    * A rename from ABOVE the served root into it — the one shape where the side
    * a file came from has no served name at all.
    *
-   * `git mv Notes.md docs/Notes.olai` is somebody moving their notes under the
+   * `git mv Before.olai docs/Notes.olai` is somebody moving their notes under the
    * directory olai serves, which is a thing people do on the day they start
-   * using it. HEAD has the source as `Notes.md` and nothing else; asked for by
+   * using it. HEAD has the source as `Before.olai` and nothing else; asked for by
    * the served spelling there is nothing to ask FOR, so the committed side went
    * missing and every node in the file read as created. Repo-root-relative is
    * the one name both sides always have.
    */
   test("a rename from above the served root still reads against HEAD's own copy", () =>
     withRepo(
-      { "docs/house.olai": HOUSE, "Notes.md": `{"id":"kept","ord":"a0","title":"Kept"}\n` },
+      { "docs/house.olai": HOUSE, "Before.olai": `{"id":"kept","ord":"a0","title":"Kept"}\n` },
       (fixture) =>
         Effect.gen(function*() {
-          fixture.git("mv", "Notes.md", "docs/Notes.olai")
+          fixture.git("mv", "Before.olai", "docs/Notes.olai")
           yield* fixture.refresh
 
           const pending = yield* fixture.ops.pending
@@ -797,11 +800,11 @@ describe("a served subdirectory reports on the whole repository", () => {
               how: "renamed",
               // Repo-relative, because that is the only name a file one level
               // up HAS — and what the panel shortens only when it can.
-              from: "Notes.md",
+              from: "Before.olai",
             },
           ])
           expect(pending.others).toEqual([])
-          // Moved, not reborn: HEAD's `Notes.md` is the committed side.
+          // Moved, not reborn: HEAD's `Notes.olai` is the committed side.
           expect(pending.changes).toEqual([
             {
               file: "Notes.olai",
@@ -815,7 +818,7 @@ describe("a served subdirectory reports on the whole repository", () => {
           expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Committed")
           expect(
             fixture.git("show", "--name-status", "--find-renames", "--format=", "HEAD").trim(),
-          ).toBe("R100\tNotes.md\tdocs/Notes.olai")
+          ).toBe("R100\tBefore.olai\tdocs/Notes.olai")
         }),
       { serve: "docs" },
     ))

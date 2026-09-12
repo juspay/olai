@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE VERDICT'S OWN SUITE — and the differential that says what a load does
  * with a finding.
@@ -616,7 +617,7 @@ test("a set degrades per file, over generated broken sets", () => {
 
     // The base itself must be servable, or the round says nothing about what
     // the breakage below cost.
-    const clean = validate(setOf(base))
+    const clean = validate(TEST_CLAIMS, setOf(base))
     expect([round, Result.isSuccess(clean)]).toEqual([round, true])
     if (Result.isSuccess(clean)) {
       // A HEALTHY SET COMES BACK AS ITSELF, identity and all — the withholding
@@ -630,12 +631,12 @@ test("a set degrades per file, over generated broken sets", () => {
 
     // PARSE HOLES ONLY — accepted, and the hole rides in the set.
     const holed = setOf(rest, [], { [hole]: HOLE })
-    expect([round, Result.isSuccess(validate(holed))]).toEqual([round, true])
+    expect([round, Result.isSuccess(validate(TEST_CLAIMS, holed))]).toEqual([round, true])
     expect([round, holed.broken.map((one) => one.file)]).toEqual([round, [hole]])
 
     // A SET RULE — accepted too, now, with the one file it is about withheld.
     const broke = paths[round % paths.length] as string
-    const dangling = validate(setOf(dangled(base, broke, round)))
+    const dangling = validate(TEST_CLAIMS, setOf(dangled(base, broke, round)))
     expect([round, Result.isSuccess(dangling)]).toEqual([round, true])
     if (Result.isSuccess(dangling)) {
       const set = dangling.success.set
@@ -643,7 +644,7 @@ test("a set degrades per file, over generated broken sets", () => {
       // content, and its rows are the ones the rules found about it.
       expect([round, set.broken.map((one) => one.file)]).toEqual([round, [broke]])
       expect([round, brokenIn(set, broke)?.length ?? 0]).toEqual([round, 1])
-      expect([round, documentAt(set, broke)]).toEqual([round, outlineDocument(broke, [])])
+      expect([round, documentAt(set, broke)]).toEqual([round, outlineDocument(TEST_CLAIMS, broke, [])])
       // EVERY OTHER FILE IS LIVE — its records are in the set, its page draws a
       // tree, and a write to it is admitted. This is the whole ruling in four
       // lines: the freeze is not narrowed, it is gone.
@@ -675,7 +676,7 @@ test("a set degrades per file, over generated broken sets", () => {
     // they differ: the finding is ABOUT two files and BREAKS one.
     const away = paths[0] as string
     const home = paths.find((file) => file !== away) as string
-    const across = validate(setOf(adopted(base, home, round)))
+    const across = validate(TEST_CLAIMS, setOf(adopted(base, home, round)))
     expect([round, Result.isSuccess(across)]).toEqual([round, true])
     if (Result.isSuccess(across)) {
       const set = across.success.set
@@ -711,7 +712,7 @@ test("a set degrades per file, over generated broken sets", () => {
     // whether the set loaded. What the reader gets instead is the file that is
     // really broken, and an honest dangling face where the edge points.
     const other = paths.find((file) => file !== hole) as string
-    const mixed = validate(
+    const mixed = validate(TEST_CLAIMS,
       setOf(dangled(rest, other, round), [], { [hole]: HOLE }),
     )
     expect([round, Result.isSuccess(mixed)]).toEqual([round, true])

@@ -1,3 +1,4 @@
+import mime from "mime/lite"
 /**
  * Documents: the `.md` files a served directory holds, what a node's `doc`
  * points at, and what a document is allowed to point at in turn.
@@ -36,7 +37,7 @@
 
 import { type Address, addressOf, printAddress } from "./address.ts"
 import { proseIn } from "./frontmatter.ts"
-import { bodyKind, FILE_KINDS, isFetched, SVG_EXT } from "./kinds.ts"
+import { bodyKind, type Claims, isFetched } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
 import { headingText } from "./slug.ts"
 
@@ -125,9 +126,9 @@ export const retargetRelative = (fromFile: string, toFile: string, rel: string):
  * is reading, and an address off the allowlist is a way of drawing something
  * that is not a file in this directory.
  */
-export const pictureOf = (from: string, src: string): string | null => {
+export const pictureOf = (claims: Claims, from: string, src: string): string | null => {
   const resolved = relativeTo(from, src)
-  return resolved !== null && isPicture(resolved) ? resolved : null
+  return resolved !== null && isPicture(claims, resolved) ? resolved : null
 }
 
 /**
@@ -210,9 +211,9 @@ const decodedSegment = (segment: string): string | null => {
  * was found, and a link to a file that is not there is answered by the screen
  * that says so rather than by a link that silently was not one.
  */
-export const bodiedOf = (from: string, href: string): string | null => {
+export const bodiedOf = (claims: Claims, from: string, href: string): string | null => {
   const resolved = relativeTo(from, href)
-  return resolved !== null && bodyKind(resolved) !== null ? resolved : null
+  return resolved !== null && bodyKind(claims, resolved) !== null ? resolved : null
 }
 
 /**
@@ -267,8 +268,7 @@ const SCHEME = /^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|\/\/)/
  * which is the element that will not run it, and the response it is fetched
  * with says so too (`@olai/server`'s `media.ts`).
  */
-export const PICTURE_EXTENSIONS: ReadonlyArray<string> = FILE_KINDS.image.exts
-  .filter((ext) => ext !== SVG_EXT)
+
 
 /** Whether a path ends in one of these suffixes, case-folded — the matching
  *  RULE, held once for the two lists below it. Case-folding, exact suffix, no
@@ -279,7 +279,11 @@ const suffixed = (path: string, extensions: ReadonlyArray<string>): boolean => {
   return extensions.some((extension) => lower.endsWith(extension))
 }
 
-export const isPicture = (path: string): boolean => suffixed(path, PICTURE_EXTENSIONS)
+export const isPicture = (claims: Claims, path: string): boolean => {
+  if (!isFetched(claims, path)) return false
+  const type = mime.getType(path)
+  return type !== null && type.startsWith("image/") && type !== "image/svg+xml"
+}
 
 /**
  * The extensions a PAGE may fetch, beyond the pictures above — the parts a
@@ -352,8 +356,8 @@ const ASSET_EXTENSIONS: ReadonlyArray<string> = [
  * file no kind claims, while {@link isPicture} has case-folded since before
  * there was a picture kind — and a document naming one has always drawn it.
  */
-export const isAsset = (path: string): boolean =>
-  isFetched(path) || isPicture(path) || suffixed(path, ASSET_EXTENSIONS)
+export const isAsset = (claims: Claims, path: string): boolean =>
+  isFetched(claims, path) || suffixed(path, ASSET_EXTENSIONS)
 
 /**
  * A document, in one line: its first line with anything on it, heading marks
@@ -482,14 +486,14 @@ export const bytesOf = (text: string): number => UTF8.encode(text).length
  * NEVER TWICE, and the container says so: a note that links the same document
  * three times points at it once. What reads this wants the EDGES.
  */
-export const linksIn = (from: string, text: string): ReadonlyArray<Address> => {
+export const linksIn = (claims: Claims, from: string, text: string): ReadonlyArray<Address> => {
   // The cheap negative first: nearly every note in a directory holds no link
   // at all, and this is asked of every record and every body of the set.
   if (!text.includes("](")) return NO_LINKS
   let found: Array<Address> | undefined
   let seen: Set<string> | undefined
   for (const href of writtenLinks(text)) {
-    const address = linkTo(from, href)
+    const address = linkTo(claims, from, href)
     if (address === null) continue
     const written = printAddress(address)
     if ((seen ??= new Set()).has(written)) continue
@@ -635,32 +639,32 @@ const NO_LINKS: ReadonlyArray<Address> = []
  * carrying no prose and no edge fields; what it shows is the node's, and the
  * node is where the reference is written.
  */
-export const recordLinks = (located: Located): ReadonlyArray<Address> => {
-  const attached = pathAddress(docOf(located))
+export const recordLinks = (claims: Claims, located: Located): ReadonlyArray<Address> => {
+  const attached = pathAddress(claims, docOf(located))
   if (isMirror(located.node)) return attached === null ? NO_LINKS : [attached]
   const found: Array<Address> = attached === null ? [] : [attached]
   for (const id of located.node.see ?? []) {
-    const address = addressOf(null, id)
+    const address = addressOf(claims, null, id)
     if (address !== null) found.push(address)
   }
-  found.push(...linksIn(located.file, located.node.title))
+  found.push(...linksIn(claims, located.file, located.node.title))
   if (located.node.desc !== undefined) {
-    found.push(...linksIn(located.file, located.node.desc))
+    found.push(...linksIn(claims, located.file, located.node.desc))
   }
   return found
 }
 
 /** A whole-document address, for a path that may be absent — `doc` is the one
  *  field of a record that names a file, and most records name none. */
-const pathAddress = (path: string | undefined): Address | null =>
-  path === undefined ? null : addressOf(path, null)
+const pathAddress = (claims: Claims, path: string | undefined): Address | null =>
+  path === undefined ? null : addressOf(claims, path, null)
 
 /** What one written link names, or `null` — the grammar's three arms, told
  *  apart by where the `#` is. */
-const linkTo = (from: string, href: string): Address | null => {
+const linkTo = (claims: Claims, from: string, href: string): Address | null => {
   const cut = href.indexOf("#")
-  if (cut === 0) return addressOf(null, href.slice(1))
+  if (cut === 0) return addressOf(claims, null, href.slice(1))
   const path = cut === -1 ? href : href.slice(0, cut)
-  const resolved = bodiedOf(from, path)
-  return resolved === null ? null : addressOf(resolved, cut === -1 ? null : href.slice(cut + 1))
+  const resolved = bodiedOf(claims, from, path)
+  return resolved === null ? null : addressOf(claims, resolved, cut === -1 ? null : href.slice(cut + 1))
 }

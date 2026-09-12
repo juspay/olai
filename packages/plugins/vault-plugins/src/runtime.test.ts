@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * A PLUGIN NOBODY COMPILED IN, all the way through — written into a vault,
@@ -455,7 +456,7 @@ describe("a definition that goes away takes its fiber with it", () => {
         // THE SAME RECORDS, in `_olai/Trash.olai`. They still carry the
         // `plugin` property; what makes them not a definition is the file,
         // asked of `isPutAway` the way every other live reading asks it.
-        yield* dynamic.follow(vault({ approved: ALWAYS, into: TRASH_FILE }))
+        yield* dynamic.follow(vault({ approved: ALWAYS, into: TRASH_FILE(TEST_CLAIMS, "olai")! }))
         return yield* now()
       })
     )

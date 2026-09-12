@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The things the move-to picker will not do, and the words it says about each —
  * plus the ANSWER the wire carries them on.
@@ -63,7 +64,7 @@ const HOUSE = [
 const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
 const AWAY = `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`
 
-const derived = derive(
+const derived = derive(TEST_CLAIMS,
   nodesOfFiles({
     "house.olai": HOUSE,
     "garden.olai": GARDEN,

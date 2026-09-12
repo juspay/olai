@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import {
@@ -16,7 +17,7 @@ import { nodesOfFiles } from "./fixtures.testlib.ts"
 
 /** Two outlines with dates spread over three months, which is what makes the
  *  month boundaries above and below testable rather than assumed. */
-const SET = derive(
+const SET = derive(TEST_CLAIMS,
   nodesOfFiles({
     "work.olai": [
       `{"id":"deck","ord":"a0","title":"the deck"}`,
@@ -44,7 +45,7 @@ const SET = derive(
  * are what is new here, and a suite where both changed at once could not say
  * which rule the answer came from.
  */
-const MARKED = derive(
+const MARKED = derive(TEST_CLAIMS,
   nodesOfFiles({
     "ship.olai": [
       // Finished at an instant, scheduled for nothing: the roadmap's own shape
@@ -123,7 +124,7 @@ test("a day at the edge of a month belongs to that month alone", () => {
 
 test("a month with nothing in it has no days", () => {
   expect(datedDays(SET, "2026-06").length).toBe(0)
-  expect(datedDays(derive([]), "2026-08").length).toBe(0)
+  expect(datedDays(derive(TEST_CLAIMS, []), "2026-08").length).toBe(0)
 })
 
 // A dot is drawn for the DAY, however many nodes sit on it, and a node whose
@@ -293,7 +294,7 @@ test("a row shows the date that put it on the day", () => {
 // and two files each claiming `dup` are two nodes a reader is still being
 // shown. Deduping on the id would quietly draw one of them.
 test("two records claiming one id are two rows, not one", () => {
-  const duplicated = derive(
+  const duplicated = derive(TEST_CLAIMS,
     nodesOfFiles({
       "a.olai": `{"id":"dup","ord":"a0","title":"one","done":"2026-08-11T09:00:00-04:00"}`,
       "b.olai": `{"id":"dup","ord":"a0","title":"the other","done":"2026-08-11T10:00:00-04:00"}`,
@@ -308,7 +309,7 @@ test("two records claiming one id are two rows, not one", () => {
 // so the rule reaches all three at once — and `is:trashed` is what still
 // reaches the node itself, at every door (./filter.ts).
 test("an archived node is on no day, and lights no day in the calendar", () => {
-  const archived = derive(
+  const archived = derive(TEST_CLAIMS,
     nodesOfFiles({
       "_olai/Trash.olai":
         `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
@@ -323,7 +324,7 @@ test("an archived node is on no day, and lights no day in the calendar", () => {
 // nothing beside them. A live outline goes on answering for the day it shares
 // with an archive, heading and all.
 test("the live outline keeps the day the archive was taken off", () => {
-  const beside = derive(
+  const beside = derive(TEST_CLAIMS,
     nodesOfFiles({
       "_olai/Trash.olai":
         `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
@@ -342,7 +343,7 @@ test("the live outline keeps the day the archive was taken off", () => {
 // day, is on no day's page, and is owed on no agenda — and it is still not
 // the trash, so `is:trashed` is not the door back in (./filter.ts).
 test("a leftover Archive.olai is on no day, and lights no day in the calendar", () => {
-  const leftover = derive(
+  const leftover = derive(TEST_CLAIMS,
     nodesOfFiles({
       "Archive.olai":
         `{"id":"old","ord":"a0","title":"the old deck","done":"2026-08-11T09:00:00-04:00"}`,
@@ -362,7 +363,7 @@ test("a leftover Archive.olai is on no day, and lights no day in the calendar", 
 // to carry a date. So a dated node that is mirrored elsewhere appears on its
 // day once, at the record that actually declares it.
 test("a mirror of a dated node does not put it on the day twice", () => {
-  const mirrored = derive(
+  const mirrored = derive(TEST_CLAIMS,
     nodesOfFiles({
       "work.olai": `{"id":"posts","ord":"a0","title":"dig","date":"2026-08-05"}`,
       "life.olai": `{"id":"posts-here","ord":"a0","mirror":"posts"}`,
@@ -392,9 +393,9 @@ const VAULT: ReadonlyArray<string> = [
 // The whole of the detection rule: the basename, minus `.md`, is exactly an
 // ISO date. Wherever the file sits, and whatever is inside it.
 test("a document named for a date is that day's note, wherever it lives", () => {
-  expect(noteDateOf("Daily/2026/08/2026-08-12.md")).toBe("2026-08-12")
-  expect(noteDateOf("2026-08-11.md")).toBe("2026-08-11")
-  expect(noteDateOf("a/deep/tree/1999-01-01.md")).toBe("1999-01-01")
+  expect(noteDateOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md")).toBe("2026-08-12")
+  expect(noteDateOf(TEST_CLAIMS, "2026-08-11.md")).toBe("2026-08-11")
+  expect(noteDateOf(TEST_CLAIMS, "a/deep/tree/1999-01-01.md")).toBe("1999-01-01")
 })
 
 // The other half, and the reason the rule is worth having: a document about a
@@ -420,21 +421,21 @@ test("a document merely NAMING a date is not that day's note", () => {
       "",
     ]
   ) {
-    expect(noteDateOf(file)).toBeNull()
+    expect(noteDateOf(TEST_CLAIMS, file)).toBeNull()
   }
 })
 
 test("a day's note is the document named for it, and no other", () => {
-  expect(dailyNotesOn(VAULT, "2026-08-11")).toEqual(["2026-08-11.md"])
-  expect(dailyNotesOn(VAULT, "2026-08-10")).toEqual([])
-  expect(dailyNotesOn([], "2026-08-11")).toEqual([])
+  expect(dailyNotesOn(TEST_CLAIMS, VAULT, "2026-08-11")).toEqual(["2026-08-11.md"])
+  expect(dailyNotesOn(TEST_CLAIMS, VAULT, "2026-08-10")).toEqual([])
+  expect(dailyNotesOn(TEST_CLAIMS, [], "2026-08-11")).toEqual([])
 })
 
 // Two files may both claim a date — a vault mid-migration has exactly this —
 // and both are listed rather than one being picked by a rule nobody asked for.
 // Path order, which is the only order they have.
 test("two documents claiming one date are both the day's, in path order", () => {
-  expect(dailyNotesOn(VAULT, "2026-08-12")).toEqual([
+  expect(dailyNotesOn(TEST_CLAIMS, VAULT, "2026-08-12")).toEqual([
     "Daily/2026/08/2026-08-12.md",
     "journal/2026-08-12.md",
   ])
@@ -447,7 +448,7 @@ test("two documents claiming one date are both the day's, in path order", () => 
 // first, so a day page that listed them flat-file first would be the same two
 // documents in two orders on one screen.
 test("a day's note and a note inside the day's own directory read as the walk does", () => {
-  expect(dailyNotesOn(["2026-08-17.md", "2026-08-17/2026-08-17.md"], "2026-08-17")).toEqual([
+  expect(dailyNotesOn(TEST_CLAIMS, ["2026-08-17.md", "2026-08-17/2026-08-17.md"], "2026-08-17")).toEqual([
     "2026-08-17/2026-08-17.md",
     "2026-08-17.md",
   ])
@@ -456,18 +457,18 @@ test("a day's note and a note inside the day's own directory read as the walk do
 // The calendar's second mark, asked of the same convention: the days of ONE
 // month that have a note, so a caller drawing August is not handed September.
 test("a month's noted days are the days of that month a note is written for", () => {
-  expect([...dailyNoteDays(VAULT, "2026-08")].sort()).toEqual([
+  expect([...dailyNoteDays(TEST_CLAIMS, VAULT, "2026-08")].sort()).toEqual([
     "2026-08-11",
     "2026-08-12",
   ])
-  expect(dailyNoteDays(VAULT, "2026-07").size).toBe(0)
-  expect(dailyNoteDays([], "2026-08").size).toBe(0)
+  expect(dailyNoteDays(TEST_CLAIMS, VAULT, "2026-07").size).toBe(0)
+  expect(dailyNoteDays(TEST_CLAIMS, [], "2026-08").size).toBe(0)
 })
 
 // A day is lit once however many documents claim it — the mark is drawn for
 // the DAY, exactly as the node dot is.
 test("a day with two notes is one noted day", () => {
-  expect([...dailyNoteDays(["a/2026-08-12.md", "b/2026-08-12.md"], "2026-08")])
+  expect([...dailyNoteDays(TEST_CLAIMS, ["a/2026-08-12.md", "b/2026-08-12.md"], "2026-08")])
     .toEqual(["2026-08-12"])
 })
 
@@ -477,11 +478,11 @@ test("a day with two notes is one noted day", () => {
 test("a note and a dated node are two separate answers about one day", () => {
   const notes = ["2026-08-05.md", "2026-08-06.md"]
   // The 5th has both; the 6th has only a note; the 31st has only nodes.
-  expect(dailyNoteDays(notes, "2026-08").has("2026-08-05")).toBe(true)
+  expect(dailyNoteDays(TEST_CLAIMS, notes, "2026-08").has("2026-08-05")).toBe(true)
   expect(datedDays(SET, "2026-08").includes("2026-08-05")).toBe(true)
-  expect(dailyNoteDays(notes, "2026-08").has("2026-08-06")).toBe(true)
+  expect(dailyNoteDays(TEST_CLAIMS, notes, "2026-08").has("2026-08-06")).toBe(true)
   expect(datedDays(SET, "2026-08").includes("2026-08-06")).toBe(false)
-  expect(dailyNoteDays(notes, "2026-08").has("2026-08-31")).toBe(false)
+  expect(dailyNoteDays(TEST_CLAIMS, notes, "2026-08").has("2026-08-31")).toBe(false)
   expect(datedDays(SET, "2026-08").includes("2026-08-31")).toBe(true)
 })
 
@@ -496,41 +497,41 @@ test("a minted note follows the newest note's directory, date segments re-spelle
     "Daily/2026/08/2026-08-12.md",
     "readme.md",
   ]
-  expect(dailyNotePathFor(vault, "2026-09-01")).toBe("Daily/2026/09/2026-09-01.md")
+  expect(dailyNotePathFor(TEST_CLAIMS, vault, "2026-09-01")).toBe("Daily/2026/09/2026-09-01.md")
   // A different year re-spells the year segment too.
-  expect(dailyNotePathFor(vault, "2027-01-05")).toBe("Daily/2027/01/2027-01-05.md")
+  expect(dailyNotePathFor(TEST_CLAIMS, vault, "2027-01-05")).toBe("Daily/2027/01/2027-01-05.md")
 })
 
 test("a YYYY-MM directory is one segment, re-spelled whole", () => {
-  expect(dailyNotePathFor(["journal/2026-08/2026-08-12.md"], "2026-09-01"))
+  expect(dailyNotePathFor(TEST_CLAIMS, ["journal/2026-08/2026-08-12.md"], "2026-09-01"))
     .toBe("journal/2026-09/2026-09-01.md")
 })
 
 // WHOLE segments only: two digits appear inside years, and substring
 // replacement is how `2027` would lose its middle to a February.
 test("a segment that merely contains a date part travels verbatim", () => {
-  expect(dailyNotePathFor(["archive-2026/2026-02-05.md"], "2027-03-01"))
+  expect(dailyNotePathFor(TEST_CLAIMS, ["archive-2026/2026-02-05.md"], "2027-03-01"))
     .toBe("archive-2026/2027-03-01.md")
 })
 
 test("a flat vault stays flat, and an empty one starts at the root", () => {
-  expect(dailyNotePathFor(["2026-08-12.md", "notes/other.md"], "2026-08-15"))
+  expect(dailyNotePathFor(TEST_CLAIMS, ["2026-08-12.md", "notes/other.md"], "2026-08-15"))
     .toBe("2026-08-15.md")
-  expect(dailyNotePathFor([], "2026-08-15")).toBe("2026-08-15.md")
-  expect(dailyNotePathFor(["notes/other.md"], "2026-08-15")).toBe("2026-08-15.md")
+  expect(dailyNotePathFor(TEST_CLAIMS, [], "2026-08-15")).toBe("2026-08-15.md")
+  expect(dailyNotePathFor(TEST_CLAIMS, ["notes/other.md"], "2026-08-15")).toBe("2026-08-15.md")
 })
 
 // A vault mid-migration: the NEWEST note is where the convention currently
 // stands, so old notes somewhere else do not pull a new one back there.
 test("the newest note is the example, ties broken by path", () => {
   expect(
-    dailyNotePathFor(
+    dailyNotePathFor(TEST_CLAIMS,
       ["old/2026-01-01.md", "Daily/2026/08/2026-08-12.md"],
       "2026-08-13",
     ),
   ).toBe("Daily/2026/08/2026-08-13.md")
   expect(
-    dailyNotePathFor(["b/2026-08-12.md", "a/2026-08-12.md"], "2026-08-13"),
+    dailyNotePathFor(TEST_CLAIMS, ["b/2026-08-12.md", "a/2026-08-12.md"], "2026-08-13"),
   ).toBe("a/2026-08-13.md")
 })
 

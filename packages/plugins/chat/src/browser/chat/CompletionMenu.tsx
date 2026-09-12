@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 /**
  * The completion over the message box — one list for both of the things the
  * composer completes.
@@ -100,7 +101,7 @@ function RowLabel(props: { readonly row: MenuRow }) {
     () =>
       props.row.from === undefined
         ? undefined
-        : renderTitle(props.row.label, props.row.from, {
+        : renderTitle(servedDirectory()?.claims(), props.row.label, props.row.from, {
           // The row is a <button>: nested anchors are invalid markup, so a
           // markdown link in a title is unwrapped the way a search row's is.
           links: false,
@@ -317,7 +318,7 @@ export function CompletionMenu(props: {
                     when the row is copied or read aloud, and `ml-2` is neither. */}
                 <RowLabel row={row()} />{" "}
                 <span class="ml-1 text-muted">{row().hint}</span>
-                {" "}<Show when={row().place}>{place => <PlaceLine place={place()} />}</Show>
+                {" "}<Show when={row().place}>{place => <PlaceLine claims={servedDirectory()?.claims()} place={place()} />}</Show>
               </button>
             </li>
           </>

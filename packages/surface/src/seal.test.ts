@@ -1,9 +1,11 @@
-import { FILE_EXTS } from "@olai/format"
+import { TEST_CLAIMS } from "@olai/format/testlib"
+const FILE_EXTS = [...TEST_CLAIMS.byExt.keys()]
+const SEAL = seal(FILE_EXTS)
 import { expect, test } from "bun:test"
 
 import { mediaHref } from "./media.ts"
 import { ours, type Press } from "./press.ts"
-import { BODY_REFUSED, heard, REFUSED_MARKUP, SEAL, sealPolicy } from "./seal.ts"
+import { BODY_REFUSED, heard, REFUSED_MARKUP, SEAL as seal, sealPolicy } from "./seal.ts"
 
 /** The host a served page was asked for on — the only thing the policy is
  *  built out of, and the value a request's `Host` header carries. */

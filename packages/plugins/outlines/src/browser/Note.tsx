@@ -1,3 +1,4 @@
+import { servedDirectory } from "./vault.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * A node's note, as full markdown.
@@ -41,6 +42,7 @@ export function Note(props: {
       data-open={props.open === true ? "true" : undefined}
     >
       <Markdown
+            claims={servedDirectory()?.claims()}
         source={props.desc}
         from={props.from}
         class={`olai-md-compact ${props.class ?? ""}`}

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE ROSTER, READ OFF THE SET — the query `prop:<the declared key>`, the rules
  * about which rows it answers with, and the colon that splits one value in two.
@@ -54,7 +55,7 @@ const LANES = [
   `{"id":"quiet","parent":"lanes","ord":"a1","title":"a lane with nothing on it"}`,
 ].join("\n")
 
-const setWith = (files: Record<string, string>) => derive(recordsOf(setOf(files)))
+const setWith = (files: Record<string, string>) => derive(TEST_CLAIMS, recordsOf(setOf(files)))
 
 /** The reading under test, with the two arguments a caller supplies folded in
  *  once: the vault's declarations — this file's vocabulary claimed and any

@@ -9,7 +9,7 @@ import { Deferred, Effect, Stream } from "effect"
 import { fileAccess, openViews, OutlineRow } from "olai-plugin-vault/testlib"
 import type { PluginRuntime } from "./runtime.ts"
 
-export const CONTENT_ROWS = ["outlines", "markdown", "files", "pins", "capture", "trash"] as const
+export const CONTENT_ROWS = ["olai", "hypertext", "csv", "image", "pdf", "outlines", "markdown", "files", "pins", "capture", "trash"] as const
 export const runtimeFor = (plugins: Plugins, built: ReadonlyArray<string>, onChange = {run: () => {}}) => Effect.gen(function*() {
   const reports = yield* rowReport(plugins.host,built)
   return {

@@ -111,6 +111,7 @@ const withRuntime = <A>(
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-runtime-")))
   for (const [file, contents] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
     fs.writeFileSync(path.join(root, file), contents)
   }
   const reads: Array<string> = []
@@ -131,14 +132,14 @@ const withRuntime = <A>(
     if (!gate) throw new Error("test-minimal did not offer its gate")
     for (const one of extra.plugins ?? []) yield* mountPlugin(mounted.host, one.plugin)
     const attachments = yield* Queue.unbounded<string>()
-    const markdown = mounted.composed().find(one => one.name === "markdown")
-    const documents = (markdown?.deps as {collections?: {documents?: {readOne?: (key: string) => unknown}}})?.collections?.documents
-    if (!documents?.readOne) throw new Error("Markdown did not offer its document reader")
-    const readOne = documents.readOne
-    documents.readOne = key => {
-      const value = readOne(key)
-      Queue.offerUnsafe(attachments,key)
-      return value
+    const vault = mounted.composed().find(one => one.name === "vault")
+    const heads = (vault?.deps as { collections?: { heads?: {
+      readAll: () => ReadonlyMap<string, unknown>; readOne?: (key: string) => unknown
+    } } })?.collections?.heads
+    if (!heads) throw new Error("Vault did not offer its heads")
+    heads.readOne = key => {
+      Queue.offerUnsafe(attachments, key)
+      return heads.readAll().get(key)
     }
     const wired = yield* bind({
       hostname: hostname(),
@@ -249,21 +250,17 @@ const watching = <A>(
     return { take: Queue.take(frames), reader }
   })
 
-/** `watching` of a documents `get` — the lookup is this helper's, the attach
- *  is `watching`'s. Same shape, so a holder and a head-watcher are one kind of
- *  thing to take from and interrupt. */
-const opening = (
-  bound: Bound,
-  key: string,
-): Effect.Effect<{
-  readonly take: Effect.Effect<DocumentEntry>
-  readonly reader: Fiber.Fiber<void>
-}> =>
-  Effect.gen(function*() {
-    const get = bound.handlers["surface/markdown/documents/get"]
-    if (get === undefined) throw new Error("the documents collection has no `get`")
-    return yield* watching(get({ key }) as Stream.Stream<DocumentEntry>)
-  })
+/** The browser's two reads: watch a head, then request its current body.
+ * Cancelling the stream releases both the head and any in-flight request. */
+const opening = (bound: Bound, key: string) => Effect.gen(function*() {
+  const heads = bound.handlers["surface/vault/heads/get"]
+  const body = bound.handlers["surface/vault/bodies/get"]
+  if (!heads || !body) throw new Error("Vault did not offer head and body reads")
+  return yield* watching((heads({ key }) as Stream.Stream<Head>).pipe(
+    Stream.mapEffect(head => Effect.map(body({ path: key }) as Effect.Effect<{ text: string | null; refused: boolean }>,
+      entry => ({ ...entry, rev: head.rev }))),
+  ))
+})
 
 test("app.get answers the box and the start this runtime was minted with", () =>
   withRuntime({ "a.olai": OUTLINE }, ({ wired }) =>
@@ -308,15 +305,10 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
     { "a.olai": OUTLINE, "report.html": "<h1>Cabinet quote</h1>\n" },
     ({ wired, store }) =>
       Effect.gen(function*() {
-        const get = wired.bound.handlers["surface/markdown/documents/get"]
-        if (get === undefined) throw new Error("the documents collection has no `get`")
-
-        const frames = yield* Stream.runCollect(
-          Stream.take(get({ key: "report.html" }) as Stream.Stream<DocumentEntry>, 1),
-        )
-        expect([...frames]).toEqual([
-          { rev: 1, text: "<h1>Cabinet quote</h1>\n", refused: false },
-        ])
+        const get = wired.bound.handlers["surface/vault/bodies/get"]
+        if (!get) throw new Error("the vault has no body procedure")
+        expect(yield* (get({ path: "report.html" }) as Effect.Effect<unknown>))
+          .toEqual({ text: "<h1>Cabinet quote</h1>\n", refused: false })
 
         // …and the projection is where it was: a path, and no bytes. This is the
         // assertion the whole change is for.
@@ -328,10 +320,10 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
             1,
           ),
         )
-        expect([...keys]).toEqual([["report.html"]])
+        expect([...keys]).toEqual([[]])
         const set = yield* Effect.map(store.read("cheap"), (aged) => aged.snapshot)
         expect(set?.value.set.documents.map((one) => [String(one.path), one.kind]))
-          .toEqual([["a.olai", "outline"], ["report.html", "hypertext"]])
+          .toEqual([["a.olai", "olai"], ["report.html", "hypertext"]])
       }),
   ))
 
@@ -480,11 +472,7 @@ test("a reader holding a key across a file's birth is handed the body", () =>
       fs.writeFileSync(path.join(root, "report.html"), "<h1>Born</h1>\n")
       yield* store.refresh("cheap")
 
-      // TWO frames, in this order: the upsert that says the collection has a new
-      // key (which cannot carry a body — nothing has read one), and the body
-      // read for the reader holding it. That order is `olai-plugin-markdown`'s `projection.ts`'s
-      // holder-across-birth contract, and this connector's apply-then-unread.
-      expect(yield* open.take).toEqual({ rev: 2, text: null, refused: false })
+      // The new head prompts one procedure read, whose only frame is the body.
       expect(yield* open.take).toEqual({
         rev: 2,
         text: "<h1>Born</h1>\n",
@@ -600,7 +588,7 @@ test("the shelf is answered per revision, so a rename elsewhere renames the pin"
   withRuntime(
     {
       "a.olai": OUTLINE,
-      "Pins.olai": `{"id":"p","ord":"a0","title":"/#a"}\n`,
+      "_olai/Pins.olai": `{"id":"p","ord":"a0","title":"/#a"}\n`,
     },
     ({ wired, store, root }) =>
       Effect.gen(function*() {
@@ -644,7 +632,7 @@ test("a revision that changes no pin sends no frame", () =>
   withRuntime(
     {
       "a.olai": OUTLINE,
-      "Pins.olai": `{"id":"p","ord":"a0","title":"/#a"}\n`,
+      "_olai/Pins.olai": `{"id":"p","ord":"a0","title":"/#a"}\n`,
       "report.html": "<h1>Before</h1>\n",
     },
     ({ wired, store, root }) =>
@@ -882,7 +870,7 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
     waiting: { one: "waiting sentence", many: "waiting sentences" },
     // WHICH FILES THE PICKER MAY OFFER, which is drawn in the sense that
     // matters: it is what the list is made of, and core cannot work it out.
-    kinds: ["outline"] as const,
+    walks: "nodes" as const,
   }
   /** ... and the member that is NOT: a whole sentence per way this doorbell can
    *  stop watching. They are delivered into the transcript, and a browser has no
@@ -1344,7 +1332,7 @@ const RINGING = {
   subject: "wake on something",
   from: "the somethings of",
   waiting: { one: "sentence", many: "sentences" },
-  kinds: ["outline"] as const,
+  walks: "nodes" as const,
   faults: {
     gone: "the file this doorbell watched is not here any more, and nothing is being watched",
     unwatchable:

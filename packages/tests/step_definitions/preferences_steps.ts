@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { TESTID } from "@olai/bundle/testids"
 /**
  * The preferences panel: the one door in the header, the rows behind it, and
@@ -318,7 +319,7 @@ const outlineNamedBy = (href: string | null): string | undefined => {
     /^\//,
     "",
   );
-  return fileKind(path) === "outline" ? path : undefined;
+  return TEST_CLAIMS.byKind.get(fileKind(TEST_CLAIMS, path) ?? "")?.holds === "nodes" ? path : undefined;
 };
 
 /** The flip of the ADDRESSED page, not a held previous one.

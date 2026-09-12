@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT ONE PUBLISHED REVISION COSTS — the maps it builds and the keys it writes
  * into them, before and after `perf-published-maps`, both arms in one run.
@@ -54,7 +55,7 @@
  * Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS.
  */
 
-import { bodyKind, FILE_KINDS, type Reading } from "@olai/format"
+import { bodyKind,  type Reading } from "@olai/format"
 import { median, runtimeSaid, timed, vaultOf } from "@olai/format/testlib"
 import type { Snapshot } from "@olai/store"
 
@@ -70,7 +71,7 @@ import {
 
 /** The suffix a new file is minted with, read off the REGISTRY rather than
  *  written out — see the note on the two lists below. */
-const OUTLINE = FILE_KINDS.outline.exts[0]
+const OUTLINE = TEST_CLAIMS.byKind.get("olai")!.exts[0]
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1200)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 20)
@@ -94,8 +95,8 @@ const vault = ((): ReadonlyMap<string, string> => {
 // `@olai/format`'s `kinds.ts` is the one place that says what a file of the set
 // is, and an `endsWith` here would be a second answer to it (the sweep in
 // `@olai/tests`' `kinds.test.ts` fails a run over one).
-const outlines = [...vault.keys()].filter((file) => bodyKind(file) === null)
-const documents = [...vault.keys()].filter((file) => bodyKind(file) === "document")
+const outlines = [...vault.keys()].filter((file) => bodyKind(TEST_CLAIMS, file) === null)
+const documents = [...vault.keys()].filter((file) => bodyKind(TEST_CLAIMS, file) === "document")
 
 /** One outline's worth of JSONL, minted per revision so no two writes of a file
  *  are the same bytes. */

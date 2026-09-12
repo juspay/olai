@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE LINKS INDEX ≡ THE WALK IT REPLACED — over generated corpora and over this
  * repository's own `docs/`.
@@ -115,8 +116,8 @@ const replay = (revisions: Iterable<Revision>, every = 1): Report => {
       changed.push(file)
     }
     held = revision
-    const set = assemble(decoded)
-    const at: Reading = previous === null ? reading(set) : reading(set, {
+    const set = assemble(TEST_CLAIMS, decoded)
+    const at: Reading = previous === null ? reading(TEST_CLAIMS, set) : reading(TEST_CLAIMS, set, {
       read: previous,
       delta: {
         upserts: changed.map((file) => [file, { nodes: nodesIn(decoded.get(file)) }] as const),
@@ -252,13 +253,13 @@ test("…and over this repository's own docs/, edited", () => {
 // ── the rules the index keeps, written down ────────────────────────────
 
 const readingOfVault = (files: Record<string, string>): Reading =>
-  reading(assemble(decodedVault(new Map(Object.entries(files)))))
+  reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decodedVault(new Map(Object.entries(files)))))
 
 /** What points at one address, said as `path#record` — through the grammar's
  *  own constructor, so a case names a place the way every reader of this format
  *  names one. */
 const pointedAt = (at: Reading, path: string, element: string | null = null): string => {
-  const address = addressOf(path === "" ? null : path, element)
+  const address = addressOf(TEST_CLAIMS, path === "" ? null : path, element)
   if (address === null) throw new Error(`\`${path}#${element ?? ""}\` is not an address`)
   return said(referrersTo(address, at.pointing, at.derived))
 }
@@ -320,8 +321,8 @@ test("the referrers come back in path order, whichever way the index got there",
   // …and the same set reached by a PATCH that adds the file sorting FIRST,
   // which is where a re-file that appended rather than sorted would show.
   const before = readingOfVault({ "b/two.md": body, "target.md": target })
-  const after = reading(
-    assemble(
+  const after = reading(TEST_CLAIMS,
+    assemble(TEST_CLAIMS,
       decodedVault(
         new Map([["b/two.md", body], ["target.md", target], ["a/one.md", body]]),
       ),
@@ -345,7 +346,7 @@ test("a body write that leaves the face alone carries the index by reference", (
       ["brief.md", "# Brief\n\nthe second draft\n"],
     ]),
   )
-  const after = reading(assemble(files), {
+  const after = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, files), {
     read: before,
     delta: { upserts: [["brief.md", { nodes: [] }]], removes: [] },
   })
@@ -373,7 +374,7 @@ test("a body write that moves a link re-files it, and an emptied key goes away",
       ["two.md", "# Two\n"],
     ]),
   )
-  const after = reading(assemble(files), {
+  const after = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, files), {
     read: before,
     delta: { upserts: [["notes.md", { nodes: [] }]], removes: [] },
   })

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE DIFFERENTIAL: one verdict, two ways of reaching it, replayed over
  * sequences of edits.
@@ -291,10 +292,10 @@ export const replay = (revisions: Iterable<Revision>): Report => {
         removed.delete(file)
       }
       held = revision
-      const set = assemble(decoded)
+      const set = assemble(TEST_CLAIMS, decoded)
       if (set.broken.length > 0) unreadable++
       const touched = [...changed, ...removed]
-      const verdict = validate(
+      const verdict = validate(TEST_CLAIMS,
         set,
         published === null ? undefined : {
           read: published,
@@ -313,7 +314,7 @@ export const replay = (revisions: Iterable<Revision>): Report => {
       // shares no index, no ledger and no carry with the arm above, so an
       // agreement between them is an agreement between two readings of the
       // directory rather than two readings of one table.
-      const whole = validate(set)
+      const whole = validate(TEST_CLAIMS, set)
       account.length = 0
       const found = parting(many, touched, whole, verdict)
       if (found !== null) divergences.push(found)
@@ -789,8 +790,8 @@ export const edited = (
   // sweeps the tree for a suffix written out anywhere but `./kinds.ts`, and it
   // is the same rule for a harness as for a rule: the day a kind grows a second
   // extension, a `.endsWith` here goes on quietly reading half the vault.
-  const outlines = [...vault.keys()].filter((file) => fileKind(file) === "outline")
-  const documents = [...vault.keys()].filter((file) => fileKind(file) === "document")
+  const outlines = [...vault.keys()].filter((file) => TEST_CLAIMS.byKind.get(fileKind(TEST_CLAIMS, file) ?? "")?.holds === "nodes")
+  const documents = [...vault.keys()].filter((file) => fileKind(TEST_CLAIMS, file) === "markdown")
   let held = new Map(vault)
   const stream: Array<Revision> = [held]
   for (let at = 0; at < many; at++) {

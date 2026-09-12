@@ -1,3 +1,4 @@
+import { isTrashed } from "@olai/format"
 /**
  * What the composer was ARMED with, resolved against the set.
  *
@@ -89,5 +90,5 @@ const nodeContextFor = (
     at.derived,
     located as LocatedRegular,
   )
-  return Result.succeed({ id: found, title, file, line, path })
+  return Result.succeed({ id: found, title, file, line, path, ...(isTrashed(at.claims, file) ? { trashed: true } : {}) })
 }

@@ -17,14 +17,14 @@ import { TESTID } from "olai-plugin-files/testids"
  * in the other one for nothing.
  */
 
-import type { FileKind } from "@olai/format"
+
 
 
 
 export interface Making {
   /** Which kind of file this door mints — the tree's own glyph, so a row that
    *  makes an outline looks like the outlines above it. */
-  readonly of: FileKind
+  readonly of: string
   /** The affordance's own words, in the sidebar. */
   readonly label: string
   /** What the empty box suggests — a path, because a file's name IS its
@@ -47,25 +47,25 @@ export interface Making {
   }
 }
 
-export const MAKING_OUTLINE: Making = {
-  of: "outline",
+export const MAKING_OUTLINE = (row: string): Making => ({
+  of: row,
   label: "+ New outline",
   placeholder: "notes/plan",
   aria:
-    "path of the new outline, relative to the served directory — the .olai suffix is added if you leave it off",
+    "path of the new outline, relative to the served directory — the configured row’s suffix is added if you leave it off",
   testids: {
     open: TESTID.newOutline,
     path: TESTID.newOutlinePath,
     said: TESTID.newOutlineSaid,
   },
-}
+})
 
 export const MAKING_DOCUMENT: Making = {
-  of: "document",
+  of: "markdown",
   label: "+ New document",
   placeholder: "notes/idea",
   aria:
-    "path of the new document, relative to the served directory — the .md suffix is added if you leave it off",
+    "path of the new document, relative to the served directory — the document suffix is added if you leave it off",
   testids: {
     open: TESTID.newDocument,
     path: TESTID.newDocumentPath,

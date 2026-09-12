@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The directory's mark, over readings of a real set — `owedOf(agendaOf(…))`
  * rather than a hand-built pair of numbers, so a change to what the page
@@ -35,7 +36,7 @@ const COMING = `{"id":"pack","ord":"a2","title":"pack the bags","todo":true,"dat
  *  exercised across the groups an agenda comes in. */
 const readingOf = (work: ReadonlyArray<string>, life: ReadonlyArray<string> = []) =>
   agendaOf(
-    derive(
+    derive(TEST_CLAIMS,
       nodesOfFiles({ "work.olai": work.join("\n"), "life.olai": life.join("\n") }),
     ),
     TODAY,

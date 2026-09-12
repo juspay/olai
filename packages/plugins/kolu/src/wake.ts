@@ -26,7 +26,7 @@
  *
  * ## WHICH FILES IT MAY BE POINTED AT, which is not a sentence at all
  *
- * {@link wake.kinds} is the one member here a person never reads. It is the
+ * {@link wake.walks} is the one member here a person never reads. It is the
  * answer to a question only this package can answer — a scope is a filter, and
  * what kolu filters BY is the `kolu-terminal` values on a file's un-done NODES
  * ({@link ./doorbell.ts}), so a file that holds no nodes claims nobody, for
@@ -86,7 +86,7 @@
  * {@link ./server.ts} re-exports it beside `kinds` and `probe` for the reason
  * those two are re-exported there: a composition root opens ONE door per
  * plugin. (That neighbour is the PROPERTY kinds this plugin teaches the vault;
- * {@link wake.kinds} below is a different word for a different table, and the
+ * {@link wake.walks} below is a different word for a different table, and the
  * two never meet.) It is not IN `server.ts` because that file's closure is the
  * runtime half — `koluHalf`, the mirror, the dial — and the member that refuses
  * a scope for a plugin declaring no wake wants strings, not a socket.
@@ -103,45 +103,6 @@
  * picker that offers the wrong files on somebody else's machine.
  */
 
-import type { NodeKind } from "@olai/format"
-
-/**
- * THE KIND OF FILE A KOLU WAKE CAN BE POINTED AT — one, and it is the outline.
- *
- * Typed against the registry's own union rather than spelled as a suffix: the
- * word travels to the picker as data (`@olai/surface`'s `BuiltPlugin`'s
- * `wake.kinds`) and is compared there against `fileKind`'s answer, so the two
- * ends are reading one table. A `.olai` written out here would be a second
- * answer to a question `@olai/format`'s `kinds.ts` settles, and the failure it
- * buys is silent: a picker that offers nothing at all.
- *
- * ## `NodeKind` AND NOT `FileKind`, which is the whole of what the annotation
- * is worth
- *
- * `FileKind` is every kind the registry claims, documents included — so it
- * catches `"hologram"`, a word that names no file, and passes `"document"`,
- * which names the very files this lane exists to keep off the picker. A future
- * hand adding one here would type-check GREEN and rebuild the defect whole: the
- * picker would offer `.md` files, {@link ./doorbell.ts} would walk one and find
- * no nodes to carry a claim, and the heartbeat would go on reporting a live
- * watch over the empty set. The door this PR closed, with the key left in it.
- *
- * {@link NodeKind} is the registry's record-holding kinds — the complement of
- * `BodyKind`, derived from the same `holds` column — so naming a bodied kind
- * here is the same class of error as naming a word the table never had, and
- * `./wake.test.ts` fails the build if it ever stops being.
- *
- * IT IS KOLU'S BOUND AND NOT CORE'S, and the distinction is exact: core cannot
- * know whether a doorbell can walk a kind and never asks. THIS annotation can,
- * because this package knows what it reads — the `kolu-terminal` values on a
- * file's un-done NODES — and a plugin that really did read a document's prose
- * would annotate its own list differently and be right to.
- *
- * A named constant rather than a member written inline, so this annotation
- * exists to be checked — a literal inside the object below would widen to
- * `string` against {@link PluginServerHalf}'s own field and check nothing.
- */
-const KINDS: readonly [NodeKind, ...Array<NodeKind>] = ["outline"]
 
 /** kolu's doorbell, as the strip says it. See the header for why the drawn half
  *  is three pieces and why the subject leads. */
@@ -159,7 +120,7 @@ export const wake = {
   waiting: { one: "fleet event waiting", many: "fleet events waiting" },
   /** WHICH FILES THIS MAY BE POINTED AT — see the header, and {@link KINDS}
    *  for why the word rather than the suffix. */
-  kinds: KINDS,
+  walks: "nodes" as const,
   /**
    * ... and the sentences, one per way this doorbell can stop watching, keyed by
    * the way's own word. Core INDEXES this by the cause it recorded rather than
@@ -203,7 +164,7 @@ export const wake = {
      * wrong with a document here is a fact about how this doorbell derives.
      *
      * A conversation can only be in this state from a pick made before the
-     * picker filtered ({@link wake.kinds}), a tab left open from an older serve,
+     * picker filtered ({@link wake.walks}), a tab left open from an older serve,
      * or a record edited by hand — so it is rare and it is nobody's mistake to
      * be scolded for. The last clause says what to press.
      */

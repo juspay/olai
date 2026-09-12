@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What the tag completion costs per derivation: the index read against the
  * corpus walks it replaced.
@@ -79,7 +80,7 @@ const ROUNDS = Number(process.env["OLAI_BENCH_ROUNDS"] ?? 20)
  *  here: path order is a promise of the format's own, and a bench that spells
  *  it again is a bench that can come to measure a corpus in an order no app
  *  holds. */
-const view = derive(recordsOf(setOf(Object.fromEntries(vaultOf({ files: FILES, records: RECORDS })))))
+const view = derive(TEST_CLAIMS, recordsOf(setOf(Object.fromEntries(vaultOf({ files: FILES, records: RECORDS })))))
 
 /** One row of the vocabulary, built the way both walks below build one —
  *  they differ in what they walk, never in what they answer with. */
@@ -108,7 +109,7 @@ const walked = (derived: Derived): ReadonlyArray<TagUse> => {
   const counts = new Map<string, TagUse>()
   for (const located of derived.nodes) {
     if (
-      isMirror(located.node) || isTrashed(located.file) ||
+      isMirror(located.node) || isTrashed(TEST_CLAIMS, located.file) ||
       isLeftoverArchive(located.file)
     ) continue
     const voted = new Set<string>()
@@ -146,7 +147,7 @@ const titlesOnly = (derived: Derived): ReadonlyArray<TagUse> => {
   const counts = new Map<string, TagUse>()
   for (const located of derived.nodes) {
     if (
-      isMirror(located.node) || isTrashed(located.file) ||
+      isMirror(located.node) || isTrashed(TEST_CLAIMS, located.file) ||
       isLeftoverArchive(located.file)
     ) continue
     if (!mayHoldTag(located.node.title)) continue

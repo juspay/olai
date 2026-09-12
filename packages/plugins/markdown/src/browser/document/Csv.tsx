@@ -51,13 +51,15 @@ import { TESTID } from "olai-plugin-markdown/testids"
  */
 
 import { csvTable } from "@olai/format"
-import { createMemo, For, Show } from "solid-js"
+import { createEffect, createSignal, onCleanup, createMemo, For, Show } from "solid-js"
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 
 import { BodyRefused } from "./BodyRefused.tsx"
 import { clampSaid } from "./clamped.ts"
-import { isServed, useDocument } from "./documents.tsx"
+import { Effect } from "effect"
+import type { Body } from "olai-plugin-vault/surface"
+import { servedDirectory } from "../vault.ts"
 
 /** The file, and nothing else — ./faces.tsx's `Reading`, spelled here rather
  *  than imported for the reason ./Hypertext.tsx spells its own: the table
@@ -67,14 +69,27 @@ export function Csv(props: { readonly file: string }) {
   // THE BODY, asked for by the face that draws from it — the rule ./faces.tsx
   // states: a face asks the wire for what it needs, so what a kind costs this
   // tab is a fact about that kind's own component.
-  const served = useDocument(() => props.file)
+  const [served, setServed] = createSignal<Body>()
+  createEffect(() => {
+    const directory = servedDirectory()
+    const file = props.file
+    const revision = directory?.head(() => file)()
+    setServed(undefined)
+    if (directory === undefined || revision === undefined) return
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
+    void Effect.runPromise(directory.body(file), { signal: controller.signal }).then(
+      body => { if (!controller.signal.aborted) setServed(body) },
+      () => { if (!controller.signal.aborted) setServed({ text: null, refused: true }) },
+    )
+  })
   // ONE PARSE per body, not one per row drawn. A memo rather than a call in the
   // markup: `<For>` reads its source once per change, but the clamp line below
   // reads the same table, and two calls would be two walks of a file that can
   // be megabytes.
   const table = createMemo(() => {
     const entry = served()
-    return isServed(entry) ? csvTable(entry.text) : null
+    return entry !== undefined && !entry.refused && entry.text !== null ? csvTable(entry.text) : null
   })
   /** WHAT THIS PAGE IS NOT SHOWING, in one sentence or none — the bound said
    *  out loud, or the honest nothing for a file that is empty (./clamped.ts,

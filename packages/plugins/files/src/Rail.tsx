@@ -1,3 +1,4 @@
+import { servedDirectory } from "./vault.ts"
 import { TESTID } from "olai-plugin-files/testids"
 import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
 import { Glyph } from "olai-plugin-files/icons"
@@ -20,7 +21,7 @@ export function FileRail() { const router = useRouter(); return <>
             size. Both faces of this column already agree about what is OWED;
             they agree about what an OUTLINE is for the same reason — a reader
             who collapses the column has not gone somewhere else. */}
-        <Glyph of="outline" size={ICON} />
+        <Glyph of={servedDirectory()?.outlineRow() ?? ""} size={ICON} />
       </RailButton>
 
       <RailButton
@@ -30,7 +31,7 @@ export function FileRail() { const router = useRouter(); return <>
         onClick={() => setSidebarOpen(true)}
       >
         {/* And the tree's document glyph, for the same reason. */}
-        <Glyph of="document" size={ICON} />
+        <Glyph of="markdown" size={ICON} />
       </RailButton>
 
 </> }

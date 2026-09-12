@@ -148,6 +148,8 @@ export type Ask = typeof Ask.Type
  * the file itself, rather than the bytes riding the prompt.
  */
 export const NodeContext = Schema.Struct({
+  /** Judged by the sender against its claims snapshot; old transcript rows omit it. */
+  trashed: Schema.optionalKey(Schema.Boolean),
   id: Found.fields.id,
   title: Found.fields.title,
   /** Root-relative, like every other `file:line` olai spells. */

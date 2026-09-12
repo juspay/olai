@@ -1,3 +1,4 @@
+import { claims } from "@olai/format"
 /**
  * The ops layer's tool table, projected onto `@kolu/surface-mcp`'s vocabulary.
  *
@@ -532,6 +533,8 @@ const planned = (
     resolvedWrite(
       Effect.map(door.paths, (listed): Planning => ({
         paths: listed.paths,
+        claims: claims(listed.claims),
+        outlineRow: listed.outlineRow,
         login,
         // Read PER CALL, so a process left running overnight still dates a
         // capture today — `asking`'s rule for `date:yesterday`, kept here.

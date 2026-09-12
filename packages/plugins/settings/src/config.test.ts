@@ -46,8 +46,8 @@ test("a broken line defaults all namespaces and still names the file", () => {
   expect(at.rows.get("another")?.config.mode).toBe("quiet")
 })
 test("case-folded basename, shallowest path and deterministic ties decide", () => {
-  const at = read({ "Settings.OLAI": row({ mode: "loud" }), "_olai/Settings.olai": row({ mode: "quiet" }) })
-  expect(at.file).toBe("Settings.OLAI")
+  const at = read({ "SETTINGS.olai": row({ mode: "loud" }), "_olai/Settings.olai": row({ mode: "quiet" }) })
+  expect(at.file).toBe("SETTINGS.olai")
   expect(at.rows.get("example")?.config.mode).toBe("loud")
 })
 

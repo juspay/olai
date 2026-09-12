@@ -1,3 +1,4 @@
+import { servedDirectory } from "./vault.ts"
 /**
  * A title, printed.
  *
@@ -81,7 +82,7 @@ export function NodeTitle(props: {
    *  a memo over an object does by default (`===`). */
   const drawing = createMemo(
     () =>
-      renderTitle(props.title, props.from, {
+      renderTitle(servedDirectory()?.claims(), props.title, props.from, {
         links: props.links,
         needles: props.needles,
       }),

@@ -1,3 +1,4 @@
+import type { Claims } from "./kinds.ts"
 /**
  * What a commit nobody wrote a message for says.
  *
@@ -81,6 +82,7 @@ const BODY_LINES = 20
  * `olai: nothing`.
  */
 export const composed = (
+  claims: Claims,
   changes: ReadonlyArray<NodeChange>,
   others: ReadonlyArray<Other> = [],
 ): string => {
@@ -111,7 +113,7 @@ export const composed = (
     if (left > 0) lines.push(`… and ${left} more`)
   }
 
-  return `${subjectOf(changes, others, biggest)}\n\n${lines.join("\n")}\n`
+  return `${subjectOf(claims, changes, others, biggest)}\n\n${lines.join("\n")}\n`
 }
 
 /**
@@ -127,6 +129,7 @@ export const composed = (
  * fallback and the only one needed.)
  */
 const subjectOf = (
+  claims: Claims,
   changes: ReadonlyArray<NodeChange>,
   others: ReadonlyArray<Other>,
   biggest: NodeChange | null,
@@ -145,7 +148,7 @@ const subjectOf = (
   // The STEM — `roadmap`, not `roadmap.olai`. A subject is read at a glance and
   // the suffix is the same on every outline there is. Which characters that
   // costs is `./kinds.ts`'s to say, not this file's.
-  const where = outlines.size === 1 ? ` to ${stemOf(biggest.file)}` : ""
+  const where = outlines.size === 1 ? ` to ${stemOf(claims, biggest.file)}` : ""
   const also = others.length === 0 ? "" : ` · ${others.length} other ${
     others.length === 1 ? "file" : "files"
   }`

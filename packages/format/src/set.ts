@@ -1,3 +1,4 @@
+import { claimedOf } from "./address.ts"
 /**
  * The loaded set: what one served directory amounts to once it is read and
  * found valid.
@@ -41,7 +42,7 @@ import {
   type Unkept,
 } from "./document.ts"
 import { BrokenFile, type OutlineError } from "./errors.ts"
-import { bodyKind } from "./kinds.ts"
+import { bodyKind, type Claims } from "./kinds.ts"
 import { Located } from "./node.ts"
 import { byPath } from "./paths.ts"
 import { admits, darkened, type Verdict, verdictOf } from "./verdict.ts"
@@ -159,6 +160,7 @@ const NO_NODES: ReadonlyArray<Located> = []
  * client's own sort came to disagree about ({@link ./paths.ts}).
  */
 export const assemble = (
+  claims: Claims,
   files: ReadonlyMap<string, Result.Result<Document, Verdict>>,
 ): OutlineSet => {
   const documents: Array<Document> = []
@@ -167,6 +169,7 @@ export const assemble = (
   // The paths are put in order FIRST, so the list below comes out in it and
   // does not have to be sorted afterwards.
   for (const path of [...files.keys()].sort(byPath)) {
+    if (claimedOf(claims, path) === null) continue
     const decoded = files.get(path)!
     if (Result.isFailure(decoded)) {
       // The FINDINGS, unwrapped: a {@link ./verdict.ts} is what either half of
@@ -174,7 +177,7 @@ export const assemble = (
       // one file's worth of it — no set, so nothing to admit and nothing to
       // summarise. What a broken file's own page draws is its rows.
       broken.push({ file: path, errors: decoded.failure.findings })
-      documents.push(emptyDocument(path))
+      documents.push(emptyDocument(claims, path))
     } else documents.push(decoded.success)
   }
   return { documents, broken }
@@ -332,6 +335,7 @@ export const stopping = (
  * that would not parse is the value it always was.
  */
 export const withheld = (
+  claims: Claims,
   set: OutlineSet,
   broken: ReadonlyArray<BrokenFile>,
 ): OutlineSet => {
@@ -344,7 +348,7 @@ export const withheld = (
   return {
     documents: set.documents.map((document) =>
       withdrawn.has(document.path) && !held.has(document.path)
-        ? emptyDocument(document.path)
+        ? emptyDocument(claims, document.path)
         : document
     ),
     broken,
@@ -500,7 +504,7 @@ export const outlineNames = (set: OutlineSet): ReadonlySet<string> => {
  */
 export const markdownAt = (set: OutlineSet, path: string): Markdown | undefined => {
   const document = documentAt(set, path)
-  return document?.kind === "document" ? document : undefined
+  return document !== undefined && isMarkdown(document) ? document : undefined
 }
 
 /**
@@ -658,5 +662,5 @@ export const withDocuments = (
  * and it is the one thing it must: the whole point of the entry is that there
  * was nothing to decode.
  */
-const emptyDocument = (file: string): Document =>
-  bodyKind(file) === null ? outlineDocument(file, []) : bodiedDocument(file, "")
+const emptyDocument = (claims: Claims, file: string): Document =>
+  bodyKind(claims, file) === null ? outlineDocument(claims, file, []) : bodiedDocument(claims, file, "")

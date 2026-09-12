@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * One file with a BODY, as a page.
@@ -108,6 +109,8 @@ import { panesOf } from "olai-plugin-navigation/workspace"
  * not have to know. Same spelling as ./Toc.tsx one level down, for the same
  * reason and against the same defect.
  */
+const UNAVAILABLE = { edits: false, reads: () => <p>The browser page for this row is unavailable.</p> }
+
 export function DocumentPage(props: {
   readonly file: string
   /** The named facts the file writes about itself — the page reading's
@@ -135,7 +138,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
   // because that is what a document's address meant before there was a second
   // kind, and a blank page would be a worse answer than a rendering of the
   // text.
-  const face = () => FACES[bodyKind(props.file) ?? "document"]
+  const face = () => FACES[servedDirectory()!.kindOf(props.file) ?? ""] ?? UNAVAILABLE
   // THE BODY, AND ONLY FOR A PAGE THAT MIGHT WRITE IT — the draft below is a
   // change to a text, judged against the text it was read from, so the editor
   // is the one thing here that cannot be given the file and left to fetch what

@@ -1,3 +1,4 @@
+import type { Claims } from "./kinds.ts"
 /**
  * Two readings of the same outlines, in olai's words.
  *
@@ -149,6 +150,7 @@ interface Placed {
  * reads down the outline.
  */
 export const changesOf = (
+  claims: Claims,
   before: Records,
   after: Records,
 ): ReadonlyArray<NodeChange> => {
@@ -177,7 +179,7 @@ export const changesOf = (
         id: node.id,
         title: nameOf(node),
         fields,
-        sort: sortOf(fields, { file, node }),
+        sort: sortOf(claims, fields, { file, node }),
       })
     }
   }
@@ -293,10 +295,10 @@ const set = (node: Node, field: "done" | "cancelled" | "doing" | "date"): boolea
 /** Which of the fields that differ is the one this change is ABOUT. Takes the
  *  `after` side because three of the arms turn on what the field BECAME, which
  *  is the one thing a field name cannot say. */
-const sortOf = (fields: ReadonlyArray<Field>, after: Placed): Sort => {
+const sortOf = (claims: Claims, fields: ReadonlyArray<Field>, after: Placed): Sort => {
   const changed = new Set(fields)
   if (changed.has("file")) {
-    return isTrashed(after.file) ? "trashed" : "moved"
+    return isTrashed(claims, after.file) ? "trashed" : "moved"
   }
   if (changed.has("done")) return set(after.node, "done") ? "done" : "undone"
   // THE FOURTH MARK HAS AN ARM AND `todo` STILL DOES NOT, which is a

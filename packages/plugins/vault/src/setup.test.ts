@@ -7,13 +7,15 @@ import { revalidation } from "./setup.ts"
 test("vault revalidates changed kinds without reacting to unrelated rows", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "2026-09-05T00:00:00Z" })
   let refreshes = 0
+  const views = openViews()
+  let readingClaims = views.fileKinds.current()
   yield* mountPlugin(plugins.host, definePlugin({ name: "vault", needs: [Offers], apply: Effect.gen(function*() {
-    const views = openViews()
     yield* (yield* Offers).own("file-kinds", views.fileKinds.provision)
   }) }))
   yield* mountPlugin(plugins.host, definePlugin({ name: "directory", needs: [Offers], apply: Effect.gen(function*() {
     yield* (yield* Offers).offer(Directory, () => ({ root: "/test", store: {
-      refresh: () => Effect.sync(() => { refreshes++ }),
+      read: () => Effect.succeed({ snapshot: { value: { claims: readingClaims } } }),
+      refresh: () => Effect.sync(() => { refreshes++; readingClaims = views.fileKinds.current() }),
     } }))
   }) }))
   const mounted = yield* mountPlugin(plugins.host, revalidation)
@@ -45,4 +47,11 @@ test("vault revalidates changed kinds without reacting to unrelated rows", () =>
   yield* mountPlugin(plugins.host, definePlugin({ name: "later", needs: [], apply: Effect.void }))
   yield* Effect.sleep("10 millis")
   expect(refreshes).toBe(4)
+  // The claim predates the subscription but postdates the published reading.
+  yield* mountPlugin(plugins.host, definePlugin({ name: "early", needs: [FileKinds], apply: Effect.gen(function*() {
+    yield* (yield* FileKinds).register({ exts: [".early"], holds: "text", kept: true, fetched: false, noun: "file", article: "a" })
+  }) }))
+  yield* mountPlugin(plugins.host, revalidation)
+  yield* Effect.sleep("10 millis")
+  expect(refreshes).toBe(5)
 }))))

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What a query costs THE MATCHER on a large vault — a WORD, with and without
  * the fold it keeps per record, and a DATE CLAUSE, which touches none of that
@@ -90,7 +91,7 @@ const typedOver = (set: Derived): void => {
   for (const query of TYPED) matching(set, parseFilter(query, TODAY))
 }
 
-const warm = derive(vault())
+const warm = derive(TEST_CLAIMS, vault())
 // Once through, so the arm below measures the fold being READ rather than
 // written — which is the whole distinction between the two.
 typedOver(warm)
@@ -101,7 +102,7 @@ typedOver(warm)
 // of the cost as if it were the whole of it. The sets are built outside the
 // timed window for the same reason `derive` is.
 const cold = Array.from({ length: 5 }, () => {
-  const fresh = TYPED.map(() => derive(vault()))
+  const fresh = TYPED.map(() => derive(TEST_CLAIMS, vault()))
   return timed(() => {
     TYPED.forEach((query, at) => {
       matching(fresh[at] as Derived, parseFilter(query, TODAY))

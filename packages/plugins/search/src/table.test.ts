@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE ONE CLAIM THIS PACKAGE MAKES, tested the only way it can be: the same
  * question, asked twice.
@@ -27,26 +28,8 @@
  */
 
 import { expect, test } from "bun:test"
-import {
-  assemble,
-  type Bodied,
-  bodiedDocument,
-  bodiedIn,
-  bodyKind,
-  type Document,
-  isMirror,
-  type Located,
-  matching,
-  matchingDocuments,
-  nodesIn,
-  parseFilter,
-  parseOutline,
-  reading,
-  type Reading,
-  type Scope,
-  type Verdict,
-  verdictOf,
-} from "@olai/format"
+import { assemble, type Bodied, bodiedDocument, bodiedIn, bodyKind, type Document, isMirror, type Located, matching, matchingDocuments, nodesIn, parseFilter, reading, type Reading, type Scope, type Verdict, verdictOf } from "@olai/format"
+import { parseOutline } from "olai-plugin-olai/format"
 import { seeded, vaultOf } from "@olai/format/testlib"
 import { Result } from "effect"
 
@@ -175,21 +158,21 @@ const DOCUMENTS: ReadonlyArray<readonly [string, string]> = [
 const UNKEPT = "pages/kitchen-inspiration.html"
 
 const handVault = (): Reading =>
-  reading(
-    assemble(
+  reading(TEST_CLAIMS,
+    assemble(TEST_CLAIMS,
       new Map<string, Result.Result<Document, Verdict>>([
         ...Object.entries(HAND).map(
           ([file, text]) =>
-            [file, Result.mapError(parseOutline(file, text), verdictOf)] as [
+            [file, Result.mapError(parseOutline(file, text, TEST_CLAIMS), verdictOf)] as [
               string,
               Result.Result<Document, Verdict>,
             ],
         ),
         ...DOCUMENTS.map(
           ([path, text]) =>
-            [path, Result.succeed<Document>(bodiedDocument(path, text))] as const,
+            [path, Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, path, text))] as const,
         ),
-        [UNKEPT, Result.succeed<Document>(bodiedDocument(UNKEPT, null))],
+        [UNKEPT, Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, UNKEPT, null))],
       ]),
     ),
   )
@@ -599,7 +582,7 @@ test("index and corpus stay in step through a soak that crosses the decline thre
 
     const filed = (path: string, text: string): string => {
       texts.set(path, text)
-      decoded.set(path, Result.mapError(parseOutline(path, text), verdictOf))
+      decoded.set(path, Result.mapError(parseOutline(path, text, TEST_CLAIMS), verdictOf))
       return path
     }
     const mintFile = (): string => {
@@ -617,12 +600,12 @@ test("index and corpus stay in step through a soak that crosses the decline thre
       decoded.set(
         path,
         Result.succeed<Document>(
-          bodiedDocument(path, `---\nagent: ${pick(random)}\n---\n\nprose about ${pick(random)}\n`),
+          bodiedDocument(TEST_CLAIMS, path, `---\nagent: ${pick(random)}\n---\n\nprose about ${pick(random)}\n`),
         ),
       )
     }
 
-    let read = reading(assemble(decoded))
+    let read = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded))
     let narrowed = 0
     let found = 0
     let declined = 0
@@ -651,8 +634,8 @@ test("index and corpus stay in step through a soak that crosses the decline thre
         // spelling: `@olai/format`'s `kinds.ts` is the one place that says what
         // a file of the set is, and an `endsWith` here would be a second answer
         // to it (the sweep in `@olai/tests`' `kinds.test.ts` fails on one).
-        const outlines = [...decoded.keys()].filter((path) => bodyKind(path) === null)
-        const markdown = [...decoded.keys()].filter((path) => bodyKind(path) !== null)
+        const outlines = [...decoded.keys()].filter((path) => bodyKind(TEST_CLAIMS, path) === null)
+        const markdown = [...decoded.keys()].filter((path) => bodyKind(TEST_CLAIMS, path) !== null)
         const living = (): ReadonlyArray<string> => outlines.filter((path) => texts.has(path))
 
         /** How hard this round pulls toward the phase's size. A keystroke moves
@@ -716,7 +699,7 @@ test("index and corpus stay in step through a soak that crosses the decline thre
             decoded.set(
               path,
               Result.succeed<Document>(
-                bodiedDocument(
+                bodiedDocument(TEST_CLAIMS,
                   path,
                   `---\nagent: ${pick(random)}\n---\n\nprose about ${pick(random)} and ${
                     pick(random)
@@ -781,7 +764,7 @@ test("index and corpus stay in step through a soak that crosses the decline thre
         }
         if (changed.length + removed.length === 0) continue
 
-        const set = assemble(decoded)
+        const set = assemble(TEST_CLAIMS, decoded)
         // EVERY SEVENTH ROUND IS A REBUILD, offered no previous reading at all
         // — which is what a first load is, and what the patcher falls back to
         // when it declines (a `git pull` that rewrote the directory). Every
@@ -795,7 +778,7 @@ test("index and corpus stay in step through a soak that crosses the decline thre
         // file it earlier removed. That is the codec's own contract — removals
         // first, then changes — and generating it is cheaper than forbidding
         // it.
-        read = round % 7 === 6 ? reading(set) : reading(set, {
+        read = round % 7 === 6 ? reading(TEST_CLAIMS, set) : reading(TEST_CLAIMS, set, {
           read,
           delta: {
             upserts: [...new Set(changed)].map(
@@ -876,9 +859,9 @@ test("index and corpus agree over a generated vault", () => {
     const corpus = vaultOf({ files: 120, records: 12 })
     const decoded = new Map<string, Result.Result<Document, Verdict>>()
     for (const [path, text] of corpus) {
-      decoded.set(path, Result.mapError(parseOutline(path, text), verdictOf))
+      decoded.set(path, Result.mapError(parseOutline(path, text, TEST_CLAIMS), verdictOf))
     }
-    const at = reading(assemble(decoded))
+    const at = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded))
     // IT REALLY NARROWS, which every `toEqual` in this file would go on passing
     // if it stopped: an index that handed back the whole corpus as candidates
     // is a correct index and a pointless one, and this is the only assertion
@@ -921,17 +904,17 @@ test("a document that leaves takes its row with it", () => {
       [
         "a.olai",
         Result.mapError(
-          parseOutline("a.olai", `{"id":"one","ord":"a0","title":"a kitchen row"}`),
+          parseOutline("a.olai", `{"id":"one","ord":"a0","title":"a kitchen row"}`, TEST_CLAIMS),
           verdictOf,
         ),
       ],
-      ["note.md", Result.succeed<Document>(bodiedDocument("note.md", "kitchen prose"))],
+      ["note.md", Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, "note.md", "kitchen prose"))],
     ])
-    const before = reading(assemble(decoded))
+    const before = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded))
     expect(same(before, index, "kitchen").hits).toBe(2)
 
     decoded.delete("note.md")
-    const after = reading(assemble(decoded), {
+    const after = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded), {
       read: before,
       delta: { upserts: [], removes: ["note.md"] },
     })

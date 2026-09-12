@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What refers to a node — the reading, and the four rulings inside it.
  *
@@ -12,7 +13,7 @@ import { backlinksOf } from "./backlinks.ts"
 import { derive, type Derived } from "./derive.ts"
 import { recordsOf, setOf } from "./fixtures.testlib.ts"
 
-const viewOf = (files: Record<string, string>): Derived => derive(recordsOf(setOf(files)))
+const viewOf = (files: Record<string, string>): Derived => derive(TEST_CLAIMS, recordsOf(setOf(files)))
 
 /** A referrer as this suite reads one: which record, and how it refers. */
 const said = (derived: Derived, id: string): ReadonlyArray<string> =>

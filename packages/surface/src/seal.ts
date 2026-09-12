@@ -164,7 +164,6 @@
  * somebody who needed one embed to work.
  */
 
-import { FILE_EXTS } from "@olai/format"
 
 import { mediaPath, MEDIA_PREFIX } from "./media.ts"
 import { ours } from "./press.ts"
@@ -571,8 +570,8 @@ const MEASURE = `(function () {
  * SVG, whose `href` is an `SVGAnimatedString` — and it falls out as a link this
  * does not claim.
  */
-const FOLLOW = `(function () {
-  var pages = ${JSON.stringify(FILE_EXTS)}
+const FOLLOW = (extensions: ReadonlyArray<string>) => `(function () {
+  var pages = ${JSON.stringify(extensions)}
   var ours = ${ours.toString()}
   addEventListener("click", function (event) {
     if (!ours(event)) return
@@ -642,9 +641,9 @@ const FOLLOW = `(function () {
  * reason: this prefix would push a file's charset declaration past the 1024
  * bytes a parser looks in. Both are named where they are done.
  */
-export const SEAL = `<!doctype html>` +
+export const SEAL = (extensions: ReadonlyArray<string>) => `<!doctype html>` +
   `<meta name="color-scheme" content="light">` +
-  `<script>${MEASURE};${FOLLOW}</script>`
+  `<script>${MEASURE};${FOLLOW(extensions)}</script>`
 
 /**
  * The one place a sealed page may fetch from, as a CSP source — or NOTHING,

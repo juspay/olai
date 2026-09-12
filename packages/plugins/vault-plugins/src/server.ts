@@ -53,7 +53,7 @@ approve: ({ input }) =>
               }
               const current = yield* Effect.catch(gate.read, () => Effect.succeed(null))
               const at = current?.derived.byId.get(one.node)
-              if (isPutAway(one.file) || (at !== undefined && isPutAway(at.file))) {
+              if (current !== null && (isPutAway(current.claims, one.file) || (at !== undefined && isPutAway(current.claims, at.file)))) {
                 return yield* Effect.fail(
                   new NotFoundFailure({
                     reason:

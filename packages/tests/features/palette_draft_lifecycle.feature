@@ -18,7 +18,7 @@ Feature: Palette drafts survive plugin changes
     When I click the palette box
     And I press "Enter"
     Then the pin "/#order" is named "Kitchen project draft"
-    And "Pins.olai" holds a node titled "[Kitchen project draft](/#order)"
+    And "_olai/Pins.olai" holds a node titled "[Kitchen project draft](/#order)"
     And the page has not reloaded
     And there should be no page errors
 
@@ -41,7 +41,7 @@ Feature: Palette drafts survive plugin changes
     Then the palette box holds ""
     When I name the pin "Final name"
     Then the pin "/#order" is named "Final name"
-    And "Pins.olai" holds a node titled "[Final name](/#order)"
+    And "_olai/Pins.olai" holds a node titled "[Final name](/#order)"
     And there should be no page errors
 
   Scenario: A capture draft remains sendable after the palette is rebuilt

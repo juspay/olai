@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The shape this browser keeps done-visibility in, as a pure question: what
  * the default is, what a page's out-vote does to it, and what a page makes of
@@ -151,7 +152,7 @@ test("on a contested key the STORED one wins — a sibling's fresh flip is never
 
 // ── which page a pick is about ─────────────────────────────────────────
 
-const derived = derive(
+const derived = derive(TEST_CLAIMS,
   nodesOfFiles({
     "house.olai": [
       `{"id":"kitchen","ord":"a0","title":"kitchen #home"}`,

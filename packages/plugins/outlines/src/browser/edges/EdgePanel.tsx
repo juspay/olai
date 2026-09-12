@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The panel that WRITES a node's edges — one relation at a time, in place under
@@ -197,6 +198,7 @@ export function EdgePanel(props: {
       </Show>
 
       <Shortlist
+        claims={servedDirectory()?.claims()}
         nodes={createSearch}
         query={props.query}
         label={words().placeholder}

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT TWO DOORS TOUCH — the paths a capture is aimed by, and the homes a fold
  * click asks about.
@@ -121,11 +122,11 @@ test("the paths question answers the listing's own files, in its own order", () 
   // the file names. So that is the reference arm, and it is the product's own
   // listing rather than a re-derivation of it.
   const listed = Query.outlines(set, derived).map((row) => row.file)
-  expect(Query.paths(set).paths).toEqual(listed)
+  expect(Query.paths(TEST_CLAIMS, "olai", set).paths).toEqual(listed)
   // A file the set could not READ is a file the directory serves, so it is in
   // the answer — which matters for the one caller: an inbox nobody can parse is
   // still the inbox, and minting a second one over it is the worse answer.
-  expect(Query.paths(set).paths).toContain("torn.olai")
+  expect(Query.paths(TEST_CLAIMS, "olai", set).paths).toContain("torn.olai")
 })
 
 test("...and answering it touches no record", () => {
@@ -137,7 +138,7 @@ test("...and answering it touches no record", () => {
   expect(listing.touched.records).toBe(FILES * RECORDS)
 
   const asking = counting(at.set, at.derived)
-  Query.paths(asking.set)
+  Query.paths(TEST_CLAIMS, "olai", asking.set)
   // The paths question reads the FILE LIST and nothing under it.
   expect(asking.touched.records).toBe(0)
   expect(asking.touched.paths).toBeGreaterThan(0)

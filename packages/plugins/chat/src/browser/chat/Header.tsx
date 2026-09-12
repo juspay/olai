@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 /**
  * The panel's header: which conversation, which model, and the ways to change
  * session.
@@ -145,7 +146,7 @@ export function Header(props: {
         >
           {(agent) => (
             <Link
-              route={rowOf(agent())}
+              route={rowOf(servedDirectory()!.claims(), agent())}
               class="block truncate text-sm font-semibold text-accent decoration-dotted underline-offset-2 hover:underline"
               testid={TESTID.chatNode}
               title={`${agent().title} — memory: this subtree (${memoryOf(agent())})`}

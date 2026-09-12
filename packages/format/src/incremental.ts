@@ -1,3 +1,4 @@
+import type { Claims } from "./kinds.ts"
 /**
  * THE SAME VERDICT, REACHED FROM WHAT MOVED — the validator narrowed to the
  * records an edit could have changed.
@@ -292,7 +293,7 @@ export const incrementally = (
   const known = new Set(ledger.known)
   const lost: Array<string> = []
   for (const file of delta.removes) if (known.delete(file)) lost.push(file)
-  for (const [file] of delta.upserts) if (markdownPath(file)) known.add(file)
+  for (const [file] of delta.upserts) if (markdownPath(derived.claims, file)) known.add(file)
   // Fact 4's document half, asked of the SET rather than assumed of the delta
   // — see this file's header. A `.md` the delta did not name leaves the
   // outlines matching and this list quietly wrong, and there is no other door
@@ -442,7 +443,11 @@ const byNaming = (derived: Derived, one: string, other: string): number => {
  * them to it: the day they part, the carry stops matching the set and the
  * narrowing declines instead of answering.
  */
-const markdownPath = (file: string): boolean => fileKind(file) === "document"
+const markdownPath = (claims: Claims, file: string): boolean => {
+  const kind = fileKind(claims, file)
+  const claim = kind === null ? undefined : claims.byKind.get(kind)
+  return claim?.holds === "text" && claim.kept
+}
 
 /**
  * Whether the `.md` paths this edit CARRIED are the ones the set actually

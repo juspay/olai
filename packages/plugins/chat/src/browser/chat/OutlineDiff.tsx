@@ -20,13 +20,16 @@
  */
 
 import type { FileDiff } from "@olai/acp/wire"
-import { createMemo, For, Show } from "solid-js"
+import { createEffect, createSignal, createMemo, For, Show, onCleanup } from "solid-js"
 
 import { GLYPH, SAID } from "olai-plugin-outlines/changes"
 import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { TESTID } from "../../testids.ts"
 import { isUnfolded, toggleFold } from "./folds.ts"
+import { Effect } from "effect"
+import type { OutlineDiff as Answer } from "olai-plugin-vault/surface"
+import { servedDirectory } from "../vault.ts"
 import { outlineDiffOf } from "./outline.ts"
 
 /** How many node rows a trimmed outline change shows. The text diff's number,
@@ -43,15 +46,29 @@ export function OutlineDiff(props: {
   readonly id: string
   readonly diff: FileDiff
 }) {
-  const read = createMemo(() => outlineDiffOf(props.diff))
+  const [read, setRead] = createSignal<Answer | undefined>()
+  const [failed, setFailed] = createSignal(false)
+  createEffect(() => {
+    const vault = servedDirectory()
+    const diff = props.diff
+    setRead(undefined)
+    setFailed(false)
+    if (vault === undefined) { setFailed(true); return }
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
+    void Effect.runPromise(outlineDiffOf(vault, diff), { signal: controller.signal }).then(
+      answer => { if (!controller.signal.aborted) setRead(answer) },
+      () => { if (!controller.signal.aborted) setFailed(true) },
+    )
+  })
   const changes = createMemo(() => {
     const answer = read()
-    return answer._tag === "Changes" ? answer.changes : []
+    return answer?._tag === "Changes" ? answer.changes : []
   })
   /** Which side would not parse, or `null` when both did. */
   const unreadable = createMemo(() => {
     const answer = read()
-    return answer._tag === "Unreadable" ? answer.side : null
+    return answer?._tag === "Unreadable" ? answer.side : null
   })
   const open = createMemo(() => isUnfolded(props.id))
   const more = () => Math.max(0, changes().length - TRIMMED)
@@ -73,6 +90,11 @@ export function OutlineDiff(props: {
         </Show>
       </p>
 
+      <Show when={read() !== undefined} fallback={
+        <p class="px-2 py-1 text-xs text-muted" data-testid={TESTID.chatOutlineUnreadable}>
+          {failed() ? "the outline is unreadable, so what changed in it cannot be told" : "reading outline changes…"}
+        </p>
+      }>
       <Show
         when={unreadable() === null}
         fallback={
@@ -115,7 +137,7 @@ export function OutlineDiff(props: {
                       that names an address is spelled as written here, the
                       same contract a search row keeps (`../search/row.ts`). */}
                   <span class="min-w-0 truncate text-ink">
-                    <TitleHtml drawing={renderTitle(change.title, change.file)} />
+                    <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file)} />
                   </span>
                   <span class="ml-auto shrink-0 text-muted">{SAID[change.sort]}</span>
                 </li>
@@ -125,6 +147,7 @@ export function OutlineDiff(props: {
         </Show>
       </Show>
 
+      </Show>
       <Show when={more() > 0}>
         <button
           type="button"

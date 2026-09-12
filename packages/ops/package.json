@@ -26,6 +26,7 @@
   "devDependencies": {
     "@effect/platform-node": "4.0.0-rc.112",
     "@olai/log": "workspace:*",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "olai-plugin-olai": "workspace:*"
   }
 }

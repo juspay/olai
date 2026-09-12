@@ -1,3 +1,4 @@
+import type { Claims } from "@olai/format"
 /**
  * A node's title, as safe HTML.
  *
@@ -103,7 +104,7 @@ export interface TitleRender {
  * on every keystroke is the cost this cache exists to refuse.
  */
 const plainTitles = new Map<string, TitleDrawing>()
-const rendered = new Map<string, TitleDrawing>()
+const renderings = new WeakMap<Claims, Map<string, TitleDrawing>>()
 const CACHE_LIMIT = 1024
 
 /**
@@ -160,6 +161,7 @@ export const sameDrawing = (was: TitleDrawing, now: TitleDrawing): boolean =>
  * pipeline, never one caller against another).
  */
 export const renderTitle = (
+  claims: Claims | undefined,
   title: string,
   from: string,
   options: TitleRender = {},
@@ -181,6 +183,11 @@ export const renderTitle = (
       : finished(plain)
   }
 
+  let rendered = claims === undefined ? undefined : renderings.get(claims)
+  if (rendered === undefined) {
+    rendered = new Map()
+    if (claims !== undefined) renderings.set(claims, rendered)
+  }
   const key = `${links ? "a" : "n"}\n${from}\n${needles.join("\u0000")}\n${title}`
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
@@ -198,7 +205,7 @@ export const renderTitle = (
     return { html: escapeHtml(title), waiting: markdownWaiting() }
   }
 
-  return remember(rendered, key, build(title, from, links, needles))
+  return remember(rendered, key, build(claims, title, from, links, needles))
 }
 
 const remember = (
@@ -213,12 +220,13 @@ const remember = (
 }
 
 const build = (
+  claims: Claims | undefined,
   title: string,
   from: string,
   links: boolean,
   needles: ReadonlyArray<string>,
 ): string => {
-  const tree = renderToTree(title, from, "inline")
+  const tree = renderToTree(claims, title, from, "inline")
   styleTags(tree, needles)
   if (!links) unwrapAnchors(tree)
 

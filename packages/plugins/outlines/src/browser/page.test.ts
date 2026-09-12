@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The two ends of the page seam that are still the browser's: the QUESTION a
  * route turns into, and the reading folded into the shape a filter narrows.
@@ -23,7 +24,7 @@ const TODAY = "2026-08-10"
 
 test("an address goes over as the address the parser read", () => {
   expect(requestFor(atFile("house.olai")))
-    .toEqual({ kind: "at", address: addressOf("house.olai", null) })
+    .toEqual({ kind: "at", address: addressOf(TEST_CLAIMS, "house.olai", null) })
   expect(requestFor(HOME_ROUTE)).toEqual({ kind: "at", address: null })
 })
 
@@ -54,7 +55,7 @@ test("the narrowing is dropped: it is not part of which page this is", () => {
 // outline its file spelled. Sent whole, a link to a row would re-ask the page
 // for each row of it.
 test("a row is the outline it sits in: its element is a landing, not a page", () => {
-  expect(requestFor(atElement("house.olai", "install")))
+  expect(requestFor(atElement(TEST_CLAIMS, "house.olai", "install")))
     .toEqual(requestFor(atFile("house.olai")))
 })
 
@@ -160,16 +161,16 @@ test("a page a query has nothing to say about draws none of it", () => {
 const SERVED = ["house.olai", "notes/finishes.md"]
 
 test("a path the directory holds opens at its own route; one it does not opens nowhere", () => {
-  expect(opensAt(SERVED, "house.olai")).toEqual(atFile("house.olai"))
-  expect(opensAt(SERVED, "shed.olai")).toBeUndefined()
+  expect(opensAt(TEST_CLAIMS, SERVED, "house.olai")).toEqual(atFile("house.olai"))
+  expect(opensAt(TEST_CLAIMS, SERVED, "shed.olai")).toBeUndefined()
 })
 
 test("a fragment is read by the grammar that would have written it", () => {
   // In a BODY it is a heading — the ids a rendered document has.
-  expect(opensAt(SERVED, "notes/finishes.md", "install"))
-    .toEqual(atElement("notes/finishes.md", "install"))
+  expect(opensAt(TEST_CLAIMS, SERVED, "notes/finishes.md", "install"))
+    .toEqual(atElement(TEST_CLAIMS, "notes/finishes.md", "install"))
   // After an OUTLINE it is a node, because an outline's places are node ids —
   // which is the grammar's own answer (`@olai/format`'s `address.ts`), asked
   // here rather than re-decided.
-  expect(opensAt(SERVED, "house.olai", "install")).toEqual(atElement("house.olai", "install"))
+  expect(opensAt(TEST_CLAIMS, SERVED, "house.olai", "install")).toEqual(atElement(TEST_CLAIMS, "house.olai", "install"))
 })

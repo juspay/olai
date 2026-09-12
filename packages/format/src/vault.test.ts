@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE FIXTURE THE BENCHES QUOTE NUMBERS ABOUT, asserted to hold the shapes
  * those numbers are supposed to be about.
@@ -33,7 +34,7 @@ import { datesOf, monthOf } from "./occasion.ts"
 /** The benches' own defaults (`patch.bench.ts`'s `OLAI_BENCH_FILES` /
  *  `OLAI_BENCH_RECORDS`), which is the only size a claim about "the 1,000-file
  *  vault" can be checked at. */
-const view = derive(recordsOf(setOf(Object.fromEntries(vaultOf({ files: 1000, records: 21 })))))
+const view = derive(TEST_CLAIMS, recordsOf(setOf(Object.fromEntries(vaultOf({ files: 1000, records: 21 })))))
 
 test("the vault is the directory the published numbers name", () => {
   expect(view.byFile.size).toBe(981)

@@ -1,9 +1,10 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { MirrorNode, type Node, RegularNode } from "./node.ts"
-import { parseOutline } from "./parse.ts"
-import { serializeNode, serializeOutline } from "./write.ts"
+import { parseOutline } from "olai-plugin-olai/format"
+import { serializeNode, serializeOutline } from "olai-plugin-olai/format"
 
 const regular = (fields: Partial<RegularNode>): RegularNode => ({
   id: "n",
@@ -194,7 +195,7 @@ describe("serializeOutline", () => {
     const text = serializeOutline(nodes)
     expect(text.split("\n")).toHaveLength(nodes.length + 1)
 
-    const parsed = parseOutline("round-trip.olai", text)
+    const parsed = parseOutline("round-trip.olai", text, TEST_CLAIMS)
     if (Result.isFailure(parsed)) {
       throw new Error(
         `the bytes this writer produced do not parse: ${

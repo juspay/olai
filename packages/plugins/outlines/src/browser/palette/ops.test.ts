@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What the palette may write, and about which node.
  *
@@ -27,7 +28,7 @@ const HOUSE = [
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
 ].join("\n")
 
-const derived = derive(recordsOf(setOf({ "house.olai": HOUSE })))
+const derived = derive(TEST_CLAIMS, recordsOf(setOf({ "house.olai": HOUSE })))
 
 /** The zoomed page for an id, narrowed to the arm that IS a node — which is
  *  the only arm App hands the palette. */

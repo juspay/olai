@@ -29,11 +29,11 @@ import { scopePaletteState } from "./palette/open-owner.ts"
 import { Palette,resetPaletteMemory } from "./palette/Palette.tsx"
 import { PaneProvider } from "./pane/context.tsx"
 import { atFile,settleRoutePages } from "./routes.ts"
-import { holdRoutePages,routing } from "./pages.ts"
+import { holdRoutePages,holdFileClaims,fileClaims,routing } from "./pages.ts"
 import { Link,RouterProvider } from "./routing.tsx"
 import { createNavigation } from "./state.ts"
 
-const File: FileLink = (props) => <Link route={props.at === undefined ? atFile(props.file) : atElement(props.file, props.at)} class={props.class}
+const File: FileLink = (props) => <Link route={props.at === undefined || fileClaims() === undefined ? atFile(props.file) : atElement(fileClaims()!, props.file, props.at)} class={props.class}
   testid={props.testid} label={props.label} title={props.title}>{props.children}</Link>
 export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*() {
   yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
@@ -102,7 +102,8 @@ export const components = {
  })),stop=>Effect.sync(stop))
 })}), files:definePlugin({name:"files",needs:[fileAccess,Offers],apply:Effect.gen(function*(){
  const files=yield* fileAccess
- const opens=(path:string,at?:string)=>files.paths().includes(path)?atElement(path,at??null):undefined
+ yield* Effect.acquireRelease(Effect.sync(()=>holdFileClaims(files.claims)),stop=>Effect.sync(stop))
+ const opens=(path:string,at?:string)=>files.paths().includes(path)?atElement(files.claims(),path,at??null):undefined
  yield* (yield* Offers).own("file-links",()=>opens)
 })}), palette:definePlugin({name:"palette",needs:[navigation,rendererSlots,Clocks,Faces,appShell],apply:Effect.gen(function*(){
  yield* holdPaletteFaces(yield* Faces)

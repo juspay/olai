@@ -80,7 +80,7 @@ export const rosterOf = (
             subject: wake.subject,
             from: wake.from,
             waiting: wake.waiting,
-            kinds: wake.kinds,
+            walks: wake.walks,
           },
         }),
         ...(config === undefined ? {} : { config }),

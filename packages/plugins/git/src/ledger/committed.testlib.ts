@@ -1,3 +1,4 @@
+import type { Ops } from "@olai/ops"
 /**
  * THE COMMITTED SIDE AS IT WAS, kept in the tree so the cache can be checked
  * against it — and a counting wrapper, so what the cache actually SAVES is a
@@ -47,13 +48,13 @@ const AT_ONCE = 8
  * cached arm resolves), and it is what keeps this arm honest as the "before":
  * it never asks which commit it is on, because the old code never had to.
  */
-export const forgetful = (): Committed => ({
+export const forgetful = (ops: Pick<Ops, "parserFor">): Committed => ({
   at: (git, paths) =>
     Effect.gen(function*() {
       if (paths.length === 0) return new Map()
       const read = yield* Effect.all(
         paths.map((path) =>
-          Effect.map(git.show("HEAD", path), (shown) => [path, taken(path, shown).copy] as const)
+          Effect.map(git.show("HEAD", path), (shown) => [path, taken(ops.parserFor(path), path, shown).copy] as const)
         ),
         { concurrency: AT_ONCE },
       )

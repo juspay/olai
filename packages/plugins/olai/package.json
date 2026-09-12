@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./server": "./src/server.ts"
+    "./server": "./src/server.ts",
+    "./format": "./src/format.ts",
+    "./claim": "./src/claim.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -13,5 +15,11 @@
     "@olai/plugin-api": "workspace:*",
     "effect": "4.0.0-rc.112",
     "@olai/format": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./format",
+      "./claim"
+    ]
   }
 }

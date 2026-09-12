@@ -1,3 +1,4 @@
+import { ClaimData } from "./kinds.ts"
 /**
  * What a READ of the set asks, and what it says back.
  *
@@ -279,6 +280,8 @@ export type OutlineAnswer = typeof OutlineAnswer.Type
  * is part of the answer rather than an accident of the walk.
  */
 export const PathsAnswer = Schema.Struct({
+  claims: Schema.Array(ClaimData),
+  outlineRow: Schema.String,
   paths: Schema.Array(Schema.String),
 })
 export type PathsAnswer = typeof PathsAnswer.Type

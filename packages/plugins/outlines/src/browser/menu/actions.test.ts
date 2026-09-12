@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What RUNNING a menu entry answers with — which is a question about one line
  * of `./actions.ts` and about a bug that has already shipped once.
@@ -48,7 +49,7 @@ const HOUSE = [
   `{"id":"echo","ord":"a2","mirror":"install"}`,
 ].join("\n")
 
-const derived = derive(recordsOf(setOf({ "house.olai": HOUSE })))
+const derived = derive(TEST_CLAIMS, recordsOf(setOf({ "house.olai": HOUSE })))
 
 const row = (id: string): Row => {
   const found = flatten(rowsOf(derived, "house.olai"), new Set())

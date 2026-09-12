@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * Which of the agent's backticks are node references.
  *
@@ -42,7 +43,7 @@ const HOUSE = [
   `{"id":"nowhere","ord":"a2","mirror":"gone"}`,
 ].join("\n")
 
-const indexes = derive(recordsOf(setOf({ "house.olai": HOUSE })))
+const indexes = derive(TEST_CLAIMS, recordsOf(setOf({ "house.olai": HOUSE })))
 
 /** What `./Entry.tsx` passes: what the set has answered about an id — which is
  *  the format's own rule for what an id names, run on the other side of the

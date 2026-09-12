@@ -1,5 +1,5 @@
 import { TESTID } from "olai-plugin-files/testids"
-import { type BrokenFile,type FileKind,fileKind,inboxIn,inOlaiDir,isTrashed,stemOf } from "@olai/format"
+import { type BrokenFile, fileKind, inboxIn, inOlaiDir, isTrashed, stemOf } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
 createMemo,
@@ -86,7 +86,8 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // the way the Trash has always had its own there.
   const tree = createMemo(() =>
     fileTree(
-      served().filter((file) => !isTrashed(file) && !inOlaiDir(file)),
+      servedDirectory()!.claims(),
+      served().filter((file) => !isTrashed(servedDirectory()!.claims(), file) && !inOlaiDir(file)),
     ),
   )
 
@@ -97,7 +98,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // records are walked here, and path-only membership equality (`./served.tsx`)
   // is what keeps this answer from minting on a frame.
   const vault = createMemo(() =>
-    served().filter((file) => !isTrashed(file) && inOlaiDir(file))
+    served().filter((file) => !isTrashed(servedDirectory()!.claims(), file) && inOlaiDir(file))
   )
 
   // WHICH FILE THE INBOX IS, read off the same resolver the server captures
@@ -116,7 +117,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // PATHS, and a browser holds every one of those already: it is the same list
   // the tree above is built from, and one more pass over it is not a vault
   // walk.
-  const inbox = createMemo(() => inboxIn(served()))
+  const inbox = createMemo(() => inboxIn(servedDirectory()!.claims(), served()))
 
   // Folding a folder is remembered, and the write drops folders that are not in
   // the directory any more (./fold/folders.ts). Which those are is read off the
@@ -239,7 +240,7 @@ function DoorRow(props: {
  *  agreeing about one anatomy is not two lists that remembered the same
  *  four elements by luck, it is one. */
 function FileAnatomy(props: {
-  readonly of: FileKind | null | undefined
+  readonly of: string | null | undefined
   readonly name: string
   readonly broken: boolean
 }) {
@@ -289,8 +290,8 @@ function VaultFile(props: {
   readonly isActive: (file: string) => boolean
   readonly broken: ReadonlyMap<string, BrokenFile>
 }) {
-  const of = fileKind(props.file)
-  const unreadable = () => of === "outline" && props.broken.has(props.file)
+  const of = () => servedDirectory()?.kindOf(props.file) ?? null
+  const unreadable = () => servedDirectory()?.claims().byKind.get(of() ?? "")?.holds === "nodes" && props.broken.has(props.file)
   return (
     <DoorRow
       route={atFile(props.file)}
@@ -299,7 +300,7 @@ function VaultFile(props: {
       broken={unreadable()}
       title={props.file}
     >
-      <FileAnatomy of={of} name={stemOf(props.file)} broken={unreadable()} />
+      <FileAnatomy of={of()} name={stemOf(servedDirectory()!.claims(), props.file)} broken={unreadable()} />
     </DoorRow>
   )
 }
@@ -434,7 +435,7 @@ function File(props: {
   // Only the ⚠ is asked of the kind here, and it is not one of `./file/kinds.ts`
   // answers: a file that could not be READ is a fact about this row's file, and
   // only an outline's unreadability costs the reader a tree.
-  const outline = props.row.of === "outline"
+  const outline = servedDirectory()?.claims().byKind.get(props.row.of)?.holds === "nodes"
 
   return (
     <li class="mb-0.5">

@@ -79,7 +79,7 @@
  * once, and `../Nothing.tsx` was already making it.
  */
 
-import { bareOf, type FileKind, FILE_KINDS, fileKind } from "@olai/format"
+import { bareOf, type Claims, mintExt, fileKind } from "@olai/format"
 
 import { oneNamed } from "olai-plugin-files/kinds"
 
@@ -132,27 +132,28 @@ export type Meant =
  * refusal quotes are then the same string, and `Foo ` and `Foo` are one file
  * rather than a name nobody can type again.
  */
-export const meantAt = (of: FileKind, typed: string): Meant => {
+export const meantAt = (claims: Claims, of: string, typed: string): Meant => {
   const name = typed.trim()
   if (name === "") return null
   // THE FIRST of the kind's suffixes, which is the one a mint writes — a kind
   // with several spellings has one a person types (`@olai/format`'s registry).
   // Both doors here make a kind with exactly one, so this is the general rule
   // rather than a choice being made.
-  const ext = FILE_KINDS[of].exts[0]
-  const carried = fileKind(name)
+  const ext = mintExt(claims, of)
+  if (ext === null) return { refused: `the ${of} row is off, so no file can be created` }
+  const carried = fileKind(claims, name)
   if (carried === of) return { file: name }
   // AS TYPED where completing would erase the refusal — the section above.
   if (carried === null) {
     const last = name.slice(name.lastIndexOf("/") + 1)
-    return { file: NOT_A_NAME.has(last) ? name : `${name}${ext}` }
+    return { file: NOT_A_NAME.has(last) || last.lastIndexOf(".") > 0 && /\.[^.]+$/.test(last) ? name : `${name}${ext}` }
   }
   // HOW MANY CHARACTERS COME OFF is the registry's own answer and not a
   // `lastIndexOf` here: `bareOf` is the rule `stemOf` is made of, with the
   // path left whole — taking the basename would offer `plan` for a
   // `notes/plan.md` and quietly move the file to the root.
-  const bare = bareOf(name)
-  const said = `\`${name}\` is ${oneNamed(carried)}, not ${oneNamed(of)}`
+  const bare = bareOf(claims, name)
+  const said = `\`${name}\` is ${oneNamed(claims, carried)}, not ${oneNamed(claims, of)}`
   // Only the ADVICE is conditional, so the sentence is written once: a name
   // that is nothing but a suffix leaves nothing to suggest typing, and an empty
   // pair of backticks is advice about nothing.

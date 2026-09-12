@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What an agent READS of a set — values in, values out, no disk and no
  * protocol, the same bargain {@link ./plan.test.ts} makes about writes.
@@ -1198,7 +1199,7 @@ describe("a document listing's sizes are a recompute from the body", () => {
     agree(set)
     const made = planned(set, { op: "doc", file: "note.md", text: next })
     const folded = succeeded(
-      folding(scoping(readingOf(set), steady(), NO_KINDS))(made),
+      folding(scoping(readingOf(set), steady(), NO_KINDS, "olai"))(made),
       "`markdown_write` to apply",
     )
     agree(folded.set)
@@ -1220,7 +1221,7 @@ const suiteCorpus = (): OutlineSet => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const next = rel === "" ? entry.name : `${rel}/${entry.name}`
       if (entry.isDirectory()) walk(join(dir, entry.name), next)
-      else if (fileKind(next) === "document") {
+      else if (fileKind(TEST_CLAIMS, next) === "markdown") {
         files.push([next, readFileSync(join(dir, entry.name), "utf8")])
       }
     }

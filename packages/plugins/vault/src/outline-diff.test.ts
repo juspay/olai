@@ -1,3 +1,5 @@
+import { claims, outlineDocument, type Claims, type OutlineFormat } from "@olai/format"
+import { Result } from "effect"
 /**
  * An outline the agent rewrote by hand, read as nodes.
  *
@@ -9,7 +11,8 @@
 
 import { describe, expect, test } from "bun:test"
 
-import { outlineDiffOf } from "./outline.ts"
+import { TEST_CLAIMS } from "@olai/format/testlib"
+import { outlineDiffOf } from "./outline-diff.ts"
 
 const OUTLINE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -17,7 +20,7 @@ const OUTLINE = [
 ].join("\n")
 
 const rewritten = (oldText: string | null, newText: string) =>
-  outlineDiffOf({ path: "house.olai", oldText, newText })
+  outlineDiffOf(TEST_CLAIMS, { path: "house.olai", oldText, newText })
 
 describe("an outline rewritten by hand", () => {
   test("a mark that appeared is the same word the Commit panel uses", () => {
@@ -78,4 +81,25 @@ describe("an outline rewritten by hand", () => {
     const answer = rewritten(`${OUTLINE}\n`, `${OUTLINE}\n\n`)
     expect(answer).toEqual({ _tag: "Changes", changes: [] })
   })
+})
+
+
+test("the vault uses the claiming format for both sides and passes one snapshot", () => {
+  const seen: Claims[] = []
+  const format: OutlineFormat = {
+    parse: (file, text, table) => {
+      seen.push(table)
+      return Result.succeed(outlineDocument(table, file, text === "" ? [] : [{
+        file, line: 1, node: { id: "root", ord: "a0", title: text },
+      }]))
+    },
+    serialize: nodes => nodes.map(node => "title" in node ? node.title : "").join("\n"),
+  }
+  const table = claims([{ kind: "alternate", exts: [".tree"], holds: "nodes", kept: true, fetched: false, noun: "outline", article: "an", format }])
+  expect(outlineDiffOf(table, { path: "Work.tree", oldText: "before", newText: "after" })).toEqual({
+    _tag: "Changes", changes: [{ file: "Work.tree", id: "root", title: "after", fields: ["title"], sort: "renamed" }],
+  })
+  expect(seen).toEqual([table, table])
+  expect(outlineDiffOf(claims([]), { path: "Work.tree", oldText: "before", newText: "after" })).toEqual({ _tag: "Unreadable", side: "before" })
+  expect(seen.length).toBe(2)
 })

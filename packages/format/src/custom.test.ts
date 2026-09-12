@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The two orders a `custom` map has, and the difference between them.
  *
@@ -14,8 +15,8 @@ import { Result } from "effect"
 
 import { customKeys, customOf, customOrder, withCustom } from "./custom.ts"
 import { isMirror } from "./node.ts"
-import { parseOutline } from "./parse.ts"
-import { serializeNode } from "./write.ts"
+import { parseOutline } from "olai-plugin-olai/format"
+import { serializeNode } from "olai-plugin-olai/format"
 
 /** A map built in an order no sort would produce. */
 const LANE = withCustom(
@@ -36,7 +37,7 @@ test("a hand-written file's key order survives the parse — what a drawer draws
   const parsed = parseOutline(
     "lanes.olai",
     `{"id":"lane","ord":"a","title":"a lane",` +
-      `"custom":{"worktree":".worktrees/pda","agent":"claude-opus","brief":"briefs/pda.md"}}\n`,
+      `"custom":{"worktree":".worktrees/pda","agent":"claude-opus","brief":"briefs/pda.md"}}\n`, TEST_CLAIMS
   )
   const outline = Result.getOrThrow(parsed)
   const node = outline.nodes[0]?.node
@@ -46,7 +47,7 @@ test("a hand-written file's key order survives the parse — what a drawer draws
 
 test("...and what OLAI writes is alphabetical, so the two orders agree on its own files", () => {
   const written = serializeNode({ id: "lane", ord: "a", title: "a lane", custom: LANE })
-  const outline = Result.getOrThrow(parseOutline("lanes.olai", `${written}\n`))
+  const outline = Result.getOrThrow(parseOutline("lanes.olai", `${written}\n`, TEST_CLAIMS))
   const node = outline.nodes[0]?.node
   expect(node === undefined || isMirror(node) ? [] : customOrder(customOf(node)))
     .toEqual(["agent", "brief", "worktree"])

@@ -1,7 +1,9 @@
+const OUTLINE_EXT = mintExt(TEST_CLAIMS, "olai")!
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { nodesOf } from "./fixtures.testlib.ts"
-import { OUTLINE_EXT } from "./kinds.ts"
+import { mintExt } from "./kinds.ts"
 import {
   TRASH,
   TRASH_FILE,
@@ -74,88 +76,34 @@ test("ID_SHAPE admits slugs and nothing else", () => {
 // not a type error, it is a file the walk stops claiming. `fileKind` needs no
 // assertion here — it reads the same constant these two do.
 test("the trash and the inbox wear the one suffix", () => {
-  expect(TRASH).toBe(`Trash${OUTLINE_EXT}`)
-  expect(INBOX).toBe(`Inbox${OUTLINE_EXT}`)
+  expect(TRASH).toBe("Trash")
+  expect(INBOX).toBe("Inbox")
 })
 
-// The inbox is the other named file this format knows, and it is read by NAME,
-// wherever it sits. Both faces resolve a capture
-// through this — the web's `+` and an agent capturing by hand — so one
-// spelling of the rule is what keeps them landing in the same file.
-test("a directory's inbox is whichever outline is called that, wherever it sits", () => {
-  expect(inboxIn(["house.olai", "Inbox.olai"])).toBe("Inbox.olai")
-  // A name a person typed, so the case they typed it in does not decide.
-  expect(inboxIn(["house.olai", "notes/inbox.olai"])).toBe("notes/inbox.olai")
-  // A file merely ENDING in the name is a different file.
-  expect(inboxIn(["not-an-Inbox.olai"])).toBeUndefined()
-  expect(inboxIn([])).toBeUndefined()
+test("conventions match a node file's stem only directly under _olai", () => {
+  expect(inboxIn(TEST_CLAIMS, ["Inbox.olai", "notes/inbox.olai"])).toBeUndefined()
+  expect(inboxIn(TEST_CLAIMS, ["_olai/inbox.olai"])).toBe("_olai/inbox.olai")
+  expect(inboxIn(TEST_CLAIMS, ["_olai/not-an-Inbox.olai", "_olai/Inbox.md"])).toBeUndefined()
+  expect(pinsIn(TEST_CLAIMS, ["_olai/Pins.olai"])).toBe("_olai/Pins.olai")
+  expect(pinsIn(TEST_CLAIMS, ["Pins.olai", "notes/Pins.olai"])).toBeUndefined()
+  expect(pinsIn(TEST_CLAIMS, [])).toBeUndefined()
 })
 
-test("with two inboxes the shallower one wins, so the answer is stable", () => {
-  // "First in path order" would let a file three directories down claim the
-  // capture from the obvious one beside it.
-  expect(inboxIn(["deep/down/Inbox.olai", INBOX, "a/Inbox.olai"])).toBe(INBOX)
-  expect(inboxIn(["z/Inbox.olai", "a/Inbox.olai"])).toBe("a/Inbox.olai")
-})
-// The shelf is the THIRD named file, and it is read by the same walk — which
-// is the whole reason `outlineCalled` exists rather than a second filter
-// beside the inbox's. A directory that keeps its pins under `notes/` gets the
-// file it has, exactly as it does for a capture.
-test("a directory's shelf is whichever outline is called that, wherever it sits", () => {
-  expect(PINS).toBe(`Pins${OUTLINE_EXT}`)
-  expect(pinsIn(["house.olai", "Pins.olai"])).toBe("Pins.olai")
-  expect(pinsIn(["house.olai", "notes/pins.olai"])).toBe("notes/pins.olai")
-  expect(pinsIn(["my-Pins.olai"])).toBeUndefined()
-  expect(pinsIn([])).toBeUndefined()
-  // Shallowest first, then path order — the inbox's rule, because it is the
-  // same walk.
-  expect(pinsIn(["deep/down/Pins.olai", PINS, "a/Pins.olai"])).toBe(PINS)
-  // TWO SPELLINGS OF ONE NAME at one depth is the tie the walk actually has to
-  // break, and it breaks it on path order like any other pair: `P` sorts before
-  // `p`. Pinned here because the walk is a running minimum rather than a sort
-  // (`outlineCalled`), so "which of these two" is a comparison somebody could
-  // get backwards without any list looking wrong.
-  expect(pinsIn(["pins.olai", "Pins.olai"])).toBe("Pins.olai")
-  expect(pinsIn(["Pins.olai", "pins.olai"])).toBe("Pins.olai")
-  // …and it is a MINIMUM and not a first-match, so the order the caller hands
-  // the files over in cannot change the answer. A map's keys and a set are
-  // both legal here, which is what the two readers of a derivation pass.
-  expect(pinsIn(new Set(["a/Pins.olai", "Pins.olai"]))).toBe("Pins.olai")
-  expect(pinsIn(new Map([["a/Pins.olai", 1], ["Pins.olai", 2]]).keys())).toBe("Pins.olai")
+test("ambiguous convention names never select an arbitrary file", () => {
+  for (const files of [["_olai/Pins.olai", "_olai/pins.olai"], ["_olai/pins.olai", "_olai/Pins.olai"]]) {
+    expect(pinsIn(TEST_CLAIMS, files)).toBeUndefined()
+    expect(pinsIn(TEST_CLAIMS, new Set(files))).toBeUndefined()
+  }
 })
 
-// WHERE OLAI MINTS ONE is a different question from where it FINDS one, and
-// only the first moved (human, 2026-08-19). A dot-directory would not do:
-// `@olai/store`'s walk prunes those, so a shelf under one would never be read
-// back.
-test("olai mints its own files under _olai/, and finds them anywhere", () => {
+test("mints combine the convention stem with the configured format suffix", () => {
   expect(OLAI_DIR).toBe("_olai")
-  expect(mintedInto(PINS)).toBe("_olai/Pins.olai")
-  expect(OLAI_DIR.startsWith(".")).toBe(false)
-  // The reading is untouched: a shelf already at the root, or under `notes/`,
-  // or in the mint directory is the one that answers.
-  expect(pinsIn(["_olai/Pins.olai"])).toBe("_olai/Pins.olai")
-  expect(pinsIn([PINS, "_olai/Pins.olai"])).toBe(PINS)
-})
-
-// The TRASH and the INBOX are both minted under `_olai/` now — the inbox's
-// half REVERSES the 2026-08-19 ruling that kept it at the root (human,
-// 2026-08-20). The NAME is untouched, which is the whole of what `inboxIn`
-// reads: only the mint moved.
-test("the trash and the inbox are minted under _olai/, under their own names", () => {
-  expect(TRASH_FILE).toBe("_olai/Trash.olai")
-  expect(mintedInto(TRASH)).toBe(TRASH_FILE)
-  expect(isTrashed(TRASH_FILE)).toBe(true)
-  expect(isTrashed("Archive.olai")).toBe(false)
-  expect(isTrashed("notes/Archive.olai")).toBe(false)
-  expect(isTrashed("Trash.olai")).toBe(false)
-  expect(INBOX).toBe("Inbox.olai")
-  expect(mintedInto(INBOX)).toBe("_olai/Inbox.olai")
-  // And the READING is untouched by the move, exactly as the shelf's was: a
-  // directory already keeping one at the root goes on capturing into it, and
-  // a minted one is found by the same walk.
-  expect(inboxIn(["_olai/Inbox.olai"])).toBe("_olai/Inbox.olai")
-  expect(inboxIn([INBOX, "_olai/Inbox.olai"])).toBe(INBOX)
+  expect(mintedInto(`${PINS}${OUTLINE_EXT}`)).toBe("_olai/Pins.olai")
+  expect(mintedInto(`${INBOX}${OUTLINE_EXT}`)).toBe("_olai/Inbox.olai")
+  expect(TRASH_FILE(TEST_CLAIMS, "olai")).toBe("_olai/Trash.olai")
+  expect(isTrashed(TEST_CLAIMS, TRASH_FILE(TEST_CLAIMS, "olai")!)).toBe(true)
+  expect(isTrashed(TEST_CLAIMS, "Trash.olai")).toBe(false)
+  expect(isTrashed(TEST_CLAIMS, "Archive.olai")).toBe(false)
 })
 
 // WHICH FILES OLAI NAMED FOR ITSELF, as one predicate — the question the
@@ -165,7 +113,7 @@ test("the trash and the inbox are minted under _olai/, under their own names", (
 test("a file olai named for itself is one under _olai/, exactly", () => {
   expect(inOlaiDir(mintedInto(PINS))).toBe(true)
   expect(inOlaiDir(mintedInto(INBOX))).toBe(true)
-  expect(inOlaiDir(TRASH_FILE)).toBe(true)
+  expect(inOlaiDir(TRASH_FILE(TEST_CLAIMS, "olai")!)).toBe(true)
   expect(inOlaiDir("house.olai")).toBe(false)
   expect(inOlaiDir("notes/palette.md")).toBe(false)
   // The mint is at the ROOT, so a `_olai` a person made under a folder of
@@ -185,15 +133,15 @@ test("a leftover Archive.olai is dormant by basename, and is not the trash", () 
   expect(isLeftoverArchive("archive.olai")).toBe(false)
   expect(isLeftoverArchive("Archive.olai.bak")).toBe(false)
   expect(isLeftoverArchive("notes/archive.olai")).toBe(false)
-  expect(isLeftoverArchive(TRASH_FILE)).toBe(false)
+  expect(isLeftoverArchive(TRASH_FILE(TEST_CLAIMS, "olai")!)).toBe(false)
   expect(isLeftoverArchive("house.olai")).toBe(false)
-  expect(isTrashed("Archive.olai")).toBe(false)
+  expect(isTrashed(TEST_CLAIMS, "Archive.olai")).toBe(false)
 })
 
 // The two conventions are two files and never one, which is what a directory
 // holding both has to be able to say.
 test("the inbox and the shelf are different files", () => {
-  const files = ["Inbox.olai", "Pins.olai"]
-  expect(inboxIn(files)).toBe("Inbox.olai")
-  expect(pinsIn(files)).toBe("Pins.olai")
+  const files = ["_olai/Inbox.olai", "_olai/Pins.olai"]
+  expect(inboxIn(TEST_CLAIMS, files)).toBe("_olai/Inbox.olai")
+  expect(pinsIn(TEST_CLAIMS, files)).toBe("_olai/Pins.olai")
 })

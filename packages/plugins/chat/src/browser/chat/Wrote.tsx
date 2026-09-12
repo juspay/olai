@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 /**
  * What an olai write did, in the transcript — a line, never a diff.
  *
@@ -58,7 +59,7 @@ export function Wrote(props: { readonly wrote: Written }) {
           fallback={
             <span class="min-w-0 truncate text-ink">
               <TitleHtml
-                drawing={renderTitle(props.wrote.title, props.wrote.file ?? "", {
+                drawing={renderTitle(servedDirectory()?.claims(), props.wrote.title, props.wrote.file ?? "", {
                   links: false,
                 })}
               />
@@ -68,7 +69,7 @@ export function Wrote(props: { readonly wrote: Written }) {
           {(id) => (
             <Reference id={id()} class="min-w-0 truncate">
               <TitleHtml
-                drawing={renderTitle(props.wrote.title, props.wrote.file ?? "", {
+                drawing={renderTitle(servedDirectory()?.claims(), props.wrote.title, props.wrote.file ?? "", {
                   links: false,
                 })}
               />

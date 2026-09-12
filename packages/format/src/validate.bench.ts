@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT VALIDATION COSTS A WRITE — the whole-corpus rules against the narrowed
  * ones, and what the soak cost in between.
@@ -131,11 +132,11 @@ const decoded = new Map<string, Result.Result<Document, Verdict>>([
       [file, Result.succeed<Document>(outlineOf(corpus.get(file) as string, file))] as const,
   ),
   ...documents.map(
-    (file) => [file, Result.succeed<Document>(bodiedDocument(file, "# note"))] as const,
+    (file) => [file, Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, file, "# note"))] as const,
   ),
 ])
 
-const setOfHeld = (): OutlineSet => assemble(decoded)
+const setOfHeld = (): OutlineSet => assemble(TEST_CLAIMS, decoded)
 
 // ── the edits ──────────────────────────────────────────────────────────
 
@@ -254,7 +255,7 @@ const row = (what: string, edits: ReadonlyArray<Edit>): void => {
   // files in it, under the previous row's name.
   restore()
   let set = setOfHeld()
-  let view = derive(recordsIn(set))
+  let view = derive(TEST_CLAIMS, recordsIn(set))
   let ledger: Ledger = {
     errors: whole(set, view),
     known: markdownPaths(set),
@@ -337,7 +338,7 @@ const spelling = (error: OutlineError): string =>
  *  here because that one is private to the validator and this file is timing
  *  what comes after it. */
 const recordsIn = (set: OutlineSet): ReadonlyArray<Located> =>
-  set.documents.flatMap((document) => (document.kind === "outline" ? document.nodes : []))
+  set.documents.flatMap((document) => (document.holds === "nodes" ? document.nodes : []))
 
 /** Put the directory back the way the rows expect to find it. */
 const restore = (): void => {
@@ -346,12 +347,12 @@ const restore = (): void => {
     decoded.set(file, Result.succeed<Document>(outlineOf(corpus.get(file) as string, file)))
   }
   for (const file of documents) {
-    decoded.set(file, Result.succeed<Document>(bodiedDocument(file, "# note")))
+    decoded.set(file, Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, file, "# note")))
   }
 }
 
 restore()
-const first = derive(recordsIn(setOfHeld()))
+const first = derive(TEST_CLAIMS, recordsIn(setOfHeld()))
 console.log(
   `${first.nodes.length} records, ${paths.length} outlines, ${documents.length} documents,` +
     ` ${EDITS} edits per row`,

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT A DECLARED VALUE NAMES — the arm the vault answers, and the one place
  * the gate and the display are held against each other.
@@ -102,7 +103,7 @@ const AT_ROOT = "board.olai"
 const lanes = () =>
   pageOf(READ, {
     kind: "at",
-    address: addressOf(IN_SUB, null)!,
+    address: addressOf(TEST_CLAIMS, IN_SUB, null)!,
   })
 
 // ── the basis, which is the amendment ──────────────────────────────────
@@ -397,7 +398,7 @@ test("the page ships a LICENCE per claimed value, and the vault it was read from
       ].join("\n")],
     ]),
   )
-  const at = { kind: "at", address: addressOf("a.olai", null)! } as const
+  const at = { kind: "at", address: addressOf(TEST_CLAIMS, "a.olai", null)! } as const
   const running = { built: new Map([["sprocket", SPROCKET]]), enabled: new Map([["sprocket", SPROCKET]]) }
   const page = pageOf(read, at, running)
   expect(page.licences).toEqual([

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The ops layer against a real directory: the planner, the write gate and the
  * file system, joined the way the server joins them.
@@ -20,23 +21,8 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import {
-  admits,
-  bodyOf,
-  implicatedBy,
-  isMirror,
-  isRegular,
-  markdownIn,
-  type OutlineError,
-  type OutlineSet,
-  NO_KINDS,
-  outlinePaths,
-  parseOutline,
-  verdictOf,
-  type OpFailure,
-  type WriteRequest as Request,
-  type WriteResult as Applied,
-} from "@olai/format"
+import { admits, bodyOf, implicatedBy, isMirror, isRegular, markdownIn, type OutlineError, type OutlineSet, NO_KINDS, outlinePaths, verdictOf, type OpFailure, type WriteRequest as Request, type WriteResult as Applied } from "@olai/format"
+import { parseOutline } from "olai-plugin-olai/format"
 import { recordsOf } from "@olai/format/testlib"
 import * as Store from "@olai/store"
 import { replaceBehindTheStamps } from "@olai/store/testlib"
@@ -52,7 +38,7 @@ import * as Ops from "./ops.ts"
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
  *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -107,7 +93,7 @@ const withOps = <A>(
   return Effect.gen(function*() {
     const store = yield* Store.make({ root, codec, watch: false, settle: "10 millis" })
     const refusals: Array<string> = []
-    const ops = Ops.make({
+    const ops = Ops.make({claims: { current: TEST_CLAIMS }, format: "olai",
       store,
       root,
       // The planner's own fixture context by default — ids from `n1`, one fixed
@@ -178,8 +164,8 @@ test("the shown kinds join the set as paths; a `.md` brings its text", () =>
         const set = yield* fixture.set()
         expect(set.documents.map((one) => [String(one.path), one.kind, bodyOf(one)]))
           .toEqual([
-            ["house.olai", "outline", null],
-            ["notes.md", "document", "# cabinets\n"],
+            ["house.olai", "olai", null],
+            ["notes.md", "markdown", "# cabinets\n"],
             ["q3.pdf", "pdf", null],
             ["report.html", "hypertext", null],
             ["sales.csv", "csv", null],
@@ -261,7 +247,7 @@ test("PIN (idle): idle does not complete while a run is in the gate", () => {
           Effect.andThen(Deferred.await(hold), store.commit(write)),
         ),
     }
-    const ops = Ops.make({
+    const ops = Ops.make({claims: { current: TEST_CLAIMS }, format: "olai",
       store: gated,
       root,
       context: steady(),
@@ -297,7 +283,7 @@ test("a mark lands on disk as bytes the parser reads back", () =>
       expect(text.endsWith("\n")).toBe(true)
       expect(text.split("\n").filter((line) => line !== "")).toHaveLength(4)
 
-      const parsed = parseOutline("house.olai", text)
+      const parsed = parseOutline("house.olai", text, TEST_CLAIMS)
       expect(Result.isSuccess(parsed)).toBe(true)
 
       // And the browser sees it: the snapshot moved, without anyone probing.
@@ -431,7 +417,7 @@ test("a new outline arrives holding its whole tree, or does not arrive", () =>
       expect(applied.captured).toHaveLength(3)
       const text = fixture.read("shed.olai") ?? ""
       expect(text.split("\n").filter((line) => line !== "")).toHaveLength(3)
-      expect(Result.isSuccess(parseOutline("shed.olai", text))).toBe(true)
+      expect(Result.isSuccess(parseOutline("shed.olai", text, TEST_CLAIMS))).toBe(true)
       expect(fixture.read("house.olai")).toBe(HOUSE)
 
       // ONE REVISION for a file and everything in it — and nothing in the log
@@ -519,7 +505,7 @@ test("a subtree captured in one call is one revision and one commit", () =>
       ])
 
       const text = fixture.read("house.olai") ?? ""
-      expect(Result.isSuccess(parseOutline("house.olai", text))).toBe(true)
+      expect(Result.isSuccess(parseOutline("house.olai", text, TEST_CLAIMS))).toBe(true)
       expect(text.split("\n").filter((line) => line !== "")).toHaveLength(8)
 
       // The round-trip promise, over the op that rewrites the most records at
@@ -1317,7 +1303,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
               return outcome
             }),
         }
-        const ops = Ops.make({
+        const ops = Ops.make({claims: { current: TEST_CLAIMS }, format: "olai",
           store: wrapped,
           root,
           context: steady(),
@@ -1388,7 +1374,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
                 return outcome
               }),
           }
-          const ops = Ops.make({
+          const ops = Ops.make({claims: { current: TEST_CLAIMS }, format: "olai",
             store: wrapped,
             root,
             context: steady(),
@@ -1483,7 +1469,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
           watch: false,
           settle: "10 millis",
         })
-        return yield* use(Ops.make({
+        return yield* use(Ops.make({claims: { current: TEST_CLAIMS }, format: "olai",
           store,
           root,
           context: steady(),
@@ -1576,7 +1562,7 @@ describe("delete, against a real directory", () => {
       Effect.gen(function*() {
         const refusal = yield* Effect.flip(fixture.ops.run({ op: "delete", file: "report.html" }, "mcp"))
         expect(refusal._tag).toBe("UsageFailure")
-        expect(refusal.message).toContain("hypertext")
+        expect(refusal.message).toContain("a page")
         expect(fixture.read("report.html")).toBe("<h1>x</h1>\n")
       })))
 })
@@ -1616,7 +1602,7 @@ describe("apply, against a real directory", () => {
         expect(text).toContain(`"custom":{"pr":"https://x/1"}`)
         expect(text).toContain("demolition, done")
         // Still one record per line, read back by the parser that wrote it.
-        expect(Result.isSuccess(parseOutline("house.olai", text))).toBe(true)
+        expect(Result.isSuccess(parseOutline("house.olai", text, TEST_CLAIMS))).toBe(true)
       })))
 
   test("a batch refused halfway leaves the file untouched, byte for byte", () =>

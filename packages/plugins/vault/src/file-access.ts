@@ -5,7 +5,7 @@ import type { Store } from "@olai/ops"
 import { Effect, Stream } from "effect"
 import { followSubscription } from "./subscription.ts"
 import { inMemoryStore, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
-import type { Reading } from "@olai/format"
+import { claims, type Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import { surface, faces, resources, type FileKindsState } from "./file-surface.ts"
 
@@ -14,6 +14,8 @@ import { headProjection } from "./projection.ts"
 import type { Head } from "./wire.ts"
 import { NOTHING_WRONG } from "@olai/format"
 import { LOADED, type Manifest } from "./wire.ts"
+import { outlineDiffOf } from "./outline-diff.ts"
+import { openBodyReader } from "./server/body-reader.ts"
 import { OutlineRow } from "./format.ts"
 
 export default definePlugin({
@@ -23,6 +25,7 @@ export default definePlugin({
     const vault = yield* Vault
     const kinds = yield* FileKinds
     const outlineRow = yield* OutlineRow
+    const readBody = yield* openBodyReader(path => store.body(path), () => claims(kinds.current().values()))
     const kindState = (): FileKindsState => ({
       outlineRow,
       claims: [...kinds.current().values()].map(({ format: _format, ...claim }) => claim),
@@ -48,6 +51,7 @@ export default definePlugin({
       else manifest.set(null)
     }))
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
+      procedures: { bodies: { get: ({ input }) => readBody(input.path) }, files: { outlineDiff: ({ input }) => Effect.sync(() => outlineDiffOf(claims(kinds.current().values()), input)) } },
       cells: {
         "file-kinds": {
           store: fileKinds,

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The order of the two prunings, the counts that make it legible, and the four
  * shapes a page can be.
@@ -54,7 +55,7 @@ import { answered } from "./answered.testlib.ts"
 import type { Matches } from "./matches.ts"
 import { createNarrowing, type Narrowing } from "./narrowing.ts"
 
-const derived = derive(nodesOfFiles({
+const derived = derive(TEST_CLAIMS, nodesOfFiles({
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":true}`,
     `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters #home","done":"2026-08-03"}`,
@@ -528,7 +529,7 @@ test("an empty box is answered by the parse, not by the wire", () => {
  * crosses the wire. The hole this pins was a browser describing its own page to
  * the matcher; nothing describes it any more.
  */
-const FINISHED = derive(nodesOfFiles({
+const FINISHED = derive(TEST_CLAIMS, nodesOfFiles({
   "_olai/Trash.olai": [
     `{"id":"old-bath","ord":"a0","title":"bathroom #home","done":"2026-08-01"}`,
     `{"id":"taps","parent":"old-bath","ord":"a0","title":"the taps #home","done":"2026-08-02"}`,

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT A PAGE SHOWS — the reading, and the PARITY that lets it be trusted.
  *
@@ -54,7 +55,7 @@ const GARDEN = [
 ].join("\n")
 
 const RECORDS = nodesOfFiles({ "house.olai": HOUSE, "garden.olai": GARDEN })
-const SET = derive(RECORDS)
+const SET = derive(TEST_CLAIMS, RECORDS)
 
 /** What day it is, for the two arms that have to be told. Fixed, because a
  *  reading that read a clock would be a reading whose tests expire. */
@@ -96,6 +97,7 @@ const readingAt = (
   faces: ReadonlyArray<Face>,
   broken: ReadonlyArray<BrokenFile> = READABLE,
 ): Reading => ({
+  claims: TEST_CLAIMS,
   set: { documents: faces, broken } as unknown as OutlineSet,
   derived,
   pointing: pointingOf(faces as unknown as ReadonlyArray<Document>),
@@ -110,10 +112,10 @@ const readAt = (
 
 const at = (path: string, element: string | null = null): PageRequest => ({
   kind: "at",
-  address: addressOf(path, element)!,
+  address: addressOf(TEST_CLAIMS, path, element)!,
 })
 const HOME: PageRequest = { kind: "at", address: null }
-const node = (id: string): PageRequest => ({ kind: "at", address: addressOf("", id)! })
+const node = (id: string): PageRequest => ({ kind: "at", address: addressOf(TEST_CLAIMS, "", id)! })
 
 /** The ids a page's rows start from — what its screen would show. */
 const roots = (shows: ReturnType<typeof readAt>): ReadonlyArray<string> =>
@@ -159,7 +161,7 @@ test("a row address opens the outline that holds it", () => {
 test("a row of an outline the directory does not hold is a nothing that names it", () => {
   expect(readAt(at("shed.olai", "kitchen"))).toEqual({
     kind: "nothing",
-    sought: "outline",
+    sought: "olai",
     requested: "shed.olai",
   })
 })
@@ -169,14 +171,14 @@ test("a row of an outline the directory does not hold is a nothing that names it
 test("an outline the directory does not have is a nothing that names it", () => {
   expect(readAt(at("shed.olai"))).toEqual({
     kind: "nothing",
-    sought: "outline",
+    sought: "olai",
     requested: "shed.olai",
   })
 })
 
 test("a directory with no outlines at all is the other nothing", () => {
-  const nothing = { kind: "nothing", sought: "outline", requested: null } as const
-  expect(pageOf(readingAt(SET, []), at("shed.olai")).shows).toEqual(nothing)
+  const nothing = { kind: "nothing", sought: "", requested: null } as const
+  expect(pageOf(readingAt(SET, []), at("shed.olai")).shows).toEqual({ kind: "nothing", sought: "olai", requested: "shed.olai" })
   expect(pageOf(readingAt(SET, []), HOME).shows).toEqual(nothing)
 })
 
@@ -188,7 +190,7 @@ test("a document route opens that document, by path", () => {
 test("a document the directory does not have is a nothing that names it", () => {
   expect(readAt(at("gone.md"))).toEqual({
     kind: "nothing",
-    sought: "document",
+    sought: "markdown",
     requested: "gone.md",
   })
 })
@@ -239,7 +241,7 @@ test("the agenda is answered for the day it was asked for, and says which", () =
 
 // ── the trash ──────────────────────────────────────────────────────────
 
-const ARCHIVED = derive([
+const ARCHIVED = derive(TEST_CLAIMS, [
   ...RECORDS,
   ...nodesOfFiles({
     "_olai/Trash.olai": [
@@ -311,7 +313,7 @@ test("every id this page points at is resolved, once each", () => {
 })
 
 test("an id nothing declares is absent — the honest dangling link", () => {
-  const set = derive(nodesOfFiles({
+  const set = derive(TEST_CLAIMS, nodesOfFiles({
     "house.olai": `{"id":"a","ord":"a0","title":"a","see":["gone"]}`,
   }))
   expect(pageOf(readingAt(set, facesOf(["house.olai"])), at("house.olai")).names)
@@ -326,7 +328,7 @@ test("the address the page IS gets a name too — the palette's pin row asks it"
 /** The set the custom-value cases below are read against: one node carrying a
  *  property that IS an id, one that only looks like a word, one holding a
  *  sentence, and one holding a list of both kinds. */
-const PROPPED = derive(nodesOfFiles({
+const PROPPED = derive(TEST_CLAIMS, nodesOfFiles({
   "lanes.olai": [
     `{"id":"lane","ord":"a0","title":"a lane","custom":{"reviewer":"pi","agent":"nobody","merge":"the human approves personally"}}`,
     `{"id":"two","ord":"a1","title":"another","custom":{"reviewer":["pi","stranger"]}}`,
@@ -383,7 +385,7 @@ test("a day is `datedOn` plus `dailyNotesOn`, exactly", () => {
   const shows = readAt({ kind: "day", date: TODAY })
   expect(shows.kind === "day" ? shows.groups : undefined).toEqual(datedOn(SET, TODAY))
   expect(shows.kind === "day" ? shows.notes : undefined)
-    .toEqual(dailyNotesOn([...FILES, ...DOCUMENTS], TODAY))
+    .toEqual(dailyNotesOn(TEST_CLAIMS, [...FILES, ...DOCUMENTS], TODAY))
 })
 
 test("the trash is `rowsOf` per archive plus `nodesOf`, exactly", () => {
@@ -400,7 +402,7 @@ test("a document page is `referrersTo`, exactly", () => {
     {
       path: "house.olai",
       title: "house.olai",
-      links: [addressOf("notes/finishes.md", null)!],
+      links: [addressOf(TEST_CLAIMS, "notes/finishes.md", null)!],
       tags: [],
       props: {},
     },
@@ -408,7 +410,7 @@ test("a document page is `referrersTo`, exactly", () => {
   const reading = readingAt(SET, faces)
   const shows = pageOf(reading, at("notes/finishes.md")).shows
   expect(shows.kind === "document" ? shows.referrers : undefined)
-    .toEqual(referrersTo(addressOf("notes/finishes.md", null)!, reading.pointing, SET))
+    .toEqual(referrersTo(addressOf(TEST_CLAIMS, "notes/finishes.md", null)!, reading.pointing, SET))
 })
 
 test("a document page carries the frontmatter its face already has", () => {
@@ -476,7 +478,7 @@ test("two readings of one set are the same reading, and a moved set is not", () 
   const before = pageOf(readingAt(SET, facesOf(FILES)), at("house.olai"))
   expect(samePageReading(before, pageOf(readingAt(SET, facesOf(FILES)), at("house.olai"))))
     .toBe(true)
-  const moved = derive(
+  const moved = derive(TEST_CLAIMS,
     RECORDS.map((one) =>
       one.node.id === "kitchen"
         ? { ...one, node: { ...one.node, title: "kitchen, redone" } }
@@ -508,20 +510,11 @@ test("a filed page request admits a file, a node and the trash, and refuses the 
   expect(admits({ kind: "agenda", today: "2026-09-06" })).toBe(false)
 })
 
-test("a document page request admits only a bodied file's address", () => {
+test("a document page request validates address shape, not live membership", () => {
   const admits = Schema.is(DocumentPageRequest)
-  expect(admits(at("notes.md"))).toBe(true)
-  // A `.olai` has records rather than a body, so there is no metadata reading
-  // of one to ask for — and the trash and the front page name no file at all.
-  expect(admits(at("house.olai"))).toBe(false)
+  for (const file of ["notes.md", "house.olai", "diagram.png", "notes.rtf"]) expect(admits({ kind: "at", address: { kind: "document", path: file } })).toBe(true)
   expect(admits(HOME)).toBe(false)
   expect(admits({ kind: "trash" })).toBe(false)
-  // `bodyKind` is the one place that decides which kinds have a body, so this
-  // filter asks it rather than listing extensions a second time — which is why
-  // a picture is admitted (it is a bodied file whose page fetches its bytes off
-  // the media route) and a file no kind claims is not.
-  expect(admits(at("diagram.png"))).toBe(true)
-  expect(admits(at("notes.rtf"))).toBe(false)
 })
 
 test("a filed page reading is what those requests are answered in, and a day is not", () => {

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import {
@@ -33,7 +34,7 @@ const TODAY = "2026-08-12"
  * either side of {@link TODAY} so the sections cannot be satisfied by an
  * accident of file order.
  */
-const SET = derive(
+const SET = derive(TEST_CLAIMS,
   nodesOfFiles({
     "work.olai": [
       `{"id":"deck","ord":"a0","title":"the deck"}`,
@@ -192,7 +193,7 @@ test("what slipped arrives as DAYS, oldest first, each grouped by outline", () =
 test("late days are unbounded, where the days ahead stop at seven", () => {
   // A horizon on what is LATE would be the page quietly dropping the one answer
   // no day page can give. Ten slipped days, ten dots on the line.
-  const slipped = derive(
+  const slipped = derive(TEST_CLAIMS,
     nodesOfFiles({
       "work.olai": Array.from({ length: 10 }, (_, index) => {
         const day = String(1 + index).padStart(2, "0")
@@ -275,7 +276,7 @@ test("a dated bullet is not on the agenda, wherever its day sits", () => {
 test("a dated `doing` today is owed the same as a dated `todo`", () => {
   // `doing` is a started todo (human, 2026-08-12 for Overdue; the same
   // predicate here). A narrower todo-only reading of the page was declined.
-  const started = derive(
+  const started = derive(TEST_CLAIMS,
     nodesOfFiles({
       "work.olai":
         `{"id":"pour","ord":"a0","title":"pour the slab","doing":true,"date":"${TODAY}"}`,
@@ -287,7 +288,7 @@ test("a dated `doing` today is owed the same as a dated `todo`", () => {
 })
 
 test("an occurrence on today is not owed, and lights no mark", () => {
-  const only = derive(
+  const only = derive(TEST_CLAIMS,
     nodesOfFiles({
       "life.olai":
         `{"id":"birthday","ord":"a0","title":"mum's birthday","date":"${TODAY}"}`,
@@ -314,7 +315,7 @@ test("a blocked task keeps both answers, and stays on the agenda", () => {
   // Being blocked is a SECOND fact about a node and never a replacement for the
   // first: a task that is late AND waiting on something is both, drawn together
   // (docs/format.md's Status).
-  const blocked = derive(
+  const blocked = derive(TEST_CLAIMS,
     nodesOfFiles({
       "work.olai": [
         `{"id":"wire","ord":"a0","title":"wire the shed","todo":true,"date":"2026-08-01","after":["trench"]}`,
@@ -332,7 +333,7 @@ test("one row per node, even where a day holds both of its dates", () => {
   // neither: `done` extinguishes overdue. The half worth pinning is the shape —
   // what is behind us is built from the same bucketed walk, so a node can only
   // ever reach it through its `date`.
-  const both = derive(
+  const both = derive(TEST_CLAIMS,
     nodesOfFiles({
       "work.olai": [
         `{"id":"open","ord":"a0","title":"still open","todo":true,"date":"2026-08-04"}`,
@@ -348,7 +349,7 @@ test("one row per node, even where a day holds both of its dates", () => {
 test("a mirror is a placement, so late work is late once", () => {
   // The format gives a mirror no field to carry a date or a mark, and the
   // agenda asks the node rather than the places it is shown in.
-  const mirrored = derive(
+  const mirrored = derive(TEST_CLAIMS,
     nodesOfFiles({
       "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-01"}`,
       "now.olai": `{"id":"posts-now","ord":"a0","mirror":"posts"}`,
@@ -358,7 +359,7 @@ test("a mirror is a placement, so late work is late once", () => {
 })
 
 test("an agenda with nothing due says so, and says it once", () => {
-  const bullets = derive(
+  const bullets = derive(TEST_CLAIMS,
     nodesOfFiles({
       "notes.olai": [
         `{"id":"deck","ord":"a0","title":"the deck"}`,
@@ -376,7 +377,7 @@ test("Upcoming is bounded by the days it shows, not by a window of dates", () =>
   // A directory with something on every day for a fortnight shows the first
   // seven of them; the bound is a count of POPULATED days, which is what makes
   // it arithmetic-free (dates are text here as everywhere).
-  const many = derive(
+  const many = derive(TEST_CLAIMS,
     nodesOfFiles({
       "work.olai": Array.from({ length: 14 }, (_, index) => {
         const day = String(13 + index).padStart(2, "0")
@@ -404,7 +405,7 @@ test("a count is of NODES, and never of the days or outlines holding them", () =
   // The same two late tasks, one per file: a mark saying "2" means two things
   // are late, and a group-count would have said the same number for the wrong
   // reason — so they are split here on purpose.
-  const spread = derive(
+  const spread = derive(TEST_CLAIMS,
     nodesOfFiles({
       "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-10"}`,
       "life.olai": `{"id":"visas","ord":"a0","title":"send the visa forms","todo":true,"date":"2026-08-09"}`,
@@ -414,7 +415,7 @@ test("a count is of NODES, and never of the days or outlines holding them", () =
   expect(agenda.overdue.length).toBe(2)
   expect(owedOf(agenda).overdue).toBe(2)
   // Two files on two days here; a set with both on ONE day is still two.
-  const together = derive(
+  const together = derive(TEST_CLAIMS,
     nodesOfFiles({
       "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-09"}`,
       "life.olai": `{"id":"visas","ord":"a0","title":"send the visa forms","todo":true,"date":"2026-08-09"}`,
@@ -425,7 +426,7 @@ test("a count is of NODES, and never of the days or outlines holding them", () =
 })
 
 test("what is COMING is not owed: Upcoming is no part of the counts", () => {
-  const ahead = derive(
+  const ahead = derive(TEST_CLAIMS,
     nodesOfFiles({
       "work.olai": `{"id":"pack","ord":"a0","title":"pack the bags","todo":true,"date":"2026-08-14"}`,
     }),
@@ -484,7 +485,7 @@ test("the day rolls over and the same task moves from Today to late, once", () =
   // the day the reader is standing on. An index summed with `<=` instead of `<`
   // answers the first of these three with 1 late, which is a mark shouting at
   // somebody about work they have all day to do.
-  const due = derive(
+  const due = derive(TEST_CLAIMS,
     nodesOfFiles({
       "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-11"}`,
     }),
@@ -508,7 +509,7 @@ test("an INSTANT for today counts what a plain day counts, on both spellings", (
   // `agendaOf`'s standing decision and is deliberately kept here: a datetime
   // names no key of the day index, so it counts nothing on today — and the two
   // spellings agree about that, which is what this pins.
-  const due = derive(
+  const due = derive(TEST_CLAIMS,
     nodesOfFiles({
       "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-11"}`,
     }),
@@ -526,8 +527,8 @@ test("finishing today's work today empties the count, and the day with it", () =
   const before = `{"id":"ferry","ord":"a0","title":"book the ferry","todo":true,"date":"2026-08-12"}`
   const after =
     `{"id":"ferry","ord":"a0","title":"book the ferry","done":"2026-08-12T10:00:00-04:00","date":"2026-08-12"}`
-  const open = derive(nodesOfFiles({ "life.olai": before }))
-  const shut = derive(nodesOfFiles({ "life.olai": after }))
+  const open = derive(TEST_CLAIMS, nodesOfFiles({ "life.olai": before }))
+  const shut = derive(TEST_CLAIMS, nodesOfFiles({ "life.olai": after }))
 
   expect(owedNow(open, TODAY)).toEqual({ overdue: 0, today: 1 })
   expect(owedNow(shut, TODAY)).toEqual({ overdue: 0, today: 0 })
@@ -546,8 +547,8 @@ test("finishing LATE work today takes it off the late count on the same read", (
   const late = `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-10"}`
   const done =
     `{"id":"posts","ord":"a0","title":"dig the post holes","done":"2026-08-12T10:00:00-04:00","date":"2026-08-10"}`
-  const owing = derive(nodesOfFiles({ "work.olai": late }))
-  const settled = derive(nodesOfFiles({ "work.olai": done }))
+  const owing = derive(TEST_CLAIMS, nodesOfFiles({ "work.olai": late }))
+  const settled = derive(TEST_CLAIMS, nodesOfFiles({ "work.olai": done }))
 
   expect(owedNow(owing, TODAY)).toEqual({ overdue: 1, today: 0 })
   expect(owedNow(settled, TODAY)).toEqual({ overdue: 0, today: 0 })
@@ -592,7 +593,7 @@ test("nothing put away is owed: the archive is the trash's and no page else's", 
   // bucketed walk's (./dates.ts) and so cannot reach one section and miss
   // another. A fixture holding only the late one would pass under a rule that
   // had been written three times and got one of them wrong.
-  const archived: Derived = derive(
+  const archived: Derived = derive(TEST_CLAIMS,
     nodesOfFiles({
       "_olai/Trash.olai": [
         `{"id":"gate","ord":"a0","title":"the old gate","todo":true,"date":"2026-08-01"}`,
@@ -614,7 +615,7 @@ test("nothing put away is owed: the archive is the trash's and no page else's", 
 })
 
 test("a leftover Archive.olai is owed on no agenda either", () => {
-  const leftover: Derived = derive(
+  const leftover: Derived = derive(TEST_CLAIMS,
     nodesOfFiles({
       "Archive.olai": [
         `{"id":"gate","ord":"a0","title":"the old gate","todo":true,"date":"2026-08-01"}`,

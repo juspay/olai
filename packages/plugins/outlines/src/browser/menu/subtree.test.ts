@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What the menu puts on the clipboard when it copies a subtree.
  *
@@ -33,7 +34,7 @@ const GARDEN = [
   `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil"}`,
 ].join("\n")
 
-const derived = derive(recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
+const derived = derive(TEST_CLAIMS, recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
 const rows = rowsOf(derived, "house.olai")
 
 /** One row of the fixture, by id. `flatten` with nothing folded is "every row

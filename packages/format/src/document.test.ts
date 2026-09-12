@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The two readings the face made possible, held to their rules.
  *
@@ -192,7 +193,7 @@ test("a note is not a file, so a leading --- block is prose in one", () => {
   // AS A NOTE, the block is prose: the `#home` in it is a tag somebody wrote,
   // and the `[…](…)` is a link this note points along. Nothing skipped.
   expect(tagsIn(text).map(String)).toEqual(["#home", "@alice"])
-  expect(linksIn("house.olai", text).map(printAddress)).toEqual(["brief.md"])
+  expect(linksIn(TEST_CLAIMS, "house.olai", text).map(printAddress)).toEqual(["brief.md"])
 
   // AS A DOCUMENT, the same six lines index neither — the block is the file's
   // own record, and what it holds is a PROPERTY. One text, two readings, and
@@ -230,7 +231,7 @@ test("a scoped query selects no documents", () => {
 // body match is the weakest hit there is.
 test("both kinds come back in one ranked order", () => {
   const set = VAULT()
-  const derived = derive(recordsOf(set))
+  const derived = derive(TEST_CLAIMS, recordsOf(set))
   // `plan` is the WHOLE title of one document and a word in the middle of no
   // record's — so the document leads, and the record whose note holds it is
   // last, because a note is the weakest field a record has.
@@ -248,11 +249,11 @@ test("both kinds come back in one ranked order", () => {
 // ── what points at an address ──────────────────────────────────────────
 
 const referringTo = (set: OutlineSet, path: string): ReadonlyArray<string> => {
-  const derived = derive(recordsOf(set))
+  const derived = derive(TEST_CLAIMS, recordsOf(set))
   // THE LINKS INDEX, which is what a reading carries and what this reads: it is
   // built out of the set's own documents by the same fold `validate` runs
   // (`./pointing.ts`), so the case is asking the question the page asks.
-  const address = addressOf(path, null)!
+  const address = addressOf(TEST_CLAIMS, path, null)!
   return referrersTo(address, pointingOf(set.documents), derived).map((one) =>
     one.at === undefined ? String(one.face.path) : one.at.node.title
   )

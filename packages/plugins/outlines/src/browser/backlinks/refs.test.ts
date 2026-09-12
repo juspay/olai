@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The section's arithmetic: one reading of what refers to a node, and the rows
  * it is drawn as.
@@ -20,7 +21,7 @@ import { expect, test } from "bun:test"
 
 import { rowsOf } from "./refs.ts"
 
-const viewOf = (files: Record<string, string>) => derive(recordsOf(setOf(files)))
+const viewOf = (files: Record<string, string>) => derive(TEST_CLAIMS, recordsOf(setOf(files)))
 
 /** What refers to `id`, exactly as a node page's reading carries it. */
 const referringTo = (files: Record<string, string>, id: string) =>

@@ -661,59 +661,30 @@ Then(
 
 // ── what it may READ ───────────────────────────────────────────────────
 
-/**
- * A body, over the door a body is asked for through — the one consumer the
- * preview's change was measured against.
- *
- * A `.html`'s bytes stopped crossing the websocket when the browser stopped
- * asking for them: a preview draws a frame that fetches the file over HTTP, so
- * what it needs from the wire is the file's REVISION and nothing more
- * (`olai-plugin-vault`'s `Head`). That is a change to what one READER asks for, and
- * this is the assertion that it was only that: an agent has no frame, so a
- * `resources/read` of the same file must still be answered with the file.
- *
- * It is a raw `resources/read` rather than a tool call because that is what the
- * surface publishes — `surface://collections/<row>/<member>/<key>`, the same
- * URI a `.mcp.json` client reaches — and going through the tool table would be
- * testing a door this member does not have.
- *
- * THE ROW IS IN THE URI, and it did not used to be. `documents` was a member of
- * a curated flat spec that copied six rows into one un-prefixed namespace, so
- * the address said nothing about who answered it. #546 gave every member its
- * owner's name and juspay/kolu#2234 taught the MCP adapter to serve a rooted
- * bundle, so the key `markdown` here is the row that owns the collection —
- * exactly the sibling key `surface/markdown/documents/get` carries on the wire.
- * Nothing preserves the old address, which is the ruling: no migration.
- */
+/** An unkept text body is read through the vault's owned request door. */
 When(
   "the terminal agent reads the file {string}",
   async function (this: OlaiWorld, file: string) {
-    const uri = `surface://collections/markdown/documents/${file}`;
-    // UNTIL THE KEY IS THERE, because a scenario writes the file a moment
-    // before asking for it and the directory is published on the store's own
-    // clock. A `resources/read` of a key the collection does not hold is
-    // refused rather than held open — which is the right answer to a path that
-    // is not there, and the wrong one to a path that is about to be. Waiting
-    // here rather than in the scenario keeps the sentence a person reads about
-    // what an agent may READ.
     let refusal = "nothing was said";
-    try {
-      await this.waitUntil(async () => {
-        const answered = await agentOf(this).call("resources/read", { uri });
-        if (answered.error !== undefined) {
-          refusal = `${answered.error.message} (${answered.error.code})`;
-          return false;
-        }
-        const contents = (answered.result?.["contents"] ??
-          []) as ReadonlyArray<{ readonly text?: string }>;
-        this.resourceRead = contents[0]?.text ?? "";
-        return true;
-      }, `${uri} to be readable`);
-    } catch {
-      throw new Error(
-        `${uri} was never readable — the last refusal was: ${refusal}`,
-      );
-    }
+    await this.waitUntil(async () => {
+      const answered = await agentOf(this).call("tools/call", {
+        name: "vault_bodies_get", arguments: { path: file },
+      });
+      if (answered.error !== undefined) {
+        refusal = answered.error.message;
+        return false;
+      }
+      const content = (answered.result?.["content"] ?? []) as ReadonlyArray<{ readonly text?: string }>;
+      const text = content[0]?.text;
+      if (text === undefined || answered.result?.["isError"] === true) {
+        refusal = text ?? "no body answer";
+        return false;
+      }
+      const body = JSON.parse(text) as { text: string | null; refused: boolean };
+      if (body.refused || body.text === null) return false;
+      this.resourceRead = body.text;
+      return true;
+    }, `${file} to be readable through vault_bodies_get (last refusal: ${refusal})`);
   },
 );
 

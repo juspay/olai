@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 import { lineAt } from "olai-plugin-navigation/routes"
 import { panesOf } from "olai-plugin-navigation/workspace"
 import { TESTID as IDS_MARKDOWN } from "olai-plugin-markdown/testids"
@@ -37,7 +38,7 @@ import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
  */
 
 import { today } from "../clock.ts"
-import { type BodyKind, proseIn, proseLineOffset, needlesFrom } from "@olai/format"
+import { proseIn, proseLineOffset, needlesFrom } from "@olai/format"
 import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
 
 import { markdownReady } from "@olai/markdown-ui/chunk.ts"
@@ -98,8 +99,8 @@ export interface Face {
   readonly edits: boolean
 }
 
-export const FACES: Record<BodyKind, Face> = {
-  document: { reads: Rendered, edits: true },
+export const FACES: Record<string, Face> = {
+  markdown: { reads: Rendered, edits: true },
   hypertext: { reads: Hypertext, edits: false },
   csv: { reads: Csv, edits: false },
   image: { reads: Image, edits: false },
@@ -168,7 +169,7 @@ function Rendered(props: Reading) {
   // complains; it is a decision about the CONTENTS rather than about the flash,
   // and it is the human's.
   const headings = createMemo(() =>
-    markdownReady() ? outlineOf(text(), props.file) : [],
+    markdownReady() ? outlineOf(servedDirectory()?.claims(), text(), props.file) : [],
   )
 
   // LAND ON THE SECTION the address named, once there is a page to land in.
@@ -275,6 +276,7 @@ function Rendered(props: Reading) {
       <Show when={isServed(served())}>
         <Toc file={props.file} headings={headings()} />
         <Markdown
+            claims={servedDirectory()?.claims()}
           source={text()}
           landing={lineDrawing()}
           from={props.file}

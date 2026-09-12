@@ -1,3 +1,4 @@
+import type { Claims } from "@olai/format"
 /**
  * THE ROUTES THE MOUNTED PLUGINS CLAIM — this row's own table, and PRIVATE to
  * this package.
@@ -30,6 +31,9 @@ import { heldService } from "@olai/ui-primitives/held.ts"
 
 import { type MountedPages, NO_PAGES, type Routing, routingOver } from "./routes.ts"
 
+const files = heldService<() => Claims>()
+export const holdFileClaims = files.hold
+export const fileClaims = () => files.read()?.()
 const table = heldService<() => MountedPages>()
 
 /** Told by `./browser.tsx`'s `renderer` component, for that activation. */
@@ -46,4 +50,4 @@ export const routePages = (): MountedPages => table.read()?.() ?? NO_PAGES
  * rather than a snapshot: two would be two objects answering the same question
  * about the same table, which is a distinction with nothing behind it.
  */
-export const routing: Routing = routingOver(routePages)
+export const routing: Routing = routingOver(fileClaims, routePages)

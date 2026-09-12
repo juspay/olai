@@ -1,5 +1,5 @@
 import { TESTID } from "olai-plugin-trash/testids"
-import type { FileKind } from "@olai/format"
+
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { Glyph } from "olai-plugin-files/icons"
 
@@ -34,7 +34,7 @@ function DoorRow(props: {
 
 
 function FileAnatomy(props: {
-  readonly of: FileKind | null | undefined
+  readonly of: string | null | undefined
   readonly name: string
   readonly broken: boolean
 }) {
@@ -76,4 +76,3 @@ export function Trash() {
     </DoorRow>
   )
 }
-

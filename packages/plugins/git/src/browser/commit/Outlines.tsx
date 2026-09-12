@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 /**
  * The outlines, one group per file: what changed in each, node by node.
  *
@@ -103,7 +104,7 @@ export function Outlines(props: {
                       naming an address is spelled as written (the
                       `../search/row.ts` contract). */}
                   <span class="min-w-0 truncate">
-                    <TitleHtml drawing={renderTitle(change.title, change.file)} />
+                    <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file)} />
                   </span>
                   <span class="ml-auto shrink-0 text-xs text-muted">
                     {SAID[change.sort]}

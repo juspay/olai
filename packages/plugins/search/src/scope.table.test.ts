@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * A SCOPE AND AN INDEX NARROW THE SAME SEARCH, and must select the same
  * records.
@@ -33,7 +34,8 @@ import {
   readingOfVault,
   TANGLED,
 } from "@olai/format/testlib/scope"
-import { assemble, nodesIn, parseOutline, reading, verdictOf } from "@olai/format"
+import { assemble, nodesIn, reading, verdictOf } from "@olai/format"
+import { parseOutline } from "olai-plugin-olai/format"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
@@ -119,7 +121,7 @@ test("a write leaves the two narrowings still agreeing", () => {
   try {
     const vault = new Map(deepVaultOf({ files: 12, records: 18, seed: 20260825 }))
     const decoded = decodedVault(vault)
-    let read = reading(assemble(decoded))
+    let read = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded))
     const asks = asksOver(read.derived, QUERIES, { files: 6, roots: 10 })
     const narrow = (at: typeof read, filter: Parameters<Index["narrow"]>[1]) =>
       index.narrow(at, filter)?.nodes
@@ -145,8 +147,8 @@ test("a write leaves the two narrowings still agreeing", () => {
       const edited = edit(text)
       if (edited === text) throw new Error(`the edit to ${file} changed nothing`)
       vault.set(file, edited)
-      decoded.set(file, Result.mapError(parseOutline(file, edited), verdictOf))
-      read = reading(assemble(decoded), {
+      decoded.set(file, Result.mapError(parseOutline(file, edited, TEST_CLAIMS), verdictOf))
+      read = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded), {
         read,
         delta: { upserts: [[file, { nodes: nodesIn(decoded.get(file)) }]], removes: [] },
       })

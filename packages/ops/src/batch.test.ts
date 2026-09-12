@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The three verbs that make one write out of several: an enriched capture,
  * `apply` and `update`.
@@ -14,19 +15,8 @@
  * batch leaving the file untouched) is {@link ./ops.test.ts}'s.
  */
 
-import {
-  ApplyRequest,
-  BATCH_AT_MOST,
-  type BatchedRequest,
-  byPath,
-  derive,
-  nodesOf,
-  type OutlineSet,
-  outlinePaths,
-  serializeOutline,
-  WriteRequest,
-  type WriteRequest as Request,
-} from "@olai/format"
+import { ApplyRequest, BATCH_AT_MOST, type BatchedRequest, byPath, derive, nodesOf, type OutlineSet, outlinePaths, WriteRequest, type WriteRequest as Request } from "@olai/format"
+import { serializeOutline } from "olai-plugin-olai/format"
 import { recordsOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
@@ -57,7 +47,7 @@ const after = (set: OutlineSet, request: Request): OutlineSet => {
     outlinePaths(set).map((file) => [
       file,
       serializeOutline(
-        nodesOf(derive(recordsOf(set)), file).map((located) => located.node),
+        nodesOf(derive(TEST_CLAIMS, recordsOf(set)), file).map((located) => located.node),
       ),
     ]),
   )

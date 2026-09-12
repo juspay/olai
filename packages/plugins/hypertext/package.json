@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./server": "./src/server.ts"
+    "./server": "./src/server.ts",
+    "./claim": "./src/claim.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -12,5 +13,10 @@
   "dependencies": {
     "@olai/plugin-api": "workspace:*",
     "effect": "4.0.0-rc.112"
+  },
+  "olai": {
+    "contracts": [
+      "./claim"
+    ]
   }
 }

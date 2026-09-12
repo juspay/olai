@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE SAME CLAIM AS `./table.test.ts`, made where the writes are real.
  *
@@ -52,7 +53,7 @@ import { open } from "./table.ts"
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
  *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel #home"}`,
@@ -189,7 +190,7 @@ test("every write leaves the indexed door answering what the corpus walk does", 
     // THE ROW'S DOOR, exactly as `./server.ts` offers it — one table, and the
     // reading handed in per ask rather than read on this side.
     const index = open()
-    const ops = makeOps({
+    const ops = makeOps({claims: { current: TEST_CLAIMS }, format: "olai",
       store,
       root,
       context: steady(),

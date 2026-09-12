@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What an edge field NAMES, as the two surfaces that draw it read it: the
  * targets, their titles, and how many of them there are.
@@ -30,7 +31,7 @@ const HOUSE = [
 
 const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`
 
-const derived = derive(recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
+const derived = derive(TEST_CLAIMS, recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
 
 /**
  * THE NAMES a page carrying these rows would have been sent with — every id

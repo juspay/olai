@@ -1,3 +1,5 @@
+const OUTLINE_EXT = mintExt(TEST_CLAIMS, "olai")!
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT THE TWO SIDEBAR READINGS COST PER PUBLISHED REVISION, before and after
  * `perf-filename-conventions` — both arms in one run, on one vault, on the
@@ -55,7 +57,7 @@ import { deltaOf } from "./corpora.testlib.ts"
 import { alternating, decodedOf, retitled, settled, vaultOf } from "./fixtures.testlib.ts"
 import { inboxHeldIn, inboxHeldOf } from "./inbox.ts"
 import { inboxIn, pinsIn } from "./node.ts"
-import { fileKind, OUTLINE_EXT } from "./kinds.ts"
+import { fileKind, mintExt } from "./kinds.ts"
 import { assemble } from "./set.ts"
 import { shelfIn, shelfOf } from "./shelf.ts"
 import { type Reading, validate } from "./validate.ts"
@@ -103,8 +105,8 @@ interface Revision {
 /** One revision, built the way the store builds one (`@olai/ops`' `codec.ts`):
  *  assembled from the files, and the view PATCHED from the reading before it. */
 const revised = (files: Corpus, before?: readonly [Corpus, Reading]): Revision => {
-  const outcome = validate(
-    assemble(decodedOf(files)),
+  const outcome = validate(TEST_CLAIMS,
+    assemble(TEST_CLAIMS, decodedOf(files)),
     before === undefined ? undefined : { read: before[1], delta: deltaOf(before[0], files) },
   )
   if (Result.isFailure(outcome)) {
@@ -155,7 +157,7 @@ const revisionsOf = (
  *  here ({@link ./kinds.ts}): a keystroke is a record edited, and a row that
  *  picked a document would be timing a delta with no records in it. */
 const edited = (files: Corpus, which: number): string => {
-  const paths = Object.keys(files).filter((path) => fileKind(path) === "outline")
+  const paths = Object.keys(files).filter((path) => TEST_CLAIMS.byKind.get(fileKind(TEST_CLAIMS, path) ?? "")?.holds === "nodes")
   return paths[which % paths.length] as string
 }
 
@@ -210,7 +212,7 @@ const after = (revisions: ReadonlyArray<Revision>) => (): void => {
   for (const { read, moved } of revisions) {
     shelfFile = conventionRecorded(pinsIn, read.derived, moved, shelfFile)
     shelfIn(read.derived, shelfFile.file)
-    inboxFile = conventionServed(inboxIn, read.set, moved, inboxFile)
+    inboxFile = conventionServed(TEST_CLAIMS, inboxIn, read.set, moved, inboxFile)
     inboxHeldIn(read.derived, inboxFile.file)
   }
 }
@@ -224,7 +226,7 @@ const walksOf = (revisions: ReadonlyArray<Revision>): number => {
   let walks = 0
   for (const { read, moved } of revisions) {
     const shelfNext = conventionRecorded(pinsIn, read.derived, moved, shelfFile)
-    const inboxNext = conventionServed(inboxIn, read.set, moved, inboxFile)
+    const inboxNext = conventionServed(TEST_CLAIMS, inboxIn, read.set, moved, inboxFile)
     if (shelfNext !== shelfFile) walks++
     if (inboxNext !== inboxFile) walks++
     shelfFile = shelfNext
@@ -253,7 +255,7 @@ for (const [what, shape] of ROWS) {
   let inboxFile: Convention | undefined
   for (const { read, moved } of revisions) {
     shelfFile = conventionRecorded(pinsIn, read.derived, moved, shelfFile)
-    inboxFile = conventionServed(inboxIn, read.set, moved, inboxFile)
+    inboxFile = conventionServed(TEST_CLAIMS, inboxIn, read.set, moved, inboxFile)
     const carried = {
       shelf: shelfIn(read.derived, shelfFile.file),
       inbox: inboxHeldIn(read.derived, inboxFile.file),
@@ -267,7 +269,7 @@ for (const [what, shape] of ROWS) {
         `${what}: the two arms are not answering the same question — ` +
           `carried ${JSON.stringify(carried.inbox)} over ${shelfFile.file}, ` +
           `walked ${JSON.stringify(walked.inbox)} over ${
-            pinsIn(read.derived.byFile.keys())
+            pinsIn(TEST_CLAIMS, read.derived.byFile.keys())
           }. The ratio beside it is meaningless until they agree ` +
           `(./conventions.test.ts).`,
       )

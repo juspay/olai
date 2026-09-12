@@ -1,3 +1,5 @@
+import type { Claims } from "@olai/format"
+import { servedDirectory } from "../vault.ts"
 /**
  * PRESSING A NODE AGENT — what the roster row does, what the door does, and the
  * one difference between them.
@@ -56,8 +58,8 @@ import { chatWire } from "../wire.ts"
  *  never narrows for this feature, and a node's own page is exactly a narrowing
  *  — it would replace the board a person is reading with one row of it. What
  *  they asked for is *show me this agent*, which is the row in its context. */
-export const rowOf = (agent: Pick<Row, "id" | "file">): Route =>
-  atElement(agent.file, agent.id)
+export const rowOf = (claims: Claims, agent: Pick<Row, "id" | "file">): Route =>
+  atElement(claims, agent.file, agent.id)
 
 /**
  * THE GESTURE, AND THE LINE IT MAY LEAVE — held together, because they are one
@@ -124,7 +126,7 @@ export const createFocus = (): Focus => {
     said: saying.said,
     open,
     press: (agent) => {
-      router.go(rowOf(agent))
+      router.go(rowOf(servedDirectory()!.claims(), agent))
       open(agent)
     },
   }

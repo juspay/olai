@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { capabilitiesOver } from "../capabilities.testlib.ts"
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
 /**
@@ -66,7 +67,7 @@ import {
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about
  *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n`
 
@@ -126,7 +127,7 @@ const withRoute = <A>(
       watch: false,
       settle: "10 millis",
     })
-    const ops = makeOps({ store, root })
+    const ops = makeOps({claims: { current: TEST_CLAIMS }, format: "olai",  store, root })
     const wired = yield* bind({
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",

@@ -31,21 +31,6 @@
  * sentences and the picker's clear, and a third would say nothing.
  */
 
-import type { NodeKind } from "@olai/format"
-
-/**
- * THE KIND OF FILE AN ODU WAKE CAN BE POINTED AT — one, the outline.
- *
- * Typed against the record-holding union rather than spelled as a suffix:
- * a word the registry never had and a word the registry has for a file with
- * no nodes in it are BOTH the same class of error here, and `NodeKind` is
- * what turns both into type errors rather than into a picker that offers
- * wrong files on somebody else's machine. `olai-plugin-kolu`'s `./wake.ts`
- * argues both halves of that in full, and this list is one entry for the
- * same reason its neighbour's is: nothing in this package derives a claim
- * out of prose.
- */
-const KINDS: readonly [NodeKind, ...Array<NodeKind>] = ["outline"]
 
 /** odu's doorbell, as the strip says it. See the header for why the drawn half
  *  is three pieces and why the subject leads. */
@@ -60,7 +45,7 @@ export const wake = {
    *  is ABOUT: the run going red, or the run settling. */
   waiting: { one: "CI event waiting", many: "CI events waiting" },
   /** WHICH FILES THIS MAY BE POINTED AT — see the header. */
-  kinds: KINDS,
+  walks: "nodes" as const,
   /**
    * ... and the sentences, one per way this doorbell can stop watching, keyed by
    * the cause's own word. Core INDEXES by the cause it recorded rather than

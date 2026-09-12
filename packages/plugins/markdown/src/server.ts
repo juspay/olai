@@ -1,3 +1,4 @@
+import { claim } from "./claim.ts"
 /**
  * THE BODIES, SERVED — this row's half of a revision, and the one collection in
  * olai whose values do not all travel.
@@ -64,14 +65,11 @@ import type { Projection } from "@olai/surface/projection"
 import { documentProjection } from "./projection.ts"
 import type { DocumentEntry } from "./wire.ts"
 import type { FiledPageReading } from "@olai/format"
-import * as Bodies from "./server/bodies.ts"
 
 export default definePlugin({
   name, needs: [Directory, Ops, Vault, Surfaces, FileKinds],
   apply: Effect.gen(function*() {
-    yield* (yield* FileKinds).register({
-      exts: [".md"], holds: "text", kept: true, fetched: false, noun: "document", article: "a",
-    })
+    yield* (yield* FileKinds).register(claim)
     const store = (yield* Directory).store as Store
     const gate = (yield* Ops).gate as Gate
     const vault = yield* Vault
@@ -99,21 +97,11 @@ export default definePlugin({
      * (`olai-plugin-pins`'s `surface.ts`) one member shape over.
      */
     const revisions = inMemoryChannel<void>()
-    const bodies = yield* Bodies.make({
-      read: path => store.body(path),
-      publish: (path, body) => {
-        const entry = held?.change.entries.get(path)
-        if (entry) ctx?.collections.documents.upsert(path, "refused" in body
-          ? { rev: entry.rev, text: null, refused: true }
-          : { rev: entry.rev, text: body.text, refused: false })
-      },
-    })
     yield* vault.revision<Snapshot<Reading>>(snapshot => Effect.sync(() => {
       const next = documentProjection(snapshot, held)
       held = next
       for (const [key, value] of next.change.upserts) ctx?.collections.documents.upsert(key, value)
       for (const key of next.change.removes) ctx?.collections.documents.remove(key)
-      bodies.unread(next.unread)
       revisions.publish(undefined)
     }))
     yield* vault.unloaded(Effect.sync(() => {
@@ -156,29 +144,8 @@ export default definePlugin({
          * not told.
          */
         documents: { readAll: () => held?.change.entries ?? empty, upsert: () => {}, remove: () => {},
-        /**
-         * A KEY WHOSE BODY IS NOT HERE ANSWERS NOTHING, AND ASKS FOR IT.
-         *
-         * `undefined` is the framework's held-open-on-absent path: the reader
-         * waits rather than being handed a blank page, and `bodies.unread`
-         * queues the read that will `upsert` the same key a moment later — see
-         * `./wire.ts`'s three-states paragraph for why a missing body and a
-         * refused read are different answers, and `./server/bodies.ts` for the
-         * reader itself.
-         *
-         * `holders: bodies.held` is the other half: a hold is taken by the
-         * SUBSCRIPTION rather than by a successful read, so a reader that
-         * opened a key before the file had bytes is still owed them. Without
-         * it, the announcement of a newborn key was all such a reader ever
-         * saw.
-         */
-        readOne: (key) => {
-          const entry = held?.change.entries.get(key)
-          if (!entry || entry.text !== null) return entry
-          bodies.unread([key])
-          return undefined
-        },
-        holders: bodies.held, }
+        readOne: key => held?.change.entries.get(key), }
+
       },
       procedures: {
         edit: { apply: ({ input }) => applyEdit(gate, input) },

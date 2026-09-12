@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE ROUTE VOCABULARY, shared — every address the app can SPELL, as the
  * routes they read back to, the day either reader asks.
@@ -26,7 +27,7 @@
  * "plugins consume other plugins only through static contract doors".
  */
 
-import { FILE_KINDS } from "@olai/format"
+
 
 import {
   atElement,
@@ -49,7 +50,7 @@ import {
  * plugin claims a URL*, which is what nearly every bench means and what the
  * app itself answers before a renderer has contributed anything.
  */
-export const routingIn = (pages: MountedPages = []): Routing => routingOver(() => pages)
+export const routingIn = (pages: MountedPages = []): Routing => routingOver(() => TEST_CLAIMS, () => pages)
 
 export const ROUTES: ReadonlyArray<Route> = [
   HOME_ROUTE,
@@ -79,20 +80,20 @@ export const ROUTES: ReadonlyArray<Route> = [
   // …and a document at a place INSIDE it, which is the other thing an address
   // here carries. A `#` that could not be read back is a link into a section
   // that lands at the top of the page the moment it is reloaded or shared.
-  atElement("garden.md", "beds"),
-  atElement("notes/report.html", "Q3 revenue"),
+  atElement(TEST_CLAIMS, "garden.md", "beds"),
+  atElement(TEST_CLAIMS, "notes/report.html", "Q3 revenue"),
   // …and an OUTLINE at one, the row arm: the qualified spelling of a node,
   // kept rather than normalised, since the outline gained its landing.
-  atElement("house.olai", "kitchen"),
-  { ...atElement("house.olai", "install"), filter: "#home" },
+  atElement(TEST_CLAIMS, "house.olai", "kitchen"),
+  { ...atElement(TEST_CLAIMS, "house.olai", "install"), filter: "#home" },
   // One page per suffix the registry claims, and one at a place inside it:
   // the registry is the grammar's own census of what a path can mean, so a
   // kind it learns is a row here the day it is learned, not when somebody
   // remembers.
-  ...Object.values(FILE_KINDS).flatMap((claim) =>
+  ...[...TEST_CLAIMS.byKind.values()].flatMap((claim) =>
     claim.exts.flatMap((ext) => [
       atFile(`drawer/tool${ext}`),
-      atElement(`drawer/tool${ext}`, "the inner bit"),
+      atElement(TEST_CLAIMS, `drawer/tool${ext}`, "the inner bit"),
     ])
   ),
 ]

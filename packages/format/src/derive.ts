@@ -1,3 +1,4 @@
+import type { Claims } from "./kinds.ts"
 /**
  * Everything the format computes rather than stores.
  *
@@ -73,6 +74,7 @@ export { Status } from "./node.ts"
  * the symptom would be a plausible tree rather than a failure.
  */
 export interface Derived {
+  readonly claims: Claims
   /**
    * Every record of the set, in corpus order — path order across files, line
    * order within one.
@@ -647,7 +649,7 @@ export const tagInto = (
   }
 }
 
-export const derive = (nodes: ReadonlyArray<Located>): Derived => {
+export const derive = (claims: Claims, nodes: ReadonlyArray<Located>): Derived => {
   // `Map.groupBy` is the language's own group-by-key, and grouping by file is
   // exactly that — a hand-rolled accumulator here would be a second spelling
   // of a built-in (the same note #198 took). The five tables below are not
@@ -671,7 +673,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
     parentInto(children, located)
     nameInto(namedBy, located)
     tagInto(taggedBy, located)
-    dateInto(dated, located)
+    dateInto(claims, dated, located)
   }
 
   // Sorted rather than trusted: a set assembled file by file already arrives
@@ -702,12 +704,13 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   const { status, mirrorsOf } = resolutions(nodes, byId)
   const { after, edgesTo } = orderings(byId, nodes)
   return {
+    claims,
     nodes,
     byId,
     children,
     status,
     after,
-    blocked: blockage(byId, status, after),
+    blocked: blockage(claims, byId, status, after),
     byFile,
     mirrorsOf,
     edgesTo,
@@ -1370,12 +1373,12 @@ const orderings = (
  * chances to disagree about what unfinished work is.
  */
 const inPlay = (
-  index: { readonly byId: ReadonlyMap<string, Located> },
+  index: { readonly claims: Claims; readonly byId: ReadonlyMap<string, Located> },
   status: ReadonlyMap<string, Status>,
   id: string,
 ): InTheWay | undefined => {
   const at = nodeNamed(index, id)
-  if (at === undefined || isPutAway(at.file)) {
+  if (at === undefined || isPutAway(index.claims, at.file)) {
     return undefined
   }
   const mark = status.get(at.node.id)
@@ -1386,7 +1389,7 @@ const inPlay = (
  *  — the target-side half of blockedness, shared by the index below and the
  *  reading beside it. */
 const waitingOn = (
-  index: { readonly byId: ReadonlyMap<string, Located> },
+  index: { readonly claims: Claims; readonly byId: ReadonlyMap<string, Located> },
   status: ReadonlyMap<string, Status>,
   targets: ReadonlyArray<string>,
 ): ReadonlyArray<InTheWay> =>
@@ -1430,11 +1433,12 @@ const waitingOn = (
  * about the file rather than about what is on anyone's plate.
  */
 const blockage = (
+  claims: Claims,
   byId: ReadonlyMap<string, Located>,
   status: ReadonlyMap<string, Status>,
   after: ReadonlyMap<string, ReadonlyArray<string>>,
 ): ReadonlyMap<string, ReadonlyArray<InTheWay>> => {
-  const view = { byId, status, after }
+  const view = { claims, byId, status, after }
   const blocked = new Map<string, ReadonlyArray<InTheWay>>()
   for (const id of after.keys()) {
     const found = blockageAt(view, id)
@@ -1459,7 +1463,7 @@ const blockage = (
  * patched view that draws a blocker a rebuilt one does not.
  */
 export const blockageAt = (
-  view: Pick<Derived, "byId" | "status" | "after">,
+  view: Pick<Derived, "claims" | "byId" | "status" | "after">,
   id: string,
 ): { readonly at: string; readonly waiting: ReadonlyArray<InTheWay> } | undefined => {
   const source = inPlay(view, view.status, id)
@@ -1618,7 +1622,7 @@ export const isMirrored = (derived: Pick<Derived, "mirrorsOf">, id: string): boo
  * way, because there is one function that decides that.
  */
 export const standingBefore = (
-  derived: Pick<Derived, "byId" | "status" | "after">,
+  derived: Pick<Derived, "claims" | "byId" | "status" | "after">,
   id: string,
 ): ReadonlyArray<InTheWay> =>
   waitingOn(derived, derived.status, derived.after.get(id) ?? [])

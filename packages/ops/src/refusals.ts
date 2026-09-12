@@ -29,6 +29,10 @@
 
 import {
   bodyKind,
+  type Claims,
+  claimedOf,
+  outlineAt as admittedOutline,
+  fileKind,
   type Derived,
   didYouMean,
   didYouMeanDeclared,
@@ -155,11 +159,14 @@ export const notANode = (id: string, target: string): OpFailure =>
  * one, which is what a read has.
  */
 export const noSuchDocument = (
+  claims: Claims,
   set: OutlineSet,
   file: string,
   instead: string,
 ): OpFailure => {
-  const near = didYouMean(file, markdownIn(set).map((entry) => entry.path))
+  const paths = markdownIn(set).map((entry) => entry.path)
+  if (claimedOf(claims, file) === null) return unclaimedPath(claims, file, paths)
+  const near = didYouMean(file, paths)
   return new NotFoundFailure({
     reason: near === ""
       ? `\`${file}\` is not a document under the served directory — ${instead}`
@@ -189,6 +196,7 @@ export const noSuchDocument = (
  */
 const noSuchOutline = (asked: Asked, file: string): OpFailure => {
   const outlines = asked.outlines
+  if (claimedOf(asked.claims, file) === null) return unclaimedPath(asked.claims, file, outlines)
   const near = didYouMean(file, outlines)
   return new NotFoundFailure({
     reason: near === ""
@@ -228,7 +236,13 @@ export const outlineAt = (
   asked: Asked,
   file: string,
 ): Result.Result<Outline, OpFailure> => {
-  const found = asked.at(file)
+  const path = claimedOf(asked.claims, file)
+  if (path === null) return Result.fail(unclaimedPath(asked.claims, file, asked.outlines))
+  if (admittedOutline(asked.claims, { kind: "document", path }) === null) {
+    const claim = asked.claims.byKind.get(fileKind(asked.claims, file)!)!
+    return Result.fail(new NotFoundFailure({ named: file, reason: `\`${file}\` is ${claim.article} ${claim.noun}; this verb takes an outline` }))
+  }
+  const found = asked.at(path)
   if (found === undefined || !isOutline(found)) {
     return Result.fail(noSuchOutline(asked, file))
   }
@@ -247,8 +261,8 @@ export const outlineAt = (
  * only in what they cannot do about it, which is each one's own half of the
  * sentence and stays at each one.
  */
-export const notLoadedBecause = (file: string): string =>
-  bodyKind(file) !== null
+export const notLoadedBecause = (claims: Claims, file: string): string =>
+  bodyKind(claims, file) !== null
     ? "could not be read, so what it holds is not loaded"
     : "has lines that do not parse, so its records are not loaded"
 
@@ -270,11 +284,20 @@ export const notLoadedBecause = (file: string): string =>
  * carries them: fix the file, then read it.
  */
 export const notLoaded = (
+  claims: Claims,
   file: string,
   errors: ReadonlyArray<OutlineError>,
 ): OpFailure =>
   new ValidationFailure({
-    reason: `\`${file}\` ${notLoadedBecause(file)} — there is nothing to answer ` +
+    reason: `\`${file}\` ${notLoadedBecause(claims, file)} — there is nothing to answer ` +
       `with. Fix the file first.`,
     verdict: verdictOf(errors),
   })
+
+/** A bare unclaimed path cannot identify a disabled owner. */
+export const unclaimedPath = (_claims: Claims, file: string, neighbors: ReadonlyArray<string>): OpFailure => {
+  const name = file.slice(file.lastIndexOf("/") + 1)
+  const dot = name.lastIndexOf(".")
+  const suffix = dot < 0 ? "(no suffix)" : name.slice(dot)
+  return new NotFoundFailure({ named: file, reason: `\`${file}\` is not a file this directory serves: no row claims \`${suffix}\`${didYouMean(file, neighbors)}` })
+}

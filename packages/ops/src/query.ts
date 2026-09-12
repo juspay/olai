@@ -1,3 +1,4 @@
+import { type Claims, claimedOf } from "@olai/format"
 /**
  * Reading the set, as an agent is allowed to read it.
  *
@@ -1117,10 +1118,10 @@ export const subtree = (
   // over in the planner, because the write that places a node at a file's
   // top level asks the identical question and owes the identical answer
   // ({@link outlineAt}).
-  const outline = outlineAt(askedOf(at.set), arm.file)
+  const outline = outlineAt(askedOf(at.claims, at.set), arm.file)
   if (Result.isFailure(outline)) return Result.fail(outline.failure)
   const broken = brokenIn(at.set, arm.file)
-  if (broken !== undefined) return Result.fail(notLoaded(arm.file, broken))
+  if (broken !== undefined) return Result.fail(notLoaded(at.claims, arm.file, broken))
   // The top level, once: `siblingsOf` is the file's own records in `ord`
   // order, mirrors included. Regulars are the roots the walk descends;
   // mirrors are named on the answer as `placed`. Two calls would walk and
@@ -1234,7 +1235,10 @@ export const outlines = (
  * omission, and the right one here too: an inbox nobody can read is still the
  * inbox, and `create`-ing a second one over it would be the worse answer.
  */
-export const paths = (set: OutlineSet): PathsAnswer => ({ paths: outlinePaths(set) })
+export const paths = (claims: Claims, outlineRow: string, set: OutlineSet): PathsAnswer => ({
+  paths: outlinePaths(set), outlineRow,
+  claims: [...claims.byKind.values()].map(({ format: _format, ...claim }) => claim),
+})
 
 // ── the documents ──────────────────────────────────────────────────────
 
@@ -1298,16 +1302,17 @@ export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
  * file, then read it.
  */
 export const document = (
+  claims: Claims,
   set: OutlineSet,
   file: string,
 ): Result.Result<DocumentBody, OpFailure> => {
   const entry = markdownAt(set, file)
   if (entry === undefined) {
     return Result.fail(
-      noSuchDocument(set, file, "`markdown_index` says what is"),
+      noSuchDocument(claims, set, file, "`markdown_index` says what is"),
     )
   }
   const broken = brokenIn(set, file)
-  if (broken !== undefined) return Result.fail(notLoaded(file, broken))
+  if (broken !== undefined) return Result.fail(notLoaded(claims, file, broken))
   return Result.succeed({ file, text: entry.body })
 }

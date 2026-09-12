@@ -1,3 +1,4 @@
+import type { Claims } from "@olai/format"
 import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * A node's `doc`, wherever that node is drawn.
@@ -42,6 +43,7 @@ import { isServed, useDocument } from "./documents.tsx"
 import { atFile } from "olai-plugin-navigation/routes"
 
 export function DocRef(props: {
+  readonly claims: Claims
   /** The document's path, resolved against the outline that named it. */
   readonly file: string
   /** Draw the whole document, not a line of it. */
@@ -112,6 +114,7 @@ export function DocRef(props: {
       <Show when={props.inline === true ? servedBody() : undefined}>
         {(served) => (
           <Markdown
+            claims={props.claims}
             /* THE PROSE: a document's `---` block is its own record and is not
                drawn, and the strip is spent here rather than in the pipeline
                because this is where the source is known to be a whole FILE

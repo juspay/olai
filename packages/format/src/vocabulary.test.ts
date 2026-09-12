@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The tag vocabulary of a set, and which of it a prefix means.
  *
@@ -23,7 +24,7 @@ import {
   vocabularyOf,
 } from "./vocabulary.ts"
 
-const set = (contents: string) => derive(nodesOf(contents))
+const set = (contents: string) => derive(TEST_CLAIMS, nodesOf(contents))
 
 const written = (tags: ReadonlyArray<TagUse>): ReadonlyArray<string> =>
   tags.map((tag) => tagText({ sigil: tag.sigil, tag: tag.name }))
@@ -111,7 +112,7 @@ test("a name written with both sigils is two tags, each counted its own way", ()
 // page that draws none of the trash — so a count that included it would promise
 // rows the reader cannot be shown.
 test("what is in the trash is not counted, and a tag only it used is not offered", () => {
-  const withArchive = derive(nodesOfFiles({
+  const withArchive = derive(TEST_CLAIMS, nodesOfFiles({
     "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
     "_olai/Trash.olai": [
       `{"id":"old","ord":"a0","title":"the old kitchen #home"}`,
@@ -124,7 +125,7 @@ test("what is in the trash is not counted, and a tag only it used is not offered
 })
 
 test("a leftover Archive.olai is not counted in the live vocabulary either", () => {
-  const withLeftover = derive(nodesOfFiles({
+  const withLeftover = derive(TEST_CLAIMS, nodesOfFiles({
     "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
     "Archive.olai": [
       `{"id":"old","ord":"a0","title":"the old kitchen #home"}`,

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What a piecemeal commit is going to name — the one piece of the panel that is
  * an argument rather than a layout.
@@ -55,7 +56,7 @@ const over = <A>(
 ): A =>
   createRoot((dispose) => {
     const [pending, setPending] = createSignal(value)
-    const answer = use(createSelection(pending), setPending)
+    const answer = use(createSelection(() => TEST_CLAIMS, pending), setPending)
     dispose()
     return answer
   })

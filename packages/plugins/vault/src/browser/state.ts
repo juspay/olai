@@ -1,3 +1,5 @@
+import type { Effect } from "effect"
+import type { Body, OutlineDiff } from "../file-surface.ts"
 /**
  * WHAT A SERVED DIRECTORY IS, as a type — and how a consumer holds one.
  *
@@ -16,7 +18,10 @@ import type { Accessor } from "solid-js"
 import { heldService } from "@olai/ui-primitives/held.ts"
 
 import type { createDirectory } from "./directory.ts"
-export type Directory = ReturnType<typeof createDirectory>
+export type Directory = ReturnType<typeof createDirectory> & {
+  readonly body: (path: string) => Effect.Effect<Body, unknown>
+  readonly outlineDiff: (path: string, oldText: string | null, newText: string) => Effect.Effect<OutlineDiff, unknown>
+}
 
 /** One consumer's readings of the served set: the directory itself, every
  *  served path, and which revision one file is at. */

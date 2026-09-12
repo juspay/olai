@@ -1,3 +1,4 @@
+import type { Claims } from "@olai/format"
 import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 import { TESTID } from "olai-plugin-files/testids"
 /**
@@ -26,7 +27,7 @@ import { TESTID } from "olai-plugin-files/testids"
  * compile error here.
  */
 
-import type { FileKind } from "@olai/format"
+
 
 
 
@@ -34,9 +35,9 @@ import type { FileKind } from "@olai/format"
  *  because a step that says "the documents listed are …" is asking about ONE
  *  kind, and a shared id would make that step quietly true of a directory
  *  holding something else. */
-export const ROW_TESTID: Record<FileKind, TestId> = {
-  outline: TESTID.outlineLink,
-  document: TESTID.documentLink,
+export const ROW_TESTID: Record<string, TestId> = {
+  olai: TESTID.outlineLink,
+  markdown: TESTID.documentLink,
   hypertext: TESTID.hypertextLink,
   csv: TESTID.csvLink,
   image: TESTID.imageLink,
@@ -83,9 +84,9 @@ interface Named {
   readonly article: string
 }
 
-export const NAMED: Record<FileKind, Named> = {
-  outline: { noun: "outline", article: "an" },
-  document: { noun: "document", article: "a" },
+export const NAMED: Record<string, Named> = {
+  olai: { noun: "outline", article: "an" },
+  markdown: { noun: "document", article: "a" },
   hypertext: { noun: "page", article: "a" },
   csv: { noun: "csv", article: "a" },
   image: { noun: "image", article: "an" },
@@ -95,5 +96,7 @@ export const NAMED: Record<FileKind, Named> = {
 /** ONE of them — "an outline", "a page". Beside the table rather than in the
  *  sentence that spends it twice (`./completing.ts`'s refusal names two kinds
  *  in one breath), so how the two fields go together is written down once. */
-export const oneNamed = (kind: FileKind): string =>
-  `${NAMED[kind].article} ${NAMED[kind].noun}`
+export const oneNamed = (claims: Claims, kind: string): string => {
+  const claim = claims.byKind.get(kind)
+  return claim === undefined ? "a file" : `${claim.article} ${claim.noun}`
+}

@@ -1,3 +1,4 @@
+import type { Claims } from "./kinds.ts"
 /**
  * Phase two of the codec: the one whole-set validator.
  *
@@ -101,6 +102,7 @@ import {
   reportDuplicateIds,
   reportMirrorCycles,
   reportOf,
+  reportConventions,
   reportParentCycles,
   reportParents,
   reportPropValues,
@@ -138,6 +140,7 @@ import { blamed, type Verdict } from "./verdict.ts"
  * claim this paragraph made while the patcher was still ahead of it.
  */
 export interface Reading {
+  readonly claims: Claims
   readonly set: OutlineSet
   readonly derived: Derived
   /**
@@ -194,6 +197,7 @@ export interface Previous {
  * with no kolu should say about the word.
  */
 export const validate = (
+  claims: Claims,
   set: OutlineSet,
   previous?: Previous,
   kinds: KindVocabulary = NO_KINDS,
@@ -203,7 +207,7 @@ export const validate = (
   // — and so the browser derives the tree from the same code. It LEAVES with
   // the verdict ({@link Reading}) rather than being dropped here: the caller
   // that publishes what this approves has no second corpus to walk.
-  const view = viewOf(set, previous)
+  const view = viewOf(claims, set, previous)
   const derived = view.derived
 
   // THE NARROWED ARM, AND ITS ANSWER IS THE ANSWER. This is the flip
@@ -236,9 +240,9 @@ export const validate = (
   // healthy file into a withheld one resolved when it was judged and dangles
   // when it is drawn, and the next validation starts from the full decoded set
   // again and reaches the same verdict.
-  const report = reportOf(set, ledger.errors)
+  const report = reportOf(set, [...ledger.errors, ...reportConventions(claims, set)])
   const answer: Reading = report.length === 0
-    ? { set, derived, pointing: view.pointing }
+    ? { claims, set, derived, pointing: view.pointing }
     : degraded(set, view, blamed(report))
 
   // WHAT THIS VALIDATION LEAVES FOR THE NEXT ONE, filed under the view it
@@ -278,12 +282,13 @@ const degraded = (
   view: Taken,
   broken: ReadonlyArray<BrokenFile>,
 ): Reading => {
-  const withdrawn = withheld(set, broken)
+  const withdrawn = withheld(view.derived.claims, set, broken)
   // Nothing moved — a directory whose only trouble is a file that would not
   // parse, which `assemble` had already withheld. The judged view is a view of
   // this set, so there is nothing to patch and nothing to re-point.
-  if (withdrawn === set) return { set, derived: view.derived, pointing: view.pointing }
+  if (withdrawn === set) return { claims: view.derived.claims, set, derived: view.derived, pointing: view.pointing }
   return {
+    claims: view.derived.claims,
     set: withdrawn,
     derived: patch(view.derived, {
       upserts: NO_UPSERTS,
@@ -500,9 +505,9 @@ const reached = (one: Reached): void => {
  * with no `previous` at all this is simply "derive a view of this set", which is
  * what a fixture and a test vault want.
  */
-export const reading = (set: OutlineSet, previous?: Previous): Reading => {
-  const view = viewOf(set, previous)
-  return { set, derived: view.derived, pointing: view.pointing }
+export const reading = (claims: Claims, set: OutlineSet, previous?: Previous): Reading => {
+  const view = viewOf(claims, set, previous)
+  return { claims: view.derived.claims, set, derived: view.derived, pointing: view.pointing }
 }
 
 /**
@@ -563,8 +568,9 @@ export const following = (
   const set = withDocuments(read.set, written)
   const view = viewAfter(read.derived, written)
   return {
+    claims: read.claims,
     set,
-    derived: view ?? derive(recordsIn(set)),
+    derived: view ?? derive(read.claims, recordsIn(set)),
     // WHAT POINTS WHERE reads the two SETS rather than the delta, so it is
     // offered whichever way the view went — including the rebuild, since a
     // patcher that declined has said nothing at all about what any file points
@@ -714,7 +720,8 @@ const recordsIn = (set: OutlineSet): ReadonlyArray<Located> =>
  * this is the rebuild that used to happen anyway — one derivation now where a
  * missed file used to cost two.
  */
-const viewOf = (set: OutlineSet, previous: Previous | undefined): Taken => {
+const viewOf = (claims: Claims, set: OutlineSet, previous: Previous | undefined): Taken => {
+  if (previous?.read.claims !== claims) previous = undefined
   // WHAT POINTS WHERE is carried across the same step and by its own rule
   // ({@link ./pointing.ts}). It reads the two SETS rather than the delta, so it
   // is offered whenever a previous reading is — including on the revisions the
@@ -729,7 +736,7 @@ const viewOf = (set: OutlineSet, previous: Previous | undefined): Taken => {
       return { derived: view, pointing, patched: true }
     }
   }
-  return { derived: derive(recordsIn(set)), pointing, patched: false }
+  return { derived: derive(claims, recordsIn(set)), pointing, patched: false }
 }
 
 /** A view, and whether it was PATCHED from the reading this validation follows
@@ -788,4 +795,3 @@ const isSet = (view: Derived, set: OutlineSet): boolean => {
   }
   return true
 }
-

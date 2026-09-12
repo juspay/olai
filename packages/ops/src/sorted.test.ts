@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What a write is CALLED, derived from the write itself.
  *
@@ -30,7 +31,7 @@ const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
  *  it was about. */
 const sorting = (set: OutlineSet, request: Request): Sort | undefined => {
   const at = readingOf(set)
-  const planned = plan(scoping(at, steady(), NO_KINDS), request)
+  const planned = plan(scoping(at, steady(), NO_KINDS, "olai"), request)
   if (Result.isFailure(planned)) {
     throw new Error(
       `expected \`${request.op}\` to plan, and it refused: ${planned.failure.message}`,

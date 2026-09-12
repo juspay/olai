@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT A SCOPED QUERY COSTS, before and after `perf-filter-scope` — both arms
  * in one run, on one corpus, on the reader's own machine.
@@ -98,7 +99,7 @@ const vault = (): ReadonlyArray<Located> => {
   return records
 }
 
-const set: Derived = derive(vault())
+const set: Derived = derive(TEST_CLAIMS, vault())
 
 /** One arm: the same queries over the same scope, one walk each. */
 const asking = (

@@ -1,10 +1,11 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import type { OutlineError } from "./errors.ts"
 import { FIXTURE_FILE, outlineOf } from "./fixtures.testlib.ts"
-import { parseOutline } from "./parse.ts"
-import { serializeOutline } from "./write.ts"
+import { parseOutline } from "olai-plugin-olai/format"
+import { serializeOutline } from "olai-plugin-olai/format"
 
 /** The errors of a line-level failure. Written as a helper so every test below
  *  reads as "this text, these errors" and nothing else. The other half — "this
@@ -15,7 +16,7 @@ const errorsOf = (
   contents: string,
   file = FIXTURE_FILE,
 ): ReadonlyArray<OutlineError> => {
-  const parsed = parseOutline(file, contents)
+  const parsed = parseOutline(file, contents, TEST_CLAIMS)
   if (Result.isSuccess(parsed)) {
     throw new Error(`expected \`${contents}\` to be rejected, but it parsed`)
   }
@@ -414,7 +415,7 @@ test("blank lines are skipped without shifting line numbers", () => {
 test("one bad line yields no nodes from the whole file", () => {
   const parsed = parseOutline(
     "a.olai",
-    `{"id":"a","ord":"a","title":"t"}\n{"id":"b",\n{"id":"c","ord":"c","title":"t"}`,
+    `{"id":"a","ord":"a","title":"t"}\n{"id":"b",\n{"id":"c","ord":"c","title":"t"}`, TEST_CLAIMS
   )
   expect(Result.isFailure(parsed)).toBe(true)
   if (Result.isSuccess(parsed)) throw new Error("unreachable")

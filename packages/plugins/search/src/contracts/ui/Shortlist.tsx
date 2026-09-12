@@ -1,3 +1,4 @@
+import type { Claims } from "@olai/format"
 /**
  * A BOX AND THE NODES IT FINDS — the whole of "search the set, walk the
  * answers, take one", as one thing.
@@ -88,6 +89,7 @@ export interface ShortlistTestids {
 }
 
 export function Shortlist(props: {
+  readonly claims: Claims | undefined;
   /**
    * THE READING, HANDED IN — this door's one acquisition, made the caller's.
    *
@@ -339,6 +341,7 @@ export function Shortlist(props: {
               classList={{ "opacity-60": verdicts()[index] !== null }}
             >
               <Result
+                claims={props.claims}
                 label={row(index).label}
 
                 place={row(index).place}

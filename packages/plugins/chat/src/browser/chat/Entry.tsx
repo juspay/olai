@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 /**
  * One row of the conversation, and the six things it can be.
  *
@@ -402,6 +403,7 @@ export function Entry(props: {
               what is inside it belongs to no component at all. */
           <div ref={said}>
             <Markdown
+            claims={servedDirectory()?.claims()}
               source={shown()}
               from={AGENT_WROTE_IT}
               live={agent().streaming === true}

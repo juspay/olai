@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 /**
  * What is waiting, in olai's words — and the two verbs that deal with it.
  *
@@ -75,7 +76,7 @@ export function Panel(props: {
 }) {
   const pending = () => props.commit.pending()
   const ready = () => isReady(pending().repo)
-  const selection = createSelection(pending, preparation.dropped)
+  const selection = createSelection(() => servedDirectory()?.claims(), pending, preparation.dropped)
 
   /**
    * The draft: the composed suggestion until somebody types, and theirs

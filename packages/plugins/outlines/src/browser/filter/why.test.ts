@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * Why a row is drawn, as the three things a filtered page says about it.
  *
@@ -41,7 +42,7 @@ import { createNarrowing } from "./narrowing.ts"
 const NOTE =
   "Two ways to go: walnut, six weeks — or birch, in stock. Measure the alcove before ordering."
 
-const derived = derive(nodesOfFiles({
+const derived = derive(TEST_CLAIMS, nodesOfFiles({
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":true}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","desc":"${NOTE}"}`,

@@ -17,7 +17,7 @@ const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
 const opening = (root: string, options: { readonly format?: string; readonly ledger?: Ledger } = {}) => Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "" })
   yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
-  yield* mountBundle(plugins.host, [...selectFixtureRows(["vault"]), ...(options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }])], "test-minimal")
+  yield* mountBundle(plugins.host, [...selectFixtureRows(["vault", "olai"]), ...(options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }])], "test-minimal")
   /**
    * A LEDGER ARRIVES THE WAY GIT'S DOES — registered through `VaultViews` by a
    * row that named it — rather than provided over the host's head. The vault
@@ -110,18 +110,14 @@ test("a non-directory root fails only its vault row", () => Effect.runPromise(Ef
   expect(store()).toBeUndefined()
 }))))
 
-test("an unsupported format fails the row before it acquires a directory or gate", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+test("an absent configured format leaves the vault readable and refuses only the mint", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const root = rootWithNote()
-  const invalid = yield* opening(root, { format: "org" })
-  const row = (yield* reportBundle(invalid.plugins.host, ["vault"])).get("vault")
-  expect(row?.state).toBe("failed")
-  expect(row?.state === "failed" ? row.fault : undefined).toContain("olai")
-  expect(invalid.store()).toBeUndefined()
-  expect(offered(invalid.plugins.host, OpsDoor)).toBeUndefined()
-  // A supported row can still acquire the same directory: schema refusal did
-  // not claim its lock, even briefly, or leave a store behind.
-  const valid = yield* opening(root)
-  expect(valid.store()).toBeDefined()
+  const opened = yield* opening(root, { format: "missing-format" })
+  expect(opened.store()).toBeDefined()
+  expect(offered(opened.plugins.host, OpsDoor)).toBeDefined()
+  const refusal = yield* Effect.flip(opened.ops.run({ op: "create", file: "New.olai" }, "web"))
+  expect(refusal._tag).toBe("UsageFailure")
+  expect(refusal.message).toContain("the missing-format row is off")
 }))))
 
 test("vault teardown drains an accepted write before releasing the directory lock", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {

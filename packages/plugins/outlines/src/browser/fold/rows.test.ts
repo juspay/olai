@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * What a row folds BY — which is the whole of the 2026-08-13 ruling, as a
  * question about values: the node rather than the place, the node a row SHOWS
@@ -30,7 +31,7 @@ const GARDEN = [
   `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil"}`,
 ].join("\n")
 
-const derived = derive(
+const derived = derive(TEST_CLAIMS,
   recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })),
 )
 

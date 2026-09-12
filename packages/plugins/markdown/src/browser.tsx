@@ -95,10 +95,11 @@ export const components = {
       return dispose
     })), dispose => Effect.sync(dispose))
   })}),
-  references: definePlugin({ name: "references", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {
+  references: definePlugin({ name: "references", needs: [browserState, rendererSlots, fileAccess], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots
-    yield* slots.contribute(documentReferences, DocRef)
-    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && fileKind(meaning.file) !== "outline" ? atFile(meaning.file) : undefined)
+    const served = yield* fileAccess
+    yield* slots.contribute(documentReferences, props => <DocRef {...props} claims={served.claims()} />)
+    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && served.kindOf(meaning.file) !== null && served.claims().byKind.get(served.kindOf(meaning.file)!)?.holds !== "nodes" ? atFile(meaning.file) : undefined)
   }) }),
   content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks, fileLinks], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots
@@ -118,7 +119,7 @@ export const components = {
     // (`./browser/routing.ts`).
     const router = yield* navigation
     yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
-    yield* slots.contribute(content, { matches: route => documentFile(route) !== undefined, Page: MarkdownPageView }, {children:[documentBodies, properties]})
+    yield* slots.contribute(content, { matches: route => documentFile(served.claims(), route) !== undefined, Page: MarkdownPageView }, {children:[documentBodies, properties]})
     yield* slots.contribute(documentBodies, EmbeddedDocument)
   }) }),
   files: definePlugin({ name: "files", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {

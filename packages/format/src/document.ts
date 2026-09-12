@@ -42,31 +42,11 @@
  * review comment with.
  *
  * THE ARMS ARE SHAPES AND THE TAGS ARE KINDS, which is what the viewers made
- * visible: four of the six kinds are a face and nothing else — a `.html`, a
- * `.csv`, a picture, a `.pdf` — so they share the {@link Unkept} arm and each
- * carries its own tag, read off the registry's own `UnkeptKind`. Sharing the
- * arm is not sharing the answer: a caller still switches on `kind` and still
- * gets the registry's word for the file.
- *
- * THE TAG IS THE SUFFIX SAID TWICE, and that is a decision reversed rather
- * than an oversight. What this replaced carried no tag at all, on the argument
- * that "`fileKind` already answers that from the path, and `decode` branched
- * on that same answer to produce this — so a tag would be a second answer that
- * could disagree with the name" (`./set.ts`, before PR 2). That argument is
- * still true and it is outweighed: a union told apart by which FIELDS it
- * happens to carry is not exhaustively checkable — a reader writes `"nodes" in
- * document` and the compiler has nothing to say about the case they forgot,
- * which is precisely how a feature came to handle records and skip everything
- * else. What keeps the two from disagreeing is that a caller never picks the
- * arm: both constructors below read the registry, so the tag is
- * `fileKind`'s answer carried on the value rather than a second one.
- *
- * The names of the arms are the MODEL's and the discriminants are the
- * REGISTRY's, and that is worth saying once because they do not match:
- * {@link Markdown} is `kind: "document"`, because "document" is what the
- * registry has always called a `.md` and this sum is what the model calls all
- * three. Renaming either half would be renaming it everywhere it is already
- * spelled — the table, the wire, the tool descriptions an agent reads.
+ * visible: rows whose content is not kept share the {@link Unkept} arm.
+ * The `kind` field is the claiming row's id. The structural discriminants
+ * are `holds` and `kept`, so another row can hold nodes or text without any
+ * consumer learning its name. Constructors take the Claims snapshot that
+ * admitted the file and carry those facts onto the value.
  *
  * {@link Unkept} is the arm with nothing but a face, and its emptiness is a
  * decision recorded rather than a gap: those four are the files olai only ever
@@ -116,7 +96,7 @@ import { Custom } from "./custom.ts"
 import { tagsIn, writtenTags } from "./derive.ts"
 import { frontmatterIn, proseIn } from "./frontmatter.ts"
 import { bytesOf, firstLine, linksIn, recordLinks } from "./documents.ts"
-import { fileKind, UNKEPT_KINDS, stemOf } from "./kinds.ts"
+import { fileKind, type Claims, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
 import { slugsIn } from "./slug.ts"
 
@@ -223,7 +203,8 @@ export const faceOf = ({ path, title, links, tags, props }: Document): Face => (
  * (`./derive.ts`, `./patch.ts`) are keyed on what the record says about itself.
  */
 export const Outline = Schema.Struct({
-  kind: Schema.Literal("outline"),
+  kind: Schema.String,
+  holds: Schema.Literal("nodes"),
   ...Face.fields,
   nodes: Schema.Array(Located),
 })
@@ -250,7 +231,9 @@ export type Outline = typeof Outline.Type
  * are what `README.md#install` names.
  */
 export const Markdown = Schema.Struct({
-  kind: Schema.Literal("document"),
+  kind: Schema.String,
+  holds: Schema.Literal("text"),
+  kept: Schema.Literal(true),
   ...Face.fields,
   body: Schema.String,
   /**
@@ -299,7 +282,9 @@ export type Markdown = typeof Markdown.Type
  * claim, or miss one it does.
  */
 export const Unkept = Schema.Struct({
-  kind: Schema.Literals(UNKEPT_KINDS),
+  kind: Schema.String,
+  holds: Schema.Literals(["text", "bytes"]),
+  kept: Schema.Literal(false),
   ...Face.fields,
 })
 export type Unkept = typeof Unkept.Type
@@ -318,6 +303,7 @@ export type Document = typeof Document.Type
  * through.
  */
 export const outlineDocument = (
+  claims: Claims,
   file: string,
   nodes: ReadonlyArray<Located>,
 ): Outline => {
@@ -335,7 +321,7 @@ export const outlineDocument = (
     links.push(address)
   }
   for (const located of nodes) {
-    for (const address of recordLinks(located)) add(address)
+    for (const address of recordLinks(claims, located)) add(address)
     if (isMirror(located.node)) continue
     for (const tag of writtenTags(located.node)) {
       if (written.has(tag)) continue
@@ -344,13 +330,14 @@ export const outlineDocument = (
     }
   }
   return {
-    kind: "outline",
+    kind: fileKind(claims, file) ?? (() => { throw new Error(`unclaimed outline: ${file}`) })(),
+    holds: "nodes",
     path: pathOf(file),
     // The FILENAME, which is what an outline has always been called: every
     // sidebar entry, every breadcrumb and every commit subject already spells
     // the stem, and this is that answer given a field rather than re-derived
     // per drawing.
-    title: stemOf(file),
+    title: stemOf(claims, file),
     links,
     tags,
     // A FILE writes no properties of its own here: an outline's named facts
@@ -377,21 +364,15 @@ export const outlineDocument = (
  * file arrives as an empty one ({@link ./set.ts}'s `assemble` says why): a
  * document the set holds a place for and no content.
  */
-export const bodiedDocument = (file: string, text: string | null): Markdown | Unkept => {
+export const bodiedDocument = (claims: Claims, file: string, text: string | null): Markdown | Unkept => {
   const path = pathOf(file)
-  // THE KIND, and not `unkept` beside it, which a review proposed and this
-  // line answers: which arm a file lands on is the KIND's own question, and the
-  // tag it carries is that same answer rather than a second one. `unkept` asks
-  // a different question — does the set keep this file's BYTES — and branching
-  // on it would file a kept bodied kind under this arm's name the day one
-  // arrives. What is handed over below is `Exclude<BodyKind, "document">`,
-  // which is assignable to `UnkeptKind` exactly while `document` is the only
-  // bodied kind the set keeps: the day it is not, this line goes red rather
-  // than lying.
-  const kind = fileKind(file)
-  if (kind !== null && kind !== "outline" && kind !== "document") {
-    return { kind, path, title: stemOf(file), links: [], tags: [], props: {} }
+  const kind = fileKind(claims, file)
+  const claim = kind === null ? undefined : claims.byKind.get(kind)
+  if (claim === undefined || claim.holds === "nodes") throw new Error(`not a claimed body: ${file}`)
+  if (!claim.kept) {
+    return { kind: claim.kind, holds: claim.holds, kept: false, path, title: stemOf(claims, file), links: [], tags: [], props: {} }
   }
+  if (claim.holds !== "text") throw new Error(`cannot retain binary content: ${file}`)
   const body = text ?? ""
   // THE PROSE, ONCE — the body with any frontmatter taken off
   // ({@link ./frontmatter.ts}). Two of the four readings below ask for it here
@@ -403,13 +384,15 @@ export const bodiedDocument = (file: string, text: string | null): Markdown | Un
   // bullet.
   const prose = proseIn(body)
   return {
-    kind: "document",
+    kind: claim.kind,
+    holds: "text",
+    kept: true,
     path,
     // The first line, and the FILENAME when there is none — an empty document
     // and one that opens with a picture both have a name on screen, and the
     // name they have is the one the sidebar already draws.
-    title: firstLine(body) || stemOf(file),
-    links: linksIn(file, prose),
+    title: firstLine(body) || stemOf(claims, file),
+    links: linksIn(claims, file, prose),
     tags: tagsIn(prose),
     // The record a document is allowed to write about itself, and the one
     // field of this face that is not derived from prose at all.
@@ -433,13 +416,13 @@ export const bodiedDocument = (file: string, text: string | null): Markdown | Un
  * `body` to be `null`, it has no body.
  */
 export const bodyOf = (document: Document): string | null =>
-  document.kind === "document" ? document.body : null
+  isMarkdown(document) ? document.body : null
 
 /** Whether a document is an outline — the narrowing every reader of the nodes
  *  goes through, named once rather than spelled as a `kind` test wherever it is
  *  wanted (`isMirror`, `./node.ts`, is the same move one level down). */
 export const isOutline = (document: Document): document is Outline =>
-  document.kind === "outline"
+  document.holds === "nodes"
 
 /** ...and its complement, which is the other half of the same narrowing: every
  *  file the set keeps a body SLOT for, whether or not it keeps the bytes. Named
@@ -449,7 +432,7 @@ export const isOutline = (document: Document): document is Outline =>
  *  `@olai/surface`'s `projection.ts`) — because a list and a membership test that came to disagree
  *  would be a collection whose keys and whose deltas were about different files. */
 export const isBodied = (document: Document): document is Markdown | Unkept =>
-  document.kind !== "outline"
+  document.holds !== "nodes"
 
 /** ...and the NARROWER of the two body questions: a `.md`, never a `.html`.
  *  What a `doc` may point at, which is a different question from "has a body"
@@ -460,7 +443,7 @@ export const isBodied = (document: Document): document is Markdown | Unkept =>
  *  disagree would be a carry checked against a different question from the one
  *  it answers, which is {@link isBodied}'s own reason for existing. */
 export const isMarkdown = (document: Document): document is Markdown =>
-  document.kind === "document"
+  document.holds === "text" && document.kept
 
 /** The path, BRANDED — a value this module has judged by the one thing that
  *  makes a path nameable, which is the registry claiming its suffix. Every

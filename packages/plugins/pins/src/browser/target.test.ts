@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE TWO SIDES OF ONE TITLE, held against each other — and the exact shape of
  * the relation between them, which is NOT equality.
@@ -91,7 +92,7 @@ test("where the app's own parser reads a node, the server read the same node", (
   for (const title of TITLES) {
     const named = nodeIn(title)
     if (named === undefined) continue
-    expect([title, pinTargetIn(title)]).toEqual([title, named])
+    expect([title, pinTargetIn(TEST_CLAIMS, title)]).toEqual([title, named])
   }
 })
 

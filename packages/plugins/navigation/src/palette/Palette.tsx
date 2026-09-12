@@ -1,3 +1,4 @@
+import { fileClaims } from "../pages.ts"
 import type {} from "olai-plugin-search/box"
 import { paletteOnly } from "../faces.ts"
 import { TESTID } from "olai-plugin-navigation/testids"
@@ -1013,6 +1014,7 @@ export function Palette(props: {
                     {(item, index) => (
                       <li>
                         <Result
+                          claims={fileClaims()}
                           label={item().label}
 
                           from={item().from}

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE TWO COUNTS, OFF THE INDEX AND OFF THE WALK, AFTER EVERY REAL WRITE.
  *
@@ -54,7 +55,7 @@ import { dated, owed } from "./readings.ts"
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
  *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 /** Work spread over days either side of the todays below, in two outlines so a
  *  count of NODES cannot be satisfied by a count of files — plus the shapes
@@ -220,7 +221,7 @@ test("every write leaves the counted door answering what the corpus walk does", 
 
   return Effect.gen(function*() {
     const store = yield* StoreModule.make({ root, codec, watch: false, settle: "10 millis" })
-    const ops = make({
+    const ops = make({claims: { current: TEST_CLAIMS }, format: "olai",
       store,
       root,
       context: steady(),

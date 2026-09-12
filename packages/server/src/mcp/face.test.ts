@@ -102,6 +102,9 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     yield* provide(plugins.host, VaultBoot, () => ({root, runtime: runtimePaths}))
     yield* settled(plugins.host, ["vault", ...CONTENT_ROWS])
     const store = offered(plugins.host, Directory)!.store as Store
+    // Settlement mounts readers; the probe is a separate owned fiber. Wait
+    // for this fixture's complete claims to be reflected before asking MCP.
+    yield* store.refresh("verified")
     // A real ops layer with commits OFF: this face is about READING, and `off`
     // is the one mode that asks git nothing at all. The edit procedures are
     // bound to it too and this face exposes none of them, so what they cost
@@ -355,7 +358,7 @@ test("reading the documents collection costs the PATHS, not the bodies", async (
     // Every BODIED file, `.html` included — the key set is what the sidebar and
     // an agent both read, and a file whose body the server does not keep is
     // still a file it serves.
-    expect(JSON.parse(text)).toEqual(["manual.md", "saved.html"])
+    expect(JSON.parse(text)).toEqual(["manual.md"])
     // The same fence as the outlines one, on the member that motivated the rule.
     // `manifest` used to carry these bodies whole; the collection is what
     // `snapshot-scale` cut them into, and this is the assertion that says the
@@ -379,19 +382,25 @@ test("one document item is that document's body, fetched only when asked", async
   })
 }, 30_000)
 
-// The same read, of the file whose body the server does NOT keep — and the
-// sharp edge it walks. A `resources/read` is ONE SHOT: it takes the first frame
-// of the item and leaves. So a server that answered "here is the key, the body
-// is coming" would hand an agent an empty document and call it the file. It
-// answers nothing until the read has landed instead, and the first frame is the
-// page.
-test("one saved page is read from disk for the agent that asks for it", async () => {
+test("a saved page is absent from markdown's document resources", async () => {
   await withFace(async ({ client }) => {
-    const entry = await readJson(
-      client,
-      "surface://collections/markdown/documents/saved.html",
-    ) as { text: string | null }
+    await expect(readJson(client, "surface://collections/markdown/documents/saved.html")).rejects.toThrow("not present")
+  })
+}, 30_000)
 
-    expect(entry.text).toBe(SAVED)
+
+test("the vault reads an unkept text body on demand and refuses kept and unclaimed paths", async () => {
+  await withFace(async ({ client, root }) => {
+    const read = async (path: string) => {
+      const result = await client.callTool({ name: "vault_bodies_get", arguments: { path } })
+      expect(result.isError).not.toBe(true)
+      const content = result.content as ReadonlyArray<{ text: string }>
+      return JSON.parse(content[0]!.text)
+    }
+    expect(await read("saved.html")).toEqual({ text: SAVED, refused: false })
+    fs.writeFileSync(path.join(root, "saved.html"), "changed at the next read")
+    expect(await read("saved.html")).toEqual({ text: "changed at the next read", refused: false })
+    expect(await read("manual.md")).toEqual({ text: null, refused: true })
+    expect(await read("unclaimed.txt")).toEqual({ text: null, refused: true })
   })
 }, 30_000)

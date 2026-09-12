@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE DIFFERENTIAL: one op corpus, two publishing paths, and a fake subscriber
  * that reports every way the frames it was handed differ.
@@ -72,7 +73,7 @@ import {
   bodyOf,
   type BrokenFile,
   faceOf,
-  FILE_KINDS,
+
   nodesOf,
   outlinesIn,
   type Reading,
@@ -120,7 +121,6 @@ export interface Published {
    *  something here can read — `markdown`'s own second answer, carried on the
    *  composite because the walk below produces it too and the two are held to
    *  the same list. */
-  readonly unread: ReadonlyArray<string>
 }
 
 /** What both sides are: a revision, and the revision the wire is holding.
@@ -154,7 +154,6 @@ export const publishedOf: Projection = (snapshot, published) => {
     outlines: outlineProjection(snapshot, files && { files, change: published!.outlines }).change,
     documents: documents.change,
     heads: headProjection(snapshot, files && { files, change: published!.heads }).change,
-    unread: documents.unread,
   }
 }
 
@@ -221,8 +220,8 @@ const walkedDocumentsOf = (
   snapshot: Snapshot<Reading>,
   held: Published | null,
   broken: ReadonlyMap<string, BrokenFile>,
-): Pick<Published, "documents" | "unread"> => {
-  const documents = bodiedIn(snapshot.value.set)
+): Pick<Published, "documents"> => {
+  const documents = bodiedIn(snapshot.value.set).filter(document => document.kind === "markdown")
   const change = walkedChangeOf(
     documents,
     (document) => document.path,
@@ -234,16 +233,7 @@ const walkedDocumentsOf = (
     snapshot,
     held?.documents,
   )
-  const upserts: Array<readonly [string, DocumentEntry]> = []
-  const unread: Array<string> = []
-  for (const [path, entry] of change.upserts) {
-    if (entry.text !== null) upserts.push([path, entry])
-    else {
-      if (textKind(path) !== null) unread.push(path)
-      if (held?.documents.entries.has(path) !== true) upserts.push([path, entry])
-    }
-  }
-  return { documents: { ...change, upserts }, unread }
+  return { documents: change }
 }
 
 /** The rule, as it stood, PLUS the mint: every source walked, every key
@@ -402,7 +392,7 @@ const readingOf = (vault: ReadonlyMap<string, string>): Reading => {
       }])),
     )
   }
-  return reading(assemble(decoded))
+  return reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded))
 }
 
 // ── the subscriber ─────────────────────────────────────────────────────
@@ -477,7 +467,6 @@ interface Side {
   readonly readers: ReadonlyMap<Which, Subscriber>
   readonly offered: Array<string>
   readonly kept: Array<string>
-  readonly unread: Array<string>
   /** How many (revision × collection) pairs handed back the very map the last
    *  revision did, and how many minted a new one. Measured rather than assumed:
    *  a corpus that never reused a map would prove the equivalence of nothing. */
@@ -496,7 +485,6 @@ const sideOf = (projection: Projection): Side => ({
   readers: new Map(COLLECTIONS.map((which) => [which, new Subscriber()] as const)),
   offered: [],
   kept: [],
-  unread: [],
   reused: 0,
   rebuilt: 0,
   upserts: 0,
@@ -527,7 +515,6 @@ const step = (side: Side, snapshot: Snapshot<Reading>): Published => {
     side.offered.push(...reader.offered.slice(wasOffered))
     side.kept.push(...reader.kept.slice(wasKept))
   }
-  for (const path of revision.unread) side.unread.push(`rev ${snapshot.rev} unread ${path}`)
   side.held = revision
   return revision
 }
@@ -639,7 +626,6 @@ export const differential = (
   divergences.push(
     ...differing("the delta a reader was offered", was.offered, now.offered),
     ...differing("the delta a reader accepted", was.kept, now.kept),
-    ...differing("the body owed to a reader", was.unread, now.unread),
   )
   for (const which of COLLECTIONS) {
     for (const [side, run] of [["the walk", was], ["the carried map", now]] as const) {
@@ -946,8 +932,8 @@ export const stepsOver = (
   // `endsWith` here would be a second answer to it — which the sweep in
   // `@olai/tests`' `kinds.test.ts` fails a run over. A file with no BODY KIND is
   // an outline, which is `decodedVault`'s own reading one package down.
-  const outlines = files.filter((file) => bodyKind(file) === null)
-  const bodied = files.filter((file) => bodyKind(file) !== null)
+  const outlines = files.filter((file) => bodyKind(TEST_CLAIMS, file) === null)
+  const bodied = files.filter((file) => bodyKind(TEST_CLAIMS, file) !== null)
   const pick = (of: ReadonlyArray<string>): string | undefined =>
     of.length === 0 ? undefined : of[Math.floor(random() * of.length)]
   const gone = new Set<string>()
@@ -1030,7 +1016,7 @@ export const stepsOver = (
               : {
                 writes: [[
                   restored,
-                  bodyKind(restored) === null ? minted(at) : `# restored at ${at}\n`,
+                  bodyKind(TEST_CLAIMS, restored) === null ? minted(at) : `# restored at ${at}\n`,
                 ]],
                 forgotten: [leaving],
               },
@@ -1097,8 +1083,8 @@ const bornAt = (random: () => number, at: number): string => {
  *  kind a path is: `@olai/format`'s `kinds.ts` is the one place that says what
  *  a file of the set is called, and a corpus that spelled one would be a second
  *  answer to it (`@olai/tests`' `kinds.test.ts` sweeps for exactly that). */
-const OUTLINE = FILE_KINDS.outline.exts[0]
-const MARKDOWN = FILE_KINDS.document.exts[0]
+const OUTLINE = TEST_CLAIMS.byKind.get("olai")!.exts[0]
+const MARKDOWN = TEST_CLAIMS.byKind.get("markdown")!.exts[0]
 
 /** `count` of them, spread across the list rather than taken off the front. */
 const sampledFrom = (

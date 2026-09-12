@@ -1,3 +1,5 @@
+import { askedOf } from "./asked.ts"
+import { outlineAt } from "./refusals.ts"
 /**
  * THE GRAMMAR A TOOL IS BUILT IN — the four kinds, what each of them CARRIES,
  * and the doors they reach. Not the list: that left.
@@ -228,7 +230,7 @@ export interface Asking {
  *  captured, so a server left running overnight answers `date:today` with
  *  today. */
 export const asking = (
-  read: Effect.Effect<Reading, OpFailure>,
+  read: Effect.Effect<Reading & { readonly outlineRow: string }, OpFailure>,
   now: () => string,
   /** WHAT A PLUGIN TAUGHT THIS VAULT, for the one question here whose GRAMMAR
    *  reads a declaration: `prop:` decides between a span and an equality by what
@@ -253,7 +255,7 @@ export const asking = (
   outlines: Effect.map(read, (at) => ({
     outlines: Query.outlines(at.set, at.derived),
   })),
-  paths: Effect.map(read, (at) => Query.paths(at.set)),
+  paths: Effect.map(read, (at) => Query.paths(at.claims, at.outlineRow, at.set)),
   // THE SECOND READ THAT CAN REFUSE FROM THE WALK ITSELF — it grew the arm
   // when it grew `fields`: an id that is not there is still the ANSWER
   // (`{ missing }`), and a field nobody may name is a refusal naming the
@@ -278,7 +280,13 @@ export const asking = (
   // reading is taken here and handed through, which is what makes the answer
   // and the candidates behind it one snapshot.
   search: (request) =>
-    Effect.flatMap(read, (at) => search.nodes({ at, query: request, now: now(), kinds })),
+    Effect.flatMap(read, (at) => {
+      if (request.file !== undefined) {
+        const admitted = outlineAt(askedOf(at.claims, at.set), request.file)
+        if (Result.isFailure(admitted)) return Effect.fail(admitted.failure)
+      }
+      return search.nodes({ at, query: request, now: now(), kinds })
+    }),
   documents: Effect.map(read, (at) => ({ documents: Query.documents(at.set) })),
   // THE OTHER READ THAT CAN REFUSE FROM THE WALK ITSELF. Four of the six answer
   // from the snapshot alone, so their envelope is a `map` and the failure
@@ -290,7 +298,7 @@ export const asking = (
   // between this package's pure half and its effectful one is a library call
   // rather than a spelling of one.
   document: (request) =>
-    Effect.flatMap(read, (at) => Effect.fromResult(Query.document(at.set, request.file))),
+    Effect.flatMap(read, (at) => Effect.fromResult(Query.document(at.claims, at.set, request.file))),
 })
 
 /**
@@ -335,6 +343,8 @@ export interface Acting {
  * the same rule {@link asking} keeps for `date:yesterday`.
  */
 export interface Planning {
+  readonly claims: import("@olai/format").Claims
+  readonly outlineRow: string
   readonly paths: ReadonlyArray<string>
   readonly login: string | null
   readonly now: () => string
@@ -670,5 +680,3 @@ export const plan = <S extends Arguments>(
   kind: "plan",
   plan: resolve,
 })
-
-

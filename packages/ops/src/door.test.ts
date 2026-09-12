@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The remaining session rule as a pure plan judgement.
  *
@@ -53,7 +54,7 @@ const forbidden = new Map([[SEATING, SAYS_SEATS], [APPROVAL, SAYS_APPROVES]])
 
 const asked = (request: Request, keys: ReadonlyMap<string, string> = forbidden) => {
   const at = readingOf(vault())
-  const planned = plan(scoping(at, steady(), NO_KINDS), request)
+  const planned = plan(scoping(at, steady(), NO_KINDS, "olai"), request)
   if (Result.isFailure(planned)) throw new Error(planned.failure.message)
   return barred(keys, at.derived, planned.success)
 }
@@ -138,7 +139,7 @@ describe("file-scoped agent reservation", () => {
         ...(value === undefined ? {} : { custom: { on: value } }) }),
       "notes.olai": '{"id":"notes","ord":"a0","title":"notes"}',
     }))
-    const result = plan(scoping(at, steady(), NO_KINDS), request)
+    const result = plan(scoping(at, steady(), NO_KINDS, "olai"), request)
     if (Result.isFailure(result)) throw new Error(result.failure.message)
     return barred(keys, at.derived, result.success, at.set.documents.map(one => one.path))
   }

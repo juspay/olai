@@ -148,7 +148,7 @@ Feature: Pinning a page to the sidebar
     Then the palette asks "a name for this pin — Enter with nothing takes the name off"
     When I name the pin "Kitchen project"
     Then the pin "/#order" is named "Kitchen project"
-    And "Pins.olai" holds a node titled "[Kitchen project](/#order)"
+    And "_olai/Pins.olai" holds a node titled "[Kitchen project](/#order)"
     When I press "ControlOrMeta+z"
     # Back to a bare address, which is drawn by what it points at — live.
     Then the pin "/#order" is named "order the new cabinets"
@@ -204,7 +204,7 @@ Feature: Pinning a page to the sidebar
     Given the directory has the pins:
       | /finishes.md |
       | /#order         |
-    When I open the outline "Pins.olai"
+    When I open "_olai/Pins.olai" from the vault group
     Then the node "p0" reads "finishes.md"
     And the node "p1" reads "order the new cabinets"
     # …and it is still the address underneath: what the editor opens is the
@@ -224,7 +224,7 @@ Feature: Pinning a page to the sidebar
     Then the pin "/#order" is named "Kitchen project"
     And the pin "/agenda?q=is%3Atodo" is named "What is late"
     And the pin "/agenda?q=is%3Atodo" carries the query "is:todo"
-    When I open the outline "Pins.olai"
+    When I open "_olai/Pins.olai" from the vault group
     # Marked HERE: opening an outline is a real navigation, so the claim below
     # is about the LABEL press and nothing before it.
     And I mark the page
@@ -241,7 +241,7 @@ Feature: Pinning a page to the sidebar
     Given the directory has the pins:
       | [Kitchen #home](/#order) |
     Then the pin "/#order" is named "Kitchen #home"
-    When I open the outline "Pins.olai"
+    When I open "_olai/Pins.olai" from the vault group
     Then the node "p0" reads "Kitchen #home"
     And the node "p0" draws no tag
 

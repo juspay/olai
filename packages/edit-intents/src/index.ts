@@ -1,3 +1,4 @@
+import { mintExt } from "@olai/format"
 /**
  * What a keyboard — or a menu entry — MEANT, in terms of ops.
  *
@@ -110,7 +111,7 @@ export const reresolves = (edit: Edit): boolean =>
  *  added to the surface and not answered here is a compile error, which is the
  *  reason the union is declared beside the procedures rather than inferred
  *  from them. */
-export const requestFor = (at: Reading, edit: Edit): Resolved => {
+export const requestFor = (at: Reading & { readonly outlineRow: string }, edit: Edit): Resolved => {
   switch (edit.verb) {
     case "add":
       return addRequest(at, edit)
@@ -133,7 +134,7 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     // front of them; one that arrived from a phone while nobody was looking
     // has a day page as the only place it will be noticed.
     case "capture":
-      return Result.succeed(captureInto(outlinePaths(at.set), { title: edit.title }))
+      return captureInto(at.claims, at.outlineRow, outlinePaths(at.set), { title: edit.title })
     case "pin":
       return pinRequest(at, edit)
     case "move":
@@ -438,17 +439,19 @@ const mirrorRequest = (
  * what this is.
  */
 const pinRequest = (
-  at: Reading,
+  at: Reading & { readonly outlineRow: string },
   edit: Extract<Edit, { verb: "pin" }>,
 ): Resolved => {
   const title = pinTitle(edit.at, edit.name ?? "")
   if (title === undefined) {
     return Result.fail(new UsageFailure({ reason: PIN_NAME_UNWRITABLE }))
   }
-  const shelf = pinsIn(outlinePaths(at.set))
+  const shelf = pinsIn(at.claims, outlinePaths(at.set))
+  const ext = mintExt(at.claims, at.outlineRow)
+  if (shelf === undefined && ext === null) return Result.fail(new UsageFailure({ reason: `the ${at.outlineRow} row is off, so no outline can be created` }))
   return Result.succeed(
     shelf === undefined
-      ? { op: "create", file: mintedInto(PINS), seed: { title } }
+      ? { op: "create", file: mintedInto(`${PINS}${ext}`), seed: { title } }
       : { op: "add", file: shelf, title },
   )
 }
@@ -493,18 +496,18 @@ const pinRequest = (
  * — what does is a stale tab, and a stale tab deserves the true sentence.
  */
 const emptyTrashRequest = (
-  at: Reading,
+  at: Reading & { readonly outlineRow: string },
   edit: Extract<Edit, { verb: "emptyTrash" }>,
 ): Resolved => {
   const piles = outlinePaths(at.set).filter(
-    (file) => isTrashed(file) && nodesOf(at.derived, file).length > 0,
+    (file) => isTrashed(at.claims, file) && nodesOf(at.derived, file).length > 0,
   )
   if (piles.length === 0) {
     return Result.fail(refusal("the Trash is empty, so there is nothing to delete"))
   }
   return Result.succeed({
     op: "empty",
-    file: TRASH_FILE,
+    file: piles[0]!,
     ...(edit.was === undefined ? {} : { was: edit.was }),
   })
 }

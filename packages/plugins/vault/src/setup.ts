@@ -80,7 +80,10 @@ export const revalidation = definePlugin({
     const directory = (yield* Directory) as OpenDirectory
     const kinds = yield* Kinds
     const fileKinds = yield* FileKinds
-    let previousFiles = fileKinds.current()
+    // A claim can arrive between the first store read and this component's
+    // activation. Compare the replayed pulse to the published reading, not
+    // to a newer table that the store may never have probed.
+    let previousFiles = (yield* directory.store.read("cheap")).snapshot?.value.claims.byKind
     let previous = kinds.current()
     yield* Effect.forkScoped(Stream.runForEach(Stream.merge(kinds.changes, fileKinds.changes), () => Effect.suspend(() => {
       const current = kinds.current()

@@ -56,7 +56,7 @@ const WAKING = {
   subject: "terminal activity",
   from: "terminals from",
   waiting: { one: "line", many: "lines" },
-  kinds: ["outline"] as readonly [string, ...Array<string>],
+  walks: "nodes" as const,
   faults: { gone: "the file left", unwatchable: "not an outline" },
 }
 

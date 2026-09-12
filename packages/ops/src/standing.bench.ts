@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT ONE WRITE COSTS THE SERVER WITH TABS OPEN — the three standing views,
  * timed at one, three and ten subscribers on one question.
@@ -87,7 +88,7 @@ const changing = (path: string): Modelled =>
     one.parent !== null && one.mirror === null
   ) as Modelled
 
-const pageAt = (path: string): PageRequest => ({ kind: "at", address: addressOf(path, null) })
+const pageAt = (path: string): PageRequest => ({ kind: "at", address: addressOf(TEST_CLAIMS, path, null) })
 
 /** The three, as the questions a tab actually holds open. */
 const QUESTIONS: ReadonlyArray<readonly [string, Question]> = [

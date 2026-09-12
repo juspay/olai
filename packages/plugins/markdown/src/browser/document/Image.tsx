@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * A served picture, drawn — one `<img>`, pointed at the file's own URL on the
@@ -52,7 +53,7 @@ export function Image(props: { readonly file: string }) {
          heading of this page, and a screen reader reading it twice is the
          page saying the same thing in two voices. Not empty either — a
          picture that IS the page is never decoration. */
-      alt={stemOf(props.file)}
+      alt={stemOf(servedDirectory()!.claims(), props.file)}
       class="block h-auto max-w-full rounded border border-rule"
       data-testid={TESTID.imageView}
       data-file={props.file}

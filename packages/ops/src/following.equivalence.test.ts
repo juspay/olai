@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE SET A BATCH LEAVES, SPLICED AND ASSEMBLED, AT EVERY OP.
  *
@@ -58,7 +59,7 @@ const start = (): Scope =>
       ),
     ),
     steady(),
-    NO_KINDS,
+    NO_KINDS, "olai"
   )
 
 /** A set as DATA, for comparison: the documents in path order and the broken
@@ -228,7 +229,7 @@ test("a file MINTED mid-batch reaches what carries — the answers move, and the
   // the next op's `add` into it would be refused with a near miss.
   expect(next.success.asked.outlines).not.toBe(outlines)
   expect(next.success.asked.serves.has("notes/plans.olai")).toBe(true)
-  expect(next.success.asked.at("notes/plans.olai")?.kind).toBe("outline")
+  expect(next.success.asked.at("notes/plans.olai")?.holds).toBe("nodes")
   // And the op that follows it lands, which is the sentence that mattered.
   const into = plan(next.success, { op: "add", file: "notes/plans.olai", title: "a first row" })
   expect(Result.isSuccess(into)).toBe(true)
@@ -280,7 +281,7 @@ test("an intermediate context is a value: a later op does not move an earlier on
   // the note it holds for `loose` is the note that op wrote.
   const noteAt = (scope: Scope): string | undefined => {
     const document = scope.asked.at("house.olai")
-    if (document === undefined || document.kind !== "outline") return undefined
+    if (document === undefined || document.holds !== "nodes") return undefined
     const found = document.nodes.find((located) => located.node.id === "loose")
     return found === undefined || "mirror" in found.node ? undefined : found.node.desc
   }

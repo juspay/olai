@@ -16,7 +16,7 @@ import { createMemo,Show } from "solid-js"
 import { Inbox } from "./Inbox.tsx"
 import { capturePalette } from "./Palette.tsx"
 function Entry(props: SidebarRegionProps & {active:()=>string|undefined}) {
- const count=createInboxHeld(); const served = useServed(); const inbox = createMemo(() => inboxIn(served()))
+ const count=createInboxHeld(); const served = useServed(); const inbox = createMemo(() => inboxIn(servedDirectory()!.claims(), served()))
  return <Show when={inbox()}>{file => <Inbox file={file()} isActive={file => props.active() === file} broken={servedDirectory()?.broken().has(file()) === true} count={count().count}/>}</Show>
 }
 export const components={palette:capturePalette}

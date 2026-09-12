@@ -301,8 +301,8 @@ Feature: An agent olai did not start
     # says it was only that: an agent has no frame, so the door it reads a body
     # through has to go on answering with the file.
     #
-    # It is the same collection and the same key the browser subscribes to,
-    # reached the way a `.mcp.json` client reaches it.
+    # The unkept body now belongs to vault.bodies.get, reached as a tool
+    # through the same MCP connection. Markdown owns only its kept documents.
     When I rewrite "quote.html" as:
       """
       <h1>Quote</h1>

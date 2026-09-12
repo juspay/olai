@@ -1,3 +1,4 @@
+import type { Claims } from "@olai/format"
 /**
  * Markdown from a file, on the page — a note, a document, or the agent.
  *
@@ -48,6 +49,7 @@ import { escapeHtml } from "./tags.ts"
 import { busyMark, waitingMark } from "./waiting.ts"
 
 export function Markdown(props: {
+  readonly claims: Claims | undefined
   readonly source: string
   readonly from: string
   readonly class?: string
@@ -63,10 +65,10 @@ export function Markdown(props: {
   const html = createMemo(() =>
     markdownReady()
       ? props.live === true
-        ? renderStreaming(props.source, props.from)
+        ? renderStreaming(props.claims, props.source, props.from)
         : props.landing !== undefined
-          ? renderLineLanding(props.source, props.from, props.landing.line, props.landing.needles)
-          : renderMarkdown(props.source, props.from)
+          ? renderLineLanding(props.claims, props.source, props.from, props.landing.line, props.landing.needles)
+          : renderMarkdown(props.claims, props.source, props.from)
       : undefined
   )
   /** Is this block still WAITING on the renderer — the arrival's own answer

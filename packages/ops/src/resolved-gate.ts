@@ -98,7 +98,7 @@ import { resolvedWrite } from "@olai/ops/resolved"
 export const runResolved = (
   ops: Pick<Ops, "read" | "run">,
   caller: Caller,
-  resolve: (at: Reading) => Result.Result<Request, OpFailure>,
+  resolve: (at: Reading & { readonly outlineRow: string }) => Result.Result<Request, OpFailure>,
   reresolves: boolean,
 ): Effect.Effect<Written, OpFailure> =>
   resolvedWrite(

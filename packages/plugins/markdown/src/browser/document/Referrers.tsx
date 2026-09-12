@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * WHAT POINTS AT THIS DOCUMENT, under its heading — the reverse reading a
@@ -119,7 +120,7 @@ function Section(props: { readonly found: ReadonlyArray<Referrer> }) {
                       (`../markdown/title.ts`) — inside the anchor, so its
                       links stay unwrapped (`links` false). */}
                   <TitleHtml
-                    drawing={renderTitle(row().calls, row().callsFrom, { links: false })}
+                    drawing={renderTitle(servedDirectory()?.claims(), row().calls, row().callsFrom, { links: false })}
                   />
                 </a>
                 {/* WHERE it was written, muted beside it — a title in a list of

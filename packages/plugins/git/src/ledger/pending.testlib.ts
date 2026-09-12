@@ -1,3 +1,5 @@
+import { parsers } from "./parser.testlib.ts"
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * BOTH ARMS OVER ONE REPOSITORY, which is what an equivalence about the
  * committed side needs to be asked of.
@@ -44,7 +46,7 @@ type OutlineStore = StoreModule.Store<Reading, Verdict>
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
  *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 /** One line of an outline, so a corpus and a keystroke are written the same
  *  way. */
@@ -118,8 +120,8 @@ export const withArms = <A>(
       settle: "10 millis",
     })
     const policy = { commit: "manual", push: "off" } as const
-    const cachedSide = counting(remembering())
-    const plainSide = counting(forgetful())
+    const cachedSide = counting(remembering(parsers))
+    const plainSide = counting(forgetful(parsers))
     const at = Effect.map(store.read("cheap"), (s) => s.snapshot?.value ?? null)
     return yield* use({
       session: {
@@ -129,8 +131,8 @@ export const withArms = <A>(
         git,
       },
       settle: Effect.orDie(store.refresh("cheap")),
-      cached: make({ at, root: served, policy, committed: cachedSide.committed }),
-      plain: make({ at, root: served, policy, committed: plainSide.committed }),
+      cached: make({ ops: parsers, at, root: served, policy, committed: cachedSide.committed }),
+      plain: make({ ops: parsers, at, root: served, policy, committed: plainSide.committed }),
       cachedSide,
       plainSide,
       head: headOf,

@@ -1,3 +1,4 @@
+import { holdServed } from "./browser/vault.ts"
 import { Edits, Wired } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
 import { dispatch } from "./surface.ts"
@@ -133,6 +134,8 @@ export const components = {
     yield* holdFaces(yield* Faces)
     // The app's URL grammar, for the routes this page prints and parses
     // (`./browser/routing.ts`).
+    const served = yield* fileAccess
+    yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
     const router = yield* navigation
     yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
     // ...and the clock a date badge is drawn against (`./browser/clock.ts`).
@@ -147,13 +150,13 @@ export const components = {
     // renderer (`./browser/locations.ts`).
     yield* Effect.acquireRelease(Effect.sync(() => holdLocations(slots.read)), stop => Effect.sync(stop))
     yield* slots.contribute(content, {
-      matches: route => route.kind === "plugin" || (route.kind === "at" && (route.address === null || route.address.kind === "node" || fileKind(route.address.path) === "outline")),
+      matches: route => route.kind === "plugin" || (route.kind === "at" && (route.address === null || route.address.kind === "node" || (served.kindOf(route.address.path) === null || served.claims().byKind.get(served.kindOf(route.address.path)!)?.holds === "nodes"))),
       Page: () => <OutlinePageView />,
     }, { children: [...Object.values(slotContracts), datedRows, documentReferences, pageView, titles, propertyRoutes] })
     yield* slots.contribute(datedRows, DatedRow)
     yield* slots.contribute(pageView, OutlinePageView)
     yield* slots.contribute(titles, NodeTitle)
-    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && fileKind(meaning.file) === "outline" ? atFile(meaning.file) : undefined)
+    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && served.claims().byKind.get(served.kindOf(meaning.file) ?? "")?.holds === "nodes" ? atFile(meaning.file) : undefined)
   }) }),
   /** The file controls this row draws, DECLARED — a component of its own so a
    *  page with no files row mounted is a whole page (`./browser/files.tsx`). */

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE SPLICE AGAINST THE REBUILD IT REPLACED.
  *
@@ -346,7 +347,7 @@ const shortly = (members: ReadonlyArray<string>): string => {
  * optimisation but a requirement).
  */
 const viewOf = (corpus: Corpus): Derived =>
-  derive(recordsOf(assemble(
+  derive(TEST_CLAIMS, recordsOf(assemble(TEST_CLAIMS,
     new Map(Object.entries(corpus).map(([file, text]) => [file, decoded(file, text)])),
   )))
 
@@ -389,7 +390,7 @@ const generated = (): ReadonlyArray<Case> => {
 const REAL = ((): Corpus => {
   const outlines: Corpus = {}
   for (const [file, text] of vaultAt(pinnedVault())) {
-    if (fileKind(file) === "outline") outlines[file] = text
+    if (TEST_CLAIMS.byKind.get(fileKind(TEST_CLAIMS, file) ?? "")?.holds === "nodes") outlines[file] = text
   }
   return outlines
 })()

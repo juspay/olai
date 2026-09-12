@@ -1,3 +1,5 @@
+import { claims } from "@olai/format"
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The seam, in the one way it can be got wrong.
  *
@@ -28,7 +30,7 @@ import { codecFor } from "./codec.ts"
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
  *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 type Files = Record<string, string>
 
@@ -174,4 +176,41 @@ test("a file deleted and written back in one breath is what the upsert says", ()
     removed: ["kitchen.olai"],
   })
   expect(reading.derived.byId.get("cook")?.node).toMatchObject({ title: "cook something else" })
+})
+
+
+test("a departed claim is absent on the next probe and cannot survive in-flight validation", () => {
+  const table = { current: TEST_CLAIMS }
+  const live = codecFor(NO_KINDS, table)
+  const path = "Work.olai"
+  const contents = `{"id":"work","ord":"a0","title":"Work"}`
+  expect(live.match(path)).toBe(true)
+  const decoded = live.decode(path, contents)
+  const previous = accepted(live.validate(new Map([[path, decoded]])))
+  table.current = claims([...TEST_CLAIMS.byKind.values()].filter(claim => claim.holds !== "nodes"))
+  expect(live.match(path)).toBe(false)
+  const after = accepted(live.validate(new Map([[path, decoded]])))
+  expect(outlinePaths(after.set)).toEqual([])
+  expect(after.derived.byId.has("work")).toBe(false)
+  expect(after.claims).toBe(table.current)
+  expect(previous.claims).toBe(TEST_CLAIMS)
+  expect(previous.derived.byId.has("work")).toBe(true)
+  table.current = TEST_CLAIMS
+  expect(live.match(path)).toBe(true)
+  expect(Result.isSuccess(live.decode(path, contents))).toBe(true)
+})
+
+test("withdrawing a referenced body's kind reports the missing document and reinstating it repairs the reading", () => {
+  const table = { current: TEST_CLAIMS }
+  const live = codecFor(NO_KINDS, table)
+  const files = new Map([
+    ["Work.olai", live.decode("Work.olai", '{"id":"work","ord":"a0","title":"Work","doc":"notes.md"}')],
+    ["notes.md", live.decode("notes.md", "# Notes")],
+  ])
+  expect(Result.isSuccess(live.validate(files))).toBe(true)
+  table.current = claims([...TEST_CLAIMS.byKind.values()].filter(claim => claim.kind !== "markdown"))
+  const withdrawn = accepted(live.validate(files))
+  expect(withdrawn.set.broken.flatMap(entry => entry.errors)).toContainEqual(expect.objectContaining({ file: "Work.olai", code: "missing-doc" }))
+  table.current = TEST_CLAIMS
+  expect(accepted(live.validate(files)).set.broken).toEqual([])
 })

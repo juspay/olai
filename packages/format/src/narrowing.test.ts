@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT A FILTER SELECTS ON A PAGE — and the PARITY that lets it be trusted.
  *
@@ -80,7 +81,7 @@ const TRASH = [
  *  a rule the matcher holds and this reading inherits rather than restates. */
 const LEFTOVER = `{"id":"attic","ord":"a0","title":"the attic door"}`
 
-const SET = derive(nodesOfFiles({
+const SET = derive(TEST_CLAIMS, nodesOfFiles({
   "house.olai": HOUSE,
   "garden.olai": GARDEN,
   "_olai/Trash.olai": TRASH,
@@ -100,13 +101,14 @@ const READABLE: ReadonlyArray<BrokenFile> = []
  *  amount to (`./pointing.ts`). The set is a stand-in and is cast as one: what
  *  a page reads off it is the two arrays. */
 const READING: Reading = {
+  claims: TEST_CLAIMS,
   set: { documents: FACES, broken: READABLE } as unknown as OutlineSet,
   derived: SET,
   pointing: pointingOf(FACES as unknown as ReadonlyArray<Document>),
 }
 
-const at = (path: string): PageRequest => ({ kind: "at", address: addressOf(path, null)! })
-const node = (id: string): PageRequest => ({ kind: "at", address: addressOf("", id)! })
+const at = (path: string): PageRequest => ({ kind: "at", address: addressOf(TEST_CLAIMS, path, null)! })
+const node = (id: string): PageRequest => ({ kind: "at", address: addressOf(TEST_CLAIMS, "", id)! })
 
 /** Every page this fixture can be read as — the sweep the parity claim runs
  *  over. Named so a failure says which page it was about. */
@@ -139,7 +141,7 @@ const selectedBy = (matches: NarrowingAnswer["matches"]): Selected =>
  */
 const oracle = (shows: Shown, text: string): Selected =>
   new Map(
-    matching(SET, parseFilter(text, TODAY), { trashed: showsPutAway(shows) })
+    matching(SET, parseFilter(text, TODAY), { trashed: showsPutAway(TEST_CLAIMS, shows) })
       .map(({ at: found }) => [found.node.id, {}]),
   )
 

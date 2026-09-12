@@ -1,3 +1,5 @@
+import { holdServed, servedDirectory } from "./browser/vault.ts"
+import { fileAccess } from "olai-plugin-vault/contract"
 import { createRoot, createSignal } from "solid-js"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { boxBelow, searchKind, type Kind } from "./contracts/box.ts"
@@ -42,7 +44,7 @@ export default definePlugin({
     // value reaches a component that draws with it.
     yield* Effect.acquireRelease(Effect.sync(() => holdReading(reading)), stop => Effect.sync(stop))
     yield* (yield* Offers).own("readings", () => reading)
-    yield* slots.contribute<Hung<BarSeat>>(slotLocation("app.header"), { plugin: name, face: { place: "lead" as const, body: HeaderSearch } }, { children: [boxBelow] })
+    yield* slots.contribute<Hung<BarSeat>>(slotLocation("app.header"), { plugin: name, face: { place: "lead" as const, body: () => <HeaderSearch claims={servedDirectory()?.claims()} /> } }, { children: [boxBelow] })
   }),
 })
 
@@ -51,6 +53,10 @@ export default definePlugin({
  *  press that would open a palette that is not there simply does nothing
  *  (`./browser/palette.ts`). */
 export const components = {
+  files: definePlugin({ name: "files", needs: [fileAccess], apply: Effect.gen(function*() {
+    const files = yield* fileAccess
+    yield* Effect.acquireRelease(Effect.sync(() => holdServed(files)), stop => Effect.sync(stop))
+  }) }),
   kind: definePlugin({ name: "kind", needs: [Offers], apply: Effect.gen(function*() {
     const owned = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const [pick, set] = createSignal<Kind>(undefined)
@@ -58,11 +64,12 @@ export const components = {
     })), owned => Effect.sync(owned.dispose))
     yield* (yield* Offers).own("kind", () => ({ pick: owned.pick, set: owned.set }))
   }) }),
-  selector: definePlugin({ name: "selector", needs: [searchKind, Slots], apply: Effect.gen(function*() {
+  selector: definePlugin({ name: "selector", needs: [searchKind, Slots, fileAccess], apply: Effect.gen(function*() {
     const state = yield* searchKind
+    const files = yield* fileAccess
     yield* (yield* Slots).register("search.box.below", {
-      pick: state.pick, cycle: () => cycleKind(state),
-      body: props => <KindSelector state={state} search={props.search} />,
+      pick: state.pick, cycle: () => cycleKind(files.claims(), state),
+      body: props => <KindSelector claims={files.claims} state={state} search={props.search} />,
     })
   }) }),
   /** The app's clock, DECLARED — a component of its own so the box keeps

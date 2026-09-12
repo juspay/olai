@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * The traversal guard, on its own.
  *
@@ -12,32 +13,32 @@ import { expect, test } from "bun:test"
 import { mediaHref, mediaPath, mediaTarget } from "./media.ts"
 
 test("a file under the root is what the route names", () => {
-  expect(mediaTarget("/media/shot.png")).toBe("shot.png")
-  expect(mediaTarget("/media/notes/art/shot.JPEG")).toBe("notes/art/shot.JPEG")
+  expect(mediaTarget(TEST_CLAIMS, "/media/shot.png")).toBe("shot.png")
+  expect(mediaTarget(TEST_CLAIMS, "/media/notes/art/shot.JPEG")).toBeNull()
   // The query and the fragment are not part of the name — which is also what
   // makes the preview frame's own visit counter (`Hypertext.tsx`) invisible
   // here: it names no file and reaches no guard.
-  expect(mediaTarget("/media/shot.png?v=2")).toBe("shot.png")
-  expect(mediaTarget("/media/report.html?olai-visit=3")).toBe("report.html")
-  expect(mediaTarget("/media/shot.png#top")).toBe("shot.png")
+  expect(mediaTarget(TEST_CLAIMS, "/media/shot.png?v=2")).toBe("shot.png")
+  expect(mediaTarget(TEST_CLAIMS, "/media/report.html?olai-visit=3")).toBe("report.html")
+  expect(mediaTarget(TEST_CLAIMS, "/media/shot.png#top")).toBe("shot.png")
 })
 
 // Percent-escapes are decoded FIRST and judged after, so a climbing segment is
 // refused however it was spelled — the guard never sees a `..` it has to
 // resolve.
 test("a path that climbs is refused, however it is spelled", () => {
-  expect(mediaTarget("/media/../secret.png")).toBeNull()
-  expect(mediaTarget("/media/%2e%2e/secret.png")).toBeNull()
-  expect(mediaTarget("/media/%2E%2E%2Fsecret.png")).toBeNull()
-  expect(mediaTarget("/media/notes/../../secret.png")).toBeNull()
-  expect(mediaTarget("/media/a/./shot.png")).toBeNull()
-  expect(mediaTarget("/media//shot.png")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/../secret.png")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/%2e%2e/secret.png")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/%2E%2E%2Fsecret.png")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/notes/../../secret.png")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/a/./shot.png")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media//shot.png")).toBeNull()
   // A separator smuggled in as an escape is one segment claiming to be two.
-  expect(mediaTarget("/media/a%2fb.png")).toBeNull()
-  expect(mediaTarget("/media/a%5cb.png")).toBeNull()
-  expect(mediaTarget("/media/shot.png%00.olai")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/a%2fb.png")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/a%5cb.png")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/shot.png%00.olai")).toBeNull()
   // A malformed escape names nothing at all.
-  expect(mediaTarget("/media/%zz.png")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/%zz.png")).toBeNull()
 })
 
 // WHAT A PAGE IS MADE OF is what this route answers, and the list is
@@ -47,19 +48,19 @@ test("a path that climbs is refused, however it is spelled", () => {
 // shape, which is what makes a saved page's relative addresses correct without
 // anything of the file being rewritten.
 test("a page and the parts it draws with are served", () => {
-  expect(mediaTarget("/media/report.html")).toBe("report.html")
-  expect(mediaTarget("/media/notes/dashboard.html")).toBe("notes/dashboard.html")
-  expect(mediaTarget("/media/notes/page.css")).toBe("notes/page.css")
-  expect(mediaTarget("/media/notes/chart.js")).toBe("notes/chart.js")
-  expect(mediaTarget("/media/notes/chart.MJS")).toBe("notes/chart.MJS")
-  expect(mediaTarget("/media/fonts/text.woff2")).toBe("fonts/text.woff2")
+  expect(mediaTarget(TEST_CLAIMS, "/media/report.html")).toBe("report.html")
+  expect(mediaTarget(TEST_CLAIMS, "/media/notes/dashboard.html")).toBe("notes/dashboard.html")
+  expect(mediaTarget(TEST_CLAIMS, "/media/notes/page.css")).toBe("notes/page.css")
+  expect(mediaTarget(TEST_CLAIMS, "/media/notes/chart.js")).toBe("notes/chart.js")
+  expect(mediaTarget(TEST_CLAIMS, "/media/notes/chart.MJS")).toBe("notes/chart.MJS")
+  expect(mediaTarget(TEST_CLAIMS, "/media/fonts/text.woff2")).toBe("fonts/text.woff2")
   // The three kinds whose PAGE is drawn by pointing at the file — a picture
   // (every spelling, `.svg` included) and a `.pdf` beside the saved page that
   // was here first. What each of them is drawn IN is the client's
   // (`@olai/web`'s faces); that they are fetched from here is this route's.
-  expect(mediaTarget("/media/art/handle.png")).toBe("art/handle.png")
-  expect(mediaTarget("/media/logo.svg")).toBe("logo.svg")
-  expect(mediaTarget("/media/reports/q3.pdf")).toBe("reports/q3.pdf")
+  expect(mediaTarget(TEST_CLAIMS, "/media/art/handle.png")).toBe("art/handle.png")
+  expect(mediaTarget(TEST_CLAIMS, "/media/logo.svg")).toBe("logo.svg")
+  expect(mediaTarget(TEST_CLAIMS, "/media/reports/q3.pdf")).toBe("reports/q3.pdf")
 })
 
 // …and everything else is not. A file whose page is handed its CONTENT — an
@@ -68,13 +69,13 @@ test("a page and the parts it draws with are served", () => {
 // argument for the first. Data nothing has a page for is nobody's, and a
 // directory is not a file.
 test("anything that is not fetched by a page is not served", () => {
-  expect(mediaTarget("/media/plan.olai")).toBeNull()
-  expect(mediaTarget("/media/notes.md")).toBeNull()
-  expect(mediaTarget("/media/data/sales.csv")).toBeNull()
-  expect(mediaTarget("/media/data.json")).toBeNull()
-  expect(mediaTarget("/media/notes/.env")).toBeNull()
-  expect(mediaTarget("/media/")).toBeNull()
-  expect(mediaTarget("/media/art/")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/plan.olai")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/notes.md")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/data/sales.csv")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/data.json")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/notes/.env")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/art/")).toBeNull()
 })
 
 // ── the same address, asked the other question ─────────────────────────
@@ -98,7 +99,7 @@ test("a path is decoded and guarded whether or not the route would answer it", (
   // …and the files the ROUTE refuses, which a click may still name. This is the
   // one divergence, and it is the reason for the split.
   expect(mediaPath("/media/notes.md")).toBe("notes.md")
-  expect(mediaTarget("/media/notes.md")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/media/notes.md")).toBeNull()
   expect(mediaPath("/media/plan.olai")).toBe("plan.olai")
   // The guard itself is not relaxed by an inch: every climb, every smuggled
   // separator and every malformed escape falls the same way it does above.
@@ -123,8 +124,8 @@ test("a path is decoded and guarded whether or not the route would answer it", (
 })
 
 test("a request that is not this route's is not this route's", () => {
-  expect(mediaTarget("/#kitchen")).toBeNull()
-  expect(mediaTarget("/mediashot.png")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/#kitchen")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/mediashot.png")).toBeNull()
 })
 
 // The client builds this URL and the server takes it apart; the round trip is
@@ -142,7 +143,7 @@ test("the href a file is fetched from reads back as the file", () => {
       `he said "hi"/report.html`,
     ]
   ) {
-    expect(mediaTarget(mediaHref(file))).toBe(file)
+    expect(mediaTarget(TEST_CLAIMS, mediaHref(file))).toBe(file)
   }
 })
 
@@ -173,7 +174,7 @@ test("a picture beside a previewed page lands where the markdown rewrite would h
       ["notes/report.html", "art/a b.png"],
     ] as const
   ) {
-    const rewritten = mediaHref(pictureOf(from, src)!)
+    const rewritten = mediaHref(pictureOf(TEST_CLAIMS, from, src)!)
     const resolved = new URL(src, HOST + mediaHref(from))
     expect(resolved.href).toBe(HOST + rewritten)
   }
@@ -198,7 +199,7 @@ test("a relative link in a page lands on the page beside it", () => {
   ) {
     const clicked = new URL(href, HOST + mediaHref(from))
     expect(clicked.href).toBe(HOST + mediaHref(landing))
-    expect(mediaTarget(clicked.pathname)).toBe(landing)
+    expect(mediaTarget(TEST_CLAIMS, clicked.pathname)).toBe(landing)
   }
 })
 
@@ -210,8 +211,8 @@ test("a relative link in a page lands on the page beside it", () => {
 // the stricter of the two. It is asserted so that a change to either side has
 // to come past this test and say which answer it meant.
 test("a climb past the root is clamped for a document and refused for a preview", () => {
-  expect(mediaHref(pictureOf("report.html", "../outside.png")!)).toBe("/media/outside.png")
+  expect(mediaHref(pictureOf(TEST_CLAIMS, "report.html", "../outside.png")!)).toBe("/media/outside.png")
   expect(new URL("../outside.png", `http://olai.test${mediaHref("report.html")}`).pathname)
     .toBe("/outside.png")
-  expect(mediaTarget("/outside.png")).toBeNull()
+  expect(mediaTarget(TEST_CLAIMS, "/outside.png")).toBeNull()
 })

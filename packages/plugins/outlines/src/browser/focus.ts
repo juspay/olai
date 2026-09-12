@@ -1,3 +1,4 @@
+import { servedDirectory } from "./vault.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * Which node the reader was just pointed AT, and how the page answers.
@@ -186,7 +187,8 @@ const landOnRow = (go: (route: Route) => void, id: string, mine: number, before:
       setFocused(before)
       return
     }
-    go(atElement(home, id))
+    const claims = servedDirectory()?.claims()
+    if (claims !== undefined) go(atElement(claims, home, id))
   })
 }
 

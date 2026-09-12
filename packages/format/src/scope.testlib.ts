@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE DIFFERENTIAL: one scoped question, two implementations, and every way
  * they differ named.
@@ -49,7 +50,7 @@ import {
 import { seeded } from "./fixtures.testlib.ts"
 import { bodyKind, fileKind, unkept } from "./kinds.ts"
 import { isMirror, type LocatedRegular } from "./node.ts"
-import { parseOutline } from "./parse.ts"
+import { parseOutline } from "olai-plugin-olai/format"
 import { assemble } from "./set.ts"
 import { reading, type Reading } from "./validate.ts"
 
@@ -545,16 +546,16 @@ export const decodedVault = (
       file,
       // A file with no BODY KIND is an outline — the one kind that holds
       // records rather than text, which is what makes it the else of this.
-      bodyKind(file) === null
-        ? Result.mapError(parseOutline(file, text), verdictOf)
-        : Result.succeed<Document>(bodiedDocument(file, text)),
+      bodyKind(TEST_CLAIMS, file) === null
+        ? Result.mapError(parseOutline(file, text, TEST_CLAIMS), verdictOf)
+        : Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, file, text)),
     )
   }
   return decoded
 }
 
 export const readingOfVault = (vault: ReadonlyMap<string, string>): Reading =>
-  reading(assemble(decodedVault(vault)))
+  reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decodedVault(vault)))
 
 /**
  * THE REAL VAULT: a directory on disk, read as the set it is.
@@ -586,7 +587,7 @@ export const vaultAt = (dir: string): ReadonlyMap<string, string> => {
     for (const entry of fs.readdirSync(path.join(dir, at), { withFileTypes: true })) {
       const file = at === "" ? entry.name : `${at}/${entry.name}`
       if (entry.isDirectory()) walk(file)
-      else if (fileKind(file) !== null && !unkept(file)) {
+      else if (fileKind(TEST_CLAIMS, file) !== null && !unkept(TEST_CLAIMS, file)) {
         vault.set(file, fs.readFileSync(path.join(dir, file), "utf8"))
       }
     }

@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE SHELF, READ OFF THE SET.
  *
@@ -29,7 +30,7 @@ const GARDEN = [
 ].join("\n")
 
 const setWith = (pins: string, garden = GARDEN) =>
-  derive(recordsOf(setOf({ "Pins.olai": pins, "garden.olai": garden })))
+  derive(TEST_CLAIMS, recordsOf(setOf({ "_olai/Pins.olai": pins, "garden.olai": garden })))
 
 // ── the rows ───────────────────────────────────────────────────────────
 
@@ -42,9 +43,9 @@ test("the shelf is the top level of Pins.olai, in ord order, mirrors left out", 
 })
 
 test("a mirror is not a pin — a placement is not a door", () => {
-  const withMirror = derive(
+  const withMirror = derive(TEST_CLAIMS,
     recordsOf(setOf({
-      "Pins.olai": `{"id":"p-mirror","ord":"a0","mirror":"herbs"}`,
+      "_olai/Pins.olai": `{"id":"p-mirror","ord":"a0","mirror":"herbs"}`,
       "garden.olai": GARDEN,
     })),
   )
@@ -52,15 +53,15 @@ test("a mirror is not a pin — a placement is not a door", () => {
   expect(shelfOf(withMirror)).toEqual(NO_PINS)
 })
 
-test("the shelf is found by NAME, wherever the directory keeps it", () => {
-  const nested = derive(
-    recordsOf(setOf({ "notes/pins.olai": `{"id":"p","ord":"a0","title":"/agenda"}` })),
+test("the shelf is found by stem under _olai", () => {
+  const nested = derive(TEST_CLAIMS,
+    recordsOf(setOf({ "_olai/pins.olai": `{"id":"p","ord":"a0","title":"/agenda"}` })),
   )
   expect(shelfOf(nested).map((row) => row.id)).toEqual(["p"])
 })
 
 test("a directory with no shelf has none", () => {
-  expect(shelfOf(derive(recordsOf(setOf({ "garden.olai": GARDEN }))))).toEqual(NO_PINS)
+  expect(shelfOf(derive(TEST_CLAIMS, recordsOf(setOf({ "garden.olai": GARDEN }))))).toEqual(NO_PINS)
 })
 
 // ── the one thing only the set can answer ──────────────────────────────
@@ -85,9 +86,9 @@ test("…and so does every address that names itself", () => {
 })
 
 test("a pin at a MIRROR is named for the node standing there", () => {
-  const set = derive(
+  const set = derive(TEST_CLAIMS,
     recordsOf(setOf({
-      "Pins.olai": `{"id":"p","ord":"a0","title":"/#m"}`,
+      "_olai/Pins.olai": `{"id":"p","ord":"a0","title":"/#m"}`,
       "garden.olai": `${GARDEN}\n{"id":"m","ord":"a2","mirror":"herbs"}`,
     })),
   )
@@ -108,13 +109,13 @@ test("the QUALIFIED node spelling resolves to the same node", () => {
 // ── which titles name a node ───────────────────────────────────────────
 
 test("a node address is the one the grammar reads as one", () => {
-  expect(pinTargetIn("/#herbs")).toBe("herbs")
-  expect(pinTargetIn("[the herb bed](/#herbs)")).toBe("herbs")
+  expect(pinTargetIn(TEST_CLAIMS, "/#herbs")).toBe("herbs")
+  expect(pinTargetIn(TEST_CLAIMS, "[the herb bed](/#herbs)")).toBe("herbs")
   // The query sits between the two halves of a URL, so a narrowed node page is
   // still a node page.
-  expect(pinTargetIn("/?q=is%3Atodo#herbs")).toBe("herbs")
+  expect(pinTargetIn(TEST_CLAIMS, "/?q=is%3Atodo#herbs")).toBe("herbs")
   // An id somebody chose, escaped as an address is written.
-  expect(pinTargetIn("/#the%20bed")).toBe("the bed")
+  expect(pinTargetIn(TEST_CLAIMS, "/#the%20bed")).toBe("the bed")
 })
 
 test("everything else names itself, and nothing here throws", () => {
@@ -136,7 +137,7 @@ test("everything else names itself, and nothing here throws", () => {
       "",
       "see [the agenda](/agenda) tomorrow",
     ]
-  ) expect(pinTargetIn(title)).toBeUndefined()
+  ) expect(pinTargetIn(TEST_CLAIMS, title)).toBeUndefined()
 })
 
 // ── what keeps a quiet revision quiet ──────────────────────────────────

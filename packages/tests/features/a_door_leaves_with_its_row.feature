@@ -152,7 +152,7 @@ Feature: A reading leaves with the row that offered it, and comes back
     And I switch the plugin "journal" off
     And I close the plugins panel
     Then the pinned shelf reads "/work.olai"
-    And "Pins.olai" holds a node titled "/d/2019-11-05"
+    And "_olai/Pins.olai" holds a node titled "/d/2019-11-05"
     When I open the plugins panel
     And I switch the plugin "journal" on
     And I close the plugins panel

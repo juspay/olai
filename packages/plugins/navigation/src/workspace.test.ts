@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE PANES, as a value — how many there are, which one is focused, what a
  * navigation does to the others, and the one URL the whole arrangement is
@@ -45,7 +46,7 @@ const house: Route = atFile("house.olai")
 const kitchen: Route = atNode("kitchen")
 const garden: Route = atFile("garden.olai")
 const trash: Route = { kind: "trash" }
-const doc: Route = atElement("notes/finishes.md", "beds")
+const doc: Route = atElement(TEST_CLAIMS, "notes/finishes.md", "beds")
 const filtered: Route = { ...atFile("house.olai"), filter: "is:done" }
 
 test("a lone page is exactly the address it always was", () => {

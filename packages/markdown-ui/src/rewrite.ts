@@ -46,7 +46,7 @@ import { TESTID } from "@olai/markdown-ui/testids.ts"
  * asking a question this one already has the answer to.
  */
 
-import { addressOf, printAddress, bodiedOf, pictureOf } from "@olai/format"
+import { type Claims, addressOf, printAddress, bodiedOf, pictureOf } from "@olai/format"
 import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"
 
@@ -54,6 +54,7 @@ import { type Heading, headingOf } from "./outline.ts"
 
 
 export interface Rewrite {
+  readonly claims: Claims | undefined
   /** The file the markdown was written in — an outline, for a note; the
    *  document itself, for a document. A relative picture is resolved beside
    *  it, exactly as a `doc` is. */
@@ -73,11 +74,11 @@ export const rewrite = (tree: Root, options: Rewrite): readonly Heading[] => {
 const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): void => {
   for (const child of parent.children) {
     if (child.type !== "element") continue
-    if (child.tagName === "img") resolvePicture(child, options.from)
+    if (child.tagName === "img") resolvePicture(child, options.claims, options.from)
     if (child.tagName === "a") {
       // Document first: a relative `.md` becomes a page address and must not then
       // be treated as something that leaves the app.
-      resolveDocument(child, options.from)
+      resolveDocument(child, options.claims, options.from)
       openExternal(child)
     }
     mint(child, options.ids)
@@ -109,10 +110,10 @@ const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): vo
  * The element is REWRITTEN rather than replaced so the walk above stays one
  * pass over one array: an `<img>` is void, so there is no subtree to carry.
  */
-const resolvePicture = (element: Element, from: string): void => {
+const resolvePicture = (element: Element, claims: Claims | undefined, from: string): void => {
   const written = element.properties?.["src"]
   const src = typeof written === "string" ? written : ""
-  const picture = src === "" ? null : pictureOf(from, src)
+  const picture = src === "" || claims === undefined ? null : pictureOf(claims, from, src)
   if (picture !== null) {
     element.properties = { ...element.properties, src: mediaHref(picture) }
     return
@@ -164,15 +165,16 @@ const resolvePicture = (element: Element, from: string): void => {
  * a screen that names a document it does not have, and a link quietly left
  * relative would send the reader somewhere with nothing to say at all.
  */
-const resolveDocument = (element: Element, from: string): void => {
+const resolveDocument = (element: Element, claims: Claims | undefined, from: string): void => {
+  if (claims === undefined) return
   const written = element.properties?.["href"]
   if (typeof written !== "string") return
   // ONE index, so the two halves cannot be cut at two places: an href with no
   // `#` ends at its own end, which makes the fragment the empty tail.
   const cut = written.includes("#") ? written.indexOf("#") : written.length
-  const document = bodiedOf(from, written.slice(0, cut))
+  const document = bodiedOf(claims, from, written.slice(0, cut))
   if (document === null) return
-  const address = addressOf(document, null)
+  const address = addressOf(claims, document, null)
   if (address === null) return
   element.properties = {
     ...element.properties,

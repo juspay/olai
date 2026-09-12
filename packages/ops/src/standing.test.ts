@@ -1,3 +1,4 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * THE STANDING VIEWS, ONE CLAIM AT A TIME.
  *
@@ -69,7 +70,7 @@ const directory = (): {
   }
 }
 
-const pageAt = (path: string): PageRequest => ({ kind: "at", address: addressOf(path, null) })
+const pageAt = (path: string): PageRequest => ({ kind: "at", address: addressOf(TEST_CLAIMS, path, null) })
 
 test("two tabs on one question at one revision are handed the same object", () => {
   const { first, path } = directory()

@@ -33,7 +33,9 @@ import type { OutlineError } from "./errors.ts"
 import { unkept } from "./kinds.ts"
 import { isMirror, isPutAway, type Located, type LocatedRegular, storedMarker } from "./node.ts"
 import { type Dated, datesOf, dayOf, monthOf } from "./occasion.ts"
-import { parseOutline } from "./parse.ts"
+import { parseOutline } from "olai-plugin-olai/format"
+import { TEST_CLAIMS } from "./claims.testlib.ts"
+export { TEST_CLAIMS, NO_CLAIMS } from "./claims.testlib.ts"
 import { pointingOf } from "./pointing.ts"
 import { bodiedDocument, type Document, type Outline } from "./document.ts"
 import { assemble, outlinesIn, type OutlineSet } from "./set.ts"
@@ -47,7 +49,7 @@ export const FIXTURE_FILE = "a.olai"
 /** One file's worth of JSONL, parsed — or a diagnostic good enough to fix the
  *  fixture without opening the parser. */
 export const outlineOf = (contents: string, file = FIXTURE_FILE): Outline => {
-  const parsed = parseOutline(file, contents)
+  const parsed = parseOutline(file, contents, TEST_CLAIMS)
   if (Result.isFailure(parsed)) throw new Error(unparsable(file, contents, parsed.failure))
   return parsed.success
 }
@@ -95,12 +97,12 @@ export const setOf = (
   documents: ReadonlyArray<string | readonly [file: string, text: string]> = [],
   broken: Record<string, string> = {},
 ): OutlineSet =>
-  assemble(
+  assemble(TEST_CLAIMS,
     new Map<string, Result.Result<Document, Verdict>>([
       ...decodedOf(files),
       ...documents.map((document) => {
         const [file, said] = typeof document === "string" ? [document, ""] : document
-        const bodyless = unkept(file)
+        const bodyless = unkept(TEST_CLAIMS, file)
         // THROWN, like an unparsable outline above and for the same reason: a
         // fixture that says a `.html` holds text is a test written against a
         // set nobody can serve, and quietly dropping the text would let it pass
@@ -114,7 +116,7 @@ export const setOf = (
         }
         return [
           file,
-          Result.succeed<Document>(bodiedDocument(file, bodyless ? null : said)),
+          Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, file, bodyless ? null : said)),
         ] as const
       }),
       ...Object.entries(broken).map(
@@ -141,9 +143,11 @@ export const setOf = (
  * a reader is handed it. A test that starts from TEXT is the one place the two
  * halves are put together deliberately.
  */
-export const readingOf = (set: OutlineSet): Reading => ({
+export const readingOf = (set: OutlineSet): Reading & { readonly outlineRow: string } => ({
+  outlineRow: "olai",
+  claims: TEST_CLAIMS,
   set,
-  derived: derive(recordsOf(set)),
+  derived: derive(TEST_CLAIMS, recordsOf(set)),
   // …and the third member, built the same way: the set's own links, filed
   // backwards (`./pointing.ts`). A `Reading` is what a page is drawn from, so a
   // fixture that left this out would be a reading whose document pages had no
@@ -172,7 +176,7 @@ export const validatedOf = (
   documents: ReadonlyArray<string | readonly [file: string, text: string]> = [],
   broken: Record<string, string> = {},
 ): OutlineSet => {
-  const answered = validate(setOf(files, documents, broken))
+  const answered = validate(TEST_CLAIMS, setOf(files, documents, broken))
   if (Result.isFailure(answered)) {
     throw new Error("a validation answers with a set, whatever it finds")
   }
@@ -186,7 +190,7 @@ export const failureOf = (
   contents: string,
   file = FIXTURE_FILE,
 ): ReadonlyArray<OutlineError> => {
-  const parsed = parseOutline(file, contents)
+  const parsed = parseOutline(file, contents, TEST_CLAIMS)
   if (Result.isSuccess(parsed)) {
     throw new Error(
       `fixture \`${file}\` parses, so it cannot stand in for a file that does not:\n` +
@@ -679,7 +683,7 @@ export const recordsOf = (set: OutlineSet): ReadonlyArray<Located> =>
  *  for each date it carries — the deleted `dates.ts`'s `datedNodes`. */
 export const datedNodes = (derived: Derived): ReadonlyArray<Dated> =>
   derived.nodes.flatMap((located) =>
-    isMirror(located.node) || isPutAway(located.file)
+    isMirror(located.node) || isPutAway(TEST_CLAIMS, located.file)
       ? []
       : datesOf(located.node).map((dated) => ({
         at: located as LocatedRegular,

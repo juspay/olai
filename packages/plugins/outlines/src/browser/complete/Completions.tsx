@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The shortlist under a caret — one box for all three widgets.
@@ -136,6 +137,7 @@ export function Completions(props: { readonly listing: Listing }) {
             {(choice, index) => (
               <li>
                 <Result
+        claims={servedDirectory()?.claims()}
                   label={choice().label}
                   hint={choice().hint}
                   place={choice().place}

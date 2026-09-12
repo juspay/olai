@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 /**
  * The sidebar's way to a file that does not exist yet — ONE box, for both kinds
  * of file the directory holds.
@@ -85,7 +86,7 @@ export function NewFile(props: {
     // THREE THINGS the box does with what is in it, and which of them is
     // `./completing.ts`'s answer rather than a reading of its own: an empty box
     // is not a refusal to draw — nobody has asked for anything yet.
-    const meant = meantAt(props.making.of, path())
+    const meant = meantAt(servedDirectory()!.claims(), props.making.of, path())
     if (meant === null) return
     // ONE LINE draws both sentences, and that is the point of drawing the box's
     // own one here rather than beside it: which layer refused a path is not a

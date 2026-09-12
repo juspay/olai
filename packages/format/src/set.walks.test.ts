@@ -1,9 +1,10 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 /**
  * WHAT ONE FILE WRITTEN INTO A SET COSTS — and that it costs the same ANSWER.
  *
  * {@link withDocuments} is what the batch fold does between two ops
  * (`@olai/ops`' `following.ts`, roadmap `perf-batch-assemble`), and it replaced
- * `assemble(apart(set) + the written files)`: a fresh map of every served path
+ * `assemble(TEST_CLAIMS, apart(set) + the written files)`: a fresh map of every served path
  * and a full path SORT of it, per op. Two claims come out of that, and this file
  * is both of them:
  *
@@ -47,7 +48,7 @@ mock.module("./paths.ts", () => ({
 
 const { apart, assemble, outlinePaths, withDocuments } = await import("./set.ts")
 const { bodiedDocument, outlineDocument } = await import("./document.ts")
-const { parseOutline } = await import("./parse.ts")
+const { parseOutline } = await import("olai-plugin-olai/format")
 const { verdictOf } = await import("./verdict.ts")
 
 /** A directory with the shapes an ORDER can go wrong at: nested paths, a file
@@ -57,15 +58,15 @@ const vault = (files: number) => {
   const decoded = new Map<string, Result.Result<never, never>>()
   const put = (path: string, document: unknown) =>
     decoded.set(path, Result.succeed(document as never))
-  put("_olai/Trash.olai", outlineDocument("_olai/Trash.olai", []))
-  put("wing.olai", outlineDocument("wing.olai", []))
+  put("_olai/Trash.olai", outlineDocument(TEST_CLAIMS, "_olai/Trash.olai", []))
+  put("wing.olai", outlineDocument(TEST_CLAIMS, "wing.olai", []))
   for (let which = 0; which < files; which++) {
     const name = `wing/room-${String(which).padStart(4, "0")}.olai`
     const text = `{"id":"n${which}","ord":"a0","title":"room ${which}"}`
-    const read = parseOutline(name, text)
+    const read = parseOutline(name, text, TEST_CLAIMS)
     if (Result.isFailure(read)) throw new Error(`fixture ${name} does not parse`)
     put(name, read.success)
-    if (which % 5 === 0) put(`notes/${which}.md`, bodiedDocument(`notes/${which}.md`, "# note\n"))
+    if (which % 5 === 0) put(`notes/${which}.md`, bodiedDocument(TEST_CLAIMS, `notes/${which}.md`, "# note\n"))
   }
   decoded.set(
     "torn.olai",
@@ -73,7 +74,7 @@ const vault = (files: number) => {
       verdictOf([{ code: "bad-json", file: "torn.olai", line: 1, message: "no" }] as never),
     ) as never,
   )
-  return assemble(decoded as never)
+  return assemble(TEST_CLAIMS, decoded as never)
 }
 
 /** One file's worth of records, decoded — what a plan becomes on its way into
@@ -83,7 +84,7 @@ const written = (path: string, title: string) => {
   // ({@link ./node.ts}'s `ID_SHAPE`) — this fixture is about paths, and every
   // record still needs an id nothing else claims.
   const id = path.replace(/[^A-Za-z0-9_-]/g, "-")
-  const read = parseOutline(path, `{"id":"${id}","ord":"a0","title":"${title}"}`)
+  const read = parseOutline(path, `{"id":"${id}","ord":"a0","title":"${title}"}`, TEST_CLAIMS)
   if (Result.isFailure(read)) throw new Error(`${path} does not parse`)
   return read.success
 }
@@ -93,7 +94,7 @@ const written = (path: string, title: string) => {
 const assembled = (set: ReturnType<typeof vault>, files: ReadonlyArray<ReturnType<typeof written>>) => {
   const decoded = apart(set)
   for (const document of files) decoded.set(document.path, Result.succeed(document))
-  return assemble(decoded)
+  return assemble(TEST_CLAIMS, decoded)
 }
 
 const same = (
