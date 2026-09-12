@@ -122,7 +122,7 @@ export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effe
 
 /** What this server calls itself. The version is the binary's, spelled here
  *  because the adapter has no other way to learn it. */
-const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
+export const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
 
 /**
  * What a host is told olai IS, at `initialize`.

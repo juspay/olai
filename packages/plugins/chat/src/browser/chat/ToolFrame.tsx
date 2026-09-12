@@ -21,7 +21,7 @@
  *
  * And a third escapes it for a different reason: what the call CHANGED. A diff
  * of a file it rewrote ({@link ./Diff.tsx}), or the node-level story of a write
- * it made through the ops layer ({@link ./Wrote.tsx}) — the two vocabularies,
+ * it made through the ops layer (the owning plugin’s `tool.reply` face) — the two vocabularies,
  * one per kind of write, and in practice a call is one or the other. That is
  * not detail:
  * the arguments are what was asked for, and this is what happened to somebody's
@@ -85,7 +85,7 @@ import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
 import { OutlineDiff } from "./OutlineDiff.tsx"
 import { useElapsed } from "./elapsing.tsx"
 import { whoOf } from "./spawn.ts"
-import { Wrote } from "./Wrote.tsx"
+import { faceOf } from "../marks.ts"
 
 /**
  * What a status LOOKS and SOUNDS like, one row per word.
@@ -140,6 +140,12 @@ function Saying(props: { readonly said: string; readonly tall: boolean }) {
 }
 
 export function ToolFrame(props: { readonly entry: ToolEntry }) {
+  const replyFace = createMemo(() => {
+    const face = faceOf(props.entry.row)
+    const reply = props.entry.reply
+    return face === undefined || reply === undefined ? { file: null, story: null }
+      : { file: face.fileOf(reply), story: face.story({ reply }) }
+  })
   /** How long this call has been running, or `null` when there is nothing to
    *  say. Reached for rather than handed down ({@link ./elapsing.tsx}), the
    *  same way this frame reaches for its own fold. */
@@ -182,8 +188,9 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
   /** There is something to unfold when there is either half of a body. A frame
    *  with neither is one line and nothing to press. */
   const body = () =>
-    props.entry.detail !== undefined
-    || (!ended() && props.entry.progress !== undefined)
+    props.entry.reply !== undefined
+    || props.entry.detail !== undefined
+    || (!ended() && props.entry.reply === undefined && props.entry.progress !== undefined)
     || Boolean(props.entry.armed?.report)
 
   return (
@@ -219,7 +226,8 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
           {look().mark}
         </span>
         <span class="sr-only">{look().said}</span>
-        <span class="min-w-0 flex-1 truncate">{props.entry.text}</span>
+        <span class="min-w-0 flex-1 truncate" data-testid={TESTID.chatToolText}
+          title={props.entry.called !== props.entry.text ? props.entry.called : undefined}>{props.entry.text}</span>
         {/* WHO WAS SENT, on the line, from the moment the spawn is announced —
             which is a good while before the agent has done anything to draw a
             lane out of ({@link ./spawn.ts}). It shares the slot a call's
@@ -314,6 +322,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
             </span>
           )}
         </Show>
+        <Show when={replyFace().file}>{file => <span class="min-w-0 max-w-[45%] shrink truncate text-muted/70" data-testid={TESTID.chatToolFile}>{file()}</span>}</Show>
         {/* HOW LONG IT HAS BEEN GOING, for a call the wire still calls running
             in a conversation that is still live ({@link ./elapsed.ts}). The
             mark at the head of this line has said `·` for a quarter of a second
@@ -366,16 +375,14 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
           not detail: the arguments are what was asked for, and this is what
           happened to somebody's files. Folding it away would be putting the
           one thing the row is about behind the same click as the JSON. */}
-      <Show when={props.entry.wrote}>
-        {(wrote) => <Wrote wrote={wrote()} />}
-      </Show>
+      {replyFace().story}
       {/* WHAT THE HARNESS SAID ABOUT THE TASK'S ENDING, outside the fold —
           where a background shell's EXIT CODE is. It is the same `progress`
           the fold draws for every other call, and it is drawn twice nowhere:
           an ENDED task's row draws it here INSTEAD, because for that row the
           sentence is the whole of what there is to read. While the task is
           still out it stays behind the fold, where the arming blurb belongs. */}
-      <Show when={ended() && props.entry.progress}>
+      <Show when={ended() && props.entry.reply === undefined && props.entry.progress}>
         {(said) => <Saying said={said()} tall={false} />}
       </Show>
       {/* Keyed BY THE BLOCK'S OWN NAME, the way every other list in this app is
@@ -411,7 +418,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
         {/* Progress FIRST: it is the live half, and a reader who unfolded a
             running call did it to see this rather than to re-read what was
             asked for. */}
-        <Show when={!ended() && props.entry.progress}>
+        <Show when={!ended() && props.entry.reply === undefined && props.entry.progress}>
           {(progress) => <Saying said={progress()} tall={true} />}
         </Show>
         {/* THE TASK'S REPORT, in this fold and nowhere else. An async
@@ -432,6 +439,9 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
             />
           )}
         </Show>
+        <Show when={props.entry.row && props.entry.called}>
+          {called => <p class="m-0 border-t border-rule px-2 py-1 font-mono text-xs text-muted" data-testid={TESTID.chatToolCalled}>{called()}</p>}
+        </Show>
         <Show when={props.entry.detail}>
           {(detail) => (
             <pre
@@ -439,6 +449,9 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
               data-testid={TESTID.chatToolDetail}
             >{detail()}</pre>
           )}
+        </Show>
+        <Show when={props.entry.row !== undefined && props.entry.reply !== undefined}>
+          <pre class="m-0 max-h-64 overflow-auto border-t border-rule px-2 py-1 font-mono text-[0.6875rem] text-muted" data-testid={TESTID.chatToolReply}>{JSON.stringify(props.entry.reply, null, 2)}</pre>
         </Show>
       </Show>
     </div>

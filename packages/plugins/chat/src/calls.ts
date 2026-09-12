@@ -40,6 +40,10 @@
  * apply in the right order; and what the request said stays known, for the
  * next question about the same call.
  *
+ * MCP display identity is remembered here too, under the same session key and
+ * lifetime. Only the recognized server/tool pair survives; input bodies and
+ * adapter frames stay with their event, never with this registry.
+ *
  * Its own module for the reason {@link ./questions.ts} is: this is a small
  * state machine about a conversation rather than a fact about the protocol,
  * and the failure it prevents — a request answered from a stale frame, an
@@ -58,13 +62,15 @@ import type { Leg, Meta } from "@olai/acp/engine"
 /**
  * What is known about one call.
  *
- * Both fields OPTIONAL, and that is the shape carrying the rule rather than a
+ * All fields OPTIONAL, and that is the shape carrying the rule rather than a
  * comment reminding somebody of it: absent means "nothing has said yet", which
  * is what makes a spread the whole of the merge. `null` would make "nobody
  * said" a value a later frame could assert, and the first frame to say only
  * half of what it knows would take the other half back.
  */
 export interface Said {
+  /** Compact MCP identity for display; never the frame or its input. */
+  readonly mcp?: NonNullable<ReturnType<Leg["mcpCall"]>>
   /** Which tool it is, programmatically — never the display title. */
   readonly name?: string
   /** The `Agent` call it was made INSIDE, by the id it arrived as, when a
@@ -118,6 +124,14 @@ export class Calls {
     if (said === NOTHING) return
     const key = this.#key(id, session)
     this.#said.set(key, { ...this.#said.get(key), ...said })
+  }
+
+  /** Keep only the recognized server/tool identity, never input bodies or frames.
+   * The same session-qualified owner holds this beside name and ancestry. */
+  recognized(id: string, mcp: ReturnType<Leg["mcpCall"]>, session?: string): void {
+    if (mcp === null) return
+    const key = this.#key(id, session)
+    this.#said.set(key, { ...this.#said.get(key), mcp })
   }
 
   /**

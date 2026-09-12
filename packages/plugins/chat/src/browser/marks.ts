@@ -48,3 +48,7 @@ import { faces } from "./faces.ts"
  *  none, and for a name no plugin running in this tab answers to. */
 export const markOf = (name: string): PluginMark | undefined =>
   faces().hung("delivery.mark").find((one) => one.plugin === name)?.face
+
+/** No registered owner face means no file or story. Resolved from live slots. */
+export const faceOf = (row: string | undefined) =>
+  row === undefined ? undefined : faces().hung("tool.reply").find(one => one.plugin === row)?.face

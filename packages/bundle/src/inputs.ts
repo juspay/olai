@@ -4,7 +4,7 @@
  * departed MCP provider never leaves an old issuer installed in the host. */
 import { offered, provide } from "./bundle.ts"
 import type { Host } from "@olai/effect-cordis"
-import { ticketMint, type TicketMint } from "olai-plugin-mcp/contract"
+import { catalogue, type Catalogue, ticketMint, type TicketMint } from "olai-plugin-mcp/contract"
 import { VaultBoot } from "olai-plugin-vault/boot"
 
 export const provideInputs = (host: Host, input: VaultBoot) =>
@@ -13,3 +13,6 @@ export const provideInputs = (host: Host, input: VaultBoot) =>
 export const ticketsFor = (host: Host) =>
   (...args: Parameters<TicketMint["mint"]>) =>
     offered(host, ticketMint)?.mint(...args) ?? null
+
+export const advertisedFor = (host: Host): Catalogue["advertised"] =>
+  (server, tool) => offered(host, catalogue)?.advertised(server, tool) ?? null

@@ -1152,6 +1152,9 @@ export interface ToolServer {
   readonly token: string
 }
 
+/** Static display contract; the catalogue provider owns the live lookup. */
+export interface Advertised { readonly title: string; readonly owner: string }
+
 /**
  * THE VAULT'S OWN MCP TOOL SERVER, once the listener has bound.
  *
@@ -1174,6 +1177,10 @@ export interface ToolServer {
  * guarded by a loud throw.
  */
 export interface Tools {
+  /** Deliberately carried by Tools rather than a second optional broker.
+   * Null means no catalogue is serving, or the server/tool is not ours.
+   * Resolve per call so withdrawal and replacement take effect immediately. */
+  readonly advertised: (server: string, tool: string) => Advertised | null
   readonly server: Effect.Effect<ToolServer>
   /**
    * ...AND A CREDENTIAL FOR ONE SESSION.
@@ -1444,6 +1451,8 @@ export interface PluginsConfig {
     forbidden: () => ReadonlyArray<Forbidden>,
     writer: string,
   ) => MintedTicket | null
+  /** Optional live display lookup; absence means no tool is recognized as ours. */
+  readonly advertisedFor?: Tools["advertised"]
   /**
    * WHERE EACH PLUGIN SITS IN THE BUILD'S LIST OF ROWS — see {@link Bundle}.
    *
@@ -1632,6 +1641,7 @@ export const openPlugins = (
       // asked per session and a caller has somewhere to put the absence: a root
       // with no MCP face seats a session with no remaining write rule, which is
       // the state it was already in ({@link PluginsConfig.ticketFor}).
+      advertised: (server, tool) => config.advertisedFor?.(server, tool) ?? null,
       ticket: (forbidden, writer) => config.ticketFor?.(forbidden, writer) ?? NO_TICKET,
     }))
 

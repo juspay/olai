@@ -1,34 +1,19 @@
-/**
- * What an olai write did, in the transcript — a line, never a diff.
- *
- * The other vocabulary of `chat-edit-diffs`, and the reason there are two. A
- * `.olai` diff is one enormous line per node with everything on it changing at
- * once, which is the shape the format bought line-based merges with and exactly
- * the shape nobody can read — so the commit panel has never shown one, and
- * neither does this. The unit is the NODE and what changed about it.
- *
- * The words are the ones the commit panel draws ({@link ../changes.ts}), which
- * is the parity the consistency rule asks for: the agent marks a node done, this row says
- * *marked done*, and the row waiting to be committed says *marked done*. One
- * event, one sentence, two places it is seen.
- *
- * The NUDGE rides underneath when there is one — what the rollup noticed about
- * a write that landed, which is advice and never a reason anything failed. It
- * is drawn in the same aside tone the keyboard's own writes use, because a
- * person who asked an agent for something deserves what a person who pressed a
- * key already gets.
- */
-import { servedDirectory } from "../vault.ts"
-import type { Wrote as Written } from "olai-plugin-chat/wire"
+import { useShowNode } from "./focus.ts"
+import { writeIn } from "./reply.ts"
+export { fileOf } from "./reply.ts"
+import { servedDirectory } from "./vault.ts"
 import { Show } from "solid-js"
 
-import { GLYPH, SAID } from "olai-plugin-outlines/changes"
+import { GLYPH, SAID } from "../contracts/changes.ts"
 import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
-import { TESTID } from "../../testids.ts"
-import { Reference } from "./Reference.tsx"
+import { TESTID } from "../testids.ts"
 
-export function Wrote(props: { readonly wrote: Written }) {
+export function story(input: { reply: unknown }) {
+  const wrote = writeIn(input.reply)
+  if (wrote === undefined) return null
+  const show = useShowNode()
+  const props = { wrote }
   /** A write that changed no record has no honest word for what it did, and
    *  this is what it says instead — the one case the table cannot cover. */
   const said = () => (props.wrote.sort === null ? "nothing changed" : SAID[props.wrote.sort])
@@ -37,7 +22,7 @@ export function Wrote(props: { readonly wrote: Written }) {
   return (
     <div
       class="border-t border-rule px-2 py-1 text-xs"
-      data-testid={TESTID.chatWrote}
+      data-testid={TESTID.outlinesStory}
       data-sort={props.wrote.sort ?? "unchanged"}
     >
       <p class="flex items-baseline gap-2">
@@ -66,28 +51,20 @@ export function Wrote(props: { readonly wrote: Written }) {
           }
         >
           {(id) => (
-            <Reference id={id()} class="min-w-0 truncate">
+            <button type="button" class="min-w-0 truncate text-accent hover:underline" data-testid={TESTID.outlinesStoryRef} data-node-ref={id()} onClick={event => { event.stopPropagation(); show(id()) }}>
               <TitleHtml
                 drawing={renderTitle(servedDirectory()?.claims(), props.wrote.title, props.wrote.file ?? "", {
                   links: false,
                 })}
               />
-            </Reference>
+            </button>
           )}
         </Show>
         <span class="ml-auto shrink-0 text-muted">{said()}</span>
       </p>
-      {/* Which outline it landed in, quietly: one directory is many files, and
-          a person watching an agent work is entitled to know which one moved
-          without unfolding the arguments. */}
-      <Show when={props.wrote.file}>
-        {(file) => (
-          <p class="pl-5 font-mono text-[0.6875rem] text-muted/70">{file()}</p>
-        )}
-      </Show>
       <Show when={props.wrote.nudge}>
         {(nudge) => (
-          <p class="pl-5 text-muted" data-testid={TESTID.chatNudge}>{nudge()}</p>
+          <p class="pl-5 text-muted" data-testid={TESTID.outlinesNudge}>{nudge()}</p>
         )}
       </Show>
     </div>

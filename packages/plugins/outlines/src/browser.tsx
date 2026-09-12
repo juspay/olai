@@ -1,13 +1,16 @@
 /** Outlines owns editor history, selection/drag registers, page readings and
  * browser preferences. These resources live in the provider activation, before
  * and independently of any layout. Content and settings are separate consumers. */
+import type {} from "olai-plugin-chat/slots"
+import { fileOf, story } from "./browser/replyFace.tsx"
+
 import { fileKindKey } from "@olai/plugin-api/file-kinds"
 import { fileKinds } from "olai-plugin-files/contract"
 import { pages } from "olai-plugin-navigation/contract"
 import { KindGlyph } from "./glyph.tsx"
 import { TESTID as KIND_IDS } from "./testids.ts"
 import { holdServed } from "./browser/vault.ts"
-import { Edits, Wired } from "@olai/plugin-api"
+import { Edits, Wired, Slots } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
 import { dispatch } from "./surface.ts"
 import { holdEdits, writeEdit } from "./browser/writes.ts"
@@ -87,7 +90,7 @@ import { reachable } from "@olai/web/client/connection/reaching.ts"
  * chat panel wants the naming of a node and must not be taken away when this
  * row stops (`./contracts/references.ts`).
  */
-export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect.gen(function*() {
+export default definePlugin({ name, needs: [Wired, Offers, Edits, Slots], apply: Effect.gen(function*() {
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
   // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through
@@ -119,6 +122,7 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
   const offers = yield* Offers
   yield* offers.own("browser-state", () => state.value)
   yield* offers.own("references", () => state.value.references)
+  yield* (yield* Slots).register("tool.reply", { fileOf, story })
 }) })
 
 import { documentProperties } from "./browser/document-properties.tsx"

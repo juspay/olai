@@ -174,3 +174,19 @@ Permission-mode coverage sits below the browser: it drives the real chat session
 - Limits: no live model, no executable tool command and no user permission configuration are involved. These tests check the requests and the session integration, not a turn-context file written by a live Codex. Browser coverage and full CI remain separate checks.
 
 `file_kinds.feature` covers scoped format claims, PDF membership and media withdrawal, live heads, independent Files/Markdown/Navigation withdrawal, settings-reader switches, reconnection, missing browser contributions and ambiguous conventions.
+
+## Olai tool rows (#583)
+
+The engine fixtures and browser workflows check MCP display ownership and payload handling.
+
+- `the_agent.feature` uses the JSON-string result observed in a real Claude session (the pinned adapter forwards SDK content unchanged) and checks Claude write titles, files, raw names, single replies, stories, nudges and node links, plus reads and refusals.
+- `codex_steering.feature` checks the same write/read display through Codex's structured announcement.
+- `choosing_an_agent.feature` checks OpenCode and Pi write/read display and preserves ordinary bash titles.
+- `an_external_agent.feature` checks a real attached foreign server's write-shaped reply keeps its adapter title without an outline or story.
+- `git_state.feature` checks the uncommitted-write reason in the reply fold.
+- `lifecycle.test.ts`, `calls.test.ts` and `transcript.test.ts` check absent catalogues, compact session-scoped identity and late friendly relabeling.
+- `claude/src/leg.test.ts` independently checks a sanitized real-session JSON string, content arrays, and malformed or non-record output.
+- `catalogue.test.ts` checks injected server identity, live removal and replacement; `reply.test.ts` preserves trimmed and unknown-classification stories.
+- Regression proof: temporarily removing Claude's reply reader made both established write-story scenarios fail while their writes succeeded; restoring it restored the stories.
+
+Open: live model output is not exercised; executable fakes share payload fixtures with engine unit tests.

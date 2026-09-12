@@ -88,6 +88,8 @@
  *     landed — so the whole path from browser to agent stays a string, and the
  *     one place that knows otherwise is the module that owns that directory.
  */
+import type { Advertised } from "@olai/plugin-api/services"
+
 
 import { type AgentChoice, type Attached, type AttachChunk, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type Talking } from "olai-plugin-chat/wire"
 import { type OpFailure } from "@olai/format"
@@ -211,6 +213,7 @@ export interface PanelOptions {
    *  whose integrations are fibers answers a different list per conversation, so
    *  this side holds no copy of one. Omitting it is a chat that asks this
    *  machine nothing. */
+  readonly advertised?: (server: string, tool: string) => Advertised | null
   readonly probes?: () => Effect.Effect<ReadonlyArray<Probe>>
   /**
    * WHERE THE DOORBELL PICKS ARE KEPT — which conversations somebody pointed a
@@ -920,6 +923,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         cwd: options.cwd,
         tools: options.tools,
         probes: options.probes,
+        advertised: options.advertised,
         memory,
         onEvent,
       }).pipe(Effect.annotateLogs({ ...logContext, purpose }))
@@ -1529,7 +1533,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             detail: event.detail,
             progress: event.progress,
             diffs: event.diffs,
-            wrote: event.wrote,
+            called: event.called,
+            row: event.row,
+            reply: event.reply,
             locations: event.locations,
             parent: event.parent,
             spawned: event.spawned,

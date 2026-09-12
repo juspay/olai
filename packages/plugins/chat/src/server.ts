@@ -784,6 +784,7 @@ export default definePlugin({
         // between conversations contributes nothing to the next one. The ORDER
         // is the build's, imposed here, because registration order is the order
         // two dynamic imports came back in and a person reads these lists.
+        advertised: tools.advertised,
         probes: () =>
           Effect.sync(() =>
             inBundleOrder(asking, (one) => one.who, bundle.rank).map((one) => ({

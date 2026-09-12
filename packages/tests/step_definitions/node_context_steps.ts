@@ -24,7 +24,7 @@ import {
   CHAT_CONTEXT_REMOVE,
   CHAT_ENTRY,
   CHAT_SAID,
-  CHAT_WROTE,
+  OUTLINES_STORY,
   chatNodeRef,
   NODE_REF_ANY,
   nodeSelector,
@@ -86,7 +86,7 @@ Then(
  *  and a chip on the message. A step that took any of them would pass on a
  *  build where only one worked. */
 const WHERE: Readonly<Record<string, string>> = {
-  write: CHAT_WROTE,
+  write: OUTLINES_STORY,
   answer: CHAT_SAID,
   message: `${CHAT_ENTRY}[data-kind="user"]`,
 };
