@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * EDITING one node's edges, as one thing a host can hold: which panel is open,
  * the writes both doors send, and the line that says what came of them.
@@ -26,7 +25,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * says so — the panel below is redrawn from the same snapshot every other
  * reader is drawn from, so what it lists after a write is what landed.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { edgeMemory } from "./memory.ts"
 import type { RegularNode } from "@olai/format"
 import type { Edit } from "@olai/surface"

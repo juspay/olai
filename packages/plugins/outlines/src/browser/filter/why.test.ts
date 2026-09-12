@@ -18,7 +18,7 @@
  * The fixed-query note in `./narrowing.test.ts` applies unchanged: there is no
  * DOM under `bun test`, so each case builds its own reading.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, litBy, parseFilter, rowsOf, type Shown } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
@@ -41,7 +41,7 @@ import { createNarrowing } from "./narrowing.ts"
 const NOTE =
   "Two ways to go: walnut, six weeks — or birch, in stock. Measure the alcove before ordering."
 
-const derived = derive(nodesOfFiles({
+const derived = derive(TEST_CLAIMS, nodesOfFiles({
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":true}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","desc":"${NOTE}"}`,

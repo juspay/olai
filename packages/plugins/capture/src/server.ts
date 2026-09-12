@@ -30,7 +30,7 @@ export default definePlugin({
     const publish = (next: typeof NO_INBOX) => ctx ? ctx.cells.inbox.set(next) : value.set(next)
     let file: Convention | undefined
     yield* vault.revision<Snapshot<Reading>>(snapshot => Effect.sync(() => {
-      file = conventionServed(inboxIn, snapshot.value.set, snapshot, file)
+      file = conventionServed(snapshot.value.claims, inboxIn, snapshot.value.set, snapshot, file)
       publish(inboxHeldIn(snapshot.value.derived, file.file))
     }))
     yield* vault.unloaded(Effect.sync(() => {

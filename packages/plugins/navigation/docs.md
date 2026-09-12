@@ -51,3 +51,15 @@ state and opens the focused input when its overlay arrives. Closing through
 the shortcut, Escape or a command uses the same renderer cleanup for its query
 and prior focus. Removing navigation releases the shortcut listener; changing
 layout does not create a gap in keyboard handling.
+
+File pages contribute to `navigation.pages`, keyed by row id or `holds`.
+Navigation reads the current vault Claims cell and chooses the exact kind
+before the `holds` fallback. Outlines contributes once for every node-holding
+format. Ordinary computed routes continue through `navigation.content`.
+
+An unclaimed file address says that the directory holds nothing by that name
+and that no row claims its suffix. A held file with no page contribution names
+the claiming row whose browser page is unavailable. Addresses do not remember
+a departed suffix-to-row mapping. Trash and Agenda can name the configured
+outline row when it is off; Inbox and Pins explain that state in their sidebar
+entries while their files remain ordinary addresses.

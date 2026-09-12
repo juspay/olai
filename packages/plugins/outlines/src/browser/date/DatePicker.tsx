@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The date picker: a day, chosen on a row that already exists.
  *
@@ -42,6 +41,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * would be a picker that shuts the moment somebody reaches for a date in it —
  * which is a fact about THIS control rather than about panels.
  */
+import { TESTID } from "olai-plugin-outlines/testids"
 import type { Press } from "../edit/panel.ts"
 import type { Submission } from "../edit/submission.ts"
 import { RowPanel } from "../edit/RowPanel.tsx"

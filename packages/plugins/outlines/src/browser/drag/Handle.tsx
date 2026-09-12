@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The bullet, as something to pick a row up by.
  *
@@ -31,7 +30,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * plumbing and would rest on the order Solid happens to walk delegated handlers
  * in.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import type { Row } from "@olai/format"
 import type { JSX } from "solid-js"
 

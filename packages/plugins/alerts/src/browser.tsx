@@ -1,3 +1,5 @@
+/** Offer withdrawal drains consumers while the devices still exist. Each
+ * acquisition has its release; preferences UI and theme are optional consumers. */
 import { definePlugin, Offers } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { createEffect, createRoot } from "solid-js"
@@ -15,9 +17,6 @@ import { AlertRows } from "./AlertRows.tsx"
 
 export { name } from "./index.ts"
 export default definePlugin({ name, needs: [], apply: Effect.void })
-
-/** Offer withdrawal drains consumers while the devices still exist. Each
- * acquisition has its release; preferences UI and theme are optional consumers. */
 export const components = {
   channel: definePlugin({ name: "channel", needs: [Offers], apply: Effect.gen(function*() {
     yield* Effect.acquireRelease(Effect.sync(followNotifications), stop => Effect.sync(stop))

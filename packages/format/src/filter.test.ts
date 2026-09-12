@@ -1,3 +1,17 @@
+/** One corpus, standing in for a directory: marks, dates, notes, edges, tags,
+ *  a repeat rule, a mirror, an archive beside it — and a chain of `after`
+ *  edges that crosses a file, so blockedness has something to be derived from.
+ *  Every assertion below is about this.
+ *
+ *  THE STAMPS ARE ON SOME RECORDS AND NOT OTHERS, deliberately, because that
+ *  is the directory the stamp operators actually meet: they arrived after the
+ *  format did, so `kitchen`, `demo`, `garden` and `herbs` are nodes written
+ *  before they existed and carry none. Nothing invents a past for them, and
+ *  the pair of tests that says so is the honesty rule those two operators are
+ *  held to. `install` carries a `created` with no `changed` beside it, which
+ *  is the record saying nothing has been written to it since it was captured.
+ *  Instants, not days, so the cut to a day is exercised rather than assumed. */
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { datedIn, datedOn, type DayGroup } from "./dates.ts"
@@ -19,20 +33,6 @@ import {
 import { nodesOfFiles, seeded } from "./fixtures.testlib.ts"
 import { declarationsOf, NO_KINDS } from "./typing.ts"
 import { isMirror, isPutAway } from "./node.ts"
-
-/** One corpus, standing in for a directory: marks, dates, notes, edges, tags,
- *  a repeat rule, a mirror, an archive beside it — and a chain of `after`
- *  edges that crosses a file, so blockedness has something to be derived from.
- *  Every assertion below is about this.
- *
- *  THE STAMPS ARE ON SOME RECORDS AND NOT OTHERS, deliberately, because that
- *  is the directory the stamp operators actually meet: they arrived after the
- *  format did, so `kitchen`, `demo`, `garden` and `herbs` are nodes written
- *  before they existed and carry none. Nothing invents a past for them, and
- *  the pair of tests that says so is the honesty rule those two operators are
- *  held to. `install` carries a `created` with no `changed` beside it, which
- *  is the record saying nothing has been written to it since it was captured.
- *  Instants, not days, so the cut to a day is exercised rather than assumed. */
 const CORPUS = {
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
@@ -52,7 +52,7 @@ const CORPUS = {
   ].join("\n"),
 }
 
-const derived = derive(nodesOfFiles(CORPUS))
+const derived = derive(TEST_CLAIMS, nodesOfFiles(CORPUS))
 
 /**
  * THE SAME CORPUS WITH TWO OF ITS TARGETS CALLED OFF — `demo` (which `order`
@@ -70,7 +70,7 @@ const derived = derive(nodesOfFiles(CORPUS))
  * it on a day is the mark; `order` carries a bare `true` beside a real `date`,
  * which is the shape that says the state was reached and declines to say when.
  */
-const CALLED_OFF = derive(nodesOfFiles({
+const CALLED_OFF = derive(TEST_CLAIMS, nodesOfFiles({
   ...CORPUS,
   "house.olai": CORPUS["house.olai"]
     .replace(`"done":"2026-08-03"`, `"cancelled":"2026-08-03T11:00:00-04:00"`)
@@ -171,7 +171,7 @@ test("`has:repeat` is inside `has:date`, and the difference is what is dated onc
 // would drop from the line is not a note to search for. A second list here is
 // how `desc: ""` becomes a node with a note and no note at once.
 test("a field holding nothing is a field the record does not carry", () => {
-  const hollow = derive(nodesOfFiles({
+  const hollow = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": [
       `{"id":"blank","ord":"a0","title":"blank","desc":"","see":[],"after":[]}`,
       `{"id":"real","ord":"a1","title":"real","desc":"something"}`,
@@ -210,7 +210,7 @@ test("a hollow stamp is a stamp the record does not carry", () => {
     line,
     node: { id, ord: `a${line}`, title: id, created },
   })
-  const condemned = derive([
+  const condemned = derive(TEST_CLAIMS, [
     at("blank", "", 1),
     at("real", "2026-08-01T09:00:00-04:00", 2),
   ])
@@ -551,7 +551,7 @@ test("a phrase is found in a note, and says so", () => {
  * wrote down what `is:done` means.
  */
 test("a quoted operator is the text, not the operator", () => {
-  const literal = derive(nodesOfFiles({
+  const literal = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": [
       `{"id":"note","ord":"a0","title":"what is:done reads","todo":true}`,
       `{"id":"ticked","ord":"a1","title":"something else","done":"2026-08-01"}`,
@@ -572,7 +572,7 @@ test("a quoted operator is the text, not the operator", () => {
  * it falls out of the note being stored verbatim.
  */
 test("a phrase does not cross the line break a note keeps", () => {
-  const wrapped = derive(nodesOfFiles({
+  const wrapped = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"list","ord":"a0","title":"the list","desc":"pick the\\nhinges"}`,
   }))
   expect(selectsIn(wrapped, "pick hinges")).toEqual(["list"])
@@ -703,7 +703,7 @@ test("`or` is a word and `OR` is the joiner", () => {
 /** ...and the other way out, for a note that shouts it: quoting. The two
  *  halves of this change are each other's escape hatch. */
 test("a quoted `OR` is the word, in capitals", () => {
-  const shouting = derive(nodesOfFiles({
+  const shouting = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": [
       `{"id":"ward","ord":"a0","title":"book the OR for Tuesday"}`,
       `{"id":"list","ord":"a1","title":"the theatre list"}`,
@@ -787,7 +787,7 @@ test("an edge is not a wait: a finished target, and a source that is not work", 
  * field is what `has:after` sees.
  */
 test("a `blocks` written on the other record is waited on all the same", () => {
-  const sugared = derive(nodesOfFiles({
+  const sugared = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": [
       `{"id":"ship","ord":"a0","title":"ship it","todo":true}`,
       `{"id":"review","ord":"a1","title":"read it over","doing":true,"blocks":["ship"]}`,
@@ -810,7 +810,7 @@ test("`is:blocked` composes and negates like every other clause", () => {
  * so nothing else can have changed between the two readings.
  */
 test("a node whose blocker is finished stops matching", () => {
-  const finished = derive(nodesOfFiles({
+  const finished = derive(TEST_CLAIMS, nodesOfFiles({
     ...CORPUS,
     "house.olai": CORPUS["house.olai"].replace(`"doing":true`, `"done":"2026-08-12"`),
   }))
@@ -899,7 +899,7 @@ test("a value may contain an equals sign", () => {
  *  with `prop:`, so it is still an operator — the two rules quoting is made of,
  *  meeting on one token. */
 test("a value may hold a space, which is what quoting one is for", () => {
-  const spaced = derive(nodesOfFiles({
+  const spaced = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": [
       `{"id":"one","ord":"a0","title":"the first","custom":{"stage":"in review"}}`,
       `{"id":"two","ord":"a1","title":"the second","custom":{"stage":"in"}}`,
@@ -1039,7 +1039,7 @@ test("`is:mirrored` finds the node a placement shows, never the placement", () =
  *  middle collects nothing. Same index `outlines_read` answers `mirrors` from, so
  *  a query cannot find a placement that read does not report. */
 test("a chain of placements is places the node at the end of it is drawn", () => {
-  const chained = derive(nodesOfFiles({
+  const chained = derive(TEST_CLAIMS, nodesOfFiles({
     ...CORPUS,
     "shelf.olai": `{"id":"now-herbs","ord":"a0","mirror":"kitchen-herbs"}`,
   }))
@@ -1051,7 +1051,7 @@ test("a chain of placements is places the node at the end of it is drawn", () =>
 /** A chain that dangles shows no node and is filed nowhere — the same silence
  *  `Derived.status` keeps about one, rather than a second rule here. */
 test("a placement pointing at nothing mirrors nothing", () => {
-  const dangling = derive(nodesOfFiles({
+  const dangling = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"a","ord":"a","title":"a"}\n{"id":"m","ord":"b","mirror":"nobody"}`,
   }))
   expect(selectsIn(dangling, "is:mirrored")).toEqual([])
@@ -1112,7 +1112,7 @@ test("`is:blocked` differs from the old derivation exactly at the cancelled targ
       .filter((id) => {
         const inPlay = (target: string): boolean => {
           const at = derivation.byId.get(target)
-          if (at === undefined || isPutAway(at.file)) return false
+          if (at === undefined || isPutAway(TEST_CLAIMS, at.file)) return false
           const mark = derivation.status.get(target)
           return mark !== undefined && mark !== "done"
         }
@@ -1428,7 +1428,7 @@ const ON_THE_DOT = {
   ].join("\n"),
 }
 
-const onTheDot = derive(nodesOfFiles(ON_THE_DOT))
+const onTheDot = derive(TEST_CLAIMS, nodesOfFiles(ON_THE_DOT))
 
 test("a zero count is the moment asked, and a stamp on it is inside", () => {
   expect(selectsIn(onTheDot, "created:0m", NOW)).toEqual(["now"])
@@ -1484,7 +1484,7 @@ const BY_HAND = {
   ].join("\n"),
 }
 
-const byHand = derive(nodesOfFiles(BY_HAND))
+const byHand = derive(TEST_CLAIMS, nodesOfFiles(BY_HAND))
 
 test("a hand-written instant on a bound is outside it, and that is the limit", () => {
   // Three ways of writing 08:00:00 on the 13th, and three hours before eleven
@@ -1538,7 +1538,7 @@ const ROLLING = {
   ].join("\n"),
 }
 
-const rolling = derive(nodesOfFiles(ROLLING))
+const rolling = derive(TEST_CLAIMS, nodesOfFiles(ROLLING))
 
 test("`1d` is a rolling day where `today` is since midnight", () => {
   expect(selectsIn(rolling, "created:1d", NOW)).toEqual(["morning", "evening"])
@@ -1572,7 +1572,7 @@ const JOURNAL = {
   ].join("\n"),
 }
 
-const journal = derive(nodesOfFiles(JOURNAL))
+const journal = derive(TEST_CLAIMS, nodesOfFiles(JOURNAL))
 
 test("`date:1h` reaches the done-instants, and the day's plans sit before it", () => {
   expect(selectsIn(journal, "date:1h", NOW)).toEqual(["ticked", "soon"])
@@ -1697,7 +1697,7 @@ test("a scope that is already the archive is answered rather than overruled", ()
 // (human, 2026-08-19: left on disk and stop being read). It is not trash, and
 // it is not live work either.
 test("a leftover Archive.olai is in no query, including is:trashed", () => {
-  const leftover = derive(nodesOfFiles({
+  const leftover = derive(TEST_CLAIMS, nodesOfFiles({
     "house.olai":
       `{"id":"live","ord":"a0","title":"live leftover work","todo":true,"date":"2026-08-11"}`,
     "Archive.olai":
@@ -2130,7 +2130,7 @@ const BOARD = {
   ].join("\n"),
 }
 
-const board = derive(nodesOfFiles(BOARD))
+const board = derive(TEST_CLAIMS, nodesOfFiles(BOARD))
 const typing = declarationsOf(board, NO_KINDS)
 
 /** What a query selects on the board, WITH the vault's vocabulary in hand —
@@ -2265,7 +2265,7 @@ const GENERATED = Array.from({ length: 120 }, (_, at) => {
   return { id: `g-${at}`, pr, dispatched }
 })
 
-const generated = derive(nodesOfFiles({
+const generated = derive(TEST_CLAIMS, nodesOfFiles({
   "_olai/Properties.olai": [
     `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
     `{"id":"prop-dispatched","ord":"a1","title":"dispatched","custom":{"type":"date"}}`,

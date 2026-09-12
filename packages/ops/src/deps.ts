@@ -36,6 +36,7 @@ export interface RuntimePaths {
 }
 
 export interface VaultSettings {
+  readonly claims: { readonly current: import("@olai/format").Claims }
   readonly runtime: RuntimePaths
   readonly root: string
   readonly kinds: import("@olai/format").KindVocabulary

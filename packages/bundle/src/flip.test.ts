@@ -1,4 +1,3 @@
-import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * A ROW TURNED OFF AND BACK ON WHILE THE PROCESS RUNS — the loader surface's
  * one mechanism, benched where its two halves meet.
@@ -36,7 +35,7 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * than with modules on a disk — the same seam `./bundle.ts` fills with a real
  * `import()`.
  */
-
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"

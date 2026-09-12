@@ -7,7 +7,7 @@ Feature: The vault is a row
     Given I open the outline "garden.olai"
     Then the node "mint" is shown
     When I open the plugins panel
-    Then the plugins panel shows "vault" configured "format" as "olai"
+    Then the plugins panel shows "vault" configured "format" as "outline-olai"
     And the plugin "vault" has a session-only switch ring
     When I switch the plugin "vault" off
     Then the node "mint" is not shown

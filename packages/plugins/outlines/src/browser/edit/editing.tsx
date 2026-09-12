@@ -1,4 +1,3 @@
-import { writeEdit } from "../writes.ts"
 /**
  * The editor: one draft, the keys that move it, and the writes they cause.
  *
@@ -43,7 +42,7 @@ import { writeEdit } from "../writes.ts"
  * appears to leave — is the optimistic UI this whole design is written
  * against.
  */
-
+import { writeEdit } from "../writes.ts"
 import type { Row } from "@olai/format"
 import type { Anchor, Edit } from "@olai/surface"
 import { debounce } from "@solid-primitives/scheduled"

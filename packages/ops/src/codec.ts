@@ -22,7 +22,8 @@ import {
   fileKind,
   type KindVocabulary,
   nodesIn,
-  parseOutline,
+  parserFor,
+  type Claims,
   type Reading,
   stopping,
   unkept,
@@ -52,8 +53,8 @@ import { Result } from "effect"
  * heard of a terminal, with nothing red anywhere. There is no such value to
  * reach for now, so the root has to answer.
  */
-export const codecFor = (kinds: KindVocabulary): Codec<Document, Reading, Verdict> => ({
-  match: (path) => fileKind(path) !== null,
+export const codecFor = (kinds: KindVocabulary, table: { readonly current: Claims }): Codec<Document, Reading, Verdict> => ({
+  match: (path) => fileKind(table.current, path) !== null,
 
   /** A file whose content the set does not KEEP decodes to its path and
    *  nothing else, and the store never reads it — which is the whole of what
@@ -65,7 +66,10 @@ export const codecFor = (kinds: KindVocabulary): Codec<Document, Reading, Verdic
    *  OPENS one gets is a body read then and there and kept by nobody
    *  (`@olai/server`'s `bodies.ts`); what the SET gets is the path, which is
    *  all a `doc` reference was ever checked against. */
-  byName: (path) => unkept(path) ? Result.succeed(bodiedDocument(path, null)) : null,
+  byName: (path) => {
+    const claims = table.current
+    return unkept(claims, path) ? Result.succeed(bodiedDocument(claims, path, null)) : null
+  },
 
   /** A BODIED file decodes to its text, verbatim: what it says is interpreted
    *  at view time, so there is nothing to parse here and nothing that can fail.
@@ -79,14 +83,14 @@ export const codecFor = (kinds: KindVocabulary): Codec<Document, Reading, Verdic
    *  here would be the second answer to a question the format already
    *  settles — and the way that reads is a file parsed as records nobody wrote
    *  as records. */
-  decode: (path, contents) =>
-    bodyKind(path) !== null
-      ? Result.succeed(bodiedDocument(path, contents))
-      // A VERDICT either way, which is what the store's `E` is: the parser
-      // judges one file and `validate` below judges the set, and a caller
-      // handed the two on one channel should not have to know which half
-      // spoke. `verdictOf` is the format's one constructor for it.
-      : Result.mapError(parseOutline(path, contents), verdictOf),
+  decode: (path, contents) => {
+    const claims = table.current
+    if (bodyKind(claims, path) !== null) return Result.succeed(bodiedDocument(claims, path, contents))
+    const format = parserFor(claims, path)
+    return format === null
+      ? Result.fail(verdictOf([{ file: path, line: 0, code: "unreadable-file", message: `No active format claims ${path}` }]))
+      : Result.mapError(format.parse(path, contents, claims), verdictOf)
+  },
 
   /** Failures included: what an unreadable file costs the rest of the set is a
    *  question about the FORMAT, so `assemble` carries them in and `validate`
@@ -124,9 +128,11 @@ export const codecFor = (kinds: KindVocabulary): Codec<Document, Reading, Verdic
    *  corpus-sized set of rules per keystroke both become a walk of what the
    *  keystroke touched, and neither of those is a promise this file makes: it
    *  hands over what it knows and `@olai/format` decides what to do with it. */
-  validate: (files, since) =>
-    validate(
-      assemble(files),
+  validate: (files, since) => {
+    const claims = table.current
+    return validate(
+      claims,
+      assemble(claims, files),
       since === undefined ? undefined : {
         read: since.value,
         // The paths the store names, read out of the very map `assemble` is
@@ -142,7 +148,8 @@ export const codecFor = (kinds: KindVocabulary): Codec<Document, Reading, Verdic
         },
       },
       kinds,
-    ),
+    )
+  },
 
   /** The store's own failure — the directory would not be listed, a file would
    *  not be read — said in the format's vocabulary, so it travels the channel
@@ -214,8 +221,14 @@ export const codecFor = (kinds: KindVocabulary): Codec<Document, Reading, Verdic
    * format's, the paths and the standing value are the store's, and this line
    * is the two of them meeting.
    */
-  stopping: (outcome, paths, standing) =>
-    Result.isFailure(outcome)
-      ? outcome.failure
-      : stopping(outcome.success.set, paths, standing.set),
+  stopping: (outcome, paths, standing) => {
+    if (Result.isFailure(outcome)) return outcome.failure
+    const claims = table.current
+    const departed = paths.filter(path => fileKind(claims, path) === null)
+    if (departed.length > 0) return verdictOf(departed.map(file => ({
+      file, line: 0, code: "unreadable-file" as const,
+      message: `No active row claims ${file}, so it cannot be written.`,
+    })))
+    return stopping(outcome.success.set, paths, standing.set)
+  },
 })

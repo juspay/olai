@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-pins/testids"
 /**
  * ONE PIN, drawn: a door, what it is called right now, what it is narrowed by,
  * and the way to take it off the shelf.
@@ -22,8 +21,7 @@ import { TESTID } from "olai-plugin-pins/testids"
  * the pin, computed by the shelf, with a comment promising it matched what the
  * face would draw.
  */
-
-
+import { TESTID } from "olai-plugin-pins/testids"
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { Face } from "olai-plugin-navigation/address/Face.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"

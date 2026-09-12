@@ -25,7 +25,7 @@
  * is held here is that the reading follows the DECLARATION rather than any
  * particular string, which is the two cases at the bottom of this file.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { agentsIn, memoryOf, NO_AGENTS, sameAgents, sessionIn, sessionValue } from "./agents.ts"
@@ -54,7 +54,7 @@ const LANES = [
   `{"id":"quiet","parent":"lanes","ord":"a1","title":"a lane with nothing on it"}`,
 ].join("\n")
 
-const setWith = (files: Record<string, string>) => derive(recordsOf(setOf(files)))
+const setWith = (files: Record<string, string>) => derive(TEST_CLAIMS, recordsOf(setOf(files)))
 
 /** The reading under test, with the two arguments a caller supplies folded in
  *  once: the vault's declarations — this file's vocabulary claimed and any

@@ -1,6 +1,3 @@
-import { createRoot } from "solid-js"
-import type {} from "olai-plugin-chat/slots"
-import type {} from "olai-plugin-layout/slots"
 /**
  * XYNE SPACES' BROWSER HALF — a plugin, exactly the shape its server half is.
  *
@@ -16,7 +13,9 @@ import type {} from "olai-plugin-layout/slots"
  * tab loaded this module and drew nothing out of it. It means the chunk is
  * never fetched now: the roster is what asks for one.
  */
-
+import { createRoot } from "solid-js"
+import type {} from "olai-plugin-chat/slots"
+import type {} from "olai-plugin-layout/slots"
 // THE APP'S DOOR — the tags this half names and the `definePlugin` that turns
 // an Effect into a plugin (`@olai/plugin-api`'s `browser.ts`). Its server half
 // opens exactly the one door over, and neither of them names `cordis`.

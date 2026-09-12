@@ -1,10 +1,9 @@
+/** Text equality alone cannot detect collapsed leading spaces in flex items. */
 import * as assert from "node:assert"
 import { Then } from "@cucumber/cucumber"
 import type { OlaiWorld } from "../support/world.ts"
 import { oneLine } from "../support/world.ts"
 import type { Locator } from "playwright"
-
-/** Text equality alone cannot detect collapsed leading spaces in flex items. */
 const spacedSeparators = async (place: Locator): Promise<void> => {
   const parts = await place.locator('[data-place="middle"], [data-place="nearest"]').count()
   const separators = place.locator('[data-place="separator"]')

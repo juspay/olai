@@ -1,3 +1,17 @@
+/**
+ * THE REPORT a set produces — the rows a reader is shown, in presentation
+ * order.
+ *
+ * A validation no longer REFUSES over any of these: since the per-file ruling
+ * it answers with the directory, published with the broken files' content
+ * withheld, and the rows ride on those files ({@link findingsIn} reads them
+ * back). So the assertions below are unchanged — they were always about the
+ * report — and what changed is the door they come through. The DEGRADATION
+ * itself is asserted separately, below, where the sets are small enough to name
+ * which file went dark.
+ */
+import { DocumentPath } from "./address.ts"
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
@@ -25,19 +39,6 @@ import {
 } from "./set.ts"
 import type { ContributedKind, KindVocabulary } from "./typing.ts"
 import { following, type Previous, type Reading, reading, validate } from "./validate.ts"
-
-/**
- * THE REPORT a set produces — the rows a reader is shown, in presentation
- * order.
- *
- * A validation no longer REFUSES over any of these: since the per-file ruling
- * it answers with the directory, published with the broken files' content
- * withheld, and the rows ride on those files ({@link findingsIn} reads them
- * back). So the assertions below are unchanged — they were always about the
- * report — and what changed is the door they come through. The DEGRADATION
- * itself is asserted separately, below, where the sets are small enough to name
- * which file went dark.
- */
 const errorsOf = (
   files: Record<string, string>,
   documents: ReadonlyArray<string> = [],
@@ -68,7 +69,7 @@ const expectValid = (
   broken: Record<string, string> = {},
 ): OutlineSet => {
   const set = setOf(files, documents, broken)
-  const result = validate(set)
+  const result = validate(TEST_CLAIMS, set)
   if (Result.isFailure(result)) {
     throw new Error(
       `expected a valid set: ${
@@ -136,7 +137,7 @@ test("a view that is not about this set is not the view the rules run over", () 
     "a.olai": `{"id":"x","ord":"a","title":"one"}`,
     "b.olai": `{"id":"y","ord":"a","title":"two"}`,
   })
-  const first = validate(before)
+  const first = validate(TEST_CLAIMS, before)
   if (Result.isFailure(first)) throw new Error("expected the first set to be valid")
 
   // A delta that claims nothing moved, about a set where something did — the
@@ -145,7 +146,7 @@ test("a view that is not about this set is not the view the rules run over", () 
     "a.olai": `{"id":"x","ord":"a","title":"edited"}`,
     "b.olai": `{"id":"y","ord":"a","title":"two"}`,
   })
-  const answer = validate(after, {
+  const answer = validate(TEST_CLAIMS, after, {
     read: first.success,
     delta: { upserts: [], removes: [] },
   })
@@ -183,13 +184,13 @@ const probed = (
   text: string,
 ): { readonly set: OutlineSet; readonly previous: Previous } => {
   held.set(file, Result.succeed<Document>(outlineOf(text, file)))
-  const set = assemble(held)
+  const set = assemble(TEST_CLAIMS, held)
   const nodes = recordsOf(set).filter((at) => at.file === file)
   return { set, previous: { read, delta: { upserts: [[file, { nodes }]], removes: [] } } }
 }
 
 const judged = (set: OutlineSet, previous?: Previous): Reading => {
-  const answer = validate(set, previous)
+  const answer = validate(TEST_CLAIMS, set, previous)
   if (Result.isFailure(answer)) {
     throw new Error(
       `expected a valid set: ${answer.failure.findings.map((e) => e.code).join(", ")}`,
@@ -203,7 +204,7 @@ test("a delta that describes the set is taken, and the view is a patched one", (
     "a.olai": `{"id":"x","ord":"a","title":"one"}`,
     "b.olai": `{"id":"y","ord":"a","title":"two"}`,
   })
-  const first = judged(assemble(held))
+  const first = judged(assemble(TEST_CLAIMS, held))
   const { set, previous } = probed(held, first, "a.olai", `{"id":"x","ord":"a","title":"edited"}`)
   const answer = judged(set, previous)
 
@@ -228,7 +229,7 @@ test("an outline holding nothing is not a disagreement about the set", () => {
     "empty.olai": ``,
     "z.olai": `{"id":"y","ord":"a","title":"two"}`,
   })
-  const first = judged(assemble(held))
+  const first = judged(assemble(TEST_CLAIMS, held))
   const { set, previous } = probed(held, first, "a.olai", `{"id":"x","ord":"a","title":"edited"}`)
   const answer = judged(set, previous)
 
@@ -242,12 +243,12 @@ test("a delta that leaves the view holding a file the set lost is thrown away", 
     "a.olai": `{"id":"x","ord":"a","title":"one"}`,
     "b.olai": `{"id":"y","ord":"a","title":"two"}`,
   })
-  const first = judged(assemble(held))
+  const first = judged(assemble(TEST_CLAIMS, held))
   // The directory lost b.olai and the delta never says so, which the flat
   // comparison this replaced could only see as a length: the view files a
   // record under a path the set does not hold at all.
   held.delete("b.olai")
-  const set = assemble(held)
+  const set = assemble(TEST_CLAIMS, held)
   const answer = judged(set, { read: first, delta: { upserts: [], removes: [] } })
 
   expect([...answer.derived.byFile.keys()]).toEqual(["a.olai"])
@@ -890,9 +891,9 @@ test("a key spelled like a field, and the two words the bootstrap reserves", () 
 
 // The declarations file is found BY NAME, wherever it sits — `pinsIn`'s rule
 // one convention over, so a vault keeping one at the root types just the same.
-test("the declarations file is found by name wherever it sits", () => {
+test("the declarations file is found by stem under _olai", () => {
   const errors = errorsOf({
-    "Properties.olai": `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+    "_olai/Properties.olai": `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
     "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"#193"}}`,
   })
   expect(codes(errors)).toEqual(["bad-prop"])
@@ -946,7 +947,7 @@ const carriedAcross = (before: Reading, after: Reading, untouched: string): bool
   after.derived.byFile.get(untouched) === before.derived.byFile.get(untouched)
 
 const vault = (): Reading =>
-  reading(
+  reading(TEST_CLAIMS,
     setOf(
       {
         "a.olai": `{"id":"x","ord":"a","title":"one"}`,
@@ -1000,7 +1001,7 @@ test("a file EMPTIED leaves no key, which is how a file with no records is spelt
 test("a `.md` written beside an outline moves the set and not the view's records", () => {
   const before = vault()
   const after = following(before, [
-    bodiedDocument("notes/one.md", "# rewritten\n\n[the node](#x)\n"),
+    bodiedDocument(TEST_CLAIMS, "notes/one.md", "# rewritten\n\n[the node](#x)\n"),
     outlineOf(`{"id":"x","ord":"a","title":"edited"}`, "a.olai"),
   ])
 
@@ -1040,7 +1041,7 @@ test("a written file the view would file differently is not patched onto", () =>
   )
   const backwards: Document = { ...written, nodes: [...written.nodes].reverse() }
   const after = following(before, [backwards])
-  const alsoAfter = reading(withDocuments(before.set, [backwards]), {
+  const alsoAfter = reading(TEST_CLAIMS, withDocuments(before.set, [backwards]), {
     read: before,
     delta: { upserts: [["b.olai", { nodes: backwards.nodes }]], removes: [] },
   })
@@ -1068,7 +1069,7 @@ test("one path written in two KINDS leaves a view of the set, not of the outline
   const before = vault()
   const mixed: ReadonlyArray<Document> = [
     outlineOf(`{"id":"q","ord":"a","title":"an outline at this path"}`, "c.olai"),
-    bodiedDocument("c.olai", "a body where the records would have been"),
+    { ...bodiedDocument(TEST_CLAIMS, "c.md", "a body where the records would have been"), path: DocumentPath.make("c.olai") },
   ]
 
   const after = following(before, mixed)
@@ -1080,7 +1081,7 @@ test("one path written in two KINDS leaves a view of the set, not of the outline
   expect(after.derived.byId.has("q")).toBe(false)
   // The set really did take the body, which is what makes the view above the
   // interesting answer rather than a write that did nothing.
-  expect(documentAt(after.set, "c.olai")?.kind).toBe("document")
+  expect(documentAt(after.set, "c.olai")?.holds).toBe("text")
   // ...and a plain write THROUGH the returned reading stays about its set, so
   // nothing was deferred: the old spelling stayed consistently wrong from here.
   const then = following(after, [outlineOf(`{"id":"x","ord":"a","title":"later"}`, "a.olai")])
@@ -1098,7 +1099,7 @@ test("...and where that path HELD records, it is a write the door declines", () 
   const asOutline = outlineOf(`{"id":"q","ord":"a","title":"an outline at this path"}`, "b.olai")
   const mixed: ReadonlyArray<Document> = [
     asOutline,
-    bodiedDocument("b.olai", "a body where the records were"),
+    { ...bodiedDocument(TEST_CLAIMS, "b.md", "a body where the records were"), path: DocumentPath.make("b.olai") },
   ]
 
   const after = following(before, mixed)
@@ -1113,7 +1114,7 @@ test("...and where that path HELD records, it is a write the door declines", () 
   // And the door it replaced reaches the same answer on the same input, which
   // is the claim this change rests on, made at the input where the narrowing
   // could have parted from the walk.
-  const alsoAfter = reading(withDocuments(before.set, mixed), {
+  const alsoAfter = reading(TEST_CLAIMS, withDocuments(before.set, mixed), {
     read: before,
     delta: { upserts: [["b.olai", { nodes: asOutline.nodes }]], removes: [] },
   })
@@ -1201,7 +1202,7 @@ test("a mirror into a withheld file dangles, and does not break the file holding
   expect(dark).toEqual(["attic.olai"])
   expect(brokenIn(set, "plan.olai")).toBeUndefined()
 
-  const view = reading(set).derived
+  const view = reading(TEST_CLAIMS, set).derived
   // The target is NAMED and not DECLARED, which is exactly what a dangling
   // edge is — the derivation has had a word for it all along.
   expect(view.byId.has("lamps")).toBe(false)
@@ -1217,7 +1218,7 @@ test("a directory with nothing wrong comes back as the very set it was handed", 
     "attic.olai": `{"id":"attic","ord":"a","title":"the attic"}`,
     "cellar.olai": `{"id":"cellar","ord":"a","title":"the cellar"}`,
   })
-  const answer = validate(set)
+  const answer = validate(TEST_CLAIMS, set)
   if (Result.isFailure(answer)) throw new Error("expected a valid set")
   // IDENTITY, and it is the byte-compatibility claim: a healthy vault pays the
   // withholding nothing at all — not a rebuilt document list, not a second

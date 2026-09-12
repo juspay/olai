@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * A date a node carries, as a badge.
  *
@@ -56,7 +55,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * What is THIS file's is the two things above — the words, verbatim, and the
  * one thing they say in colour.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import type { Occasion } from "@olai/format"
 import { Show } from "solid-js"
 

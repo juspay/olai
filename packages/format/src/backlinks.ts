@@ -151,7 +151,7 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
     // A record never refers to ITSELF: a node whose note says `@` its own id is
     // talking about the page it is on, and a `see` onto one of its own
     // placements is the same sentence through a mirror.
-    if (at.node.id === id || isPutAway(at.file)) {
+    if (at.node.id === id || isPutAway(derived.claims, at.file)) {
       return
     }
     // A REFERRER IS A REGULAR NODE. `taggedBy` says so in its TYPE, so this
@@ -263,7 +263,7 @@ export const referrersTo = (
   pointing: Pointing,
   /** The records, for attributing an outline's link to the one that wrote it.
    *  `byFile` is the index that makes it a lookup rather than a corpus walk. */
-  derived: Pick<Derived, "byFile">,
+  derived: Pick<Derived, "byFile" | "claims">,
 ): ReadonlyArray<Referrer> => {
   // WRITTEN and compared, because a canonical spelling is what the grammar
   // promises: two addresses that name one place print one string, so nothing
@@ -289,7 +289,7 @@ export const referrersTo = (
   }
   const found: Array<Referrer> = []
   for (const face of pointingAt(pointing, address)) {
-    if (face.path === here || isPutAway(face.path)) continue
+    if (face.path === here || isPutAway(derived.claims, face.path)) continue
     const records = derived.byFile.get(face.path)
     // A face with no records behind it is a BODY — the link is the document's
     // own, and there is nothing finer to name.
@@ -299,7 +299,7 @@ export const referrersTo = (
     }
     for (const located of records) {
       if (!isRegular(located)) continue
-      if (!recordLinks(located).some(points)) continue
+      if (!recordLinks(derived.claims, located).some(points)) continue
       found.push({ face, at: located })
     }
   }

@@ -42,15 +42,13 @@ import { annotated } from "./prompt.ts"
  * carries `_olai/Trash.olai` already; a filename is a thing to notice, and this is
  * a thing that was said.
  *
- * ASKED OF THE FILE, here, rather than carried as a second field beside it: it
- * is `isTrashed`'s answer about `node.file` and nothing else, so a boolean on
- * the wire would be a pair for every producer of a context to keep true, and
- * this format's rule for what an archive IS frozen into a schema — where the
- * 2026-08-17 ruling moved this very area. One fact, one place, one reader.
+ * The sender judges this against the Claims carried by its reading, before
+ * handing the situated context to chat. A transcript holds that judgement;
+ * it does not reclassify a historical message using today's registry.
  */
 export const lineFor = (node: NodeContext): string => {
   const under = node.path.length === 0 ? "" : `; under ${node.path.join(" › ")}`
-  const away = isTrashed(node.file) ? "; trashed" : ""
+  const away = node.trashed === true ? "; trashed" : ""
   return `Node in context: \`${node.id}\` — ${node.title} (${node.file}:${node.line}${under}${away})`
 }
 

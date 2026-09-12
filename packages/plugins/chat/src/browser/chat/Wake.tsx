@@ -95,7 +95,7 @@
  * ever, hears nothing, and is beaten for by a heartbeat that goes on saying the
  * watcher is alive. Core did not have to LEARN anything to close that: the
  * plugin declares which kinds it can watch (`@olai/surface`'s
- * `BuiltPlugin.wake.kinds`) and core offers no other. What is left for core to
+ * `BuiltPlugin.wake.walks`) and core offers no other. What is left for core to
  * rule on is core's own files — the trash, the archives, the `_olai/` mints —
  * and that ruling is argued where it is spent.
  *
@@ -117,7 +117,7 @@ import { dirOf, folded, type Folded, matchFiles, nameOf } from "@olai/web/client
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
 import { QUIET_PILL } from "@olai/web/client/pill.ts"
-import { useServed } from "../vault.ts"
+import { servedDirectory, useServed } from "../vault.ts"
 import { TESTID } from "../../testids.ts"
 import { olai } from "@olai/web/client/wire.ts"
 import { scopable } from "./scopable.ts"
@@ -385,8 +385,9 @@ function Picker(props: {
    */
   const offerable = createMemo((): ReadonlyArray<Folded> => {
     if (!picker.open()) return NONE
-    const kinds = props.ringer.kinds
-    return folded(files()).filter((file) => scopable(kinds, file.path))
+    const claims = servedDirectory()?.claims()
+    if (claims === undefined) return NONE
+    return folded(files()).filter((file) => scopable(claims, props.ringer, file.path))
   })
 
   /** ... and those of them the query means, best first. Nothing but the typing

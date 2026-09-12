@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-pins/testids"
 /**
  * THE PINNED SHELF: the doors a reader keeps, at the top of the directory
  * column.
@@ -38,7 +37,7 @@ import { TESTID } from "olai-plugin-pins/testids"
  * file says so, which is after the drop — so a re-measure per frame would be a
  * forced layout for an answer that cannot have changed.
  */
-
+import { TESTID } from "olai-plugin-pins/testids"
 import { Key } from "@solid-primitives/keyed"
 import type { Undo } from "@olai/edit-history/undoing.ts"
 import { createEffect,createMemo,createSelector,createSignal,Show } from "solid-js"

@@ -178,6 +178,7 @@ test("the line/set split is exactly the two halves of the codec", () => {
   ])
   expect(of("set")).toEqual([
     "duplicate-id",
+    "ambiguous-convention",
     "unknown-parent",
     "foreign-parent",
     "parent-not-a-node",
@@ -250,6 +251,7 @@ test("every code says whether it can name a file it does not break", () => {
     // Two files that both claim one id are two files nobody can draw the
     // second of: the fault is shared, so both go dark.
     "duplicate-id",
+    "ambiguous-convention",
     "unknown-parent",
     "parent-not-a-node",
     // A cycle's every step is in the loop; whichever one a reader edits, the

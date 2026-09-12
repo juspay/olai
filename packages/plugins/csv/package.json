@@ -1,0 +1,34 @@
+{
+  "name": "olai-plugin-csv",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./server": "./src/server.ts",
+    "./claim": "./src/claim.ts",
+    "./browser": "./src/browser.tsx",
+    "./testids": "./src/testids.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "@olai/format": "workspace:*",
+    "@olai/web": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "olai-plugin-files": "workspace:*",
+    "olai-plugin-navigation": "workspace:*",
+    "olai-plugin-ui-renderer": "workspace:*",
+    "olai-plugin-vault": "workspace:*",
+    "olai-plugin-markdown": "workspace:*",
+    "solid-js": "^1.9.0"
+  },
+  "olai": {
+    "contracts": [
+      "./claim",
+      "./testids"
+    ]
+  }
+}

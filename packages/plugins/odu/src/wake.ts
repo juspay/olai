@@ -10,14 +10,10 @@
  * the doorbell IS. The counter is a count of held bodies, and each body is
  * `CI event`: the honest name for what one of them is ABOUT.
  *
- * The KINDS are the one member here a person never reads, and kolu's own
- * `./wake.test.ts` argues the whole of why the annotation is `NodeKind` and
- * not `FileKind`: a scope is a filter, and what odu filters BY is the
- * `odu-worktree` values on a file's un-done NODES ({@link ./doorbell.ts}), so
- * a file that holds no nodes claims nobody, for ever. `FileKind` would type-
- * check a `document` green and hand back the exact defect this member exists
- * to retire; `./wake.test.ts` holds the annotation hard, against the PRODUCTION
- * SLOT rather than a union restated in the test.
+ * `walks: "nodes"` is the non-prose member: odu filters by `odu-worktree`
+ * values on unfinished nodes. Both the serve and the picker compare that
+ * predicate with their own current claims. Row ids do not decide whether a
+ * file holds records, and a missing claim offers no watched file.
  *
  * The FAULTS are a sentence per WAY this doorbell can stop watching — `gone`
  * for the file that stops being served, `unwatchable` for the file that is
@@ -31,21 +27,6 @@
  * sentences and the picker's clear, and a third would say nothing.
  */
 
-import type { NodeKind } from "@olai/format"
-
-/**
- * THE KIND OF FILE AN ODU WAKE CAN BE POINTED AT — one, the outline.
- *
- * Typed against the record-holding union rather than spelled as a suffix:
- * a word the registry never had and a word the registry has for a file with
- * no nodes in it are BOTH the same class of error here, and `NodeKind` is
- * what turns both into type errors rather than into a picker that offers
- * wrong files on somebody else's machine. `olai-plugin-kolu`'s `./wake.ts`
- * argues both halves of that in full, and this list is one entry for the
- * same reason its neighbour's is: nothing in this package derives a claim
- * out of prose.
- */
-const KINDS: readonly [NodeKind, ...Array<NodeKind>] = ["outline"]
 
 /** odu's doorbell, as the strip says it. See the header for why the drawn half
  *  is three pieces and why the subject leads. */
@@ -60,7 +41,7 @@ export const wake = {
    *  is ABOUT: the run going red, or the run settling. */
   waiting: { one: "CI event waiting", many: "CI events waiting" },
   /** WHICH FILES THIS MAY BE POINTED AT — see the header. */
-  kinds: KINDS,
+  walks: "nodes" as const,
   /**
    * ... and the sentences, one per way this doorbell can stop watching, keyed by
    * the cause's own word. Core INDEXES by the cause it recorded rather than

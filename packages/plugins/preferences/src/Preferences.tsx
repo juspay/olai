@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-preferences/testids"
 /**
  * The way into the preferences: one control in the app header, and the panel it
  * opens.
@@ -24,7 +23,7 @@ import { TESTID } from "olai-plugin-preferences/testids"
  * — is `../BarDoor.tsx` now. This was the canonical one and the plugins door
  * was written as a copy of it; the shared half moved out from under both.
  */
-
+import { TESTID } from "olai-plugin-preferences/testids"
 import { BarDoor } from "olai-plugin-layout/bar-door"
 import { Panel } from "./Panel.tsx"
 

@@ -92,7 +92,7 @@ Feature: The second pane
     # THE SAME FILE IN BOTH, on purpose. Two panes of one document mint the same
     # heading ids, so this also holds the half that says a landing is performed
     # in the column it belongs to rather than in the first copy in document
-    # order (`@olai/web`'s `document/faces.tsx`).
+    # order (the kind row's page contribution).
     When I open the address "/s/kitchen-sink.md%23code/kitchen-sink.md%23lists"
     Then there are 2 panes
     And pane 0 is showing "/kitchen-sink.md#code"

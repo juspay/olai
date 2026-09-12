@@ -1,9 +1,3 @@
-import type {} from "olai-plugin-search/box"
-import { paletteOnly } from "../faces.ts"
-import { TESTID } from "olai-plugin-navigation/testids"
-import type { AppCommand } from "olai-plugin-navigation/slots"
-import { type Navigation,paletteAdapters } from "../index.ts"
-import { readLocation } from "../locations.ts"
 /**
  * ⌘K command palette — the shell, jump-to-node search, and what it can WRITE.
  *
@@ -61,7 +55,13 @@ import { readLocation } from "../locations.ts"
  * one); a plugin's command answers its own refusal, which lands in the same
  * row.
  */
-
+import { fileClaims } from "../pages.ts"
+import type {} from "olai-plugin-search/box"
+import { paletteOnly } from "../faces.ts"
+import { TESTID } from "olai-plugin-navigation/testids"
+import type { AppCommand } from "olai-plugin-navigation/slots"
+import { type Navigation,paletteAdapters } from "../index.ts"
+import { readLocation } from "../locations.ts"
 import { Key } from "@solid-primitives/keyed"
 import {
 createEffect,
@@ -1013,6 +1013,7 @@ export function Palette(props: {
                     {(item, index) => (
                       <li>
                         <Result
+                          claims={fileClaims()}
                           label={item().label}
 
                           from={item().from}

@@ -114,7 +114,7 @@ Then(
     }
     const text = oneLine(await said.innerText());
     assert.ok(
-      text.includes(file) && text.includes(`No ${kind}`),
+      text.includes(file) && text.includes(`No ${kind === "csv" ? "table" : kind}`),
       `the pane says ${JSON.stringify(text)}, which does not name the missing document`,
     );
     assert.strictEqual(

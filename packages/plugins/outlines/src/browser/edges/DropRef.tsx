@@ -1,4 +1,3 @@
-import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 /**
  * The `×` that takes one target off a node's edge list.
  *
@@ -20,9 +19,7 @@ import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
  * and this press is neither of those. Doing it unconditionally rather than only
  * where an ancestor happens to care is what keeps a third caller safe.
  */
-
-
-
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 export function DropRef(props: {
   /** Which × this is, to the browser tests. */
   readonly testid: TestId

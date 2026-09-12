@@ -46,7 +46,7 @@
  * itself is the link, so the press that edits is anywhere else on the line;
  * `../Tree.tsx`'s `clickTitle` is what keeps those two presses apart.
  */
-
+import { servedDirectory } from "./vault.ts"
 import { createMemo, Show } from "solid-js"
 
 import { shownIn } from "olai-plugin-navigation/address/address.ts"
@@ -81,7 +81,7 @@ export function NodeTitle(props: {
    *  a memo over an object does by default (`===`). */
   const drawing = createMemo(
     () =>
-      renderTitle(props.title, props.from, {
+      renderTitle(servedDirectory()?.claims(), props.title, props.from, {
         links: props.links,
         needles: props.needles,
       }),

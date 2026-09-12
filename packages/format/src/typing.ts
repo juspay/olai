@@ -715,7 +715,7 @@ const DECLARED = new WeakMap<
 /** The walk itself — {@link declarationsOf} with the memo taken off, and the
  *  convention still asked of the derivation's own file list. */
 const declaringIn = (derived: Derived, kinds: KindVocabulary): PropDeclarations =>
-  declarationsIn(derived, propertiesIn(derived.byFile.keys()), kinds)
+  declarationsIn(derived, propertiesIn(derived.claims, derived.byFile.keys()), kinds)
 
 /**
  * THE SAME READING WHEN THE CALLER ALREADY KNOWS WHICH FILE DECLARES — the

@@ -18,7 +18,7 @@
  * person who asked an agent for something deserves what a person who pressed a
  * key already gets.
  */
-
+import { servedDirectory } from "../vault.ts"
 import type { Wrote as Written } from "olai-plugin-chat/wire"
 import { Show } from "solid-js"
 
@@ -58,7 +58,7 @@ export function Wrote(props: { readonly wrote: Written }) {
           fallback={
             <span class="min-w-0 truncate text-ink">
               <TitleHtml
-                drawing={renderTitle(props.wrote.title, props.wrote.file ?? "", {
+                drawing={renderTitle(servedDirectory()?.claims(), props.wrote.title, props.wrote.file ?? "", {
                   links: false,
                 })}
               />
@@ -68,7 +68,7 @@ export function Wrote(props: { readonly wrote: Written }) {
           {(id) => (
             <Reference id={id()} class="min-w-0 truncate">
               <TitleHtml
-                drawing={renderTitle(props.wrote.title, props.wrote.file ?? "", {
+                drawing={renderTitle(servedDirectory()?.claims(), props.wrote.title, props.wrote.file ?? "", {
                   links: false,
                 })}
               />

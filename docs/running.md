@@ -56,7 +56,7 @@ A worktree launch builds the pinned adapters and odu on demand (`nix build .#acp
 
 `olai web <dir> [--port] [--host]` reads the directory recursively, picking up every `.olai` outline and every `.md` document, and serves them to a browser. It does not descend into dot-directories or `node_modules` — a directory of outlines is usually a git repository, and nothing anyone wrote is inside `.git`. Defaults: port `0` (the OS picks one), host `127.0.0.1`. A fixed `--port` is a deploy's word — the home-manager module passes `7714` ("olai" on a phone keypad). `--port 0` asks the OS every boot: a `just run` / `just serve` restart may land on a new port.
 
-If a directory that used to serve comes up EMPTY, its outlines predate the rename to `.olai`: [format.md](format.md) carries the one-line `git mv` to run on it. olai reads the one extension and migrates nothing for you.
+If a directory that used to serve comes up EMPTY, its outlines predate the rename to `.olai`: [format.md](format.md) carries the one-line `git mv` to run on it. The Olai row reads that extension and migrates nothing for you.
 
 It binds to loopback by default because the surface is unauthenticated: anyone who can reach the port can read every outline under the directory — and, since the keyboard editor arrived, change one.
 
@@ -420,7 +420,7 @@ captured into /home/srid/vault — http://127.0.0.1:7714/_olai/Inbox.olai#a1b2c3
 
 **`--url` is required, on every call, with nothing underneath it.** No default, no environment variable, no remembered vault. That is the feature: an earlier design walked to a per-user socket path both ends agreed on because neither chose it, and a capture meant for one vault landed in another and answered exactly like a capture that had not. If you want a short spelling, make it an alias — then it is visibly your own choice.
 
-**It lands in the inbox the directory has**, wherever you keep one, and mints `_olai/Inbox.olai` when there is none — the same convention `⌘K` `+` follows, resolved on the server against the same reading the write is judged on ([editing.md](editing.md#quick-capture)). It is the same write as everything else: the same validation, the same all-or-none rename, the same git policy. A refused capture leaves nothing behind, not even the inbox it would have minted.
+**It lands in the Inbox convention directly under `_olai/`**, matched by stem among node-holding claims, and mints it with the configured outline row’s suffix when there is none (default `_olai/Inbox.olai`) — the same convention `⌘K` `+` follows, resolved on the server against the same reading the write is judged on ([editing.md](editing.md#quick-capture)). It is the same write as everything else: the same validation, the same all-or-none rename, the same git policy. A refused capture leaves nothing behind, not even the inbox it would have minted.
 
 **And it arrives dated**, so it is on the day's journal page as well as in the inbox — which is the half a capture made while nobody was looking actually needs. The stamp is written by the server, with its offset, so it names one instant on the vault's own clock. **A date AND the capture's born `todo` mark compose into due work** ([format.md](format.md#days)) — not an occurrence: the capture ticks that day's **Agenda** count when it lands, and from the next morning it shows **overdue**. Ruled 2026-08-29, keeping the composition deliberate: a capture you still owe is owed. If you do not owe it, the row is one `done` or one cleared date away from being off that list.
 
@@ -502,14 +502,14 @@ The plugins panel includes a **vault** switch. Turning it off clears the served 
 
 If another olai holds the directory, this process still serves its panel and MCP endpoint: the vault row is **failed**, with the lock holder's sentence, and vault-backed tools and resources leave the MCP catalog; direct calls to absent capabilities are refused. After the other owner stops, turn the failed vault row off and on to retry. A root that is not a directory likewise fails only the vault row.
 
-The vault row’s `Config` schema declares `format` with default `olai`. The bundle selects the row without a config block:
+The vault row’s `Config` schema declares `format` with default `outline-olai`. The bundle selects the row without a config block:
 
 ```yaml
 - id: vault
   name: olai-plugin-vault/server
 ```
 
-The plugins panel derives its inline format control from that schema. The row’s `Config` schema validates the choice before acquiring the directory; unsupported values fail that row. Only `olai` is supported now. This makes the codec selection the place for a future Org implementation, without adding Org or migrating any files today. A different storage backend would instead be another provider behind `Directory`. The write gate is created and released with the vault row; without that row, there is no gate.
+The plugins panel derives its inline format control from that schema. `format` names the row used to mint new outlines, default `outline-olai`; it is not a codec enum. If that row is absent, the directory stays readable and creating an outline refuses with the row's name before writing. Existing files are read through whichever live row claims their suffix. The write gate is created and released with the vault row; without that row, there is no gate.
 
 ### Browser shell selection
 

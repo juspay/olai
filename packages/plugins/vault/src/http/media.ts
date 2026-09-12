@@ -56,7 +56,7 @@
  * placed there, in a tree they are already serving whole.
  */
 
-import { fileKind, SVG_EXT } from "@olai/format"
+import { servingOf, type Claims } from "@olai/format"
 import {
   MEDIA_PREFIX,
   mediaTarget,
@@ -81,7 +81,7 @@ import {
  * catch-all whichever order the layers are merged in — a picture request never
  * falls through to the SPA shell.
  */
-export const mediaLayer = (root: string) =>
+export const mediaLayer = (root: string, table: () => Claims) =>
   HttpRouter.use((router) =>
     Effect.gen(function*() {
       // `orDie`: a file engine that cannot be built for the directory we were
@@ -98,11 +98,12 @@ export const mediaLayer = (root: string) =>
         `${MEDIA_PREFIX}*`,
         (request: HttpServerRequest.HttpServerRequest) =>
           Effect.gen(function*() {
-            const target = mediaTarget(request.url)
+            const claims = table()
+            const target = mediaTarget(claims, request.url)
             if (target === null) return missing
 
-            if (fileKind(target) === "hypertext") {
-              return yield* page(disk, root, target, request.headers["host"] ?? "")
+            if (servingOf(claims, target).sealed) {
+              return yield* page(disk, root, target, request.headers["host"] ?? "", [...claims.byExt.keys()])
             }
 
             // Handed to the engine as a path of its own, re-encoded because
@@ -121,7 +122,7 @@ export const mediaLayer = (root: string) =>
               Effect.map((response) =>
                 HttpServerResponse.setHeaders(
                   response,
-                  target.endsWith(SVG_EXT) ? INERT : NOSNIFF,
+                  servingOf(claims, target).inert ? INERT : NOSNIFF,
                 )
               ),
               // The engine's own misses come back as failures; they are this
@@ -192,10 +193,8 @@ const INERT = {
 const served = (target: string): string =>
   `/${target.split("/").map(encodeURIComponent).join("/")}`
 
-/** The seal's prefix as the bytes it is, encoded ONCE rather than per request:
- *  it is a constant, and a preview of a megabyte file should not pay for
- *  re-encoding half a kilobyte of ours. */
-const PREFIX = new TextEncoder().encode(SEAL)
+/** Encode this request's current claim suffixes into the seal prefix. */
+const prefix = (extensions: ReadonlyArray<string>) => new TextEncoder().encode(SEAL(extensions))
 
 /** The refused page's own bytes, encoded once for the same reason: it is a
  *  constant, and a permission bit should not pay for re-encoding a sentence. */
@@ -314,6 +313,7 @@ const page = (
   root: string,
   target: string,
   host: string,
+  extensions: ReadonlyArray<string>,
 ) =>
   Effect.gen(function*() {
     // SAID OUT LOUD, because the failure is otherwise invisible: a host this
@@ -343,7 +343,7 @@ const page = (
     // lazy: a read that fails has to become a 404 before any header is sent,
     // and streaming the disk handle straight out would put that decision after
     // the response had already started.
-    return HttpServerResponse.stream(Stream.fromIterable([PREFIX, bytes]), {
+    return HttpServerResponse.stream(Stream.fromIterable([prefix(extensions), bytes]), {
       contentType: "text/html; charset=utf-8",
       headers: sealedHeaders(host),
     })
@@ -375,7 +375,7 @@ const page = (
       willNotOpen,
       () =>
         Effect.succeed(
-          HttpServerResponse.stream(Stream.fromIterable([PREFIX, REFUSED]), {
+          HttpServerResponse.stream(Stream.fromIterable([prefix(extensions), REFUSED]), {
             contentType: "text/html; charset=utf-8",
             headers: sealedHeaders(host),
           }),

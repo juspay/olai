@@ -14,7 +14,7 @@
  * What that reading answers over a real snapshot is pinned beside it in
  * `../../readings.test.ts`.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { agendaOf, derive, owedOf } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
@@ -35,7 +35,7 @@ const COMING = `{"id":"pack","ord":"a2","title":"pack the bags","todo":true,"dat
  *  exercised across the groups an agenda comes in. */
 const readingOf = (work: ReadonlyArray<string>, life: ReadonlyArray<string> = []) =>
   agendaOf(
-    derive(
+    derive(TEST_CLAIMS,
       nodesOfFiles({ "work.olai": work.join("\n"), "life.olai": life.join("\n") }),
     ),
     TODAY,

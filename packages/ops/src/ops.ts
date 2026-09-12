@@ -20,7 +20,7 @@
  * its structured detail, and a retry that keeps colliding comes back as `busy`
  * rather than as silence.
  */
-
+import { serialized } from "./encode.ts"
 import {
   admits,
   blamed,
@@ -48,7 +48,9 @@ import {
   type Reading,
   type SearchAnswer,
   type SearchRequest,
-  serializeOutline,
+  parserFor,
+  type Claims,
+  type OutlineFormat,
   stampOf,
   type TagsAnswer,
   type TagsRequest,
@@ -167,6 +169,8 @@ export const NO_LEDGER: Ledger = {
 }
 
 export interface Options {
+  readonly claims: { readonly current: Claims }
+  readonly format: string
   readonly store: Store
   /** Absolute path of the served directory — kept because every call site
    *  already has it, and the write gate's fence reads paths against it. */
@@ -222,6 +226,7 @@ export interface Options {
  * two are interfaces rather than methods this file happens to have.
  */
 export interface Ops extends Asking {
+  readonly parserFor: (path: string) => { readonly claims: Claims; readonly format: OutlineFormat } | null
   /**
    * WHICH NODES OF ONE PAGE a query selects — ids and why ({@link
    * ./query.ts}'s `narrowing`).
@@ -389,21 +394,17 @@ export interface Ops extends Asking {
    * different shapes for the same condition — and so nothing above this layer
    * has to reach into the store to find out.
    */
-  readonly read: Effect.Effect<Reading, OpFailure>
+  readonly read: Effect.Effect<Reading & { readonly outlineRow: string }, OpFailure>
 }
 
-/** How many LOST RACES one write survives before it gives up. Each is a fresh
- *  read and a fresh plan overtaken by another writer; something that has lost
- *  five in a row is not losing a race, it is contending with a writer that
- *  never stops.
+/** How many invalidated write attempts one request survives. A stale commit
+ *  means another writer overtook its plan; a changed Claims snapshot means
+ *  the membership used to plan is no longer current. Both spend this budget,
+ *  though a claims swap need not involve another writer.
  *
- *  IT COUNTS LOST RACES AND NOTHING ELSE, which is what makes the sentence
- *  above true of the code rather than of a comment: the counter moves at the
- *  ONE site that observes a race ({@link Store.commit}'s `StaleWrite`), so a
- *  round a repair begins again costs it nothing and there is no refund to
- *  remember at either of {@link REPAIRS}' doors. The loop is bounded by
- *  `ROUNDS + REPAIRS` iterations: every `continue` in it either counts a race
- *  here or spends the repair budget, which no round can give back. */
+ *  Repairs spend their separate budget. Every `continue` either counts an
+ *  invalidated attempt here or spends a repair, so the loop remains bounded
+ *  by `ROUNDS + REPAIRS` iterations. */
 const ROUNDS = 5
 
 /** How many TIMES one write may heal the set a REFUSAL was reached against
@@ -500,7 +501,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
   const ledger = options.ledger ?? NO_LEDGER
   const search = options.search ?? NO_SEARCH
 
-  const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
+  const read: Effect.Effect<Reading & { readonly outlineRow: string }, OpFailure> = Effect.gen(function*() {
     const store = yield* currentStore
     const { snapshot } = yield* store.read("cheap")
     if (snapshot === null) {
@@ -512,7 +513,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
     }
     // The snapshot IS the reading: the validator paired the set with the view
     // it judged, and the store published the pair. Nothing is derived here.
-    return snapshot.value
+    return { ...snapshot.value, outlineRow: options.format }
   })
 
   const run = (
@@ -597,7 +598,12 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           })
         }
 
-        const planned = plan(scoping(snapshot.value, context, kinds), request)
+        if (snapshot.value.claims !== options.claims.current) {
+          races += 1
+          yield* Effect.mapError(store.refresh("verified"), failure => new ValidationFailure({ reason: failure.message, verdict: NOTHING_WRONG }))
+          continue
+        }
+        const planned = plan(scoping(snapshot.value, context, kinds, options.format), request)
         if (Result.isFailure(planned)) {
           /**
            * THE SAME REFUSAL, ONE DOOR EARLIER. Since brokenness is per
@@ -662,11 +668,13 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         // the third shape and needs no bytes at all: `null` for "this path
         // goes" ({@link @olai/store}'s `Change`), judged against the codec
         // EXACTLY as a rewrite is — validated and published or not at all.
+        const outlines = yield* Effect.forEach(files, file => {
+          const value = serialized(snapshot.value.claims, file.file, file.nodes)
+          return Result.isFailure(value) ? Effect.fail(value.failure)
+            : Effect.succeed({ path: file.file, contents: value.success })
+        })
         const changes = [
-          ...files.map((file) => ({
-            path: file.file,
-            contents: serializeOutline(file.nodes),
-          })),
+          ...outlines,
           ...documents.map((doc) => ({ path: doc.file, contents: doc.text })),
           ...removed.map((path) => ({ path, contents: null })),
         ]
@@ -896,6 +904,12 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
     })
 
   return {
+    parserFor: path => {
+      if (closed) return null
+      const claims = options.claims.current
+      const format = parserFor(claims, path)
+      return format === null ? null : { claims, format }
+    },
     run: tracked,
     // Closing first stops fresh calls through a retained handle, then drains
     // accepted writes. The row acquires this after its store, so this release

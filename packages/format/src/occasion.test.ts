@@ -66,7 +66,7 @@
  * day and unfinished, so a generator that could not fool the first walk cannot
  * fool the second either.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { type Agenda, type AgendaDay, agendaOf, owedIn, owedNow, owedOf } from "./agenda.ts"
@@ -162,7 +162,7 @@ const corpusOf = (random: () => number): Record<string, string> => {
 }
 
 const viewOf = (corpus: Record<string, string>): Derived =>
-  derive(Object.entries(corpus).flatMap(([file, text]) => nodesOf(text, file)))
+  derive(TEST_CLAIMS, Object.entries(corpus).flatMap(([file, text]) => nodesOf(text, file)))
 
 /** ONE file rewritten, which is the delta a keystroke makes and the one the
  *  index is patched across. */

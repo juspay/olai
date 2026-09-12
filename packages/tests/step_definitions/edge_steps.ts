@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/bundle/testids"
 /**
  * Writing a node's edges: the panel, its two doors, and what the file says
  * afterwards.
@@ -21,7 +20,7 @@ import { TESTID } from "@olai/bundle/testids"
  * different slots, and a step that read either would pass on a client that
  * showed the wrong one.
  */
-
+import { TESTID } from "@olai/bundle/testids"
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 

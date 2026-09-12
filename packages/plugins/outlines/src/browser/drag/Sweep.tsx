@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The band a drag-across pulls, drawn.
  *
@@ -20,7 +19,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * it crosses are already wearing the pick's own accent, and a band opaque
  * enough to hide that would be the gesture covering its own answer.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 

@@ -119,7 +119,7 @@ export const barred = (
     for (const node of nodes) planned.set(node.id, node)
   }
 
-  for (const change of changesOf(was, now)) {
+  for (const change of changesOf(derived.claims, was, now)) {
     const before = derived.byId.get(change.id)
     const after = planned.get(change.id)
     for (const [key, says] of forbidden) {

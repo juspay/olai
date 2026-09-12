@@ -1008,11 +1008,12 @@ export const make = <F, S, E>(
     // reads every file whichever class is asked for.
     yield* cycled
 
-    const body = (path: string) =>
-      Effect.flatMap(
-        probe.holds(path),
-        (found) => found ? disk.read(path) : Effect.succeed(null),
-      )
+    // A verified refresh temporarily forgets stamps before installing the
+    // next probe. A body request must not mistake that interval for absence.
+    const body = (path: string) => Effect.flatMap(
+      gate.withPermit(probe.holds(path)),
+      found => found ? disk.read(path) : Effect.succeed(null),
+    )
 
     /**
      * ONE READ ANSWERED — the standing set, and the vintage the caller's class

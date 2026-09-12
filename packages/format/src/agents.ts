@@ -302,7 +302,7 @@ export const agentsIn = (
 ): NodeAgents => {
   if (!declaresKind(declarations, word)) return NO_AGENTS
   return derived.nodes.flatMap((located) => {
-    if (isPutAway(located.file)) return []
+    if (isPutAway(derived.claims, located.file)) return []
     if (!isRegular(located)) return []
     const held = textDeclaredAs(declarations, located.node, word)
     const said = held === undefined ? null : sessionIn(held)
@@ -339,5 +339,5 @@ export const agentsIn = (
 export const seatableIn = (derived: Derived, node: string): boolean => {
   const located = derived.byId.get(node)
   if (located === undefined) return false
-  return !isPutAway(located.file) && isRegular(located)
+  return !isPutAway(derived.claims, located.file) && isRegular(located)
 }

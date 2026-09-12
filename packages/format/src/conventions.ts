@@ -87,7 +87,7 @@
  * wide direction, and a document EDITED does not, which is the case this lane
  * is about.
  */
-
+import type { Claims } from "./kinds.ts"
 import type { Derived } from "./derive.ts"
 import { documentAt, type OutlineSet, outlinePaths } from "./set.ts"
 
@@ -100,6 +100,7 @@ import { documentAt, type OutlineSet, outlinePaths } from "./set.ts"
  * is precisely the state every reader of the convention walk used to be in.
  */
 export interface Convention {
+  readonly claims: Claims
   /** The path set {@link Convention.file} was read from — the membership the
    *  next revision's delta is checked against, and the count that catches a
    *  departure the delta did not name. */
@@ -163,7 +164,7 @@ export interface PathsMoved {
  * a convention could be invented, and `./node.ts` says why there is one walk
  * behind all of them.
  */
-export type ConventionWalk = (files: Iterable<string>) => string | undefined
+export type ConventionWalk = (claims: Claims, files: Iterable<string>) => string | undefined
 
 /**
  * The convention of the files a SET SERVES — the inbox's answer, and the one a
@@ -175,13 +176,14 @@ export type ConventionWalk = (files: Iterable<string>) => string | undefined
  * header for why the two are not the same list.
  */
 export const conventionServed = (
+  claims: Claims,
   walk: ConventionWalk,
   set: OutlineSet,
   moved: PathsMoved,
   held?: Convention,
 ): Convention => {
-  if (held !== undefined && !servedMoved(held.paths, set, moved)) return held
-  return { paths: servedBy(set), file: walk(outlinePaths(set)) }
+  if (held !== undefined && held.claims === claims && !servedMoved(held.paths, set, moved)) return held
+  return { claims, paths: servedBy(set), file: walk(claims, outlinePaths(set)) }
 }
 
 /** The files a set serves, as a {@link PathSet} — the set's own binary search
@@ -208,12 +210,12 @@ export const conventionRecorded = (
   moved: PathsMoved,
   held?: Convention,
 ): Convention => {
-  const { byFile } = derived
-  if (held !== undefined && !recordedMoved(held.paths, byFile, moved)) return held
+  const { byFile, claims } = derived
+  if (held !== undefined && held.claims === claims && !recordedMoved(held.paths, byFile, moved)) return held
   // The grouping IS the path set — a `ReadonlyMap` answers both questions a
   // {@link PathSet} is asked, so the cheaper of the two doors holds what it
   // read rather than a copy of the keys.
-  return { paths: byFile, file: walk(byFile.keys()) }
+  return { claims, paths: byFile, file: walk(claims, byFile.keys()) }
 }
 
 /** Whether the files the set serves are not the files it served — asked of the

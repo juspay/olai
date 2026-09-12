@@ -1,5 +1,5 @@
-import { TESTID } from "olai-plugin-plugin-inspector/testids"
 /** Inspector trigger; visibility survives shell remounts within this activation. */
+import { TESTID } from "olai-plugin-plugin-inspector/testids"
 import { BarDoor } from "olai-plugin-layout/bar-door"
 
 

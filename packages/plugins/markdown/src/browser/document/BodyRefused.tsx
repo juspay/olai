@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * Why a served file is not on screen — the sentence, wherever that file is
  * drawn.
@@ -9,7 +8,7 @@ import { TESTID } from "olai-plugin-markdown/testids"
  * whether a refusal is italic, muted, or a span, while the testid and the
  * tone already said they were the same fact.
  */
-
+import { TESTID } from "olai-plugin-markdown/testids"
 import { BODY_REFUSED } from "@olai/surface"
 
 

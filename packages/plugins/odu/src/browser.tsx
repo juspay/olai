@@ -1,7 +1,3 @@
-import { createRoot } from "solid-js"
-import type {} from "olai-plugin-chat/slots"
-import type {} from "olai-plugin-layout/slots"
-import type {} from "olai-plugin-outlines/slots"
 /**
  * ODU'S BROWSER HALF — a plugin, exactly the shape its server half is.
  *
@@ -36,7 +32,10 @@ import type {} from "olai-plugin-outlines/slots"
  * generated row rather than a static import in a hand-written registry, so
  * nothing pulls this graph until a serve says it is running.
  */
-
+import { createRoot } from "solid-js"
+import type {} from "olai-plugin-chat/slots"
+import type {} from "olai-plugin-layout/slots"
+import type {} from "olai-plugin-outlines/slots"
 // THE APP'S DOOR — the tags this half names and the `definePlugin` that turns
 // an Effect into a plugin (`@olai/plugin-api`'s `browser.ts`). Its server half
 // opens exactly the one door over, and neither of them names `cordis`.

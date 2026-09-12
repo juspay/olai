@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The repeat rule a node carries, as a badge beside its date.
  *
@@ -25,7 +24,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * about — and it would make the two unclickable apart, where they are two
  * writes at the gate and want two pickers.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { Pill } from "@olai/web/client/Pill.tsx"
 
 

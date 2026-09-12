@@ -39,7 +39,8 @@
     "olai-plugin-markdown": "workspace:*",
     "olai-plugin-mcp": "workspace:*",
     "olai-plugin-vault": "workspace:*",
-    "olai-plugin-web-app": "workspace:*"
+    "olai-plugin-web-app": "workspace:*",
+    "olai-plugin-outline-olai": "workspace:*"
   },
   "//": "The process composition root and command-line entry. It supplies operator paths and generic host capabilities, then mounts the selected bundle. Domain surfaces and face policy belong to the bundle and its providers; the permanent host serves only management without them. No production source imports a plugin implementation. Browser assets arrive as a built directory, never as a dependency on the browser package."
 }

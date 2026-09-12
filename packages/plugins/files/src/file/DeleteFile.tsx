@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-files/testids"
 /**
  * DELETE THIS FILE — the second verb in this app that destroys, and
  * `trash/EmptyTrash.tsx`'s twin one unit over.
@@ -29,6 +28,7 @@ import { TESTID } from "olai-plugin-files/testids"
  * and the line stays alive exactly as long as there is still a file to mean
  * something about.
  */
+import { TESTID } from "olai-plugin-files/testids"
 import { Match,Show,Switch } from "solid-js"
 
 import { createConfirming } from "@olai/web/client/confirming.ts"

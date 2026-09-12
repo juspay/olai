@@ -42,7 +42,7 @@
  * vocabulary is where it belongs, and this one imports it like any other
  * caller. What is left here is exactly what a QUERY adds to it.
  */
-
+import type { Claims } from "./kinds.ts"
 import { fileKind } from "./kinds.ts"
 import { Schema } from "effect"
 
@@ -146,7 +146,7 @@ export type NodeHit = typeof NodeHit.Type
  * belongs with whatever draws it rather than riding in ahead of a caller.
  */
 export const DocumentHit = Schema.Struct({
-  at: AtDocument.check(Schema.makeFilter(at => fileKind(at.path) !== "outline", { expected: "a non-outline file" })),
+  at: AtDocument,
   /** The 1-based file line of the strongest body word match. Absent for
    * title/path/tag/operator matches and files whose body is not kept. */
   line: Schema.optionalKey(Schema.Int),
@@ -193,8 +193,8 @@ export const OutlineHit = Schema.Struct({
   matched: Schema.optionalKey(Schema.Literals(["title", "path"])),
 })
 export type OutlineHit = typeof OutlineHit.Type
-export const isOutlineHit = (hit: SearchHit): hit is OutlineHit =>
-  hit.at.kind === "document" && fileKind(hit.at.path) === "outline"
+export const isOutlineHit = (claims: Claims, hit: SearchHit): hit is OutlineHit =>
+  hit.at.kind === "document" && claims.byKind.get(fileKind(claims, hit.at.path) ?? "")?.holds === "nodes"
 
 export const SearchHit = Schema.Union([NodeHit, DocumentHit, OutlineHit])
 export type SearchHit = typeof SearchHit.Type

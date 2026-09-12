@@ -566,7 +566,7 @@ export interface Panel {
    * The file is right there and is not something that doorbell can read: a
    * `.md` under a wake that derives its set from a file's NODES. The picker
    * offered every served file until the kinds were declared
-   * (`@olai/plugin-api`'s `PluginServerHalf.wake.kinds`), so this is a state a
+   * (`@olai/plugin-api`'s `PluginServerHalf.wake.walks`), so this is a state a
    * record on disk can be in and a gesture cannot reach any more — and a
    * picker-only fix would have left it exactly as silent as the rename was.
    * Same walk, same one signal, same row off the plugin's door; a different

@@ -13,7 +13,8 @@
  *
  * Not a suite: `bun test` collects only `*.test.ts`.
  */
-
+export { TEST_CLAIMS } from "./claims.testlib.ts"
+import { TEST_CLAIMS } from "./claims.testlib.ts"
 import {
   type Node,
   NO_KINDS,
@@ -25,11 +26,15 @@ import {
 import { Result } from "effect"
 
 import { type Context, plan, type Plan, scoping } from "./plan.ts"
-import { readingOf } from "@olai/format/testlib"
+import * as leaf from "@olai/format/testlib"
+import { parseOutline } from "olai-plugin-outline-olai/format"
+export const readingOf = (set: OutlineSet) => leaf.readingOf(set, TEST_CLAIMS)
+export const setOf = (...args: Parameters<typeof leaf.setOf>) => leaf.setOf(args[0], args[1], args[2], parseOutline)
+export const failureOf = (text: string, file?: string) => leaf.failureOf(text, file, parseOutline)
 
 /** The pairing a snapshot carries, built from text — `@olai/format`'s, like
  *  the set builder beside it, because the pairing is that package's. */
-export { failureOf, readingOf, setOf, STAMP_SHAPE } from "@olai/format/testlib"
+export { STAMP_SHAPE } from "@olai/format/testlib"
 
 
 /** A planner context with no surprises in it: ids counted up from `n1`, and one
@@ -69,7 +74,7 @@ export const steady = (): Context => {
 export const planning = (
   set: OutlineSet,
   request: WriteRequest,
-): Result.Result<Plan, OpFailure> => plan(scoping(readingOf(set), steady(), NO_KINDS), request)
+): Result.Result<Plan, OpFailure> => plan(scoping(readingOf(set), steady(), NO_KINDS, "outline-olai"), request)
 
 /**
  * A `Result` this layer produced, unwrapped — and the DIAGNOSTIC, which is the

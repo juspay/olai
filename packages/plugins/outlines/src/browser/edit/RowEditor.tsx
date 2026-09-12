@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The caret: a title being typed, a note being written, and what the last
  * write said back.
@@ -35,7 +34,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * two of the places a draft can be — a new row on an empty outline, a row whose
  * parent is folded — are places the tree draws no body under.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
 
 import { takingOfflineFocus } from "@olai/web/client/connection/focus.ts"

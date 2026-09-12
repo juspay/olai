@@ -73,7 +73,7 @@
  * already keeps one gesture over: the press WRITES the property, so this is how
  * a node agent comes into being as much as it is how one gets a session.
  */
-
+import { servedDirectory } from "../vault.ts"
 import { createMemo, createSignal, For, Show } from "solid-js"
 import { chatWire } from "../wire.ts"
 
@@ -412,6 +412,7 @@ function Chat(props: {
           }}
         >
           <Shortlist
+        claims={servedDirectory()?.claims()}
             nodes={createSearch}
             label="which node? — its subtree becomes this conversation's memory"
             testids={ASSIGN_LIST}

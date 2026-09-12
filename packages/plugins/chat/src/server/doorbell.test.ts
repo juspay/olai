@@ -36,6 +36,7 @@ import { Effect, Queue } from "effect"
 
 import type { Chat } from "../scoped.ts"
 import type { Faulted, Scoped } from "../scopes.ts"
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { faultedIn, scopeThrough, type World } from "./doorbell.ts"
 
 /** The one conversation every case below is about — a PAIR, because a session id
@@ -48,7 +49,7 @@ const RINGING: Wake = {
   subject: "runs",
   from: "the coordinator",
   waiting: { one: "one run is waiting", many: "runs are waiting" },
-  kinds: ["outline"],
+  walks: "nodes",
   faults: {
     gone: "the file this doorbell watched is not here any more.",
     unwatchable: "this doorbell cannot read a file of that kind.",
@@ -153,6 +154,7 @@ const world = (
   served: ReadonlyArray<string>,
   ringing: ReadonlyArray<string>,
 ): World => ({
+  claims: TEST_CLAIMS,
   served: (file) => served.includes(file),
   declared: new Map(ringing.map((one) => [one, RINGING])),
 })

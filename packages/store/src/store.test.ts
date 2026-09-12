@@ -463,6 +463,16 @@ test("`body` reads one file's text on demand, and keeps nothing", () =>
       expect((yield* snapshotOf(store))?.value.text).toEqual({ "big.blob": NOT_READ })
     })))
 
+test("a body request during a verified probe waits for its stamp table", () =>
+  withStore({ "a.txt": "alpha", "big.blob": "the whole saved page" }, ({ store }) =>
+    Effect.gen(function*() {
+      let reading: Promise<string | null> | undefined
+      whileListing = () => { reading = Effect.runPromise(store.body("big.blob")) }
+      yield* store.refresh("verified")
+      expect(reading).toBeDefined()
+      expect(yield* Effect.promise(() => reading!)).toBe("the whole saved page")
+    })))
+
 test("`body` answers null for a file that is not there", () =>
   withStore({ "a.txt": "alpha" }, ({ store }) =>
     Effect.gen(function*() {
@@ -1935,10 +1945,9 @@ test("PIN (sweep): the verification path cannot reach the loop's permit", () => 
   }
 
   const store = codeOf("store.ts")
-  // Three, and they are the three publishing doors: the loop's cycle, the
-  // verified look, and the write gate. A fourth is a new permit-taker and
-  // wants reading.
-  expect([...store.matchAll(/gate\.withPermit\(/g)].length).toBe(3)
+  // The three publishing doors and the body read, which cannot observe the
+  // stamp gap during a verified refresh. Vintage verification stays independent.
+  expect([...store.matchAll(/gate\.withPermit\(/g)].length).toBe(4)
 
   // …and the read door holds none of them. Sliced between two anchors this
   // file owns, so what is swept is the answer to a read and nothing else.

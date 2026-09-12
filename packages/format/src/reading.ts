@@ -70,7 +70,7 @@
  * what it must not become is a licence to read the sentence above loosely for
  * the next field somebody proposes.
  */
-
+import { ClaimData } from "./kinds.ts"
 import { Schema } from "effect"
 
 import { Way } from "./backlinks.ts"
@@ -275,10 +275,12 @@ export type OutlineAnswer = typeof OutlineAnswer.Type
  * names.
  *
  * IN PATH ORDER, which is the set's own ({@link ./set.ts}'s `assemble`) — the
- * inbox convention reads it (shallowest first, then path order), so the order
- * is part of the answer rather than an accident of the walk.
+ * browser presents that order. Convention selection separately checks stems
+ * directly under `_olai/` and refuses ambiguity; order never breaks a tie.
  */
 export const PathsAnswer = Schema.Struct({
+  claims: Schema.Array(ClaimData),
+  outlineRow: Schema.String,
   paths: Schema.Array(Schema.String),
 })
 export type PathsAnswer = typeof PathsAnswer.Type

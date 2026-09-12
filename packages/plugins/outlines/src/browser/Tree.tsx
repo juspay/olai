@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * One outline, drawn.
  *
@@ -71,7 +70,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * (./settings/done.ts, already applied to the rows handed here). The date badge
  * stays on the title line.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { isOverdue, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Match, Show, Switch } from "solid-js"

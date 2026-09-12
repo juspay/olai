@@ -104,6 +104,8 @@ const CATALOGUE = {
   // ── the whole set ───────────────────────────────────────────────────
   /** Two records claim the same `id`. */
   "duplicate-id": "set",
+  /** More than one node-holding file names the same directory convention. */
+  "ambiguous-convention": "set",
   /** `parent` names an id no record in the set declares. */
   "unknown-parent": "set",
   /** `parent` resolves, but in another file. Every `.olai` is an independent

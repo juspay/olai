@@ -40,7 +40,8 @@
  * node's row is the case where there IS no half — the reader is already there
  * — so it draws no press at all (`./Door.tsx`).
  */
-
+import type { Claims } from "@olai/format"
+import { servedDirectory } from "../vault.ts"
 import { setPanelOpen } from "../shell.ts"
 import { atElement, type Route } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
@@ -56,8 +57,8 @@ import { chatWire } from "../wire.ts"
  *  never narrows for this feature, and a node's own page is exactly a narrowing
  *  — it would replace the board a person is reading with one row of it. What
  *  they asked for is *show me this agent*, which is the row in its context. */
-export const rowOf = (agent: Pick<Row, "id" | "file">): Route =>
-  atElement(agent.file, agent.id)
+export const rowOf = (claims: Claims, agent: Pick<Row, "id" | "file">): Route =>
+  atElement(claims, agent.file, agent.id)
 
 /**
  * THE GESTURE, AND THE LINE IT MAY LEAVE — held together, because they are one
@@ -124,7 +125,8 @@ export const createFocus = (): Focus => {
     said: saying.said,
     open,
     press: (agent) => {
-      router.go(rowOf(agent))
+      const claims = servedDirectory()?.claims()
+      if (claims !== undefined) router.go(rowOf(claims, agent))
       open(agent)
     },
   }

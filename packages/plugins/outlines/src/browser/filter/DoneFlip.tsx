@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The page's own say in whether finished work is drawn here.
  *
@@ -29,7 +28,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * "this page shows" cannot flip it into "this page follows" by pressing
  * twice (the page's whole tool prose is an ask).
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { Show } from "solid-js"
 
 import {

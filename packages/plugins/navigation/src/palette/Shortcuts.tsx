@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-navigation/testids"
 /**
  * The keys, on screen.
  *
@@ -28,7 +27,7 @@ import { TESTID } from "olai-plugin-navigation/testids"
  * costs a line and it means the next thing drawn over a modal does not have to
  * remember this one.
  */
-
+import { TESTID } from "olai-plugin-navigation/testids"
 import { For,onCleanup,onMount,Show } from "solid-js"
 
 import { SHORTCUTS } from "@olai/web/client/keys.ts"

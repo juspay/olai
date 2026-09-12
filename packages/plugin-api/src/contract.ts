@@ -1,5 +1,3 @@
-import type { Effect } from "effect"
-
 /**
  * THE SHAPES BOTH HALVES OF A PLUGIN SHARE — what a probe answers, what a kind
  * is, what a doorbell may do, and the three fields that ARE a plugin's identity.
@@ -25,7 +23,7 @@ import type { Effect } from "effect"
  * This package names no plugin, which is the whole of what makes the arrow
  * one-way.
  */
-
+import type { Effect } from "effect"
 /**
  * AN MCP SERVER TO SPAWN, in olai's terms — `olai-plugin-chat` renders it into what
  * ACP wants, the same way it does olai's own.
@@ -765,45 +763,10 @@ export interface Wake {
  *  numbers — core supplies the numeral and joins them, and that is the whole
  *  of core's authorship on the strip. */
   readonly waiting: { readonly one: string; readonly many: string }
-  /**
- * WHICH KINDS OF SERVED FILE THIS WAKE CAN BE SCOPED TO — `@olai/format`'s
- * own file-kind words (`kinds.ts`: `outline`, `document`, `hypertext`,
- * `csv`, `image`, `pdf`), as data.
- *
- * ## Why the plugin answers this and core does not
- *
- * A scope is a FILTER, and only the thing doing the filtering knows what it
- * reads out of a file. kolu derives its claimed set from the `kolu-terminal`
- * values on a file's un-done NODES, so a file that holds no nodes derives
- * the empty set for ever — a doorbell that never rings, never digests, and
- * goes on being beaten for, which is quiet-because-broken wearing
- * quiet-and-fine's face. That is the plugin's fact about the plugin's own
- * derivation; core stores a path and never opens it.
- *
- * So the picker offers the kinds named here and no others (`@olai/web`'s
- * `chat/scopable.ts`), and a scope already stored on some other kind is a
- * FAULT rather than a silence ({@link unwatchable}). Before this field the
- * picker offered every file the directory served, `.md` included, and the
- * human's screenshot of it is what this member exists for.
- *
- * ## Words rather than a predicate, because it has to TRAVEL
- *
- * `PropKind.admits` is a function because its one reader is in this process.
- * The picker is in a browser, so what crosses is DATA — the same move
- * everything else on this member makes, carried on the roster
- * (`@olai/surface`'s `BuiltPlugin`'s `wake.kinds`) and read against the same
- * registry at the other end.
- *
- * NON-EMPTY, because a wake that admits no kind is a control nobody could
- * ever point at anything: the picker would draw, open, and offer nothing.
- * The words are plain strings HERE — this package declares no dependency on
- * the format, the way it declares none on the wire. A plugin that can see
- * `@olai/format` types its own list against the union that matches what it
- * walks. Kolu's is `NodeKind`, the record-holding kinds: `FileKind` is every
- * kind the registry claims, documents included, and that is the bound this
- * field's first cut offered and this round retired.
- */
-  readonly kinds: readonly [string, ...Array<string>]
+  /** What this doorbell walks. The server and picker compare this value with
+   * the held file's claim; row names never enter the declaration. A prose
+   * reader may declare text, while a node reader declares nodes. */
+  readonly walks: "nodes" | "text"
   /**
  * WHAT A CONVERSATION IS TOLD WHEN THIS DOORBELL STOPS WATCHING — one WHOLE
  * sentence per WAY THAT CAN HAPPEN, keyed by the way's own word.
@@ -874,7 +837,7 @@ export interface Wake {
     readonly gone: string
     /**
      * ...AND THE FILE IS RIGHT THERE AND IS NOT A KIND THIS WAKE CAN WATCH —
-     * {@link kinds}' other half.
+     * {@link walks}' other half.
      *
      * TWO SENTENCES AND NEVER ONE WITH AN *or* IN IT. The consequence is
      * identical — nothing is watched, nothing is derived, and the row leaves
@@ -886,7 +849,7 @@ export interface Wake {
      * a stored pick can be in.
      *
      * HOW A CONVERSATION GETS INTO IT AT ALL, now the picker cannot. The
-     * picker offers only {@link kinds}, so nothing a person presses today can
+     * picker offers only {@link walks}, so nothing a person presses today can
      * reach this. What can: a pick stored before that filter existed (the
      * `2026-09-01.md` in the human's screenshot), a tab left open from an
      * older serve, and a record edited by hand. All three are a row on disk

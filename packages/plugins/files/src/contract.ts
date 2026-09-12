@@ -1,8 +1,9 @@
+/** Each content provider owns its creation interaction; files renders only
+ * capabilities which are currently registered. */
+
 import { location,serviceTag } from "@olai/plugin-api/contracts"
 import type { JSX } from "solid-js"
 export const name = "files"
-/** Each content provider owns its creation interaction; files renders only
- * capabilities which are currently registered. */
 export const fileTypes = location<{readonly Create: () => JSX.Element}>("files.types")
 export const fileState = serviceTag<FileControls>("files.state")
 
@@ -21,3 +22,15 @@ export interface FileControls {
  * those rows declares it on a component of its own now and draws the control
  * out of what it was handed.
  */
+
+
+import type { FileKindKey } from "@olai/plugin-api/file-kinds"
+import type { AnyTestId } from "@olai/ui-primitives/testids.ts"
+export interface FileKindDrawing {
+  readonly by: FileKindKey
+  readonly glyph: () => JSX.Element
+  readonly noun: string
+  readonly article: "a" | "an"
+  readonly testid: AnyTestId
+}
+export const fileKinds = location<FileKindDrawing>("files.kinds", "many", "key")

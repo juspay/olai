@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * A node, on one line: its title, the one fact allowed beside it, and the date
  * it carries.
@@ -46,7 +45,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * row also holds a fold toggle, and where that sits relative to the glyph is the
  * tree's business — so this contributes siblings to a flex row it does not own.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import type { Occasion, Status } from "@olai/format"
 import { type JSX, Show } from "solid-js"
 

@@ -35,7 +35,7 @@
  * `./derive.ts`, which folds {@link dateInto} over a set — so there is nowhere
  * for a second answer to "what puts a node on a day" to come from.
  */
-
+import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
 import {
@@ -238,13 +238,14 @@ export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
  * reachability was not (docs/search.md).
  */
 export const dateInto = (
+  claims: Claims,
   byDay: Map<string, Array<Dated>>,
   located: Located,
 ): void => {
   // The narrowing the index's type promises, done once at the fold, exactly as
   // `tagInto` next door does it: a placement carries neither field, so this
   // drops nothing {@link datesOf} would not have answered empty for anyway.
-  if (!isRegular(located) || isPutAway(located.file)) return
+  if (!isRegular(located) || isPutAway(claims, located.file)) return
   for (const dated of datesOf(located.node)) {
     const day = dayOf(dated.date)
     const held = byDay.get(day)

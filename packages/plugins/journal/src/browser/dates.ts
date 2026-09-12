@@ -89,7 +89,7 @@ import { type Accessor, createMemo } from "solid-js"
 import { dailyNoteDays } from "@olai/format"
 import type { Owed } from "@olai/format"
 
-import { useServed } from "./vault.ts"
+import { useServed, servedDirectory } from "./vault.ts"
 import { journalWire } from "./wire.ts"
 
 /**
@@ -134,7 +134,10 @@ export const createDated = (month: Accessor<string>): Accessor<ReadonlySet<strin
  */
 export const createNoted = (month: Accessor<string>): Accessor<ReadonlySet<string>> => {
   const paths = useServed()
-  return createMemo(() => dailyNoteDays(paths(), month()))
+  return createMemo(() => {
+    const files = servedDirectory()
+    return files === undefined ? new Set<string>() : dailyNoteDays(files.claims(), paths(), month())
+  })
 }
 
 /**

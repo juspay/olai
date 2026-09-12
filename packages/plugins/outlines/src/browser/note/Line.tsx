@@ -1,5 +1,3 @@
-import { TESTID as IDS_MARKDOWN_UI } from "@olai/markdown-ui/testids.ts"
-import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
 /**
  * A note as ONE DIM LINE under a title — the element both ways of choosing that
  * line are drawn through.
@@ -33,7 +31,8 @@ import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
  * handed to JSX is text the framework escapes because it cannot do anything
  * else.
  */
-
+import { TESTID as IDS_MARKDOWN_UI } from "@olai/markdown-ui/testids.ts"
+import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
 import { Index } from "solid-js"
 
 import { offsetAt, widthIn } from "../edit/point.ts"

@@ -280,7 +280,7 @@ export const property = (name: string): string => `--olai-md-${name}`
 export const BLOCK_CLASS = "olai-md"
 
 /** The class it carries as well when it is drawn inside the app's furniture
- *  rather than as a page: `Note.tsx`, `document/DocRef.tsx`'s inline shape,
+ *  rather than as a page: `Note.tsx`, `olai-plugin-markdown`’s `document/DocRef.tsx`'s inline shape,
  *  and `chat/Entry.tsx`. */
 export const COMPACT_CLASS = "olai-md-compact"
 

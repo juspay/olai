@@ -1,4 +1,4 @@
-@scratch:good @rows:vault,chat,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+@scratch:good @rows:vault,olai,chat,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
 Feature: The journal is one optional plugin
   Scenario: A serve without journal is an outliner with no journal faces
     Given I open the outline "house.olai"

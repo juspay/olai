@@ -6,7 +6,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//exports": "SIX now, and the split is the tree's three-door rule plus the one #546 added. `./tools` is this row's agent verbs \u2014 the single `search_nodes` entry that used to sit in `@olai/ops`' closed table, declared here so a serve without this row advertises no search at all. `./server` is what the row mounts: the trigram table, the matcher over it, and the one door this row stands behind — no `solid-js` anywhere on that graph, because a process that renders nothing must not pull a UI runtime. `./browser` is the chunk the tab fetches when the roster names this row, and it carries exactly one face: the header's search box, which used to be imported by `@olai/web`'s `AppHeader.tsx`. The ROOT is the plugin's word — this row composes no sibling surface, because `search.nodes` is CORE's member and stays on core's three faces (a row that renamed it would rename a tool an agent already calls). `./testids` and `./all.css` are the two contracts the generated bundle files need of every row.",
+  "//exports": "SIX now, and the split is the tree's three-door rule plus the one #546 added. `./tools` is this row's agent verbs — the single `search_nodes` entry that used to sit in `@olai/ops`' closed table, declared here so a serve without this row advertises no search at all. `./server` is what the row mounts: the trigram table, the matcher over it, and the one door this row stands behind — no `solid-js` anywhere on that graph, because a process that renders nothing must not pull a UI runtime. `./browser` is the chunk the tab fetches when the roster names this row, and it carries exactly one face: the header's search box, which used to be imported by `@olai/web`'s `AppHeader.tsx`. The ROOT is the plugin's word — this row composes no sibling surface, because `search.nodes` is CORE's member and stays on core's three faces (a row that renamed it would rename a tool an agent already calls). `./testids` and `./all.css` are the two contracts the generated bundle files need of every row.",
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
@@ -45,14 +45,16 @@
     "@olai/store": "workspace:*",
     "@olai/surface": "workspace:*",
     "@olai/markdown-ui": "workspace:*",
-    "olai-plugin-outlines": "workspace:*"
+    "olai-plugin-outlines": "workspace:*",
+    "olai-plugin-vault": "workspace:*"
   },
   "//devDependencies": "@olai/store for the differential test that drives the real write gate across a series of writes (src/matcher.index.test.ts, which was `@olai/ops`' `search.index.test.ts` and moved with the table it is about). @effect/platform-node is that test's file system. @types/node is the path and fs it stages a directory with.",
   "devDependencies": {
     "@effect/platform-node": "4.0.0-rc.112",
     "@olai/store": "workspace:*",
     "@types/node": "^22.0.0",
-    "olai-plugin-layout": "workspace:*"
+    "olai-plugin-layout": "workspace:*",
+    "olai-plugin-outline-olai": "workspace:*"
   },
   "olai": {
     "contracts": [

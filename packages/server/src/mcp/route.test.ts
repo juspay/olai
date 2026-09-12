@@ -1,5 +1,3 @@
-import { capabilitiesOver } from "../capabilities.testlib.ts"
-import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
 /**
  * The internal route, over real HTTP.
  *
@@ -19,7 +17,9 @@ import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
  * frame, or a structured half that never made it into the reply. This is the
  * pipe the chat panel's agent reads its refusals through.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
+import { capabilitiesOver } from "../capabilities.testlib.ts"
+import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
 import {
   codecFor,
   make as makeOps,
@@ -66,7 +66,7 @@ import {
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about
  *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n`
 
@@ -126,7 +126,7 @@ const withRoute = <A>(
       watch: false,
       settle: "10 millis",
     })
-    const ops = makeOps({ store, root })
+    const ops = makeOps({claims: { current: TEST_CLAIMS }, format: "outline-olai",  store, root })
     const wired = yield* bind({
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",

@@ -1,11 +1,10 @@
+/** A drawn row in one pane, as the aim sees one: 20px tall, indented 32px a
+ *  level, its line starting `from` and running 400px. The numbers are a
+ *  screen's, so a test reads as "the pointer is here". */
 import { expect, test } from "bun:test"
 
 import { type Aimed, aimAt } from "./aim.ts"
 import type { Placed } from "./plan.ts"
-
-/** A drawn row in one pane, as the aim sees one: 20px tall, indented 32px a
- *  level, its line starting `from` and running 400px. The numbers are a
- *  screen's, so a test reads as "the pointer is here". */
 const placed = (id: string, depth: number, at: number, from: number): Placed => ({
   key: `/${id}`,
   id,
