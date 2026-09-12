@@ -83,6 +83,8 @@ import { excerptOf } from "./note/excerpt.ts"
 import { NoteLine } from "./note/Line.tsx"
 import { measuredAt, plainLine } from "./note/preview.ts"
 import { Note } from "./Note.tsx"
+import { useLicences } from "./reading.tsx"
+import { dressed } from "./faces.ts"
 import { customEntries, drawerEntries } from "olai-plugin-outlines/property-values"
 import { PropsDrawer, type SetProp } from "./props/PropsDrawer.tsx"
 import { EdgeRefs } from "./edges/EdgeRefs.tsx"
@@ -139,6 +141,7 @@ export function NodeBody(props: {
   readonly addingProp?: boolean
   readonly onAddingPropEnd?: () => void
 }) {
+  const licences = useLicences()
   const zoomed = () => props.zoomed === true
   const open = () => props.expanded === true
   /**
@@ -183,7 +186,10 @@ export function NodeBody(props: {
               (`drawerEntries`). Above the clamped note line, because these are
               the node's facts and that line is the start of its story. */}
           <PropsDrawer
-            entries={customEntries(customOf(props.shows.node))}
+            entries={customEntries(customOf(props.shows.node), {
+              kind: (key, value) => licences()(props.shows.file, key, value),
+              at: kind => dressed("outline.row.placement").get(kind),
+            })}
             from={props.shows.file}
             onSet={props.onProp}
             adding={props.addingProp}

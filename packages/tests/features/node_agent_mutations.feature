@@ -97,3 +97,13 @@ Feature: Node session ownership follows changes to the node
     Then the panel is in the remembered conversation "current"
     And the panel header names the node agent "fit the cabinets"
     And there should be no page errors
+
+  Scenario: Editing the binding on the page re-points the node agent
+    When I zoom into the node "install"
+    And I edit the property "chat-agent-session" on "install"
+    And I type the binding for remembered conversation "first" into the property editor
+    When I press the agent "install"
+    Then the panel is in the remembered conversation "first"
+    When I ask the agent "binding changed on the page"
+    Then the agent has answered "binding changed on the page" exactly once
+    And there should be no page errors

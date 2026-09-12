@@ -1,3 +1,4 @@
+import { SESSION_KIND } from "./binding.ts"
 import type {} from "olai-plugin-layout/slots"
 import type {} from "olai-plugin-navigation/slots"
 import type {} from "olai-plugin-outlines/slots"
@@ -146,6 +147,7 @@ export default definePlugin({
     yield* slots.register("sidebar.section", { said: SECTION, body: () => <AgentsProvider value={state.agents}><Agents /></AgentsProvider> })
     // The aside reads the activation roster once per row; only opening a fold
     // acquires a conversation. Unbound rows offer a start gesture.
+    yield* slots.register("outline.row.placement", SESSION_KIND, { inRows: false })
     yield* slots.register("outline.row.aside", props => <AgentsProvider value={state.agents}><Standing {...props} /></AgentsProvider>)
     // THE VERBS ON A ROW'S `•••`, as a READING rather than a list — the count
     // is one per installed engine plus the ask, and the roster that decides it

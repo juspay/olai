@@ -636,7 +636,7 @@ agent-session: claude       →  agent-session: claude:0f3c8d21-…
 - otherwise **one entry per agent this machine has**. With one installed that is a single plain entry and no question; with several the menu *is* the question — `Start an agent session — Claude Code`, `— Grok` — because a list of choices is what a menu already is;
 - with **none** installed there is no entry, since there is nothing to start a session with.
 
-**The one node it is not offered on** is one whose property already names a conversation. Replacing a live session is a different gesture with a warning of its own — [*fresh session*](#fresh-session), in the panel, where the sentence about what happens to the transcript fits beside it. Re-pointing a bound node by hand is still an edit to the property, which is a chip under the title like any other.
+**The one node it is not offered on** is one whose property already names a conversation. Replacing a live session is a different gesture with a warning of its own — [*fresh session*](#fresh-session), in the panel, where the sentence about what happens to the transcript fits beside it. Re-pointing a bound node by hand is still an edit to the property, whose ordinary chip is drawn only in the zoomed page’s drawer. Open that page to edit the binding by hand; outline rows omit this chip.
 
 ### Where the binding lives, and what a second machine sees
 

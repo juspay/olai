@@ -12,3 +12,8 @@ test("outlines declares node contributions at all four row and page seats", () =
     ])
   }
 })
+
+test("property placement is keyed by kind", () => {
+  expect(slotCatalog([{ slots: slotContracts }]).filter(entry => entry.name === "outline.row.placement"))
+    .toEqual([{ name: "outline.row.placement", keyedBy: "kind" }])
+})

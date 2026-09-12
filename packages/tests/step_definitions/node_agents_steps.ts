@@ -33,7 +33,7 @@ import { PLUGIN_TESTID } from "@olai/bundle/testids";
 import { attr } from "../support/selectors.ts";
 import { answering } from "../support/shortlist.ts";
 
-import { POLL_TIMEOUT } from "../support/world.ts";
+import { POLL_TIMEOUT, PROP_EDIT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 import { FAST_NODE_IDLE_MS } from "../support/node_idle.ts";
 
@@ -744,4 +744,12 @@ Then("node agent {string} is unfolded", async function (this: OlaiWorld, node: s
 });
 Then("the agent engine menu offers {string}", async function (this: OlaiWorld, engine: string) {
   await this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu)).getByRole("menuitem", { name: engine, exact: true }).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+When("I type the binding for remembered conversation {string} into the property editor", async function (this: OlaiWorld, name: string) {
+  const id = notedSessions.get(this)?.get(name);
+  assert.ok(id, `no conversation remembered as ${name}`);
+  const editor = this.page.locator(PROP_EDIT);
+  await editor.fill(`claude:${id}`);
+  await editor.press("Enter");
 });
