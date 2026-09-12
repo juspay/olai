@@ -64,7 +64,7 @@ above, and neither of them reads a key's spelling.
 
 **A block OWNS ITS ROW.** A `terminal` somebody wrote down is worth a row whether or not anything is going on in it — there is always something to say, including *this terminal is no longer in the fleet*.
 
-**A chip sits BESIDE THE VALUE** and appears only while there is something to say. A `worktree` is a path on a lane row, quiet by default; its CI chip is there while a run is going and gone the rest of the time. A board with no CI running looks exactly as it did.
+**A chip sits BESIDE THE VALUE** and appears only while there is something to say. An `odu-run` is a run id on a lane row; its CI chip is there while the service knows that run. A board with no CI running looks exactly as it did.
 
 The chip's press opens a **pane** beneath the property run — one at a time per node, mounted only while it is open, so a page of twelve lanes with one live run has one clock ticking on it.
 

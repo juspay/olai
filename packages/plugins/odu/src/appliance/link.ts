@@ -18,6 +18,7 @@ import {
   type ServiceCell,
 } from "@odu/service-client/surface"
 import { DEFAULT_SERVICE_ORIGIN, SERVICE_ORIGIN_ENV, serviceOrigin } from "@odu/service-client/endpoint"
+import { isContractVersionCompatible } from "@kolu/surface/define"
 import { firstFrameOrThrow } from "@kolu/surface/first-frame"
 import { unenrolledStreamCall } from "@kolu/surface/client"
 import { Cause, Duration, Effect, Schedule, Stream } from "effect"
@@ -34,20 +35,18 @@ export interface LinkSink {
   readonly link: (state: OduLink) => void
   readonly face: (connection: ServiceConnection | null) => void
   readonly say: (line: string) => void
+  readonly warn: (line: string) => void
 }
 
-const parseVersion = (value: string): { readonly major: number; readonly minor: number } | null => {
-  const match = /^(\d+)\.(\d+)/.exec(value)
-  if (match === null || match[1] === undefined || match[2] === undefined) return null
-  return { major: Number(match[1]), minor: Number(match[2]) }
-}
+/** The service must share our major and not be older than our minor. */
+export const speaksCompatible = (speaks: string, theirs: string): boolean =>
+  isContractVersionCompatible(theirs, speaks)
 
-/** Same major. A build that only added a member is still speakable. */
-export const speaksCompatible = (speaks: string, theirs: string): boolean => {
-  const a = parseVersion(speaks)
-  const b = parseVersion(theirs)
-  if (a === null || b === null) return false
-  return a.major === b.major
+const absenceOf = (cause: unknown): boolean => {
+  const text = cause instanceof Error ? `${cause.name} ${cause.message}` : String(cause)
+  return /ECONNREFUSED|ENOTFOUND|EHOSTUNREACH|ECONNRESET|connection refused|nothing serving/i.test(
+    text,
+  )
 }
 
 export const originIn = (
@@ -114,7 +113,7 @@ const dialOnce = (
     if (!speaksCompatible(SPEAKS, theirs)) {
       sink.face(null)
       sink.link(skew(origin, theirs, now()))
-      sink.say(`olai: odu at ${origin} speaks ${theirs}, this build speaks ${SPEAKS}`)
+      sink.warn(`olai: odu at ${origin} speaks ${theirs}, this build speaks ${SPEAKS}`)
       return
     }
     sink.link(connected(origin, theirs, now()))
@@ -141,7 +140,10 @@ const dialOnce = (
       Effect.sync(() => {
         sink.face(null)
         sink.link(absent(origin, now()))
-        sink.say(`olai: no odu at ${origin} (${String(Cause.squash(cause))})`)
+        const squashed = Cause.squash(cause)
+        const line = `olai: no odu at ${origin} (${String(squashed)})`
+        if (absenceOf(squashed)) sink.say(line)
+        else sink.warn(line)
       }),
     ),
   )

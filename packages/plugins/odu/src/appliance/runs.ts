@@ -4,21 +4,21 @@
  *
  * Discovery is board-driven: the set of watched runs is the `odu-run` values
  * the vault names. A run nobody boards is not subscribed, whatever the service
- * knows about it. A settled boarded run costs nothing beyond its row. A live
- * boarded run holds `streams.nodes` until the frame says `done`.
+ * knows about it. Each boarded id holds `runs.get` for that key — the catalog
+ * is every run of the last 30 days, and the cost stays proportional to the
+ * board. A boarded run holds `streams.nodes` until the frame says `done`,
+ * including a run first seen already settled, so the matrix has cells.
  *
  * THE TWO NOTICES, per subscription:
  *   - first-red: once, on the first frame carrying a red node. A live run
  *     first seen already red rings. A settled run first seen red does not.
- *   - settle: once per settlement observed by this subscription, on the frame
- *     whose state leaves `running`. A run first seen already settled rings
+ *   - settle: once per settlement observed by this subscription, when `live`
+ *     goes from true to false. A run first seen already settled rings
  *     nothing.
  */
 
 import type { NodesFrame, RunRow } from "@odu/service-client/surface"
-import { oduServiceSurface } from "@odu/service-client/surface"
 import type { ServiceConnection } from "@odu/service-client/dial"
-import { mirrorRemoteSurface } from "@kolu/surface/mirror"
 import { unenrolledStreamCall } from "@kolu/surface/client"
 import { Cause, Effect, Fiber, type Scope, Stream } from "effect"
 
@@ -61,10 +61,49 @@ export interface Watch {
   readonly rows: () => ReadonlyArray<CiRun>
 }
 
-interface Sub {
+export interface Sub {
   firstRed: boolean
-  wasRunning: boolean
+  wasLive: boolean
   reddened: Set<string>
+}
+
+/** First-sight and later crossings for one boarded id. Pure, so the bench
+ *  can name a `provisioning → settled` settle without a live websocket. */
+export const advanceSub = (
+  prev: Sub | undefined,
+  row: CiRun,
+): { readonly sub: Sub; readonly notices: ReadonlyArray<RunNotice> } => {
+  const notices: Array<RunNotice> = []
+  if (prev === undefined) {
+    const sub: Sub = { firstRed: false, wasLive: row.live, reddened: new Set() }
+    if (row.live) {
+      const first = row.cells.find((cell) => cell.red)
+      if (first !== undefined) {
+        sub.firstRed = true
+        for (const cell of row.cells) if (cell.red) sub.reddened.add(cell.id)
+        notices.push({ kind: "first-red", run: row, cell: first })
+      }
+    }
+    return { sub, notices }
+  }
+  const sub: Sub = {
+    firstRed: prev.firstRed,
+    wasLive: row.live,
+    reddened: new Set(prev.reddened),
+  }
+  if (row.live && !sub.firstRed) {
+    const first = row.cells.find((cell) => cell.red)
+    if (first !== undefined) {
+      sub.firstRed = true
+      for (const cell of row.cells) if (cell.red) sub.reddened.add(cell.id)
+      notices.push({ kind: "first-red", run: row, cell: first })
+    }
+  }
+  for (const cell of row.cells) if (cell.red) sub.reddened.add(cell.id)
+  if (prev.wasLive && !row.live) {
+    notices.push({ kind: "settled", run: row, reddened: [...sub.reddened] })
+  }
+  return { sub, notices }
 }
 
 const nowIso = (): string => new Date().toISOString()
@@ -76,8 +115,8 @@ export const makeWatch = (deps: WatchDeps): Watch => {
   const rows = new Map<string, CiRun>()
   const subs = new Map<string, Sub>()
   const streams = new Map<string, Fiber.Fiber<void, never>>()
+  const holds = new Map<string, Fiber.Fiber<void, never>>()
   let connection: ServiceConnection | null = null
-  let mirrorAbort: AbortController | null = null
   let scope: Scope.Scope | undefined
 
   const fork = (effect: Effect.Effect<void>): void => {
@@ -106,35 +145,9 @@ export const makeWatch = (deps: WatchDeps): Watch => {
 
   const noticeOf = (id: string, row: CiRun): void => {
     if (!wanted.has(id)) return
-    let sub = subs.get(id)
-    if (sub === undefined) {
-      sub = { firstRed: false, wasRunning: row.state === "running", reddened: new Set() }
-      subs.set(id, sub)
-      // First sight: a live run already red rings; a settled one does not.
-      if (row.live) {
-        const first = row.cells.find((cell) => cell.red)
-        if (first !== undefined) {
-          sub.firstRed = true
-          for (const cell of row.cells) if (cell.red) sub.reddened.add(cell.id)
-          deps.rang({ kind: "first-red", run: row, cell: first })
-        }
-      }
-      sub.wasRunning = row.state === "running"
-      return
-    }
-    if (row.live && !sub.firstRed) {
-      const first = row.cells.find((cell) => cell.red)
-      if (first !== undefined) {
-        sub.firstRed = true
-        for (const cell of row.cells) if (cell.red) sub.reddened.add(cell.id)
-        deps.rang({ kind: "first-red", run: row, cell: first })
-      }
-    }
-    for (const cell of row.cells) if (cell.red) sub.reddened.add(cell.id)
-    if (sub.wasRunning && row.state !== "running") {
-      deps.rang({ kind: "settled", run: row, reddened: [...sub.reddened] })
-    }
-    sub.wasRunning = row.state === "running"
+    const next = advanceSub(subs.get(id), row)
+    subs.set(id, next.sub)
+    for (const notice of next.notices) deps.rang(notice)
   }
 
   const apply = (id: string): void => {
@@ -144,11 +157,14 @@ export const makeWatch = (deps: WatchDeps): Watch => {
     publish()
   }
 
-  const dropStream = (id: string): Effect.Effect<void> =>
+  const dropFiber = (
+    id: string,
+    table: Map<string, Fiber.Fiber<void, never>>,
+  ): Effect.Effect<void> =>
     Effect.gen(function*() {
-      const held = streams.get(id)
+      const held = table.get(id)
       if (held === undefined) return
-      streams.delete(id)
+      table.delete(id)
       yield* Fiber.interrupt(held)
     })
 
@@ -163,7 +179,7 @@ export const makeWatch = (deps: WatchDeps): Watch => {
           Effect.sync(() => {
             frames.set(id, frame)
             apply(id)
-            if (frame.done) fork(dropStream(id))
+            if (frame.done) fork(dropFiber(id, streams))
           }),
       ).pipe(
         Effect.catchCause((cause) =>
@@ -180,20 +196,54 @@ export const makeWatch = (deps: WatchDeps): Watch => {
       streams.set(id, self)
     })
 
-  const syncStreams = (): Effect.Effect<void> =>
+  const holdRow = (id: string): Effect.Effect<void> =>
     Effect.gen(function*() {
-      for (const id of [...streams.keys()]) {
-        if (!wanted.has(id) || !liveRow(id)) yield* dropStream(id)
+      if (connection === null || holds.has(id)) return
+      const client = connection.client
+      let self: Fiber.Fiber<void, never> | undefined
+      const work = Stream.runForEach(
+        unenrolledStreamCall(client.surface.runs.get, { key: id }),
+        (record: RunRow) =>
+          Effect.sync(() => {
+            if (record === null || record === undefined) onRemove(id)
+            else onUpsert(id, record)
+          }),
+      ).pipe(
+        Effect.catchCause((cause) =>
+          Effect.sync(() =>
+            deps.say(`olai: odu run ${id} ended (${String(Cause.squash(cause))})`),
+          ),
+        ),
+        Effect.ensuring(Effect.sync(() => {
+          if (self !== undefined && holds.get(id) === self) holds.delete(id)
+        })),
+      )
+      if (scope === undefined) return
+      self = yield* work.pipe(Effect.forkIn(scope))
+      holds.set(id, self)
+    })
+
+  const syncHolds = (): Effect.Effect<void> =>
+    Effect.gen(function*() {
+      for (const id of [...holds.keys()]) {
+        if (!wanted.has(id)) yield* dropFiber(id, holds)
       }
       for (const id of wanted) {
-        if (liveRow(id) && !streams.has(id)) yield* holdStream(id)
+        if (!holds.has(id)) yield* holdRow(id)
       }
     })
 
-  const liveRow = (id: string): boolean => {
-    const row = board.get(id)
-    return row !== undefined && (row.state === "provisioning" || row.state === "running")
-  }
+  const syncStreams = (): Effect.Effect<void> =>
+    Effect.gen(function*() {
+      for (const id of [...streams.keys()]) {
+        if (!wanted.has(id) || frames.get(id)?.done === true) yield* dropFiber(id, streams)
+      }
+      for (const id of wanted) {
+        if (board.has(id) && frames.get(id)?.done !== true && !streams.has(id)) {
+          yield* holdStream(id)
+        }
+      }
+    })
 
   const onUpsert = (id: string, record: RunRow): void => {
     if (!wanted.has(id)) return
@@ -211,44 +261,25 @@ export const makeWatch = (deps: WatchDeps): Watch => {
       rows.delete(id)
       publish()
     }
-    fork(dropStream(id))
+    fork(dropFiber(id, streams))
   }
 
   const attach = (held: ServiceConnection): void => {
     connection = held
-    mirrorAbort?.abort()
-    const abort = new AbortController()
-    mirrorAbort = abort
-    mirrorRemoteSurface(
-      oduServiceSurface,
-      held.client,
-      {
-        collections: {
-          runs: {
-            upsert: (id, record) => onUpsert(id as string, record as RunRow),
-            remove: (id) => onRemove(id as string),
-          },
-        },
-      },
-      {
-        signal: abort.signal,
-        log: deps.say,
-        onFault: (fault) =>
-          deps.say(`olai: odu board fault on ${fault.label}: ${String(fault.err)}`),
-      },
-    )
     projectWanted()
+    fork(syncHolds())
     fork(syncStreams())
   }
 
   const detach = (): void => {
-    mirrorAbort?.abort()
-    mirrorAbort = null
     connection = null
     board.clear()
     frames.clear()
     subs.clear()
-    for (const id of [...streams.keys()]) fork(dropStream(id))
+    for (const id of [...holds.keys()]) fork(dropFiber(id, holds))
+    for (const id of [...streams.keys()]) fork(dropFiber(id, streams))
+    // Chips vanish for the redial gap rather than lingering as a last
+    // reading. A reconnect is a new first sight.
     rows.clear()
     publish()
   }
@@ -268,12 +299,14 @@ export const makeWatch = (deps: WatchDeps): Watch => {
     for (const id of [...frames.keys()]) {
       if (!wanted.has(id)) frames.delete(id)
     }
-    if (connection !== null) projectWanted()
-    else {
+    if (connection !== null) {
+      projectWanted()
+      fork(syncHolds())
+      fork(syncStreams())
+    } else {
       rows.clear()
       publish()
     }
-    fork(syncStreams())
   }
 
   const watch: Watch = {
@@ -295,6 +328,7 @@ export const makeWatch = (deps: WatchDeps): Watch => {
             else attach(face)
           },
           say: deps.say,
+          warn: deps.warn,
         },
         deps.env,
         deps.now ?? nowIso,

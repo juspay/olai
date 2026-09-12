@@ -24,11 +24,10 @@
  * both sides makes a rename a type error.
  */
 export const TESTID = {
-  /** THE CI CHIP — the live-properties seam's chip face, drawn BESIDE a
-   *  `worktree` property whose checkout has a run in it (`./browser/CiChip.tsx`).
-   *  Its presence is the assertion that a run is live or was: a checkout with no
-   *  run and no reading draws nothing here, which is the ordinary state of every
-   *  checkout. `data-state` is `going` / `ok` / `red` / `quiet` — a closed set —
+  /** THE CI CHIP — the live-properties seam's chip face, drawn BESIDE an
+   *  `odu-run` property (`./browser/CiChip.tsx`).
+   *  Its presence is the assertion that the service has a reading of that id.
+   *  `data-state` is `going` / `ok` / `red` / `quiet` — a closed set —
    *  and it is spelled `data-state` rather than the `data-tone` a chip with four
    *  inks would reach for first, because that second name is the app's claimed
    *  contract for a said-line's MOOD and two vocabularies may not share it

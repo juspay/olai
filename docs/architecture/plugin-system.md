@@ -345,7 +345,7 @@ editable.
 | Dressing | When it draws |
 | --- | --- |
 | **block** | always owns a row: a terminal somebody wrote down is worth a row when nothing is happening |
-| **chip** | only while there is something to say: a worktree with no CI running looks unchanged |
+| **chip** | only while there is something to say: a run id the service does not know reads `unknown run`; a row with no `odu-run` looks unchanged |
 | **pane** | opens below the row when a chip is pressed |
 
 ### row actions

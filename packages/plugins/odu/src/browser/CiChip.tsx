@@ -1,10 +1,10 @@
 /**
- * THE CI CHIP — a `worktree` property's living face, drawn beside the path it
+ * THE CI CHIP — an `odu-run` property's living face, drawn beside the id it
  * is about.
  *
  * The live-properties seam's SECOND tenant (`@olai/web`'s live seam), and
  * deliberately the quieter shape of the two. The terminal door takes a row,
- * because a terminal somebody named is worth one; a `worktree` is a path on a
+ * because a terminal somebody named is worth one; an `odu-run` is an id on a
  * row and is worth exactly nothing until something is happening in it —
  * so this draws NOTHING most of the time and one chip when there is a run,
  * and the line a reader sees is otherwise the line they have always seen.

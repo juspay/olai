@@ -188,7 +188,7 @@ test("a day-board mirror of a lane in another file claims through the target —
   // under an unmarked day root, the same apply that minted the lane. The
   // claim walk has to find BOTH, or a row in a file other than the ringing
   // ones has changed the derivation. Placement of the relative checkout
-  // (the silent half had no pr-url) is `worktrees.ts` / `worktreeAt`'s.
+  // (the silent half had no run id) is `boarded.ts`.
   const claims = claimsOf({
     "_olai/Properties.olai": rec("prop-run", "run", { type: "text" }),
     "orchestrator/lanes.olai": [

@@ -23,6 +23,31 @@
         "endpoint": null,
         "parentRunId": null,
         "cursor": "m1kb0e11-2c8d@1"
+      },
+      "frame": {
+        "order": ["typecheck@linux"],
+        "nodes": [
+          {
+            "id": "typecheck@linux",
+            "status": "ok",
+            "attempt": 1,
+            "exitCode": 0,
+            "startedAt": 1,
+            "durationMs": 12000,
+            "host": "this-host",
+            "logKey": "m1kb0e11-2c8d/typecheck@linux#1"
+          }
+        ],
+        "state": "settled",
+        "env": {
+          "phase": "lanes",
+          "elapsedMs": 12000,
+          "lanes": [{ "state": "leased", "platform": "linux", "host": "this-host" }],
+          "hostsSource": null,
+          "commitUrl": null,
+          "owed": []
+        },
+        "done": true
       }
     }
   }

@@ -88,7 +88,7 @@ export interface RunTally {
 export const identityOf = (run: CiRun): string =>
   run.sha7 === ""
     ? run.name === "" ? run.id : run.name
-    : `${run.name === "" ? "ci" : run.name} ${run.sha7}${run.seq === null ? "" : `#${run.seq}`}${run.dirty ? "+dirty" : ""}`
+    : `${run.name === "" ? run.id : run.name} ${run.sha7}${run.seq === null ? "" : `#${run.seq}`}${run.dirty ? "+dirty" : ""}`
 
 export const tallyOf = (cells: ReadonlyArray<RunCell>): RunTally => {
   let settled = 0

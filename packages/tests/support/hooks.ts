@@ -804,7 +804,7 @@ const startServerChild = async (
         // and absent": odu's client defaults to `127.0.0.1:18440`, which is
         // this machine's real per-user service on CI. A scenario that did
         // not ask for a fake would otherwise connect to the host's odu.
-        ODU_WEB_ORIGIN: spawnOptions.oduOrigin ?? "127.0.0.1:1",
+        ODU_WEB_ORIGIN: spawnOptions.oduOrigin ?? "http://127.0.0.1:1",
         // The avatar template, when the scenario asked for one (`AVATAR_TAG`).
         // Passed only where it was asked for: the variable being SET at all is
         // what puts the second rung of the picture ladder in play.

@@ -120,7 +120,7 @@ dispatched  2026-08-25 10:06 (sweep queue #5; the slot freed by #387's merge)
 | `ref` | the **id** of one of a parent's children. `under` names the parent; absent, it is the declaration's own children. |
 | `node` | the id of any node in the set. A mirror is not one. |
 
-**...and an eighth arm, for the kinds a PLUGIN contributes.** `terminal` is not one of the seven and neither is `worktree`, and `@olai/format` may not learn either word. So a plugin declares its own kind, the composition root hands the format the table as data, and a vault declares it in `_olai/Properties.olai` like anything else:
+**...and an eighth arm, for the kinds a PLUGIN contributes.** `terminal` is not one of the seven and neither is `run`, and `@olai/format` may not learn either word. So a plugin declares its own kind, the composition root hands the format the table as data, and a vault declares it in `_olai/Properties.olai` like anything else:
 
 ```jsonl
 {"id":"prop-terminal","ord":"a6","title":"terminal","custom":{"type":"kolu-terminal"}}
@@ -186,8 +186,8 @@ outlines_add {file: "_olai/Properties.olai", title: "took", props: {type: "took"
   `date` (an ISO day or instant), `int` (a digit run), `path` (no whitespace;
   optional `base`), `doc` (a served `.md`; optional `base`), `ref` (a child's
   id; `under` names the parent), `node` (any node id), `terminal` (a padi
-  terminal id, or a prefix of one), `worktree` (a path to a checkout, no
-  whitespace).
+  terminal id, or a prefix of one), `odu-run` (an odu run id,
+  `<base36>-<base36>`).
 
 outlines_add {file: "_olai/Properties.olai", title: "brainstorm", props: {type: "doc"}}
 → `brainstorm` cannot be declared `doc` while 3 existing values do not fit:

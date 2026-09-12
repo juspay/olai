@@ -34,12 +34,12 @@
  * ## What did NOT move
  *
  * `oduHalf` stays in this package's `./appliance` door, which is still the only
- * place that names `@odu/*`: the socket resolution, the run projection and the
- * sweep are its. What moved is the CALL, and with it {@link ./worktrees.ts} —
- * the walk that asks which nodes name a worktree and whether the vault DECLARED
- * that key a path at all. That walk reads outline records, so it must not be in
- * the appliance; and it decides whether olai dials a socket in somebody's
- * checkout, so it has no business being in core either. Between those two is
+ * place that names `@odu/*`: the service link, the board holds and the
+ * projection are its. What moved is the CALL, and with it {@link ./boarded.ts} —
+ * the walk that asks which nodes name a run id and whether the vault DECLARED
+ * that key this kind. That walk reads outline records, so it must not be in
+ * the appliance; and it decides which ids olai asks the service about, so it
+ * has no business being in core either. Between those two is
  * what this package is.
  */
 
@@ -108,7 +108,7 @@ export { wake } from "./wake.ts"
  * plugin takes what it needs" is what this file ASSERTS about odu, and the
  * assertion is worth making where a reader can check it by eye. The walk it feeds
  * asks TWO things of that one reading — the records, and what the vault DECLARES
- * about the key ({@link ./worktrees.ts} argues why the declaration is what
+ * about the key ({@link ./boarded.ts} argues why the declaration is what
  * LICENCES a probe) — and both are answered off a memo the validator has already
  * paid for.
  */
@@ -119,7 +119,7 @@ export interface VaultRevision {
 }
 
 /**
- * THE ODU HALF, INSTALLED — the worktrees it watches and the runs it finds, as
+ * THE ODU HALF, INSTALLED — the run ids it watches and the runs it finds, as
  * finalizers on this plugin's scope.
  *
  * ## What `apply` is, and what it is not
@@ -140,9 +140,8 @@ export interface VaultRevision {
  * what replaced a hand-written `Services` subset — and before that, a
  * seven-field blob every plugin received whole.
  *
- * `env` and `vault` are what the repos root is decided from — a relative
- * `worktree` resolves against the served directory unless `$OLAI_REPOS_DIR` says
- * otherwise. `env` also carries the test seam: `env.dial` is THIS plugin's own
+ * `env` is the origin this olai dials (`ODU_WEB_ORIGIN`) and the test seam:
+ * `env.dial` is THIS plugin's own
  * injectable, resolved from the word the registry bound the fiber under rather
  * than from anything this file supplies. `clock` stamps a wake's attribution at
  * the moment the words go in. `kinds`, `surfaces` and `wakes` are the three
@@ -164,6 +163,7 @@ export interface VaultRevision {
 export default definePlugin({
   environment: [
     {"key": "OLAI_ODU_BIN", "secret": false, "says": "the directory placed first on PATH for Odu"},
+    {"key": "ODU_WEB_ORIGIN", "secret": false, "says": "the odu service origin this olai dials"},
   ],
   name,
   needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
@@ -249,7 +249,7 @@ export default definePlugin({
      * ONE RUN NOTICE, RUNG THROUGH — the doorbell's whole drive loop.
      *
      * Per notice, per conversation, joined by VALUE: a run's id IS the
-     * `worktree` value the board wrote (`./appliance`'s `CiRun`), so the join
+     * `odu-run` value the board wrote (`./appliance`'s `CiRun`), so the join
      * needs no roster resolution — the asymmetry with kolu's half one appliance
      * over, which resolves eight-character prefixes against a live fleet. One
      * claims walk per FILE per notice, memoised for the length of this call and
@@ -266,7 +266,6 @@ export default definePlugin({
      */
     const ring = (notice: RunNotice): Effect.Effect<void> =>
       Effect.gen(function*() {
-        yield* Effect.logDebug(`odu doorbell derived kind=${notice.kind} run=${notice.run.id}`)
         const at = derived
         if (at === undefined) return
         const perFile = new Map<string, ReturnType<typeof claimingIn>>()
@@ -278,6 +277,16 @@ export default definePlugin({
           return fresh
         }
         const scopes = deliveries.scopes()
+        const ringing = scopes.flatMap((scope) => {
+          const claim = claimingFor(scope.file).get(notice.run.id)
+          return claim === undefined ? [] : [`${notice.run.id}@${claim.node}`]
+        })
+        const claimed = [...new Set(scopes.flatMap((scope) => [...claimingFor(scope.file).keys()]))]
+        yield* Effect.logDebug(
+          `odu doorbell derived kind=${notice.kind} run=${notice.run.id} claims=${claimed.length} ringing=${
+            ringing.length === 0 ? "none" : ringing.join(",")
+          } unmatched=${claimed.includes(notice.run.id) ? "none" : notice.run.id}`,
+        )
         for (const scope of scopes) {
           const claim = claimingFor(scope.file).get(notice.run.id)
           if (

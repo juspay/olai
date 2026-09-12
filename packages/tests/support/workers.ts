@@ -193,7 +193,7 @@ export const isolateEnv = (
     // Omitting this env is not "derived and absent": odu's client defaults
     // to `127.0.0.1:18440`, which is this machine's real service on CI.
     // A tagged `@odu-service:` extra still wins.
-    ODU_WEB_ORIGIN: extras.ODU_WEB_ORIGIN ?? "127.0.0.1:1",
+    ODU_WEB_ORIGIN: extras.ODU_WEB_ORIGIN ?? "http://127.0.0.1:1",
     XDG_CACHE_HOME: cache,
     XDG_STATE_HOME: state,
     // A private runtime directory per spawn, so a scratch vault's lock

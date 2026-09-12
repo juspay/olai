@@ -112,9 +112,9 @@ export default definePlugin({
 
     // THE CHIP AND WHAT ITS PRESS OPENS — this plugin's one dressing.
     //
-    // A `worktree` is a path on a row and is worth exactly nothing until
-    // something is happening in it, so its face is an ADDITION to the line that
-    // appears only while there is a run — where the terminal door one appliance
+    // An `odu-run` is an id on a row and is worth exactly nothing until
+    // the service knows that run, so its face is an ADDITION to the line that
+    // appears only while there is a reading — where the terminal door one appliance
     // over owns a row always. The matrix is a grid and a chip is an inline box in
     // a wrapping line, so what the press opens hangs under the run as the pane
     // rather than inside the chip.

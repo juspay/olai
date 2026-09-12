@@ -1,8 +1,8 @@
 /**
  * ODU'S OWN SURFACE — one cell, and one cell is a whole surface.
  *
- * `@olai/odu-client`'s entire reading of a coordinator — which worktrees have
- * a run in them, what each node of it is doing, and what the row comes to —
+ * The appliance's entire reading of the service — which boarded runs the
+ * vault named, what each node of a run is doing, and what the row comes to —
  * arrives as ONE cell whose value is the runs, because a run is a reading of
  * somebody else's work and there is nothing a browser can write back. A plugin
  * is not a size.

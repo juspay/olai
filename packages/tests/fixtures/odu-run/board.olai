@@ -2,3 +2,4 @@
 {"id":"lane-a","parent":"board","ord":"a0","title":"the seam","doing":true,"custom":{"odu-run":"m1kb0e11-2c8d"}}
 {"id":"lane-other","parent":"board","ord":"a1","title":"another checkout","doing":true}
 {"id":"lane-unknown","parent":"board","ord":"a2","title":"a boarded miss","doing":true,"custom":{"odu-run":"m1miss000-zzzz"}}
+{"id":"door-live","parent":"board","ord":"a3","title":"watch the connector","doing":true,"custom":{"agent-session":"claude:fake-session-1"}}

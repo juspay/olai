@@ -19,16 +19,16 @@
  * dispatch, 2026-09-01 — first-red, once per hold; and settle), and a
  * *claimed* run going red is owed a wake whatever the lane is doing. So the
  * join has one question in it: does this file's claimed set name this run's
- * worktree? Everything else is the sentence.
+ * id? Everything else is the sentence.
  *
  * ## THE CLAIMABLE SET IS THE CHIP'S OWN LICENCE
  *
  * The values are the `odu-run`s of the file's UN-DONE nodes, mirrors
  * resolving to their targets — the same derivation the chip already licenses
- * ({@link ./worktrees.ts} runs the whole-vault sibling walk for the probe):
+ * ({@link ./boarded.ts} runs the whole-vault sibling walk):
  * the DECLARATION is found by kind and never by a key's spelling, so a board
- * whose column is `checkout` is heard where it declared the kind, and a
- * column somebody has been calling `worktree` for years without declaring it
+ * whose column is `run` is heard where it declared the kind, and a
+ * column somebody has been calling `odu-run` for years without declaring it
  * is not. What the doorbell does per file that the probe does not: `byFile`
  * to read one file, `follow` to see through a mirror, and `unfinished` to
  * end the claim the day the lane ends — a lane you finish stops ringing
@@ -60,9 +60,8 @@
  * and the later account — rung later, carrying the hold's whole red record —
  * is the same run's newer truth, so the replacement is the wake saying the
  * newest thing rather than a swallow. What the displaced account took with
- * it is its failed recipes' log paths — and those are already stale: the
- * path is `logPathFor(sha7, node)`, per run and node and not per attempt,
- * so the rerun overwrote the very files it would have pointed at. A RED
+ * it is its failed recipes' log keys — and those are already stale: a
+ * rerun's later attempt is a different key. A RED
  * spell and then another on the same run cannot double up by construction:
  * first-red is once per hold.
  *
@@ -109,8 +108,8 @@ import { name } from "./wire.ts"
 /**
  * ONE CLAIM a filter file makes on a run, as the vault wrote it.
  *
- * `value` is VERBATIM — the `worktree` string exactly as written, which is
- * the very id a run's row is keyed by (`@olai/odu-client`'s `CiRun.id`): the
+ * `value` is VERBATIM — the `odu-run` string exactly as written, which is
+ * the very id a run's row is keyed by (`CiRun.id`): the
  * join the doorbell runs is value to value, and unlike a terminal prefix
  * there is nothing left to resolve against a live roster.
  */
@@ -158,8 +157,8 @@ export const claimedIn = (
   if (inside === undefined) return []
   const claims: Array<Claim> = []
   const reached = new Set<string>()
-  /** A worktree value written TWICE claims once — two rows on one checkout
-   *  is one run, and the second claim is the mistake the watcher's own
+  /** A run id written TWICE claims once — two rows on one run
+   *  is one chip, and the second claim is the mistake the walker's own
    *  first-writer-wins rule already names. */
   const seen = new Set<string>()
   const descend = (at: LocatedRegular): void => {
@@ -183,7 +182,7 @@ export const claimedIn = (
 
 /**
  * THE CLAIMS, KEYED FOR THE JOIN — by the value itself, first writer wins in
- * the file's own line order. Two records naming one checkout is somebody
+ * the file's own line order. Two records naming one run is somebody
  * copying a property, not an error, and a sentence has room for one lane per
  * line.
  */
@@ -332,7 +331,7 @@ export function bodyFor(
       "",
       `The run is \`${which}\` (\`${run.id}\`), live in ${run.repoRoot === "" ? "an unknown checkout" : run.repoRoot}. ${cap(laneOf(claim))} claims it — the un-done row ${nodeRef(claim.node)} of ${claim.file} names this run — and \`${notice.cell.id}\` (${notice.cell.name} on ${notice.cell.platform}) is the first of its nodes to go red.`,
       "",
-      `This lands once per hold. Each settlement of the run — a lingering rerun's included — follows with its own account: the verdict, the final counts, and the log path of every failed recipe. Clearing the file on this conversation's wake control stops both.`,
+      `This lands once per hold. Each settlement of the run — a lingering rerun's included — follows with its own account: the verdict, the final counts, and each failed recipe with its log key. A run first seen already settled rings nothing. Clearing the file on this conversation's wake control stops both.`,
     )
     return lines.join("\n")
   }
@@ -345,7 +344,7 @@ export function bodyFor(
   if (reran.length > 0) lines.push("", ...reran)
   lines.push(
     "",
-    "These land once per settlement, per hold — a lingering rerun settles again and rings again, and an olai restart is a new hold: a run still settled when it re-dials says so once more. The lane's next run rings again when it first goes red and when it settles. Clearing the file on this conversation's wake control stops both.",
+    "These land once per settlement observed by this subscription. A lingering rerun settles again and rings again. A run first seen already settled rings nothing — what a restart misses as a wake is on the chip. The lane's next run rings again when it first goes red and when it settles. Clearing the file on this conversation's wake control stops both.",
   )
   return lines.join("\n")
 }

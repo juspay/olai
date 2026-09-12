@@ -42,7 +42,7 @@ The orchestrator replaces the row's `odu-run` with each new run's id after an ac
 
 ## What it costs
 
-One websocket to the service. The board subscription is filtered to the boarded ids. A settled run costs nothing beyond its row. A live boarded run holds one `streams.nodes` subscription until its frame says `done`. Nothing polls a filesystem.
+One websocket to the service. The board subscription is filtered to the boarded ids (`runs.get` per id, not the whole catalog). A boarded run holds one `streams.nodes` subscription until its frame says `done`, including a run first seen already settled, so the matrix has cells. Nothing polls a filesystem.
 
 ## The CI doorbell
 
@@ -51,11 +51,19 @@ A chat conversation can be **scoped to one outline file**, and then olai rings i
 Two wakes:
 
 - **First-red.** Once per subscription, on the first frame carrying a red node. A live run first seen already red rings. A settled run first seen red does not.
-- **Settle.** Once per settlement observed by this subscription, on the frame whose state leaves `running`. A run first seen already settled rings nothing — a settle is a past event, and with a catalog behind the board an olai restart would otherwise ring every finished run on every lane. What a restart misses as a wake is on the chip.
+- **Settle.** Once per settlement observed by this subscription, when the run leaves the live states (`provisioning` / `running`). A run that never passes through `running` still rings. A run first seen already settled rings nothing — a settle is a past event, and with a catalog behind the board an olai restart would otherwise ring every finished run on every lane. What a restart misses as a wake is on the chip.
 
 Failed recipes in a settle name their `logKey` and the command that reads it (`odu logs --run <id> <node>`). Coalescing keys on kind and run id.
 
 A boarded id the service does not know sends nothing to chat.
+
+**Silence is no message at all.** A run no scoped file claims rings nobody, and olai does not report what it decided not to ring about. A run the board dropped mid-flight rings nothing either — not even the settle.
+
+**What arrives obeys the fleet doorbell's own discipline**, because a person may receive either: the message names itself and its stamp; the panel draws one line and the whole account is a press away; the claiming row's id is in the **head** and is **pressable**; events that pile up while a turn runs are held to the boundary and arrive whole, coalesced **per kind per run**. The *claim* is re-read when the words go in (a lane finished while its wake queued is a wake nobody owes).
+
+**There is no heartbeat, by construction.** odu's watch is not a beat over absences — a boarded id with no catalog row is ordinary unknown, not evidence of life — so there is no timer saying *still here*. What underwrites the quiet: the two **fault messages** (`gone` / `unwatchable` — the file was renamed, moved or deleted; or it is served but holds no rows a claim can be read from — said once each, in this doorbell's own words, through [the seam core owns](../chat.md#what-this-conversation-wakes-on)), and the picker's `clear`, which stops everything.
+
+A service upgrade that drops the websocket clears the chips for the redial gap rather than lingering as a last reading. A reconnect is a new first sight.
 
 ## The chat panel's odu
 

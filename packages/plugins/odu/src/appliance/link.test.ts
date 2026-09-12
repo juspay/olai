@@ -2,10 +2,10 @@ import { expect, test } from "bun:test"
 
 import { speaksCompatible } from "./link.ts"
 
-test("the same major is speakable", () => {
+test("the same major is speakable when the service is at least as new", () => {
   expect(speaksCompatible("1.3", "1.3")).toBe(true)
   expect(speaksCompatible("1.3", "1.4")).toBe(true)
-  expect(speaksCompatible("1.3", "1.0")).toBe(true)
+  expect(speaksCompatible("1.3", "1.0")).toBe(false)
 })
 
 test("a different major is skew", () => {

@@ -2,8 +2,8 @@
  * THE CI RUNS, as this tab holds them — ONE subscription, however many chips.
  *
  * `olai-plugin-kolu`'s `appliance/props/fleet.tsx` one appliance over, and the economy is the
- * same: an outline can carry a `worktree` property on a dozen rows, and every
- * one of them wants to know whether its checkout is mid-run. That costs one
+ * same: an outline can carry an `odu-run` property on a dozen rows, and every
+ * one of them wants to know whether that run is live. That costs one
  * subscription per TAB and one probe per SERVER — so a chip must not
  * subscribe, and this context is what it reads instead. It is `@olai/web`'s `served.tsx`'s
  * arrangement exactly: subscribe once at the shell, hand every leaf an
@@ -14,7 +14,7 @@
  * The fleet is a collection with deltas, folded into a map that is MUTATED so
  * a busy machine's thirty terminals do not cost a copy per frame. This is one
  * CELL carrying an array, because the population is different in kind: live CI
- * runs are bounded by the worktrees a vault names at once, which is a
+ * runs are bounded by the `odu-run` values a vault names at once, which is a
  * handful, and the cell's `equals` (`@olai/odu-client`'s `sameCi`) already
  * swallows every frame that moved nothing. A `Map` rebuilt per frame over five
  * entries, a few times a minute, is not a cost worth a mutation protocol —
@@ -23,7 +23,7 @@
  *
  * ## A missing run is not a missing anything
  *
- * `runOf` answers `undefined` for a worktree with no run, and every face here
+ * `runOf` answers `undefined` for a boarded id with no row, and every face here
  * draws nothing for it. That is the ORDINARY answer — a checkout with no live
  * run is the steady state of every checkout on the machine — so there is no
  * hollow state, no "looked where?" line and no amber: those belong to padi,
@@ -35,12 +35,11 @@ import { type Accessor, createContext, createMemo, type JSX, useContext } from "
 
 import { type CiRun, type CiRuns, NO_RUNS } from "olai-plugin-odu/appliance/wire"
 
-/** What a chip asks: the run for this worktree value, or `undefined`. */
+/** What a chip asks: the run for this boarded id, or `undefined`. */
 export interface Runs {
-  /** By the board's OWN value — the `worktree` property verbatim, which is
-   *  what the server keyed the row by precisely so a browser never has to
-   *  resolve a path (`@olai/odu-client`'s `wire`). */
-  readonly runOf: (worktree: string) => CiRun | undefined
+  /** By the board's OWN value — the `odu-run` property verbatim, which is
+   *  what the server keyed the row by. */
+  readonly runOf: (runId: string) => CiRun | undefined
 }
 
 const RunsContext = createContext<Runs>()
@@ -71,7 +70,7 @@ export function createRuns(runs: Accessor<CiRuns | undefined>): Runs {
     for (const run of (runs() ?? NO_RUNS).runs) held.set(run.id, run)
     return held
   })
-  return { runOf: worktree => byWorktree().get(worktree) }
+  return { runOf: (runId) => byWorktree().get(runId) }
 }
 
 export function RunsProvider(props: {readonly value: Runs;readonly children: JSX.Element}): JSX.Element {

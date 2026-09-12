@@ -163,10 +163,10 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
     ).toBe("/tmp/scenario/padi.sock");
     // odu's client defaults to :18440 when the env is merely absent, so the
     // host's origin is replaced with a port nobody is answering on.
-    expect(env.ODU_WEB_ORIGIN).toBe("127.0.0.1:1");
+    expect(env.ODU_WEB_ORIGIN).toBe("http://127.0.0.1:1");
     expect(
-      isolateEnv(root, { ODU_WEB_ORIGIN: "127.0.0.1:9999" }).ODU_WEB_ORIGIN,
-    ).toBe("127.0.0.1:9999");
+      isolateEnv(root, { ODU_WEB_ORIGIN: "http://127.0.0.1:9999" }).ODU_WEB_ORIGIN,
+    ).toBe("http://127.0.0.1:9999");
     expect(env.GIT_DIR).toBeUndefined();
     expect(env.GIT_WORK_TREE).toBeUndefined();
     expect(env.XDG_CACHE_HOME).toBe(path.join(root, "cache"));
