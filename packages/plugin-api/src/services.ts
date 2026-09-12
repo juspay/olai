@@ -1781,24 +1781,10 @@ export type { SlotKey } from "./slots.ts"
 
 export { HostLoading, openLoading, type Catalog, type OwnedLoader } from "./loading.ts"
 
-/** A format row's declaration; its identity is supplied by the registering
- * fiber, never by the declaration. Node claims must supply a pure format. */
-export interface FileClaim {
-  readonly exts: readonly [string, ...string[]]
-  readonly holds: "nodes" | "text" | "bytes"
-  readonly kept: boolean
-  readonly fetched: boolean
-  /** The vault wraps fetched pages in its sealed iframe document. */
-  readonly serving?: "sealed-frame"
-  /** Case-folded picture references may be served and drawn inline. */
-  readonly picture?: boolean
-  /** Claimed suffixes served with inert headers and excluded from inline pictures. */
-  readonly inert?: readonly string[]
-  readonly noun: string
-  readonly article: "a" | "an"
-  readonly format?: import("@olai/format").OutlineFormat
-}
-export interface ComposedClaim extends FileClaim { readonly kind: string }
+/** Rows supply policy and (for nodes) a pure parser, never the identity stamped
+ * by the registry. The policy is the same inert contract format and wire readers use. */
+export type FileClaim = Omit<import("@olai/format").Claim, "kind">
+export type ComposedClaim = import("@olai/format").Claim
 
 /** Owned by vault setup. Each row may acquire one claim for its scope. A
  * conflicting kind or overlapping suffix defects without installing anything. */

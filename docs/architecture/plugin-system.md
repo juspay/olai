@@ -1028,7 +1028,10 @@ registers one atomic claim; the registry stamps its fiber binding as `kind`.
 All suffix collisions are checked before publication. Failure installs nothing,
 and cleanup withdraws only the departing owner's claim. Revalidation brings
 new claims into the set and removes withdrawn claims; published readings retain
-the immutable Claims value used for validation.
+the immutable Claims value used for validation. Claim policy fields are defined
+once by the inert `ClaimData` schema; the server claim adds its parser, and the
+registration input omits the registry-owned id. Cleanup tokens remain separate
+from snapshots, because snapshot construction copies claims.
 
 The browser consumes the vault's `file-kinds` cell, containing serializable
 claims and `outlineRow`. Reconnection resubscribes for a fresh snapshot.
@@ -1037,6 +1040,10 @@ contributions keyed by row id or by `holds`, with the row id taking priority.
 Glyph and page are independent components. Outlines contributes both once for
 `holds: "nodes"`; a format row requires no browser half. A body page declares
 every live service its moved face reads. Their static helpers own no registry.
+Glyph contribution lists are derived under the sidebar activation, once per
+location change, and released with it; individual glyph lookups do not copy the
+list. Page contribution lists likewise change with the location rather than
+with the selected address.
 
 
 The file-kind lifecycle is checked at these boundaries:

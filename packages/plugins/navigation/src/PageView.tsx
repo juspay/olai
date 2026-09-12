@@ -24,7 +24,8 @@ export function PageView() {
     const path = address()?.path, files = directory()
     return path === undefined ? undefined : files?.claims().byKind.get(fileKind(files.claims(), path) ?? "")
   })
-  const page = createMemo(() => forFileClaim(claim(), readLocation(pages).map(entry => entry.value)))
+  const contributions = createMemo(() => readLocation(pages).map(entry => entry.value))
+  const page = createMemo(() => forFileClaim(claim(), contributions()))
   const handler = createMemo(() => readLocation(content).find(({ value }) => value.matches(route()))?.value)
   // Both locations dispatch through one component identity. A file-to-node
   // zoom owned by the same renderer must keep that renderer's undo scope.

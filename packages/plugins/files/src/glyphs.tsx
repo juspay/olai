@@ -1,18 +1,9 @@
-import { forFileClaim } from "@olai/plugin-api/file-kinds"
-import type { Locations } from "@olai/plugin-api/contracts"
-import { heldService } from "@olai/ui-primitives/held.ts"
+/** File glyph presentation; contribution lifetime belongs to drawings.ts. */
 import { Dynamic } from "solid-js/web"
-import { fileKinds } from "./contract.ts"
-import { servedDirectory } from "./vault.ts"
+import { drawingOf } from "./drawings.ts"
 import { TESTID } from "./testids.ts"
 import { FolderGlyph } from "./FolderGlyph.tsx"
 
-const locations = heldService<Locations["read"]>()
-export const holdKindDrawings = locations.hold
-export const drawingOf = (kind: string) => forFileClaim(
-  servedDirectory()?.claims().byKind.get(kind),
-  (locations.read()?.(fileKinds) ?? []).map(entry => entry.value),
-)
 function PlainFile() {
   return <svg class="h-full w-full" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true"><path d="M3 1.5h6l4 4v9H3zM9 1.5v4h4" /></svg>
 }

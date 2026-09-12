@@ -2,34 +2,23 @@
 import { Schema } from "effect"
 import type { OutlineFormat } from "./format.ts"
 
-export interface Claim {
-  readonly kind: string
-  readonly exts: readonly [string, ...string[]]
-  readonly holds: "nodes" | "text" | "bytes"
-  readonly kept: boolean
-  readonly fetched: boolean
-  /** The vault wraps fetched pages in its sealed iframe document. */
-  readonly serving?: "sealed-frame"
-  /** Case-folded picture references may be served and drawn inline. */
-  readonly picture?: boolean
-  /** Claimed suffixes served with inert headers and excluded from inline pictures. */
-  readonly inert?: readonly string[]
-  readonly noun: string
-  readonly article: "a" | "an"
-  readonly format?: OutlineFormat
-}
-
-/** The wire carries an owner's id; membership is checked against a snapshot. */
 /** The data part of a claim, shared by wire readings. */
 export const ClaimData = Schema.Struct({
   kind: Schema.String, exts: Schema.NonEmptyArray(Schema.String),
   holds: Schema.Literals(["nodes", "text", "bytes"]),
   kept: Schema.Boolean, fetched: Schema.Boolean, noun: Schema.String,
   article: Schema.Literals(["a", "an"]),
+  /** The vault wraps fetched pages in its sealed iframe document. */
   serving: Schema.optionalKey(Schema.Literal("sealed-frame")),
+  /** Case-folded picture references may be served and drawn inline. */
   picture: Schema.optionalKey(Schema.Boolean),
+  /** Claimed suffixes served inert and excluded from inline pictures. */
   inert: Schema.optionalKey(Schema.Array(Schema.String)),
 })
+/** A registered claim adds its server-only parser to the serializable policy. */
+export interface Claim extends Schema.Schema.Type<typeof ClaimData> {
+  readonly format?: OutlineFormat
+}
 export const FileKind = Schema.String
 
 /** An inert snapshot of one vault's claims, never a service or a default. */

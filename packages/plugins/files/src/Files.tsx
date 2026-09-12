@@ -21,7 +21,7 @@ import { servedDirectory } from "./vault.ts"
 
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { Glyph } from "./glyphs.tsx"
-import { drawingOf } from "./glyphs.tsx"
+import { drawingOf } from "./drawings.ts"
 import { ancestorDirs,dirsIn,type FileRow,fileTree } from "olai-plugin-files/fileTree.ts"
 import { openFolders,toggleFolder } from "olai-plugin-files/fold/folders.ts"
 

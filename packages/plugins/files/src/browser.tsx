@@ -1,6 +1,6 @@
 /** Directory membership and folder preferences belong to files, independently
  * of sidebar presentation. Content providers register creation controls. */
-import { holdKindDrawings } from "./glyphs.tsx"
+import { holdKindDrawings } from "./drawings.ts"
 import { Edits, Wired } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
 import { dispatch } from "./surface.ts"
