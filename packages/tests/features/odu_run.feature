@@ -63,6 +63,7 @@ Feature: A lane names its CI run by odu's run id
       {"id":"lane-other","parent":"board","ord":"a1","title":"another checkout","doing":true}
       {"id":"door-live","parent":"board","ord":"a3","title":"watch the connector","doing":true,"custom":{"agent-session":"claude:fake-session-1"}}
       """
+    And the node "door-live" has the title "watch the connector"
     And I press the agent "door-live"
     And the node agent's fold is ready
     And I open the "node-bound" conversation for delivery
@@ -91,6 +92,7 @@ Feature: A lane names its CI run by odu's run id
       {"id":"lane-a","parent":"board","ord":"a0","title":"the seam","doing":true}
       {"id":"door-live","parent":"board","ord":"a3","title":"watch the connector","doing":true,"custom":{"agent-session":"claude:fake-session-1"}}
       """
+    And the node "door-live" has the title "watch the connector"
     And I press the agent "door-live"
     And the node agent's fold is ready
     And I open the "node-bound" conversation for delivery
