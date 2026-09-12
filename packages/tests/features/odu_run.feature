@@ -29,6 +29,12 @@ Feature: A lane names its CI run by odu's run id
     And "lane-other" has no CI chip
     And there should be no page errors
 
+  @scratch:odu-run @odu-service:live
+  Scenario: A boarded id the service has not named is an unknown chip
+    Given I open the outline "board.olai"
+    Then the CI chip on "lane-unknown" is quiet
+    And there should be no page errors
+
   @scratch:odu-run
   Scenario: No odu is said in the header
     Given I open the outline "board.olai"

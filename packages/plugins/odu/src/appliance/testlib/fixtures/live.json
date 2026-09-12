@@ -59,6 +59,55 @@
         },
         "done": false
       }
+    },
+    "m1same00-bbbb": {
+      "row": {
+        "runId": "m1same00-bbbb",
+        "repo": "juspay/olai",
+        "repoRoot": "/tmp/olai/.worktrees/a",
+        "branch": "master",
+        "sha": "8f8fe56aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "dirty": false,
+        "seq": 2,
+        "pipeline": "ci",
+        "createdAt": 2,
+        "state": "running",
+        "settled": false,
+        "passed": false,
+        "outcome": null,
+        "actionable": true,
+        "unresolvedFailures": 0,
+        "scope": { "selectors": [], "platforms": [], "noDeps": false },
+        "reportingDebt": 0,
+        "endpoint": null,
+        "parentRunId": null,
+        "cursor": "m1same00-bbbb@0"
+      },
+      "frame": {
+        "order": ["typecheck@linux"],
+        "nodes": [
+          {
+            "id": "typecheck@linux",
+            "status": "running",
+            "attempt": 1,
+            "exitCode": null,
+            "startedAt": 1,
+            "durationMs": null,
+            "host": "this-host",
+            "logKey": "m1same00-bbbb/typecheck@linux#1"
+          }
+        ],
+        "state": "running",
+        "env": {
+          "phase": "lanes",
+          "elapsedMs": 10,
+          "lanes": [{ "state": "leased", "platform": "linux", "host": "this-host" }],
+          "hostsSource": null,
+          "commitUrl": null,
+          "owed": []
+        },
+        "done": false
+      }
     }
   }
 }

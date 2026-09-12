@@ -750,16 +750,19 @@ describe("only the registry knows a plugin's name", () => {
       "tests/step_definitions/editing_steps.ts: olai-plugin-outlines/testlib",
       "tests/step_definitions/identity_steps.ts: olai-plugin-identity/who",
       "tests/step_definitions/new_file_steps.ts: olai-plugin-files/making",
+      "tests/step_definitions/odu_run_steps.ts: olai-plugin-odu/testids",
       "tests/step_definitions/panel_steps.ts: olai-plugin-layout/preferences",
       "tests/step_definitions/preferences_steps.ts: olai-plugin-alerts/keys",
       "tests/step_definitions/preferences_steps.ts: olai-plugin-outlines/testlib",
       "tests/support/hooks.ts: olai-plugin-kolu/appliance/testlib",
+      "tests/support/hooks.ts: olai-plugin-odu/appliance/testlib",
       "tests/support/world.ts: olai-plugin-chat/testlib",
       "tests/support/world.ts: olai-plugin-csv/testids",
       "tests/support/world.ts: olai-plugin-hypertext/testids",
       "tests/support/world.ts: olai-plugin-image/testids",
       "tests/support/world.ts: olai-plugin-kolu/appliance/testlib",
       "tests/support/world.ts: olai-plugin-markdown/testids",
+      "tests/support/world.ts: olai-plugin-odu/appliance/testlib",
       "tests/support/world.ts: olai-plugin-outlines/testids",
       "tests/support/world.ts: olai-plugin-outlines/testlib",
       "tests/support/world.ts: olai-plugin-pdf/testids",
@@ -804,7 +807,7 @@ describe("only the registry knows a plugin's name", () => {
    *  the `workspace:*` line left behind is a package still standing on the wrong
    *  side of the wall, and that is precisely what its seven rows had become. */
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    tests: ["olai-plugin-chat", "olai-plugin-claude", "olai-plugin-codex", "olai-plugin-identity", "olai-plugin-kolu", "olai-plugin-opencode", "olai-plugin-outlines", "olai-plugin-pi"],
+    tests: ["olai-plugin-chat", "olai-plugin-claude", "olai-plugin-codex", "olai-plugin-identity", "olai-plugin-kolu", "olai-plugin-odu", "olai-plugin-opencode", "olai-plugin-outlines", "olai-plugin-pi"],
     server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-mcp", "olai-plugin-vault", "olai-plugin-web-app"],
   }
 
@@ -1906,6 +1909,8 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/kolu/src/client/fleet.ts",
       "plugins/kolu/src/client/link.ts",
       "plugins/markdown/src/browser/document/DocumentPage.tsx",
+      "plugins/odu/src/appliance/link.ts",
+      "plugins/odu/src/appliance/testlib/fake-service.ts",
       "plugins/odu/src/appliance/wire/index.ts",
       "plugins/odu/src/browser/RunMatrix.tsx",
       "plugins/odu/src/browser/words.ts",

@@ -281,7 +281,7 @@ test("a plugin's own composed word is the one the bundle composes", async () => 
   })
   expect([...built.keys()].sort()).toEqual([...expected].sort())
   // Not vacuous: three plugins teach a word — kolu's `terminal`, odu's
-  // `worktree` and chat's `agent-session` — so the walk above compared
+  // `run` and chat's `agent-session` — so the walk above compared
   // something. A COUNT and not a floor, for this file's usual reason: a
   // derivation that came back short would satisfy the equality by comparing
   // less, and the number is one line to move when a fourth word arrives.
