@@ -52,6 +52,7 @@
  */
 
 import { Schema } from "effect"
+import type { OutlineFormat } from "./format.ts"
 
 /**
  * The one suffix that is spelled twice in this file, and the reason it is.
@@ -70,7 +71,11 @@ export const SVG_EXT = ".svg"
 
 /** What is true of a kind of served file, for every kind, in the four respects
  *  all of them have an answer to. */
-interface Claim {
+export interface Claim {
+  readonly kind: string
+  readonly noun: string
+  readonly article: "a" | "an"
+  readonly format?: OutlineFormat
   /**
    * The suffixes that claim a file, matched exactly as they are written here —
    * a near miss is a miss (`notes.md.txt` is nobody's, and neither is
@@ -195,7 +200,7 @@ export const FILE_KINDS = {
     fetched: true,
   },
   pdf: { exts: [".pdf"], holds: "bytes", kept: false, fetched: true },
-} as const satisfies Record<string, Claim>
+} as const satisfies Record<string, Omit<Claim, "kind" | "noun" | "article">>
 
 /** What a served file can be. Derived from the table rather than declared
  *  beside it, so the union cannot name a kind the table does not claim. */
@@ -306,7 +311,7 @@ export const UNKEPT_KINDS: ReadonlyArray<UnkeptKind> = Object.entries(FILE_KINDS
 
 /** The table as pairs, once, so the walk below is not `Object.entries` per
  *  call: `fileKind` is asked of every entry of every directory walk. */
-const CLAIMS = Object.entries(FILE_KINDS) as ReadonlyArray<readonly [FileKind, Claim]>
+const CLAIMS = Object.entries(FILE_KINDS) as ReadonlyArray<readonly [FileKind, Omit<Claim, "kind" | "noun" | "article">]>
 
 /**
  * The suffix a served file's name ends in, and the kind that claims it — or
@@ -508,3 +513,33 @@ export const OUTLINE_EXT = FILE_KINDS.outline.exts[0]
  *  different question — what may be handed to an agent as a path — with five
  *  entries. The one string they share means a different thing on each side. */
 export const DOCUMENT_EXT = FILE_KINDS.document.exts[0]
+
+/** An inert snapshot of one vault's claims, never a service or a default. */
+export interface Claims {
+  readonly byKind: ReadonlyMap<string, Claim>
+  readonly byExt: ReadonlyMap<string, string>
+}
+
+/** Build an independent snapshot. Ambiguous suffixes are refused in either
+ * insertion order; the caller receives no partially built table. */
+export const claims = (list: Iterable<Claim>): Claims => {
+  const byKind = new Map<string, Claim>()
+  const byExt = new Map<string, string>()
+  for (const claim of list) {
+    if (byKind.has(claim.kind)) throw new Error(`file kinds: a second claim from "${claim.kind}"`)
+    if (claim.exts.length === 0) throw new Error(`file kinds: "${claim.kind}" claims no suffix`)
+    for (const ext of claim.exts) {
+      if (!ext.startsWith(".") || ext.length < 2 || /[\\/\s]/.test(ext)) {
+        throw new Error(`file kinds: invalid suffix "${ext}"`)
+      }
+      for (const [previous, owner] of byExt) {
+        if (ext.endsWith(previous) || previous.endsWith(ext)) {
+          throw new Error(`file kinds: "${claim.kind}" claims "${ext}", overlapping "${previous}" claimed by "${owner}"`)
+        }
+      }
+      byExt.set(ext, claim.kind)
+    }
+    byKind.set(claim.kind, Object.freeze({ ...claim, exts: Object.freeze([...claim.exts]) as Claim["exts"] }))
+  }
+  return Object.freeze({ byKind, byExt })
+}

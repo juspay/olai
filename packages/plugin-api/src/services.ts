@@ -1779,3 +1779,25 @@ export const SERVICE_KEYS: ReadonlyArray<string> = SERVICES.map((one) => one.cor
 export type { SlotKey } from "./slots.ts"
 
 export { HostLoading, openLoading, type Catalog, type OwnedLoader } from "./loading.ts"
+
+/** A format row's declaration; its identity is supplied by the registering
+ * fiber, never by the declaration. Node claims must supply a pure format. */
+export interface FileClaim {
+  readonly exts: readonly [string, ...string[]]
+  readonly holds: "nodes" | "text" | "bytes"
+  readonly kept: boolean
+  readonly fetched: boolean
+  readonly noun: string
+  readonly article: "a" | "an"
+  readonly format?: import("@olai/format").OutlineFormat
+}
+export interface ComposedClaim extends FileClaim { readonly kind: string }
+
+/** Owned by vault setup. Each row may acquire one claim for its scope. A
+ * conflicting kind or overlapping suffix defects without installing anything. */
+export interface FileKinds {
+  readonly current: () => ReadonlyMap<string, ComposedClaim>
+  readonly changes: Stream.Stream<void>
+  readonly register: (claim: FileClaim) => Effect.Effect<void, never, Scope.Scope>
+}
+export const FileKinds = serviceTag<FileKinds>("vault.file-kinds")

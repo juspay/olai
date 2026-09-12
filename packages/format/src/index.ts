@@ -1233,3 +1233,6 @@ export {
   sameMoving,
   sameMovingRequest,
 } from "./moving.ts"
+
+export { claims, type Claim, type Claims } from "./kinds.ts"
+export type { OutlineFormat } from "./format.ts"
