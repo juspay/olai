@@ -247,7 +247,7 @@ test("every dynamic import() this tree spells takes a literal the bundler can re
   // EMPTY for the reason above, and the OFFENDER check beside it is the half
   // that matters: a computed specifier in this tree cuts the bundle just as
   // surely as one in core's, and this is where that is asked of the panel.
-  expect(filesSpelling(/\bimport\s*\(/)).toEqual([])
+  expect(filesSpelling(/\bimport\s*\(/)).toEqual([path.join("agents", "Standing.tsx")])
 })
 
 // `dismiss.ts`'s stack, from the side that joins it without its gestures. The
@@ -274,6 +274,7 @@ test("every dynamic import() this tree spells takes a literal the bundler can re
 // list — which is why the ticket is `() => true`.
 test("the stack is joined directly only where the gestures are not dismissOn's", () => {
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
+    path.join("agents", "EngineMenu.tsx"),
     path.join("chat", "CompletionMenu.tsx"),
   ])
 })

@@ -44,6 +44,7 @@ export interface ToolTicket {
 
 /** The part of a node session's state that the roster reads. */
 export interface LiveSession {
+  readonly since?: string
   readonly status: ReturnType<Panel["state"]>["status"]
   readonly asking: number
 }
@@ -130,6 +131,7 @@ interface NodeSlot {
   readonly node: string
   readonly scope: Scope.Closeable
   readonly panel: Panel
+  since: string
   state: ReturnType<Panel["state"]>
   touched: number
   generation: number
@@ -399,6 +401,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                 return { ...server, token: ticket.bearer }
               },
               onState: (state) => {
+                if (slot.state.status !== state.status) slot.since = new Date().toISOString()
                 slot.state = state
                 options.onConversationState?.(state, slot.panel.entries())
                 slot.touched = Date.now()
@@ -432,6 +435,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             node,
             scope,
             panel,
+            since: new Date().toISOString(),
             state: panel.state(),
             touched: Date.now(),
             generation: 0,
@@ -827,6 +831,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       live: () => new Map(
         [...nodes.values()].filter((slot) => !slot.history).map((slot) => [slot.node, {
           status: slot.state.status,
+          since: slot.since,
           asking: slot.state.asking,
         } satisfies LiveSession]),
       ),

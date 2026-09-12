@@ -69,6 +69,8 @@
  */
 
 export const TESTID = {
+  agentStart: "agent-start",
+  agentEngineMenu: "agent-engine-menu",
   agentStanding: "agent-standing",
   agentFold: "agent-fold",
   // ── the sidebar's agents roster, and the door on an agent's row ───────

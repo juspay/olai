@@ -9,7 +9,7 @@ export type Standing = AgentStanding
 export type Row = NodeAgentRow
 
 /** What each standing is called, how it is painted, and what it means. One
- * table is read by both the sidebar row and the door on the outline. */
+ * table is read by both the sidebar row and the aside on the outline. */
 export const LOOK: Record<Standing, Look> = {
   "needs-you": {
     dot: "bg-doing",

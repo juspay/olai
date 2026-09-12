@@ -1,3 +1,4 @@
+import { MENU_PANEL } from "@olai/ui-primitives/menu.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The PRIMITIVE and its wiring — everything about the `•••` menu that is
@@ -305,7 +306,7 @@ export function Dropdown(props: {
         // `max-height`, which `fitViewport` would set, is a limit its
         // overflowing child ignores), and the scroll is what turns a cap into a
         // list somebody can still reach the end of.
-        class={`relative ${LAYER.row} min-w-[10.5rem] overflow-y-auto rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md focus:outline-none`}
+        class={`${MENU_PANEL} ${LAYER.row}`}
         // The primitive restores the trigger on every close. A KEY still
         // gets the caret back (`handBack`); a pointer that landed somewhere
         // else must not be pulled off it.

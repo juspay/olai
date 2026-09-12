@@ -712,3 +712,36 @@ When("I fold node agent {string}", async function (this: OlaiWorld, node: string
   await this.press(standing);
   await this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", node)}`).waitFor({ state: "detached" });
 });
+
+const asideFor = (world: OlaiWorld, node: string) =>
+  world.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", node)}`);
+const startFor = (world: OlaiWorld, node: string) =>
+  world.page.locator(`${selector(PLUGIN_TESTID.agentStart)}${attr("data-agent", node)}`);
+Then("the aside on {string} stands {string}", async function (this: OlaiWorld, node: string, standing: string) {
+  await this.waitUntil(async () => await asideFor(this, node).getAttribute("data-standing") === standing, "the aside standing to arrive");
+});
+Then("the aside on {string} reads {string}", async function (this: OlaiWorld, node: string, words: string) {
+  assert.ok((await asideFor(this, node).innerText()).includes(words));
+});
+Then("the standing on {string} cannot be pressed", async function (this: OlaiWorld, node: string) {
+  assert.ok(await asideFor(this, node).isDisabled());
+});
+When("I hover the agent start pill on {string}", async function (this: OlaiWorld, node: string) {
+  await startFor(this, node).hover({ force: true });
+});
+When("I press the agent start pill on {string}", async function (this: OlaiWorld, node: string) {
+  await this.press(startFor(this, node));
+});
+Then("the agent start pill on {string} is visible", async function (this: OlaiWorld, node: string) {
+  await startFor(this, node).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.equal(await startFor(this, node).evaluate(el => getComputedStyle(el).opacity), "1");
+});
+Then("the agent start pill on {string} is absent", async function (this: OlaiWorld, node: string) {
+  await startFor(this, node).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+});
+Then("node agent {string} is unfolded", async function (this: OlaiWorld, node: string) {
+  await this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", node)}`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+Then("the agent engine menu offers {string}", async function (this: OlaiWorld, engine: string) {
+  await this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu)).getByRole("menuitem", { name: engine, exact: true }).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});

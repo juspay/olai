@@ -1,3 +1,4 @@
+import { MENU_ITEM } from "@olai/ui-primitives/menu.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * What is INSIDE the open panel: the list, or the question one verb asks first
@@ -73,7 +74,7 @@ export function Panel(props: {
                 // walk nobody can see is not a walk. It replaces the focus
                 // ring rather than joining it (`focus:outline-none`) —
                 // Chromium draws that one for pointer opens too.
-                class="cursor-pointer px-3 py-1.5 text-left text-ink hover:bg-rule focus:outline-none data-[highlighted]:bg-rule"
+                class={MENU_ITEM}
                 data-testid={TESTID.nodeMenuItem}
                 data-action={action.id}
                 closeOnSelect={!asks(action)}

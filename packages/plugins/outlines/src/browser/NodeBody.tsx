@@ -75,7 +75,6 @@
 import { customOf, docOf, type LocatedRegular } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
-import { PluginDoors } from "./Doors.tsx"
 import { PluginFolds } from "./Folds.tsx"
 import { documentReferences } from "../index.ts"
 import { readLocation } from "./locations.ts"
@@ -198,7 +197,6 @@ export function NodeBody(props: {
               kind (`@olai/plugin-api`'s slot table argues it where the slot is
               declared). Each answers NOTHING on nearly every row, and what that
               costs is a map read in a table the plugin subscribes to once. */}
-          <PluginDoors node={props.shows.node.id} />
           <PluginFolds node={props.shows.node.id} />
 
           {/* CLOSED: one clamped dim line under the title, which is either the
@@ -298,7 +296,6 @@ export function NodeBody(props: {
       />
       {/* ... and on the node's OWN page too, under the same facts: a page about
           one node is the page its agent's door most belongs on. */}
-      <PluginDoors node={props.shows.node.id} />
       <Show when={props.shows.node.desc}>
         {(desc) => (
           <Note

@@ -67,7 +67,8 @@ import {fileAccess} from "olai-plugin-vault/contract"
 import { definePlugin, Faces, Slots, Wired, Offers } from "@olai/plugin-api"
 import { Effect } from "effect"
 
-import { AgentDoor } from "./browser/agents/Door.tsx"
+import { Standing } from "./browser/agents/Standing.tsx"
+import { createFolding, holdFolding } from "./browser/agents/folding.ts"
 import { Agents } from "./browser/agents/Agents.tsx"
 import { AgentsProvider, createAgents } from "./browser/agents/answered.tsx"
 import { createAskCommand, rowVerbs } from "./browser/verbs.tsx"
@@ -122,10 +123,11 @@ export default definePlugin({
     yield* holdFaces(faces)
     const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const agents = createAgents()
-      return { dispose, conversation: agents.conversation, agents }
+      return { dispose, conversation: agents.conversation, agents, folding: createFolding() }
     })), state => Effect.sync(state.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdConversation(state.conversation)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdSelection(state.agents.select)), stop => Effect.sync(stop))
+    yield* Effect.acquireRelease(Effect.sync(() => holdFolding(state.folding)), stop => Effect.sync(stop))
     yield* (yield* Offers).own("state", () => state)
 
 
@@ -142,11 +144,9 @@ export default definePlugin({
     yield* slots.register("app.header", { place: "cluster", body: () => <AgentsProvider value={state.agents}><Toggle /></AgentsProvider> })
     // THE ROSTER SECTION, under the app's own sidebar regions.
     yield* slots.register("sidebar.section", { said: SECTION, body: () => <AgentsProvider value={state.agents}><Agents /></AgentsProvider> })
-    // THE DOOR ON A ROW — drawn on every row and answering nothing on nearly
-    // all of them, which is one map read against a roster this half subscribes
-    // to once for the whole tab (`./browser/agents/answered.tsx` argues what
-    // subscribing per row would cost).
-    yield* slots.register("outline.row.door", props => <AgentsProvider value={state.agents}><AgentDoor {...props} /></AgentsProvider>)
+    // The aside reads the activation roster once per row; only opening a fold
+    // acquires a conversation. Unbound rows offer a start gesture.
+    yield* slots.register("outline.row.aside", props => <AgentsProvider value={state.agents}><Standing {...props} /></AgentsProvider>)
     // THE VERBS ON A ROW'S `•••`, as a READING rather than a list — the count
     // is one per installed engine plus the ask, and the roster that decides it
     // arrives after this fiber does (`./browser/verbs.tsx` argues both).

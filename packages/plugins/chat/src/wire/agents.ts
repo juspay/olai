@@ -60,6 +60,7 @@ export const NodeAgentRow = Schema.Struct({
   /** Session lifecycle is per node, so it travels on the row rather than being
    * inferred from whichever conversation the foreground panel happens to show. */
   standing: AgentStanding,
+  since: Schema.optionalKey(Schema.String),
   waiting: Schema.Int,
   /**
    * THE LAST LINE OLAI HEARD THIS AGENT SAY, or `null` before it has heard one.

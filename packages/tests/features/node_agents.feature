@@ -38,38 +38,44 @@ Feature: A node with an `agent-session` property IS an agent
     And the agent "door-review" is named "review: grok"
 
   @corpus:lanes
-  Scenario: An agent nobody has started a session for says so, on both its faces
-    # The roster row and the door are two faces of one answer, addressed by the
-    # same node id — so this is also the assertion that they cannot disagree.
+  Scenario: An unbound agent wears a standing in the aside
     Given I open the outline "lanes.olai"
-    Then the agent "door-implement" stands "unbound"
-    And the door on "door-implement" stands "unbound"
-    And the door on "door-implement" reads "no session bound"
-    # ... and an agent olai has never been in a conversation with draws no line
-    # at all, which is not the same as drawing an empty one.
-    And the door on "door-implement" has no last message
+    Then the aside on "door-implement" stands "unbound"
+    And the aside on "door-implement" reads "no session bound"
+    And the standing on "door-implement" cannot be pressed
+
+  @scratch:lanes
+  Scenario: Hovering a plain row offers a single press to start its agent
+    Given I open the outline "lanes.olai"
+    When I hover the agent start pill on "lane-fresh"
+    Then the agent start pill on "lane-fresh" is visible
+    When I press the agent start pill on "lane-fresh"
+    Then the node "lane-fresh" shows the property "agent-session" holding "claude:fake-session-1"
+    And node agent "lane-fresh" is unfolded
+    And the agent start pill on "lane-fresh" is absent
+
+  @codex @scratch:lanes
+  Scenario: Several installed engines offer a choice at the row
+    Given I open the outline "lanes.olai"
+    When I hover the agent start pill on "lane-fresh"
+    And I press the agent start pill on "lane-fresh"
+    Then the agent engine menu offers "claude"
+    And the agent engine menu offers "codex"
 
   @corpus:lanes
-  Scenario: The door says what the agent is and how much it knows
-    # The memory count is the number this whole design turns on: the subtree is
-    # what a fresh session would read, so how big it is belongs on the row
-    # beside the state. A leaf lane step has nothing under it and says `0 rows`
-    # rather than nothing.
-    #
-    # What the door does NOT say is the node's own title, which is one line
-    # above it every time — the engine and the memory are what only the door
-    # can say, and they get the width.
+  Scenario: A bound row has a standing and no start pill
     Given I open the outline "lanes.olai"
-    Then the door on "door-implement" reads "claude"
-    And the door on "door-implement" reads "memory: this subtree (0 rows)"
+    Then the agent start pill on "door-live" is absent
 
-  @corpus:lanes
-  Scenario: A row with no `agent-session` property wears no door
-    # Nearly every row in every outline is this one, and what it costs is a
-    # lookup in a roster of nine.
+  @scratch:lanes
+  Scenario: A waiting agent agrees on the aside and sidebar faces
     Given I open the outline "lanes.olai"
-    Then there is no door on "lane-door"
-    And there is no door on "lanes"
+    When I press the agent "door-live"
+    And I ask the agent "ask"
+    Then the chat shows a question
+    And the agent "door-live" stands "needs-you"
+    And the aside on "door-live" stands "needs-you"
+    And the aside on "door-live" reads "needs you"
 
   @corpus:good
   Scenario: A directory with no node agent has no section at all

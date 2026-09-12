@@ -1,3 +1,4 @@
+import { unfold } from "./agents/folding.ts"
 import { selectConversation } from "./selection.ts"
 import { agentIn } from "olai-plugin-chat/wire"
 import type { AppCommand } from "olai-plugin-navigation/slots"
@@ -149,6 +150,7 @@ export const rowVerbs = (node: string, roster: Roster, state: ReturnType<typeof 
         )
         if (Result.isFailure(outcome)) return outcome.failure.message
         selectConversation(outcome.success)
+        unfold(node)
         setPanelOpen(true)
       },
     })
