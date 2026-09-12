@@ -16,8 +16,9 @@
  * ({@link ./Composer.tsx}).
  *
  * Keyboard first, because the whole point is not reaching for the mouse
- * mid-sentence: ↑/↓ walk, Enter and Tab accept, Escape closes. A click does the
- * same thing for the times a hand is already there.
+ * mid-sentence: ↑/↓ select and walk, Enter takes a selected row, Tab completes,
+ * Escape closes. Spaced name queries start unselected so Enter sends prose.
+ * A click takes the row under the pointer.
  */
 import { servedDirectory } from "../vault.ts"
 import type { Place } from "olai-plugin-search/ui/place.ts"
@@ -174,7 +175,8 @@ export function CompletionMenu(props: {
   // underneath, which this menu had no answer for at all.
   const cursor = createCursor(() => props.rows.length)
 
-  // A NEW QUESTION STARTS AT THE TOP — see `asking`.
+  // A new question resets the cursor and any explicit selection. Remember the
+  // row value too: a live result replacing that position was never selected.
   const [selected, setSelected] = createSignal<{ asking: string; value: string } | null>(null)
   const active = () => !props.explicitSelection || (
     selected()?.asking === props.asking &&
