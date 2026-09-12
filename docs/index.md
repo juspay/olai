@@ -15,7 +15,6 @@ olai serves a directory of outlines and Markdown files as a web app that people 
 | [format.md](format.md) | The file format: record shapes, fields, status, references, days, the pinned shelf, which file types are served, and merge safety. |
 | [dynamic-plugins.md](dynamic-plugins.md) | Writing a plugin into the served directory itself: the definition shape, allowed imports, approval, and worked examples. |
 
-The [agents in the outline plan](agents-in-the-outline.plan.md) records the design and its implementation checklist.
 
 ## Plugins
 

@@ -36,10 +36,10 @@
 # that will not typecheck here is a blocker rather than a nuisance. That is the
 # whole reason this arrangement is worth its cost, and it is unchanged.
 #
-# The kolu pin tracks MASTER, and `npins/sources.json` is the one place its
-# revision is written down — a second copy in this comment is a copy that goes
-# stale silently, and did: it named PR #2228's merge commit for several bumps
-# after the pin had moved past it.
+# The kolu pin temporarily tracks the upstream keyed-collection branch in
+# https://github.com/juspay/kolu/pull/2235. Consume that source directly, without
+# local patches. Return the pin to master once the upstream change is merged.
+# `npins/sources.json` records its exact revision.
 #
 # What the pin is depended on FOR, which does not move with every bump:
 #   * PR #2228 — a redial retains the connection and every surviving client,
@@ -59,18 +59,9 @@
 let
   npins = import ../npins;
 
-  # Conversation reads need keyed delta collections on the ordinary surface
-  # registration path. Keep the primitive in its owning wire package; both
-  # hydration and production builds consume this same patched source.
-  koluSource = pkgs.applyPatches {
-    name = "kolu-keyed-collections";
-    src = npins.kolu;
-    patches = [ ./kolu-keyed-collections.patch ];
-  };
-
   consumer = import "${npins.kolu}/nix/consumer.nix" {
     inherit pkgs;
-    src = koluSource;
+    src = npins.kolu;
 
     # THE SEEDS — what olai's own source imports by name. Read the two tiers
     # rather than the list: `@kolu/surface*` is the FRAMEWORK olai's app is

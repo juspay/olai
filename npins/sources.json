@@ -20,11 +20,11 @@
         "owner": "juspay",
         "repo": "kolu"
       },
-      "branch": "master",
+      "branch": "olai-keyed-stream-collections",
       "submodules": false,
-      "revision": "56152455be3d7e4e339d406d95eaa2e72152a2db",
-      "url": "https://github.com/juspay/kolu/archive/56152455be3d7e4e339d406d95eaa2e72152a2db.tar.gz",
-      "hash": "sha256-jnFozd13hWuCiikgVgh1MiPGAGnjzcHUiJR931QYpus="
+      "revision": "e2bdd0fb6f4c2dba965e41c5aae07697ba41056d",
+      "url": "https://github.com/juspay/kolu/archive/e2bdd0fb6f4c2dba965e41c5aae07697ba41056d.tar.gz",
+      "hash": "sha256-h2Xul04uSElTAJdCznAu1gtz8QzPLWeMgfNsNIbsc3E="
     },
     "nixpkgs": {
       "type": "Git",
